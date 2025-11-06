@@ -1213,6 +1213,44 @@ IMPORTANT: Always include appropriate medical disclaimers and recommend consulti
         """Handle casual greetings with friendly medical assistant response"""
         print(f"[Clinician] 👋 Handling casual greeting: {greeting}")
         
+        # Get available categories for disclaimer
+        category_names = []
+        if self.adaptive_engine:
+            try:
+                available_categories = self.adaptive_engine.get_available_categories()
+                category_display_names = {
+                    'gastrointestinal': 'Gastrointestinal',
+                    'cardiovascular': 'Cardiovascular',
+                    'cardio': 'Cardiovascular',
+                    'pulmonary': 'Pulmonary/Respiratory',
+                    'respiratory': 'Pulmonary/Respiratory',
+                    'neurological': 'Neurological',
+                    'musculoskeletal': 'Musculoskeletal',
+                    'renal': 'Renal',
+                    'genitourinary': 'Genitourinary',
+                    'gynecological': 'Gynecological',
+                    'dermatological': 'Dermatological'
+                }
+                
+                for cat in available_categories:
+                    cat_lower = cat.lower()
+                    display_name = category_display_names.get(cat_lower)
+                    if not display_name:
+                        # Capitalize first letter of each word
+                        display_name = ' '.join(word.capitalize() for word in cat.replace('_', ' ').split())
+                    category_names.append(display_name)
+                
+                # Remove duplicates while preserving order
+                seen = set()
+                unique_category_names = []
+                for name in category_names:
+                    if name not in seen:
+                        seen.add(name)
+                        unique_category_names.append(name)
+                category_names = unique_category_names
+            except Exception as e:
+                print(f"[Clinician] ⚠️ Could not get available categories: {e}")
+        
         # Generate a friendly greeting response
         system_prompt = (
             "You are Aura, a friendly and helpful medical AI assistant. "
@@ -1235,10 +1273,17 @@ IMPORTANT: Always include appropriate medical disclaimers and recommend consulti
                 temperature=0.7
             )
             
-            return response.strip()
+            greeting_text = response.strip()
         except Exception as e:
             print(f"[Clinician] ❌ Error generating greeting response: {e}")
-            return "Hello! I'm Aura, your medical AI assistant. I'm here to help with any medical questions or symptom assessment you might have."
+            greeting_text = "Hello! I'm Aura, your medical AI assistant. I'm here to help with any medical questions or symptom assessment you might have."
+        
+        # Add disclaimer about available categories
+        if category_names:
+            disclaimer = f"\n\nI am currently only able to provide guidance on the following categories: {', '.join(category_names)}."
+            greeting_text = greeting_text + disclaimer
+        
+        return greeting_text
 
     def _handle_general_medical(self, general_query: str) -> str:
         """Handle general medical queries"""

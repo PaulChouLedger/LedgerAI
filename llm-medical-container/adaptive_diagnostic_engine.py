@@ -866,6 +866,30 @@ Generate an empathetic response that acknowledges their distress and reassures t
         self._capture_debug(f"[Engine] ✅ Filtered {len(self.all_guidelines)} → {len(filtered)} guidelines for {category}")
         return filtered
     
+    def get_available_categories(self) -> List[str]:
+        """Get list of all available categories (based on guideline directories)"""
+        if not self.guidelines_dir.exists():
+            return []
+        
+        categories = set()
+        # Get all subdirectories in guidelines_dir (each represents a category)
+        for subdir in self.guidelines_dir.iterdir():
+            if subdir.is_dir():
+                # Map directory name to category name
+                dir_name = subdir.name.upper()
+                # Reverse lookup: find category from system name
+                found = False
+                for cat, sys in self.CATEGORY_TO_SYSTEM.items():
+                    if sys == dir_name or dir_name.startswith(sys):
+                        categories.add(cat)
+                        found = True
+                        break
+                # If no match found, use directory name as category (lowercase)
+                if not found:
+                    categories.add(subdir.name.lower())
+        
+        return sorted(list(categories))
+    
     
     # ============================================================================
     # SECTION 4: DEMOGRAPHICS - Age, Sex, Chronicity Extraction
