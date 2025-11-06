@@ -1,0 +1,238 @@
+{
+  "condition": "Dizziness",
+  "icd10": "R42",
+  "snomed": "404640003",
+  "sex": "both",
+  "prevalence": "common",
+  "urgency": "emergent",
+  "chief_complaint_triggers": [
+    "dizziness",
+    "dizzy",
+    "lightheaded",
+    "lightheadedness",
+    "feeling faint",
+    "vertigo",
+    "unsteady",
+    "woozy"
+  ],
+  "key_features": {
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          {
+            "medical": "acute",
+            "patient_friendly": "recently occurred less than 1 month"
+          },
+          {
+            "medical": "sudden",
+            "patient_friendly": "came on suddenly",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      },
+      "location": {
+        "includes": [
+          {
+            "medical": "headache",
+            "patient_friendly": "in your head"
+          },
+          {
+            "medical": "diffuse",
+            "patient_friendly": "all over"
+          }
+        ],
+        "excludes": [],
+        "anatomical_type": "vague"
+      },
+      "timing": {
+        "includes": [
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          },
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes"
+          },
+          {
+            "medical": "positional",
+            "patient_friendly": "worse when standing up or changing position"
+          }
+        ],
+        "excludes": []
+      },
+      "duration": {
+        "includes": [
+          {
+            "medical": "seconds",
+            "patient_friendly": "for a few seconds"
+          },
+          {
+            "medical": "minutes",
+            "patient_friendly": "for several minutes"
+          },
+          {
+            "medical": "hours",
+            "patient_friendly": "for several hours"
+          }
+        ],
+        "excludes": []
+      },
+      "progression": {
+        "includes": [
+          {
+            "medical": "sudden",
+            "patient_friendly": "came on suddenly",
+            "emergent": true
+          },
+          {
+            "medical": "worsening",
+            "patient_friendly": "getting worse over time",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          {
+            "medical": "lightheaded",
+            "patient_friendly": "feeling lightheaded or like you might pass out"
+          },
+          {
+            "medical": "vertigo",
+            "patient_friendly": "room spinning or moving"
+          },
+          {
+            "medical": "unsteady",
+            "patient_friendly": "feeling unsteady or off balance"
+          },
+          {
+            "medical": "woozy",
+            "patient_friendly": "feeling woozy or foggy"
+          }
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [
+          {
+            "medical": "standing up",
+            "patient_friendly": "standing up or changing position"
+          },
+          {
+            "medical": "movement",
+            "patient_friendly": "moving your head or body"
+          },
+          {
+            "medical": "exertion",
+            "patient_friendly": "physical activity or exertion"
+          }
+        ],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [
+          {
+            "medical": "lying down",
+            "patient_friendly": "lying down"
+          },
+          {
+            "medical": "sitting",
+            "patient_friendly": "sitting down"
+          },
+          {
+            "medical": "rest",
+            "patient_friendly": "resting"
+          }
+        ],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [
+          {
+            "medical": "mild",
+            "patient_friendly": "mild"
+          },
+          {
+            "medical": "moderate",
+            "patient_friendly": "moderate"
+          },
+          {
+            "medical": "severe",
+            "patient_friendly": "severe",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "syncope",
+            "patient_friendly": "fainting or passing out",
+            "emergent": true
+          },
+          {
+            "medical": "near syncope",
+            "patient_friendly": "feeling like you're about to pass out",
+            "emergent": true
+          },
+          {
+            "medical": "nausea",
+            "patient_friendly": "nausea"
+          },
+          {
+            "medical": "vomiting",
+            "patient_friendly": "vomiting"
+          },
+          {
+            "medical": "palpitations",
+            "patient_friendly": "racing heart or palpitations",
+            "emergent": true
+          },
+          {
+            "medical": "chest pain",
+            "patient_friendly": "chest pain",
+            "emergent": true
+          },
+          {
+            "medical": "shortness of breath",
+            "patient_friendly": "shortness of breath",
+            "emergent": true
+          },
+          {
+            "medical": "diaphoresis",
+            "patient_friendly": "sweating",
+            "emergent": true
+          },
+          {
+            "medical": "visual changes",
+            "patient_friendly": "blurred vision or visual changes"
+          },
+          {
+            "medical": "hearing loss",
+            "patient_friendly": "hearing loss or ringing in ears"
+          },
+          {
+            "medical": "headache",
+            "patient_friendly": "headache"
+          },
+          {
+            "medical": "weakness",
+            "patient_friendly": "weakness",
+            "emergent": true
+          },
+          {
+            "medical": "confusion",
+            "patient_friendly": "confusion or disorientation",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      }
+    }
+  }
+}
+
