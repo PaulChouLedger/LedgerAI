@@ -3573,20 +3573,20 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
         # Use patient_friendly terms for FAISS matching
         all_includes = all_includes_patient_friendly
         
-        # Also collect active-only medical terms for missing terms calculation
-        active_medical_terms = []
+        # Also collect active-only patient_friendly terms for debug (to distinguish active vs reserve)
+        active_includes = set()
         for g in self.active_guidelines:
-            structured = g.get('data', {}).get('key_features', {}).get('structured_oldcarts', {})
+            structured = self._get_structured_oldcarts(g)
             element_data = structured.get(oldcarts_element, {})
             if isinstance(element_data, dict):
                 includes = element_data.get('includes', [])
                 for t in includes:
                     if isinstance(t, dict):
-                        med = t.get('medical')
-                        if isinstance(med, str) and med.strip():
-                            active_medical_terms.append(med.strip())
+                        pf = t.get('patient_friendly', '')
+                        if isinstance(pf, str) and pf.strip():
+                            active_includes.add(pf.strip())
                     elif isinstance(t, str):
-                        active_medical_terms.append(t.strip())
+                        active_includes.add(t.strip())
         
         self._capture_debug(f"[Location Analysis] 📍 Checking satisfaction against {len(all_guidelines_to_check)} guidelines (after anatomical filtering)")
         self._capture_debug(f"[Location Analysis] 📍 Patient_friendly terms from {len(all_guidelines_to_check)} guidelines: {sorted(all_includes)}")
@@ -3636,6 +3636,49 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
         # IMPORTANT: Use original answer, not normalized_answer, to avoid adding components that weren't mentioned
         if oldcarts_element == 'location' and self.medical_rule_engine:
             patient_components = self.medical_rule_engine._extract_anatomical_components(answer_lower)
+            
+            # Filter out anatomically opposite terms based on patient's answer
+            # Use medical_rule_engine._are_anatomical_opposites to check ALL mismatch rules (not just horizontal)
+            if patient_components:
+                original_count = len(all_includes)
+                filtered_includes = set()
+                
+                # Pre-extract components for all terms to check anatomical compatibility
+                for term in all_includes:
+                    term_guidelines = term_to_guidelines.get(term, [])
+                    term_components = {}
+                    
+                    # Try to get components from guideline anatomical_type first
+                    if term_guidelines:
+                        for guideline_name in term_guidelines:
+                            for g in all_guidelines_to_check:
+                                condition_name = g.get('data', {}).get('condition', g.get('name', ''))
+                                if condition_name == guideline_name:
+                                    anatomical_type = self.medical_rule_engine._get_anatomical_type_from_guideline(g)
+                                    if anatomical_type:
+                                        term_components = self.medical_rule_engine._map_anatomical_type_to_components(anatomical_type)
+                                        break
+                            if term_components:
+                                break
+                    
+                    # Fallback to keyword extraction if no guideline found
+                    if not term_components:
+                        term_components = self.medical_rule_engine._extract_anatomical_components(term)
+                    
+                    # Check if term is anatomically opposite using medical rules
+                    if term_components:
+                        is_opposite = self.medical_rule_engine._are_anatomical_opposites(patient_components, term_components)
+                        if is_opposite:
+                            self._capture_debug(f"[Location Analysis] ❌ Filtered out anatomically opposite term '{term}' (patient: {patient_components}, term: {term_components})")
+                            continue
+                    
+                    # Term is compatible (not anatomically opposite or no components specified)
+                    filtered_includes.add(term)
+                
+                # Update all_includes to only include filtered terms
+                all_includes = filtered_includes
+                filtered_count = original_count - len(all_includes)
+                self._capture_debug(f"[Location Analysis] 🔍 Filtered {filtered_count} anatomically opposite terms, {len(all_includes)} remaining")
         
         # OPTIMIZATION: Pre-extract anatomical components for ALL terms ONCE (not in loop)
         # PRIMARY METHOD: Use guideline anatomical_type when term is associated with a guideline
