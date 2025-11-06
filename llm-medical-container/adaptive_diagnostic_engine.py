@@ -4421,6 +4421,16 @@ Generate a clarification question using EXACTLY this format with the terms provi
         self._capture_debug(f"[Clarification] 📥 LLM response: '{cleaned_response}'")
         self._capture_debug(f"[Clarification] ✅ Validating against expected terms: {terms_to_use}")
         
+        # Debug: Show which terms were found in the response
+        found_terms = [term for term in terms_to_use if term.lower() in response_lower]
+        if found_terms:
+            self._capture_debug(f"[Clarification] ✅ Found {len(found_terms)}/{len(terms_to_use)} terms in response: {found_terms}")
+        else:
+            self._capture_debug(f"[Clarification] ⚠️ No provided terms found in response")
+        
+        validation_passed = True
+        validation_error = None
+        
         if not has_term:
             # Check if it's just a generic question without terms
             generic_patterns = [
@@ -4431,56 +4441,93 @@ Generate a clarification question using EXACTLY this format with the terms provi
             ]
             is_generic = any(pattern in response_lower for pattern in generic_patterns)
             if is_generic:
-                raise ValueError(f"LLM generated generic question without missing terms: '{cleaned_response}'. Expected question with terms from: {terms_to_use}")
+                validation_passed = False
+                validation_error = f"LLM generated generic question without missing terms: '{cleaned_response}'. Expected question with terms from: {terms_to_use}"
         
-        # Stricter validation: Check if response contains terms NOT in the provided list
+        # Stricter validation: Check if response contains location terms NOT in the provided list
         # This catches cases where LLM uses terms from conversation context that were already filtered out
-        if oldcarts_element == 'location':
-            # Extract all potential location phrases from the response (2-4 word phrases)
-            response_words = cleaned_response.lower().split()
+        if validation_passed and oldcarts_element == 'location':
+            # First, verify that the response contains at least one full provided term (already done above)
+            # Now check for standalone location phrases that aren't part of provided terms
+            
+            # Normalize the response for comparison (remove punctuation, lowercase)
+            response_normalized = cleaned_response.lower()
+            # Remove common punctuation that might interfere
+            import string
+            for punct in string.punctuation:
+                response_normalized = response_normalized.replace(punct, ' ')
+            response_normalized = ' '.join(response_normalized.split())  # Normalize whitespace
+            
+            # Check each provided term - if it's in the response, that's good
+            # We want to find location phrases that are NOT substrings of any provided term
             invalid_phrases = []
             
-            # Check 2-4 word phrases that might be location terms
-            for phrase_length in [4, 3, 2]:
-                for i in range(len(response_words) - phrase_length + 1):
-                    phrase = " ".join(response_words[i:i+phrase_length])
-                    
-                    # Check if this phrase matches any of our provided terms (allowing for partial matches)
-                    matches_provided = False
+            # Check for common invalid patterns that might appear
+            # These are location terms that might be from previous questions or LLM's general knowledge
+            invalid_location_patterns = [
+                'right upper quadrant', 'left upper quadrant', 'right lower quadrant', 'left lower quadrant',
+                'upper right quadrant', 'upper left quadrant', 'lower right quadrant', 'lower left quadrant',
+                'epigastric', 'periumbilical', 'retrosternal', 'rectal', 'diffuse'
+            ]
+            
+            # Check if response contains any invalid patterns that aren't in provided terms
+            for pattern in invalid_location_patterns:
+                pattern_lower = pattern.lower()
+                # Check if pattern appears in response
+                if pattern_lower in response_normalized:
+                    # Check if this pattern is part of any provided term
+                    is_part_of_provided = False
                     for provided_term in terms_to_use:
                         provided_lower = provided_term.lower()
-                        # Check if phrase is contained in provided term or vice versa
-                        if phrase in provided_lower or provided_lower in phrase:
-                            matches_provided = True
+                        # Check if pattern is contained in provided term (allowing for word boundaries)
+                        if pattern_lower in provided_lower:
+                            is_part_of_provided = True
                             break
-                        # Also check if significant words overlap (for multi-word phrases)
-                        if phrase_length >= 2:
-                            phrase_words = set(phrase.split())
-                            provided_words = set(provided_lower.split())
-                            # If 2+ words overlap, likely a match
-                            if len(phrase_words & provided_words) >= 2:
-                                matches_provided = True
-                                break
+                        # Also check if provided term contains the key words from pattern
+                        pattern_words = set(pattern_lower.split())
+                        provided_words = set(provided_lower.split())
+                        if len(pattern_words) >= 2 and len(pattern_words & provided_words) >= len(pattern_words) - 1:
+                            # Pattern's words mostly match provided term - likely same term
+                            is_part_of_provided = True
+                            break
                     
-                    # If phrase doesn't match any provided term, check if it looks like a location term
-                    if not matches_provided:
-                        # Check if it contains location-like words (common anatomical terms)
-                        location_indicators = ['upper', 'lower', 'left', 'right', 'quadrant', 'side', 'abdomen', 'belly', 
-                                             'groin', 'ribs', 'breastbone', 'chest', 'back', 'neck', 'head', 'arm', 
-                                             'leg', 'foot', 'hand', 'shoulder', 'hip', 'knee', 'elbow', 'wrist', 
-                                             'ankle', 'thigh', 'calf', 'forearm', 'epigastric', 'periumbilical', 
-                                             'rectal', 'diffuse', 'localized']
-                        if any(indicator in phrase for indicator in location_indicators):
-                            # This looks like a location term but doesn't match any provided term
-                            invalid_phrases.append(phrase)
+                    if not is_part_of_provided:
+                        # This pattern appears but isn't in provided terms - invalid
+                        invalid_phrases.append(pattern)
             
             if invalid_phrases:
-                # Remove duplicates and filter out very short phrases (likely false positives)
-                invalid_phrases = [p for p in set(invalid_phrases) if len(p.split()) >= 2]
-                if invalid_phrases:
-                    self._capture_debug(f"[Clarification] ❌ ERROR: LLM used invalid location terms not in provided list: {invalid_phrases}")
-                    self._capture_debug(f"[Clarification] ❌ Expected only these terms: {terms_to_use}")
-                    raise ValueError(f"LLM generated question with invalid location terms: {invalid_phrases}. Expected question using ONLY these terms: {terms_to_use}")
+                validation_passed = False
+                validation_error = f"LLM used invalid location terms not in provided list: {invalid_phrases}. Expected question using ONLY these terms: {terms_to_use}"
+        
+        # If validation failed, build question manually
+        if not validation_passed:
+            self._capture_debug(f"[Clarification] ⚠️ LLM validation failed: {validation_error}")
+            self._capture_debug(f"[Clarification] 🔧 Building question manually from provided terms")
+            
+            # Manually construct question from provided terms
+            if oldcarts_element == 'location':
+                if len(terms_to_use) >= 4:
+                    # Use first 4 terms
+                    question = f"Is it located at {terms_to_use[0]}, {terms_to_use[1]}, {terms_to_use[2]}, or {terms_to_use[3]}?"
+                elif len(terms_to_use) == 3:
+                    question = f"Is it located at {terms_to_use[0]}, {terms_to_use[1]}, or {terms_to_use[2]}?"
+                elif len(terms_to_use) == 2:
+                    question = f"Is it located at {terms_to_use[0]} or {terms_to_use[1]}?"
+                else:
+                    question = f"Is it located at {terms_to_use[0]}?"
+            else:
+                # Non-location elements
+                if len(terms_to_use) >= 4:
+                    question = f"Is it {terms_to_use[0]}, {terms_to_use[1]}, {terms_to_use[2]}, or {terms_to_use[3]}?"
+                elif len(terms_to_use) == 3:
+                    question = f"Is it {terms_to_use[0]}, {terms_to_use[1]}, or {terms_to_use[2]}?"
+                elif len(terms_to_use) == 2:
+                    question = f"Is it {terms_to_use[0]} or {terms_to_use[1]}?"
+                else:
+                    question = f"Is it {terms_to_use[0]}?"
+            
+            self._capture_debug(f"[Clarification] ✅ Question generated manually: '{question}'")
+            return question
         
         return cleaned_response
     
