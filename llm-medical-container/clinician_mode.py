@@ -355,11 +355,15 @@ class ClinicianSession:
         """
         # PRIORITY 0: Check if this is a greeting (before any other processing)
         # Handle greetings regardless of which engine is active
+        # Always check for greetings on new sessions (no active assessment)
         if not self.adaptive_assessment_active and not self.session_chief_complaint:
             # Check if it's a greeting using LLM (if available) or simple heuristic
             is_greeting = self._is_greeting_message(user_input)
             if is_greeting:
+                print(f"[Clinician] 👋 Detected greeting: '{user_input}' - handling as greeting")
                 return self._handle_casual_greeting(user_input)
+            else:
+                print(f"[Clinician] 🔍 Not a greeting: '{user_input}' - proceeding to symptom assessment")
         
         # Store the query
         self.conversation_history.append({
@@ -508,9 +512,9 @@ class ClinicianSession:
                     user_message=symptom_query
                 )
                 
-                # Convert navigator response format to expected format
+                # Convert navigator response format to expected format (compatible with TTS)
                 if isinstance(response, dict):
-                    message = response.get('response', '')
+                    navigator_response = response.get('response', '')
                     status = response.get('status', 'assessment')
                     
                     # Track assessment state
@@ -519,12 +523,22 @@ class ClinicianSession:
                         if 'chief_complaint' in response.get('metadata', {}):
                             self.session_chief_complaint = response['metadata']['chief_complaint']
                     
-                    return {
-                        'success': True,
-                        'message': message,
-                        'status': status,
-                        'debug': response.get('metadata', {})
-                    }
+                    # For TTS compatibility: use 'question' for assessment questions, 'message' for others
+                    # This matches the adaptive engine format that TTS expects
+                    if status == 'assessment':
+                        return {
+                            'success': True,
+                            'question': navigator_response,  # TTS expects 'question' for assessment questions
+                            'status': status,
+                            'debug': response.get('metadata', {})
+                        }
+                    else:
+                        return {
+                            'success': True,
+                            'message': navigator_response,  # Use 'message' for greetings, etc.
+                            'status': status,
+                            'debug': response.get('metadata', {})
+                        }
                 else:
                     return {
                         'success': True,
@@ -1433,15 +1447,21 @@ Keep responses conversational and inviting."""
 
     def _is_greeting_message(self, user_input: str) -> bool:
         """Detect if message is a greeting (before routing to engines)"""
-        if not self.llm_chat_simple_fn:
-            # Fallback: simple heuristic
-            user_lower = user_input.lower().strip()
-            greeting_words = ['hello', 'hi', 'hey', 'good morning', 'good afternoon', 'good evening', 'greetings', 'howdy']
-            return any(greeting in user_lower for greeting in greeting_words) and len(user_lower.split()) <= 3
+        user_lower = user_input.lower().strip()
         
-        # Use LLM to detect greeting
-        try:
-            system_msg = """You are a medical assistant. Determine if the patient's message is a greeting or a medical concern.
+        # First check: simple heuristic for obvious greetings (fast path)
+        greeting_words = ['hello', 'hi', 'hey', 'good morning', 'good afternoon', 'good evening', 'greetings', 'howdy', 'morning', 'afternoon', 'evening']
+        # Check if it's a simple greeting (1-3 words containing greeting words)
+        word_count = len(user_lower.split())
+        if word_count <= 3:
+            if any(greeting in user_lower for greeting in greeting_words):
+                print(f"[Clinician] ✅ Fast path: Detected greeting via heuristic: '{user_input}'")
+                return True
+        
+        # Second check: Use LLM if available (for more nuanced detection)
+        if self.llm_chat_simple_fn:
+            try:
+                system_msg = """You are a medical assistant. Determine if the patient's message is a greeting or a medical concern.
 
 Return ONLY 'greeting' or 'medical'.
 
@@ -1455,22 +1475,24 @@ Examples of MEDICAL:
 - "I have chest pain"
 - "My stomach hurts"
 - Any symptom description or medical question"""
-            
-            response = self.llm_chat_simple_fn(
-                [{"role": "system", "content": system_msg}, 
-                 {"role": "user", "content": f"Patient message: {user_input}\n\nIs this a greeting or medical? Return ONLY 'greeting' or 'medical':"}],
-                max_tokens=10,
-                temperature=0.1
-            )
-            
-            result = response.strip().lower()
-            return 'greeting' in result and 'medical' not in result
-        except Exception as e:
-            print(f"[Clinician] ⚠️ LLM greeting detection failed: {e}, using fallback")
-            # Fallback to simple heuristic
-            user_lower = user_input.lower().strip()
-            greeting_words = ['hello', 'hi', 'hey', 'good morning', 'good afternoon', 'good evening']
-            return any(greeting in user_lower for greeting in greeting_words) and len(user_lower.split()) <= 3
+                
+                response = self.llm_chat_simple_fn(
+                    [{"role": "system", "content": system_msg}, 
+                     {"role": "user", "content": f"Patient message: {user_input}\n\nIs this a greeting or medical? Return ONLY 'greeting' or 'medical':"}],
+                    max_tokens=10,
+                    temperature=0.1
+                )
+                
+                result = response.strip().lower()
+                is_greeting = 'greeting' in result and 'medical' not in result
+                if is_greeting:
+                    print(f"[Clinician] ✅ LLM detected greeting: '{user_input}'")
+                return is_greeting
+            except Exception as e:
+                print(f"[Clinician] ⚠️ LLM greeting detection failed: {e}, using fallback")
+        
+        # Fallback: simple heuristic (already checked above, but return False if not caught)
+        return False
 
     def _is_question(self, user_input: str) -> bool:
         """Use LLM to detect if user input is a question (not an answer to assessment)"""
