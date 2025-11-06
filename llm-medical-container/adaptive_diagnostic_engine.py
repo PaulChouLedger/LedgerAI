@@ -2434,6 +2434,7 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
         
         # Handle age answers - check if we just asked an age question
         # Note: Interpretation already happened at start of process_answer
+        self._capture_debug(f"[Engine] 🔍 Checking age processing: last_q={last_q.get('focus') if last_q else None}, age in demographics: {'age' in self.demographics}")
         if (last_q and last_q.get('type') == 'question' and last_q.get('focus') == 'age' and 
             'age' not in self.demographics):
             # Process age answer (use processing_answer which may have extracted info)
@@ -2460,15 +2461,8 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
                     }
                 }
         
-        # If we reach here, age validation failed (out of range)
-        return {
-            'success': False,
-            'message': 'Can you please tell me your age so I can update our medical records?',
-            'debug': {
-                'engine': self._format_engine_debug("[Engine] ❌ Age validation failed - out of range"),
-                'internal': self._get_debug_info(last_answer=user_answer)
-            }
-        }
+        # If we reach here without processing age, continue to other handlers
+        # (Don't return here - let other handlers process the answer)
         
         
         # Handle red flag answers
@@ -2610,6 +2604,7 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
                 }
             }
         
+        self._capture_debug(f"[Engine] 🔍 Checking chronicity processing: last_q focus={last_q.get('focus') if last_q else None}, chronicity in demographics: {'chronicity' in self.demographics}")
         if last_q and last_q.get('focus') == 'chronicity':
             # Note: Interpretation already happened at start of process_answer
             # Distress is acknowledged but does NOT skip questions - only severe emergencies skip
