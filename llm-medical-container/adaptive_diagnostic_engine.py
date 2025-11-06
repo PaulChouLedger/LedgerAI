@@ -103,8 +103,8 @@ class AdaptiveDiagnosticEngine:
 1. You MUST use ONLY the terms from the list above - do NOT create new terms
 2. If the patient already mentioned something, do NOT ask about that same thing again
 3. Use "or" to connect the options naturally with proper grammar
-4. You MUST include at least 3-5 of the provided options in your question - do NOT ask "Can you be more specific?" without including specific options
-5. Format: "Can you be more specific? For example, is it [option1], [option2], [option3], or [option4]?" - the options list is REQUIRED, not optional
+4. You MUST include ALL of the provided options in your question - start directly with the options, do NOT use generic phrases like "Can you be more specific?"
+5. Format: "Is it [option1], [option2], [option3], or [option4]?" - start directly with the options, no generic phrases
 6. Return ONLY the question - no explanations, no reasoning, no "Here's a question:", no "Alternatively:", no additional text"""
     
     # OLDCARTS Question Generation
@@ -4397,7 +4397,15 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
             raise ValueError(f"Cannot generate clarifying question for {oldcarts_element} - no patient-friendly terms found")
         
         # Use LLM to generate a natural, properly structured clarification question
-        system_msg = "You are a medical assistant conducting a telehealth interview. Generate a natural, grammatically correct clarification question that flows well. Use proper grammar with 'and' and 'or' to connect options naturally. Return ONLY the question - no explanations, no reasoning, no additional text."
+        # CRITICAL: Use very strict system message to prevent generic questions
+        system_msg = """You are a medical assistant conducting a telehealth interview. 
+
+CRITICAL RULES:
+1. You MUST include the specific terms provided in your question
+2. DO NOT generate generic questions like "Can you be more specific?" without including the provided terms
+3. Use proper grammar with 'and' and 'or' to connect options naturally
+4. Return ONLY the question - no explanations, no reasoning, no additional text
+5. If you cannot include the provided terms, you MUST use the exact format shown in the example"""
         
         # Get context using helper functions
         chief_complaint_context = self._get_chief_complaint_context()
@@ -4487,19 +4495,22 @@ CRITICAL FOR PROGRESSION QUESTIONS:
 - Examples of BAD questions: "Did it progress from one episode to the next?" (too vague, unclear what "progress" means)
 """
             
-            user_msg = f"""{chief_complaint_context}{conversation_context}
+            # Restructure prompt: Put example FIRST (small models focus on first content)
+            # Then provide terms, then rules
+            user_msg = f"""EXAMPLE of correct format (use this EXACT format):
+"{example_question}"
+
+Here are the {len(terms_to_use)} terms you MUST include in your question:
+{options_list}
 
 The patient already said: "{patient_answer}"
 
-We need to clarify the {oldcarts_element}. Here are the ONLY possible options from the medical guidelines (you MUST use ONLY these exact terms):
-{options_list}
+{chief_complaint_context}{conversation_context}
 
 {self.LLM_CLARIFICATION_GENERAL_RULES}
 {element_specific_guidance}
 
-EXAMPLE of correct format: "{example_question}"
-
-Generate a clarification question using EXACTLY this format with the terms provided above. The question MUST include at least 3-4 specific options from the list."""
+CRITICAL: Generate a question using the EXACT format shown in the example above. Start directly with "Is it" followed by ALL {len(terms_to_use)} terms from the list, connected with "or". DO NOT use generic phrases."""
         
         # Increase max_tokens to ensure all terms can be included (5 terms * ~30 chars each + question structure = ~200 tokens)
         llm_kwargs = self._get_llm_kwargs(override_max_tokens=200)  # Increased to allow for all terms in longer questions
