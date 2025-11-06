@@ -2450,15 +2450,25 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
                     self._capture_debug(f"[Engine] ❌ Age out of range: {age}")
             else:
                 self._capture_debug(f"[Engine] ❌ Age not numeric: '{age_str}'")
-                # No fallback - return error
-        return {
-                'success': False,
-                'message': 'Please provide your age as a number (e.g., 25, thirty-five, etc.)',
-                'debug': {
+                # No fallback - return error with the correct age question
+                return {
+                    'success': False,
+                    'message': 'Can you please tell me your age so I can update our medical records?',
+                    'debug': {
                         'engine': self._format_engine_debug("[Engine] ❌ Age validation failed - no fallback"),
-                    'internal': self._get_debug_info(last_answer=user_answer)
+                        'internal': self._get_debug_info(last_answer=user_answer)
+                    }
                 }
+        
+        # If we reach here, age validation failed (out of range)
+        return {
+            'success': False,
+            'message': 'Can you please tell me your age so I can update our medical records?',
+            'debug': {
+                'engine': self._format_engine_debug("[Engine] ❌ Age validation failed - out of range"),
+                'internal': self._get_debug_info(last_answer=user_answer)
             }
+        }
         
         
         # Handle red flag answers
@@ -2620,6 +2630,7 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
             # Use extracted_info if available (from _interpret_patient_response)
             self._capture_debug(f"[Engine] 🔍 Chronicity extraction - extracted_info: {extracted_info}, processing_answer: {processing_answer}")
             chronicity_value = None
+            
             if extracted_info and extracted_info in ['new', 'recurring']:
                 # Extracted info already found - use it directly
                 chronicity_value = extracted_info
@@ -2644,11 +2655,19 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
                     }
             
             # Save chronicity value (should always have a value here if we didn't return above)
-            if chronicity_value:
-                self.demographics['chronicity'] = chronicity_value
-                self._capture_debug(f"[Engine] ✅ Chronicity saved to demographics: {chronicity_value}, demographics now: {self.demographics}")
-            else:
-                self._capture_debug(f"[Engine] ❌ CRITICAL: No chronicity value to save! This should not happen.")
+            if not chronicity_value:
+                self._capture_debug(f"[Engine] ❌ CRITICAL: No chronicity value to save!")
+                return {
+                    'success': False,
+                    'message': 'I need to know if this is a new problem or something you\'ve had before. Please tell me if it\'s new or recurring.',
+                    'debug': {
+                        'engine': self._format_engine_debug("[Engine] ❌ Chronicity extraction failed - no value to save"),
+                        'internal': self._get_debug_info(last_answer=user_answer)
+                    }
+                }
+            
+            self.demographics['chronicity'] = chronicity_value
+            self._capture_debug(f"[Engine] ✅ Chronicity saved to demographics: {chronicity_value}, demographics now: {self.demographics}")
             
             # If chronicity was successfully set, proceed to next missing element
             if 'chronicity' in self.demographics:
