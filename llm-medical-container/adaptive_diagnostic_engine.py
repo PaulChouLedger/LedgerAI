@@ -1827,8 +1827,10 @@ RECOMMENDATION: {recommendation}"""
                     max_tokens = 10
                 elif extraction_element == 'location' and last_q:
                     last_question_text = last_q.get('question', '')
+                    self._capture_debug(f"[LLM Extraction] 🔍 Location question: '{last_question_text}'")
                     # Special handling for pain/discomfort questions
                     if 'pain' in last_question_text.lower() or 'discomfort' in last_question_text.lower():
+                        self._capture_debug(f"[LLM Extraction] 🔍 Detected pain/discomfort question - interpreting answer")
                         system_msg = "You are a medical assistant. Determine if the patient's answer to a pain/discomfort question means they have NO pain or discomfort. If the answer indicates no pain/discomfort, respond with 'no_pain'. If the answer indicates they DO have pain/discomfort, respond with 'has_pain'. Return ONLY 'no_pain' or 'has_pain'."
                         user_msg = f"Question: '{last_question_text}'\nPatient answer: '{user_input}'\n\nDoes this mean the patient has NO pain or discomfort?"
                         max_tokens = 10
@@ -3099,7 +3101,8 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
         expected_element = last_q.get('oldcarts') if last_q else None
         
         # PRIORITY: Intelligently interpret the response (comments, questions, distress, or direct answer)
-        response_interpretation = self._interpret_patient_response(answer, expected_element)
+        # Pass last_q so LLM extraction can check question context (e.g., for pain questions)
+        response_interpretation = self._interpret_patient_response(answer, expected_element, last_q=last_q)
         
         # Extract info for processing
         distress_info = response_interpretation.get('distress_info', {})
