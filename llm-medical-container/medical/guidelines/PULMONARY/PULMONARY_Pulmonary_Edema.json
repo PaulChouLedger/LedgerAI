@@ -1,0 +1,187 @@
+{
+  "condition": "Pulmonary Edema",
+  "icd10": "J81.0",
+  "snomed": "84114007",
+  "sex": "both",
+  "prevalence": "common",
+  "urgency": "emergent",
+  "chief_complaint_triggers": [
+    "shortness of breath",
+    "difficulty breathing",
+    "pulmonary edema",
+    "fluid in lungs",
+    "can't breathe lying down"
+  ],
+  "key_features": {
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          {
+            "medical": "acute",
+            "patient_friendly": "recently occurred less than 1 month"
+          }
+        ],
+        "excludes": []
+      },
+      "location": {
+        "includes": [
+          {
+            "medical": "chest",
+            "patient_friendly": "in your chest"
+          },
+          {
+            "medical": "diffuse",
+            "patient_friendly": "all over"
+          }
+        ],
+        "excludes": [],
+        "anatomical_type": "vague"
+      },
+      "timing": {
+        "includes": [
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          },
+          {
+            "medical": "worse at night",
+            "patient_friendly": "worse when lying down or at night"
+          }
+        ],
+        "excludes": []
+      },
+      "duration": {
+        "includes": [
+          {
+            "medical": "hours",
+            "patient_friendly": "for several hours"
+          },
+          {
+            "medical": "days",
+            "patient_friendly": "for a few days"
+          }
+        ],
+        "excludes": []
+      },
+      "progression": {
+        "includes": [
+          {
+            "medical": "sudden",
+            "patient_friendly": "came on suddenly",
+            "emergent": true
+          },
+          {
+            "medical": "worsening",
+            "patient_friendly": "getting worse over time",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          {
+            "medical": "dyspnea",
+            "patient_friendly": "shortness of breath",
+            "emergent": true
+          },
+          {
+            "medical": "orthopnea",
+            "patient_friendly": "trouble breathing when lying flat",
+            "emergent": true
+          },
+          {
+            "medical": "paroxysmal nocturnal dyspnea",
+            "patient_friendly": "waking up gasping for air at night",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [
+          {
+            "medical": "lying flat",
+            "patient_friendly": "lying down flat"
+          },
+          {
+            "medical": "physical activity",
+            "patient_friendly": "physical activity or exertion"
+          }
+        ],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [
+          {
+            "medical": "sitting upright",
+            "patient_friendly": "sitting upright"
+          },
+          {
+            "medical": "oxygen",
+            "patient_friendly": "oxygen"
+          }
+        ],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [
+          {
+            "medical": "moderate",
+            "patient_friendly": "moderate"
+          },
+          {
+            "medical": "severe",
+            "patient_friendly": "severe",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "productive cough",
+            "patient_friendly": "coughing up pink or frothy phlegm",
+            "emergent": true
+          },
+          {
+            "medical": "orthopnea",
+            "patient_friendly": "trouble breathing when lying down",
+            "emergent": true
+          },
+          {
+            "medical": "tachypnea",
+            "patient_friendly": "rapid breathing",
+            "emergent": true
+          },
+          {
+            "medical": "tachycardia",
+            "patient_friendly": "racing heart",
+            "emergent": true
+          },
+          {
+            "medical": "diaphoresis",
+            "patient_friendly": "sweating",
+            "emergent": true
+          },
+          {
+            "medical": "hypoxia",
+            "patient_friendly": "low oxygen levels",
+            "emergent": true
+          },
+          {
+            "medical": "anxiety",
+            "patient_friendly": "feeling anxious or panicked"
+          },
+          {
+            "medical": "fatigue",
+            "patient_friendly": "extreme tiredness or fatigue"
+          }
+        ],
+        "excludes": []
+      }
+    }
+  }
+}
+

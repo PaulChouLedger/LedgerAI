@@ -1,0 +1,197 @@
+{
+  "condition": "COPD Exacerbation",
+  "icd10": "J44.1",
+  "snomed": "13645005",
+  "sex": "both",
+  "prevalence": "common",
+  "urgency": "emergent",
+  "chief_complaint_triggers": [
+    "COPD",
+    "emphysema",
+    "chronic bronchitis",
+    "shortness of breath",
+    "difficulty breathing",
+    "worsening breathing"
+  ],
+  "key_features": {
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          {
+            "medical": "acute",
+            "patient_friendly": "recently occurred less than 1 month"
+          },
+          {
+            "medical": "chronic",
+            "patient_friendly": "has been going on for more than 1 month"
+          }
+        ],
+        "excludes": []
+      },
+      "location": {
+        "includes": [
+          {
+            "medical": "chest",
+            "patient_friendly": "in your chest"
+          },
+          {
+            "medical": "diffuse",
+            "patient_friendly": "all over"
+          }
+        ],
+        "excludes": [],
+        "anatomical_type": "vague"
+      },
+      "timing": {
+        "includes": [
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          },
+          {
+            "medical": "worse with activity",
+            "patient_friendly": "worse with physical activity"
+          }
+        ],
+        "excludes": []
+      },
+      "duration": {
+        "includes": [
+          {
+            "medical": "hours",
+            "patient_friendly": "for several hours"
+          },
+          {
+            "medical": "days",
+            "patient_friendly": "for a few days"
+          }
+        ],
+        "excludes": []
+      },
+      "progression": {
+        "includes": [
+          {
+            "medical": "worsening",
+            "patient_friendly": "getting worse over time",
+            "emergent": true
+          },
+          {
+            "medical": "sudden",
+            "patient_friendly": "came on suddenly",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          {
+            "medical": "dyspnea",
+            "patient_friendly": "shortness of breath"
+          },
+          {
+            "medical": "productive cough",
+            "patient_friendly": "coughing up phlegm or mucus"
+          },
+          {
+            "medical": "wheezing",
+            "patient_friendly": "wheezing or whistling sound"
+          }
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [
+          {
+            "medical": "physical activity",
+            "patient_friendly": "physical activity or exertion"
+          },
+          {
+            "medical": "respiratory infection",
+            "patient_friendly": "cold or respiratory infection"
+          },
+          {
+            "medical": "smoke",
+            "patient_friendly": "smoke or air pollution"
+          }
+        ],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [
+          {
+            "medical": "bronchodilator",
+            "patient_friendly": "inhaler or breathing medication"
+          },
+          {
+            "medical": "rest",
+            "patient_friendly": "resting"
+          },
+          {
+            "medical": "oxygen",
+            "patient_friendly": "oxygen"
+          }
+        ],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [
+          {
+            "medical": "moderate",
+            "patient_friendly": "moderate"
+          },
+          {
+            "medical": "severe",
+            "patient_friendly": "severe",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "productive cough",
+            "patient_friendly": "coughing up phlegm or mucus"
+          },
+          {
+            "medical": "purulent sputum",
+            "patient_friendly": "yellow or green phlegm",
+            "emergent": true
+          },
+          {
+            "medical": "fever",
+            "patient_friendly": "fever",
+            "emergent": true
+          },
+          {
+            "medical": "wheezing",
+            "patient_friendly": "wheezing or whistling sound",
+            "emergent": true
+          },
+          {
+            "medical": "tachypnea",
+            "patient_friendly": "rapid breathing",
+            "emergent": true
+          },
+          {
+            "medical": "hypoxia",
+            "patient_friendly": "low oxygen levels",
+            "emergent": true
+          },
+          {
+            "medical": "use of accessory muscles",
+            "patient_friendly": "using neck or chest muscles to breathe",
+            "emergent": true
+          },
+          {
+            "medical": "fatigue",
+            "patient_friendly": "extreme tiredness or fatigue"
+          }
+        ],
+        "excludes": []
+      }
+    }
+  }
+}
+

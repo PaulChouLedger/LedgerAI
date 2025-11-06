@@ -1,0 +1,178 @@
+{
+  "condition": "Supraventricular Tachycardia",
+  "icd10": "I47.1",
+  "snomed": "49436004",
+  "sex": "both",
+  "prevalence": "common",
+  "urgency": "emergent",
+  "chief_complaint_triggers": [
+    "racing heart",
+    "fast heartbeat",
+    "palpitations",
+    "heart racing",
+    "tachycardia"
+  ],
+  "key_features": {
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          {
+            "medical": "acute",
+            "patient_friendly": "recently occurred less than 1 month"
+          }
+        ],
+        "excludes": []
+      },
+      "location": {
+        "includes": [
+          {
+            "medical": "chest",
+            "patient_friendly": "in your chest"
+          }
+        ],
+        "excludes": [],
+        "anatomical_type": "vague"
+      },
+      "timing": {
+        "includes": [
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes"
+          },
+          {
+            "medical": "sudden onset",
+            "patient_friendly": "starts suddenly"
+          },
+          {
+            "medical": "sudden termination",
+            "patient_friendly": "stops suddenly"
+          }
+        ],
+        "excludes": []
+      },
+      "duration": {
+        "includes": [
+          {
+            "medical": "minutes",
+            "patient_friendly": "for several minutes"
+          },
+          {
+            "medical": "hours",
+            "patient_friendly": "for several hours"
+          }
+        ],
+        "excludes": []
+      },
+      "progression": {
+        "includes": [
+          {
+            "medical": "sudden",
+            "patient_friendly": "came on suddenly"
+          }
+        ],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          {
+            "medical": "palpitations",
+            "patient_friendly": "racing heart or palpitations"
+          },
+          {
+            "medical": "regular",
+            "patient_friendly": "regular fast heartbeat"
+          },
+          {
+            "medical": "rapid",
+            "patient_friendly": "very fast heartbeat"
+          }
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [
+          {
+            "medical": "physical activity",
+            "patient_friendly": "physical activity or exertion"
+          },
+          {
+            "medical": "caffeine",
+            "patient_friendly": "caffeine or stimulants"
+          },
+          {
+            "medical": "alcohol",
+            "patient_friendly": "alcohol"
+          },
+          {
+            "medical": "stress",
+            "patient_friendly": "stress or anxiety"
+          }
+        ],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [
+          {
+            "medical": "vagal maneuvers",
+            "patient_friendly": "deep breathing, bearing down, or coughing"
+          },
+          {
+            "medical": "rest",
+            "patient_friendly": "resting"
+          }
+        ],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [
+          {
+            "medical": "moderate",
+            "patient_friendly": "moderate"
+          },
+          {
+            "medical": "severe",
+            "patient_friendly": "severe",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "dyspnea",
+            "patient_friendly": "shortness of breath"
+          },
+          {
+            "medical": "chest pain",
+            "patient_friendly": "chest pain or discomfort"
+          },
+          {
+            "medical": "dizziness",
+            "patient_friendly": "dizziness or lightheadedness"
+          },
+          {
+            "medical": "syncope",
+            "patient_friendly": "fainting or passing out",
+            "emergent": true
+          },
+          {
+            "medical": "fatigue",
+            "patient_friendly": "tiredness"
+          },
+          {
+            "medical": "anxiety",
+            "patient_friendly": "feeling anxious or panicked"
+          },
+          {
+            "medical": "hypotension",
+            "patient_friendly": "low blood pressure",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      }
+    }
+  }
+}
+

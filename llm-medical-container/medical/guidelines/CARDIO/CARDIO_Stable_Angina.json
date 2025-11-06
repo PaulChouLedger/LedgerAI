@@ -1,0 +1,168 @@
+{
+  "condition": "Stable Angina",
+  "icd10": "I20.9",
+  "snomed": "194828000",
+  "sex": "both",
+  "prevalence": "common",
+  "urgency": "non-emergent",
+  "chief_complaint_triggers": [
+    "chest pain",
+    "chest pressure",
+    "angina",
+    "chest discomfort with activity"
+  ],
+  "key_features": {
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          {
+            "medical": "chronic",
+            "patient_friendly": "has been going on for more than 1 month"
+          }
+        ],
+        "excludes": []
+      },
+      "location": {
+        "includes": [
+          {
+            "medical": "retrosternal",
+            "patient_friendly": "behind your breastbone"
+          },
+          {
+            "medical": "left chest",
+            "patient_friendly": "left side of your chest"
+          }
+        ],
+        "excludes": [],
+        "anatomical_type": "upper"
+      },
+      "timing": {
+        "includes": [
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes"
+          }
+        ],
+        "excludes": []
+      },
+      "duration": {
+        "includes": [
+          {
+            "medical": "minutes",
+            "patient_friendly": "for a few minutes"
+          },
+          {
+            "medical": "<20 minutes",
+            "patient_friendly": "less than 20 minutes"
+          }
+        ],
+        "excludes": []
+      },
+      "progression": {
+        "includes": [
+          {
+            "medical": "stable",
+            "patient_friendly": "stays about the same"
+          }
+        ],
+        "excludes": [
+          {
+            "medical": "worsening",
+            "patient_friendly": "getting worse over time"
+          }
+        ]
+      },
+      "character": {
+        "includes": [
+          {
+            "medical": "pressure",
+            "patient_friendly": "pressure or squeezing"
+          },
+          {
+            "medical": "tightness",
+            "patient_friendly": "tightness"
+          },
+          {
+            "medical": "discomfort",
+            "patient_friendly": "discomfort"
+          }
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [
+          {
+            "medical": "physical activity",
+            "patient_friendly": "physical activity or exertion"
+          },
+          {
+            "medical": "emotional stress",
+            "patient_friendly": "stress or emotional upset"
+          },
+          {
+            "medical": "cold weather",
+            "patient_friendly": "cold weather"
+          }
+        ],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [
+          {
+            "medical": "rest",
+            "patient_friendly": "resting"
+          },
+          {
+            "medical": "nitroglycerin",
+            "patient_friendly": "nitroglycerin medication"
+          }
+        ],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [
+          {
+            "medical": "mild",
+            "patient_friendly": "mild"
+          },
+          {
+            "medical": "moderate",
+            "patient_friendly": "moderate"
+          }
+        ],
+        "excludes": []
+      },
+      "radiation": {
+        "includes": [
+          {
+            "medical": "left arm",
+            "patient_friendly": "spreads to your left arm"
+          },
+          {
+            "medical": "jaw",
+            "patient_friendly": "your jaw"
+          },
+          {
+            "medical": "shoulder",
+            "patient_friendly": "your shoulder"
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "dyspnea",
+            "patient_friendly": "shortness of breath"
+          },
+          {
+            "medical": "fatigue",
+            "patient_friendly": "tiredness"
+          }
+        ],
+        "excludes": []
+      }
+    }
+  }
+}
+

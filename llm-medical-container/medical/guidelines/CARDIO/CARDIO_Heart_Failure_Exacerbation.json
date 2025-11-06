@@ -1,0 +1,187 @@
+{
+  "condition": "Heart Failure Exacerbation",
+  "icd10": "I50.9",
+  "snomed": "84114007",
+  "sex": "both",
+  "prevalence": "common",
+  "urgency": "emergent",
+  "chief_complaint_triggers": [
+    "shortness of breath",
+    "difficulty breathing",
+    "chest congestion",
+    "swollen legs",
+    "heart failure"
+  ],
+  "key_features": {
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          {
+            "medical": "acute",
+            "patient_friendly": "recently occurred less than 1 month"
+          },
+          {
+            "medical": "chronic",
+            "patient_friendly": "has been going on for more than 1 month"
+          }
+        ],
+        "excludes": []
+      },
+      "location": {
+        "includes": [
+          {
+            "medical": "chest",
+            "patient_friendly": "in your chest"
+          },
+          {
+            "medical": "diffuse",
+            "patient_friendly": "all over"
+          }
+        ],
+        "excludes": [],
+        "anatomical_type": "vague"
+      },
+      "timing": {
+        "includes": [
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          },
+          {
+            "medical": "worse at night",
+            "patient_friendly": "worse when lying down or at night"
+          }
+        ],
+        "excludes": []
+      },
+      "duration": {
+        "includes": [
+          {
+            "medical": "hours",
+            "patient_friendly": "for several hours"
+          },
+          {
+            "medical": "days",
+            "patient_friendly": "for a few days"
+          }
+        ],
+        "excludes": []
+      },
+      "progression": {
+        "includes": [
+          {
+            "medical": "worsening",
+            "patient_friendly": "getting worse over time",
+            "emergent": true
+          },
+          {
+            "medical": "gradual",
+            "patient_friendly": "came on gradually"
+          }
+        ],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          {
+            "medical": "dyspnea",
+            "patient_friendly": "shortness of breath"
+          },
+          {
+            "medical": "orthopnea",
+            "patient_friendly": "trouble breathing when lying flat"
+          },
+          {
+            "medical": "paroxysmal nocturnal dyspnea",
+            "patient_friendly": "waking up gasping for air at night"
+          }
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [
+          {
+            "medical": "physical activity",
+            "patient_friendly": "physical activity or exertion"
+          },
+          {
+            "medical": "lying flat",
+            "patient_friendly": "lying down flat"
+          },
+          {
+            "medical": "salt intake",
+            "patient_friendly": "eating salty foods"
+          }
+        ],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [
+          {
+            "medical": "sitting up",
+            "patient_friendly": "sitting upright"
+          },
+          {
+            "medical": "rest",
+            "patient_friendly": "resting"
+          }
+        ],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [
+          {
+            "medical": "moderate",
+            "patient_friendly": "moderate"
+          },
+          {
+            "medical": "severe",
+            "patient_friendly": "severe",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "peripheral edema",
+            "patient_friendly": "swollen legs or ankles"
+          },
+          {
+            "medical": "jugular venous distension",
+            "patient_friendly": "swollen neck veins"
+          },
+          {
+            "medical": "orthopnea",
+            "patient_friendly": "trouble breathing when lying down"
+          },
+          {
+            "medical": "fatigue",
+            "patient_friendly": "extreme tiredness or fatigue"
+          },
+          {
+            "medical": "cough",
+            "patient_friendly": "coughing"
+          },
+          {
+            "medical": "weight gain",
+            "patient_friendly": "recent weight gain"
+          },
+          {
+            "medical": "hypotension",
+            "patient_friendly": "low blood pressure",
+            "emergent": true
+          },
+          {
+            "medical": "hypoxia",
+            "patient_friendly": "low oxygen levels",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      }
+    }
+  }
+}
+

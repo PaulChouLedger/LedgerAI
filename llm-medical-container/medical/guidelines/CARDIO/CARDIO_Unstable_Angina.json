@@ -1,0 +1,193 @@
+{
+  "condition": "Unstable Angina",
+  "icd10": "I20.0",
+  "snomed": "194828000",
+  "sex": "both",
+  "prevalence": "common",
+  "urgency": "emergent",
+  "chief_complaint_triggers": [
+    "chest pain",
+    "chest pressure",
+    "angina",
+    "chest discomfort",
+    "heart pain"
+  ],
+  "key_features": {
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          {
+            "medical": "acute",
+            "patient_friendly": "recently occurred less than 1 month"
+          }
+        ],
+        "excludes": []
+      },
+      "location": {
+        "includes": [
+          {
+            "medical": "retrosternal",
+            "patient_friendly": "behind your breastbone"
+          },
+          {
+            "medical": "left chest",
+            "patient_friendly": "left side of your chest"
+          }
+        ],
+        "excludes": [],
+        "anatomical_type": "upper"
+      },
+      "timing": {
+        "includes": [
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes"
+          },
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          }
+        ],
+        "excludes": []
+      },
+      "duration": {
+        "includes": [
+          {
+            "medical": "minutes",
+            "patient_friendly": "for several minutes"
+          },
+          {
+            "medical": ">20 minutes",
+            "patient_friendly": "more than 20 minutes"
+          }
+        ],
+        "excludes": []
+      },
+      "progression": {
+        "includes": [
+          {
+            "medical": "worsening",
+            "patient_friendly": "getting worse over time",
+            "emergent": true
+          },
+          {
+            "medical": "increasing frequency",
+            "patient_friendly": "happening more often",
+            "emergent": true
+          },
+          {
+            "medical": "at rest",
+            "patient_friendly": "happening at rest",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          {
+            "medical": "pressure",
+            "patient_friendly": "pressure or squeezing"
+          },
+          {
+            "medical": "tightness",
+            "patient_friendly": "tightness"
+          },
+          {
+            "medical": "discomfort",
+            "patient_friendly": "discomfort"
+          }
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [
+          {
+            "medical": "physical activity",
+            "patient_friendly": "physical activity or exertion"
+          },
+          {
+            "medical": "emotional stress",
+            "patient_friendly": "stress or emotional upset"
+          },
+          {
+            "medical": "at rest",
+            "patient_friendly": "happening even at rest",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [
+          {
+            "medical": "rest",
+            "patient_friendly": "resting"
+          },
+          {
+            "medical": "nitroglycerin",
+            "patient_friendly": "nitroglycerin medication"
+          }
+        ],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [
+          {
+            "medical": "moderate",
+            "patient_friendly": "moderate"
+          },
+          {
+            "medical": "severe",
+            "patient_friendly": "severe",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      },
+      "radiation": {
+        "includes": [
+          {
+            "medical": "left arm",
+            "patient_friendly": "spreads to your left arm"
+          },
+          {
+            "medical": "jaw",
+            "patient_friendly": "your jaw"
+          },
+          {
+            "medical": "shoulder",
+            "patient_friendly": "your shoulder"
+          },
+          {
+            "medical": "neck",
+            "patient_friendly": "your neck"
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "dyspnea",
+            "patient_friendly": "shortness of breath"
+          },
+          {
+            "medical": "diaphoresis",
+            "patient_friendly": "sweating"
+          },
+          {
+            "medical": "nausea",
+            "patient_friendly": "nausea"
+          },
+          {
+            "medical": "dizziness",
+            "patient_friendly": "dizziness or lightheadedness"
+          }
+        ],
+        "excludes": []
+      }
+    }
+  }
+}
+

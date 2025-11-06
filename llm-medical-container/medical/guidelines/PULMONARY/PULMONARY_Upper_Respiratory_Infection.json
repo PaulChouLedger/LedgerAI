@@ -1,0 +1,181 @@
+{
+  "condition": "Upper Respiratory Infection",
+  "icd10": "J06.9",
+  "snomed": "54150009",
+  "sex": "both",
+  "prevalence": "common",
+  "urgency": "non-emergent",
+  "chief_complaint_triggers": [
+    "cold",
+    "upper respiratory infection",
+    "URI",
+    "runny nose",
+    "congestion",
+    "sore throat",
+    "cough"
+  ],
+  "key_features": {
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          {
+            "medical": "acute",
+            "patient_friendly": "recently occurred less than 1 month"
+          }
+        ],
+        "excludes": []
+      },
+      "location": {
+        "includes": [
+          {
+            "medical": "nasal",
+            "patient_friendly": "in your nose"
+          },
+          {
+            "medical": "throat",
+            "patient_friendly": "in your throat"
+          },
+          {
+            "medical": "sinus",
+            "patient_friendly": "in your sinuses or face"
+          },
+          {
+            "medical": "diffuse upper respiratory",
+            "patient_friendly": "all over your upper respiratory tract"
+          }
+        ],
+        "excludes": [],
+        "anatomical_type": "vague"
+      },
+      "timing": {
+        "includes": [
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          },
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes"
+          }
+        ],
+        "excludes": []
+      },
+      "duration": {
+        "includes": [
+          {
+            "medical": "days",
+            "patient_friendly": "for a few days"
+          },
+          {
+            "medical": "weeks",
+            "patient_friendly": "for a week or two"
+          }
+        ],
+        "excludes": []
+      },
+      "progression": {
+        "includes": [
+          {
+            "medical": "gradual",
+            "patient_friendly": "came on gradually"
+          }
+        ],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          {
+            "medical": "rhinorrhea",
+            "patient_friendly": "runny nose"
+          },
+          {
+            "medical": "congestion",
+            "patient_friendly": "nasal congestion or stuffiness"
+          },
+          {
+            "medical": "sore throat",
+            "patient_friendly": "sore or scratchy throat"
+          },
+          {
+            "medical": "cough",
+            "patient_friendly": "coughing"
+          }
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [
+          {
+            "medical": "swallowing",
+            "patient_friendly": "swallowing"
+          },
+          {
+            "medical": "talking",
+            "patient_friendly": "talking"
+          }
+        ],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [
+          {
+            "medical": "rest",
+            "patient_friendly": "resting"
+          },
+          {
+            "medical": "fluids",
+            "patient_friendly": "drinking fluids"
+          },
+          {
+            "medical": "over-the-counter medications",
+            "patient_friendly": "cold medications"
+          }
+        ],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [
+          {
+            "medical": "mild",
+            "patient_friendly": "mild"
+          },
+          {
+            "medical": "moderate",
+            "patient_friendly": "moderate"
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "fever",
+            "patient_friendly": "fever"
+          },
+          {
+            "medical": "malaise",
+            "patient_friendly": "feeling tired or unwell"
+          },
+          {
+            "medical": "headache",
+            "patient_friendly": "headache"
+          },
+          {
+            "medical": "sneezing",
+            "patient_friendly": "sneezing"
+          },
+          {
+            "medical": "watery eyes",
+            "patient_friendly": "watery or itchy eyes"
+          },
+          {
+            "medical": "cough",
+            "patient_friendly": "coughing"
+          }
+        ],
+        "excludes": []
+      }
+    }
+  }
+}
+

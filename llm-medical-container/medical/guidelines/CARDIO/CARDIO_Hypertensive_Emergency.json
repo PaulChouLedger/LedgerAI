@@ -1,0 +1,176 @@
+{
+  "condition": "Hypertensive Emergency",
+  "icd10": "I16.0",
+  "snomed": "38341003",
+  "sex": "both",
+  "prevalence": "common",
+  "urgency": "emergent",
+  "chief_complaint_triggers": [
+    "high blood pressure",
+    "hypertension",
+    "severe headache",
+    "chest pain with high blood pressure",
+    "vision changes"
+  ],
+  "key_features": {
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          {
+            "medical": "acute",
+            "patient_friendly": "recently occurred less than 1 month"
+          }
+        ],
+        "excludes": []
+      },
+      "location": {
+        "includes": [
+          {
+            "medical": "head",
+            "patient_friendly": "in your head"
+          },
+          {
+            "medical": "chest",
+            "patient_friendly": "in your chest"
+          },
+          {
+            "medical": "diffuse",
+            "patient_friendly": "all over"
+          }
+        ],
+        "excludes": [],
+        "anatomical_type": "vague"
+      },
+      "timing": {
+        "includes": [
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          }
+        ],
+        "excludes": []
+      },
+      "duration": {
+        "includes": [
+          {
+            "medical": "minutes",
+            "patient_friendly": "for several minutes"
+          },
+          {
+            "medical": "hours",
+            "patient_friendly": "for several hours"
+          }
+        ],
+        "excludes": []
+      },
+      "progression": {
+        "includes": [
+          {
+            "medical": "sudden",
+            "patient_friendly": "came on suddenly",
+            "emergent": true
+          },
+          {
+            "medical": "worsening",
+            "patient_friendly": "getting worse over time",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          {
+            "medical": "throbbing",
+            "patient_friendly": "throbbing"
+          },
+          {
+            "medical": "pressure",
+            "patient_friendly": "pressure or squeezing"
+          },
+          {
+            "medical": "severe",
+            "patient_friendly": "very severe",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [
+          {
+            "medical": "physical activity",
+            "patient_friendly": "physical activity or exertion"
+          },
+          {
+            "medical": "stress",
+            "patient_friendly": "stress"
+          }
+        ],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [
+          {
+            "medical": "medication",
+            "patient_friendly": "blood pressure medication"
+          },
+          {
+            "medical": "rest",
+            "patient_friendly": "resting"
+          }
+        ],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [
+          {
+            "medical": "severe",
+            "patient_friendly": "severe",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "hypertensive retinopathy",
+            "patient_friendly": "vision changes or blurry vision",
+            "emergent": true
+          },
+          {
+            "medical": "encephalopathy",
+            "patient_friendly": "confusion or disorientation",
+            "emergent": true
+          },
+          {
+            "medical": "chest pain",
+            "patient_friendly": "chest pain",
+            "emergent": true
+          },
+          {
+            "medical": "dyspnea",
+            "patient_friendly": "shortness of breath",
+            "emergent": true
+          },
+          {
+            "medical": "nausea",
+            "patient_friendly": "nausea"
+          },
+          {
+            "medical": "vomiting",
+            "patient_friendly": "vomiting"
+          },
+          {
+            "medical": "severe headache",
+            "patient_friendly": "severe headache",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      }
+    }
+  }
+}
+

@@ -1,0 +1,171 @@
+{
+  "condition": "Acute Bronchitis",
+  "icd10": "J20.9",
+  "snomed": "32398004",
+  "sex": "both",
+  "prevalence": "common",
+  "urgency": "non-emergent",
+  "chief_complaint_triggers": [
+    "bronchitis",
+    "cough",
+    "chest congestion",
+    "persistent cough",
+    "coughing up phlegm"
+  ],
+  "key_features": {
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          {
+            "medical": "acute",
+            "patient_friendly": "recently occurred less than 1 month"
+          }
+        ],
+        "excludes": []
+      },
+      "location": {
+        "includes": [
+          {
+            "medical": "chest",
+            "patient_friendly": "in your chest"
+          },
+          {
+            "medical": "diffuse",
+            "patient_friendly": "all over"
+          }
+        ],
+        "excludes": [],
+        "anatomical_type": "vague"
+      },
+      "timing": {
+        "includes": [
+          {
+            "medical": "constant",
+            "patient_friendly": "continuous without stopping"
+          },
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes"
+          }
+        ],
+        "excludes": []
+      },
+      "duration": {
+        "includes": [
+          {
+            "medical": "days",
+            "patient_friendly": "for a few days"
+          },
+          {
+            "medical": "weeks",
+            "patient_friendly": "for a week or more"
+          }
+        ],
+        "excludes": []
+      },
+      "progression": {
+        "includes": [
+          {
+            "medical": "gradual",
+            "patient_friendly": "came on gradually"
+          }
+        ],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          {
+            "medical": "productive cough",
+            "patient_friendly": "coughing up phlegm or mucus"
+          },
+          {
+            "medical": "dry cough",
+            "patient_friendly": "dry hacking cough"
+          },
+          {
+            "medical": "chest congestion",
+            "patient_friendly": "chest congestion or tightness"
+          }
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [
+          {
+            "medical": "deep breathing",
+            "patient_friendly": "taking deep breaths"
+          },
+          {
+            "medical": "lying down",
+            "patient_friendly": "lying down"
+          },
+          {
+            "medical": "cold air",
+            "patient_friendly": "cold air"
+          }
+        ],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [
+          {
+            "medical": "cough suppressant",
+            "patient_friendly": "cough medicine"
+          },
+          {
+            "medical": "expectorant",
+            "patient_friendly": "mucous thinning medication"
+          },
+          {
+            "medical": "rest",
+            "patient_friendly": "resting"
+          }
+        ],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [
+          {
+            "medical": "mild",
+            "patient_friendly": "mild"
+          },
+          {
+            "medical": "moderate",
+            "patient_friendly": "moderate"
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "fever",
+            "patient_friendly": "fever"
+          },
+          {
+            "medical": "malaise",
+            "patient_friendly": "feeling tired or unwell"
+          },
+          {
+            "medical": "sore throat",
+            "patient_friendly": "sore throat"
+          },
+          {
+            "medical": "rhinorrhea",
+            "patient_friendly": "runny nose"
+          },
+          {
+            "medical": "chest discomfort",
+            "patient_friendly": "chest discomfort or tightness"
+          },
+          {
+            "medical": "wheezing",
+            "patient_friendly": "wheezing or whistling sound"
+          }
+        ],
+        "excludes": []
+      }
+    }
+  }
+}
+

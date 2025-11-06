@@ -1,0 +1,170 @@
+{
+  "condition": "Syncope",
+  "icd10": "R55",
+  "snomed": "271594007",
+  "sex": "both",
+  "prevalence": "common",
+  "urgency": "emergent",
+  "chief_complaint_triggers": [
+    "fainting",
+    "passed out",
+    "syncope",
+    "loss of consciousness",
+    "blacked out"
+  ],
+  "key_features": {
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          {
+            "medical": "acute",
+            "patient_friendly": "recently occurred less than 1 month"
+          }
+        ],
+        "excludes": []
+      },
+      "location": {
+        "includes": [
+          {
+            "medical": "diffuse",
+            "patient_friendly": "all over"
+          }
+        ],
+        "excludes": [],
+        "anatomical_type": "vague"
+      },
+      "timing": {
+        "includes": [
+          {
+            "medical": "sudden",
+            "patient_friendly": "came on suddenly",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      },
+      "duration": {
+        "includes": [
+          {
+            "medical": "seconds",
+            "patient_friendly": "for a few seconds"
+          },
+          {
+            "medical": "minutes",
+            "patient_friendly": "for a few minutes"
+          }
+        ],
+        "excludes": []
+      },
+      "progression": {
+        "includes": [
+          {
+            "medical": "sudden",
+            "patient_friendly": "came on suddenly",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          {
+            "medical": "loss of consciousness",
+            "patient_friendly": "loss of consciousness or blacking out"
+          },
+          {
+            "medical": "near syncope",
+            "patient_friendly": "feeling like you were about to pass out"
+          }
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [
+          {
+            "medical": "standing",
+            "patient_friendly": "standing up"
+          },
+          {
+            "medical": "physical activity",
+            "patient_friendly": "physical activity or exertion"
+          },
+          {
+            "medical": "heat",
+            "patient_friendly": "hot weather or heat"
+          },
+          {
+            "medical": "dehydration",
+            "patient_friendly": "not drinking enough fluids"
+          }
+        ],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [
+          {
+            "medical": "lying down",
+            "patient_friendly": "lying down"
+          },
+          {
+            "medical": "rest",
+            "patient_friendly": "resting"
+          }
+        ],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [
+          {
+            "medical": "severe",
+            "patient_friendly": "severe",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "dizziness",
+            "patient_friendly": "dizziness or lightheadedness before passing out"
+          },
+          {
+            "medical": "nausea",
+            "patient_friendly": "nausea before passing out"
+          },
+          {
+            "medical": "diaphoresis",
+            "patient_friendly": "sweating before passing out"
+          },
+          {
+            "medical": "palpitations",
+            "patient_friendly": "racing heart or palpitations before passing out",
+            "emergent": true
+          },
+          {
+            "medical": "chest pain",
+            "patient_friendly": "chest pain before passing out",
+            "emergent": true
+          },
+          {
+            "medical": "dyspnea",
+            "patient_friendly": "shortness of breath before passing out",
+            "emergent": true
+          },
+          {
+            "medical": "seizure activity",
+            "patient_friendly": "shaking or seizure-like activity",
+            "emergent": true
+          },
+          {
+            "medical": "headache",
+            "patient_friendly": "headache after waking up"
+          }
+        ],
+        "excludes": []
+      }
+    }
+  }
+}
+
