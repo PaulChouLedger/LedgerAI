@@ -548,6 +548,43 @@ Generate an empathetic response that acknowledges their distress and reassures t
         # Start with empathetic statement + chronicity question
         empathetic_msg = self._generate_empathetic_statement()
         
+        # Add disclaimer about loaded categories
+        category_names = []
+        category_display_names = {
+            'gastrointestinal': 'Gastrointestinal',
+            'cardiovascular': 'Cardiovascular',
+            'cardio': 'Cardiovascular',
+            'pulmonary': 'Pulmonary/Respiratory',
+            'respiratory': 'Pulmonary/Respiratory',
+            'neurological': 'Neurological',
+            'musculoskeletal': 'Musculoskeletal',
+            'renal': 'Renal',
+            'genitourinary': 'Genitourinary',
+            'gynecological': 'Gynecological',
+            'dermatological': 'Dermatological'
+        }
+        
+        for cat in categories:
+            cat_lower = cat.lower()
+            # Use display name if available, otherwise format the category name
+            display_name = category_display_names.get(cat_lower)
+            if not display_name:
+                # Capitalize first letter of each word
+                display_name = ' '.join(word.capitalize() for word in cat.replace('_', ' ').split())
+            category_names.append(display_name)
+        
+        # Remove duplicates while preserving order
+        seen = set()
+        unique_category_names = []
+        for name in category_names:
+            if name not in seen:
+                seen.add(name)
+                unique_category_names.append(name)
+        
+        if unique_category_names:
+            disclaimer = f"\n\nI am currently only able to provide guidance on the following categories: {', '.join(unique_category_names)}."
+            empathetic_msg = empathetic_msg + disclaimer
+        
         self.conversation_history.append({
             'type': 'statement',
             'message': empathetic_msg
@@ -2897,7 +2934,11 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
         return False
     
     def _handle_user_question(self, user_question: str) -> Dict[str, Any]:
-        """Handle user questions - reword unclear questions more clearly"""
+        """Handle user questions - reword unclear questions more clearly using LLM"""
+        if not self.llm_chat_simple_fn:
+            # No LLM available - fallback to returning next question
+            return self._ask_next_clinical_question()
+        
         # Find the last question asked
         last_q = None
         for item in reversed(self.conversation_history):
@@ -2905,6 +2946,69 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
                 last_q = item
                 break
         
+        if not last_q:
+            # No previous question found - just continue
+            return self._ask_next_clinical_question()
+        
+        oldcarts_element = last_q.get('oldcarts')
+        last_question_text = last_q.get('question', '')
+        
+        # Use LLM to rephrase the question more clearly when user is confused
+        try:
+            system_msg = """You are a medical assistant. The patient asked "what do you mean?" or expressed confusion about a medical question. 
+Your task is to rephrase the question in a clearer, simpler way that the patient will understand.
+
+CRITICAL RULES:
+1. Keep the SAME medical information being asked (don't change what we're trying to find out)
+2. Use simpler, more everyday language
+3. Provide brief context if helpful (e.g., "I'm asking whether..." or "This helps me understand...")
+4. Return ONLY the rephrased question - no explanations, no prefixes, no reasoning
+5. Make it conversational and easy to understand"""
+            
+            user_msg = f"""The patient asked: "{user_question}"
+
+The question they're confused about was: "{last_question_text}"
+
+Rephrase this question in a clearer, simpler way that explains what you're asking. Keep the same medical information but make it easier to understand."""
+            
+            llm_kwargs = self._get_llm_kwargs(override_max_tokens=100)
+            response = self.llm_chat_simple_fn(
+                [{"role": "system", "content": system_msg}, {"role": "user", "content": user_msg}],
+                **llm_kwargs
+            )
+            
+            rephrased_question = response.strip() if response else None
+            
+            if rephrased_question and len(rephrased_question) > 10:
+                # Store the rephrased question in conversation history
+                self.conversation_history.append({
+                    'type': 'question',
+                    'question': rephrased_question,
+                    'oldcarts': oldcarts_element,
+                    'focus': 'clinical',
+                    'is_rephrased': True
+                })
+                
+                self._capture_debug(f"[Question Handler] ✅ Rephrased question: '{rephrased_question}'")
+                
+                return {
+                    'success': True,
+                    'status': 'questioning',
+                    'message': rephrased_question,
+                    'question': rephrased_question,
+                    'oldcarts': oldcarts_element,
+                    'focus': 'clinical',
+                    'debug': {
+                        'engine': self._format_engine_debug(f"[Engine] 💬 Rephrased question for clarity"),
+                        'internal': self._get_debug_info(last_answer=user_question)
+                    }
+                }
+            else:
+                self._capture_debug(f"[Question Handler] ⚠️ LLM did not generate valid rephrased question")
+        except Exception as e:
+            self._capture_debug(f"[Question Handler] ⚠️ Failed to rephrase question with LLM: {e}")
+        
+        # Fallback: Handle specific question types with hardcoded rephrasing
         # If user is confused about progression question, reword it more clearly
         if last_q and last_q.get('focus') == 'clinical' and last_q.get('oldcarts') == 'progression':
             # Get the last patient answer for context
@@ -3225,7 +3329,7 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
         # Handle elements that don't require clarification (documentation only or already provide options)
         if not self._requires_clarification(oldcarts_element):
             # Mark element as covered and store the answer
-            element_map = {'onset': 'O', 'progression': 'P', 'duration': 'D', 'timing': 'T', 'severity': 'S', 'associated': 'AS'}
+            element_map = {'onset': 'O', 'location': 'L', 'duration': 'D', 'character': 'C', 'progression': 'P', 'timing': 'T', 'severity': 'S', 'associated': 'AS', 'aggravating': 'A', 'relieving': 'R'}
             if oldcarts_element in element_map:
                 self.oldcarts_covered[element_map[oldcarts_element]] = True
                 # Update missing_components list to remove this element
