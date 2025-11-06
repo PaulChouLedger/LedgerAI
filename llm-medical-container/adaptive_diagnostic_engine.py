@@ -3601,7 +3601,7 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
         satisfied_terms = set()
         answer_lower = answer.lower()
         semantic_matches_set = set()
-        faiss_scores = {}
+        faiss_scores = {}  # Initialize to empty dict so it's always in scope for STEP 5
         
         # Get ALL condition names from filtered guidelines
         all_condition_names = set()
@@ -3754,8 +3754,39 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
             
             self._capture_debug(f"[Location Analysis] 🔍 STEP 3: After deduplication: {len(unique_satisfied_medical)} unique satisfied medical terms: {unique_satisfied_medical}")
             
-            # Filter anatomically (remove opposite side terms)
+            # Build anatomical history from previous location answers in conversation
+            anatomical_history = {}
+            if hasattr(self, 'conversation_history') and self.conversation_history:
+                for item in self.conversation_history:
+                    if item.get('type') == 'answer' and item.get('oldcarts') == 'location':
+                        prev_answer = item.get('answer', '')
+                        if prev_answer and self.medical_rule_engine:
+                            prev_components = self.medical_rule_engine._extract_anatomical_components(prev_answer.lower())
+                            if prev_components:
+                                # Merge with existing history (later answers override earlier ones for same keys)
+                                for key, value in prev_components.items():
+                                    if key != 'vague':  # Don't override specific directions with vague
+                                        anatomical_history[key] = value
+                                self._capture_debug(f"[Location Analysis] 📍 Anatomical history from previous answer '{prev_answer}': {prev_components}")
+            
+            # Merge current patient_components with anatomical history
+            # Combine all components (history + current) to get complete anatomical picture
+            combined_components = {}
+            # Start with history (from previous location answers)
+            combined_components.update(anatomical_history)
+            # Then add/override with current answer components (current answer may add more details)
             if patient_components:
+                for key, value in patient_components.items():
+                    if key != 'vague':  # Don't override specific directions with vague
+                        combined_components[key] = value
+            self._capture_debug(f"[Location Analysis] 📍 Merged components - history: {anatomical_history}, current: {patient_components}, combined: {combined_components}")
+            
+            # Use combined components for filtering
+            final_components = combined_components if combined_components else patient_components
+            self._capture_debug(f"[Location Analysis] 📍 Final anatomical components for filtering: {final_components}")
+            
+            # Filter anatomically (remove opposite side terms) using combined components
+            if final_components:
                 filtered_satisfied_medical = []
                 for med_term in unique_satisfied_medical:
                     # Extract components for this medical term
@@ -3775,12 +3806,12 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
                                             break
                     
                     if med_components:
-                        is_opposite = self.medical_rule_engine._are_anatomical_opposites(patient_components, med_components)
+                        is_opposite = self.medical_rule_engine._are_anatomical_opposites(final_components, med_components)
                         if not is_opposite:
                             filtered_satisfied_medical.append(med_term)
-                            self._capture_debug(f"[Location Analysis] ✅ STEP 3: '{med_term}' included in satisfied (anatomically compatible)")
+                            self._capture_debug(f"[Location Analysis] ✅ STEP 3: '{med_term}' included in satisfied (anatomically compatible with {final_components})")
                         else:
-                            self._capture_debug(f"[Location Analysis] ❌ STEP 3: '{med_term}' excluded from satisfied (anatomical opposite)")
+                            self._capture_debug(f"[Location Analysis] ❌ STEP 3: '{med_term}' excluded from satisfied (anatomical opposite to {final_components})")
                     else:
                         # No components found - include it (might be vague/bilateral)
                         filtered_satisfied_medical.append(med_term)
@@ -3946,9 +3977,51 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
                     unique_medical_terms = filtered_medical_terms
                     self._capture_debug(f"[Location Analysis] 🔍 STEP 4: After anatomical filtering: {len(unique_medical_terms)} medical terms: {unique_medical_terms}")
                 
-                # STEP 5: Generate missing terms array for LLM clarifying question
-                missing = unique_medical_terms
-                self._capture_debug(f"[Location Analysis] 📋 STEP 5: Missing terms array for LLM: {missing}")
+                # STEP 5: Rank missing terms by FAISS scores and take top 5
+                # Map medical terms to patient_friendly terms, get their FAISS scores, sort, and take top 5
+                if faiss_scores and unique_medical_terms:
+                    medical_term_scores = []
+                    for med_term in unique_medical_terms:
+                        # Find patient_friendly term for this medical term
+                        patient_friendly_term = None
+                        for g in all_guidelines_to_check:
+                            structured = self._get_structured_oldcarts(g)
+                            element_data = structured.get(oldcarts_element, {})
+                            if isinstance(element_data, dict):
+                                includes = element_data.get('includes', [])
+                                for t in includes:
+                                    if isinstance(t, dict):
+                                        med = t.get('medical', '')
+                                        pf = t.get('patient_friendly', '')
+                                        if med and med.strip().lower() == med_term.lower() and pf:
+                                            patient_friendly_term = pf.strip()
+                                            break
+                                if patient_friendly_term:
+                                    break
+                        
+                        # Get FAISS score for this patient_friendly term
+                        score = 0.0
+                        if patient_friendly_term:
+                            # Try exact match first
+                            score = faiss_scores.get(patient_friendly_term, 0.0)
+                            # Try lowercase match if exact match fails
+                            if score == 0.0:
+                                for pf_term, pf_score in faiss_scores.items():
+                                    if pf_term.lower() == patient_friendly_term.lower():
+                                        score = pf_score
+                                        break
+                        
+                        medical_term_scores.append((med_term, score))
+                    
+                    # Sort by score (highest first) and take top 5
+                    medical_term_scores.sort(key=lambda x: x[1], reverse=True)
+                    top_medical_terms = [med_term for med_term, score in medical_term_scores[:5]]
+                    self._capture_debug(f"[Location Analysis] 📋 STEP 5: Top 5 missing terms by FAISS score: {[(term, score) for term, score in medical_term_scores[:5]]}")
+                    missing = top_medical_terms
+                else:
+                    # No FAISS scores available, just take first 5
+                    missing = unique_medical_terms[:5]
+                    self._capture_debug(f"[Location Analysis] 📋 STEP 5: Missing terms array for LLM (no FAISS scores, taking first 5): {missing}")
             else:
                 # For non-location elements, use simpler logic
                 all_missing_candidates = [t for t in all_includes if t.lower() not in satisfied_terms]
@@ -4206,24 +4279,33 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
         options_list = ", ".join(terms_to_use)
         
         if oldcarts_element == 'location':
-            # Build example with actual terms (avoid generic "Can you be more specific?")
-            if len(terms_to_use) >= 4:
-                example_question = f"Is it located at {terms_to_use[0]}, {terms_to_use[1]}, {terms_to_use[2]}, or {terms_to_use[3]}?"
-            elif len(terms_to_use) == 3:
-                example_question = f"Is it located at {terms_to_use[0]}, {terms_to_use[1]}, or {terms_to_use[2]}?"
-            elif len(terms_to_use) == 2:
-                example_question = f"Is it located at {terms_to_use[0]} or {terms_to_use[1]}?"
-            else:
-                example_question = f"Is it located at {terms_to_use[0]}?"
-            
             if satisfied_context:
                 # Context: Patient said something that matches multiple locations, need to disambiguate
+                # Build example with actual terms (avoid generic "Can you be more specific?")
+                if len(terms_to_use) >= 2:
+                    example_question = f"Is it {terms_to_use[0]} or {terms_to_use[1]}?"
+                else:
+                    example_question = f"Is it {terms_to_use[0]}?"
+            else:
+                # Context: Missing information, need to ask about locations not mentioned
+                # Build example with actual terms (avoid generic "Can you be more specific?")
+                if len(terms_to_use) >= 4:
+                    example_question = f"Is it located at {terms_to_use[0]}, {terms_to_use[1]}, {terms_to_use[2]}, or {terms_to_use[3]}?"
+                elif len(terms_to_use) == 3:
+                    example_question = f"Is it located at {terms_to_use[0]}, {terms_to_use[1]}, or {terms_to_use[2]}?"
+                elif len(terms_to_use) == 2:
+                    example_question = f"Is it located at {terms_to_use[0]} or {terms_to_use[1]}?"
+                else:
+                    example_question = f"Is it located at {terms_to_use[0]}?"
+            
+            if satisfied_context:
+                
                 clarification_text = f"""The patient already said: "{patient_answer}"
 
 This matches multiple possible locations. We need to clarify WHICH ONE is correct. Here are the locations that matched (you MUST use ONLY these exact terms):
 {options_list}
 
-IMPORTANT: The patient's answer matched these locations, so ask them to choose which one is correct."""
+IMPORTANT: The patient's answer matched these locations, so ask them to choose which one is correct. Start directly with the location options."""
             else:
                 # Context: Missing information, need to ask about locations not mentioned
                 clarification_text = f"""The patient already said: "{patient_answer}"
@@ -4238,13 +4320,14 @@ We need to clarify the location. Here are the ONLY possible locations from the m
 {self.LLM_CLARIFICATION_LOCATION_RULES}
 
 CRITICAL REQUIREMENTS:
-1. You MUST include at least 3-4 of the exact terms from the list above in your question
+1. You MUST include ALL of the exact terms from the list above in your question
 2. Do NOT use generic phrases like "Can you be more specific?" without including the terms
 3. Start directly with the question about location options
+4. For satisfied context (2+ matches), ask the patient to choose between the matched locations
 
 EXAMPLE of correct format: "{example_question}"
 
-Generate a clarification question that starts with the location options (like the example above). The question MUST include at least 3-4 specific options from the list."""
+Generate a clarification question that starts with the location options (like the example above)."""
         else:
             # Build example with actual terms (avoid generic "Can you be more specific?")
             if len(terms_to_use) >= 4:
