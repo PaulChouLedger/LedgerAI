@@ -2057,9 +2057,11 @@ RECOMMENDATION: {recommendation}"""
         # High severity indicators
         high_severity_terms = [
             'very severe', 'extremely severe', 'severe pain', 'severe', 'excruciating',
+            'excruciting', 'excrucitating',  # Common typos
             'unbearable', 'worst pain', 'can\'t stand', 'can\'t bear', 'can\'t handle',
             '10/10', '9/10', '8/10', 'worst ever', 'never felt', 'dying', 'dying pain',
-            'excrucitating'  # Common typo
+            'pass out', 'going to pass out', 'about to pass out', 'feeling like passing out',
+            'feeling faint', 'going to faint', 'about to faint'
         ]
         
         # Urgent language
@@ -2078,24 +2080,28 @@ RECOMMENDATION: {recommendation}"""
         severity_score = 0.0
         urgency_boost = 0.0
         
-        # Check for high severity
-        for term in high_severity_terms:
-            if term in user_lower:
-                severity_score += 2.0
-                urgency_boost += 0.5
-                break
-        
-        # Check for urgent language
-        for term in urgent_language:
-            if term in user_lower:
-                severity_score += 1.5
+        # Check for high severity (accumulate all matches, not just first)
+        high_severity_matches = [term for term in high_severity_terms if term in user_lower]
+        if high_severity_matches:
+            # Base score for any high severity term
+            severity_score += 2.0
+            urgency_boost += 0.5
+            # Additional score for multiple high severity terms
+            if len(high_severity_matches) > 1:
+                severity_score += 1.5  # Bonus for multiple severe indicators
                 urgency_boost += 0.3
         
-        # Check for emotional distress
-        for term in emotional_distress:
-            if term in user_lower:
-                severity_score += 1.0
-                urgency_boost += 0.2
+        # Check for urgent language (accumulate all matches)
+        urgent_matches = [term for term in urgent_language if term in user_lower]
+        if urgent_matches:
+            severity_score += 1.5
+            urgency_boost += 0.3
+        
+        # Check for emotional distress (accumulate all matches)
+        emotional_matches = [term for term in emotional_distress if term in user_lower]
+        if emotional_matches:
+            severity_score += 1.0
+            urgency_boost += 0.2
         
         # Check for multiple distress indicators (compound effect)
         distress_count = sum([
@@ -2171,7 +2177,9 @@ RECOMMENDATION: {recommendation}"""
         red_flag_keywords = [
             # Cardiovascular/Shock
             'chest pain', 'heart attack', 'can\'t breathe', 'shortness of breath', 'difficulty breathing',
-            'dizzy', 'lightheaded', 'fainting', 'passed out', 'unconscious',
+            'dizzy', 'lightheaded', 'fainting', 'passed out', 'pass out', 'going to pass out', 
+            'about to pass out', 'feeling like passing out', 'feeling faint', 'going to faint', 
+            'about to faint', 'unconscious',
             'rapid heart', 'fast heart', 'heart racing', 'palpitations',
             
             # Neurological
@@ -2183,7 +2191,7 @@ RECOMMENDATION: {recommendation}"""
             'peritonitis', 'rebound tenderness',
             
             # Severe pain indicators
-            'excruciating', 'excrucitating', 'unbearable', 'worst pain ever', '10/10', '9/10',
+            'excruciating', 'excruciting', 'excrucitating', 'unbearable', 'worst pain ever', '10/10', '9/10',
             'can\'t move', 'can\'t stand', 'doubled over',
             
             # High fever/infection
@@ -2359,7 +2367,8 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
         # Check for life-threatening red flags
         life_threatening_keywords = [
             'chest pain', 'heart attack', 'can\'t breathe', 'shortness of breath', 'difficulty breathing',
-            'unconscious', 'passed out', 'fainting', 'seizure', 'convulsion',
+            'unconscious', 'passed out', 'pass out', 'going to pass out', 'about to pass out', 'feeling like passing out',
+            'fainting', 'feeling faint', 'going to faint', 'about to faint', 'seizure', 'convulsion',
             'severe bleeding', 'vomiting blood', 'blood in stool', 'black stool'
         ]
         user_lower = user_answer.lower()

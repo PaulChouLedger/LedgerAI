@@ -16,6 +16,14 @@ from sentence_transformers import SentenceTransformer
 from typing import Dict, Any, List, Optional
 from pathlib import Path
 
+# Import ML enhancer
+try:
+    from ml.semantic_ml_enhancer import SemanticMLEnhancer
+    ML_ENHANCER_AVAILABLE = True
+except ImportError:
+    ML_ENHANCER_AVAILABLE = False
+    print("[MedicalRules] ⚠️ ML enhancer not available. Semantic matching will use base scores only.")
+
 
 class MedicalRuleEngine:
     """
@@ -28,7 +36,7 @@ class MedicalRuleEngine:
     # Section 2: Initialization
     # ============================================================================
     
-    def __init__(self, embedding_model=None):
+    def __init__(self, embedding_model=None, enable_ml_learning: bool = None):
         self.embedding_model = embedding_model
         self.medical_rules = self._load_medical_rules()
         self.term_embeddings_by_category = {}  # Category-specific indexes: {category: {element: {...}}}
@@ -36,6 +44,21 @@ class MedicalRuleEngine:
         self.active_category = None  # Currently active category
         self.term_embeddings = {}  # Current index (global or category-specific)
         self.global_term_embeddings = {}  # Preserved global index (for multi-category matching)
+        
+        # Initialize ML enhancer
+        if enable_ml_learning is None:
+            # Check environment variable
+            enable_ml_learning = os.environ.get('ENABLE_ML_LEARNING', 'false').lower() == 'true'
+        
+        self.ml_enhancer = None
+        if ML_ENHANCER_AVAILABLE and enable_ml_learning:
+            try:
+                self.ml_enhancer = SemanticMLEnhancer(enable_learning=enable_ml_learning)
+                print("[MedicalRules] ✅ ML enhancer initialized")
+            except Exception as e:
+                print(f"[MedicalRules] ⚠️ Failed to initialize ML enhancer: {e}")
+                self.ml_enhancer = None
+        
         self._build_category_specific_indexes()
     
     def _load_medical_rules(self) -> Dict:
@@ -496,11 +519,12 @@ class MedicalRuleEngine:
         """
         Find matching terms using ONLY FAISS semantic similarity.
         Uses category-specific index if category is set, otherwise uses global index.
+        ML enhancement can improve scores and adjust thresholds dynamically.
         
         Args:
             prompt: Patient answer text
             element: OLDCARTS element (location, aggravating, etc.)
-            threshold: Minimum similarity score (0.0-1.0)
+            threshold: Minimum similarity score (0.0-1.0) - may be adjusted by ML
             return_scores: If True, store scores in self._last_faiss_scores
             active_condition_names: Optional set of condition names to filter results (if None, returns all matches)
                                     Note: If category-specific index is used, this further filters within that category
@@ -515,11 +539,19 @@ class MedicalRuleEngine:
         if element not in indexes_to_use or not self.embedding_model:
             return []
         
+        # Get adaptive threshold from ML enhancer if available
+        if self.ml_enhancer:
+            category = self.active_category or 'default'
+            adaptive_threshold = self.ml_enhancer.get_adaptive_threshold(element, category)
+            # Use the more permissive threshold (lower value)
+            threshold = min(threshold, adaptive_threshold)
+        
         # Debug: Show which index is being used (only once per search to avoid spam)
         if not hasattr(self, '_last_index_debug') or self._last_index_debug != (self.active_category, element):
             term_count = len(indexes_to_use[element]['terms'])
             category_info = f"{self.active_category} category" if self.active_category else "global"
-            print(f"[FAISS] 🔍 Using {category_info} index for {element} ({term_count} terms, {index_type})")
+            ml_info = " (ML-enhanced)" if self.ml_enhancer else ""
+            print(f"[FAISS] 🔍 Using {category_info} index for {element} ({term_count} terms, {index_type}){ml_info}")
             self._last_index_debug = (self.active_category, element)
         
         matches = []
@@ -545,23 +577,42 @@ class MedicalRuleEngine:
             term_to_conditions = indexes_to_use[element].get('term_to_conditions', {})
             
             # FIRST PASS: Store ALL scores (including below threshold) if return_scores=True
-            # This allows checking synonyms later even if they scored below threshold
-            if return_scores:
-                for score, idx in zip(scores[0], indices[0]):
-                    term = indexes_to_use[element]['terms'][idx]
-                    # Store raw term score (before mapping) for synonym matching
-                    if term not in match_scores or score > match_scores[term]:
-                        match_scores[term] = float(score)
-                    # Also store medical term score (keep highest if multiple synonyms map to same medical term)
-                    medical_term = synonym_to_medical.get(term, term)
-                    if medical_term not in match_scores or score > match_scores[medical_term]:
-                        match_scores[medical_term] = float(score)
-            
-            # SECOND PASS: Filter by threshold and build matches list
+            # Apply ML enhancement to improve scores
+            improved_scores = {}
             for score, idx in zip(scores[0], indices[0]):
+                term = indexes_to_use[element]['terms'][idx]
+                raw_score = float(score)
+                
+                # Apply ML enhancement if available
+                if self.ml_enhancer:
+                    try:
+                        category = self.active_category or 'default'
+                        guideline_text = term  # Use term as guideline text for comparison
+                        improved_score = self.ml_enhancer.improve_similarity_score(
+                            raw_score, prompt, guideline_text, element, category, prompt_embedding[0]
+                        )
+                        improved_scores[term] = improved_score
+                    except Exception:
+                        improved_scores[term] = raw_score
+                else:
+                    improved_scores[term] = raw_score
+                
+                # Store in match_scores for return_scores
+                if return_scores:
+                    if term not in match_scores or improved_scores[term] > match_scores[term]:
+                        match_scores[term] = improved_scores[term]
+                    # Also store medical term score
+                    medical_term = synonym_to_medical.get(term, term)
+                    if medical_term not in match_scores or improved_scores[term] > match_scores[medical_term]:
+                        match_scores[medical_term] = improved_scores[term]
+            
+            # SECOND PASS: Filter by threshold using improved scores and build matches list
+            for idx in indices[0]:
+                term = indexes_to_use[element]['terms'][idx]
+                score = improved_scores.get(term, scores[0][list(indices[0]).index(idx)])
+                
                 if score >= threshold:
-                    term = indexes_to_use[element]['terms'][idx]  # This is now patient_friendly term
-                    # Map patient_friendly back to medical term if available (for returning medical terms)
+                    # Map patient_friendly back to medical term if available
                     medical_term = synonym_to_medical.get(term, term)
                     
                     # Filter by active conditions if provided
@@ -575,7 +626,6 @@ class MedicalRuleEngine:
                             continue
                     
                     # Return patient_friendly term (what was actually indexed and matched)
-                    # Keep the patient_friendly term as-is, don't map back to medical term
                     if term not in matches:
                         matches.append(term)
             
@@ -623,10 +673,12 @@ class MedicalRuleEngine:
             Dict with 'similarity' (0.0-1.0) - pure semantic similarity score
         """
         # Compute semantic similarity (embeddings only)
-        similarity = 0.0
+        raw_similarity = 0.0
+        embeddings = None
+        
         if precomputed_similarity is not None:
             # Use pre-computed similarity from batch embeddings (optimization)
-            similarity = precomputed_similarity
+            raw_similarity = precomputed_similarity
         elif self.embedding_model:
             try:
                 # Encode patient text and guideline text
@@ -634,20 +686,37 @@ class MedicalRuleEngine:
                 embeddings = np.asarray(embeddings, dtype='float32')
                 
                 # Cosine similarity
-                similarity = float(np.dot(embeddings[0], embeddings[1]) / 
-                                  (np.linalg.norm(embeddings[0]) * np.linalg.norm(embeddings[1])))
+                raw_similarity = float(np.dot(embeddings[0], embeddings[1]) / 
+                                      (np.linalg.norm(embeddings[0]) * np.linalg.norm(embeddings[1])))
             except Exception as e:
                 pass
         
         # Clamp to [0, 1]
-        similarity = max(0.0, min(1.0, similarity))
+        raw_similarity = max(0.0, min(1.0, raw_similarity))
+        
+        # Apply ML enhancement if available
+        final_similarity = raw_similarity
+        if self.ml_enhancer and oldcarts_element:
+            try:
+                # Get category for ML enhancement
+                category = self.active_category or 'default'
+                
+                # Use ML to improve similarity score
+                patient_embedding = embeddings[0] if embeddings is not None else None
+                final_similarity = self.ml_enhancer.improve_similarity_score(
+                    raw_similarity, patient_text, guideline_text,
+                    oldcarts_element, category, patient_embedding
+                )
+            except Exception as e:
+                print(f"[MedicalRules] ⚠️ ML enhancement error: {e}")
+                final_similarity = raw_similarity
         
         return {
-            'similarity': similarity,
-            'raw_similarity': similarity,  # Same as final (no boost)
+            'similarity': final_similarity,
+            'raw_similarity': raw_similarity,  # Base similarity before ML enhancement
             'word_match_boost': 0.0,  # Not used in simplified version
             'normalized_text': patient_text.lower(),  # Not actually normalized (kept for compatibility)
-            'method': 'semantic_similarity'
+            'method': 'semantic_similarity_ml' if self.ml_enhancer else 'semantic_similarity'
         }
     
     # REMOVED: _normalize_with_synonyms - synonym files no longer used, FAISS handles semantic matching directly
