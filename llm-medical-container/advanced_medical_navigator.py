@@ -18,11 +18,12 @@ Features:
 ASSESSMENT ALGORITHM SECTIONS:
 1. CONFIGURATION (Top) - All thresholds, LLM rules, weights for easy tuning
 2. INITIALIZATION - Setup and loading
-3. CHIEF COMPLAINT - Category matching and narrowing
-4. DEMOGRAPHICS - Age, sex, chronicity extraction (if needed)
-5. ASSESSMENT - OLDCARTS processing, scoring, question generation
-6. UTILITIES - Helper functions
-7. DEBUGGING - Debug functions (last)
+3. GREETING HANDLING - Greeting detection and responses (before chief complaint)
+4. CHIEF COMPLAINT - Category matching and narrowing
+5. DEMOGRAPHICS - Age, sex, chronicity extraction (if needed)
+6. ASSESSMENT - OLDCARTS processing, scoring, question generation
+7. UTILITIES - Helper functions
+8. DEBUGGING - Debug functions (last)
 """
 
 import json
@@ -74,6 +75,23 @@ OLDCARTS elements:
 - timing: Constant or intermittent?
 - severity: How bad (1-10)?
 - associated: Other symptoms?"""
+    
+    # Greeting Detection
+    LLM_GREETING_DETECTION_SYSTEM_MSG = """You are a medical assistant. Determine if the patient's message is a greeting or a medical concern.
+
+Return ONLY 'greeting' or 'medical'.
+
+Examples of GREETINGS:
+- "hello", "hi", "hey"
+- "good morning", "good afternoon"
+- "how are you"
+- Any casual greeting or small talk
+
+Examples of MEDICAL:
+- "I have chest pain"
+- "My stomach hurts"
+- "I'm feeling nauseous"
+- Any symptom description or medical question"""
     
     # Greeting Response
     LLM_GREETING_SYSTEM_MSG = """You are Aura, a friendly and helpful medical AI assistant.
@@ -277,22 +295,11 @@ Return ONLY the question, no explanations:"""
     OLDCARTS_PRIORITY_ORDER = ['location', 'character', 'timing', 'severity', 'duration', 
                                'onset', 'aggravating', 'relieving', 'associated']
     
-    # ===== CATEGORY KEYWORDS (Fallback) =====
-    # Simple keyword-based category matching (fallback)
-    CATEGORY_KEYWORDS = {
-        'GI': ['abdominal', 'stomach', 'belly', 'nausea', 'vomit', 'diarrhea', 'constipation', 'gi', 'gut', 'appendicitis'],
-        'CARDIO': ['chest pain', 'heart', 'cardiac', 'angina', 'myocardial', 'heart attack', 'palpitation', 'dizziness', 'syncope'],
-        'PULMONARY': ['cough', 'breath', 'wheeze', 'shortness of breath', 'pneumonia', 'bronchitis', 'asthma', 'copd'],
-        'DERM': ['rash', 'redness', 'swelling', 'skin', 'cellulitis', 'infection', 'wound'],
-        'MSK': ['ankle', 'knee', 'shoulder', 'joint', 'fracture', 'sprain', 'strain', 'muscle', 'bone'],
-        'RENAL': ['kidney', 'flank', 'renal', 'stone', 'nephrolithiasis', 'back pain', 'side pain'],
-        'GU': ['urination', 'urinary', 'uti', 'pelvic', 'burning', 'discharge'],
-        'GYN': ['pelvic', 'gynecological', 'menstrual', 'vaginal'],
-        'NEURO': ['headache', 'seizure', 'neurological', 'dizziness', 'vertigo']
-    }
-    
     # ===== TOP CONDITIONS LIMIT =====
     TOP_CONDITIONS_LIMIT = 5  # Number of top conditions to track
+    
+    # ===== GREETING DETECTION =====
+    # LLM-based greeting detection (no hardcoded patterns needed)
     
     # ============================================================================
     # SECTION 2: INITIALIZATION
@@ -334,10 +341,10 @@ Return ONLY the question, no explanations:"""
         self._captured_debug_output = []
         
         if not self.llm_chat_fn:
-            print("[Navigator] ⚠️ No LLM function provided - will use fallback responses")
-        else:
-            print("[Navigator] ✅ Advanced Medical Navigator initialized (hybrid LLM/RAG/FAISS mode)")
-            print(f"[Navigator] 📋 All FAISS indexes built at startup. Guidelines loaded on-demand based on chief complaint")
+            raise ValueError("LLM function is required for Advanced Medical Navigator")
+        
+        print("[Navigator] ✅ Advanced Medical Navigator initialized (hybrid LLM/RAG/FAISS mode)")
+        print(f"[Navigator] 📋 All FAISS indexes built at startup. Guidelines loaded on-demand based on chief complaint")
     
     def _build_category_mapping(self):
         """Build mapping of categories to guideline files (without loading full guidelines)"""
@@ -408,7 +415,34 @@ Return ONLY the question, no explanations:"""
             return None
     
     # ============================================================================
-    # SECTION 3: CHIEF COMPLAINT
+    # SECTION 3: GREETING HANDLING (Before Chief Complaint)
+    # ============================================================================
+    
+    def _is_greeting(self, message: str) -> bool:
+        """
+        Detect if message is a greeting using LLM (before chief complaint matching).
+        """
+        if not self.llm_chat_fn:
+            raise ValueError("LLM function required for greeting detection")
+        
+        # Use LLM to intelligently detect greetings
+        response = self.llm_chat_fn(
+            [{"role": "system", "content": self.LLM_GREETING_DETECTION_SYSTEM_MSG}, 
+             {"role": "user", "content": f"Patient message: {message}\n\nIs this a greeting or medical? Return ONLY 'greeting' or 'medical':"}],
+            max_tokens=10,
+            temperature=0.1
+        )
+        
+        result = response.strip().lower()
+        is_greeting = 'greeting' in result and 'medical' not in result
+        
+        if is_greeting:
+            self._capture_debug(f"[Navigator] 👋 Detected greeting: '{message}'")
+        
+        return is_greeting
+    
+    # ============================================================================
+    # SECTION 4: CHIEF COMPLAINT
     # ============================================================================
     
     def _match_chief_complaint_to_categories(self, chief_complaint: str) -> List[str]:
@@ -422,69 +456,49 @@ Return ONLY the question, no explanations:"""
         4. Return categories (single or multiple if overlap)
         """
         if not self.embedding_model or not self.all_chief_complaint_triggers:
-            # Fallback: simple keyword matching
-            return self._match_chief_complaint_keywords(chief_complaint)
+            raise ValueError("Embedding model and chief complaint triggers required for category matching")
         
         # Semantically compare chief complaint to all triggers
         threshold = self.CHIEF_COMPLAINT_MATCHING_THRESHOLD
         matched_guidelines = []  # [{category, condition, score}, ...]
         
-        try:
-            import numpy as np
-            
-            # Encode chief complaint
-            chief_complaint_embedding = self.embedding_model.encode([chief_complaint])[0]
-            chief_emb = np.array(chief_complaint_embedding).reshape(1, -1)
-            chief_norm = chief_emb / np.linalg.norm(chief_emb)
-            
-            # Compare to all triggers
-            for trigger_data in self.all_chief_complaint_triggers:
-                trigger = trigger_data['trigger']
-                
-                # Encode trigger
-                trigger_embedding = self.embedding_model.encode([trigger])[0]
-                trigger_emb = np.array(trigger_embedding).reshape(1, -1)
-                trigger_norm = trigger_emb / np.linalg.norm(trigger_emb)
-                
-                # Calculate cosine similarity
-                similarity = float(np.dot(trigger_norm, chief_norm.T)[0][0])
-                
-                if similarity >= threshold:
-                    matched_guidelines.append({
-                        'category': trigger_data['category'],
-                        'condition': trigger_data['condition'],
-                        'filepath': trigger_data['filepath'],
-                        'score': similarity
-                    })
-            
-            # Extract unique categories from matched guidelines
-            matched_categories = list(set([g['category'] for g in matched_guidelines]))
-            
-            if matched_guidelines:
-                self._capture_debug(f"[Navigator] 🔍 Chief complaint '{chief_complaint}' matched {len(matched_guidelines)} guidelines in categories: {matched_categories}")
-            
-        except Exception as e:
-            print(f"[Navigator] ⚠️ FAISS chief complaint matching failed: {e}")
-            # Fallback to keyword matching
-            matched_categories = self._match_chief_complaint_keywords(chief_complaint)
+        import numpy as np
         
-        # If no FAISS matches, fallback to keyword matching
-        if not matched_categories:
-            matched_categories = self._match_chief_complaint_keywords(chief_complaint)
+        # Encode chief complaint
+        chief_complaint_embedding = self.embedding_model.encode([chief_complaint])[0]
+        chief_emb = np.array(chief_complaint_embedding).reshape(1, -1)
+        chief_norm = chief_emb / np.linalg.norm(chief_emb)
         
+        # Compare to all triggers
+        for trigger_data in self.all_chief_complaint_triggers:
+            trigger = trigger_data['trigger']
+            
+            # Encode trigger
+            trigger_embedding = self.embedding_model.encode([trigger])[0]
+            trigger_emb = np.array(trigger_embedding).reshape(1, -1)
+            trigger_norm = trigger_emb / np.linalg.norm(trigger_emb)
+            
+            # Calculate cosine similarity
+            similarity = float(np.dot(trigger_norm, chief_norm.T)[0][0])
+            
+            if similarity >= threshold:
+                matched_guidelines.append({
+                    'category': trigger_data['category'],
+                    'condition': trigger_data['condition'],
+                    'filepath': trigger_data['filepath'],
+                    'score': similarity
+                })
+        
+        # Extract unique categories from matched guidelines
+        matched_categories = list(set([g['category'] for g in matched_guidelines]))
+        
+        if matched_guidelines:
+            self._capture_debug(f"[Navigator] 🔍 Chief complaint '{chief_complaint}' matched {len(matched_guidelines)} guidelines in categories: {matched_categories}")
+        else:
+            self._capture_debug(f"[Navigator] ⚠️ No semantic match found for chief complaint: '{chief_complaint}' (threshold: {threshold}) - will use general LLM knowledge with OLDCARTS")
+        
+        # Return empty list if no matches - caller will use general LLM knowledge
         return matched_categories
-    
-    def _match_chief_complaint_keywords(self, chief_complaint: str) -> List[str]:
-        """Fallback keyword matching for chief complaint to categories"""
-        complaint_lower = chief_complaint.lower()
-        matched = []
-        
-        # Simple keyword-based category matching
-        for category, keywords in self.CATEGORY_KEYWORDS.items():
-            if any(keyword in complaint_lower for keyword in keywords):
-                matched.append(category)
-        
-        return matched if matched else ['GI']  # Default to GI if no match
     
     def _load_guidelines_for_categories(self, categories: List[str], chief_complaint: str = None):
         """
@@ -495,6 +509,10 @@ Return ONLY the question, no explanations:"""
             categories: Categories to load from (determined by chief complaint matching)
             chief_complaint: Chief complaint to match against (for loading only matching guidelines)
         """
+        if not categories:
+            # No categories to load - this is expected when using general LLM
+            return
+        
         loaded_count = 0
         
         # Find which specific guidelines matched the chief complaint
@@ -502,29 +520,24 @@ Return ONLY the question, no explanations:"""
         
         if chief_complaint and self.all_chief_complaint_triggers:
             # Semantically compare chief complaint to all triggers to find matching guidelines
-            try:
-                import numpy as np
-                chief_emb = np.array(self.embedding_model.encode([chief_complaint])[0])
-                chief_norm = chief_emb / np.linalg.norm(chief_emb)
+            import numpy as np
+            chief_emb = np.array(self.embedding_model.encode([chief_complaint])[0])
+            chief_norm = chief_emb / np.linalg.norm(chief_emb)
+            
+            for trigger_data in self.all_chief_complaint_triggers:
+                # Only check triggers from matched categories
+                if trigger_data['category'] not in categories:
+                    continue
                 
-                for trigger_data in self.all_chief_complaint_triggers:
-                    # Only check triggers from matched categories
-                    if trigger_data['category'] not in categories:
-                        continue
-                    
-                    trigger_emb = np.array(self.embedding_model.encode([trigger_data['trigger']])[0])
-                    trigger_norm = trigger_emb / np.linalg.norm(trigger_emb)
-                    similarity = float(np.dot(trigger_norm, chief_norm))
-                    
-                    if similarity >= self.CHIEF_COMPLAINT_MATCHING_THRESHOLD:
-                        # Extract filename from filepath
-                        filepath = trigger_data['filepath']
-                        filename = os.path.basename(filepath)
-                        matched_guideline_files.add((trigger_data['category'], filename))
-            except Exception as e:
-                print(f"[Navigator] ⚠️ Failed to match specific guidelines: {e}")
-                # Fallback: load all guidelines from categories
-                matched_guideline_files = None
+                trigger_emb = np.array(self.embedding_model.encode([trigger_data['trigger']])[0])
+                trigger_norm = trigger_emb / np.linalg.norm(trigger_emb)
+                similarity = float(np.dot(trigger_norm, chief_norm))
+                
+                if similarity >= self.CHIEF_COMPLAINT_MATCHING_THRESHOLD:
+                    # Extract filename from filepath
+                    filepath = trigger_data['filepath']
+                    filename = os.path.basename(filepath)
+                    matched_guideline_files.add((trigger_data['category'], filename))
         
         # Load only matching guidelines
         for category in categories:
@@ -551,7 +564,7 @@ Return ONLY the question, no explanations:"""
         
         # Activate FAISS indexes for these categories (indexes already built at startup)
         # This ensures FAISS searches are limited to relevant categories (latency optimization)
-        if self.medical_rule_engine:
+        if self.medical_rule_engine and categories:
             if len(categories) > 1:
                 # Multiple categories - activate merged indexes
                 self.medical_rule_engine.set_active_category(categories)
@@ -560,21 +573,17 @@ Return ONLY the question, no explanations:"""
                 # Single category - activate category-specific index
                 self.medical_rule_engine.set_active_category(categories[0])
                 self._capture_debug(f"[Navigator] 🔍 Activated FAISS index for category: {categories[0]}")
-            else:
-                # No categories matched - use global index (fallback)
-                self.medical_rule_engine.set_active_category(None)
-                self._capture_debug(f"[Navigator] 🔍 Using global FAISS index (fallback)")
             
             # Note: FAISS searches are already element-specific via the 'element' parameter
             # This ensures we only search the pertinent OLDCARTS element section
     
     # ============================================================================
-    # SECTION 4: DEMOGRAPHICS
+    # SECTION 5: DEMOGRAPHICS
     # ============================================================================
     # (Currently handled in session context, can be expanded if needed)
     
     # ============================================================================
-    # SECTION 5: ASSESSMENT - OLDCARTS Processing, Scoring, Question Generation
+    # SECTION 6: ASSESSMENT - OLDCARTS Processing, Scoring, Question Generation
     # ============================================================================
     
     def process_message(self, session_id: str, user_message: str) -> Dict[str, Any]:
@@ -601,25 +610,30 @@ Return ONLY the question, no explanations:"""
             # Extract OLDCARTS info
             self._extract_oldcarts_info(session, user_message)
             
-            # Score patient answer against guidelines using FAISS
-            if self.medical_rule_engine and self.embedding_model:
-                self._score_patient_answer(session, user_message)
-                
-                # Update condition rankings (top 5)
-                self._update_condition_rankings(session)
+            # Score patient answer against guidelines using FAISS (only if using guidelines)
+            if not session.context.get('use_general_llm', False):
+                if self.medical_rule_engine and self.embedding_model:
+                    self._score_patient_answer(session, user_message)
+                    
+                    # Update condition rankings (top 5)
+                    self._update_condition_rankings(session)
         
-        # Determine conversation phase
-        phase = self._determine_phase(session)
-        
-        # Generate response based on phase
-        if phase == "greeting":
+        # Check if message is a greeting FIRST (before any other processing)
+        if self._is_greeting(user_message) and not session.context.get('chief_complaint'):
             response = self._handle_greeting(session, user_message)
-        elif phase == "chief_complaint":
-            response = self._handle_chief_complaint(session, user_message)
-        elif phase == "assessment":
-            response = self._handle_assessment(session, user_message)
         else:
-            response = self._handle_followup(session, user_message)
+            # Determine conversation phase
+            phase = self._determine_phase(session)
+            
+            # Generate response based on phase
+            if phase == "greeting":
+                response = self._handle_greeting(session, user_message)
+            elif phase == "chief_complaint":
+                response = self._handle_chief_complaint(session, user_message)
+            elif phase == "assessment":
+                response = self._handle_assessment(session, user_message)
+            else:
+                response = self._handle_followup(session, user_message)
         
         # Add assistant response to session
         session.add_message('assistant', response['response'])
@@ -628,8 +642,11 @@ Return ONLY the question, no explanations:"""
     
     def _determine_phase(self, session: 'AdvancedMedicalNavigator.MedicalSession') -> str:
         """Determine current conversation phase"""
+        # If no chief complaint yet, check if this is first exchange or subsequent
         if not session.context.get('chief_complaint'):
-            if len(session.messages) <= 2:  # First exchange
+            # First exchange (user message only) = greeting
+            # Second exchange (user + assistant) = chief complaint extraction
+            if len(session.messages) <= 1:  # Only user message, no assistant response yet
                 return "greeting"
             return "chief_complaint"
         return "assessment"
@@ -637,14 +654,14 @@ Return ONLY the question, no explanations:"""
     def _handle_greeting(self, session: 'AdvancedMedicalNavigator.MedicalSession', message: str) -> Dict[str, Any]:
         """Handle greeting phase"""
         if not self.llm_chat_fn:
-            greeting = "Hello! I'm Aura, your medical AI assistant. How can I help you today?"
-        else:
-            response = self.llm_chat_fn(
-                [{"role": "system", "content": self.LLM_GREETING_SYSTEM_MSG}, {"role": "user", "content": message}],
-                max_tokens=100,
-                temperature=0.7
-            )
-            greeting = response.strip() if response else "Hello! How can I help you today?"
+            raise ValueError("LLM function required for greeting handling")
+        
+        response = self.llm_chat_fn(
+            [{"role": "system", "content": self.LLM_GREETING_SYSTEM_MSG}, {"role": "user", "content": message}],
+            max_tokens=100,
+            temperature=0.7
+        )
+        greeting = response.strip() if response else "Hello! How can I help you today?"
         
         return {
             'response': greeting,
@@ -671,10 +688,19 @@ Return ONLY the question, no explanations:"""
         session.context['chief_complaint'] = chief_complaint
         
         # Match chief complaint to categories by semantically comparing to all triggers
-        # Then load only matching guidelines and activate category indexes
         matched_categories = self._match_chief_complaint_to_categories(chief_complaint)
-        self._load_guidelines_for_categories(matched_categories, chief_complaint)
-        session.context['matched_categories'] = matched_categories
+        
+        if matched_categories:
+            # Semantic match found - load matching guidelines and activate category indexes
+            self._load_guidelines_for_categories(matched_categories, chief_complaint)
+            session.context['matched_categories'] = matched_categories
+            session.context['use_general_llm'] = False
+            self._capture_debug(f"[Navigator] ✅ Using guideline-based assessment for categories: {matched_categories}")
+        else:
+            # No semantic match - use general LLM knowledge with OLDCARTS structure
+            session.context['matched_categories'] = []
+            session.context['use_general_llm'] = True
+            self._capture_debug(f"[Navigator] 📚 Using general LLM knowledge with OLDCARTS structure (no guideline match)")
         
         # Generate empathetic response and first question (start with location or character)
         if self.llm_chat_fn:
@@ -690,7 +716,7 @@ Generate an empathetic response followed by a natural first question about locat
             
             assistant_response = response.strip()
         else:
-            assistant_response = f"I understand you're experiencing {chief_complaint}. Can you tell me more about it?"
+            raise ValueError("LLM function required for chief complaint handling")
         
         return {
             'response': assistant_response,
@@ -820,11 +846,15 @@ Which OLDCARTS element was answered? Return ONLY the element name:"""
         self._capture_debug(f"[Navigator] 📊 Top conditions: {[r['condition'] for r in session.condition_rankings[:3]]}")
     
     def _handle_assessment(self, session: 'AdvancedMedicalNavigator.MedicalSession', message: str) -> Dict[str, Any]:
-        """Handle assessment phase - generate next question based on condition ranking"""
+        """Handle assessment phase - generate next question based on condition ranking or general LLM"""
         if not self.llm_chat_fn:
-            next_question = "Can you tell me more about your symptoms?"
-        else:
-            # Determine best next question based on condition rankings
+            raise ValueError("LLM function required for assessment")
+        
+        use_general_llm = session.context.get('use_general_llm', False)
+        chief_complaint = session.context.get('chief_complaint', 'symptoms')
+        
+        if use_general_llm:
+            # Use general LLM knowledge with OLDCARTS structure (no guidelines)
             next_element, examples = self._select_best_next_question(session)
             
             if not next_element:
@@ -832,7 +862,50 @@ Which OLDCARTS element was answered? Return ONLY the element name:"""
                 next_question = self._generate_assessment_summary(session)
             else:
                 # Get generic template examples (style guide)
-                chief_complaint = session.context.get('chief_complaint', 'symptoms')
+                template_examples = self._get_oldcarts_examples(chief_complaint, next_element)
+                
+                # Use LLM to generate next question with OLDCARTS structure
+                system_msg = self.LLM_ASSESSMENT_SYSTEM_MSG_TEMPLATE.format(next_element=next_element)
+                
+                # Build conversation context
+                conversation_text = "\n".join([
+                    f"{msg['role']}: {msg['content']}" 
+                    for msg in session.get_recent_messages(8)
+                ])
+                
+                user_msg = f"""Chief complaint: {chief_complaint}
+
+Information already gathered:
+{self._format_covered_info(session)}
+
+Next element to ask about: {next_element}
+
+Example question format (use as style guide):
+{template_examples}
+
+Conversation so far:
+{conversation_text}
+
+Generate a natural, specific question about {next_element} for this patient's {chief_complaint}. Use the example format as a style guide - ask in a similar detailed, conversational way. Make it feel tailored to this specific case."""
+                
+                response = self.llm_chat_fn(
+                    [{"role": "system", "content": system_msg}, {"role": "user", "content": user_msg}],
+                    max_tokens=100,
+                    temperature=0.7
+                )
+                
+                next_question = response.strip()
+                if not next_question or len(next_question) < 10:
+                    raise ValueError(f"LLM failed to generate valid question for element: {next_element}")
+        else:
+            # Use guideline-based assessment with condition rankings
+            next_element, examples = self._select_best_next_question(session)
+            
+            if not next_element:
+                # All information gathered - provide summary
+                next_question = self._generate_assessment_summary(session)
+            else:
+                # Get generic template examples (style guide)
                 template_examples = self._get_oldcarts_examples(chief_complaint, next_element)
                 
                 # Use LLM to generate next question with structured guidance
@@ -875,11 +948,10 @@ Generate a natural, specific question about {next_element} for this patient's {c
                 
                 next_question = response.strip()
                 if not next_question or len(next_question) < 10:
-                    # Fallback to generic question
-                    next_question = self._get_fallback_question(next_element, chief_complaint)
-            
-            # Get missing info for metadata
-            missing_info = self._get_missing_oldcarts_info(session)
+                    raise ValueError(f"LLM failed to generate valid question for element: {next_element}")
+        
+        # Get missing info for metadata
+        missing_info = self._get_missing_oldcarts_info(session)
         
         return {
             'response': next_question,
@@ -911,7 +983,7 @@ Generate a natural, specific question about {next_element} for this patient's {c
                 examples = self._get_oldcarts_examples(chief_complaint, differentiating_element)
                 return differentiating_element, examples
         
-        # Fallback: use priority order
+        # Use priority order if no differentiating element found
         next_element = missing_info[0]
         chief_complaint = session.context.get('chief_complaint', 'symptoms')
         examples = self._get_oldcarts_examples(chief_complaint, next_element)
@@ -969,7 +1041,7 @@ Generate a natural, specific question about {next_element} for this patient's {c
         return self._handle_assessment(session, message)
     
     # ============================================================================
-    # SECTION 6: UTILITIES - Helper Functions
+    # SECTION 7: UTILITIES - Helper Functions
     # ============================================================================
     
     # ===== SESSION MANAGEMENT CLASS =====
@@ -1135,21 +1207,6 @@ Generate a natural, specific question about {next_element} for this patient's {c
         
         return examples_text.strip()
     
-    def _get_fallback_question(self, element: str, chief_complaint: str) -> str:
-        """Get a fallback question if LLM fails"""
-        fallbacks = {
-            'onset': f'When did the {chief_complaint} start?',
-            'location': f'Where exactly is the {chief_complaint} located?',
-            'duration': f'How long has the {chief_complaint} been going on?',
-            'character': f'Can you describe what the {chief_complaint} feels like?',
-            'aggravating': f'What makes the {chief_complaint} worse?',
-            'relieving': f'Does anything make the {chief_complaint} better?',
-            'timing': f'Is the {chief_complaint} constant or does it come and go?',
-            'severity': f'On a scale of 1 to 10, how severe is the {chief_complaint}?',
-            'associated': 'Are there any other symptoms you\'ve noticed?'
-        }
-        return fallbacks.get(element, f'Can you tell me more about the {chief_complaint}?')
-    
     def reset_session(self, session_id: str):
         """Reset a session"""
         if session_id in self.sessions:
@@ -1170,7 +1227,7 @@ Generate a natural, specific question about {next_element} for this patient's {c
         }
     
     # ============================================================================
-    # SECTION 7: DEBUGGING - Debug Functions (Last)
+    # SECTION 8: DEBUGGING - Debug Functions (Last)
     # ============================================================================
     
     def _capture_debug(self, message: str):
