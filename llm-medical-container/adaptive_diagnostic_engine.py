@@ -77,9 +77,9 @@ class AdaptiveDiagnosticEngine:
     # REMOVED: FAISS_STRICT_THRESHOLD - only used in removed _parse_prompt_against_structured_oldcarts function
     
     # Chief complaint matching thresholds
-    CHIEF_COMPLAINT_FAISS_THRESHOLD = 0.75  # FAISS threshold for chief complaint matching
-    CHIEF_COMPLAINT_NEAR_MISS_LOWER = 0.5  # Lower bound for near-miss candidates
-    CHIEF_COMPLAINT_NEAR_MISS_UPPER = 0.6  # Upper bound for near-miss candidates (fuzzy matching)
+    CHIEF_COMPLAINT_FAISS_THRESHOLD = 0.6  # FAISS threshold for chief complaint matching
+    CHIEF_COMPLAINT_NEAR_MISS_LOWER = 0.4  # Lower bound for near-miss candidates
+    CHIEF_COMPLAINT_NEAR_MISS_UPPER = 0.5  # Upper bound for near-miss candidates (fuzzy matching)
     CHIEF_COMPLAINT_FUZZY_THRESHOLD = 0.8  # Fuzzy matching threshold for typos/near-misses
     
     # ML learning confidence threshold
@@ -613,30 +613,26 @@ Generate an empathetic response that acknowledges their distress and reassures t
             k = min(10, len(self.chief_complaint_triggers_data))  # Get more candidates for fuzzy filtering
             similarities, indices = self.chief_complaint_triggers_index.search(query_embedding, k)
             
-            # Debug: Show all FAISS matches and specifically check for "abdominal pain"
-            self._capture_debug(f"[Engine] 🔍 FAISS search for '{chief_complaint}' (threshold: {self.CHIEF_COMPLAINT_NEAR_MISS_UPPER}):")
-            abdominal_pain_found = False
+            # Debug: Show all FAISS matches
+            self._capture_debug(f"[Engine] 🔍 FAISS search for '{chief_complaint}' (threshold: {self.CHIEF_COMPLAINT_FAISS_THRESHOLD}):")
             for idx, sim in zip(indices[0], similarities[0]):
                 if idx < len(self.chief_complaint_triggers_data):
                     trigger_data = self.chief_complaint_triggers_data[idx]
                     trigger_text = trigger_data.get('trigger', '')
                     category = trigger_data.get('category', '')
-                    self._capture_debug(f"[Engine]   - '{trigger_text}' ({category}): {sim:.4f}")
-                    if 'abdominal pain' in trigger_text.lower():
-                        abdominal_pain_found = True
-                        self._capture_debug(f"[Engine]   ⭐ FOUND 'abdominal pain': similarity = {sim:.4f} (threshold: {self.CHIEF_COMPLAINT_NEAR_MISS_UPPER})")
-            if not abdominal_pain_found:
-                self._capture_debug(f"[Engine]   ⚠️ 'abdominal pain' NOT found in top {k} FAISS matches")
+                    threshold_status = "✅ ABOVE" if sim >= self.CHIEF_COMPLAINT_FAISS_THRESHOLD else "⚠️ BELOW"
+                    self._capture_debug(f"[Engine]   - '{trigger_text}' ({category}): {sim:.4f} {threshold_status} threshold")
             
-            # Find best matching category (threshold 0.6) and track near-misses for fuzzy matching
+            # Find best matching category and track near-misses for fuzzy matching
             category_scores = {}
-            near_miss_candidates = []  # Triggers that scored 0.5-0.6 (close but below threshold)
+            near_miss_candidates = []  # Triggers that scored in near-miss range (close but below threshold)
+            self._capture_debug(f"[Engine] 📊 Using thresholds: FAISS={self.CHIEF_COMPLAINT_FAISS_THRESHOLD}, Near-miss={self.CHIEF_COMPLAINT_NEAR_MISS_LOWER}-{self.CHIEF_COMPLAINT_NEAR_MISS_UPPER}, Fuzzy={self.CHIEF_COMPLAINT_FUZZY_THRESHOLD}")
             
             for idx, sim in zip(indices[0], similarities[0]):
                 if idx < len(self.chief_complaint_triggers_data):
                     trigger_data = self.chief_complaint_triggers_data[idx]
                     
-                    if sim >= self.CHIEF_COMPLAINT_NEAR_MISS_UPPER:
+                    if sim >= self.CHIEF_COMPLAINT_FAISS_THRESHOLD:
                         # Above threshold - use for category matching
                         category = trigger_data['category']
                         if category not in category_scores or sim > category_scores[category]:
@@ -647,7 +643,7 @@ Generate an empathetic response that acknowledges their distress and reassures t
             
             # If FAISS didn't find matches above threshold, try fuzzy matching only on near-misses
             if not category_scores and near_miss_candidates:
-                self._capture_debug(f"[Engine] ⚠️ FAISS found no matches above {self.CHIEF_COMPLAINT_NEAR_MISS_UPPER}, trying fuzzy matching on {len(near_miss_candidates)} near-miss candidates...")
+                self._capture_debug(f"[Engine] ⚠️ FAISS found no matches above {self.CHIEF_COMPLAINT_FAISS_THRESHOLD}, trying fuzzy matching on {len(near_miss_candidates)} near-miss candidates...")
                 try:
                     from difflib import SequenceMatcher
                     
@@ -700,13 +696,13 @@ Generate an empathetic response that acknowledges their distress and reassures t
                         self._capture_debug(f"[Engine] ✅ Fuzzy match found: '{chief_complaint}' → '{best_fuzzy_match}' ({best_fuzzy_category}, FAISS: {faiss_score:.3f} → fuzzy: {best_fuzzy_score:.3f})")
                         return best_fuzzy_category
                     else:
-                        self._capture_debug(f"[Engine] ❌ Fuzzy matching on near-misses found no matches (threshold: 0.8)")
+                        self._capture_debug(f"[Engine] ❌ Fuzzy matching on near-misses found no matches (threshold: {self.CHIEF_COMPLAINT_FUZZY_THRESHOLD})")
                 except Exception as fuzzy_e:
                     self._capture_debug(f"[Engine] ⚠️ Fuzzy matching error: {fuzzy_e}")
             
             # If no matches found (either above threshold or via fuzzy on near-misses)
             if not category_scores:
-                raise ValueError(f"No category match found for chief complaint: '{chief_complaint}' (FAISS threshold: {self.CHIEF_COMPLAINT_NEAR_MISS_UPPER}, fuzzy on near-misses {self.CHIEF_COMPLAINT_NEAR_MISS_LOWER}-{self.CHIEF_COMPLAINT_NEAR_MISS_UPPER})")
+                raise ValueError(f"No category match found for chief complaint: '{chief_complaint}' (FAISS threshold: {self.CHIEF_COMPLAINT_FAISS_THRESHOLD}, fuzzy on near-misses {self.CHIEF_COMPLAINT_NEAR_MISS_LOWER}-{self.CHIEF_COMPLAINT_NEAR_MISS_UPPER})")
             
             # Sort categories by score
             sorted_categories = sorted(category_scores.items(), key=lambda x: x[1], reverse=True)
