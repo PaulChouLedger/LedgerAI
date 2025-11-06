@@ -867,26 +867,30 @@ Generate an empathetic response that acknowledges their distress and reassures t
         return filtered
     
     def get_available_categories(self) -> List[str]:
-        """Get list of all available categories (based on guideline directories)"""
-        if not self.guidelines_dir.exists():
+        """Get list of all available categories (based on actually loaded guidelines)"""
+        if not self.all_guidelines:
             return []
         
         categories = set()
-        # Get all subdirectories in guidelines_dir (each represents a category)
-        for subdir in self.guidelines_dir.iterdir():
-            if subdir.is_dir():
-                # Map directory name to category name
-                dir_name = subdir.name.upper()
-                # Reverse lookup: find category from system name
-                found = False
-                for cat, sys in self.CATEGORY_TO_SYSTEM.items():
-                    if sys == dir_name or dir_name.startswith(sys):
-                        categories.add(cat)
-                        found = True
-                        break
-                # If no match found, use directory name as category (lowercase)
-                if not found:
-                    categories.add(subdir.name.lower())
+        # Check which organ systems actually have loaded guidelines
+        loaded_organ_systems = set()
+        for name, guideline in self.all_guidelines.items():
+            organ_system = guideline.get('organ_system', '')
+            if organ_system:
+                loaded_organ_systems.add(organ_system.upper())
+        
+        # Map loaded organ systems back to category names
+        for organ_system in loaded_organ_systems:
+            found = False
+            # Reverse lookup: find category from system name
+            for cat, sys in self.CATEGORY_TO_SYSTEM.items():
+                if sys.upper() == organ_system or organ_system.startswith(sys.upper()):
+                    categories.add(cat)
+                    found = True
+                    break
+            # If no match found, use organ system name as category (lowercase)
+            if not found:
+                categories.add(organ_system.lower())
         
         return sorted(list(categories))
     
