@@ -4370,9 +4370,11 @@ CRITICAL: You MUST use ONLY the terms from this list: {options_list}
 DO NOT use any other location terms, even if mentioned in conversation context.
 DO NOT use terms like "right upper quadrant" unless it appears in the list above.
 
+You MUST include ALL {len(terms_to_use)} of the provided terms in your question. DO NOT skip any terms. Include them all even if it makes the question longer.
+
 EXAMPLE of correct format: "{example_question}"
 
-Generate a clarification question using EXACTLY this format with ONLY the terms provided above. The question MUST include at least 3-4 specific options from the list."""
+Generate a clarification question using EXACTLY this format with ONLY the terms provided above. The question MUST include at least 4-5 specific options from the list."""
         else:
             # Build example with actual terms (avoid generic "Can you be more specific?")
             if len(terms_to_use) >= 4:
@@ -4397,7 +4399,8 @@ EXAMPLE of correct format: "{example_question}"
 
 Generate a clarification question using EXACTLY this format with the terms provided above. The question MUST include at least 3-4 specific options from the list."""
         
-        llm_kwargs = self._get_llm_kwargs(override_max_tokens=150)  # Increased to allow for longer questions with terms
+        # Increase max_tokens to ensure all terms can be included (5 terms * ~30 chars each + question structure = ~200 tokens)
+        llm_kwargs = self._get_llm_kwargs(override_max_tokens=200)  # Increased to allow for all terms in longer questions
         
         response = self.llm_chat_simple_fn(
             [
@@ -4423,13 +4426,23 @@ Generate a clarification question using EXACTLY this format with the terms provi
         
         # Debug: Show which terms were found in the response
         found_terms = [term for term in terms_to_use if term.lower() in response_lower]
+        missing_terms = [term for term in terms_to_use if term.lower() not in response_lower]
         if found_terms:
             self._capture_debug(f"[Clarification] ✅ Found {len(found_terms)}/{len(terms_to_use)} terms in response: {found_terms}")
+            if missing_terms:
+                self._capture_debug(f"[Clarification] ⚠️ Missing {len(missing_terms)}/{len(terms_to_use)} terms from response: {missing_terms}")
         else:
             self._capture_debug(f"[Clarification] ⚠️ No provided terms found in response")
         
         validation_passed = True
         validation_error = None
+        
+        # Require at least 3-4 terms to be included (not just 1)
+        # For 5 terms, require at least 4. For fewer terms, require at least 3 or all of them
+        min_required_terms = min(4, len(terms_to_use)) if len(terms_to_use) >= 4 else min(3, len(terms_to_use))
+        if len(found_terms) < min_required_terms:
+            validation_passed = False
+            validation_error = f"LLM only included {len(found_terms)}/{len(terms_to_use)} terms. Required at least {min_required_terms} terms. Missing: {missing_terms}"
         
         if not has_term:
             # Check if it's just a generic question without terms
