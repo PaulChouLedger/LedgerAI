@@ -77,10 +77,14 @@ class AdaptiveDiagnosticEngine:
     # REMOVED: FAISS_STRICT_THRESHOLD - only used in removed _parse_prompt_against_structured_oldcarts function
     
     # Chief complaint matching thresholds
-    CHIEF_COMPLAINT_FAISS_THRESHOLD = 0.6  # FAISS threshold for chief complaint matching
-    CHIEF_COMPLAINT_NEAR_MISS_LOWER = 0.4  # Lower bound for near-miss candidates
-    CHIEF_COMPLAINT_NEAR_MISS_UPPER = 0.5  # Upper bound for near-miss candidates (fuzzy matching)
-    CHIEF_COMPLAINT_FUZZY_THRESHOLD = 0.8  # Fuzzy matching threshold for typos/near-misses
+    # Progression: FAISS_THRESHOLD (high confidence) → NEAR_MISS_UPPER (medium confidence) → NEAR_MISS_LOWER (fuzzy matching)
+    CHIEF_COMPLAINT_FAISS_THRESHOLD = 0.6  # High confidence: direct match (e.g., "abdominal pain" → "abdominal pain")
+    CHIEF_COMPLAINT_NEAR_MISS_UPPER = 0.5  # Medium confidence: still use directly but with lower confidence (e.g., "stomach ache" → "abdominal pain")
+    CHIEF_COMPLAINT_NEAR_MISS_LOWER = 0.4  # Low confidence: use fuzzy matching (e.g., "tummy ache" → "abdominal pain")
+    CHIEF_COMPLAINT_FUZZY_THRESHOLD = 0.4  # Fuzzy matching threshold for chief complaint category matching (SequenceMatcher for colloquial terms)
+    
+    # Global fuzzy matching threshold (for typo correction in user responses)
+    FUZZY_TYPO_CORRECTION_THRESHOLD = 0.6  # Threshold for FuzzyMedicalMatcher typo correction (used for all user inputs: chief complaint, answers, etc.)
     
     # ML learning confidence threshold
     ML_CONFIDENCE_THRESHOLD = 0.45  # Minimum confidence for ML learning recording
@@ -482,24 +486,53 @@ Generate an empathetic response that acknowledges their distress and reassures t
         # STEP 0: Apply fuzzy matching to correct typos in chief complaint (ALWAYS RUN)
         if self.fuzzy_matcher:
             original_complaint = chief_complaint
-            chief_complaint = self.fuzzy_matcher.fuzzy_correct_medical_terms(chief_complaint)
+            chief_complaint = self.fuzzy_matcher.fuzzy_correct_medical_terms(chief_complaint, similarity_threshold=self.FUZZY_TYPO_CORRECTION_THRESHOLD)
             if chief_complaint != original_complaint:
                 self._capture_debug(f"[Fuzzy] 🔄 Corrected chief complaint typos: '{original_complaint}' → '{chief_complaint}'")
         
-        # STEP 1: Semantic similarity matching to chief complaint triggers → match category
-        category = self._match_chief_complaint_to_category(chief_complaint)
-        self.current_category = category
-        self._capture_debug(f"[Engine] 🎯 Category: {category}")
+        # STEP 1: Semantic similarity matching to chief complaint triggers → match category/categories
+        categories = self._match_chief_complaint_to_category(chief_complaint)
+        # Ensure categories is always a list
+        if isinstance(categories, str):
+            categories = [categories]
+        self.current_category = categories[0] if len(categories) == 1 else None  # Store primary category for backward compatibility
+        self.current_categories = categories  # Store all matched categories
         
-        # Switch FAISS indexes to category-specific once category is determined
+        if len(categories) == 1:
+            self._capture_debug(f"[Engine] 🎯 Category: {categories[0]}")
+        else:
+            self._capture_debug(f"[Engine] 🎯 Categories: {', '.join(categories)}")
+        
+        # Switch FAISS indexes: merge matched categories' indexes, category-specific for single category
         if self.medical_rule_engine and hasattr(self.medical_rule_engine, 'set_active_category'):
-            self._capture_debug(f"[Engine] 🔀 Switching FAISS indexes to {category} category...")
-            self.medical_rule_engine.set_active_category(category)
-            self._capture_debug(f"[Engine] ✅ FAISS indexes switched to {category} category")
+            if len(categories) == 1:
+                self._capture_debug(f"[Engine] 🔀 Switching FAISS indexes to {categories[0]} category...")
+                self.medical_rule_engine.set_active_category(categories[0])
+                self._capture_debug(f"[Engine] ✅ FAISS indexes switched to {categories[0]} category")
+            else:
+                # Multiple categories: merge only the matched categories' indexes
+                self._capture_debug(f"[Engine] 🔀 Multiple categories detected - merging FAISS indexes for: {', '.join(categories)}")
+                self.medical_rule_engine.set_active_category(categories)  # Merge matched categories
+                self._capture_debug(f"[Engine] ✅ Using merged FAISS index for matched categories only")
         
-        # STEP 2: Narrow down guidelines to matched category
-        matched_guidelines = self._get_all_guidelines_in_category(category)
-        self._capture_debug(f"[Engine] 📊 Found {len(matched_guidelines)} guidelines in {category}")
+        # STEP 2: Load guidelines from all matched categories
+        matched_guidelines = []
+        for category in categories:
+            category_guidelines = self._get_all_guidelines_in_category(category)
+            matched_guidelines.extend(category_guidelines)
+            self._capture_debug(f"[Engine] 📊 Found {len(category_guidelines)} guidelines in {category}")
+        
+        # Remove duplicates (same guideline name from different categories)
+        seen_names = set()
+        unique_guidelines = []
+        for guideline in matched_guidelines:
+            name = guideline.get('name', 'Unknown')
+            if name not in seen_names:
+                seen_names.add(name)
+                unique_guidelines.append(guideline)
+        
+        matched_guidelines = unique_guidelines
+        self._capture_debug(f"[Engine] 📊 Total unique guidelines from {len(categories)} category/categories: {len(matched_guidelines)}")
         self._capture_debug(f"[Guideline Load] 📚 Conditions: {[g.get('name', 'Unknown') for g in matched_guidelines[:10]]}")
         
         # Initialize assessment
@@ -585,15 +618,19 @@ Generate an empathetic response that acknowledges their distress and reassures t
         # Fallback: try to infer from guideline name/path
         return 'gastrointestinal'  # Default
     
-    def _match_chief_complaint_to_category(self, chief_complaint: str) -> str:
+    def _match_chief_complaint_to_category(self, chief_complaint: str) -> List[str]:
         """
         Match chief complaint to category using semantic similarity matching to chief complaint triggers.
         
         Algorithm:
         - User says "I have a tummy ache"
         - Semantically compare to all chief_complaint_triggers from all guidelines
-        - Match to highest similarity → return category
+        - Match to highest similarity → return category/categories
+        - If multiple categories have similar scores (within 0.1), return all matched categories
         - Keep it simple: direct semantic comparison, no synonym normalization
+        
+        Returns:
+            List[str]: List of matched categories (single category if no crossover, multiple if crossover detected)
         """
         triggers_index_missing = not self.chief_complaint_triggers_index
         embedding_model_missing = not self.embedding_model
@@ -633,13 +670,21 @@ Generate an empathetic response that acknowledges their distress and reassures t
                     trigger_data = self.chief_complaint_triggers_data[idx]
                     
                     if sim >= self.CHIEF_COMPLAINT_FAISS_THRESHOLD:
-                        # Above threshold - use for category matching
+                        # Step 1: High confidence - use directly for category matching
                         category = trigger_data['category']
                         if category not in category_scores or sim > category_scores[category]:
                             category_scores[category] = sim
+                            self._capture_debug(f"[Engine] ✅ High confidence match: '{trigger_data.get('trigger', '')}' (score: {sim:.4f})")
+                    elif sim >= self.CHIEF_COMPLAINT_NEAR_MISS_UPPER:
+                        # Step 2: Medium confidence - still use directly but with lower confidence
+                        category = trigger_data['category']
+                        if category not in category_scores or sim > category_scores[category]:
+                            category_scores[category] = sim
+                            self._capture_debug(f"[Engine] ⚠️ Medium confidence match: '{trigger_data.get('trigger', '')}' (score: {sim:.4f})")
                     elif sim >= self.CHIEF_COMPLAINT_NEAR_MISS_LOWER:
-                        # Close to threshold - candidate for fuzzy matching (typo detection)
+                        # Step 3: Low confidence - candidate for fuzzy matching (colloquial terms/typos)
                         near_miss_candidates.append((trigger_data, sim))
+                        self._capture_debug(f"[Engine] 🔍 Low confidence candidate for fuzzy matching: '{trigger_data.get('trigger', '')}' (score: {sim:.4f})")
             
             # If FAISS didn't find matches above threshold, try fuzzy matching only on near-misses
             if not category_scores and near_miss_candidates:
@@ -683,9 +728,17 @@ Generate an empathetic response that acknowledges their distress and reassures t
                         else:
                             # Only do expensive SequenceMatcher if length check passed
                             similarity = SequenceMatcher(None, key_terms, trigger_text).ratio()
+                            
+                            # Boost similarity for medical term matches (colloquial -> medical)
+                            # If FAISS already found it as a near-miss, it's semantically similar
+                            # Boost by the FAISS score to account for semantic similarity
+                            if faiss_score >= self.CHIEF_COMPLAINT_NEAR_MISS_LOWER:
+                                # Combine character similarity with semantic similarity
+                                # Weight: 60% semantic (FAISS), 40% character (SequenceMatcher)
+                                similarity = (faiss_score * 0.6) + (similarity * 0.4)
                         
                         similarity_greater_than_best = similarity > best_fuzzy_score
-                        similarity_meets_threshold = similarity >= self.CHIEF_COMPLAINT_FUZZY_THRESHOLD  # Fuzzy threshold (stricter than FAISS for typos)
+                        similarity_meets_threshold = similarity >= self.CHIEF_COMPLAINT_FUZZY_THRESHOLD
                         
                         if similarity_greater_than_best and similarity_meets_threshold:
                             best_fuzzy_score = similarity
@@ -694,7 +747,7 @@ Generate an empathetic response that acknowledges their distress and reassures t
                     
                     if best_fuzzy_match and best_fuzzy_category:
                         self._capture_debug(f"[Engine] ✅ Fuzzy match found: '{chief_complaint}' → '{best_fuzzy_match}' ({best_fuzzy_category}, FAISS: {faiss_score:.3f} → fuzzy: {best_fuzzy_score:.3f})")
-                        return best_fuzzy_category
+                        return [best_fuzzy_category]
                     else:
                         self._capture_debug(f"[Engine] ❌ Fuzzy matching on near-misses found no matches (threshold: {self.CHIEF_COMPLAINT_FUZZY_THRESHOLD})")
                 except Exception as fuzzy_e:
@@ -710,18 +763,31 @@ Generate an empathetic response that acknowledges their distress and reassures t
             
             # Check for cross-organ system matches (if multiple categories have similar scores)
             # If second-best category is within 0.1 of best, it might be crossover
+            matched_categories = [best_category]
             if len(sorted_categories) > 1:
                 second_score = sorted_categories[1][1]
                 score_difference_small = best_score - second_score < 0.1
-                second_score_meets_threshold = second_score >= 0.6
+                second_score_meets_threshold = second_score >= self.CHIEF_COMPLAINT_FAISS_THRESHOLD
                 
                 if score_difference_small and second_score_meets_threshold:
-                    second_category = sorted_categories[1][0]
-                    self._capture_debug(f"[Engine] 🎯 Multiple categories detected (crossover): {best_category} ({best_score:.3f}) vs {second_category} ({second_score:.3f})")
-                    # For now, return best - could be extended to return both categories
+                    # Include all categories that are within 0.1 of the best score and above threshold
+                    for category, score in sorted_categories[1:]:
+                        if best_score - score < 0.1 and score >= self.CHIEF_COMPLAINT_FAISS_THRESHOLD:
+                            matched_categories.append(category)
+                    
+                    if len(matched_categories) > 1:
+                        self._capture_debug(f"[Engine] 🎯 Multiple categories detected (crossover): {', '.join([f'{cat} ({category_scores[cat]:.3f})' for cat in matched_categories])}")
+                    else:
+                        second_category = sorted_categories[1][0]
+                        self._capture_debug(f"[Engine] 🎯 Multiple categories detected (crossover): {best_category} ({best_score:.3f}) vs {second_category} ({second_score:.3f})")
+                        matched_categories.append(second_category)
             
-            self._capture_debug(f"[Engine] 🎯 Category matched via chief_complaint_triggers: {best_category} (score: {best_score:.3f})")
-            return best_category
+            if len(matched_categories) == 1:
+                self._capture_debug(f"[Engine] 🎯 Category matched via chief_complaint_triggers: {best_category} (score: {best_score:.3f})")
+            else:
+                self._capture_debug(f"[Engine] 🎯 Multiple categories matched via chief_complaint_triggers: {', '.join(matched_categories)}")
+            
+            return matched_categories
         except Exception as e:
             self._capture_debug(f"[Engine] ❌ FAISS chief complaint matching failed: {e}")
             raise ValueError(f"Failed to match chief complaint to category: {e}")
@@ -2389,7 +2455,7 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
         # STEP 0: Apply fuzzy matching to correct typos in user response (ALWAYS RUN)
         if self.fuzzy_matcher:
             original_answer = user_answer
-            user_answer = self.fuzzy_matcher.fuzzy_correct_medical_terms(user_answer)
+            user_answer = self.fuzzy_matcher.fuzzy_correct_medical_terms(user_answer, similarity_threshold=self.FUZZY_TYPO_CORRECTION_THRESHOLD)
             if user_answer != original_answer:
                 self._capture_debug(f"[Fuzzy] 🔄 Corrected typos: '{original_answer}' → '{user_answer}'")
         
@@ -2962,7 +3028,7 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
         # Apply fuzzy matching to correct typos (ALWAYS RUN)
         if self.fuzzy_matcher:
             original_answer = answer
-            answer = self.fuzzy_matcher.fuzzy_correct_medical_terms(answer)
+            answer = self.fuzzy_matcher.fuzzy_correct_medical_terms(answer, similarity_threshold=self.FUZZY_TYPO_CORRECTION_THRESHOLD)
             if answer != original_answer:
                 self._capture_debug(f"[Fuzzy] 🔄 Corrected clinical answer typos: '{original_answer}' → '{answer}'")
         

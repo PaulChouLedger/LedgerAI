@@ -34,7 +34,8 @@ class MedicalRuleEngine:
         self.term_embeddings_by_category = {}  # Category-specific indexes: {category: {element: {...}}}
         # REMOVED: synonym_cache - synonym files no longer used
         self.active_category = None  # Currently active category
-        self.term_embeddings = {}  # Global index (for initial parsing before category is determined)
+        self.term_embeddings = {}  # Current index (global or category-specific)
+        self.global_term_embeddings = {}  # Preserved global index (for multi-category matching)
         self._build_category_specific_indexes()
     
     def _load_medical_rules(self) -> Dict:
@@ -204,6 +205,10 @@ class MedicalRuleEngine:
         # Also build global index for backward compatibility (used when category not yet determined)
         print(f"[FAISS] 🔨 Building global index (for initial parsing)...")
         self._build_global_index()
+        # Preserve global index separately for multi-category matching
+        # Note: FAISS indexes can't be deep copied, so we just reference the same dict
+        # This is safe because we only read from it, never modify it
+        self.global_term_embeddings = self.term_embeddings
     
     def get_all_indexed_terms(self) -> set:
         """
@@ -329,8 +334,143 @@ class MedicalRuleEngine:
         
         print(f"[FAISS] ✅ Built global index: {guideline_count} guidelines")
     
-    def set_active_category(self, category: str):
-        """Switch to category-specific indexes once category is determined."""
+    def _merge_category_indexes(self, categories: List[str]) -> Dict:
+        """Merge multiple category-specific indexes into a single combined index."""
+        merged_indexes = {}
+        all_elements = set()
+        
+        # Collect all elements from all categories
+        for category in categories:
+            if category in self.term_embeddings_by_category:
+                all_elements.update(self.term_embeddings_by_category[category].keys())
+        
+        # Merge indexes for each element
+        for element in all_elements:
+            all_terms = []
+            all_embeddings_list = []
+            all_term_to_conditions = {}
+            all_synonym_to_medical = {}
+            
+            # Collect terms and embeddings from all categories for this element
+            for category in categories:
+                if category in self.term_embeddings_by_category:
+                    category_indexes = self.term_embeddings_by_category[category]
+                    if element in category_indexes:
+                        index_data = category_indexes[element]
+                        terms = index_data.get('terms', [])
+                        embeddings = index_data.get('embeddings', None)
+                        term_to_conditions = index_data.get('term_to_conditions', {})
+                        synonym_to_medical = index_data.get('synonym_to_medical', {})
+                        
+                        # Add terms and embeddings (avoid duplicates)
+                        for term_idx, term in enumerate(terms):
+                            if term not in all_terms:
+                                embedding_to_add = None
+                                if embeddings is not None and term_idx < len(embeddings):
+                                    # Use the embedding at the same index as the term
+                                    embedding_to_add = embeddings[term_idx]
+                                elif self.embedding_model:
+                                    # Fallback: encode on the fly if needed
+                                    embedding_to_add = self.embedding_model.encode([term])[0]
+                                else:
+                                    print(f"[FAISS] ⚠️ No embedding available for term: {term}, skipping")
+                                    continue  # Skip this term if no embedding available
+                                
+                                # Only add if we have an embedding
+                                if embedding_to_add is not None:
+                                    all_terms.append(term)
+                                    all_embeddings_list.append(embedding_to_add)
+                                    
+                                    # Merge term_to_conditions
+                                    if term in term_to_conditions:
+                                        if term not in all_term_to_conditions:
+                                            all_term_to_conditions[term] = set()
+                                        if isinstance(term_to_conditions[term], set):
+                                            all_term_to_conditions[term].update(term_to_conditions[term])
+                                        else:
+                                            all_term_to_conditions[term].add(term_to_conditions[term])
+                                    
+                                    # Merge synonym_to_medical (later categories override earlier ones)
+                                    if term.lower() in synonym_to_medical:
+                                        all_synonym_to_medical[term.lower()] = synonym_to_medical[term.lower()]
+            
+            # Build merged FAISS index for this element
+            if all_terms and all_embeddings_list:
+                try:
+                    embeddings_array = np.vstack(all_embeddings_list).astype('float32')
+                    faiss.normalize_L2(embeddings_array)
+                    
+                    index = faiss.IndexFlatIP(embeddings_array.shape[1])
+                    index.add(embeddings_array)
+                    
+                    # Convert sets to lists for term_to_conditions
+                    term_to_conditions_final = {}
+                    for term, conditions in all_term_to_conditions.items():
+                        if isinstance(conditions, set):
+                            term_to_conditions_final[term] = conditions
+                        else:
+                            term_to_conditions_final[term] = {conditions}
+                    
+                    merged_indexes[element] = {
+                        'terms': all_terms,
+                        'embeddings': embeddings_array,
+                        'index': index,
+                        'synonym_to_medical': all_synonym_to_medical,
+                        'term_to_conditions': term_to_conditions_final
+                    }
+                except Exception as e:
+                    print(f"[FAISS] ⚠️ Error merging indexes for element {element}: {e}")
+        
+        return merged_indexes
+    
+    def set_active_category(self, category = None):
+        """
+        Switch to category-specific indexes once category is determined.
+        
+        Args:
+            category: Can be:
+                - str: Single category name
+                - List[str]: Multiple categories (will merge their indexes)
+                - None: Reset to global index
+        """
+        if category is None:
+            # Reset to global index
+            if self.global_term_embeddings:
+                self.term_embeddings = self.global_term_embeddings
+                self.active_category = None
+                total_terms = sum(len(idx['terms']) for idx in self.term_embeddings.values())
+                elements_with_indexes = list(self.term_embeddings.keys())
+                print(f"[FAISS] 🔀 Reset to global index")
+                print(f"[FAISS] 📊 Global index stats: {total_terms} total terms across {len(elements_with_indexes)} elements: {elements_with_indexes}")
+            else:
+                print(f"[FAISS] ⚠️ Global index not available")
+            return
+        
+        # Handle list of categories (multi-category merge)
+        if isinstance(category, list):
+            if len(category) == 1:
+                category = category[0]  # Single category, treat as string
+            else:
+                # Multiple categories: merge their indexes
+                self.active_category = ','.join(category)
+                merged_indexes = self._merge_category_indexes(category)
+                if merged_indexes:
+                    self.term_embeddings = merged_indexes
+                    total_terms = sum(len(idx['terms']) for idx in self.term_embeddings.values())
+                    elements_with_indexes = list(self.term_embeddings.keys())
+                    print(f"[FAISS] 🔀 Merged indexes for {len(category)} categories: {', '.join(category)}")
+                    print(f"[FAISS] 📊 Merged index stats: {total_terms} total terms across {len(elements_with_indexes)} elements: {elements_with_indexes}")
+                    # Print detailed breakdown per element
+                    for element in elements_with_indexes:
+                        term_count = len(self.term_embeddings[element]['terms'])
+                        print(f"[FAISS]   - {element}: {term_count} terms")
+                else:
+                    print(f"[FAISS] ⚠️ Failed to merge categories, using global index")
+                    if self.global_term_embeddings:
+                        self.term_embeddings = self.global_term_embeddings
+                return
+        
+        # Handle single category (string)
         self.active_category = category
         if category in self.term_embeddings_by_category:
             # Switch term_embeddings to category-specific
