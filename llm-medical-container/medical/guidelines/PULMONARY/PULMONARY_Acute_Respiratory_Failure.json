@@ -138,11 +138,6 @@
             "emergent": true
           },
           {
-            "medical": "hypercapnia",
-            "patient_friendly": "high carbon dioxide levels",
-            "emergent": true
-          },
-          {
             "medical": "tachypnea",
             "patient_friendly": "rapid breathing",
             "emergent": true
@@ -163,7 +158,7 @@
             "emergent": true
           },
           {
-            "medical": "confusion",
+            "medical": "encephalopathy",
             "patient_friendly": "confusion or disorientation",
             "emergent": true
           },

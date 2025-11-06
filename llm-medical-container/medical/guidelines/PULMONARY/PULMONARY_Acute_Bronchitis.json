@@ -28,10 +28,6 @@
           {
             "medical": "chest",
             "patient_friendly": "in your chest"
-          },
-          {
-            "medical": "diffuse",
-            "patient_friendly": "all over"
           }
         ],
         "excludes": [],
@@ -81,10 +77,6 @@
           {
             "medical": "dry cough",
             "patient_friendly": "dry hacking cough"
-          },
-          {
-            "medical": "chest congestion",
-            "patient_friendly": "chest congestion or tightness"
           }
         ],
         "excludes": []
@@ -139,7 +131,7 @@
       "associated": {
         "includes": [
           {
-            "medical": "fever",
+            "medical": "pyrexia",
             "patient_friendly": "fever"
           },
           {
@@ -147,7 +139,7 @@
             "patient_friendly": "feeling tired or unwell"
           },
           {
-            "medical": "sore throat",
+            "medical": "pharyngitis",
             "patient_friendly": "sore throat"
           },
           {

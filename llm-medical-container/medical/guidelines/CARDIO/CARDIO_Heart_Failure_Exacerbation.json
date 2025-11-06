@@ -46,10 +46,6 @@
           {
             "medical": "constant",
             "patient_friendly": "continuous without stopping"
-          },
-          {
-            "medical": "worse at night",
-            "patient_friendly": "worse when lying down or at night"
           }
         ],
         "excludes": []
@@ -84,16 +80,8 @@
       "character": {
         "includes": [
           {
-            "medical": "dyspnea",
-            "patient_friendly": "shortness of breath"
-          },
-          {
-            "medical": "orthopnea",
-            "patient_friendly": "trouble breathing when lying flat"
-          },
-          {
-            "medical": "paroxysmal nocturnal dyspnea",
-            "patient_friendly": "waking up gasping for air at night"
+            "medical": "chest pressure",
+            "patient_friendly": "chest pressure or tightness"
           }
         ],
         "excludes": []
@@ -145,16 +133,20 @@
       "associated": {
         "includes": [
           {
-            "medical": "peripheral edema",
-            "patient_friendly": "swollen legs or ankles"
-          },
-          {
-            "medical": "jugular venous distension",
-            "patient_friendly": "swollen neck veins"
+            "medical": "dyspnea",
+            "patient_friendly": "shortness of breath"
           },
           {
             "medical": "orthopnea",
-            "patient_friendly": "trouble breathing when lying down"
+            "patient_friendly": "trouble breathing when lying flat"
+          },
+          {
+            "medical": "paroxysmal nocturnal dyspnea",
+            "patient_friendly": "waking up gasping for air at night"
+          },
+          {
+            "medical": "peripheral edema",
+            "patient_friendly": "swollen legs or ankles"
           },
           {
             "medical": "fatigue",

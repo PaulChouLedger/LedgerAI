@@ -41,14 +41,6 @@
           {
             "medical": "constant",
             "patient_friendly": "continuous without stopping"
-          },
-          {
-            "medical": "worse when lying down",
-            "patient_friendly": "worse when lying down"
-          },
-          {
-            "medical": "better when sitting up",
-            "patient_friendly": "better when sitting up and leaning forward"
           }
         ],
         "excludes": []
@@ -138,13 +130,14 @@
       "associated": {
         "includes": [
           {
-            "medical": "fever",
+            "medical": "pyrexia",
             "patient_friendly": "fever",
             "emergent": true
           },
           {
             "medical": "dyspnea",
-            "patient_friendly": "shortness of breath"
+            "patient_friendly": "shortness of breath",
+            "emergent": true
           },
           {
             "medical": "fatigue",

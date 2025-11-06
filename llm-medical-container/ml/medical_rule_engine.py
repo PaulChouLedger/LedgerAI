@@ -1369,4 +1369,78 @@ class MedicalRuleEngine:
         
         return False
     
+    # ============================================================================
+    # Section 6: ML Learning and Training
+    # ============================================================================
+    
+    def record_match_for_learning(self, patient_text: str, guideline_text: str, element: str,
+                                  similarity: float, was_successful: bool, embedding: Optional[np.ndarray] = None):
+        """
+        Record a match for ML learning
+        
+        Args:
+            patient_text: Patient response text
+            guideline_text: Guideline term text
+            element: OLDCARTS element type
+            similarity: Similarity score
+            was_successful: Whether this was a successful match
+            embedding: Optional embedding vector
+        """
+        if not self.ml_enhancer:
+            return
+        
+        try:
+            category = self.active_category or 'default'
+            if was_successful:
+                self.ml_enhancer.record_successful_match(
+                    patient_text, guideline_text, element, category, similarity, embedding
+                )
+            else:
+                self.ml_enhancer.record_failed_match(
+                    patient_text, guideline_text, element, category, similarity, embedding
+                )
+        except Exception as e:
+            print(f"[MedicalRules] ⚠️ Error recording match for learning: {e}")
+    
+    def train_ml_models(self, epochs: int = 10):
+        """
+        Train ML models on collected data
+        
+        Args:
+            epochs: Number of training epochs
+        """
+        if not self.ml_enhancer:
+            print("[MedicalRules] ⚠️ ML enhancer not available")
+            return
+        
+        try:
+            self.ml_enhancer.train_similarity_model(epochs=epochs)
+            self.ml_enhancer.save_all()
+            print("[MedicalRules] ✅ ML model training complete")
+        except Exception as e:
+            print(f"[MedicalRules] ⚠️ Error training ML models: {e}")
+    
+    def get_ml_stats(self) -> Dict[str, Any]:
+        """Get ML enhancement statistics"""
+        if not self.ml_enhancer:
+            return {}
+        
+        return self.ml_enhancer.get_stats()
+    
+    def adjust_threshold_for_element(self, element: str, success_rate: float):
+        """
+        Adjust threshold for an element based on success rate
+        
+        Args:
+            element: OLDCARTS element type
+            success_rate: Success rate (0-1) for this element
+        """
+        if not self.ml_enhancer:
+            return
+        
+        try:
+            category = self.active_category or 'default'
+            self.ml_enhancer.adjust_threshold(element, category, success_rate)
+        except Exception as e:
+            print(f"[MedicalRules] ⚠️ Error adjusting threshold: {e}")
    

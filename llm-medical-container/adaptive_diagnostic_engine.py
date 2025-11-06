@@ -1812,11 +1812,35 @@ RECOMMENDATION: {recommendation}"""
         # ALWAYS try to extract, even if there's a comment/distress/question
         extracted_info = None
         
+        # Determine the element we're extracting for (from expected_element or last_q focus)
+        extraction_element = expected_element
+        if not extraction_element and last_q:
+            extraction_element = last_q.get('focus') or last_q.get('oldcarts')
+        
         # For chronicity (new/recurring), use Jaccard similarity with reference phrases
-        if expected_element == 'chronicity' or expected_element == 'demographics' or (last_q and last_q.get('focus') == 'chronicity'):
+        if extraction_element == 'chronicity' or extraction_element == 'demographics' or (last_q and last_q.get('focus') == 'chronicity'):
             extracted_info = self._extract_chronicity_with_jaccard(user_input)
         
-        # If simple extraction didn't work, try LLM extraction
+        # For age, use LLM extraction to understand natural language (e.g., "i'm 82 years old")
+        if not extracted_info and extraction_element == 'age' and self.llm_chat_simple_fn:
+            try:
+                system_msg = "You are a medical assistant. Extract ONLY the age number from the patient's response. Return ONLY the numeric age (e.g., '82' for 'i'm 82 years old', '25' for 'I am 25'), or 'none' if no age found."
+                user_msg = f"Patient said: '{user_input}'\n\nExtract the age number only:"
+                
+                llm_kwargs = self._get_llm_kwargs(override_max_tokens=10)
+                response = self.llm_chat_simple_fn(
+                    [{"role": "system", "content": system_msg}, {"role": "user", "content": user_msg}],
+                    **llm_kwargs
+                )
+                
+                extracted = response.strip().lower() if response else ''
+                if extracted and extracted != 'none' and extracted.isdigit():
+                    extracted_info = extracted
+                    self._capture_debug(f"[Engine] ✅ LLM extracted age: '{extracted}' from '{user_input}'")
+            except Exception as e:
+                self._capture_debug(f"[Engine] ⚠️ Failed to extract age with LLM: {e}")
+        
+        # If simple extraction didn't work, try LLM extraction for other elements
         if not extracted_info and self.llm_chat_simple_fn and expected_element:
             # Use LLM to extract just the clinical info if there's a comment mixed in
             try:
@@ -2527,33 +2551,34 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
         self._capture_debug(f"[Engine] 🔍 Demographics: {self.demographics}")
         
         # Handle age answers - check if we just asked an age question
-        # Note: Interpretation already happened at start of process_answer
+        # Note: Interpretation already happened at start of process_answer, which should have extracted age via LLM
         self._capture_debug(f"[Engine] 🔍 Checking age processing: last_q={last_q.get('focus') if last_q else None}, age in demographics: {'age' in self.demographics}")
         if (last_q and last_q.get('type') == 'question' and last_q.get('focus') == 'age' and 
             'age' not in self.demographics):
-            # Process age answer (use processing_answer which may have extracted info)
-            age_str = processing_answer.strip()
-            self._capture_debug(f"[Engine] 🔍 Processing age: '{age_str}'")
-            if age_str.isdigit():
-                age = int(age_str)
+            # Process age answer (use extracted_info from LLM - no fallback)
+            self._capture_debug(f"[Engine] 🔍 Processing age: '{user_answer}' (from extracted_info: {extracted_info})")
+            
+            # Only use LLM-extracted age (no fallback)
+            if extracted_info and extracted_info.isdigit():
+                age = int(extracted_info)
                 if 0 <= age <= 150:
                     self.demographics['age'] = age
-                    self._capture_debug(f"[Engine] ✅ Age set to: {age}")
+                    self._capture_debug(f"[Engine] ✅ Age set from LLM extraction: {age}")
                     self._capture_debug(f"[Engine] 🔍 Demographics after age: {self.demographics}")
                     return self._generate_ml_first_question_with_demographics()
                 else:
                     self._capture_debug(f"[Engine] ❌ Age out of range: {age}")
-            else:
-                self._capture_debug(f"[Engine] ❌ Age not numeric: '{age_str}'")
-                # No fallback - return error with the correct age question
-                return {
-                    'success': False,
-                    'message': 'Can you please tell me your age so I can update our medical records?',
-                    'debug': {
-                        'engine': self._format_engine_debug("[Engine] ❌ Age validation failed - no fallback"),
-                        'internal': self._get_debug_info(last_answer=user_answer)
-                    }
+            
+            # If LLM extraction failed, fail explicitly
+            self._capture_debug(f"[Engine] ❌ Age extraction failed: LLM did not extract valid age from '{user_answer}'")
+            return {
+                'success': False,
+                'message': 'Can you please tell me your age so I can update our medical records?',
+                'debug': {
+                    'engine': self._format_engine_debug("[Engine] ❌ Age extraction failed - LLM did not extract valid age"),
+                    'internal': self._get_debug_info(last_answer=user_answer)
                 }
+            }
         
         # If we reach here without processing age, continue to other handlers
         # (Don't return here - let other handlers process the answer)

@@ -77,16 +77,6 @@
       "character": {
         "includes": [
           {
-            "medical": "severe dyspnea",
-            "patient_friendly": "severe shortness of breath",
-            "emergent": true
-          },
-          {
-            "medical": "respiratory distress",
-            "patient_friendly": "severe difficulty breathing",
-            "emergent": true
-          },
-          {
             "medical": "air hunger",
             "patient_friendly": "feeling like you can't get enough air",
             "emergent": true
@@ -154,7 +144,7 @@
             "emergent": true
           },
           {
-            "medical": "confusion",
+            "medical": "encephalopathy",
             "patient_friendly": "confusion or disorientation",
             "emergent": true
           },

@@ -26,8 +26,8 @@
       "location": {
         "includes": [
           {
-            "medical": "head",
-            "patient_friendly": "in your head"
+            "medical": "headache",
+            "patient_friendly": "headache"
           },
           {
             "medical": "chest",
@@ -87,11 +87,6 @@
           {
             "medical": "pressure",
             "patient_friendly": "pressure or squeezing"
-          },
-          {
-            "medical": "severe",
-            "patient_friendly": "very severe",
-            "emergent": true
           }
         ],
         "excludes": []
@@ -159,7 +154,7 @@
             "patient_friendly": "nausea"
           },
           {
-            "medical": "vomiting",
+            "medical": "emesis",
             "patient_friendly": "vomiting"
           },
           {
