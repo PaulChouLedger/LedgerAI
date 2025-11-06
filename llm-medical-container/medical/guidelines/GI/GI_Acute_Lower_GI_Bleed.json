@@ -10,8 +10,7 @@
     "rectal bleeding",
     "hematochezia",
     "bright red blood",
-    "lower GI bleeding",
-    "bloody stool"
+    "lower GI bleeding"
   ],
   "key_features": {
     "structured_oldcarts": {
@@ -32,11 +31,11 @@
           },
           {
             "medical": "left lower quadrant",
-            "patient_friendly": "lower left side"
+            "patient_friendly": "lower left side around your groin"
           },
           {
             "medical": "right lower quadrant",
-            "patient_friendly": "lower right side"
+            "patient_friendly": "lower right side around your groin"
           },
           {
             "medical": "rectal",
@@ -111,14 +110,6 @@
           {
             "medical": "blood on tissue",
             "patient_friendly": "blood on toilet paper"
-          },
-          {
-            "medical": "blood mixed with stool",
-            "patient_friendly": "blood mixed with your stool"
-          },
-          {
-            "medical": "blood separate from stool",
-            "patient_friendly": "blood separate from your stool"
           }
         ],
         "excludes": []
@@ -227,16 +218,13 @@
             "patient_friendly": "constipation"
           },
           {
-            "medical": "mucus in stool",
-            "patient_friendly": "mucus in your stool"
-          },
-          {
             "medical": "weight loss",
             "patient_friendly": "unintentional weight loss"
           },
           {
-            "medical": "fever",
-            "patient_friendly": "fever"
+            "medical": "pyrexia",
+            "patient_friendly": "fever",
+            "emergent": true
           },
           {
             "medical": "change in bowel habits",
