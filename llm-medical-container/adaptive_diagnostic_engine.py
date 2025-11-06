@@ -95,8 +95,8 @@ class AdaptiveDiagnosticEngine:
 1. You MUST use ONLY the terms from the list above - do NOT create new terms like "one side", "both sides", "upper", "lower" unless they are in the list
 2. If the patient already mentioned a location (like "right side"), do NOT ask about that same location again
 3. Use "or" to connect the options naturally with proper grammar
-4. You MUST include at least 3-5 of the provided options in your question - do NOT ask "Can you be more specific?" without including specific options
-5. Format: "Can you be more specific? For example, is it located at [option1], [option2], [option3], or [option4]?" - the options list is REQUIRED, not optional
+4. You MUST include at least 3-5 of the provided options in your question - start directly with the location options, do NOT use generic phrases
+5. Format: "Is it located at [option1], [option2], [option3], or [option4]?" - start directly with the options
 6. Return ONLY the question - no explanations, no reasoning, no "Here's a question:", no "Alternatively:", no additional text"""
     
     LLM_CLARIFICATION_GENERAL_RULES = """CRITICAL RULES - YOU MUST FOLLOW THESE EXACTLY:
@@ -4267,12 +4267,7 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
             raise ValueError(f"Cannot generate clarifying question for {oldcarts_element} - no patient-friendly terms found")
         
         # Use LLM to generate a natural, properly structured clarification question
-        system_msg = """You are a medical assistant conducting a telehealth interview. 
-
-CRITICAL: You MUST include the exact location terms provided in your question. 
-DO NOT use generic phrases like "Can you be more specific?" or "Where exactly?" without including the specific location options.
-Your question MUST start with the location options and include at least 3-4 of the provided terms.
-Return ONLY the question - no explanations, no reasoning, no additional text."""
+        system_msg = "You are a medical assistant conducting a telehealth interview. Generate a natural, grammatically correct clarification question that flows well. Use proper grammar with 'and' and 'or' to connect options naturally. Return ONLY the question - no explanations, no reasoning, no additional text."
         
         # Get context using helper functions
         chief_complaint_context = self._get_chief_complaint_context()
@@ -4324,19 +4319,9 @@ We need to clarify the location. Here are the ONLY possible locations from the m
 
 {self.LLM_CLARIFICATION_LOCATION_RULES}
 
-CRITICAL REQUIREMENTS - YOU MUST FOLLOW THESE EXACTLY:
-1. You MUST include at least 3-4 of the exact terms from the list above in your question
-2. DO NOT start with generic phrases like "Can you be more specific?" or "Where exactly?" - start directly with the location options
-3. Your question MUST follow this format: "Is it located at [term1], [term2], [term3], or [term4]?"
-4. Use the exact terms provided - do not paraphrase or create new terms
-5. For satisfied context (2+ matches), ask the patient to choose between the matched locations
+EXAMPLE of correct format: "{example_question}"
 
-EXAMPLE of CORRECT format: "{example_question}"
-
-EXAMPLE of WRONG format: "Can you be more specific?" (THIS IS WRONG - missing terms)
-EXAMPLE of WRONG format: "Where exactly is the pain?" (THIS IS WRONG - missing terms)
-
-Generate a clarification question that follows the CORRECT format above. Include the location terms."""
+Generate a clarification question using EXACTLY this format with the terms provided above. The question MUST include at least 3-4 specific options from the list."""
         else:
             # Build example with actual terms (avoid generic "Can you be more specific?")
             if len(terms_to_use) >= 4:
@@ -4357,18 +4342,9 @@ We need to clarify the {oldcarts_element}. Here are the ONLY possible options fr
 
 {self.LLM_CLARIFICATION_GENERAL_RULES}
 
-CRITICAL REQUIREMENTS - YOU MUST FOLLOW THESE EXACTLY:
-1. You MUST include at least 3-4 of the exact terms from the list above in your question
-2. DO NOT start with generic phrases like "Can you be more specific?" or "Where exactly?" - start directly with the options
-3. Your question MUST follow this format: "Is it [term1], [term2], [term3], or [term4]?"
-4. Use the exact terms provided - do not paraphrase or create new terms
+EXAMPLE of correct format: "{example_question}"
 
-EXAMPLE of CORRECT format: "{example_question}"
-
-EXAMPLE of WRONG format: "Can you be more specific?" (THIS IS WRONG - missing terms)
-EXAMPLE of WRONG format: "Where exactly is the pain?" (THIS IS WRONG - missing terms)
-
-Generate a clarification question that follows the CORRECT format above. Include the terms."""
+Generate a clarification question using EXACTLY this format with the terms provided above. The question MUST include at least 3-4 specific options from the list."""
         
         llm_kwargs = self._get_llm_kwargs(override_max_tokens=150)  # Increased to allow for longer questions with terms
         
