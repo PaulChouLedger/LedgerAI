@@ -358,18 +358,6 @@ class ClinicianSession:
         if any(re.search(pattern, query_lower) for pattern in greeting_patterns):
             return "casual_greeting"
 
-        # Check for symptom assessment (any mention of medical symptoms)
-        # Simple keyword-based - no grammar restrictions
-        symptom_keywords = [
-            'pain', 'ache', 'hurt', 'sore', 'nausea', 'vomit', 'fever',
-            'cough', 'bleeding', 'dizzy', 'headache', 'chest', 'abdomen',
-            'stomach', 'belly', 'breathing', 'swelling', 'rash', 'fatigue',
-            'weakness', 'numbness', 'tingling', 'burning'
-        ]
-        
-        if any(symptom in query_lower for symptom in symptom_keywords):
-            return "symptom_assessment"
-
         # Check for medical knowledge questions
         knowledge_indicators = [
             "what is", "what are", "what does", "what do",
@@ -398,11 +386,9 @@ class ClinicianSession:
                 if any(re.search(pattern, query_lower) for pattern in medical_suffixes):
                     return "medical_knowledge"
 
-        # Check for general medical topics
-        if any(term in query_lower for term in ["medicine", "medical", "health", "clinical", "patient", "doctor"]):
-            return "general_medical"
-
-        return "general_medical"
+        # If not a greeting or knowledge question, try symptom assessment
+        # Let the adaptive engine's semantic matching determine if it's a valid chief complaint
+        return "symptom_assessment"
 
     def _is_new_chief_complaint(self, user_input: str, adaptive_engine, session_chief_complaint: str = None) -> bool:
         """
