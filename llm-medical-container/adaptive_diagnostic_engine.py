@@ -4998,6 +4998,16 @@ CRITICAL: Generate a question using the EXACT format shown in the example above.
         
         return response.strip()
     
+    def _is_sensory_complaint(self) -> bool:
+        """Check if the chief complaint is sensory (pain-related) vs non-sensory (cough, shortness of breath, etc.)"""
+        chief_complaint = getattr(self, 'chief_complaint', '').lower()
+        
+        # Check if chief complaint is sensory (pain, ache, discomfort, etc.)
+        sensory_keywords = ['pain', 'ache', 'aching', 'discomfort', 'sore', 'tender', 'hurts', 'hurt', 'feels', 'feeling']
+        is_sensory_complaint = any(keyword in chief_complaint for keyword in sensory_keywords)
+        
+        return is_sensory_complaint
+    
     def _analyze_character_terms(self) -> dict:
         """Analyze character terms from active guidelines and prioritize based on chief complaint type"""
         if not self.active_guidelines:
@@ -5165,12 +5175,26 @@ CRITICAL: Generate a question using the EXACT format shown in the example above.
                 elif self.chief_complaint and any(kw in self.chief_complaint.lower() for kw in ['blood', 'bleed', 'stool', 'urine', 'vomit', 'rash']):
                     # Visual complaint - explicitly forbid sensory questions
                     component_guidance_text += f"\n\nCRITICAL: The chief complaint is '{self.chief_complaint}' which is about appearance/visual. You MUST ask about how it LOOKS, NOT about sensation. Ask 'Can you describe what it looks like?' or similar descriptive questions."
+        elif component == 'location':
+            # For location, check if chief complaint is sensory (pain-related)
+            is_sensory = self._is_sensory_complaint()
+            
+            self._capture_debug(f"[Location Question] 🔍 Chief complaint: '{self.chief_complaint}'")
+            self._capture_debug(f"[Location Question] 📊 Is sensory complaint: {is_sensory}")
+            
+            if is_sensory:
+                # Sensory complaint (e.g., "abdominal pain") - ask directly about pain location
+                sample_question = "Where exactly is the pain located?"
+                component_guidance_text = "Ask ONLY 'Where exactly is the pain located?' or similar. Do NOT mention body parts or give examples. Do NOT ask about intensity or duration."
+            else:
+                # Non-sensory complaint (e.g., "cough", "shortness of breath") - first ask if there's any pain
+                sample_question = "Are you experiencing any pain or discomfort?"
+                component_guidance_text = "Ask ONLY 'Are you experiencing any pain or discomfort?' or similar. Do NOT assume there is pain. If the patient confirms pain, you can follow up with location questions in subsequent interactions."
         else:
             # Sample questions for each OLDCARTS element as guidance (ONLY reference)
             sample_questions = {
                 'onset': "When did this start?",
                 'progression': "Has it gotten worse over time? Is it getting worse gradually or suddenly?",
-                'location': "Where exactly is the pain located?",
                 'timing': "Is it constant or does it come and go?",
                 'duration': "How long does each episode typically last?",
                 'associated': "Are there any other symptoms you're experiencing?",
@@ -5186,8 +5210,8 @@ CRITICAL: Generate a question using the EXACT format shown in the example above.
         # Component-specific guidance to prevent mixing elements - STRICT and explicit
         component_guidance = self.LLM_OLDCARTS_COMPONENT_GUIDANCE
         
-        # Use character-specific guidance if character component, otherwise use standard guidance
-        if component == 'character':
+        # Use component-specific guidance if available (character or location), otherwise use standard guidance
+        if component == 'character' or component == 'location':
             guidance_text = component_guidance_text
         else:
             guidance_text = component_guidance.get(component, "")
