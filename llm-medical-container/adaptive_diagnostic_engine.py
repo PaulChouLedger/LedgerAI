@@ -3272,14 +3272,46 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
         if self.active_guidelines:
             try:
                 # Get missing terms and satisfied terms - this already does the expensive matching
-                missing_terms, satisfied_terms = self._analyze_missing_information(answer, oldcarts_element)
+                missing_terms, satisfied_medical_terms = self._analyze_missing_information(answer, oldcarts_element)
                 self._capture_debug(f"[Clarification] 📊 Missing terms: {missing_terms}")
-                self._capture_debug(f"[Clarification] ✅ Satisfied terms: {sorted(satisfied_terms)} (count: {len(satisfied_terms)})")
+                self._capture_debug(f"[Clarification] ✅ Satisfied medical terms: {satisfied_medical_terms} (count: {len(satisfied_medical_terms)})")
                 
-                # Continue asking if we have 2+ satisfied terms (ambiguous) OR no satisfied terms at all
-                if len(satisfied_terms) >= 2 or len(satisfied_terms) == 0:
+                # Decision logic:
+                # 1. If satisfied array contains a single satisfied term → no need for clarifying question, move on
+                # 2. If satisfied array contains 2+ items → already deduplicated and filtered anatomically in STEP 3
+                #    - If 2+ items remain after processing → generate clarifying question with satisfied array context
+                # 3. If no satisfied terms (0 items) → generate clarifying question with missing terms
+                
+                if len(satisfied_medical_terms) == 1:
+                    # Single satisfied term - no clarification needed, move on
+                    self._capture_debug(f"[Clarification] ✅ Have exactly 1 satisfied medical term - moving on")
+                    clarification_needed = False
+                elif len(satisfied_medical_terms) >= 2:
+                    # 2+ satisfied terms after filtering - need clarification with satisfied array context
                     clarification_needed = True
-                    # Use missing terms for the clarifying question
+                    self._capture_debug(f"[Clarification] 🔍 {len(satisfied_medical_terms)} satisfied medical terms after filtering - generating clarifying question with satisfied context")
+                    # Use satisfied terms for the clarifying question (user needs to choose which one)
+                    question = self._generate_clarifying_question(oldcarts_element, answer, clarification_count, satisfied_medical_terms, satisfied_context=True)
+                    self.conversation_history.append({
+                        'type': 'question',
+                        'question': question,
+                        'oldcarts': oldcarts_element,
+                        'is_clarification': True,
+                        'satisfied_terms': satisfied_medical_terms  # Store satisfied medical terms for later use
+                    })
+                    return {
+                        'success': True,
+                        'question': question,
+                        'status': 'questioning',
+                        'debug': {
+                            'engine': self._format_engine_debug("[Engine] ⏳ Clarification requested (2+ satisfied terms)") + "\n\n" + self._format_rankings_debug(),
+                            'internal': self._get_debug_info(last_answer=answer)
+                        }
+                    }
+                elif len(satisfied_medical_terms) == 0:
+                    # No satisfied terms - use missing terms for clarifying question
+                    clarification_needed = True
+                    self._capture_debug(f"[Clarification] 🔍 No satisfied terms - generating clarifying question with missing terms")
                     question = self._generate_clarifying_question(oldcarts_element, answer, clarification_count, missing_terms)
                     self.conversation_history.append({
                         'type': 'question',
@@ -3293,12 +3325,10 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
                         'question': question,
                         'status': 'questioning',
                         'debug': {
-                            'engine': self._format_engine_debug("[Engine] ⏳ Clarification requested") + "\n\n" + self._format_rankings_debug(),
+                            'engine': self._format_engine_debug("[Engine] ⏳ Clarification requested (no satisfied terms)") + "\n\n" + self._format_rankings_debug(),
                             'internal': self._get_debug_info(last_answer=answer)
                         }
                     }
-                elif len(satisfied_terms) == 1:
-                    self._capture_debug(f"[Clarification] ✅ Have exactly 1 satisfied term - moving on")
             except Exception as e:
                 self._capture_debug(f"[Engine] ⚠️ Clarification check failed: {e}")
         
@@ -3466,13 +3496,21 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
     
     def _analyze_missing_information(self, answer: str, oldcarts_element: str) -> tuple:
         """Analyze what information is missing using unified function with FAISS semantic matching
-        Returns: (missing_terms, satisfied_terms)
+        Returns: (missing_medical_terms, satisfied_medical_terms)
+        
+        For location element:
+        - missing_medical_terms: Array of medical terms (deduplicated, filtered anatomically) for clarifying questions
+        - satisfied_medical_terms: Array of medical terms (deduplicated, filtered anatomically) that matched
+        
+        For non-location elements:
+        - missing_medical_terms: Array of patient_friendly terms that weren't satisfied
+        - satisfied_medical_terms: Empty list (use satisfied_terms set for decision making)
         
         For location element, follows specific flow:
         1. Apply anatomical mismatch using anatomical opposites from medical rules (filter guidelines)
         2. Raw semantic match to patient_friendly terms (FAISS)
-        3. Use scores to rank remaining guidelines
-        4. Extract medical terms, remove duplicates, filter with anatomical mismatch
+        3. Build satisfied medical terms array, deduplicate, filter anatomically
+        4. Extract missing medical terms, remove duplicates, filter with anatomical mismatch
         5. Generate missing terms array for LLM clarifying question
         """
         # Get all guidelines (active + reserve) to check against all possible terms
@@ -3631,51 +3669,20 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
                 term_components_cache[term] = components
         
         # STEP 3: Use FAISS scores to determine satisfied terms
-        # If term is in semantic_matches_set, it already passed the FAISS threshold
+        # Build satisfied patient_friendly terms array (before anatomical filtering)
+        satisfied_pf_terms_raw = []
         for term in all_includes:
             if term.lower() in semantic_matches_set:
-                # For location, check anatomical compatibility before marking satisfied
-                if oldcarts_element == 'location' and patient_components and self.medical_rule_engine:
-                    condition_components = term_components_cache.get(term, {})
-                    if condition_components:
-                        if self.medical_rule_engine._are_anatomical_opposites(patient_components, condition_components):
-                            # Anatomical mismatch - skip
-                            continue
-                
-                satisfied_terms.add(term.lower())
+                satisfied_pf_terms_raw.append(term)
         
-        self._capture_debug(f"[Location Analysis] 📊 STEP 3: Satisfied {len(satisfied_terms)} patient_friendly terms (from FAISS matches above threshold)")
+        self._capture_debug(f"[Location Analysis] 📊 STEP 3: Found {len(satisfied_pf_terms_raw)} satisfied patient_friendly terms (from FAISS matches above threshold): {satisfied_pf_terms_raw}")
         
-        # Missing terms: Include ALL unsatisfied terms (from active + reserve) that are anatomically compatible
-        # Anatomical compatibility takes precedence over active/reserve distinction
-        # This ensures we ask about all relevant locations, not just those from top-scoring guidelines
-        all_missing_candidates = [term for term in all_includes if term not in satisfied_terms]
-        
-        # DEBUG: Show which unsatisfied terms are from reserve pool (will be included if anatomically compatible)
-        unsatisfied_from_reserve = [term for term in all_missing_candidates if term not in active_includes]
-        if unsatisfied_from_reserve:
-            reserve_sources = {}
-            for term in unsatisfied_from_reserve:
-                sources = term_to_guidelines.get(term, [])
-                if sources:
-                    reserve_sources[term] = sources
-            if reserve_sources:
-                self._capture_debug(f"[Location Analysis] 📋 Unsatisfied terms from RESERVE pool (will be included if anatomically compatible): {reserve_sources}")
-        
-        # Filter missing terms to only those semantically related to patient's answer
-        missing = []
+        # For location: Build satisfied medical terms array, deduplicate, filter anatomically
+        # For non-location: satisfied_medical_terms will remain empty (we use satisfied_terms set instead)
+        satisfied_medical_terms = []
         if oldcarts_element == 'location' and self.medical_rule_engine:
-            # Extract patient components if not already done
-            if not patient_components:
-                patient_components = self.medical_rule_engine._extract_anatomical_components(answer_lower)
-            
-            # Get unsatisfied patient_friendly terms
-            unsatisfied_pf_terms = [t for t in all_includes if t.lower() not in satisfied_terms]
-            
-            # Map unsatisfied patient_friendly terms back to medical terms
-            unsatisfied_medical_terms = []
-            for pf_term in unsatisfied_pf_terms:
-                # Find medical term corresponding to this patient_friendly term
+            # Map satisfied patient_friendly terms to medical terms
+            for pf_term in satisfied_pf_terms_raw:
                 for g in all_guidelines_to_check:
                     structured = self._get_structured_oldcarts(g)
                     element_data = structured.get(oldcarts_element, {})
@@ -3686,28 +3693,28 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
                                 med = t.get('medical', '')
                                 pf = t.get('patient_friendly', '')
                                 if pf and pf.strip().lower() == pf_term.lower() and med:
-                                    unsatisfied_medical_terms.append(med.strip())
+                                    satisfied_medical_terms.append(med.strip())
                                     break
                         if med:
                             break
             
-            self._capture_debug(f"[Location Analysis] 🔍 STEP 4: Extracted {len(unsatisfied_medical_terms)} medical terms from unsatisfied patient_friendly terms")
+            self._capture_debug(f"[Location Analysis] 🔍 STEP 3: Extracted {len(satisfied_medical_terms)} medical terms from satisfied patient_friendly terms")
             
-            # Remove duplicates (keep first occurrence, preserve original case)
+            # Remove duplicates
             seen_medical = set()
-            unique_medical_terms = []
-            for med_term in unsatisfied_medical_terms:
+            unique_satisfied_medical = []
+            for med_term in satisfied_medical_terms:
                 med_lower = med_term.lower()
                 if med_lower not in seen_medical:
                     seen_medical.add(med_lower)
-                    unique_medical_terms.append(med_term)
+                    unique_satisfied_medical.append(med_term)
             
-            self._capture_debug(f"[Location Analysis] 🔍 STEP 4: After deduplication: {len(unique_medical_terms)} unique medical terms: {unique_medical_terms}")
+            self._capture_debug(f"[Location Analysis] 🔍 STEP 3: After deduplication: {len(unique_satisfied_medical)} unique satisfied medical terms: {unique_satisfied_medical}")
             
-            # Filter with anatomical mismatch to remove opposite side terms
+            # Filter anatomically (remove opposite side terms)
             if patient_components:
-                filtered_medical_terms = []
-                for med_term in unique_medical_terms:
+                filtered_satisfied_medical = []
+                for med_term in unique_satisfied_medical:
                     # Extract components for this medical term
                     med_components = self.medical_rule_engine._extract_anatomical_components(med_term.lower())
                     if not med_components:
@@ -3727,32 +3734,185 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
                     if med_components:
                         is_opposite = self.medical_rule_engine._are_anatomical_opposites(patient_components, med_components)
                         if not is_opposite:
-                            filtered_medical_terms.append(med_term)
-                            self._capture_debug(f"[Location Analysis] ✅ STEP 4: '{med_term}' included (anatomically compatible)")
+                            filtered_satisfied_medical.append(med_term)
+                            self._capture_debug(f"[Location Analysis] ✅ STEP 3: '{med_term}' included in satisfied (anatomically compatible)")
                         else:
-                            self._capture_debug(f"[Location Analysis] ❌ STEP 4: '{med_term}' excluded (anatomical opposite)")
+                            self._capture_debug(f"[Location Analysis] ❌ STEP 3: '{med_term}' excluded from satisfied (anatomical opposite)")
                     else:
                         # No components found - include it (might be vague/bilateral)
-                        filtered_medical_terms.append(med_term)
-                        self._capture_debug(f"[Location Analysis] ✅ STEP 4: '{med_term}' included (no components, assumed compatible)")
+                        filtered_satisfied_medical.append(med_term)
+                        self._capture_debug(f"[Location Analysis] ✅ STEP 3: '{med_term}' included in satisfied (no components, assumed compatible)")
                 
-                unique_medical_terms = filtered_medical_terms
-                self._capture_debug(f"[Location Analysis] 🔍 STEP 4: After anatomical filtering: {len(unique_medical_terms)} medical terms: {unique_medical_terms}")
+                unique_satisfied_medical = filtered_satisfied_medical
+                self._capture_debug(f"[Location Analysis] 🔍 STEP 3: After anatomical filtering: {len(unique_satisfied_medical)} satisfied medical terms: {unique_satisfied_medical}")
             
-            # STEP 5: Generate missing terms array for LLM clarifying question
-            missing = unique_medical_terms
-            self._capture_debug(f"[Location Analysis] 📋 STEP 5: Missing terms array for LLM: {missing}")
+            # Store satisfied medical terms for later use
+            satisfied_medical_terms = unique_satisfied_medical
+            
+            # Build satisfied_terms set from filtered satisfied medical terms (for backward compatibility)
+            # Map back to patient_friendly for satisfied_terms set
+            for med_term in satisfied_medical_terms:
+                for g in all_guidelines_to_check:
+                    structured = self._get_structured_oldcarts(g)
+                    element_data = structured.get(oldcarts_element, {})
+                    if isinstance(element_data, dict):
+                        includes = element_data.get('includes', [])
+                        for t in includes:
+                            if isinstance(t, dict):
+                                med = t.get('medical', '')
+                                pf = t.get('patient_friendly', '')
+                                if med and med.strip().lower() == med_term.lower() and pf:
+                                    satisfied_terms.add(pf.strip().lower())
+                                    break
+                        if pf:
+                            break
         else:
-            # For non-location elements, use simpler logic
-            all_missing_candidates = [t for t in all_includes if t.lower() not in satisfied_terms]
-            missing = all_missing_candidates
+            # For non-location, just use patient_friendly terms directly
+            for term in satisfied_pf_terms_raw:
+                satisfied_terms.add(term.lower())
+        
+        self._capture_debug(f"[Location Analysis] 📊 STEP 3: Final satisfied patient_friendly terms: {sorted(satisfied_terms)}")
+        
+        # Missing terms: Include ALL unsatisfied terms (from active + reserve) that are anatomically compatible
+        # Anatomical compatibility takes precedence over active/reserve distinction
+        # This ensures we ask about all relevant locations, not just those from top-scoring guidelines
+        all_missing_candidates = [term for term in all_includes if term not in satisfied_terms]
+        
+        # DEBUG: Show which unsatisfied terms are from reserve pool (will be included if anatomically compatible)
+        unsatisfied_from_reserve = [term for term in all_missing_candidates if term not in active_includes]
+        if unsatisfied_from_reserve:
+            reserve_sources = {}
+            for term in unsatisfied_from_reserve:
+                sources = term_to_guidelines.get(term, [])
+                if sources:
+                    reserve_sources[term] = sources
+            if reserve_sources:
+                self._capture_debug(f"[Location Analysis] 📋 Unsatisfied terms from RESERVE pool (will be included if anatomically compatible): {reserve_sources}")
+        
+        # STEP 4 & 5: After analysis, decide which array to build
+        # If 1+ elements were satisfied → use satisfied array (skip missing)
+        # If 0 elements satisfied → build missing array
+        missing = []
+        
+        # Check if any elements were satisfied (for location: check satisfied_medical_terms, for others: check satisfied_terms)
+        has_satisfied_elements = False
+        if oldcarts_element == 'location' and self.medical_rule_engine:
+            # For location, check satisfied_medical_terms array (already built in STEP 3)
+            has_satisfied_elements = len(satisfied_medical_terms) > 0
+        else:
+            # For non-location, check satisfied_terms set
+            has_satisfied_elements = len(satisfied_terms) > 0
+        
+        if has_satisfied_elements:
+            # 1+ elements satisfied → use satisfied array, skip missing array
+            if oldcarts_element == 'location' and self.medical_rule_engine:
+                self._capture_debug(f"[Location Analysis] ✅ STEP 4-5: Using satisfied array ({len(satisfied_medical_terms)} elements), skipping missing array")
+            else:
+                self._capture_debug(f"[Location Analysis] ✅ STEP 4-5: Using satisfied terms ({len(satisfied_terms)} elements), skipping missing array")
+            missing = []  # Return empty missing array
+        else:
+            # 0 elements satisfied → build missing array
+            self._capture_debug(f"[Location Analysis] 🔍 STEP 4-5: No satisfied elements, building missing array")
+            
+            if oldcarts_element == 'location' and self.medical_rule_engine:
+                
+                # Extract patient components if not already done
+                if not patient_components:
+                    patient_components = self.medical_rule_engine._extract_anatomical_components(answer_lower)
+                
+                # Get unsatisfied patient_friendly terms
+                unsatisfied_pf_terms = [t for t in all_includes if t.lower() not in satisfied_terms]
+                
+                # Map unsatisfied patient_friendly terms back to medical terms
+                unsatisfied_medical_terms = []
+                for pf_term in unsatisfied_pf_terms:
+                    # Find medical term corresponding to this patient_friendly term
+                    for g in all_guidelines_to_check:
+                        structured = self._get_structured_oldcarts(g)
+                        element_data = structured.get(oldcarts_element, {})
+                        if isinstance(element_data, dict):
+                            includes = element_data.get('includes', [])
+                            for t in includes:
+                                if isinstance(t, dict):
+                                    med = t.get('medical', '')
+                                    pf = t.get('patient_friendly', '')
+                                    if pf and pf.strip().lower() == pf_term.lower() and med:
+                                        unsatisfied_medical_terms.append(med.strip())
+                                        break
+                            if med:
+                                break
+                
+                self._capture_debug(f"[Location Analysis] 🔍 STEP 4: Extracted {len(unsatisfied_medical_terms)} medical terms from unsatisfied patient_friendly terms")
+                
+                # Remove duplicates (keep first occurrence, preserve original case)
+                seen_medical = set()
+                unique_medical_terms = []
+                for med_term in unsatisfied_medical_terms:
+                    med_lower = med_term.lower()
+                    if med_lower not in seen_medical:
+                        seen_medical.add(med_lower)
+                        unique_medical_terms.append(med_term)
+                
+                self._capture_debug(f"[Location Analysis] 🔍 STEP 4: After deduplication: {len(unique_medical_terms)} unique medical terms: {unique_medical_terms}")
+                
+                # Filter with anatomical mismatch to remove opposite side terms
+                if patient_components:
+                    filtered_medical_terms = []
+                    for med_term in unique_medical_terms:
+                        # Extract components for this medical term
+                        med_components = self.medical_rule_engine._extract_anatomical_components(med_term.lower())
+                        if not med_components:
+                            # Try to get from guideline anatomical_type
+                            for g in all_guidelines_to_check:
+                                structured = self._get_structured_oldcarts(g)
+                                element_data = structured.get(oldcarts_element, {})
+                                if isinstance(element_data, dict):
+                                    includes = element_data.get('includes', [])
+                                    for t in includes:
+                                        if isinstance(t, dict) and t.get('medical', '').strip().lower() == med_term.lower():
+                                            anatomical_type = self.medical_rule_engine._get_anatomical_type_from_guideline(g)
+                                            if anatomical_type:
+                                                med_components = self.medical_rule_engine._map_anatomical_type_to_components(anatomical_type)
+                                                break
+                        
+                        if med_components:
+                            is_opposite = self.medical_rule_engine._are_anatomical_opposites(patient_components, med_components)
+                            if not is_opposite:
+                                filtered_medical_terms.append(med_term)
+                                self._capture_debug(f"[Location Analysis] ✅ STEP 4: '{med_term}' included (anatomically compatible)")
+                            else:
+                                self._capture_debug(f"[Location Analysis] ❌ STEP 4: '{med_term}' excluded (anatomical opposite)")
+                        else:
+                            # No components found - include it (might be vague/bilateral)
+                            filtered_medical_terms.append(med_term)
+                            self._capture_debug(f"[Location Analysis] ✅ STEP 4: '{med_term}' included (no components, assumed compatible)")
+                    
+                    unique_medical_terms = filtered_medical_terms
+                    self._capture_debug(f"[Location Analysis] 🔍 STEP 4: After anatomical filtering: {len(unique_medical_terms)} medical terms: {unique_medical_terms}")
+                
+                # STEP 5: Generate missing terms array for LLM clarifying question
+                missing = unique_medical_terms
+                self._capture_debug(f"[Location Analysis] 📋 STEP 5: Missing terms array for LLM: {missing}")
+            else:
+                # For non-location elements, use simpler logic
+                all_missing_candidates = [t for t in all_includes if t.lower() not in satisfied_terms]
+                missing = all_missing_candidates
         
         self._capture_debug(f"[Location Analysis] ✅ Satisfied terms (checked against ALL {len(all_guidelines_to_check)} guidelines): {sorted(satisfied_terms)}")
-        self._capture_debug(f"[Location Analysis] ❌ Missing terms from ALL guidelines (filtered to anatomically compatible): {len(missing)}/{len(all_missing_candidates)} total: {sorted(missing)}")
+        missing_count = len(missing) if missing else 0
+        self._capture_debug(f"[Location Analysis] ❌ Missing terms from ALL guidelines: {missing_count} total: {sorted(missing) if missing else []}")
         
-        # Return both satisfied and missing terms for better decision making
-        # Return filtered missing terms (only those related to patient's answer)
-        return missing, satisfied_terms
+        # Return: (missing_medical_terms, satisfied_medical_terms)
+        # For location: satisfied_medical_terms is already deduplicated and filtered anatomically
+        # For non-location: satisfied_medical_terms is empty list (use satisfied_terms set instead)
+        if oldcarts_element == 'location' and self.medical_rule_engine:
+            # Return satisfied medical terms array (already processed)
+            satisfied_return = satisfied_medical_terms if 'satisfied_medical_terms' in locals() else []
+        else:
+            # For non-location, return empty list (satisfied_terms set is used for decision making)
+            satisfied_return = []
+        
+        return missing, satisfied_return
     
     def _get_satisfied_terms(self, answer: str, oldcarts_element: str) -> set:
         """Get terms that are satisfied using unified function logic"""
@@ -3927,24 +4087,34 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
     # ============================================================================
     
     def _generate_clarifying_question(self, oldcarts_element: str, patient_answer: str,
-                                     clarification_count: int, missing_terms: list) -> str:
-        """Generate clarifying question using LLM with patient-friendly terms from guidelines"""
-        if not missing_terms:
-            raise ValueError(f"Cannot generate clarifying question for {oldcarts_element} - no missing terms")
+                                     clarification_count: int, terms: list, satisfied_context: bool = False) -> str:
+        """Generate clarifying question using LLM with patient-friendly terms from guidelines
+        
+        Args:
+            oldcarts_element: The OLDCARTS element being clarified
+            patient_answer: The patient's previous answer
+            clarification_count: Number of times we've asked for clarification
+            terms: List of medical terms (either missing_terms or satisfied_terms)
+            satisfied_context: If True, terms are satisfied terms that need disambiguation. If False, terms are missing terms.
+        """
+        if not terms:
+            context_type = "satisfied" if satisfied_context else "missing"
+            raise ValueError(f"Cannot generate clarifying question for {oldcarts_element} - no {context_type} terms")
         
         if not self.llm_chat_simple_fn:
             raise ValueError("LLM not available for clarification question generation")
         
-        self._capture_debug(f"[Clarification] 🔍 Missing medical terms ({oldcarts_element}): {missing_terms[:8]}")
+        context_label = "satisfied" if satisfied_context else "missing"
+        self._capture_debug(f"[Clarification] 🔍 {context_label.capitalize()} medical terms ({oldcarts_element}): {terms[:8]}")
         
         # Get patient-friendly terms directly from guidelines (deduplicate to avoid same friendly term from different medical terms)
         patient_friendly_terms = []
         seen_friendly_terms = set()  # Track unique patient-friendly terms to avoid duplicates
         medical_to_friendly_map = {}
         
-        # Process ALL missing terms (no limit)
+        # Process ALL terms (no limit)
         # Skip terms that can't be found (e.g., from reserve guidelines without patient_friendly terms)
-        for term in missing_terms:
+        for term in terms:
             try:
                 friendly_term = self._get_patient_friendly_from_guidelines(term, oldcarts_element)
                 medical_to_friendly_map[term] = friendly_term
@@ -3983,12 +4153,24 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
             # Example format to make it crystal clear
             example_question = f"Can you be more specific? For example, is it located at {terms_to_use[0]}, {terms_to_use[1]}, {terms_to_use[2]}, or {terms_to_use[3] if len(terms_to_use) > 3 else terms_to_use[0]}?"
             
-            user_msg = f"""{chief_complaint_context}{conversation_context}
+            if satisfied_context:
+                # Context: Patient said something that matches multiple locations, need to disambiguate
+                clarification_text = f"""The patient already said: "{patient_answer}"
 
-The patient already said: "{patient_answer}"
+This matches multiple possible locations. We need to clarify WHICH ONE is correct. Here are the locations that matched (you MUST use ONLY these exact terms):
+{options_list}
+
+IMPORTANT: The patient's answer matched these locations, so ask them to choose which one is correct."""
+            else:
+                # Context: Missing information, need to ask about locations not mentioned
+                clarification_text = f"""The patient already said: "{patient_answer}"
 
 We need to clarify the location. Here are the ONLY possible locations from the medical guidelines (you MUST use ONLY these exact terms):
-{options_list}
+{options_list}"""
+            
+            user_msg = f"""{chief_complaint_context}{conversation_context}
+
+{clarification_text}
 
 {self.LLM_CLARIFICATION_LOCATION_RULES}
 
