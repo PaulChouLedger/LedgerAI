@@ -12,7 +12,11 @@ dotenv_path = os.path.join(workspace_root, '.env')
 load_dotenv(dotenv_path)
 
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-AURA_CHAT_URL = os.getenv("AURA_CHAT_URL", "http://127.0.0.1:11434/chat-tg")
+# Determine which LLM container to use based on USE_MEDICAL_MODE
+USE_MEDICAL_MODE = os.getenv("USE_MEDICAL_MODE", "true").lower() == "true"
+# Use port 11434 for medical mode, 11436 for generic mode
+DEFAULT_PORT = "11434" if USE_MEDICAL_MODE else "11436"
+AURA_CHAT_URL = os.getenv("AURA_CHAT_URL", f"http://127.0.0.1:{DEFAULT_PORT}/chat-tg")
 # Debug info is now always shown in terminal logs (not in Telegram messages)
 
 if not TELEGRAM_BOT_TOKEN or TELEGRAM_BOT_TOKEN == "your_telegram_bot_token":
@@ -304,7 +308,8 @@ def main():
     app.add_handler(CommandHandler("reset", start))  # shortcut
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
-    print("🤖 Telegram bot running... connected to Aura at", AURA_CHAT_URL)
+    mode_str = "Medical Mode" if USE_MEDICAL_MODE else "Generic Mode"
+    print(f"🤖 Telegram bot running... connected to Aura at {AURA_CHAT_URL} ({mode_str})")
     app.run_polling()
 
 if __name__ == "__main__":
