@@ -86,12 +86,12 @@ show_all_settings() {
         echo "  Enabled Categories: $enabled_categories"
         echo "  Available: GI, CARDIO, DERM, GU, GYN, MSK, NEURO, PULMONARY, RENAL"
         
-        # Show Hybrid Assistant toggle status
+        # Show Advanced Medical Navigator toggle status
         local hybrid_on=$(get_config_value "HYBRID_ON")
         if [ "$hybrid_on" == "true" ]; then
-            echo -e "  ${CYAN}🔀 Hybrid Assistant: ${GREEN}ENABLED${NC} (natural, context-aware conversations)"
+            echo -e "  ${CYAN}🔀 Advanced Navigator: ${GREEN}ENABLED${NC} (pure LLM mode)"
         else
-            echo -e "  ${CYAN}🔀 Hybrid Assistant: ${YELLOW}DISABLED${NC} (using Adaptive Diagnostic Engine)"
+            echo -e "  ${CYAN}🔀 Advanced Navigator: ${YELLOW}DISABLED${NC} (using Adaptive Diagnostic Engine)"
         fi
     else
         echo -e "  ${YELLOW}○${NC} Generic Mode (general conversation, RAG Q&A)"
@@ -289,24 +289,24 @@ toggle_hybrid_assistant() {
     if [ "$action" == "on" ]; then
         set_config_value "HYBRID_ON" "true"
         echo ""
-        echo -e "${GREEN}✅ Hybrid Medical Assistant ENABLED${NC}"
+        echo -e "${GREEN}✅ Advanced Medical Navigator ENABLED${NC}"
         echo ""
         echo "System will use:"
+        echo "  • Pure LLM-based medical assistant"
         echo "  • Natural, human-like conversations"
-        echo "  • Context-aware question generation"
-        echo "  • Smart anatomical inference (e.g., 'right side' → 'right upper quadrant')"
-        echo "  • Dynamic, fluid conversation flow"
-        echo "  • Hybrid LLM/Rules/ML approach for all interactions"
+        echo "  • Context-aware responses"
+        echo "  • Simple, clean implementation"
         echo ""
         echo "Features:"
-        echo "  • More natural responses"
-        echo "  • Better context understanding"
-        echo "  • Smarter question selection"
+        echo "  • LLM-powered for all interactions"
+        echo "  • Natural conversation flow"
+        echo "  • Simple session management"
+        echo "  • Designed to grow with features over time"
         echo ""
     else
         set_config_value "HYBRID_ON" "false"
         echo ""
-        echo -e "${GREEN}✅ Hybrid Medical Assistant DISABLED${NC}"
+        echo -e "${GREEN}✅ Advanced Medical Navigator DISABLED${NC}"
         echo ""
         echo "System will use:"
         echo "  • Adaptive Diagnostic Engine (default)"
@@ -1057,20 +1057,20 @@ main_menu() {
                 local current=$(get_config_value 'HYBRID_ON')
                 echo ""
                 if [ "$current" == "true" ]; then
-                    echo "Hybrid Assistant is currently: ENABLED"
+                    echo "Advanced Medical Navigator is currently: ENABLED"
                     echo ""
-                    echo "Using: Natural, context-aware conversations"
+                    echo "Using: Pure LLM-based medical assistant"
                     echo ""
                     read -p "Switch to Adaptive Diagnostic Engine? (y/n): " answer
                     if [ "$answer" == "y" ] || [ "$answer" == "Y" ]; then
                         toggle_hybrid_assistant off
                     fi
                 else
-                    echo "Hybrid Assistant is currently: DISABLED"
+                    echo "Advanced Medical Navigator is currently: DISABLED"
                     echo ""
                     echo "Using: Adaptive Diagnostic Engine (default)"
                     echo ""
-                    read -p "Enable Hybrid Medical Assistant? (y/n): " answer
+                    read -p "Enable Advanced Medical Navigator? (y/n): " answer
                     if [ "$answer" == "y" ] || [ "$answer" == "Y" ]; then
                         toggle_hybrid_assistant on
                     fi
@@ -1143,8 +1143,8 @@ case "${1:-}" in
             off|disable) toggle_hybrid_assistant off ;;
             *) 
                 echo "Usage: $0 hybrid [on|off]"
-                echo "  on  - Enable Hybrid Medical Assistant (natural conversations)"
-                echo "  off - Disable Hybrid Assistant (use Adaptive Diagnostic Engine)"
+                echo "  on  - Enable Advanced Medical Navigator (pure LLM mode)"
+                echo "  off - Disable Advanced Navigator (use Adaptive Diagnostic Engine)"
                 ;;
         esac
         ;;

@@ -4,7 +4,7 @@
   "snomed": "85189001",
   "sex": "both",
   "prevalence": "common",
-  "urgency": "urgent",
+  "urgency": "emergent",
   "chief_complaint_triggers": [
     "abdominal pain",
     "right lower abdominal pain"
@@ -147,7 +147,8 @@
           },
           {
             "medical": "rigors",
-            "patient_friendly": "shaking chills"
+            "patient_friendly": "shaking chills",
+            "emergent": true
           }
         ],
         "excludes": []

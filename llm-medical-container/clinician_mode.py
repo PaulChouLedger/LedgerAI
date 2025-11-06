@@ -40,19 +40,19 @@ except ImportError as e:
     ADAPTIVE_ENGINE_AVAILABLE = False
     print(f"[Clinician] ⚠️ Adaptive engine not available: {e}")
 
-# Import hybrid medical assistant (new natural conversation system)
+# Import advanced medical navigator (pure LLM-based assistant)
 try:
-    from hybrid_medical_assistant import HybridMedicalAssistant
-    HYBRID_ASSISTANT_AVAILABLE = True
-    print("[Clinician] ✅ Hybrid medical assistant imported successfully")
+    from advanced_medical_navigator import AdvancedMedicalNavigator
+    NAVIGATOR_AVAILABLE = True
+    print("[Clinician] ✅ Advanced Medical Navigator imported successfully")
 except ImportError as e:
-    HYBRID_ASSISTANT_AVAILABLE = False
-    print(f"[Clinician] ⚠️ Hybrid assistant not available: {e}")
+    NAVIGATOR_AVAILABLE = False
+    print(f"[Clinician] ⚠️ Advanced Medical Navigator not available: {e}")
 
 # Check HYBRID_ON toggle
-USE_HYBRID_ASSISTANT = os.environ.get('HYBRID_ON', 'false').lower() == 'true'
-if USE_HYBRID_ASSISTANT:
-    print("[Clinician] 🔀 HYBRID_ON=true - Using new Hybrid Medical Assistant")
+USE_HYBRID_NAVIGATOR = os.environ.get('HYBRID_ON', 'false').lower() == 'true'
+if USE_HYBRID_NAVIGATOR:
+    print("[Clinician] 🔀 HYBRID_ON=true - Using Advanced Medical Navigator (pure LLM)")
 else:
     print("[Clinician] 🔀 HYBRID_ON=false - Using Adaptive Diagnostic Engine (default)")
 
@@ -137,7 +137,7 @@ def ensure_medical_terms_loaded():
 
 # Global adaptive engine singleton (created once, reused for all sessions)
 _global_adaptive_engine = None
-_global_hybrid_assistant = None
+_global_medical_navigator = None
 
 def get_adaptive_engine(llm_chat_fn, llm_chat_simple_fn, embedding_api):
     """Get or create singleton adaptive engine (expensive to create, so reuse!)"""
@@ -155,21 +155,20 @@ def get_adaptive_engine(llm_chat_fn, llm_chat_simple_fn, embedding_api):
     
     return _global_adaptive_engine
 
-def get_hybrid_assistant(llm_chat_fn, llm_chat_simple_fn, embedding_api, medical_rule_engine):
-    """Get or create singleton hybrid assistant (expensive to create, so reuse!)"""
-    global _global_hybrid_assistant
+def get_medical_navigator(llm_chat_fn, medical_rule_engine=None, embedding_model=None):
+    """Get or create singleton medical navigator (hybrid LLM/RAG/FAISS)"""
+    global _global_medical_navigator
     
-    if _global_hybrid_assistant is None:
-        print("[Clinician] 🔧 Initializing hybrid assistant (one-time setup)...")
-        _global_hybrid_assistant = HybridMedicalAssistant(
+    if _global_medical_navigator is None:
+        print("[Clinician] 🔧 Initializing Advanced Medical Navigator (one-time setup)...")
+        _global_medical_navigator = AdvancedMedicalNavigator(
             llm_chat_fn=llm_chat_fn,
-            llm_chat_simple_fn=llm_chat_simple_fn,
-            embedding_model=embedding_api,
-            medical_rule_engine=medical_rule_engine
+            medical_rule_engine=medical_rule_engine,
+            embedding_model=embedding_model
         )
-        print(f"[Clinician] ✅ Hybrid assistant initialized: natural, context-aware conversations")
+        print(f"[Clinician] ✅ Advanced Medical Navigator initialized: hybrid LLM/RAG/FAISS mode")
     
-    return _global_hybrid_assistant
+    return _global_medical_navigator
 
 class DynamicAssessmentState:
     """State tracking for dynamic RAG-powered medical assessment"""
@@ -211,38 +210,43 @@ class ClinicianSession:
         # NEW: Adaptive diagnostic engine (with LLM + RAG embeddings for semantic similarity)
         # Use singleton pattern - create once, reuse for all sessions (loading 144 guidelines is expensive!)
         self.adaptive_engine = None
-        self.hybrid_assistant = None
-        
-        # Use RAG container's embedding service (no local model needed)
-        embedding_api = RAGEmbeddingAPI()
+        self.medical_navigator = None
         
         # Initialize based on HYBRID_ON toggle
-        if USE_HYBRID_ASSISTANT and HYBRID_ASSISTANT_AVAILABLE:
-            # Use new Hybrid Medical Assistant
+        if USE_HYBRID_NAVIGATOR and NAVIGATOR_AVAILABLE:
+            # Use Advanced Medical Navigator (hybrid LLM/RAG/FAISS)
             try:
-                # Need medical_rule_engine for hybrid assistant
-                from ml.medical_rule_engine import MedicalRuleEngine
-                medical_rule_engine = MedicalRuleEngine(embedding_model=embedding_api)
+                # Get medical rule engine and embedding model for RAG/FAISS
+                embedding_api = RAGEmbeddingAPI()
+                medical_rule_engine = None
+                try:
+                    from ml.medical_rule_engine import MedicalRuleEngine
+                    medical_rule_engine = MedicalRuleEngine(embedding_model=embedding_api)
+                    print(f"[Clinician] ✅ Medical Rule Engine initialized for Navigator")
+                except Exception as e:
+                    print(f"[Clinician] ⚠️ Medical Rule Engine not available: {e}")
                 
-                self.hybrid_assistant = get_hybrid_assistant(
+                self.medical_navigator = get_medical_navigator(
                     llm_chat_fn=self.llm_chat_fn,
-                    llm_chat_simple_fn=self.llm_chat_simple_fn,
-                    embedding_api=embedding_api,
-                    medical_rule_engine=medical_rule_engine
+                    medical_rule_engine=medical_rule_engine,
+                    embedding_model=embedding_api
                 )
-                print(f"[Clinician] ✅ Hybrid assistant initialized successfully")
+                print(f"[Clinician] ✅ Advanced Medical Navigator initialized successfully")
             except Exception as e:
-                print(f"[Clinician] ❌ Failed to initialize hybrid assistant: {e}")
+                print(f"[Clinician] ❌ Failed to initialize medical navigator: {e}")
                 print(f"[Clinician] 🔍 Error type: {type(e).__name__}")
                 import traceback
                 print(f"[Clinician] 📍 Error location: {traceback.format_exc()}")
-                self.hybrid_assistant = None
+                self.medical_navigator = None
                 # Fallback to adaptive engine
-                USE_HYBRID_ASSISTANT = False
+                USE_HYBRID_NAVIGATOR = False
         
-        if not USE_HYBRID_ASSISTANT and ADAPTIVE_ENGINE_AVAILABLE:
+        if not USE_HYBRID_NAVIGATOR and ADAPTIVE_ENGINE_AVAILABLE:
             # Use Adaptive Diagnostic Engine (default)
             try:
+                # Use RAG container's embedding service (no local model needed)
+                embedding_api = RAGEmbeddingAPI()
+                
                 # USE SINGLETON PATTERN - create once, reuse for all sessions (loading 144 guidelines is expensive!)
                 self.adaptive_engine = get_adaptive_engine(
                     llm_chat_fn=self.llm_chat_fn,
@@ -259,8 +263,8 @@ class ClinicianSession:
                 self.adaptive_engine = None  # Explicitly set to None on failure
         
         # Assessment mode selection
-        self.use_adaptive_engine = not USE_HYBRID_ASSISTANT  # Use adaptive engine if hybrid not enabled
-        self.use_hybrid_assistant = USE_HYBRID_ASSISTANT and self.hybrid_assistant is not None
+        self.use_adaptive_engine = not USE_HYBRID_NAVIGATOR  # Use adaptive engine if navigator not enabled
+        self.use_medical_navigator = USE_HYBRID_NAVIGATOR and self.medical_navigator is not None
 
         # Medical knowledge state
         self.last_medical_query = None
@@ -355,12 +359,12 @@ class ClinicianSession:
 
         # PRIORITY 1: Check if THIS SESSION has an active assessment
         # Use session-specific state, not the shared engine's global state
-        # Check both hybrid assistant and adaptive engine
+        # Check both medical navigator and adaptive engine
         if self.adaptive_assessment_active:
-            # Check if using hybrid assistant
-            if self.use_hybrid_assistant and self.hybrid_assistant:
-                # Hybrid assistant manages its own state, just continue
-                print(f"[Clinician] 🔄 Continuing hybrid assistant conversation for session {self.session_id}")
+            # Check if using medical navigator
+            if self.use_medical_navigator and self.medical_navigator:
+                # Medical navigator manages its own state, just continue
+                print(f"[Clinician] 🔄 Continuing medical navigator conversation for session {self.session_id}")
                 return self._handle_symptom_assessment(user_input)
             
             # Check if using adaptive engine
@@ -479,21 +483,21 @@ class ClinicianSession:
     def _handle_symptom_assessment(self, symptom_query: str) -> str:
         """
         Handle symptom assessment using either:
-        1. Hybrid Medical Assistant (if HYBRID_ON=true) - natural, context-aware conversations
+        1. Advanced Medical Navigator (if HYBRID_ON=true) - pure LLM-based conversations
         2. Adaptive Diagnostic Engine (default) - guideline-based questioning
         """
         print(f"[Clinician] 🩺 Handling symptom assessment: {symptom_query}")
 
-        # Use Hybrid Assistant if enabled
-        if self.use_hybrid_assistant and self.hybrid_assistant:
-            print(f"[Clinician] 🔀 Using Hybrid Medical Assistant (HYBRID_ON=true)")
+        # Use Medical Navigator if enabled
+        if self.use_medical_navigator and self.medical_navigator:
+            print(f"[Clinician] 🔀 Using Advanced Medical Navigator (HYBRID_ON=true)")
             try:
-                response = self.hybrid_assistant.process_message(
+                response = self.medical_navigator.process_message(
                     session_id=self.session_id,
                     user_message=symptom_query
                 )
                 
-                # Convert hybrid assistant response format to expected format
+                # Convert navigator response format to expected format
                 if isinstance(response, dict):
                     message = response.get('response', '')
                     status = response.get('status', 'assessment')
@@ -518,14 +522,14 @@ class ClinicianSession:
                         'debug': {}
                     }
             except Exception as e:
-                print(f"[Hybrid] ❌ Hybrid assistant failed: {e}")
-                print(f"[Hybrid] 📋 Error type: {type(e).__name__}")
+                print(f"[Navigator] ❌ Medical navigator failed: {e}")
+                print(f"[Navigator] 📋 Error type: {type(e).__name__}")
                 import traceback
                 traceback.print_exc()
                 # Fallback to adaptive engine if available
                 if self.adaptive_engine:
-                    print(f"[Hybrid] ⚠️ Falling back to adaptive engine")
-                    self.use_hybrid_assistant = False
+                    print(f"[Navigator] ⚠️ Falling back to adaptive engine")
+                    self.use_medical_navigator = False
                     self.use_adaptive_engine = True
                 else:
                     raise e
