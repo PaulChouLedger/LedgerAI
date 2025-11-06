@@ -548,43 +548,6 @@ Generate an empathetic response that acknowledges their distress and reassures t
         # Start with empathetic statement + chronicity question
         empathetic_msg = self._generate_empathetic_statement()
         
-        # Add disclaimer about loaded categories
-        category_names = []
-        category_display_names = {
-            'gastrointestinal': 'Gastrointestinal',
-            'cardiovascular': 'Cardiovascular',
-            'cardio': 'Cardiovascular',
-            'pulmonary': 'Pulmonary/Respiratory',
-            'respiratory': 'Pulmonary/Respiratory',
-            'neurological': 'Neurological',
-            'musculoskeletal': 'Musculoskeletal',
-            'renal': 'Renal',
-            'genitourinary': 'Genitourinary',
-            'gynecological': 'Gynecological',
-            'dermatological': 'Dermatological'
-        }
-        
-        for cat in categories:
-            cat_lower = cat.lower()
-            # Use display name if available, otherwise format the category name
-            display_name = category_display_names.get(cat_lower)
-            if not display_name:
-                # Capitalize first letter of each word
-                display_name = ' '.join(word.capitalize() for word in cat.replace('_', ' ').split())
-            category_names.append(display_name)
-        
-        # Remove duplicates while preserving order
-        seen = set()
-        unique_category_names = []
-        for name in category_names:
-            if name not in seen:
-                seen.add(name)
-                unique_category_names.append(name)
-        
-        if unique_category_names:
-            disclaimer = f"\n\nI am currently only able to provide guidance on the following categories: {', '.join(unique_category_names)}."
-            empathetic_msg = empathetic_msg + disclaimer
-        
         self.conversation_history.append({
             'type': 'statement',
             'message': empathetic_msg
@@ -1896,20 +1859,19 @@ RECOMMENDATION: {recommendation}"""
                     # Special handling for pain/discomfort questions
                     if 'pain' in last_question_text.lower() or 'discomfort' in last_question_text.lower():
                         self._capture_debug(f"[LLM Extraction] 🔍 Detected pain/discomfort question - interpreting answer")
-                        system_msg = """You are a medical assistant. Determine if the patient's answer to a pain/discomfort question means they have NO pain or discomfort.
+                        system_msg = """You are a medical assistant. Determine if the patient's answer means they have NO pain or discomfort.
 
-CRITICAL RULES:
-- Return 'no_pain' ONLY if the answer explicitly denies pain/discomfort (e.g., "no", "none", "I don't have pain", "no pain", "I'm not in pain")
-- Return 'has_pain' if the answer:
-  * Provides a location (e.g., "right side", "my chest", "lower abdomen")
-  * Describes pain (e.g., "it hurts", "sharp pain")
-  * Mentions any body part or location
-  * Is unclear but doesn't explicitly deny pain
+CRITICAL: You MUST respond with EXACTLY one of these two words: 'no_pain' or 'has_pain'
 
-IMPORTANT: If the question asks "Where is the pain located?" and the patient gives a location, they HAVE pain. Only return 'no_pain' for explicit denials.
+RULES:
+- If the answer is "no", "none", "I don't have pain", "no pain", "I'm not in pain", "I don't have any pain" → return 'no_pain'
+- If the answer provides a location (e.g., "right side", "my chest") → return 'has_pain'
+- If the answer describes pain (e.g., "it hurts", "sharp pain") → return 'has_pain'
+- If the answer mentions any body part or location → return 'has_pain'
+- If unclear but doesn't explicitly deny pain → return 'has_pain'
 
-Return ONLY 'no_pain' or 'has_pain'."""
-                        user_msg = f"Question: '{last_question_text}'\nPatient answer: '{user_input}'\n\nDoes this answer explicitly deny pain/discomfort, or does it indicate the patient HAS pain/discomfort?"
+DO NOT explain. DO NOT add reasoning. Return ONLY the word 'no_pain' or 'has_pain'."""
+                        user_msg = f"Question: '{last_question_text}'\nPatient answer: '{user_input}'\n\nReturn ONLY 'no_pain' or 'has_pain':"
                         max_tokens = 10
                     else:
                         # General location extraction
@@ -1948,12 +1910,30 @@ Return ONLY 'no_pain' or 'has_pain'."""
                             if extracted.isdigit():
                                 extracted_info = extracted
                                 self._capture_debug(f"[Engine] ✅ LLM extracted age: '{extracted}' from '{user_input}'")
-                        elif extraction_element == 'location' and 'no_pain' in extracted:
-                            extracted_info = 'no_pain'
-                            self._capture_debug(f"[Engine] ✅ LLM interpreted location answer '{user_input}' as no_pain (location satisfied)")
-                        elif extraction_element == 'location' and 'has_pain' in extracted:
-                            self._capture_debug(f"[Engine] 🔍 LLM interpreted location answer '{user_input}' as has_pain - will process normally")
-                            # Don't set extracted_info, let normal processing handle it
+                        elif extraction_element == 'location':
+                            # For location, check for exact match first, then substring
+                            if extracted == 'no_pain':
+                                extracted_info = 'no_pain'
+                                self._capture_debug(f"[Engine] ✅ LLM interpreted location answer '{user_input}' as no_pain (location satisfied)")
+                            elif extracted == 'has_pain':
+                                self._capture_debug(f"[Engine] 🔍 LLM interpreted location answer '{user_input}' as has_pain - will process normally")
+                                # Don't set extracted_info, let normal processing handle it
+                            elif 'no_pain' in extracted and 'has_pain' not in extracted:
+                                # LLM returned explanation but contains 'no_pain' - extract it
+                                extracted_info = 'no_pain'
+                                self._capture_debug(f"[Engine] ✅ LLM interpreted location answer '{user_input}' as no_pain (extracted from: '{extracted}')")
+                            elif 'has_pain' in extracted and 'no_pain' not in extracted:
+                                # LLM returned explanation but contains 'has_pain' - process normally
+                                self._capture_debug(f"[Engine] 🔍 LLM interpreted location answer '{user_input}' as has_pain (extracted from: '{extracted}')")
+                                # Don't set extracted_info, let normal processing handle it
+                            else:
+                                # LLM didn't return expected format - check if answer is simple "no"
+                                if user_input.lower().strip() in ['no', 'none', "i don't", "i don't have pain", "no pain"]:
+                                    extracted_info = 'no_pain'
+                                    self._capture_debug(f"[Engine] ✅ LLM failed to return expected format, but answer is clearly 'no' - setting no_pain")
+                                else:
+                                    # LLM failed - process as normal location answer
+                                    self._capture_debug(f"[Engine] ⚠️ LLM returned unexpected format: '{extracted}' - processing as normal location answer")
                         elif len(extracted) > 2:
                             # General extraction for other elements
                             extracted_info = extracted

@@ -40,6 +40,22 @@ except ImportError as e:
     ADAPTIVE_ENGINE_AVAILABLE = False
     print(f"[Clinician] ⚠️ Adaptive engine not available: {e}")
 
+# Import hybrid medical assistant (new natural conversation system)
+try:
+    from hybrid_medical_assistant import HybridMedicalAssistant
+    HYBRID_ASSISTANT_AVAILABLE = True
+    print("[Clinician] ✅ Hybrid medical assistant imported successfully")
+except ImportError as e:
+    HYBRID_ASSISTANT_AVAILABLE = False
+    print(f"[Clinician] ⚠️ Hybrid assistant not available: {e}")
+
+# Check HYBRID_ON toggle
+USE_HYBRID_ASSISTANT = os.environ.get('HYBRID_ON', 'false').lower() == 'true'
+if USE_HYBRID_ASSISTANT:
+    print("[Clinician] 🔀 HYBRID_ON=true - Using new Hybrid Medical Assistant")
+else:
+    print("[Clinician] 🔀 HYBRID_ON=false - Using Adaptive Diagnostic Engine (default)")
+
 
 class RAGEmbeddingAPI:
     """
@@ -121,6 +137,7 @@ def ensure_medical_terms_loaded():
 
 # Global adaptive engine singleton (created once, reused for all sessions)
 _global_adaptive_engine = None
+_global_hybrid_assistant = None
 
 def get_adaptive_engine(llm_chat_fn, llm_chat_simple_fn, embedding_api):
     """Get or create singleton adaptive engine (expensive to create, so reuse!)"""
@@ -137,6 +154,22 @@ def get_adaptive_engine(llm_chat_fn, llm_chat_simple_fn, embedding_api):
         print(f"[Clinician] ✅ Adaptive engine initialized: {guideline_count} guidelines, dual LLMs, semantic embeddings")
     
     return _global_adaptive_engine
+
+def get_hybrid_assistant(llm_chat_fn, llm_chat_simple_fn, embedding_api, medical_rule_engine):
+    """Get or create singleton hybrid assistant (expensive to create, so reuse!)"""
+    global _global_hybrid_assistant
+    
+    if _global_hybrid_assistant is None:
+        print("[Clinician] 🔧 Initializing hybrid assistant (one-time setup)...")
+        _global_hybrid_assistant = HybridMedicalAssistant(
+            llm_chat_fn=llm_chat_fn,
+            llm_chat_simple_fn=llm_chat_simple_fn,
+            embedding_model=embedding_api,
+            medical_rule_engine=medical_rule_engine
+        )
+        print(f"[Clinician] ✅ Hybrid assistant initialized: natural, context-aware conversations")
+    
+    return _global_hybrid_assistant
 
 class DynamicAssessmentState:
     """State tracking for dynamic RAG-powered medical assessment"""
@@ -178,12 +211,38 @@ class ClinicianSession:
         # NEW: Adaptive diagnostic engine (with LLM + RAG embeddings for semantic similarity)
         # Use singleton pattern - create once, reuse for all sessions (loading 144 guidelines is expensive!)
         self.adaptive_engine = None
+        self.hybrid_assistant = None
         
-        if ADAPTIVE_ENGINE_AVAILABLE:
+        # Use RAG container's embedding service (no local model needed)
+        embedding_api = RAGEmbeddingAPI()
+        
+        # Initialize based on HYBRID_ON toggle
+        if USE_HYBRID_ASSISTANT and HYBRID_ASSISTANT_AVAILABLE:
+            # Use new Hybrid Medical Assistant
             try:
-                # Use RAG container's embedding service (no local model needed)
-                embedding_api = RAGEmbeddingAPI()
+                # Need medical_rule_engine for hybrid assistant
+                from ml.medical_rule_engine import MedicalRuleEngine
+                medical_rule_engine = MedicalRuleEngine(embedding_model=embedding_api)
                 
+                self.hybrid_assistant = get_hybrid_assistant(
+                    llm_chat_fn=self.llm_chat_fn,
+                    llm_chat_simple_fn=self.llm_chat_simple_fn,
+                    embedding_api=embedding_api,
+                    medical_rule_engine=medical_rule_engine
+                )
+                print(f"[Clinician] ✅ Hybrid assistant initialized successfully")
+            except Exception as e:
+                print(f"[Clinician] ❌ Failed to initialize hybrid assistant: {e}")
+                print(f"[Clinician] 🔍 Error type: {type(e).__name__}")
+                import traceback
+                print(f"[Clinician] 📍 Error location: {traceback.format_exc()}")
+                self.hybrid_assistant = None
+                # Fallback to adaptive engine
+                USE_HYBRID_ASSISTANT = False
+        
+        if not USE_HYBRID_ASSISTANT and ADAPTIVE_ENGINE_AVAILABLE:
+            # Use Adaptive Diagnostic Engine (default)
+            try:
                 # USE SINGLETON PATTERN - create once, reuse for all sessions (loading 144 guidelines is expensive!)
                 self.adaptive_engine = get_adaptive_engine(
                     llm_chat_fn=self.llm_chat_fn,
@@ -200,7 +259,8 @@ class ClinicianSession:
                 self.adaptive_engine = None  # Explicitly set to None on failure
         
         # Assessment mode selection
-        self.use_adaptive_engine = True  # Use new adaptive engine (not rigid triage)
+        self.use_adaptive_engine = not USE_HYBRID_ASSISTANT  # Use adaptive engine if hybrid not enabled
+        self.use_hybrid_assistant = USE_HYBRID_ASSISTANT and self.hybrid_assistant is not None
 
         # Medical knowledge state
         self.last_medical_query = None
@@ -295,19 +355,49 @@ class ClinicianSession:
 
         # PRIORITY 1: Check if THIS SESSION has an active assessment
         # Use session-specific state, not the shared engine's global state
-        if self.adaptive_assessment_active and self.adaptive_engine:
-            # Check if user_input looks like a NEW chief complaint (not an answer to previous question)
-            is_new_complaint = self._is_new_chief_complaint(user_input, self.adaptive_engine, self.session_chief_complaint)
-            
-            if is_new_complaint:
-                print(f"[Clinician] 🆕 Detected NEW chief complaint - resetting assessment for session {self.session_id}")
-                self.adaptive_engine.reset_assessment()
-                self.adaptive_assessment_active = False
-                self.session_chief_complaint = None
-                # Continue to start new assessment below
-            else:
-                print(f"[Clinician] 🔄 Continuing active adaptive assessment for session {self.session_id}")
+        # Check both hybrid assistant and adaptive engine
+        if self.adaptive_assessment_active:
+            # Check if using hybrid assistant
+            if self.use_hybrid_assistant and self.hybrid_assistant:
+                # Hybrid assistant manages its own state, just continue
+                print(f"[Clinician] 🔄 Continuing hybrid assistant conversation for session {self.session_id}")
                 return self._handle_symptom_assessment(user_input)
+            
+            # Check if using adaptive engine
+            if self.use_adaptive_engine and self.adaptive_engine:
+                # Check if user_input looks like a NEW chief complaint (not an answer to previous question)
+                is_new_complaint = self._is_new_chief_complaint(user_input, self.adaptive_engine, self.session_chief_complaint)
+                
+                if is_new_complaint:
+                    print(f"[Clinician] 🆕 Detected NEW chief complaint - resetting assessment for session {self.session_id}")
+                    self.adaptive_engine.reset_assessment()
+                    self.adaptive_assessment_active = False
+                    self.session_chief_complaint = None
+                    # Continue to start new assessment below
+                else:
+                    # Check if it's a question (LLM-based detection)
+                    # If it's a question, answer it and then continue assessment
+                    is_question = self._is_question(user_input)
+                    if is_question:
+                        print(f"[Clinician] ❓ Detected question during assessment - answering and resuming")
+                        answer = self._handle_medical_knowledge(user_input)
+                        # After answering, get the next assessment question (without processing user input)
+                        # The adaptive engine should return the next question it was going to ask
+                        if self.adaptive_engine and hasattr(self.adaptive_engine, '_ask_next_clinical_question'):
+                            next_question_response = self.adaptive_engine._ask_next_clinical_question()
+                            if isinstance(next_question_response, dict) and next_question_response.get('message'):
+                                combined = f"{answer}\n\n{next_question_response.get('message')}"
+                                return {
+                                    'success': True,
+                                    'message': combined,
+                                    'status': next_question_response.get('status', 'questioning'),
+                                    'debug': next_question_response.get('debug', {})
+                                }
+                        # Fallback: just return the answer
+                        return answer
+                    else:
+                        print(f"[Clinician] 🔄 Continuing active adaptive assessment for session {self.session_id}")
+                        return self._handle_symptom_assessment(user_input)
         
         # PRIORITY 2: Check if we have an active dynamic assessment in progress (legacy)
         if self.dynamic_assessment and not self.dynamic_assessment.completed:
@@ -319,75 +409,18 @@ class ClinicianSession:
 
         print(f"[Clinician] 🔍 Query type: {query_type}")
 
-        if query_type == "symptom_assessment":
-            return self._handle_symptom_assessment(user_input)
-        elif query_type == "medical_knowledge":
-            return self._handle_medical_knowledge(user_input)
-        elif query_type == "casual_greeting":
-            return self._handle_casual_greeting(user_input)
-        else:
-            return self._handle_general_medical(user_input)
+        # All queries go through symptom assessment
+        # The adaptive engine's semantic matching will determine if it's a valid chief complaint
+        # If not, it will raise an error which we can handle gracefully
+        return self._handle_symptom_assessment(user_input)
 
     def _analyze_medical_query(self, query: str) -> str:
         """
-        Analyze query to determine if it's symptom assessment, knowledge question, casual greeting, or general medical
-
-        Returns:
-            "symptom_assessment", "medical_knowledge", "casual_greeting", or "general_medical"
+        Analyze query - simplified to let LLM handle everything naturally.
+        All queries go through symptom assessment first (semantic matching determines validity).
         """
-        query_lower = query.lower().strip()
-
-        # Check for casual greetings first
-        greeting_patterns = [
-            r'^\s*\bhello\b\s*$',
-            r'^\s*\bhi\b\s*$',
-            r'^\s*\bhey\b\s*$',
-            r'^\s*\bgood morning\b\s*$',
-            r'^\s*\bgood afternoon\b\s*$',
-            r'^\s*\bgood evening\b\s*$',
-            r'^\s*\bhow are you\b\s*$',
-            r'^\s*\bhows it going\b\s*$',
-            r'^\s*\bwhats up\b\s*$',
-            # With "aura" suffix
-            r'^\s*\bhello aura\b\s*$',
-            r'^\s*\bhi aura\b\s*$',
-            r'^\s*\bhey aura\b\s*$',
-        ]
-        
-        import re
-        if any(re.search(pattern, query_lower) for pattern in greeting_patterns):
-            return "casual_greeting"
-
-        # Check for medical knowledge questions
-        knowledge_indicators = [
-            "what is", "what are", "what does", "what do",
-            "how is", "how are", "how does", "how do",
-            "why is", "why are", "why does", "why do",
-            "when is", "when are", "when does", "when do",
-            "where is", "where are", "where does", "where do",
-            "who is", "who are", "who does", "who do",
-            "tell me about", "explain", "describe", "define",
-            "can you", "could you", "would you", "will you"
-        ]
-
-        if any(indicator in query_lower for indicator in knowledge_indicators):
-            # Check if it's about medical topics using shared medical terms
-            # Use the centralized medical_terms.json file (shared with Whisper container)
-            if MEDICAL_TERMS.get('_all_terms_flat'):
-                if any(keyword in query_lower for keyword in MEDICAL_TERMS['_all_terms_flat']):
-                    return "medical_knowledge"
-            # Fallback to suffix-based detection if terms not loaded
-            else:
-                # Medical term suffixes (catches pancreatitis, hepatitis, etc.)
-                medical_suffixes = [
-                    r'\w+itis\b', r'\w+osis\b', r'\w+emia\b', r'\w+pathy\b',
-                    r'\w+ology\b', r'\w+oma\b', r'\w+algia\b'
-                ]
-                if any(re.search(pattern, query_lower) for pattern in medical_suffixes):
-                    return "medical_knowledge"
-
-        # If not a greeting or knowledge question, try symptom assessment
-        # Let the adaptive engine's semantic matching determine if it's a valid chief complaint
+        # Always try symptom assessment first - semantic matching will determine if it's valid
+        # If not a valid chief complaint, the adaptive engine will handle it appropriately
         return "symptom_assessment"
 
     def _is_new_chief_complaint(self, user_input: str, adaptive_engine, session_chief_complaint: str = None) -> bool:
@@ -445,14 +478,59 @@ class ClinicianSession:
 
     def _handle_symptom_assessment(self, symptom_query: str) -> str:
         """
-        Handle symptom assessment using ADAPTIVE guideline-based questioning
-        
-        New approach: Uses adaptive diagnostic engine with multi-guideline scoring,
-        intelligent question selection, and natural language understanding
+        Handle symptom assessment using either:
+        1. Hybrid Medical Assistant (if HYBRID_ON=true) - natural, context-aware conversations
+        2. Adaptive Diagnostic Engine (default) - guideline-based questioning
         """
         print(f"[Clinician] 🩺 Handling symptom assessment: {symptom_query}")
 
-        # Use adaptive engine (new approach)
+        # Use Hybrid Assistant if enabled
+        if self.use_hybrid_assistant and self.hybrid_assistant:
+            print(f"[Clinician] 🔀 Using Hybrid Medical Assistant (HYBRID_ON=true)")
+            try:
+                response = self.hybrid_assistant.process_message(
+                    session_id=self.session_id,
+                    user_message=symptom_query
+                )
+                
+                # Convert hybrid assistant response format to expected format
+                if isinstance(response, dict):
+                    message = response.get('response', '')
+                    status = response.get('status', 'assessment')
+                    
+                    # Track assessment state
+                    if status == 'assessment':
+                        self.adaptive_assessment_active = True
+                        if 'chief_complaint' in response.get('metadata', {}):
+                            self.session_chief_complaint = response['metadata']['chief_complaint']
+                    
+                    return {
+                        'success': True,
+                        'message': message,
+                        'status': status,
+                        'debug': response.get('metadata', {})
+                    }
+                else:
+                    return {
+                        'success': True,
+                        'message': str(response),
+                        'status': 'assessment',
+                        'debug': {}
+                    }
+            except Exception as e:
+                print(f"[Hybrid] ❌ Hybrid assistant failed: {e}")
+                print(f"[Hybrid] 📋 Error type: {type(e).__name__}")
+                import traceback
+                traceback.print_exc()
+                # Fallback to adaptive engine if available
+                if self.adaptive_engine:
+                    print(f"[Hybrid] ⚠️ Falling back to adaptive engine")
+                    self.use_hybrid_assistant = False
+                    self.use_adaptive_engine = True
+                else:
+                    raise e
+
+        # Use adaptive engine (default approach)
         print(f"[Clinician] 🔍 Engine check: use_adaptive={self.use_adaptive_engine}, engine_exists={self.adaptive_engine is not None}")
         if self.use_adaptive_engine and self.adaptive_engine:
             print(f"[Clinician] 🔍 Adaptive engine status: {self.adaptive_engine.status if hasattr(self.adaptive_engine, 'status') else 'unknown'}")
@@ -1195,6 +1273,73 @@ IMPORTANT: Always include appropriate medical disclaimers and recommend consulti
 
         return self._fallback_to_general_response(knowledge_query)
 
+    def _handle_with_llm(self, user_input: str) -> str:
+        """Handle user input naturally with LLM (greetings, questions, general conversation)"""
+        if not self.llm_chat_simple_fn:
+            return "I'm here to help with any medical questions or concerns you might have."
+        
+        try:
+            system_msg = """You are Aura, a friendly and helpful medical AI assistant. 
+Respond naturally to the user's input. If it's a greeting, respond warmly and briefly.
+If it's a medical question, provide helpful information.
+If it's unclear, ask how you can help.
+Keep responses conversational and inviting."""
+            
+            user_msg = user_input
+            
+            response = self.llm_chat_simple_fn(
+                [{"role": "system", "content": system_msg}, {"role": "user", "content": user_msg}],
+                max_tokens=150,
+                temperature=0.7
+            )
+            
+            greeting_text = response.strip() if response else "Hello! How can I help you today?"
+            
+            # Add disclaimer about available categories (only for initial greeting-like responses)
+            if self.adaptive_engine and not self.adaptive_assessment_active:
+                try:
+                    available_categories = self.adaptive_engine.get_available_categories()
+                    category_display_names = {
+                        'gastrointestinal': 'Gastrointestinal',
+                        'cardiovascular': 'Cardiovascular',
+                        'cardio': 'Cardiovascular',
+                        'pulmonary': 'Pulmonary/Respiratory',
+                        'respiratory': 'Pulmonary/Respiratory',
+                        'neurological': 'Neurological',
+                        'musculoskeletal': 'Musculoskeletal',
+                        'renal': 'Renal',
+                        'genitourinary': 'Genitourinary',
+                        'gynecological': 'Gynecological',
+                        'dermatological': 'Dermatological'
+                    }
+                    
+                    category_names = []
+                    for cat in available_categories:
+                        cat_lower = cat.lower()
+                        display_name = category_display_names.get(cat_lower)
+                        if not display_name:
+                            display_name = ' '.join(word.capitalize() for word in cat.replace('_', ' ').split())
+                        category_names.append(display_name)
+                    
+                    # Remove duplicates while preserving order
+                    seen = set()
+                    unique_category_names = []
+                    for name in category_names:
+                        if name not in seen:
+                            seen.add(name)
+                            unique_category_names.append(name)
+                    
+                    if unique_category_names:
+                        disclaimer = f"\n\nI am currently only able to provide guidance on the following categories: {', '.join(unique_category_names)}."
+                        greeting_text = greeting_text + disclaimer
+                except Exception as e:
+                    print(f"[Clinician] ⚠️ Could not get available categories: {e}")
+            
+            return greeting_text
+        except Exception as e:
+            print(f"[Clinician] ❌ Error handling with LLM: {e}")
+            return "Hello! I'm Aura, your medical AI assistant. I'm here to help with any medical questions or symptom assessment you might have."
+
     def _handle_casual_greeting(self, greeting: str) -> str:
         """Handle casual greetings with friendly medical assistant response"""
         print(f"[Clinician] 👋 Handling casual greeting: {greeting}")
@@ -1270,6 +1415,47 @@ IMPORTANT: Always include appropriate medical disclaimers and recommend consulti
             greeting_text = greeting_text + disclaimer
         
         return greeting_text
+
+    def _is_question(self, user_input: str) -> bool:
+        """Use LLM to detect if user input is a question (not an answer to assessment)"""
+        if not self.llm_chat_simple_fn:
+            # Fallback: simple heuristic if LLM not available
+            return '?' in user_input or any(word in user_input.lower() for word in ['what', 'how', 'why', 'when', 'where', 'who', 'explain', 'tell me'])
+        
+        try:
+            system_msg = """You are a medical assistant. Determine if the patient's input is a QUESTION asking for medical information, or an ANSWER to a medical question.
+
+Return ONLY 'question' or 'answer'.
+
+Examples of QUESTIONS:
+- "What is appendicitis?"
+- "How does heartburn work?"
+- "Why do I have this pain?"
+- "Tell me about diabetes"
+
+Examples of ANSWERS:
+- "right side"
+- "no"
+- "2 days ago"
+- "sharp pain"
+- "yes, it hurts" """
+            
+            user_msg = f"Patient said: '{user_input}'\n\nIs this a question or an answer? Return ONLY 'question' or 'answer':"
+            
+            response = self.llm_chat_simple_fn(
+                [{"role": "system", "content": system_msg}, {"role": "user", "content": user_msg}],
+                max_tokens=10,
+                temperature=0.1
+            )
+            
+            result = response.strip().lower() if response else ''
+            is_question = 'question' in result and 'answer' not in result
+            print(f"[Clinician] 🔍 LLM question detection: '{user_input}' → {result} (is_question: {is_question})")
+            return is_question
+        except Exception as e:
+            print(f"[Clinician] ⚠️ Question detection failed: {e}")
+            # Fallback: simple heuristic
+            return '?' in user_input or any(word in user_input.lower() for word in ['what', 'how', 'why', 'when', 'where', 'who', 'explain', 'tell me'])
 
     def _handle_general_medical(self, general_query: str) -> str:
         """Handle general medical queries"""

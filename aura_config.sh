@@ -85,6 +85,14 @@ show_all_settings() {
         fi
         echo "  Enabled Categories: $enabled_categories"
         echo "  Available: GI, CARDIO, DERM, GU, GYN, MSK, NEURO, PULMONARY, RENAL"
+        
+        # Show Hybrid Assistant toggle status
+        local hybrid_on=$(get_config_value "HYBRID_ON")
+        if [ "$hybrid_on" == "true" ]; then
+            echo -e "  ${CYAN}🔀 Hybrid Assistant: ${GREEN}ENABLED${NC} (natural, context-aware conversations)"
+        else
+            echo -e "  ${CYAN}🔀 Hybrid Assistant: ${YELLOW}DISABLED${NC} (using Adaptive Diagnostic Engine)"
+        fi
     else
         echo -e "  ${YELLOW}○${NC} Generic Mode (general conversation, RAG Q&A)"
     fi
@@ -269,6 +277,42 @@ toggle_ml_learning() {
         echo ""
         echo "No learning from interactions"
         echo "System will not record or suggest new terms"
+        echo ""
+    fi
+    
+    show_restart_message
+}
+
+toggle_hybrid_assistant() {
+    local action=$1
+    
+    if [ "$action" == "on" ]; then
+        set_config_value "HYBRID_ON" "true"
+        echo ""
+        echo -e "${GREEN}✅ Hybrid Medical Assistant ENABLED${NC}"
+        echo ""
+        echo "System will use:"
+        echo "  • Natural, human-like conversations"
+        echo "  • Context-aware question generation"
+        echo "  • Smart anatomical inference (e.g., 'right side' → 'right upper quadrant')"
+        echo "  • Dynamic, fluid conversation flow"
+        echo "  • Hybrid LLM/Rules/ML approach for all interactions"
+        echo ""
+        echo "Features:"
+        echo "  • More natural responses"
+        echo "  • Better context understanding"
+        echo "  • Smarter question selection"
+        echo ""
+    else
+        set_config_value "HYBRID_ON" "false"
+        echo ""
+        echo -e "${GREEN}✅ Hybrid Medical Assistant DISABLED${NC}"
+        echo ""
+        echo "System will use:"
+        echo "  • Adaptive Diagnostic Engine (default)"
+        echo "  • Guideline-based questioning"
+        echo "  • Structured OLDCARTS flow"
+        echo "  • Rule-based anatomical extraction"
         echo ""
     fi
     
@@ -898,6 +942,7 @@ main_menu() {
         echo " 10) Configure GitHub OTA updates"
         echo " 11) Configure NHS/FHIR credentials"
         echo " 12) Toggle ML Learning (on/off)"
+        echo " 13) Toggle Hybrid Assistant (on/off)"
         echo "  a) Edit .env file directly"
         echo "  b) Restart Docker containers"
         echo "  0) Exit"
@@ -1007,6 +1052,32 @@ main_menu() {
                 echo ""
                 read -p "Press Enter to continue..."
                 ;;
+            13)
+                # Show current state and ask what to do
+                local current=$(get_config_value 'HYBRID_ON')
+                echo ""
+                if [ "$current" == "true" ]; then
+                    echo "Hybrid Assistant is currently: ENABLED"
+                    echo ""
+                    echo "Using: Natural, context-aware conversations"
+                    echo ""
+                    read -p "Switch to Adaptive Diagnostic Engine? (y/n): " answer
+                    if [ "$answer" == "y" ] || [ "$answer" == "Y" ]; then
+                        toggle_hybrid_assistant off
+                    fi
+                else
+                    echo "Hybrid Assistant is currently: DISABLED"
+                    echo ""
+                    echo "Using: Adaptive Diagnostic Engine (default)"
+                    echo ""
+                    read -p "Enable Hybrid Medical Assistant? (y/n): " answer
+                    if [ "$answer" == "y" ] || [ "$answer" == "Y" ]; then
+                        toggle_hybrid_assistant on
+                    fi
+                fi
+                echo ""
+                read -p "Press Enter to continue..."
+                ;;
             a|A)
                 edit_file
                 ;;
@@ -1063,6 +1134,17 @@ case "${1:-}" in
                 echo "Usage: $0 ml [on|off]"
                 echo "  on  - Enable ML learning"
                 echo "  off - Disable ML learning"
+                ;;
+        esac
+        ;;
+    hybrid)
+        case "${2:-}" in
+            on|enable) toggle_hybrid_assistant on ;;
+            off|disable) toggle_hybrid_assistant off ;;
+            *) 
+                echo "Usage: $0 hybrid [on|off]"
+                echo "  on  - Enable Hybrid Medical Assistant (natural conversations)"
+                echo "  off - Disable Hybrid Assistant (use Adaptive Diagnostic Engine)"
                 ;;
         esac
         ;;
