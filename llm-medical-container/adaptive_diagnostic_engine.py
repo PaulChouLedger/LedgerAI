@@ -4206,8 +4206,15 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
         options_list = ", ".join(terms_to_use)
         
         if oldcarts_element == 'location':
-            # Example format to make it crystal clear
-            example_question = f"Can you be more specific? For example, is it located at {terms_to_use[0]}, {terms_to_use[1]}, {terms_to_use[2]}, or {terms_to_use[3] if len(terms_to_use) > 3 else terms_to_use[0]}?"
+            # Build example with actual terms (avoid generic "Can you be more specific?")
+            if len(terms_to_use) >= 4:
+                example_question = f"Is it located at {terms_to_use[0]}, {terms_to_use[1]}, {terms_to_use[2]}, or {terms_to_use[3]}?"
+            elif len(terms_to_use) == 3:
+                example_question = f"Is it located at {terms_to_use[0]}, {terms_to_use[1]}, or {terms_to_use[2]}?"
+            elif len(terms_to_use) == 2:
+                example_question = f"Is it located at {terms_to_use[0]} or {terms_to_use[1]}?"
+            else:
+                example_question = f"Is it located at {terms_to_use[0]}?"
             
             if satisfied_context:
                 # Context: Patient said something that matches multiple locations, need to disambiguate
@@ -4230,12 +4237,24 @@ We need to clarify the location. Here are the ONLY possible locations from the m
 
 {self.LLM_CLARIFICATION_LOCATION_RULES}
 
+CRITICAL REQUIREMENTS:
+1. You MUST include at least 3-4 of the exact terms from the list above in your question
+2. Do NOT use generic phrases like "Can you be more specific?" without including the terms
+3. Start directly with the question about location options
+
 EXAMPLE of correct format: "{example_question}"
 
-Generate a clarification question using EXACTLY this format with the terms provided above. The question MUST include at least 3-4 specific options from the list."""
+Generate a clarification question that starts with the location options (like the example above). The question MUST include at least 3-4 specific options from the list."""
         else:
-            # Example format for non-location elements
-            example_question = f"Can you be more specific? For example, is it {terms_to_use[0]}, {terms_to_use[1]}, {terms_to_use[2]}, or {terms_to_use[3] if len(terms_to_use) > 3 else terms_to_use[0]}?"
+            # Build example with actual terms (avoid generic "Can you be more specific?")
+            if len(terms_to_use) >= 4:
+                example_question = f"Is it {terms_to_use[0]}, {terms_to_use[1]}, {terms_to_use[2]}, or {terms_to_use[3]}?"
+            elif len(terms_to_use) == 3:
+                example_question = f"Is it {terms_to_use[0]}, {terms_to_use[1]}, or {terms_to_use[2]}?"
+            elif len(terms_to_use) == 2:
+                example_question = f"Is it {terms_to_use[0]} or {terms_to_use[1]}?"
+            else:
+                example_question = f"Is it {terms_to_use[0]}?"
             
             user_msg = f"""{chief_complaint_context}{conversation_context}
 
@@ -4246,9 +4265,14 @@ We need to clarify the {oldcarts_element}. Here are the ONLY possible options fr
 
 {self.LLM_CLARIFICATION_GENERAL_RULES}
 
+CRITICAL REQUIREMENTS:
+1. You MUST include at least 3-4 of the exact terms from the list above in your question
+2. Do NOT use generic phrases like "Can you be more specific?" without including the terms
+3. Start directly with the question about options
+
 EXAMPLE of correct format: "{example_question}"
 
-Generate a clarification question using EXACTLY this format with the terms provided above. The question MUST include at least 3-4 specific options from the list."""
+Generate a clarification question that starts with the options (like the example above). The question MUST include at least 3-4 specific options from the list."""
         
         llm_kwargs = self._get_llm_kwargs(override_max_tokens=100)
         response = self.llm_chat_simple_fn(
