@@ -1375,17 +1375,21 @@ Generate ONE clear question about {next_element} for their {chief_complaint}.{el
         
         # Deduplicate while preserving order
         unique_terms = list(dict.fromkeys(all_terms))
-        original_terms_count = len(unique_terms)
+        total_terms_count = len(unique_terms)
+        raw_terms_snapshot = list(unique_terms)
         
-        # Limit to reasonable number (5-7 options max for clarity)
-        if len(unique_terms) > 7:
+        # Limit non-location elements for brevity
+        if element != 'location' and len(unique_terms) > 7:
             unique_terms = unique_terms[:7]
-            original_terms_count = len(unique_terms)
+        
+        if element == 'location':
+            self._capture_debug(f"[Location Analysis] 📋 Raw guideline terms ({total_terms_count}): {raw_terms_snapshot}")
         
         removed_terms = []
         if element == 'location' and session and self.medical_rule_engine:
             patient_components = self._get_patient_anatomical_components(session, element)
             if patient_components:
+                self._capture_debug(f"[Location Analysis] 🧭 Patient components: {patient_components}")
                 filtered_terms = []
                 for term in unique_terms:
                     term_components = term_components_map.get(term)
@@ -1395,19 +1399,21 @@ Generate ONE clear question about {next_element} for their {chief_complaint}.{el
                     filtered_terms.append(term)
                 if filtered_terms:
                     unique_terms = filtered_terms
-                # Store debug snapshot
                 session.context.setdefault('debug', {})['location_options'] = {
                     'patient_components': patient_components,
                     'removed_terms': removed_terms,
-                    'final_options': unique_terms
+                    'final_options': unique_terms,
+                    'raw_terms': raw_terms_snapshot
                 }
-                self._capture_debug(f"[Navigator] 📍 Location filtering applied: kept {len(unique_terms)} / {original_terms_count} options")
+                if removed_terms:
+                    self._capture_debug(f"[Location Analysis] ❌ Removed anatomical opposites: {[t['term'] for t in removed_terms]}")
+                self._capture_debug(f"[Location Analysis] ✅ Final location options ({len(unique_terms)} of {total_terms_count}): {unique_terms}")
             else:
-                # Clear any previous debug snapshot if no components yet
                 session.context.setdefault('debug', {})['location_options'] = {
                     'patient_components': {},
                     'removed_terms': [],
-                    'final_options': unique_terms
+                    'final_options': unique_terms,
+                    'raw_terms': raw_terms_snapshot
                 }
         
         self._capture_debug(f"[Navigator] 📋 Extracted {len(unique_terms)} guideline terms for '{element}': {unique_terms}")
