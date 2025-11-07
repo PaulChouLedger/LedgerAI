@@ -109,21 +109,24 @@ Be warm, professional, and reassuring. Do NOT ask any questions - just acknowled
     LLM_COMMENT_ACK_SYSTEM_MSG = "You are a compassionate medical assistant. Generate a brief, natural acknowledgment (1 sentence) for a patient's comment or emotional expression. Be warm and reassuring, then naturally transition back to gathering information."
     
     # Greeting Detection
-    LLM_GREETING_DETECTION_SYSTEM_MSG = """You are a medical assistant. Determine if the patient's message is a greeting or a medical concern.
+    LLM_GREETING_DETECTION_SYSTEM_MSG = """You are a medical assistant. Determine if the patient's message is ONLY a greeting or a medical concern.
 
 Return ONLY 'greeting' or 'medical'.
 
-Examples of GREETINGS:
-- "hello", "hi", "hey"
-- "good morning", "good afternoon"
-- "how are you"
-- Any casual greeting or small talk
+CRITICAL: If the message mentions ANY symptom, pain, or medical concern, return 'medical' EVEN IF it also includes a greeting.
 
-Examples of MEDICAL:
-- "I have chest pain"
-- "My stomach hurts"
-- "I'm feeling nauseous"
-- Any symptom description or medical question"""
+Examples of GREETINGS (ONLY these):
+- "hello", "hi", "hey"
+- "good morning", "good afternoon"  
+- "how are you"
+- Pure greetings with NO symptoms
+
+Examples of MEDICAL (anything with symptoms):
+- "I have chest pain" → medical
+- "Hello, I have a headache" → medical (greeting + symptom = medical)
+- "Hi, my stomach hurts" → medical (greeting + symptom = medical)
+- "I'm feeling nauseous" → medical
+- Any symptom, pain, or medical question = medical"""
     
     # Greeting Response
     LLM_GREETING_SYSTEM_MSG = """You are Aura, a friendly and helpful medical AI assistant.
@@ -460,15 +463,25 @@ Return ONLY the question, no explanations:"""
     def _is_greeting(self, message: str) -> bool:
         """
         Detect if message is a greeting using LLM (before chief complaint matching).
+        CRITICAL: Symptoms always take priority over greetings.
         """
         if not self.llm_chat_fn:
             raise ValueError("LLM function required for greeting detection")
         
-        # Use LLM to intelligently detect greetings
+        # Quick heuristic: If message contains symptom keywords, it's NOT a greeting
+        symptom_keywords = ['pain', 'hurt', 'ache', 'fever', 'cough', 'nausea', 'vomit', 
+                           'dizzy', 'bleed', 'swell', 'rash', 'itch', 'sick', 'ill', 
+                           'chest', 'stomach', 'head', 'abdomen', 'back', 'throat']
+        message_lower = message.lower()
+        if any(keyword in message_lower for keyword in symptom_keywords):
+            self._capture_debug(f"[Navigator] 🩺 Detected medical content (symptom keyword): '{message}'")
+            return False
+        
+        # Use LLM to intelligently detect greetings (only if no symptom keywords)
         llm_kwargs = self._get_llm_kwargs(override_max_tokens=10, override_temperature=0.1)
         response = self.llm_chat_fn(
             [{"role": "system", "content": self.LLM_GREETING_DETECTION_SYSTEM_MSG}, 
-             {"role": "user", "content": f"Patient message: {message}\n\nIs this a greeting or medical? Return ONLY 'greeting' or 'medical':"}],
+             {"role": "user", "content": f"Patient message: {message}\n\nIs this ONLY a greeting or medical? Return ONLY 'greeting' or 'medical':"}],
             **llm_kwargs
         )
         
@@ -477,6 +490,8 @@ Return ONLY the question, no explanations:"""
         
         if is_greeting:
             self._capture_debug(f"[Navigator] 👋 Detected greeting: '{message}'")
+        else:
+            self._capture_debug(f"[Navigator] 🩺 Detected medical content: '{message}'")
         
         return is_greeting
     
