@@ -1937,10 +1937,10 @@ Generate ONE clear question about {next_element} for their {chief_complaint}.{el
             
             if len(filtered_missing) >= 2:
                 # Multiple missing - generate clarifying question
-            clarification_options = self._normalize_options(filtered_missing[:5])
-            if clarification_options:
-                session.context.setdefault('pending_options', {})[element] = clarification_options
-            clarifying_question = self._generate_simple_clarification(element, clarification_options)
+                clarification_options = self._normalize_options(filtered_missing[:5])
+                if clarification_options:
+                    session.context.setdefault('pending_options', {})[element] = clarification_options
+                clarifying_question = self._generate_simple_clarification(element, clarification_options)
                 self._capture_debug(f"[Navigator] 🔍 Clarification needed (no satisfied): {filtered_missing[:5]}")
                 return clarifying_question
         
