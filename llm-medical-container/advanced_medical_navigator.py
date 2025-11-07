@@ -1223,31 +1223,49 @@ Be conversational and specific to their situation."""
                         
                         if guideline_options and len(guideline_options) > 1:
                             if next_element == 'location':
-                                next_question = self._build_location_question(chief_complaint, guideline_options)
+                                display_chief_complaint = self._format_chief_complaint_for_question(chief_complaint)
+                                next_question = self._build_location_question(display_chief_complaint, guideline_options)
                                 self._capture_debug(f"[Navigator] ✏️ Using deterministic location question: {next_question}")
+                            elif next_element == 'aggravating':
+                                display_chief_complaint = self._format_chief_complaint_for_question(chief_complaint)
+                                next_question = self._build_aggravating_question(display_chief_complaint, guideline_options)
+                                self._capture_debug(f"[Navigator] ✏️ Using deterministic aggravating question: {next_question}")
+                            elif next_element == 'relieving':
+                                display_chief_complaint = self._format_chief_complaint_for_question(chief_complaint)
+                                next_question = self._build_relieving_question(display_chief_complaint, guideline_options)
+                                self._capture_debug(f"[Navigator] ✏️ Using deterministic relieving question: {next_question}")
                             else:
                                 options_text = ", ".join(f'"{opt}"' for opt in guideline_options)
                                 
                                 # Add element-specific instructions to include chief complaint for clarity (universal for all elements)
                                 element_instruction = ""
                                 if next_element == 'character':
-                                    element_instruction = f"\n\nIMPORTANT: Start your question with 'How would you describe your {chief_complaint}?' to make it clear what you're asking about. Then list the specific character options."
+                                    display_chief_complaint = self._format_chief_complaint_for_question(chief_complaint)
+                                    element_instruction = f"\n\nIMPORTANT: Start your question with 'How would you describe your {display_chief_complaint}?' to make it clear what you're asking about. Then list the specific character options."
                                 elif next_element == 'onset':
-                                    element_instruction = f"\n\nIMPORTANT: Ask 'When did your {chief_complaint} start?' to make it clear what you're asking about. Then include the specific onset options if applicable."
+                                    display_chief_complaint = self._format_chief_complaint_for_question(chief_complaint)
+                                    element_instruction = f"\n\nIMPORTANT: Ask 'When did your {display_chief_complaint} start?' to make it clear what you're asking about. Then include the specific onset options if applicable."
                                 elif next_element == 'duration':
-                                    element_instruction = f"\n\nIMPORTANT: Ask 'How long does your {chief_complaint} last?' to make it clear what you're asking about. Then include the specific duration options."
+                                    display_chief_complaint = self._format_chief_complaint_for_question(chief_complaint)
+                                    element_instruction = f"\n\nIMPORTANT: Ask 'How long does your {display_chief_complaint} last?' to make it clear what you're asking about. Then include the specific duration options."
                                 elif next_element == 'timing':
-                                    element_instruction = f"\n\nIMPORTANT: Ask 'Is your {chief_complaint} constant or does it come and go?' to make it clear what you're asking about."
+                                    display_chief_complaint = self._format_chief_complaint_for_question(chief_complaint)
+                                    element_instruction = f"\n\nIMPORTANT: Ask 'Is your {display_chief_complaint} constant or does it come and go?' to make it clear what you're asking about."
                                 elif next_element == 'severity':
-                                    element_instruction = f"\n\nIMPORTANT: Ask 'How severe is your {chief_complaint}? On a scale of 1 to 10, how would you rate it?' to make it clear what you're asking about."
+                                    display_chief_complaint = self._format_chief_complaint_for_question(chief_complaint)
+                                    element_instruction = f"\n\nIMPORTANT: Ask 'How severe is your {display_chief_complaint}? On a scale of 1 to 10, how would you rate it?' to make it clear what you're asking about."
                                 elif next_element == 'aggravating':
-                                    element_instruction = f"\n\nIMPORTANT: Ask 'What makes your {chief_complaint} worse?' to make it clear what you're asking about. Then list the specific aggravating factors."
+                                    display_chief_complaint = self._format_chief_complaint_for_question(chief_complaint)
+                                    element_instruction = f"\n\nIMPORTANT: Ask 'What makes your {display_chief_complaint} worse?' to make it clear what you're asking about. Then list the specific aggravating factors."
                                 elif next_element == 'relieving':
-                                    element_instruction = f"\n\nIMPORTANT: Ask 'What makes your {chief_complaint} better?' to make it clear what you're asking about. Then list the specific relieving factors."
+                                    display_chief_complaint = self._format_chief_complaint_for_question(chief_complaint)
+                                    element_instruction = f"\n\nIMPORTANT: Ask 'What makes your {display_chief_complaint} better?' to make it clear what you're asking about. Then list the specific relieving factors."
                                 elif next_element == 'progression':
-                                    element_instruction = f"\n\nIMPORTANT: Ask 'Has your {chief_complaint} gotten worse over time?' to make it clear what you're asking about."
+                                    display_chief_complaint = self._format_chief_complaint_for_question(chief_complaint)
+                                    element_instruction = f"\n\nIMPORTANT: Ask 'Has your {display_chief_complaint} gotten worse over time?' to make it clear what you're asking about."
                                 elif next_element == 'associated':
-                                    element_instruction = f"\n\nIMPORTANT: Ask 'Have you noticed any other symptoms along with your {chief_complaint}?' to make it clear what you're asking about. Then list the specific associated symptoms."
+                                    display_chief_complaint = self._format_chief_complaint_for_question(chief_complaint)
+                                    element_instruction = f"\n\nIMPORTANT: Ask 'Have you noticed any other symptoms along with your {display_chief_complaint}?' to make it clear what you're asking about. Then list the specific associated symptoms."
                                 
                                 user_msg = f"""You are asking about the patient's {next_element}.
 
@@ -1290,26 +1308,33 @@ CRITICAL: Ask about {next_element}, NOT about demographics. Use the {next_elemen
                             else:
                                 # No guideline options - use general approach
                                 element_instruction = ""
-                                if next_element == 'location':
-                                    element_instruction = f"\n\nIMPORTANT: Ask 'Where exactly is your {chief_complaint} located?' to make it clear."
-                                elif next_element == 'character':
-                                    element_instruction = f"\n\nIMPORTANT: Ask 'How would you describe your {chief_complaint}?' to make it clear."
+                                if next_element == 'character':
+                                    display_chief_complaint = self._format_chief_complaint_for_question(chief_complaint)
+                                    element_instruction = f"\n\nIMPORTANT: Ask 'How would you describe your {display_chief_complaint}?' to make it clear."
                                 elif next_element == 'onset':
-                                    element_instruction = f"\n\nIMPORTANT: Ask 'When did your {chief_complaint} start?' to make it clear."
+                                    display_chief_complaint = self._format_chief_complaint_for_question(chief_complaint)
+                                    element_instruction = f"\n\nIMPORTANT: Ask 'When did your {display_chief_complaint} start?' to make it clear."
                                 elif next_element == 'duration':
-                                    element_instruction = f"\n\nIMPORTANT: Ask 'How long does your {chief_complaint} last?' to make it clear."
+                                    display_chief_complaint = self._format_chief_complaint_for_question(chief_complaint)
+                                    element_instruction = f"\n\nIMPORTANT: Ask 'How long does your {display_chief_complaint} last?' to make it clear."
                                 elif next_element == 'timing':
-                                    element_instruction = f"\n\nIMPORTANT: Ask 'Is your {chief_complaint} constant or does it come and go?' to make it clear."
+                                    display_chief_complaint = self._format_chief_complaint_for_question(chief_complaint)
+                                    element_instruction = f"\n\nIMPORTANT: Ask 'Is your {display_chief_complaint} constant or does it come and go?' to make it clear."
                                 elif next_element == 'severity':
-                                    element_instruction = f"\n\nIMPORTANT: Ask 'How severe is your {chief_complaint}? On a scale of 1 to 10?' to make it clear."
+                                    display_chief_complaint = self._format_chief_complaint_for_question(chief_complaint)
+                                    element_instruction = f"\n\nIMPORTANT: Ask 'How severe is your {display_chief_complaint}? On a scale of 1 to 10?' to make it clear."
                                 elif next_element == 'aggravating':
-                                    element_instruction = f"\n\nIMPORTANT: Ask 'What makes your {chief_complaint} worse?' to make it clear."
+                                    display_chief_complaint = self._format_chief_complaint_for_question(chief_complaint)
+                                    element_instruction = f"\n\nIMPORTANT: Ask 'What makes your {display_chief_complaint} worse?' to make it clear."
                                 elif next_element == 'relieving':
-                                    element_instruction = f"\n\nIMPORTANT: Ask 'What makes your {chief_complaint} better?' to make it clear."
+                                    display_chief_complaint = self._format_chief_complaint_for_question(chief_complaint)
+                                    element_instruction = f"\n\nIMPORTANT: Ask 'What makes your {display_chief_complaint} better?' to make it clear."
                                 elif next_element == 'progression':
-                                    element_instruction = f"\n\nIMPORTANT: Ask 'Has your {chief_complaint} gotten worse over time?' to make it clear."
+                                    display_chief_complaint = self._format_chief_complaint_for_question(chief_complaint)
+                                    element_instruction = f"\n\nIMPORTANT: Ask 'Has your {display_chief_complaint} gotten worse over time?' to make it clear."
                                 elif next_element == 'associated':
-                                    element_instruction = f"\n\nIMPORTANT: Ask 'Have you noticed any other symptoms along with your {chief_complaint}?' to make it clear."
+                                    display_chief_complaint = self._format_chief_complaint_for_question(chief_complaint)
+                                    element_instruction = f"\n\nIMPORTANT: Ask 'Have you noticed any other symptoms along with your {display_chief_complaint}?' to make it clear."
                                 
                                 if next_element == 'location' and guideline_options:
                                     next_question = self._build_location_question(chief_complaint, guideline_options)
@@ -2037,8 +2062,10 @@ Generate ONE clear question about {next_element} for their {chief_complaint}.{el
         if not session:
             return {}
         debug_context = session.context.get('debug', {})
+        header_lines = self._format_engine_debug(session.session_id).splitlines()
+        detailed_lines = self.get_debug_output()
         payload = {
-            'engine_debug_output': self._format_engine_debug(session.session_id).splitlines(),
+            'engine_debug_output': header_lines + detailed_lines,
             'internal': {
                 'last_extracted_element': session.context.get('last_extracted_element'),
                 'faiss': debug_context.get('faiss', {}),
@@ -2047,19 +2074,44 @@ Generate ONE clear question about {next_element} for their {chief_complaint}.{el
                 'anatomical_history': session.context.get('anatomical_history', {})
             }
         }
+        self.clear_debug_output()
         return payload
+
+    def _format_option_list(self, options: List[str]) -> str:
+        """Format a list of options into natural language list."""
+        cleaned = [opt.strip() for opt in options if opt and opt.strip()]
+        if not cleaned:
+            return ""
+        if len(cleaned) == 1:
+            return cleaned[0]
+        if len(cleaned) == 2:
+            return f"{cleaned[0]} or {cleaned[1]}"
+        return ", ".join(cleaned[:-1]) + f", or {cleaned[-1]}"
 
     def _build_location_question(self, chief_complaint: str, options: List[str]) -> str:
         """Build deterministic location question using exact options."""
         if not options:
             return f"Where exactly is your {chief_complaint} located?"
-        if len(options) == 1:
-            options_text = options[0]
-        elif len(options) == 2:
-            options_text = f"{options[0]} or {options[1]}"
-        else:
-            options_text = ", ".join(options[:-1]) + f", or {options[-1]}"
-        return f"Where exactly is your {chief_complaint} located? Is it {options_text}?"
+        options_text = self._format_option_list(options)
+        if options_text:
+            return f"Where exactly is your {chief_complaint} located? Is it {options_text}?"
+        return f"Where exactly is your {chief_complaint} located?"
+
+    def _build_aggravating_question(self, chief_complaint: str, options: List[str]) -> str:
+        """Build deterministic aggravating question with explicit options."""
+        base_question = f"What makes your {chief_complaint} worse?"
+        options_text = self._format_option_list(options)
+        if options_text:
+            return f"{base_question} For example, does {options_text} make it worse?"
+        return base_question
+
+    def _build_relieving_question(self, chief_complaint: str, options: List[str]) -> str:
+        """Build deterministic relieving question with explicit options."""
+        base_question = f"What helps your {chief_complaint} feel better?"
+        options_text = self._format_option_list(options)
+        if options_text:
+            return f"{base_question} For example, does {options_text} help relieve it?"
+        return base_question
 
     def _filter_location_matches(
         self,
@@ -2086,7 +2138,35 @@ Generate ONE clear question about {next_element} for their {chief_complaint}.{el
             return "{}"
         parts = [f"{k}:{v}" for k, v in components.items()]
         return "{ " + ", ".join(parts) + " }"
-
+    
+    def _format_chief_complaint_for_question(self, chief_complaint: Optional[str]) -> str:
+        if not chief_complaint:
+            return "symptoms"
+        cc = chief_complaint.strip()
+        lower = cc.lower()
+        prefixes = [
+            "i have ",
+            "i'm having ",
+            "i am having ",
+            "i have had ",
+            "i am experiencing ",
+            "i'm experiencing ",
+            "i'm dealing with ",
+            "i am dealing with ",
+            "i feel ",
+            "i've been having ",
+            "i've been experiencing "
+        ]
+        for prefix in prefixes:
+            if lower.startswith(prefix):
+                cc = cc[len(prefix):].strip()
+                break
+        if cc.lower().startswith("pain in my "):
+            cc = cc[10:].strip()
+        if cc.lower().startswith("my "):
+            cc = cc[3:]
+        return cc or "symptoms"
+    
     def _mark_element_complete(self, session: 'AdvancedMedicalNavigator.MedicalSession', element: str, patient_answer: Optional[str] = None):
         session.context['oldcarts_covered'][element] = True
         if patient_answer:
