@@ -1182,7 +1182,15 @@ Be conversational and specific to their situation."""
                 
                 next_question = response.strip()
                 if not next_question or len(next_question) < 10:
+                    self._capture_debug(f"[Navigator] ❌ LLM generated invalid question: '{next_question}'")
                     raise ValueError(f"LLM failed to generate valid question for element: {next_element}")
+                
+                # Enforce verbatim location options if LLM rephrases them
+                if next_element == 'location' and guideline_options:
+                    missing_verbatim = [opt for opt in guideline_options if opt not in next_question]
+                    if missing_verbatim:
+                        self._capture_debug(f"[Navigator] ⚠️ Location terms missing or rephrased: {missing_verbatim} -> using deterministic fallback")
+                        next_question = self._build_location_question(chief_complaint, guideline_options)
         else:
             # Check if demographics are complete first
             demo_response = self._handle_demographics(session)
@@ -1306,6 +1314,13 @@ Generate ONE clear question about {next_element} for their {chief_complaint}.{el
                         if not next_question or len(next_question) < 10:
                             self._capture_debug(f"[Navigator] ❌ LLM generated invalid question: '{next_question}'")
                             raise ValueError(f"LLM failed to generate valid question for element: {next_element}")
+                        
+                        # Ensure location options appear exactly as provided
+                        if next_element == 'location' and guideline_options:
+                            missing_verbatim = [opt for opt in guideline_options if opt not in next_question]
+                            if missing_verbatim:
+                                self._capture_debug(f"[Navigator] ⚠️ Location terms missing or rephrased: {missing_verbatim} -> using deterministic fallback")
+                                next_question = self._build_location_question(chief_complaint, guideline_options)
         
         # Get missing info for metadata
         missing_info = self._get_missing_oldcarts_info(session)
@@ -1389,7 +1404,7 @@ Generate ONE clear question about {next_element} for their {chief_complaint}.{el
         if element == 'location' and session and self.medical_rule_engine:
             patient_components = self._get_patient_anatomical_components(session, element)
             if patient_components:
-                self._capture_debug(f"[Location Analysis] 🧭 Patient components: {patient_components}")
+                self._capture_debug(f"[Location Analysis] 🧭 Patient components: {self._format_anatomical_components(patient_components)}")
                 filtered_terms = []
                 for term in unique_terms:
                     term_components = term_components_map.get(term)
@@ -1406,8 +1421,9 @@ Generate ONE clear question about {next_element} for their {chief_complaint}.{el
                     'raw_terms': raw_terms_snapshot
                 }
                 if removed_terms:
-                    self._capture_debug(f"[Location Analysis] ❌ Removed anatomical opposites: {[t['term'] for t in removed_terms]}")
-                self._capture_debug(f"[Location Analysis] ✅ Final location options ({len(unique_terms)} of {total_terms_count}): {unique_terms}")
+                    removed_names = [f"{term['term']} ({self._format_anatomical_components(term['components'])})" for term in removed_terms]
+                    self._capture_debug(f"[Location Analysis] ❌ Removed anatomical opposites: {removed_names}")
+                self._capture_debug(f"[Location Analysis] ✅ Final location options ({len(unique_terms)}/{total_terms_count}): {unique_terms}")
             else:
                 session.context.setdefault('debug', {})['location_options'] = {
                     'patient_components': {},
@@ -1716,34 +1732,62 @@ Generate ONE clear question about {next_element} for their {chief_complaint}.{el
         )
         
         self._capture_debug(f"[Navigator] 🔍 FAISS matches for {element}: {len(matches_with_scores) if matches_with_scores else 0}")
-        patient_components = self._get_patient_anatomical_components(session, element)
+        patient_components = {}
+        if element == 'location' and self.medical_rule_engine:
+            patient_components = self._get_patient_anatomical_components(session, element)
+            # Include components from current answer
+            current_components = self.medical_rule_engine._extract_anatomical_components(patient_answer.lower()) or {}
+            patient_components.update(current_components)
+            if patient_components:
+                self._capture_debug(f"[Location Analysis] 🧭 Combined patient components: {patient_components}")
         session.context.setdefault('debug', {})['clarification'] = {
             'element': element,
             'patient_answer': patient_answer,
             'patient_components': patient_components,
             'removed_terms': [],
-            'removed_missing_terms': []
+            'removed_missing_terms': [],
+            'removed_faiss_terms': []
         }
+        
+        # Normalize matches into (term, score) pairs
+        term_score_pairs: List[Tuple[str, float]] = []
+        if matches_with_scores:
+            for match in matches_with_scores:
+                if isinstance(match, tuple) and len(match) >= 2:
+                    term_score_pairs.append((match[0], float(match[1])))
+                else:
+                    term_score_pairs.append((str(match), self.FAISS_SEMANTIC_THRESHOLD))
+        
+        if element == 'location' and patient_components and term_score_pairs:
+            filtered_pairs, removed_pairs = self._filter_location_matches(term_score_pairs, patient_components)
+            if removed_pairs:
+                session.context['debug']['clarification']['removed_faiss_terms'] = removed_pairs
+                removal_strings = [f"{entry['term']} ({self._format_anatomical_components(entry['components'])})" for entry in removed_pairs]
+                self._capture_debug(f"[Location Analysis] ❌ Removed FAISS matches after anatomical filtering: {removal_strings}")
+            term_score_pairs = filtered_pairs or term_score_pairs
         
         # STEP 2: Build satisfied array (2+ terms meeting threshold)
         satisfied_terms = []
-        missing_terms = []
-        
-        if matches_with_scores:
-            for match in matches_with_scores:
-                if isinstance(match, tuple):
-                    term, score = match
-                    if score >= self.FAISS_SEMANTIC_THRESHOLD:
-                        satisfied_terms.append(term)
-                else:
-                    satisfied_terms.append(match)
+        satisfied_pairs: List[Tuple[str, float]] = []
+        if term_score_pairs:
+            for term, score in term_score_pairs:
+                if score >= self.FAISS_SEMANTIC_THRESHOLD:
+                    satisfied_terms.append(term)
+                    satisfied_pairs.append((term, score))
         
         self._capture_debug(f"[Navigator] ✅ Satisfied terms ({len(satisfied_terms)}): {satisfied_terms[:5]}")
         
         # STEP 3: Check satisfied array
         if len(satisfied_terms) >= 2:
-            # STEP 3a: Deduplicate
-            unique_satisfied = list(dict.fromkeys(satisfied_terms))
+            # STEP 3a: Deduplicate while preserving highest score
+            seen = set()
+            unique_satisfied = []
+            unique_pairs = []
+            for term, score in satisfied_pairs:
+                if term not in seen:
+                    seen.add(term)
+                    unique_satisfied.append(term)
+                    unique_pairs.append((term, score))
             
             # STEP 3b: Filter anatomically opposite terms
             filtered_satisfied, removed_terms = self._filter_anatomical_opposites(
@@ -1753,9 +1797,9 @@ Generate ONE clear question about {next_element} for their {chief_complaint}.{el
                 element
             )
             if removed_terms:
-                self._capture_debug(f"[Navigator] 📍 Removed anatomically incompatible terms: {[t['term'] for t in removed_terms]}")
                 session.context['debug']['clarification']['removed_terms'] = removed_terms
-            
+                removal_strings = [f"{entry['term']} ({self._format_anatomical_components(entry['components'])})" for entry in removed_terms]
+                self._capture_debug(f"[Navigator] 📍 Removed anatomically incompatible terms: {removal_strings}")
             self._capture_debug(f"[Navigator] 📋 After filtering: {len(filtered_satisfied)} terms remain")
             
             if len(filtered_satisfied) >= 2:
@@ -1764,10 +1808,14 @@ Generate ONE clear question about {next_element} for their {chief_complaint}.{el
                 self._capture_debug(f"[Navigator] 🔍 Clarification needed: {filtered_satisfied[:5]}")
                 return clarifying_question
             elif len(filtered_satisfied) == 1:
-                # Single term - mark complete
                 session.context['oldcarts_covered'][element] = True
                 self._capture_debug(f"[Navigator] ✅ {element} marked complete (single satisfied term after filtering)")
                 return None
+        elif len(satisfied_terms) == 1:
+            # Single satisfied term (no clarification needed)
+            session.context['oldcarts_covered'][element] = True
+            self._capture_debug(f"[Navigator] ✅ {element} satisfied with single high-confidence term")
+            return None
         
         # STEP 4: No terms satisfied - build missing array
         if len(satisfied_terms) == 0:
@@ -1797,7 +1845,8 @@ Generate ONE clear question about {next_element} for their {chief_complaint}.{el
                 element
             )
             if removed_terms:
-                self._capture_debug(f"[Navigator] 📍 Removed anatomically incompatible missing terms: {[t['term'] for t in removed_terms]}")
+                removal_strings = [f"{entry['term']} ({self._format_anatomical_components(entry['components'])})" for entry in removed_terms]
+                self._capture_debug(f"[Location Analysis] 📍 Removed anatomically incompatible missing terms: {removal_strings}")
                 session.context['debug']['clarification']['removed_missing_terms'] = removed_terms
             
             self._capture_debug(f"[Navigator] 📋 Missing terms after filtering: {len(filtered_missing)}")
@@ -1968,7 +2017,8 @@ Generate ONE clear question about {next_element} for their {chief_complaint}.{el
             return {}
         debug_context = session.context.get('debug', {})
         payload = {
-            'engine_debug_output': self._format_engine_debug(session.session_id),
+-            'engine_debug_output': self._format_engine_debug(session.session_id),
++            'engine_debug_output': self._format_engine_debug(session.session_id).splitlines(),
             'internal': {
                 'last_extracted_element': session.context.get('last_extracted_element'),
                 'faiss': debug_context.get('faiss', {}),
@@ -1978,3 +2028,41 @@ Generate ONE clear question about {next_element} for their {chief_complaint}.{el
             }
         }
         return payload
+
+    def _build_location_question(self, chief_complaint: str, options: List[str]) -> str:
+        """Build deterministic location question using exact options."""
+        if not options:
+            return f"Where exactly is your {chief_complaint} located?"
+        if len(options) == 1:
+            options_text = options[0]
+        elif len(options) == 2:
+            options_text = f"{options[0]} or {options[1]}"
+        else:
+            options_text = ", ".join(options[:-1]) + f", or {options[-1]}"
+        return f"Where exactly is your {chief_complaint} located? Is it {options_text}?"
+
+    def _filter_location_matches(
+        self,
+        term_score_pairs: List[Tuple[str, float]],
+        patient_components: Dict[str, str]
+    ) -> Tuple[List[Tuple[str, float]], List[Dict[str, Any]]]:
+        """Apply anatomical filtering to FAISS match list for location."""
+        if not term_score_pairs or not self.medical_rule_engine or not patient_components:
+            return term_score_pairs, []
+        filtered_pairs: List[Tuple[str, float]] = []
+        removed: List[Dict[str, Any]] = []
+        for term, score in term_score_pairs:
+            term_components = self.medical_rule_engine._extract_anatomical_components(term.lower()) or {}
+            if term_components and self.medical_rule_engine._are_anatomical_opposites(patient_components, term_components):
+                removed.append({'term': term, 'components': term_components, 'score': score})
+                continue
+            filtered_pairs.append((term, score))
+        if not filtered_pairs:
+            filtered_pairs = term_score_pairs
+        return filtered_pairs, removed
+
+    def _format_anatomical_components(self, components: Dict[str, str]) -> str:
+        if not components:
+            return "{}"
+        parts = [f"{k}:{v}" for k, v in components.items()]
+        return "{ " + ", ".join(parts) + " }"
