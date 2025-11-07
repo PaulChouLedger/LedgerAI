@@ -2,25 +2,40 @@
 """
 Advanced Medical Navigator - Hybrid LLM/RAG/FAISS Medical Assistant
 
-A medical assistant that combines:
+Follows standard medical history-taking format:
+
+I. PATIENT IDENTIFICATION AND DEMOGRAPHICS
+   - Age
+   - Biological sex
+
+II. CHIEF COMPLAINT (CC)
+   - Main concern: "What brings you in today?"
+   - Duration of CC: "How long has this particular problem been going on?"
+
+III. HISTORY OF PRESENT ILLNESS (HPI) - OLDCARTS Framework
+   - Onset: When it began; sudden or gradual
+   - Location/Radiation: Specific place; does it move
+   - Duration: How long it lasts; frequency
+   - Character: Description of sensation/appearance
+   - Aggravating factors: What makes it worse
+   - Relieving factors: What makes it better
+   - Timing: Frequency, specific occurrences
+   - Severity: Intensity/impact on daily life
+   - Associated Signs/Symptoms: Other symptoms noticed
+
+Technical Implementation:
 - LLM for natural conversation and question generation
 - Medical guidelines with structured OLDCARTS
 - RAG with FAISS for semantic similarity matching
 - Rolling ranking system of top 5 conditions
 - Dynamic question selection based on condition differentiation
 
-Features:
-- Natural, human-like conversations
-- Evidence-based diagnosis support
-- Dynamic condition ranking
-- Context-aware question selection
-
-ASSESSMENT ALGORITHM SECTIONS:
+CODE SECTIONS:
 1. CONFIGURATION (Top) - All thresholds, LLM rules, weights for easy tuning
 2. INITIALIZATION - Setup and loading
 3. GREETING HANDLING - Greeting detection and responses (before chief complaint)
 4. CHIEF COMPLAINT - Category matching and narrowing
-5. DEMOGRAPHICS - Age, sex, chronicity extraction (if needed)
+5. DEMOGRAPHICS - Age, sex, chronicity extraction
 6. ASSESSMENT - OLDCARTS processing, scoring, question generation
 7. UTILITIES - Helper functions
 8. DEBUGGING - Debug functions (last)
@@ -157,153 +172,98 @@ DO NOT:
 Return ONLY the question, no explanations:"""
     
     # ===== OLDCARTS QUESTION TEMPLATES =====
-    # Comprehensive examples for question formatting (style guide)
-    # Organized by OLDCARTS element with examples from different medical systems
-    # The LLM uses these as style guides to generate similar questions tailored to the patient's complaint
+    # Following standard medical history format (aligned with clinical documentation)
+    # These serve as style guides for the LLM to generate similar questions tailored to patient's complaint
     OLDCARTS_QUESTION_TEMPLATES = {
         'onset': [
-            # Cardiovascular
-            'When did the chest pain begin, and did it start suddenly?',
-            # Pulmonary
-            'When did your cough and fever start?',
-            # GI
-            'When did the abdominal pain start, and did it start suddenly around your belly button?',
-            # MSK
-            'When exactly did the injury happen, and what were you doing?',
-            # Dermatology
-            'When did you first notice the redness and swelling begin?',
-            # Renal
-            'When did this sudden, severe flank (side) pain start?',
-            # GU/GYN
-            'When did you first notice the burning with urination begin?'
+            # Standard format: "When exactly did this symptom first begin?" "Did it start suddenly or gradually?"
+            'When exactly did the chest pain first begin? Did it start suddenly or gradually?',
+            'When did your shortness of breath first start? Was it sudden or did it come on gradually?',
+            'When exactly did the abdominal pain first begin? Did it start suddenly or gradually?',
+            'When exactly did the joint pain first begin? Did it start suddenly or gradually?',
+            'When did you first notice the rash appear? Did it come on suddenly or gradually?',
+            'When exactly did the flank pain first begin? Did it start suddenly or gradually?',
+            'When did you first notice the burning sensation? Was it sudden or gradual?'
         ],
         'location': [
-            # Cardiovascular
-            'Can you point to exactly where the pain is? Does it move to your jaw, neck, or arm?',
-            # Pulmonary
-            'Are you feeling any pain in your chest, and can you point to where?',
-            # GI
-            'Did the pain start in the middle and then move to your lower right side?',
-            # MSK
-            'Can you show me precisely where on your ankle the pain is the worst?',
-            # Dermatology
-            'Which part of your leg is affected?',
-            # Renal
-            'Does the pain start in your back/side and move down towards your groin?',
-            # GU/GYN
-            'Do you feel pain in your lower abdomen, pelvis, or during urination?'
+            # Standard format: "Where exactly are you experiencing this?" "Does it move or stay in one place?"
+            'Where exactly are you experiencing the pain? Does it move to your jaw, neck, or arms?',
+            'Where exactly are you experiencing the chest discomfort? Does it stay in one place?',
+            'Where exactly in your abdomen are you experiencing this? Does it move or stay in one place?',
+            'Where exactly is the pain located? Can you point to the specific area?',
+            'Which part of your body is affected by the rash? Is it spreading?',
+            'Where exactly is the pain located? Does it move down towards your groin?',
+            'Where exactly are you experiencing this burning? Is it in one specific area?'
         ],
         'duration': [
-            # Cardiovascular
-            'How long has this pain lasted? Is it constant or intermittent?',
-            # Pulmonary
-            'Have you had this cough for a few days, or is it a chronic issue?',
-            # GI
-            'Is the pain constant now, or does it come and go?',
-            # MSK
-            'Is the pain constant since the injury, or does it only hurt when you try to move it?',
-            # Dermatology
-            'Has the redness been constant since you noticed it, or does it fluctuate?',
-            # Renal
-            'Is the pain constant, or does it come in waves?',
-            # GU/GYN
-            'Have these symptoms been constant for the last few days?'
+            # Standard format: "How long does the symptom last when it occurs?" "Is it constant or does it come and go?"
+            'How long does the pain last when it occurs? Is it constant or does it come and go?',
+            'How long have you had this shortness of breath? Is it constant or intermittent?',
+            'How long does the abdominal pain last? Is it constant or does it come and go?',
+            'How long does the pain last? Has it been constant since the injury?',
+            'How long has the rash been there? Has it been constant or does it change?',
+            'How long does each episode of pain last? Is it constant or does it come in waves?',
+            'How long have you had these symptoms? Are they constant or intermittent?'
         ],
         'character': [
-            # Cardiovascular
-            'How would you describe the pain? Is it a pressure, squeezing, or a sharp pain?',
-            # Pulmonary
-            'How would you describe the cough? Is it dry, or are you coughing up phlegm (sputum)?',
-            # GI
-            'How would you describe the pain? Is it a dull ache or a sharp, stabbing sensation?',
-            # MSK
-            'How would you describe the pain? Is it sharp, or a constant deep ache?',
-            # Dermatology
-            'How does the skin feel? Is it hot, tight, tender, or itchy?',
-            # Renal
-            'How would you describe the pain? Is it a sharp, intense, cramping pain?',
-            # GU/GYN
-            'How would you describe the pain? Is it a sharp burning feeling, or a dull pelvic ache?'
+            # Standard format: "How would you describe the feeling? (sharp, dull, etc.)"
+            'How would you describe the pain? Is it sharp, dull, pressure, squeezing, or burning?',
+            "How would you describe the breathing difficulty? Is it like you can't get enough air?",
+            'How would you describe the pain? Is it sharp and stabbing, or more of a dull ache?',
+            'How would you describe the pain? Is it sharp, throbbing, or a constant deep ache?',
+            'How does the skin feel? Is it hot, itchy, painful, or just red?',
+            'How would you describe the pain? Is it sharp and cramping, or a constant ache?',
+            'How would you describe this feeling? Is it burning, sharp, or uncomfortable?'
         ],
         'aggravating': [
-            # Cardiovascular
-            'Does physical activity, like walking, make the pain worse?',
-            # Pulmonary
-            'Does taking a deep breath make the chest pain or cough worse?',
-            # GI
-            'Does moving around, coughing, or going over bumps in a car make the pain worse?',
-            # MSK
-            'Does putting any weight on your foot or trying to walk make the pain worse?',
-            # Dermatology
-            'Does wearing tight clothing or walking for a long time make the area hurt more?',
-            # Renal
-            'Does movement or trying to find a comfortable position make the pain worse?',
-            # GU/GYN
-            'Does going to the bathroom or having intercourse make the pain worse?'
+            # Standard format: "What makes the symptom worse?" "Are there any triggers you have noticed?"
+            'What makes the pain worse? Are there any triggers like activity or stress?',
+            'What makes the shortness of breath worse? Does it happen with exertion?',
+            'What makes the abdominal pain worse? Movement, eating, or coughing?',
+            'What makes the pain worse? Does putting weight on it or moving it aggravate it?',
+            'What makes the rash worse? Does touching it, sweating, or movement affect it?',
+            'What makes the pain worse? Does movement or position change affect it?',
+            "What makes it worse? Are there any triggers you've noticed?"
         ],
         'relieving': [
-            # Cardiovascular
-            'Does rest or medication (like nitroglycerin) make the pain better?',
-            # Pulmonary
-            'Does rest, a change in position, or any medication make you feel better?',
-            # GI
-            'Does lying perfectly still or anything else make it feel better?',
-            # MSK
-            'Does resting, elevating your foot, or putting ice on it help reduce the pain?',
-            # Dermatology
-            'Does elevating your leg or putting a cool compress on it help with the discomfort?',
-            # Renal
-            'Does anything make the pain better? Are you unable to find a comfortable position?',
-            # GU/GYN
-            'Does sitting down or taking a warm bath help ease the pain?'
+            # Standard format: "What have you tried to make it better?" "Does anything provide relief?"
+            'What have you tried to make it better? Does anything provide relief?',
+            'Does anything make the breathing easier? Rest or position change?',
+            'What makes the pain better? Does lying still or anything else help?',
+            'Does anything provide relief? Rest, ice, elevation, or medication?',
+            'Does anything make it feel better? Creams, cold compress, or elevation?',
+            'Does anything make the pain better? Have you found any comfortable position?',
+            'What have you tried? Does anything provide relief from the discomfort?'
         ],
         'timing': [
-            # Cardiovascular
-            'Has the pain been getting worse steadily over time?',
-            # Pulmonary
-            'Is the cough worse at night?',
-            # GI
-            'Has the pain been getting steadily worse over the last few hours/day?',
-            # MSK
-            'Has the swelling or pain increased since the initial injury?',
-            # Dermatology
-            'Has the red area been growing in size over the last 24 hours?',
-            # Renal
-            'Do the waves of pain seem to come closer together over time?',
-            # GU/GYN
-            'Are you needing to go to the bathroom much more frequently than usual?'
+            # Standard format: "Does this happen at a specific time of day, or during certain activities?"
+            'Does this happen at a specific time of day, or during certain activities like eating or walking?',
+            'Does the shortness of breath happen at specific times? At night or when lying down?',
+            'Does the pain happen at specific times? After eating, or at certain times of day?',
+            'Does the pain happen during specific activities, or is it constant regardless?',
+            'Does the rash get worse at certain times of day, or with specific activities?',
+            'Do the episodes of pain come at specific times, or are they random?',
+            'Does this happen at a specific time of day, or during certain activities?'
         ],
         'severity': [
-            # Cardiovascular
-            'On a scale of 1 to 10, how would you rate this pain?',
-            # Pulmonary
-            'How severe is your shortness of breath? Are you able to speak in full sentences?',
-            # GI
-            'On a scale of 1 to 10, how intense is the pain currently?',
-            # MSK
-            'On a scale of 1 to 10, how bad is the pain right now? Can you bear any weight at all?',
-            # Dermatology
-            'How much pain are you in? Is it severe enough to keep you from walking normally?',
-            # Renal
-            'On a scale of 1 to 10, how severe is this pain?',
-            # GU/GYN
-            'How uncomfortable are you? Is the pain affecting your ability to perform daily activities?'
+            # Standard format: "On a scale of 1 to 10, how bad is it?" "How much does this affect your daily life?"
+            'On a scale of 1 to 10, how bad is the pain? How much does it affect your daily activities?',
+            'On a scale of 1 to 10, how severe is the shortness of breath? Can you speak in full sentences?',
+            'On a scale of 1 to 10, how severe is the pain? Is it affecting your ability to function?',
+            'On a scale of 1 to 10, how bad is the pain right now? Can you bear any weight on it?',
+            'On a scale of 1 to 10, how bad is the discomfort? Is it affecting your daily activities?',
+            "On a scale of 1 to 10, how severe is this pain? Is it the worst pain you've ever felt?",
+            'On a scale of 1 to 10, how uncomfortable is this? How much does it impact your life?'
         ],
         'associated': [
-            # Cardiovascular
-            'Are you experiencing any shortness of breath, nausea, or sweating?',
-            # Pulmonary
-            'Are you experiencing any fever, chills, or chest tightness?',
-            # GI
-            'Are you experiencing any nausea, vomiting, or changes in your appetite?',
-            # MSK
-            'Are you able to move the joint, or is it completely locked up?',
-            # Dermatology
-            'Have you noticed any fever, chills, or spreading of the redness?',
-            # Renal
-            'Are you experiencing any nausea, vomiting, or blood in your urine?',
-            # GU/GYN
-            'Are you experiencing any fever, discharge, or changes in your menstrual cycle?'
+            # Standard format: "Have you noticed any other symptoms along with this?"
+            'Have you noticed any other symptoms along with this, such as shortness of breath, nausea, or sweating?',
+            'Have you noticed any other symptoms like fever, cough, or chest pain?',
+            'Have you noticed any other symptoms such as nausea, vomiting, fever, or changes in appetite?',
+            'Have you noticed any other symptoms like swelling, bruising, numbness, or inability to move?',
+            'Have you noticed any other symptoms such as fever, chills, or feeling unwell?',
+            'Have you noticed any other symptoms like nausea, vomiting, blood in urine, or fever?',
+            'Have you noticed any other symptoms along with this, such as fever, discharge, or bleeding?'
         ]
     }
     
@@ -665,11 +625,9 @@ Return ONLY the question, no explanations:"""
     # ============================================================================
     
     def _needs_demographics(self, session: 'AdvancedMedicalNavigator.MedicalSession') -> str:
-        """Check which demographic info is missing (chronicity, age, sex)"""
+        """Check which demographic info is missing (age, sex). Chronicity asked with chief complaint."""
         demographics = session.context.get('demographics', {})
         
-        if 'chronicity' not in demographics:
-            return 'chronicity'
         if 'age' not in demographics:
             return 'age'
         if 'sex' not in demographics:
@@ -678,22 +636,14 @@ Return ONLY the question, no explanations:"""
         return None  # All demographics collected
     
     def _handle_demographics(self, session: 'AdvancedMedicalNavigator.MedicalSession') -> Dict[str, Any]:
-        """Handle demographics questions (chronicity, age, sex) before OLDCARTS"""
+        """Handle demographics questions (age, sex) before OLDCARTS. Chronicity asked with chief complaint."""
         missing_demo = self._needs_demographics(session)
         
         if not missing_demo:
             return None  # All demographics collected
         
-        if missing_demo == 'chronicity':
-            question = "Is this a new problem or an ongoing issue you've been dealing with?"
-            self._capture_debug(f"[Navigator] 📋 Demographics: Asking chronicity")
-            return {
-                'response': question,
-                'status': 'demographics',
-                'metadata': {'asking': 'chronicity'}
-            }
-        elif missing_demo == 'age':
-            question = "Can you please tell me your age so I can better assist you?"
+        if missing_demo == 'age':
+            question = "What is your age?"
             self._capture_debug(f"[Navigator] 📋 Demographics: Asking age")
             return {
                 'response': question,
@@ -881,10 +831,10 @@ Return ONLY the question, no explanations:"""
             session.context['use_general_llm'] = True
             self._capture_debug(f"[Navigator] 📚 Using general LLM knowledge with OLDCARTS structure (no guideline match)")
         
-        # Generate empathetic response (mimic adaptive engine's approach)
+        # Generate empathetic response with chronicity question (establishes acuity early)
         if self.llm_chat_fn:
             system_msg = "You are a compassionate medical assistant. Generate a brief, empathetic statement acknowledging the patient's concern."
-            user_msg = f"Patient reported: '{chief_complaint}'\n\nGenerate a brief, empathetic acknowledgment (1-2 sentences). Acknowledge their concern, show compassion, and express that you're here to help. Do NOT ask questions. End with a period. Return only the statement, no other text."
+            user_msg = f"Patient reported: '{chief_complaint}'\n\nGenerate a brief, empathetic acknowledgment (1 sentence). Acknowledge their concern and show compassion. Do NOT ask questions. End with a period. Return only the statement, no other text."
             
             llm_kwargs = self._get_llm_kwargs()
             response = self.llm_chat_fn(
@@ -893,20 +843,20 @@ Return ONLY the question, no explanations:"""
                 **llm_kwargs
             )
             
-            acknowledgment = response.strip() if response else f"I understand you're experiencing {chief_complaint}."
+            acknowledgment = response.strip() if response else f"I understand you are experiencing {chief_complaint}."
         else:
             raise ValueError("LLM function required for chief complaint handling")
         
-        # Ask generic, open-ended follow-up question (allows patient to provide any info)
-        open_question = f"Can you tell me more about your {chief_complaint}?"
-        combined_response = f"{acknowledgment}\n\n{open_question}"
+        # Ask chronicity immediately to establish acuity early in assessment
+        chronicity_question = f"Let me ask you some questions to better assist you. Is this {chief_complaint} new for you or have you had it before with a known diagnosis?"
+        combined_response = f"{acknowledgment} {chronicity_question}"
         
         return {
             'response': combined_response,
             'status': 'assessment',
             'metadata': {
                 'chief_complaint': chief_complaint,
-                'asking': 'open_ended'
+                'asking': 'chronicity'  # Indicates we're asking chronicity now
             }
         }
     
@@ -1142,8 +1092,32 @@ Be conversational and specific to their situation."""
                         # Build context about what we know
                         covered_info = self._format_covered_info(session)
                         
-                        # Simplified prompt - focus on patient's actual situation
-                        user_msg = f"""Patient has: {chief_complaint}
+                        # INJECT GUIDELINE TERMS: Get all relevant patient_friendly terms for this element
+                        guideline_options = self._get_guideline_terms_for_element(next_element)
+                        
+                        if guideline_options and len(guideline_options) > 1:
+                            # Build question with specific guideline options
+                            options_text = ", ".join(f'"{opt}"' for opt in guideline_options)
+                            
+                            user_msg = f"""Patient has: {chief_complaint}
+
+What we know so far:
+{covered_info}
+
+Ask about: {next_element}
+
+IMPORTANT: Use these SPECIFIC options from medical guidelines in your question:
+{options_text}
+
+Recent conversation:
+{conversation_text}
+
+Generate ONE clear question about {next_element} that includes these specific options.
+Format naturally, like: "How would you describe it? Is it [option1], [option2], or [option3]?"
+Use the patient's actual {chief_complaint}, not example topics."""
+                        else:
+                            # No guideline options - use general approach
+                            user_msg = f"""Patient has: {chief_complaint}
 
 What we know so far:
 {covered_info}
@@ -1158,8 +1132,10 @@ Generate ONE clear question about {next_element} for their {chief_complaint}."""
                         system_msg = self.LLM_ASSESSMENT_SYSTEM_MSG_TEMPLATE.format(next_element=next_element)
                         
                         self._capture_debug(f"[Navigator] 🔍 Generating question for element: {next_element}, complaint: {chief_complaint}")
+                        if guideline_options:
+                            self._capture_debug(f"[Navigator] 📋 Injecting {len(guideline_options)} guideline options: {guideline_options[:5]}")
                         
-                        llm_kwargs = self._get_llm_kwargs(override_max_tokens=80)
+                        llm_kwargs = self._get_llm_kwargs(override_max_tokens=100)
                         response = self.llm_chat_fn(
                             [{"role": "system", "content": system_msg}, {"role": "user", "content": user_msg}],
                             **llm_kwargs
@@ -1210,6 +1186,38 @@ Generate ONE clear question about {next_element} for their {chief_complaint}."""
         chief_complaint = session.context.get('chief_complaint', 'symptoms')
         examples = self._get_oldcarts_examples(chief_complaint, next_element)
         return next_element, examples
+    
+    def _get_guideline_terms_for_element(self, element: str) -> List[str]:
+        """
+        Extract all unique patient_friendly terms for a specific OLDCARTS element
+        from loaded guidelines. These will be injected into the LLM question.
+        """
+        all_terms = []
+        
+        for condition_name, guideline in self.all_guidelines.items():
+            structured_oldcarts = guideline.get('key_features', {}).get('structured_oldcarts', {})
+            element_data = structured_oldcarts.get(element, {})
+            
+            if isinstance(element_data, dict):
+                includes = element_data.get('includes', [])
+                for term_data in includes:
+                    if isinstance(term_data, dict):
+                        patient_friendly = term_data.get('patient_friendly', '')
+                        if patient_friendly:
+                            all_terms.append(patient_friendly)
+                    elif isinstance(term_data, str):
+                        all_terms.append(term_data)
+        
+        # Deduplicate while preserving order
+        unique_terms = list(dict.fromkeys(all_terms))
+        
+        # Limit to reasonable number (5-7 options max for clarity)
+        if len(unique_terms) > 7:
+            # Take most common/diverse terms (could be improved with scoring)
+            unique_terms = unique_terms[:7]
+        
+        self._capture_debug(f"[Navigator] 📋 Extracted {len(unique_terms)} guideline terms for '{element}': {unique_terms}")
+        return unique_terms
     
     def _find_differentiating_element(self, top_conditions: List[Dict], missing_elements: List[str]) -> Optional[str]:
         """Find OLDCARTS element that best differentiates between top conditions"""
