@@ -188,7 +188,12 @@ class AdvancedMedicalNavigator:
             for field in self.PRE_HPI_ORDER:
                 if field not in pre_hpi_context:
                     guidance = self.PRE_HPI_GUIDANCE[field]
-                    prompt = self._generate_question(session, "pre_hpi", field, guidance)
+                    if field == "age":
+                        prompt = "Thank you. For our records, how old are you?"
+                    elif field == "sex":
+                        prompt = "And for medical documentation, what is your biological sex?"
+                    else:
+                        prompt = self._generate_question(session, "pre_hpi", field, guidance)
                     return {
                         "section": "pre_hpi",
                         "field": field,
