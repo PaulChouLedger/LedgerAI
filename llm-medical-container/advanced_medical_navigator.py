@@ -74,8 +74,9 @@ class AdvancedMedicalNavigator:
 
     QUESTION_SYSTEM_PROMPT = (
         "You are a compassionate medical assistant conducting a patient interview."
-        " Use the provided guidance to craft one natural question. Keep it short (<= 20 words),"
-        " avoid multiple questions at once, and reference any supplied chief complaint."
+        " Use the provided guidance to craft one natural question in plain text."
+        " Do not include explanations or prefaces—return only the question itself."
+        " Keep it under 20 words and reference the supplied chief complaint when helpful."
     )
 
     PRE_HPI_ORDER = [
@@ -325,6 +326,12 @@ class AdvancedMedicalNavigator:
             f"{msg['role']}: {msg['content']}" for msg in session.messages[-6:]
         )
         guidance_text = guidance or self.CHIEF_COMPLAINT_PROMPT
+        if section == "pre_hpi" and field == "chief_complaint" and "chief_complaint" not in pre_hpi_context:
+            guidance_text = (
+                "Greet the patient warmly (e.g., 'Hi there, it's nice to meet you.')"
+                " and then ask what brings them in today and for how long."
+                " Return a single sentence combining the greeting and the question."
+            )
         user_prompt = (
             f"Section: {section}\n"
             f"Field: {field}\n"
