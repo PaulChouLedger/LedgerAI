@@ -356,11 +356,11 @@ Return ONLY the question, no explanations:"""
             print(f"[Navigator] 🔍 Filtering to enabled categories: {', '.join(enabled_categories)}")
     
     def _build_chief_complaint_triggers_index(self):
-        """Build index of all chief complaint triggers from all guidelines (lightweight scan)"""
+        """Build FAISS index for chief complaint triggers (for fast semantic matching)"""
         if not os.path.exists(self.guidelines_path):
             return
         
-        # Scan all guidelines to collect chief complaint triggers
+        # STEP 1: Scan all guidelines to collect chief complaint triggers
         for category_dir in self.category_to_guidelines.keys():
             category_path = os.path.join(self.guidelines_path, category_dir)
             
@@ -383,6 +383,37 @@ Return ONLY the question, no explanations:"""
                     print(f"[Navigator] ⚠️ Failed to scan guideline {filename}: {e}")
         
         print(f"[Navigator] 📋 Indexed {len(self.all_chief_complaint_triggers)} chief complaint triggers from all guidelines")
+        
+        # STEP 2: Build FAISS index for fast semantic search (like adaptive engine)
+        if not self.embedding_model or not self.all_chief_complaint_triggers:
+            print("[Navigator] ⚠️ Cannot build FAISS index - missing embedding model or triggers")
+            self.chief_complaint_triggers_index = None
+            return
+        
+        try:
+            import faiss
+            import numpy as np
+            
+            # Extract all triggers
+            triggers = [t['trigger'] for t in self.all_chief_complaint_triggers]
+            
+            # Encode all triggers at once (MUCH faster than one-by-one)
+            print(f"[Navigator] 🔧 Encoding {len(triggers)} triggers for FAISS index...")
+            embeddings = self.embedding_model.encode(triggers)
+            dimension = len(embeddings[0])
+            
+            # Build FAISS index
+            self.chief_complaint_triggers_index = faiss.IndexFlatIP(dimension)
+            
+            # Normalize for cosine similarity
+            embeddings_np = np.array(embeddings).astype('float32')
+            faiss.normalize_L2(embeddings_np)
+            self.chief_complaint_triggers_index.add(embeddings_np)
+            
+            print(f"[Navigator] ✅ Built FAISS index for {len(triggers)} chief complaint triggers (fast search enabled)")
+        except Exception as e:
+            print(f"[Navigator] ⚠️ Failed to build FAISS index for chief complaint triggers: {e}")
+            self.chief_complaint_triggers_index = None
     
     def _load_single_guideline(self, category: str, filename: str) -> Optional[Dict]:
         """Load a single guideline file (lightweight)"""
@@ -457,45 +488,39 @@ Return ONLY the question, no explanations:"""
         if not self.embedding_model or not self.all_chief_complaint_triggers:
             raise ValueError("Embedding model and chief complaint triggers required for category matching")
         
-        # TIER 1: FAISS Semantic matching
+        # TIER 1: FAISS Semantic matching (using pre-built FAISS index for speed)
         threshold = self.CHIEF_COMPLAINT_MATCHING_THRESHOLD
-        matched_guidelines = []  # [{category, condition, score}, ...]
-        all_scores = {}  # Track ALL scores for debug output
+        matched_guidelines = []
         
         import numpy as np
-        
-        # Encode chief complaint
-        chief_complaint_embedding = self.embedding_model.encode([chief_complaint])[0]
-        chief_emb = np.array(chief_complaint_embedding).reshape(1, -1)
-        chief_norm = chief_emb / np.linalg.norm(chief_emb)
+        import faiss
         
         self._capture_debug(f"[Navigator] 🔍 Chief Complaint FAISS Matching: '{chief_complaint}'")
         self._capture_debug(f"[Navigator] 📊 Threshold: {threshold} (FAISS semantic)")
         
-        # Compare to all triggers
-        for trigger_data in self.all_chief_complaint_triggers:
-            trigger = trigger_data['trigger']
-            
-            # Encode trigger
-            trigger_embedding = self.embedding_model.encode([trigger])[0]
-            trigger_emb = np.array(trigger_embedding).reshape(1, -1)
-            trigger_norm = trigger_emb / np.linalg.norm(trigger_emb)
-            
-            # Calculate cosine similarity
-            similarity = float(np.dot(trigger_norm, chief_norm.T)[0][0])
-            
-            # Store ALL scores for debug
-            trigger_key = f"{trigger_data['condition']}"
-            all_scores[trigger_key] = similarity
-            
-            if similarity >= threshold:
-                matched_guidelines.append({
-                    'category': trigger_data['category'],
-                    'condition': trigger_data['condition'],
-                    'filepath': trigger_data['filepath'],
-                    'score': similarity
-                })
-                self._capture_debug(f"[Navigator] ✅ MATCH: '{trigger}' → {trigger_data['condition']} ({trigger_data['category']}) - Score: {similarity:.3f}")
+        # Encode chief complaint
+        query_embedding = self.embedding_model.encode([chief_complaint.lower().strip()])[0]
+        query_embedding = np.array([query_embedding]).astype('float32')
+        faiss.normalize_L2(query_embedding)
+        
+        # Search pre-built FAISS index (FAST!)
+        k = min(20, len(self.all_chief_complaint_triggers))
+        similarities, indices = self.chief_complaint_triggers_index.search(query_embedding, k)
+        
+        # Process matches
+        for idx, sim in zip(indices[0], similarities[0]):
+            if idx < len(self.all_chief_complaint_triggers):
+                trigger_data = self.all_chief_complaint_triggers[idx]
+                trigger = trigger_data['trigger']
+                
+                if sim >= threshold:
+                    matched_guidelines.append({
+                        'category': trigger_data['category'],
+                        'condition': trigger_data['condition'],
+                        'filepath': trigger_data['filepath'],
+                        'score': float(sim)
+                    })
+                    self._capture_debug(f"[Navigator] ✅ MATCH: '{trigger}' → {trigger_data['condition']} ({trigger_data['category']}) - Score: {sim:.3f}")
         
         # Aggregate scores by CATEGORY (not individual conditions)
         category_scores = {}
@@ -1161,6 +1186,29 @@ Be conversational and specific to their situation."""
                             # Build question with specific guideline options
                             options_text = ", ".join(f'"{opt}"' for opt in guideline_options)
                             
+                            # Add element-specific instructions to include chief complaint for clarity (universal for all elements)
+                            element_instruction = ""
+                            if next_element == 'location':
+                                element_instruction = f"\n\nIMPORTANT: Start your question with 'Where exactly is your {chief_complaint} located?' to make it clear what you're asking about. Then list the specific location options."
+                            elif next_element == 'character':
+                                element_instruction = f"\n\nIMPORTANT: Start your question with 'How would you describe your {chief_complaint}?' to make it clear what you're asking about. Then list the specific character options."
+                            elif next_element == 'onset':
+                                element_instruction = f"\n\nIMPORTANT: Ask 'When did your {chief_complaint} start?' to make it clear what you're asking about. Then include the specific onset options if applicable."
+                            elif next_element == 'duration':
+                                element_instruction = f"\n\nIMPORTANT: Ask 'How long does your {chief_complaint} last?' to make it clear what you're asking about. Then include the specific duration options."
+                            elif next_element == 'timing':
+                                element_instruction = f"\n\nIMPORTANT: Ask 'Is your {chief_complaint} constant or does it come and go?' to make it clear what you're asking about."
+                            elif next_element == 'severity':
+                                element_instruction = f"\n\nIMPORTANT: Ask 'How severe is your {chief_complaint}? On a scale of 1 to 10, how would you rate it?' to make it clear what you're asking about."
+                            elif next_element == 'aggravating':
+                                element_instruction = f"\n\nIMPORTANT: Ask 'What makes your {chief_complaint} worse?' to make it clear what you're asking about. Then list the specific aggravating factors."
+                            elif next_element == 'relieving':
+                                element_instruction = f"\n\nIMPORTANT: Ask 'What makes your {chief_complaint} better?' to make it clear what you're asking about. Then list the specific relieving factors."
+                            elif next_element == 'progression':
+                                element_instruction = f"\n\nIMPORTANT: Ask 'Has your {chief_complaint} gotten worse over time?' to make it clear what you're asking about."
+                            elif next_element == 'associated':
+                                element_instruction = f"\n\nIMPORTANT: Ask 'Have you noticed any other symptoms along with your {chief_complaint}?' to make it clear what you're asking about. Then list the specific associated symptoms."
+                            
                             user_msg = f"""You are asking about the patient's {next_element}.
 
 Patient's chief complaint: {chief_complaint}
@@ -1174,22 +1222,45 @@ Information already collected:
 {covered_info}
 
 Generate ONE clear question about {next_element} for their {chief_complaint} that includes these specific options.
-Format naturally like: "Where is it? Is it [option1], [option2], or [option3]?"
+Connect the options naturally with commas and "or" (e.g., "Is it [option1], [option2], or [option3]?").{element_instruction}
 
 CRITICAL: Ask about {next_element}, NOT about demographics. Use the {next_element} options provided above."""
                         else:
                             # No guideline options - use general approach
+                            # Add element-specific instruction to include chief complaint (universal)
+                            element_instruction = ""
+                            if next_element == 'location':
+                                element_instruction = f"\n\nIMPORTANT: Ask 'Where exactly is your {chief_complaint} located?' to make it clear."
+                            elif next_element == 'character':
+                                element_instruction = f"\n\nIMPORTANT: Ask 'How would you describe your {chief_complaint}?' to make it clear."
+                            elif next_element == 'onset':
+                                element_instruction = f"\n\nIMPORTANT: Ask 'When did your {chief_complaint} start?' to make it clear."
+                            elif next_element == 'duration':
+                                element_instruction = f"\n\nIMPORTANT: Ask 'How long does your {chief_complaint} last?' to make it clear."
+                            elif next_element == 'timing':
+                                element_instruction = f"\n\nIMPORTANT: Ask 'Is your {chief_complaint} constant or does it come and go?' to make it clear."
+                            elif next_element == 'severity':
+                                element_instruction = f"\n\nIMPORTANT: Ask 'How severe is your {chief_complaint}? On a scale of 1 to 10?' to make it clear."
+                            elif next_element == 'aggravating':
+                                element_instruction = f"\n\nIMPORTANT: Ask 'What makes your {chief_complaint} worse?' to make it clear."
+                            elif next_element == 'relieving':
+                                element_instruction = f"\n\nIMPORTANT: Ask 'What makes your {chief_complaint} better?' to make it clear."
+                            elif next_element == 'progression':
+                                element_instruction = f"\n\nIMPORTANT: Ask 'Has your {chief_complaint} gotten worse over time?' to make it clear."
+                            elif next_element == 'associated':
+                                element_instruction = f"\n\nIMPORTANT: Ask 'Have you noticed any other symptoms along with your {chief_complaint}?' to make it clear."
+                            
                             user_msg = f"""Patient has: {chief_complaint}
 
 What we know so far:
 {covered_info}
 
-Ask about: {next_element}
+Task: Ask about {next_element}
 
 Recent conversation:
 {conversation_text}
 
-Generate ONE clear question about {next_element} for their {chief_complaint}."""
+Generate ONE clear question about {next_element} for their {chief_complaint}.{element_instruction}"""
                         
                         system_msg = self.LLM_ASSESSMENT_SYSTEM_MSG_TEMPLATE.format(next_element=next_element)
                         
