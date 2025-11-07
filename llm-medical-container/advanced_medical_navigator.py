@@ -764,25 +764,38 @@ Return ONLY the question, no explanations:"""
                     self._update_condition_rankings(session)
         
         # Check if message is a greeting FIRST (before any other processing)
-        if self._is_greeting(user_message) and not session.context.get('chief_complaint'):
+        is_greeting_check = self._is_greeting(user_message)
+        has_chief_complaint = session.context.get('chief_complaint')
+        
+        self._capture_debug(f"[Navigator] 🔍 Routing decision: is_greeting={is_greeting_check}, has_chief_complaint={has_chief_complaint}")
+        
+        if is_greeting_check and not has_chief_complaint:
+            self._capture_debug(f"[Navigator] 👋 ROUTE: Greeting handler (is_greeting=True, no chief complaint)")
             response = self._handle_greeting(session, user_message)
         else:
             # Determine conversation phase
             phase = self._determine_phase(session)
+            self._capture_debug(f"[Navigator] 📍 PHASE: {phase} (messages: {len(session.messages)})")
             
             # Generate response based on phase
             if phase == "greeting":
+                self._capture_debug(f"[Navigator] 👋 ROUTE: Greeting handler (phase=greeting)")
                 response = self._handle_greeting(session, user_message)
             elif phase == "chief_complaint":
+                self._capture_debug(f"[Navigator] 🩺 ROUTE: Chief complaint handler")
                 response = self._handle_chief_complaint(session, user_message)
             elif phase == "assessment":
+                self._capture_debug(f"[Navigator] 📋 ROUTE: Assessment handler")
                 # Check if demographics are complete first
                 demo_response = self._handle_demographics(session)
                 if demo_response:
+                    self._capture_debug(f"[Navigator] 📋 SUB-ROUTE: Demographics")
                     response = demo_response
                 else:
+                    self._capture_debug(f"[Navigator] 📋 SUB-ROUTE: OLDCARTS assessment")
                     response = self._handle_assessment(session, user_message)
             else:
+                self._capture_debug(f"[Navigator] 🔄 ROUTE: Followup handler")
                 response = self._handle_followup(session, user_message)
         
         # Add assistant response to session
@@ -797,8 +810,11 @@ Return ONLY the question, no explanations:"""
             # First exchange (user message only) = greeting
             # Second exchange (user + assistant) = chief complaint extraction
             if len(session.messages) <= 1:  # Only user message, no assistant response yet
+                self._capture_debug(f"[Navigator] 📍 Phase=greeting (no chief complaint, {len(session.messages)} messages)")
                 return "greeting"
+            self._capture_debug(f"[Navigator] 📍 Phase=chief_complaint (no chief complaint, {len(session.messages)} messages)")
             return "chief_complaint"
+        self._capture_debug(f"[Navigator] 📍 Phase=assessment (has chief complaint: {session.context.get('chief_complaint')})")
         return "assessment"
     
     def _handle_greeting(self, session: 'AdvancedMedicalNavigator.MedicalSession', message: str) -> Dict[str, Any]:
