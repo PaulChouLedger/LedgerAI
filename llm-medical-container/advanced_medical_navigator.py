@@ -337,6 +337,40 @@ Return ONLY the question, no explanations:"""
         self.medical_rule_engine = medical_rule_engine
         self.embedding_model = embedding_model
         
+        # Load LLM configuration from environment (no hardcoded parameters)
+        self.temperature = float(os.environ.get('LLM_TEMPERATURE_SIMPLE', '0.7'))
+        self.top_p = float(os.environ.get('LLM_TOP_P', '0.9'))
+        self.top_k = int(os.environ.get('LLM_TOP_K', '40'))
+        self.repeat_penalty = float(os.environ.get('LLM_REPEAT_PENALTY', '1.1'))
+        self.presence_penalty = float(os.environ.get('LLM_PRESENCE_PENALTY', '0.0'))
+        self.frequency_penalty = float(os.environ.get('LLM_FREQUENCY_PENALTY', '0.0'))
+        self.num_predict = int(os.environ.get('LLM_NUM_PREDICT', '100'))
+        
+        # Stop sequences
+        stop_env = os.environ.get('LLM_STOP', '').strip()
+        self.stop_sequences = [s.strip() for s in stop_env.split(',') if s.strip()] if stop_env else None
+        
+        # Helper function to get LLM kwargs
+        def _get_llm_kwargs(override_max_tokens=None, override_temperature=None):
+            """Get all LLM parameters for generation from environment"""
+            kwargs = {
+                'temperature': override_temperature if override_temperature is not None else self.temperature,
+                'top_p': self.top_p,
+                'top_k': self.top_k,
+                'repeat_penalty': self.repeat_penalty,
+                'presence_penalty': self.presence_penalty,
+                'frequency_penalty': self.frequency_penalty,
+            }
+            if override_max_tokens:
+                kwargs['max_tokens'] = override_max_tokens
+            elif self.num_predict:
+                kwargs['max_tokens'] = self.num_predict
+            if self.stop_sequences:
+                kwargs['stop'] = self.stop_sequences
+            return kwargs
+        
+        self._get_llm_kwargs = _get_llm_kwargs
+        
         # Guidelines loaded on-demand based on chief complaint (for latency optimization)
         self.all_guidelines: Dict[str, Dict] = {}
         self.guidelines_path = os.path.join(
@@ -445,11 +479,11 @@ Return ONLY the question, no explanations:"""
             raise ValueError("LLM function required for greeting detection")
         
         # Use LLM to intelligently detect greetings
+        llm_kwargs = self._get_llm_kwargs(override_max_tokens=10, override_temperature=0.1)
         response = self.llm_chat_fn(
             [{"role": "system", "content": self.LLM_GREETING_DETECTION_SYSTEM_MSG}, 
              {"role": "user", "content": f"Patient message: {message}\n\nIs this a greeting or medical? Return ONLY 'greeting' or 'medical':"}],
-            max_tokens=10,
-            temperature=0.1
+            **llm_kwargs
         )
         
         result = response.strip().lower()
@@ -773,10 +807,10 @@ Return ONLY the question, no explanations:"""
         if not self.llm_chat_fn:
             raise ValueError("LLM function required for greeting handling")
         
+        llm_kwargs = self._get_llm_kwargs(override_max_tokens=100)
         response = self.llm_chat_fn(
             [{"role": "system", "content": self.LLM_GREETING_SYSTEM_MSG}, {"role": "user", "content": message}],
-            max_tokens=100,
-            temperature=0.7
+            **llm_kwargs
         )
         greeting = response.strip() if response else "Hello! How can I help you today?"
         
@@ -792,10 +826,10 @@ Return ONLY the question, no explanations:"""
             chief_complaint = message.lower()
         else:
             # Extract chief complaint using LLM
+            llm_kwargs = self._get_llm_kwargs(override_max_tokens=50, override_temperature=0.1)
             response = self.llm_chat_fn(
                 [{"role": "system", "content": self.LLM_CHIEF_COMPLAINT_SYSTEM_MSG}, {"role": "user", "content": message}],
-                max_tokens=50,
-                temperature=0.1
+                **llm_kwargs
             )
             
             chief_complaint = response.strip().lower()
@@ -827,11 +861,11 @@ Return ONLY the question, no explanations:"""
 
 Generate an empathetic acknowledgment (1-2 sentences):"""
             
+            llm_kwargs = self._get_llm_kwargs(override_max_tokens=100)
             response = self.llm_chat_fn(
                 [{"role": "system", "content": "You are a compassionate medical assistant. Generate a brief, empathetic acknowledgment of the patient's chief complaint."}, 
                  {"role": "user", "content": user_msg}],
-                max_tokens=100,
-                temperature=0.7
+                **llm_kwargs
             )
             
             acknowledgment = response.strip()
@@ -873,10 +907,10 @@ Patient answered: {user_message}
 Which OLDCARTS element was answered? Return ONLY the element name:"""
         
         try:
+            llm_kwargs = self._get_llm_kwargs(override_max_tokens=20, override_temperature=0.1)
             response = self.llm_chat_fn(
                 [{"role": "system", "content": self.LLM_OLDCARTS_EXTRACTION_SYSTEM_MSG}, {"role": "user", "content": user_msg}],
-                max_tokens=20,
-                temperature=0.1
+                **llm_kwargs
             )
             
             element = response.strip().lower()
@@ -1028,10 +1062,10 @@ Generate a question about {next_element} specifically for this patient's {chief_
 CRITICAL: Use the patient's actual complaint ({chief_complaint}), not any topics from the examples.
 Be conversational and specific to their situation."""
                 
+                llm_kwargs = self._get_llm_kwargs(override_max_tokens=100)
                 response = self.llm_chat_fn(
                     [{"role": "system", "content": system_msg}, {"role": "user", "content": user_msg}],
-                    max_tokens=100,
-                    temperature=0.7
+                    **llm_kwargs
                 )
                 
                 next_question = response.strip()
@@ -1084,10 +1118,10 @@ Generate a question about {next_element} specifically for this patient's {chief_
 CRITICAL: Use the patient's actual complaint ({chief_complaint}), not any topics from the examples.
 Be conversational and specific to their situation."""
                 
+                llm_kwargs = self._get_llm_kwargs(override_max_tokens=100)
                 response = self.llm_chat_fn(
                     [{"role": "system", "content": system_msg}, {"role": "user", "content": user_msg}],
-                    max_tokens=100,
-                    temperature=0.7
+                    **llm_kwargs
                 )
                 
                 next_question = response.strip()
