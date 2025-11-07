@@ -72,6 +72,26 @@ class AdvancedMedicalNavigator:
         " and PMH/medications/allergies. Keep it concise (<= 6 bullet points)."
     )
 
+    QUESTION_SYSTEM_PROMPT = (
+        "You are a compassionate medical assistant conducting a patient interview."
+        " Use the provided guidance to craft one natural question. Keep it short (<= 20 words),"
+        " avoid multiple questions at once, and reference any supplied chief complaint."
+    )
+
+    PRE_HPI_ORDER = [
+        "chief_complaint",
+        "chronicity",
+        "age",
+        "sex",
+    ]
+
+    PRE_HPI_GUIDANCE = {
+        "chief_complaint": "Please ask the patient what brings them in today and how long it has been going on.",
+        "chronicity": "Determine if the problem is new or ongoing and whether there is a prior diagnosis.",
+        "age": "Ask for the patient's age, stated as a single number.",
+        "sex": "Ask for the patient's biological sex for medical documentation.",
+    }
+
     # ---------------------------------------------------------------------
     # Section 1: Session container
     # ---------------------------------------------------------------------
@@ -84,8 +104,7 @@ class AdvancedMedicalNavigator:
             self.section: str = "identification"
             self.pending: Optional[Dict[str, str]] = None
             self.context: Dict[str, Dict] = {
-                "identification": {},
-                "chief_complaint": None,
+                "pre_hpi": {},
                 "hpi": {},
                 "pmh": {},
             }
@@ -108,6 +127,18 @@ class AdvancedMedicalNavigator:
         session.messages.append({"role": "user", "content": user_message})
 
         if session.pending:
+            if not self._is_valid_answer(session, session.pending, user_message):
+                clarification = self._clarify_prompt(session.pending)
+                session.messages.append({"role": "assistant", "content": clarification})
+                return {
+                    "response": clarification,
+                    "status": "question",
+                    "metadata": {
+                        "section": session.section,
+                        "field": session.pending["field"],
+                        "clarification": True,
+                    },
+                }
             self._store_answer(session, session.pending, user_message)
             session.pending = None
 
@@ -153,20 +184,24 @@ class AdvancedMedicalNavigator:
     def _determine_next_question(self, session: "MedicalSession") -> Optional[Dict[str, str]]:
         if session.section == "identification":
             if not session.context["identification"].get("identifiers"):
+                prompt = self._generate_question(session, "identification", "identifiers")
                 return {
                     "section": "identification",
                     "field": "identifiers",
-                    "prompt": self.IDENTIFICATION_PROMPT,
+                    "prompt": prompt,
                 }
-            session.section = "chief_complaint"
+            session.section = "pre_hpi"
 
-        if session.section == "chief_complaint":
-            if not session.context.get("chief_complaint"):
-                return {
-                    "section": "chief_complaint",
-                    "field": "chief_complaint",
-                    "prompt": self.CHIEF_COMPLAINT_PROMPT,
-                }
+        if session.section == "pre_hpi":
+            for field in self.PRE_HPI_ORDER:
+                if field not in session.context["pre_hpi"]:
+                    guidance = self.PRE_HPI_GUIDANCE[field]
+                    prompt = self._generate_question(session, "pre_hpi", field, guidance)
+                    return {
+                        "section": "pre_hpi",
+                        "field": field,
+                        "prompt": prompt,
+                    }
             session.section = "hpi"
 
         if session.section == "hpi":
@@ -174,7 +209,8 @@ class AdvancedMedicalNavigator:
             for element in self.HPI_ORDER:
                 if element not in session.context["hpi"]:
                     template = self.HPI_PROMPTS[element]
-                    prompt = template.replace("{cc}", cc)
+                    prompt_text = template.replace("{cc}", cc)
+                    prompt = self._generate_question(session, "hpi", element, prompt_text)
                     return {
                         "section": "hpi",
                         "field": element,
@@ -185,7 +221,8 @@ class AdvancedMedicalNavigator:
         if session.section == "pmh":
             for field in self.PMH_ORDER:
                 if field not in session.context["pmh"]:
-                    prompt = self.PMH_PROMPTS[field]
+                    template = self.PMH_PROMPTS[field]
+                    prompt = self._generate_question(session, "pmh", field, template)
                     return {
                         "section": "pmh",
                         "field": field,
@@ -205,6 +242,8 @@ class AdvancedMedicalNavigator:
 
         if section == "identification":
             session.context["identification"]["identifiers"] = answer.strip()
+        elif section == "pre_hpi":
+            session.context["pre_hpi"][field] = answer.strip()
         elif section == "chief_complaint":
             session.context["chief_complaint"] = answer.strip()
         elif section == "hpi":
@@ -229,8 +268,8 @@ class AdvancedMedicalNavigator:
         if not self.llm_chat_fn:
             return "History collection complete."
 
-        identification = session.context["identification"].get("identifiers", "Not provided")
-        cc = session.context.get("chief_complaint", "Not stated")
+        identification = session.context["pre_hpi"].get("age", "Not provided")
+        cc = session.context["pre_hpi"].get("chief_complaint", "Not stated")
         hpi_parts = session.context["hpi"]
         pmh_parts = session.context["pmh"]
 
@@ -250,3 +289,64 @@ class AdvancedMedicalNavigator:
         )
 
         return llm_response.strip() if llm_response else "History collection complete."
+
+    def _clarify_prompt(self, pending: Dict[str, str]) -> str:
+        prompt = pending.get("prompt", "Could you tell me more?")
+        return f"Sorry for the confusion. I was asking: {prompt}"
+
+    def _is_valid_answer(self, session: "MedicalSession", pending: Dict[str, str], answer: str) -> bool:
+        if not answer or not answer.strip():
+            return False
+        if not self.llm_chat_fn:
+            return True
+        prompt = (
+            "Question asked: " + pending.get("prompt", "") + "\n"
+            "Patient replied: " + answer + "\n\n"
+            "Should the reply be accepted? Answer ONLY with YES or NO."
+        )
+        llm_result = self.llm_chat_fn(
+            [
+                {"role": "system", "content": "You are a medical assistant validating patient responses."},
+                {"role": "user", "content": prompt},
+            ],
+            max_tokens=5,
+            temperature=0.0,
+        )
+        if not llm_result:
+            return True
+        return llm_result.strip().upper().startswith("Y")
+
+    def _generate_question(
+        self,
+        session: "MedicalSession",
+        section: str,
+        field: str,
+        guidance: Optional[str] = None,
+    ) -> str:
+        if not self.llm_chat_fn:
+            return guidance or "Could you tell me more about that?"
+
+        cc = session.context["pre_hpi"].get("chief_complaint", "your symptoms") or "your symptoms"
+        previous = "\n".join(
+            f"{msg['role']}: {msg['content']}" for msg in session.messages[-6:]
+        )
+        guidance_text = guidance or (
+            self.IDENTIFICATION_PROMPT if section == "identification" else self.CHIEF_COMPLAINT_PROMPT
+        )
+        user_prompt = (
+            f"Section: {section}\n"
+            f"Field: {field}\n"
+            f"Chief complaint: {cc}\n"
+            f"Guidance: {guidance_text}\n"
+            f"Recent conversation:\n{previous}\n"
+            "Produce one friendly question."
+        )
+        response = self.llm_chat_fn(
+            [
+                {"role": "system", "content": self.QUESTION_SYSTEM_PROMPT},
+                {"role": "user", "content": user_prompt},
+            ],
+            max_tokens=60,
+            temperature=0.5,
+        )
+        return response.strip() if response else guidance_text
