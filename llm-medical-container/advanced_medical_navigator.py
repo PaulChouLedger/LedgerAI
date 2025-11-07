@@ -46,6 +46,7 @@ import os
 from typing import Dict, Any, List, Optional, Tuple
 from datetime import datetime
 from collections import defaultdict
+from difflib import SequenceMatcher
 
 
 class AdvancedMedicalNavigator:
@@ -1029,12 +1030,37 @@ Which OLDCARTS element was answered? Return ONLY the element name:"""
             return_scores=True
         )
         
+        pending_options = session.context.setdefault('pending_options', {})
+        stored_options = self._normalize_options(pending_options.pop(element, []))
+
+        manual_match = None
+        if stored_options:
+            normalized_answer = patient_answer.strip().lower()
+            normalized_answer_simple = normalized_answer.replace(" your ", " ").replace(" my ", " ")
+            for opt in stored_options:
+                opt_norm = opt.lower()
+                opt_simple = opt_norm.replace(" your ", " ").replace(" my ", " ")
+                ratio = SequenceMatcher(None, normalized_answer, opt_norm).ratio()
+                ratio_simple = SequenceMatcher(None, normalized_answer_simple, opt_simple).ratio()
+                if max(ratio, ratio_simple) >= 0.88:
+                    manual_match = opt
+                    break
+        if manual_match:
+            matches = list(matches) if matches else []
+            if manual_match not in matches:
+                matches.append(manual_match)
+            self._capture_debug(f"[Navigator] ✅ Recognized manual match using provided options: '{manual_match}'")
+
         # Capture FAISS score details for debugging
         faiss_scores = getattr(self.medical_rule_engine, '_last_faiss_scores', {}) or {}
+        normalized_scores = {k: round(float(v), 6) for k, v in faiss_scores.items()}
+        if manual_match and manual_match not in normalized_scores:
+            normalized_scores[manual_match] = 0.99
         session.context.setdefault('debug', {})['faiss'] = {
             'element': element,
             'patient_answer': patient_answer,
-            'scores': {k: round(float(v), 6) for k, v in faiss_scores.items()}
+            'scores': normalized_scores,
+            'manual_match': manual_match
         }
         
         # Update anatomical history for location answers using medical rules (no LLM)
@@ -1222,20 +1248,23 @@ Be conversational and specific to their situation."""
                         guideline_options = self._get_guideline_terms_for_element(next_element, session)
                         
                         if guideline_options and len(guideline_options) > 1:
+                            unique_options = self._normalize_options(guideline_options)
+                            if unique_options:
+                                session.context.setdefault('pending_options', {})[next_element] = unique_options
                             if next_element == 'location':
                                 display_chief_complaint = self._format_chief_complaint_for_question(chief_complaint)
-                                next_question = self._build_location_question(display_chief_complaint, guideline_options)
+                                next_question = self._build_location_question(display_chief_complaint, unique_options)
                                 self._capture_debug(f"[Navigator] ✏️ Using deterministic location question: {next_question}")
                             elif next_element == 'aggravating':
                                 display_chief_complaint = self._format_chief_complaint_for_question(chief_complaint)
-                                next_question = self._build_aggravating_question(display_chief_complaint, guideline_options)
+                                next_question = self._build_aggravating_question(display_chief_complaint, unique_options)
                                 self._capture_debug(f"[Navigator] ✏️ Using deterministic aggravating question: {next_question}")
                             elif next_element == 'relieving':
                                 display_chief_complaint = self._format_chief_complaint_for_question(chief_complaint)
-                                next_question = self._build_relieving_question(display_chief_complaint, guideline_options)
+                                next_question = self._build_relieving_question(display_chief_complaint, unique_options)
                                 self._capture_debug(f"[Navigator] ✏️ Using deterministic relieving question: {next_question}")
                             else:
-                                options_text = ", ".join(f'"{opt}"' for opt in guideline_options)
+                                options_text = ", ".join(f'"{opt}"' for opt in unique_options)
                                 
                                 # Add element-specific instructions to include chief complaint for clarity (universal for all elements)
                                 element_instruction = ""
@@ -1304,7 +1333,10 @@ CRITICAL: Ask about {next_element}, NOT about demographics. Use the {next_elemen
                                 
                         else:
                             if next_element == 'location' and guideline_options:
-                                next_question = self._build_location_question(chief_complaint, guideline_options)
+                                unique_options = self._normalize_options(guideline_options)
+                                if unique_options:
+                                    session.context.setdefault('pending_options', {})[next_element] = unique_options
+                                next_question = self._build_location_question(chief_complaint, unique_options)
                             else:
                                 # No guideline options - use general approach
                                 element_instruction = ""
@@ -1337,7 +1369,10 @@ CRITICAL: Ask about {next_element}, NOT about demographics. Use the {next_elemen
                                     element_instruction = f"\n\nIMPORTANT: Ask 'Have you noticed any other symptoms along with your {display_chief_complaint}?' to make it clear."
                                 
                                 if next_element == 'location' and guideline_options:
-                                    next_question = self._build_location_question(chief_complaint, guideline_options)
+                                    unique_options = self._normalize_options(guideline_options)
+                                    if unique_options:
+                                        session.context.setdefault('pending_options', {})[next_element] = unique_options
+                                    next_question = self._build_location_question(chief_complaint, unique_options)
                                 else:
                                     user_msg = f"""Patient has: {chief_complaint}
 
@@ -1850,7 +1885,10 @@ Generate ONE clear question about {next_element} for their {chief_complaint}.{el
             
             if len(filtered_satisfied) >= 2:
                 # Still multiple - generate clarifying question
-                clarifying_question = self._generate_simple_clarification(element, filtered_satisfied[:5])
+                clarification_options = self._normalize_options(filtered_satisfied[:5])
+                if clarification_options:
+                    session.context.setdefault('pending_options', {})[element] = clarification_options
+                clarifying_question = self._generate_simple_clarification(element, clarification_options)
                 self._capture_debug(f"[Navigator] 🔍 Clarification needed: {filtered_satisfied[:5]}")
                 return clarifying_question
             elif len(filtered_satisfied) == 1:
@@ -1899,7 +1937,10 @@ Generate ONE clear question about {next_element} for their {chief_complaint}.{el
             
             if len(filtered_missing) >= 2:
                 # Multiple missing - generate clarifying question
-                clarifying_question = self._generate_simple_clarification(element, filtered_missing[:5])
+            clarification_options = self._normalize_options(filtered_missing[:5])
+            if clarification_options:
+                session.context.setdefault('pending_options', {})[element] = clarification_options
+            clarifying_question = self._generate_simple_clarification(element, clarification_options)
                 self._capture_debug(f"[Navigator] 🔍 Clarification needed (no satisfied): {filtered_missing[:5]}")
                 return clarifying_question
         
@@ -1934,6 +1975,8 @@ Generate ONE clear question about {next_element} for their {chief_complaint}.{el
     
     def _generate_simple_clarification(self, element: str, options: List[str]) -> str:
         """Generate simple clarifying question with options"""
+        if not options:
+            return "Can you clarify further?"
         if len(options) == 2:
             return f"Is it {options[0]} or {options[1]}?"
         elif len(options) == 3:
@@ -1978,33 +2021,32 @@ Generate ONE clear question about {next_element} for their {chief_complaint}.{el
         """Return formatted debug banner similar to Telegram output."""
         lines = []
         lines.append("="*80)
-        lines.append("[Navigator] 🧠 ENGINE DEBUG OUTPUT")
+        lines.append("[Telegram] 🧠 ENGINE DEBUG OUTPUT")
         lines.append("="*80)
         
         if session_id and session_id in self.sessions:
             session = self.sessions[session_id]
-            lines.append(f"[Navigator] 🎯 Loaded guidelines: {len(self.all_guidelines)}")
+            lines.append(f"[Engine] 🎯 Loaded guidelines: {len(self.all_guidelines)}")
             if prefix_note:
                 lines.append(prefix_note)
             
-            # OLDCARTS coverage
             coverage_str = ''.join([k[0].upper() if v else '_' for k, v in session.context['oldcarts_covered'].items()])
             covered_count = sum(session.context['oldcarts_covered'].values())
-            lines.append(f"[Navigator] 📋 OLDCARTS: {coverage_str} ({covered_count}/9)")
+            lines.append(f"[Engine] 📋 OLDCARTS: {coverage_str} ({covered_count}/9)")
             
-            # Top conditions
-            lines.append("[Navigator] 📊 TOP CONDITIONS:")
+            lines.append("[Engine] 📊 ACTIVE DIFFERENTIALS:")
             for i, ranking in enumerate(session.condition_rankings[:5], start=1):
                 condition_name = ranking.get('condition', 'Unknown')
                 score = ranking.get('score', 0.0)
-                score_pct = round(score * 10, 1) if score > 0 else 0.0  # Convert to percentage-like display
+                score_pct = round(score * 100, 1) if score > 0 else 0.0
                 urgency = ranking.get('guideline', {}).get('urgency', 'routine')
                 sev_icon = '🚨' if 'emerg' in str(urgency).lower() else '⚠️' if 'urgent' in str(urgency).lower() else '📋'
                 lines.append(f"  {i}. {condition_name}: {score_pct}% ({urgency}) {sev_icon}")
             
-            lines.append(f"[Navigator] 🔄 Categories active: {', '.join(session.context.get('matched_categories', []))}")
+            categories_active = ", ".join(session.context.get('matched_categories', [])) or "None"
+            lines.append(f"[Engine] 🔄 Categories active: {categories_active}")
         else:
-            lines.append("[Navigator] ⚠️ No active session")
+            lines.append("[Engine] ⚠️ No active session")
         
         return "\n".join(lines)
     
@@ -2019,7 +2061,7 @@ Generate ONE clear question about {next_element} for their {chief_complaint}.{el
             return '📋'
         
         lines = []
-        lines.append("[Navigator] 📊 UPDATED RANKINGS:")
+        lines.append("[Engine] 📊 UPDATED RANKINGS:")
         
         if session_id and session_id in self.sessions:
             session = self.sessions[session_id]
@@ -2032,7 +2074,7 @@ Generate ONE clear question about {next_element} for their {chief_complaint}.{el
                 prevalence = guideline.get('prevalence', 'unknown')
                 icon = urgency_icon(urgency)
                 
-                lines.append(f"[Navigator]   {i}. {condition_name}: {score_pct}% {icon}")
+                lines.append(f"[Engine]   {i}. {condition_name}: {score_pct}% {icon}")
                 lines.append(f"[Scoring] 🏆 Top {i}: {condition_name}")
                 lines.append(f"[Scoring]   📊 Score: {score_pct}%")
                 lines.append(f"[Scoring]   📋 Prevalence: {prevalence}")
@@ -2040,12 +2082,12 @@ Generate ONE clear question about {next_element} for their {chief_complaint}.{el
                 lines.append(f"[Scoring]   🚨 Urgency: {urgency}")
             
             lines.append("")
-            lines.append(f"[Navigator] 🔄 Loaded guidelines: {len(self.all_guidelines)}")
+            lines.append(f"[Engine] 🔄 Loaded guidelines: {len(self.all_guidelines)}")
             lines.append("[Scoring] 📊 Final statistics:")
             lines.append(f"[Scoring]   🎯 Active Conditions: {len(session.condition_rankings)}")
             lines.append(f"[Scoring]   📋 Categories: {', '.join(session.context.get('matched_categories', []))}")
         else:
-            lines.append("[Navigator] ⚠️ No active session")
+            lines.append("[Engine] ⚠️ No active session")
         
         return "\n".join(lines)
     
@@ -2077,9 +2119,24 @@ Generate ONE clear question about {next_element} for their {chief_complaint}.{el
         self.clear_debug_output()
         return payload
 
+    def _normalize_options(self, options: List[str]) -> List[str]:
+        """Normalize options by trimming, deduplicating (case-insensitive), preserving order."""
+        seen = set()
+        normalized: List[str] = []
+        for opt in options or []:
+            cleaned = opt.strip()
+            if not cleaned:
+                continue
+            key = cleaned.lower()
+            if key in seen:
+                continue
+            seen.add(key)
+            normalized.append(cleaned)
+        return normalized
+
     def _format_option_list(self, options: List[str]) -> str:
         """Format a list of options into natural language list."""
-        cleaned = [opt.strip() for opt in options if opt and opt.strip()]
+        cleaned = self._normalize_options(options)
         if not cleaned:
             return ""
         if len(cleaned) == 1:
