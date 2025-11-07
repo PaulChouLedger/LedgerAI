@@ -984,9 +984,12 @@ Which OLDCARTS element was answered? Return ONLY the element name:"""
                 # Store last extracted element for clarification check
                 session.context['last_extracted_element'] = element
                 
+                # Store raw answer for reference
+                session.context['oldcarts_data'][element] = user_message
+                
                 # Elements that don't need clarification - mark complete immediately
                 if not self._element_needs_clarification(element):
-                    session.context['oldcarts_covered'][element] = True
+                    self._mark_element_complete(session, element, user_message)
                     self._capture_debug(f"[Navigator] ✅ {element} marked complete (no clarification needed)")
                 else:
                     # Elements that CAN need clarification (location, aggravating, relieving)
@@ -1122,7 +1125,7 @@ Which OLDCARTS element was answered? Return ONLY the element name:"""
         
         # Check if last extracted element needs clarification (location, aggravating, relieving only)
         last_extracted_element = session.context.get('last_extracted_element')
-        if last_extracted_element and message:
+        if last_extracted_element and message and not session.context['oldcarts_covered'].get(last_extracted_element, False):
             clarifying_question = self._check_if_clarification_needed(session, last_extracted_element, message)
             if clarifying_question:
                 self._capture_debug(f"[Navigator] 🔍 Clarification needed for {last_extracted_element}")
@@ -1134,6 +1137,8 @@ Which OLDCARTS element was answered? Return ONLY the element name:"""
                         'is_clarification': True
                     }
                 }
+        elif last_extracted_element and session.context['oldcarts_covered'].get(last_extracted_element, False):
+            session.context['last_extracted_element'] = None
         
         if use_general_llm:
             # Use general LLM knowledge with OLDCARTS structure (no guidelines)
@@ -1217,33 +1222,34 @@ Be conversational and specific to their situation."""
                         guideline_options = self._get_guideline_terms_for_element(next_element, session)
                         
                         if guideline_options and len(guideline_options) > 1:
-                            # Build question with specific guideline options
-                            options_text = ", ".join(f'"{opt}"' for opt in guideline_options)
-                            
-                            # Add element-specific instructions to include chief complaint for clarity (universal for all elements)
-                            element_instruction = ""
                             if next_element == 'location':
-                                element_instruction = f"\n\nIMPORTANT: Start your question with 'Where exactly is your {chief_complaint} located?' to make it clear what you're asking about. Then list the specific location options."
-                            elif next_element == 'character':
-                                element_instruction = f"\n\nIMPORTANT: Start your question with 'How would you describe your {chief_complaint}?' to make it clear what you're asking about. Then list the specific character options."
-                            elif next_element == 'onset':
-                                element_instruction = f"\n\nIMPORTANT: Ask 'When did your {chief_complaint} start?' to make it clear what you're asking about. Then include the specific onset options if applicable."
-                            elif next_element == 'duration':
-                                element_instruction = f"\n\nIMPORTANT: Ask 'How long does your {chief_complaint} last?' to make it clear what you're asking about. Then include the specific duration options."
-                            elif next_element == 'timing':
-                                element_instruction = f"\n\nIMPORTANT: Ask 'Is your {chief_complaint} constant or does it come and go?' to make it clear what you're asking about."
-                            elif next_element == 'severity':
-                                element_instruction = f"\n\nIMPORTANT: Ask 'How severe is your {chief_complaint}? On a scale of 1 to 10, how would you rate it?' to make it clear what you're asking about."
-                            elif next_element == 'aggravating':
-                                element_instruction = f"\n\nIMPORTANT: Ask 'What makes your {chief_complaint} worse?' to make it clear what you're asking about. Then list the specific aggravating factors."
-                            elif next_element == 'relieving':
-                                element_instruction = f"\n\nIMPORTANT: Ask 'What makes your {chief_complaint} better?' to make it clear what you're asking about. Then list the specific relieving factors."
-                            elif next_element == 'progression':
-                                element_instruction = f"\n\nIMPORTANT: Ask 'Has your {chief_complaint} gotten worse over time?' to make it clear what you're asking about."
-                            elif next_element == 'associated':
-                                element_instruction = f"\n\nIMPORTANT: Ask 'Have you noticed any other symptoms along with your {chief_complaint}?' to make it clear what you're asking about. Then list the specific associated symptoms."
-                            
-                            user_msg = f"""You are asking about the patient's {next_element}.
+                                next_question = self._build_location_question(chief_complaint, guideline_options)
+                                self._capture_debug(f"[Navigator] ✏️ Using deterministic location question: {next_question}")
+                            else:
+                                options_text = ", ".join(f'"{opt}"' for opt in guideline_options)
+                                
+                                # Add element-specific instructions to include chief complaint for clarity (universal for all elements)
+                                element_instruction = ""
+                                if next_element == 'character':
+                                    element_instruction = f"\n\nIMPORTANT: Start your question with 'How would you describe your {chief_complaint}?' to make it clear what you're asking about. Then list the specific character options."
+                                elif next_element == 'onset':
+                                    element_instruction = f"\n\nIMPORTANT: Ask 'When did your {chief_complaint} start?' to make it clear what you're asking about. Then include the specific onset options if applicable."
+                                elif next_element == 'duration':
+                                    element_instruction = f"\n\nIMPORTANT: Ask 'How long does your {chief_complaint} last?' to make it clear what you're asking about. Then include the specific duration options."
+                                elif next_element == 'timing':
+                                    element_instruction = f"\n\nIMPORTANT: Ask 'Is your {chief_complaint} constant or does it come and go?' to make it clear what you're asking about."
+                                elif next_element == 'severity':
+                                    element_instruction = f"\n\nIMPORTANT: Ask 'How severe is your {chief_complaint}? On a scale of 1 to 10, how would you rate it?' to make it clear what you're asking about."
+                                elif next_element == 'aggravating':
+                                    element_instruction = f"\n\nIMPORTANT: Ask 'What makes your {chief_complaint} worse?' to make it clear what you're asking about. Then list the specific aggravating factors."
+                                elif next_element == 'relieving':
+                                    element_instruction = f"\n\nIMPORTANT: Ask 'What makes your {chief_complaint} better?' to make it clear what you're asking about. Then list the specific relieving factors."
+                                elif next_element == 'progression':
+                                    element_instruction = f"\n\nIMPORTANT: Ask 'Has your {chief_complaint} gotten worse over time?' to make it clear what you're asking about."
+                                elif next_element == 'associated':
+                                    element_instruction = f"\n\nIMPORTANT: Ask 'Have you noticed any other symptoms along with your {chief_complaint}?' to make it clear what you're asking about. Then list the specific associated symptoms."
+                                
+                                user_msg = f"""You are asking about the patient's {next_element}.
 
 Patient's chief complaint: {chief_complaint}
 
@@ -1256,35 +1262,59 @@ Information already collected:
 {covered_info}
 
 Generate ONE clear question about {next_element} for their {chief_complaint} that includes these specific options.
-Connect the options naturally with commas and "or" (e.g., "Is it [option1], [option2], or [option3]?").{element_instruction}
+Connect the options naturally with commas and \"or\" (e.g., \"Is it [option1], [option2], or [option3]?\").{element_instruction}
 
 CRITICAL: Ask about {next_element}, NOT about demographics. Use the {next_element} options provided above."""
+                                
+                                system_msg = self.LLM_ASSESSMENT_SYSTEM_MSG_TEMPLATE.format(next_element=next_element)
+                                
+                                self._capture_debug(f"[Navigator] 🔍 Generating question for element: {next_element}, complaint: {chief_complaint}")
+                                self._capture_debug(f"[Navigator] 📋 Injecting {len(guideline_options)} guideline options: {guideline_options[:5]}")
+                                
+                                llm_kwargs = self._get_llm_kwargs(override_max_tokens=100)
+                                response = self.llm_chat_fn(
+                                    [{"role": "system", "content": system_msg}, {"role": "user", "content": user_msg}],
+                                    **llm_kwargs
+                                )
+                                
+                                self._capture_debug(f"[Navigator] 💬 LLM generated question: '{response.strip()[:100]}...'")
+                                next_question = response.strip()
+                                
+                                if not next_question or len(next_question) < 10:
+                                    self._capture_debug(f"[Navigator] ❌ LLM generated invalid question: '{next_question}'")
+                                    raise ValueError(f"LLM failed to generate valid question for element: {next_element}")
+                                
                         else:
-                            # No guideline options - use general approach
-                            # Add element-specific instruction to include chief complaint (universal)
-                            element_instruction = ""
-                            if next_element == 'location':
-                                element_instruction = f"\n\nIMPORTANT: Ask 'Where exactly is your {chief_complaint} located?' to make it clear."
-                            elif next_element == 'character':
-                                element_instruction = f"\n\nIMPORTANT: Ask 'How would you describe your {chief_complaint}?' to make it clear."
-                            elif next_element == 'onset':
-                                element_instruction = f"\n\nIMPORTANT: Ask 'When did your {chief_complaint} start?' to make it clear."
-                            elif next_element == 'duration':
-                                element_instruction = f"\n\nIMPORTANT: Ask 'How long does your {chief_complaint} last?' to make it clear."
-                            elif next_element == 'timing':
-                                element_instruction = f"\n\nIMPORTANT: Ask 'Is your {chief_complaint} constant or does it come and go?' to make it clear."
-                            elif next_element == 'severity':
-                                element_instruction = f"\n\nIMPORTANT: Ask 'How severe is your {chief_complaint}? On a scale of 1 to 10?' to make it clear."
-                            elif next_element == 'aggravating':
-                                element_instruction = f"\n\nIMPORTANT: Ask 'What makes your {chief_complaint} worse?' to make it clear."
-                            elif next_element == 'relieving':
-                                element_instruction = f"\n\nIMPORTANT: Ask 'What makes your {chief_complaint} better?' to make it clear."
-                            elif next_element == 'progression':
-                                element_instruction = f"\n\nIMPORTANT: Ask 'Has your {chief_complaint} gotten worse over time?' to make it clear."
-                            elif next_element == 'associated':
-                                element_instruction = f"\n\nIMPORTANT: Ask 'Have you noticed any other symptoms along with your {chief_complaint}?' to make it clear."
-                            
-                            user_msg = f"""Patient has: {chief_complaint}
+                            if next_element == 'location' and guideline_options:
+                                next_question = self._build_location_question(chief_complaint, guideline_options)
+                            else:
+                                # No guideline options - use general approach
+                                element_instruction = ""
+                                if next_element == 'location':
+                                    element_instruction = f"\n\nIMPORTANT: Ask 'Where exactly is your {chief_complaint} located?' to make it clear."
+                                elif next_element == 'character':
+                                    element_instruction = f"\n\nIMPORTANT: Ask 'How would you describe your {chief_complaint}?' to make it clear."
+                                elif next_element == 'onset':
+                                    element_instruction = f"\n\nIMPORTANT: Ask 'When did your {chief_complaint} start?' to make it clear."
+                                elif next_element == 'duration':
+                                    element_instruction = f"\n\nIMPORTANT: Ask 'How long does your {chief_complaint} last?' to make it clear."
+                                elif next_element == 'timing':
+                                    element_instruction = f"\n\nIMPORTANT: Ask 'Is your {chief_complaint} constant or does it come and go?' to make it clear."
+                                elif next_element == 'severity':
+                                    element_instruction = f"\n\nIMPORTANT: Ask 'How severe is your {chief_complaint}? On a scale of 1 to 10?' to make it clear."
+                                elif next_element == 'aggravating':
+                                    element_instruction = f"\n\nIMPORTANT: Ask 'What makes your {chief_complaint} worse?' to make it clear."
+                                elif next_element == 'relieving':
+                                    element_instruction = f"\n\nIMPORTANT: Ask 'What makes your {chief_complaint} better?' to make it clear."
+                                elif next_element == 'progression':
+                                    element_instruction = f"\n\nIMPORTANT: Ask 'Has your {chief_complaint} gotten worse over time?' to make it clear."
+                                elif next_element == 'associated':
+                                    element_instruction = f"\n\nIMPORTANT: Ask 'Have you noticed any other symptoms along with your {chief_complaint}?' to make it clear."
+                                
+                                if next_element == 'location' and guideline_options:
+                                    next_question = self._build_location_question(chief_complaint, guideline_options)
+                                else:
+                                    user_msg = f"""Patient has: {chief_complaint}
 
 What we know so far:
 {covered_info}
@@ -1295,32 +1325,23 @@ Recent conversation:
 {conversation_text}
 
 Generate ONE clear question about {next_element} for their {chief_complaint}.{element_instruction}"""
-                        
-                        system_msg = self.LLM_ASSESSMENT_SYSTEM_MSG_TEMPLATE.format(next_element=next_element)
-                        
-                        self._capture_debug(f"[Navigator] 🔍 Generating question for element: {next_element}, complaint: {chief_complaint}")
-                        if guideline_options:
-                            self._capture_debug(f"[Navigator] 📋 Injecting {len(guideline_options)} guideline options: {guideline_options[:5]}")
-                        
-                        llm_kwargs = self._get_llm_kwargs(override_max_tokens=100)
-                        response = self.llm_chat_fn(
-                            [{"role": "system", "content": system_msg}, {"role": "user", "content": user_msg}],
-                            **llm_kwargs
-                        )
-                        
-                        self._capture_debug(f"[Navigator] 💬 LLM generated question: '{response.strip()[:100]}...'")
-                        next_question = response.strip()
-                        
-                        if not next_question or len(next_question) < 10:
-                            self._capture_debug(f"[Navigator] ❌ LLM generated invalid question: '{next_question}'")
-                            raise ValueError(f"LLM failed to generate valid question for element: {next_element}")
-                        
-                        # Ensure location options appear exactly as provided
-                        if next_element == 'location' and guideline_options:
-                            missing_verbatim = [opt for opt in guideline_options if opt not in next_question]
-                            if missing_verbatim:
-                                self._capture_debug(f"[Navigator] ⚠️ Location terms missing or rephrased: {missing_verbatim} -> using deterministic fallback")
-                                next_question = self._build_location_question(chief_complaint, guideline_options)
+                                
+                                    system_msg = self.LLM_ASSESSMENT_SYSTEM_MSG_TEMPLATE.format(next_element=next_element)
+                                
+                                    self._capture_debug(f"[Navigator] 🔍 Generating question for element: {next_element}, complaint: {chief_complaint}")
+                                
+                                    llm_kwargs = self._get_llm_kwargs(override_max_tokens=100)
+                                    response = self.llm_chat_fn(
+                                        [{"role": "system", "content": system_msg}, {"role": "user", "content": user_msg}],
+                                        **llm_kwargs
+                                    )
+                                
+                                    self._capture_debug(f"[Navigator] 💬 LLM generated question: '{response.strip()[:100]}...'")
+                                    next_question = response.strip()
+                                
+                                    if not next_question or len(next_question) < 10:
+                                        self._capture_debug(f"[Navigator] ❌ LLM generated invalid question: '{next_question}'")
+                                        raise ValueError(f"LLM failed to generate valid question for element: {next_element}")
         
         # Get missing info for metadata
         missing_info = self._get_missing_oldcarts_info(session)
@@ -1808,12 +1829,12 @@ Generate ONE clear question about {next_element} for their {chief_complaint}.{el
                 self._capture_debug(f"[Navigator] 🔍 Clarification needed: {filtered_satisfied[:5]}")
                 return clarifying_question
             elif len(filtered_satisfied) == 1:
-                session.context['oldcarts_covered'][element] = True
+                self._mark_element_complete(session, element, patient_answer)
                 self._capture_debug(f"[Navigator] ✅ {element} marked complete (single satisfied term after filtering)")
                 return None
         elif len(satisfied_terms) == 1:
             # Single satisfied term (no clarification needed)
-            session.context['oldcarts_covered'][element] = True
+            self._mark_element_complete(session, element, patient_answer)
             self._capture_debug(f"[Navigator] ✅ {element} satisfied with single high-confidence term")
             return None
         
@@ -1858,7 +1879,7 @@ Generate ONE clear question about {next_element} for their {chief_complaint}.{el
                 return clarifying_question
         
         # Single term or less - mark complete
-        session.context['oldcarts_covered'][element] = True
+        self._mark_element_complete(session, element, patient_answer)
         self._capture_debug(f"[Navigator] ✅ {element} marked complete")
         return None
     
@@ -2065,3 +2086,9 @@ Generate ONE clear question about {next_element} for their {chief_complaint}.{el
             return "{}"
         parts = [f"{k}:{v}" for k, v in components.items()]
         return "{ " + ", ".join(parts) + " }"
+
+    def _mark_element_complete(self, session: 'AdvancedMedicalNavigator.MedicalSession', element: str, patient_answer: Optional[str] = None):
+        session.context['oldcarts_covered'][element] = True
+        if patient_answer:
+            session.context['oldcarts_data'][element] = patient_answer
+        session.context['last_extracted_element'] = None
