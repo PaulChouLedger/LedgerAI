@@ -101,7 +101,7 @@ class AdvancedMedicalNavigator:
             self.session_id = session_id
             self.created_at = datetime.now()
             self.messages: List[Dict[str, str]] = []
-            self.section: str = "identification"
+            self.section: str = "pre_hpi"
             self.pending: Optional[Dict[str, str]] = None
             self.context: Dict[str, Dict] = {
                 "pre_hpi": {},
@@ -182,19 +182,10 @@ class AdvancedMedicalNavigator:
     # ---------------------------------------------------------------------
 
     def _determine_next_question(self, session: "MedicalSession") -> Optional[Dict[str, str]]:
-        if session.section == "identification":
-            if not session.context["identification"].get("identifiers"):
-                prompt = self._generate_question(session, "identification", "identifiers")
-                return {
-                    "section": "identification",
-                    "field": "identifiers",
-                    "prompt": prompt,
-                }
-            session.section = "pre_hpi"
-
         if session.section == "pre_hpi":
+            pre_hpi_context = session.context.setdefault("pre_hpi", {})
             for field in self.PRE_HPI_ORDER:
-                if field not in session.context["pre_hpi"]:
+                if field not in pre_hpi_context:
                     guidance = self.PRE_HPI_GUIDANCE[field]
                     prompt = self._generate_question(session, "pre_hpi", field, guidance)
                     return {
@@ -205,7 +196,8 @@ class AdvancedMedicalNavigator:
             session.section = "hpi"
 
         if session.section == "hpi":
-            cc = session.context.get("chief_complaint") or "the issue"
+            pre_hpi_context = session.context.setdefault("pre_hpi", {})
+            cc = pre_hpi_context.get("chief_complaint", "the issue")
             for element in self.HPI_ORDER:
                 if element not in session.context["hpi"]:
                     template = self.HPI_PROMPTS[element]
@@ -240,12 +232,8 @@ class AdvancedMedicalNavigator:
         section = pending["section"]
         field = pending["field"]
 
-        if section == "identification":
-            session.context["identification"]["identifiers"] = answer.strip()
-        elif section == "pre_hpi":
-            session.context["pre_hpi"][field] = answer.strip()
-        elif section == "chief_complaint":
-            session.context["chief_complaint"] = answer.strip()
+        if section == "pre_hpi":
+            session.context.setdefault("pre_hpi", {})[field] = answer.strip()
         elif section == "hpi":
             session.context["hpi"][field] = answer.strip()
         elif section == "pmh":
@@ -268,14 +256,19 @@ class AdvancedMedicalNavigator:
         if not self.llm_chat_fn:
             return "History collection complete."
 
-        identification = session.context["pre_hpi"].get("age", "Not provided")
-        cc = session.context["pre_hpi"].get("chief_complaint", "Not stated")
-        hpi_parts = session.context["hpi"]
-        pmh_parts = session.context["pmh"]
+        pre_hpi_context = session.context.get("pre_hpi", {})
+        age = pre_hpi_context.get("age", "Not provided")
+        sex = pre_hpi_context.get("sex", "Not provided")
+        cc = pre_hpi_context.get("chief_complaint", "Not stated")
+        chronicity = pre_hpi_context.get("chronicity", "Not provided")
+        hpi_parts = session.context.get("hpi", {})
+        pmh_parts = session.context.get("pmh", {})
 
         user_prompt = (
-            f"Patient identification: {identification}\n"
-            f"Chief complaint: {cc}\n\n"
+            f"Chief complaint: {cc}\n"
+            f"Chronicity: {chronicity}\n"
+            f"Age: {age}\n"
+            f"Biological sex: {sex}\n\n"
             f"HPI (OLDCARTS): {hpi_parts}\n"
             f"PMH/PSH/Meds/Allergies: {pmh_parts}\n"
             "Provide a focused clinical summary."
@@ -326,13 +319,12 @@ class AdvancedMedicalNavigator:
         if not self.llm_chat_fn:
             return guidance or "Could you tell me more about that?"
 
-        cc = session.context["pre_hpi"].get("chief_complaint", "your symptoms") or "your symptoms"
+        pre_hpi_context = session.context.setdefault("pre_hpi", {})
+        cc = pre_hpi_context.get("chief_complaint", "your symptoms") or "your symptoms"
         previous = "\n".join(
             f"{msg['role']}: {msg['content']}" for msg in session.messages[-6:]
         )
-        guidance_text = guidance or (
-            self.IDENTIFICATION_PROMPT if section == "identification" else self.CHIEF_COMPLAINT_PROMPT
-        )
+        guidance_text = guidance or self.CHIEF_COMPLAINT_PROMPT
         user_prompt = (
             f"Section: {section}\n"
             f"Field: {field}\n"
