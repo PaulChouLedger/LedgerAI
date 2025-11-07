@@ -67,6 +67,7 @@ class AdvancedMedicalNavigator:
     # FAISS semantic matching thresholds
     FAISS_SEMANTIC_THRESHOLD = 0.65  # Main threshold for FAISS semantic matching (OLDCARTS elements)
     CHIEF_COMPLAINT_MATCHING_THRESHOLD = 0.6  # Threshold for chief complaint to trigger matching
+    CHIEF_COMPLAINT_FUZZY_THRESHOLD = 0.80  # Fuzzy match threshold for typo correction (80%+ similarity)
     
     # ===== LLM RULES & GUIDELINES =====
     # LLM prompts and system messages
@@ -175,98 +176,35 @@ DO NOT:
 Return ONLY the question, no explanations:"""
     
     # ===== OLDCARTS QUESTION TEMPLATES =====
-    # Following standard medical history format (aligned with clinical documentation)
-    # These serve as style guides for the LLM to generate similar questions tailored to patient's complaint
+    # Minimal style guide templates (actual guideline terms are injected into questions)
+    # These show the LLM HOW to format questions, not WHAT options to include
     OLDCARTS_QUESTION_TEMPLATES = {
         'onset': [
-            # Standard format: "When exactly did this symptom first begin?" "Did it start suddenly or gradually?"
-            'When exactly did the chest pain first begin? Did it start suddenly or gradually?',
-            'When did your shortness of breath first start? Was it sudden or did it come on gradually?',
-            'When exactly did the abdominal pain first begin? Did it start suddenly or gradually?',
-            'When exactly did the joint pain first begin? Did it start suddenly or gradually?',
-            'When did you first notice the rash appear? Did it come on suddenly or gradually?',
-            'When exactly did the flank pain first begin? Did it start suddenly or gradually?',
-            'When did you first notice the burning sensation? Was it sudden or gradual?'
+            'When exactly did this begin? Did it start suddenly or gradually?'
         ],
         'location': [
-            # Standard format: "Where exactly are you experiencing this?" "Does it move or stay in one place?"
-            'Where exactly are you experiencing the pain? Does it move to your jaw, neck, or arms?',
-            'Where exactly are you experiencing the chest discomfort? Does it stay in one place?',
-            'Where exactly in your abdomen are you experiencing this? Does it move or stay in one place?',
-            'Where exactly is the pain located? Can you point to the specific area?',
-            'Which part of your body is affected by the rash? Is it spreading?',
-            'Where exactly is the pain located? Does it move down towards your groin?',
-            'Where exactly are you experiencing this burning? Is it in one specific area?'
+            'Where exactly are you experiencing this? Does it move or stay in one place?'
         ],
         'duration': [
-            # Standard format: "How long does the symptom last when it occurs?" "Is it constant or does it come and go?"
-            'How long does the pain last when it occurs? Is it constant or does it come and go?',
-            'How long have you had this shortness of breath? Is it constant or intermittent?',
-            'How long does the abdominal pain last? Is it constant or does it come and go?',
-            'How long does the pain last? Has it been constant since the injury?',
-            'How long has the rash been there? Has it been constant or does it change?',
-            'How long does each episode of pain last? Is it constant or does it come in waves?',
-            'How long have you had these symptoms? Are they constant or intermittent?'
+            'How long does it last when it occurs? Is it constant or does it come and go?'
         ],
         'character': [
-            # Standard format: "How would you describe the feeling? (sharp, dull, etc.)"
-            'How would you describe the pain? Is it sharp, dull, pressure, squeezing, or burning?',
-            "How would you describe the breathing difficulty? Is it like you can't get enough air?",
-            'How would you describe the pain? Is it sharp and stabbing, or more of a dull ache?',
-            'How would you describe the pain? Is it sharp, throbbing, or a constant deep ache?',
-            'How does the skin feel? Is it hot, itchy, painful, or just red?',
-            'How would you describe the pain? Is it sharp and cramping, or a constant ache?',
-            'How would you describe this feeling? Is it burning, sharp, or uncomfortable?'
+            'How would you describe it? What does it feel like?'
         ],
         'aggravating': [
-            # Standard format: "What makes the symptom worse?" "Are there any triggers you have noticed?"
-            'What makes the pain worse? Are there any triggers like activity or stress?',
-            'What makes the shortness of breath worse? Does it happen with exertion?',
-            'What makes the abdominal pain worse? Movement, eating, or coughing?',
-            'What makes the pain worse? Does putting weight on it or moving it aggravate it?',
-            'What makes the rash worse? Does touching it, sweating, or movement affect it?',
-            'What makes the pain worse? Does movement or position change affect it?',
-            "What makes it worse? Are there any triggers you've noticed?"
+            'What makes it worse? Are there any triggers you have noticed?'
         ],
         'relieving': [
-            # Standard format: "What have you tried to make it better?" "Does anything provide relief?"
-            'What have you tried to make it better? Does anything provide relief?',
-            'Does anything make the breathing easier? Rest or position change?',
-            'What makes the pain better? Does lying still or anything else help?',
-            'Does anything provide relief? Rest, ice, elevation, or medication?',
-            'Does anything make it feel better? Creams, cold compress, or elevation?',
-            'Does anything make the pain better? Have you found any comfortable position?',
-            'What have you tried? Does anything provide relief from the discomfort?'
+            'What have you tried to make it better? Does anything provide relief?'
         ],
         'timing': [
-            # Standard format: "Does this happen at a specific time of day, or during certain activities?"
-            'Does this happen at a specific time of day, or during certain activities like eating or walking?',
-            'Does the shortness of breath happen at specific times? At night or when lying down?',
-            'Does the pain happen at specific times? After eating, or at certain times of day?',
-            'Does the pain happen during specific activities, or is it constant regardless?',
-            'Does the rash get worse at certain times of day, or with specific activities?',
-            'Do the episodes of pain come at specific times, or are they random?',
             'Does this happen at a specific time of day, or during certain activities?'
         ],
         'severity': [
-            # Standard format: "On a scale of 1 to 10, how bad is it?" "How much does this affect your daily life?"
-            'On a scale of 1 to 10, how bad is the pain? How much does it affect your daily activities?',
-            'On a scale of 1 to 10, how severe is the shortness of breath? Can you speak in full sentences?',
-            'On a scale of 1 to 10, how severe is the pain? Is it affecting your ability to function?',
-            'On a scale of 1 to 10, how bad is the pain right now? Can you bear any weight on it?',
-            'On a scale of 1 to 10, how bad is the discomfort? Is it affecting your daily activities?',
-            "On a scale of 1 to 10, how severe is this pain? Is it the worst pain you've ever felt?",
-            'On a scale of 1 to 10, how uncomfortable is this? How much does it impact your life?'
+            'On a scale of 1 to 10, how severe is this? How much does it affect your daily life?'
         ],
         'associated': [
-            # Standard format: "Have you noticed any other symptoms along with this?"
-            'Have you noticed any other symptoms along with this, such as shortness of breath, nausea, or sweating?',
-            'Have you noticed any other symptoms like fever, cough, or chest pain?',
-            'Have you noticed any other symptoms such as nausea, vomiting, fever, or changes in appetite?',
-            'Have you noticed any other symptoms like swelling, bruising, numbness, or inability to move?',
-            'Have you noticed any other symptoms such as fever, chills, or feeling unwell?',
-            'Have you noticed any other symptoms like nausea, vomiting, blood in urine, or fever?',
-            'Have you noticed any other symptoms along with this, such as fever, discharge, or bleeding?'
+            'Have you noticed any other symptoms along with this?'
         ]
     }
     
@@ -469,12 +407,18 @@ Return ONLY the question, no explanations:"""
             raise ValueError("LLM function required for greeting detection")
         
         # Quick heuristic: If message contains symptom keywords, it's NOT a greeting
+        # This is a fast-path optimization (avoids LLM call for ~70% of medical messages)
         symptom_keywords = ['pain', 'hurt', 'ache', 'fever', 'cough', 'nausea', 'vomit', 
                            'dizzy', 'bleed', 'swell', 'rash', 'itch', 'sick', 'ill', 
                            'chest', 'stomach', 'head', 'abdomen', 'back', 'throat']
         message_lower = message.lower()
-        if any(keyword in message_lower for keyword in symptom_keywords):
-            self._capture_debug(f"[Navigator] 🩺 Detected medical content (symptom keyword): '{message}'")
+        
+        # Check for negations to avoid false positives
+        negations = ["don't have", "no ", "not ", "without ", "never had", "doesn't hurt"]
+        has_negation = any(neg in message_lower for neg in negations)
+        
+        if any(keyword in message_lower for keyword in symptom_keywords) and not has_negation:
+            self._capture_debug(f"[Navigator] 🩺 Fast-path: Detected medical content (symptom keyword): '{message}'")
             return False
         
         # Use LLM to intelligently detect greetings (only if no symptom keywords)
@@ -502,19 +446,21 @@ Return ONLY the question, no explanations:"""
     def _match_chief_complaint_to_categories(self, chief_complaint: str) -> List[str]:
         """
         Match chief complaint to categories by semantically comparing to all chief_complaint_triggers.
+        Uses 2-tier matching: FAISS semantic + fuzzy fallback for typos.
         
         Algorithm:
-        1. Semantically compare chief complaint to all triggers from all guidelines
-        2. Find matching guidelines (above threshold)
+        1. FAISS: Semantically compare chief complaint to all triggers from all guidelines
+        2. If no match: Fuzzy match fallback (for typos like "abodminal pain" → "abdominal pain")
         3. Extract categories from matching guidelines
         4. Return categories (single or multiple if overlap)
         """
         if not self.embedding_model or not self.all_chief_complaint_triggers:
             raise ValueError("Embedding model and chief complaint triggers required for category matching")
         
-        # Semantically compare chief complaint to all triggers
+        # TIER 1: FAISS Semantic matching
         threshold = self.CHIEF_COMPLAINT_MATCHING_THRESHOLD
         matched_guidelines = []  # [{category, condition, score}, ...]
+        all_scores = {}  # Track ALL scores for debug output
         
         import numpy as np
         
@@ -522,6 +468,9 @@ Return ONLY the question, no explanations:"""
         chief_complaint_embedding = self.embedding_model.encode([chief_complaint])[0]
         chief_emb = np.array(chief_complaint_embedding).reshape(1, -1)
         chief_norm = chief_emb / np.linalg.norm(chief_emb)
+        
+        self._capture_debug(f"[Navigator] 🔍 Chief Complaint FAISS Matching: '{chief_complaint}'")
+        self._capture_debug(f"[Navigator] 📊 Threshold: {threshold} (FAISS semantic)")
         
         # Compare to all triggers
         for trigger_data in self.all_chief_complaint_triggers:
@@ -535,6 +484,10 @@ Return ONLY the question, no explanations:"""
             # Calculate cosine similarity
             similarity = float(np.dot(trigger_norm, chief_norm.T)[0][0])
             
+            # Store ALL scores for debug
+            trigger_key = f"{trigger_data['condition']}"
+            all_scores[trigger_key] = similarity
+            
             if similarity >= threshold:
                 matched_guidelines.append({
                     'category': trigger_data['category'],
@@ -542,17 +495,72 @@ Return ONLY the question, no explanations:"""
                     'filepath': trigger_data['filepath'],
                     'score': similarity
                 })
+                self._capture_debug(f"[Navigator] ✅ MATCH: '{trigger}' → {trigger_data['condition']} ({trigger_data['category']}) - Score: {similarity:.3f}")
         
-        # Extract unique categories from matched guidelines
-        matched_categories = list(set([g['category'] for g in matched_guidelines]))
+        # Show top 5 scores for debugging (even if below threshold)
+        sorted_scores = sorted(all_scores.items(), key=lambda x: x[1], reverse=True)[:5]
+        self._capture_debug(f"[Navigator] 📊 Top 5 FAISS scores:")
+        for condition, score in sorted_scores:
+            status = "✅" if score >= threshold else "❌"
+            self._capture_debug(f"[Navigator]   {status} {condition}: {score:.3f}")
         
+        # If FAISS found matches, return them
         if matched_guidelines:
-            self._capture_debug(f"[Navigator] 🔍 Chief complaint '{chief_complaint}' matched {len(matched_guidelines)} guidelines in categories: {matched_categories}")
-        else:
-            self._capture_debug(f"[Navigator] ⚠️ No semantic match found for chief complaint: '{chief_complaint}' (threshold: {threshold}) - will use general LLM knowledge with OLDCARTS")
+            matched_categories = list(set([g['category'] for g in matched_guidelines]))
+            # Sort by score for better readability
+            matched_guidelines.sort(key=lambda x: x['score'], reverse=True)
+            self._capture_debug(f"[Navigator] ✅ FAISS RESULT: Matched {len(matched_guidelines)} guidelines in categories: {matched_categories}")
+            self._capture_debug(f"[Navigator] 📋 Top matched conditions:")
+            for i, match in enumerate(matched_guidelines[:5], 1):
+                self._capture_debug(f"[Navigator]   {i}. {match['condition']} ({match['category']}) - Score: {match['score']:.3f}")
+            return matched_categories
         
-        # Return empty list if no matches - caller will use general LLM knowledge
-        return matched_categories
+        # TIER 2: Fuzzy matching fallback (for typos/near-misses)
+        self._capture_debug(f"[Navigator] 🔍 TIER 2: Fuzzy matching for typos/near-misses...")
+        self._capture_debug(f"[Navigator] 📊 Fuzzy Threshold: {self.CHIEF_COMPLAINT_FUZZY_THRESHOLD} (80%+ similarity)")
+        
+        from fuzzywuzzy import fuzz
+        fuzzy_threshold = self.CHIEF_COMPLAINT_FUZZY_THRESHOLD
+        fuzzy_matches = []
+        fuzzy_scores = {}
+        
+        for trigger_data in self.all_chief_complaint_triggers:
+            trigger = trigger_data['trigger']
+            # Use token_sort_ratio for better phrase matching (handles word order)
+            ratio = fuzz.token_sort_ratio(chief_complaint.lower(), trigger.lower()) / 100.0
+            
+            # Store ALL fuzzy scores for debug
+            trigger_key = f"{trigger_data['condition']}"
+            fuzzy_scores[trigger_key] = ratio
+            
+            if ratio >= fuzzy_threshold:
+                fuzzy_matches.append({
+                    'category': trigger_data['category'],
+                    'condition': trigger_data['condition'],
+                    'filepath': trigger_data['filepath'],
+                    'trigger': trigger,
+                    'score': ratio
+                })
+                self._capture_debug(f"[Navigator] ✅ FUZZY MATCH: '{chief_complaint}' → '{trigger}' ({trigger_data['condition']}) - Score: {ratio:.3f}")
+        
+        # Show top 5 fuzzy scores for debugging
+        sorted_fuzzy = sorted(fuzzy_scores.items(), key=lambda x: x[1], reverse=True)[:5]
+        self._capture_debug(f"[Navigator] 📊 Top 5 Fuzzy scores:")
+        for condition, score in sorted_fuzzy:
+            status = "✅" if score >= fuzzy_threshold else "❌"
+            self._capture_debug(f"[Navigator]   {status} {condition}: {score:.3f}")
+        
+        if fuzzy_matches:
+            matched_categories = list(set([g['category'] for g in fuzzy_matches]))
+            best_match = max(fuzzy_matches, key=lambda x: x['score'])
+            self._capture_debug(f"[Navigator] ✅ FUZZY RESULT: Matched '{chief_complaint}' → '{best_match['trigger']}' (score: {best_match['score']:.3f})")
+            self._capture_debug(f"[Navigator] 📋 Categories: {matched_categories}")
+            return matched_categories
+        
+        # No matches at all
+        self._capture_debug(f"[Navigator] ⚠️ NO MATCH: No FAISS or fuzzy match found for '{chief_complaint}'")
+        self._capture_debug(f"[Navigator] 📚 Falling back to general LLM knowledge with OLDCARTS structure")
+        return []
     
     def _load_guidelines_for_categories(self, categories: List[str], chief_complaint: str = None):
         """
