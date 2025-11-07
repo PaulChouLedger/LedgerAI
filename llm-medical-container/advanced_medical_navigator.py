@@ -790,6 +790,7 @@ Return ONLY the question, no explanations:"""
         """
         # Get or create session
         session = self._get_or_create_session(session_id)
+        self._ensure_session_defaults(session)
         self._capture_debug(f"[Navigator] 📨 Session {session_id}: {len(session.messages)} messages before adding current user message")
         session.add_message('user', user_message)
         self._capture_debug(f"[Navigator] 📨 Session {session_id}: {len(session.messages)} messages after adding current user message")
@@ -1088,14 +1089,15 @@ Which OLDCARTS element was answered? Return ONLY the element name:"""
         weight = self.SCORING_WEIGHT
         boost_value = self.BOOST_VALUE
         for condition_name, guideline in self.all_guidelines.items():
-            old_score = session.condition_scores.get(condition_name, 0.0)
+            old_score = session.condition_scores[condition_name]
+            display_name = guideline.get('data', {}).get('condition', guideline.get('name', condition_name))
             similarity, matched = self._calculate_guideline_score(guideline, element, normalized_answer, matches)
             boost = boost_value if matched else 0.0
             new_score = (old_score * (1 - weight)) + (similarity * weight) + boost
             new_score = max(0.0, min(1.0, new_score))
             session.condition_scores[condition_name] = new_score
             self._capture_debug(
-                f"[Scoring] 📊 {condition_name}: old={old_score:.3f}, similarity={similarity:.3f}, boost={boost:.3f}, normalized='{normalized_answer}', new={new_score:.3f}"
+                f"[Scoring] 📊 {display_name}: old={old_score:.3f}, similarity={similarity:.3f}, boost={boost:.3f}, normalized='{normalized_answer}', new={new_score:.3f}"
             )
         self._capture_debug(f"[Rule Out] 📉 Ruled out {len(session.context.get('ruled_out_conditions', []))} guidelines, {len(self.all_guidelines)} remaining")
     
@@ -1138,7 +1140,12 @@ Which OLDCARTS element was answered? Return ONLY the element name:"""
             key=lambda x: x[1],
             reverse=True
         )
-        self._capture_debug(f"[Ranking] 🔍 Scores before sorting (first 5): {sorted_conditions[:5]}")
+        scores_preview = []
+        for condition_name, score in sorted_conditions[:5]:
+            guideline = self.all_guidelines.get(condition_name)
+            display_name = guideline.get('data', {}).get('condition', guideline.get('name', condition_name)) if guideline else condition_name
+            scores_preview.append((display_name, score))
+        self._capture_debug(f"[Ranking] 🔍 Scores before sorting (first 5): {scores_preview}")
 
         previous_active = set(r['condition'] for r in (session.condition_rankings or []))
 
@@ -1147,8 +1154,9 @@ Which OLDCARTS element was answered? Return ONLY the element name:"""
         for condition_name, score in sorted_conditions[:self.TOP_CONDITIONS_LIMIT]:
             guideline = self.all_guidelines.get(condition_name)
             if guideline:
+                display_name = guideline.get('data', {}).get('condition', guideline.get('name', condition_name))
                 new_active.append({
-                    'condition': condition_name,
+                    'condition': display_name,
                     'score': score,
                     'guideline': guideline
                 })
@@ -1160,8 +1168,9 @@ Which OLDCARTS element was answered? Return ONLY the element name:"""
         for condition_name, score in sorted_conditions[self.TOP_CONDITIONS_LIMIT:]:
             guideline = self.all_guidelines.get(condition_name)
             if guideline:
+                display_name = guideline.get('data', {}).get('condition', guideline.get('name', condition_name))
                 reserve_pool.append({
-                    'condition': condition_name,
+                    'condition': display_name,
                     'score': score,
                     'guideline': guideline
                 })
@@ -2058,7 +2067,6 @@ Generate ONE clear question about {next_element} for their {chief_complaint}.{el
         return {}
     
     def _format_engine_debug(self, session_id: str = None, prefix_note: str = None) -> str:
-        """Return formatted debug banner similar to Telegram output."""
         lines = []
         lines.append("="*80)
         lines.append("[Telegram] 🧠 ENGINE DEBUG OUTPUT")
@@ -2066,6 +2074,7 @@ Generate ONE clear question about {next_element} for their {chief_complaint}.{el
         
         if session_id and session_id in self.sessions:
             session = self.sessions[session_id]
+            self._ensure_session_defaults(session)
             guideline_active_count = len(self.all_guidelines)
             active_conditions = session.condition_rankings or []
             reserve_pool = session.context.get('reserve_pool', []) or []
@@ -2162,6 +2171,7 @@ Generate ONE clear question about {next_element} for their {chief_complaint}.{el
         """Construct structured debug payload for container logging."""
         if not session:
             return {}
+        self._ensure_session_defaults(session)
         debug_context = session.context.get('debug', {})
         header_lines = self._format_engine_debug(session.session_id).splitlines()
         detailed_lines = self.get_debug_output()
@@ -2288,3 +2298,37 @@ Generate ONE clear question about {next_element} for their {chief_complaint}.{el
         if patient_answer:
             session.context['oldcarts_data'][element] = patient_answer
         session.context['last_extracted_element'] = None
+
+    def _ensure_session_defaults(self, session: 'AdvancedMedicalNavigator.MedicalSession') -> None:
+        if not session:
+            return
+        ctx = session.context
+        ctx.setdefault('demographics', {})
+        ctx.setdefault('oldcarts_covered', {
+            'onset': False,
+            'location': False,
+            'duration': False,
+            'character': False,
+            'aggravating': False,
+            'relieving': False,
+            'timing': False,
+            'severity': False,
+            'associated': False
+        })
+        ctx.setdefault('oldcarts_data', {
+            'onset': None,
+            'location': None,
+            'duration': None,
+            'character': None,
+            'aggravating': None,
+            'relieving': None,
+            'timing': None,
+            'severity': None,
+            'associated': None
+        })
+        ctx.setdefault('anatomical_history', {'location': []})
+        ctx.setdefault('matched_categories', [])
+        ctx.setdefault('reserve_pool', [])
+        ctx.setdefault('ruled_out_conditions', [])
+        ctx.setdefault('pending_options', {})
+        ctx.setdefault('debug', {})
