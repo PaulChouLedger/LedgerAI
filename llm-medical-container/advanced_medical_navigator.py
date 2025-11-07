@@ -318,6 +318,19 @@ Return ONLY the question, no explanations:"""
     # ===== GREETING DETECTION =====
     # LLM-based greeting detection (no hardcoded patterns needed)
     
+    # ===== CLARIFICATION ELEMENTS =====
+    # Elements that DO NOT need clarifying questions (simple documentation elements)
+    NO_CLARIFICATION_ELEMENTS = {
+        'onset',      # Simple "when did it start?"
+        'progression', # Simple progression description
+        'duration',   # Simple "how long?"
+        'timing',     # Simple "constant or intermittent?"
+        'severity',   # Simple "1-10 scale"
+        'associated', # Simple "any other symptoms?"
+        'character'   # Already provides filtered options based on chief complaint
+    }
+    # Only location, aggravating, and relieving can have clarifying questions
+    
     # ===== CATEGORY MAPPING =====
     # Map directory names (GI, CARDIO) to full category names (gastrointestinal, cardiovascular)
     # This matches the medical_rule_engine's category naming
@@ -884,16 +897,16 @@ Return ONLY the question, no explanations:"""
         else:
             raise ValueError("LLM function required for chief complaint handling")
         
-        # Ask chronicity question next (hardcoded for consistency)
-        chronicity_question = "Is this a new problem or an ongoing issue you've been dealing with?"
-        combined_response = f"{acknowledgment}\n\n{chronicity_question}"
+        # Ask generic, open-ended follow-up question (allows patient to provide any info)
+        open_question = f"Can you tell me more about your {chief_complaint}?"
+        combined_response = f"{acknowledgment}\n\n{open_question}"
         
         return {
             'response': combined_response,
-            'status': 'demographics',
+            'status': 'assessment',
             'metadata': {
                 'chief_complaint': chief_complaint,
-                'asking': 'chronicity'
+                'asking': 'open_ended'
             }
         }
     
@@ -927,8 +940,17 @@ Which OLDCARTS element was answered? Return ONLY the element name:"""
             
             element = response.strip().lower()
             if element and element != 'none' and element in session.context['oldcarts_covered']:
-                session.context['oldcarts_covered'][element] = True
-                self._capture_debug(f"[Navigator] ✅ Extracted {element} from patient answer")
+                # Store last extracted element for clarification check
+                session.context['last_extracted_element'] = element
+                
+                # Elements that don't need clarification - mark complete immediately
+                if not self._element_needs_clarification(element):
+                    session.context['oldcarts_covered'][element] = True
+                    self._capture_debug(f"[Navigator] ✅ {element} marked complete (no clarification needed)")
+                else:
+                    # Elements that CAN need clarification (location, aggravating, relieving)
+                    # Will be checked in _handle_assessment
+                    self._capture_debug(f"[Navigator] ⏳ {element} extracted (will check if clarification needed)")
         except Exception as e:
             print(f"[Navigator] ⚠️ Failed to extract OLDCARTS info: {e}")
     
@@ -1035,6 +1057,21 @@ Which OLDCARTS element was answered? Return ONLY the element name:"""
         use_general_llm = session.context.get('use_general_llm', False)
         chief_complaint = session.context.get('chief_complaint', 'symptoms')
         
+        # Check if last extracted element needs clarification (location, aggravating, relieving only)
+        last_extracted_element = session.context.get('last_extracted_element')
+        if last_extracted_element and message:
+            clarifying_question = self._check_if_clarification_needed(session, last_extracted_element, message)
+            if clarifying_question:
+                self._capture_debug(f"[Navigator] 🔍 Clarification needed for {last_extracted_element}")
+                return {
+                    'response': clarifying_question,
+                    'status': 'clarification',
+                    'metadata': {
+                        'element': last_extracted_element,
+                        'is_clarification': True
+                    }
+                }
+        
         if use_general_llm:
             # Use general LLM knowledge with OLDCARTS structure (no guidelines)
             next_element, examples = self._select_best_next_question(session)
@@ -1084,61 +1121,56 @@ Be conversational and specific to their situation."""
                 if not next_question or len(next_question) < 10:
                     raise ValueError(f"LLM failed to generate valid question for element: {next_element}")
         else:
-            # Use guideline-based assessment with condition rankings
-            next_element, examples = self._select_best_next_question(session)
-            
-            if not next_element:
-                # All information gathered - provide summary
-                next_question = self._generate_assessment_summary(session)
+            # Check if demographics are complete first
+            demo_response = self._handle_demographics(session)
+            if demo_response:
+                next_question = demo_response['response']
             else:
-                # Get generic template examples (style guide)
-                template_examples = self._get_oldcarts_examples(chief_complaint, next_element)
+                # Use guideline-based assessment with condition rankings
+                next_element, examples = self._select_best_next_question(session)
                 
-                # Use LLM to generate next question with structured guidance
-                system_msg = self.LLM_ASSESSMENT_SYSTEM_MSG_TEMPLATE.format(next_element=next_element)
-                
-                # Build conversation context
-                conversation_text = "\n".join([
-                    f"{msg['role']}: {msg['content']}" 
-                    for msg in session.get_recent_messages(8)
-                ])
-                
-                # Build context about top conditions for differentiation
-                top_conditions_context = ""
-                if session.condition_rankings:
-                    top_conditions_context = "\n\nTop conditions being considered:\n"
-                    for i, ranking in enumerate(session.condition_rankings[:3], 1):
-                        top_conditions_context += f"{i}. {ranking['condition']} (score: {ranking['score']:.2f})\n"
-                
-                user_msg = f"""PATIENT'S ACTUAL CHIEF COMPLAINT: {chief_complaint}
+                if not next_element:
+                    # All information gathered - provide summary
+                    next_question = self._generate_assessment_summary(session)
+                else:
+                        # Build conversation context
+                        conversation_text = "\n".join([
+                            f"{msg['role']}: {msg['content']}" 
+                            for msg in session.get_recent_messages(6)
+                        ])
+                        
+                        # Build context about what we know
+                        covered_info = self._format_covered_info(session)
+                        
+                        # Simplified prompt - focus on patient's actual situation
+                        user_msg = f"""Patient has: {chief_complaint}
 
-IMPORTANT: Ask about {next_element} for the patient's {chief_complaint}, NOT about any topics from the examples below.
+What we know so far:
+{covered_info}
 
-Information already gathered from this patient:
-{self._format_covered_info(session)}
+Ask about: {next_element}
 
-Next element to ask about: {next_element}
-
-STYLE GUIDE ONLY (use these for HOW to format your question, NOT WHAT to ask about):
-{template_examples}
-{top_conditions_context}
-
-Recent conversation with this patient:
+Recent conversation:
 {conversation_text}
 
-Generate a question about {next_element} specifically for this patient's {chief_complaint}. 
-CRITICAL: Use the patient's actual complaint ({chief_complaint}), not any topics from the examples.
-Be conversational and specific to their situation."""
-                
-                llm_kwargs = self._get_llm_kwargs(override_max_tokens=100)
-                response = self.llm_chat_fn(
-                    [{"role": "system", "content": system_msg}, {"role": "user", "content": user_msg}],
-                    **llm_kwargs
-                )
-                
-                next_question = response.strip()
-                if not next_question or len(next_question) < 10:
-                    raise ValueError(f"LLM failed to generate valid question for element: {next_element}")
+Generate ONE clear question about {next_element} for their {chief_complaint}."""
+                        
+                        system_msg = self.LLM_ASSESSMENT_SYSTEM_MSG_TEMPLATE.format(next_element=next_element)
+                        
+                        self._capture_debug(f"[Navigator] 🔍 Generating question for element: {next_element}, complaint: {chief_complaint}")
+                        
+                        llm_kwargs = self._get_llm_kwargs(override_max_tokens=80)
+                        response = self.llm_chat_fn(
+                            [{"role": "system", "content": system_msg}, {"role": "user", "content": user_msg}],
+                            **llm_kwargs
+                        )
+                        
+                        self._capture_debug(f"[Navigator] 💬 LLM generated question: '{response.strip()[:100]}...'")
+                        next_question = response.strip()
+                        
+                        if not next_question or len(next_question) < 10:
+                            self._capture_debug(f"[Navigator] ❌ LLM generated invalid question: '{next_question}'")
+                            raise ValueError(f"LLM failed to generate valid question for element: {next_element}")
         
         # Get missing info for metadata
         missing_info = self._get_missing_oldcarts_info(session)
@@ -1415,6 +1447,184 @@ Be conversational and specific to their situation."""
             'context': session.context,
             'created_at': session.created_at.isoformat()
         }
+    
+    def _element_needs_clarification(self, element: str) -> bool:
+        """Check if OLDCARTS element needs clarifying questions"""
+        return element not in self.NO_CLARIFICATION_ELEMENTS
+    
+    def _check_if_clarification_needed(self, session: 'AdvancedMedicalNavigator.MedicalSession', element: str, patient_answer: str) -> Optional[str]:
+        """
+        Check if clarifying question is needed for elements that support clarification.
+        Returns clarifying question if needed, None otherwise.
+        
+        Logic (matching adaptive engine):
+        1. If 2+ terms meet FAISS threshold:
+           - Build satisfied array
+           - Deduplicate
+           - Filter out anatomically opposite terms (left vs right, better vs worse)
+           - Generate clarifying question
+        2. If no terms match:
+           - Create missing array
+           - Deduplicate
+           - Filter out anatomically opposite terms
+           - Generate clarifying question
+        3. Process repeats until only one term remains or one term matches
+        """
+        if not self._element_needs_clarification(element):
+            # Element doesn't support clarification - mark complete
+            session.context['oldcarts_covered'][element] = True
+            self._capture_debug(f"[Navigator] ✅ {element} marked complete (no clarification needed)")
+            return None
+        
+        # For location, aggravating, relieving - check FAISS matches
+        if not self.medical_rule_engine:
+            # No guidelines loaded - mark complete
+            session.context['oldcarts_covered'][element] = True
+            return None
+        
+        # STEP 1: Get FAISS matches with scores
+        matches_with_scores = self.medical_rule_engine.find_matching_terms_faiss(
+            prompt=patient_answer,
+            element=element,
+            threshold=self.FAISS_SEMANTIC_THRESHOLD,
+            return_scores=True
+        )
+        
+        self._capture_debug(f"[Navigator] 🔍 FAISS matches for {element}: {len(matches_with_scores) if matches_with_scores else 0}")
+        
+        # STEP 2: Build satisfied array (2+ terms meeting threshold)
+        satisfied_terms = []
+        missing_terms = []
+        
+        if matches_with_scores:
+            for match in matches_with_scores:
+                if isinstance(match, tuple):
+                    term, score = match
+                    if score >= self.FAISS_SEMANTIC_THRESHOLD:
+                        satisfied_terms.append(term)
+                else:
+                    satisfied_terms.append(match)
+        
+        self._capture_debug(f"[Navigator] ✅ Satisfied terms ({len(satisfied_terms)}): {satisfied_terms[:5]}")
+        
+        # STEP 3: Check satisfied array
+        if len(satisfied_terms) >= 2:
+            # STEP 3a: Deduplicate
+            unique_satisfied = list(dict.fromkeys(satisfied_terms))
+            
+            # STEP 3b: Filter anatomically opposite terms
+            filtered_satisfied = self._filter_anatomical_opposites(unique_satisfied, patient_answer, element)
+            
+            self._capture_debug(f"[Navigator] 📋 After filtering: {len(filtered_satisfied)} terms remain")
+            
+            if len(filtered_satisfied) >= 2:
+                # Still multiple - generate clarifying question
+                clarifying_question = self._generate_simple_clarification(element, filtered_satisfied[:5])
+                self._capture_debug(f"[Navigator] 🔍 Clarification needed: {filtered_satisfied[:5]}")
+                return clarifying_question
+            elif len(filtered_satisfied) == 1:
+                # Single term - mark complete
+                session.context['oldcarts_covered'][element] = True
+                self._capture_debug(f"[Navigator] ✅ {element} marked complete (single satisfied term after filtering)")
+                return None
+        
+        # STEP 4: No terms satisfied - build missing array
+        if len(satisfied_terms) == 0:
+            # Get all terms from guidelines for this element
+            all_terms = []
+            for condition_name, guideline in self.all_guidelines.items():
+                structured_oldcarts = guideline.get('key_features', {}).get('structured_oldcarts', {})
+                element_data = structured_oldcarts.get(element, {})
+                if isinstance(element_data, dict):
+                    includes = element_data.get('includes', [])
+                    for term_data in includes:
+                        if isinstance(term_data, dict):
+                            patient_friendly = term_data.get('patient_friendly', '')
+                            if patient_friendly:
+                                all_terms.append(patient_friendly)
+                        elif isinstance(term_data, str):
+                            all_terms.append(term_data)
+            
+            # STEP 4a: Deduplicate
+            unique_missing = list(dict.fromkeys(all_terms))
+            
+            # STEP 4b: Filter anatomically opposite terms
+            filtered_missing = self._filter_anatomical_opposites(unique_missing, patient_answer, element)
+            
+            self._capture_debug(f"[Navigator] 📋 Missing terms after filtering: {len(filtered_missing)}")
+            
+            if len(filtered_missing) >= 2:
+                # Multiple missing - generate clarifying question
+                clarifying_question = self._generate_simple_clarification(element, filtered_missing[:5])
+                self._capture_debug(f"[Navigator] 🔍 Clarification needed (no satisfied): {filtered_missing[:5]}")
+                return clarifying_question
+        
+        # Single term or less - mark complete
+        session.context['oldcarts_covered'][element] = True
+        self._capture_debug(f"[Navigator] ✅ {element} marked complete")
+        return None
+    
+    def _filter_anatomical_opposites(self, terms: List[str], patient_answer: str, element: str) -> List[str]:
+        """Filter out terms that are anatomically opposite to patient's answer using LLM"""
+        if not terms or len(terms) <= 1:
+            return terms
+        
+        # Build the filtering prompt for LLM
+        system_msg = """You are a medical assistant helping to filter anatomical locations.
+Given a patient's description of their pain location, filter out terms that are anatomically incompatible.
+
+Rules:
+- If patient says "right side" or "right", exclude "left" terms
+- If patient says "left side" or "left", exclude "right" terms  
+- If patient says "upper" or "top", exclude "lower" or "bottom" terms
+- If patient says "lower" or "bottom", exclude "upper" or "top" terms
+- Keep vague/general terms (like "diffuse", "all over") - they're compatible with any location
+- Keep terms that don't specify direction
+
+Return ONLY a JSON array of the compatible terms from the provided list."""
+
+        terms_str = ", ".join([f'"{t}"' for t in terms])
+        user_msg = f"""Patient said: "{patient_answer}"
+
+Available terms: [{terms_str}]
+
+Return only the anatomically compatible terms as a JSON array."""
+
+        try:
+            llm_kwargs = self._get_llm_kwargs(override_temp=0.1, override_max_tokens=300)
+            response = self.llm_chat_fn(
+                system_msg=system_msg,
+                user_msg=user_msg,
+                **llm_kwargs
+            )
+            
+            response = response.strip()
+            self._capture_debug(f"[Navigator] 🤖 LLM filtering response: {response}")
+            
+            # Parse JSON response
+            if response.startswith('[') and response.endswith(']'):
+                filtered = json.loads(response)
+                self._capture_debug(f"[Navigator] ✅ LLM filtered: {len(terms)} → {len(filtered)} terms")
+                return filtered
+            else:
+                self._capture_debug(f"[Navigator] ⚠️ LLM response not valid JSON, keeping all terms")
+                return terms
+                
+        except Exception as e:
+            self._capture_debug(f"[Navigator] ⚠️ LLM filtering failed: {e}, keeping all terms")
+            return terms
+    
+    def _generate_simple_clarification(self, element: str, options: List[str]) -> str:
+        """Generate simple clarifying question with options"""
+        if len(options) == 2:
+            return f"Is it {options[0]} or {options[1]}?"
+        elif len(options) == 3:
+            return f"Is it {options[0]}, {options[1]}, or {options[2]}?"
+        elif len(options) >= 4:
+            options_text = ", ".join(options[:-1]) + f", or {options[-1]}"
+            return f"Is it {options_text}?"
+        else:
+            return f"Can you clarify if it's {options[0]}?"
     
     # ============================================================================
     # SECTION 8: DEBUGGING - Debug Functions (Last)
