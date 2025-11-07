@@ -384,7 +384,12 @@ class ClinicianSession:
             is_greeting = self._is_greeting_message(user_input)
             if is_greeting:
                 print(f"[Clinician] 👋 Detected greeting: '{user_input}' - handling as greeting")
-                return self._handle_casual_greeting(user_input)
+                # If using medical navigator, route greetings through it to maintain session
+                if self.use_medical_navigator and self.medical_navigator:
+                    print(f"[Clinician] 🔀 Routing greeting to Medical Navigator for session continuity")
+                    return self._handle_symptom_assessment(user_input)
+                else:
+                    return self._handle_casual_greeting(user_input)
             else:
                 print(f"[Clinician] 🔍 Not a greeting: '{user_input}' - proceeding to symptom assessment")
         
