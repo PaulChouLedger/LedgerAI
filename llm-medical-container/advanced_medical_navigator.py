@@ -76,6 +76,10 @@ OLDCARTS elements:
 - severity: How bad (1-10)?
 - associated: Other symptoms?"""
     
+    # Demographics Questions
+    LLM_CHRONICITY_SYSTEM_MSG = "You are a medical assistant. Generate a concise question to ask if the patient's problem is new or ongoing."
+    LLM_CHRONICITY_USER_MSG = "Is this a new problem or an ongoing issue?"
+    
     # Greeting Detection
     LLM_GREETING_DETECTION_SYSTEM_MSG = """You are a medical assistant. Determine if the patient's message is a greeting or a medical concern.
 
@@ -300,6 +304,21 @@ Return ONLY the question, no explanations:"""
     
     # ===== GREETING DETECTION =====
     # LLM-based greeting detection (no hardcoded patterns needed)
+    
+    # ===== CATEGORY MAPPING =====
+    # Map directory names (GI, CARDIO) to full category names (gastrointestinal, cardiovascular)
+    # This matches the medical_rule_engine's category naming
+    CATEGORY_DIR_TO_FULL_NAME = {
+        'GI': 'gastrointestinal',
+        'CARDIO': 'cardiovascular',
+        'PULMONARY': 'respiratory',
+        'NEURO': 'neurological',
+        'MSK': 'musculoskeletal',
+        'RENAL': 'renal',
+        'GU': 'genitourinary',
+        'GYN': 'gynecological',
+        'DERM': 'dermatological'
+    }
     
     # ============================================================================
     # SECTION 2: INITIALIZATION
@@ -565,14 +584,18 @@ Return ONLY the question, no explanations:"""
         # Activate FAISS indexes for these categories (indexes already built at startup)
         # This ensures FAISS searches are limited to relevant categories (latency optimization)
         if self.medical_rule_engine and categories:
-            if len(categories) > 1:
+            # Translate directory names (GI, CARDIO) to full names (gastrointestinal, cardiovascular)
+            # Medical rule engine uses full names for indexing
+            full_category_names = [self.CATEGORY_DIR_TO_FULL_NAME.get(cat, cat.lower()) for cat in categories]
+            
+            if len(full_category_names) > 1:
                 # Multiple categories - activate merged indexes
-                self.medical_rule_engine.set_active_category(categories)
-                self._capture_debug(f"[Navigator] 🔍 Activated merged FAISS indexes for categories: {', '.join(categories)}")
-            elif len(categories) == 1:
+                self.medical_rule_engine.set_active_category(full_category_names)
+                self._capture_debug(f"[Navigator] 🔍 Activated merged FAISS indexes for categories: {', '.join(full_category_names)}")
+            elif len(full_category_names) == 1:
                 # Single category - activate category-specific index
-                self.medical_rule_engine.set_active_category(categories[0])
-                self._capture_debug(f"[Navigator] 🔍 Activated FAISS index for category: {categories[0]}")
+                self.medical_rule_engine.set_active_category(full_category_names[0])
+                self._capture_debug(f"[Navigator] 🔍 Activated FAISS index for category: {full_category_names[0]}")
             
             # Note: FAISS searches are already element-specific via the 'element' parameter
             # This ensures we only search the pertinent OLDCARTS element section
@@ -580,7 +603,93 @@ Return ONLY the question, no explanations:"""
     # ============================================================================
     # SECTION 5: DEMOGRAPHICS
     # ============================================================================
-    # (Currently handled in session context, can be expanded if needed)
+    
+    def _needs_demographics(self, session: 'AdvancedMedicalNavigator.MedicalSession') -> str:
+        """Check which demographic info is missing (chronicity, age, sex)"""
+        demographics = session.context.get('demographics', {})
+        
+        if 'chronicity' not in demographics:
+            return 'chronicity'
+        if 'age' not in demographics:
+            return 'age'
+        if 'sex' not in demographics:
+            return 'sex'
+        
+        return None  # All demographics collected
+    
+    def _handle_demographics(self, session: 'AdvancedMedicalNavigator.MedicalSession') -> Dict[str, Any]:
+        """Handle demographics questions (chronicity, age, sex) before OLDCARTS"""
+        missing_demo = self._needs_demographics(session)
+        
+        if not missing_demo:
+            return None  # All demographics collected
+        
+        if missing_demo == 'chronicity':
+            question = "Is this a new problem or an ongoing issue you've been dealing with?"
+            self._capture_debug(f"[Navigator] 📋 Demographics: Asking chronicity")
+            return {
+                'response': question,
+                'status': 'demographics',
+                'metadata': {'asking': 'chronicity'}
+            }
+        elif missing_demo == 'age':
+            question = "Can you please tell me your age so I can better assist you?"
+            self._capture_debug(f"[Navigator] 📋 Demographics: Asking age")
+            return {
+                'response': question,
+                'status': 'demographics',
+                'metadata': {'asking': 'age'}
+            }
+        elif missing_demo == 'sex':
+            question = "What is your biological sex?"
+            self._capture_debug(f"[Navigator] 📋 Demographics: Asking sex")
+            return {
+                'response': question,
+                'status': 'demographics',
+                'metadata': {'asking': 'sex'}
+            }
+        
+        return None
+    
+    def _extract_demographics(self, session: 'AdvancedMedicalNavigator.MedicalSession', user_message: str):
+        """Extract demographics (chronicity, age, sex) from user response"""
+        if 'demographics' not in session.context:
+            session.context['demographics'] = {}
+        
+        demographics = session.context['demographics']
+        
+        # Extract chronicity
+        if 'chronicity' not in demographics:
+            user_lower = user_message.lower().strip()
+            new_keywords = ['new', 'first time', 'never had', 'just started', 'just began', 'brand new']
+            recurring_keywords = ['ongoing', 'chronic', 'recurring', 'always', 'frequent', 'often', 'again', 'returned', 'keeps coming back', 'persistent']
+            
+            if any(kw in user_lower for kw in new_keywords):
+                demographics['chronicity'] = 'new'
+                self._capture_debug(f"[Navigator] ✅ Chronicity extracted: new")
+            elif any(kw in user_lower for kw in recurring_keywords):
+                demographics['chronicity'] = 'recurring'
+                self._capture_debug(f"[Navigator] ✅ Chronicity extracted: recurring")
+        
+        # Extract age
+        if 'age' not in demographics:
+            import re
+            age_match = re.search(r'\b(\d{1,3})\b', user_message)
+            if age_match:
+                age = int(age_match.group(1))
+                if 0 <= age <= 150:
+                    demographics['age'] = age
+                    self._capture_debug(f"[Navigator] ✅ Age extracted: {age}")
+        
+        # Extract sex
+        if 'sex' not in demographics:
+            user_lower = user_message.lower().strip()
+            if any(word in user_lower for word in ['male', 'man', 'boy']):
+                demographics['sex'] = 'male'
+                self._capture_debug(f"[Navigator] ✅ Sex extracted: male")
+            elif any(word in user_lower for word in ['female', 'woman', 'girl']):
+                demographics['sex'] = 'female'
+                self._capture_debug(f"[Navigator] ✅ Sex extracted: female")
     
     # ============================================================================
     # SECTION 6: ASSESSMENT - OLDCARTS Processing, Scoring, Question Generation
@@ -607,6 +716,9 @@ Return ONLY the question, no explanations:"""
         
         # Extract information from user's answer (if in assessment phase)
         if session.context.get('chief_complaint'):
+            # Extract demographics first (chronicity, age, sex)
+            self._extract_demographics(session, user_message)
+            
             # Extract OLDCARTS info
             self._extract_oldcarts_info(session, user_message)
             
@@ -631,7 +743,12 @@ Return ONLY the question, no explanations:"""
             elif phase == "chief_complaint":
                 response = self._handle_chief_complaint(session, user_message)
             elif phase == "assessment":
-                response = self._handle_assessment(session, user_message)
+                # Check if demographics are complete first
+                demo_response = self._handle_demographics(session)
+                if demo_response:
+                    response = demo_response
+                else:
+                    response = self._handle_assessment(session, user_message)
             else:
                 response = self._handle_followup(session, user_message)
         
@@ -686,6 +803,7 @@ Return ONLY the question, no explanations:"""
                 chief_complaint = message.lower()
         
         session.context['chief_complaint'] = chief_complaint
+        self._capture_debug(f"[Navigator] 🩺 Chief Complaint: {chief_complaint}")
         
         # Match chief complaint to categories by semantically comparing to all triggers
         matched_categories = self._match_chief_complaint_to_categories(chief_complaint)
@@ -696,33 +814,40 @@ Return ONLY the question, no explanations:"""
             session.context['matched_categories'] = matched_categories
             session.context['use_general_llm'] = False
             self._capture_debug(f"[Navigator] ✅ Using guideline-based assessment for categories: {matched_categories}")
+            self._capture_debug(f"[Navigator] 📋 Loaded {len(self.all_guidelines)} matching guidelines")
         else:
             # No semantic match - use general LLM knowledge with OLDCARTS structure
             session.context['matched_categories'] = []
             session.context['use_general_llm'] = True
             self._capture_debug(f"[Navigator] 📚 Using general LLM knowledge with OLDCARTS structure (no guideline match)")
         
-        # Generate empathetic response and first question (start with location or character)
+        # Generate empathetic response and first question (start with chronicity for demographics)
         if self.llm_chat_fn:
             user_msg = f"""Patient's chief complaint: {chief_complaint}
 
-Generate an empathetic response followed by a natural first question about location or character:"""
+Generate an empathetic acknowledgment (1-2 sentences):"""
             
             response = self.llm_chat_fn(
-                [{"role": "system", "content": self.LLM_CHIEF_COMPLAINT_ACK_SYSTEM_MSG}, {"role": "user", "content": user_msg}],
-                max_tokens=150,
+                [{"role": "system", "content": "You are a compassionate medical assistant. Generate a brief, empathetic acknowledgment of the patient's chief complaint."}, 
+                 {"role": "user", "content": user_msg}],
+                max_tokens=100,
                 temperature=0.7
             )
             
-            assistant_response = response.strip()
+            acknowledgment = response.strip()
         else:
             raise ValueError("LLM function required for chief complaint handling")
         
+        # Ask chronicity question next
+        chronicity_question = "Is this a new problem or an ongoing issue you've been dealing with?"
+        combined_response = f"{acknowledgment}\n\n{chronicity_question}"
+        
         return {
-            'response': assistant_response,
-            'status': 'assessment',
+            'response': combined_response,
+            'status': 'demographics',
             'metadata': {
-                'chief_complaint': chief_complaint
+                'chief_complaint': chief_complaint,
+                'asking': 'chronicity'
             }
         }
     
@@ -849,6 +974,17 @@ Which OLDCARTS element was answered? Return ONLY the element name:"""
         """Handle assessment phase - generate next question based on condition ranking or general LLM"""
         if not self.llm_chat_fn:
             raise ValueError("LLM function required for assessment")
+        
+        # Log current assessment state
+        demographics = session.context.get('demographics', {})
+        oldcarts_covered = session.context.get('oldcarts_covered', {})
+        missing_oldcarts = self._get_missing_oldcarts_info(session)
+        covered_oldcarts = [elem for elem, val in oldcarts_covered.items() if val]
+        
+        self._capture_debug(f"[Navigator] 📊 Assessment Status:")
+        self._capture_debug(f"[Navigator]   Demographics: chronicity={demographics.get('chronicity', '?')}, age={demographics.get('age', '?')}, sex={demographics.get('sex', '?')}")
+        self._capture_debug(f"[Navigator]   OLDCARTS Covered ({len(covered_oldcarts)}/9): {', '.join(covered_oldcarts) if covered_oldcarts else 'none'}")
+        self._capture_debug(f"[Navigator]   OLDCARTS Missing ({len(missing_oldcarts)}/9): {', '.join(missing_oldcarts) if missing_oldcarts else 'none'}")
         
         use_general_llm = session.context.get('use_general_llm', False)
         chief_complaint = session.context.get('chief_complaint', 'symptoms')
