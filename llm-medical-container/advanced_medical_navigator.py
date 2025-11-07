@@ -43,7 +43,7 @@ CODE SECTIONS:
 
 import json
 import os
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Dict, Any, List, Optional, Tuple, Set
 from datetime import datetime
 from collections import defaultdict
 from difflib import SequenceMatcher
@@ -1140,12 +1140,10 @@ Which OLDCARTS element was answered? Return ONLY the element name:"""
         )
         self._capture_debug(f"[Ranking] 🔍 Scores before sorting (first 5): {sorted_conditions[:5]}")
 
-        # Track previous active set for promotion/demotion logging
         previous_active = set(r['condition'] for r in (session.condition_rankings or []))
 
-        # Build new active list
         new_active = []
-        top_condition_names = []
+        top_condition_names: Set[str] = set()
         for condition_name, score in sorted_conditions[:self.TOP_CONDITIONS_LIMIT]:
             guideline = self.all_guidelines.get(condition_name)
             if guideline:
@@ -1649,23 +1647,6 @@ Generate ONE clear question about {next_element} for their {chief_complaint}.{el
             self.session_id = session_id
             self.messages = []  # Conversation history
             self.context = {
-                'chief_complaint': None,
-                'demographics': {},
-                'symptoms': [],
-                'questions_asked': [],
-                # Track what clinical information has been gathered
-                'oldcarts_covered': {
-                    'onset': False,
-                    'location': False,
-                    'duration': False,
-                    'character': False,
-                    'aggravating': False,
-                    'relieving': False,
-                    'timing': False,
-                    'severity': False,
-                    'associated': False
-                },
-                # Store extracted OLDCARTS data
                 'oldcarts_data': {
                     'onset': None,
                     'location': None,
@@ -1677,7 +1658,6 @@ Generate ONE clear question about {next_element} for their {chief_complaint}.{el
                     'severity': None,
                     'associated': None
                 },
-                # Track anatomical context learned from patient answers (e.g., location components)
                 'anatomical_history': {
                     'location': []
                 },
@@ -1685,12 +1665,10 @@ Generate ONE clear question about {next_element} for their {chief_complaint}.{el
                 'reserve_pool': [],
                 'ruled_out_conditions': [],
                 'pending_options': {},
-                # Rolling debug info captured during processing
                 'debug': {}
             }
-            # Condition ranking (top 5, updated after each question)
-            self.condition_rankings: List[Dict[str, Any]] = []  # [{condition, score, guideline}, ...]
-            self.condition_scores: Dict[str, float] = defaultdict(float)  # Track scores per condition
+            self.condition_rankings: List[Dict[str, Any]] = []
+            self.condition_scores: Dict[str, float] = defaultdict(lambda: 0.5)
             self.created_at = datetime.now()
         
         def add_message(self, role: str, content: str):
