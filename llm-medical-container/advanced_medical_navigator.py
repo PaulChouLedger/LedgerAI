@@ -43,7 +43,7 @@ CODE SECTIONS:
 
 import json
 import os
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 from datetime import datetime
 from collections import defaultdict
 
@@ -842,6 +842,10 @@ Return ONLY the question, no explanations:"""
                 self._capture_debug(f"[Navigator] 🔄 ROUTE: Followup handler")
                 response = self._handle_followup(session, user_message)
         
+        # Add debug payload for observability
+        if isinstance(response, dict):
+            response.setdefault('debug', self._build_debug_payload(session))
+        
         # Add assistant response to session
         if 'response' in response:
             session.add_message('assistant', response['response'])
@@ -1022,6 +1026,28 @@ Which OLDCARTS element was answered? Return ONLY the element name:"""
             return_scores=True
         )
         
+        # Capture FAISS score details for debugging
+        faiss_scores = getattr(self.medical_rule_engine, '_last_faiss_scores', {}) or {}
+        session.context.setdefault('debug', {})['faiss'] = {
+            'element': element,
+            'patient_answer': patient_answer,
+            'scores': {k: round(float(v), 6) for k, v in faiss_scores.items()}
+        }
+        
+        # Update anatomical history for location answers using medical rules (no LLM)
+        if element == 'location' and self.medical_rule_engine:
+            patient_components = self.medical_rule_engine._extract_anatomical_components(patient_answer.lower()) or {}
+            anatomical_history = session.context.setdefault('anatomical_history', {}).setdefault('location', [])
+            if patient_components:
+                anatomical_history.append({
+                    'answer': patient_answer,
+                    'components': patient_components,
+                    'timestamp': datetime.now().isoformat()
+                })
+                session.context['debug']['last_location_components'] = patient_components
+            else:
+                session.context['debug']['last_location_components'] = {}
+        
         self._capture_debug(f"[Navigator] 🔍 FAISS search: element='{element}', matches={len(matches)}, categories={session.context.get('matched_categories', [])}")
         
         # Score only loaded guidelines (not all guidelines)
@@ -1180,7 +1206,7 @@ Be conversational and specific to their situation."""
                         covered_info = self._format_covered_info(session)
                         
                         # INJECT GUIDELINE TERMS: Get all relevant patient_friendly terms for this element
-                        guideline_options = self._get_guideline_terms_for_element(next_element)
+                        guideline_options = self._get_guideline_terms_for_element(next_element, session)
                         
                         if guideline_options and len(guideline_options) > 1:
                             # Build question with specific guideline options
@@ -1320,12 +1346,13 @@ Generate ONE clear question about {next_element} for their {chief_complaint}.{el
         examples = self._get_oldcarts_examples(chief_complaint, next_element)
         return next_element, examples
     
-    def _get_guideline_terms_for_element(self, element: str) -> List[str]:
+    def _get_guideline_terms_for_element(self, element: str, session: Optional['AdvancedMedicalNavigator.MedicalSession'] = None) -> List[str]:
         """
         Extract all unique patient_friendly terms for a specific OLDCARTS element
         from loaded guidelines. These will be injected into the LLM question.
         """
         all_terms = []
+        term_components_map = {}
         
         for condition_name, guideline in self.all_guidelines.items():
             structured_oldcarts = guideline.get('key_features', {}).get('structured_oldcarts', {})
@@ -1334,23 +1361,68 @@ Generate ONE clear question about {next_element} for their {chief_complaint}.{el
             if isinstance(element_data, dict):
                 includes = element_data.get('includes', [])
                 for term_data in includes:
+                    patient_term = None
                     if isinstance(term_data, dict):
-                        patient_friendly = term_data.get('patient_friendly', '')
-                        if patient_friendly:
-                            all_terms.append(patient_friendly)
+                        patient_term = term_data.get('patient_friendly', '')
                     elif isinstance(term_data, str):
-                        all_terms.append(term_data)
+                        patient_term = term_data
+                    
+                    if patient_term:
+                        patient_term = patient_term.strip()
+                        all_terms.append(patient_term)
+                        if self.medical_rule_engine and element == 'location':
+                            term_components_map[patient_term] = self.medical_rule_engine._extract_anatomical_components(patient_term.lower())
         
         # Deduplicate while preserving order
         unique_terms = list(dict.fromkeys(all_terms))
+        original_terms_count = len(unique_terms)
         
         # Limit to reasonable number (5-7 options max for clarity)
         if len(unique_terms) > 7:
-            # Take most common/diverse terms (could be improved with scoring)
             unique_terms = unique_terms[:7]
+            original_terms_count = len(unique_terms)
+        
+        removed_terms = []
+        if element == 'location' and session and self.medical_rule_engine:
+            patient_components = self._get_patient_anatomical_components(session, element)
+            if patient_components:
+                filtered_terms = []
+                for term in unique_terms:
+                    term_components = term_components_map.get(term)
+                    if term_components and self.medical_rule_engine._are_anatomical_opposites(patient_components, term_components):
+                        removed_terms.append({'term': term, 'components': term_components})
+                        continue
+                    filtered_terms.append(term)
+                if filtered_terms:
+                    unique_terms = filtered_terms
+                # Store debug snapshot
+                session.context.setdefault('debug', {})['location_options'] = {
+                    'patient_components': patient_components,
+                    'removed_terms': removed_terms,
+                    'final_options': unique_terms
+                }
+                self._capture_debug(f"[Navigator] 📍 Location filtering applied: kept {len(unique_terms)} / {original_terms_count} options")
+            else:
+                # Clear any previous debug snapshot if no components yet
+                session.context.setdefault('debug', {})['location_options'] = {
+                    'patient_components': {},
+                    'removed_terms': [],
+                    'final_options': unique_terms
+                }
         
         self._capture_debug(f"[Navigator] 📋 Extracted {len(unique_terms)} guideline terms for '{element}': {unique_terms}")
         return unique_terms
+    
+    def _get_patient_anatomical_components(self, session: 'AdvancedMedicalNavigator.MedicalSession', element: str) -> Dict[str, str]:
+        """Combine anatomical components learned from prior answers for the given element."""
+        history = session.context.get('anatomical_history', {}).get(element, []) if session else []
+        combined: Dict[str, str] = {}
+        for entry in history:
+            components = entry.get('components', {}) if isinstance(entry, dict) else {}
+            for key, value in components.items():
+                if value:
+                    combined[key] = value
+        return combined
     
     def _find_differentiating_element(self, top_conditions: List[Dict], missing_elements: List[str]) -> Optional[str]:
         """Find OLDCARTS element that best differentiates between top conditions"""
@@ -1422,15 +1494,15 @@ Generate ONE clear question about {next_element} for their {chief_complaint}.{el
                 'questions_asked': [],
                 # Track what clinical information has been gathered
                 'oldcarts_covered': {
-                    'onset': False,      # When did it start?
-                    'location': False,   # Where is it?
-                    'duration': False,    # How long?
-                    'character': False,   # What does it feel like?
-                    'aggravating': False, # What makes it worse?
-                    'relieving': False,   # What makes it better?
-                    'timing': False,      # Constant or intermittent?
-                    'severity': False,    # How bad is it (1-10)?
-                    'associated': False   # Any other symptoms?
+                    'onset': False,
+                    'location': False,
+                    'duration': False,
+                    'character': False,
+                    'aggravating': False,
+                    'relieving': False,
+                    'timing': False,
+                    'severity': False,
+                    'associated': False
                 },
                 # Store extracted OLDCARTS data
                 'oldcarts_data': {
@@ -1443,7 +1515,13 @@ Generate ONE clear question about {next_element} for their {chief_complaint}.{el
                     'timing': None,
                     'severity': None,
                     'associated': None
-                }
+                },
+                # Track anatomical context learned from patient answers (e.g., location components)
+                'anatomical_history': {
+                    'location': []
+                },
+                # Rolling debug info captured during processing
+                'debug': {}
             }
             # Condition ranking (top 5, updated after each question)
             self.condition_rankings: List[Dict[str, Any]] = []  # [{condition, score, guideline}, ...]
@@ -1632,6 +1710,14 @@ Generate ONE clear question about {next_element} for their {chief_complaint}.{el
         )
         
         self._capture_debug(f"[Navigator] 🔍 FAISS matches for {element}: {len(matches_with_scores) if matches_with_scores else 0}")
+        patient_components = self._get_patient_anatomical_components(session, element)
+        session.context.setdefault('debug', {})['clarification'] = {
+            'element': element,
+            'patient_answer': patient_answer,
+            'patient_components': patient_components,
+            'removed_terms': [],
+            'removed_missing_terms': []
+        }
         
         # STEP 2: Build satisfied array (2+ terms meeting threshold)
         satisfied_terms = []
@@ -1654,7 +1740,15 @@ Generate ONE clear question about {next_element} for their {chief_complaint}.{el
             unique_satisfied = list(dict.fromkeys(satisfied_terms))
             
             # STEP 3b: Filter anatomically opposite terms
-            filtered_satisfied = self._filter_anatomical_opposites(unique_satisfied, patient_answer, element)
+            filtered_satisfied, removed_terms = self._filter_anatomical_opposites(
+                session,
+                unique_satisfied,
+                patient_components,
+                element
+            )
+            if removed_terms:
+                self._capture_debug(f"[Navigator] 📍 Removed anatomically incompatible terms: {[t['term'] for t in removed_terms]}")
+                session.context['debug']['clarification']['removed_terms'] = removed_terms
             
             self._capture_debug(f"[Navigator] 📋 After filtering: {len(filtered_satisfied)} terms remain")
             
@@ -1690,7 +1784,15 @@ Generate ONE clear question about {next_element} for their {chief_complaint}.{el
             unique_missing = list(dict.fromkeys(all_terms))
             
             # STEP 4b: Filter anatomically opposite terms
-            filtered_missing = self._filter_anatomical_opposites(unique_missing, patient_answer, element)
+            filtered_missing, removed_terms = self._filter_anatomical_opposites(
+                session,
+                unique_missing,
+                patient_components,
+                element
+            )
+            if removed_terms:
+                self._capture_debug(f"[Navigator] 📍 Removed anatomically incompatible missing terms: {[t['term'] for t in removed_terms]}")
+                session.context['debug']['clarification']['removed_missing_terms'] = removed_terms
             
             self._capture_debug(f"[Navigator] 📋 Missing terms after filtering: {len(filtered_missing)}")
             
@@ -1705,55 +1807,29 @@ Generate ONE clear question about {next_element} for their {chief_complaint}.{el
         self._capture_debug(f"[Navigator] ✅ {element} marked complete")
         return None
     
-    def _filter_anatomical_opposites(self, terms: List[str], patient_answer: str, element: str) -> List[str]:
-        """Filter out terms that are anatomically opposite to patient's answer using LLM"""
-        if not terms or len(terms) <= 1:
-            return terms
-        
-        # Build the filtering prompt for LLM
-        system_msg = """You are a medical assistant helping to filter anatomical locations.
-Given a patient's description of their pain location, filter out terms that are anatomically incompatible.
-
-Rules:
-- If patient says "right side" or "right", exclude "left" terms
-- If patient says "left side" or "left", exclude "right" terms  
-- If patient says "upper" or "top", exclude "lower" or "bottom" terms
-- If patient says "lower" or "bottom", exclude "upper" or "top" terms
-- Keep vague/general terms (like "diffuse", "all over") - they're compatible with any location
-- Keep terms that don't specify direction
-
-Return ONLY a JSON array of the compatible terms from the provided list."""
-
-        terms_str = ", ".join([f'"{t}"' for t in terms])
-        user_msg = f"""Patient said: "{patient_answer}"
-
-Available terms: [{terms_str}]
-
-Return only the anatomically compatible terms as a JSON array."""
-
-        try:
-            llm_kwargs = self._get_llm_kwargs(override_temp=0.1, override_max_tokens=300)
-            response = self.llm_chat_fn(
-                system_msg=system_msg,
-                user_msg=user_msg,
-                **llm_kwargs
-            )
-            
-            response = response.strip()
-            self._capture_debug(f"[Navigator] 🤖 LLM filtering response: {response}")
-            
-            # Parse JSON response
-            if response.startswith('[') and response.endswith(']'):
-                filtered = json.loads(response)
-                self._capture_debug(f"[Navigator] ✅ LLM filtered: {len(terms)} → {len(filtered)} terms")
-                return filtered
-            else:
-                self._capture_debug(f"[Navigator] ⚠️ LLM response not valid JSON, keeping all terms")
-                return terms
-                
-        except Exception as e:
-            self._capture_debug(f"[Navigator] ⚠️ LLM filtering failed: {e}, keeping all terms")
-            return terms
+    def _filter_anatomical_opposites(
+        self,
+        session: 'AdvancedMedicalNavigator.MedicalSession',
+        terms: List[str],
+        patient_components: Dict[str, str],
+        element: str
+    ) -> Tuple[List[str], List[Dict[str, Any]]]:
+        """Filter out terms that are anatomically opposite using medical rules (no LLM)."""
+        if not terms or len(terms) <= 1 or not self.medical_rule_engine:
+            return terms, []
+        if element != 'location' or not patient_components:
+            return terms, []
+        filtered_terms = []
+        removed_terms = []
+        for term in terms:
+            term_components = self.medical_rule_engine._extract_anatomical_components(term.lower()) or {}
+            if term_components and self.medical_rule_engine._are_anatomical_opposites(patient_components, term_components):
+                removed_terms.append({'term': term, 'components': term_components})
+                continue
+            filtered_terms.append(term)
+        if not filtered_terms:
+            filtered_terms = terms
+        return filtered_terms, removed_terms
     
     def _generate_simple_clarification(self, element: str, options: List[str]) -> str:
         """Generate simple clarifying question with options"""
@@ -1879,3 +1955,20 @@ Return only the anatomically compatible terms as a JSON array."""
     def clear_debug_output(self):
         """Clear captured debug output"""
         self._captured_debug_output = []
+
+    def _build_debug_payload(self, session: 'AdvancedMedicalNavigator.MedicalSession') -> Dict[str, Any]:
+        """Construct structured debug payload for container logging."""
+        if not session:
+            return {}
+        debug_context = session.context.get('debug', {})
+        payload = {
+            'engine_debug_output': self._format_engine_debug(session.session_id),
+            'internal': {
+                'last_extracted_element': session.context.get('last_extracted_element'),
+                'faiss': debug_context.get('faiss', {}),
+                'location_options': debug_context.get('location_options', {}),
+                'clarification': debug_context.get('clarification', {}),
+                'anatomical_history': session.context.get('anatomical_history', {})
+            }
+        }
+        return payload
