@@ -2017,8 +2017,7 @@ Generate ONE clear question about {next_element} for their {chief_complaint}.{el
             return {}
         debug_context = session.context.get('debug', {})
         payload = {
--            'engine_debug_output': self._format_engine_debug(session.session_id),
-+            'engine_debug_output': self._format_engine_debug(session.session_id).splitlines(),
+            'engine_debug_output': self._format_engine_debug(session.session_id).splitlines(),
             'internal': {
                 'last_extracted_element': session.context.get('last_extracted_element'),
                 'faiss': debug_context.get('faiss', {}),
