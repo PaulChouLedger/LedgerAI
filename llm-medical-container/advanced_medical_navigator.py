@@ -128,18 +128,18 @@ OLDCARTS stands for:
 - Severity: On a scale of 1 to 10, how severe is it?
 - Associated: Are there any other symptoms you've noticed?
 
-Generate a SINGLE, natural, conversational question that:
-1. Feels human and empathetic
-2. Asks about the specific OLDCARTS element: {next_element}
-3. Is specific and detailed (like the examples provided)
-4. Uses simple, patient-friendly language
-5. Flows naturally from the conversation
+CRITICAL INSTRUCTIONS:
+1. You will be asked about a SPECIFIC patient's chief complaint
+2. Generate a question about the element: {next_element}
+3. The question MUST be about the PATIENT'S ACTUAL COMPLAINT (not the examples)
+4. Use the examples ONLY for formatting style (HOW to ask), NOT for content (WHAT to ask about)
+5. Be conversational, empathetic, and specific to the patient's situation
 
 DO NOT:
+- Use topics from the examples (e.g., if examples mention "chest pain" but patient has "abdominal pain", ask about ABDOMINAL pain)
 - Ask multiple questions at once
 - Use medical jargon
 - Sound robotic or formal
-- List options like "Is it A, B, or C?"
 
 Return ONLY the question, no explanations:"""
     
@@ -1009,20 +1009,24 @@ Which OLDCARTS element was answered? Return ONLY the element name:"""
                     for msg in session.get_recent_messages(8)
                 ])
                 
-                user_msg = f"""Chief complaint: {chief_complaint}
+                user_msg = f"""PATIENT'S ACTUAL CHIEF COMPLAINT: {chief_complaint}
 
-Information already gathered:
+IMPORTANT: Ask about {next_element} for the patient's {chief_complaint}, NOT about any topics from the examples below.
+
+Information already gathered from this patient:
 {self._format_covered_info(session)}
 
 Next element to ask about: {next_element}
 
-Example question format (use as style guide):
+STYLE GUIDE ONLY (use these for HOW to format your question, NOT WHAT to ask about):
 {template_examples}
 
-Conversation so far:
+Recent conversation with this patient:
 {conversation_text}
 
-Generate a natural, specific question about {next_element} for this patient's {chief_complaint}. Use the example format as a style guide - ask in a similar detailed, conversational way. Make it feel tailored to this specific case."""
+Generate a question about {next_element} specifically for this patient's {chief_complaint}. 
+CRITICAL: Use the patient's actual complaint ({chief_complaint}), not any topics from the examples.
+Be conversational and specific to their situation."""
                 
                 response = self.llm_chat_fn(
                     [{"role": "system", "content": system_msg}, {"role": "user", "content": user_msg}],
@@ -1060,21 +1064,25 @@ Generate a natural, specific question about {next_element} for this patient's {c
                     for i, ranking in enumerate(session.condition_rankings[:3], 1):
                         top_conditions_context += f"{i}. {ranking['condition']} (score: {ranking['score']:.2f})\n"
                 
-                user_msg = f"""Chief complaint: {chief_complaint}
+                user_msg = f"""PATIENT'S ACTUAL CHIEF COMPLAINT: {chief_complaint}
 
-Information already gathered:
+IMPORTANT: Ask about {next_element} for the patient's {chief_complaint}, NOT about any topics from the examples below.
+
+Information already gathered from this patient:
 {self._format_covered_info(session)}
 
 Next element to ask about: {next_element}
 
-Example question format (use as style guide):
+STYLE GUIDE ONLY (use these for HOW to format your question, NOT WHAT to ask about):
 {template_examples}
 {top_conditions_context}
 
-Conversation so far:
+Recent conversation with this patient:
 {conversation_text}
 
-Generate a natural, specific question about {next_element} for this patient's {chief_complaint}. Use the example format as a style guide - ask in a similar detailed, conversational way. Make it feel tailored to this specific case."""
+Generate a question about {next_element} specifically for this patient's {chief_complaint}. 
+CRITICAL: Use the patient's actual complaint ({chief_complaint}), not any topics from the examples.
+Be conversational and specific to their situation."""
                 
                 response = self.llm_chat_fn(
                     [{"role": "system", "content": system_msg}, {"role": "user", "content": user_msg}],

@@ -348,13 +348,21 @@ class ClinicianSession:
         # No local RAG instance needed - all operations via HTTP API
         self.medical_rag = None  # Not used - all RAG via API
         
-        # Check actual RAG state
-        if hasattr(self, 'adaptive_engine') and self.adaptive_engine:
-            # Check if RAG client is available
+        # Check actual RAG state (check both navigator and adaptive engine)
+        has_local_faiss = False
+        
+        # Check medical navigator first
+        if hasattr(self, 'medical_navigator') and self.medical_navigator:
+            if hasattr(self.medical_navigator, 'medical_rule_engine') and self.medical_navigator.medical_rule_engine:
+                has_local_faiss = True
+        
+        # Check adaptive engine second
+        if not has_local_faiss and hasattr(self, 'adaptive_engine') and self.adaptive_engine:
             if hasattr(self.adaptive_engine, 'embedding_model') and self.adaptive_engine.embedding_model:
-                print("[Clinician] ℹ️  RAG functionality available via local CPU FAISS")
-            else:
-                print("[Clinician] ℹ️  RAG functionality available via API calls to RAG container")
+                has_local_faiss = True
+        
+        if has_local_faiss:
+            print("[Clinician] ℹ️  RAG functionality available via local CPU FAISS")
         else:
             print("[Clinician] ℹ️  RAG functionality available via API calls to RAG container")
 
