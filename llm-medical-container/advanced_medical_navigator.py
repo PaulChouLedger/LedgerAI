@@ -76,9 +76,22 @@ OLDCARTS elements:
 - severity: How bad (1-10)?
 - associated: Other symptoms?"""
     
-    # Demographics Questions
+    # Demographics Questions (matching adaptive engine)
     LLM_CHRONICITY_SYSTEM_MSG = "You are a medical assistant. Generate a concise question to ask if the patient's problem is new or ongoing."
     LLM_CHRONICITY_USER_MSG = "Is this a new problem or an ongoing issue?"
+    
+    # Empathetic Response (matching adaptive engine)
+    LLM_EMPATHETIC_SYSTEM_MSG = """You are a compassionate medical assistant. The patient is expressing significant distress with severe symptoms. 
+Generate a brief (1-2 sentences), empathetic response that:
+1. Acknowledges their distress and validates their feelings
+2. Reassures them you're taking this seriously
+3. Shows urgency and concern
+
+Be warm, professional, and reassuring. Do NOT ask any questions - just acknowledge and reassure. The system will ask the appropriate clinical question next."""
+    
+    # Question/Comment Acknowledgment (matching adaptive engine)
+    LLM_QUESTION_ACK_SYSTEM_MSG = "You are a compassionate medical assistant. Generate a brief, natural acknowledgment (1 sentence) for a patient's question. Be warm and reassuring."
+    LLM_COMMENT_ACK_SYSTEM_MSG = "You are a compassionate medical assistant. Generate a brief, natural acknowledgment (1 sentence) for a patient's comment or emotional expression. Be warm and reassuring, then naturally transition back to gathering information."
     
     # Greeting Detection
     LLM_GREETING_DETECTION_SYSTEM_MSG = """You are a medical assistant. Determine if the patient's message is a greeting or a medical concern.
@@ -855,24 +868,23 @@ Return ONLY the question, no explanations:"""
             session.context['use_general_llm'] = True
             self._capture_debug(f"[Navigator] 📚 Using general LLM knowledge with OLDCARTS structure (no guideline match)")
         
-        # Generate empathetic response and first question (start with chronicity for demographics)
+        # Generate empathetic response (mimic adaptive engine's approach)
         if self.llm_chat_fn:
-            user_msg = f"""Patient's chief complaint: {chief_complaint}
-
-Generate an empathetic acknowledgment (1-2 sentences):"""
+            system_msg = "You are a compassionate medical assistant. Generate a brief, empathetic statement acknowledging the patient's concern."
+            user_msg = f"Patient reported: '{chief_complaint}'\n\nGenerate a brief, empathetic acknowledgment (1-2 sentences). Acknowledge their concern, show compassion, and express that you're here to help. Do NOT ask questions. End with a period. Return only the statement, no other text."
             
-            llm_kwargs = self._get_llm_kwargs(override_max_tokens=100)
+            llm_kwargs = self._get_llm_kwargs()
             response = self.llm_chat_fn(
-                [{"role": "system", "content": "You are a compassionate medical assistant. Generate a brief, empathetic acknowledgment of the patient's chief complaint."}, 
+                [{"role": "system", "content": system_msg}, 
                  {"role": "user", "content": user_msg}],
                 **llm_kwargs
             )
             
-            acknowledgment = response.strip()
+            acknowledgment = response.strip() if response else f"I understand you're experiencing {chief_complaint}."
         else:
             raise ValueError("LLM function required for chief complaint handling")
         
-        # Ask chronicity question next
+        # Ask chronicity question next (hardcoded for consistency)
         chronicity_question = "Is this a new problem or an ongoing issue you've been dealing with?"
         combined_response = f"{acknowledgment}\n\n{chronicity_question}"
         
