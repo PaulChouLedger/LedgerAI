@@ -129,7 +129,7 @@ class AdvancedMedicalNavigator:
 
         if session.pending:
             if not self._is_valid_answer(session, session.pending, user_message):
-                clarification = self._clarify_prompt(session.pending)
+                clarification = self._clarify_prompt(session, session.pending, user_message)
                 session.messages.append({"role": "assistant", "content": clarification})
                 return {
                     "response": clarification,
@@ -193,6 +193,7 @@ class AdvancedMedicalNavigator:
                         "section": "pre_hpi",
                         "field": field,
                         "prompt": prompt,
+                        "guidance": guidance,
                     }
             session.section = "hpi"
 
@@ -208,6 +209,7 @@ class AdvancedMedicalNavigator:
                         "section": "hpi",
                         "field": element,
                         "prompt": prompt,
+                        "guidance": prompt_text,
                     }
             session.section = "pmh"
 
@@ -220,6 +222,7 @@ class AdvancedMedicalNavigator:
                         "section": "pmh",
                         "field": field,
                         "prompt": prompt,
+                        "guidance": template,
                     }
             session.section = "complete"
 
@@ -284,9 +287,41 @@ class AdvancedMedicalNavigator:
 
         return llm_response.strip() if llm_response else "History collection complete."
 
-    def _clarify_prompt(self, pending: Dict[str, str]) -> str:
-        prompt = pending.get("prompt", "Could you tell me more?")
-        return f"Sorry for the confusion. I was asking: {prompt}"
+    def _clarify_prompt(self, session: "MedicalSession", pending: Dict[str, str], answer: str) -> str:
+        original_prompt = pending.get("prompt", "Could you tell me more?")
+        if not self.llm_chat_fn:
+            return f"Sorry for the confusion. I was asking: {original_prompt}"
+
+        recent = "\n".join(
+            f"{msg['role']}: {msg['content']}" for msg in session.messages[-6:]
+        )
+        guidance = pending.get("guidance") or original_prompt
+        user_prompt = (
+            "The patient did not understand the question.\n"
+            f"Original question: {original_prompt}\n"
+            f"Guidance: {guidance}\n"
+            f"Patient reply: {answer}\n"
+            f"Recent conversation:\n{recent}\n"
+            "Rewrite the question more simply in a single sentence, optionally with a brief clarifying phrase."
+        )
+
+        response = self.llm_chat_fn(
+            [
+                {
+                    "role": "system",
+                    "content": (
+                        "You are a compassionate medical assistant."
+                        " The patient was confused. Rephrase the question with simpler wording."
+                        " Keep it under 20 words and do not include meta commentary."
+                    ),
+                },
+                {"role": "user", "content": user_prompt},
+            ],
+            max_tokens=60,
+            temperature=0.4,
+        )
+
+        return response.strip() if response else f"Sorry for the confusion. I was asking: {original_prompt}"
 
     def _is_valid_answer(self, session: "MedicalSession", pending: Dict[str, str], answer: str) -> bool:
         if not answer or not answer.strip():
