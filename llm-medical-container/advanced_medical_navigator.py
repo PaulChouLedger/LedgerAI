@@ -1052,6 +1052,9 @@ Which OLDCARTS element was answered? Return ONLY the element name:"""
             if manual_match not in matches:
                 matches.append(manual_match)
             self._capture_debug(f"[Navigator] ✅ Recognized manual match using provided options: '{manual_match}'")
+            if not session.context['oldcarts_covered'].get(element, False):
+                self._mark_element_complete(session, element, patient_answer)
+                self._capture_debug(f"[Navigator] ✅ {element} marked complete (manual deterministic match)")
 
         # Capture FAISS score details for debugging
         faiss_scores = getattr(self.medical_rule_engine, '_last_faiss_scores', {}) or {}
@@ -1135,27 +1138,55 @@ Which OLDCARTS element was answered? Return ONLY the element name:"""
             key=lambda x: x[1],
             reverse=True
         )
-        
-        # Get top N conditions
-        session.condition_rankings = []
-        top_conditions_set = set()
+        self._capture_debug(f"[Ranking] 🔍 Scores before sorting (first 5): {sorted_conditions[:5]}")
+
+        # Track previous active set for promotion/demotion logging
+        previous_active = set(r['condition'] for r in (session.condition_rankings or []))
+
+        # Build new active list
+        new_active = []
+        top_condition_names = []
         for condition_name, score in sorted_conditions[:self.TOP_CONDITIONS_LIMIT]:
             guideline = self.all_guidelines.get(condition_name)
             if guideline:
-                session.condition_rankings.append({
+                new_active.append({
                     'condition': condition_name,
                     'score': score,
                     'guideline': guideline
                 })
-                top_conditions_set.add(condition_name)
-        session.context['reserve_pool'] = [
-            {'condition': name, 'guideline': guideline}
-            for name, guideline in self.all_guidelines.items()
-            if name not in top_conditions_set
-        ]
-        
-        self._capture_debug(f"[Ranking] 🔍 Scores before sorting (first 5): {sorted_conditions[:5]}")
-        self._capture_debug(f"[Ranking] 🎯 Top 5 after scoring: {[(r['condition'], r['score']) for r in session.condition_rankings[:5]]}")
+                top_condition_names.add(condition_name)
+        session.condition_rankings = new_active
+
+        # Build reserve and ruled out pools
+        reserve_pool = []
+        for condition_name, score in sorted_conditions[self.TOP_CONDITIONS_LIMIT:]:
+            guideline = self.all_guidelines.get(condition_name)
+            if guideline:
+                reserve_pool.append({
+                    'condition': condition_name,
+                    'score': score,
+                    'guideline': guideline
+                })
+        session.context['reserve_pool'] = reserve_pool
+        session.context.setdefault('ruled_out_conditions', [])  # already tracked elsewhere if needed
+
+        new_active_set = set(top_condition_names)
+        promoted = [c for c in new_active if c['condition'] not in previous_active]
+        demoted = [c for c in reserve_pool if c['condition'] in previous_active]
+
+        if promoted:
+            self._capture_debug("\n[Engine] 🔼 PROMOTED to active:")
+            for entry in promoted:
+                pct = round(entry['score'] * 100, 1)
+                self._capture_debug(f"[Engine]   ↑ {entry['condition']} (score: {pct}%)")
+
+        if demoted:
+            self._capture_debug("\n[Engine] 🔽 DEMOTED to reserve:")
+            for entry in demoted:
+                pct = round(entry['score'] * 100, 1)
+                self._capture_debug(f"[Engine]   ↓ {entry['condition']} (score: {pct}%)")
+
+        self._capture_debug(f"[Ranking] 🎯 Top 5 after scoring: {[(entry['condition'], entry['score']) for entry in new_active[:5]]}")
     
     def _handle_assessment(self, session: 'AdvancedMedicalNavigator.MedicalSession', message: str) -> Dict[str, Any]:
         """Handle assessment phase - generate next question based on condition ranking or general LLM"""
