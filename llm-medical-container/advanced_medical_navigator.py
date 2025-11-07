@@ -745,7 +745,9 @@ Return ONLY the question, no explanations:"""
         """
         # Get or create session
         session = self._get_or_create_session(session_id)
+        self._capture_debug(f"[Navigator] 📨 Session {session_id}: {len(session.messages)} messages before adding current user message")
         session.add_message('user', user_message)
+        self._capture_debug(f"[Navigator] 📨 Session {session_id}: {len(session.messages)} messages after adding current user message")
         
         # Extract information from user's answer (if in assessment phase)
         if session.context.get('chief_complaint'):
@@ -799,7 +801,11 @@ Return ONLY the question, no explanations:"""
                 response = self._handle_followup(session, user_message)
         
         # Add assistant response to session
-        session.add_message('assistant', response['response'])
+        if 'response' in response:
+            session.add_message('assistant', response['response'])
+            self._capture_debug(f"[Navigator] 💾 Saved assistant response to session (total messages: {len(session.messages)})")
+        else:
+            self._capture_debug(f"[Navigator] ⚠️ No 'response' key in response dict: {response.keys()}")
         
         return response
     
