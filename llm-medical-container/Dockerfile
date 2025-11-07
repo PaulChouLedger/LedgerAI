@@ -40,19 +40,20 @@ COPY config/ /app/config/
 # ML files (location_ml_model.pkl, location_ml_data.csv) - kept for future ML training but not actively used
 # oldcarts_keywords.json - kept for compatibility
 
-# === CLINICIAN MODE ARCHITECTURE ===
-# This container provides a focused medical chatbot with:
-# - Clinician mode for all medical interactions (symptoms, knowledge, greetings)
-# - Adaptive diagnostic engine with guideline-based assessment
-# - Smart LLM-based age extraction for natural language processing
-# - Fuzzy medical matching for typo correction and robust input handling
-# - RAG API integration for semantic similarity and medical knowledge
+# === DIRECT ROUTING ARCHITECTURE ===
+# This container provides simplified medical chatbot with direct routing:
+# - Advanced Medical Navigator (USE_MEDICAL_NAVIGATOR=true) - hybrid LLM/RAG/FAISS
+# - Adaptive diagnostic engine (default) - guideline-based assessment
+# - No intermediate routing layers - cleaner, simpler, easier to debug
+# - Smart LLM-based question generation and answer extraction
+# - Fuzzy medical matching for typo correction
+# - RAG integration for semantic similarity and medical knowledge
 # - Single LLM support (Llama-3.2-1B for all tasks)
-# - Complete session management with proper reset functionality
+# - Session management built into container_rest.py
 
 # Copy all Python application files in one layer (frequently changed - no caching)
 # This ensures that any change to any Python file only invalidates this single layer
-COPY container_rest.py clinician_mode.py adaptive_diagnostic_engine.py advanced_medical_navigator.py thinking_fillers.py fuzzy_medical_matcher.py ./
+COPY container_rest.py adaptive_diagnostic_engine.py advanced_medical_navigator.py thinking_fillers.py fuzzy_medical_matcher.py ./
 
 # Copy RAG module (organized structure)
 COPY rag/ /app/rag/

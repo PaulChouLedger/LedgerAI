@@ -497,22 +497,38 @@ Return ONLY the question, no explanations:"""
                 })
                 self._capture_debug(f"[Navigator] ✅ MATCH: '{trigger}' → {trigger_data['condition']} ({trigger_data['category']}) - Score: {similarity:.3f}")
         
-        # Show top 5 scores for debugging (even if below threshold)
-        sorted_scores = sorted(all_scores.items(), key=lambda x: x[1], reverse=True)[:5]
-        self._capture_debug(f"[Navigator] 📊 Top 5 FAISS scores:")
-        for condition, score in sorted_scores:
-            status = "✅" if score >= threshold else "❌"
-            self._capture_debug(f"[Navigator]   {status} {condition}: {score:.3f}")
+        # Aggregate scores by CATEGORY (not individual conditions)
+        category_scores = {}
+        category_match_counts = {}
         
-        # If FAISS found matches, return them
+        for guideline in matched_guidelines:
+            cat = guideline['category']
+            score = guideline['score']
+            
+            if cat not in category_scores:
+                category_scores[cat] = []
+                category_match_counts[cat] = 0
+            
+            category_scores[cat].append(score)
+            category_match_counts[cat] += 1
+        
+        # Compute average score per category
+        category_avg_scores = {}
+        for cat, scores in category_scores.items():
+            category_avg_scores[cat] = sum(scores) / len(scores)
+        
+        # Show category-level results (this is what matters at chief complaint phase)
+        if category_avg_scores:
+            self._capture_debug(f"[Navigator] 📊 Category Matching Results:")
+            sorted_categories = sorted(category_avg_scores.items(), key=lambda x: x[1], reverse=True)
+            for cat, avg_score in sorted_categories:
+                match_count = category_match_counts[cat]
+                self._capture_debug(f"[Navigator]   ✅ {cat}: {avg_score:.3f} (from {match_count} triggers)")
+        
+        # If FAISS found matches, return categories
         if matched_guidelines:
             matched_categories = list(set([g['category'] for g in matched_guidelines]))
-            # Sort by score for better readability
-            matched_guidelines.sort(key=lambda x: x['score'], reverse=True)
-            self._capture_debug(f"[Navigator] ✅ FAISS RESULT: Matched {len(matched_guidelines)} guidelines in categories: {matched_categories}")
-            self._capture_debug(f"[Navigator] 📋 Top matched conditions:")
-            for i, match in enumerate(matched_guidelines[:5], 1):
-                self._capture_debug(f"[Navigator]   {i}. {match['condition']} ({match['category']}) - Score: {match['score']:.3f}")
+            self._capture_debug(f"[Navigator] ✅ CATEGORY RESULT: Matched categories: {matched_categories}")
             return matched_categories
         
         # TIER 2: Fuzzy matching fallback (for typos/near-misses)
@@ -714,15 +730,16 @@ Return ONLY the question, no explanations:"""
                     demographics['age'] = age
                     self._capture_debug(f"[Navigator] ✅ Age extracted: {age}")
         
-        # Extract sex
+        # Extract sex (check 'female' FIRST since 'female' contains 'male')
         if 'sex' not in demographics:
             user_lower = user_message.lower().strip()
-            if any(word in user_lower for word in ['male', 'man', 'boy']):
-                demographics['sex'] = 'male'
-                self._capture_debug(f"[Navigator] ✅ Sex extracted: male")
-            elif any(word in user_lower for word in ['female', 'woman', 'girl']):
+            # Check female first (before male) to avoid substring match issues
+            if any(word in user_lower for word in ['female', 'woman', 'girl', 'f']):
                 demographics['sex'] = 'female'
                 self._capture_debug(f"[Navigator] ✅ Sex extracted: female")
+            elif any(word in user_lower for word in ['male', 'man', 'boy', 'm']):
+                demographics['sex'] = 'male'
+                self._capture_debug(f"[Navigator] ✅ Sex extracted: male")
     
     # ============================================================================
     # SECTION 6: ASSESSMENT - OLDCARTS Processing, Scoring, Question Generation
@@ -1144,22 +1161,22 @@ Be conversational and specific to their situation."""
                             # Build question with specific guideline options
                             options_text = ", ".join(f'"{opt}"' for opt in guideline_options)
                             
-                            user_msg = f"""Patient has: {chief_complaint}
+                            user_msg = f"""You are asking about the patient's {next_element}.
 
-What we know so far:
-{covered_info}
+Patient's chief complaint: {chief_complaint}
 
-Ask about: {next_element}
+CRITICAL TASK: Generate a question asking about {next_element} (NOT about demographics like age or sex).
 
-IMPORTANT: Use these SPECIFIC options from medical guidelines in your question:
+IMPORTANT: Use these SPECIFIC {next_element} options from medical guidelines in your question:
 {options_text}
 
-Recent conversation:
-{conversation_text}
+Information already collected:
+{covered_info}
 
-Generate ONE clear question about {next_element} that includes these specific options.
-Format naturally, like: "How would you describe it? Is it [option1], [option2], or [option3]?"
-Use the patient's actual {chief_complaint}, not example topics."""
+Generate ONE clear question about {next_element} for their {chief_complaint} that includes these specific options.
+Format naturally like: "Where is it? Is it [option1], [option2], or [option3]?"
+
+CRITICAL: Ask about {next_element}, NOT about demographics. Use the {next_element} options provided above."""
                         else:
                             # No guideline options - use general approach
                             user_msg = f"""Patient has: {chief_complaint}

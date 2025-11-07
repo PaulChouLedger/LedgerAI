@@ -1,9 +1,12 @@
-# === container_rest.py — Aura Medical Container (Clinician Mode Architecture)
-# All requests are handled by the clinician mode which provides:
-# - Medical symptom assessment with adaptive diagnostic engine
-# - Medical knowledge queries with RAG integration
-# - Casual greetings and general medical conversation
-# - Comprehensive physician-like medical assistance
+# === container_rest.py — Aura Medical Container (Direct Routing Architecture)
+# Simplified architecture with direct routing to medical engines:
+# - Advanced Medical Navigator (USE_MEDICAL_NAVIGATOR=true) - hybrid LLM/RAG/FAISS
+# - Adaptive Diagnostic Engine (default) - guideline-based assessment
+#
+# Architecture:
+# container_rest.py → medical_navigator.py OR adaptive_diagnostic_engine.py
+#
+# No intermediate layers - cleaner, simpler, easier to debug.
 
 from flask import Flask, request, jsonify, stream_with_context, Response
 from llama_cpp import Llama
@@ -12,17 +15,155 @@ import os, re, json, string, threading, time
 from datetime import datetime, timedelta
 from glob import glob
 import requests
-
-# Note: Validation functions removed - ML system handles all validation
-
-# Import clinician mode for comprehensive medical assistance
-from clinician_mode import ClinicianSession, is_clinician_trigger, get_clinician_session, handle_clinician_response
+from typing import Dict, Callable
 
 # Import modular RAG client (supports both GPU and CPU modes)
 from rag import get_rag_client
+import numpy as np
+
+# RAG Embedding API wrapper
+class RAGEmbeddingAPI:
+    """Wrapper for RAG client's embedding service"""
+    def __init__(self):
+        self.rag_client = get_rag_client()
+    
+    def encode(self, texts: list) -> list:
+        """Encode texts to embeddings"""
+        embeddings = self.rag_client.embed(texts)
+        if embeddings:
+            return [np.array(emb, dtype=np.float32) for emb in embeddings]
+        else:
+            raise RuntimeError("RAG embedding failed")
+
+# Import medical engines
+try:
+    from adaptive_diagnostic_engine import AdaptiveDiagnosticEngine
+    ADAPTIVE_ENGINE_AVAILABLE = True
+    print("[Container] ✅ Adaptive diagnostic engine imported")
+except ImportError as e:
+    ADAPTIVE_ENGINE_AVAILABLE = False
+    print(f"[Container] ⚠️ Adaptive engine not available: {e}")
+
+try:
+    from advanced_medical_navigator import AdvancedMedicalNavigator
+    MEDICAL_NAVIGATOR_AVAILABLE = True
+    print("[Container] ✅ Advanced Medical Navigator imported")
+except ImportError as e:
+    MEDICAL_NAVIGATOR_AVAILABLE = False
+    print(f"[Container] ⚠️ Medical Navigator not available: {e}")
 
 app = Flask(__name__)
 load_dotenv()
+
+# === Singleton Instances (Expensive to Create, Reused Across Sessions) ===
+_global_medical_rule_engine = None
+_global_adaptive_engine = None
+_global_medical_navigator = None
+
+def get_medical_rule_engine(embedding_api):
+    """Get or create singleton medical rule engine (expensive FAISS indexing, reuse!)"""
+    global _global_medical_rule_engine
+    
+    if _global_medical_rule_engine is None:
+        print("[Container] 🔧 Initializing Medical Rule Engine (one-time FAISS indexing)...")
+        try:
+            from ml.medical_rule_engine import MedicalRuleEngine
+            _global_medical_rule_engine = MedicalRuleEngine(embedding_model=embedding_api)
+            print(f"[Container] ✅ Medical Rule Engine initialized (FAISS indexes built once)")
+        except Exception as e:
+            print(f"[Container] ❌ Failed to initialize Medical Rule Engine: {e}")
+            return None
+    else:
+        print(f"[Container] ♻️  Reusing Medical Rule Engine (FAISS already built)")
+    
+    return _global_medical_rule_engine
+
+def get_adaptive_engine(llm_chat_fn, llm_chat_simple_fn, embedding_api):
+    """Get or create singleton adaptive engine (expensive to create, reuse!)"""
+    global _global_adaptive_engine
+    
+    if _global_adaptive_engine is None:
+        print("[Container] 🔧 Initializing Adaptive Diagnostic Engine (one-time setup)...")
+        _global_adaptive_engine = AdaptiveDiagnosticEngine(
+            llm_chat_fn=llm_chat_fn,
+            embedding_model=embedding_api,
+            llm_chat_simple_fn=llm_chat_simple_fn
+        )
+        guideline_count = len(_global_adaptive_engine.all_guidelines) if hasattr(_global_adaptive_engine, 'all_guidelines') else 0
+        print(f"[Container] ✅ Adaptive engine initialized: {guideline_count} guidelines")
+    
+    return _global_adaptive_engine
+
+def get_medical_navigator(llm_chat_fn, medical_rule_engine=None, embedding_model=None):
+    """Get or create singleton medical navigator (hybrid LLM/RAG/FAISS)"""
+    global _global_medical_navigator
+    
+    if _global_medical_navigator is None:
+        print("[Container] 🔧 Initializing Advanced Medical Navigator (one-time setup)...")
+        _global_medical_navigator = AdvancedMedicalNavigator(
+            llm_chat_fn=llm_chat_fn,
+            medical_rule_engine=medical_rule_engine,
+            embedding_model=embedding_model
+        )
+        print(f"[Container] ✅ Advanced Medical Navigator initialized")
+    
+    return _global_medical_navigator
+
+# === Session Management (Per-User State) ===
+active_sessions: Dict[str, Dict] = {}
+
+def get_or_create_session(session_id: str) -> Dict:
+    """Get or create session for specific user"""
+    global active_sessions
+    
+    if session_id not in active_sessions:
+        print(f"[Container] 🔧 Creating new session: {session_id}")
+        active_sessions[session_id] = {
+            'created_at': datetime.now(),
+            'last_activity': datetime.now()
+        }
+    else:
+        print(f"[Container] 🔄 Reusing session: {session_id}")
+        active_sessions[session_id]['last_activity'] = datetime.now()
+    
+    return active_sessions[session_id]
+
+def reset_session(session_id: str):
+    """Reset session state"""
+    global _global_adaptive_engine, _global_medical_navigator
+    
+    print(f"[Container] 🔄 Resetting session: {session_id}")
+    
+    # Reset engines (they maintain session state internally)
+    if _global_adaptive_engine:
+        _global_adaptive_engine.reset_assessment()
+        print(f"[Container] ✅ Adaptive engine reset")
+    
+    if _global_medical_navigator and session_id in _global_medical_navigator.sessions:
+        del _global_medical_navigator.sessions[session_id]
+        print(f"[Container] ✅ Medical navigator session deleted")
+    
+    # Clear session from active_sessions
+    if session_id in active_sessions:
+        del active_sessions[session_id]
+
+def cleanup_inactive_sessions():
+    """Clean up old inactive sessions (>2 hours)"""
+    global active_sessions
+    cutoff_time = datetime.now() - timedelta(hours=2)
+    sessions_to_remove = []
+    
+    for session_id, session in active_sessions.items():
+        if session.get('last_activity', datetime.now()) < cutoff_time:
+            sessions_to_remove.append(session_id)
+    
+    for session_id in sessions_to_remove:
+        del active_sessions[session_id]
+        if _global_medical_navigator and session_id in _global_medical_navigator.sessions:
+            del _global_medical_navigator.sessions[session_id]
+    
+    if sessions_to_remove:
+        print(f"[Container] 🗑️  Cleaned up {len(sessions_to_remove)} inactive sessions")
 
 # === Thread Safety ===
 llm_lock = threading.Lock()
@@ -225,118 +366,97 @@ def chat_tg():
     
     print(f"[Telegram] 💬 Session: {session_id}, Prompt: '{prompt[:50]}{'...' if len(prompt) > 50 else ''}', Reset: {do_reset}")
     
-    # Handle session reset - PROPERLY CLEAR SESSION STATE
+    # Handle session reset
     if do_reset:
         print(f"[Telegram] 🔄 Resetting session: {session_id}")
-        
-        # Clear session state properly
-        try:
-            # Reset clinician session if exists
-            from clinician_mode import reset_clinician_session
-            reset_clinician_session(session_id)
-            print(f"[Telegram] ✅ Clinician session reset: {session_id}")
-        except Exception as e:
-            print(f"[Telegram] ⚠️ Error resetting clinician session: {e}")
-        
-        # Always return reset confirmation
+        reset_session(session_id)
         return jsonify({"response": "Session reset. Start again with your symptoms."})
     
     try:
-        # All requests go to clinician mode
-        print(f"[Telegram] 🎯 Using clinician mode for all requests")
+        # Get or create session
+        get_or_create_session(session_id)
         
-        # Helper to collect streamed response into single string
-        def collect_stream(generator):
-            """Collect streamed response and clean it"""
-            response_parts = []
-            for chunk in filter_think_blocks(generator):
-                chunk = chunk.strip()
-                if chunk:
-                    # Remove sentence markers
-                    chunk = chunk.replace('<sentence_start>', '').replace('<sentence_end>', '')
-                    chunk = chunk.strip()
-                    if chunk:
-                        response_parts.append(chunk)
-            return ' '.join(response_parts).strip()
+        # Cleanup inactive sessions periodically (10% chance)
+        import random
+        if random.randint(1, 10) == 1:
+            cleanup_inactive_sessions()
         
-        # Dispatch to unified medical mode
-        try:
-            # For Telegram, we don't need immediate fillers since it's text-based
-            # Engine debug output will flow through naturally (no duplication needed)
-            print(f"[Container] 🔍 Telegram request: '{prompt[:50]}{'...' if len(prompt) > 50 else ''}'")
-            response = handle_clinician_response(prompt, session_id, llm_chat, llm_chat_simple)
-            print(f"[Container] ✅ Telegram response processed")
-            print(f"[Container] 🔍 Response type: {type(response)}")
-            if isinstance(response, dict):
-                print(f"[Container] 🔍 Response keys: {list(response.keys())}")
-                if 'debug' in response:
-                    print(f"[Container] 🔍 Debug info present: {response['debug'] is not None}")
-                else:
-                    print(f"[Container] ⚠️ No debug key in response")
+        # Route to appropriate medical engine
+        use_medical_navigator = os.environ.get('USE_MEDICAL_NAVIGATOR', 'false').lower() == 'true'
+        
+        print(f"[Container] 🔍 Telegram request: '{prompt[:50]}{'...' if len(prompt) > 50 else ''}'")
+        
+        if use_medical_navigator and MEDICAL_NAVIGATOR_AVAILABLE:
+            # ===== MEDICAL NAVIGATOR PATH =====
+            print(f"[Telegram] 🔀 Using Advanced Medical Navigator")
             
-            # Check if response includes question (dict) or is simple text (str)
-            if isinstance(response, dict):
-                # Return question + debug info for Telegram
-                debug_info = response.get('debug')
-                print(f"[Container] 🔍 Debug info in response: {debug_info is not None}")
-                if debug_info:
-                    print(f"[Container] 🔍 Debug info keys: {list(debug_info.keys())}")
-                    if 'engine_debug_output' in debug_info:
-                        print(f"[Container] 🔍 Engine debug output: {len(debug_info['engine_debug_output'])} lines")
-                        if debug_info['engine_debug_output']:
-                            print(f"[Container] 🔍 First few debug lines: {debug_info['engine_debug_output'][:3]}")
-                        else:
-                            print(f"[Container] ⚠️ Engine debug output is empty")
-                    else:
-                        print(f"[Container] ⚠️ No engine_debug_output key in debug info")
-                
-                # Format response for Telegram
-                # Handle empathetic statement + question (with pause indicator)
-                response_text = ""
-                if response.get('message'):
-                    response_text = response['message']
-                
-                if response.get('question'):
-                    if response_text:
-                        # Add pause indicator if both message and question exist
-                        if response.get('has_pause'):
-                            response_text += "\n\n"  # Extra spacing for pause
-                        else:
-                            response_text += "\n"
-                    response_text += response['question']
-                
-                # Fallback if neither exists
-                if not response_text:
-                    response_text = response.get('question', response.get('message', ''))
-                
-                telegram_response = {
-                    "response": response_text,
-                    "debug": debug_info  # Include debug info if available
-                }
-                return jsonify(telegram_response)
+            # Initialize singletons
+            embedding_api = rag_api if hasattr(globals(), 'rag_api') and rag_api else None
+            medical_rule_engine = get_medical_rule_engine(embedding_api) if embedding_api else None
+            navigator = get_medical_navigator(llm_chat, medical_rule_engine, embedding_api)
+            
+            # Process message through navigator
+            response = navigator.process_message(session_id=session_id, user_message=prompt)
+            print(f"[Container] ✅ Navigator response processed")
+            
+        elif ADAPTIVE_ENGINE_AVAILABLE:
+            # ===== ADAPTIVE ENGINE PATH =====
+            print(f"[Telegram] 🩺 Using Adaptive Diagnostic Engine")
+            
+            # Initialize singletons  
+            embedding_api = rag_api if hasattr(globals(), 'rag_api') and rag_api else None
+            engine = get_adaptive_engine(llm_chat, llm_chat_simple, embedding_api)
+            
+            # Check if this is first message (start assessment) or continuation (process answer)
+            if session_id not in active_sessions or not hasattr(engine, 'chief_complaint') or not engine.chief_complaint:
+                # First message - start assessment
+                response = engine.start_assessment(prompt)
             else:
-                # Simple text response
-                return jsonify({"response": response})
-        except Exception as e:
-            print(f"[Container] ❌ Error in clinician mode (non-streaming): {e}")
-            print(f"[Container] 📋 Error type: {type(e).__name__}")
-            print(f"[Container] 📍 Error location: {e.__traceback__.tb_frame.f_code.co_filename}:{e.__traceback__.tb_lineno}")
-            print(f"[Container] 🔍 Full traceback:")
-            import traceback
-            traceback.print_exc()
+                # Continuation - process answer
+                response = engine.process_answer(prompt)
             
-            # NO FALLBACKS - re-raise the actual error
-            raise e
+            print(f"[Container] ✅ Adaptive engine response processed")
+        
+        else:
+            raise ValueError("No medical engine available")
+        
+        # Format response for Telegram
+        print(f"[Container] 🔍 Response type: {type(response)}")
+        
+        if isinstance(response, dict):
+            print(f"[Container] 🔍 Response keys: {list(response.keys())}")
+            
+            # Extract response text from dict
+            response_text = response.get('response', '')  # Navigator uses 'response'
+            if not response_text:
+                response_text = response.get('message', '')  # Adaptive engine might use 'message'
+            if not response_text:
+                response_text = response.get('question', '')  # Or 'question'
+            
+            # Handle message + question format (adaptive engine)
+            if response.get('message') and response.get('question'):
+                response_text = response['message']
+                if response.get('has_pause'):
+                    response_text += "\n\n"
+                else:
+                    response_text += "\n"
+                response_text += response['question']
+            
+            telegram_response = {
+                "response": response_text,
+                "debug": response.get('debug') or response.get('metadata')
+            }
+            return jsonify(telegram_response)
+        else:
+            # Simple text response
+            return jsonify({"response": str(response)})
             
     except Exception as e:
-        print(f"[Telegram] ❌ Error in chat-simple: {e}")
-        print(f"[Telegram] 📋 Error type: {type(e).__name__}")
-        print(f"[Telegram] 📍 Error location: {e.__traceback__.tb_frame.f_code.co_filename}:{e.__traceback__.tb_lineno}")
-        print(f"[Telegram] 🔍 Full traceback:")
+        print(f"[Container] ❌ Error processing request: {e}")
+        print(f"[Container] 📋 Error type: {type(e).__name__}")
         import traceback
         traceback.print_exc()
-        # NO FALLBACKS - re-raise the actual error
-        raise e
+        return jsonify({"error": str(e)}), 500
 
 
 # === Streaming chat endpoint for TTS/Voice ===
@@ -367,28 +487,51 @@ def chat_tts():
 
     print(f"[Aura-LLM] 💬 Session: {session_id}, Prompt: '{prompt[:50]}{'...' if len(prompt) > 50 else ''}', Reset: {do_reset}")
 
-    # Handle session reset (simplified - just return reset message)
+    # Handle session reset
     if do_reset:
-        if prompt_norm in RESET_KEYWORDS:
-            def generate_reset():
-                yield "<sentence_start>\n🔄 Session reset. Start again with your symptoms.\n<sentence_end>\n"
-            # Filter think blocks at container level (though unlikely here)
-            return Response(stream_with_context(filter_think_blocks(generate_reset())), mimetype="text/plain")
+        reset_session(session_id)
+        def generate_reset():
+            yield "<sentence_start>\n🔄 Session reset. Start again with your symptoms.\n<sentence_end>\n"
+        return Response(stream_with_context(filter_think_blocks(generate_reset())), mimetype="text/plain")
 
-    # All requests go to clinician mode
-    print(f"[Aura-LLM] 🎯 Using clinician mode for all requests")
+    # Get or create session
+    get_or_create_session(session_id)
+    
+    # Route to appropriate medical engine
+    use_medical_navigator = os.environ.get('USE_MEDICAL_NAVIGATOR', 'false').lower() == 'true'
 
-    # Dispatch to clinician mode
-    def generate_clinician():
+    # Dispatch to medical engine with streaming
+    def generate_medical_response():
         try:
-            print("[Container] 🔄 Using dynamic medical assessment for CLINICIAN")
+            # Initialize embedding API
+            embedding_api = rag_api if 'rag_api' in globals() and rag_api else None
             
-            # Process the actual response
-            response = handle_clinician_response(prompt, session_id, llm_chat, llm_chat_simple)
+            if use_medical_navigator and MEDICAL_NAVIGATOR_AVAILABLE:
+                # ===== MEDICAL NAVIGATOR PATH =====
+                print(f"[TTS] 🔀 Using Advanced Medical Navigator")
+                
+                medical_rule_engine = get_medical_rule_engine(embedding_api) if embedding_api else None
+                navigator = get_medical_navigator(llm_chat, medical_rule_engine, embedding_api)
+                
+                response = navigator.process_message(session_id=session_id, user_message=prompt)
+                
+            elif ADAPTIVE_ENGINE_AVAILABLE:
+                # ===== ADAPTIVE ENGINE PATH =====
+                print(f"[TTS] 🩺 Using Adaptive Diagnostic Engine")
+                
+                engine = get_adaptive_engine(llm_chat, llm_chat_simple, embedding_api)
+                
+                # Check if starting or continuing assessment
+                if not hasattr(engine, 'chief_complaint') or not engine.chief_complaint:
+                    response = engine.start_assessment(prompt)
+                else:
+                    response = engine.process_answer(prompt)
+            else:
+                raise ValueError("No medical engine available")
             
-            print(f"[Container] ✅ Got response from unified medical session")
+            print(f"[Container] ✅ Got response from medical engine")
             
-            # Check if response is dict or simple text (str)
+            # Stream response to TTS
             if isinstance(response, dict):
                 # Handle empathetic statement + question (with pause)
                 if response.get('message') and response.get('question'):
@@ -419,13 +562,19 @@ def chat_tts():
                     yield "<sentence_start>\n"
                     yield f"{message_text}\n"
                     yield "<sentence_end>\n"
+                elif response.get('response'):
+                    # Navigator uses 'response' key
+                    response_text = response.get('response', '')
+                    yield "<sentence_start>\n"
+                    yield f"{response_text}\n"
+                    yield "<sentence_end>\n"
                 else:
                     # Fallback
                     yield "<sentence_start>\n"
                     yield "I'm processing your response...\n"
                     yield "<sentence_end>\n"
             elif isinstance(response, str):
-                # Simple text response (no filler)
+                # Simple text response
                 yield "<sentence_start>\n"
                 yield f"{response}\n"
                 yield "<sentence_end>\n"
@@ -435,18 +584,13 @@ def chat_tts():
                 yield "I'm processing your response...\n"
                 yield "<sentence_end>\n"
         except Exception as e:
-            print(f"[Container] ❌ Error in clinician mode: {e}")
-            print(f"[Container] 📋 Error type: {type(e).__name__}")
-            print(f"[Container] 📍 Error location: {e.__traceback__.tb_frame.f_code.co_filename}:{e.__traceback__.tb_lineno}")
-            print(f"[Container] 🔍 Full traceback:")
+            print(f"[Container] ❌ Error in medical engine: {e}")
             import traceback
             traceback.print_exc()
-            
-            # NO FALLBACKS - re-raise the actual error
             raise e
 
     # Filter think blocks at container level
-    return Response(stream_with_context(filter_think_blocks(generate_clinician())), mimetype="text/plain")
+    return Response(stream_with_context(filter_think_blocks(generate_medical_response())), mimetype="text/plain")
 
 
 
@@ -711,8 +855,17 @@ def llm_chat_once(messages, **kwargs):
 # === Server Startup ===
 
 if __name__ == "__main__":
-    # Load model ONLY when running as main script (prevents double loading on import)
+    # Initialize RAG embedding API
+    print("[Container] 🔧 Initializing RAG embedding API...")
+    try:
+        rag_api = RAGEmbeddingAPI()
+        test_embedding = rag_api.encode(["test"])
+        print(f"[Container] ✅ RAG embedding API initialized")
+    except Exception as e:
+        print(f"[Container] ⚠️ RAG API not available: {e}")
+        rag_api = None
     
+    # Load model ONLY when running as main script (prevents double loading on import)
     print(f"[LLM] 🚀 Loading model: {SIMPLE_MODEL_PATH}")
     print(f"[LLM] ⚙️  Config: n_ctx={SIMPLE_N_CTX}, format={SIMPLE_CHAT_FORMAT}")
     
@@ -747,12 +900,21 @@ if __name__ == "__main__":
     load_time = time.time() - start_time
     print(f"[LLM] ✅ Simple model loaded: {SIMPLE_MODEL_PATH} (took {load_time:.1f}s)")
     
-    print("[Aura-LLM] 🚀 Starting Aura LLM Container (Modular Architecture)")
+    print("[Aura-LLM] 🚀 Starting Aura LLM Container (Direct Routing Architecture)")
     print("[Aura-LLM] 📋 Configuration:")
-    print("  - CLINICIAN: Intelligent medical assistant with adaptive diagnostic engine")
-    print("    • Handles casual greetings, medical knowledge queries, and symptom assessment")
-    print("    • Uses GPU-accelerated RAG for medical knowledge and guideline matching")
-    print("    • Using Llama-3.2-1B model for all tasks")
+    use_navigator = os.environ.get('USE_MEDICAL_NAVIGATOR', 'false').lower() == 'true'
+    if use_navigator:
+        print("  - MODE: Advanced Medical Navigator (Hybrid LLM/RAG/FAISS)")
+        print("    • Natural conversation flow with guideline-based assessment")
+        print("    • Dynamic condition ranking and smart question selection")
+        print("    • On-demand guideline loading for low latency")
+    else:
+        print("  - MODE: Adaptive Diagnostic Engine (Guideline-Based)")
+        print("    • Structured OLDCARTS assessment with clarifying questions")
+        print("    • FAISS semantic matching and anatomical filtering")
+        print("    • Multi-category support with fuzzy fallback")
+    print("    • Uses local CPU FAISS for medical knowledge")
+    print("    • Single LLM model (Llama-3.2-1B) for all tasks")
 
     app.run(host='0.0.0.0', port=11434, debug=False)
 
