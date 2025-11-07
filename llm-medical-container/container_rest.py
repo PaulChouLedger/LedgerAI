@@ -168,6 +168,9 @@ def cleanup_inactive_sessions():
 # === Thread Safety ===
 llm_lock = threading.Lock()
 
+# === Global instances (initialized at startup) ===
+rag_api = None
+
 # === Health Check Endpoint ===
 @app.route("/health", methods=["GET"])
 def health_check():
@@ -390,10 +393,9 @@ def chat_tg():
             # ===== MEDICAL NAVIGATOR PATH =====
             print(f"[Telegram] 🔀 Using Advanced Medical Navigator")
             
-            # Initialize singletons
-            embedding_api = rag_api if hasattr(globals(), 'rag_api') and rag_api else None
-            medical_rule_engine = get_medical_rule_engine(embedding_api) if embedding_api else None
-            navigator = get_medical_navigator(llm_chat, medical_rule_engine, embedding_api)
+            # Initialize singletons (rag_api is module-level global)
+            medical_rule_engine = get_medical_rule_engine(rag_api) if rag_api else None
+            navigator = get_medical_navigator(llm_chat, medical_rule_engine, rag_api)
             
             # Process message through navigator
             response = navigator.process_message(session_id=session_id, user_message=prompt)
@@ -403,9 +405,8 @@ def chat_tg():
             # ===== ADAPTIVE ENGINE PATH =====
             print(f"[Telegram] 🩺 Using Adaptive Diagnostic Engine")
             
-            # Initialize singletons  
-            embedding_api = rag_api if hasattr(globals(), 'rag_api') and rag_api else None
-            engine = get_adaptive_engine(llm_chat, llm_chat_simple, embedding_api)
+            # Initialize singletons (rag_api is module-level global)
+            engine = get_adaptive_engine(llm_chat, llm_chat_simple, rag_api)
             
             # Check if this is first message (start assessment) or continuation (process answer)
             if session_id not in active_sessions or not hasattr(engine, 'chief_complaint') or not engine.chief_complaint:
@@ -503,15 +504,13 @@ def chat_tts():
     # Dispatch to medical engine with streaming
     def generate_medical_response():
         try:
-            # Initialize embedding API
-            embedding_api = rag_api if 'rag_api' in globals() and rag_api else None
-            
+            # rag_api is module-level global (initialized at startup)
             if use_medical_navigator and MEDICAL_NAVIGATOR_AVAILABLE:
                 # ===== MEDICAL NAVIGATOR PATH =====
                 print(f"[TTS] 🔀 Using Advanced Medical Navigator")
                 
-                medical_rule_engine = get_medical_rule_engine(embedding_api) if embedding_api else None
-                navigator = get_medical_navigator(llm_chat, medical_rule_engine, embedding_api)
+                medical_rule_engine = get_medical_rule_engine(rag_api) if rag_api else None
+                navigator = get_medical_navigator(llm_chat, medical_rule_engine, rag_api)
                 
                 response = navigator.process_message(session_id=session_id, user_message=prompt)
                 
@@ -519,7 +518,7 @@ def chat_tts():
                 # ===== ADAPTIVE ENGINE PATH =====
                 print(f"[TTS] 🩺 Using Adaptive Diagnostic Engine")
                 
-                engine = get_adaptive_engine(llm_chat, llm_chat_simple, embedding_api)
+                engine = get_adaptive_engine(llm_chat, llm_chat_simple, rag_api)
                 
                 # Check if starting or continuing assessment
                 if not hasattr(engine, 'chief_complaint') or not engine.chief_complaint:
@@ -855,7 +854,7 @@ def llm_chat_once(messages, **kwargs):
 # === Server Startup ===
 
 if __name__ == "__main__":
-    # Initialize RAG embedding API
+    # Initialize RAG embedding API (module-level variable, no global needed in __main__ block)
     print("[Container] 🔧 Initializing RAG embedding API...")
     try:
         rag_api = RAGEmbeddingAPI()
