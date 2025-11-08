@@ -413,7 +413,9 @@ def chat_tg():
         
         print(f"[Container] 🔍 Telegram request: '{prompt[:50]}{'...' if len(prompt) > 50 else ''}'")
         
-        if use_medical_navigator and MEDICAL_NAVIGATOR_AVAILABLE:
+        if use_medical_navigator:
+            if not _ensure_medical_navigator_import():
+                raise RuntimeError("Advanced Medical Navigator requested but not available")
             # ===== MEDICAL NAVIGATOR PATH =====
             print(f"[Telegram] 🔀 Using Advanced Medical Navigator")
             
@@ -424,7 +426,6 @@ def chat_tg():
             # Process message through navigator
             response = navigator.process_message(session_id=session_id, user_message=prompt)
             print(f"[Container] ✅ Navigator response processed")
-            
         elif _ensure_adaptive_engine_import():
             # ===== ADAPTIVE ENGINE PATH =====
             print(f"[Telegram] 🩺 Using Adaptive Diagnostic Engine")
