@@ -4649,7 +4649,7 @@ Generate a question about {component} for this patient:"""
         if not normalized:
             return False
         greetings = {
-            'hi', 'hello', 'hey', 'hey there', 'good morning', 'good afternoon', 'good evening',
-            'hola', 'greetings', 'whats up', 'what's up', 'yo', 'sup'
+            'hi', 'hello', 'hey', 'good morning', 'good afternoon', 'good evening',
+            'hola', 'greetings', 'whats up', "what's up", 'yo', 'sup'
         }
         return normalized in greetings

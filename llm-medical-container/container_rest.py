@@ -35,22 +35,42 @@ class RAGEmbeddingAPI:
         else:
             raise RuntimeError("RAG embedding failed")
 
-# Import medical engines
-try:
-    from adaptive_diagnostic_engine import AdaptiveDiagnosticEngine
-    ADAPTIVE_ENGINE_AVAILABLE = True
-    print("[Container] ✅ Adaptive diagnostic engine imported")
-except ImportError as e:
-    ADAPTIVE_ENGINE_AVAILABLE = False
-    print(f"[Container] ⚠️ Adaptive engine not available: {e}")
+AdaptiveDiagnosticEngine = None
+AdvancedMedicalNavigator = None
+ADAPTIVE_ENGINE_AVAILABLE = False
+MEDICAL_NAVIGATOR_AVAILABLE = False
 
-try:
-    from advanced_medical_navigator import AdvancedMedicalNavigator
-    MEDICAL_NAVIGATOR_AVAILABLE = True
-    print("[Container] ✅ Advanced Medical Navigator imported")
-except ImportError as e:
-    MEDICAL_NAVIGATOR_AVAILABLE = False
-    print(f"[Container] ⚠️ Medical Navigator not available: {e}")
+
+def _ensure_adaptive_engine_import():
+    global AdaptiveDiagnosticEngine, ADAPTIVE_ENGINE_AVAILABLE
+    if ADAPTIVE_ENGINE_AVAILABLE:
+        return True
+    try:
+        from adaptive_diagnostic_engine import AdaptiveDiagnosticEngine as ImportedAdaptive
+        AdaptiveDiagnosticEngine = ImportedAdaptive
+        ADAPTIVE_ENGINE_AVAILABLE = True
+        print("[Container] ✅ Adaptive diagnostic engine imported")
+        return True
+    except ImportError as e:
+        ADAPTIVE_ENGINE_AVAILABLE = False
+        print(f"[Container] ⚠️ Adaptive engine not available: {e}")
+        return False
+
+
+def _ensure_medical_navigator_import():
+    global AdvancedMedicalNavigator, MEDICAL_NAVIGATOR_AVAILABLE
+    if MEDICAL_NAVIGATOR_AVAILABLE:
+        return True
+    try:
+        from advanced_medical_navigator import AdvancedMedicalNavigator as ImportedNavigator
+        AdvancedMedicalNavigator = ImportedNavigator
+        MEDICAL_NAVIGATOR_AVAILABLE = True
+        print("[Container] ✅ Advanced Medical Navigator imported")
+        return True
+    except ImportError as e:
+        MEDICAL_NAVIGATOR_AVAILABLE = False
+        print(f"[Container] ⚠️ Medical Navigator not available: {e}")
+        return False
 
 app = Flask(__name__)
 load_dotenv()
@@ -81,7 +101,9 @@ def get_medical_rule_engine(embedding_api):
 def get_adaptive_engine(llm_chat_fn, llm_chat_simple_fn, embedding_api):
     """Get or create singleton adaptive engine (expensive to create, reuse!)"""
     global _global_adaptive_engine
-    
+    if not _ensure_adaptive_engine_import():
+        raise RuntimeError("Adaptive Diagnostic Engine not available")
+
     if _global_adaptive_engine is None:
         print("[Container] 🔧 Initializing Adaptive Diagnostic Engine (one-time setup)...")
         _global_adaptive_engine = AdaptiveDiagnosticEngine(
@@ -97,7 +119,9 @@ def get_adaptive_engine(llm_chat_fn, llm_chat_simple_fn, embedding_api):
 def get_medical_navigator(llm_chat_fn, medical_rule_engine=None, embedding_model=None):
     """Get or create singleton medical navigator (hybrid LLM/RAG/FAISS)"""
     global _global_medical_navigator
-    
+    if not _ensure_medical_navigator_import():
+        raise RuntimeError("Advanced Medical Navigator not available")
+
     if _global_medical_navigator is None:
         print("[Container] 🔧 Initializing Advanced Medical Navigator (one-time setup)...")
         _global_medical_navigator = AdvancedMedicalNavigator(
@@ -401,7 +425,7 @@ def chat_tg():
             response = navigator.process_message(session_id=session_id, user_message=prompt)
             print(f"[Container] ✅ Navigator response processed")
             
-        elif ADAPTIVE_ENGINE_AVAILABLE:
+        elif _ensure_adaptive_engine_import():
             # ===== ADAPTIVE ENGINE PATH =====
             print(f"[Telegram] 🩺 Using Adaptive Diagnostic Engine")
             
@@ -514,7 +538,7 @@ def chat_tts():
                 
                 response = navigator.process_message(session_id=session_id, user_message=prompt)
                 
-            elif ADAPTIVE_ENGINE_AVAILABLE:
+            elif _ensure_adaptive_engine_import():
                 # ===== ADAPTIVE ENGINE PATH =====
                 print(f"[TTS] 🩺 Using Adaptive Diagnostic Engine")
                 
