@@ -73,11 +73,13 @@
         "includes": [
           {
             "medical": "dull",
-            "patient_friendly": "dull or achy"
+            "patient_friendly": "dull or achy",
+            "question_tags": ["sensory"]
           },
           {
             "medical": "cramping",
-            "patient_friendly": "cramping"
+            "patient_friendly": "cramping",
+            "question_tags": ["sensory"]
           }
         ],
         "excludes": []

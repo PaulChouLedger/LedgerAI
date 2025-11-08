@@ -79,11 +79,13 @@
         "includes": [
           {
             "medical": "pressure",
-            "patient_friendly": "pressure-like"
+            "patient_friendly": "pressure-like",
+            "question_tags": ["sensory"]
           },
           {
             "medical": "aching",
-            "patient_friendly": "aching"
+            "patient_friendly": "aching",
+            "question_tags": ["sensory"]
           }
         ],
         "excludes": []

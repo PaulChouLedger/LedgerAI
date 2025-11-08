@@ -8,11 +8,8 @@
   "chief_complaint_triggers": [
     "vomiting blood",
     "hematemesis",
-    "bloody vomit",
     "black stool",
-    "melena",
-    "upper GI bleeding",
-    "stomach bleeding"
+    "melena"
   ],
   "key_features": {
     "structured_oldcarts": {
@@ -30,10 +27,6 @@
           {
             "medical": "epigastric",
             "patient_friendly": "upper middle part of your belly"
-          },
-          {
-            "medical": "upper abdomen",
-            "patient_friendly": "upper part of your abdomen"
           }
         ],
         "excludes": [],
@@ -87,15 +80,18 @@
         "includes": [
           {
             "medical": "bright red blood",
-            "patient_friendly": "bright red blood in vomit"
+            "patient_friendly": "bright red blood in vomit",
+            "question_tags": ["visual"]
           },
           {
             "medical": "coffee ground",
-            "patient_friendly": "dark brown or coffee ground-like material in vomit"
+            "patient_friendly": "dark brown or coffee ground-like material in vomit",
+            "question_tags": ["visual"]
           },
           {
             "medical": "black tarry stool",
-            "patient_friendly": "black, tarry, sticky stool"
+            "patient_friendly": "black, tarry, sticky stool",
+            "question_tags": ["visual"]
           }
         ],
         "excludes": []
@@ -103,12 +99,12 @@
       "aggravating": {
         "includes": [
           {
-            "medical": "vomiting",
+            "medical": "emesis",
             "patient_friendly": "vomiting"
           },
           {
-            "medical": "straining",
-            "patient_friendly": "straining or bearing down"
+            "medical": "eating",
+            "patient_friendly": "eating"
           }
         ],
         "excludes": []
@@ -144,16 +140,12 @@
         "includes": [
           {
             "medical": "hematemesis",
-            "patient_friendly": "vomiting blood"
+            "patient_friendly": "vomiting blood",
+            "emergent": true
           },
           {
             "medical": "melena",
             "patient_friendly": "black, tarry stool",
-            "emergent": true
-          },
-          {
-            "medical": "hematochezia",
-            "patient_friendly": "blood in the stool",
             "emergent": true
           },
           {
@@ -168,7 +160,8 @@
           },
           {
             "medical": "dizziness",
-            "patient_friendly": "dizziness or lightheadedness"
+            "patient_friendly": "dizziness or lightheadedness", 
+            "emergent": true
           },
           {
             "medical": "syncope",
@@ -185,8 +178,7 @@
           },
           {
             "medical": "shortness of breath",
-            "patient_friendly": "difficulty breathing or shortness of breath",
-            "emergent": true
+            "patient_friendly": "difficulty breathing or shortness of breath"
           },
           {
             "medical": "chest pain",

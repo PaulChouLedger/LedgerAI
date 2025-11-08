@@ -90,15 +90,18 @@
         "includes": [
           {
             "medical": "burning",
-            "patient_friendly": "burning sensation"
+            "patient_friendly": "burning sensation",
+            "question_tags": ["sensory"]
           },
           {
             "medical": "sharp",
-            "patient_friendly": "sharp or stabbing"
+            "patient_friendly": "sharp or stabbing",
+            "question_tags": ["sensory"]
           },
           {
             "medical": "pressure",
-            "patient_friendly": "pressure-like"
+            "patient_friendly": "pressure-like",
+            "question_tags": ["sensory"]
           }
         ],
         "excludes": []

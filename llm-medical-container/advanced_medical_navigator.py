@@ -183,6 +183,7 @@ class AdvancedMedicalNavigator:
             'hpi': {},
             'pmh': {},
             'guideline_terms': {},
+            'guideline_includes': {},
             'matched_categories': [],
             'clarifications': {},
         })
@@ -351,10 +352,24 @@ class AdvancedMedicalNavigator:
             return self._determine_next_question(session)
 
         element = session.oldcarts_remaining.pop(0)
-        cc = session.context['pre_hpi'].get('chief_complaint', 'the problem')
-        guidance = self._build_oldcarts_guidance(session, element, cc)
-        prompt = self._generate_question(session, 'hpi', element, guidance)
-        return {'section': 'hpi', 'field': element, 'prompt': prompt, 'guidance': guidance}
+        cc_subject = self._normalize_subject_for_questions(session.context['pre_hpi'].get('chief_complaint'))
+        guidance, base_question, options = self._build_oldcarts_guidance(session, element, cc_subject)
+        prompt = self._generate_question(
+            session=session,
+            section='hpi',
+            field=element,
+            guidance=guidance,
+            base_question=base_question,
+            options=options,
+        )
+        return {
+            'section': 'hpi',
+            'field': element,
+            'prompt': prompt,
+            'guidance': guidance,
+            'base_question': base_question,
+            'options': options,
+        }
 
     # ----------- Answer persistence & scoring --------------------------------
 
@@ -994,48 +1009,76 @@ class AdvancedMedicalNavigator:
                     conditions.add(condition_name)
         return sorted(list(conditions))
 
-    def _build_oldcarts_guidance(self, session: "MedicalSession", element: str, cc: str) -> str:
-        base_question = self.HPI_BASE_GUIDANCE[element].replace('{cc}', cc)
-        terms = self._guideline_terms_for_element(session, element)
-        clean_terms = []
-        seen = set()
-        for term in terms:
-            t = term.strip()
-            if t and t.lower() not in seen:
-                seen.add(t.lower())
-                clean_terms.append(t)
-            if len(clean_terms) >= 3:
-                break
+    def _build_oldcarts_guidance(self, session: "MedicalSession", element: str, cc: str) -> Tuple[str, str, List[str]]:
+        includes = self._get_element_includes(session, element)
+        base_template = self.HPI_BASE_GUIDANCE[element]
+        base_question = base_template.replace('{cc}', cc)
+        character_tags: set = set()
+        all_terms: List[str] = []
+        seen_terms = set()
 
-        if clean_terms:
-            sample_terms = random.sample(clean_terms, k=min(3, len(clean_terms)))
+        for entry in includes:
+            term = entry.get('patient_friendly')
+            if isinstance(term, str):
+                term = term.strip()
+                if term and term.lower() not in seen_terms:
+                    seen_terms.add(term.lower())
+                    all_terms.append(term)
+            if element == 'character':
+                tags = entry.get('question_tags') or []
+                for tag in tags:
+                    if isinstance(tag, str):
+                        character_tags.add(tag.lower())
+        candidate_terms = all_terms
+        if element == 'character':
+            subject = cc if cc else 'symptoms'
+            plural = subject.endswith('s')
+            feel_verb = 'feel' if plural else 'feels'
+            look_verb = 'look' if plural else 'looks'
+            do_verb = 'do' if plural else 'does'
+            visual = 'visual' in character_tags
+            sensory = 'sensory' in character_tags
+            if visual and not sensory:
+                base_question = f"What {do_verb} your {subject} {look_verb} like?"
+            elif visual and sensory:
+                base_question = f"How would you describe how your {subject} {feel_verb} or {look_verb}?"
+            else:
+                base_question = f"How would you describe what your {subject} {feel_verb} like?"
+        else:
+            base_question = base_template.replace('{cc}', cc)
+
+        if candidate_terms:
+            sample_terms = random.sample(candidate_terms, k=min(3, len(candidate_terms)))
             options = ', '.join(sample_terms)
-            return (
+            guidance = (
                 f"Create exactly two sentences. Sentence 1 must be the open-ended question: '{base_question}'. "
                 f"Sentence 2 should gently offer examples starting with 'You can mention things like' followed by up to three of these options: {options}. "
                 "Keep both sentences short, friendly, and avoid adding extra options or clauses."
             )
+            return guidance, base_question, sample_terms
 
         fallback_terms = self.DEFAULT_ELEMENT_OPTIONS.get(element, [])
         if fallback_terms:
             sample_terms = random.sample(fallback_terms, k=min(3, len(fallback_terms)))
             options = ', '.join(sample_terms)
-            return (
+            guidance = (
                 f"Create exactly two sentences. Sentence 1 must be the open-ended question: '{base_question}'. "
                 f"Sentence 2 should gently offer examples starting with 'You can mention things like' followed by up to three of these options: {options}. "
                 "Keep both sentences short, friendly, and avoid adding extra options or clauses."
             )
+            return guidance, base_question, sample_terms
 
-        return (
-            f"Ask exactly one friendly, open-ended sentence: '{base_question}'. Do not add examples or extra sentences." )
+        guidance = (
+            f"Ask exactly one friendly, open-ended sentence: '{base_question}'. Do not add examples or extra sentences."
+        )
+        return guidance, base_question, []
 
-    def _guideline_terms_for_element(self, session: "MedicalSession", element: str) -> List[str]:
-        cache = session.context['guideline_terms']
+    def _get_element_includes(self, session: "MedicalSession", element: str) -> List[Dict[str, Any]]:
+        cache = session.context.setdefault('guideline_includes', {})
         if element in cache:
             return cache[element]
         categories = session.context.get('matched_categories') or ['gastrointestinal']
-        terms: List[str] = []
-        seen = set()
+        collected: List[Dict[str, Any]] = []
         for category in categories:
             guidelines = self._get_guidelines_by_category(category)
             for guideline in guidelines.values():
@@ -1043,19 +1086,79 @@ class AdvancedMedicalNavigator:
                 if not structured:
                     structured = guideline.get('data', {}).get('key_features', {}).get('structured_oldcarts', {})
                 element_data = structured.get(element, {})
-                includes = element_data.get('includes', []) if isinstance(element_data, dict) else []
-                for entry in includes:
+                include_items = element_data.get('includes', []) if isinstance(element_data, dict) else []
+                for entry in include_items:
                     if isinstance(entry, dict):
-                        term = entry.get('patient_friendly') or entry.get('medical')
-                    else:
-                        term = entry
-                    if isinstance(term, str):
-                        cleaned = term.strip()
-                        if cleaned and cleaned.lower() not in seen:
-                            seen.add(cleaned.lower())
-                            terms.append(cleaned)
+                        patient_term = entry.get('patient_friendly') or entry.get('medical')
+                        medical_term = entry.get('medical')
+                        tags = entry.get('question_tags')
+                        if tags is None:
+                            tags = entry.get('question_tag')
+                        if isinstance(tags, str):
+                            tag_list = [tags.lower()]
+                        elif isinstance(tags, (list, tuple, set)):
+                            tag_list = [str(tag).lower() for tag in tags if isinstance(tag, str)]
+                        else:
+                            tag_list = []
+                        collected.append({
+                            'patient_friendly': patient_term.strip() if isinstance(patient_term, str) else '',
+                            'medical': medical_term.strip() if isinstance(medical_term, str) else '',
+                            'question_tags': tag_list,
+                        })
+                    elif isinstance(entry, str):
+                        stripped = entry.strip()
+                        collected.append({
+                            'patient_friendly': stripped,
+                            'medical': stripped,
+                            'question_tags': [],
+                        })
+        cache[element] = collected
+        return collected
+
+    def _guideline_terms_for_element(self, session: "MedicalSession", element: str) -> List[str]:
+        cache = session.context['guideline_terms']
+        if element in cache:
+            return cache[element]
+        includes = self._get_element_includes(session, element)
+        terms: List[str] = []
+        seen = set()
+        for entry in includes:
+            term = entry.get('patient_friendly')
+            if isinstance(term, str):
+                cleaned = term.strip()
+                if cleaned and cleaned.lower() not in seen:
+                    seen.add(cleaned.lower())
+                    terms.append(cleaned)
         cache[element] = terms
         return terms
+
+    def _normalize_subject_for_questions(self, text: Optional[str]) -> str:
+        if not text:
+            return 'symptoms'
+        subject = text.strip()
+        lowered = subject.lower()
+        prefixes = [
+            "i have ",
+            "i've got ",
+            "i am having ",
+            "i'm having ",
+            "i am ",
+            "i'm ",
+            "my ",
+            "i feel ",
+            "i've been having ",
+            "i been having ",
+            "i've had ",
+            "i had ",
+        ]
+        for prefix in prefixes:
+            if lowered.startswith(prefix):
+                subject = subject[len(prefix):].strip()
+                break
+        subject = subject.strip(" .,!?:;")
+        if not subject:
+            return 'symptoms'
+        return subject
 
     def _ordered_oldcarts_elements(self, session: "MedicalSession") -> List[str]:
         ordered = sorted(self.HPI_ELEMENTS, key=lambda e: self._get_element_weight(session, e), reverse=True)
@@ -1072,9 +1175,25 @@ class AdvancedMedicalNavigator:
 
     # ----------- LLM helpers -------------------------------------------------
 
-    def _generate_question(self, session: "MedicalSession", section: str, field: str, guidance: str) -> str:
+    def _generate_question(
+        self,
+        session: "MedicalSession",
+        section: str,
+        field: str,
+        guidance: str,
+        base_question: Optional[str] = None,
+        options: Optional[List[str]] = None,
+    ) -> str:
         if not self.llm_chat_fn:
-            return guidance
+            question = base_question or guidance
+            if section == 'hpi' and options:
+                option_text = ', '.join(options)
+                if question.endswith('?'):
+                    prefix = question
+                else:
+                    prefix = question.rstrip('.') + '?'
+                question = f"{prefix} You can mention things like: {option_text}."
+            return question
         cc = session.context['pre_hpi'].get('chief_complaint', 'your symptoms') or 'your symptoms'
         recent = '\n'.join(f"{m['role']}: {m['content']}" for m in session.messages[-6:])
         if section == 'pre_hpi' and field == 'chief_complaint':
@@ -1101,6 +1220,16 @@ class AdvancedMedicalNavigator:
         cleaned = self._clean_llm_response(response)
         if not cleaned:
             raise ValueError(f"LLM returned empty question for {field}")
+        if base_question and base_question.lower() not in cleaned.lower():
+            cleaned = base_question
+        if section == 'hpi' and options:
+            if "you can mention things like" not in cleaned.lower():
+                option_text = ', '.join(options)
+                if cleaned.endswith('?'):
+                    prefix = cleaned
+                else:
+                    prefix = cleaned.rstrip('.') + '?'
+                cleaned = f"{prefix} You can mention things like: {option_text}."
         return cleaned
 
     def _generate_empathetic_statement(self, chief_complaint: str) -> str:

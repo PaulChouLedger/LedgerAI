@@ -14,13 +14,12 @@
       "onset": {
         "includes": [
           {
-            "medical": "gradual",
-            "patient_friendly": "slowly over time"
+            "medical": "acute",
+            "patient_friendly": "recently occurred less than 1 month"
           },
           {
-            "medical": "sudden",
-            "patient_friendly": "all at once or very quickly",
-            "emergent": true
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time more than 3 months"
           }
         ],
         "excludes": []
@@ -76,11 +75,13 @@
         "includes": [
           {
             "medical": "aching",
-            "patient_friendly": "aching"
+            "patient_friendly": "aching",
+            "question_tags": ["sensory"]
           },
           {
             "medical": "sharp",
-            "patient_friendly": "sharp or stabbing"
+            "patient_friendly": "sharp or stabbing",
+            "question_tags": ["sensory"]
           }
         ],
         "excludes": []
@@ -143,8 +144,7 @@
           },
           {
             "medical": "emesis",
-            "patient_friendly": "vomiting",
-            "emergent": true
+            "patient_friendly": "vomiting"
           },
           {
             "medical": "constipation",
@@ -152,11 +152,17 @@
           },
           {
             "medical": "hematochezia",
-            "patient_friendly": "blood in stool"
+            "patient_friendly": "blood in stool",
+            "emergent": true
           },
           {
             "medical": "anorexia",
             "patient_friendly": "no appetite"
+          },
+          {
+            "medical": "diverticulosis",
+            "patient_friendly": "history of diverticulosis",
+            "emergent": true
           }
         ],
         "excludes": []

@@ -97,19 +97,23 @@
         "includes": [
           {
             "medical": "bright red blood",
-            "patient_friendly": "bright red blood"
+            "patient_friendly": "bright red blood",
+            "question_tags": ["visual"]
           },
           {
             "medical": "dark red blood",
-            "patient_friendly": "dark red blood"
+            "patient_friendly": "dark red blood",
+            "question_tags": ["visual"]
           },
           {
             "medical": "blood clots",
-            "patient_friendly": "blood clots in stool"
+            "patient_friendly": "blood clots in stool",
+            "question_tags": ["visual"]
           },
           {
             "medical": "blood on tissue",
-            "patient_friendly": "blood on toilet paper"
+            "patient_friendly": "blood on toilet paper",
+            "question_tags": ["visual"]
           }
         ],
         "excludes": []

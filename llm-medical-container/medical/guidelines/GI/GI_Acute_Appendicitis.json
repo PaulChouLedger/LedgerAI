@@ -75,7 +75,8 @@
         "includes": [
           {
             "medical": "sharp",
-            "patient_friendly": "sharp or stabbing"
+            "patient_friendly": "sharp or stabbing",
+            "question_tags": ["sensory"]
           }
         ],
         "excludes": []

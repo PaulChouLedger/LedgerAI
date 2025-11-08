@@ -60,7 +60,8 @@
         "includes": [
           {
             "medical": "sudden",
-            "patient_friendly": "came on suddenly"
+            "patient_friendly": "came on suddenly", 
+            "emergent": true
           }
         ],
         "excludes": [
@@ -74,23 +75,13 @@
         "includes": [
           {
             "medical": "deep aching",
-            "patient_friendly": "aching"
+            "patient_friendly": "aching",
+            "question_tags": ["sensory"]
           },
           {
-            "medical": "knife",
-            "patient_friendly": "KNIFE"
-          },
-          {
-            "medical": "like",
-            "patient_friendly": "LIKE"
-          },
-          {
-            "medical": "aching",
-            "patient_friendly": "aching"
-          },
-          {
-            "medical": "abdomen",
-            "patient_friendly": "your belly"
+            "medical": "sharp",
+            "patient_friendly": "sharp or stabbing",
+            "question_tags": ["sensory"]
           }
         ],
         "excludes": []
@@ -109,6 +100,10 @@
           {
             "medical": "sitting up and leaning forward",
             "patient_friendly": "sitting up and leaning forward"
+          },
+          {
+            "medical": "decreased oral intake",
+            "patient_friendly": "not eating or drinking"
           }
         ],
         "excludes": []
@@ -157,7 +152,8 @@
           },
           {
             "medical": "pyrexia",
-            "patient_friendly": "fever"
+            "patient_friendly": "fever",
+            "emergent": true
           },
           {
             "medical": "hypotension",
@@ -166,7 +162,8 @@
           },
           {
             "medical": "jaundice",
-            "patient_friendly": "yellow skin or eyes"
+            "patient_friendly": "yellow skin or eyes",
+            "emergent": true
           },
           {
             "medical": "encephalopathy",

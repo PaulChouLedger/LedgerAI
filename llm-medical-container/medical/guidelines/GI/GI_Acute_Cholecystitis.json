@@ -4,7 +4,7 @@
   "snomed": "65275009",
   "sex": "both",
   "prevalence": "common",
-  "urgency": "urgent",
+  "urgency": "emergent",
   "chief_complaint_triggers": [
     "abdominal pain",
     "right upper abdominal pain",
@@ -72,11 +72,13 @@
         "includes": [
           {
             "medical": "sharp",
-            "patient_friendly": "sharp or stabbing"
+            "patient_friendly": "sharp or stabbing",
+            "question_tags": ["sensory"]
           },
           {
             "medical": "aching",
-            "patient_friendly": "aching"
+            "patient_friendly": "aching",
+            "question_tags": ["sensory"]
           }
         ],
         "excludes": []
@@ -144,10 +146,6 @@
             "medical": "pyrexia",
             "patient_friendly": "fever",
             "emergent": true
-          },
-          {
-            "medical": "symptomatic cholelitiasis",
-            "patient_friendly": "gallstone pain"
           },
           {
             "medical": "anorexia",

@@ -58,7 +58,8 @@
         "includes": [
           {
             "medical": "sudden",
-            "patient_friendly": "came on suddenly"
+            "patient_friendly": "came on suddenly",
+            "emergent": true
           }
         ],
         "excludes": [
@@ -72,15 +73,18 @@
         "includes": [
           {
             "medical": "dull",
-            "patient_friendly": "dull or achy"
+            "patient_friendly": "dull or achy",
+            "question_tags": ["sensory"]
           },
           {
             "medical": "aching",
-            "patient_friendly": "aching"
+            "patient_friendly": "aching",
+            "question_tags": ["sensory"]
           },
           {
             "medical": "severe",
-            "patient_friendly": "very bad or intense"
+            "patient_friendly": "very bad or intense",
+            "question_tags": ["sensory"]
           }
         ],
         "excludes": []
@@ -119,11 +123,12 @@
         "includes": [
           {
             "medical": "moderate",
-            "patient_friendly": "somewhat bad"
+            "patient_friendly": "moderate"
           },
           {
             "medical": "severe",
-            "patient_friendly": "very bad or intense"
+            "patient_friendly": "severe",
+            "emergent": true
           }
         ],
         "excludes": []
@@ -146,27 +151,27 @@
           {
             "medical": "pyrexia",
             "patient_friendly": "fever",
-            "urgency": "emergent"
+            "emergent": true
           },
           {
             "medical": "rigors",
             "patient_friendly": "shaking chills",
-            "urgency": "emergent"
+            "emergent": true
           },
           {
             "medical": "jaundice",
             "patient_friendly": "yellow skin or eyes",
-            "urgency": "emergent"
+            "emergent": true
           },
           {
             "medical": "hypotension",
             "patient_friendly": "low blood pressure",
-            "urgency": "emergent"
+            "emergent": true
           },
           {
             "medical": "encephalopathy",
             "patient_friendly": "confusion or disorientation",
-            "urgency": "emergent"
+            "emergent": true
           },
           {
             "medical": "nausea",

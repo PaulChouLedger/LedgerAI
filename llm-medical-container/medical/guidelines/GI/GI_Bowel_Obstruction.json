@@ -36,7 +36,7 @@
           }
         ],
         "excludes": [],
-        "anatomical_type": "midline"
+        "anatomical_type": "vague"
       },
       "timing": {
         "includes": [
@@ -78,7 +78,8 @@
         "includes": [
           {
             "medical": "colicky pain",
-            "patient_friendly": "crampy pain"
+            "patient_friendly": "crampy pain",
+            "question_tags": ["sensory"]
           }
         ],
         "excludes": []
