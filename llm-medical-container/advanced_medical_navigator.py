@@ -85,6 +85,8 @@ class AdvancedMedicalNavigator:
     CHIEF_COMPLAINT_NEAR_MISS_LOWER = 0.4
     CHIEF_COMPLAINT_FUZZY_THRESHOLD = 0.55
 
+    RULE_OUT_THRESHOLD = 0.05
+
     PMH_ELEMENTS = ["pmh", "psh", "meds_allergies"]
     PMH_PROMPTS = {
         "pmh": "Do you have any existing medical conditions?",
@@ -375,6 +377,26 @@ class AdvancedMedicalNavigator:
         )
         term_scores = getattr(self.medical_rule_engine, '_last_faiss_scores', {}) or {}
 
+        if term_scores:
+            sorted_scores = sorted(term_scores.items(), key=lambda x: x[1], reverse=True)
+            top_scores = dict(sorted_scores[:20])
+            self._capture_debug(
+                f"[FAISS] 🔍 Scores for '{answer}' in {element}: {top_scores}"
+            )
+        else:
+            self._capture_debug(
+                f"[FAISS] 🔍 Scores for '{answer}' in {element}: {{}}"
+            )
+
+        if matches:
+            self._capture_debug(
+                f"[FAISS] ✅ Matched terms for {element}: {matches}"
+            )
+        else:
+            self._capture_debug(
+                f"[FAISS] ⚠️ No patient-friendly terms matched {element} for '{answer}'"
+            )
+
         index_data = self.medical_rule_engine.term_embeddings.get(element, {}) if hasattr(self.medical_rule_engine, 'term_embeddings') else {}
         term_to_conditions = index_data.get('term_to_conditions', {})
         synonym_to_medical = index_data.get('synonym_to_medical', {})
@@ -401,8 +423,11 @@ class AdvancedMedicalNavigator:
                 prev = condition_similarities.get(cond, 0.0)
                 condition_similarities[cond] = max(prev, score)
 
+        self._log_location_analysis(session, element, answer, matches, term_scores, term_to_conditions, synonym_to_medical)
+
         if not condition_similarities:
             self._capture_debug(f"[Scoring] ⚪ No guideline matches for {element} → '{answer}'")
+            self._apply_rule_outs(session)
             return
 
         weight = self._get_element_weight(session, element)
@@ -414,12 +439,104 @@ class AdvancedMedicalNavigator:
                 f"[Scoring] 📊 {cond}: old={prior:.3f}, similarity={similarity:.3f}, weight={weight:.2f}, new={blended:.3f}"
             )
 
-        session.condition_rankings = sorted(session.condition_scores.items(), key=lambda x: x[1], reverse=True)
-        if session.condition_rankings:
-            self._update_condition_pools(session)
-            self._log_rankings(session)
+        self._apply_rule_outs(session)
 
     # ----------- Chief complaint matching ------------------------------------
+
+    def _apply_rule_outs(self, session: "MedicalSession") -> None:
+        sorted_scores = sorted(session.condition_scores.items(), key=lambda x: x[1], reverse=True)
+        remaining = [(cond, score) for cond, score in sorted_scores if score >= self.RULE_OUT_THRESHOLD]
+        ruled_out = [(cond, score) for cond, score in sorted_scores if score < self.RULE_OUT_THRESHOLD]
+
+        session.condition_rankings = remaining
+        self._capture_debug(f"[Rule Out] 📉 Ruled out {len(ruled_out)} guidelines, {len(remaining)} remaining")
+        self._update_condition_pools(session)
+        self._log_rankings(session)
+
+    def _log_location_analysis(
+        self,
+        session: "MedicalSession",
+        element: str,
+        answer: str,
+        matches: List[str],
+        term_scores: Dict[str, float],
+        term_to_conditions: Dict[str, set],
+        synonym_to_medical: Dict[str, str],
+    ) -> None:
+        if element != 'location':
+            return
+
+        total_guidelines = len(session.condition_scores)
+        self._capture_debug(
+            f"[Location Analysis] 📍 Checking satisfaction against ALL {total_guidelines} guidelines (active + reserve)"
+        )
+
+        all_terms = sorted(term_to_conditions.keys())
+        self._capture_debug(
+            f"[Location Analysis] 📍 All includes terms from {len(all_terms)} total guidelines: {all_terms}"
+        )
+
+        active_names = {name for name, _ in session.active_conditions}
+        active_terms = sorted({term for term, conds in term_to_conditions.items() if conds & active_names})
+        self._capture_debug(
+            f"[Location Analysis] 📍 Active-only terms from {len(active_names)} guidelines: {active_terms}"
+        )
+
+        self._capture_debug(f"[Location Analysis] 📝 Patient answer: '{answer}'")
+
+        top_scores = dict(sorted(term_scores.items(), key=lambda x: x[1], reverse=True))
+        self._capture_debug(f"[FAISS] 🔍 Scores for '{answer}' in {element}: {top_scores}")
+        self._capture_debug(f"[Location Analysis] 🔍 FAISS found {len(matches)} matches above threshold: {matches}")
+        self._capture_debug(f"[Location Analysis]   - semantic_matches_set ({len(matches)} terms): {matches}")
+        self._capture_debug(f"[Location Analysis]   - faiss_scores ({len(top_scores)} terms): {top_scores}")
+        self._capture_debug(f"[Location Analysis]   - Raw FAISS scores ({len(top_scores)} terms): {top_scores}")
+
+        normalized_answer = answer.lower().strip()
+        semantic_set = {m.lower() for m in matches}
+        threshold = 0.6
+
+        for term in all_terms:
+            term_lower = term.lower()
+            score = term_scores.get(term)
+            if score is None:
+                score = term_scores.get(term_lower)
+            mapped = synonym_to_medical.get(term_lower)
+            if score is None and mapped:
+                score = term_scores.get(mapped)
+            score = 0.0 if score is None else score
+
+            substring_term_in_answer = term_lower in normalized_answer
+            substring_answer_in_term = normalized_answer in term_lower if normalized_answer else False
+            synonym_note = "in" if mapped else "NOT in"
+            in_semantic = term_lower in semantic_set
+
+            self._capture_debug(
+                f"[Location Analysis] 🔍 Checking term: '{term}' (patient answer: '{answer}')"
+            )
+            self._capture_debug(
+                f"[Location Analysis]   Step 1 - Substring check: term in answer={substring_term_in_answer}, answer in term={substring_answer_in_term}"
+            )
+            self._capture_debug(
+                f"[Location Analysis]   Step 2 - Synonym check: term '{term}' {synonym_note} any synonym group"
+            )
+            self._capture_debug(
+                f"[Location Analysis]   Step 3 - FAISS check: in semantic_matches_set={in_semantic}, score={score}"
+            )
+            self._capture_debug(
+                f"[Location Analysis]   Step 3 - Raw FAISS score for '{term}': {score:.3f} (threshold={threshold})"
+            )
+            if score < threshold:
+                self._capture_debug(
+                    f"[Location Analysis]   ⚠️ Raw score {score:.3f} < {threshold} threshold, should NOT be in semantic_matches_set"
+                )
+            if in_semantic:
+                self._capture_debug(
+                    f"[Location Analysis]   ✅ '{term}' satisfied"
+                )
+            else:
+                self._capture_debug(
+                    f"[Location Analysis]   ❌ '{term}' not satisfied"
+                )
 
     def _fuzzy_correct(self, text: str) -> str:
         if not self.medical_rule_engine or not hasattr(self.medical_rule_engine, 'fuzzy_correct_medical_terms'):
