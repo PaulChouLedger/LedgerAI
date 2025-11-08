@@ -377,6 +377,8 @@ class AdvancedMedicalNavigator:
             response = self._score_oldcarts_answer(session, pending, field, text)
             if response:
                 return response
+            if field in session.oldcarts_remaining:
+                session.oldcarts_remaining = [e for e in session.oldcarts_remaining if e != field]
             session.pending = None
         elif section == 'pmh':
             session.context['pmh'][field] = text
@@ -392,6 +394,7 @@ class AdvancedMedicalNavigator:
     ) -> Optional[Dict[str, Any]]:
         if not self.medical_rule_engine:
             return None
+        requires_clarification = self._requires_clarification(element)
         matches = self.medical_rule_engine.find_matching_terms_faiss(
             prompt=answer,
             element=element,
@@ -402,9 +405,11 @@ class AdvancedMedicalNavigator:
 
         if pending and pending.get('clarification'):
             session.context['clarifications'].pop(element, None)
+        elif not requires_clarification:
+            session.context['clarifications'].pop(element, None)
 
         analysis = None
-        if element == 'location':
+        if element == 'location' and requires_clarification:
             analysis = self._analyze_location_answer(session, answer, matches, term_scores)
             self._log_location_analysis(session, analysis)
         else:
@@ -425,18 +430,18 @@ class AdvancedMedicalNavigator:
                 score = term_scores.get(mapped_term)
             if score is None:
                 continue
-
+            
             conditions = term_to_conditions.get(term)
             if not conditions and mapped_term:
                 conditions = term_to_conditions.get(mapped_term)
             if not conditions:
-                continue
-
+                    continue
+                
             for cond in conditions:
                 prev = condition_similarities.get(cond, 0.0)
                 condition_similarities[cond] = max(prev, score)
 
-        if analysis:
+        if analysis and requires_clarification:
             clarification_pending = pending.get('clarification') if pending else False
             clarification = self._maybe_request_location_clarification(
                 session=session,
@@ -659,7 +664,7 @@ class AdvancedMedicalNavigator:
         missing_options = _unique([medical_to_patient.get(med.lower(), med) for med in missing_medical_terms])
 
         all_terms_list = sorted([meta['patient_friendly'] for meta in all_terms_patient.values()])
-
+        
         return {
             'answer': answer,
             'threshold': threshold,
@@ -780,16 +785,8 @@ class AdvancedMedicalNavigator:
             score = entry['score']
             in_semantic = entry['in_semantic']
             term_lower = term.lower()
-            substring_term_in_answer = term_lower in normalized_answer
-            substring_answer_in_term = normalized_answer in term_lower if normalized_answer else False
 
             self._capture_debug(f"[Location Analysis] 🔍 Checking term: '{term}' (patient answer: '{answer}')")
-            self._capture_debug(
-                f"[Location Analysis]   Step 1 - Substring check: term in answer={substring_term_in_answer}, answer in term={substring_answer_in_term}"
-            )
-            self._capture_debug(
-                f"[Location Analysis]   Step 2 - Synonym check: term '{term}' NOT in synonym group"
-            )
             self._capture_debug(
                 f"[Location Analysis]   Step 3 - FAISS check: in semantic_matches_set={term_lower in semantic_set}, score={score}"
             )
@@ -802,7 +799,7 @@ class AdvancedMedicalNavigator:
                 )
             if in_semantic:
                 self._capture_debug(f"[Location Analysis]   ✅ '{term}' satisfied")
-            else:
+        else:
                 self._capture_debug(f"[Location Analysis]   ❌ '{term}' not satisfied")
 
     def _fuzzy_correct(self, text: str) -> str:
@@ -1169,6 +1166,18 @@ class AdvancedMedicalNavigator:
         cleaned = cleaned.strip('"')
         return cleaned or fallback
 
+    def _requires_clarification(self, element: str) -> bool:
+        no_clarification_elements = {
+            'onset',
+            'progression',
+            'duration',
+            'timing',
+            'severity',
+            'associated',
+            'character',
+        }
+        return element not in no_clarification_elements
+
     # ----------- Utilities ----------------------------------------------------
 
     def _wrap_response(self, session: "MedicalSession", message: str, status: str = "question", metadata: Optional[Dict] = None) -> Dict[str, any]:
@@ -1238,7 +1247,6 @@ class AdvancedMedicalNavigator:
         lines.append(f"[Scoring]   ❌ Ruled Out: 0")
         total = len(session.active_conditions) + len(session.reserve_conditions)
         lines.append(f"[Scoring]   📈 Total Processed: {total}")
-        lines.append(f"[Scoring]   🧠 ML System: Fully operational")
         return '\n'.join(lines)
 
     def _update_condition_pools(self, session: "MedicalSession") -> None:
@@ -1284,7 +1292,6 @@ class AdvancedMedicalNavigator:
         self._capture_debug(f"[Scoring]   ❌ Ruled Out: 0")
         total = len(session.active_conditions) + len(session.reserve_conditions)
         self._capture_debug(f"[Scoring]   📈 Total Processed: {total}")
-        self._capture_debug(f"[Scoring]   🧠 ML System: Fully operational")
 
     def _extract_similarity(self, matches: List[Dict], condition: str) -> float:
         if not matches:
