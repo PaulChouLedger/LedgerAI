@@ -205,8 +205,11 @@ class AdvancedMedicalNavigator:
     # ----------- Public API ---------------------------------------------------
 
     def process_message(self, session_id: str, user_message: str) -> Dict[str, any]:
+        self._captured_debug_output = []
         session = self._get_or_create_session(session_id)
         session.messages.append({"role": "user", "content": user_message})
+        if len(session.messages) > 50:
+            session.messages = session.messages[-50:]
 
         if session.stage == "awaiting_chief_complaint":
             return self._handle_initial_complaint(session, user_message)
@@ -288,18 +291,28 @@ class AdvancedMedicalNavigator:
 
     def _determine_next_question(self, session: "MedicalSession") -> Optional[Dict[str, str]]:
         if session.stage == "awaiting_chronicity":
-            session.stage = "awaiting_age"
-            prompt = "Thank you. For our records, how old are you?"
-            return {'section': 'pre_hpi', 'field': 'age', 'prompt': prompt, 'guidance': self.PRE_HPI_PROMPTS['age']}
+            if session.context['pre_hpi'].get('chronicity'):
+                session.stage = "awaiting_age"
+            else:
+                return None
 
         if session.stage == "awaiting_age":
+            if session.context['pre_hpi'].get('age'):
+                session.stage = "awaiting_sex"
+            else:
+                prompt = "Thank you. For our records, how old are you?"
+                return {'section': 'pre_hpi', 'field': 'age', 'prompt': prompt, 'guidance': self.PRE_HPI_PROMPTS['age']}
             session.stage = "awaiting_sex"
             prompt = "And for medical documentation, what is your biological sex?"
             return {'section': 'pre_hpi', 'field': 'sex', 'prompt': prompt, 'guidance': self.PRE_HPI_PROMPTS['sex']}
 
         if session.stage == "awaiting_sex":
-            session.stage = "hpi"
-            session.oldcarts_remaining = self._ordered_oldcarts_elements(session)
+            if session.context['pre_hpi'].get('sex'):
+                session.stage = "hpi"
+                session.oldcarts_remaining = self._ordered_oldcarts_elements(session)
+            else:
+                prompt = "And for medical documentation, what is your biological sex?"
+                return {'section': 'pre_hpi', 'field': 'sex', 'prompt': prompt, 'guidance': self.PRE_HPI_PROMPTS['sex']}
 
         if session.stage == "hpi":
             return self._next_oldcarts_question(session)
@@ -331,7 +344,12 @@ class AdvancedMedicalNavigator:
         text = answer.strip()
         if section == 'pre_hpi':
             session.context['pre_hpi'][field] = text
-            if field == 'sex':
+            if field == 'chronicity':
+                session.stage = "awaiting_age"
+                session.pending = None
+            elif field == 'age':
+                session.stage = "awaiting_sex"
+            elif field == 'sex':
                 session.stage = "hpi"
                 session.oldcarts_remaining = self._ordered_oldcarts_elements(session)
         elif section == 'hpi':
