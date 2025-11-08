@@ -365,8 +365,8 @@ class AdvancedMedicalNavigator:
             session.context['pmh'][field] = text
 
     def _score_oldcarts_answer(self, session: "MedicalSession", element: str, answer: str) -> None:
-         if not self.medical_rule_engine:
-             return
+        if not self.medical_rule_engine:
+            return
         matches = self.medical_rule_engine.find_matching_terms_faiss(
             prompt=answer,
             element=element,
