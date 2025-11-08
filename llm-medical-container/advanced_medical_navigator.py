@@ -408,7 +408,7 @@ class AdvancedMedicalNavigator:
             query_embedding = self.embedding_model.encode([chief_complaint.lower().strip()])[0]
             query_embedding = np.array([query_embedding]).astype('float32')
             faiss.normalize_L2(query_embedding)
-            except Exception as e:
+        except Exception as e:
             self._capture_debug(f"[Engine] ❌ Failed to encode chief complaint: {e}")
             return ['gastrointestinal']
 
@@ -422,7 +422,7 @@ class AdvancedMedicalNavigator:
 
         for idx, sim in zip(indices[0], similarities[0]):
             if idx >= len(self.chief_complaint_triggers_data):
-                    continue
+                continue
             trigger_data = self.chief_complaint_triggers_data[idx]
             trigger_text = trigger_data.get('trigger', '')
             category = trigger_data.get('category', 'gastrointestinal')
