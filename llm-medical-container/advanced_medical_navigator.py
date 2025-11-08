@@ -464,7 +464,25 @@ class AdvancedMedicalNavigator:
         synonym_to_medical: Dict[str, str],
     ) -> None:
         if element != 'location':
-            return
+            if term_scores:
+                sorted_scores = sorted(term_scores.items(), key=lambda x: x[1], reverse=True)
+                top_scores = dict(sorted_scores[:20])
+                self._capture_debug(
+                    f"[FAISS] 🔍 Scores for '{answer}' in {element}: {top_scores}"
+                )
+            else:
+                self._capture_debug(
+                    f"[FAISS] 🔍 Scores for '{answer}' in {element}: {{}}"
+                )
+
+            if matches:
+                self._capture_debug(
+                    f"[FAISS] ✅ Matched terms for {element}: {matches}"
+                )
+            else:
+                self._capture_debug(
+                    f"[FAISS] ⚠️ No patient-friendly terms matched {element} for '{answer}'"
+                )
 
         total_guidelines = len(session.condition_scores)
         self._capture_debug(
