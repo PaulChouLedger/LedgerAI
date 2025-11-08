@@ -717,6 +717,11 @@ class AdvancedMedicalNavigator:
     def _llm_accepts_answer(self, session: "MedicalSession", pending: Dict[str, str], answer: str) -> bool:
         if not answer.strip():
             return False
+        section = pending.get('section') if pending else None
+        field = pending.get('field') if pending else None
+        if section == 'pre_hpi':
+            # Auto-accept demographics inputs to avoid unnecessary rephrasing
+            return True
         if not self.llm_chat_fn:
             return True
         prompt = (

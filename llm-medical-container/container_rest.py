@@ -451,6 +451,15 @@ def chat_tg():
         
         if isinstance(response, dict):
             print(f"[Container] 🔍 Response keys: {list(response.keys())}")
+            if 'debug' in response and response['debug']:
+                debug = response['debug']
+                engine_debug = debug.get('engine') if isinstance(debug, dict) else None
+                if engine_debug:
+                    print(engine_debug)
+                internal_debug = debug.get('internal') if isinstance(debug, dict) else None
+                if internal_debug:
+                    for line in internal_debug:
+                        print(line)
             
             # Extract response text from dict
             response_text = response.get('response', '')  # Navigator uses 'response'
