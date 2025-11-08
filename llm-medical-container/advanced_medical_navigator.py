@@ -215,10 +215,6 @@ class AdvancedMedicalNavigator:
             return self._handle_initial_complaint(session, user_message)
 
         if session.pending:
-            if not self._llm_accepts_answer(session, session.pending, user_message):
-                clarification = self._llm_rephrase_question(session, session.pending, user_message)
-                session.messages.append({"role": "assistant", "content": clarification})
-                return self._wrap_response(session, clarification)
             self._store_answer(session, session.pending, user_message)
             session.pending = None
 
@@ -412,7 +408,7 @@ class AdvancedMedicalNavigator:
             query_embedding = self.embedding_model.encode([chief_complaint.lower().strip()])[0]
             query_embedding = np.array([query_embedding]).astype('float32')
             faiss.normalize_L2(query_embedding)
-        except Exception as e:
+            except Exception as e:
             self._capture_debug(f"[Engine] ❌ Failed to encode chief complaint: {e}")
             return ['gastrointestinal']
 
@@ -426,7 +422,7 @@ class AdvancedMedicalNavigator:
 
         for idx, sim in zip(indices[0], similarities[0]):
             if idx >= len(self.chief_complaint_triggers_data):
-                continue
+                    continue
             trigger_data = self.chief_complaint_triggers_data[idx]
             trigger_text = trigger_data.get('trigger', '')
             category = trigger_data.get('category', 'gastrointestinal')
@@ -729,7 +725,7 @@ class AdvancedMedicalNavigator:
             f"Top differentials: {ranking_text}\n"
             "Summarise as bullet points."
         )
-        response = self.llm_chat_fn(
+                response = self.llm_chat_fn(
             [
                 {"role": "system", "content": self.SUMMARY_SYSTEM_PROMPT},
                 {"role": "user", "content": user_prompt},
@@ -740,52 +736,6 @@ class AdvancedMedicalNavigator:
         return response.strip() if response else "History collection complete."
 
     # ----------- Validation / Clarification ----------------------------------
-
-    def _llm_accepts_answer(self, session: "MedicalSession", pending: Dict[str, str], answer: str) -> bool:
-        if not answer.strip():
-            return False
-        section = pending.get('section') if pending else None
-        field = pending.get('field') if pending else None
-        if section == 'pre_hpi':
-            # Auto-accept demographics inputs to avoid unnecessary rephrasing
-            return True
-        if not self.llm_chat_fn:
-            return True
-        prompt = (
-            "Question: " + pending.get('prompt', '') + "\n"
-            "Answer: " + answer + "\n"
-            "Should this answer be accepted? Reply YES or NO only."
-        )
-        response = self.llm_chat_fn(
-            [
-                {"role": "system", "content": "You validate patient answers."},
-                {"role": "user", "content": prompt},
-            ],
-            max_tokens=5,
-            temperature=0.0,
-        )
-        return response and response.strip().upper().startswith('Y')
-
-    def _llm_rephrase_question(self, session: "MedicalSession", pending: Dict[str, str], answer: str) -> str:
-        if not self.llm_chat_fn:
-            return f"Sorry for the confusion. {pending.get('prompt', '')}"
-        recent = '\n'.join(f"{m['role']}: {m['content']}" for m in session.messages[-6:])
-        prompt = (
-            "Original question: " + pending.get('prompt', '') + "\n"
-            "Patient reply: " + answer + "\n"
-            f"Recent conversation:\n{recent}\n"
-            "Rewrite the question more simply so the patient understands."
-        )
-        response = self.llm_chat_fn(
-            [
-                {"role": "system", "content": "Rephrase the medical question without meta-commentary."},
-                {"role": "user", "content": prompt},
-            ],
-            max_tokens=60,
-            temperature=0.4,
-        )
-        cleaned = self._clean_llm_response(response)
-        return cleaned or f"Sorry for the confusion. {pending.get('prompt', '')}"
 
     def _clean_llm_response(self, text: Optional[str], fallback: str = "") -> str:
         if not text:
@@ -811,7 +761,7 @@ class AdvancedMedicalNavigator:
         if session_id not in self.sessions:
             self.sessions[session_id] = AdvancedMedicalNavigator.MedicalSession(session_id)
         return self.sessions[session_id]
-
+    
     def _is_greeting(self, text: str) -> bool:
         if not text:
             return False
@@ -824,7 +774,7 @@ class AdvancedMedicalNavigator:
     def _capture_debug(self, message: str) -> None:
         self._captured_debug_output.append(message)
         print(message)
-
+    
     def _format_engine_debug(self, session: "MedicalSession") -> str:
         lines = []
         lines.append("=" * 80)
