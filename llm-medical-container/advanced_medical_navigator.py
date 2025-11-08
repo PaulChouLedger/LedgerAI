@@ -781,10 +781,17 @@ class AdvancedMedicalNavigator:
         lines.append("[Telegram] 🧠 ENGINE DEBUG OUTPUT")
         lines.append("=" * 80)
         lines.append(f"[Engine] 🎯 Structured guidelines: Active={len(session.active_conditions)}, Reserve={len(session.reserve_conditions)}")
-        pre = session.context.get('hpi', {})
-        covered = [key for key in self.HPI_ELEMENTS if key in pre]
-        coverage = ''.join(e[0].upper() if e in covered else '_' for e in self.HPI_ELEMENTS)
-        lines.append(f"[Engine] 📋 OLDCARTS: {coverage} ({len(covered)}/{len(self.HPI_ELEMENTS)})")
+        pre_filled, pre_missing = self._get_pre_hpi_status(session)
+        lines.append(f"[Engine] 👤 Demographics collected: {', '.join(pre_filled) if pre_filled else 'none'}")
+        lines.append(f"[Engine] 📝 Demographics missing: {', '.join(pre_missing) if pre_missing else 'none'}")
+
+        satisfied, missing, current = self._get_oldcarts_status(session)
+        coverage = ''.join(e[0].upper() if e in satisfied else '_' for e in self.HPI_ELEMENTS)
+        lines.append(f"[Engine] 📋 OLDCARTS: {coverage} ({len(satisfied)}/{len(self.HPI_ELEMENTS)})")
+        lines.append(f"[Engine] ✅ Satisfied: {', '.join(satisfied) if satisfied else 'none'}")
+        lines.append(f"[Engine] ❔ Missing: {', '.join(missing) if missing else 'none'}")
+        if current:
+            lines.append(f"[Engine] 🔍 Currently asking: {current}")
         lines.append(self._format_rankings_debug(session))
         return '\n'.join(lines)
 
@@ -862,3 +869,18 @@ class AdvancedMedicalNavigator:
             if cond == condition:
                 return float(match.get('score', 0.0))
         return 0.0
+
+    def _get_oldcarts_status(self, session: "MedicalSession") -> Tuple[List[str], List[str], Optional[str]]:
+        hpi_answers = session.context.get('hpi', {})
+        satisfied = [element for element in self.HPI_ELEMENTS if element in hpi_answers]
+        missing = [element for element in self.HPI_ELEMENTS if element not in hpi_answers]
+        current = None
+        if session.pending and session.pending.get('section') == 'hpi':
+            current = session.pending.get('field')
+        return satisfied, missing, current
+
+    def _get_pre_hpi_status(self, session: "MedicalSession") -> Tuple[List[str], List[str]]:
+        pre = session.context.get('pre_hpi', {})
+        collected = [item for item in self.PRE_HPI_ORDER if pre.get(item)]
+        missing = [item for item in self.PRE_HPI_ORDER if item not in collected]
+        return collected, missing
