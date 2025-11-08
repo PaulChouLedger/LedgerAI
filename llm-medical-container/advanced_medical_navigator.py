@@ -169,6 +169,10 @@ class AdvancedMedicalNavigator:
         ],
     }
 
+    RELAXED_LOCATION_THRESHOLD = 0.55
+    RELAXED_LOCATION_MARGIN = 0.02
+    LOCATION_HIGH_CONFIDENCE_THRESHOLD = 0.9
+
     # ----------- Session container -------------------------------------------
 
     @dataclass
@@ -665,6 +669,81 @@ class AdvancedMedicalNavigator:
                 'in_semantic': patient_term.lower() in semantic_set,
             })
 
+        if element == 'location':
+            high_conf_keys: List[str] = []
+            for key, meta in all_terms_patient.items():
+                pf = meta['patient_friendly']
+                score = sorted_scores.get(pf, sorted_scores.get(pf.lower(), 0.0))
+                if score >= self.LOCATION_HIGH_CONFIDENCE_THRESHOLD:
+                    high_conf_keys.append(key)
+
+            if high_conf_keys:
+                high_conf_matches: List[str] = []
+                high_conf_med_terms: List[str] = []
+                seen_high = set()
+                for key in high_conf_keys:
+                    pf_term = all_terms_patient[key]['patient_friendly']
+                    med_term = all_terms_patient[key]['medical']
+                    high_conf_matches.append(pf_term)
+                    med_lower = med_term.lower()
+                    if med_lower not in seen_high:
+                        seen_high.add(med_lower)
+                        high_conf_med_terms.append(med_term)
+
+                # Reapply anatomical filtering to the high-confidence set
+                if self.medical_rule_engine and patient_components:
+                    filtered_high_conf = []
+                    seen_filtered = set()
+                    for med in high_conf_med_terms:
+                        med_components = self.medical_rule_engine._extract_anatomical_components(med.lower())
+                        if med_components and self.medical_rule_engine._are_anatomical_opposites(patient_components, med_components):
+                            continue
+                        med_lower = med.lower()
+                        if med_lower not in seen_filtered:
+                            seen_filtered.add(med_lower)
+                            filtered_high_conf.append(med)
+                    high_conf_med_terms = filtered_high_conf
+
+                if high_conf_med_terms:
+                    satisfied_medical_terms = high_conf_med_terms
+                    matches = high_conf_matches
+                    semantic_set = {term.lower() for term in matches}
+                    for entry in term_breakdown:
+                        entry['in_semantic'] = entry['term'].lower() in semantic_set
+
+        if not satisfied_medical_terms and element == 'location':
+            best_score = 0.0
+            best_keys: List[str] = []
+            for key, meta in all_terms_patient.items():
+                pf = meta['patient_friendly']
+                score = sorted_scores.get(pf, sorted_scores.get(pf.lower(), 0.0))
+                if score > best_score:
+                    best_score = score
+            if best_score >= self.RELAXED_LOCATION_THRESHOLD:
+                margin = self.RELAXED_LOCATION_MARGIN
+                relaxed_keys: List[str] = []
+                for key, meta in all_terms_patient.items():
+                    pf = meta['patient_friendly']
+                    score = sorted_scores.get(pf, sorted_scores.get(pf.lower(), 0.0))
+                    if score >= best_score - margin:
+                        relaxed_keys.append(key)
+                if relaxed_keys:
+                    satisfied_medical_terms = []
+                    new_matches: List[str] = []
+                    seen_med = set()
+                    for key in relaxed_keys:
+                        pf_term = all_terms_patient[key]['patient_friendly']
+                        med_term = all_terms_patient[key]['medical']
+                        new_matches.append(pf_term)
+                        med_lower = med_term.lower()
+                        if med_lower not in seen_med:
+                            seen_med.add(med_lower)
+                            satisfied_medical_terms.append(med_term)
+                    matches = new_matches
+                    semantic_set = {term.lower() for term in matches}
+                    for entry in term_breakdown:
+                        entry['in_semantic'] = entry['term'].lower() in semantic_set
+
         def _unique(sequence: List[str]) -> List[str]:
             seen_local: set = set()
             result: List[str] = []
@@ -676,6 +755,7 @@ class AdvancedMedicalNavigator:
             return result
 
         satisfied_options = _unique([medical_to_patient.get(med.lower(), med) for med in satisfied_medical_terms])
+
         missing_options = _unique([medical_to_patient.get(med.lower(), med) for med in missing_medical_terms])
 
         all_terms_list = sorted([meta['patient_friendly'] for meta in all_terms_patient.values()])
