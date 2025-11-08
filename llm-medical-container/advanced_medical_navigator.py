@@ -20,6 +20,12 @@ rules, guideline storage) relies on `ml.medical_rule_engine.MedicalRuleEngine`.
 
 from dataclasses import dataclass, field
 from datetime import datetime
+import json
+import os
+from pathlib import Path
+from difflib import SequenceMatcher
+import numpy as np
+import faiss
 import re
 from typing import Dict, List, Optional, Tuple
 
@@ -61,6 +67,23 @@ class AdvancedMedicalNavigator:
         "associated": "Have you noticed any other symptoms along with it?",
         "red_flags": "Have you experienced any urgent warning signs?",
     }
+
+    CATEGORY_TO_SYSTEM = {
+        'gastrointestinal': 'GI',
+        'cardiovascular': 'CARDIO',
+        'respiratory': 'PULMONARY',
+        'neurological': 'NEURO',
+        'musculoskeletal': 'MSK',
+        'renal': 'RENAL',
+        'genitourinary': 'GU',
+        'gynecological': 'GYN',
+        'dermatological': 'DERM',
+    }
+
+    CHIEF_COMPLAINT_FAISS_THRESHOLD = 0.6
+    CHIEF_COMPLAINT_NEAR_MISS_UPPER = 0.5
+    CHIEF_COMPLAINT_NEAR_MISS_LOWER = 0.4
+    CHIEF_COMPLAINT_FUZZY_THRESHOLD = 0.4
 
     PMH_ELEMENTS = ["pmh", "psh", "meds_allergies"]
     PMH_PROMPTS = {
@@ -167,6 +190,17 @@ class AdvancedMedicalNavigator:
         self.embedding_model = embedding_model
         self.sessions: Dict[str, AdvancedMedicalNavigator.MedicalSession] = {}
         self._captured_debug_output: List[str] = []
+        self.guidelines_dir = self._resolve_guidelines_dir()
+        self.enabled_categories = self._get_enabled_categories()
+        self.all_guidelines: Dict[str, Dict] = {}
+        self.chief_complaint_triggers_data: List[Dict] = []
+        self.chief_complaint_triggers_index = None
+
+        if self.guidelines_dir:
+            self._load_guidelines()
+            self._build_chief_complaint_index()
+        else:
+            self._capture_debug("[Navigator] ⚠️ No guidelines directory found. Chief complaint matching may be limited.")
 
     # ----------- Public API ---------------------------------------------------
 
@@ -230,7 +264,7 @@ class AdvancedMedicalNavigator:
         self.medical_rule_engine.set_active_category(categories if len(categories) > 1 else primary_category)
 
         # seed condition scores
-        for cond in self.medical_rule_engine.get_conditions_for_categories(categories):
+        for cond in self._get_conditions_for_categories(categories):
             session.condition_scores.setdefault(cond, 0.5)
         self._capture_debug(f"[Engine] 📋 Seeded {len(session.condition_scores)} conditions at 50.0% confidence")
 
@@ -339,14 +373,191 @@ class AdvancedMedicalNavigator:
         return self.medical_rule_engine.fuzzy_correct_medical_terms(text, similarity_threshold=0.6)
 
     def _match_chief_complaint_to_category(self, chief_complaint: str) -> List[str]:
-        if not self.medical_rule_engine:
+        if not self.chief_complaint_triggers_index or not self.chief_complaint_triggers_data:
+            self._capture_debug("[Engine] ⚠️ Chief complaint trigger index unavailable - defaulting to gastrointestinal")
             return ['gastrointestinal']
-        categories = self.medical_rule_engine.match_chief_complaint(chief_complaint)
-        if not categories:
-            raise ValueError(f"Unable to match chief complaint '{chief_complaint}' to guideline categories.")
-        return categories
+        if not self.embedding_model:
+            self._capture_debug("[Engine] ⚠️ No embedding model available - defaulting to gastrointestinal")
+            return ['gastrointestinal']
 
-    # ----------- Guidance builders -------------------------------------------
+        try:
+            query_embedding = self.embedding_model.encode([chief_complaint.lower().strip()])[0]
+            query_embedding = np.array([query_embedding]).astype('float32')
+            faiss.normalize_L2(query_embedding)
+        except Exception as e:
+            self._capture_debug(f"[Engine] ❌ Failed to encode chief complaint: {e}")
+            return ['gastrointestinal']
+
+        k = min(10, len(self.chief_complaint_triggers_data))
+        similarities, indices = self.chief_complaint_triggers_index.search(query_embedding, k)
+
+        self._capture_debug(f"[Engine] 🔍 FAISS search for '{chief_complaint}' (threshold: {self.CHIEF_COMPLAINT_FAISS_THRESHOLD})")
+
+        category_scores = {}
+        near_miss_candidates = []
+
+        for idx, sim in zip(indices[0], similarities[0]):
+            if idx >= len(self.chief_complaint_triggers_data):
+                continue
+            trigger_data = self.chief_complaint_triggers_data[idx]
+            trigger_text = trigger_data.get('trigger', '')
+            category = trigger_data.get('category', 'gastrointestinal')
+            status = "✅ ABOVE" if sim >= self.CHIEF_COMPLAINT_FAISS_THRESHOLD else "⚠️ BELOW"
+            self._capture_debug(f"[Engine]   - '{trigger_text}' ({category}): {sim:.4f} {status} threshold")
+
+            if sim >= self.CHIEF_COMPLAINT_FAISS_THRESHOLD:
+                category_scores[category] = max(category_scores.get(category, 0.0), sim)
+            elif sim >= self.CHIEF_COMPLAINT_NEAR_MISS_UPPER:
+                category_scores[category] = max(category_scores.get(category, 0.0), sim)
+            elif sim >= self.CHIEF_COMPLAINT_NEAR_MISS_LOWER:
+                near_miss_candidates.append((trigger_data, sim))
+
+        if not category_scores and near_miss_candidates:
+            self._capture_debug(f"[Engine] ⚠️ No matches above threshold. Trying fuzzy matching on {len(near_miss_candidates)} candidates.")
+            best_category = None
+            best_score = 0.0
+            cleaned = chief_complaint.lower().strip()
+            for trigger_data, faiss_score in near_miss_candidates:
+                trigger_text = trigger_data.get('trigger', '').lower()
+                similarity = SequenceMatcher(None, cleaned, trigger_text).ratio()
+                combined = (faiss_score * 0.6) + (similarity * 0.4)
+                if combined >= self.CHIEF_COMPLAINT_FUZZY_THRESHOLD and combined > best_score:
+                    best_score = combined
+                    best_category = trigger_data.get('category', 'gastrointestinal')
+            if best_category:
+                self._capture_debug(f"[Engine] ✅ Fuzzy matched to category '{best_category}' (score: {best_score:.3f})")
+                return [best_category]
+
+        if not category_scores:
+            self._capture_debug(f"[Engine] ⚠️ No category match found for chief complaint '{chief_complaint}'. Falling back to gastrointestinal.")
+            return ['gastrointestinal']
+
+        sorted_categories = sorted(category_scores.items(), key=lambda x: x[1], reverse=True)
+        best_category, best_score = sorted_categories[0]
+        matched = [best_category]
+
+        for category, score in sorted_categories[1:]:
+            if best_score - score < 0.1 and score >= self.CHIEF_COMPLAINT_FAISS_THRESHOLD:
+                matched.append(category)
+
+        if len(matched) == 1:
+            self._capture_debug(f"[Engine] 🎯 Category matched via chief complaint: {best_category} (score: {best_score:.3f})")
+        else:
+            scores = ', '.join(f"{cat} ({category_scores[cat]:.3f})" for cat in matched)
+            self._capture_debug(f"[Engine] 🎯 Multiple categories matched via chief complaint: {scores}")
+
+        return matched
+ 
+     # ----------- Guidance builders -------------------------------------------
+
+    def _resolve_guidelines_dir(self) -> Optional[Path]:
+        candidates = [
+            Path("/app/medical/guidelines"),
+            Path("medical/guidelines"),
+            Path(__file__).resolve().parent / "medical" / "guidelines",
+        ]
+        for path in candidates:
+            if path.exists():
+                return path
+        return None
+
+    def _get_enabled_categories(self) -> List[str]:
+        enabled_env = os.environ.get('ENABLED_MEDICAL_CATEGORIES', '').strip()
+        if not enabled_env:
+            return []
+        return [cat.strip().upper() for cat in enabled_env.split(',') if cat.strip()]
+
+    def _load_guidelines(self) -> None:
+        if not self.guidelines_dir or not self.guidelines_dir.exists():
+            return
+
+        loaded = 0
+        skipped = 0
+
+        for json_file in sorted(self.guidelines_dir.glob("**/*.json")):
+            try:
+                organ_system = json_file.parent.name
+                if self.enabled_categories and organ_system.upper() not in self.enabled_categories:
+                    skipped += 1
+                    continue
+                with json_file.open('r') as f:
+                    guideline = json.load(f)
+                condition_name = guideline.get('condition', json_file.stem)
+                guideline['organ_system'] = organ_system
+                self.all_guidelines[condition_name] = guideline
+                loaded += 1
+            except Exception as e:
+                self._capture_debug(f"[Navigator] ⚠️ Failed to load guideline {json_file.name}: {e}")
+
+        self._capture_debug(f"[Navigator] 📚 Loaded {loaded} guidelines ({skipped} skipped)")
+
+    def _build_chief_complaint_index(self) -> None:
+        if not self.embedding_model:
+            self._capture_debug("[Navigator] ⚠️ No embedding model available for chief complaint index")
+            return
+        triggers = []
+        self.chief_complaint_triggers_data = []
+
+        for name, guideline in self.all_guidelines.items():
+            trigger_list = guideline.get('chief_complaint_triggers', [])
+            category = self._get_guideline_category(guideline)
+            for trigger in trigger_list:
+                if not trigger:
+                    continue
+                triggers.append(trigger)
+                self.chief_complaint_triggers_data.append({
+                    'trigger': trigger,
+                    'category': category,
+                    'condition': name,
+                })
+
+        if not triggers:
+            self._capture_debug("[Navigator] ⚠️ No chief complaint triggers found in guidelines")
+            return
+
+        try:
+            embeddings = self.embedding_model.encode(triggers)
+            embeddings = np.asarray(embeddings, dtype='float32')
+            faiss.normalize_L2(embeddings)
+            index = faiss.IndexFlatIP(embeddings.shape[1])
+            index.add(embeddings)
+            self.chief_complaint_triggers_index = index
+            self._capture_debug(f"[Navigator] ✅ Chief complaint trigger index built with {len(triggers)} triggers")
+        except Exception as e:
+            self._capture_debug(f"[Navigator] ❌ Failed to build chief complaint trigger index: {e}")
+            self.chief_complaint_triggers_index = None
+
+    def _get_guideline_category(self, guideline: Dict) -> str:
+        organ_system = guideline.get('organ_system', '')
+        for category, system in self.CATEGORY_TO_SYSTEM.items():
+            if system.upper() == organ_system.upper():
+                return category
+        return 'gastrointestinal'
+
+    def _get_guidelines_by_category(self, category: str) -> Dict[str, Dict]:
+        if category == 'ALL':
+            return self.all_guidelines
+
+        target_system = self.CATEGORY_TO_SYSTEM.get(category.lower(), category.upper())
+        filtered = {}
+        for name, guideline in self.all_guidelines.items():
+            organ_system = guideline.get('organ_system', '')
+            if organ_system.upper() == target_system or target_system in organ_system.upper():
+                filtered[name] = guideline
+        if not filtered:
+            return self.all_guidelines
+        return filtered
+
+    def _get_conditions_for_categories(self, categories: List[str]) -> List[str]:
+        if not categories:
+            categories = ['gastrointestinal']
+        conditions = set()
+        for category in categories:
+            for name, guideline in self._get_guidelines_by_category(category).items():
+                condition_name = guideline.get('condition', name)
+                if condition_name:
+                    conditions.add(condition_name)
+        return sorted(list(conditions))
 
     def _build_oldcarts_guidance(self, session: "MedicalSession", element: str, cc: str) -> str:
         base_question = self.HPI_BASE_GUIDANCE[element].replace('{cc}', cc)
