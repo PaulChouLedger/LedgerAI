@@ -365,29 +365,59 @@ class AdvancedMedicalNavigator:
             session.context['pmh'][field] = text
 
     def _score_oldcarts_answer(self, session: "MedicalSession", element: str, answer: str) -> None:
-        if not self.medical_rule_engine:
-            return
+         if not self.medical_rule_engine:
+             return
         matches = self.medical_rule_engine.find_matching_terms_faiss(
             prompt=answer,
             element=element,
             threshold=0.6,
             return_scores=True,
         )
-        self.medical_rule_engine.record_response(element, answer, matches)
-        updated = self.medical_rule_engine.update_condition_scores(matches)
-        if updated:
-            weight = self._get_element_weight(session, element)
-            for cond, raw_score in updated.items():
-                prior = session.condition_scores.get(cond, 0.5)
-                blended = prior + weight * (raw_score - prior)
-                session.condition_scores[cond] = blended
-                similarity = self._extract_similarity(matches, cond)
-                self._capture_debug(
-                    f"[Scoring] 📊 {cond}: old={prior:.3f}, similarity={similarity:.3f}, weight={weight:.2f}, new={blended:.3f}"
-                )
+        term_scores = getattr(self.medical_rule_engine, '_last_faiss_scores', {}) or {}
+
+        index_data = self.medical_rule_engine.term_embeddings.get(element, {}) if hasattr(self.medical_rule_engine, 'term_embeddings') else {}
+        term_to_conditions = index_data.get('term_to_conditions', {})
+        synonym_to_medical = index_data.get('synonym_to_medical', {})
+
+        condition_similarities: Dict[str, float] = {}
+
+        for term in matches:
+            score = term_scores.get(term)
+            if score is None:
+                score = term_scores.get(term.lower())
+            mapped_term = synonym_to_medical.get(term) or synonym_to_medical.get(term.lower())
+            if score is None and mapped_term:
+                score = term_scores.get(mapped_term)
+            if score is None:
+                continue
+
+            conditions = term_to_conditions.get(term)
+            if not conditions and mapped_term:
+                conditions = term_to_conditions.get(mapped_term)
+            if not conditions:
+                continue
+
+            for cond in conditions:
+                prev = condition_similarities.get(cond, 0.0)
+                condition_similarities[cond] = max(prev, score)
+
+        if not condition_similarities:
+            self._capture_debug(f"[Scoring] ⚪ No guideline matches for {element} → '{answer}'")
+            return
+
+        weight = self._get_element_weight(session, element)
+        for cond, similarity in condition_similarities.items():
+            prior = session.condition_scores.get(cond, 0.5)
+            blended = prior + weight * (similarity - prior)
+            session.condition_scores[cond] = blended
+            self._capture_debug(
+                f"[Scoring] 📊 {cond}: old={prior:.3f}, similarity={similarity:.3f}, weight={weight:.2f}, new={blended:.3f}"
+            )
+
         session.condition_rankings = sorted(session.condition_scores.items(), key=lambda x: x[1], reverse=True)
-        self._update_condition_pools(session)
-        self._log_rankings(session)
+        if session.condition_rankings:
+            self._update_condition_pools(session)
+            self._log_rankings(session)
 
     # ----------- Chief complaint matching ------------------------------------
 
