@@ -716,16 +716,16 @@ class AdvancedMedicalNavigator:
         rankings = session.condition_rankings[:3]
         ranking_text = ", ".join(f"{name} ({score:.0%})" for name, score in rankings) if rankings else "No ranked conditions yet"
         user_prompt = (
-            f"Chief complaint: {pre.get('chief_complaint', 'Not stated')}\n"
-            f"Chronicity: {pre.get('chronicity', 'Unknown')}\n"
-            f"Age: {pre.get('age', 'Unknown')}\n"
-            f"Biological sex: {pre.get('sex', 'Unknown')}\n"
-            f"OLDCARTS responses: {hpi}\n"
-            f"PMH/PSH/Meds/Allergies: {pmh}\n"
-            f"Top differentials: {ranking_text}\n"
-            "Summarise as bullet points."
-        )
-                response = self.llm_chat_fn(
+             f"Chief complaint: {pre.get('chief_complaint', 'Not stated')}\n"
+             f"Chronicity: {pre.get('chronicity', 'Unknown')}\n"
+             f"Age: {pre.get('age', 'Unknown')}\n"
+             f"Biological sex: {pre.get('sex', 'Unknown')}\n"
+             f"OLDCARTS responses: {hpi}\n"
+             f"PMH/PSH/Meds/Allergies: {pmh}\n"
+             f"Top differentials: {ranking_text}\n"
+             "Summarise as bullet points."
+         )
+        response = self.llm_chat_fn(
             [
                 {"role": "system", "content": self.SUMMARY_SYSTEM_PROMPT},
                 {"role": "user", "content": user_prompt},
