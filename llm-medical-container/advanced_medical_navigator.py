@@ -83,7 +83,7 @@ class AdvancedMedicalNavigator:
     CHIEF_COMPLAINT_FAISS_THRESHOLD = 0.6
     CHIEF_COMPLAINT_NEAR_MISS_UPPER = 0.5
     CHIEF_COMPLAINT_NEAR_MISS_LOWER = 0.4
-    CHIEF_COMPLAINT_FUZZY_THRESHOLD = 0.4
+    CHIEF_COMPLAINT_FUZZY_THRESHOLD = 0.55
 
     PMH_ELEMENTS = ["pmh", "psh", "meds_allergies"]
     PMH_PROMPTS = {
@@ -258,6 +258,16 @@ class AdvancedMedicalNavigator:
         self._capture_debug(f"{'='*80}")
         self._capture_debug(f"[Engine] Chief Complaint: '{complaint}'")
         categories = self._match_chief_complaint_to_category(complaint)
+        if not categories:
+            apology = (
+                "I'm not sure I caught that. Could you tell me a bit more about what's bothering you, "
+                "like 'I have stomach pain' or 'I'm feeling short of breath'?"
+            )
+            self._capture_debug(
+                f"[Engine] ❌ Unable to match chief complaint '{complaint}' to guidelines. Requesting clarification."
+            )
+            session.stage = "awaiting_chief_complaint"
+            return self._wrap_response(session, apology, status="awaiting_chief_complaint")
         session.context['matched_categories'] = categories
         primary_category = categories[0] if categories else 'gastrointestinal'
         if len(categories) == 1:
@@ -447,8 +457,8 @@ class AdvancedMedicalNavigator:
                 return [best_category]
 
         if not category_scores:
-            self._capture_debug(f"[Engine] ⚠️ No category match found for chief complaint '{chief_complaint}'. Falling back to gastrointestinal.")
-            return ['gastrointestinal']
+            self._capture_debug(f"[Engine] ⚠️ No category match found for chief complaint '{chief_complaint}'.")
+            return []
 
         sorted_categories = sorted(category_scores.items(), key=lambda x: x[1], reverse=True)
         best_category, best_score = sorted_categories[0]
