@@ -615,12 +615,29 @@ class AdvancedMedicalNavigator:
         cache = session.context['guideline_terms']
         if element in cache:
             return cache[element]
-        if not self.medical_rule_engine:
-            cache[element] = []
-            return []
-        terms = self.medical_rule_engine.get_patient_terms_for_element(element)
-        cache[element] = terms or []
-        return cache[element]
+        categories = session.context.get('matched_categories') or ['gastrointestinal']
+        terms: List[str] = []
+        seen = set()
+        for category in categories:
+            guidelines = self._get_guidelines_by_category(category)
+            for guideline in guidelines.values():
+                structured = guideline.get('key_features', {}).get('structured_oldcarts', {})
+                if not structured:
+                    structured = guideline.get('data', {}).get('key_features', {}).get('structured_oldcarts', {})
+                element_data = structured.get(element, {})
+                includes = element_data.get('includes', []) if isinstance(element_data, dict) else []
+                for entry in includes:
+                    if isinstance(entry, dict):
+                        term = entry.get('patient_friendly') or entry.get('medical')
+                    else:
+                        term = entry
+                    if isinstance(term, str):
+                        cleaned = term.strip()
+                        if cleaned and cleaned.lower() not in seen:
+                            seen.add(cleaned.lower())
+                            terms.append(cleaned)
+        cache[element] = terms
+        return terms
 
     def _ordered_oldcarts_elements(self, session: "MedicalSession") -> List[str]:
         ordered = sorted(self.HPI_ELEMENTS, key=lambda e: self._get_element_weight(session, e), reverse=True)
