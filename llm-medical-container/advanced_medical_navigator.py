@@ -27,7 +27,8 @@ from difflib import SequenceMatcher
 import numpy as np
 import faiss
 import re
-from typing import Dict, List, Optional, Tuple
+import random
+from typing import Dict, List, Optional, Tuple, Any
 
 
 class AdvancedMedicalNavigator:
@@ -160,6 +161,14 @@ class AdvancedMedicalNavigator:
 
     DEFAULT_ELEMENT_WEIGHT = 0.30
 
+    DEFAULT_ELEMENT_OPTIONS = {
+        'location': [
+            "top right side near your ribs",
+            "lower right side around your groin",
+            "upper middle part of your belly",
+        ],
+    }
+
     # ----------- Session container -------------------------------------------
 
     @dataclass
@@ -175,6 +184,7 @@ class AdvancedMedicalNavigator:
             'pmh': {},
             'guideline_terms': {},
             'matched_categories': [],
+            'clarifications': {},
         })
         condition_scores: Dict[str, float] = field(default_factory=dict)
         condition_rankings: List[Tuple[str, float]] = field(default_factory=list)
@@ -217,8 +227,9 @@ class AdvancedMedicalNavigator:
             return self._handle_initial_complaint(session, user_message)
 
         if session.pending:
-            self._store_answer(session, session.pending, user_message)
-            session.pending = None
+            response = self._store_answer(session, session.pending, user_message)
+            if response:
+                return response
 
         if session.completed:
             follow_up = "Thanks for the update. If anything changes, let me know."
@@ -347,28 +358,34 @@ class AdvancedMedicalNavigator:
 
     # ----------- Answer persistence & scoring --------------------------------
 
-    def _store_answer(self, session: "MedicalSession", pending: Dict[str, str], answer: str) -> None:
+    def _store_answer(self, session: "MedicalSession", pending: Dict[str, str], answer: str) -> Optional[Dict[str, Any]]:
         section, field = pending['section'], pending['field']
         text = answer.strip()
         if section == 'pre_hpi':
             session.context['pre_hpi'][field] = text
             if field == 'chronicity':
                 session.stage = "awaiting_age"
-                session.pending = None
             elif field == 'age':
                 session.stage = "awaiting_sex"
             elif field == 'sex':
                 session.stage = "hpi"
                 session.oldcarts_remaining = self._ordered_oldcarts_elements(session)
+            session.pending = None
+            return None
         elif section == 'hpi':
             session.context['hpi'][field] = text
-            self._score_oldcarts_answer(session, field, text)
+            response = self._score_oldcarts_answer(session, field, text)
+            if response:
+                return response
+            session.pending = None
         elif section == 'pmh':
             session.context['pmh'][field] = text
+            session.pending = None
+        return None
 
-    def _score_oldcarts_answer(self, session: "MedicalSession", element: str, answer: str) -> None:
+    def _score_oldcarts_answer(self, session: "MedicalSession", element: str, answer: str) -> Optional[Dict[str, Any]]:
         if not self.medical_rule_engine:
-            return
+            return None
         matches = self.medical_rule_engine.find_matching_terms_faiss(
             prompt=answer,
             element=element,
@@ -428,7 +445,7 @@ class AdvancedMedicalNavigator:
         if not condition_similarities:
             self._capture_debug(f"[Scoring] ⚪ No guideline matches for {element} → '{answer}'")
             self._apply_rule_outs(session)
-            return
+            return None
 
         weight = self._get_element_weight(session, element)
         for cond, similarity in condition_similarities.items():
@@ -440,6 +457,7 @@ class AdvancedMedicalNavigator:
             )
 
         self._apply_rule_outs(session)
+        return None
 
     # ----------- Chief complaint matching ------------------------------------
 
@@ -762,7 +780,18 @@ class AdvancedMedicalNavigator:
                 break
 
         if clean_terms:
-            options = ', '.join(clean_terms)
+            sample_terms = random.sample(clean_terms, k=min(3, len(clean_terms)))
+            options = ', '.join(sample_terms)
+            return (
+                f"Create exactly two sentences. Sentence 1 must be the open-ended question: '{base_question}'. "
+                f"Sentence 2 should gently offer examples starting with 'You can mention things like' followed by up to three of these options: {options}. "
+                "Keep both sentences short, friendly, and avoid adding extra options or clauses."
+            )
+
+        fallback_terms = self.DEFAULT_ELEMENT_OPTIONS.get(element, [])
+        if fallback_terms:
+            sample_terms = random.sample(fallback_terms, k=min(3, len(fallback_terms)))
+            options = ', '.join(sample_terms)
             return (
                 f"Create exactly two sentences. Sentence 1 must be the open-ended question: '{base_question}'. "
                 f"Sentence 2 should gently offer examples starting with 'You can mention things like' followed by up to three of these options: {options}. "
