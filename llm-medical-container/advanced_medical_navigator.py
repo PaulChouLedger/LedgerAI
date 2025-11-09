@@ -1234,6 +1234,7 @@ class AdvancedMedicalNavigator:
         character_summary = self._character_tag_summary(session)
         character_tags = character_summary.get('tags', set())
         dominant_tag = character_summary.get('dominant')
+        allowed_conditions = self._priority_condition_set(session)
  
         if element == 'character':
             subject = cc if cc else 'symptoms'
@@ -1351,17 +1352,18 @@ class AdvancedMedicalNavigator:
                 debug_entries.append({'note': 'no unique entries after filtering'})
             return []
  
-        top_conditions = self._top_condition_names(session, limit=5)
-        top_condition_set = set(cond.lower() for cond in top_conditions)
-
+        sorted_conditions = sorted(session.condition_scores.items(), key=lambda item: item[1], reverse=True)
         baseline = 0.5 + 1e-6
-        priority_conditions = {
-            name.lower() for name, score in session.condition_scores.items() if score > baseline
-        }
+        priority_conditions = {name for name, score in sorted_conditions if score > baseline}
+        top_conditions = [name for name, _ in sorted_conditions[:5]]
+        allowed_conditions = set(priority_conditions) if priority_conditions else ({sorted_conditions[0][0]} if sorted_conditions else set())
+        top_condition_set = {name.lower() for name in top_conditions}
+
         if debug_entries is not None and top_conditions:
             debug_entries.append({
                 'top_ranked_conditions': top_conditions,
-                'priority_conditions': [cond for cond, score in session.condition_scores.items() if score > baseline],
+                'priority_conditions': list(priority_conditions),
+                'allowed_conditions': list(allowed_conditions),
             })
  
         unique_entries: List[Dict[str, Any]] = []
@@ -1393,8 +1395,9 @@ class AdvancedMedicalNavigator:
             copy_entry['patient_friendly'] = cleaned
             condition_name = copy_entry.get('condition')
             condition_lower = condition_name.lower() if isinstance(condition_name, str) else None
-            copy_entry['condition_score'] = session.condition_scores.get(condition_name, 0.5) if condition_name else 0.5
-            copy_entry['from_priority_condition'] = bool(condition_lower and condition_lower in priority_conditions)
+            condition_score = session.condition_scores.get(condition_name, 0.5) if condition_name else 0.5
+            copy_entry['condition_score'] = condition_score
+            copy_entry['from_priority_condition'] = bool(condition_name in priority_conditions)
             copy_entry['from_top_condition'] = bool(condition_lower and condition_lower in top_condition_set)
             copy_entry['character_tags'] = list(guideline_character_labels)
             unique_entries.append(copy_entry)
@@ -1404,6 +1407,10 @@ class AdvancedMedicalNavigator:
                 debug_entries.append({'note': 'no unique entries after filtering'})
             return []
  
+        filtered_entries = [entry for entry in unique_entries if entry.get('condition') in allowed_conditions]
+        if filtered_entries:
+            unique_entries = filtered_entries
+
         def split_priority(pool: List[Dict[str, Any]]) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]], List[Dict[str, Any]]]:
             priority = [entry for entry in pool if entry.get('from_priority_condition')]
             secondary = [entry for entry in pool if entry.get('from_top_condition') and entry not in priority]
@@ -1921,6 +1928,7 @@ class AdvancedMedicalNavigator:
         element: str,
         options: List[str],
         term_to_conditions: Optional[Dict[str, List[str]]] = None,
+        allowed_conditions: Optional[set] = None,
     ) -> List[str]:
         if not options:
             return options
@@ -2105,3 +2113,13 @@ class AdvancedMedicalNavigator:
         result['negatives'] = list(state.get('negatives', []))
 
         return result
+
+    def _priority_condition_set(self, session: "MedicalSession") -> set:
+        baseline = 0.5 + 1e-6
+        sorted_conditions = sorted(session.condition_scores.items(), key=lambda item: item[1], reverse=True)
+        priority = {name for name, score in sorted_conditions if score > baseline}
+        if priority:
+            return priority
+        if sorted_conditions:
+            return {sorted_conditions[0][0]}
+        return set()
