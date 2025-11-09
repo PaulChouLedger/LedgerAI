@@ -302,12 +302,21 @@ class AdvancedMedicalNavigator:
 
         seed_scores = self._chief_complaint_condition_seed or {}
         session.condition_scores = {}
+
+        self._capture_debug(
+            f"[Engine] 🧾 Chief complaint seed map: { {k: round(v, 3) for k, v in seed_scores.items()} }"
+            if seed_scores else "[Engine] 🧾 Chief complaint seed map: {}"
+        )
+
         for cond in self._get_conditions_for_categories(categories):
             base = seed_scores.get(cond)
             if base is not None:
-                session.condition_scores[cond] = max(0.5, float(base))
+                seeded_value = max(0.5, float(base))
+                session.condition_scores[cond] = seeded_value
+                self._capture_debug(f"[Engine] 🔧 Seeded {cond} at {seeded_value:.3f} from chief complaint match")
             else:
                 session.condition_scores[cond] = 0.5
+                self._capture_debug(f"[Engine] 🔧 Seeded {cond} at baseline 0.500 (no chief complaint match)")
 
         if seed_scores:
             seeded_sorted = sorted(seed_scores.items(), key=lambda item: item[1], reverse=True)
