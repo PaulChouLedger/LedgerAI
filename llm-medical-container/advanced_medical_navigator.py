@@ -972,8 +972,23 @@ class AdvancedMedicalNavigator:
 
             if sim >= self.CHIEF_COMPLAINT_FAISS_THRESHOLD:
                 category_scores[category] = max(category_scores.get(category, 0.0), sim)
+                if trigger_data.get('condition'):
+                    previous = self._chief_complaint_condition_seed.get(trigger_data['condition'], 0.0)
+                    if sim > previous:
+                        self._chief_complaint_condition_seed[trigger_data['condition']] = sim
+                        self._capture_debug(
+                            f"[Engine] ✅ Chief complaint match: '{trigger_text}' → {trigger_data['condition']} (category: {category}, score: {sim:.3f})"
+                        )
             elif sim >= self.CHIEF_COMPLAINT_NEAR_MISS_UPPER:
                 category_scores[category] = max(category_scores.get(category, 0.0), sim)
+                if trigger_data.get('condition'):
+                    weighted = sim * 0.85
+                    previous = self._chief_complaint_condition_seed.get(trigger_data['condition'], 0.0)
+                    if weighted > previous:
+                        self._chief_complaint_condition_seed[trigger_data['condition']] = weighted
+                        self._capture_debug(
+                            f"[Engine] ✅ Chief complaint near-match: '{trigger_text}' → {trigger_data['condition']} (category: {category}, score: {weighted:.3f})"
+                        )
             elif sim >= self.CHIEF_COMPLAINT_NEAR_MISS_LOWER:
                 near_miss_candidates.append((trigger_data, sim))
 
