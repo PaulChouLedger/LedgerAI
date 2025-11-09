@@ -221,6 +221,7 @@ class AdvancedMedicalNavigator:
         self.all_guidelines: Dict[str, Dict] = {}
         self.chief_complaint_triggers_data: List[Dict] = []
         self.chief_complaint_triggers_index = None
+        self._chief_complaint_condition_seed: Dict[str, float] = {}
 
         if self.guidelines_dir:
             self._load_guidelines()
@@ -299,10 +300,23 @@ class AdvancedMedicalNavigator:
             self._capture_debug(f"[Engine] 🎯 Categories: {', '.join(categories)}")
         self.medical_rule_engine.set_active_category(categories if len(categories) > 1 else primary_category)
 
-        # seed condition scores
+        seed_scores = self._chief_complaint_condition_seed or {}
+        session.condition_scores = {}
         for cond in self._get_conditions_for_categories(categories):
-            session.condition_scores.setdefault(cond, 0.5)
-        self._capture_debug(f"[Engine] 📋 Seeded {len(session.condition_scores)} conditions at 50.0% confidence")
+            base = seed_scores.get(cond)
+            if base is not None:
+                session.condition_scores[cond] = max(0.5, float(base))
+            else:
+                session.condition_scores[cond] = 0.5
+
+        if seed_scores:
+            seeded_sorted = sorted(seed_scores.items(), key=lambda item: item[1], reverse=True)
+            top_preview = ', '.join(f"{name}: {score:.3f}" for name, score in seeded_sorted[:5])
+            self._capture_debug(f"[Engine] 📊 Chief complaint seeding (top {min(5, len(seeded_sorted))}): {top_preview}")
+        else:
+            self._capture_debug(f"[Engine] 📋 No direct chief complaint guideline matches; seeded {len(session.condition_scores)} conditions at baseline 50.0%")
+
+        self._apply_rule_outs(session)
 
         session.stage = "awaiting_chronicity"
         session.context['pre_hpi']['chief_complaint'] = complaint
@@ -977,10 +991,12 @@ class AdvancedMedicalNavigator:
                     best_category = trigger_data.get('category', 'gastrointestinal')
             if best_category:
                 self._capture_debug(f"[Engine] ✅ Fuzzy matched to category '{best_category}' (score: {best_score:.3f})")
+                self._chief_complaint_condition_seed = {}
                 return [best_category]
 
         if not category_scores:
             self._capture_debug(f"[Engine] ⚠️ No category match found for chief complaint '{chief_complaint}'.")
+            self._chief_complaint_condition_seed = {}
             return []
 
         sorted_categories = sorted(category_scores.items(), key=lambda x: x[1], reverse=True)
@@ -997,6 +1013,7 @@ class AdvancedMedicalNavigator:
             scores = ', '.join(f"{cat} ({category_scores[cat]:.3f})" for cat in matched)
             self._capture_debug(f"[Engine] 🎯 Multiple categories matched via chief complaint: {scores}")
 
+        self._chief_complaint_condition_seed = {}
         return matched
  
      # ----------- Guidance builders -------------------------------------------
