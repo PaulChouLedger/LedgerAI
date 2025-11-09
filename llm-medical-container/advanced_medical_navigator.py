@@ -301,6 +301,8 @@ class AdvancedMedicalNavigator:
 
         session.stage = "awaiting_chronicity"
         session.context['pre_hpi']['chief_complaint'] = complaint
+        cc_terms = self._get_element_includes(session, 'chief_complaint') if hasattr(self, '_get_element_includes') else []
+        session.context['guideline_terms']['chief_complaint_terms'] = cc_terms
 
         empathetic = self._generate_empathetic_statement(complaint)
         chronicity_prompt = self._generate_chronicity_question()
@@ -432,8 +434,8 @@ class AdvancedMedicalNavigator:
             session.context['clarifications'].pop(element, None)
 
         analysis = None
-        if element == 'location' and requires_clarification:
-            analysis = self._analyze_location_answer(session, answer, matches, term_scores)
+        if element == 'location':
+            analysis = self._analyze_location_answer(session, element, answer, matches, term_scores)
             self._log_location_analysis(session, analysis)
         else:
             self._log_generic_faiss(element, answer, matches, term_scores)
@@ -552,6 +554,7 @@ class AdvancedMedicalNavigator:
     def _analyze_location_answer(
         self,
         session: "MedicalSession",
+        element: str,
         answer: str,
         matches: List[str],
         term_scores: Dict[str, float],
@@ -1099,6 +1102,9 @@ class AdvancedMedicalNavigator:
         base_question = base_template.replace('{cc}', cc)
         character_tags: set = set()
 
+        chief_complaint_terms = session.context['guideline_terms'].get('chief_complaint_terms', [])
+        cc_has_sensory = any('sensory' in (entry.get('question_tags') or []) for entry in chief_complaint_terms)
+
         if element == 'character':
             for entry in includes:
                 tags = entry.get('question_tags') or []
@@ -1122,7 +1128,7 @@ class AdvancedMedicalNavigator:
         else:
             base_question = base_template.replace('{cc}', cc)
 
-        sensory_complaint = 'character' in character_tags or 'sensory' in character_tags
+        sensory_complaint = ('character' in character_tags or 'sensory' in character_tags) or cc_has_sensory
         sample_entries = self._select_guidance_entries(includes, limit=2, exclude_sensory=sensory_complaint)
         sample_terms = [entry['patient_friendly'] for entry in sample_entries if entry.get('patient_friendly')]
 
