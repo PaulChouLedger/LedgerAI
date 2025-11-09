@@ -669,6 +669,25 @@ class AdvancedMedicalNavigator:
                     seen_medical.add(med_key)
                     satisfied_medical_terms.append(med)
 
+        priority_conditions = {
+            cond for cond, score in session.condition_scores.items() if score > (0.5 + 1e-6)
+        }
+        if priority_conditions and satisfied_medical_terms:
+            filtered_med_terms: List[str] = []
+            fallback_med_terms: List[str] = []
+            for med in satisfied_medical_terms:
+                patient_term = medical_to_patient.get(med.lower(), med)
+                conds = term_to_guidelines.get(patient_term.lower(), [])
+                if conds and not any(cond in priority_conditions for cond in conds):
+                    fallback_med_terms.append(med)
+                else:
+                    filtered_med_terms.append(med)
+
+            if filtered_med_terms:
+                satisfied_medical_terms = filtered_med_terms
+            elif fallback_med_terms:
+                satisfied_medical_terms = fallback_med_terms
+
         # Anatomical filtering of satisfied medical terms
         if self.medical_rule_engine and patient_components:
             filtered_satisfied = []
@@ -1884,31 +1903,32 @@ class AdvancedMedicalNavigator:
     ) -> List[str]:
         if not options:
             return options
-
+ 
         baseline = 0.5 + 1e-6
-        filtered: List[str] = []
+        prioritized: List[str] = []
+        fallback: List[str] = []
         skipped: List[str] = []
         mapping = term_to_conditions or {}
-
+ 
         for opt in options:
             conds = mapping.get(opt.lower(), [])
             if not conds:
-                filtered.append(opt)
+                fallback.append(opt)
                 continue
             if any(session.condition_scores.get(cond, 0.5) > baseline for cond in conds):
-                filtered.append(opt)
+                prioritized.append(opt)
             else:
                 skipped.append(opt)
-
+ 
         if skipped:
             self._capture_debug(
                 f"[Clarification] ⚖️ Skipping options for {element} tied to baseline scores: {skipped}"
             )
-
-        if filtered:
-            return filtered
-
-        return options
+ 
+        if prioritized:
+            return prioritized
+ 
+        return fallback if fallback else options
 
     def _ensure_associated_state(self, session: "MedicalSession") -> Dict[str, Any]:
         state = session.context.setdefault('associated_state', {})
