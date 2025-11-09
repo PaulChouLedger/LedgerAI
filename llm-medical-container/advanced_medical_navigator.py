@@ -1104,16 +1104,28 @@ class AdvancedMedicalNavigator:
         base_template = self.HPI_BASE_GUIDANCE[element]
         base_question = base_template.replace('{cc}', cc)
         character_tags: set = set()
-
-        chief_complaint_terms = session.context['guideline_terms'].get('chief_complaint_terms', [])
-        cc_has_sensory = any('sensory' in (entry.get('question_tags') or []) for entry in chief_complaint_terms)
-
-        if element == 'character':
+ 
+        stored_character_tags = session.context['guideline_terms'].get('character_tags')
+        if stored_character_tags is None and element == 'character':
+            stored_character_tags = set()
             for entry in includes:
                 tags = entry.get('question_tags') or []
                 for tag in tags:
                     if isinstance(tag, str):
-                        character_tags.add(tag.lower())
+                        stored_character_tags.add(tag.lower())
+            session.context['guideline_terms']['character_tags'] = stored_character_tags
+        elif stored_character_tags is None:
+            character_includes = self._get_element_includes(session, 'character')
+            stored_character_tags = set()
+            for entry in character_includes:
+                tags = entry.get('question_tags') or []
+                for tag in tags:
+                    if isinstance(tag, str):
+                        stored_character_tags.add(tag.lower())
+            session.context['guideline_terms']['character_tags'] = stored_character_tags
+
+        character_tags = stored_character_tags or set()
+ 
         if element == 'character':
             subject = cc if cc else 'symptoms'
             plural = subject.endswith('s')
@@ -1130,18 +1142,13 @@ class AdvancedMedicalNavigator:
                 base_question = f"How would you describe what your {subject} {feel_verb} like?"
         else:
             base_question = base_template.replace('{cc}', cc)
-
-        cc_descriptors = session.context['guideline_terms'].get('chief_complaint_descriptors', {})
-        sensory_complaint = ('character' in character_tags or 'sensory' in character_tags) or cc_descriptors.get('sensory', False)
-        sample_entries = self._select_guidance_entries(includes, limit=2, exclude_sensory=sensory_complaint)
+ 
+        character_tags = stored_character_tags or set()
+        chief_sensory = 'sensory' in character_tags
+        chief_visual = 'visual' in character_tags
+        sample_entries = self._select_guidance_entries(includes, limit=2, chief_sensory=chief_sensory, chief_visual=chief_visual)
         sample_terms = [entry['patient_friendly'] for entry in sample_entries if entry.get('patient_friendly')]
-
-        if not sample_terms:
-            guidance = (
-                f"Ask exactly one friendly, open-ended sentence: '{base_question}'. Do not add examples or extra sentences."
-            )
-            return guidance, base_question, []
-
+ 
         if sample_terms:
             options = ', '.join(sample_terms)
             guidance = (
@@ -1151,29 +1158,17 @@ class AdvancedMedicalNavigator:
                 "Keep both sentences short, friendly, and avoid adding extra options or clauses."
             )
             return guidance, base_question, sample_terms
-
-        fallback_terms = self.DEFAULT_ELEMENT_OPTIONS.get(element, [])
-        if fallback_terms:
-            sample_terms = random.sample(fallback_terms, k=min(2, len(fallback_terms)))
-            options = ', '.join(sample_terms)
-            guidance = (
-                f"Create exactly two sentences. Sentence 1 must be the open-ended question: '{base_question}'. "
-                f"Sentence 2 should gently offer examples starting with 'You can mention things like' followed by up to two of these options: {options}. "
-                "Use only the options provided verbatim and do not invent additional examples or wording. "
-                "Keep both sentences short, friendly, and avoid adding extra options or clauses."
-            )
-            return guidance, base_question, sample_terms
-
+ 
         guidance = (
             f"Ask exactly one friendly, open-ended sentence: '{base_question}'. Do not add examples or extra sentences."
         )
         return guidance, base_question, []
-
-    def _select_guidance_entries(self, entries: List[Dict[str, Any]], limit: int = 2, exclude_sensory: bool = False) -> List[Dict[str, Any]]:
+ 
+    def _select_guidance_entries(self, entries: List[Dict[str, Any]], limit: int = 2, chief_sensory: bool = False, chief_visual: bool = False) -> List[Dict[str, Any]]:
         """Select patient-friendly terms for question guidance, preferring emergent conditions."""
         if limit <= 0 or not entries:
             return []
-
+ 
         unique_entries: List[Dict[str, Any]] = []
         seen_pf = set()
         for entry in entries:
@@ -1183,6 +1178,11 @@ class AdvancedMedicalNavigator:
             cleaned = pf.strip()
             if not cleaned:
                 continue
+            tags = entry.get('question_tags') or []
+            if chief_sensory and 'visual' in tags:
+                continue
+            if chief_visual and 'sensory' in tags:
+                continue
             key = cleaned.lower()
             if key in seen_pf:
                 continue
@@ -1190,26 +1190,16 @@ class AdvancedMedicalNavigator:
             copy_entry = dict(entry)
             copy_entry['patient_friendly'] = cleaned
             unique_entries.append(copy_entry)
-
+ 
         if not unique_entries:
             return []
-
-        if exclude_sensory:
-            filtered = []
-            for entry in unique_entries:
-                tags = entry.get('question_tags') or []
-                if any(tag == 'sensory' for tag in tags):
-                    continue
-                filtered.append(entry)
-            if filtered:
-                unique_entries = filtered
-
+ 
         emergent_entries = [entry for entry in unique_entries if entry.get('emergent_term') or entry.get('condition_urgency') == 'emergent']
         urgent_entries = [entry for entry in unique_entries if entry.get('condition_urgency') == 'urgent' and entry not in emergent_entries]
         other_entries = [entry for entry in unique_entries if entry not in emergent_entries and entry not in urgent_entries]
-
+ 
         selected: List[Dict[str, Any]] = []
-
+ 
         def choose_from(pool: List[Dict[str, Any]]):
             nonlocal selected
             if len(selected) >= limit or not pool:
@@ -1221,11 +1211,11 @@ class AdvancedMedicalNavigator:
             if k <= 0:
                 return
             selected.extend(random.sample(available, k=k))
-
+ 
         choose_from(emergent_entries)
         choose_from(urgent_entries)
         choose_from(other_entries)
-
+ 
         return selected
 
     def _get_element_includes(self, session: "MedicalSession", element: str) -> List[Dict[str, Any]]:
