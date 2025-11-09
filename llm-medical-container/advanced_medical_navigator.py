@@ -1240,7 +1240,21 @@ class AdvancedMedicalNavigator:
         debug_entries: List[Dict[str, Any]] = []
         if inject_options:
             sample_entries = self._select_guidance_entries(session, element, includes, limit=2, debug_entries=debug_entries)
-            sample_terms = [entry['patient_friendly'] for entry in sample_entries if entry.get('patient_friendly')]
+            prioritized_terms = []
+            fallback_terms = []
+            baseline = 0.5 + 1e-6
+            for entry in sample_entries or []:
+                term = entry.get('patient_friendly')
+                condition_name = entry.get('condition')
+                if not term:
+                    continue
+                score = session.condition_scores.get(condition_name, 0.5) if condition_name else 0.5
+                if score > baseline:
+                    prioritized_terms.append(term)
+                else:
+                    fallback_terms.append(term)
+            ordered_terms = prioritized_terms or fallback_terms
+            sample_terms = ordered_terms[:2]
         if debug_entries:
             self._capture_debug(f"[Guidance] 📋 Option candidates ({element}): {debug_entries}")
  
@@ -1319,8 +1333,16 @@ class AdvancedMedicalNavigator:
  
         top_conditions = self._top_condition_names(session, limit=5)
         top_condition_set = set(cond.lower() for cond in top_conditions)
+
+        baseline = 0.5 + 1e-6
+        priority_conditions = {
+            name.lower() for name, score in session.condition_scores.items() if score > baseline
+        }
         if debug_entries is not None and top_conditions:
-            debug_entries.append({'top_ranked_conditions': top_conditions})
+            debug_entries.append({
+                'top_ranked_conditions': top_conditions,
+                'priority_conditions': [cond for cond, score in session.condition_scores.items() if score > baseline],
+            })
  
         unique_entries: List[Dict[str, Any]] = []
         seen_pf = set()
@@ -1350,7 +1372,10 @@ class AdvancedMedicalNavigator:
             copy_entry = dict(entry)
             copy_entry['patient_friendly'] = cleaned
             condition_name = copy_entry.get('condition')
-            copy_entry['from_top_condition'] = bool(condition_name and condition_name.lower() in top_condition_set)
+            condition_lower = condition_name.lower() if isinstance(condition_name, str) else None
+            copy_entry['condition_score'] = session.condition_scores.get(condition_name, 0.5) if condition_name else 0.5
+            copy_entry['from_priority_condition'] = bool(condition_lower and condition_lower in priority_conditions)
+            copy_entry['from_top_condition'] = bool(condition_lower and condition_lower in top_condition_set)
             copy_entry['character_tags'] = list(guideline_character_labels)
             unique_entries.append(copy_entry)
  
@@ -1359,14 +1384,11 @@ class AdvancedMedicalNavigator:
                 debug_entries.append({'note': 'no unique entries after filtering'})
             return []
  
-        def split_priority(pool: List[Dict[str, Any]]) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
-            top = [entry for entry in pool if entry.get('from_top_condition')]
-            rest = [entry for entry in pool if entry not in top]
-            return top, rest
- 
-        emergent_entries = [entry for entry in unique_entries if entry.get('emergent_term') or entry.get('condition_urgency') == 'emergent']
-        urgent_entries = [entry for entry in unique_entries if entry.get('condition_urgency') == 'urgent' and entry not in emergent_entries]
-        other_entries = [entry for entry in unique_entries if entry not in emergent_entries and entry not in urgent_entries]
+        def split_priority(pool: List[Dict[str, Any]]) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]], List[Dict[str, Any]]]:
+            priority = [entry for entry in pool if entry.get('from_priority_condition')]
+            secondary = [entry for entry in pool if entry.get('from_top_condition') and entry not in priority]
+            rest = [entry for entry in pool if entry not in priority and entry not in secondary]
+            return priority, secondary, rest
  
         selected: List[Dict[str, Any]] = []
  
@@ -1374,8 +1396,8 @@ class AdvancedMedicalNavigator:
             nonlocal selected
             if len(selected) >= limit or not pool:
                 return
-            priority_pool, fallback_pool = split_priority(pool)
-            for candidate_pool in (priority_pool, fallback_pool):
+            primary_pool, secondary_pool, fallback_pool = split_priority(pool)
+            for candidate_pool in (primary_pool, secondary_pool, fallback_pool):
                 if len(selected) >= limit:
                     break
                 available = [entry for entry in candidate_pool if entry not in selected]
@@ -1386,18 +1408,16 @@ class AdvancedMedicalNavigator:
                     break
                 selected.extend(random.sample(available, k=k))
  
-        choose_from(emergent_entries)
-        choose_from(urgent_entries)
-        choose_from(other_entries)
+        choose_from(unique_entries)
 
-        if debug_entries is not None:
-            for entry in selected:
+        if debug_entries is not None and not selected:
+            for entry in unique_entries:
                 debug_entries.append({
                     'term': entry.get('patient_friendly'),
                     'condition': entry.get('condition'),
                     'character_tags': entry.get('character_tags'),
                     'from_top_condition': entry.get('from_top_condition'),
-                    'selected': True,
+                    'selected': False,
                 })
  
         return selected
