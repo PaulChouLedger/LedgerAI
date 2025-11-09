@@ -353,7 +353,7 @@ class AdvancedMedicalNavigator:
         if session.stage == "awaiting_chronicity":
             if session.context['pre_hpi'].get('chronicity'):
                 session.stage = "awaiting_age"
-        else:
+            else:
                 return None
 
         if session.stage == "awaiting_age":
