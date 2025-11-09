@@ -1410,6 +1410,10 @@ class AdvancedMedicalNavigator:
             rest = [entry for entry in pool if entry not in priority and entry not in secondary]
             return priority, secondary, rest
  
+        emergent_entries = [entry for entry in unique_entries if entry.get('emergent_term') or entry.get('condition_urgency') == 'emergent']
+        urgent_entries = [entry for entry in unique_entries if entry.get('condition_urgency') == 'urgent' and entry not in emergent_entries]
+        other_entries = [entry for entry in unique_entries if entry not in emergent_entries and entry not in urgent_entries]
+ 
         selected: List[Dict[str, Any]] = []
  
         def choose_from(pool: List[Dict[str, Any]]):
@@ -1423,13 +1427,23 @@ class AdvancedMedicalNavigator:
                 available = [entry for entry in candidate_pool if entry not in selected]
                 if not available:
                     continue
-                k = min(limit - len(selected), len(available))
-                if k <= 0:
+                available_sorted = sorted(
+                    available,
+                    key=lambda entry: (
+                        -(1 if entry.get('emergent_term') or entry.get('condition_urgency') == 'emergent' else 0),
+                        entry.get('condition_score', 0.5),
+                    ),
+                    reverse=True,
+                )
+                needed = limit - len(selected)
+                selected.extend(available_sorted[:needed])
+                if len(selected) >= limit:
                     break
-                selected.extend(random.sample(available, k=k))
  
-        choose_from(unique_entries)
-
+        choose_from(emergent_entries)
+        choose_from(urgent_entries)
+        choose_from(other_entries)
+ 
         if debug_entries is not None and not selected:
             for entry in unique_entries:
                 debug_entries.append({
