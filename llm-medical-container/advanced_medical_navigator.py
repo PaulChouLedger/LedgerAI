@@ -131,14 +131,14 @@ class AdvancedMedicalNavigator:
     CATEGORY_ELEMENT_WEIGHTS = {
         'gastrointestinal': {
             'location': 0.65,
-            'character': 0.20,
-            'aggravating': 0.30,
-            'relieving': 0.30,
-            'onset': 0.25,
-            'timing': 0.25,
-            'duration': 0.25,
+            'character': 0.25,
+            'aggravating': 0.40,
+            'relieving': 0.40,
+            'onset': 0.31,
+            'timing': 0.30,
+            'duration': 0.29,
             'severity': 0.20,
-            'associated': 0.25,
+            'associated': 0.5,
         },
         'cardiovascular': {
             'character': 0.65,
@@ -354,7 +354,7 @@ class AdvancedMedicalNavigator:
         if session.stage == "awaiting_chronicity":
             if session.context['pre_hpi'].get('chronicity'):
                 session.stage = "awaiting_age"
-            else:
+        else:
                 return None
 
         if session.stage == "awaiting_age":
@@ -1262,21 +1262,7 @@ class AdvancedMedicalNavigator:
         debug_entries: List[Dict[str, Any]] = []
         if inject_options:
             sample_entries = self._select_guidance_entries(session, element, includes, limit=2, debug_entries=debug_entries)
-            prioritized_terms = []
-            fallback_terms = []
-            baseline = 0.5 + 1e-6
-            for entry in sample_entries or []:
-                term = entry.get('patient_friendly')
-                condition_name = entry.get('condition')
-                if not term:
-                    continue
-                score = session.condition_scores.get(condition_name, 0.5) if condition_name else 0.5
-                if score > baseline:
-                    prioritized_terms.append(term)
-                else:
-                    fallback_terms.append(term)
-            ordered_terms = prioritized_terms or fallback_terms
-            sample_terms = ordered_terms[:2]
+            sample_terms = [entry['patient_friendly'] for entry in sample_entries if entry.get('patient_friendly')]
         if debug_entries:
             self._capture_debug(f"[Guidance] 📋 Option candidates ({element}): {debug_entries}")
  
@@ -1456,9 +1442,9 @@ class AdvancedMedicalNavigator:
         high_conf_selected = [entry for entry in selected if entry.get('condition_score', 0.5) > baseline]
         if high_conf_selected:
             selected = high_conf_selected
-        else:
+        elif not selected:
             selected = []
-
+ 
         if debug_entries is not None:
             for entry in selected:
                 debug_entries.append({
@@ -1487,6 +1473,7 @@ class AdvancedMedicalNavigator:
 
     def _get_element_includes(self, session: "MedicalSession", element: str) -> List[Dict[str, Any]]:
         cache = session.context.setdefault('guideline_includes', {})
+        cache.pop(element, None)
         if element in cache:
             return cache[element]
         categories = session.context.get('matched_categories') or ['gastrointestinal']
