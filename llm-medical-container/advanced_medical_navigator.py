@@ -165,7 +165,7 @@ class AdvancedMedicalNavigator:
     }
 
     DEFAULT_ELEMENT_WEIGHT = 0.30
-    CLEAR_LEAD_MARGIN = 0.1
+    CLEAR_LEAD_MARGIN = 0.08
 
     RELAXED_LOCATION_THRESHOLD = 0.55
     RELAXED_LOCATION_MARGIN = 0.02
@@ -1647,13 +1647,12 @@ class AdvancedMedicalNavigator:
         if base_question and base_question.lower() not in cleaned.lower():
             cleaned = base_question
         if section == 'hpi' and options:
-            if "you can mention things like" not in cleaned.lower():
-                option_text = ', '.join(options)
-                if cleaned.endswith('?'):
-                    prefix = cleaned
-                else:
-                    prefix = cleaned.rstrip('.') + '?'
-                cleaned = f"{prefix} You can mention things like: {option_text}."
+            question_part = base_question or cleaned
+            question_part = question_part.strip()
+            if not question_part.endswith('?'):
+                question_part = question_part.rstrip('.') + '?'
+            option_text = ', '.join(options)
+            cleaned = f"{question_part} You can mention things like: {option_text}."
         return cleaned
 
     def _generate_empathetic_statement(self, chief_complaint: str) -> str:
