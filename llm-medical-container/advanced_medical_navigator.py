@@ -359,12 +359,9 @@ class AdvancedMedicalNavigator:
         if session.stage == "awaiting_age":
             if session.context['pre_hpi'].get('age'):
                 session.stage = "awaiting_sex"
-            else:
+        else:
                 prompt = "Thank you. For our records, how old are you?"
                 return {'section': 'pre_hpi', 'field': 'age', 'prompt': prompt, 'guidance': self.PRE_HPI_PROMPTS['age']}
-            session.stage = "awaiting_sex"
-            prompt = "And for medical documentation, what is your biological sex?"
-            return {'section': 'pre_hpi', 'field': 'sex', 'prompt': prompt, 'guidance': self.PRE_HPI_PROMPTS['sex']}
 
         if session.stage == "awaiting_sex":
             if session.context['pre_hpi'].get('sex'):
@@ -1266,6 +1263,11 @@ class AdvancedMedicalNavigator:
             self._capture_debug(f"[Guidance] 📋 Option candidates ({element}): {debug_entries}")
  
         if sample_terms:
+            top_condition = next(iter(self._priority_condition_set(session)), None)
+            if top_condition:
+                top_terms = [term for term in sample_terms if any(entry for entry in sample_entries if entry['patient_friendly'] == term and entry.get('condition') == top_condition)]
+                if top_terms:
+                    sample_terms = [top_terms[0]] + [term for term in sample_terms if term != top_terms[0]]
             options = ', '.join(sample_terms)
             guidance = (
                 f"Create exactly two sentences. Sentence 1 must be the open-ended question: '{base_question}'. "
