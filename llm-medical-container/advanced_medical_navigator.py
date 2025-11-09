@@ -357,11 +357,10 @@ class AdvancedMedicalNavigator:
             session.stage = "awaiting_age"
 
         if session.stage == "awaiting_age":
-            if session.context['pre_hpi'].get('age'):
-                session.stage = "awaiting_sex"
-        else:
+            if not session.context['pre_hpi'].get('age'):
                 prompt = "Thank you. For our records, how old are you?"
                 return {'section': 'pre_hpi', 'field': 'age', 'prompt': prompt, 'guidance': self.PRE_HPI_PROMPTS['age']}
+            session.stage = "awaiting_sex"
 
         if session.stage == "awaiting_sex":
             if session.context['pre_hpi'].get('sex'):
