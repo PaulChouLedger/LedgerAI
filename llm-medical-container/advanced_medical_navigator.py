@@ -110,7 +110,7 @@ class AdvancedMedicalNavigator:
     CHRONICITY_SYSTEM_PROMPT = (
         "You are a medical assistant. Ask the patient directly whether the problem is new or ongoing and"
         " whether a prior diagnosis exists. Respond with exactly one simple question addressed to the patient."
-        " Do not mention laboratory tests, additional steps, or introduce the question with phrases like"
+        " Do not mention laboratory tests, vital signs, additional steps, or introduce the question with phrases like"
         " 'Here is the question'."
     )
 
