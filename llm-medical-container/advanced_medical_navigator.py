@@ -403,6 +403,15 @@ class AdvancedMedicalNavigator:
             session.pending = None
             return None
         elif section == 'hpi':
+            if self._is_confused_response(text):
+                clarification = self._clarify_element_question(session, field)
+                session.pending = pending
+                return self._wrap_response(session, clarification, metadata={
+                    'section': 'hpi',
+                    'field': field,
+                    'clarification': True,
+                })
+
             session.context['hpi'][field] = text
             response = self._score_oldcarts_answer(session, pending, field, text)
             if response:
@@ -1123,12 +1132,15 @@ class AdvancedMedicalNavigator:
         else:
             base_question = base_template.replace('{cc}', cc)
  
-        inject_options = not ('visual' in character_tags and element == 'location')
+        inject_options = not ('visual' in character_tags and element == 'location') and element != 'severity'
  
         sample_terms: List[str] = []
+        debug_entries: List[Dict[str, Any]] = []
         if inject_options:
-            sample_entries = self._select_guidance_entries(session, element, includes, limit=2)
+            sample_entries = self._select_guidance_entries(session, element, includes, limit=2, debug_entries=debug_entries)
             sample_terms = [entry['patient_friendly'] for entry in sample_entries if entry.get('patient_friendly')]
+        if debug_entries:
+            self._capture_debug(f"[Guidance] 📋 Location option candidates (filtered): {debug_entries}")
  
         if sample_terms:
             options = ', '.join(sample_terms)
@@ -1159,9 +1171,11 @@ class AdvancedMedicalNavigator:
         session.context['guideline_terms']['character_tags'] = tags
         return tags
 
-    def _select_guidance_entries(self, session: "MedicalSession", element: str, entries: List[Dict[str, Any]], limit: int = 2) -> List[Dict[str, Any]]:
+    def _select_guidance_entries(self, session: "MedicalSession", element: str, entries: List[Dict[str, Any]], limit: int = 2, debug_entries: Optional[List[Dict[str, Any]]] = None) -> List[Dict[str, Any]]:
         """Select patient-friendly terms for question guidance, preferring emergent conditions."""
         if limit <= 0 or not entries:
+            if debug_entries is not None:
+                debug_entries.append({'note': 'no unique entries after filtering'})
             return []
  
         unique_entries: List[Dict[str, Any]] = []
@@ -1177,6 +1191,13 @@ class AdvancedMedicalNavigator:
             guideline_condition = entry.get('condition')
             guideline_character_labels = self._get_guideline_character_tags(session, guideline_condition)
             if element == 'location' and 'visual' in guideline_character_labels:
+                if debug_entries is not None:
+                    debug_entries.append({
+                        'term': cleaned,
+                        'condition': guideline_condition,
+                        'reason': 'excluded_visual_character',
+                        'character_tags': list(guideline_character_labels),
+                    })
                 continue
             key = cleaned.lower()
             if key in seen_pf:
@@ -1184,9 +1205,12 @@ class AdvancedMedicalNavigator:
             seen_pf.add(key)
             copy_entry = dict(entry)
             copy_entry['patient_friendly'] = cleaned
+            copy_entry['character_tags'] = list(guideline_character_labels)
             unique_entries.append(copy_entry)
  
         if not unique_entries:
+            if debug_entries is not None:
+                debug_entries.append({'note': 'no unique entries after filtering'})
             return []
  
         emergent_entries = [entry for entry in unique_entries if entry.get('emergent_term') or entry.get('condition_urgency') == 'emergent']
@@ -1210,6 +1234,15 @@ class AdvancedMedicalNavigator:
         choose_from(emergent_entries)
         choose_from(urgent_entries)
         choose_from(other_entries)
+
+        if debug_entries is not None:
+            for entry in selected:
+                debug_entries.append({
+                    'term': entry.get('patient_friendly'),
+                    'condition': entry.get('condition'),
+                    'character_tags': entry.get('character_tags'),
+                    'selected': True,
+                })
  
         return selected
 
@@ -1610,3 +1643,38 @@ class AdvancedMedicalNavigator:
         collected = [item for item in self.PRE_HPI_ORDER if pre.get(item)]
         missing = [item for item in self.PRE_HPI_ORDER if item not in collected]
         return collected, missing
+
+    def _is_confused_response(self, text: str) -> bool:
+        if not text:
+            return False
+        normalized = text.strip().lower()
+        confusion_markers = [
+            "what do you mean",
+            "i don't understand",
+            "can you explain",
+            "not sure",
+            "clarify",
+        ]
+        if any(marker in normalized for marker in confusion_markers):
+            return True
+        if normalized.endswith('?') and len(normalized) <= 60:
+            return True
+        return False
+
+    def _clarify_element_question(self, session: "MedicalSession", element: str) -> str:
+        if element == 'red_flags':
+            includes = self._get_element_includes(session, 'red_flags')
+            emergent_terms = [entry['patient_friendly'] for entry in includes if entry.get('emergent_term')]
+            if not emergent_terms:
+                emergent_terms = [entry['patient_friendly'] for entry in includes[:3]]
+            emergent_terms = [term for term in emergent_terms if term]
+            if emergent_terms:
+                examples = ', '.join(emergent_terms[:4])
+                return (
+                    f"By urgent warning signs I mean symptoms such as {examples}."
+                    " If you have noticed any of those, please let me know."
+                )
+            return "I'm asking if you've noticed any severe or alarming symptoms that might need urgent attention."
+
+        # Default clarification message
+        return "I'm just checking if there is any additional detail you can share about that."
