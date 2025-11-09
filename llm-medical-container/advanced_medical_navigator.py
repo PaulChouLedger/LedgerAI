@@ -967,7 +967,8 @@ class AdvancedMedicalNavigator:
 
         self._capture_debug(f"[Engine] 🔍 FAISS search for '{chief_complaint}' (threshold: {self.CHIEF_COMPLAINT_FAISS_THRESHOLD})")
 
-        category_scores = {}
+        category_scores: Dict[str, float] = {}
+        condition_scores: Dict[str, float] = {}
         near_miss_candidates = []
 
         for idx, sim in zip(indices[0], similarities[0]):
@@ -982,9 +983,9 @@ class AdvancedMedicalNavigator:
             if sim >= self.CHIEF_COMPLAINT_FAISS_THRESHOLD:
                 category_scores[category] = max(category_scores.get(category, 0.0), sim)
                 if trigger_data.get('condition'):
-                    previous = self._chief_complaint_condition_seed.get(trigger_data['condition'], 0.0)
+                    previous = condition_scores.get(trigger_data['condition'], 0.0)
                     if sim > previous:
-                        self._chief_complaint_condition_seed[trigger_data['condition']] = sim
+                        condition_scores[trigger_data['condition']] = sim
                         self._capture_debug(
                             f"[Engine] ✅ Chief complaint match: '{trigger_text}' → {trigger_data['condition']} (category: {category}, score: {sim:.3f})"
                         )
@@ -992,9 +993,9 @@ class AdvancedMedicalNavigator:
                 category_scores[category] = max(category_scores.get(category, 0.0), sim)
                 if trigger_data.get('condition'):
                     weighted = sim * 0.85
-                    previous = self._chief_complaint_condition_seed.get(trigger_data['condition'], 0.0)
+                    previous = condition_scores.get(trigger_data['condition'], 0.0)
                     if weighted > previous:
-                        self._chief_complaint_condition_seed[trigger_data['condition']] = weighted
+                        condition_scores[trigger_data['condition']] = weighted
                         self._capture_debug(
                             f"[Engine] ✅ Chief complaint near-match: '{trigger_text}' → {trigger_data['condition']} (category: {category}, score: {weighted:.3f})"
                         )
@@ -1013,9 +1014,15 @@ class AdvancedMedicalNavigator:
                 if combined >= self.CHIEF_COMPLAINT_FUZZY_THRESHOLD and combined > best_score:
                     best_score = combined
                     best_category = trigger_data.get('category', 'gastrointestinal')
+                    best_condition = trigger_data.get('condition')
             if best_category:
                 self._capture_debug(f"[Engine] ✅ Fuzzy matched to category '{best_category}' (score: {best_score:.3f})")
-                self._chief_complaint_condition_seed = {}
+                if best_condition:
+                    condition_scores[best_condition] = best_score * 0.75
+                    self._capture_debug(
+                        f"[Engine] ✅ Chief complaint fuzzy match: '{chief_complaint}' → {best_condition} (category: {best_category}, score: {best_score * 0.75:.3f})"
+                    )
+                self._chief_complaint_condition_seed = condition_scores
                 return [best_category]
 
         if not category_scores:
@@ -1037,7 +1044,12 @@ class AdvancedMedicalNavigator:
             scores = ', '.join(f"{cat} ({category_scores[cat]:.3f})" for cat in matched)
             self._capture_debug(f"[Engine] 🎯 Multiple categories matched via chief complaint: {scores}")
 
-        self._chief_complaint_condition_seed = {}
+        self._chief_complaint_condition_seed = condition_scores
+        if condition_scores:
+            top_preview = ', '.join(
+                f"{name}: {score:.3f}" for name, score in sorted(condition_scores.items(), key=lambda x: x[1], reverse=True)[:5]
+            )
+            self._capture_debug(f"[Engine] 📌 Chief complaint condition seeds: {top_preview}")
         return matched
  
      # ----------- Guidance builders -------------------------------------------
