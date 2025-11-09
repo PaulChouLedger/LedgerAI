@@ -57,13 +57,13 @@ class AdvancedMedicalNavigator:
     ]
 
     HPI_BASE_GUIDANCE = {
-        "onset": "When did this start, and did it come on suddenly or gradually?",
+        "onset": "When did this start for your {cc}ers?",
         "location": "Where exactly is your {cc} located?",
         "duration": "How long does each episode typically last?",
         "character": "How would you describe what it feels like?",
         "aggravating": "What tends to make it worse?",
         "relieving": "What tends to make it better?",
-        "timing": "Does it happen at particular times or during specific activities?",
+        "timing": "Does it come on at specific times or during certain activities?",
         "severity": "On a scale from 1 to 10, how bad is it?",
         "associated": "Have you noticed any other symptoms along with it?",
         "red_flags": "Have you experienced any urgent warning signs?",
@@ -2143,9 +2143,10 @@ class AdvancedMedicalNavigator:
             return {top_name}
 
         priority = {name for name, score in sorted_conditions if score > baseline}
-        result = {top_name}
         if priority:
-            result.update(priority)
-        elif len(sorted_conditions) > 1:
-            result.add(sorted_conditions[1][0])
-        return result
+            return priority
+
+        if len(sorted_conditions) > 1:
+            return {top_name, sorted_conditions[1][0]}
+
+        return {top_name}
