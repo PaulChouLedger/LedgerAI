@@ -165,6 +165,7 @@ class AdvancedMedicalNavigator:
     }
 
     DEFAULT_ELEMENT_WEIGHT = 0.30
+    CLEAR_LEAD_MARGIN = 0.1
 
     RELAXED_LOCATION_THRESHOLD = 0.55
     RELAXED_LOCATION_MARGIN = 0.02
@@ -2117,9 +2118,16 @@ class AdvancedMedicalNavigator:
     def _priority_condition_set(self, session: "MedicalSession") -> set:
         baseline = 0.5 + 1e-6
         sorted_conditions = sorted(session.condition_scores.items(), key=lambda item: item[1], reverse=True)
+        if not sorted_conditions:
+            return set()
+
+        top_name, top_score = sorted_conditions[0]
+        second_score = sorted_conditions[1][1] if len(sorted_conditions) > 1 else None
+
+        if second_score is None or top_score - second_score >= self.CLEAR_LEAD_MARGIN:
+            return {top_name}
+
         priority = {name for name, score in sorted_conditions if score > baseline}
         if priority:
             return priority
-        if sorted_conditions:
-            return {sorted_conditions[0][0]}
-        return set()
+        return {top_name}
