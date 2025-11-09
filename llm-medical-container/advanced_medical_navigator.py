@@ -1586,7 +1586,11 @@ class AdvancedMedicalNavigator:
 
     def _ordered_oldcarts_elements(self, session: "MedicalSession") -> List[str]:
         ordered = sorted(self.HPI_ELEMENTS, key=lambda e: self._get_element_weight(session, e), reverse=True)
-        return ordered.copy()
+        ordered_list = ordered.copy()
+        if 'associated' in ordered_list:
+            ordered_list.remove('associated')
+            ordered_list.append('associated')
+        return ordered_list
 
     def _get_element_weight(self, session: "MedicalSession", element: str) -> float:
         categories = session.context['matched_categories'] or ['gastrointestinal']
