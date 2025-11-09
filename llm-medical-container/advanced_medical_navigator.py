@@ -777,9 +777,36 @@ class AdvancedMedicalNavigator:
                     result.append(item)
             return result
 
-        satisfied_options = _unique([medical_to_patient.get(med.lower(), med) for med in satisfied_medical_terms])
+        def _filter_by_condition_scores(options: List[str]) -> List[str]:
+            if not options:
+                return options
+            baseline = 0.5 - 1e-6
+            filtered: List[str] = []
+            skipped: List[str] = []
+            for opt in options:
+                conds = term_to_guidelines.get(opt.lower(), [])
+                if not conds:
+                    filtered.append(opt)
+                    continue
+                if any(session.condition_scores.get(cond, 0.5) > baseline for cond in conds):
+                    filtered.append(opt)
+                else:
+                    skipped.append(opt)
+            if skipped:
+                self._capture_debug(
+                    f"[Clarification] ⚖️ Skipping options tied to baseline scores: {skipped}"
+                )
+            if filtered:
+                return filtered
+            return options
 
-        missing_options = _unique([medical_to_patient.get(med.lower(), med) for med in missing_medical_terms])
+        satisfied_options = _filter_by_condition_scores(
+            _unique([medical_to_patient.get(med.lower(), med) for med in satisfied_medical_terms])
+        )
+
+        missing_options = _filter_by_condition_scores(
+            _unique([medical_to_patient.get(med.lower(), med) for med in missing_medical_terms])
+        )
 
         all_terms_list = sorted([meta['patient_friendly'] for meta in all_terms_patient.values()])
         
@@ -1184,7 +1211,9 @@ class AdvancedMedicalNavigator:
         includes = self._get_element_includes(session, element)
         base_template = self.HPI_BASE_GUIDANCE[element]
         base_question = base_template.replace('{cc}', cc)
-        character_tags = self._collect_character_tags(session)
+        character_summary = self._character_tag_summary(session)
+        character_tags = character_summary.get('tags', set())
+        dominant_tag = character_summary.get('dominant')
  
         if element == 'character':
             subject = cc if cc else 'symptoms'
@@ -1203,7 +1232,9 @@ class AdvancedMedicalNavigator:
         else:
             base_question = base_template.replace('{cc}', cc)
  
-        inject_options = not ('visual' in character_tags and element == 'location') and element != 'severity'
+        inject_options = element != 'severity'
+        if element == 'location' and dominant_tag == 'visual':
+            inject_options = False
  
         sample_terms: List[str] = []
         debug_entries: List[Dict[str, Any]] = []
@@ -1211,7 +1242,7 @@ class AdvancedMedicalNavigator:
             sample_entries = self._select_guidance_entries(session, element, includes, limit=2, debug_entries=debug_entries)
             sample_terms = [entry['patient_friendly'] for entry in sample_entries if entry.get('patient_friendly')]
         if debug_entries:
-            self._capture_debug(f"[Guidance] 📋 Location option candidates (filtered): {debug_entries}")
+            self._capture_debug(f"[Guidance] 📋 Option candidates ({element}): {debug_entries}")
  
         if sample_terms:
             options = ', '.join(sample_terms)
@@ -1229,18 +1260,55 @@ class AdvancedMedicalNavigator:
         return guidance, base_question, []
  
     def _collect_character_tags(self, session: "MedicalSession") -> set:
-        cached = session.context['guideline_terms'].get('character_tags')
-        if cached is not None:
-            return cached
-        character_entries = self._get_element_includes(session, 'character')
-        tags = set()
-        for entry in character_entries:
+        summary = self._character_tag_summary(session)
+        return summary.get('tags', set())
+
+    def _character_tag_summary(self, session: "MedicalSession") -> Dict[str, Any]:
+        cache = session.context['guideline_terms'].get('character_tag_summary')
+        if cache is not None:
+            return cache
+
+        includes = self._get_element_includes(session, 'character')
+        top_conditions = [name.lower() for name in self._top_condition_names(session, limit=5)]
+        top_counts = {'visual': 0, 'sensory': 0}
+        all_counts = {'visual': 0, 'sensory': 0}
+        tag_set: set = set()
+
+        for entry in includes:
+            condition_name = (entry.get('condition') or '').lower()
             entry_tags = entry.get('question_tags') or []
+            normalized_tags = []
             for tag in entry_tags:
                 if isinstance(tag, str):
-                    tags.add(tag.lower())
-        session.context['guideline_terms']['character_tags'] = tags
-        return tags
+                    tag_lower = tag.lower()
+                    if tag_lower in ('visual', 'sensory'):
+                        normalized_tags.append(tag_lower)
+                        tag_set.add(tag_lower)
+                        all_counts[tag_lower] += 1
+                        if condition_name in top_conditions:
+                            top_counts[tag_lower] += 1
+
+        dominant_tag = None
+        if sum(top_counts.values()) > 0:
+            if top_counts['visual'] > top_counts['sensory']:
+                dominant_tag = 'visual'
+            elif top_counts['sensory'] > top_counts['visual']:
+                dominant_tag = 'sensory'
+        if dominant_tag is None and sum(all_counts.values()) > 0:
+            if all_counts['visual'] > all_counts['sensory']:
+                dominant_tag = 'visual'
+            elif all_counts['sensory'] > all_counts['visual']:
+                dominant_tag = 'sensory'
+
+        summary = {
+            'tags': set(tag_set),
+            'top_counts': top_counts,
+            'all_counts': all_counts,
+            'dominant': dominant_tag,
+        }
+        session.context['guideline_terms']['character_tag_summary'] = summary
+        session.context['guideline_terms']['character_tags'] = summary['tags']
+        return summary
 
     def _select_guidance_entries(self, session: "MedicalSession", element: str, entries: List[Dict[str, Any]], limit: int = 2, debug_entries: Optional[List[Dict[str, Any]]] = None) -> List[Dict[str, Any]]:
         """Select patient-friendly terms for question guidance, preferring emergent conditions."""
@@ -1785,3 +1853,38 @@ class AdvancedMedicalNavigator:
             return f"Sure—I'm asking: {prompt_text}"
 
         return "Could you share a bit more detail about that?"
+
+    def _filter_options_by_condition_scores(
+        self,
+        session: "MedicalSession",
+        element: str,
+        options: List[str],
+        term_to_conditions: Optional[Dict[str, List[str]]] = None,
+    ) -> List[str]:
+        if not options:
+            return options
+
+        baseline = 0.5 + 1e-6
+        filtered: List[str] = []
+        skipped: List[str] = []
+        mapping = term_to_conditions or {}
+
+        for opt in options:
+            conds = mapping.get(opt.lower(), [])
+            if not conds:
+                filtered.append(opt)
+                continue
+            if any(session.condition_scores.get(cond, 0.5) > baseline for cond in conds):
+                filtered.append(opt)
+            else:
+                skipped.append(opt)
+
+        if skipped:
+            self._capture_debug(
+                f"[Clarification] ⚖️ Skipping options for {element} tied to baseline scores: {skipped}"
+            )
+
+        if filtered:
+            return filtered
+
+        return options
