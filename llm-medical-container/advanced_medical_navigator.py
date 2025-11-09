@@ -319,7 +319,7 @@ class AdvancedMedicalNavigator:
         if session.stage == "awaiting_chronicity":
             if session.context['pre_hpi'].get('chronicity'):
                 session.stage = "awaiting_age"
-            else:
+        else:
                 return None
 
         if session.stage == "awaiting_age":
@@ -591,7 +591,7 @@ class AdvancedMedicalNavigator:
                     patient_term = item
                     medical_term = item
                 if not isinstance(patient_term, str):
-                    continue
+                        continue
                 normalized_pf = patient_term.strip()
                 if not normalized_pf:
                     continue
@@ -625,7 +625,7 @@ class AdvancedMedicalNavigator:
                 med_components = self.medical_rule_engine._extract_anatomical_components(med.lower())
                 if not med_components:
                     filtered_satisfied.append(med)
-                    continue
+                continue
                 if not self.medical_rule_engine._are_anatomical_opposites(patient_components, med_components):
                     filtered_satisfied.append(med)
             satisfied_medical_terms = filtered_satisfied
@@ -1120,7 +1120,8 @@ class AdvancedMedicalNavigator:
         else:
             base_question = base_template.replace('{cc}', cc)
 
-        sample_entries = self._select_guidance_entries(includes, limit=2)
+        sensory_complaint = 'character' in character_tags or 'sensory' in character_tags
+        sample_entries = self._select_guidance_entries(includes, limit=2, exclude_sensory=sensory_complaint)
         sample_terms = [entry['patient_friendly'] for entry in sample_entries if entry.get('patient_friendly')]
 
         if sample_terms:
@@ -1148,10 +1149,32 @@ class AdvancedMedicalNavigator:
         )
         return guidance, base_question, []
 
-    def _select_guidance_entries(self, entries: List[Dict[str, Any]], limit: int = 2) -> List[Dict[str, Any]]:
+    def _select_guidance_entries(self, entries: List[Dict[str, Any]], limit: int = 2, exclude_sensory: bool = False) -> List[Dict[str, Any]]:
         """Select patient-friendly terms for question guidance, preferring emergent conditions."""
         if limit <= 0 or not entries:
             return []
+        # Optionally exclude entries tagged as sensory
+        if exclude_sensory:
+            filtered = []
+            for entry in unique_entries:
+                tags = entry.get('question_tags') or []
+                if any(tag == 'sensory' or tag == 'character' for tag in tags):
+                    continue
+                filtered.append(entry)
+            if filtered:
+                unique_entries = filtered
+                emergent_entries = [
+                    entry for entry in unique_entries
+                    if entry.get('emergent_term') or (entry.get('condition_urgency') == 'emergent')
+                ]
+                urgent_entries = [
+                    entry for entry in unique_entries
+                    if entry.get('condition_urgency') == 'urgent' and entry not in emergent_entries
+                ]
+                other_entries = [
+                    entry for entry in unique_entries
+                    if entry not in emergent_entries and entry not in urgent_entries
+                ]
 
         # Deduplicate by patient-friendly text
         unique_entries: List[Dict[str, Any]] = []
