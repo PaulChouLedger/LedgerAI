@@ -1104,28 +1104,7 @@ class AdvancedMedicalNavigator:
         includes = self._get_element_includes(session, element)
         base_template = self.HPI_BASE_GUIDANCE[element]
         base_question = base_template.replace('{cc}', cc)
-        character_tags: set = set()
- 
-        stored_character_tags = session.context['guideline_terms'].get('character_tags')
-        if stored_character_tags is None and element == 'character':
-            stored_character_tags = set()
-            for entry in includes:
-                tags = entry.get('question_tags') or []
-                for tag in tags:
-                    if isinstance(tag, str):
-                        stored_character_tags.add(tag.lower())
-            session.context['guideline_terms']['character_tags'] = stored_character_tags
-        elif stored_character_tags is None:
-            character_includes = self._get_element_includes(session, 'character')
-            stored_character_tags = set()
-            for entry in character_includes:
-                tags = entry.get('question_tags') or []
-                for tag in tags:
-                    if isinstance(tag, str):
-                        stored_character_tags.add(tag.lower())
-            session.context['guideline_terms']['character_tags'] = stored_character_tags
-
-        character_tags = stored_character_tags or set()
+        character_tags = self._collect_character_tags(session)
  
         if element == 'character':
             subject = cc if cc else 'symptoms'
@@ -1144,11 +1123,12 @@ class AdvancedMedicalNavigator:
         else:
             base_question = base_template.replace('{cc}', cc)
  
-        character_tags = stored_character_tags or set()
-        chief_sensory = 'sensory' in character_tags
-        chief_visual = 'visual' in character_tags
-        sample_entries = self._select_guidance_entries(includes, limit=2, chief_sensory=chief_sensory, chief_visual=chief_visual)
-        sample_terms = [entry['patient_friendly'] for entry in sample_entries if entry.get('patient_friendly')]
+        inject_options = not ('visual' in character_tags and element == 'location')
+ 
+        sample_terms: List[str] = []
+        if inject_options:
+            sample_entries = self._select_guidance_entries(session, element, includes, limit=2)
+            sample_terms = [entry['patient_friendly'] for entry in sample_entries if entry.get('patient_friendly')]
  
         if sample_terms:
             options = ', '.join(sample_terms)
@@ -1165,7 +1145,21 @@ class AdvancedMedicalNavigator:
         )
         return guidance, base_question, []
  
-    def _select_guidance_entries(self, entries: List[Dict[str, Any]], limit: int = 2, chief_sensory: bool = False, chief_visual: bool = False) -> List[Dict[str, Any]]:
+    def _collect_character_tags(self, session: "MedicalSession") -> set:
+        cached = session.context['guideline_terms'].get('character_tags')
+        if cached is not None:
+            return cached
+        character_entries = self._get_element_includes(session, 'character')
+        tags = set()
+        for entry in character_entries:
+            entry_tags = entry.get('question_tags') or []
+            for tag in entry_tags:
+                if isinstance(tag, str):
+                    tags.add(tag.lower())
+        session.context['guideline_terms']['character_tags'] = tags
+        return tags
+
+    def _select_guidance_entries(self, session: "MedicalSession", element: str, entries: List[Dict[str, Any]], limit: int = 2) -> List[Dict[str, Any]]:
         """Select patient-friendly terms for question guidance, preferring emergent conditions."""
         if limit <= 0 or not entries:
             return []
@@ -1179,10 +1173,10 @@ class AdvancedMedicalNavigator:
             cleaned = pf.strip()
             if not cleaned:
                 continue
-            tags = entry.get('question_tags') or []
-            if chief_sensory and 'visual' in tags:
-                continue
-            if chief_visual and 'sensory' in tags:
+            # Determine if this entry belongs to a guideline whose character terms carry sensory/visual tags
+            guideline_condition = entry.get('condition')
+            guideline_character_labels = self._get_guideline_character_tags(session, guideline_condition)
+            if element == 'location' and 'visual' in guideline_character_labels:
                 continue
             key = cleaned.lower()
             if key in seen_pf:
@@ -1218,6 +1212,20 @@ class AdvancedMedicalNavigator:
         choose_from(other_entries)
  
         return selected
+
+    def _get_guideline_character_tags(self, session: "MedicalSession", condition_name: Optional[str]) -> set:
+        if not condition_name:
+            return set()
+        character_includes = self._get_element_includes(session, 'character')
+        tags = set()
+        for entry in character_includes:
+            if entry.get('condition') != condition_name:
+                continue
+            entry_tags = entry.get('question_tags') or []
+            for tag in entry_tags:
+                if isinstance(tag, str):
+                    tags.add(tag.lower())
+        return tags
 
     def _get_element_includes(self, session: "MedicalSession", element: str) -> List[Dict[str, Any]]:
         cache = session.context.setdefault('guideline_includes', {})
