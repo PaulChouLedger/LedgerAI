@@ -458,7 +458,7 @@ Generate an empathetic response that acknowledges their distress and reassures t
                     loaded_count += 1
             except Exception as e:
                 self._capture_debug(f"[Engine] ⚠️ Failed to load {json_file.name}: {e}")
-    
+        
         if enabled_categories:
             self._capture_debug(f"[Engine] ✅ Loaded {loaded_count} guidelines ({skipped_count} skipped from disabled categories)")
         else:
@@ -556,28 +556,28 @@ Generate an empathetic response that acknowledges their distress and reassures t
         self._capture_debug(f"[Initial Pool] 🏆 Active: {[g.get('name', 'Unknown') for g in self.active_guidelines]}")
         
         # Start with empathetic statement + chronicity question
-        empathetic_msg = self._generate_empathetic_statement()
-        
-        self.conversation_history.append({
-            'type': 'statement',
-            'message': empathetic_msg
-        })
-        
-        # Generate chronicity question immediately
-        chronicity_response = self._generate_ml_first_question_with_demographics()
-        chronicity_question = chronicity_response.get('message', '')
-        
-        return {
-            'success': True,
-            'message': empathetic_msg,
-            'question': chronicity_question,
-            'status': 'questioning',
-            'has_pause': True,  # Pause between statement and question
-            'debug': {
-                'engine': self._format_engine_debug("[Engine] 🧠 Generating first question with chronicity..."),
-                'internal': self._get_debug_info()
+            empathetic_msg = self._generate_empathetic_statement()
+            
+            self.conversation_history.append({
+                'type': 'statement',
+                'message': empathetic_msg
+            })
+            
+            # Generate chronicity question immediately
+            chronicity_response = self._generate_ml_first_question_with_demographics()
+            chronicity_question = chronicity_response.get('message', '')
+            
+            return {
+                'success': True,
+                'message': empathetic_msg,
+                'question': chronicity_question,
+                'status': 'questioning',
+                'has_pause': True,  # Pause between statement and question
+                'debug': {
+                    'engine': self._format_engine_debug("[Engine] 🧠 Generating first question with chronicity..."),
+                    'internal': self._get_debug_info()
+                }
             }
-        }
     
     def _build_chief_complaint_triggers_index(self):
         """Pre-build FAISS index for chief_complaint_triggers from all guidelines"""
@@ -788,12 +788,12 @@ Generate an empathetic response that acknowledges their distress and reassures t
                     if len(matched_categories) > 1:
                         self._capture_debug(f"[Engine] 🎯 Multiple categories detected (crossover): {', '.join([f'{cat} ({category_scores[cat]:.3f})' for cat in matched_categories])}")
                     else:
-                        second_category = sorted_categories[1][0]
-                        self._capture_debug(f"[Engine] 🎯 Multiple categories detected (crossover): {best_category} ({best_score:.3f}) vs {second_category} ({second_score:.3f})")
+                    second_category = sorted_categories[1][0]
+                    self._capture_debug(f"[Engine] 🎯 Multiple categories detected (crossover): {best_category} ({best_score:.3f}) vs {second_category} ({second_score:.3f})")
                         matched_categories.append(second_category)
             
             if len(matched_categories) == 1:
-                self._capture_debug(f"[Engine] 🎯 Category matched via chief_complaint_triggers: {best_category} (score: {best_score:.3f})")
+            self._capture_debug(f"[Engine] 🎯 Category matched via chief_complaint_triggers: {best_category} (score: {best_score:.3f})")
             else:
                 self._capture_debug(f"[Engine] 🎯 Multiple categories matched via chief_complaint_triggers: {', '.join(matched_categories)}")
             
@@ -859,7 +859,7 @@ Generate an empathetic response that acknowledges their distress and reassures t
                 if sys.upper() == organ_system or organ_system.startswith(sys.upper()):
                     categories.add(cat)
                     found = True
-                    break
+                                            break
             # If no match found, use organ system name as category (lowercase)
             if not found:
                 categories.add(organ_system.lower())
@@ -1905,17 +1905,17 @@ DO NOT explain. DO NOT add reasoning. Return ONLY the word 'no_pain' or 'has_pai
                 # Run LLM extraction (unless chronicity already extracted via Jaccard)
                 if max_tokens is not None:
                     llm_kwargs = self._get_llm_kwargs(override_max_tokens=max_tokens)
-                    response = self.llm_chat_simple_fn(
-                        [{"role": "system", "content": system_msg}, {"role": "user", "content": user_msg}],
-                        **llm_kwargs
-                    )
-                    
-                    extracted = response.strip().lower() if response else ''
+                response = self.llm_chat_simple_fn(
+                    [{"role": "system", "content": system_msg}, {"role": "user", "content": user_msg}],
+                    **llm_kwargs
+                )
+                
+                extracted = response.strip().lower() if response else ''
                     if extracted and extracted != 'none':
                         # Validate based on element type
                         if extraction_element == 'age':
                             if extracted.isdigit():
-                                extracted_info = extracted
+                    extracted_info = extracted
                                 self._capture_debug(f"[Engine] ✅ LLM extracted age: '{extracted}' from '{user_input}'")
                         elif extraction_element == 'location':
                             # For location, check for exact match first, then substring
@@ -2197,8 +2197,8 @@ DO NOT explain. DO NOT add reasoning. Return ONLY the word 'no_pain' or 'has_pai
         high_severity_matches = [term for term in high_severity_terms if term in user_lower]
         if high_severity_matches:
             # Base score for any high severity term
-            severity_score += 2.0
-            urgency_boost += 0.5
+                severity_score += 2.0
+                urgency_boost += 0.5
             # Additional score for multiple high severity terms
             if len(high_severity_matches) > 1:
                 severity_score += 1.5  # Bonus for multiple severe indicators
@@ -2207,14 +2207,14 @@ DO NOT explain. DO NOT add reasoning. Return ONLY the word 'no_pain' or 'has_pai
         # Check for urgent language (accumulate all matches)
         urgent_matches = [term for term in urgent_language if term in user_lower]
         if urgent_matches:
-            severity_score += 1.5
-            urgency_boost += 0.3
+                severity_score += 1.5
+                urgency_boost += 0.3
         
         # Check for emotional distress (accumulate all matches)
         emotional_matches = [term for term in emotional_distress if term in user_lower]
         if emotional_matches:
-            severity_score += 1.0
-            urgency_boost += 0.2
+                severity_score += 1.0
+                urgency_boost += 0.2
         
         # Check for multiple distress indicators (compound effect)
         distress_count = sum([
@@ -2392,7 +2392,7 @@ DO NOT explain. DO NOT add reasoning. Return ONLY the word 'no_pain' or 'has_pai
                     # Check if term has emergent tag
                     if not term_obj.get('emergent', False):
                         continue
-                
+                    
                     # Check if user input matches this term
                     medical = term_obj.get('medical', '').lower()
                     patient_friendly = term_obj.get('patient_friendly', '').lower()
@@ -2586,7 +2586,7 @@ Please do not wait. Your symptoms indicate a potentially serious condition that 
             if item.get('type') in ['question', 'statement']:
                 last_q = item
                 break
-                        
+        
         expected_element = last_q.get('oldcarts') if last_q else None
         
         # ALWAYS FIRST: Check for and handle deviating comments/questions/distress
