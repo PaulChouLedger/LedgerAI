@@ -187,6 +187,7 @@ class AdvancedMedicalNavigator:
             'guideline_includes': {},
             'matched_categories': [],
             'clarifications': {},
+            'associated_state': {},
         })
         condition_scores: Dict[str, float] = field(default_factory=dict)
         condition_rankings: List[Tuple[str, float]] = field(default_factory=list)
@@ -352,7 +353,7 @@ class AdvancedMedicalNavigator:
         if session.stage == "awaiting_chronicity":
             if session.context['pre_hpi'].get('chronicity'):
                 session.stage = "awaiting_age"
-            else:
+        else:
                 return None
 
         if session.stage == "awaiting_age":
@@ -1101,7 +1102,7 @@ class AdvancedMedicalNavigator:
     def _load_guidelines(self) -> None:
         if not self.guidelines_dir or not self.guidelines_dir.exists():
             return
-
+        
         loaded = 0
         skipped = 0
 
@@ -1908,3 +1909,158 @@ class AdvancedMedicalNavigator:
             return filtered
 
         return options
+
+    def _ensure_associated_state(self, session: "MedicalSession") -> Dict[str, Any]:
+        state = session.context.setdefault('associated_state', {})
+        state.setdefault('queue', [])
+        state.setdefault('index', 0)
+        state.setdefault('positives', [])
+        state.setdefault('negatives', [])
+        state.setdefault('current', None)
+        return state
+
+    def _prepare_associated_queue(self, session: "MedicalSession") -> None:
+        state = self._ensure_associated_state(session)
+        if state['queue']:
+            return
+
+        includes = self._get_element_includes(session, 'associated')
+        baseline = 0.5 + 1e-6
+        priority_bucket: List[Dict[str, Any]] = []
+        fallback_bucket: List[Dict[str, Any]] = []
+        seen_terms: set = set()
+
+        for entry in includes:
+            patient_term = (entry.get('patient_friendly') or entry.get('medical') or '').strip()
+            if not patient_term:
+                continue
+            key = patient_term.lower()
+            if key in seen_terms:
+                continue
+            seen_terms.add(key)
+            condition_name = entry.get('condition')
+            score = session.condition_scores.get(condition_name, 0.5) if condition_name else 0.5
+            item = {
+                'patient_term': patient_term,
+                'medical_term': entry.get('medical') or patient_term,
+                'condition': condition_name,
+                'score': score,
+                'emergent': bool(entry.get('emergent_term') or entry.get('condition_urgency') == 'emergent'),
+            }
+            if score > baseline:
+                priority_bucket.append(item)
+            else:
+                fallback_bucket.append(item)
+
+        def sort_entries(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+            return sorted(
+                items,
+                key=lambda x: (
+                    -(1 if x['emergent'] else 0),
+                    -x['score'],
+                    x['patient_term'],
+                ),
+            )
+
+        queue = sort_entries(priority_bucket) + sort_entries(fallback_bucket)
+        state['queue'] = queue
+        state['index'] = 0
+        state['positives'] = []
+        state['negatives'] = []
+        state['current'] = None
+
+    def _prepare_next_associated_question(self, session: "MedicalSession") -> Optional[str]:
+        self._prepare_associated_queue(session)
+        state = self._ensure_associated_state(session)
+        queue = state.get('queue', [])
+        index = state.get('index', 0)
+
+        if index >= len(queue):
+            return None
+
+        entry = queue[index]
+        state['current'] = entry
+        question = self._format_associated_question(entry)
+        return question
+
+    def _advance_associated_queue(self, session: "MedicalSession") -> Optional[str]:
+        state = self._ensure_associated_state(session)
+        state['index'] = state.get('index', 0) + 1
+        if state['index'] >= len(state.get('queue', [])):
+            state['current'] = None
+            return None
+        entry = state['queue'][state['index']]
+        state['current'] = entry
+        return self._format_associated_question(entry)
+
+    def _format_associated_question(self, entry: Dict[str, Any]) -> str:
+        term = entry.get('patient_term', '').rstrip('?').rstrip('.')
+        if not term:
+            return "Have you noticed any other symptoms?"
+        lower = term.lower()
+        if lower.startswith(('taking ', 'using ', 'on ', 'being on ', 'having to take ')):
+            return f"Have you been {term} recently?"
+        if lower.startswith(('experiencing ', 'noticing ', 'feeling ')):
+            return f"Have you {term}?"
+        if lower.startswith(('any ', 'a ')):
+            return f"Have you noticed {term}?"
+        return f"Have you noticed {term}?"
+
+    def _handle_associated_answer(
+        self,
+        session: "MedicalSession",
+        answer: str,
+    ) -> Dict[str, Any]:
+        state = self._ensure_associated_state(session)
+        entry = state.get('current')
+        if not entry:
+            return {'completed': True}
+
+        normalized = answer.strip().lower()
+        positive_markers = {'yes', 'y', 'yeah', 'yep', 'affirmative', 'correct', 'sure', 'absolutely', 'definitely'}
+        negative_markers = {'no', 'n', 'not really', 'nope', 'nah', 'none', 'negative'}
+
+        positive = False
+        negative = False
+        if normalized in positive_markers or normalized.startswith('yes'):
+            positive = True
+        elif normalized in negative_markers or normalized.startswith('no'):
+            negative = True
+
+        result: Dict[str, Any] = {
+            'score_text': None,
+            'next_question': None,
+            'completed': False,
+        }
+
+        if positive:
+            state['positives'].append(entry['patient_term'])
+            hpi_associated = session.context['hpi'].setdefault('associated', [])
+            if entry['patient_term'] not in hpi_associated:
+                hpi_associated.append(entry['patient_term'])
+            result['score_text'] = entry['patient_term']
+        elif negative:
+            state['negatives'].append(entry['patient_term'])
+        else:
+            # Treat ambiguous answer as positive evidence text for scoring
+            result['score_text'] = answer
+
+        next_question = self._advance_associated_queue(session)
+        if next_question:
+            result['next_question'] = {
+                'section': 'hpi',
+                'field': 'associated',
+                'prompt': next_question,
+                'guidance': 'ASSOCIATED_DIRECT',
+                'mode': 'associated_sequence',
+            }
+        else:
+            result['completed'] = True
+            state['current'] = None
+            state['queue'] = []
+            state['index'] = 0
+
+        result['positives'] = list(state.get('positives', []))
+        result['negatives'] = list(state.get('negatives', []))
+
+        return result
