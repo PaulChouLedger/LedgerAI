@@ -97,9 +97,10 @@ class AdvancedMedicalNavigator:
 
     QUESTION_SYSTEM_PROMPT = (
         "You are a compassionate medical assistant conducting a medical interview."
-        " Use the guidance to craft one friendly question."
+        " Use the guidance to craft one concise, patient-friendly question."
         " Return ONLY the question text (no prefixes, no reasoning)."
         " Keep it ≤20 words and honor any provided options."
+        " Do NOT include phrases like 'Here is a friendly question' or similar meta commentary."
     )
 
     EMPATHETIC_SYSTEM_PROMPT = (
@@ -404,7 +405,7 @@ class AdvancedMedicalNavigator:
             return None
         elif section == 'hpi':
             if self._is_confused_response(text):
-                clarification = self._clarify_element_question(session, field)
+                clarification = self._clarify_element_question(session, field, pending)
                 session.pending = pending
                 return self._wrap_response(session, clarification, metadata={
                     'section': 'hpi',
@@ -1109,6 +1110,23 @@ class AdvancedMedicalNavigator:
                     conditions.add(condition_name)
         return sorted(list(conditions))
 
+    def _top_condition_names(self, session: "MedicalSession", limit: int = 5) -> List[str]:
+        names: List[str] = []
+        rankings = session.condition_rankings or []
+        for condition, _score in rankings:
+            if condition and condition not in names:
+                names.append(condition)
+            if len(names) >= limit:
+                break
+        if len(names) < limit:
+            sorted_scores = sorted(session.condition_scores.items(), key=lambda item: item[1], reverse=True)
+            for condition, _ in sorted_scores:
+                if condition and condition not in names:
+                    names.append(condition)
+                if len(names) >= limit:
+                    break
+        return names
+
     def _build_oldcarts_guidance(self, session: "MedicalSession", element: str, cc: str) -> Tuple[str, str, List[str]]:
         includes = self._get_element_includes(session, element)
         base_template = self.HPI_BASE_GUIDANCE[element]
@@ -1178,6 +1196,11 @@ class AdvancedMedicalNavigator:
                 debug_entries.append({'note': 'no unique entries after filtering'})
             return []
  
+        top_conditions = self._top_condition_names(session, limit=5)
+        top_condition_set = set(cond.lower() for cond in top_conditions)
+        if debug_entries is not None and top_conditions:
+            debug_entries.append({'top_ranked_conditions': top_conditions})
+ 
         unique_entries: List[Dict[str, Any]] = []
         seen_pf = set()
         for entry in entries:
@@ -1205,6 +1228,8 @@ class AdvancedMedicalNavigator:
             seen_pf.add(key)
             copy_entry = dict(entry)
             copy_entry['patient_friendly'] = cleaned
+            condition_name = copy_entry.get('condition')
+            copy_entry['from_top_condition'] = bool(condition_name and condition_name.lower() in top_condition_set)
             copy_entry['character_tags'] = list(guideline_character_labels)
             unique_entries.append(copy_entry)
  
@@ -1212,6 +1237,11 @@ class AdvancedMedicalNavigator:
             if debug_entries is not None:
                 debug_entries.append({'note': 'no unique entries after filtering'})
             return []
+ 
+        def split_priority(pool: List[Dict[str, Any]]) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+            top = [entry for entry in pool if entry.get('from_top_condition')]
+            rest = [entry for entry in pool if entry not in top]
+            return top, rest
  
         emergent_entries = [entry for entry in unique_entries if entry.get('emergent_term') or entry.get('condition_urgency') == 'emergent']
         urgent_entries = [entry for entry in unique_entries if entry.get('condition_urgency') == 'urgent' and entry not in emergent_entries]
@@ -1223,13 +1253,17 @@ class AdvancedMedicalNavigator:
             nonlocal selected
             if len(selected) >= limit or not pool:
                 return
-            available = [entry for entry in pool if entry not in selected]
-            if not available:
-                return
-            k = min(limit - len(selected), len(available))
-            if k <= 0:
-                return
-            selected.extend(random.sample(available, k=k))
+            priority_pool, fallback_pool = split_priority(pool)
+            for candidate_pool in (priority_pool, fallback_pool):
+                if len(selected) >= limit:
+                    break
+                available = [entry for entry in candidate_pool if entry not in selected]
+                if not available:
+                    continue
+                k = min(limit - len(selected), len(available))
+                if k <= 0:
+                    break
+                selected.extend(random.sample(available, k=k))
  
         choose_from(emergent_entries)
         choose_from(urgent_entries)
@@ -1241,6 +1275,7 @@ class AdvancedMedicalNavigator:
                     'term': entry.get('patient_friendly'),
                     'condition': entry.get('condition'),
                     'character_tags': entry.get('character_tags'),
+                    'from_top_condition': entry.get('from_top_condition'),
                     'selected': True,
                 })
  
@@ -1406,7 +1441,7 @@ class AdvancedMedicalNavigator:
             f"Chief complaint: {cc}\n"
             f"Guidance: {guidance}\n"
             f"Recent conversation:\n{recent}\n"
-            "Produce one friendly question."
+            "Return one concise question that follows the guidance without any preface."
         )
         response = self.llm_chat_fn(
             [
@@ -1661,7 +1696,22 @@ class AdvancedMedicalNavigator:
             return True
         return False
 
-    def _clarify_element_question(self, session: "MedicalSession", element: str) -> str:
+    def _clarify_element_question(self, session: "MedicalSession", element: str, pending: Optional[Dict[str, Any]] = None) -> str:
+        pending = pending or session.pending or {}
+        prompt_text = pending.get('prompt')
+        base_question = pending.get('base_question')
+        options = pending.get('options')
+        cc_subject = self._normalize_subject_for_questions(session.context['pre_hpi'].get('chief_complaint'))
+
+        if not base_question and element in self.HPI_BASE_GUIDANCE:
+            base_question = self.HPI_BASE_GUIDANCE[element].replace('{cc}', cc_subject)
+
+        if not prompt_text and base_question:
+            prompt_text = base_question if base_question.endswith('?') else f"{base_question}?"
+            if options:
+                option_text = ', '.join(options[:2])
+                prompt_text = f"{prompt_text} You can mention things like: {option_text}."
+
         if element == 'red_flags':
             includes = self._get_element_includes(session, 'red_flags')
             emergent_terms = [entry['patient_friendly'] for entry in includes if entry.get('emergent_term')]
@@ -1670,11 +1720,15 @@ class AdvancedMedicalNavigator:
             emergent_terms = [term for term in emergent_terms if term]
             if emergent_terms:
                 examples = ', '.join(emergent_terms[:4])
-                return (
-                    f"By urgent warning signs I mean symptoms such as {examples}."
-                    " If you have noticed any of those, please let me know."
-                )
+                guidance = f"By urgent warning signs I mean things like {examples}."
+                if prompt_text:
+                    return f"{guidance} {prompt_text}"
+                return f"{guidance} Have you noticed any of those?"
+            if prompt_text:
+                return f"I'm checking for any severe or alarming symptoms. {prompt_text}"
             return "I'm asking if you've noticed any severe or alarming symptoms that might need urgent attention."
 
-        # Default clarification message
-        return "I'm just checking if there is any additional detail you can share about that."
+        if prompt_text:
+            return f"Sure—I'm asking: {prompt_text}"
+
+        return "Could you share a bit more detail about that?"
