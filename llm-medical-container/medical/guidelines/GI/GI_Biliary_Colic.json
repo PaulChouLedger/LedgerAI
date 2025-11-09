@@ -42,11 +42,42 @@
       "timing": {
         "includes": [
           {
-            "medical": "episodic",
-            "patient_friendly": "happens in episodes"
+            "medical": "postprandial",
+            "patient_friendly": "within an hour after eating a heavy or greasy meal"
+          },
+          {
+            "medical": "nocturnal",
+            "patient_friendly": "late at night after you've gone to bed"
           }
         ],
         "excludes": []
+      },
+      "frequency": {
+        "includes": [
+          {
+            "medical": "episodic",
+            "patient_friendly": "happens in sudden attacks"
+          },
+          {
+            "medical": "recurrent",
+            "patient_friendly": "keeps coming back over weeks or months"
+          }
+        ],
+        "excludes": []
+      },
+      "abruptness": {
+        "includes": [
+          {
+            "medical": "sudden",
+            "patient_friendly": "came on suddenly"
+          }
+        ],
+        "excludes": [
+          {
+            "medical": "gradual",
+            "patient_friendly": "builds up slowly over time"
+          }
+        ]
       },
       "duration": {
         "includes": [
@@ -64,16 +95,15 @@
       "progression": {
         "includes": [
           {
-            "medical": "sudden",
-            "patient_friendly": "came on suddenly"
+            "medical": "waxing/waning",
+            "patient_friendly": "pain builds, peaks, then eases off"
+          },
+          {
+            "medical": "recurrent",
+            "patient_friendly": "episodes keep returning"
           }
         ],
-        "excludes": [
-          {
-            "medical": "gradual",
-            "patient_friendly": "came on gradually"
-          }
-        ]
+        "excludes": []
       },
       "character": {
         "includes": [
@@ -123,9 +153,9 @@
       "severity": {
         "includes": [
           {
-          "medical": "severe",
-          "patient_friendly": "severe",
-          "emergent": true
+            "medical": "severe",
+            "patient_friendly": "severe",
+            "emergent": true
           }
         ],
         "excludes": []
@@ -153,9 +183,8 @@
             "medical": "emesis",
             "patient_friendly": "vomiting"
           }
-         
         ],
-        "excludes": []     
+        "excludes": []
       }
     }
   }

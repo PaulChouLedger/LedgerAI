@@ -35,15 +35,43 @@
       "timing": {
         "includes": [
           {
-            "medical": "episodic",
-            "patient_friendly": "happens in episodes"
+            "medical": "postprandial",
+            "patient_friendly": "occurs after eating or drinking"
           },
           {
-            "medical": "constant",
-            "patient_friendly": "continuous without stopping"
+            "medical": "nocturnal",
+            "patient_friendly": "wakes you up from sleep"
           }
         ],
         "excludes": []
+      },
+      "frequency": {
+        "includes": [
+          {
+            "medical": "episodic",
+            "patient_friendly": "bleeding episodes that come and go"
+          },
+          {
+            "medical": "constant",
+            "patient_friendly": "ongoing bleeding without breaks"
+          }
+        ],
+        "excludes": []
+      },
+      "abruptness": {
+        "includes": [
+          {
+            "medical": "sudden",
+            "patient_friendly": "started suddenly",
+            "emergent": true
+          }
+        ],
+        "excludes": [
+          {
+            "medical": "gradual",
+            "patient_friendly": "built up slowly over time"
+          }
+        ]
       },
       "duration": {
         "includes": [
@@ -65,16 +93,15 @@
       "progression": {
         "includes": [
           {
-            "medical": "sudden",
-            "patient_friendly": "came on suddenly"
+            "medical": "worsening",
+            "patient_friendly": "bleeding has been getting worse"
+          },
+          {
+            "medical": "waxing/waning",
+            "patient_friendly": "bleeding flares up and then eases"
           }
         ],
-        "excludes": [
-          {
-            "medical": "gradual",
-            "patient_friendly": "came on gradually"
-          }
-        ]
+        "excludes": []
       },
       "character": {
         "includes": [

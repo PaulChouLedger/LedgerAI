@@ -45,8 +45,10 @@ class AdvancedMedicalNavigator:
 
     HPI_ELEMENTS = [
         "onset",
+        "abruptness",
         "location",
         "duration",
+        "frequency",
         "character",
         "aggravating",
         "relieving",
@@ -58,8 +60,10 @@ class AdvancedMedicalNavigator:
 
     HPI_BASE_GUIDANCE = {
         "onset": "When did this start for your {cc}ers?",
+        "abruptness": "Did it come on suddenly or build up gradually?",
         "location": "Where exactly is your {cc} located?",
         "duration": "How long does each episode typically last?",
+        "frequency": "Is it constant or does it come and go?",
         "character": "How would you describe what it feels like?",
         "aggravating": "What tends to make it worse?",
         "relieving": "What tends to make it better?",
@@ -135,8 +139,10 @@ class AdvancedMedicalNavigator:
             'aggravating': 0.40,
             'relieving': 0.40,
             'onset': 0.31,
+            'abruptness': 0.30,
             'timing': 0.30,
             'duration': 0.29,
+            'frequency': 0.29,
             'severity': 0.20,
             'associated': 0.5,
         },
@@ -150,6 +156,8 @@ class AdvancedMedicalNavigator:
             'duration': 0.30,
             'severity': 0.25,
             'associated': 0.30,
+            'abruptness': 0.30,
+            'frequency': 0.28,
         },
         'respiratory': {
             'character': 0.35,
@@ -161,6 +169,8 @@ class AdvancedMedicalNavigator:
             'duration': 0.25,
             'severity': 0.25,
             'associated': 0.35,
+            'abruptness': 0.28,
+            'frequency': 0.26,
         },
     }
 
@@ -1722,6 +1732,8 @@ class AdvancedMedicalNavigator:
             'severity',
             'associated',
             'character',
+            'abruptness',
+            'frequency',
         }
         return element not in no_clarification_elements
 

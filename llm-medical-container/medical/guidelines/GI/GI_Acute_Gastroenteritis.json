@@ -40,11 +40,42 @@
       "timing": {
         "includes": [
           {
-            "medical": "constant",
-            "patient_friendly": "continuous without stopping"
+            "medical": "postprandial",
+            "patient_friendly": "starts within a few hours after eating something suspicious"
+          },
+          {
+            "medical": "morning_worse",
+            "patient_friendly": "often feels worst in the morning when you wake up"
           }
         ],
         "excludes": []
+      },
+      "frequency": {
+        "includes": [
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes every few hours"
+          },
+          {
+            "medical": "multiple_per_day",
+            "patient_friendly": "happens multiple times each day"
+          }
+        ],
+        "excludes": []
+      },
+      "abruptness": {
+        "includes": [
+          {
+            "medical": "sudden",
+            "patient_friendly": "came on suddenly"
+          }
+        ],
+        "excludes": [
+          {
+            "medical": "gradual",
+            "patient_friendly": "built up slowly over several days"
+          }
+        ]
       },
       "duration": {
         "includes": [
@@ -58,16 +89,15 @@
       "progression": {
         "includes": [
           {
-            "medical": "sudden",
-            "patient_friendly": "came on suddenly"
+            "medical": "waxing/waning",
+            "patient_friendly": "symptoms flare up and settle down"
+          },
+          {
+            "medical": "improving",
+            "patient_friendly": "has slowly been getting better"
           }
         ],
-        "excludes": [
-          {
-            "medical": "gradual",
-            "patient_friendly": "came on gradually"
-          }
-        ]
+        "excludes": []
       },
       "character": {
         "includes": [

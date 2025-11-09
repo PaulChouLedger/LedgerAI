@@ -37,11 +37,39 @@
       "timing": {
         "includes": [
           {
-            "medical": "constant",
-            "patient_friendly": "continuous without stopping"
+            "medical": "postprandial",
+            "patient_friendly": "worsens after eating a heavy meal"
+          },
+          {
+            "medical": "nocturnal",
+            "patient_friendly": "can wake you up in the middle of the night"
           }
         ],
         "excludes": []
+      },
+      "frequency": {
+        "includes": [
+          {
+            "medical": "constant",
+            "patient_friendly": "constant pain that does not let up"
+          }
+        ],
+        "excludes": []
+      },
+      "abruptness": {
+        "includes": [
+          {
+            "medical": "sudden",
+            "patient_friendly": "came on suddenly",
+            "emergent": true
+          }
+        ],
+        "excludes": [
+          {
+            "medical": "gradual",
+            "patient_friendly": "built up slowly over several days"
+          }
+        ]
       },
       "duration": {
         "includes": [
@@ -59,17 +87,15 @@
       "progression": {
         "includes": [
           {
-            "medical": "sudden",
-            "patient_friendly": "came on suddenly", 
-            "emergent": true
+            "medical": "worsening",
+            "patient_friendly": "it has been getting worse over time"
+          },
+          {
+            "medical": "unchanged",
+            "patient_friendly": "it has stayed about the same since it started"
           }
         ],
-        "excludes": [
-          {
-            "medical": "gradual",
-            "patient_friendly": "came on gradually"
-          }
-        ]
+        "excludes": []
       },
       "character": {
         "includes": [

@@ -48,19 +48,47 @@
       "timing": {
         "includes": [
           {
-            "medical": "episodic",
-            "patient_friendly": "happens in episodes"
-          },
-          {
-            "medical": "constant",
-            "patient_friendly": "continuous without stopping"
-          },
-          {
             "medical": "with bowel movement",
-            "patient_friendly": "occurs with bowel movements"
+            "patient_friendly": "occurs during or right after a bowel movement"
+          },
+          {
+            "medical": "nocturnal",
+            "patient_friendly": "wakes you up at night to use the restroom"
           }
         ],
         "excludes": []
+      },
+      "frequency": {
+        "includes": [
+          {
+            "medical": "episodic",
+            "patient_friendly": "comes and goes"
+          },
+          {
+            "medical": "recurrent",
+            "patient_friendly": "has happened multiple times"
+          },
+          {
+            "medical": "constant",
+            "patient_friendly": "bleeding that does not let up"
+          }
+        ],
+        "excludes": []
+      },
+      "abruptness": {
+        "includes": [
+          {
+            "medical": "sudden",
+            "patient_friendly": "started all of a sudden",
+            "emergent": true
+          }
+        ],
+        "excludes": [
+          {
+            "medical": "gradual",
+            "patient_friendly": "slowly increased over several days"
+          }
+        ]
       },
       "duration": {
         "includes": [
@@ -82,16 +110,15 @@
       "progression": {
         "includes": [
           {
-            "medical": "sudden",
-            "patient_friendly": "came on suddenly"
+            "medical": "worsening",
+            "patient_friendly": "bleeding has been increasing"
+          },
+          {
+            "medical": "waxing/waning",
+            "patient_friendly": "bleeding flares up and eases off"
           }
         ],
-        "excludes": [
-          {
-            "medical": "gradual",
-            "patient_friendly": "came on gradually"
-          }
-        ]
+        "excludes": []
       },
       "character": {
         "includes": [

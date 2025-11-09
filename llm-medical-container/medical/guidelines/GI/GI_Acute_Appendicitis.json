@@ -37,11 +37,43 @@
       "timing": {
         "includes": [
           {
-            "medical": "constant",
-            "patient_friendly": "continuous without stopping"
+            "medical": "overnight_worsening",
+            "patient_friendly": "often wakes you in the night or early morning as it intensifies"
+          },
+          {
+            "medical": "progressive_24h",
+            "patient_friendly": "builds steadily over the first 12–24 hours after it starts"
           }
         ],
         "excludes": []
+      },
+      "frequency": {
+        "includes": [
+          {
+            "medical": "constant",
+            "patient_friendly": "constant pain that does not go away"
+          },
+          {
+            "medical": "single_episode",
+            "patient_friendly": "a single continuous episode rather than repeated attacks"
+          }
+        ],
+        "excludes": []
+      },
+      "abruptness": {
+        "includes": [
+          {
+            "medical": "sudden",
+            "patient_friendly": "came on suddenly",
+            "emergent": true
+          }
+        ],
+        "excludes": [
+          {
+            "medical": "gradual",
+            "patient_friendly": "built up slowly over several days"
+          }
+        ]
       },
       "duration": {
         "includes": [
@@ -59,17 +91,15 @@
       "progression": {
         "includes": [
           {
-            "medical": "sudden",
-            "patient_friendly": "came on suddenly",
-            "emergent": true
+            "medical": "worsening",
+            "patient_friendly": "it has been getting worse over time"
+          },
+          {
+            "medical": "unchanged",
+            "patient_friendly": "it has stayed about the same since it started"
           }
         ],
-        "excludes": [
-          {
-            "medical": "gradual",
-            "patient_friendly": "came on gradually"
-          }
-        ]
+        "excludes": []
       },
       "character": {
         "includes": [

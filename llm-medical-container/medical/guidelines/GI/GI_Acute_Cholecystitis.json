@@ -35,8 +35,34 @@
       "timing": {
         "includes": [
           {
+            "medical": "postprandial",
+            "patient_friendly": "within an hour after eating a heavy or greasy meal"
+          },
+          {
+            "medical": "nocturnal",
+            "patient_friendly": "late in the evening after you've gone to bed"
+          }
+        ],
+        "excludes": []
+      },
+      "frequency": {
+        "includes": [
+          {
             "medical": "constant",
-            "patient_friendly": "continuous without stopping"
+            "patient_friendly": "constant pain that does not let up"
+          }
+        ],
+        "excludes": []
+      },
+      "abruptness": {
+        "includes": [
+          {
+            "medical": "sudden",
+            "patient_friendly": "started very suddenly after a meal"
+          },
+          {
+            "medical": "gradual",
+            "patient_friendly": "builds up over several hours"
           }
         ],
         "excludes": []
@@ -57,16 +83,15 @@
       "progression": {
         "includes": [
           {
-            "medical": "sudden",
-            "patient_friendly": "came on suddenly"
+            "medical": "worsening",
+            "patient_friendly": "it has been getting worse over time"
+          },
+          {
+            "medical": "unchanged",
+            "patient_friendly": "it has stayed about the same"
           }
         ],
-        "excludes": [
-          {
-            "medical": "gradual",
-            "patient_friendly": "came on gradually"
-          }
-        ]
+        "excludes": []
       },
       "character": {
         "includes": [

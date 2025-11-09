@@ -45,11 +45,42 @@
       "timing": {
         "includes": [
           {
-            "medical": "episodic",
-            "patient_friendly": "happens in episodes"
+            "medical": "postprandial",
+            "patient_friendly": "within an hour after eating a meal"
+          },
+          {
+            "medical": "nocturnal",
+            "patient_friendly": "late at night when you're lying down"
           }
         ],
         "excludes": []
+      },
+      "frequency": {
+        "includes": [
+          {
+            "medical": "episodic",
+            "patient_friendly": "happens off and on"
+          },
+          {
+            "medical": "daily",
+            "patient_friendly": "occurs almost every day"
+          }
+        ],
+        "excludes": []
+      },
+      "abruptness": {
+        "includes": [
+          {
+            "medical": "gradual",
+            "patient_friendly": "builds up slowly over time"
+          }
+        ],
+        "excludes": [
+          {
+            "medical": "sudden",
+            "patient_friendly": "starts out of nowhere without warning"
+          }
+        ]
       },
       "duration": {
         "includes": [
@@ -75,16 +106,15 @@
       "progression": {
         "includes": [
           {
-            "medical": "gradual",
-            "patient_friendly": "came on gradually"
+            "medical": "waxing/waning",
+            "patient_friendly": "flares up and settles down over weeks"
+          },
+          {
+            "medical": "worsening",
+            "patient_friendly": "symptoms have been getting worse over time"
           }
         ],
-        "excludes": [
-          {
-            "medical": "sudden",
-            "patient_friendly": "came on suddenly"
-          }
-        ]
+        "excludes": []
       },
       "character": {
         "includes": [
@@ -169,8 +199,13 @@
             "patient_friendly": "hoarseness"
           },
           {
+            "medical": "melena",
+            "patient_friendly": "black, tarry stool",
+            "emergent": true
+          },
+          {
             "medical": "hematemesis",
-            "patient_friendly": "blood in the stool",
+            "patient_friendly": "vomiting blood",
             "emergent": true
           },
           {

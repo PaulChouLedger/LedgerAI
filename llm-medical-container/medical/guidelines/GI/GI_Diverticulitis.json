@@ -37,8 +37,39 @@
       "timing": {
         "includes": [
           {
+            "medical": "postprandial",
+            "patient_friendly": "tends to flare shortly after eating a meal"
+          },
+          {
+            "medical": "evening_worsening",
+            "patient_friendly": "often feels worse later in the day or at night"
+          }
+        ],
+        "excludes": []
+      },
+      "frequency": {
+        "includes": [
+          {
             "medical": "constant",
-            "patient_friendly": "continuous without stopping"
+            "patient_friendly": "constant pain that does not ease up"
+          },
+          {
+            "medical": "recurrent",
+            "patient_friendly": "repeat flare-ups that come back every few weeks or months"
+          }
+        ],
+        "excludes": []
+      },
+      "abruptness": {
+        "includes": [
+          {
+            "medical": "sudden",
+            "patient_friendly": "came on suddenly",
+            "emergent": true
+          },
+          {
+            "medical": "gradual",
+            "patient_friendly": "built up slowly over a couple of days"
           }
         ],
         "excludes": []
@@ -59,17 +90,15 @@
       "progression": {
         "includes": [
           {
-            "medical": "sudden",
-            "patient_friendly": "came on suddenly",
-            "emergent": true
+            "medical": "worsening",
+            "patient_friendly": "it has been getting worse over time"
+          },
+          {
+            "medical": "waxing/waning",
+            "patient_friendly": "it flares up and calms down"
           }
         ],
-        "excludes": [
-          {
-            "medical": "gradual",
-            "patient_friendly": "came on gradually"
-          }
-        ]
+        "excludes": []
       },
       "character": {
         "includes": [
