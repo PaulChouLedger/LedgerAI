@@ -352,10 +352,9 @@ class AdvancedMedicalNavigator:
 
     def _determine_next_question(self, session: "MedicalSession") -> Optional[Dict[str, str]]:
         if session.stage == "awaiting_chronicity":
-            if session.context['pre_hpi'].get('chronicity'):
-                session.stage = "awaiting_age"
-        else:
+            if not session.context['pre_hpi'].get('chronicity'):
                 return None
+            session.stage = "awaiting_age"
 
         if session.stage == "awaiting_age":
             if session.context['pre_hpi'].get('age'):
