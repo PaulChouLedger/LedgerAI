@@ -380,8 +380,8 @@ class AdvancedMedicalNavigator:
                     return {'section': 'pmh', 'field': field, 'prompt': prompt, 'guidance': self.PMH_PROMPTS[field]}
             session.stage = "complete"
 
-        return None
-
+            return None
+    
     def _next_oldcarts_question(self, session: "MedicalSession") -> Optional[Dict[str, str]]:
         if not session.oldcarts_remaining:
             session.stage = "pmh"
@@ -1340,16 +1340,16 @@ class AdvancedMedicalNavigator:
             return []
  
         sorted_conditions = sorted(session.condition_scores.items(), key=lambda item: item[1], reverse=True)
-        baseline = 0.5 + 1e-6
-        priority_conditions = {name for name, score in sorted_conditions if score > baseline}
+        allowed_conditions = self._priority_condition_set(session)
+        top_condition_name = sorted_conditions[0][0] if sorted_conditions else None
+        if top_condition_name and top_condition_name not in allowed_conditions:
+            allowed_conditions = allowed_conditions | {top_condition_name}
         top_conditions = [name for name, _ in sorted_conditions[:5]]
-        allowed_conditions = set(priority_conditions) if priority_conditions else ({sorted_conditions[0][0]} if sorted_conditions else set())
         top_condition_set = {name.lower() for name in top_conditions}
-
+ 
         if debug_entries is not None and top_conditions:
             debug_entries.append({
                 'top_ranked_conditions': top_conditions,
-                'priority_conditions': list(priority_conditions),
                 'allowed_conditions': list(allowed_conditions),
             })
  
@@ -1384,7 +1384,7 @@ class AdvancedMedicalNavigator:
             condition_lower = condition_name.lower() if isinstance(condition_name, str) else None
             condition_score = session.condition_scores.get(condition_name, 0.5) if condition_name else 0.5
             copy_entry['condition_score'] = condition_score
-            copy_entry['from_priority_condition'] = bool(condition_name in priority_conditions)
+            copy_entry['from_priority_condition'] = bool(condition_name in allowed_conditions)
             copy_entry['from_top_condition'] = bool(condition_lower and condition_lower in top_condition_set)
             copy_entry['character_tags'] = list(guideline_character_labels)
             unique_entries.append(copy_entry)
@@ -1394,7 +1394,7 @@ class AdvancedMedicalNavigator:
                 debug_entries.append({'note': 'no unique entries after filtering'})
             return []
  
-        filtered_entries = [entry for entry in unique_entries if entry.get('condition') in allowed_conditions]
+        filtered_entries = [entry for entry in unique_entries if not allowed_conditions or entry.get('condition') in allowed_conditions]
         if filtered_entries:
             unique_entries = filtered_entries
 
@@ -1442,8 +1442,12 @@ class AdvancedMedicalNavigator:
         high_conf_selected = [entry for entry in selected if entry.get('condition_score', 0.5) > baseline]
         if high_conf_selected:
             selected = high_conf_selected
-        elif not selected:
-            selected = []
+        if top_condition_name and not any(entry.get('condition') == top_condition_name for entry in selected):
+            top_entries = [entry for entry in unique_entries if entry.get('condition') == top_condition_name]
+            if top_entries:
+                top_entry = max(top_entries, key=lambda e: e.get('condition_score', 0.5))
+                selected = [top_entry] + [entry for entry in selected if entry.get('condition') != top_condition_name]
+        selected = selected[:limit]
  
         if debug_entries is not None:
             for entry in selected:
@@ -1452,7 +1456,7 @@ class AdvancedMedicalNavigator:
                     'condition': entry.get('condition'),
                     'character_tags': entry.get('character_tags'),
                     'from_top_condition': entry.get('from_top_condition'),
-                    'selected': False,
+                    'selected': True,
                 })
  
         return selected
@@ -1929,9 +1933,16 @@ class AdvancedMedicalNavigator:
         fallback: List[str] = []
         skipped: List[str] = []
         mapping = term_to_conditions or {}
+        top_condition = None
+        if allowed_conditions:
+            top_condition = next(iter(sorted(allowed_conditions, key=lambda name: session.condition_scores.get(name, 0.0), reverse=True)), None)
+        elif session.condition_scores:
+            top_condition = max(session.condition_scores.items(), key=lambda item: item[1])[0]
  
         for opt in options:
             conds = mapping.get(opt.lower(), [])
+            if allowed_conditions:
+                conds = [cond for cond in conds if cond in allowed_conditions]
             if not conds:
                 fallback.append(opt)
                 continue
@@ -1945,10 +1956,24 @@ class AdvancedMedicalNavigator:
                 f"[Clarification] ⚖️ Skipping options for {element} tied to baseline scores: {skipped}"
             )
  
+        if top_condition:
+            top_options = [opt for opt in prioritized if top_condition in mapping.get(opt.lower(), [])]
+            if not top_options:
+                extra_top = [opt for opt in fallback if top_condition in mapping.get(opt.lower(), [])]
+                if extra_top:
+                    prioritized = [extra_top[0]] + prioritized
+                else:
+                    for opt, conds in mapping.items():
+                        if conds and top_condition in conds and opt not in prioritized:
+                            prioritized = [opt] + prioritized
+                            break
+ 
         if prioritized:
             return prioritized
+        if fallback:
+            return fallback
  
-        return fallback if fallback else options
+        return options
 
     def _ensure_associated_state(self, session: "MedicalSession") -> Dict[str, Any]:
         state = session.context.setdefault('associated_state', {})
@@ -2118,6 +2143,9 @@ class AdvancedMedicalNavigator:
             return {top_name}
 
         priority = {name for name, score in sorted_conditions if score > baseline}
+        result = {top_name}
         if priority:
-            return priority
-        return {top_name}
+            result.update(priority)
+        elif len(sorted_conditions) > 1:
+            result.add(sorted_conditions[1][0])
+        return result
