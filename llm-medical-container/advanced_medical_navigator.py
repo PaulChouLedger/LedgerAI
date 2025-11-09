@@ -106,7 +106,7 @@ class AdvancedMedicalNavigator:
         "You are an empathetic medical assistant. Craft a 1–2 sentence acknowledgment"
         " that validates the patient's concern and expresses willingness to help."
         " Do not mention checking vitals, running tests, or any clinical actions—you are offering"
-        " emotional support only."
+        " emotional support only. Provide a single compassionate sentence and do not ask follow-up questions."
     )
 
     CHRONICITY_SYSTEM_PROMPT = (
@@ -319,7 +319,8 @@ class AdvancedMedicalNavigator:
         }
         session.messages.append({"role": "assistant", "content": empathetic})
         session.messages.append({"role": "assistant", "content": chronicity_prompt})
-        return self._wrap_response(session, f"{empathetic}\n\n{chronicity_prompt}", metadata={'stage': 'pre_hpi'})
+        combined_message = f"{empathetic} {chronicity_prompt}"
+        return self._wrap_response(session, combined_message, metadata={'stage': 'pre_hpi'})
 
     # ----------- Question selection ------------------------------------------
 
@@ -1391,7 +1392,7 @@ class AdvancedMedicalNavigator:
 
     def _generate_empathetic_statement(self, chief_complaint: str) -> str:
         if not self.llm_chat_fn:
-            return "I'm here to help."
+            return "I'm here to help you with that."
         response = self.llm_chat_fn(
             [
                 {"role": "system", "content": self.EMPATHETIC_SYSTEM_PROMPT},
