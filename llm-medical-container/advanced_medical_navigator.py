@@ -329,7 +329,7 @@ class AdvancedMedicalNavigator:
         if session.stage == "awaiting_chronicity":
             if session.context['pre_hpi'].get('chronicity'):
                 session.stage = "awaiting_age"
-            else:
+        else:
                 return None
 
         if session.stage == "awaiting_age":
@@ -674,7 +674,7 @@ class AdvancedMedicalNavigator:
                 for med in unsatisfied_medical:
                     med_components = self.medical_rule_engine._extract_anatomical_components(med.lower())
                     if med_components and self.medical_rule_engine._are_anatomical_opposites(patient_components, med_components):
-                        continue
+                    continue
                     filtered_missing.append(med)
                 unsatisfied_medical = filtered_missing
             # rank by FAISS scores if available
@@ -901,7 +901,7 @@ class AdvancedMedicalNavigator:
             if in_semantic:
                 self._capture_debug(f"[Location Analysis]   ✅ '{term}' satisfied")
                 satisfied_terms_log.append(term)
-            else:
+        else:
                 self._capture_debug(f"[Location Analysis]   ❌ '{term}' not satisfied")
                 unsatisfied_terms_log.append(term)
             checked_terms.append(term)
