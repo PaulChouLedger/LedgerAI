@@ -1096,22 +1096,13 @@ class AdvancedMedicalNavigator:
         base_template = self.HPI_BASE_GUIDANCE[element]
         base_question = base_template.replace('{cc}', cc)
         character_tags: set = set()
-        all_terms: List[str] = []
-        seen_terms = set()
 
-        for entry in includes:
-            term = entry.get('patient_friendly')
-            if isinstance(term, str):
-                term = term.strip()
-                if term and term.lower() not in seen_terms:
-                    seen_terms.add(term.lower())
-                    all_terms.append(term)
-            if element == 'character':
+        if element == 'character':
+            for entry in includes:
                 tags = entry.get('question_tags') or []
                 for tag in tags:
                     if isinstance(tag, str):
                         character_tags.add(tag.lower())
-        candidate_terms = all_terms
         if element == 'character':
             subject = cc if cc else 'symptoms'
             plural = subject.endswith('s')
@@ -1129,23 +1120,25 @@ class AdvancedMedicalNavigator:
         else:
             base_question = base_template.replace('{cc}', cc)
 
-        if candidate_terms:
-            sample_terms = random.sample(candidate_terms, k=min(3, len(candidate_terms)))
+        sample_entries = self._select_guidance_entries(includes, limit=2)
+        sample_terms = [entry['patient_friendly'] for entry in sample_entries if entry.get('patient_friendly')]
+
+        if sample_terms:
             options = ', '.join(sample_terms)
             guidance = (
                 f"Create exactly two sentences. Sentence 1 must be the open-ended question: '{base_question}'. "
-                f"Sentence 2 should gently offer examples starting with 'You can mention things like' followed by up to three of these options: {options}. "
+                f"Sentence 2 should gently offer examples starting with 'You can mention things like' followed by up to two of these options: {options}. "
                 "Keep both sentences short, friendly, and avoid adding extra options or clauses."
             )
             return guidance, base_question, sample_terms
 
         fallback_terms = self.DEFAULT_ELEMENT_OPTIONS.get(element, [])
         if fallback_terms:
-            sample_terms = random.sample(fallback_terms, k=min(3, len(fallback_terms)))
+            sample_terms = random.sample(fallback_terms, k=min(2, len(fallback_terms)))
             options = ', '.join(sample_terms)
             guidance = (
                 f"Create exactly two sentences. Sentence 1 must be the open-ended question: '{base_question}'. "
-                f"Sentence 2 should gently offer examples starting with 'You can mention things like' followed by up to three of these options: {options}. "
+                f"Sentence 2 should gently offer examples starting with 'You can mention things like' followed by up to two of these options: {options}. "
                 "Keep both sentences short, friendly, and avoid adding extra options or clauses."
             )
             return guidance, base_question, sample_terms
@@ -1154,6 +1147,65 @@ class AdvancedMedicalNavigator:
             f"Ask exactly one friendly, open-ended sentence: '{base_question}'. Do not add examples or extra sentences."
         )
         return guidance, base_question, []
+
+    def _select_guidance_entries(self, entries: List[Dict[str, Any]], limit: int = 2) -> List[Dict[str, Any]]:
+        """Select patient-friendly terms for question guidance, preferring emergent conditions."""
+        if limit <= 0 or not entries:
+            return []
+
+        # Deduplicate by patient-friendly text
+        unique_entries: List[Dict[str, Any]] = []
+        seen_pf = set()
+        for entry in entries:
+            pf = entry.get('patient_friendly')
+            if not isinstance(pf, str):
+                continue
+            cleaned = pf.strip()
+            if not cleaned:
+                continue
+            key = cleaned.lower()
+            if key in seen_pf:
+                continue
+            seen_pf.add(key)
+            copy_entry = dict(entry)
+            copy_entry['patient_friendly'] = cleaned
+            unique_entries.append(copy_entry)
+
+        if not unique_entries:
+            return []
+
+        emergent_entries = [
+            entry for entry in unique_entries
+            if entry.get('emergent_term') or (entry.get('condition_urgency') == 'emergent')
+        ]
+        urgent_entries = [
+            entry for entry in unique_entries
+            if entry.get('condition_urgency') == 'urgent' and entry not in emergent_entries
+        ]
+        other_entries = [
+            entry for entry in unique_entries
+            if entry not in emergent_entries and entry not in urgent_entries
+        ]
+
+        selected: List[Dict[str, Any]] = []
+
+        def pick_from(pool: List[Dict[str, Any]]):
+            nonlocal selected
+            if len(selected) >= limit or not pool:
+                return
+            available = [entry for entry in pool if entry not in selected]
+            if not available:
+                return
+            k = min(limit - len(selected), len(available))
+            if k <= 0:
+                return
+            selected.extend(random.sample(available, k=k))
+
+        pick_from(emergent_entries)
+        pick_from(urgent_entries)
+        pick_from(other_entries)
+
+        return selected
 
     def _get_element_includes(self, session: "MedicalSession", element: str) -> List[Dict[str, Any]]:
         cache = session.context.setdefault('guideline_includes', {})
@@ -1164,6 +1216,9 @@ class AdvancedMedicalNavigator:
         for category in categories:
             guidelines = self._get_guidelines_by_category(category)
             for guideline in guidelines.values():
+                condition_name = guideline.get('condition') or guideline.get('data', {}).get('condition') or guideline.get('name', 'Unknown')
+                condition_urgency = guideline.get('urgency') or guideline.get('data', {}).get('urgency', '')
+                condition_prevalence = guideline.get('prevalence') or guideline.get('data', {}).get('prevalence', '')
                 structured = guideline.get('key_features', {}).get('structured_oldcarts', {})
                 if not structured:
                     structured = guideline.get('data', {}).get('key_features', {}).get('structured_oldcarts', {})
@@ -1182,10 +1237,15 @@ class AdvancedMedicalNavigator:
                             tag_list = [str(tag).lower() for tag in tags if isinstance(tag, str)]
                         else:
                             tag_list = []
+                        emergent_term = bool(entry.get('emergent'))
                         collected.append({
                             'patient_friendly': patient_term.strip() if isinstance(patient_term, str) else '',
                             'medical': medical_term.strip() if isinstance(medical_term, str) else '',
                             'question_tags': tag_list,
+                            'emergent_term': emergent_term,
+                            'condition': condition_name,
+                            'condition_urgency': condition_urgency,
+                            'condition_prevalence': condition_prevalence,
                         })
                     elif isinstance(entry, str):
                         stripped = entry.strip()
@@ -1193,6 +1253,10 @@ class AdvancedMedicalNavigator:
                             'patient_friendly': stripped,
                             'medical': stripped,
                             'question_tags': [],
+                            'emergent_term': False,
+                            'condition': condition_name,
+                            'condition_urgency': condition_urgency,
+                            'condition_prevalence': condition_prevalence,
                         })
         cache[element] = collected
         return collected
@@ -1418,7 +1482,6 @@ class AdvancedMedicalNavigator:
 
     def _capture_debug(self, message: str) -> None:
         self._captured_debug_output.append(message)
-        print(message)
     
     def _format_engine_debug(self, session: "MedicalSession") -> str:
         lines = []
