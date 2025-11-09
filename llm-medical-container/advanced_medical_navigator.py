@@ -105,6 +105,8 @@ class AdvancedMedicalNavigator:
     EMPATHETIC_SYSTEM_PROMPT = (
         "You are an empathetic medical assistant. Craft a 1–2 sentence acknowledgment"
         " that validates the patient's concern and expresses willingness to help."
+        " Do not mention checking vitals, running tests, or any clinical actions—you are offering"
+        " emotional support only."
     )
 
     CHRONICITY_SYSTEM_PROMPT = (
@@ -319,7 +321,7 @@ class AdvancedMedicalNavigator:
         if session.stage == "awaiting_chronicity":
             if session.context['pre_hpi'].get('chronicity'):
                 session.stage = "awaiting_age"
-        else:
+            else:
                 return None
 
         if session.stage == "awaiting_age":
