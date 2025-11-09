@@ -437,6 +437,13 @@ class AdvancedMedicalNavigator:
         if element == 'location':
             analysis = self._analyze_location_answer(session, element, answer, matches, term_scores)
             self._log_location_analysis(session, analysis)
+            if analysis:
+                boosted_matches = analysis.get('boosted_matches')
+                if boosted_matches:
+                    matches = boosted_matches
+                boosted_scores = analysis.get('boosted_term_scores')
+                if boosted_scores:
+                    term_scores = boosted_scores
         else:
             self._log_generic_faiss(element, answer, matches, term_scores)
 
@@ -667,6 +674,8 @@ class AdvancedMedicalNavigator:
         sorted_scores = dict(sorted(term_scores.items(), key=lambda x: x[1], reverse=True))
         term_breakdown = []
         threshold = 0.6
+        boosted_matches: Optional[List[str]] = None
+        boosted_term_scores: Optional[Dict[str, float]] = None
         for key, meta in sorted(all_terms_patient.items()):
             patient_term = meta['patient_friendly']
             score = sorted_scores.get(patient_term, sorted_scores.get(patient_term.lower(), 0.0))
@@ -717,39 +726,8 @@ class AdvancedMedicalNavigator:
                     semantic_set = {term.lower() for term in matches}
                     for entry in term_breakdown:
                         entry['in_semantic'] = entry['term'].lower() in semantic_set
-
-        if not satisfied_medical_terms and element == 'location':
-            best_score = 0.0
-            best_keys: List[str] = []
-            for key, meta in all_terms_patient.items():
-                pf = meta['patient_friendly']
-                score = sorted_scores.get(pf, sorted_scores.get(pf.lower(), 0.0))
-                if score > best_score:
-                    best_score = score
-            if best_score >= self.RELAXED_LOCATION_THRESHOLD:
-                margin = self.RELAXED_LOCATION_MARGIN
-                relaxed_keys: List[str] = []
-                for key, meta in all_terms_patient.items():
-                    pf = meta['patient_friendly']
-                    score = sorted_scores.get(pf, sorted_scores.get(pf.lower(), 0.0))
-                    if score >= best_score - margin:
-                        relaxed_keys.append(key)
-                if relaxed_keys:
-                    satisfied_medical_terms = []
-                    new_matches: List[str] = []
-                    seen_med = set()
-                    for key in relaxed_keys:
-                        pf_term = all_terms_patient[key]['patient_friendly']
-                        med_term = all_terms_patient[key]['medical']
-                        new_matches.append(pf_term)
-                        med_lower = med_term.lower()
-                        if med_lower not in seen_med:
-                            seen_med.add(med_lower)
-                            satisfied_medical_terms.append(med_term)
-                    matches = new_matches
-                    semantic_set = {term.lower() for term in matches}
-                    for entry in term_breakdown:
-                        entry['in_semantic'] = entry['term'].lower() in semantic_set
+                    boosted_matches = high_conf_matches
+                    boosted_term_scores = {pf: sorted_scores.get(pf, sorted_scores.get(pf.lower(), self.LOCATION_HIGH_CONFIDENCE_THRESHOLD)) for pf in high_conf_matches}
 
         def _unique(sequence: List[str]) -> List[str]:
             seen_local: set = set()
@@ -782,6 +760,8 @@ class AdvancedMedicalNavigator:
             'missing_options': missing_options,
             'patient_components': patient_components,
             'term_to_guidelines': term_to_guidelines,
+            'boosted_matches': boosted_matches,
+            'boosted_term_scores': boosted_term_scores,
         }
 
     def _maybe_request_location_clarification(
@@ -882,6 +862,10 @@ class AdvancedMedicalNavigator:
         normalized_answer = answer.lower().strip()
         semantic_set = {m.lower() for m in matches}
 
+        checked_terms: List[str] = []
+        satisfied_terms_log: List[str] = []
+        unsatisfied_terms_log: List[str] = []
+
         for entry in term_breakdown:
             term = entry['term']
             score = entry['score']
@@ -901,8 +885,23 @@ class AdvancedMedicalNavigator:
                 )
             if in_semantic:
                 self._capture_debug(f"[Location Analysis]   ✅ '{term}' satisfied")
-        else:
+                satisfied_terms_log.append(term)
+            else:
                 self._capture_debug(f"[Location Analysis]   ❌ '{term}' not satisfied")
+                unsatisfied_terms_log.append(term)
+            checked_terms.append(term)
+
+        self._capture_debug(
+            f"[Location Analysis] 📋 Terms checked ({len(checked_terms)}): {checked_terms}"
+        )
+        if satisfied_terms_log:
+            self._capture_debug(
+                f"[Location Analysis] ✅ Satisfied terms: {satisfied_terms_log}"
+            )
+        if unsatisfied_terms_log:
+            self._capture_debug(
+                f"[Location Analysis] ❌ Unsatisfied terms: {unsatisfied_terms_log}"
+            )
 
     def _fuzzy_correct(self, text: str) -> str:
         if not self.medical_rule_engine or not hasattr(self.medical_rule_engine, 'fuzzy_correct_medical_terms'):
@@ -1137,6 +1136,7 @@ class AdvancedMedicalNavigator:
             guidance = (
                 f"Create exactly two sentences. Sentence 1 must be the open-ended question: '{base_question}'. "
                 f"Sentence 2 should gently offer examples starting with 'You can mention things like' followed by up to two of these options: {options}. "
+                "Use only the options provided verbatim and do not invent additional examples or wording. "
                 "Keep both sentences short, friendly, and avoid adding extra options or clauses."
             )
             return guidance, base_question, sample_terms
@@ -1148,6 +1148,7 @@ class AdvancedMedicalNavigator:
             guidance = (
                 f"Create exactly two sentences. Sentence 1 must be the open-ended question: '{base_question}'. "
                 f"Sentence 2 should gently offer examples starting with 'You can mention things like' followed by up to two of these options: {options}. "
+                "Use only the options provided verbatim and do not invent additional examples or wording. "
                 "Keep both sentences short, friendly, and avoid adding extra options or clauses."
             )
             return guidance, base_question, sample_terms
