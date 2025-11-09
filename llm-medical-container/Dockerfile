@@ -53,7 +53,7 @@ COPY config/ /app/config/
 
 # Copy all Python application files in one layer (frequently changed - no caching)
 # This ensures that any change to any Python file only invalidates this single layer
-COPY container_rest.py adaptive_diagnostic_engine.py advanced_medical_navigator.py thinking_fillers.py fuzzy_medical_matcher.py ./
+COPY container_rest.py adaptive_diagnostic_engine.py advanced_medical_navigator.py fuzzy_medical_matcher.py ./
 
 # Copy RAG module (organized structure)
 COPY rag/ /app/rag/
@@ -63,10 +63,10 @@ COPY rag/ /app/rag/
 # Models already copied above (cached layer)
 
 # === Environment defaults (can be overridden by .env or -e) ===
-ENV SIMPLE_MODEL_PATH=/models/Nemotron-Mini-4B-Instruct-Q4_K_M.gguf
-ENV SIMPLE_CHAT_FORMAT=chatml
+ENV SIMPLE_MODEL_PATH=/models/Llama-3.2-1B-Instruct-Q4_K_M.gguf
+ENV SIMPLE_CHAT_FORMAT=llama-3
 ENV SIMPLE_N_CTX=2048
-ENV LLM_STOP=<|im_end|>,</s>
+
 
 # Expose port for API
 EXPOSE 11434
