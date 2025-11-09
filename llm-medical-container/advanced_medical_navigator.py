@@ -165,14 +165,6 @@ class AdvancedMedicalNavigator:
 
     DEFAULT_ELEMENT_WEIGHT = 0.30
 
-    DEFAULT_ELEMENT_OPTIONS = {
-        'location': [
-            "top right side near your ribs",
-            "lower right side around your groin",
-            "upper middle part of your belly",
-        ],
-    }
-
     RELAXED_LOCATION_THRESHOLD = 0.55
     RELAXED_LOCATION_MARGIN = 0.02
     LOCATION_HIGH_CONFIDENCE_THRESHOLD = 0.9
@@ -202,6 +194,18 @@ class AdvancedMedicalNavigator:
         previous_active: set = field(default_factory=set)
         oldcarts_remaining: List[str] = field(default_factory=list)
         completed: bool = False
+
+    def _extract_chief_complaint_descriptors(self, complaint: str) -> Dict[str, bool]:
+        complaint_lower = (complaint or "").lower()
+        keywords = {
+            "sensory": ["ache", "aching", "pain", "sharp", "stabbing", "burning", "tender", "sore", "cramping", "cramp", "tingling", "numb"],
+            "visual": ["bleeding", "blood", "color", "discolor", "rash", "lesion", "swelling", "bruise", "ooze", "discharge"],
+        }
+        descriptors = {"sensory": False, "visual": False}
+        for tag, words in keywords.items():
+            if any(word in complaint_lower for word in words):
+                descriptors[tag] = True
+        return descriptors
 
     # ----------- Lifecycle ----------------------------------------------------
 
@@ -301,8 +305,8 @@ class AdvancedMedicalNavigator:
 
         session.stage = "awaiting_chronicity"
         session.context['pre_hpi']['chief_complaint'] = complaint
-        cc_terms = self._get_element_includes(session, 'chief_complaint') if hasattr(self, '_get_element_includes') else []
-        session.context['guideline_terms']['chief_complaint_terms'] = cc_terms
+        session.context['guideline_terms']['chief_complaint_terms'] = self._get_element_includes(session, 'chief_complaint') if hasattr(self, '_get_element_includes') else []
+        session.context['guideline_terms']['chief_complaint_descriptors'] = self._extract_chief_complaint_descriptors(complaint)
 
         empathetic = self._generate_empathetic_statement(complaint)
         chronicity_prompt = self._generate_chronicity_question()
@@ -1127,9 +1131,16 @@ class AdvancedMedicalNavigator:
         else:
             base_question = base_template.replace('{cc}', cc)
 
-        sensory_complaint = ('character' in character_tags or 'sensory' in character_tags) or cc_has_sensory
+        cc_descriptors = session.context['guideline_terms'].get('chief_complaint_descriptors', {})
+        sensory_complaint = ('character' in character_tags or 'sensory' in character_tags) or cc_descriptors.get('sensory', False)
         sample_entries = self._select_guidance_entries(includes, limit=2, exclude_sensory=sensory_complaint)
         sample_terms = [entry['patient_friendly'] for entry in sample_entries if entry.get('patient_friendly')]
+
+        if not sample_terms:
+            guidance = (
+                f"Ask exactly one friendly, open-ended sentence: '{base_question}'. Do not add examples or extra sentences."
+            )
+            return guidance, base_question, []
 
         if sample_terms:
             options = ', '.join(sample_terms)
@@ -1162,30 +1173,7 @@ class AdvancedMedicalNavigator:
         """Select patient-friendly terms for question guidance, preferring emergent conditions."""
         if limit <= 0 or not entries:
             return []
-        # Optionally exclude entries tagged as sensory
-        if exclude_sensory:
-            filtered = []
-            for entry in unique_entries:
-                tags = entry.get('question_tags') or []
-                if any(tag == 'sensory' or tag == 'character' for tag in tags):
-                    continue
-                filtered.append(entry)
-            if filtered:
-                unique_entries = filtered
-                emergent_entries = [
-                    entry for entry in unique_entries
-                    if entry.get('emergent_term') or (entry.get('condition_urgency') == 'emergent')
-                ]
-                urgent_entries = [
-                    entry for entry in unique_entries
-                    if entry.get('condition_urgency') == 'urgent' and entry not in emergent_entries
-                ]
-                other_entries = [
-                    entry for entry in unique_entries
-                    if entry not in emergent_entries and entry not in urgent_entries
-                ]
 
-        # Deduplicate by patient-friendly text
         unique_entries: List[Dict[str, Any]] = []
         seen_pf = set()
         for entry in entries:
@@ -1206,22 +1194,23 @@ class AdvancedMedicalNavigator:
         if not unique_entries:
             return []
 
-        emergent_entries = [
-            entry for entry in unique_entries
-            if entry.get('emergent_term') or (entry.get('condition_urgency') == 'emergent')
-        ]
-        urgent_entries = [
-            entry for entry in unique_entries
-            if entry.get('condition_urgency') == 'urgent' and entry not in emergent_entries
-        ]
-        other_entries = [
-            entry for entry in unique_entries
-            if entry not in emergent_entries and entry not in urgent_entries
-        ]
+        if exclude_sensory:
+            filtered = []
+            for entry in unique_entries:
+                tags = entry.get('question_tags') or []
+                if any(tag == 'sensory' for tag in tags):
+                    continue
+                filtered.append(entry)
+            if filtered:
+                unique_entries = filtered
+
+        emergent_entries = [entry for entry in unique_entries if entry.get('emergent_term') or entry.get('condition_urgency') == 'emergent']
+        urgent_entries = [entry for entry in unique_entries if entry.get('condition_urgency') == 'urgent' and entry not in emergent_entries]
+        other_entries = [entry for entry in unique_entries if entry not in emergent_entries and entry not in urgent_entries]
 
         selected: List[Dict[str, Any]] = []
 
-        def pick_from(pool: List[Dict[str, Any]]):
+        def choose_from(pool: List[Dict[str, Any]]):
             nonlocal selected
             if len(selected) >= limit or not pool:
                 return
@@ -1233,9 +1222,9 @@ class AdvancedMedicalNavigator:
                 return
             selected.extend(random.sample(available, k=k))
 
-        pick_from(emergent_entries)
-        pick_from(urgent_entries)
-        pick_from(other_entries)
+        choose_from(emergent_entries)
+        choose_from(urgent_entries)
+        choose_from(other_entries)
 
         return selected
 
