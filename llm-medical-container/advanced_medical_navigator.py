@@ -353,7 +353,7 @@ class AdvancedMedicalNavigator:
         if session.stage == "awaiting_chronicity":
             if session.context['pre_hpi'].get('chronicity'):
                 session.stage = "awaiting_age"
-            else:
+        else:
                 return None
 
         if session.stage == "awaiting_age":
@@ -695,7 +695,7 @@ class AdvancedMedicalNavigator:
                 med_components = self.medical_rule_engine._extract_anatomical_components(med.lower())
                 if not med_components:
                     filtered_satisfied.append(med)
-                    continue
+                continue
                 if not self.medical_rule_engine._are_anatomical_opposites(patient_components, med_components):
                     filtered_satisfied.append(med)
             satisfied_medical_terms = filtered_satisfied
@@ -810,7 +810,7 @@ class AdvancedMedicalNavigator:
                     continue
                 if any(session.condition_scores.get(cond, 0.5) > baseline for cond in conds):
                     filtered.append(opt)
-                else:
+            else:
                     skipped.append(opt)
             if skipped:
                 self._capture_debug(
@@ -1444,8 +1444,15 @@ class AdvancedMedicalNavigator:
         choose_from(urgent_entries)
         choose_from(other_entries)
  
-        if debug_entries is not None and not selected:
-            for entry in unique_entries:
+        baseline = 0.5 + 1e-6
+        high_conf_selected = [entry for entry in selected if entry.get('condition_score', 0.5) > baseline]
+        if high_conf_selected:
+            selected = high_conf_selected
+        else:
+            selected = []
+
+        if debug_entries is not None:
+            for entry in selected:
                 debug_entries.append({
                     'term': entry.get('patient_friendly'),
                     'condition': entry.get('condition'),
