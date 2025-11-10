@@ -402,34 +402,18 @@ class AdvancedMedicalNavigator:
         cc_subject = self._normalize_subject_for_questions(session.context['pre_hpi'].get('chief_complaint'))
 
         if element == 'associated':
-            question = self._prepare_next_associated_question(session)
-            if not question:
+            question_info = self._prepare_next_associated_question(session)
+            if not question_info:
                 session.context['hpi']['associated'] = 'none reported'
                 return self._next_oldcarts_question(session)
-            return {
-                'section': 'hpi',
-                'field': 'associated',
-                'prompt': question,
-                'guidance': 'ASSOCIATED_DIRECT',
-                'base_question': question,
-                'options': [],
-                'mode': 'associated_sequence',
-            }
+            return question_info
 
         if element == 'red_flags':
-            question = self._prepare_next_red_flag_question(session)
-            if not question:
+            question_info = self._prepare_next_red_flag_question(session)
+            if not question_info:
                 session.context['hpi']['red_flags'] = 'none reported'
                 return self._next_oldcarts_question(session)
-            return {
-                'section': 'hpi',
-                'field': 'red_flags',
-                'prompt': question,
-                'guidance': 'RED_FLAG_DIRECT',
-                'base_question': question,
-                'options': [],
-                'mode': 'red_flag_sequence',
-            }
+            return question_info
 
         guidance, base_question, options = self._build_oldcarts_guidance(session, element, cc_subject)
         prompt = self._generate_question(
@@ -1376,6 +1360,75 @@ class AdvancedMedicalNavigator:
         )
         return guidance, base_question, []
  
+    def _build_yes_no_guidance(self, field: str, term: Optional[str]) -> str:
+        term_text = term or "this symptom"
+        if field == 'associated':
+            context = "an associated symptom that might support a diagnosis"
+        elif field == 'red_flags':
+            context = "an urgent warning sign that could indicate an emergency"
+        else:
+            context = "this symptom"
+
+        return (
+            f"Create exactly one short, patient-friendly yes/no question to ask whether the patient has experienced \"{term_text}\". "
+            f"Keep it conversational and supportive, but do not add explanations, examples, or multiple sentences. "
+            f"Focus on confirming if the patient currently has {context}. "
+            "Return only the question ending with a question mark."
+        )
+
+    def _ensure_binary_prompt_format(self, prompt: str, fallback: str) -> str:
+        if not prompt:
+            return fallback
+        prompt = prompt.strip()
+        # Force single sentence
+        if '\n' in prompt:
+            prompt = prompt.split('\n')[0].strip()
+        if '.' in prompt and prompt.count('?') == 0:
+            sentences = [s.strip() for s in re.split(r'[.!?]', prompt) if s.strip()]
+            if sentences:
+                prompt = sentences[-1] + '?'
+        if not prompt.endswith('?'):
+            prompt = prompt.rstrip('.')
+            prompt = prompt + '?'
+        return prompt
+
+    def _compose_binary_question(
+        self,
+        session: "MedicalSession",
+        field: str,
+        entry: Dict[str, Any],
+        mode: str,
+        fallback_template: str,
+    ) -> Dict[str, Any]:
+        term = (entry.get('patient_term') or '').strip()
+        if not term:
+            fallback = fallback_template.format(term='any other symptoms')
+        else:
+            fallback = fallback_template.format(term=term)
+
+        guidance = self._build_yes_no_guidance(field, term or None)
+        prompt = fallback
+        if self.llm_chat_fn:
+            prompt = self._generate_question(
+                session=session,
+                section='hpi',
+                field=field,
+                guidance=guidance,
+                base_question=fallback,
+                options=None,
+            )
+        prompt = self._ensure_binary_prompt_format(prompt, fallback)
+
+        return {
+            'section': 'hpi',
+            'field': field,
+            'prompt': prompt,
+            'guidance': guidance,
+            'base_question': fallback,
+            'options': [],
+            'mode': mode,
+        }
+
     def _collect_character_tags(self, session: "MedicalSession") -> set:
         summary = self._character_tag_summary(session)
         return summary.get('tags', set())
@@ -2200,7 +2253,7 @@ class AdvancedMedicalNavigator:
         state['negatives'] = []
         state['current'] = None
 
-    def _prepare_next_associated_question(self, session: "MedicalSession") -> Optional[str]:
+    def _prepare_next_associated_question(self, session: "MedicalSession") -> Optional[Dict[str, Any]]:
         self._prepare_associated_queue(session)
         state = self._ensure_associated_state(session)
         queue = state.get('queue', [])
@@ -2211,10 +2264,15 @@ class AdvancedMedicalNavigator:
 
         entry = queue[index]
         state['current'] = entry
-        question = self._format_associated_question(entry)
-        return question
+        return self._compose_binary_question(
+            session=session,
+            field='associated',
+            entry=entry,
+            mode='associated_sequence',
+            fallback_template="Have you noticed {term}? (yes/no)",
+        )
 
-    def _advance_associated_queue(self, session: "MedicalSession") -> Optional[str]:
+    def _advance_associated_queue(self, session: "MedicalSession") -> Optional[Dict[str, Any]]:
         state = self._ensure_associated_state(session)
         state['index'] = state.get('index', 0) + 1
         if state['index'] >= len(state.get('queue', [])):
@@ -2222,20 +2280,13 @@ class AdvancedMedicalNavigator:
             return None
         entry = state['queue'][state['index']]
         state['current'] = entry
-        return self._format_associated_question(entry)
-
-    def _format_associated_question(self, entry: Dict[str, Any]) -> str:
-        term = entry.get('patient_term', '').rstrip('?').rstrip('.')
-        if not term:
-            return "Have you noticed any other symptoms?"
-        lower = term.lower()
-        if lower.startswith(('taking ', 'using ', 'on ', 'being on ', 'having to take ')):
-            return f"Have you been {term} recently?"
-        if lower.startswith(('experiencing ', 'noticing ', 'feeling ')):
-            return f"Have you {term}?"
-        if lower.startswith(('any ', 'a ')):
-            return f"Have you noticed {term}?"
-        return f"Have you noticed {term}?"
+        return self._compose_binary_question(
+            session=session,
+            field='associated',
+            entry=entry,
+            mode='associated_sequence',
+            fallback_template="Have you noticed {term}? (yes/no)",
+        )
 
     def _handle_associated_answer(
         self,
@@ -2278,13 +2329,7 @@ class AdvancedMedicalNavigator:
 
         next_question = self._advance_associated_queue(session)
         if next_question:
-            result['next_question'] = {
-                'section': 'hpi',
-                'field': 'associated',
-                'prompt': next_question,
-                'guidance': 'ASSOCIATED_DIRECT',
-                'mode': 'associated_sequence',
-            }
+            result['next_question'] = next_question
         else:
             result['completed'] = True
             state['current'] = None
@@ -2358,7 +2403,7 @@ class AdvancedMedicalNavigator:
         state['negatives'] = []
         state['current'] = queue[0] if queue else None
 
-    def _prepare_next_red_flag_question(self, session: "MedicalSession") -> Optional[str]:
+    def _prepare_next_red_flag_question(self, session: "MedicalSession") -> Optional[Dict[str, Any]]:
         self._prepare_red_flag_queue(session)
         state = self._ensure_red_flag_state(session)
         queue = state.get('queue', [])
@@ -2369,9 +2414,15 @@ class AdvancedMedicalNavigator:
 
         entry = queue[index]
         state['current'] = entry
-        return self._format_red_flag_question(entry)
+        return self._compose_binary_question(
+            session=session,
+            field='red_flags',
+            entry=entry,
+            mode='red_flag_sequence',
+            fallback_template="Have you experienced {term}? (yes/no)",
+        )
 
-    def _advance_red_flag_queue(self, session: "MedicalSession") -> Optional[str]:
+    def _advance_red_flag_queue(self, session: "MedicalSession") -> Optional[Dict[str, Any]]:
         state = self._ensure_red_flag_state(session)
         state['index'] = state.get('index', 0) + 1
         queue = state.get('queue', [])
@@ -2380,18 +2431,13 @@ class AdvancedMedicalNavigator:
             return None
         entry = queue[state['index']]
         state['current'] = entry
-        return self._format_red_flag_question(entry)
-
-    def _format_red_flag_question(self, entry: Dict[str, Any]) -> str:
-        term = entry.get('patient_term', '').rstrip('?').rstrip('.')
-        if not term:
-            return "Have you noticed any urgent warning signs such as difficulty breathing or passing out?"
-        lower = term.lower()
-        if lower.startswith(('having ', 'experiencing ', 'noticing ', 'feeling ')):
-            return f"Have you been {term}? (yes/no)"
-        if lower.startswith(('any ', 'a ')):
-            return f"Have you had {term}? (yes/no)"
-        return f"Have you experienced {term}? (yes/no)"
+        return self._compose_binary_question(
+            session=session,
+            field='red_flags',
+            entry=entry,
+            mode='red_flag_sequence',
+            fallback_template="Have you experienced {term}? (yes/no)",
+        )
 
     def _handle_red_flag_answer(
         self,
@@ -2430,14 +2476,7 @@ class AdvancedMedicalNavigator:
 
         next_question = self._advance_red_flag_queue(session)
         if next_question:
-            result['next_question'] = {
-                'section': 'hpi',
-                'field': 'red_flags',
-                'prompt': next_question,
-                'guidance': 'RED_FLAG_DIRECT',
-                'mode': 'red_flag_sequence',
-                'base_question': next_question,
-            }
+            result['next_question'] = next_question
         else:
             result['completed'] = True
             state['current'] = None
