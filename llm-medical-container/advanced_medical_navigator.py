@@ -377,7 +377,7 @@ class AdvancedMedicalNavigator:
             if session.context['pre_hpi'].get('sex'):
                 session.stage = "hpi"
                 session.oldcarts_remaining = self._ordered_oldcarts_elements(session)
-        else:
+            else:
                 prompt = "And for medical documentation, what is your biological sex?"
                 return {'section': 'pre_hpi', 'field': 'sex', 'prompt': prompt, 'guidance': self.PRE_HPI_PROMPTS['sex']}
 
@@ -392,7 +392,40 @@ class AdvancedMedicalNavigator:
             session.stage = "complete"
 
             return None
-    
+
+        remaining_pre_hpi = [field for field in self.PRE_HPI_ORDER if not session.context['pre_hpi'].get(field)]
+        if remaining_pre_hpi:
+            next_field = remaining_pre_hpi[0]
+            if next_field == 'chronicity':
+                session.stage = "awaiting_chronicity"
+                prompt = self._generate_chronicity_question()
+                return {
+                    'section': 'pre_hpi',
+                    'field': 'chronicity',
+                    'prompt': prompt,
+                    'guidance': self.PRE_HPI_PROMPTS['chronicity'],
+                }
+            if next_field == 'age':
+                session.stage = "awaiting_age"
+                prompt = "Thank you. For our records, how old are you?"
+                return {
+                    'section': 'pre_hpi',
+                    'field': 'age',
+                    'prompt': prompt,
+                    'guidance': self.PRE_HPI_PROMPTS['age'],
+                }
+            if next_field == 'sex':
+                session.stage = "awaiting_sex"
+                prompt = "And for medical documentation, what is your biological sex?"
+                return {
+                    'section': 'pre_hpi',
+                    'field': 'sex',
+                    'prompt': prompt,
+                    'guidance': self.PRE_HPI_PROMPTS['sex'],
+                }
+
+        return None
+
     def _next_oldcarts_question(self, session: "MedicalSession") -> Optional[Dict[str, str]]:
         if not session.oldcarts_remaining:
             session.stage = "pmh"
