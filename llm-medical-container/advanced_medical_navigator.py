@@ -1415,7 +1415,7 @@ class AdvancedMedicalNavigator:
             'field': field,
             'prompt': prompt,
             'guidance': guidance,
-            'base_question': fallback,
+            'base_question': None,
             'options': [],
             'mode': mode,
         }
