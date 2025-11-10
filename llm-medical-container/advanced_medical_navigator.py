@@ -1380,17 +1380,13 @@ class AdvancedMedicalNavigator:
         if not prompt:
             return fallback
         prompt = prompt.strip()
-        # Force single sentence
-        if '\n' in prompt:
-            prompt = prompt.split('\n')[0].strip()
-        if '.' in prompt and prompt.count('?') == 0:
-            sentences = [s.strip() for s in re.split(r'[.!?]', prompt) if s.strip()]
-            if sentences:
-                prompt = sentences[-1] + '?'
+        prompt = prompt.split('\n')[0].strip()
+        if prompt.endswith('yes/no'):
+            prompt = prompt[:-6].rstrip()
         if not prompt.endswith('?'):
             prompt = prompt.rstrip('.')
             prompt = prompt + '?'
-        return prompt
+        return f"{prompt} (yes/no)"
 
     def _compose_binary_question(
         self,
@@ -1402,22 +1398,17 @@ class AdvancedMedicalNavigator:
     ) -> Dict[str, Any]:
         term = (entry.get('patient_term') or '').strip()
         if not term:
-            fallback = fallback_template.format(term='any other symptoms')
-        else:
-            fallback = fallback_template.format(term=term)
-
-        guidance = self._build_yes_no_guidance(field, term or None)
-        prompt = fallback
-        if self.llm_chat_fn:
-            prompt = self._generate_question(
-                session=session,
-                section='hpi',
-                field=field,
-                guidance=guidance,
-                base_question=fallback,
-                options=None,
-            )
-        prompt = self._ensure_binary_prompt_format(prompt, fallback)
+            term = 'this symptom'
+        guidance = self._build_yes_no_guidance(field, term)
+        prompt = self._generate_question(
+            session=session,
+            section='hpi',
+            field=field,
+            guidance=guidance,
+            base_question=None,
+            options=None,
+        )
+        prompt = self._ensure_binary_prompt_format(prompt, f"Have you noticed {term}? (yes/no)")
 
         return {
             'section': 'hpi',
