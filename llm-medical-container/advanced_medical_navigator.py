@@ -59,7 +59,7 @@ class AdvancedMedicalNavigator:
     ]
 
     HPI_BASE_GUIDANCE = {
-        "onset": "When did this start for your {cc}ers?",
+        "onset": "When did this {cc} start?",
         "abruptness": "Did it come on suddenly or build up gradually?",
         "location": "Where exactly is your {cc} located?",
         "duration": "How long does each episode typically last?",
@@ -199,6 +199,7 @@ class AdvancedMedicalNavigator:
             'matched_categories': [],
             'clarifications': {},
             'associated_state': {},
+            'red_flag_state': {},
         })
         condition_scores: Dict[str, float] = field(default_factory=dict)
         condition_rankings: List[Tuple[str, float]] = field(default_factory=list)
@@ -399,6 +400,37 @@ class AdvancedMedicalNavigator:
 
         element = session.oldcarts_remaining.pop(0)
         cc_subject = self._normalize_subject_for_questions(session.context['pre_hpi'].get('chief_complaint'))
+
+        if element == 'associated':
+            question = self._prepare_next_associated_question(session)
+            if not question:
+                session.context['hpi']['associated'] = 'none reported'
+                return self._next_oldcarts_question(session)
+            return {
+                'section': 'hpi',
+                'field': 'associated',
+                'prompt': question,
+                'guidance': 'ASSOCIATED_DIRECT',
+                'base_question': question,
+                'options': [],
+                'mode': 'associated_sequence',
+            }
+
+        if element == 'red_flags':
+            question = self._prepare_next_red_flag_question(session)
+            if not question:
+                session.context['hpi']['red_flags'] = 'none reported'
+                return self._next_oldcarts_question(session)
+            return {
+                'section': 'hpi',
+                'field': 'red_flags',
+                'prompt': question,
+                'guidance': 'RED_FLAG_DIRECT',
+                'base_question': question,
+                'options': [],
+                'mode': 'red_flag_sequence',
+            }
+
         guidance, base_question, options = self._build_oldcarts_guidance(session, element, cc_subject)
         prompt = self._generate_question(
             session=session,
@@ -465,9 +497,52 @@ class AdvancedMedicalNavigator:
         if not self.medical_rule_engine:
             return None
         requires_clarification = self._requires_clarification(element)
+
+        sequence_result: Optional[Dict[str, Any]] = None
+        follow_up_question: Optional[Dict[str, Any]] = None
+        answer_to_score: Optional[str] = answer
+        if element == 'associated':
+            sequence_result = self._handle_associated_answer(session, answer)
+        elif element == 'red_flags':
+            sequence_result = self._handle_red_flag_answer(session, answer)
+
+        if sequence_result is not None:
+            answer_to_score = sequence_result.get('score_text')
+            follow_up_question = sequence_result.get('next_question')
+            positives = sequence_result.get('positives', [])
+            if element == 'associated':
+                if positives:
+                    session.context['hpi']['associated'] = ', '.join(positives)
+                if sequence_result.get('completed'):
+                    session.context['hpi']['associated'] = ', '.join(positives) if positives else 'none reported'
+            elif element == 'red_flags':
+                if positives:
+                    session.context['hpi']['red_flags'] = ', '.join(positives)
+                if sequence_result.get('completed'):
+                    session.context['hpi']['red_flags'] = ', '.join(positives) if positives else 'none reported'
+
+            if answer_to_score is None:
+                if follow_up_question:
+                    session.pending = follow_up_question
+                    session.messages.append({"role": "assistant", "content": follow_up_question['prompt']})
+                    return self._wrap_response(
+                        session,
+                        follow_up_question['prompt'],
+                        metadata=follow_up_question,
+                    )
+                return None
+
+            answer = answer_to_score
+
+        scoring_element = element
+        if sequence_result is not None and element == 'red_flags':
+            source_element = sequence_result.get('source_element')
+            if source_element:
+                scoring_element = source_element
+
         matches = self.medical_rule_engine.find_matching_terms_faiss(
             prompt=answer,
-            element=element,
+            element=scoring_element,
             threshold=0.6,
             return_scores=True,
         )
@@ -479,7 +554,7 @@ class AdvancedMedicalNavigator:
             session.context['clarifications'].pop(element, None)
 
         analysis = None
-        if element == 'location':
+        if scoring_element == 'location':
             analysis = self._analyze_location_answer(session, element, answer, matches, term_scores)
             self._log_location_analysis(session, analysis)
             if analysis:
@@ -490,9 +565,9 @@ class AdvancedMedicalNavigator:
                 if boosted_scores:
                     term_scores = boosted_scores
         else:
-            self._log_generic_faiss(element, answer, matches, term_scores)
+            self._log_generic_faiss(scoring_element, answer, matches, term_scores)
 
-        index_data = self.medical_rule_engine.term_embeddings.get(element, {}) if hasattr(self.medical_rule_engine, 'term_embeddings') else {}
+        index_data = self.medical_rule_engine.term_embeddings.get(scoring_element, {}) if hasattr(self.medical_rule_engine, 'term_embeddings') else {}
         term_to_conditions = index_data.get('term_to_conditions', {})
         synonym_to_medical = index_data.get('synonym_to_medical', {})
 
@@ -556,6 +631,16 @@ class AdvancedMedicalNavigator:
             )
 
         self._apply_rule_outs(session)
+
+        if follow_up_question:
+            session.pending = follow_up_question
+            session.messages.append({"role": "assistant", "content": follow_up_question['prompt']})
+            return self._wrap_response(
+                session,
+                follow_up_question['prompt'],
+                metadata=follow_up_question,
+            )
+
         return None
 
     # ----------- Chief complaint matching ------------------------------------
@@ -1487,10 +1572,13 @@ class AdvancedMedicalNavigator:
 
     def _get_element_includes(self, session: "MedicalSession", element: str) -> List[Dict[str, Any]]:
         cache = session.context.setdefault('guideline_includes', {})
-        cache.pop(element, None)
         if element in cache:
             return cache[element]
         categories = session.context.get('matched_categories') or ['gastrointestinal']
+        if element == 'red_flags':
+            collected = self._collect_emergent_entries(session, categories)
+            cache[element] = collected
+            return collected
         collected: List[Dict[str, Any]] = []
         for category in categories:
             guidelines = self._get_guidelines_by_category(category)
@@ -1539,6 +1627,66 @@ class AdvancedMedicalNavigator:
                         })
         cache[element] = collected
         return collected
+
+    def _collect_emergent_entries(self, session: "MedicalSession", categories: List[str]) -> List[Dict[str, Any]]:
+        entries: List[Dict[str, Any]] = []
+        seen: set = set()
+        for category in categories:
+            guidelines = self._get_guidelines_by_category(category)
+            for guideline in guidelines.values():
+                condition_name = guideline.get('condition') or guideline.get('data', {}).get('condition') or guideline.get('name', 'Unknown')
+                condition_urgency = guideline.get('urgency') or guideline.get('data', {}).get('urgency', '')
+                condition_prevalence = guideline.get('prevalence') or guideline.get('data', {}).get('prevalence', '')
+                structured = guideline.get('key_features', {}).get('structured_oldcarts', {})
+                if not structured:
+                    structured = guideline.get('data', {}).get('key_features', {}).get('structured_oldcarts', {})
+                for element_name, element_data in structured.items():
+                    include_items = element_data.get('includes', []) if isinstance(element_data, dict) else []
+                    for entry in include_items:
+                        if not isinstance(entry, dict):
+                            continue
+                        if not entry.get('emergent'):
+                            continue
+                        patient_term = entry.get('patient_friendly') or entry.get('medical')
+                        medical_term = entry.get('medical')
+                        if not isinstance(patient_term, str):
+                            continue
+                        cleaned = patient_term.strip()
+                        if not cleaned:
+                            continue
+                        key = (cleaned.lower(), condition_name)
+                        if key in seen:
+                            continue
+                        seen.add(key)
+                        entries.append({
+                            'patient_friendly': cleaned,
+                            'medical': medical_term.strip() if isinstance(medical_term, str) else '',
+                            'question_tags': [],
+                            'emergent_term': True,
+                            'condition': condition_name,
+                            'condition_urgency': condition_urgency,
+                            'condition_prevalence': condition_prevalence,
+                            'source_element': element_name,
+                        })
+        if not entries:
+            defaults = [
+                "fever over 103°F",
+                "difficulty breathing",
+                "fainting or passing out",
+                "severe chest pain",
+            ]
+            for term in defaults:
+                entries.append({
+                    'patient_friendly': term,
+                    'medical': term,
+                    'question_tags': [],
+                    'emergent_term': True,
+                    'condition': 'General emergency',
+                    'condition_urgency': 'emergent',
+                    'condition_prevalence': 'unknown',
+                    'source_element': 'default',
+                })
+        return entries
 
     def _guideline_terms_for_element(self, session: "MedicalSession", element: str) -> List[str]:
         cache = session.context['guideline_terms']
@@ -1590,7 +1738,12 @@ class AdvancedMedicalNavigator:
         ordered_list = ordered.copy()
         if 'associated' in ordered_list:
             ordered_list.remove('associated')
+        if 'red_flags' in ordered_list:
+            ordered_list.remove('red_flags')
+        if 'associated' in ordered:
             ordered_list.append('associated')
+        if 'red_flags' in self.HPI_ELEMENTS:
+            ordered_list.append('red_flags')
         return ordered_list
 
     def _get_element_weight(self, session: "MedicalSession", element: str) -> float:
@@ -1734,6 +1887,7 @@ class AdvancedMedicalNavigator:
             'character',
             'abruptness',
             'frequency',
+            'red_flags',
         }
         return element not in no_clarification_elements
 
@@ -2139,6 +2293,160 @@ class AdvancedMedicalNavigator:
 
         result['positives'] = list(state.get('positives', []))
         result['negatives'] = list(state.get('negatives', []))
+
+        return result
+
+    def _ensure_red_flag_state(self, session: "MedicalSession") -> Dict[str, Any]:
+        state = session.context.setdefault('red_flag_state', {})
+        state.setdefault('queue', [])
+        state.setdefault('index', 0)
+        state.setdefault('positives', [])
+        state.setdefault('negatives', [])
+        state.setdefault('current', None)
+        return state
+
+    def _prepare_red_flag_queue(self, session: "MedicalSession") -> None:
+        state = self._ensure_red_flag_state(session)
+        if state['queue']:
+            return
+
+        includes = self._get_element_includes(session, 'red_flags')
+        seen_terms: set = set()
+        queue: List[Dict[str, Any]] = []
+
+        for entry in includes:
+            patient_term = (entry.get('patient_friendly') or entry.get('medical') or '').strip()
+            if not patient_term:
+                continue
+            key = patient_term.lower()
+            if key in seen_terms:
+                continue
+            seen_terms.add(key)
+            condition_name = entry.get('condition')
+            score = session.condition_scores.get(condition_name, 0.5) if condition_name else 0.5
+            queue.append({
+                'patient_term': patient_term,
+                'medical_term': entry.get('medical') or patient_term,
+                'condition': condition_name,
+                'score': score,
+                'urgency': entry.get('condition_urgency', ''),
+                'source_element': entry.get('source_element') or 'associated',
+            })
+
+        if not queue:
+            defaults = [
+                "high fever over 103°F",
+                "shortness of breath",
+                "fainting or passing out",
+                "severe chest pain",
+            ]
+            for term in defaults:
+                queue.append({
+                    'patient_term': term,
+                    'medical_term': term,
+                    'condition': 'General emergency',
+                    'score': 0.5,
+                    'urgency': 'emergent',
+                    'source_element': 'associated',
+                })
+
+        queue.sort(key=lambda item: (-item['score'], item['patient_term']))
+
+        state['queue'] = queue
+        state['index'] = 0
+        state['positives'] = []
+        state['negatives'] = []
+        state['current'] = queue[0] if queue else None
+
+    def _prepare_next_red_flag_question(self, session: "MedicalSession") -> Optional[str]:
+        self._prepare_red_flag_queue(session)
+        state = self._ensure_red_flag_state(session)
+        queue = state.get('queue', [])
+        index = state.get('index', 0)
+
+        if index >= len(queue):
+            return None
+
+        entry = queue[index]
+        state['current'] = entry
+        return self._format_red_flag_question(entry)
+
+    def _advance_red_flag_queue(self, session: "MedicalSession") -> Optional[str]:
+        state = self._ensure_red_flag_state(session)
+        state['index'] = state.get('index', 0) + 1
+        queue = state.get('queue', [])
+        if state['index'] >= len(queue):
+            state['current'] = None
+            return None
+        entry = queue[state['index']]
+        state['current'] = entry
+        return self._format_red_flag_question(entry)
+
+    def _format_red_flag_question(self, entry: Dict[str, Any]) -> str:
+        term = entry.get('patient_term', '').rstrip('?').rstrip('.')
+        if not term:
+            return "Have you noticed any urgent warning signs such as difficulty breathing or passing out?"
+        lower = term.lower()
+        if lower.startswith(('having ', 'experiencing ', 'noticing ', 'feeling ')):
+            return f"Have you been {term}? (yes/no)"
+        if lower.startswith(('any ', 'a ')):
+            return f"Have you had {term}? (yes/no)"
+        return f"Have you experienced {term}? (yes/no)"
+
+    def _handle_red_flag_answer(
+        self,
+        session: "MedicalSession",
+        answer: str,
+    ) -> Dict[str, Any]:
+        state = self._ensure_red_flag_state(session)
+        entry = state.get('current')
+        if not entry:
+            return {'completed': True}
+
+        normalized = answer.strip().lower()
+        positive_markers = {'yes', 'y', 'yeah', 'yep', 'affirmative', 'correct', 'sure', 'absolutely', 'definitely', 'i have'}
+        negative_markers = {'no', 'n', 'not really', 'nope', 'nah', 'none', 'negative'}
+
+        positive = False
+        negative = False
+        if normalized in positive_markers or normalized.startswith('yes'):
+            positive = True
+        elif normalized in negative_markers or normalized.startswith('no'):
+            negative = True
+
+        result: Dict[str, Any] = {
+            'score_text': None,
+            'next_question': None,
+            'completed': False,
+        }
+
+        if positive:
+            state['positives'].append(entry['patient_term'])
+            result['score_text'] = entry['patient_term']
+        elif negative:
+            state['negatives'].append(entry['patient_term'])
+        else:
+            result['score_text'] = answer
+
+        next_question = self._advance_red_flag_queue(session)
+        if next_question:
+            result['next_question'] = {
+                'section': 'hpi',
+                'field': 'red_flags',
+                'prompt': next_question,
+                'guidance': 'RED_FLAG_DIRECT',
+                'mode': 'red_flag_sequence',
+                'base_question': next_question,
+            }
+        else:
+            result['completed'] = True
+            state['current'] = None
+            state['queue'] = []
+            state['index'] = 0
+
+        result['positives'] = list(state.get('positives', []))
+        result['negatives'] = list(state.get('negatives', []))
+        result['source_element'] = entry.get('source_element')
 
         return result
 
