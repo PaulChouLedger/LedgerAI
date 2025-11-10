@@ -1853,6 +1853,12 @@ class AdvancedMedicalNavigator:
                     prefix = question.rstrip('.') + '?'
                 question = f"{prefix} You can mention things like: {option_text}."
             return question
+        if section == 'hpi' and field == 'severity':
+            subject = session.context['pre_hpi'].get('chief_complaint') or 'your symptoms'
+            subject = subject.lower()
+            if not subject.endswith('pain') and not subject.endswith('symptoms'):
+                subject = f"your {subject}"
+            return f"On a scale from 1 to 10, how bad is {subject} right now?"
         cc = session.context['pre_hpi'].get('chief_complaint', 'your symptoms') or 'your symptoms'
         recent = '\n'.join(f"{m['role']}: {m['content']}" for m in session.messages[-6:])
         if section == 'pre_hpi' and field == 'chief_complaint':
