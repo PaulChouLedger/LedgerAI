@@ -377,7 +377,7 @@ class AdvancedMedicalNavigator:
             if session.context['pre_hpi'].get('sex'):
                 session.stage = "hpi"
                 session.oldcarts_remaining = self._ordered_oldcarts_elements(session)
-            else:
+        else:
                 prompt = "And for medical documentation, what is your biological sex?"
                 return {'section': 'pre_hpi', 'field': 'sex', 'prompt': prompt, 'guidance': self.PRE_HPI_PROMPTS['sex']}
 
@@ -1892,15 +1892,15 @@ class AdvancedMedicalNavigator:
         rankings = session.condition_rankings[:3]
         ranking_text = ", ".join(f"{name} ({score:.0%})" for name, score in rankings) if rankings else "No ranked conditions yet"
         user_prompt = (
-             f"Chief complaint: {pre.get('chief_complaint', 'Not stated')}\n"
-             f"Chronicity: {pre.get('chronicity', 'Unknown')}\n"
-             f"Age: {pre.get('age', 'Unknown')}\n"
-             f"Biological sex: {pre.get('sex', 'Unknown')}\n"
-             f"OLDCARTS responses: {hpi}\n"
-             f"PMH/PSH/Meds/Allergies: {pmh}\n"
-             f"Top differentials: {ranking_text}\n"
-             "Summarise as bullet points."
-         )
+            f"Chief complaint: {pre.get('chief_complaint', 'Not stated')}\n"
+            f"Chronicity: {pre.get('chronicity', 'Unknown')}\n"
+            f"Age: {pre.get('age', 'Unknown')}\n"
+            f"Biological sex: {pre.get('sex', 'Unknown')}\n"
+            f"OLDCARTS responses: {hpi}\n"
+            f"PMH/PSH/Meds/Allergies: {pmh}\n"
+            f"Top differentials: {ranking_text}\n"
+            "Summarise as bullet points."
+        )
         response = self.llm_chat_fn(
             [
                 {"role": "system", "content": self.SUMMARY_SYSTEM_PROMPT},
@@ -2205,7 +2205,20 @@ class AdvancedMedicalNavigator:
         fallback_bucket: List[Dict[str, Any]] = []
         seen_terms: set = set()
 
-        for entry in includes:
+        target_condition = None
+        sorted_scores = sorted(session.condition_scores.items(), key=lambda item: item[1], reverse=True)
+        if sorted_scores:
+            target_condition = sorted_scores[0][0]
+
+        filtered_entries = []
+        if target_condition:
+            for entry in includes:
+                if entry.get('condition') == target_condition:
+                    filtered_entries.append(entry)
+        if not filtered_entries:
+            filtered_entries = includes
+
+        for entry in filtered_entries:
             patient_term = (entry.get('patient_friendly') or entry.get('medical') or '').strip()
             if not patient_term:
                 continue
@@ -2268,7 +2281,7 @@ class AdvancedMedicalNavigator:
         state['index'] = state.get('index', 0) + 1
         if state['index'] >= len(state.get('queue', [])):
             state['current'] = None
-            return None
+        return None
         entry = state['queue'][state['index']]
         state['current'] = entry
         return self._compose_binary_question(
@@ -2308,9 +2321,12 @@ class AdvancedMedicalNavigator:
 
         if positive:
             state['positives'].append(entry['patient_term'])
-            hpi_associated = session.context['hpi'].setdefault('associated', [])
-            if entry['patient_term'] not in hpi_associated:
-                hpi_associated.append(entry['patient_term'])
+            hpi_assoc = session.context['hpi'].get('associated')
+            if not isinstance(hpi_assoc, list):
+                hpi_assoc = []
+            if entry['patient_term'] not in hpi_assoc:
+                hpi_assoc.append(entry['patient_term'])
+            session.context['hpi']['associated'] = hpi_assoc
             result['score_text'] = entry['patient_term']
         elif negative:
             state['negatives'].append(entry['patient_term'])

@@ -140,11 +140,15 @@
         "includes": [
           {
             "medical": "postprandial",
-            "patient_friendly": "after eating"
+            "patient_friendly": "consuming spicy or fatty foods"
+          },
+          {
+            "medical": "postprandial",
+            "patient_friendly": "drinking coffee or alcohol"
           },
           {
             "medical": "lying down",
-            "patient_friendly": "lying down"
+            "patient_friendly": "lying down after having a meal"
           }
         ],
         "excludes": []
