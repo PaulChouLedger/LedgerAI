@@ -1933,6 +1933,8 @@ class AdvancedMedicalNavigator:
                 question_part = question_part.rstrip('.') + '?'
             option_text = ', '.join(options)
             cleaned = f"{question_part} You can mention things like: {option_text}."
+        elif not cleaned.endswith('?'):
+            cleaned = cleaned.rstrip('.') + '?'
         return cleaned
 
     def _generate_empathetic_statement(self, chief_complaint: str) -> str:
