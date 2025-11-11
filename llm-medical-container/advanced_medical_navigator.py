@@ -362,6 +362,11 @@ class AdvancedMedicalNavigator:
     # ----------- Question selection ------------------------------------------
 
     def _determine_next_question(self, session: "MedicalSession") -> Optional[Dict[str, str]]:
+        if session.stage in {"awaiting_sex", "pre_hpi"} and session.context['pre_hpi'].get('sex'):
+            session.stage = "hpi"
+            if not session.oldcarts_remaining:
+                session.oldcarts_remaining = self._ordered_oldcarts_elements(session)
+
         if session.stage == "awaiting_chronicity":
             if not session.context['pre_hpi'].get('chronicity'):
                 return None
@@ -1863,11 +1868,20 @@ class AdvancedMedicalNavigator:
                 "Greet the patient warmly (e.g., 'Hi there, it's nice to meet you.') and ask what brings them in today"
                 " and for how long. Return one friendly sentence combining greeting and question."
             )
+        extra_rules = ""
+        if section == 'hpi':
+            extra_rules = (
+                "Do not repeat demographic questions (age, sex, chronicity). "
+                "Address only the specified OLDCARTS element for the chief complaint."
+            )
+        elif section == 'pre_hpi' and field in {'age', 'sex'}:
+            extra_rules = "Ask this demographic question plainly in one sentence without additional commentary."
         user_prompt = (
             f"Section: {section}\n"
             f"Field: {field}\n"
             f"Chief complaint: {cc}\n"
             f"Guidance: {guidance}\n"
+            f"Additional instructions: {extra_rules}\n"
             f"Recent conversation:\n{recent}\n"
             "Return one concise question that follows the guidance without any preface."
         )
