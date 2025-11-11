@@ -831,7 +831,7 @@ class AdvancedMedicalNavigator:
             if isinstance(parsed, dict):
                 for key, value in parsed.items():
                     if not isinstance(value, (int, float)):
-                    continue
+                        continue
                     term_key = key.strip()
                     score = max(0.0, min(1.0, float(value)))
                     canonical = alias_map.get(term_key.lower())
@@ -848,7 +848,7 @@ class AdvancedMedicalNavigator:
             llm_score = llm_scores.get(term, llm_scores.get(term.lower()))
             if llm_score is None:
                 review_rows.append((term, faiss_score, 0.0, faiss_score))
-                    continue
+                continue
             blended = ((1 - self.LLM_MATCH_BLEND_WEIGHT) * faiss_score) + (self.LLM_MATCH_BLEND_WEIGHT * llm_score)
             refined_scores[term] = blended
             review_rows.append((term, faiss_score, llm_score, blended))
@@ -888,7 +888,7 @@ class AdvancedMedicalNavigator:
                     if term_components and self.medical_rule_engine._are_anatomical_opposites(patient_components, term_components):
                         continue
                 filtered_guidelines.append(guideline)
-            else:
+        else:
             filtered_guidelines = guidelines
 
         # Step 2: collect terms
@@ -1075,7 +1075,7 @@ class AdvancedMedicalNavigator:
                     continue
                 if any(session.condition_scores.get(cond, 0.5) > baseline for cond in conds):
                     filtered.append(opt)
-        else:
+                else:
                     skipped.append(opt)
             if skipped:
                 self._capture_debug(
@@ -1236,7 +1236,7 @@ class AdvancedMedicalNavigator:
             if in_semantic:
                 self._capture_debug(f"[Location Analysis]   ✅ '{term}' satisfied")
                 satisfied_terms_log.append(term)
-        else:
+            else:
                 self._capture_debug(f"[Location Analysis]   ❌ '{term}' not satisfied")
                 unsatisfied_terms_log.append(term)
             checked_terms.append(term)
@@ -1850,7 +1850,7 @@ class AdvancedMedicalNavigator:
                             tag_list = [tags.lower()]
                         elif isinstance(tags, (list, tuple, set)):
                             tag_list = [str(tag).lower() for tag in tags if isinstance(tag, str)]
-            else:
+                        else:
                             tag_list = []
                         emergent_term = bool(entry.get('emergent'))
                         collected.append({
@@ -2148,7 +2148,7 @@ class AdvancedMedicalNavigator:
             f"Top differentials: {ranking_text}\n"
             "Summarise as bullet points."
         )
-                response = self.llm_chat_fn(
+        response = self.llm_chat_fn(
             [
                 {"role": "system", "content": self.SUMMARY_SYSTEM_PROMPT},
                 {"role": "user", "content": user_prompt},
