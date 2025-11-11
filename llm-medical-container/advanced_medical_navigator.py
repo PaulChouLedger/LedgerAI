@@ -377,7 +377,7 @@ class AdvancedMedicalNavigator:
             if session.context['pre_hpi'].get('sex'):
                 session.stage = "hpi"
                 session.oldcarts_remaining = self._ordered_oldcarts_elements(session)
-            else:
+        else:
                 prompt = "And for medical documentation, what is your biological sex?"
                 return {'section': 'pre_hpi', 'field': 'sex', 'prompt': prompt, 'guidance': self.PRE_HPI_PROMPTS['sex']}
 
@@ -1843,22 +1843,20 @@ class AdvancedMedicalNavigator:
         base_question: Optional[str] = None,
         options: Optional[List[str]] = None,
     ) -> str:
-        if not self.llm_chat_fn:
-            question = base_question or guidance
-            if section == 'hpi' and options:
-                option_text = ', '.join(options)
-                if question.endswith('?'):
-                    prefix = question
-                else:
-                    prefix = question.rstrip('.') + '?'
-                question = f"{prefix} You can mention things like: {option_text}."
-            return question
         if section == 'hpi' and field == 'severity':
-            subject = session.context['pre_hpi'].get('chief_complaint') or 'your symptoms'
-            subject = subject.lower()
-            if not subject.endswith('pain') and not subject.endswith('symptoms'):
-                subject = f"your {subject}"
-            return f"On a scale from 1 to 10, how bad is {subject} right now?"
+            raw_subject = session.context['pre_hpi'].get('chief_complaint')
+            subject = self._normalize_subject_for_questions(raw_subject)
+            if subject.startswith(('your ', 'the ', 'this ')):
+                subject_phrase = subject
+            else:
+                subject_phrase = f"your {subject}"
+            guidance = (
+                f"Ask the patient to rate how bad {subject_phrase} is on a scale from 1 to 10. "
+                "Return a single concise question ending with a question mark."
+            )
+            base_question = f"On a scale from 1 to 10, how bad is {subject_phrase} right now?"
+        if not self.llm_chat_fn:
+            return base_question or guidance or ""
         cc = session.context['pre_hpi'].get('chief_complaint', 'your symptoms') or 'your symptoms'
         recent = '\n'.join(f"{m['role']}: {m['content']}" for m in session.messages[-6:])
         if section == 'pre_hpi' and field == 'chief_complaint':
