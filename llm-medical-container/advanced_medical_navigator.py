@@ -485,6 +485,20 @@ class AdvancedMedicalNavigator:
             elif field == 'sex':
                 session.stage = "hpi"
                 session.oldcarts_remaining = self._ordered_oldcarts_elements(session)
+                session.pending = None
+                next_prompt = self._next_oldcarts_question(session)
+                if next_prompt:
+                    session.pending = next_prompt
+                    session.messages.append({"role": "assistant", "content": next_prompt['prompt']})
+                    return self._wrap_response(
+                        session,
+                        next_prompt['prompt'],
+                        metadata={
+                            'section': next_prompt['section'],
+                            'field': next_prompt['field'],
+                        },
+                    )
+                return None
             session.pending = None
             return None
         elif section == 'hpi':
@@ -1864,6 +1878,9 @@ class AdvancedMedicalNavigator:
         cc = session.context['pre_hpi'].get('chief_complaint', 'your symptoms') or 'your symptoms'
         if section == 'hpi':
             recent = ""
+            last_user = next((m['content'] for m in reversed(session.messages) if m['role'] == 'user'), "")
+            if last_user:
+                recent = f"user: {last_user}"
             element_instruction = (
                 f"Ask exactly one question about the '{field}' aspect of the chief complaint. "
                 "Do not repeat demographic questions (age, sex, chronicity) or acknowledge prior demographic answers. "
@@ -1902,6 +1919,8 @@ class AdvancedMedicalNavigator:
             max_tokens=60,
             temperature=0.5,
         )
+        self._capture_debug(f"[LLM] ❓ Question prompt:\n{user_prompt}")
+        self._capture_debug(f"[LLM] ❓ Raw question response: {response}")
         cleaned = self._clean_llm_response(response)
         if not cleaned:
             raise ValueError(f"LLM returned empty question for {field}")
@@ -1927,6 +1946,8 @@ class AdvancedMedicalNavigator:
             max_tokens=80,
             temperature=0.4,
         )
+        self._capture_debug(f"[LLM] ❤️ Empathy prompt: Patient concern: {chief_complaint}")
+        self._capture_debug(f"[LLM] ❤️ Empathy response: {response}")
         return self._clean_llm_response(response, fallback="I'm sorry you're dealing with that." )
 
     def _generate_chronicity_question(self) -> str:
@@ -1940,6 +1961,8 @@ class AdvancedMedicalNavigator:
             max_tokens=60,
             temperature=0.3,
         )
+        self._capture_debug("[LLM] 🕒 Chronicity prompt issued.")
+        self._capture_debug(f"[LLM] 🕒 Chronicity response: {response}")
         return self._clean_llm_response(response, fallback="Is this a new problem or something you've had before with a diagnosis?")
 
     def _generate_summary(self, session: "MedicalSession") -> str:
@@ -1968,6 +1991,8 @@ class AdvancedMedicalNavigator:
             max_tokens=220,
             temperature=0.2,
         )
+        self._capture_debug(f"[LLM] 📝 Summary prompt:\n{user_prompt}")
+        self._capture_debug(f"[LLM] 📝 Summary response: {response}")
         return response.strip() if response else "History collection complete."
 
     # ----------- Validation / Clarification ----------------------------------
