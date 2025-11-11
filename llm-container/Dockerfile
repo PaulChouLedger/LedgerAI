@@ -41,6 +41,7 @@ COPY models/Nemotron-Mini-4B-Instruct-Q4_K_M.gguf /models/Nemotron-Mini-4B-Instr
 
 # Copy Python application files
 COPY container_rest.py ./
+COPY conversation_manager.py ./
 
 # Copy RAG module (organized structure)
 COPY rag/ /app/rag/

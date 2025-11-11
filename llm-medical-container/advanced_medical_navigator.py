@@ -750,7 +750,7 @@ class AdvancedMedicalNavigator:
                     patient_term = item
                     medical_term = item
                 if not isinstance(patient_term, str):
-                        continue
+                    continue
                 normalized_pf = patient_term.strip()
                 if not normalized_pf:
                     continue
@@ -803,7 +803,7 @@ class AdvancedMedicalNavigator:
                 med_components = self.medical_rule_engine._extract_anatomical_components(med.lower())
                 if not med_components:
                     filtered_satisfied.append(med)
-                continue
+                    continue
                 if not self.medical_rule_engine._are_anatomical_opposites(patient_components, med_components):
                     filtered_satisfied.append(med)
             satisfied_medical_terms = filtered_satisfied
@@ -824,9 +824,8 @@ class AdvancedMedicalNavigator:
                 filtered_missing = []
                 for med in unsatisfied_medical:
                     med_components = self.medical_rule_engine._extract_anatomical_components(med.lower())
-                    if med_components and self.medical_rule_engine._are_anatomical_opposites(patient_components, med_components):
-                        continue
-                    filtered_missing.append(med)
+                    if not (med_components and self.medical_rule_engine._are_anatomical_opposites(patient_components, med_components)):
+                        filtered_missing.append(med)
                 unsatisfied_medical = filtered_missing
             # rank by FAISS scores if available
             scored_missing = []
@@ -918,7 +917,7 @@ class AdvancedMedicalNavigator:
                     continue
                 if any(session.condition_scores.get(cond, 0.5) > baseline for cond in conds):
                     filtered.append(opt)
-            else:
+                else:
                     skipped.append(opt)
             if skipped:
                 self._capture_debug(
