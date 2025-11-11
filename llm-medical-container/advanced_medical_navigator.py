@@ -92,6 +92,10 @@ class AdvancedMedicalNavigator:
 
     RULE_OUT_THRESHOLD = 0.05
 
+    LLM_MATCH_REVIEW_LIMIT = 8
+    LLM_MATCH_BLEND_WEIGHT = 0.5
+    LLM_MATCH_ACCEPT_THRESHOLD = 0.5
+
     PMH_ELEMENTS = ["pmh", "psh", "meds_allergies"]
     PMH_PROMPTS = {
         "pmh": "Do you have any existing medical conditions?",
@@ -124,6 +128,13 @@ class AdvancedMedicalNavigator:
     SUMMARY_SYSTEM_PROMPT = (
         "You are a clinical assistant. Produce ≤6 bullet points summarising demographics, chief complaint,"
         " focused OLDCARTS facts, PMH/meds/allergies, and top ranked differentials with urgency."
+    )
+
+    MATCH_REVIEW_SYSTEM_PROMPT = (
+        "You are a medical expert helping evaluate whether patient statements correspond to medical guideline terms."
+        " For each candidate term you receive, output ONLY strict JSON on a single line where each key is the term"
+        " and each value is a number between 0 and 1 representing semantic equivalence (higher = better match)."
+        " Do not include explanations or additional text."
     )
 
     GREETING_RESPONSES = (
@@ -588,13 +599,25 @@ class AdvancedMedicalNavigator:
             if source_element:
                 scoring_element = source_element
 
+        faiss_threshold = 0.6
         matches = self.medical_rule_engine.find_matching_terms_faiss(
             prompt=answer,
             element=scoring_element,
-            threshold=0.6,
+            threshold=faiss_threshold,
             return_scores=True,
         )
         term_scores = getattr(self.medical_rule_engine, '_last_faiss_scores', {}) or {}
+
+        matches, term_scores, review_rows = self._llm_refine_matches(
+            session,
+            scoring_element,
+            answer,
+            matches,
+            term_scores,
+            faiss_threshold,
+        )
+        if review_rows:
+            self._log_llm_match_review(scoring_element, answer, review_rows)
 
         if pending and pending.get('clarification'):
             session.context['clarifications'].pop(element, None)
@@ -718,6 +741,20 @@ class AdvancedMedicalNavigator:
         else:
             self._capture_debug(f"[FAISS] ⚠️ No patient-friendly terms matched {element} for '{answer}'")
 
+    def _log_llm_match_review(
+        self,
+        element: str,
+        answer: str,
+        review_rows: List[Tuple[str, float, float, float]],
+    ) -> None:
+        if not review_rows:
+            return
+        self._capture_debug(f"[LLM] 🔍 Match review for '{answer}' in {element}:")
+        for term, faiss_score, llm_score, blended in review_rows:
+            self._capture_debug(
+                f"[LLM]   • {term}: FAISS={faiss_score:.3f}, LLM={llm_score:.3f}, blended={blended:.3f}"
+            )
+
     def _collect_guidelines_for_session(self, session: "MedicalSession") -> List[Dict[str, Any]]:
         categories = session.context.get('matched_categories') or ['gastrointestinal']
         conditions = set(session.condition_scores.keys())
@@ -736,6 +773,95 @@ class AdvancedMedicalNavigator:
         if not structured:
             structured = guideline.get('data', {}).get('key_features', {}).get('structured_oldcarts', {})
         return structured or {}
+
+    def _llm_refine_matches(
+        self,
+        session: "MedicalSession",
+        element: str,
+        answer: str,
+        matches: List[str],
+        term_scores: Dict[str, float],
+        threshold: float,
+    ) -> Tuple[List[str], Dict[str, float], List[Tuple[str, float, float, float]]]:
+        if not matches or not self.llm_chat_fn:
+            return matches, term_scores, []
+
+        unique_matches: List[str] = []
+        for term in matches:
+            if term not in unique_matches:
+                unique_matches.append(term)
+
+        ordered = sorted(unique_matches, key=lambda t: term_scores.get(t, 0.0), reverse=True)
+        limited = ordered[: self.LLM_MATCH_REVIEW_LIMIT]
+        if not limited:
+            return matches, term_scores, []
+
+        alias_map = {term.lower(): term for term in limited}
+        candidate_lines = "\n".join(f"- {term}" for term in limited)
+        user_prompt = (
+            f"Chief complaint context: {session.context['pre_hpi'].get('chief_complaint', 'unknown')}\n"
+            f"Patient statement: {answer}\n"
+            "Candidate terms:\n"
+            f"{candidate_lines}\n"
+            "Return JSON like {\"term\": score} with score between 0 and 1 for each listed term."
+        )
+        self._capture_debug(f"[LLM] 🔍 Match review prompt:\n{user_prompt}")
+        response = self.llm_chat_fn(
+            [
+                {"role": "system", "content": self.MATCH_REVIEW_SYSTEM_PROMPT},
+                {"role": "user", "content": user_prompt},
+            ],
+            max_tokens=160,
+            temperature=0.0,
+        )
+        self._capture_debug(f"[LLM] 🔍 Match review raw response: {response}")
+
+        llm_scores: Dict[str, float] = {}
+        if response:
+            parsed = None
+            try:
+                parsed = json.loads(response)
+            except json.JSONDecodeError:
+                json_match = re.search(r"\{.*\}", response, re.DOTALL)
+                if json_match:
+                    try:
+                        parsed = json.loads(json_match.group(0))
+                    except json.JSONDecodeError:
+                        parsed = None
+            if isinstance(parsed, dict):
+                for key, value in parsed.items():
+                    if not isinstance(value, (int, float)):
+                    continue
+                    term_key = key.strip()
+                    score = max(0.0, min(1.0, float(value)))
+                    canonical = alias_map.get(term_key.lower())
+                    if canonical:
+                        llm_scores[canonical] = score
+                    else:
+                        llm_scores[term_key] = score
+
+        refined_scores = dict(term_scores)
+        review_rows: List[Tuple[str, float, float, float]] = []
+
+        for term in limited:
+            faiss_score = refined_scores.get(term, 0.0)
+            llm_score = llm_scores.get(term, llm_scores.get(term.lower()))
+            if llm_score is None:
+                review_rows.append((term, faiss_score, 0.0, faiss_score))
+                    continue
+            blended = ((1 - self.LLM_MATCH_BLEND_WEIGHT) * faiss_score) + (self.LLM_MATCH_BLEND_WEIGHT * llm_score)
+            refined_scores[term] = blended
+            review_rows.append((term, faiss_score, llm_score, blended))
+
+        blended_threshold = max(self.LLM_MATCH_ACCEPT_THRESHOLD, threshold)
+        filtered = [term for term in ordered if refined_scores.get(term, 0.0) >= blended_threshold]
+
+        if not filtered:
+            best_term = max(ordered, key=lambda t: refined_scores.get(t, 0.0))
+            if refined_scores.get(best_term, 0.0) >= self.LLM_MATCH_ACCEPT_THRESHOLD:
+                filtered = [best_term]
+
+        return filtered, refined_scores, review_rows
 
     def _analyze_location_answer(
         self,
@@ -762,7 +888,7 @@ class AdvancedMedicalNavigator:
                     if term_components and self.medical_rule_engine._are_anatomical_opposites(patient_components, term_components):
                         continue
                 filtered_guidelines.append(guideline)
-        else:
+            else:
             filtered_guidelines = guidelines
 
         # Step 2: collect terms
@@ -949,7 +1075,7 @@ class AdvancedMedicalNavigator:
                     continue
                 if any(session.condition_scores.get(cond, 0.5) > baseline for cond in conds):
                     filtered.append(opt)
-                else:
+        else:
                     skipped.append(opt)
             if skipped:
                 self._capture_debug(
@@ -1110,7 +1236,7 @@ class AdvancedMedicalNavigator:
             if in_semantic:
                 self._capture_debug(f"[Location Analysis]   ✅ '{term}' satisfied")
                 satisfied_terms_log.append(term)
-            else:
+        else:
                 self._capture_debug(f"[Location Analysis]   ❌ '{term}' not satisfied")
                 unsatisfied_terms_log.append(term)
             checked_terms.append(term)
@@ -1724,7 +1850,7 @@ class AdvancedMedicalNavigator:
                             tag_list = [tags.lower()]
                         elif isinstance(tags, (list, tuple, set)):
                             tag_list = [str(tag).lower() for tag in tags if isinstance(tag, str)]
-                        else:
+            else:
                             tag_list = []
                         emergent_term = bool(entry.get('emergent'))
                         collected.append({
@@ -2022,7 +2148,7 @@ class AdvancedMedicalNavigator:
             f"Top differentials: {ranking_text}\n"
             "Summarise as bullet points."
         )
-        response = self.llm_chat_fn(
+                response = self.llm_chat_fn(
             [
                 {"role": "system", "content": self.SUMMARY_SYSTEM_PROMPT},
                 {"role": "user", "content": user_prompt},
