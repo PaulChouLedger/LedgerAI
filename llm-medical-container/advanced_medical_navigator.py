@@ -208,6 +208,7 @@ class AdvancedMedicalNavigator:
         previous_active: set = field(default_factory=set)
         oldcarts_remaining: List[str] = field(default_factory=list)
         completed: bool = False
+        last_field: Optional[str] = None
 
     def _extract_chief_complaint_descriptors(self, complaint: str) -> Dict[str, bool]:
         complaint_lower = (complaint or "").lower()
@@ -436,8 +437,19 @@ class AdvancedMedicalNavigator:
             session.stage = "pmh"
             return self._determine_next_question(session)
 
-        element = session.oldcarts_remaining.pop(0)
+        element = None
+        answered = {key for key, value in session.context['hpi'].items() if value}
+        while session.oldcarts_remaining:
+            candidate = session.oldcarts_remaining.pop(0)
+            if candidate in answered:
+                continue
+            element = candidate
+            break
+        if element is None:
+            session.stage = "pmh"
+            return self._determine_next_question(session)
         cc_subject = self._normalize_subject_for_questions(session.context['pre_hpi'].get('chief_complaint'))
+        session.last_field = element
 
         if element == 'associated':
             question_info = self._prepare_next_associated_question(session)
@@ -498,7 +510,7 @@ class AdvancedMedicalNavigator:
                             'field': next_prompt['field'],
                         },
                     )
-                return None
+            return None
             session.pending = None
             return None
         elif section == 'hpi':
@@ -677,6 +689,7 @@ class AdvancedMedicalNavigator:
                 metadata=follow_up_question,
             )
 
+        session.last_field = None
         return None
 
     # ----------- Chief complaint matching ------------------------------------
@@ -1471,6 +1484,20 @@ class AdvancedMedicalNavigator:
             'mode': mode,
         }
 
+    def _last_exchange(self, session: "MedicalSession") -> Tuple[Optional[str], Optional[str]]:
+        last_user = None
+        last_assistant = None
+        for msg in reversed(session.messages):
+            role = msg.get('role')
+            content = msg.get('content')
+            if role == 'user' and last_user is None:
+                last_user = content
+            elif role == 'assistant' and last_assistant is None:
+                last_assistant = content
+            if last_user and last_assistant:
+                break
+        return last_assistant, last_user
+
     def _collect_character_tags(self, session: "MedicalSession") -> set:
         summary = self._character_tag_summary(session)
         return summary.get('tags', set())
@@ -1839,7 +1866,9 @@ class AdvancedMedicalNavigator:
             ordered_list.append('associated')
         if 'red_flags' in self.HPI_ELEMENTS:
             ordered_list.append('red_flags')
-        return ordered_list
+        answered = {key for key, value in session.context['hpi'].items() if value}
+        filtered = [element for element in ordered_list if element not in answered]
+        return filtered
 
     def _get_element_weight(self, session: "MedicalSession", element: str) -> float:
         categories = session.context['matched_categories'] or ['gastrointestinal']
@@ -1876,18 +1905,26 @@ class AdvancedMedicalNavigator:
         if not self.llm_chat_fn:
             return base_question or guidance or ""
         cc = session.context['pre_hpi'].get('chief_complaint', 'your symptoms') or 'your symptoms'
+        last_assistant, last_user = self._last_exchange(session)
         if section == 'hpi':
-            recent = ""
-            last_user = next((m['content'] for m in reversed(session.messages) if m['role'] == 'user'), "")
+            exchange_lines = []
+            if last_assistant:
+                exchange_lines.append(f"assistant: {last_assistant}")
             if last_user:
-                recent = f"user: {last_user}"
+                exchange_lines.append(f"user: {last_user}")
+            recent = "\n".join(exchange_lines)
             element_instruction = (
                 f"Ask exactly one question about the '{field}' aspect of the chief complaint. "
                 "Do not repeat demographic questions (age, sex, chronicity) or acknowledge prior demographic answers. "
                 "Do not repeat previous questions verbatim."
             )
         else:
-            recent = '\n'.join(f"{m['role']}: {m['content']}" for m in session.messages[-6:])
+            exchange_lines = []
+            if last_assistant:
+                exchange_lines.append(f"assistant: {last_assistant}")
+            if last_user:
+                exchange_lines.append(f"user: {last_user}")
+            recent = "\n".join(exchange_lines)
             element_instruction = ""
         if section == 'pre_hpi' and field == 'chief_complaint':
             guidance = (
