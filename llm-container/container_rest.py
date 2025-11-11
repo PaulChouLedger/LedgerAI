@@ -4,9 +4,12 @@
 from flask import Flask, request, jsonify, stream_with_context, Response
 from llama_cpp import Llama
 from dotenv import load_dotenv
-import os, re, json, string, threading, time
-from datetime import datetime
+import os, threading, atexit
 import requests
+from typing import List, Optional
+
+# Conversation management for passive listening and keyword activation
+from conversation_manager import ConversationMemoryIndex, ConversationOrchestrator
 
 # Import modular RAG client (supports both GPU and CPU modes)
 from rag import get_rag_client
@@ -23,6 +26,48 @@ SIMPLE_N_CTX = int(os.getenv("SIMPLE_N_CTX", "2048"))
 SIMPLE_CHAT_FORMAT = os.getenv("SIMPLE_CHAT_FORMAT", "chatml")
 
 llm_simple = None
+
+# === Conversation Memory / Activation Config ===
+def _get_env_float(name: str, default: float) -> float:
+    raw = os.getenv(name)
+    if raw is None:
+        return float(default)
+    try:
+        return float(raw)
+    except (TypeError, ValueError):
+        return float(default)
+
+
+def _get_env_int(name: str, default: int) -> int:
+    raw = os.getenv(name)
+    if raw is None:
+        return int(default)
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        return int(default)
+
+
+ACTIVATION_KEYWORDS = [
+    kw.strip().lower()
+    for kw in os.getenv("ACTIVATION_KEYWORDS", "hey aura").split(",")
+    if kw.strip()
+]
+ACTIVATION_WINDOW_SECONDS = _get_env_float("ACTIVATION_WINDOW_SECONDS", 15.0)
+ACTIVATION_COOLDOWN_SECONDS = _get_env_float("ACTIVATION_COOLDOWN_SECONDS", 3.0)
+CONVERSATION_MEMORY_DIR = os.getenv(
+    "CONVERSATION_MEMORY_DIR", "data/learning/conversation_memory"
+)
+CONVERSATION_MEMORY_PERSIST_EVERY = _get_env_int(
+    "CONVERSATION_MEMORY_PERSIST_EVERY", 10
+)
+CONVERSATION_MEMORY_MAX_ENTRIES = _get_env_int(
+    "CONVERSATION_MEMORY_MAX_ENTRIES", 5000
+)
+CONVERSATION_MEMORY_TOP_K = _get_env_int("CONVERSATION_MEMORY_TOP_K", 3)
+CONVERSATION_MEMORY_MIN_SCORE = _get_env_float(
+    "CONVERSATION_MEMORY_MIN_SCORE", 0.35
+)
 
 # === Health Check Endpoint ===
 @app.route("/health", methods=["GET"])
@@ -96,50 +141,98 @@ def llm_chat_simple(messages, max_tokens=None, temperature=None, stream=False, *
             return ""
 
 # === Conversational Logic ===
-def handle_conversation(prompt: str, session_id: str):
+def handle_conversation(
+    prompt: str, session_id: str, memory_context: Optional[str] = None
+):
     """Handle general conversation with optional RAG"""
     
     # Try RAG first for knowledge queries
     RAG_ENABLED = os.getenv("RAG_ENABLED", "false").lower() == "true"
-    
+    rag_context = ""
     if RAG_ENABLED:
         try:
             rag_client = get_rag_client()
             results = rag_client.search(query=prompt, k=3)
             
             if results and len(results) > 0:
-                context = "\n".join([r.get('text', '') for r in results[:3] if r.get('text')])
-                
-                messages = [
-                    {
-                        "role": "system",
-                        "content": f"""You are a helpful assistant. Answer questions using the provided context.
-
-Context:
-{context}
-
-User question: {prompt}
-
-Provide a clear, helpful answer based on the context. If the context doesn't fully answer the question, say so."""
-                    }
-                ]
-                return llm_chat_simple(messages, max_tokens=300)
+                rag_context = "\n".join(
+                    [r.get("text", "") for r in results[:3] if r.get("text")]
+                )
         except Exception as e:
             print(f"[Generic] ⚠️ RAG failed, using direct LLM: {e}")
     
-    # Fallback to direct LLM conversation
+    contextual_sections: List[str] = []
+    if rag_context:
+        contextual_sections.append(f"Knowledge context:\n{rag_context}")
+    if memory_context:
+        contextual_sections.append(f"Conversation memory:\n{memory_context}")
+    combined_context = "\n\n".join(contextual_sections).strip()
+
+    if combined_context:
+        messages = [
+            {
+                "role": "system",
+                "content": (
+                    "You are a helpful assistant. Use the provided knowledge context "
+                    "and conversation memory to answer the user's question.\n\n"
+                    f"{combined_context}\n\n"
+                    f"User question: {prompt}\n\n"
+                    "If the provided context does not contain the answer, acknowledge "
+                    "that and answer based on your general knowledge."
+                ),
+            }
+        ]
+        return llm_chat_simple(messages, max_tokens=300)
+
+    # Fallback to direct LLM conversation without external context
+    system_prompt = (
+        "You are a helpful, friendly assistant. Keep responses concise and conversational."
+    )
+    if memory_context:
+        system_prompt += f"\n\nConversation memory you can reference:\n{memory_context}"
     messages = [
         {
             "role": "system",
-            "content": "You are a helpful, friendly assistant. Keep responses concise and conversational."
+            "content": system_prompt,
         },
         {
             "role": "user",
-            "content": prompt
-        }
+            "content": prompt,
+        },
     ]
-    
+
     return llm_chat_simple(messages, max_tokens=300)
+
+
+def _embed_texts(texts: List[str]) -> List[List[float]]:
+    if not texts:
+        return []
+    try:
+        rag_client = get_rag_client()
+        return rag_client.embed(texts)
+    except Exception as exc:
+        print(f"[Memory] ⚠️ Failed to generate embeddings: {exc}")
+        return []
+
+
+conversation_memory = ConversationMemoryIndex(
+    storage_dir=CONVERSATION_MEMORY_DIR,
+    persist_every=CONVERSATION_MEMORY_PERSIST_EVERY,
+    max_entries=CONVERSATION_MEMORY_MAX_ENTRIES,
+)
+
+conversation_orchestrator = ConversationOrchestrator(
+    memory_index=conversation_memory,
+    embed_fn=_embed_texts,
+    conversation_handler=handle_conversation,
+    activation_keywords=ACTIVATION_KEYWORDS,
+    activation_window=ACTIVATION_WINDOW_SECONDS,
+    activation_cooldown=ACTIVATION_COOLDOWN_SECONDS,
+    memory_top_k=CONVERSATION_MEMORY_TOP_K,
+    memory_min_score=CONVERSATION_MEMORY_MIN_SCORE,
+)
+
+atexit.register(conversation_orchestrator.flush_memory)
 
 # === Chat Endpoints ===
 @app.route("/chat-tg", methods=["POST"])
@@ -182,6 +275,43 @@ def chat_tts():
             yield "I apologize, I encountered an error."
     
     return Response(stream_with_context(generate_response()), mimetype="text/plain")
+
+
+@app.route("/voice/transcript", methods=["POST"])
+def voice_transcript():
+    """
+    Passive transcript ingestion endpoint.
+    
+    Accepts continuous text from the SST pipeline, indexes it for long-term memory,
+    and returns an LLM response only when an activation keyword window is open.
+    """
+    data = request.get_json(silent=True) or {}
+    text = (data.get("text") or "").strip()
+    session_id = str(
+        data.get("session_id") or data.get("chat_id") or data.get("conversation_id") or "default"
+    )
+    is_final = bool(data.get("is_final", True))
+    timestamp = data.get("timestamp")
+    metadata = data.get("metadata") or {}
+
+    if not text:
+        return jsonify({"error": "Missing text"}), 400
+
+    result = conversation_orchestrator.process_chunk(
+        session_id=session_id,
+        text=text,
+        is_final=is_final,
+        timestamp=timestamp,
+        metadata=metadata,
+    )
+
+    return jsonify(
+        {
+            "status": "ok",
+            "session_id": session_id,
+            **result,
+        }
+    )
 
 # === CPU FAISS Auto-Ingestion Endpoints ===
 @app.route('/cpu-faiss/ingest', methods=['POST'])

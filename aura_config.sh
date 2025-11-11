@@ -150,6 +150,26 @@ show_all_settings() {
         echo "  Volume:       (not set)"
     fi
     echo ""
+
+    local activation_keywords=$(get_config_value 'ACTIVATION_KEYWORDS')
+    local activation_window=$(get_config_value 'ACTIVATION_WINDOW_SECONDS')
+    local activation_cooldown=$(get_config_value 'ACTIVATION_COOLDOWN_SECONDS')
+    local memory_dir=$(get_config_value 'CONVERSATION_MEMORY_DIR')
+    local memory_persist_every=$(get_config_value 'CONVERSATION_MEMORY_PERSIST_EVERY')
+    local memory_max_entries=$(get_config_value 'CONVERSATION_MEMORY_MAX_ENTRIES')
+    local memory_top_k=$(get_config_value 'CONVERSATION_MEMORY_TOP_K')
+    local memory_min_score=$(get_config_value 'CONVERSATION_MEMORY_MIN_SCORE')
+
+    echo -e "${BOLD}🎙️ VOICE ACTIVATION & MEMORY${NC}"
+    echo "  Keywords:       ${activation_keywords:-hey aura}"
+    echo "  Window (sec):   ${activation_window:-15}"
+    echo "  Cooldown (sec): ${activation_cooldown:-3}"
+    echo "  Memory dir:     ${memory_dir:-data/learning/conversation_memory}"
+    echo "  Persist every:  ${memory_persist_every:-10}"
+    echo "  Max entries:    ${memory_max_entries:-5000}"
+    echo "  Top K recall:   ${memory_top_k:-3}"
+    echo "  Min score:      ${memory_min_score:-0.35}"
+    echo ""
     
     echo -e "${BOLD}💬 TELEGRAM BOT${NC}"
     local tg_token=$(get_config_value 'TELEGRAM_BOT_TOKEN')
@@ -726,6 +746,115 @@ configure_tts() {
     esac
 }
 
+configure_voice_activation() {
+    print_header "VOICE ACTIVATION & CONVERSATION MEMORY"
+
+    local keywords=$(get_config_value 'ACTIVATION_KEYWORDS')
+    local window=$(get_config_value 'ACTIVATION_WINDOW_SECONDS')
+    local cooldown=$(get_config_value 'ACTIVATION_COOLDOWN_SECONDS')
+    local memory_dir=$(get_config_value 'CONVERSATION_MEMORY_DIR')
+    local persist_every=$(get_config_value 'CONVERSATION_MEMORY_PERSIST_EVERY')
+    local max_entries=$(get_config_value 'CONVERSATION_MEMORY_MAX_ENTRIES')
+    local top_k=$(get_config_value 'CONVERSATION_MEMORY_TOP_K')
+    local min_score=$(get_config_value 'CONVERSATION_MEMORY_MIN_SCORE')
+
+    [ -z "$keywords" ] && keywords="hey aura"
+    [ -z "$window" ] && window="15"
+    [ -z "$cooldown" ] && cooldown="3"
+    [ -z "$memory_dir" ] && memory_dir="data/learning/conversation_memory"
+    [ -z "$persist_every" ] && persist_every="10"
+    [ -z "$max_entries" ] && max_entries="5000"
+    [ -z "$top_k" ] && top_k="3"
+    [ -z "$min_score" ] && min_score="0.35"
+
+    echo "Current Settings:"
+    echo ""
+    echo "  Activation keywords:     $keywords"
+    echo "  Activation window (sec): $window"
+    echo "  Activation cooldown (sec): $cooldown"
+    echo "  Memory directory:        $memory_dir"
+    echo "  Persist every (entries): $persist_every"
+    echo "  Max entries stored:      $max_entries"
+    echo "  Memory Top K recall:     $top_k"
+    echo "  Memory minimum score:    $min_score"
+    echo ""
+
+    echo "1) Set activation keywords (comma-separated)"
+    echo "2) Set activation window (seconds)"
+    echo "3) Set activation cooldown (seconds)"
+    echo "4) Set memory directory"
+    echo "5) Set persistence interval (entries)"
+    echo "6) Set memory max entries"
+    echo "7) Set memory Top K recall"
+    echo "8) Set memory minimum score"
+    echo "9) Back to main menu"
+    echo ""
+    read -p "Choice [1-9]: " choice
+
+    case $choice in
+        1)
+            echo ""
+            read -p "Enter activation keywords (comma-separated): " val
+            if [ -n "$val" ]; then
+                set_config_value "ACTIVATION_KEYWORDS" "$val"
+            else
+                set_config_value "ACTIVATION_KEYWORDS" "hey aura"
+            fi
+            show_restart_message
+            ;;
+        2)
+            read -p "Enter activation window in seconds (e.g., 15): " val
+            if [ -n "$val" ]; then
+                set_config_value "ACTIVATION_WINDOW_SECONDS" "$val"
+                show_restart_message
+            fi
+            ;;
+        3)
+            read -p "Enter activation cooldown in seconds (e.g., 3): " val
+            if [ -n "$val" ]; then
+                set_config_value "ACTIVATION_COOLDOWN_SECONDS" "$val"
+                show_restart_message
+            fi
+            ;;
+        4)
+            read -p "Enter memory directory path: " val
+            if [ -n "$val" ]; then
+                set_config_value "CONVERSATION_MEMORY_DIR" "$val"
+                show_restart_message
+            fi
+            ;;
+        5)
+            read -p "Persist to disk after how many entries (e.g., 10): " val
+            if [ -n "$val" ]; then
+                set_config_value "CONVERSATION_MEMORY_PERSIST_EVERY" "$val"
+                show_restart_message
+            fi
+            ;;
+        6)
+            read -p "Maximum number of transcript entries to retain (e.g., 5000): " val
+            if [ -n "$val" ]; then
+                set_config_value "CONVERSATION_MEMORY_MAX_ENTRIES" "$val"
+                show_restart_message
+            fi
+            ;;
+        7)
+            read -p "Number of memory snippets to recall (Top K, e.g., 3): " val
+            if [ -n "$val" ]; then
+                set_config_value "CONVERSATION_MEMORY_TOP_K" "$val"
+                show_restart_message
+            fi
+            ;;
+        8)
+            read -p "Minimum similarity score for recall (0.0-1.0, e.g., 0.35): " val
+            if [ -n "$val" ]; then
+                set_config_value "CONVERSATION_MEMORY_MIN_SCORE" "$val"
+                show_restart_message
+            fi
+            ;;
+        9) return ;;
+    esac
+}
+
 configure_telegram() {
     print_header "TELEGRAM BOT CONFIGURATION"
     
@@ -943,11 +1072,12 @@ main_menu() {
         echo " 11) Configure NHS/FHIR credentials"
         echo " 12) Toggle ML Learning (on/off)"
         echo " 13) Toggle Medical Navigator (on/off)"
+        echo " 14) Configure Voice Activation & Memory"
         echo "  a) Edit .env file directly"
         echo "  b) Restart Docker containers"
         echo "  0) Exit"
         echo ""
-        read -p "Enter choice [0-9ab]: " choice
+        read -p "Enter choice [0-14ab]: " choice
         
         case $choice in
             1)
@@ -1076,6 +1206,10 @@ main_menu() {
                     fi
                 fi
                 echo ""
+                read -p "Press Enter to continue..."
+                ;;
+            14)
+                configure_voice_activation
                 read -p "Press Enter to continue..."
                 ;;
             a|A)
