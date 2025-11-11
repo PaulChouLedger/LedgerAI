@@ -1864,11 +1864,14 @@ class AdvancedMedicalNavigator:
         cc = session.context['pre_hpi'].get('chief_complaint', 'your symptoms') or 'your symptoms'
         if section == 'hpi':
             recent = ""
-            last_user = next((m['content'] for m in reversed(session.messages) if m['role'] == 'user'), "")
-            if last_user:
-                recent = f"user: {last_user}"
+            element_instruction = (
+                f"Ask exactly one question about the '{field}' aspect of the chief complaint. "
+                "Do not repeat demographic questions (age, sex, chronicity) or acknowledge prior demographic answers. "
+                "Do not repeat previous questions verbatim."
+            )
         else:
             recent = '\n'.join(f"{m['role']}: {m['content']}" for m in session.messages[-6:])
+            element_instruction = ""
         if section == 'pre_hpi' and field == 'chief_complaint':
             guidance = (
                 "Greet the patient warmly (e.g., 'Hi there, it's nice to meet you.') and ask what brings them in today"
@@ -1877,7 +1880,6 @@ class AdvancedMedicalNavigator:
         extra_rules = ""
         if section == 'hpi':
             extra_rules = (
-                "Do not repeat demographic questions (age, sex, chronicity). "
                 "Address only the specified OLDCARTS element for the chief complaint."
             )
         elif section == 'pre_hpi' and field in {'age', 'sex'}:
@@ -1887,6 +1889,7 @@ class AdvancedMedicalNavigator:
             f"Field: {field}\n"
             f"Chief complaint: {cc}\n"
             f"Guidance: {guidance}\n"
+            f"Element instructions: {element_instruction}\n"
             f"Additional instructions: {extra_rules}\n"
             f"Recent conversation:\n{recent}\n"
             "Return one concise question that follows the guidance without any preface."
