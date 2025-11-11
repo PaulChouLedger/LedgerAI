@@ -1862,7 +1862,13 @@ class AdvancedMedicalNavigator:
         if not self.llm_chat_fn:
             return base_question or guidance or ""
         cc = session.context['pre_hpi'].get('chief_complaint', 'your symptoms') or 'your symptoms'
-        recent = '\n'.join(f"{m['role']}: {m['content']}" for m in session.messages[-6:])
+        if section == 'hpi':
+            recent = ""
+            last_user = next((m['content'] for m in reversed(session.messages) if m['role'] == 'user'), "")
+            if last_user:
+                recent = f"user: {last_user}"
+        else:
+            recent = '\n'.join(f"{m['role']}: {m['content']}" for m in session.messages[-6:])
         if section == 'pre_hpi' and field == 'chief_complaint':
             guidance = (
                 "Greet the patient warmly (e.g., 'Hi there, it's nice to meet you.') and ask what brings them in today"
