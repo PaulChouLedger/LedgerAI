@@ -1686,17 +1686,18 @@ class AdvancedMedicalNavigator:
             category_summary.append(f"- {category}: {', '.join(trigger_texts)}")
 
         system_prompt = (
-            "You are a medical expert matching patient chief complaints to medical categories. "
-            "Use your medical knowledge to determine which categories match the patient's complaint. "
-            "Consider synonyms, related terms, and medical context.\n\n"
+            "You are a medical expert matching patient chief complaints to medical categories and conditions. "
+            "Use your comprehensive medical knowledge to determine which categories and specific conditions match the patient's complaint. "
+            "Consider synonyms, related terms, abbreviations, and medical context across all medical specialties.\n\n"
             "CRITICAL FORMAT REQUIREMENTS:\n"
             "- Output ONLY valid JSON (no explanations, no text before or after)\n"
             "- JSON must be an object with categories as keys and confidence scores (0.0-1.0) as values\n"
-            "- Example format: {\"gastrointestinal\": 0.9, \"cardiovascular\": 0.3}\n"
+            "- Example format: {\"cardiovascular\": 0.9, \"respiratory\": 0.2, \"gastrointestinal\": 0.1}\n"
             "- Scores: 1.0 = exact match, 0.0 = no match, 0.5-0.9 = partial match\n"
             "- Include ALL categories with scores, even if 0.0\n"
-            "- Also include a \"conditions\" key with condition names and their scores\n"
-            "- Example: {\"gastrointestinal\": 0.9, \"cardiovascular\": 0.0, \"conditions\": {\"GERD\": 0.9, \"Appendicitis\": 0.2}}\n"
+            "- Also include a \"conditions\" key with condition names (use common names or abbreviations) and their scores\n"
+            "- Example: {\"cardiovascular\": 0.9, \"respiratory\": 0.0, \"conditions\": {\"MI\": 0.9, \"Angina\": 0.8, \"GERD\": 0.1}}\n"
+            "- Condition names can be abbreviations (e.g., \"MI\", \"GERD\", \"COPD\") or full names (e.g., \"Myocardial Infarction\", \"Gastroesophageal Reflux Disease\")\n"
             "- Do NOT use any other format - only JSON object"
         )
 
@@ -1779,13 +1780,24 @@ class AdvancedMedicalNavigator:
                     self._capture_debug(f"[Engine] ⚠️ No category scores found, defaulting to gastrointestinal")
                     matched_categories = ['gastrointestinal']
 
-            # Store condition seeds
-            self._chief_complaint_condition_seed = condition_scores
-            if condition_scores:
+            # Map LLM condition names to actual guideline condition names
+            mapped_condition_scores = self._map_llm_condition_names_to_guidelines(
+                condition_scores, matched_categories
+            )
+            
+            # Store condition seeds (use mapped names)
+            self._chief_complaint_condition_seed = mapped_condition_scores
+            if mapped_condition_scores:
+                top_preview = ', '.join(
+                    f"{name}: {score:.3f}" for name, score in sorted(mapped_condition_scores.items(), key=lambda x: x[1], reverse=True)[:5]
+                )
+                self._capture_debug(f"[Engine] 📌 Chief complaint condition seeds (mapped): {top_preview}")
+            elif condition_scores:
+                # Log original LLM names if mapping failed
                 top_preview = ', '.join(
                     f"{name}: {score:.3f}" for name, score in sorted(condition_scores.items(), key=lambda x: x[1], reverse=True)[:5]
                 )
-                self._capture_debug(f"[Engine] 📌 Chief complaint condition seeds: {top_preview}")
+                self._capture_debug(f"[Engine] ⚠️ LLM condition names (unmapped): {top_preview}")
 
             if len(matched_categories) == 1:
                 self._capture_debug(f"[Engine] 🎯 Category matched: {matched_categories[0]} (LLM score: {category_scores.get(matched_categories[0], 0.0):.3f})")
@@ -1885,6 +1897,131 @@ class AdvancedMedicalNavigator:
         if not filtered:
             return self.all_guidelines
         return filtered
+
+    def _map_llm_condition_names_to_guidelines(
+        self, 
+        llm_condition_scores: Dict[str, float],
+        categories: List[str]
+    ) -> Dict[str, float]:
+        """Map LLM condition names to actual guideline condition names.
+        
+        LLM may return short names, abbreviations, or symptoms (e.g., "GERD", "MI", "Chest Pain", "Angina")
+        that need to be mapped to actual guideline condition names across all medical categories.
+        
+        Examples:
+        - "GERD" → "gastroesophageal reflux disease (GERD) (Gastroesophageal Reflux Disease)"
+        - "MI" → "myocardial infarction (MI) (Myocardial Infarction)"
+        - "Chest Pain" → conditions with "chest pain" as a trigger (e.g., MI, Angina, GERD)
+        - "Angina" → "angina pectoris (Angina) (Angina Pectoris)"
+        
+        Works universally for all medical categories: gastrointestinal, cardiovascular, respiratory, etc.
+        """
+        if not llm_condition_scores or not categories:
+            self._capture_debug(f"[Engine] ⚠️ Mapping skipped: llm_scores={bool(llm_condition_scores)}, categories={categories}")
+            return {}
+        
+        self._capture_debug(f"[Engine] 🔍 Mapping LLM condition names to guidelines: {list(llm_condition_scores.keys())} in categories: {categories}")
+        
+        mapped_scores: Dict[str, float] = {}
+        llm_names_lower = {name.lower(): (name, score) for name, score in llm_condition_scores.items()}
+        
+        # Get all guidelines for the matched categories
+        for category in categories:
+            guidelines = self._get_guidelines_by_category(category)
+            self._capture_debug(f"[Engine] 🔍 Checking {len(guidelines)} guidelines in category '{category}'")
+            for guideline_name, guideline in guidelines.items():
+                condition_name = guideline.get('condition', guideline_name)
+                if not condition_name:
+                    continue
+                
+                condition_lower = condition_name.lower()
+                
+                # Check each LLM condition name
+                for llm_name_lower, (llm_name_original, score) in llm_names_lower.items():
+                    match_type = None
+                    match_score = score
+                    
+                    # Priority 1: Exact match or abbreviation match (highest confidence)
+                    # Extract abbreviations from condition name (text in parentheses)
+                    abbreviations = re.findall(r'\(([^)]+)\)', condition_name)
+                    for abbrev in abbreviations:
+                        abbrev_lower = abbrev.lower().strip()
+                        # Exact abbreviation match (e.g., "GERD" matches "GERD" in parentheses)
+                        if llm_name_lower == abbrev_lower:
+                            match_type = "abbreviation_exact"
+                            match_score = score  # Full score for exact match
+                            break  # Exact match found, no need to check other abbreviations
+                        # Partial abbreviation match (only check if no exact match found yet)
+                        elif not match_type and (abbrev_lower in llm_name_lower or llm_name_lower in abbrev_lower):
+                            match_type = "abbreviation_partial"
+                            match_score = score * 0.9  # Slightly lower score for partial
+                            # Don't break - continue checking for exact matches
+                    
+                    # Priority 2: Condition name contains LLM name or vice versa (high confidence)
+                    if not match_type:
+                        if llm_name_lower in condition_lower:
+                            # LLM name is contained in condition name (e.g., "reflux" in "gastroesophageal reflux disease")
+                            match_type = "name_contains"
+                            match_score = score
+                        elif condition_lower in llm_name_lower:
+                            # Condition name is contained in LLM name (e.g., "GERD" contains "reflux disease")
+                            match_type = "name_contained"
+                            match_score = score * 0.8
+                        else:
+                            # Check if LLM name matches key words in condition name
+                            condition_words = set(condition_lower.split())
+                            llm_words = set(llm_name_lower.split())
+                            if llm_words.intersection(condition_words):
+                                match_type = "word_overlap"
+                                match_score = score * 0.7
+                    
+                    # Priority 3: Trigger match (lower confidence, only if no name match)
+                    if not match_type:
+                        triggers = guideline.get('chief_complaint_triggers', [])
+                        for trigger in triggers:
+                            trigger_lower = trigger.lower()
+                            # Exact trigger match (e.g., "chest pain" matches "chest pain")
+                            if llm_name_lower == trigger_lower:
+                                match_type = "trigger_exact"
+                                match_score = score * 0.8  # Lower score for trigger match
+                                break
+                            # Partial trigger match
+                            elif llm_name_lower in trigger_lower or trigger_lower in llm_name_lower:
+                                match_type = "trigger_partial"
+                                match_score = score * 0.6  # Even lower score for partial trigger match
+                                break
+                    
+                    # Apply the match if we found one
+                    # Prioritize abbreviation and name matches, but also include exact trigger matches
+                    if match_type:
+                        # For trigger matches, only include exact matches with high scores
+                        # For abbreviation/name matches, include all matches
+                        if match_type.startswith("abbreviation") or match_type.startswith("name") or match_type == "word_overlap":
+                            # Always include abbreviation and name matches
+                            should_include = True
+                        elif match_type == "trigger_exact":
+                            # Include exact trigger matches (they're reliable)
+                            should_include = True
+                        elif match_type == "trigger_partial":
+                            # Only include partial trigger matches if score is high
+                            should_include = score >= 0.8
+                        else:
+                            should_include = False
+                        
+                        if should_include:
+                            # Use the maximum score if condition is matched by multiple LLM names
+                            if condition_name in mapped_scores:
+                                # Keep the higher score
+                                if match_score > mapped_scores[condition_name]:
+                                    mapped_scores[condition_name] = match_score
+                            else:
+                                mapped_scores[condition_name] = match_score
+                            self._capture_debug(
+                                f"[Engine] 🔗 Mapped LLM condition '{llm_name_original}' (score: {score:.3f}, "
+                                f"type: {match_type}, final: {match_score:.3f}) → guideline condition '{condition_name}'"
+                            )
+        
+        return mapped_scores
 
     def _get_conditions_for_categories(self, categories: List[str]) -> List[str]:
         if not categories:
