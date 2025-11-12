@@ -422,6 +422,7 @@ def generate_medical_response(messages):
 ## References
 
 - [Unsloth Documentation](https://github.com/unslothai/unsloth)
-- [Jetson AI Lab PyPI](https://pypi.jetson-ai-lab.io/jp6/cu129)
+- [Jetson AI Lab PyPI - cu126](https://pypi.jetson-ai-lab.io/jp6/cu126) (where unsloth wheel is available)
+- [Jetson AI Lab PyPI - cu129](https://pypi.jetson-ai-lab.io/jp6/cu129) (alternative index)
 - [LoRA Paper](https://arxiv.org/abs/2106.09685)
 
