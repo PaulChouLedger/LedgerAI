@@ -85,6 +85,25 @@ class AdvancedMedicalNavigator:
 
     # LLM-only matching thresholds
     CHIEF_COMPLAINT_LLM_THRESHOLD = 0.5  # Minimum LLM confidence for category match
+    
+    # Synonym mapping for chief complaint matching (deterministic)
+    CHIEF_COMPLAINT_SYNONYMS = {
+        'belly ache': 'abdominal pain',
+        'bellyache': 'abdominal pain',
+        'stomach ache': 'abdominal pain',
+        'stomachache': 'abdominal pain',
+        'tummy ache': 'abdominal pain',
+        'tummy pain': 'abdominal pain',
+        'stomach pain': 'abdominal pain',
+        'tummy hurt': 'abdominal pain',
+        'belly hurt': 'abdominal pain',
+        'stomach hurt': 'abdominal pain',
+        'heart burn': 'heartburn',
+        'acid reflux': 'heartburn',
+        'chest discomfort': 'chest pain',
+        'chest tightness': 'chest pain',
+        'chest pressure': 'chest pain',
+    }
     RULE_OUT_THRESHOLD = 0.05
     LLM_MATCH_ACCEPT_THRESHOLD = 0.5  # Minimum LLM score for term match
     
@@ -1315,7 +1334,7 @@ class AdvancedMedicalNavigator:
                 conds = term_to_guidelines.get(patient_term.lower(), [])
                 if conds and not any(cond in priority_conditions for cond in conds):
                     fallback_med_terms.append(med)
-                else:
+        else:
                     filtered_med_terms.append(med)
 
             if filtered_med_terms:
@@ -1421,7 +1440,7 @@ class AdvancedMedicalNavigator:
                     continue
                 if any(session.condition_scores.get(cond, 0.5) > baseline for cond in conds):
                     filtered.append(opt)
-                else:
+        else:
                     skipped.append(opt)
             if skipped:
                 self._capture_debug(
@@ -1542,7 +1561,7 @@ class AdvancedMedicalNavigator:
                         analysis['satisfied_medical_terms'] = [best_medical]
                         analysis['satisfied_options'] = [best_option]
                         self._capture_debug(f"[Clarification] ✅ Auto-selected: '{best_option}' → {best_medical}")
-                    else:
+        else:
                         # Last resort: use first satisfied medical term
                         if satisfied:
                             analysis['satisfied_medical_terms'] = [satisfied[0]]
@@ -1672,111 +1691,91 @@ class AdvancedMedicalNavigator:
             )
 
     def _match_chief_complaint_to_category_llm(self, chief_complaint: str) -> List[str]:
-        """Match chief complaint to medical categories using LLM only."""
+        """Match chief complaint to medical categories using LLM with explicit trigger matching.
+        
+        LLM is used but with a highly structured prompt that forces it to:
+        1. First identify which triggers match the complaint
+        2. Then map those triggers to conditions
+        3. Only return conditions that have matching triggers
+        """
         if not self.chief_complaint_triggers_data:
             self._capture_debug("[Engine] ❌ No chief complaint triggers available - cannot match categories")
             print("[Engine] ❌ No chief complaint triggers available - cannot match categories")
             return []
 
-        # Group triggers by category and condition
-        triggers_by_category: Dict[str, List[Dict]] = {}
+        # Group triggers by condition for structured presentation
         triggers_by_condition: Dict[str, List[str]] = {}  # condition -> list of triggers
         condition_to_category: Dict[str, str] = {}  # condition -> category
+        all_categories = set()
         
         for trigger_data in self.chief_complaint_triggers_data:
             category = trigger_data.get('category', 'gastrointestinal')
             condition = trigger_data.get('condition', '')
             trigger = trigger_data.get('trigger', '')
             
-            if not trigger:
+            if not trigger or not condition:
                 continue
                 
-            # Group by category
-            if category not in triggers_by_category:
-                triggers_by_category[category] = []
-            triggers_by_category[category].append(trigger_data)
-            
-            # Group by condition
-            if condition:
-                if condition not in triggers_by_condition:
-                    triggers_by_condition[condition] = []
-                triggers_by_condition[condition].append(trigger)
-                condition_to_category[condition] = category
-
-        # Build detailed prompt with ALL triggers
-        available_categories = sorted(list(triggers_by_category.keys()))
+            if condition not in triggers_by_condition:
+                triggers_by_condition[condition] = []
+            triggers_by_condition[condition].append(trigger)
+            condition_to_category[condition] = category
+            all_categories.add(category)
         
-        # Build trigger list by category and condition
-        trigger_list_by_category = []
-        for category in available_categories:
-            category_triggers = triggers_by_category[category]
-            # Group triggers by condition
-            condition_triggers: Dict[str, List[str]] = {}
-            for trigger_data in category_triggers:
-                condition = trigger_data.get('condition', '')
-                trigger = trigger_data.get('trigger', '')
-                if condition and trigger:
-                    if condition not in condition_triggers:
-                        condition_triggers[condition] = []
-                    condition_triggers[condition].append(trigger)
-            
-            # Build category section
-            category_lines = [f"Category: {category}"]
-            for condition, triggers in sorted(condition_triggers.items()):
-                triggers_str = ', '.join(triggers)
-                category_lines.append(f"  - {condition}: {triggers_str}")
-            trigger_list_by_category.append('\n'.join(category_lines))
+        # Build structured prompt showing condition -> triggers mapping
+        available_categories = sorted(list(all_categories))
         
-        triggers_text = '\n\n'.join(trigger_list_by_category)
+        # Format: One condition per line with its triggers
+        condition_trigger_list = []
+        for condition in sorted(triggers_by_condition.keys()):
+            triggers = triggers_by_condition[condition]
+            triggers_str = ', '.join(triggers)
+            category = condition_to_category.get(condition, 'unknown')
+            condition_trigger_list.append(f"{condition} ({category}): {triggers_str}")
         
-        # Debug: Log triggers being sent to LLM
-        total_triggers = sum(len(triggers) for triggers in triggers_by_condition.values())
-        self._capture_debug(f"[Engine] 📋 Sending {total_triggers} trigger terms from {len(triggers_by_condition)} conditions to LLM")
-        self._capture_debug(f"[Engine] 📋 Categories: {', '.join(available_categories)}")
-        # Log sample triggers for debugging
-        sample_triggers = []
-        for condition, triggers in list(triggers_by_condition.items())[:3]:
-            sample_triggers.append(f"{condition}: {', '.join(triggers[:3])}")
-        if sample_triggers:
-            self._capture_debug(f"[Engine] 📋 Sample triggers: {', '.join(sample_triggers)}")
-        print(f"[Engine] 📋 Sending {total_triggers} triggers from {len(triggers_by_condition)} conditions to LLM for complaint: '{chief_complaint}'")
+        triggers_text = '\n'.join(condition_trigger_list)
         
-        # Build system prompt - focus on matching against actual trigger terms
+        # Build system prompt emphasizing medical knowledge for validation
         system_prompt = (
-            "You are a medical expert matching patient chief complaints to medical condition trigger terms. "
-            "You will be given a list of trigger terms extracted from medical guidelines, grouped by category and condition. "
-            "Your task is to match the patient's complaint to the ACTUAL TRIGGER TERMS provided in the user message. "
-            "Match synonyms and related terms (e.g., if patient says 'belly ache', match it to 'abdominal pain' if 'abdominal pain' is in the trigger list). "
-            "Only match to trigger terms that are actually listed - do not invent or assume triggers that are not provided.\n\n"
-            "CRITICAL FORMAT REQUIREMENTS:\n"
-            "- Output ONLY valid JSON with NO explanations, NO text before or after, NO markdown code blocks\n"
-            "- JSON structure: {\"categories\": {\"category_name\": score}, \"conditions\": {\"condition_name\": score}}\n"
-            "- Scores MUST be between 0.0 and 1.0 (1.0 = exact/synonym match to trigger term, 0.8-0.9 = strong match, 0.5-0.7 = partial match, 0.0 = no match)\n"
-            "- Include ALL categories with scores (even if 0.0)\n"
-            "- Include ONLY conditions that match (with score > 0.0)\n"
-            "- Use EXACT condition names as provided in the trigger list (do not abbreviate or modify)\n"
-            "- Example format: {\"categories\": {\"gastrointestinal\": 0.9, \"cardiovascular\": 0.0}, \"conditions\": {\"Acute Appendicitis\": 0.8, \"gastroesophageal reflux disease (GERD) (Gastroesophageal Reflux Disease)\": 0.7}}\n"
-            "- Do NOT create nested structures, arrays, or invalid JSON\n"
-            "- Do NOT use scores outside 0.0-1.0 range\n"
-            "- Do NOT include trailing commas\n"
-            "- Output must be parseable by json.loads() directly"
+            "You are a medical expert matching patient chief complaints to medical conditions. "
+            "You will be given a patient complaint and a list of conditions with their trigger terms. "
+            "Your task is to use your MEDICAL KNOWLEDGE to determine which conditions are medically relevant to the complaint.\n\n"
+            "CRITICAL INSTRUCTIONS:\n"
+            "1. Use your medical knowledge to understand the semantic relationship between the complaint and conditions\n"
+            "2. Match synonyms and related terms (e.g., 'chest pain' is medically related to GERD, 'belly ache' is related to 'abdominal pain')\n"
+            "3. Validate matches using medical reasoning - if a complaint is medically relevant to a condition, include it even if the exact trigger words don't match\n"
+            "4. Do NOT include conditions that are medically irrelevant (e.g., 'chest pain' is NOT related to appendicitis, which involves abdominal pain)\n"
+            "5. Use the trigger terms as GUIDANCE, but rely on your medical knowledge to validate relevance\n"
+            "6. Score based on medical relevance: 1.0 = highly relevant, 0.8-0.9 = relevant, 0.5-0.7 = possibly relevant, 0.0 = not relevant\n\n"
+            "VALIDATION RULES:\n"
+            "- 'chest pain' → GERD (medically relevant) ✓\n"
+            "- 'chest pain' → Appendicitis (medically irrelevant) ✗\n"
+            "- 'abdominal pain' → Appendicitis (medically relevant) ✓\n"
+            "- 'belly ache' → Abdominal conditions (medically relevant via synonym) ✓\n\n"
+            "OUTPUT FORMAT:\n"
+            "- Output ONLY valid JSON: {\"categories\": {\"category_name\": score}, \"conditions\": {\"condition_name\": score}}\n"
+            "- Include ALL categories with scores (0.0 if no matches)\n"
+            "- Include ONLY conditions that are medically relevant to the complaint (score > 0.0)\n"
+            "- Use EXACT condition names as provided\n"
+            "- NO explanations, NO markdown, NO text before/after JSON\n"
+            "- Scores MUST be 0.0-1.0\n"
+            "- Example: {\"categories\": {\"gastrointestinal\": 1.0, \"cardiovascular\": 0.0}, \"conditions\": {\"gastroesophageal reflux disease (GERD) (Gastroesophageal Reflux Disease)\": 1.0}}"
         )
-
+        
         user_prompt = (
-            f"Patient chief complaint: '{chief_complaint}'\n\n"
-            f"Available trigger terms:\n{triggers_text}\n\n"
-            f"IMPORTANT: Match the patient's complaint '{chief_complaint}' to the trigger terms listed above. "
-            f"Only return conditions that have trigger terms that match (exactly or as synonyms) the patient's complaint. "
-            f"Examples: "
-            f"- If complaint is 'chest pain', only match conditions with 'chest pain' in their triggers (e.g., GERD). "
-            f"- If complaint is 'belly ache', match conditions with 'abdominal pain' in their triggers (synonym match). "
-            f"- If complaint is 'chest pain', do NOT match conditions that only have 'abdominal pain' in their triggers. "
-            f"Return JSON with category scores and condition scores for matching conditions only. "
-            f"Score should be high (0.8-1.0) for exact/synonym matches, lower (0.0-0.3) for unrelated conditions."
+            f"Patient complaint: '{chief_complaint}'\n\n"
+            f"Conditions and their trigger terms:\n{triggers_text}\n\n"
+            f"TASK:\n"
+            f"Use your medical knowledge to determine which conditions are medically relevant to '{chief_complaint}'. "
+            f"The trigger terms are provided as guidance, but use your medical expertise to validate matches. "
+            f"Only return conditions that are medically relevant to the complaint.\n\n"
+            f"Return JSON with categories and conditions that are medically relevant to the complaint."
         )
-
+        
         try:
             self._capture_debug(f"[Engine] 🔍 LLM matching chief complaint '{chief_complaint}' to categories")
+            print(f"[Engine] 🔍 LLM matching chief complaint '{chief_complaint}' to {len(triggers_by_condition)} conditions")
+            
             response = self.llm_chat_fn(
                 [
                     {"role": "system", "content": system_prompt},
@@ -1793,29 +1792,22 @@ class AdvancedMedicalNavigator:
 
             # Clean response: Remove markdown code blocks if present
             cleaned_response = response.strip()
-            # Remove markdown code blocks (```json ... ``` or ``` ... ```)
             if cleaned_response.startswith('```'):
-                # Find the first newline after ```
                 first_newline = cleaned_response.find('\n')
                 if first_newline != -1:
-                    # Remove the opening ``` and optional language identifier
                     cleaned_response = cleaned_response[first_newline+1:]
-                    # Remove closing ``` if present
                     if cleaned_response.endswith('```'):
                         cleaned_response = cleaned_response[:-3].strip()
                     elif '```' in cleaned_response:
-                        # Find last occurrence of ```
                         last_idx = cleaned_response.rfind('```')
                         cleaned_response = cleaned_response[:last_idx].strip()
             response = cleaned_response
 
             # Debug: Log raw response
-            print(f"[Engine] ✅ LLM returned response (type: {type(response).__name__}, length: {len(response) if response else 0})")
+            print(f"[Engine] ✅ LLM returned response (length: {len(response) if response else 0})")
             if response:
                 print(f"[Engine] 🔍 Raw response (first 300 chars): {response[:300]}")
                 self._capture_debug(f"[Engine] 🔍 Raw response (first 500 chars): {response[:500]}")
-                if len(response) > 500:
-                    self._capture_debug(f"[Engine] 🔍 ... (response truncated, total length: {len(response)} chars)")
 
             # Parse JSON response with robust extraction
             parsed = None
@@ -1828,12 +1820,10 @@ class AdvancedMedicalNavigator:
                 parse_error = str(e)
                 print(f"[Engine] ⚠️ JSON parse error: {parse_error}")
                 self._capture_debug(f"[Engine] ⚠️ JSON parse error: {parse_error}")
-                self._capture_debug(f"[Engine] ⚠️ Raw response (first 200 chars): {response[:200]}")
                 
-                # Try to extract JSON from response using brace counting (more robust)
+                # Try to extract JSON using brace counting
                 start_idx = response.find('{')
                 if start_idx != -1:
-                    # Try to find matching closing brace by counting braces
                     brace_count = 0
                     end_idx = start_idx
                     for i in range(start_idx, len(response)):
@@ -1843,14 +1833,11 @@ class AdvancedMedicalNavigator:
                             brace_count -= 1
                             if brace_count == 0:
                                 end_idx = i + 1
-                                break
+                break
                     if end_idx > start_idx:
                         try:
                             extracted_json = response[start_idx:end_idx]
-                            # Try to fix common JSON issues before parsing
-                            # Remove trailing commas before closing braces/brackets (handles nested objects too)
                             extracted_json = re.sub(r',(\s*[}\]])', r'\1', extracted_json)
-                            # Remove comments (JSON doesn't support comments, but some LLMs add them)
                             extracted_json = re.sub(r'//.*?$', '', extracted_json, flags=re.MULTILINE)
                             extracted_json = re.sub(r'/\*.*?\*/', '', extracted_json, flags=re.DOTALL)
                             parsed = json.loads(extracted_json)
@@ -1862,19 +1849,6 @@ class AdvancedMedicalNavigator:
                             parsed = None
                             print(f"[Engine] ⚠️ Failed to parse extracted JSON: {parse_error}")
                             self._capture_debug(f"[Engine] ⚠️ Failed to parse extracted JSON: {parse_error}")
-                            self._capture_debug(f"[Engine] ⚠️ Extracted JSON (first 300 chars): {extracted_json[:300]}")
-                            # Log the full extracted JSON for debugging
-                            if len(extracted_json) <= 1000:
-                                self._capture_debug(f"[Engine] ⚠️ Full extracted JSON: {extracted_json}")
-                            else:
-                                self._capture_debug(f"[Engine] ⚠️ Full extracted JSON (first 500, last 500): {extracted_json[:500]}...{extracted_json[-500:]}")
-                    else:
-                        print(f"[Engine] ⚠️ Could not find matching closing brace in JSON")
-                        self._capture_debug(f"[Engine] ⚠️ Could not find matching closing brace in JSON")
-                else:
-                    print(f"[Engine] ⚠️ No opening brace found in response")
-                    self._capture_debug(f"[Engine] ⚠️ No opening brace found in response")
-                    self._capture_debug(f"[Engine] ⚠️ Full response: {response}")
             
             if parse_error or parsed is None:
                 self._capture_debug(f"[Engine] ❌ Failed to parse LLM response for chief complaint matching")
@@ -1886,23 +1860,21 @@ class AdvancedMedicalNavigator:
             
             if not isinstance(parsed, dict):
                 self._capture_debug(f"[Engine] ❌ Parsed JSON is not a dictionary. Type: {type(parsed)}")
-                self._capture_debug(f"[Engine] ❌ Response content: {response}")
                 print(f"[Engine] ❌ Parsed JSON is not a dictionary. Type: {type(parsed)}")
                 return []
 
-            # Extract category scores and condition scores from new format
+            # Extract category scores and condition scores
             category_scores: Dict[str, float] = {}
             condition_scores: Dict[str, float] = {}
             
-            # Handle new format: {"categories": {...}, "conditions": {...}}
+            # Handle format: {"categories": {...}, "conditions": {...}}
             if 'categories' in parsed:
                 categories_dict = parsed.get('categories', {})
                 if isinstance(categories_dict, dict):
                     for category, score in categories_dict.items():
                         if category in available_categories and isinstance(score, (int, float)):
-                            # Clamp score to 0.0-1.0 range
                             category_scores[category] = max(0.0, min(1.0, float(score)))
-                # Also initialize all categories with 0.0 if not present
+                # Initialize all categories with 0.0 if not present
                 for category in available_categories:
                     if category not in category_scores:
                         category_scores[category] = 0.0
@@ -1913,51 +1885,43 @@ class AdvancedMedicalNavigator:
                         continue
                     if key in available_categories and isinstance(value, (int, float)):
                         category_scores[key] = max(0.0, min(1.0, float(value)))
-                # Initialize all categories with 0.0 if not present
                 for category in available_categories:
                     if category not in category_scores:
                         category_scores[category] = 0.0
             
-            # Get conditions if provided
+            # Get conditions - trust LLM's medical knowledge
             conditions_dict = parsed.get('conditions', {})
             if isinstance(conditions_dict, dict):
                 for condition, score in conditions_dict.items():
                     if isinstance(score, (int, float)):
-                        # Clamp score to 0.0-1.0 range and filter out 0.0 scores
                         clamped_score = max(0.0, min(1.0, float(score)))
-                        if clamped_score > 0.0:  # Only include conditions with score > 0.0
+                        if clamped_score > 0.0:
                             condition_scores[condition] = clamped_score
-            elif isinstance(conditions_dict, list):
-                # Handle invalid format where conditions is a list
-                self._capture_debug(f"[Engine] ⚠️ Conditions is a list, not a dict. Ignoring.")
-                condition_scores = {}
             
-            # If no category scores but we have condition scores, compute category scores from conditions
-            if not any(score > 0.0 for score in category_scores.values()) and condition_scores:
-                self._capture_debug(f"[Engine] ⚠️ No category scores provided, computing from condition scores")
-                # Initialize all categories to 0.0
-                for category in available_categories:
-                    category_scores[category] = 0.0
-                # Compute category scores from condition scores
-                for condition, score in condition_scores.items():
-                    condition_category = condition_to_category.get(condition)
-                    if condition_category and condition_category in category_scores:
-                        # Use the maximum score for the category
-                        category_scores[condition_category] = max(category_scores[condition_category], score)
-
+            # Trust LLM's medical knowledge - no hardcoded validation
+            # LLM uses its medical expertise to validate matches
             self._capture_debug(f"[Engine] 🔍 LLM category scores: {category_scores}")
             if condition_scores:
-                # Log ALL condition scores (not just top 5) to debug matching issues
                 sorted_conditions = sorted(condition_scores.items(), key=lambda x: x[1], reverse=True)
-                self._capture_debug(f"[Engine] 🔍 LLM condition scores (ALL {len(condition_scores)}): {dict(sorted_conditions)}")
-                # Also log to console for easier debugging
-                print(f"[Engine] 🔍 LLM returned {len(condition_scores)} condition scores:")
-                for cond, score in sorted_conditions[:10]:  # Show top 10
+                self._capture_debug(f"[Engine] 🔍 LLM condition scores ({len(condition_scores)}): {dict(sorted_conditions)}")
+                print(f"[Engine] 🔍 LLM returned {len(condition_scores)} condition scores (using medical knowledge):")
+                for cond, score in sorted_conditions[:10]:
                     print(f"[Engine]   - {cond}: {score:.3f}")
             else:
                 self._capture_debug(f"[Engine] ⚠️ No condition scores returned by LLM")
                 print(f"[Engine] ⚠️ No condition scores returned by LLM")
-
+            
+            # Recompute category scores from condition scores if needed
+            if not any(score > 0.0 for score in category_scores.values()) and condition_scores:
+                self._capture_debug(f"[Engine] ⚠️ No category scores provided, computing from condition scores")
+                category_scores = {}
+                for category in available_categories:
+                    category_scores[category] = 0.0
+                for condition, score in condition_scores.items():
+                    condition_category = condition_to_category.get(condition)
+                    if condition_category and condition_category in category_scores:
+                        category_scores[condition_category] = max(category_scores[condition_category], score)
+            
             # Filter categories by threshold
             matched_categories = [
                 cat for cat, score in category_scores.items()
@@ -1965,40 +1929,28 @@ class AdvancedMedicalNavigator:
             ]
 
             if not matched_categories:
-                # No categories above threshold - return empty list (no fallbacks)
                 if category_scores:
                     sorted_cats = sorted(category_scores.items(), key=lambda x: x[1], reverse=True)
                     top_cat, top_score = sorted_cats[0]
                     self._capture_debug(f"[Engine] ❌ No categories above threshold ({self.CHIEF_COMPLAINT_LLM_THRESHOLD:.3f})")
                     self._capture_debug(f"[Engine] ❌ Top category score: {top_cat} = {top_score:.3f}")
-                    self._capture_debug(f"[Engine] ❌ All category scores: {category_scores}")
                     return []
                 else:
-                    self._capture_debug(f"[Engine] ❌ No category scores found in LLM response")
-                    self._capture_debug(f"[Engine] ❌ Parsed JSON keys: {list(parsed.keys())}")
+                    self._capture_debug(f"[Engine] ❌ No category scores found")
                     return []
 
-            # Map LLM condition names to actual guideline condition names
-            mapped_condition_scores = self._map_llm_condition_names_to_guidelines(
-                condition_scores, matched_categories
-            )
-            
-            # Store condition seeds (use mapped names)
-            self._chief_complaint_condition_seed = mapped_condition_scores
-            if mapped_condition_scores:
+            # Store condition seeds
+            self._chief_complaint_condition_seed = condition_scores
+            if condition_scores:
+                sorted_conditions = sorted(condition_scores.items(), key=lambda x: x[1], reverse=True)
                 top_preview = ', '.join(
-                    f"{name}: {score:.3f}" for name, score in sorted(mapped_condition_scores.items(), key=lambda x: x[1], reverse=True)[:5]
+                    f"{name}: {score:.3f}" for name, score in sorted_conditions[:5]
                 )
-                self._capture_debug(f"[Engine] 📌 Chief complaint condition seeds (mapped): {top_preview}")
-            elif condition_scores:
-                # Log original LLM names if mapping failed
-                top_preview = ', '.join(
-                    f"{name}: {score:.3f}" for name, score in sorted(condition_scores.items(), key=lambda x: x[1], reverse=True)[:5]
-                )
-                self._capture_debug(f"[Engine] ⚠️ LLM condition names (unmapped): {top_preview}")
+                self._capture_debug(f"[Engine] 📌 Chief complaint condition seeds: {top_preview}")
+                print(f"[Engine] 📌 Chief complaint condition seeds: {top_preview}")
 
             if len(matched_categories) == 1:
-                self._capture_debug(f"[Engine] 🎯 Category matched: {matched_categories[0]} (LLM score: {category_scores.get(matched_categories[0], 0.0):.3f})")
+                self._capture_debug(f"[Engine] 🎯 Category matched: {matched_categories[0]} (score: {category_scores.get(matched_categories[0], 0.0):.3f})")
             else:
                 scores = ', '.join(f"{cat} ({category_scores.get(cat, 0.0):.3f})" for cat in matched_categories)
                 self._capture_debug(f"[Engine] 🎯 Multiple categories matched: {scores}")
@@ -2014,7 +1966,7 @@ class AdvancedMedicalNavigator:
             print(f"[Engine] ❌ Traceback: {error_traceback}")
             return []
  
-     # ----------- Guidance builders -------------------------------------------
+    # ----------- Guidance builders -------------------------------------------
 
     def _resolve_guidelines_dir(self) -> Optional[Path]:
         candidates = [
@@ -2170,7 +2122,7 @@ class AdvancedMedicalNavigator:
                             # Condition name is contained in LLM name (e.g., "GERD" contains "reflux disease")
                             match_type = "name_contained"
                             match_score = score * 0.8
-                        else:
+        else:
                             # Check if LLM name matches key words in condition name
                             condition_words = set(condition_lower.split())
                             llm_words = set(llm_name_lower.split())
@@ -2208,7 +2160,7 @@ class AdvancedMedicalNavigator:
                         elif match_type == "trigger_partial":
                             # Only include partial trigger matches if score is high
                             should_include = score >= 0.8
-                        else:
+            else:
                             should_include = False
                         
                         if should_include:
@@ -2362,7 +2314,7 @@ class AdvancedMedicalNavigator:
             options=None,
         )
         prompt = self._ensure_binary_prompt_format(prompt, f"Have you noticed {term}? (yes/no)")
-
+        
         return {
             'section': 'hpi',
             'field': field,
@@ -3234,7 +3186,7 @@ class AdvancedMedicalNavigator:
                 continue
             if any(session.condition_scores.get(cond, 0.5) > baseline for cond in conds):
                 prioritized.append(opt)
-            else:
+        else:
                 skipped.append(opt)
  
         if skipped:
@@ -3313,7 +3265,7 @@ class AdvancedMedicalNavigator:
             }
             if score > baseline:
                 priority_bucket.append(item)
-            else:
+        else:
                 fallback_bucket.append(item)
 
         def sort_entries(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
