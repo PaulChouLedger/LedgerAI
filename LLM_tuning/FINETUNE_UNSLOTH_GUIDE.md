@@ -51,9 +51,14 @@ pip3 install "transformers>=4.40.0,<4.46.0" datasets "trl>=0.7.0,<0.8.0" peft ac
 - `transformers>=4.40.0,<4.46.0`: Versions 4.46+ removed `top_k_top_p_filtering` which unsloth requires
 - `trl>=0.7.0,<0.8.0`: Avoids compatibility issues with unsloth's patching mechanism
 
-**Important:** `unsloth_zoo` is a required dependency for Unsloth. Make sure it's installed:
+**Important:** `unsloth_zoo` is a required dependency for Unsloth. Make sure it's installed and up to date:
 ```bash
-pip3 install unsloth_zoo
+pip3 install --upgrade --force-reinstall --no-cache-dir unsloth_zoo
+```
+
+If you get errors about unsloth_zoo, try upgrading both together:
+```bash
+pip3 install --upgrade --force-reinstall --no-cache-dir --no-deps unsloth unsloth_zoo
 ```
 
 ### 3. Quick Setup Script
@@ -290,11 +295,18 @@ pip3 install --index-url https://pypi.jetson-ai-lab.io/jp6/cu129 unsloth
 pip3 install unsloth_zoo
 ```
 
-### Issue: "Unsloth: Please install unsloth_zoo"
+### Issue: "Unsloth: Please install unsloth_zoo" or "No module named 'unsloth_zoo.utils'"
 
 **Solution:**
 ```bash
-pip3 install unsloth_zoo
+# Upgrade both together to ensure compatibility
+pip3 install --upgrade --force-reinstall --no-cache-dir --no-deps unsloth unsloth_zoo
+```
+
+If that doesn't work, try:
+```bash
+pip3 install --upgrade --force-reinstall --no-cache-dir unsloth_zoo
+pip3 install --upgrade --force-reinstall --no-cache-dir --index-url https://pypi.jetson-ai-lab.io/jp6/cu129 unsloth
 ```
 
 ### Issue: "cannot import name 'top_k_top_p_filtering' from 'transformers'"

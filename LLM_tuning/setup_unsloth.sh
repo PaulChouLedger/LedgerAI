@@ -39,10 +39,20 @@ pip3 install --index-url https://pypi.jetson-ai-lab.io/jp6/cu129 \
     pip3 install --index-url https://pypi.jetson-ai-lab.io/jp6/cu129 unsloth
 }
 
-# Install unsloth_zoo (required dependency)
+# Install unsloth_zoo (required dependency) - upgrade to latest
 echo ""
-echo "📥 Installing unsloth_zoo..."
-pip3 install unsloth_zoo
+echo "📥 Installing/upgrading unsloth_zoo..."
+pip3 install --upgrade --force-reinstall --no-cache-dir unsloth_zoo || {
+    echo "⚠️  Standard install failed, trying with --no-deps..."
+    pip3 install --upgrade --force-reinstall --no-cache-dir --no-deps unsloth_zoo
+}
+
+# Ensure both are up to date together
+echo ""
+echo "📥 Ensuring unsloth and unsloth_zoo are compatible versions..."
+pip3 install --upgrade --force-reinstall --no-cache-dir --index-url https://pypi.jetson-ai-lab.io/jp6/cu129 unsloth unsloth_zoo || {
+    echo "⚠️  Upgrade failed, but continuing with current versions..."
+}
 
 echo ""
 echo "📥 Installing additional dependencies..."
@@ -56,6 +66,7 @@ pip3 install torch torchvision torchaudio --index-url https://download.pytorch.o
 # Install transformers and related packages
 # Note: Using specific versions to avoid compatibility issues with unsloth
 # transformers 4.40.0-4.45.x is compatible (avoid 4.46+ which removed top_k_top_p_filtering)
+# Note: unsloth_zoo is installed separately above to ensure compatibility
 pip3 install "transformers>=4.40.0,<4.46.0" \
     datasets>=2.14.0 \
     "trl>=0.7.0,<0.8.0" \
@@ -63,8 +74,7 @@ pip3 install "transformers>=4.40.0,<4.46.0" \
     accelerate>=0.27.0 \
     bitsandbytes>=0.41.0 \
     scipy \
-    sentencepiece \
-    unsloth_zoo
+    sentencepiece
 
 echo ""
 echo "✅ Verifying installation..."
@@ -76,9 +86,13 @@ try:
     # Try importing unsloth - may have patching errors but should still work for SFT
     from unsloth import FastLanguageModel
     print('✅ Unsloth imported successfully')
-except (ImportError, IndexError, AttributeError) as e:
+except (ImportError, IndexError, AttributeError, ModuleNotFoundError) as e:
     error_msg = str(e)
-    if 'IndexError' in str(type(e).__name__) or 'list index out of range' in error_msg:
+    if 'unsloth_zoo' in error_msg or 'No module named' in error_msg and 'unsloth_zoo' in error_msg:
+        print('❌ unsloth_zoo is not properly installed.')
+        print('   Solution: pip install --upgrade --force-reinstall --no-cache-dir --no-deps unsloth unsloth_zoo')
+        sys.exit(1)
+    elif 'IndexError' in str(type(e).__name__) or 'list index out of range' in error_msg:
         print('⚠️  Unsloth patching encountered an error (this may be non-critical for SFT)')
         print('   Attempting to continue anyway...')
         try:

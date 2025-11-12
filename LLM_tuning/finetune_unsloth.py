@@ -29,11 +29,16 @@ try:
     from trl import SFTTrainer
     from datasets import Dataset
     import torch
-except (ImportError, IndexError, AttributeError) as e:
+except (ImportError, IndexError, AttributeError, ModuleNotFoundError) as e:
     error_type = type(e).__name__
     error_msg = str(e)
     
-    if 'IndexError' in error_type or 'list index out of range' in error_msg:
+    if 'unsloth_zoo' in error_msg or ('No module named' in error_msg and 'unsloth_zoo' in error_msg):
+        print("❌ unsloth_zoo is not properly installed or is incompatible.")
+        print("\nSolution:")
+        print("pip install --upgrade --force-reinstall --no-cache-dir --no-deps unsloth unsloth_zoo")
+        exit(1)
+    elif 'IndexError' in error_type or 'list index out of range' in error_msg:
         print("⚠️  Unsloth patching encountered an error during import.")
         print("   This is often a non-critical compatibility issue with TRL.")
         print("   Attempting to continue - SFT should still work...")
