@@ -29,7 +29,7 @@ RUN python3 -c "from sentence_transformers import SentenceTransformer; SentenceT
     echo "✅ all-distilroberta-v1 model pre-downloaded into image"
 
 # Copy models (cached - these are large and rarely change)
-COPY models/Llama-3.2-1B-Instruct-Q4_K_M.gguf /models/Llama-3.2-1B-Instruct-Q4_K_M.gguf
+COPY models/Llama-3.2-1B.Q4_K_M.gguf /models/Llama-3.2-1B.Q4_K_M.gguf
 COPY models/Nemotron-Mini-4B-Instruct-Q4_K_M.gguf /models/Nemotron-Mini-4B-Instruct-Q4_K_M.gguf
 
 # === GENERIC CONVERSATIONAL CONTAINER ===
