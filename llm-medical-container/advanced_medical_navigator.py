@@ -211,6 +211,7 @@ class AdvancedMedicalNavigator:
             'clarifications': {},
             'associated_state': {},
             'red_flag_state': {},
+            'debug': {},
         })
         condition_scores: Dict[str, float] = field(default_factory=dict)
         condition_rankings: List[Tuple[str, float]] = field(default_factory=list)
@@ -600,11 +601,15 @@ class AdvancedMedicalNavigator:
                 scoring_element = source_element
 
         faiss_threshold = 0.6
+        priority_conditions = self._priority_condition_set(session)
+        active_conditions_filter = priority_conditions if priority_conditions else None
+
         matches = self.medical_rule_engine.find_matching_terms_faiss(
             prompt=answer,
             element=scoring_element,
             threshold=faiss_threshold,
             return_scores=True,
+            active_condition_names=active_conditions_filter,
         )
         term_scores = getattr(self.medical_rule_engine, '_last_faiss_scores', {}) or {}
 
@@ -618,6 +623,13 @@ class AdvancedMedicalNavigator:
         )
         if review_rows:
             self._log_llm_match_review(scoring_element, answer, review_rows)
+            session.context.setdefault('debug', {})['last_llm_review'] = {
+                'element': scoring_element,
+                'answer': answer,
+                'rows': review_rows,
+            }
+        else:
+            session.context.setdefault('debug', {}).pop('last_llm_review', None)
 
         if pending and pending.get('clarification'):
             session.context['clarifications'].pop(element, None)
@@ -2231,6 +2243,14 @@ class AdvancedMedicalNavigator:
         lines.append(f"[Engine] ❔ Missing: {', '.join(missing) if missing else 'none'}")
         if current:
             lines.append(f"[Engine] 🔍 Currently asking: {current}")
+        debug_ctx = session.context.get('debug', {})
+        review = debug_ctx.get('last_llm_review')
+        if review:
+            lines.append(f"[LLM] 🔍 Match review ({review['element']}) for '{review['answer']}':")
+            for term, faiss_score, llm_score, blended in review.get('rows', []):
+                lines.append(
+                    f"[LLM]   • {term}: FAISS={faiss_score:.3f}, LLM={llm_score:.3f}, blended={blended:.3f}"
+                )
         lines.append(self._format_rankings_debug(session))
         return '\n'.join(lines)
 
