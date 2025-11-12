@@ -20,6 +20,7 @@ The Jetson AI Lab provides optimized packages for Jetson devices. Install Unslot
 # Install Unsloth and dependencies
 pip3 install --index-url https://pypi.jetson-ai-lab.io/jp6/cu129 \
     unsloth-2025.7.9-py3-none-any.whl \
+    unsloth_zoo \
     transformers \
     datasets \
     trl \
@@ -43,7 +44,12 @@ pip3 install --index-url https://pypi.jetson-ai-lab.io/jp6/cu129 \
 
 ```bash
 pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
-pip3 install transformers datasets trl peft accelerate bitsandbytes
+pip3 install transformers datasets trl peft accelerate bitsandbytes unsloth_zoo
+```
+
+**Important:** `unsloth_zoo` is a required dependency for Unsloth. Make sure it's installed:
+```bash
+pip3 install unsloth_zoo
 ```
 
 ### 3. Quick Setup Script
@@ -254,6 +260,14 @@ Watch for:
 **Solution:**
 ```bash
 pip3 install --index-url https://pypi.jetson-ai-lab.io/jp6/cu129 unsloth
+pip3 install unsloth_zoo
+```
+
+### Issue: "Unsloth: Please install unsloth_zoo"
+
+**Solution:**
+```bash
+pip3 install unsloth_zoo
 ```
 
 ### Issue: "Slow training"

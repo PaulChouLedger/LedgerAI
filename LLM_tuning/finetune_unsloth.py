@@ -34,7 +34,8 @@ except ImportError as e:
     print(f"Error: {e}")
     print("\nInstallation instructions:")
     print("1. pip install --index-url https://pypi.jetson-ai-lab.io/jp6/cu129 unsloth")
-    print("2. pip install transformers datasets trl peft")
+    print("2. pip install unsloth_zoo")
+    print("3. pip install transformers datasets trl peft")
     exit(1)
 
 

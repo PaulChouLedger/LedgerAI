@@ -39,6 +39,11 @@ pip3 install --index-url https://pypi.jetson-ai-lab.io/jp6/cu129 \
     pip3 install --index-url https://pypi.jetson-ai-lab.io/jp6/cu129 unsloth
 }
 
+# Install unsloth_zoo (required dependency)
+echo ""
+echo "📥 Installing unsloth_zoo..."
+pip3 install unsloth_zoo
+
 echo ""
 echo "📥 Installing additional dependencies..."
 
@@ -56,7 +61,8 @@ pip3 install transformers>=4.40.0 \
     accelerate>=0.27.0 \
     bitsandbytes>=0.41.0 \
     scipy \
-    sentencepiece
+    sentencepiece \
+    unsloth_zoo
 
 echo ""
 echo "✅ Verifying installation..."
