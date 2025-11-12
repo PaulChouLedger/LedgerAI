@@ -90,11 +90,11 @@ except (ImportError, IndexError, AttributeError) as e:
             error_msg = str(e2)
             if 'top_k_top_p_filtering' in error_msg:
                 print('   This is a transformers version compatibility issue.')
-                print('   Solution: pip install "transformers>=4.40.0,<4.46.0"')
+                print('   Solution: pip install transformers==4.45.2')
             else:
                 print('   This may be a compatibility issue. Try:')
-                print('   1. pip install "transformers>=4.40.0,<4.46.0"')
-                print('   2. pip install "trl>=0.7.0,<0.8.0"')
+                print('   1. pip install transformers==4.45.2')
+                print('   2. pip install trl==0.7.11')
                 print('   3. pip install --upgrade unsloth')
             sys.exit(1)
     else:
