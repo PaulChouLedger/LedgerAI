@@ -1733,6 +1733,13 @@ class AdvancedMedicalNavigator:
         total_triggers = sum(len(triggers) for triggers in triggers_by_condition.values())
         self._capture_debug(f"[Engine] 📋 Sending {total_triggers} trigger terms from {len(triggers_by_condition)} conditions to LLM")
         self._capture_debug(f"[Engine] 📋 Categories: {', '.join(available_categories)}")
+        # Log sample triggers for debugging
+        sample_triggers = []
+        for condition, triggers in list(triggers_by_condition.items())[:3]:
+            sample_triggers.append(f"{condition}: {', '.join(triggers[:3])}")
+        if sample_triggers:
+            self._capture_debug(f"[Engine] 📋 Sample triggers: {', '.join(sample_triggers)}")
+        print(f"[Engine] 📋 Sending {total_triggers} triggers from {len(triggers_by_condition)} conditions to LLM for complaint: '{chief_complaint}'")
         
         # Build system prompt - focus on matching against actual trigger terms
         system_prompt = (
@@ -1758,10 +1765,14 @@ class AdvancedMedicalNavigator:
         user_prompt = (
             f"Patient chief complaint: '{chief_complaint}'\n\n"
             f"Available trigger terms:\n{triggers_text}\n\n"
-            f"Match the patient's complaint '{chief_complaint}' to the trigger terms listed above. "
-            f"Match synonyms (e.g., 'belly ache' should match 'abdominal pain' if 'abdominal pain' is listed as a trigger). "
-            f"Only match to conditions that have trigger terms matching the patient's complaint. "
-            f"Return JSON with category scores and condition scores for matching conditions only."
+            f"IMPORTANT: Match the patient's complaint '{chief_complaint}' to the trigger terms listed above. "
+            f"Only return conditions that have trigger terms that match (exactly or as synonyms) the patient's complaint. "
+            f"Examples: "
+            f"- If complaint is 'chest pain', only match conditions with 'chest pain' in their triggers (e.g., GERD). "
+            f"- If complaint is 'belly ache', match conditions with 'abdominal pain' in their triggers (synonym match). "
+            f"- If complaint is 'chest pain', do NOT match conditions that only have 'abdominal pain' in their triggers. "
+            f"Return JSON with category scores and condition scores for matching conditions only. "
+            f"Score should be high (0.8-1.0) for exact/synonym matches, lower (0.0-0.3) for unrelated conditions."
         )
 
         try:
@@ -1936,9 +1947,16 @@ class AdvancedMedicalNavigator:
 
             self._capture_debug(f"[Engine] 🔍 LLM category scores: {category_scores}")
             if condition_scores:
-                self._capture_debug(f"[Engine] 🔍 LLM condition scores: {dict(list(condition_scores.items())[:5])}")
+                # Log ALL condition scores (not just top 5) to debug matching issues
+                sorted_conditions = sorted(condition_scores.items(), key=lambda x: x[1], reverse=True)
+                self._capture_debug(f"[Engine] 🔍 LLM condition scores (ALL {len(condition_scores)}): {dict(sorted_conditions)}")
+                # Also log to console for easier debugging
+                print(f"[Engine] 🔍 LLM returned {len(condition_scores)} condition scores:")
+                for cond, score in sorted_conditions[:10]:  # Show top 10
+                    print(f"[Engine]   - {cond}: {score:.3f}")
             else:
                 self._capture_debug(f"[Engine] ⚠️ No condition scores returned by LLM")
+                print(f"[Engine] ⚠️ No condition scores returned by LLM")
 
             # Filter categories by threshold
             matched_categories = [
@@ -2104,6 +2122,8 @@ class AdvancedMedicalNavigator:
             return {}
         
         self._capture_debug(f"[Engine] 🔍 Mapping LLM condition names to guidelines: {list(llm_condition_scores.keys())} in categories: {categories}")
+        print(f"[Engine] 🔍 Mapping LLM condition names: {list(llm_condition_scores.keys())} (scores: {list(llm_condition_scores.values())})")
+        print(f"[Engine] 🔍 Categories to map: {categories}")
         
         mapped_scores: Dict[str, float] = {}
         llm_names_lower = {name.lower(): (name, score) for name, score in llm_condition_scores.items()}
@@ -2203,6 +2223,7 @@ class AdvancedMedicalNavigator:
                                 f"[Engine] 🔗 Mapped LLM condition '{llm_name_original}' (score: {score:.3f}, "
                                 f"type: {match_type}, final: {match_score:.3f}) → guideline condition '{condition_name}'"
                             )
+                            print(f"[Engine] 🔗 Mapped '{llm_name_original}' ({score:.3f}) → '{condition_name}' ({match_score:.3f}) [{match_type}]")
         
         return mapped_scores
 
