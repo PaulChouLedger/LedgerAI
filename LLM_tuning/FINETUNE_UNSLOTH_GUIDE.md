@@ -16,6 +16,15 @@ This guide walks you through fine-tuning your medical chatbot using Unsloth on a
 
 The Jetson AI Lab provides optimized packages for Jetson devices. **The wheel file should handle all dependencies automatically:**
 
+**Important:** If you have existing unsloth installations, uninstall them first for a clean install:
+
+```bash
+# Clean up existing installations (optional but recommended)
+pip3 uninstall -y unsloth unsloth_zoo
+```
+
+Then install the wheel:
+
 ```bash
 # Install Unsloth wheel - pip will automatically install all required dependencies
 # Using cu126 index where the wheel is available

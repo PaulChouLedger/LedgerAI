@@ -30,6 +30,14 @@ else
 fi
 
 echo ""
+echo "🧹 Cleaning up existing unsloth installations (if any)..."
+
+# Uninstall existing unsloth and unsloth_zoo to ensure clean installation
+pip3 uninstall -y unsloth unsloth_zoo 2>/dev/null || {
+    echo "   (No existing installations found - this is fine)"
+}
+
+echo ""
 echo "📥 Installing Unsloth wheel from Jetson AI Lab PyPI (cu126)..."
 echo "   (The wheel should automatically install all dependencies including unsloth_zoo)"
 
