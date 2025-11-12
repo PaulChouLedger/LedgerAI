@@ -30,32 +30,20 @@ else
 fi
 
 echo ""
-echo "📥 Installing Unsloth from Jetson AI Lab PyPI..."
+echo "📥 Installing Unsloth wheel from Jetson AI Lab PyPI (cu126)..."
+echo "   (The wheel should automatically install all dependencies including unsloth_zoo)"
 
-# Install Unsloth from Jetson AI Lab
-pip3 install --index-url https://pypi.jetson-ai-lab.io/jp6/cu129 \
+# Install Unsloth wheel - let pip handle dependencies automatically
+# The wheel should include all required dependencies (unsloth_zoo, etc.)
+# Using cu126 index where the wheel is available
+pip3 install --index-url https://pypi.jetson-ai-lab.io/jp6/cu126 \
     unsloth-2025.7.9-py3-none-any.whl || {
-    echo "❌ Failed to install unsloth wheel. Trying direct install..."
-    pip3 install --index-url https://pypi.jetson-ai-lab.io/jp6/cu129 unsloth
-}
-
-# Install unsloth_zoo (required dependency) - upgrade to latest
-echo ""
-echo "📥 Installing/upgrading unsloth_zoo..."
-pip3 install --upgrade --force-reinstall --no-cache-dir unsloth_zoo || {
-    echo "⚠️  Standard install failed, trying with --no-deps..."
-    pip3 install --upgrade --force-reinstall --no-cache-dir --no-deps unsloth_zoo
-}
-
-# Ensure both are up to date together
-echo ""
-echo "📥 Ensuring unsloth and unsloth_zoo are compatible versions..."
-pip3 install --upgrade --force-reinstall --no-cache-dir --index-url https://pypi.jetson-ai-lab.io/jp6/cu129 unsloth unsloth_zoo || {
-    echo "⚠️  Upgrade failed, but continuing with current versions..."
+    echo "⚠️  Wheel install failed, trying direct install from index..."
+    pip3 install --index-url https://pypi.jetson-ai-lab.io/jp6/cu126 unsloth
 }
 
 echo ""
-echo "📥 Installing additional dependencies..."
+echo "📥 Installing PyTorch..."
 
 # Install PyTorch (adjust URL based on your CUDA version)
 # For CUDA 12.1 (common on Jetson)
@@ -63,10 +51,12 @@ pip3 install torch torchvision torchaudio --index-url https://download.pytorch.o
     echo "⚠️  PyTorch installation failed. You may need to install manually."
 }
 
-# Install transformers and related packages
-# Note: Using specific versions to avoid compatibility issues with unsloth
-# transformers 4.40.0-4.45.x is compatible (avoid 4.46+ which removed top_k_top_p_filtering)
-# Note: unsloth_zoo is installed separately above to ensure compatibility
+echo ""
+echo "📥 Installing additional dependencies with version constraints..."
+
+# Install other dependencies with version constraints to avoid compatibility issues
+# Note: The unsloth wheel may have installed some of these, but we constrain versions
+# to avoid known issues (transformers 4.46+ removed top_k_top_p_filtering, trl 0.8+ has patching issues)
 pip3 install "transformers>=4.40.0,<4.46.0" \
     datasets>=2.14.0 \
     "trl>=0.7.0,<0.8.0" \
@@ -88,9 +78,11 @@ try:
     print('✅ Unsloth imported successfully')
 except (ImportError, IndexError, AttributeError, ModuleNotFoundError) as e:
     error_msg = str(e)
-    if 'unsloth_zoo' in error_msg or 'No module named' in error_msg and 'unsloth_zoo' in error_msg:
+    if 'unsloth_zoo' in error_msg or ('No module named' in error_msg and 'unsloth_zoo' in error_msg):
         print('❌ unsloth_zoo is not properly installed.')
-        print('   Solution: pip install --upgrade --force-reinstall --no-cache-dir --no-deps unsloth unsloth_zoo')
+        print('   The wheel should have installed it automatically. Try reinstalling:')
+        print('   pip install --force-reinstall --no-cache-dir --index-url https://pypi.jetson-ai-lab.io/jp6/cu126 unsloth-2025.7.9-py3-none-any.whl')
+        print('   Or install manually: pip install unsloth_zoo')
         sys.exit(1)
     elif 'IndexError' in str(type(e).__name__) or 'list index out of range' in error_msg:
         print('⚠️  Unsloth patching encountered an error (this may be non-critical for SFT)')

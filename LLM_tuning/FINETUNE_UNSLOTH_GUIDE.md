@@ -5,7 +5,7 @@ This guide walks you through fine-tuning your medical chatbot using Unsloth on a
 ## Prerequisites
 
 - Jetson device (AGX Orin, Xavier, etc.) with JetPack installed
-- CUDA 12.9 support (for cu129 packages)
+- CUDA support (cu126 packages available, but compatible with other CUDA versions)
 - Python 3.10 or 3.12
 - At least 16GB RAM (32GB recommended)
 - Medical SFT dataset (`medical_sft_dataset.json` in `LLM_tuning/` directory)
@@ -14,31 +14,29 @@ This guide walks you through fine-tuning your medical chatbot using Unsloth on a
 
 ### 1. Install Unsloth from Jetson AI Lab PyPI
 
-The Jetson AI Lab provides optimized packages for Jetson devices. Install Unsloth from their custom PyPI index:
+The Jetson AI Lab provides optimized packages for Jetson devices. **The wheel file should handle all dependencies automatically:**
 
 ```bash
-# Install Unsloth and dependencies
-pip3 install --index-url https://pypi.jetson-ai-lab.io/jp6/cu129 \
-    unsloth-2025.7.9-py3-none-any.whl \
-    unsloth_zoo \
-    transformers \
-    datasets \
-    trl \
-    peft \
-    accelerate \
-    bitsandbytes
+# Install Unsloth wheel - pip will automatically install all required dependencies
+# Using cu126 index where the wheel is available
+pip3 install --index-url https://pypi.jetson-ai-lab.io/jp6/cu126 \
+    unsloth-2025.7.9-py3-none-any.whl
 ```
 
 **Alternative:** If you have the wheel file locally:
 
 ```bash
-# Download the wheel file first
-wget https://pypi.jetson-ai-lab.io/jp6/cu129/+f/edc/0ac127024b8f9/unsloth-2025.7.9-py3-none-any.whl
+# Download the wheel file first (optional)
+wget https://pypi.jetson-ai-lab.io/jp6/cu126/+f/edc/0ac127024b8f9/unsloth-2025.7.9-py3-none-any.whl
 
-# Install it
-pip3 install --index-url https://pypi.jetson-ai-lab.io/jp6/cu129 \
+# Install it - dependencies will be installed automatically
+pip3 install --index-url https://pypi.jetson-ai-lab.io/jp6/cu126 \
     unsloth-2025.7.9-py3-none-any.whl
 ```
+
+**Note:** The wheel is available in the `cu126` index. If you need a different CUDA version, check the corresponding index (cu128, cu129, etc.) at [Jetson AI Lab PyPI](https://pypi.jetson-ai-lab.io/jp6/).
+
+**Note:** The wheel should automatically install `unsloth_zoo` and other dependencies. If you encounter issues, see the troubleshooting section.
 
 ### 2. Install Additional Dependencies
 
@@ -51,15 +49,7 @@ pip3 install "transformers>=4.40.0,<4.46.0" datasets "trl>=0.7.0,<0.8.0" peft ac
 - `transformers>=4.40.0,<4.46.0`: Versions 4.46+ removed `top_k_top_p_filtering` which unsloth requires
 - `trl>=0.7.0,<0.8.0`: Avoids compatibility issues with unsloth's patching mechanism
 
-**Important:** `unsloth_zoo` is a required dependency for Unsloth. Make sure it's installed and up to date:
-```bash
-pip3 install --upgrade --force-reinstall --no-cache-dir unsloth_zoo
-```
-
-If you get errors about unsloth_zoo, try upgrading both together:
-```bash
-pip3 install --upgrade --force-reinstall --no-cache-dir --no-deps unsloth unsloth_zoo
-```
+**Note:** The unsloth wheel should automatically install `unsloth_zoo` and all required dependencies. If you encounter issues with `unsloth_zoo` not being found, see the troubleshooting section below.
 
 ### 3. Quick Setup Script
 
@@ -291,22 +281,39 @@ Watch for:
 
 **Solution:**
 ```bash
-pip3 install --index-url https://pypi.jetson-ai-lab.io/jp6/cu129 unsloth
+pip3 install --index-url https://pypi.jetson-ai-lab.io/jp6/cu126 unsloth-2025.7.9-py3-none-any.whl
+# Or if wheel not found:
+pip3 install --index-url https://pypi.jetson-ai-lab.io/jp6/cu126 unsloth
 pip3 install unsloth_zoo
 ```
 
 ### Issue: "Unsloth: Please install unsloth_zoo" or "No module named 'unsloth_zoo.utils'"
 
-**Solution:**
+This usually means the wheel didn't install dependencies properly. **Solutions:**
+
+**Option 1: Reinstall the wheel (Recommended)**
 ```bash
-# Upgrade both together to ensure compatibility
+# Force reinstall the wheel to ensure dependencies are installed
+pip3 install --force-reinstall --no-cache-dir \
+    --index-url https://pypi.jetson-ai-lab.io/jp6/cu126 \
+    unsloth-2025.7.9-py3-none-any.whl
+```
+
+**Option 2: Install unsloth_zoo separately**
+```bash
+pip3 install unsloth_zoo
+```
+
+**Option 3: Upgrade both together (if versions are incompatible)**
+```bash
 pip3 install --upgrade --force-reinstall --no-cache-dir --no-deps unsloth unsloth_zoo
 ```
 
-If that doesn't work, try:
+**Option 4: Install from cu126 index**
 ```bash
-pip3 install --upgrade --force-reinstall --no-cache-dir unsloth_zoo
-pip3 install --upgrade --force-reinstall --no-cache-dir --index-url https://pypi.jetson-ai-lab.io/jp6/cu129 unsloth
+pip3 install --force-reinstall --no-cache-dir \
+    --index-url https://pypi.jetson-ai-lab.io/jp6/cu126 \
+    unsloth-2025.7.9-py3-none-any.whl
 ```
 
 ### Issue: "cannot import name 'top_k_top_p_filtering' from 'transformers'"
