@@ -26,10 +26,12 @@ pip3 uninstall -y unsloth unsloth_zoo
 Then install from the cu126 index:
 
 ```bash
-# Install Unsloth - pip will automatically install all required dependencies including unsloth_zoo
-# Using cu126 index where the package is available
+# Install Unsloth from cu126 index
 # Note: Use package name with version, not wheel filename
 pip3 install --index-url https://pypi.jetson-ai-lab.io/jp6/cu126 unsloth==2025.7.9
+
+# Install unsloth_zoo explicitly (required dependency, may not auto-install)
+pip3 install unsloth_zoo
 ```
 
 **Alternative:** If you want to download and install the wheel file locally:
@@ -45,7 +47,12 @@ pip3 install --index-url https://pypi.jetson-ai-lab.io/jp6/cu126 \
 
 **Note:** The wheel is available in the `cu126` index. If you need a different CUDA version, check the corresponding index (cu128, cu129, etc.) at [Jetson AI Lab PyPI](https://pypi.jetson-ai-lab.io/jp6/).
 
-**Note:** The wheel should automatically install `unsloth_zoo` and other dependencies. If you encounter issues, see the troubleshooting section.
+**Note:** You may need to install `unsloth_zoo` separately as it's not always installed automatically:
+```bash
+pip3 install unsloth_zoo
+```
+
+If you encounter issues, see the troubleshooting section.
 
 ### 2. Install Additional Dependencies
 

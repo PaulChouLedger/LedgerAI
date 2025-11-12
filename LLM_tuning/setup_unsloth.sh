@@ -39,7 +39,7 @@ pip3 uninstall -y unsloth unsloth_zoo 2>/dev/null || {
 
 echo ""
 echo "📥 Installing Unsloth from Jetson AI Lab PyPI (cu126)..."
-echo "   (Installing unsloth package - pip will automatically install all dependencies including unsloth_zoo)"
+echo "   (Installing unsloth package, then unsloth_zoo separately)"
 
 # Install Unsloth from the cu126 index
 # Note: Use package name, not wheel filename - pip will find the wheel automatically
@@ -47,6 +47,13 @@ pip3 install --index-url https://pypi.jetson-ai-lab.io/jp6/cu126 \
     unsloth==2025.7.9 || {
     echo "⚠️  Version-specific install failed, trying latest version..."
     pip3 install --index-url https://pypi.jetson-ai-lab.io/jp6/cu126 unsloth
+}
+
+# Install unsloth_zoo explicitly (required dependency, not always auto-installed)
+echo ""
+echo "📥 Installing unsloth_zoo (required dependency)..."
+pip3 install unsloth_zoo || {
+    echo "⚠️  unsloth_zoo install failed, but continuing..."
 }
 
 echo ""
