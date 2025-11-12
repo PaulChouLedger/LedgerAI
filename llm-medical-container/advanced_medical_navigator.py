@@ -1,21 +1,22 @@
 #!/usr/bin/env python3
 """
-Advanced Medical Navigator (Guideline-aware, LLM-first)
-=======================================================
+Advanced Medical Navigator (LLM-only, Guideline-aware)
+======================================================
 
 Conversation flow:
-    1. Capture chief complaint → fuzzy + semantic trigger matching (same logic as adaptive engine)
+    1. Capture chief complaint → LLM-based matching to medical categories
+       • LLM matches chief complaint to guideline categories using medical knowledge
        • Loads guideline categories & seeds condition scores.
     2. LLM empathetic acknowledgement + chronicity question (new vs known w/ prior Dx)
     3. Collect demographics: age, biological sex
     4. OLDCARTS assessment using guideline terms & weights per category
        • LLM crafts questions with injected options
-       • Responses scored via FAISS against patient-friendly terms
+       • Responses scored via LLM against patient-friendly terms
        • Clarifying questions generated when multiple / no matches
     5. Rankings update after every element; diagnosis ready once OLDCARTS complete.
 
-This file intentionally focuses on conversational logic; heavy lifting (FAISS, anatomical
-rules, guideline storage) relies on `ml.medical_rule_engine.MedicalRuleEngine`.
+This file uses LLM-only approach for all matching and scoring. No FAISS or medical_rule_engine
+is required - LLM handles all semantic matching, fuzzy correction, and anatomical reasoning.
 """
 
 from dataclasses import dataclass, field
@@ -23,9 +24,6 @@ from datetime import datetime
 import json
 import os
 from pathlib import Path
-from difflib import SequenceMatcher
-import numpy as np
-import faiss
 import re
 import random
 from typing import Dict, List, Optional, Tuple, Any
@@ -85,16 +83,10 @@ class AdvancedMedicalNavigator:
         'dermatological': 'DERM',
     }
 
-    CHIEF_COMPLAINT_FAISS_THRESHOLD = 0.6
-    CHIEF_COMPLAINT_NEAR_MISS_UPPER = 0.5
-    CHIEF_COMPLAINT_NEAR_MISS_LOWER = 0.4
-    CHIEF_COMPLAINT_FUZZY_THRESHOLD = 0.55
-
+    # LLM-only matching thresholds
+    CHIEF_COMPLAINT_LLM_THRESHOLD = 0.5  # Minimum LLM confidence for category match
     RULE_OUT_THRESHOLD = 0.05
-
-    LLM_MATCH_REVIEW_LIMIT = 8
-    LLM_MATCH_BLEND_WEIGHT = 0.5
-    LLM_MATCH_ACCEPT_THRESHOLD = 0.5
+    LLM_MATCH_ACCEPT_THRESHOLD = 0.5  # Minimum LLM score for term match
 
     PMH_ELEMENTS = ["pmh", "psh", "meds_allergies"]
     PMH_PROMPTS = {
@@ -128,13 +120,6 @@ class AdvancedMedicalNavigator:
     SUMMARY_SYSTEM_PROMPT = (
         "You are a clinical assistant. Produce ≤6 bullet points summarising demographics, chief complaint,"
         " focused OLDCARTS facts, PMH/meds/allergies, and top ranked differentials with urgency."
-    )
-
-    MATCH_REVIEW_SYSTEM_PROMPT = (
-        "You are a medical expert helping evaluate whether patient statements correspond to medical guideline terms."
-        " For each candidate term you receive, output ONLY strict JSON on a single line where each key is the term"
-        " and each value is a number between 0 and 1 representing semantic equivalence (higher = better match)."
-        " Do not include explanations or additional text."
     )
 
     GREETING_RESPONSES = (
@@ -188,13 +173,11 @@ class AdvancedMedicalNavigator:
     DEFAULT_ELEMENT_WEIGHT = 0.30
     CLEAR_LEAD_MARGIN = 0.08
 
-    RELAXED_LOCATION_THRESHOLD = 0.55
-    RELAXED_LOCATION_MARGIN = 0.02
-    LOCATION_HIGH_CONFIDENCE_THRESHOLD = 0.9
     # Auto-selection: if one match is clearly best, use it without clarification
     AUTO_SELECT_BEST_THRESHOLD = 0.95  # Best score must be >= 0.95
     AUTO_SELECT_MARGIN = 0.25  # Best must be >= 0.25 higher than next best
     AUTO_SELECT_NEXT_MAX = 0.7  # Or next best must be < 0.7
+    LOCATION_HIGH_CONFIDENCE_THRESHOLD = 0.9  # High confidence LLM score for location matching
 
     # ----------- Session container -------------------------------------------
 
@@ -240,22 +223,25 @@ class AdvancedMedicalNavigator:
 
     # ----------- Lifecycle ----------------------------------------------------
 
-    def __init__(self, llm_chat_fn, medical_rule_engine=None, embedding_model=None):
+    def __init__(self, llm_chat_fn):
+        """
+        Initialize Advanced Medical Navigator with LLM-only approach.
+        
+        Args:
+            llm_chat_fn: LLM chat function for all matching and scoring
+        """
         self.llm_chat_fn = llm_chat_fn
-        self.medical_rule_engine = medical_rule_engine
-        self.embedding_model = embedding_model
         self.sessions: Dict[str, AdvancedMedicalNavigator.MedicalSession] = {}
         self._captured_debug_output: List[str] = []
         self.guidelines_dir = self._resolve_guidelines_dir()
         self.enabled_categories = self._get_enabled_categories()
         self.all_guidelines: Dict[str, Dict] = {}
-        self.chief_complaint_triggers_data: List[Dict] = []
-        self.chief_complaint_triggers_index = None
+        self.chief_complaint_triggers_data: List[Dict] = []  # For LLM matching
         self._chief_complaint_condition_seed: Dict[str, float] = {}
 
         if self.guidelines_dir:
             self._load_guidelines()
-            self._build_chief_complaint_index()
+            self._build_chief_complaint_triggers()
         else:
             self._capture_debug("[Navigator] ⚠️ No guidelines directory found. Chief complaint matching may be limited.")
 
@@ -303,32 +289,31 @@ class AdvancedMedicalNavigator:
             self._capture_debug(f"[Navigator] 🙋 Greeting detected: '{text}'")
             return self._wrap_response(session, reply, status="awaiting_chief_complaint")
 
-        if not self.medical_rule_engine or not self.embedding_model:
-            raise ValueError("Medical rule engine with embedding model is required for chief complaint matching.")
-
-        complaint = self._fuzzy_correct(text)
+        # LLM-only approach: no FAISS, no medical_rule_engine, no embedding_model
+        # LLM handles fuzzy correction, semantic matching, and category assignment
         self._capture_debug(f"\n{'='*80}")
-        self._capture_debug(f"[Engine] 🚀 NEW ASSESSMENT (ADVANCED NAVIGATOR)")
+        self._capture_debug(f"[Engine] 🚀 NEW ASSESSMENT (ADVANCED NAVIGATOR - LLM-ONLY)")
         self._capture_debug(f"{'='*80}")
-        self._capture_debug(f"[Engine] Chief Complaint: '{complaint}'")
-        categories = self._match_chief_complaint_to_category(complaint)
+        self._capture_debug(f"[Engine] Chief Complaint: '{text}'")
+        
+        categories = self._match_chief_complaint_to_category_llm(text)
         if not categories:
             apology = (
                 "I'm not sure I caught that. Could you tell me a bit more about what's bothering you, "
                 "like 'I have stomach pain' or 'I'm feeling short of breath'?"
             )
             self._capture_debug(
-                f"[Engine] ❌ Unable to match chief complaint '{complaint}' to guidelines. Requesting clarification."
+                f"[Engine] ❌ Unable to match chief complaint '{text}' to guidelines. Requesting clarification."
             )
             session.stage = "awaiting_chief_complaint"
             return self._wrap_response(session, apology, status="awaiting_chief_complaint")
+        
         session.context['matched_categories'] = categories
         primary_category = categories[0] if categories else 'gastrointestinal'
         if len(categories) == 1:
             self._capture_debug(f"[Engine] 🎯 Category: {primary_category}")
         else:
             self._capture_debug(f"[Engine] 🎯 Categories: {', '.join(categories)}")
-        self.medical_rule_engine.set_active_category(categories if len(categories) > 1 else primary_category)
 
         seed_scores = self._chief_complaint_condition_seed or {}
         session.condition_scores = {}
@@ -595,8 +580,8 @@ class AdvancedMedicalNavigator:
         element: str,
         answer: str,
     ) -> Optional[Dict[str, Any]]:
-        if not self.medical_rule_engine:
-            return None
+        # LLM-only approach: no medical_rule_engine, no embedding_model, no FAISS
+        # LLM handles all matching, fuzzy correction, and anatomical reasoning
         requires_clarification = self._requires_clarification(element)
 
         sequence_result: Optional[Dict[str, Any]] = None
@@ -641,15 +626,13 @@ class AdvancedMedicalNavigator:
             if source_element:
                 scoring_element = source_element
 
-        # LLM-only approach for ALL elements: get ALL terms from guidelines and let LLM decide which match
-        # FAISS is bypassed completely - LLM is the decision maker for all elements
+        # LLM-only approach: get ALL terms from guidelines and let LLM decide which match
         all_element_terms = self._get_all_terms_for_element(session, scoring_element)
         if all_element_terms:
-            # Skip FAISS entirely - let LLM review all terms
-            # Initialize all terms with 0.0 FAISS score (LLM will override)
+            # LLM reviews all terms - no pre-filtering needed
             matches = all_element_terms
-            term_scores = {term: 0.0 for term in all_element_terms}
-            self._capture_debug(f"[LLM] 🔍 {scoring_element}: Sending {len(all_element_terms)} terms to LLM for review (FAISS bypassed)")
+            term_scores = {term: 0.0 for term in all_element_terms}  # Placeholder, LLM will set actual scores
+            self._capture_debug(f"[LLM] 🔍 {scoring_element}: Sending {len(all_element_terms)} terms to LLM for review")
             self._capture_debug(f"[LLM] 🔍 {scoring_element}: Terms: {all_element_terms}")
         else:
             # Fallback: no terms found in guidelines (shouldn't happen, but handle gracefully)
@@ -702,27 +685,33 @@ class AdvancedMedicalNavigator:
                 if boosted_scores:
                     term_scores = boosted_scores
         else:
-            self._log_generic_faiss(scoring_element, answer, matches, term_scores)
+            self._log_llm_scores(scoring_element, answer, matches, term_scores)
 
-        index_data = self.medical_rule_engine.term_embeddings.get(scoring_element, {}) if hasattr(self.medical_rule_engine, 'term_embeddings') else {}
-        term_to_conditions = index_data.get('term_to_conditions', {})
-        synonym_to_medical = index_data.get('synonym_to_medical', {})
-
+        # LLM-only approach: no term_embeddings or synonym mapping needed - LLM handles synonym matching
+        # Build condition_similarities directly from term_scores and guideline terms
         condition_similarities: Dict[str, float] = {}
 
         for term in matches:
             score = term_scores.get(term)
             if score is None:
                 score = term_scores.get(term.lower())
-            mapped_term = synonym_to_medical.get(term) or synonym_to_medical.get(term.lower())
-            if score is None and mapped_term:
-                score = term_scores.get(mapped_term)
             if score is None:
                 continue
             
-            conditions = term_to_conditions.get(term)
-            if not conditions and mapped_term:
-                conditions = term_to_conditions.get(mapped_term)
+            # Find which conditions this term belongs to from guidelines
+            conditions = []
+            for guideline_name, guideline in self.all_guidelines.items():
+                structured = self._structured_oldcarts(guideline)
+                element_data = structured.get(scoring_element, {})
+                includes = element_data.get('includes', []) if isinstance(element_data, dict) else []
+                for item in includes:
+                    if isinstance(item, dict):
+                        patient_term = item.get('patient_friendly', '')
+                    else:
+                        patient_term = item
+                    if isinstance(patient_term, str) and patient_term.lower() == term.lower():
+                        conditions.append(guideline_name)
+                        break
             if not conditions:
                     continue
                 
@@ -793,15 +782,15 @@ class AdvancedMedicalNavigator:
         self._update_condition_pools(session)
         self._log_rankings(session)
 
-    def _log_generic_faiss(
+    def _log_llm_scores(
         self,
         element: str,
         answer: str,
         matches: List[str],
         term_scores: Dict[str, float],
     ) -> None:
+        """Log LLM scores for element matching (LLM-only approach)."""
         sorted_scores = dict(sorted(term_scores.items(), key=lambda x: x[1], reverse=True))
-        # For all elements, scores are LLM scores (FAISS is bypassed)
         self._capture_debug(f"[LLM] 🔍 LLM scores for '{answer}' in {element}: {sorted_scores}")
         if matches:
             self._capture_debug(f"[LLM] ✅ Matched terms for {element}: {matches}")
@@ -814,12 +803,14 @@ class AdvancedMedicalNavigator:
         answer: str,
         review_rows: List[Tuple[str, float, float, float]],
     ) -> None:
+        """Log LLM match review results (LLM-only approach, no FAISS)."""
         if not review_rows:
             return
         self._capture_debug(f"[LLM] 🔍 Match review for '{answer}' in {element}:")
-        for term, faiss_score, llm_score, blended in review_rows:
+        for term, unused_score, llm_score, final_score in review_rows:
+            # Note: first score is always 0.0 (FAISS bypassed), second is LLM score, third is final (LLM-only)
             self._capture_debug(
-                f"[LLM]   • {term}: FAISS={faiss_score:.3f}, LLM={llm_score:.3f}, blended={blended:.3f}"
+                f"[LLM]   • {term}: LLM={llm_score:.3f}, final={final_score:.3f}"
             )
 
     def _collect_guidelines_for_session(self, session: "MedicalSession") -> List[Dict[str, Any]]:
@@ -861,55 +852,7 @@ class AdvancedMedicalNavigator:
                     all_terms.append(patient_term.strip())
         return all_terms
 
-    def _compute_faiss_scores_for_terms(
-        self,
-        prompt: str,
-        element: str,
-        terms: List[str],
-    ) -> Dict[str, float]:
-        """Compute FAISS similarity scores for specific terms (not just top k)"""
-        if not self.medical_rule_engine or not self.embedding_model:
-            return {}
-        
-        index_data = self.medical_rule_engine.term_embeddings.get(element, {}) if hasattr(self.medical_rule_engine, 'term_embeddings') else {}
-        if not index_data or 'index' not in index_data or 'terms' not in index_data:
-            return {}
-        
-        try:
-            # Encode prompt
-            prompt_embedding = self.embedding_model.encode([prompt])
-            prompt_embedding = np.asarray(prompt_embedding, dtype='float32')
-            faiss.normalize_L2(prompt_embedding)
-            
-            # Get FAISS index and terms list
-            faiss_index = index_data['index']
-            indexed_terms = index_data['terms']
-            
-            # Build term to index mapping
-            term_to_idx = {term.lower(): idx for idx, term in enumerate(indexed_terms)}
-            
-            # Compute scores for each requested term
-            scores = {}
-            for term in terms:
-                term_lower = term.lower()
-                if term_lower in term_to_idx:
-                    idx = term_to_idx[term_lower]
-                    # Get the term's embedding from the index (or compute similarity directly)
-                    # Since we have the prompt embedding, we can compute similarity with the indexed term
-                    term_embedding = faiss_index.reconstruct(idx)
-                    term_embedding = np.array([term_embedding], dtype='float32')
-                    faiss.normalize_L2(term_embedding)
-                    # Compute cosine similarity
-                    similarity = np.dot(prompt_embedding, term_embedding.T)[0, 0]
-                    scores[term] = float(similarity)
-                else:
-                    # Term not in index, give it a low score
-                    scores[term] = 0.0
-            
-            return scores
-        except Exception as e:
-            self._capture_debug(f"[LLM] ⚠️ Error computing FAISS scores for terms: {e}")
-            return {}
+    # FAISS scoring removed - using LLM-only approach for all matching
 
     def _structured_oldcarts(self, guideline: Dict[str, Any]) -> Dict[str, Any]:
         structured = guideline.get('key_features', {}).get('structured_oldcarts', {})
@@ -971,32 +914,36 @@ class AdvancedMedicalNavigator:
         
         candidate_lines = "\n".join(f"- {term}" for term in limited)
         
-        # Create element-specific prompts
+        # Create element-specific prompts (universal, condition-agnostic)
         element_prompts = {
             'location': (
                 f"Chief complaint: {session.context['pre_hpi'].get('chief_complaint', 'unknown')}\n"
-                f"Patient's description of pain location: '{answer}'\n\n"
+                f"Patient's description of symptom location: '{answer}'\n\n"
                 "You are a medical expert evaluating anatomical location terms. "
                 "Match the patient's description to the medical location terms based on ANATOMICAL ACCURACY.\n\n"
-                "IMPORTANT RULES:\n"
-                "- 'center of chest' or 'center of my chest' = 'behind your breastbone' (same anatomical location) → score 1.0\n"
-                "- 'center of chest' ≠ abdominal locations (belly, groin, ribs, etc.) → score 0.0\n"
-                "- Chest locations (center, middle, behind breastbone) are NOT the same as abdominal locations\n"
-                "- Groin locations are in the lower abdomen/pelvis, NOT the chest\n"
-                "- Rib locations are on the sides, NOT the center of chest\n\n"
+                "Use your medical knowledge to determine if the patient's description refers to the same anatomical location "
+                "as each medical term. Consider:\n"
+                "- Same body region (head, chest, abdomen, limbs, etc.)\n"
+                "- Same anatomical structure (organ, muscle, bone, etc.)\n"
+                "- Same relative position (left/right, upper/lower, anterior/posterior, etc.)\n"
+                "- Anatomical synonyms and equivalent descriptions\n\n"
                 "Location terms to evaluate:\n"
                 f"{candidate_lines}\n\n"
-                "Return ONLY valid JSON: {\"term\": score}\n"
-                "Scoring:\n"
-                "- 1.0 = Exact anatomical match (same body region and location)\n"
-                "- 0.0 = Completely different anatomical location (e.g., chest vs groin, chest vs lower abdomen)\n"
-                "- 0.1-0.4 = Unrelated or opposite locations\n"
-                "- Do NOT use scores 0.5-0.9 for location matching - be strict: either match (1.0) or no match (0.0)\n\n"
-                "Examples:\n"
-                "- Patient: 'center of my chest' → 'behind your breastbone' = 1.0\n"
-                "- Patient: 'center of my chest' → 'lower right side around your groin' = 0.0\n"
-                "- Patient: 'center of my chest' → 'around your belly button' = 0.0\n"
-                "- Patient: 'center of my chest' → 'all over your belly' = 0.0"
+                "Return ONLY valid JSON with ALL terms as keys and their scores as values.\n"
+                "Format: {\"term1\": score1, \"term2\": score2, \"term3\": score3, ...}\n"
+                "You MUST include ALL terms listed above with numeric scores (0.0 to 1.0).\n\n"
+                "Scoring guidelines:\n"
+                "- 1.0 = Exact anatomical match (same body region, structure, and relative position)\n"
+                "- 0.0 = Completely different anatomical location (different body region or structure)\n"
+                "- 0.1-0.4 = Distantly related or opposite locations (same body part but different side/position)\n"
+                "- For location matching, be precise: use 1.0 for matches, 0.0 for clear mismatches\n\n"
+                "Example format (not actual terms - your terms are listed above):\n"
+                "{\n"
+                '  "medical_term_1": 1.0,\n'
+                '  "medical_term_2": 0.0,\n'
+                '  "medical_term_3": 0.0\n'
+                "}\n\n"
+                "CRITICAL: Return a JSON object with ALL terms above as keys, each with a numeric score (0.0-1.0)."
             ),
         }
         
@@ -1011,12 +958,20 @@ class AdvancedMedicalNavigator:
                 "Match the patient's statement to the medical guideline terms based on semantic meaning and medical relevance.\n\n"
                 f"{element.replace('_', ' ').title()} terms to evaluate:\n"
                 f"{candidate_lines}\n\n"
-                "Return ONLY valid JSON: {\"term\": score}\n"
+                "Return ONLY valid JSON with ALL terms as keys and their scores as values.\n"
+                "Format: {\"term1\": score1, \"term2\": score2, \"term3\": score3, ...}\n"
+                "You MUST include ALL terms listed above with numeric scores (0.0 to 1.0).\n\n"
                 "Scoring:\n"
                 "- 1.0 = Exact semantic match (same meaning)\n"
                 "- 0.0 = No match (different meaning)\n"
-                "- 0.5-0.9 = Partial or related match\n"
-                "Be accurate and consistent in your scoring."
+                "- 0.5-0.9 = Partial or related match\n\n"
+                "Example:\n"
+                "{\n"
+                '  "term1": 1.0,\n'
+                '  "term2": 0.0,\n'
+                '  "term3": 0.7\n'
+                "}\n\n"
+                "CRITICAL: Return a JSON object with ALL terms above as keys, each with a numeric score (0.0-1.0)."
             )
         
         # Use element-specific system prompt, otherwise use generic
@@ -1024,17 +979,29 @@ class AdvancedMedicalNavigator:
             system_prompt = (
                 "You are a medical expert specializing in anatomical location assessment. "
                 "Your task is to evaluate whether patient-described locations match medical location terms "
-                "based on ANATOMICAL ACCURACY and anatomical knowledge. "
-                "Be strict: chest locations are NOT abdominal locations, groin is NOT chest, etc. "
-                "Output ONLY valid JSON with scores: 1.0 for exact anatomical matches, 0.0 for different locations. "
-                "Do not include explanations or additional text."
+                "based on ANATOMICAL ACCURACY and your comprehensive anatomical knowledge.\n\n"
+                "Use your medical expertise to determine if descriptions refer to the same anatomical location. "
+                "Consider body regions, anatomical structures, relative positions, and anatomical terminology. "
+                "Be precise: match exact locations, distinguish different body regions, and recognize anatomical synonyms.\n\n"
+                "CRITICAL FORMAT REQUIREMENTS:\n"
+                "- Output ONLY valid JSON (no explanations, no text before or after)\n"
+                "- JSON must be an object with ALL terms as keys and numeric scores (0.0-1.0) as values\n"
+                "- Example format: {\"term1\": 1.0, \"term2\": 0.0, \"term3\": 0.0}\n"
+                "- Each term must be a key in the JSON object with its score as the value\n"
+                "- Scores: 1.0 = exact anatomical match, 0.0 = different location\n"
+                "- Do NOT use any other format - only JSON object with term keys and numeric values"
             )
         else:
             system_prompt = (
                 "You are a medical expert evaluating patient statements against medical guideline terms. "
-                "Your task is to determine semantic equivalence and medical relevance. "
-                "Output ONLY valid JSON with scores between 0 and 1 (higher = better match). "
-                "Do not include explanations or additional text."
+                "Your task is to determine semantic equivalence and medical relevance.\n\n"
+                "CRITICAL FORMAT REQUIREMENTS:\n"
+                "- Output ONLY valid JSON (no explanations, no text before or after)\n"
+                "- JSON must be an object with ALL terms as keys and numeric scores (0.0-1.0) as values\n"
+                "- Example format: {\"term1\": 1.0, \"term2\": 0.5, \"term3\": 0.0}\n"
+                "- Each term must be a key in the JSON object with its score as the value\n"
+                "- Scores: 1.0 = exact match, 0.0 = no match, 0.5-0.9 = partial match\n"
+                "- Do NOT use any other format - only JSON object with term keys and numeric values"
             )
         
         self._capture_debug(f"[LLM] 🔍 Calling LLM for {element} match review...")
@@ -1042,6 +1009,10 @@ class AdvancedMedicalNavigator:
         self._capture_debug(f"[LLM] 🔍 User prompt (first 500 chars): {user_prompt[:500]}...")
         if len(user_prompt) > 500:
             self._capture_debug(f"[LLM] 🔍 User prompt length: {len(user_prompt)} chars (truncated in log)")
+        
+        # Also print to console for debugging
+        print(f"[LLM] 🔍 Calling LLM for {element} match review - {len(limited)} terms")
+        print(f"[LLM] 🔍 Terms: {limited[:5]}...")
         
         try:
             response = self.llm_chat_fn(
@@ -1052,8 +1023,16 @@ class AdvancedMedicalNavigator:
                 max_tokens=250,  # More tokens for all elements (since we're sending all terms)
                 temperature=0.0,
             )
+            print(f"[LLM] ✅ LLM returned response (type: {type(response).__name__}, length: {len(response) if response else 0})")
+            if response:
+                print(f"[LLM] 🔍 Raw response (first 300 chars): {response[:300]}")
+            else:
+                print(f"[LLM] ⚠️ LLM returned EMPTY response")
             self._capture_debug(f"[LLM] ✅ LLM function returned response (type: {type(response).__name__})")
         except Exception as e:
+            print(f"[LLM] ❌ LLM function raised exception: {type(e).__name__}: {e}")
+            import traceback
+            traceback.print_exc()
             self._capture_debug(f"[LLM] ❌ LLM function raised exception: {type(e).__name__}: {e}")
             response = None
         
@@ -1077,21 +1056,43 @@ class AdvancedMedicalNavigator:
                 self._capture_debug(f"[LLM] ✅ Successfully parsed JSON with {len(parsed) if isinstance(parsed, dict) else 'unknown'} keys")
             except json.JSONDecodeError as e:
                 parse_error = str(e)
+                print(f"[LLM] ⚠️ JSON parse error: {parse_error}")
                 self._capture_debug(f"[LLM] ⚠️ Match review for '{answer}' in {element}: JSON parse error: {parse_error}")
                 self._capture_debug(f"[LLM] ⚠️ Raw response (first 200 chars): {response[:200]}")
-                # Try to extract JSON from response
-                json_match = re.search(r"\{[^{}]*\}", response, re.DOTALL)
-                if json_match:
-                    try:
-                        extracted_json = json_match.group(0)
-                        parsed = json.loads(extracted_json)
-                        parse_error = None
-                        self._capture_debug(f"[LLM] ✅ Extracted and parsed JSON from response")
-                    except json.JSONDecodeError as e2:
-                        parse_error = str(e2)
-                        parsed = None
-                        self._capture_debug(f"[LLM] ⚠️ Failed to parse extracted JSON: {parse_error}")
-                        self._capture_debug(f"[LLM] ⚠️ Extracted JSON (first 200 chars): {extracted_json[:200] if json_match else 'none'}")
+                # Try to extract JSON from response using a more robust method
+                # Look for JSON object boundaries (start with {, end with })
+                start_idx = response.find('{')
+                if start_idx != -1:
+                    # Try to find matching closing brace by counting braces
+                    brace_count = 0
+                    end_idx = start_idx
+                    for i in range(start_idx, len(response)):
+                        if response[i] == '{':
+                            brace_count += 1
+                        elif response[i] == '}':
+                            brace_count -= 1
+                            if brace_count == 0:
+                                end_idx = i + 1
+                                break
+                    if end_idx > start_idx:
+                        try:
+                            extracted_json = response[start_idx:end_idx]
+                            parsed = json.loads(extracted_json)
+                            parse_error = None
+                            print(f"[LLM] ✅ Successfully extracted and parsed JSON from response")
+                            self._capture_debug(f"[LLM] ✅ Extracted and parsed JSON from response")
+                        except json.JSONDecodeError as e2:
+                            parse_error = str(e2)
+                            parsed = None
+                            print(f"[LLM] ⚠️ Failed to parse extracted JSON: {parse_error}")
+                            self._capture_debug(f"[LLM] ⚠️ Failed to parse extracted JSON: {parse_error}")
+                            self._capture_debug(f"[LLM] ⚠️ Extracted JSON (first 300 chars): {extracted_json[:300]}")
+                    else:
+                        print(f"[LLM] ⚠️ Could not find matching closing brace in JSON")
+                        self._capture_debug(f"[LLM] ⚠️ Could not find matching closing brace in JSON")
+                else:
+                    print(f"[LLM] ⚠️ No opening brace found in response")
+                    self._capture_debug(f"[LLM] ⚠️ No opening brace found in response")
             
             if parse_error:
                 self._capture_debug(f"[LLM] ⚠️ Match review for '{answer}' in {element}: Failed to parse JSON. Error: {parse_error}")
@@ -1106,13 +1107,36 @@ class AdvancedMedicalNavigator:
                 llm_returned_keys = list(parsed.keys())
                 expected_keys = list(limited)
                 self._capture_debug(f"[LLM] ✅ Parsed JSON with {len(parsed)} keys")
+                print(f"[LLM] ✅ Parsed JSON with {len(parsed)} keys: {llm_returned_keys}")
                 self._capture_debug(f"[LLM] 🔍 LLM returned keys: {llm_returned_keys[:10]}")
                 self._capture_debug(f"[LLM] 🔍 Expected keys (sample): {expected_keys[:10]}")
                 
+                # Detect wrong format: LLM returned generic keys like "term" instead of actual term names
+                wrong_format_detected = False
+                if len(parsed) == 1 and "term" in parsed:
+                    wrong_format_detected = True
+                    print(f"[LLM] ❌ WRONG FORMAT DETECTED: LLM returned {{\"term\": \"{parsed.get('term')}\"}} instead of {{\"term_name\": score}}")
+                    self._capture_debug(f"[LLM] ❌ WRONG FORMAT: LLM returned generic key 'term' with value '{parsed.get('term')}' instead of term names as keys")
+                    self._capture_debug(f"[LLM] ❌ Expected format: {{\"medical_term_1\": 1.0, \"medical_term_2\": 0.0, \"medical_term_3\": 0.0, ...}}")
+                    self._capture_debug(f"[LLM] ❌ LLM should return ALL terms as keys with numeric scores (0.0-1.0) as values")
+                
+                # Check if any values are strings instead of numbers
+                string_values = [(k, v) for k, v in parsed.items() if isinstance(v, str)]
+                if string_values:
+                    print(f"[LLM] ⚠️ Found {len(string_values)} non-numeric values (should be numbers): {string_values[:3]}")
+                    self._capture_debug(f"[LLM] ⚠️ Found {len(string_values)} keys with string values (should be numeric scores): {string_values[:5]}")
+                
+                # Check how many keys match expected terms
+                matching_keys = [k for k in llm_returned_keys if k in expected_keys or k.lower() in [t.lower() for t in expected_keys]]
+                if len(matching_keys) == 0 and len(llm_returned_keys) > 0:
+                    print(f"[LLM] ⚠️ NO MATCHING KEYS: LLM returned keys {llm_returned_keys} but expected keys like {expected_keys[:3]}")
+                    wrong_format_detected = True
+                
                 for key, value in parsed.items():
                     if not isinstance(value, (int, float)):
+                        print(f"[LLM] ⚠️ Skipping '{key}': value is {type(value).__name__} (not numeric): {value}")
                         self._capture_debug(f"[LLM] ⚠️ Skipping '{key}': value is {type(value).__name__} (not numeric): {value}")
-                        continue
+                    continue
                     term_key = key.strip()
                     score = max(0.0, min(1.0, float(value)))
                     
@@ -1149,7 +1173,7 @@ class AdvancedMedicalNavigator:
                     self._capture_debug(f"[LLM] ⚠️ Match review for '{answer}' in {element}: LLM returned JSON with {len(parsed)} keys but NO valid numeric scores")
                     self._capture_debug(f"[LLM] ⚠️ JSON keys and sample values: {list(parsed.items())[:5]}")
                     self._capture_debug(f"[LLM] ⚠️ Expected terms: {limited[:10]}")
-                else:
+            else:
                     self._capture_debug(f"[LLM] ✅ Successfully extracted {len(llm_scores)} LLM scores")
                     # Log which terms were matched
                     matched_terms = [term for term in limited if term in llm_scores]
@@ -1177,17 +1201,18 @@ class AdvancedMedicalNavigator:
             }
 
         for term in limited:
-            faiss_score = refined_scores.get(term, 0.0)  # FAISS score is always 0.0 (bypassed)
+            # LLM-only approach: FAISS is bypassed, so first score is always 0.0 (kept for tuple compatibility)
+            unused_score = 0.0  # Placeholder (FAISS bypassed in LLM-only approach)
             llm_score = llm_scores.get(term, llm_scores.get(term.lower()))
             
             # For ALL elements, use LLM score exclusively
             if llm_score is not None:
                 refined_scores[term] = llm_score
-                review_rows.append((term, faiss_score, llm_score, llm_score))
+                review_rows.append((term, unused_score, llm_score, llm_score))
             else:
                 # If LLM didn't score it, set to 0.0 (no match)
                 refined_scores[term] = 0.0
-                review_rows.append((term, faiss_score, 0.0, 0.0))
+                review_rows.append((term, unused_score, 0.0, 0.0))
 
         # Order terms by refined score for filtering
         ordered = sorted(limited, key=lambda t: refined_scores.get(t, 0.0), reverse=True)
@@ -1222,28 +1247,13 @@ class AdvancedMedicalNavigator:
         guidelines = self._collect_guidelines_for_session(session)
         total_guidelines = len(guidelines)
         answer_lower = answer.lower()
-        patient_components = {}
-        if self.medical_rule_engine:
-            patient_components = self.medical_rule_engine._extract_anatomical_components(answer_lower)
 
-        # Step 1: anatomical filtering on guidelines
-        filtered_guidelines = []
-        if patient_components and self.medical_rule_engine:
-            for guideline in guidelines:
-                anatomical_type = self.medical_rule_engine._get_anatomical_type_from_guideline(guideline)
-                if anatomical_type:
-                    term_components = self.medical_rule_engine._map_anatomical_type_to_components(anatomical_type)
-                    if term_components and self.medical_rule_engine._are_anatomical_opposites(patient_components, term_components):
-                        continue
-                filtered_guidelines.append(guideline)
-        else:
-            filtered_guidelines = guidelines
-
-        # Step 2: collect terms
+        # LLM-only approach: no anatomical filtering needed - LLM handles anatomical reasoning
+        # Step 1: collect terms from all guidelines
         all_terms_patient: Dict[str, Dict[str, str]] = {}
         medical_to_patient: Dict[str, str] = {}
         term_to_guidelines: Dict[str, List[str]] = {}
-        for guideline in filtered_guidelines:
+        for guideline in guidelines:
             condition_name = guideline.get('condition', guideline.get('name', 'Unknown'))
             structured = self._structured_oldcarts(guideline)
             location_data = structured.get('location', {})
@@ -1302,19 +1312,8 @@ class AdvancedMedicalNavigator:
             elif fallback_med_terms:
                 satisfied_medical_terms = fallback_med_terms
 
-        # Anatomical filtering of satisfied medical terms
-        if self.medical_rule_engine and patient_components:
-            filtered_satisfied = []
-            for med in satisfied_medical_terms:
-                med_components = self.medical_rule_engine._extract_anatomical_components(med.lower())
-                if not med_components:
-                    filtered_satisfied.append(med)
-                    continue
-                if not self.medical_rule_engine._are_anatomical_opposites(patient_components, med_components):
-                    filtered_satisfied.append(med)
-            satisfied_medical_terms = filtered_satisfied
-
         # Missing medical terms if none satisfied
+        # LLM-only approach: no anatomical filtering needed - LLM already handled anatomical reasoning in scoring
         missing_medical_terms = []
         if not satisfied_medical_terms:
             unsatisfied_keys = [key for key in all_terms_patient if key not in semantic_set]
@@ -1326,14 +1325,7 @@ class AdvancedMedicalNavigator:
                 if med_key not in seen_unsatisfied:
                     seen_unsatisfied.add(med_key)
                     unsatisfied_medical.append(med)
-            if self.medical_rule_engine and patient_components:
-                filtered_missing = []
-                for med in unsatisfied_medical:
-                    med_components = self.medical_rule_engine._extract_anatomical_components(med.lower())
-                    if not (med_components and self.medical_rule_engine._are_anatomical_opposites(patient_components, med_components)):
-                        filtered_missing.append(med)
-                unsatisfied_medical = filtered_missing
-            # rank by FAISS scores if available
+            # Rank by LLM scores
             scored_missing = []
             for med in unsatisfied_medical:
                 pf = medical_to_patient.get(med.lower(), med)
@@ -1385,20 +1377,7 @@ class AdvancedMedicalNavigator:
                         seen_high.add(med_lower)
                         high_conf_med_terms.append(med_term)
 
-                # Reapply anatomical filtering to the high-confidence set
-                if self.medical_rule_engine and patient_components:
-                    filtered_high_conf = []
-                    seen_filtered = set()
-                    for med in high_conf_med_terms:
-                        med_components = self.medical_rule_engine._extract_anatomical_components(med.lower())
-                        if med_components and self.medical_rule_engine._are_anatomical_opposites(patient_components, med_components):
-                            continue
-                        med_lower = med.lower()
-                        if med_lower not in seen_filtered:
-                            seen_filtered.add(med_lower)
-                            filtered_high_conf.append(med)
-                    high_conf_med_terms = filtered_high_conf
-
+                # LLM-only approach: no anatomical filtering needed - LLM already handled anatomical reasoning in scoring
                 if high_conf_med_terms:
                     satisfied_medical_terms = high_conf_med_terms
                     matches = high_conf_matches
@@ -1458,13 +1437,12 @@ class AdvancedMedicalNavigator:
             'all_terms': all_terms_list,
             'active_terms': [],
             'semantic_matches': matches,
-            'faiss_scores': sorted_scores,
+            'llm_scores': sorted_scores,  # LLM scores for all terms (LLM-only approach)
             'term_breakdown': term_breakdown,
             'satisfied_medical_terms': satisfied_medical_terms,
             'satisfied_options': satisfied_options,
             'missing_medical_terms': missing_medical_terms,
             'missing_options': missing_options,
-            'patient_components': patient_components,
             'term_to_guidelines': term_to_guidelines,
             'boosted_matches': boosted_matches,
             'boosted_term_scores': boosted_term_scores,
@@ -1492,7 +1470,7 @@ class AdvancedMedicalNavigator:
         if len(satisfied) >= 2:
             # Check if one match is clearly best (auto-selection logic)
             # Get LLM scores for satisfied options
-            scores = analysis.get('boosted_term_scores') or analysis.get('faiss_scores', {})
+            scores = analysis.get('boosted_term_scores') or analysis.get('llm_scores', {})
             satisfied_options = analysis.get('satisfied_options', [])
             
             # Build list of (option, score) tuples for satisfied options
@@ -1624,7 +1602,7 @@ class AdvancedMedicalNavigator:
         matches = analysis.get('semantic_matches', [])
         term_breakdown = analysis.get('term_breakdown', [])
         threshold = analysis.get('threshold', 0.6)
-        faiss_scores = analysis.get('faiss_scores', {})
+        llm_scores = analysis.get('llm_scores', {})  # LLM scores for all terms (LLM-only approach)
 
         self._capture_debug(
             f"[Location Analysis] 📍 Checking satisfaction against ALL {analysis.get('total_guidelines', 0)} guidelines (active + reserve)"
@@ -1633,11 +1611,10 @@ class AdvancedMedicalNavigator:
             f"[Location Analysis] 📍 All includes terms from {len(analysis.get('all_terms', []))} total guidelines: {analysis.get('all_terms', [])}"
         )
         self._capture_debug(f"[Location Analysis] 📝 Patient answer: '{answer}'")
-        # For location, scores are LLM scores (not FAISS)
-        self._capture_debug(f"[LLM] 🔍 LLM scores for '{answer}' in location: {faiss_scores}")
+        self._capture_debug(f"[LLM] 🔍 LLM scores for '{answer}' in location: {llm_scores}")
         self._capture_debug(f"[Location Analysis] 🔍 LLM found {len(matches)} matches above threshold ({threshold}): {matches}")
         self._capture_debug(f"[Location Analysis]   - semantic_matches_set ({len(matches)} terms): {matches}")
-        self._capture_debug(f"[Location Analysis]   - LLM scores ({len(faiss_scores)} terms): {faiss_scores}")
+        self._capture_debug(f"[Location Analysis]   - LLM scores ({len(llm_scores)} terms): {llm_scores}")
 
         normalized_answer = answer.lower().strip()
         semantic_set = {m.lower() for m in matches}
@@ -1683,116 +1660,146 @@ class AdvancedMedicalNavigator:
                 f"[Location Analysis] ❌ Unsatisfied terms: {unsatisfied_terms_log}"
             )
 
-    def _fuzzy_correct(self, text: str) -> str:
-        if not self.medical_rule_engine or not hasattr(self.medical_rule_engine, 'fuzzy_correct_medical_terms'):
-            return text
-        return self.medical_rule_engine.fuzzy_correct_medical_terms(text, similarity_threshold=0.6)
+    def _match_chief_complaint_to_category_llm(self, chief_complaint: str) -> List[str]:
+        """Match chief complaint to medical categories using LLM only."""
+        if not self.chief_complaint_triggers_data:
+            self._capture_debug("[Engine] ⚠️ No chief complaint triggers available - defaulting to gastrointestinal")
+            return ['gastrointestinal']
 
-    def _match_chief_complaint_to_category(self, chief_complaint: str) -> List[str]:
-        if not self.chief_complaint_triggers_index or not self.chief_complaint_triggers_data:
-            self._capture_debug("[Engine] ⚠️ Chief complaint trigger index unavailable - defaulting to gastrointestinal")
-            return ['gastrointestinal']
-        if not self.embedding_model:
-            self._capture_debug("[Engine] ⚠️ No embedding model available - defaulting to gastrointestinal")
-            return ['gastrointestinal']
+        # Group triggers by category
+        triggers_by_category: Dict[str, List[Dict]] = {}
+        triggers_by_condition: Dict[str, Dict] = {}
+        for trigger_data in self.chief_complaint_triggers_data:
+            category = trigger_data.get('category', 'gastrointestinal')
+            condition = trigger_data.get('condition', '')
+            if category not in triggers_by_category:
+                triggers_by_category[category] = []
+            triggers_by_category[category].append(trigger_data)
+            if condition:
+                triggers_by_condition[condition] = trigger_data
+
+        # Build LLM prompt
+        available_categories = list(triggers_by_category.keys())
+        category_summary = []
+        for category, triggers in triggers_by_category.items():
+            trigger_texts = [t['trigger'] for t in triggers[:5]]  # Sample triggers
+            category_summary.append(f"- {category}: {', '.join(trigger_texts)}")
+
+        system_prompt = (
+            "You are a medical expert matching patient chief complaints to medical categories. "
+            "Use your medical knowledge to determine which categories match the patient's complaint. "
+            "Consider synonyms, related terms, and medical context.\n\n"
+            "CRITICAL FORMAT REQUIREMENTS:\n"
+            "- Output ONLY valid JSON (no explanations, no text before or after)\n"
+            "- JSON must be an object with categories as keys and confidence scores (0.0-1.0) as values\n"
+            "- Example format: {\"gastrointestinal\": 0.9, \"cardiovascular\": 0.3}\n"
+            "- Scores: 1.0 = exact match, 0.0 = no match, 0.5-0.9 = partial match\n"
+            "- Include ALL categories with scores, even if 0.0\n"
+            "- Also include a \"conditions\" key with condition names and their scores\n"
+            "- Example: {\"gastrointestinal\": 0.9, \"cardiovascular\": 0.0, \"conditions\": {\"GERD\": 0.9, \"Appendicitis\": 0.2}}\n"
+            "- Do NOT use any other format - only JSON object"
+        )
+
+        user_prompt = (
+            f"Patient chief complaint: '{chief_complaint}'\n\n"
+            f"Available medical categories:\n"
+            f"{chr(10).join(category_summary)}\n\n"
+            f"Match the patient's chief complaint to the appropriate medical categories and specific conditions. "
+            f"Use your medical knowledge to handle misspellings, synonyms, and related terms. "
+            f"Return a JSON object with category scores and condition scores."
+        )
 
         try:
-            query_embedding = self.embedding_model.encode([chief_complaint.lower().strip()])[0]
-            query_embedding = np.array([query_embedding]).astype('float32')
-            faiss.normalize_L2(query_embedding)
-        except Exception as e:
-            self._capture_debug(f"[Engine] ❌ Failed to encode chief complaint: {e}")
-            return ['gastrointestinal']
-
-        k = min(10, len(self.chief_complaint_triggers_data))
-        similarities, indices = self.chief_complaint_triggers_index.search(query_embedding, k)
-
-        self._capture_debug(f"[Engine] 🔍 FAISS search for '{chief_complaint}' (threshold: {self.CHIEF_COMPLAINT_FAISS_THRESHOLD})")
-
-        category_scores: Dict[str, float] = {}
-        condition_scores: Dict[str, float] = {}
-        near_miss_candidates = []
-
-        for idx, sim in zip(indices[0], similarities[0]):
-            if idx >= len(self.chief_complaint_triggers_data):
-                continue
-            trigger_data = self.chief_complaint_triggers_data[idx]
-            trigger_text = trigger_data.get('trigger', '')
-            category = trigger_data.get('category', 'gastrointestinal')
-            status = "✅ ABOVE" if sim >= self.CHIEF_COMPLAINT_FAISS_THRESHOLD else "⚠️ BELOW"
-            self._capture_debug(f"[Engine]   - '{trigger_text}' ({category}): {sim:.4f} {status} threshold")
-
-            if sim >= self.CHIEF_COMPLAINT_FAISS_THRESHOLD:
-                category_scores[category] = max(category_scores.get(category, 0.0), sim)
-                if trigger_data.get('condition'):
-                    previous = condition_scores.get(trigger_data['condition'], 0.0)
-                    if sim > previous:
-                        condition_scores[trigger_data['condition']] = sim
-                        self._capture_debug(
-                            f"[Engine] ✅ Chief complaint match: '{trigger_text}' → {trigger_data['condition']} (category: {category}, score: {sim:.3f})"
-                        )
-            elif sim >= self.CHIEF_COMPLAINT_NEAR_MISS_UPPER:
-                category_scores[category] = max(category_scores.get(category, 0.0), sim)
-                if trigger_data.get('condition'):
-                    weighted = sim * 0.85
-                    previous = condition_scores.get(trigger_data['condition'], 0.0)
-                    if weighted > previous:
-                        condition_scores[trigger_data['condition']] = weighted
-                        self._capture_debug(
-                            f"[Engine] ✅ Chief complaint near-match: '{trigger_text}' → {trigger_data['condition']} (category: {category}, score: {weighted:.3f})"
-                        )
-            elif sim >= self.CHIEF_COMPLAINT_NEAR_MISS_LOWER:
-                near_miss_candidates.append((trigger_data, sim))
-
-        if not category_scores and near_miss_candidates:
-            self._capture_debug(f"[Engine] ⚠️ No matches above threshold. Trying fuzzy matching on {len(near_miss_candidates)} candidates.")
-            best_category = None
-            best_score = 0.0
-            cleaned = chief_complaint.lower().strip()
-            for trigger_data, faiss_score in near_miss_candidates:
-                trigger_text = trigger_data.get('trigger', '').lower()
-                similarity = SequenceMatcher(None, cleaned, trigger_text).ratio()
-                combined = (faiss_score * 0.6) + (similarity * 0.4)
-                if combined >= self.CHIEF_COMPLAINT_FUZZY_THRESHOLD and combined > best_score:
-                    best_score = combined
-                    best_category = trigger_data.get('category', 'gastrointestinal')
-                    best_condition = trigger_data.get('condition')
-            if best_category:
-                self._capture_debug(f"[Engine] ✅ Fuzzy matched to category '{best_category}' (score: {best_score:.3f})")
-                if best_condition:
-                    condition_scores[best_condition] = best_score * 0.75
-                    self._capture_debug(
-                        f"[Engine] ✅ Chief complaint fuzzy match: '{chief_complaint}' → {best_condition} (category: {best_category}, score: {best_score * 0.75:.3f})"
-                    )
-                self._chief_complaint_condition_seed = condition_scores
-                return [best_category]
-
-        if not category_scores:
-            self._capture_debug(f"[Engine] ⚠️ No category match found for chief complaint '{chief_complaint}'.")
-            self._chief_complaint_condition_seed = {}
-            return []
-
-        sorted_categories = sorted(category_scores.items(), key=lambda x: x[1], reverse=True)
-        best_category, best_score = sorted_categories[0]
-        matched = [best_category]
-
-        for category, score in sorted_categories[1:]:
-            if best_score - score < 0.1 and score >= self.CHIEF_COMPLAINT_FAISS_THRESHOLD:
-                matched.append(category)
-
-        if len(matched) == 1:
-            self._capture_debug(f"[Engine] 🎯 Category matched via chief complaint: {best_category} (score: {best_score:.3f})")
-        else:
-            scores = ', '.join(f"{cat} ({category_scores[cat]:.3f})" for cat in matched)
-            self._capture_debug(f"[Engine] 🎯 Multiple categories matched via chief complaint: {scores}")
-
-        self._chief_complaint_condition_seed = condition_scores
-        if condition_scores:
-            top_preview = ', '.join(
-                f"{name}: {score:.3f}" for name, score in sorted(condition_scores.items(), key=lambda x: x[1], reverse=True)[:5]
+            self._capture_debug(f"[Engine] 🔍 LLM matching chief complaint '{chief_complaint}' to categories")
+            response = self.llm_chat_fn(
+                [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                max_tokens=500,
+                temperature=0.0,
             )
-            self._capture_debug(f"[Engine] 📌 Chief complaint condition seeds: {top_preview}")
-        return matched
+            
+            if not response:
+                self._capture_debug("[Engine] ⚠️ LLM returned empty response for chief complaint matching")
+                return ['gastrointestinal']
+
+            # Parse JSON response
+            try:
+                parsed = json.loads(response)
+            except json.JSONDecodeError:
+                # Try to extract JSON from response
+                json_match = re.search(r"\{.*\}", response, re.DOTALL)
+                if json_match:
+                    parsed = json.loads(json_match.group(0))
+                else:
+                    self._capture_debug(f"[Engine] ⚠️ Failed to parse LLM response: {response[:200]}")
+                    return ['gastrointestinal']
+
+            # Extract category scores
+            category_scores: Dict[str, float] = {}
+            condition_scores: Dict[str, float] = {}
+            
+            # Get conditions if provided
+            conditions_dict = parsed.get('conditions', {})
+            if isinstance(conditions_dict, dict):
+                for condition, score in conditions_dict.items():
+                    if isinstance(score, (int, float)):
+                        condition_scores[condition] = max(0.0, min(1.0, float(score)))
+
+            # Get category scores (exclude 'conditions' key)
+            for key, value in parsed.items():
+                if key == 'conditions':
+                    continue
+                if key in available_categories and isinstance(value, (int, float)):
+                    category_scores[key] = max(0.0, min(1.0, float(value)))
+
+            self._capture_debug(f"[Engine] 🔍 LLM category scores: {category_scores}")
+            if condition_scores:
+                self._capture_debug(f"[Engine] 🔍 LLM condition scores: {dict(list(condition_scores.items())[:5])}")
+
+            # Filter categories by threshold
+            matched_categories = [
+                cat for cat, score in category_scores.items()
+                if score >= self.CHIEF_COMPLAINT_LLM_THRESHOLD
+            ]
+
+            if not matched_categories:
+                # If no categories above threshold, use top category
+                if category_scores:
+                    sorted_cats = sorted(category_scores.items(), key=lambda x: x[1], reverse=True)
+                    top_cat, top_score = sorted_cats[0]
+                    if top_score > 0.3:  # Lower threshold for fallback
+                        matched_categories = [top_cat]
+                        self._capture_debug(f"[Engine] ⚠️ No categories above threshold, using top category: {top_cat} ({top_score:.3f})")
+                    else:
+                        self._capture_debug(f"[Engine] ⚠️ No confident category match found, defaulting to gastrointestinal")
+                        matched_categories = ['gastrointestinal']
+                else:
+                    self._capture_debug(f"[Engine] ⚠️ No category scores found, defaulting to gastrointestinal")
+                    matched_categories = ['gastrointestinal']
+
+            # Store condition seeds
+            self._chief_complaint_condition_seed = condition_scores
+            if condition_scores:
+                top_preview = ', '.join(
+                    f"{name}: {score:.3f}" for name, score in sorted(condition_scores.items(), key=lambda x: x[1], reverse=True)[:5]
+                )
+                self._capture_debug(f"[Engine] 📌 Chief complaint condition seeds: {top_preview}")
+
+            if len(matched_categories) == 1:
+                self._capture_debug(f"[Engine] 🎯 Category matched: {matched_categories[0]} (LLM score: {category_scores.get(matched_categories[0], 0.0):.3f})")
+            else:
+                scores = ', '.join(f"{cat} ({category_scores.get(cat, 0.0):.3f})" for cat in matched_categories)
+                self._capture_debug(f"[Engine] 🎯 Multiple categories matched: {scores}")
+
+            return matched_categories
+
+        except Exception as e:
+            self._capture_debug(f"[Engine] ❌ Error in LLM chief complaint matching: {e}")
+            import traceback
+            traceback.print_exc()
+            return ['gastrointestinal']
  
      # ----------- Guidance builders -------------------------------------------
 
@@ -1837,11 +1844,8 @@ class AdvancedMedicalNavigator:
 
         self._capture_debug(f"[Navigator] 📚 Loaded {loaded} guidelines ({skipped} skipped)")
 
-    def _build_chief_complaint_index(self) -> None:
-        if not self.embedding_model:
-            self._capture_debug("[Navigator] ⚠️ No embedding model available for chief complaint index")
-            return
-        triggers = []
+    def _build_chief_complaint_triggers(self) -> None:
+        """Build chief complaint triggers list for LLM matching (no FAISS index needed)."""
         self.chief_complaint_triggers_data = []
 
         for name, guideline in self.all_guidelines.items():
@@ -1850,28 +1854,16 @@ class AdvancedMedicalNavigator:
             for trigger in trigger_list:
                 if not trigger:
                     continue
-                triggers.append(trigger)
                 self.chief_complaint_triggers_data.append({
                     'trigger': trigger,
                     'category': category,
                     'condition': name,
                 })
 
-        if not triggers:
+        if not self.chief_complaint_triggers_data:
             self._capture_debug("[Navigator] ⚠️ No chief complaint triggers found in guidelines")
-            return
-
-        try:
-            embeddings = self.embedding_model.encode(triggers)
-            embeddings = np.asarray(embeddings, dtype='float32')
-            faiss.normalize_L2(embeddings)
-            index = faiss.IndexFlatIP(embeddings.shape[1])
-            index.add(embeddings)
-            self.chief_complaint_triggers_index = index
-            self._capture_debug(f"[Navigator] ✅ Chief complaint trigger index built with {len(triggers)} triggers")
-        except Exception as e:
-            self._capture_debug(f"[Navigator] ❌ Failed to build chief complaint trigger index: {e}")
-            self.chief_complaint_triggers_index = None
+        else:
+            self._capture_debug(f"[Navigator] ✅ Collected {len(self.chief_complaint_triggers_data)} chief complaint triggers for LLM matching")
 
     def _get_guideline_category(self, guideline: Dict) -> str:
         organ_system = guideline.get('organ_system', '')
@@ -2712,9 +2704,10 @@ class AdvancedMedicalNavigator:
             lines.append(f"[LLM] 🔍 Match review ({review['element']}) for '{review['answer']}':")
             lines.append(f"[LLM]   • Requested terms: {requested if requested else 'none'}")
             if rows:
-                for term, faiss_score, llm_score, blended in rows:
+                for term, unused_score, llm_score, final_score in rows:
+                    # Note: first score is always 0.0 (FAISS bypassed), second is LLM score, third is final (LLM-only)
                     lines.append(
-                        f"[LLM]   • {term}: FAISS={faiss_score:.3f}, LLM={llm_score:.3f}, blended={blended:.3f}"
+                        f"[LLM]   • {term}: LLM={llm_score:.3f}, final={final_score:.3f}"
                     )
             else:
                 lines.append("[LLM]   • LLM returned no scores.")
@@ -2723,7 +2716,7 @@ class AdvancedMedicalNavigator:
                 else:
                     lines.append("[LLM]   • Raw response: EMPTY or not captured")
                 lines.append(f"[LLM]   • Had scores: {had_scores}")
-                lines.append("[LLM]   • Note: FAISS is bypassed - LLM is required for all elements")
+                lines.append("[LLM]   • Note: LLM-only approach - no FAISS, all matching done by LLM")
         lines.append(self._format_rankings_debug(session))
         return '\n'.join(lines)
 

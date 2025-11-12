@@ -116,20 +116,18 @@ def get_adaptive_engine(llm_chat_fn, llm_chat_simple_fn, embedding_api):
     
     return _global_adaptive_engine
 
-def get_medical_navigator(llm_chat_fn, medical_rule_engine=None, embedding_model=None):
-    """Get or create singleton medical navigator (hybrid LLM/RAG/FAISS)"""
+def get_medical_navigator(llm_chat_fn):
+    """Get or create singleton medical navigator (LLM-only)"""
     global _global_medical_navigator
     if not _ensure_medical_navigator_import():
         raise RuntimeError("Advanced Medical Navigator not available")
 
     if _global_medical_navigator is None:
-        print("[Container] 🔧 Initializing Advanced Medical Navigator (one-time setup)...")
+        print("[Container] 🔧 Initializing Advanced Medical Navigator (LLM-only, one-time setup)...")
         _global_medical_navigator = AdvancedMedicalNavigator(
-            llm_chat_fn=llm_chat_fn,
-            medical_rule_engine=medical_rule_engine,
-            embedding_model=embedding_model
+            llm_chat_fn=llm_chat_fn
         )
-        print(f"[Container] ✅ Advanced Medical Navigator initialized")
+        print(f"[Container] ✅ Advanced Medical Navigator initialized (LLM-only)")
     
     return _global_medical_navigator
 
@@ -417,11 +415,10 @@ def chat_tg():
             if not _ensure_medical_navigator_import():
                 raise RuntimeError("Advanced Medical Navigator requested but not available")
             # ===== MEDICAL NAVIGATOR PATH =====
-            print(f"[Telegram] 🔀 Using Advanced Medical Navigator")
+            print(f"[Telegram] 🔀 Using Advanced Medical Navigator (LLM-only)")
             
-            # Initialize singletons (rag_api is module-level global)
-            medical_rule_engine = get_medical_rule_engine(rag_api) if rag_api else None
-            navigator = get_medical_navigator(llm_chat, medical_rule_engine, rag_api)
+            # Initialize singleton (LLM-only, no medical_rule_engine or embedding_model needed)
+            navigator = get_medical_navigator(llm_chat)
             
             # Process message through navigator
             response = navigator.process_message(session_id=session_id, user_message=prompt)
@@ -541,10 +538,10 @@ def chat_tts():
             # rag_api is module-level global (initialized at startup)
             if use_medical_navigator and MEDICAL_NAVIGATOR_AVAILABLE:
                 # ===== MEDICAL NAVIGATOR PATH =====
-                print(f"[TTS] 🔀 Using Advanced Medical Navigator")
+                print(f"[TTS] 🔀 Using Advanced Medical Navigator (LLM-only)")
                 
-                medical_rule_engine = get_medical_rule_engine(rag_api) if rag_api else None
-                navigator = get_medical_navigator(llm_chat, medical_rule_engine, rag_api)
+                # Initialize singleton (LLM-only, no medical_rule_engine or embedding_model needed)
+                navigator = get_medical_navigator(llm_chat)
                 
                 response = navigator.process_message(session_id=session_id, user_message=prompt)
                 
