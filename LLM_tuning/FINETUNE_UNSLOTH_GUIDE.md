@@ -67,10 +67,19 @@ pip3 install torch torchvision torchaudio --index-url https://download.pytorch.o
 pip3 install --force-reinstall --no-cache-dir "transformers>=4.40.0,<4.46.0"
 
 # 3. Install trl with compatible version (before unsloth)
-pip3 install --force-reinstall --no-cache-dir "trl>=0.7.0,<0.8.0"
+# CRITICAL: Use constraint to prevent transformers from being upgraded
+echo "transformers<4.46.0" > /tmp/transformers_constraint.txt
+pip3 install --force-reinstall --no-cache-dir --constraint /tmp/transformers_constraint.txt "trl>=0.7.0,<0.8.0"
+rm -f /tmp/transformers_constraint.txt
+# Verify transformers wasn't upgraded
+python3 -c "import transformers; v=transformers.__version__; assert v < '4.46.0', f'Transformers upgraded to {v}!'; print(f'✅ Transformers: {v}')"
 
-# 4. Install unsloth (will try to pull compatible unsloth_zoo)
-pip3 install --index-url https://pypi.jetson-ai-lab.io/jp6/cu126 unsloth==2025.7.9
+# 4. Install unsloth (with constraint to prevent transformers upgrade)
+echo "transformers<4.46.0" > /tmp/transformers_constraint.txt
+pip3 install --index-url https://pypi.jetson-ai-lab.io/jp6/cu126 --constraint /tmp/transformers_constraint.txt unsloth==2025.7.9
+rm -f /tmp/transformers_constraint.txt
+# Verify transformers wasn't upgraded
+python3 -c "import transformers; v=transformers.__version__; assert v < '4.46.0', f'Transformers upgraded to {v}!'; print(f'✅ Transformers: {v}')"
 
 # 5. Install unsloth_zoo if needed (with --no-deps to avoid pulling incompatible transformers)
 pip3 install --no-deps unsloth_zoo || echo "unsloth_zoo may already be included in unsloth"
@@ -396,12 +405,24 @@ This means newer versions of these packages were installed, which require incomp
 # 1. Uninstall incompatible versions
 pip3 uninstall -y unsloth_zoo trl transformers
 
-# 2. Install compatible versions in the correct order
+# 2. Install compatible versions in the correct order with constraints
 pip3 install --force-reinstall --no-cache-dir transformers==4.45.2
-pip3 install --force-reinstall --no-cache-dir trl==0.7.11
 
-# 3. Reinstall unsloth
-pip3 install --index-url https://pypi.jetson-ai-lab.io/jp6/cu126 unsloth==2025.7.9
+# Use constraint to prevent transformers from being upgraded when installing trl
+echo "transformers<4.46.0" > /tmp/transformers_constraint.txt
+pip3 install --force-reinstall --no-cache-dir --constraint /tmp/transformers_constraint.txt trl==0.7.11
+rm -f /tmp/transformers_constraint.txt
+
+# Verify transformers wasn't upgraded
+python3 -c "import transformers; v=transformers.__version__; assert v < '4.46.0', f'Transformers upgraded to {v}! Downgrade with: pip3 install --force-reinstall transformers==4.45.2'"
+
+# 3. Reinstall unsloth with constraint
+echo "transformers<4.46.0" > /tmp/transformers_constraint.txt
+pip3 install --index-url https://pypi.jetson-ai-lab.io/jp6/cu126 --constraint /tmp/transformers_constraint.txt unsloth==2025.7.9
+rm -f /tmp/transformers_constraint.txt
+
+# Verify transformers again
+python3 -c "import transformers; v=transformers.__version__; assert v < '4.46.0', f'Transformers upgraded to {v}! Downgrade with: pip3 install --force-reinstall transformers==4.45.2'"
 
 # 4. Install unsloth_zoo with --no-deps to prevent pulling incompatible transformers
 pip3 install --no-deps unsloth_zoo
@@ -412,9 +433,17 @@ python3 -c "from unsloth import FastLanguageModel; print('✅ Unsloth works!')"
 ```
 
 **Key points:**
-- Install `transformers` and `trl` FIRST with compatible versions
+- Install `transformers` FIRST with compatible version (4.45.2)
+- Use `--constraint` when installing `trl` and `unsloth` to prevent transformers from being upgraded
 - Use `--no-deps` when installing `unsloth_zoo` to prevent it from pulling incompatible transformers
+- Always verify transformers version after each installation step
 - The setup script handles this automatically if you run it fresh
+
+**If transformers gets upgraded during installation:**
+```bash
+# Immediately downgrade it
+pip3 install --force-reinstall --no-cache-dir transformers==4.45.2
+```
 
 ### Issue: "IndexError: list index out of range" during Unsloth import
 

@@ -70,22 +70,53 @@ echo ""
 echo "📥 Installing trl with compatible version..."
 
 # Install trl with compatible version BEFORE unsloth
-pip3 install --force-reinstall --no-cache-dir "trl>=0.7.0,<0.8.0" || {
-    echo "   ⚠️  Version range install failed, trying specific version..."
-    pip3 install --force-reinstall --no-cache-dir trl==0.7.11
+# CRITICAL: Use constraints to prevent transformers from being upgraded
+# Create a constraints file to lock transformers version
+echo "transformers<4.46.0" > /tmp/transformers_constraint.txt
+pip3 install --force-reinstall --no-cache-dir --constraint /tmp/transformers_constraint.txt "trl>=0.7.0,<0.8.0" || {
+    echo "   ⚠️  Version range install failed, trying specific version with constraint..."
+    pip3 install --force-reinstall --no-cache-dir --constraint /tmp/transformers_constraint.txt trl==0.7.11
 }
+rm -f /tmp/transformers_constraint.txt
+
+# Verify transformers wasn't upgraded
+TRANSFORMERS_AFTER_TRL=$(python3 -c "import transformers; print(transformers.__version__)" 2>/dev/null || echo "not installed")
+if [ "$TRANSFORMERS_AFTER_TRL" != "not installed" ]; then
+    if python3 -c "from packaging import version; import sys; v='$TRANSFORMERS_AFTER_TRL'; sys.exit(0 if version.parse(v) < version.parse('4.46.0') else 1)" 2>/dev/null; then
+        echo "   ✅ Transformers version still compatible: $TRANSFORMERS_AFTER_TRL"
+    else
+        echo "   ⚠️  Transformers was upgraded to $TRANSFORMERS_AFTER_TRL, downgrading..."
+        pip3 install --force-reinstall --no-cache-dir transformers==4.45.2
+    fi
+fi
 
 echo ""
 echo "📥 Installing Unsloth from Jetson AI Lab PyPI (cu126)..."
-echo "   (Installing unsloth package, then unsloth_zoo with compatible version)"
+echo "   (Installing unsloth package with transformers constraint)"
 
 # Install Unsloth from the cu126 index
-# Note: Use package name, not wheel filename - pip will find the wheel automatically
+# Use constraints to prevent transformers from being upgraded
+echo "transformers<4.46.0" > /tmp/transformers_constraint.txt
 pip3 install --index-url https://pypi.jetson-ai-lab.io/jp6/cu126 \
+    --constraint /tmp/transformers_constraint.txt \
     unsloth==2025.7.9 || {
-    echo "⚠️  Version-specific install failed, trying latest version..."
-    pip3 install --index-url https://pypi.jetson-ai-lab.io/jp6/cu126 unsloth
+    echo "⚠️  Version-specific install failed, trying latest version with constraint..."
+    pip3 install --index-url https://pypi.jetson-ai-lab.io/jp6/cu126 \
+        --constraint /tmp/transformers_constraint.txt \
+        unsloth
 }
+rm -f /tmp/transformers_constraint.txt
+
+# Verify transformers wasn't upgraded by unsloth
+TRANSFORMERS_AFTER_UNSLOTH=$(python3 -c "import transformers; print(transformers.__version__)" 2>/dev/null || echo "not installed")
+if [ "$TRANSFORMERS_AFTER_UNSLOTH" != "not installed" ]; then
+    if python3 -c "from packaging import version; import sys; v='$TRANSFORMERS_AFTER_UNSLOTH'; sys.exit(0 if version.parse(v) < version.parse('4.46.0') else 1)" 2>/dev/null; then
+        echo "   ✅ Transformers version still compatible: $TRANSFORMERS_AFTER_UNSLOTH"
+    else
+        echo "   ⚠️  Transformers was upgraded to $TRANSFORMERS_AFTER_UNSLOTH, downgrading..."
+        pip3 install --force-reinstall --no-cache-dir transformers==4.45.2
+    fi
+fi
 
 # Check if unsloth_zoo is needed (it may be included in unsloth 2025.7.9)
 # If not, we'll install it but need to be careful about version conflicts
