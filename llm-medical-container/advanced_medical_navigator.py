@@ -958,7 +958,17 @@ class AdvancedMedicalNavigator:
             }
 
         self._capture_debug(f"[LLM] 🔍 Reviewing {len(limited)} terms for '{answer}' in {element}: {limited}")
-        alias_map = {term.lower(): term for term in limited}
+        # Build alias map with multiple normalization strategies
+        alias_map = {}
+        for term in limited:
+            # Exact lowercase match
+            alias_map[term.lower()] = term
+            # Normalized match (remove quotes, extra spaces)
+            normalized = term.lower().strip().strip('"').strip("'").strip()
+            alias_map[normalized] = term
+            # Also add original term
+            alias_map[term] = term
+        
         candidate_lines = "\n".join(f"- {term}" for term in limited)
         
         # Create element-specific prompts
@@ -1027,55 +1037,127 @@ class AdvancedMedicalNavigator:
                 "Do not include explanations or additional text."
             )
         
-        self._capture_debug(f"[LLM] 🔍 Match review prompt:\n{user_prompt}")
-        self._capture_debug(f"[LLM] 🔍 System prompt: {system_prompt[:100]}...")
-        response = self.llm_chat_fn(
-            [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-            max_tokens=250,  # More tokens for all elements (since we're sending all terms)
-            temperature=0.0,
-        )
-        self._capture_debug(f"[LLM] 🔍 Match review raw response: {response}")
+        self._capture_debug(f"[LLM] 🔍 Calling LLM for {element} match review...")
+        self._capture_debug(f"[LLM] 🔍 System prompt: {system_prompt[:150]}...")
+        self._capture_debug(f"[LLM] 🔍 User prompt (first 500 chars): {user_prompt[:500]}...")
+        if len(user_prompt) > 500:
+            self._capture_debug(f"[LLM] 🔍 User prompt length: {len(user_prompt)} chars (truncated in log)")
+        
+        try:
+            response = self.llm_chat_fn(
+                [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                max_tokens=250,  # More tokens for all elements (since we're sending all terms)
+                temperature=0.0,
+            )
+            self._capture_debug(f"[LLM] ✅ LLM function returned response (type: {type(response).__name__})")
+        except Exception as e:
+            self._capture_debug(f"[LLM] ❌ LLM function raised exception: {type(e).__name__}: {e}")
+            response = None
+        
+        if response:
+            self._capture_debug(f"[LLM] 🔍 Match review raw response (first 500 chars): {response[:500]}")
+            if len(response) > 500:
+                self._capture_debug(f"[LLM] 🔍 ... (response truncated, total length: {len(response)} chars)")
+        else:
+            self._capture_debug(f"[LLM] ⚠️ Match review raw response: EMPTY or None")
 
         llm_scores: Dict[str, float] = {}
         had_scores = False
         parse_error = None
+        
         if not response:
-            self._capture_debug(f"[LLM] ⚠️ Match review for '{answer}' in {element}: LLM returned empty response")
+            self._capture_debug(f"[LLM] ⚠️ Match review for '{answer}' in {element}: LLM returned EMPTY response")
         else:
             parsed = None
             try:
                 parsed = json.loads(response)
+                self._capture_debug(f"[LLM] ✅ Successfully parsed JSON with {len(parsed) if isinstance(parsed, dict) else 'unknown'} keys")
             except json.JSONDecodeError as e:
                 parse_error = str(e)
-                json_match = re.search(r"\{.*\}", response, re.DOTALL)
+                self._capture_debug(f"[LLM] ⚠️ Match review for '{answer}' in {element}: JSON parse error: {parse_error}")
+                self._capture_debug(f"[LLM] ⚠️ Raw response (first 200 chars): {response[:200]}")
+                # Try to extract JSON from response
+                json_match = re.search(r"\{[^{}]*\}", response, re.DOTALL)
                 if json_match:
                     try:
-                        parsed = json.loads(json_match.group(0))
+                        extracted_json = json_match.group(0)
+                        parsed = json.loads(extracted_json)
                         parse_error = None
+                        self._capture_debug(f"[LLM] ✅ Extracted and parsed JSON from response")
                     except json.JSONDecodeError as e2:
                         parse_error = str(e2)
                         parsed = None
+                        self._capture_debug(f"[LLM] ⚠️ Failed to parse extracted JSON: {parse_error}")
+                        self._capture_debug(f"[LLM] ⚠️ Extracted JSON (first 200 chars): {extracted_json[:200] if json_match else 'none'}")
+            
             if parse_error:
-                self._capture_debug(f"[LLM] ⚠️ Match review for '{answer}' in {element}: Failed to parse JSON: {parse_error}")
+                self._capture_debug(f"[LLM] ⚠️ Match review for '{answer}' in {element}: Failed to parse JSON. Error: {parse_error}")
+                self._capture_debug(f"[LLM] ⚠️ Full response: {response}")
+            elif parsed is None:
+                self._capture_debug(f"[LLM] ⚠️ Match review for '{answer}' in {element}: No JSON found in response")
+                self._capture_debug(f"[LLM] ⚠️ Response content: {response}")
             elif not isinstance(parsed, dict):
-                self._capture_debug(f"[LLM] ⚠️ Match review for '{answer}' in {element}: Response is not a JSON object")
+                self._capture_debug(f"[LLM] ⚠️ Match review for '{answer}' in {element}: Response is not a JSON object. Type: {type(parsed)}")
+                self._capture_debug(f"[LLM] ⚠️ Response content: {response}")
             elif isinstance(parsed, dict):
+                llm_returned_keys = list(parsed.keys())
+                expected_keys = list(limited)
+                self._capture_debug(f"[LLM] ✅ Parsed JSON with {len(parsed)} keys")
+                self._capture_debug(f"[LLM] 🔍 LLM returned keys: {llm_returned_keys[:10]}")
+                self._capture_debug(f"[LLM] 🔍 Expected keys (sample): {expected_keys[:10]}")
+                
                 for key, value in parsed.items():
                     if not isinstance(value, (int, float)):
+                        self._capture_debug(f"[LLM] ⚠️ Skipping '{key}': value is {type(value).__name__} (not numeric): {value}")
                         continue
                     term_key = key.strip()
                     score = max(0.0, min(1.0, float(value)))
+                    
+                    # Try multiple matching strategies
+                    canonical = None
+                    # Strategy 1: Exact lowercase match
                     canonical = alias_map.get(term_key.lower())
+                    # Strategy 2: Normalized match (remove quotes, extra spaces)
+                    if not canonical:
+                        normalized_key = term_key.lower().strip().strip('"').strip("'").strip()
+                        canonical = alias_map.get(normalized_key)
+                    # Strategy 3: Try exact match
+                    if not canonical:
+                        canonical = alias_map.get(term_key)
+                    # Strategy 4: Try fuzzy match (find closest term)
+                    if not canonical:
+                        # Find closest term by checking if key contains term or term contains key
+                        for term in limited:
+                            if term_key.lower() in term.lower() or term.lower() in term_key.lower():
+                                canonical = term
+                                self._capture_debug(f"[LLM] ✅ Fuzzy matched '{term_key}' to '{canonical}'")
+                                break
+                    
                     if canonical:
                         llm_scores[canonical] = score
+                        self._capture_debug(f"[LLM] ✅ Scored '{canonical}' (from LLM key '{term_key}'): {score:.3f}")
                     else:
+                        # If no match found, still store it (might be a valid term we didn't send)
                         llm_scores[term_key] = score
+                        self._capture_debug(f"[LLM] ⚠️ LLM key '{term_key}' not found in expected terms, storing as-is with score {score:.3f}")
                     had_scores = True
+                
                 if not had_scores:
-                    self._capture_debug(f"[LLM] ⚠️ Match review for '{answer}' in {element}: LLM returned JSON but no valid numeric scores")
+                    self._capture_debug(f"[LLM] ⚠️ Match review for '{answer}' in {element}: LLM returned JSON with {len(parsed)} keys but NO valid numeric scores")
+                    self._capture_debug(f"[LLM] ⚠️ JSON keys and sample values: {list(parsed.items())[:5]}")
+                    self._capture_debug(f"[LLM] ⚠️ Expected terms: {limited[:10]}")
+                else:
+                    self._capture_debug(f"[LLM] ✅ Successfully extracted {len(llm_scores)} LLM scores")
+                    # Log which terms were matched
+                    matched_terms = [term for term in limited if term in llm_scores]
+                    unmatched_terms = [term for term in limited if term not in llm_scores]
+                    if matched_terms:
+                        self._capture_debug(f"[LLM] ✅ Matched terms: {matched_terms[:5]}")
+                    if unmatched_terms:
+                        self._capture_debug(f"[LLM] ⚠️ Unmatched terms: {unmatched_terms[:5]}")
 
         refined_scores = dict(term_scores)
         review_rows: List[Tuple[str, float, float, float]] = []
@@ -2625,6 +2707,8 @@ class AdvancedMedicalNavigator:
         if review:
             rows = review.get('rows', [])
             requested = review.get('requested_terms', [])
+            raw_response = review.get('raw_response', '')
+            had_scores = review.get('had_scores', False)
             lines.append(f"[LLM] 🔍 Match review ({review['element']}) for '{review['answer']}':")
             lines.append(f"[LLM]   • Requested terms: {requested if requested else 'none'}")
             if rows:
@@ -2633,7 +2717,13 @@ class AdvancedMedicalNavigator:
                         f"[LLM]   • {term}: FAISS={faiss_score:.3f}, LLM={llm_score:.3f}, blended={blended:.3f}"
                     )
             else:
-                lines.append("[LLM]   • LLM returned no scores; using FAISS values only.")
+                lines.append("[LLM]   • LLM returned no scores.")
+                if raw_response:
+                    lines.append(f"[LLM]   • Raw response (first 300 chars): {raw_response[:300]}")
+                else:
+                    lines.append("[LLM]   • Raw response: EMPTY or not captured")
+                lines.append(f"[LLM]   • Had scores: {had_scores}")
+                lines.append("[LLM]   • Note: FAISS is bypassed - LLM is required for all elements")
         lines.append(self._format_rankings_debug(session))
         return '\n'.join(lines)
 
