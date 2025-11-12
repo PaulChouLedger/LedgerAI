@@ -6,26 +6,44 @@ This directory contains all scripts and resources needed for fine-tuning the med
 
 ```
 LLM_tuning/
-├── finetune_unsloth.py    # Main fine-tuning script
-├── setup_unsloth.sh       # Setup script for dependencies
-└── README.md              # This file
+├── finetune_unsloth.py      # Main fine-tuning script
+├── setup_clean_env.sh        # Setup script for clean virtual environment (RECOMMENDED)
+├── setup_unsloth.sh          # Setup script for system-wide installation
+├── diagnose_imports.py       # Diagnostic script for troubleshooting
+├── medical_sft_dataset.json  # Fine-tuning dataset
+└── README.md                 # This file
 ```
 
 ## Quick Start
 
+### Recommended: Clean Virtual Environment (Easiest)
+
+1. **Setup clean virtual environment:**
+   ```bash
+   cd LLM_tuning
+   bash setup_clean_env.sh
+   ```
+
+2. **Activate environment and run fine-tuning:**
+   ```bash
+   source unsloth-env/bin/activate
+   python3 finetune_unsloth.py --dataset_path ./medical_sft_dataset.json
+   ```
+
+### Alternative: System-wide Installation
+
 1. **Setup dependencies:**
    ```bash
    cd LLM_tuning
-   ./setup_unsloth.sh
+   bash setup_unsloth.sh
    ```
 
 2. **Run fine-tuning:**
    ```bash
-   cd LLM_tuning
-   python3 finetune_unsloth.py
+   python3 finetune_unsloth.py --dataset_path ./medical_sft_dataset.json
    ```
-   
-   **Note:** The model will be automatically downloaded from Hugging Face on first use (~1-2GB) and cached in `~/.cache/huggingface/hub/`.
+
+**Note:** The model will be automatically downloaded from Hugging Face on first use (~1-2GB) and cached in `~/.cache/huggingface/hub/`.
 
 ## Files Location
 

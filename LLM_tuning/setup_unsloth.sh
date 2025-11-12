@@ -157,32 +157,66 @@ pip3 install datasets>=2.14.0 \
 
 echo ""
 echo "🧹 Clearing Python cache to ensure fresh imports..."
-# Find site-packages directory dynamically
-SITE_PACKAGES=$(python3 -c "import site; print(site.getsitepackages()[0])" 2>/dev/null || echo "")
-if [ -n "$SITE_PACKAGES" ] && [ -d "$SITE_PACKAGES" ]; then
-    find "$SITE_PACKAGES" -type d -name __pycache__ -exec rm -r {} + 2>/dev/null || true
-    find "$SITE_PACKAGES" -name "*.pyc" -delete 2>/dev/null || true
-    echo "   Cleared cache in $SITE_PACKAGES"
-else
-    echo "   Could not locate site-packages, skipping cache clear"
+# Find all site-packages directories (user and system)
+USER_SITE=$(python3 -c "import site; print(site.getusersitepackages())" 2>/dev/null || echo "")
+SITE_PACKAGES=$(python3 -c "import site; print(' '.join(site.getsitepackages()))" 2>/dev/null || echo "")
+
+# Clear cache in user site-packages
+if [ -n "$USER_SITE" ] && [ -d "$USER_SITE" ]; then
+    echo "   Clearing cache in user site-packages: $USER_SITE"
+    find "$USER_SITE" -type d -name __pycache__ -exec rm -r {} + 2>/dev/null || true
+    find "$USER_SITE" -name "*.pyc" -delete 2>/dev/null || true
+    find "$USER_SITE" -name "*.pyo" -delete 2>/dev/null || true
+    # Specifically clear transformers cache
+    find "$USER_SITE/transformers" -type d -name __pycache__ -exec rm -r {} + 2>/dev/null || true
+    find "$USER_SITE/transformers" -name "*.pyc" -delete 2>/dev/null || true
 fi
+
+# Clear cache in system site-packages
+for SITE_DIR in $SITE_PACKAGES; do
+    if [ -d "$SITE_DIR" ]; then
+        echo "   Clearing cache in: $SITE_DIR"
+        find "$SITE_DIR" -type d -name __pycache__ -exec rm -r {} + 2>/dev/null || true
+        find "$SITE_DIR" -name "*.pyc" -delete 2>/dev/null || true
+        find "$SITE_DIR" -name "*.pyo" -delete 2>/dev/null || true
+    fi
+done
+
+# Also clear any __pycache__ in current directory and parent
+find . -type d -name __pycache__ -exec rm -r {} + 2>/dev/null || true
+find . -name "*.pyc" -delete 2>/dev/null || true
+
+echo "   ✅ Cache cleared"
 
 echo ""
 echo "✅ Verifying installation..."
 
-# Verify transformers version first
-echo "   Checking transformers version..."
+# Verify transformers version and location
+echo "   Checking transformers installation..."
+python3 -c "
+import sys
+import transformers
+print(f'   Transformers version: {transformers.__version__}')
+print(f'   Transformers location: {transformers.__file__}')
+print(f'   Python path:')
+for p in sys.path:
+    print(f'     - {p}')
+" 2>/dev/null || echo "   ⚠️  Could not import transformers"
+
 TRANSFORMERS_VERSION=$(python3 -c "import transformers; print(transformers.__version__)" 2>/dev/null || echo "not installed")
-echo "   Transformers version: $TRANSFORMERS_VERSION"
 if [ "$TRANSFORMERS_VERSION" != "not installed" ]; then
     # Check if version is 4.46 or higher
     if python3 -c "from packaging import version; import sys; v='$TRANSFORMERS_VERSION'; sys.exit(0 if version.parse(v) < version.parse('4.46.0') else 1)" 2>/dev/null; then
-        echo "   ✅ Transformers version is compatible"
+        echo "   ✅ Transformers version $TRANSFORMERS_VERSION is compatible"
     else
         echo "   ❌ Transformers version $TRANSFORMERS_VERSION is incompatible!"
         echo "   Attempting to fix..."
         pip3 install --force-reinstall --no-cache-dir transformers==4.45.2
+        # Clear cache again after reinstall
+        python3 -c "import sys; import pathlib; [pathlib.Path(p).rglob('__pycache__') for p in sys.path if pathlib.Path(p).exists()]" 2>/dev/null || true
     fi
+else
+    echo "   ❌ Transformers is not installed!"
 fi
 
 # Test imports
@@ -211,10 +245,24 @@ except (ImportError, IndexError, AttributeError, ModuleNotFoundError) as e:
             print(f'❌ Unsloth import failed: {e2}')
             error_msg = str(e2)
             if 'top_k_top_p_filtering' in error_msg:
-                print('   This is a transformers version compatibility issue.')
+                print('   ❌ This is a transformers version compatibility issue.')
                 print('   Current transformers version is incompatible (4.46+).')
-                print('   Solution: pip install --force-reinstall --no-cache-dir transformers==4.45.2')
-                print('   Or: pip install --force-reinstall --no-cache-dir \"transformers>=4.40.0,<4.46.0\"')
+                print('')
+                print('   Diagnostic info:')
+                try:
+                    import transformers
+                    print(f'   - Transformers version: {transformers.__version__}')
+                    print(f'   - Transformers location: {transformers.__file__}')
+                except Exception as e2:
+                    print(f'   - Could not import transformers: {e2}')
+                print('')
+                print('   Solution:')
+                print('   1. Clear Python cache:')
+                print('      find $(python3 -c \"import site; print(site.getusersitepackages())\") -name \"*.pyc\" -delete')
+                print('   2. Reinstall transformers:')
+                print('      pip3 install --force-reinstall --no-cache-dir transformers==4.45.2')
+                print('   3. Clear cache again and retry')
+                sys.exit(1)
             else:
                 print('   This may be a compatibility issue. Try:')
                 print('   1. pip install transformers==4.45.2')

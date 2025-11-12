@@ -95,9 +95,47 @@ pip3 install datasets peft accelerate bitsandbytes scipy sentencepiece "fsspec>=
 
 **Note:** The installation order is critical. Installing transformers and trl first prevents unsloth from pulling incompatible versions. The setup script handles this automatically.
 
-### 3. Quick Setup Script
+### 3. Clean Virtual Environment (RECOMMENDED)
 
-Or use the provided setup script from the `LLM_tuning` directory:
+**This is the easiest and most reliable approach** - it avoids all dependency conflicts by starting with a fresh environment:
+
+```bash
+cd LLM_tuning
+
+# Run the clean environment setup script
+bash setup_clean_env.sh
+```
+
+This will:
+1. Create a new virtual environment (`unsloth-env`)
+2. Install PyTorch
+3. Install Unsloth from the wheel (which handles its own dependencies)
+4. Install additional required packages
+5. Verify everything works
+
+**To use the environment:**
+```bash
+cd LLM_tuning
+source unsloth-env/bin/activate
+
+# Now you can run fine-tuning
+python3 finetune_unsloth.py --dataset_path ./medical_sft_dataset.json
+```
+
+**To deactivate when done:**
+```bash
+deactivate
+```
+
+**Advantages:**
+- ✅ No dependency conflicts
+- ✅ Isolated from system Python packages
+- ✅ Easy to recreate if something goes wrong
+- ✅ Unsloth wheel handles dependencies automatically
+
+### 4. Quick Setup Script (System-wide Installation)
+
+Or use the provided setup script for system-wide installation:
 
 ```bash
 cd LLM_tuning
@@ -368,7 +406,21 @@ pip3 install --force-reinstall --no-cache-dir \
 
 ### Issue: "cannot import name 'top_k_top_p_filtering' from 'transformers'"
 
-This error occurs when using transformers 4.46.0 or newer, which removed this function. **Solution:**
+This error occurs when using transformers 4.46.0 or newer, which removed this function. **Even if you have transformers 4.45.2 installed, cached bytecode files can cause this error.**
+
+**First, run the diagnostic script:**
+```bash
+cd LLM_tuning
+python3 diagnose_imports.py
+```
+
+This will show you:
+- Current transformers version and location
+- Whether `top_k_top_p_filtering` is available
+- If there are multiple transformers installations
+- Cache file locations
+
+**Solution:**
 
 ```bash
 # 1. First, uninstall incompatible packages
@@ -384,9 +436,26 @@ pip3 install --index-url https://pypi.jetson-ai-lab.io/jp6/cu126 unsloth==2025.7
 # 4. Install unsloth_zoo without dependencies to avoid conflicts
 pip3 install --no-deps unsloth_zoo
 
-# 5. Clear Python cache
-python3 -c "import sys; import pathlib; [pathlib.Path(p).rglob('__pycache__') for p in sys.path if pathlib.Path(p).exists()]"
-find $(python3 -c "import site; print(site.getsitepackages()[0])") -name "*.pyc" -delete 2>/dev/null || true
+# 5. Clear Python cache (CRITICAL - stale cache can cause import errors)
+echo "Clearing Python cache..."
+# Clear user site-packages cache
+USER_SITE=$(python3 -c "import site; print(site.getusersitepackages())")
+find "$USER_SITE" -type d -name __pycache__ -exec rm -r {} + 2>/dev/null || true
+find "$USER_SITE" -name "*.pyc" -delete 2>/dev/null || true
+find "$USER_SITE" -name "*.pyo" -delete 2>/dev/null || true
+# Specifically clear transformers cache
+find "$USER_SITE/transformers" -type d -name __pycache__ -exec rm -r {} + 2>/dev/null || true
+find "$USER_SITE/transformers" -name "*.pyc" -delete 2>/dev/null || true
+
+# Clear system site-packages cache
+for SITE_DIR in $(python3 -c "import site; print(' '.join(site.getsitepackages()))"); do
+    if [ -d "$SITE_DIR" ]; then
+        find "$SITE_DIR" -type d -name __pycache__ -exec rm -r {} + 2>/dev/null || true
+        find "$SITE_DIR" -name "*.pyc" -delete 2>/dev/null || true
+    fi
+done
+
+echo "Cache cleared"
 ```
 
 **Note:** If you already have transformers 4.46+ installed, you must use `--force-reinstall` to downgrade it. Simply running `pip3 install` without `--force-reinstall` may not downgrade an existing newer version.
