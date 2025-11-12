@@ -56,22 +56,35 @@ If you encounter issues, see the troubleshooting section.
 
 ### 2. Install Additional Dependencies
 
+**CRITICAL: Install dependencies in this exact order to avoid conflicts:**
+
 ```bash
+# 1. Install PyTorch first
 pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
 
-# CRITICAL: Force reinstall transformers with compatible version (4.46+ is incompatible)
-# If you already have transformers 4.46+ installed, this will downgrade it
+# 2. Install transformers with compatible version FIRST (before unsloth)
+# This is critical - transformers 4.46+ removed top_k_top_p_filtering which unsloth needs
 pip3 install --force-reinstall --no-cache-dir "transformers>=4.40.0,<4.46.0"
 
-# Install other dependencies
-pip3 install datasets "trl>=0.7.0,<0.8.0" peft accelerate bitsandbytes unsloth_zoo
+# 3. Install trl with compatible version (before unsloth)
+pip3 install --force-reinstall --no-cache-dir "trl>=0.7.0,<0.8.0"
+
+# 4. Install unsloth (will try to pull compatible unsloth_zoo)
+pip3 install --index-url https://pypi.jetson-ai-lab.io/jp6/cu126 unsloth==2025.7.9
+
+# 5. Install unsloth_zoo if needed (with --no-deps to avoid pulling incompatible transformers)
+pip3 install --no-deps unsloth_zoo || echo "unsloth_zoo may already be included in unsloth"
+
+# 6. Install other dependencies
+pip3 install datasets peft accelerate bitsandbytes scipy sentencepiece "fsspec>=2023.1.0,<=2025.9.0"
 ```
 
 **Important Version Constraints:**
-- `transformers>=4.40.0,<4.46.0`: Versions 4.46+ removed `top_k_top_p_filtering` which unsloth requires. **Must force reinstall if incompatible version is already installed.**
-- `trl>=0.7.0,<0.8.0`: Avoids compatibility issues with unsloth's patching mechanism
+- `transformers>=4.40.0,<4.46.0`: Versions 4.46+ removed `top_k_top_p_filtering` which unsloth requires. **Must install BEFORE unsloth to prevent dependency conflicts.**
+- `trl>=0.7.0,<0.8.0`: Newer trl (0.24+) requires transformers>=4.56.1, which is incompatible. Install compatible version BEFORE unsloth.
+- `unsloth_zoo`: Newer versions (2025.11.3+) require transformers>=4.51.3. Use `--no-deps` when installing to avoid pulling incompatible transformers.
 
-**Note:** If you have an incompatible transformers version already installed, you must use `--force-reinstall` to downgrade it. The setup script handles this automatically.
+**Note:** The installation order is critical. Installing transformers and trl first prevents unsloth from pulling incompatible versions. The setup script handles this automatically.
 
 ### 3. Quick Setup Script
 
@@ -349,16 +362,59 @@ pip3 install --force-reinstall --no-cache-dir \
 This error occurs when using transformers 4.46.0 or newer, which removed this function. **Solution:**
 
 ```bash
-# Force reinstall with compatible version (required if incompatible version is already installed)
-pip3 install --force-reinstall --no-cache-dir "transformers>=4.40.0,<4.46.0"
+# 1. First, uninstall incompatible packages
+pip3 uninstall -y transformers trl unsloth_zoo
 
-# Or install a specific compatible version
-pip3 install --force-reinstall --no-cache-dir transformers==4.45.2
+# 2. Install compatible versions in order
+pip3 install --force-reinstall --no-cache-dir "transformers>=4.40.0,<4.46.0"
+pip3 install --force-reinstall --no-cache-dir "trl>=0.7.0,<0.8.0"
+
+# 3. Reinstall unsloth
+pip3 install --index-url https://pypi.jetson-ai-lab.io/jp6/cu126 unsloth==2025.7.9
+
+# 4. Install unsloth_zoo without dependencies to avoid conflicts
+pip3 install --no-deps unsloth_zoo
+
+# 5. Clear Python cache
+python3 -c "import sys; import pathlib; [pathlib.Path(p).rglob('__pycache__') for p in sys.path if pathlib.Path(p).exists()]"
+find $(python3 -c "import site; print(site.getsitepackages()[0])") -name "*.pyc" -delete 2>/dev/null || true
 ```
 
 **Note:** If you already have transformers 4.46+ installed, you must use `--force-reinstall` to downgrade it. Simply running `pip3 install` without `--force-reinstall` may not downgrade an existing newer version.
 
 Then retry the import or run the fine-tuning script.
+
+### Issue: Dependency conflicts (unsloth-zoo/trl requiring newer transformers)
+
+If you see errors like:
+- `unsloth-zoo 2025.11.3 requires transformers>=4.51.3`
+- `trl 0.24.0 requires transformers>=4.56.1`
+
+This means newer versions of these packages were installed, which require incompatible transformers versions. **Solution:**
+
+```bash
+# 1. Uninstall incompatible versions
+pip3 uninstall -y unsloth_zoo trl transformers
+
+# 2. Install compatible versions in the correct order
+pip3 install --force-reinstall --no-cache-dir transformers==4.45.2
+pip3 install --force-reinstall --no-cache-dir trl==0.7.11
+
+# 3. Reinstall unsloth
+pip3 install --index-url https://pypi.jetson-ai-lab.io/jp6/cu126 unsloth==2025.7.9
+
+# 4. Install unsloth_zoo with --no-deps to prevent pulling incompatible transformers
+pip3 install --no-deps unsloth_zoo
+
+# 5. Verify installation
+python3 -c "import transformers; print('transformers:', transformers.__version__)"
+python3 -c "from unsloth import FastLanguageModel; print('✅ Unsloth works!')"
+```
+
+**Key points:**
+- Install `transformers` and `trl` FIRST with compatible versions
+- Use `--no-deps` when installing `unsloth_zoo` to prevent it from pulling incompatible transformers
+- The setup script handles this automatically if you run it fresh
 
 ### Issue: "IndexError: list index out of range" during Unsloth import
 

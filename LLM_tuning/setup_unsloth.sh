@@ -47,25 +47,6 @@ if [ "$CURRENT_TRANSFORMERS" != "not installed" ]; then
 fi
 
 echo ""
-echo "📥 Installing Unsloth from Jetson AI Lab PyPI (cu126)..."
-echo "   (Installing unsloth package, then unsloth_zoo separately)"
-
-# Install Unsloth from the cu126 index
-# Note: Use package name, not wheel filename - pip will find the wheel automatically
-pip3 install --index-url https://pypi.jetson-ai-lab.io/jp6/cu126 \
-    unsloth==2025.7.9 || {
-    echo "⚠️  Version-specific install failed, trying latest version..."
-    pip3 install --index-url https://pypi.jetson-ai-lab.io/jp6/cu126 unsloth
-}
-
-# Install unsloth_zoo explicitly (required dependency, not always auto-installed)
-echo ""
-echo "📥 Installing unsloth_zoo (required dependency)..."
-pip3 install unsloth_zoo || {
-    echo "⚠️  unsloth_zoo install failed, but continuing..."
-}
-
-echo ""
 echo "📥 Installing PyTorch..."
 
 # Install PyTorch (adjust URL based on your CUDA version)
@@ -75,30 +56,103 @@ pip3 install torch torchvision torchaudio --index-url https://download.pytorch.o
 }
 
 echo ""
-echo "📥 Installing additional dependencies with version constraints..."
+echo "📥 Installing transformers with compatible version FIRST..."
 
-# CRITICAL: Force reinstall transformers with compatible version (4.46+ removed top_k_top_p_filtering)
-# This must be done before other dependencies to avoid conflicts
+# CRITICAL: Install transformers FIRST with compatible version (4.46+ removed top_k_top_p_filtering)
+# This must be done before unsloth/unsloth_zoo to avoid dependency conflicts
 echo "   Installing compatible transformers version (4.40.0-4.45.x)..."
 pip3 install --force-reinstall --no-cache-dir "transformers>=4.40.0,<4.46.0" || {
     echo "   ⚠️  Version range install failed, trying specific version..."
     pip3 install --force-reinstall --no-cache-dir transformers==4.45.2
 }
 
-# Install other dependencies with version constraints to avoid compatibility issues
-# Note: The unsloth wheel may have installed some of these, but we constrain versions
-# to avoid known issues (transformers 4.46+ removed top_k_top_p_filtering, trl 0.8+ has patching issues)
+echo ""
+echo "📥 Installing trl with compatible version..."
+
+# Install trl with compatible version BEFORE unsloth
+pip3 install --force-reinstall --no-cache-dir "trl>=0.7.0,<0.8.0" || {
+    echo "   ⚠️  Version range install failed, trying specific version..."
+    pip3 install --force-reinstall --no-cache-dir trl==0.7.11
+}
+
+echo ""
+echo "📥 Installing Unsloth from Jetson AI Lab PyPI (cu126)..."
+echo "   (Installing unsloth package, then unsloth_zoo with compatible version)"
+
+# Install Unsloth from the cu126 index
+# Note: Use package name, not wheel filename - pip will find the wheel automatically
+pip3 install --index-url https://pypi.jetson-ai-lab.io/jp6/cu126 \
+    unsloth==2025.7.9 || {
+    echo "⚠️  Version-specific install failed, trying latest version..."
+    pip3 install --index-url https://pypi.jetson-ai-lab.io/jp6/cu126 unsloth
+}
+
+# Check if unsloth_zoo is needed (it may be included in unsloth 2025.7.9)
+# If not, we'll install it but need to be careful about version conflicts
+echo ""
+echo "📥 Checking if unsloth_zoo is needed..."
+python3 -c "import unsloth_zoo" 2>/dev/null && {
+    echo "   ✅ unsloth_zoo is already available"
+} || {
+    echo "   Installing unsloth_zoo (skipping dependency resolution to avoid conflicts)..."
+    # Try installing without dependencies first to avoid pulling incompatible transformers
+    pip3 install --no-deps unsloth_zoo 2>/dev/null || {
+        echo "   ⚠️  Could not install unsloth_zoo without dependencies"
+        echo "   Will try with transformers constraint..."
+        # Create a temporary constraints file
+        echo "transformers<4.46.0" > /tmp/transformers_constraint.txt
+        pip3 install --constraint /tmp/transformers_constraint.txt unsloth_zoo 2>/dev/null || {
+            echo "   ⚠️  unsloth_zoo installation failed - may need manual installation"
+            echo "   You can try: pip3 install --no-deps unsloth_zoo"
+        }
+        rm -f /tmp/transformers_constraint.txt
+    }
+}
+
+echo ""
+echo "📥 Installing additional dependencies..."
+
+# Install other dependencies with version constraints
 echo "   Installing other dependencies..."
 pip3 install datasets>=2.14.0 \
-    "trl>=0.7.0,<0.8.0" \
     peft>=0.8.0 \
     accelerate>=0.27.0 \
     bitsandbytes>=0.41.0 \
     scipy \
-    sentencepiece
+    sentencepiece \
+    "fsspec>=2023.1.0,<=2025.9.0" || {
+    echo "   ⚠️  Some dependencies failed to install, but continuing..."
+}
+
+echo ""
+echo "🧹 Clearing Python cache to ensure fresh imports..."
+# Find site-packages directory dynamically
+SITE_PACKAGES=$(python3 -c "import site; print(site.getsitepackages()[0])" 2>/dev/null || echo "")
+if [ -n "$SITE_PACKAGES" ] && [ -d "$SITE_PACKAGES" ]; then
+    find "$SITE_PACKAGES" -type d -name __pycache__ -exec rm -r {} + 2>/dev/null || true
+    find "$SITE_PACKAGES" -name "*.pyc" -delete 2>/dev/null || true
+    echo "   Cleared cache in $SITE_PACKAGES"
+else
+    echo "   Could not locate site-packages, skipping cache clear"
+fi
 
 echo ""
 echo "✅ Verifying installation..."
+
+# Verify transformers version first
+echo "   Checking transformers version..."
+TRANSFORMERS_VERSION=$(python3 -c "import transformers; print(transformers.__version__)" 2>/dev/null || echo "not installed")
+echo "   Transformers version: $TRANSFORMERS_VERSION"
+if [ "$TRANSFORMERS_VERSION" != "not installed" ]; then
+    # Check if version is 4.46 or higher
+    if python3 -c "from packaging import version; import sys; v='$TRANSFORMERS_VERSION'; sys.exit(0 if version.parse(v) < version.parse('4.46.0') else 1)" 2>/dev/null; then
+        echo "   ✅ Transformers version is compatible"
+    else
+        echo "   ❌ Transformers version $TRANSFORMERS_VERSION is incompatible!"
+        echo "   Attempting to fix..."
+        pip3 install --force-reinstall --no-cache-dir transformers==4.45.2
+    fi
+fi
 
 # Test imports
 python3 -c "
