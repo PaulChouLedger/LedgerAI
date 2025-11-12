@@ -501,7 +501,42 @@ class AdvancedMedicalNavigator:
         section, field = pending['section'], pending['field']
         text = answer.strip()
         if section == 'pre_hpi':
-            session.context['pre_hpi'][field] = text
+            debug_ctx = session.context.setdefault('debug', {})
+            validation_message = None
+            normalized_value = text
+            if field == 'age':
+                valid, normalized_value, validation_message = self._validate_age_answer(text)
+                if not valid:
+                    debug_ctx['last_validation_error'] = validation_message
+                    self._capture_debug(f"[Pre-HPI] ❌ Invalid age response '{text}'")
+                    session.pending = pending
+                    session.messages.append({"role": "assistant", "content": validation_message})
+                    return self._wrap_response(
+                        session,
+                        validation_message,
+                        status="validation_error",
+                        metadata={'field': field, 'section': section, 'validation_error': True},
+                    )
+                debug_ctx.pop('last_validation_error', None)
+                self._capture_debug(f"[Pre-HPI] ✅ Recorded age: {normalized_value}")
+            elif field == 'sex':
+                valid, normalized_value, validation_message = self._validate_sex_answer(text)
+                if not valid:
+                    debug_ctx['last_validation_error'] = validation_message
+                    self._capture_debug(f"[Pre-HPI] ❌ Invalid sex response '{text}'")
+                    session.pending = pending
+                    session.messages.append({"role": "assistant", "content": validation_message})
+                    return self._wrap_response(
+                        session,
+                        validation_message,
+                        status="validation_error",
+                        metadata={'field': field, 'section': section, 'validation_error': True},
+                    )
+                debug_ctx.pop('last_validation_error', None)
+                self._capture_debug(f"[Pre-HPI] ✅ Recorded sex: {normalized_value}")
+            else:
+                debug_ctx.pop('last_validation_error', None)
+            session.context['pre_hpi'][field] = normalized_value
             if field == 'chronicity':
                 session.stage = "awaiting_age"
             elif field == 'age':
@@ -522,7 +557,6 @@ class AdvancedMedicalNavigator:
                             'field': next_prompt['field'],
                         },
                     )
-            return None
             session.pending = None
             return None
         elif section == 'hpi':
@@ -613,7 +647,7 @@ class AdvancedMedicalNavigator:
         )
         term_scores = getattr(self.medical_rule_engine, '_last_faiss_scores', {}) or {}
 
-        matches, term_scores, review_rows = self._llm_refine_matches(
+        matches, term_scores, review_rows, review_meta = self._llm_refine_matches(
             session,
             scoring_element,
             answer,
@@ -621,15 +655,23 @@ class AdvancedMedicalNavigator:
             term_scores,
             faiss_threshold,
         )
-        if review_rows:
+        debug_ctx = session.context.setdefault('debug', {})
+        if review_meta.get('invoked'):
             self._log_llm_match_review(scoring_element, answer, review_rows)
-            session.context.setdefault('debug', {})['last_llm_review'] = {
+            if not review_rows:
+                self._capture_debug(f"[LLM] ⚠️ Match review completed but no review rows generated for '{answer}' in {scoring_element}")
+            debug_ctx['last_llm_review'] = {
                 'element': scoring_element,
                 'answer': answer,
                 'rows': review_rows,
+                'requested_terms': review_meta.get('requested_terms', []),
+                'raw_response': review_meta.get('raw_response'),
+                'had_scores': review_meta.get('had_scores', False),
             }
         else:
-            session.context.setdefault('debug', {}).pop('last_llm_review', None)
+            reason = review_meta.get('reason', 'unknown')
+            self._capture_debug(f"[LLM] ⚠️ Match review not invoked for '{answer}' in {scoring_element}: {reason}")
+            debug_ctx.pop('last_llm_review', None)
 
         if pending and pending.get('clarification'):
             session.context['clarifications'].pop(element, None)
@@ -794,9 +836,19 @@ class AdvancedMedicalNavigator:
         matches: List[str],
         term_scores: Dict[str, float],
         threshold: float,
-    ) -> Tuple[List[str], Dict[str, float], List[Tuple[str, float, float, float]]]:
-        if not matches or not self.llm_chat_fn:
-            return matches, term_scores, []
+    ) -> Tuple[
+        List[str],
+        Dict[str, float],
+        List[Tuple[str, float, float, float]],
+        Dict[str, Any],
+    ]:
+        if not self.llm_chat_fn:
+            self._capture_debug(f"[LLM] ⚠️ Match review skipped for '{answer}' in {element}: LLM function not available")
+            return matches, term_scores, [], {'invoked': False, 'reason': 'no_llm_function'}
+        
+        if not matches:
+            self._capture_debug(f"[LLM] ⚠️ Match review skipped for '{answer}' in {element}: No FAISS matches to review")
+            return matches, term_scores, [], {'invoked': False, 'reason': 'no_matches'}
 
         unique_matches: List[str] = []
         for term in matches:
@@ -806,7 +858,12 @@ class AdvancedMedicalNavigator:
         ordered = sorted(unique_matches, key=lambda t: term_scores.get(t, 0.0), reverse=True)
         limited = ordered[: self.LLM_MATCH_REVIEW_LIMIT]
         if not limited:
-            return matches, term_scores, []
+            self._capture_debug(f"[LLM] ⚠️ Match review skipped for '{answer}' in {element}: No terms after limiting")
+            return matches, term_scores, [], {
+                'invoked': False,
+                'reason': 'no_limited_matches',
+                'requested_terms': [],
+            }
 
         alias_map = {term.lower(): term for term in limited}
         candidate_lines = "\n".join(f"- {term}" for term in limited)
@@ -829,18 +886,29 @@ class AdvancedMedicalNavigator:
         self._capture_debug(f"[LLM] 🔍 Match review raw response: {response}")
 
         llm_scores: Dict[str, float] = {}
-        if response:
+        had_scores = False
+        parse_error = None
+        if not response:
+            self._capture_debug(f"[LLM] ⚠️ Match review for '{answer}' in {element}: LLM returned empty response")
+        else:
             parsed = None
             try:
                 parsed = json.loads(response)
-            except json.JSONDecodeError:
+            except json.JSONDecodeError as e:
+                parse_error = str(e)
                 json_match = re.search(r"\{.*\}", response, re.DOTALL)
                 if json_match:
                     try:
                         parsed = json.loads(json_match.group(0))
-                    except json.JSONDecodeError:
+                        parse_error = None
+                    except json.JSONDecodeError as e2:
+                        parse_error = str(e2)
                         parsed = None
-            if isinstance(parsed, dict):
+            if parse_error:
+                self._capture_debug(f"[LLM] ⚠️ Match review for '{answer}' in {element}: Failed to parse JSON: {parse_error}")
+            elif not isinstance(parsed, dict):
+                self._capture_debug(f"[LLM] ⚠️ Match review for '{answer}' in {element}: Response is not a JSON object")
+            elif isinstance(parsed, dict):
                 for key, value in parsed.items():
                     if not isinstance(value, (int, float)):
                         continue
@@ -851,6 +919,9 @@ class AdvancedMedicalNavigator:
                         llm_scores[canonical] = score
                     else:
                         llm_scores[term_key] = score
+                    had_scores = True
+                if not had_scores:
+                    self._capture_debug(f"[LLM] ⚠️ Match review for '{answer}' in {element}: LLM returned JSON but no valid numeric scores")
 
         refined_scores = dict(term_scores)
         review_rows: List[Tuple[str, float, float, float]] = []
@@ -873,7 +944,14 @@ class AdvancedMedicalNavigator:
             if refined_scores.get(best_term, 0.0) >= self.LLM_MATCH_ACCEPT_THRESHOLD:
                 filtered = [best_term]
 
-        return filtered, refined_scores, review_rows
+        review_meta = {
+            'invoked': True,
+            'requested_terms': limited,
+            'raw_response': response,
+            'had_scores': had_scores,
+        }
+
+        return filtered, refined_scores, review_rows, review_meta
 
     def _analyze_location_answer(
         self,
@@ -1018,6 +1096,9 @@ class AdvancedMedicalNavigator:
                 'term': patient_term,
                 'score': score,
                 'in_semantic': patient_term.lower() in semantic_set,
+                'term_in_answer': patient_term.lower() in answer_lower,
+                'answer_in_term': answer_lower in patient_term.lower(),
+                'medical': meta['medical'],
             })
 
         if element == 'location':
@@ -1236,10 +1317,10 @@ class AdvancedMedicalNavigator:
 
             self._capture_debug(f"[Location Analysis] 🔍 Checking term: '{term}' (patient answer: '{answer}')")
             self._capture_debug(
-                f"[Location Analysis]   Step 3 - FAISS check: in semantic_matches_set={term_lower in semantic_set}, score={score}"
+                f"[Location Analysis]   FAISS check: in semantic_matches_set={term_lower in semantic_set}, score={score}"
             )
             self._capture_debug(
-                f"[Location Analysis]   Step 3 - Raw FAISS score for '{term}': {score:.3f} (threshold={threshold})"
+                f"[Location Analysis]   Raw FAISS score for '{term}': {score:.3f} (threshold={threshold})"
             )
             if score < threshold:
                 self._capture_debug(
@@ -2196,6 +2277,44 @@ class AdvancedMedicalNavigator:
         }
         return element not in no_clarification_elements
 
+    def _validate_age_answer(self, text: str) -> Tuple[bool, Optional[str], Optional[str]]:
+        cleaned = text.strip()
+        lowered = cleaned.lower()
+        if not cleaned:
+            return False, None, "I just need a number for your age. How old are you?"
+        if lowered in {"unknown", "unsure", "not sure", "prefer not to say"}:
+            return True, "unspecified", None
+        digits = re.findall(r"\d{1,3}", cleaned)
+        if digits:
+            try:
+                age_value = int(digits[0])
+                if 0 < age_value <= 120:
+                    return True, str(age_value), None
+            except ValueError:
+                pass
+        return False, None, "Please enter your age as a number between 1 and 120. How old are you?"
+
+    def _validate_sex_answer(self, text: str) -> Tuple[bool, Optional[str], Optional[str]]:
+        cleaned = text.strip().lower()
+        if not cleaned:
+            return False, None, "For documentation, is your biological sex male, female, or intersex/non-binary?"
+
+        mappings = {
+            'male': {'male', 'm', 'man', 'boy'},
+            'female': {'female', 'f', 'woman', 'girl'},
+            'intersex/non-binary': {'intersex', 'nonbinary', 'non-binary', 'nb', 'enby', 'genderqueer'},
+            'unspecified': {'prefer not to say', 'decline', 'undisclosed', 'unknown', 'unsure', 'not sure'},
+        }
+
+        for normalized, variants in mappings.items():
+            if cleaned in variants:
+                return True, normalized, None
+
+        return False, None, (
+            "Just to be sure, please tell me your biological sex as male, female, "
+            "or intersex/non-binary."
+        )
+
     # ----------- Utilities ----------------------------------------------------
 
     def _wrap_response(self, session: "MedicalSession", message: str, status: str = "question", metadata: Optional[Dict] = None) -> Dict[str, any]:
@@ -2244,13 +2363,22 @@ class AdvancedMedicalNavigator:
         if current:
             lines.append(f"[Engine] 🔍 Currently asking: {current}")
         debug_ctx = session.context.get('debug', {})
+        validation_error = debug_ctx.get('last_validation_error')
+        if validation_error:
+            lines.append(f"[Engine] ⚠️ Validation: {validation_error}")
         review = debug_ctx.get('last_llm_review')
         if review:
+            rows = review.get('rows', [])
+            requested = review.get('requested_terms', [])
             lines.append(f"[LLM] 🔍 Match review ({review['element']}) for '{review['answer']}':")
-            for term, faiss_score, llm_score, blended in review.get('rows', []):
-                lines.append(
-                    f"[LLM]   • {term}: FAISS={faiss_score:.3f}, LLM={llm_score:.3f}, blended={blended:.3f}"
-                )
+            lines.append(f"[LLM]   • Requested terms: {requested if requested else 'none'}")
+            if rows:
+                for term, faiss_score, llm_score, blended in rows:
+                    lines.append(
+                        f"[LLM]   • {term}: FAISS={faiss_score:.3f}, LLM={llm_score:.3f}, blended={blended:.3f}"
+                    )
+            else:
+                lines.append("[LLM]   • LLM returned no scores; using FAISS values only.")
         lines.append(self._format_rankings_debug(session))
         return '\n'.join(lines)
 
