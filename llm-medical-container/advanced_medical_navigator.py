@@ -343,11 +343,11 @@ class AdvancedMedicalNavigator:
         self._apply_rule_outs(session)
 
         session.stage = "awaiting_chronicity"
-        session.context['pre_hpi']['chief_complaint'] = complaint
+        session.context['pre_hpi']['chief_complaint'] = text
         session.context['guideline_terms']['chief_complaint_terms'] = self._get_element_includes(session, 'chief_complaint') if hasattr(self, '_get_element_includes') else []
-        session.context['guideline_terms']['chief_complaint_descriptors'] = self._extract_chief_complaint_descriptors(complaint)
+        session.context['guideline_terms']['chief_complaint_descriptors'] = self._extract_chief_complaint_descriptors(text)
 
-        empathetic = self._generate_empathetic_statement(complaint)
+        empathetic = self._generate_empathetic_statement(text)
         chronicity_prompt = self._generate_chronicity_question()
 
         session.pending = {
