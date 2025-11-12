@@ -48,10 +48,15 @@ except (ImportError, IndexError, AttributeError) as e:
             print("✅ Imports succeeded on retry - continuing with fine-tuning")
         except Exception as e2:
             print(f"❌ Import failed: {e2}")
-            print("\nTroubleshooting steps:")
-            print("1. Try: pip install 'trl>=0.7.0,<0.8.0'")
-            print("2. Or: pip install trl==0.7.11")
-            print("3. Then: pip install --upgrade unsloth")
+            error_msg = str(e2)
+            if 'top_k_top_p_filtering' in error_msg:
+                print("\nThis is a transformers version compatibility issue.")
+                print("Solution: pip install 'transformers>=4.40.0,<4.46.0'")
+            else:
+                print("\nTroubleshooting steps:")
+                print("1. pip install 'transformers>=4.40.0,<4.46.0'")
+                print("2. pip install 'trl>=0.7.0,<0.8.0'")
+                print("3. pip install --upgrade unsloth")
             exit(1)
     else:
         print(f"❌ Missing required packages. Please install unsloth and dependencies.")
@@ -59,8 +64,9 @@ except (ImportError, IndexError, AttributeError) as e:
         print("\nInstallation instructions:")
         print("1. pip install --index-url https://pypi.jetson-ai-lab.io/jp6/cu129 unsloth")
         print("2. pip install unsloth_zoo")
-        print("3. pip install 'trl>=0.7.0,<0.8.0'")
-        print("4. pip install transformers datasets peft")
+        print("3. pip install 'transformers>=4.40.0,<4.46.0'")
+        print("4. pip install 'trl>=0.7.0,<0.8.0'")
+        print("5. pip install datasets peft")
         exit(1)
 
 

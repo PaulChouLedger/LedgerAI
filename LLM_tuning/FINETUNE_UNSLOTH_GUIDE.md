@@ -44,10 +44,12 @@ pip3 install --index-url https://pypi.jetson-ai-lab.io/jp6/cu129 \
 
 ```bash
 pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
-pip3 install transformers datasets "trl>=0.7.0,<0.8.0" peft accelerate bitsandbytes unsloth_zoo
+pip3 install "transformers>=4.40.0,<4.46.0" datasets "trl>=0.7.0,<0.8.0" peft accelerate bitsandbytes unsloth_zoo
 ```
 
-**Note:** We use `trl>=0.7.0,<0.8.0` to avoid compatibility issues with unsloth's patching mechanism.
+**Important Version Constraints:**
+- `transformers>=4.40.0,<4.46.0`: Versions 4.46+ removed `top_k_top_p_filtering` which unsloth requires
+- `trl>=0.7.0,<0.8.0`: Avoids compatibility issues with unsloth's patching mechanism
 
 **Important:** `unsloth_zoo` is a required dependency for Unsloth. Make sure it's installed:
 ```bash
@@ -294,6 +296,16 @@ pip3 install unsloth_zoo
 ```bash
 pip3 install unsloth_zoo
 ```
+
+### Issue: "cannot import name 'top_k_top_p_filtering' from 'transformers'"
+
+This error occurs when using transformers 4.46.0 or newer, which removed this function. **Solution:**
+
+```bash
+pip3 install "transformers>=4.40.0,<4.46.0"
+```
+
+Then retry the import or run the fine-tuning script.
 
 ### Issue: "IndexError: list index out of range" during Unsloth import
 

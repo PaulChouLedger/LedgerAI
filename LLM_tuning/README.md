@@ -24,6 +24,8 @@ LLM_tuning/
    cd LLM_tuning
    python3 finetune_unsloth.py
    ```
+   
+   **Note:** The model will be automatically downloaded from Hugging Face on first use (~1-2GB) and cached in `~/.cache/huggingface/hub/`.
 
 ## Files Location
 

@@ -54,8 +54,9 @@ pip3 install torch torchvision torchaudio --index-url https://download.pytorch.o
 }
 
 # Install transformers and related packages
-# Note: Using specific trl version to avoid compatibility issues with unsloth patching
-pip3 install transformers>=4.40.0 \
+# Note: Using specific versions to avoid compatibility issues with unsloth
+# transformers 4.40.0-4.45.x is compatible (avoid 4.46+ which removed top_k_top_p_filtering)
+pip3 install "transformers>=4.40.0,<4.46.0" \
     datasets>=2.14.0 \
     "trl>=0.7.0,<0.8.0" \
     peft>=0.8.0 \
@@ -86,10 +87,15 @@ except (ImportError, IndexError, AttributeError) as e:
             print('✅ Unsloth import succeeded on retry')
         except Exception as e2:
             print(f'❌ Unsloth import failed: {e2}')
-            print('   This may be a compatibility issue. Try:')
-            print('   1. pip install --upgrade trl')
-            print('   2. pip install --upgrade unsloth')
-            print('   3. Or use: pip install trl==0.7.11')
+            error_msg = str(e2)
+            if 'top_k_top_p_filtering' in error_msg:
+                print('   This is a transformers version compatibility issue.')
+                print('   Solution: pip install "transformers>=4.40.0,<4.46.0"')
+            else:
+                print('   This may be a compatibility issue. Try:')
+                print('   1. pip install "transformers>=4.40.0,<4.46.0"')
+                print('   2. pip install "trl>=0.7.0,<0.8.0"')
+                print('   3. pip install --upgrade unsloth')
             sys.exit(1)
     else:
         print(f'❌ Unsloth import failed: {e}')
