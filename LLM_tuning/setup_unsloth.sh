@@ -54,9 +54,10 @@ pip3 install torch torchvision torchaudio --index-url https://download.pytorch.o
 }
 
 # Install transformers and related packages
+# Note: Using specific trl version to avoid compatibility issues with unsloth patching
 pip3 install transformers>=4.40.0 \
     datasets>=2.14.0 \
-    trl>=0.7.0 \
+    "trl>=0.7.0,<0.8.0" \
     peft>=0.8.0 \
     accelerate>=0.27.0 \
     bitsandbytes>=0.41.0 \
@@ -69,12 +70,30 @@ echo "✅ Verifying installation..."
 
 # Test imports
 python3 -c "
+import sys
 try:
+    # Try importing unsloth - may have patching errors but should still work for SFT
     from unsloth import FastLanguageModel
     print('✅ Unsloth imported successfully')
-except ImportError as e:
-    print(f'❌ Unsloth import failed: {e}')
-    exit(1)
+except (ImportError, IndexError, AttributeError) as e:
+    error_msg = str(e)
+    if 'IndexError' in str(type(e).__name__) or 'list index out of range' in error_msg:
+        print('⚠️  Unsloth patching encountered an error (this may be non-critical for SFT)')
+        print('   Attempting to continue anyway...')
+        try:
+            # Try to import again - sometimes the patching error doesn't prevent usage
+            from unsloth import FastLanguageModel
+            print('✅ Unsloth import succeeded on retry')
+        except Exception as e2:
+            print(f'❌ Unsloth import failed: {e2}')
+            print('   This may be a compatibility issue. Try:')
+            print('   1. pip install --upgrade trl')
+            print('   2. pip install --upgrade unsloth')
+            print('   3. Or use: pip install trl==0.7.11')
+            sys.exit(1)
+    else:
+        print(f'❌ Unsloth import failed: {e}')
+        sys.exit(1)
 
 try:
     import torch

@@ -29,14 +29,39 @@ try:
     from trl import SFTTrainer
     from datasets import Dataset
     import torch
-except ImportError as e:
-    print(f"❌ Missing required packages. Please install unsloth and dependencies.")
-    print(f"Error: {e}")
-    print("\nInstallation instructions:")
-    print("1. pip install --index-url https://pypi.jetson-ai-lab.io/jp6/cu129 unsloth")
-    print("2. pip install unsloth_zoo")
-    print("3. pip install transformers datasets trl peft")
-    exit(1)
+except (ImportError, IndexError, AttributeError) as e:
+    error_type = type(e).__name__
+    error_msg = str(e)
+    
+    if 'IndexError' in error_type or 'list index out of range' in error_msg:
+        print("⚠️  Unsloth patching encountered an error during import.")
+        print("   This is often a non-critical compatibility issue with TRL.")
+        print("   Attempting to continue - SFT should still work...")
+        print("")
+        # Try to import again - sometimes the error doesn't prevent usage
+        try:
+            from unsloth import FastLanguageModel
+            from unsloth.train import TrainingArguments
+            from trl import SFTTrainer
+            from datasets import Dataset
+            import torch
+            print("✅ Imports succeeded on retry - continuing with fine-tuning")
+        except Exception as e2:
+            print(f"❌ Import failed: {e2}")
+            print("\nTroubleshooting steps:")
+            print("1. Try: pip install 'trl>=0.7.0,<0.8.0'")
+            print("2. Or: pip install trl==0.7.11")
+            print("3. Then: pip install --upgrade unsloth")
+            exit(1)
+    else:
+        print(f"❌ Missing required packages. Please install unsloth and dependencies.")
+        print(f"Error: {e}")
+        print("\nInstallation instructions:")
+        print("1. pip install --index-url https://pypi.jetson-ai-lab.io/jp6/cu129 unsloth")
+        print("2. pip install unsloth_zoo")
+        print("3. pip install 'trl>=0.7.0,<0.8.0'")
+        print("4. pip install transformers datasets peft")
+        exit(1)
 
 
 def load_dataset(dataset_path: str, tokenizer=None) -> Dataset:

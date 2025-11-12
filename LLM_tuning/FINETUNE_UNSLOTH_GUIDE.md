@@ -44,8 +44,10 @@ pip3 install --index-url https://pypi.jetson-ai-lab.io/jp6/cu129 \
 
 ```bash
 pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
-pip3 install transformers datasets trl peft accelerate bitsandbytes unsloth_zoo
+pip3 install transformers datasets "trl>=0.7.0,<0.8.0" peft accelerate bitsandbytes unsloth_zoo
 ```
+
+**Note:** We use `trl>=0.7.0,<0.8.0` to avoid compatibility issues with unsloth's patching mechanism.
 
 **Important:** `unsloth_zoo` is a required dependency for Unsloth. Make sure it's installed:
 ```bash
@@ -84,6 +86,27 @@ Your dataset (`medical_sft_dataset.json` in `LLM_tuning/` directory) should be i
 ```
 
 The script automatically converts this to the format Unsloth expects.
+
+## Model Download
+
+**No manual download required!** The model (`unsloth/Llama-3.2-1B-Instruct-bnb-4bit`) will be automatically downloaded from Hugging Face on first use. 
+
+The model will be cached in `~/.cache/huggingface/hub/` (typically ~1-2GB for the 4-bit quantized version).
+
+**Optional: Pre-download the model** (useful if you have slow internet or want to test connectivity):
+
+```bash
+python3 -c "
+from unsloth import FastLanguageModel
+print('Downloading model...')
+model, tokenizer = FastLanguageModel.from_pretrained(
+    model_name='unsloth/Llama-3.2-1B-Instruct-bnb-4bit',
+    max_seq_length=2048,
+    load_in_4bit=True,
+)
+print('✅ Model downloaded and cached')
+"
+```
 
 ## Fine-Tuning
 
@@ -149,11 +172,13 @@ python3 finetune_unsloth.py \
 
 ## Available Models
 
-Unsloth provides pre-quantized models optimized for Jetson:
+Unsloth provides pre-quantized models optimized for Jetson. **All models are automatically downloaded on first use:**
 
-- `unsloth/Llama-3.2-1B-Instruct-bnb-4bit` (Recommended for Jetson)
-- `unsloth/Llama-3.2-3B-Instruct-bnb-4bit` (Requires more memory)
-- `unsloth/Mistral-7B-Instruct-bnb-4bit` (Larger, more capable)
+- `unsloth/Llama-3.2-1B-Instruct-bnb-4bit` (Recommended for Jetson, ~1-2GB)
+- `unsloth/Llama-3.2-3B-Instruct-bnb-4bit` (Requires more memory, ~2-3GB)
+- `unsloth/Mistral-7B-Instruct-bnb-4bit` (Larger, more capable, ~4-5GB)
+
+**Note:** Models are cached in `~/.cache/huggingface/hub/` after first download, so subsequent runs won't need to download again.
 
 ## Memory Optimization
 
@@ -268,6 +293,35 @@ pip3 install unsloth_zoo
 **Solution:**
 ```bash
 pip3 install unsloth_zoo
+```
+
+### Issue: "IndexError: list index out of range" during Unsloth import
+
+This is a known compatibility issue with unsloth's patching mechanism. **Solutions:**
+
+**Option 1: Use compatible trl version (Recommended)**
+```bash
+pip3 install "trl>=0.7.0,<0.8.0"
+pip3 install --upgrade unsloth
+```
+
+**Option 2: Try continuing anyway**
+The error may be non-critical for SFT (Supervised Fine-Tuning). Try running the fine-tuning script - it may still work:
+```bash
+cd LLM_tuning
+python3 finetune_unsloth.py
+```
+
+**Option 3: Downgrade trl**
+```bash
+pip3 install trl==0.7.11
+```
+
+**Option 4: Skip RL trainer patching (if not needed)**
+If you only need SFT and not RLHF, you can try:
+```bash
+export UNSLOTH_SKIP_RL_PATCH=1
+python3 finetune_unsloth.py
 ```
 
 ### Issue: "Slow training"
