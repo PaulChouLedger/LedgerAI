@@ -394,7 +394,7 @@ class AdvancedMedicalNavigator:
             if session.context['pre_hpi'].get('sex'):
                 session.stage = "hpi"
                 session.oldcarts_remaining = self._ordered_oldcarts_elements(session)
-        else:
+            else:
                 prompt = "And for medical documentation, what is your biological sex?"
                 return {'section': 'pre_hpi', 'field': 'sex', 'prompt': prompt, 'guidance': self.PRE_HPI_PROMPTS['sex']}
 
