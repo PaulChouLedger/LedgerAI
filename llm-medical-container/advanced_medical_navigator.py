@@ -1678,50 +1678,90 @@ class AdvancedMedicalNavigator:
             print("[Engine] ❌ No chief complaint triggers available - cannot match categories")
             return []
 
-        # Group triggers by category
+        # Group triggers by category and condition
         triggers_by_category: Dict[str, List[Dict]] = {}
-        triggers_by_condition: Dict[str, Dict] = {}
+        triggers_by_condition: Dict[str, List[str]] = {}  # condition -> list of triggers
+        condition_to_category: Dict[str, str] = {}  # condition -> category
+        
         for trigger_data in self.chief_complaint_triggers_data:
             category = trigger_data.get('category', 'gastrointestinal')
             condition = trigger_data.get('condition', '')
+            trigger = trigger_data.get('trigger', '')
+            
+            if not trigger:
+                continue
+                
+            # Group by category
             if category not in triggers_by_category:
                 triggers_by_category[category] = []
             triggers_by_category[category].append(trigger_data)
+            
+            # Group by condition
             if condition:
-                triggers_by_condition[condition] = trigger_data
+                if condition not in triggers_by_condition:
+                    triggers_by_condition[condition] = []
+                triggers_by_condition[condition].append(trigger)
+                condition_to_category[condition] = category
 
-        # Build LLM prompt
-        available_categories = list(triggers_by_category.keys())
-        category_summary = []
-        for category, triggers in triggers_by_category.items():
-            trigger_texts = [t['trigger'] for t in triggers[:5]]  # Sample triggers
-            category_summary.append(f"- {category}: {', '.join(trigger_texts)}")
-
+        # Build detailed prompt with ALL triggers
+        available_categories = sorted(list(triggers_by_category.keys()))
+        
+        # Build trigger list by category and condition
+        trigger_list_by_category = []
+        for category in available_categories:
+            category_triggers = triggers_by_category[category]
+            # Group triggers by condition
+            condition_triggers: Dict[str, List[str]] = {}
+            for trigger_data in category_triggers:
+                condition = trigger_data.get('condition', '')
+                trigger = trigger_data.get('trigger', '')
+                if condition and trigger:
+                    if condition not in condition_triggers:
+                        condition_triggers[condition] = []
+                    condition_triggers[condition].append(trigger)
+            
+            # Build category section
+            category_lines = [f"Category: {category}"]
+            for condition, triggers in sorted(condition_triggers.items()):
+                triggers_str = ', '.join(triggers)
+                category_lines.append(f"  - {condition}: {triggers_str}")
+            trigger_list_by_category.append('\n'.join(category_lines))
+        
+        triggers_text = '\n\n'.join(trigger_list_by_category)
+        
+        # Debug: Log triggers being sent to LLM
+        total_triggers = sum(len(triggers) for triggers in triggers_by_condition.values())
+        self._capture_debug(f"[Engine] 📋 Sending {total_triggers} trigger terms from {len(triggers_by_condition)} conditions to LLM")
+        self._capture_debug(f"[Engine] 📋 Categories: {', '.join(available_categories)}")
+        
+        # Build system prompt - focus on matching against actual trigger terms
         system_prompt = (
-            "You are a medical expert matching patient chief complaints to medical categories and conditions. "
-            "Use your comprehensive medical knowledge to determine which categories and specific conditions match the patient's complaint. "
-            "Consider synonyms, related terms, abbreviations, and medical context across all medical specialties.\n\n"
+            "You are a medical expert matching patient chief complaints to medical condition trigger terms. "
+            "You will be given a list of trigger terms extracted from medical guidelines, grouped by category and condition. "
+            "Your task is to match the patient's complaint to the ACTUAL TRIGGER TERMS provided in the user message. "
+            "Match synonyms and related terms (e.g., if patient says 'belly ache', match it to 'abdominal pain' if 'abdominal pain' is in the trigger list). "
+            "Only match to trigger terms that are actually listed - do not invent or assume triggers that are not provided.\n\n"
             "CRITICAL FORMAT REQUIREMENTS:\n"
-            "- Output ONLY valid JSON (no explanations, no text before or after, no markdown code blocks)\n"
-            "- JSON must be a valid JSON object with categories as keys and numeric scores (0.0-1.0) as values\n"
-            "- Example format: {\"cardiovascular\": 0.9, \"respiratory\": 0.2, \"gastrointestinal\": 0.1, \"conditions\": {\"MI\": 0.9, \"Angina\": 0.8}}\n"
-            "- Scores: 1.0 = exact match, 0.0 = no match, 0.5-0.9 = partial match\n"
-            "- Include ALL categories with scores, even if 0.0\n"
-            "- Also include a \"conditions\" key with condition names (use common names or abbreviations) and their scores\n"
-            "- Condition names can be abbreviations (e.g., \"MI\", \"GERD\", \"COPD\") or full names (e.g., \"Myocardial Infarction\", \"Gastroesophageal Reflux Disease\")\n"
-            "- Do NOT include trailing commas, comments, or any non-JSON text\n"
-            "- Do NOT wrap JSON in markdown code blocks (```json ... ```)\n"
-            "- Output must be parseable by json.loads() directly\n"
-            "- Double-check that all strings are properly quoted and all numbers are valid (no NaN, Infinity)"
+            "- Output ONLY valid JSON with NO explanations, NO text before or after, NO markdown code blocks\n"
+            "- JSON structure: {\"categories\": {\"category_name\": score}, \"conditions\": {\"condition_name\": score}}\n"
+            "- Scores MUST be between 0.0 and 1.0 (1.0 = exact/synonym match to trigger term, 0.8-0.9 = strong match, 0.5-0.7 = partial match, 0.0 = no match)\n"
+            "- Include ALL categories with scores (even if 0.0)\n"
+            "- Include ONLY conditions that match (with score > 0.0)\n"
+            "- Use EXACT condition names as provided in the trigger list (do not abbreviate or modify)\n"
+            "- Example format: {\"categories\": {\"gastrointestinal\": 0.9, \"cardiovascular\": 0.0}, \"conditions\": {\"Acute Appendicitis\": 0.8, \"gastroesophageal reflux disease (GERD) (Gastroesophageal Reflux Disease)\": 0.7}}\n"
+            "- Do NOT create nested structures, arrays, or invalid JSON\n"
+            "- Do NOT use scores outside 0.0-1.0 range\n"
+            "- Do NOT include trailing commas\n"
+            "- Output must be parseable by json.loads() directly"
         )
 
         user_prompt = (
             f"Patient chief complaint: '{chief_complaint}'\n\n"
-            f"Available medical categories:\n"
-            f"{chr(10).join(category_summary)}\n\n"
-            f"Match the patient's chief complaint to the appropriate medical categories and specific conditions. "
-            f"Use your medical knowledge to handle misspellings, synonyms, and related terms. "
-            f"Return a JSON object with category scores and condition scores."
+            f"Available trigger terms:\n{triggers_text}\n\n"
+            f"Match the patient's complaint '{chief_complaint}' to the trigger terms listed above. "
+            f"Match synonyms (e.g., 'belly ache' should match 'abdominal pain' if 'abdominal pain' is listed as a trigger). "
+            f"Only match to conditions that have trigger terms matching the patient's complaint. "
+            f"Return JSON with category scores and condition scores for matching conditions only."
         )
 
         try:
@@ -1839,27 +1879,66 @@ class AdvancedMedicalNavigator:
                 print(f"[Engine] ❌ Parsed JSON is not a dictionary. Type: {type(parsed)}")
                 return []
 
-            # Extract category scores
+            # Extract category scores and condition scores from new format
             category_scores: Dict[str, float] = {}
             condition_scores: Dict[str, float] = {}
+            
+            # Handle new format: {"categories": {...}, "conditions": {...}}
+            if 'categories' in parsed:
+                categories_dict = parsed.get('categories', {})
+                if isinstance(categories_dict, dict):
+                    for category, score in categories_dict.items():
+                        if category in available_categories and isinstance(score, (int, float)):
+                            # Clamp score to 0.0-1.0 range
+                            category_scores[category] = max(0.0, min(1.0, float(score)))
+                # Also initialize all categories with 0.0 if not present
+                for category in available_categories:
+                    if category not in category_scores:
+                        category_scores[category] = 0.0
+            else:
+                # Fallback to old format: {category: score, "conditions": {...}}
+                for key, value in parsed.items():
+                    if key == 'conditions':
+                        continue
+                    if key in available_categories and isinstance(value, (int, float)):
+                        category_scores[key] = max(0.0, min(1.0, float(value)))
+                # Initialize all categories with 0.0 if not present
+                for category in available_categories:
+                    if category not in category_scores:
+                        category_scores[category] = 0.0
             
             # Get conditions if provided
             conditions_dict = parsed.get('conditions', {})
             if isinstance(conditions_dict, dict):
                 for condition, score in conditions_dict.items():
                     if isinstance(score, (int, float)):
-                        condition_scores[condition] = max(0.0, min(1.0, float(score)))
-
-            # Get category scores (exclude 'conditions' key)
-            for key, value in parsed.items():
-                if key == 'conditions':
-                    continue
-                if key in available_categories and isinstance(value, (int, float)):
-                    category_scores[key] = max(0.0, min(1.0, float(value)))
+                        # Clamp score to 0.0-1.0 range and filter out 0.0 scores
+                        clamped_score = max(0.0, min(1.0, float(score)))
+                        if clamped_score > 0.0:  # Only include conditions with score > 0.0
+                            condition_scores[condition] = clamped_score
+            elif isinstance(conditions_dict, list):
+                # Handle invalid format where conditions is a list
+                self._capture_debug(f"[Engine] ⚠️ Conditions is a list, not a dict. Ignoring.")
+                condition_scores = {}
+            
+            # If no category scores but we have condition scores, compute category scores from conditions
+            if not any(score > 0.0 for score in category_scores.values()) and condition_scores:
+                self._capture_debug(f"[Engine] ⚠️ No category scores provided, computing from condition scores")
+                # Initialize all categories to 0.0
+                for category in available_categories:
+                    category_scores[category] = 0.0
+                # Compute category scores from condition scores
+                for condition, score in condition_scores.items():
+                    condition_category = condition_to_category.get(condition)
+                    if condition_category and condition_category in category_scores:
+                        # Use the maximum score for the category
+                        category_scores[condition_category] = max(category_scores[condition_category], score)
 
             self._capture_debug(f"[Engine] 🔍 LLM category scores: {category_scores}")
             if condition_scores:
                 self._capture_debug(f"[Engine] 🔍 LLM condition scores: {dict(list(condition_scores.items())[:5])}")
+            else:
+                self._capture_debug(f"[Engine] ⚠️ No condition scores returned by LLM")
 
             # Filter categories by threshold
             matched_categories = [
