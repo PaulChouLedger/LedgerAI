@@ -37,6 +37,15 @@ pip3 uninstall -y unsloth unsloth_zoo 2>/dev/null || {
     echo "   (No existing installations found - this is fine)"
 }
 
+# Check transformers version - will force reinstall with compatible version later
+echo ""
+echo "🧹 Checking transformers version..."
+CURRENT_TRANSFORMERS=$(pip3 show transformers 2>/dev/null | grep "^Version:" | awk '{print $2}' || echo "not installed")
+if [ "$CURRENT_TRANSFORMERS" != "not installed" ]; then
+    echo "   Current version: $CURRENT_TRANSFORMERS"
+    echo "   (Will ensure compatible version <4.46.0 is installed)"
+fi
+
 echo ""
 echo "📥 Installing Unsloth from Jetson AI Lab PyPI (cu126)..."
 echo "   (Installing unsloth package, then unsloth_zoo separately)"
@@ -68,11 +77,19 @@ pip3 install torch torchvision torchaudio --index-url https://download.pytorch.o
 echo ""
 echo "📥 Installing additional dependencies with version constraints..."
 
+# CRITICAL: Force reinstall transformers with compatible version (4.46+ removed top_k_top_p_filtering)
+# This must be done before other dependencies to avoid conflicts
+echo "   Installing compatible transformers version (4.40.0-4.45.x)..."
+pip3 install --force-reinstall --no-cache-dir "transformers>=4.40.0,<4.46.0" || {
+    echo "   ⚠️  Version range install failed, trying specific version..."
+    pip3 install --force-reinstall --no-cache-dir transformers==4.45.2
+}
+
 # Install other dependencies with version constraints to avoid compatibility issues
 # Note: The unsloth wheel may have installed some of these, but we constrain versions
 # to avoid known issues (transformers 4.46+ removed top_k_top_p_filtering, trl 0.8+ has patching issues)
-pip3 install "transformers>=4.40.0,<4.46.0" \
-    datasets>=2.14.0 \
+echo "   Installing other dependencies..."
+pip3 install datasets>=2.14.0 \
     "trl>=0.7.0,<0.8.0" \
     peft>=0.8.0 \
     accelerate>=0.27.0 \
@@ -110,7 +127,9 @@ except (ImportError, IndexError, AttributeError, ModuleNotFoundError) as e:
             error_msg = str(e2)
             if 'top_k_top_p_filtering' in error_msg:
                 print('   This is a transformers version compatibility issue.')
-                print('   Solution: pip install transformers==4.45.2')
+                print('   Current transformers version is incompatible (4.46+).')
+                print('   Solution: pip install --force-reinstall --no-cache-dir transformers==4.45.2')
+                print('   Or: pip install --force-reinstall --no-cache-dir \"transformers>=4.40.0,<4.46.0\"')
             else:
                 print('   This may be a compatibility issue. Try:')
                 print('   1. pip install transformers==4.45.2')

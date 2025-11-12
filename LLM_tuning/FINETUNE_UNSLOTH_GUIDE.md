@@ -58,14 +58,20 @@ If you encounter issues, see the troubleshooting section.
 
 ```bash
 pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
-pip3 install "transformers>=4.40.0,<4.46.0" datasets "trl>=0.7.0,<0.8.0" peft accelerate bitsandbytes unsloth_zoo
+
+# CRITICAL: Force reinstall transformers with compatible version (4.46+ is incompatible)
+# If you already have transformers 4.46+ installed, this will downgrade it
+pip3 install --force-reinstall --no-cache-dir "transformers>=4.40.0,<4.46.0"
+
+# Install other dependencies
+pip3 install datasets "trl>=0.7.0,<0.8.0" peft accelerate bitsandbytes unsloth_zoo
 ```
 
 **Important Version Constraints:**
-- `transformers>=4.40.0,<4.46.0`: Versions 4.46+ removed `top_k_top_p_filtering` which unsloth requires
+- `transformers>=4.40.0,<4.46.0`: Versions 4.46+ removed `top_k_top_p_filtering` which unsloth requires. **Must force reinstall if incompatible version is already installed.**
 - `trl>=0.7.0,<0.8.0`: Avoids compatibility issues with unsloth's patching mechanism
 
-**Note:** The unsloth wheel should automatically install `unsloth_zoo` and all required dependencies. If you encounter issues with `unsloth_zoo` not being found, see the troubleshooting section below.
+**Note:** If you have an incompatible transformers version already installed, you must use `--force-reinstall` to downgrade it. The setup script handles this automatically.
 
 ### 3. Quick Setup Script
 
@@ -343,8 +349,14 @@ pip3 install --force-reinstall --no-cache-dir \
 This error occurs when using transformers 4.46.0 or newer, which removed this function. **Solution:**
 
 ```bash
-pip3 install "transformers>=4.40.0,<4.46.0"
+# Force reinstall with compatible version (required if incompatible version is already installed)
+pip3 install --force-reinstall --no-cache-dir "transformers>=4.40.0,<4.46.0"
+
+# Or install a specific compatible version
+pip3 install --force-reinstall --no-cache-dir transformers==4.45.2
 ```
+
+**Note:** If you already have transformers 4.46+ installed, you must use `--force-reinstall` to downgrade it. Simply running `pip3 install` without `--force-reinstall` may not downgrade an existing newer version.
 
 Then retry the import or run the fine-tuning script.
 
