@@ -99,17 +99,43 @@ show_all_settings() {
     echo ""
     
     echo -e "${BOLD}🧠 LLM MODEL${NC}"
+    local navigator_on=$(get_config_value "USE_MEDICAL_NAVIGATOR")
+    if [ "$navigator_on" == "true" ]; then
+        echo -e "  ${CYAN}📋 Medical Navigator is ENABLED - Task-specific parameters shown below${NC}"
+    fi
     echo "  Model:         $(get_config_value 'SIMPLE_MODEL_PATH' | sed 's|.*/||')"
     echo "  Context:       $(get_config_value 'SIMPLE_N_CTX')"
     echo "  Chat Format:   $(get_config_value 'SIMPLE_CHAT_FORMAT')"
-    echo "  Temperature:   $(get_config_value 'LLM_TEMPERATURE_SIMPLE')"
+    if [ "$navigator_on" == "true" ]; then
+        echo "  Temperature:   $(get_config_value 'LLM_TEMPERATURE_SIMPLE') (questions)"
+    else
+        echo "  Temperature:   $(get_config_value 'LLM_TEMPERATURE_SIMPLE')"
+    fi
     echo "  Top P:         $(get_config_value 'LLM_TOP_P')"
     echo "  Top K:         $(get_config_value 'LLM_TOP_K')"
     echo "  Repeat Penalty:$(get_config_value 'LLM_REPEAT_PENALTY')"
     echo "  Presence Pen.: $(get_config_value 'LLM_PRESENCE_PENALTY')"
     echo "  Frequency Pen.:$(get_config_value 'LLM_FREQUENCY_PENALTY')"
-    echo "  Num Predict:   $(get_config_value 'LLM_NUM_PREDICT')"
+    if [ "$navigator_on" == "true" ]; then
+        echo "  Num Predict:   $(get_config_value 'LLM_NUM_PREDICT') (questions)"
+    else
+        echo "  Num Predict:   $(get_config_value 'LLM_NUM_PREDICT')"
+    fi
     echo "  Stop (CSV):    $(get_config_value 'LLM_STOP')"
+    
+    # Show task-specific parameters if Medical Navigator is enabled
+    if [ "$navigator_on" == "true" ]; then
+        echo ""
+        echo -e "${BOLD}  📋 Medical Navigator Task-Specific Settings${NC}"
+        echo "  Temperature (Questions):     $(get_config_value 'LLM_TEMPERATURE_SIMPLE' || echo '0.4')"
+        echo "  Temperature (Empathetic):    $(get_config_value 'LLM_TEMPERATURE_EMPATHETIC' || echo '0.4')"
+        echo "  Temperature (Summary):       $(get_config_value 'LLM_TEMPERATURE_SUMMARY' || echo '0.25')"
+        echo "  Max Tokens (Questions):      $(get_config_value 'LLM_NUM_PREDICT' || echo '120')"
+        echo "  Max Tokens (Empathetic):     $(get_config_value 'LLM_MAX_TOKENS_EMPATHETIC' || echo '80')"
+        echo "  Max Tokens (Chronicity):     $(get_config_value 'LLM_MAX_TOKENS_CHRONICITY' || echo '60')"
+        echo "  Max Tokens (Summary):        $(get_config_value 'LLM_MAX_TOKENS_SUMMARY' || echo '220')"
+        echo "  ${YELLOW}Note: JSON scoring uses temperature=0.0 (deterministic, hardcoded)${NC}"
+    fi
     echo ""
     
     echo -e "${BOLD}📚 RAG SEARCH${NC}"
@@ -385,24 +411,51 @@ configure_ehr() {
 configure_llm() {
     print_header "LLM MODEL CONFIGURATION"
     
+    local navigator_on=$(get_config_value "USE_MEDICAL_NAVIGATOR")
+    
     echo "Model:         $(get_config_value 'SIMPLE_MODEL_PATH' | sed 's|.*/||')"
     echo "Context:       $(get_config_value 'SIMPLE_N_CTX')"
     echo "Temperature:   $(get_config_value 'LLM_TEMPERATURE_SIMPLE')"
     echo ""
-    echo "1) Change model path"
-    echo "2) Change context size"
-    echo "3) Adjust temperature"
-    echo "4) Set top_p"
-    echo "5) Set top_k"
-    echo "6) Set repeat_penalty"
-    echo "7) Set presence_penalty"
-    echo "8) Set frequency_penalty"
-    echo "9) Set num_predict (max tokens)"
-    echo "10) Set stop sequences (CSV)"
-    echo "11) Set chat format (e.g., llama-3, qwen2, qwen2.5)"
-    echo "12) Back to main menu"
+    
+    if [ "$navigator_on" == "true" ]; then
+        echo -e "${CYAN}Medical Navigator is ENABLED - Task-specific parameters available${NC}"
+        echo ""
+    fi
+    
+    echo "General Settings (used by all LLM tasks):"
+    echo "  1) Change model path"
+    echo "  2) Change context size"
+    echo "  3) Adjust temperature (default for question generation)"
+    echo "  4) Set top_p (nucleus sampling)"
+    echo "  5) Set top_k (top-k sampling)"
+    echo "  6) Set repeat_penalty (penalty for repetition)"
+    echo "  7) Set presence_penalty (encourages diversity)"
+    echo "  8) Set frequency_penalty (penalty for word repetition)"
+    echo "  9) Set num_predict (default max tokens for questions)"
+    echo " 10) Set stop sequences (CSV)"
+    echo " 11) Set chat format (e.g., llama-3, qwen2, qwen2.5)"
+    
+    if [ "$navigator_on" == "true" ]; then
+        echo ""
+        echo "Medical Navigator Task-Specific Settings:"
+        echo "  (JSON scoring always uses temperature=0.0 for deterministic output)"
+        echo " 12) Set temperature for empathetic statements (default: 0.4)"
+        echo " 13) Set temperature for summaries (default: 0.25, lower = more accurate)"
+        echo " 14) Set max tokens for empathetic statements (default: 80)"
+        echo " 15) Set max tokens for chronicity questions (default: 60)"
+        echo " 16) Set max tokens for summaries (default: 220)"
+        echo " 17) Back to main menu"
+    else
+        echo " 12) Back to main menu"
+    fi
     echo ""
-    read -p "Choice [1-12]: " choice
+    
+    if [ "$navigator_on" == "true" ]; then
+        read -p "Choice [1-17]: " choice
+    else
+        read -p "Choice [1-12]: " choice
+    fi
     
     case $choice in
         1)
@@ -418,9 +471,17 @@ configure_llm() {
             show_restart_message
             ;;
         3)
+            echo ""
+            echo "Current temperature: $(get_config_value 'LLM_TEMPERATURE_SIMPLE')"
+            if [ "$navigator_on" == "true" ]; then
+                echo "Used for: Question generation (default)"
+                echo "Note: JSON scoring uses temperature=0.0 (hardcoded, deterministic)"
+            fi
             read -p "Enter temperature (0.0-1.0): " temp
-            set_config_value "LLM_TEMPERATURE_SIMPLE" "$temp"
-            show_restart_message
+            if [ -n "$temp" ]; then
+                set_config_value "LLM_TEMPERATURE_SIMPLE" "$temp"
+                show_restart_message
+            fi
             ;;
         4)
             read -p "Enter top_p (0.0-1.0): " v
@@ -438,8 +499,17 @@ configure_llm() {
             read -p "Enter frequency_penalty: " v
             set_config_value "LLM_FREQUENCY_PENALTY" "$v"; show_restart_message ;;
         9)
+            echo ""
+            echo "Current num_predict: $(get_config_value 'LLM_NUM_PREDICT')"
+            if [ "$navigator_on" == "true" ]; then
+                echo "Used for: Question generation (default max tokens)"
+            fi
             read -p "Enter num_predict (max tokens): " v
-            set_config_value "LLM_NUM_PREDICT" "$v"; show_restart_message ;;
+            if [ -n "$v" ]; then
+                set_config_value "LLM_NUM_PREDICT" "$v"
+                show_restart_message
+            fi
+            ;;
         10)
             echo ""
             echo "Current stop sequences: $(get_config_value 'LLM_STOP')"
@@ -460,7 +530,117 @@ configure_llm() {
                 show_restart_message
             fi
             ;;
-        12) return ;;
+        12)
+            if [ "$navigator_on" == "true" ]; then
+                echo ""
+                echo "Current empathetic temperature: $(get_config_value 'LLM_TEMPERATURE_EMPATHETIC' || echo '0.4')"
+                echo "Used for: Empathetic statements and responses"
+                read -p "Enter temperature for empathetic statements (0.0-1.0): " temp
+                if [ -n "$temp" ]; then
+                    set_config_value "LLM_TEMPERATURE_EMPATHETIC" "$temp"
+                    show_restart_message
+                fi
+            else
+                return
+            fi
+            ;;
+        13)
+            if [ "$navigator_on" == "true" ]; then
+                echo ""
+                echo "Current summary temperature: $(get_config_value 'LLM_TEMPERATURE_SUMMARY' || echo '0.25')"
+                echo "Used for: History summaries (lower = more accurate)"
+                read -p "Enter temperature for summaries (0.0-1.0): " temp
+                if [ -n "$temp" ]; then
+                    set_config_value "LLM_TEMPERATURE_SUMMARY" "$temp"
+                    show_restart_message
+                fi
+            else
+                echo ""
+                echo -e "${YELLOW}⚠️  Medical Navigator is not enabled.${NC}"
+                echo "Enable Medical Navigator to configure task-specific parameters."
+                echo ""
+                read -p "Press Enter to continue..."
+            fi
+            ;;
+        14)
+            if [ "$navigator_on" == "true" ]; then
+                echo ""
+                echo "Current empathetic max tokens: $(get_config_value 'LLM_MAX_TOKENS_EMPATHETIC' || echo '80')"
+                echo "Used for: Empathetic statements"
+                read -p "Enter max tokens for empathetic statements: " tokens
+                if [ -n "$tokens" ] && [[ "$tokens" =~ ^[0-9]+$ ]]; then
+                    set_config_value "LLM_MAX_TOKENS_EMPATHETIC" "$tokens"
+                    show_restart_message
+                else
+                    echo -e "${RED}Invalid value. Please enter a positive integer.${NC}"
+                    sleep 1
+                fi
+            else
+                echo ""
+                echo -e "${YELLOW}⚠️  Medical Navigator is not enabled.${NC}"
+                echo "Enable Medical Navigator to configure task-specific parameters."
+                echo ""
+                read -p "Press Enter to continue..."
+            fi
+            ;;
+        15)
+            if [ "$navigator_on" == "true" ]; then
+                echo ""
+                echo "Current chronicity max tokens: $(get_config_value 'LLM_MAX_TOKENS_CHRONICITY' || echo '60')"
+                echo "Used for: Chronicity questions"
+                read -p "Enter max tokens for chronicity questions: " tokens
+                if [ -n "$tokens" ] && [[ "$tokens" =~ ^[0-9]+$ ]]; then
+                    set_config_value "LLM_MAX_TOKENS_CHRONICITY" "$tokens"
+                    show_restart_message
+                else
+                    echo -e "${RED}Invalid value. Please enter a positive integer.${NC}"
+                    sleep 1
+                fi
+            else
+                echo ""
+                echo -e "${YELLOW}⚠️  Medical Navigator is not enabled.${NC}"
+                echo "Enable Medical Navigator to configure task-specific parameters."
+                echo ""
+                read -p "Press Enter to continue..."
+            fi
+            ;;
+        16)
+            if [ "$navigator_on" == "true" ]; then
+                echo ""
+                echo "Current summary max tokens: $(get_config_value 'LLM_MAX_TOKENS_SUMMARY' || echo '220')"
+                echo "Used for: History summaries"
+                read -p "Enter max tokens for summaries: " tokens
+                if [ -n "$tokens" ] && [[ "$tokens" =~ ^[0-9]+$ ]]; then
+                    set_config_value "LLM_MAX_TOKENS_SUMMARY" "$tokens"
+                    show_restart_message
+                else
+                    echo -e "${RED}Invalid value. Please enter a positive integer.${NC}"
+                    sleep 1
+                fi
+            else
+                echo ""
+                echo -e "${YELLOW}⚠️  Medical Navigator is not enabled.${NC}"
+                echo "Enable Medical Navigator to configure task-specific parameters."
+                echo ""
+                read -p "Press Enter to continue..."
+            fi
+            ;;
+        17)
+            if [ "$navigator_on" == "true" ]; then
+                return
+            else
+                echo ""
+                echo -e "${YELLOW}⚠️  Medical Navigator is not enabled.${NC}"
+                echo "Option 17 is only available when Medical Navigator is enabled."
+                echo ""
+                read -p "Press Enter to continue..."
+            fi
+            ;;
+        *)
+            echo ""
+            echo -e "${RED}Invalid choice${NC}"
+            sleep 1
+            ;;
     esac
 }
 

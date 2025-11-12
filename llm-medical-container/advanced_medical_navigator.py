@@ -87,6 +87,17 @@ class AdvancedMedicalNavigator:
     CHIEF_COMPLAINT_LLM_THRESHOLD = 0.5  # Minimum LLM confidence for category match
     RULE_OUT_THRESHOLD = 0.05
     LLM_MATCH_ACCEPT_THRESHOLD = 0.5  # Minimum LLM score for term match
+    
+    # LLM parameter configuration (uses environment variables with optimized defaults)
+    # JSON scoring tasks use temperature=0.0 (deterministic, hardcoded in function)
+    # Question generation tasks use environment variables (defaults optimized for natural language)
+    LLM_TEMPERATURE_QUESTIONS = float(os.environ.get('LLM_TEMPERATURE_SIMPLE', '0.4'))  # Optimized for question generation
+    LLM_TEMPERATURE_EMPATHETIC = float(os.environ.get('LLM_TEMPERATURE_EMPATHETIC', '0.4'))  # Optimized for empathetic statements
+    LLM_TEMPERATURE_SUMMARY = float(os.environ.get('LLM_TEMPERATURE_SUMMARY', '0.25'))  # Optimized for summaries
+    LLM_MAX_TOKENS_QUESTIONS = int(os.environ.get('LLM_NUM_PREDICT', '120'))  # Enough for complete questions with options
+    LLM_MAX_TOKENS_EMPATHETIC = int(os.environ.get('LLM_MAX_TOKENS_EMPATHETIC', '80'))  # Enough for empathetic statements
+    LLM_MAX_TOKENS_CHRONICITY = int(os.environ.get('LLM_MAX_TOKENS_CHRONICITY', '60'))  # Enough for chronicity questions
+    LLM_MAX_TOKENS_SUMMARY = int(os.environ.get('LLM_MAX_TOKENS_SUMMARY', '220'))  # Enough for summaries
 
     PMH_ELEMENTS = ["pmh", "psh", "meds_allergies"]
     PMH_PROMPTS = {
@@ -2638,8 +2649,8 @@ class AdvancedMedicalNavigator:
                 {"role": "system", "content": self.QUESTION_SYSTEM_PROMPT},
                 {"role": "user", "content": user_prompt},
             ],
-            max_tokens=60,
-            temperature=0.5,
+            max_tokens=self.LLM_MAX_TOKENS_QUESTIONS,
+            temperature=self.LLM_TEMPERATURE_QUESTIONS,
         )
         self._capture_debug(f"[LLM] ❓ Question prompt:\n{user_prompt}")
         self._capture_debug(f"[LLM] ❓ Raw question response: {response}")
@@ -2667,8 +2678,8 @@ class AdvancedMedicalNavigator:
                 {"role": "system", "content": self.EMPATHETIC_SYSTEM_PROMPT},
                 {"role": "user", "content": f"Patient concern: {chief_complaint}"},
             ],
-            max_tokens=80,
-            temperature=0.4,
+            max_tokens=self.LLM_MAX_TOKENS_EMPATHETIC,
+            temperature=self.LLM_TEMPERATURE_EMPATHETIC,
         )
         self._capture_debug(f"[LLM] ❤️ Empathy prompt: Patient concern: {chief_complaint}")
         self._capture_debug(f"[LLM] ❤️ Empathy response: {response}")
@@ -2682,8 +2693,8 @@ class AdvancedMedicalNavigator:
                 {"role": "system", "content": self.CHRONICITY_SYSTEM_PROMPT},
                 {"role": "user", "content": "Ask if the problem is new or ongoing, and if there's a prior diagnosis."},
             ],
-            max_tokens=60,
-            temperature=0.3,
+            max_tokens=self.LLM_MAX_TOKENS_CHRONICITY,
+            temperature=self.LLM_TEMPERATURE_QUESTIONS,  # Use question temperature for consistency
         )
         self._capture_debug("[LLM] 🕒 Chronicity prompt issued.")
         self._capture_debug(f"[LLM] 🕒 Chronicity response: {response}")
@@ -2712,8 +2723,8 @@ class AdvancedMedicalNavigator:
                 {"role": "system", "content": self.SUMMARY_SYSTEM_PROMPT},
                 {"role": "user", "content": user_prompt},
             ],
-            max_tokens=220,
-            temperature=0.2,
+            max_tokens=self.LLM_MAX_TOKENS_SUMMARY,
+            temperature=self.LLM_TEMPERATURE_SUMMARY,
         )
         self._capture_debug(f"[LLM] 📝 Summary prompt:\n{user_prompt}")
         self._capture_debug(f"[LLM] 📝 Summary response: {response}")
