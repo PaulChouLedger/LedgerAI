@@ -21,9 +21,9 @@ load_dotenv()
 llm_lock = threading.Lock()
 
 # === Model Config ===
-SIMPLE_MODEL_PATH = os.getenv("SIMPLE_MODEL_PATH", "/models/Nemotron-Mini-4B-Instruct-Q4_K_M.gguf")
+SIMPLE_MODEL_PATH = os.getenv("SIMPLE_MODEL_PATH", "/models/Llama-3.2-1B.Q4_K_M.gguf")
 SIMPLE_N_CTX = int(os.getenv("SIMPLE_N_CTX", "2048"))
-SIMPLE_CHAT_FORMAT = os.getenv("SIMPLE_CHAT_FORMAT", "chatml")
+SIMPLE_CHAT_FORMAT = os.getenv("SIMPLE_CHAT_FORMAT", "llama-3")
 
 llm_simple = None
 
