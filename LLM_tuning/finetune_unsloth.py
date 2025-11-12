@@ -67,11 +67,10 @@ except (ImportError, IndexError, AttributeError, ModuleNotFoundError) as e:
         print(f"❌ Missing required packages. Please install unsloth and dependencies.")
         print(f"Error: {e}")
         print("\nInstallation instructions:")
-        print("1. pip install --index-url https://pypi.jetson-ai-lab.io/jp6/cu129 unsloth")
-        print("2. pip install unsloth_zoo")
-        print("3. pip install 'transformers>=4.40.0,<4.46.0'")
-        print("4. pip install 'trl>=0.7.0,<0.8.0'")
-        print("5. pip install datasets peft")
+        print("1. pip install --index-url https://pypi.jetson-ai-lab.io/jp6/cu126 unsloth-2025.7.9-py3-none-any.whl")
+        print("2. pip install 'transformers>=4.40.0,<4.46.0'")
+        print("3. pip install 'trl>=0.7.0,<0.8.0'")
+        print("4. pip install datasets peft")
         exit(1)
 
 
