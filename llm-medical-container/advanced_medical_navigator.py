@@ -641,47 +641,31 @@ class AdvancedMedicalNavigator:
             if source_element:
                 scoring_element = source_element
 
-        faiss_threshold = 0.6
-        # For location, get ALL location terms from guidelines and let LLM decide which match
-        # LLM is the decision maker here, not FAISS
-        if scoring_element == 'location':
-            # Get all location terms from guidelines first
-            all_location_terms = self._get_all_location_terms(session)
-            if all_location_terms:
-                # For location, skip FAISS entirely - let LLM review all terms
-                # Initialize all terms with 0.0 FAISS score (LLM will override)
-                matches = all_location_terms
-                term_scores = {term: 0.0 for term in all_location_terms}
-                self._capture_debug(f"[LLM] 🔍 Location: Sending {len(all_location_terms)} location terms to LLM for review (FAISS bypassed)")
-                self._capture_debug(f"[LLM] 🔍 Location: Terms: {all_location_terms}")
-            else:
-                # Fallback to normal FAISS search
-                matches = self.medical_rule_engine.find_matching_terms_faiss(
-                    prompt=answer,
-                    element=scoring_element,
-                    threshold=faiss_threshold,
-                    return_scores=True,
-                    active_condition_names=None,
-                )
-                term_scores = getattr(self.medical_rule_engine, '_last_faiss_scores', {}) or {}
+        # LLM-only approach for ALL elements: get ALL terms from guidelines and let LLM decide which match
+        # FAISS is bypassed completely - LLM is the decision maker for all elements
+        all_element_terms = self._get_all_terms_for_element(session, scoring_element)
+        if all_element_terms:
+            # Skip FAISS entirely - let LLM review all terms
+            # Initialize all terms with 0.0 FAISS score (LLM will override)
+            matches = all_element_terms
+            term_scores = {term: 0.0 for term in all_element_terms}
+            self._capture_debug(f"[LLM] 🔍 {scoring_element}: Sending {len(all_element_terms)} terms to LLM for review (FAISS bypassed)")
+            self._capture_debug(f"[LLM] 🔍 {scoring_element}: Terms: {all_element_terms}")
         else:
-            # For non-location elements, use normal FAISS search with threshold
-            matches = self.medical_rule_engine.find_matching_terms_faiss(
-                prompt=answer,
-                element=scoring_element,
-                threshold=faiss_threshold,
-                return_scores=True,
-                active_condition_names=None,
-            )
-            term_scores = getattr(self.medical_rule_engine, '_last_faiss_scores', {}) or {}
+            # Fallback: no terms found in guidelines (shouldn't happen, but handle gracefully)
+            self._capture_debug(f"[LLM] ⚠️ {scoring_element}: No terms found in guidelines")
+            matches = []
+            term_scores = {}
 
+        # LLM threshold is 0.5 for all elements (LLM decides what matches)
+        llm_threshold = 0.5
         matches, term_scores, review_rows, review_meta = self._llm_refine_matches(
             session,
             scoring_element,
             answer,
             matches,
             term_scores,
-            faiss_threshold if scoring_element != 'location' else 0.0,  # Location: let LLM decide threshold
+            llm_threshold,  # Use LLM threshold for all elements
         )
         debug_ctx = session.context.setdefault('debug', {})
         if review_meta.get('invoked'):
@@ -796,7 +780,7 @@ class AdvancedMedicalNavigator:
 
         session.last_field = None
         return None
-
+    
     # ----------- Chief complaint matching ------------------------------------
 
     def _apply_rule_outs(self, session: "MedicalSession") -> None:
@@ -817,11 +801,12 @@ class AdvancedMedicalNavigator:
         term_scores: Dict[str, float],
     ) -> None:
         sorted_scores = dict(sorted(term_scores.items(), key=lambda x: x[1], reverse=True))
-        self._capture_debug(f"[FAISS] 🔍 Scores for '{answer}' in {element}: {sorted_scores}")
+        # For all elements, scores are LLM scores (FAISS is bypassed)
+        self._capture_debug(f"[LLM] 🔍 LLM scores for '{answer}' in {element}: {sorted_scores}")
         if matches:
-            self._capture_debug(f"[FAISS] ✅ Matched terms for {element}: {matches}")
+            self._capture_debug(f"[LLM] ✅ Matched terms for {element}: {matches}")
         else:
-            self._capture_debug(f"[FAISS] ⚠️ No patient-friendly terms matched {element} for '{answer}'")
+            self._capture_debug(f"[LLM] ⚠️ No patient-friendly terms matched {element} for '{answer}'")
 
     def _log_llm_match_review(
         self,
@@ -852,13 +837,17 @@ class AdvancedMedicalNavigator:
 
     def _get_all_location_terms(self, session: "MedicalSession") -> List[str]:
         """Get all location terms from all guidelines in session"""
+        return self._get_all_terms_for_element(session, 'location')
+    
+    def _get_all_terms_for_element(self, session: "MedicalSession", element: str) -> List[str]:
+        """Get all terms for any element from all guidelines in session"""
         guidelines = self._collect_guidelines_for_session(session)
         all_terms = []
         seen = set()
         for guideline in guidelines:
             structured = self._structured_oldcarts(guideline)
-            location_data = structured.get('location', {})
-            includes = location_data.get('includes', []) if isinstance(location_data, dict) else []
+            element_data = structured.get(element, {})
+            includes = element_data.get('includes', []) if isinstance(element_data, dict) else []
             for item in includes:
                 if isinstance(item, dict):
                     patient_term = item.get('patient_friendly')
@@ -947,7 +936,7 @@ class AdvancedMedicalNavigator:
             return matches, term_scores, [], {'invoked': False, 'reason': 'no_llm_function'}
         
         if not matches:
-            self._capture_debug(f"[LLM] ⚠️ Match review skipped for '{answer}' in {element}: No FAISS matches to review")
+            self._capture_debug(f"[LLM] ⚠️ Match review skipped for '{answer}' in {element}: No terms to review")
             return matches, term_scores, [], {'invoked': False, 'reason': 'no_matches'}
 
         unique_matches: List[str] = []
@@ -955,56 +944,97 @@ class AdvancedMedicalNavigator:
             if term not in unique_matches:
                 unique_matches.append(term)
 
-        # For location, send ALL terms to LLM (no limit, no FAISS filtering)
-        # For other elements, limit to top FAISS matches
-        if element == 'location':
-            limited = unique_matches  # Send all location terms to LLM
-            self._capture_debug(f"[LLM] 🔍 Location: Sending ALL {len(limited)} location terms to LLM for decision")
-        else:
-            ordered = sorted(unique_matches, key=lambda t: term_scores.get(t, 0.0), reverse=True)
-            limited = ordered[: self.LLM_MATCH_REVIEW_LIMIT]
-            if not limited:
-                self._capture_debug(f"[LLM] ⚠️ Match review skipped for '{answer}' in {element}: No terms after limiting")
-                return matches, term_scores, [], {
-                    'invoked': False,
-                    'reason': 'no_limited_matches',
-                    'requested_terms': [],
-                }
+        # For ALL elements, send ALL terms to LLM (no limit, no FAISS filtering)
+        # LLM is the decision maker for all elements
+        limited = unique_matches  # Send all terms to LLM
+        self._capture_debug(f"[LLM] 🔍 {element}: Sending ALL {len(limited)} terms to LLM for decision")
+
+        if not limited:
+            self._capture_debug(f"[LLM] ⚠️ Match review skipped for '{answer}' in {element}: No terms to review")
+            return matches, term_scores, [], {
+                'invoked': False,
+                'reason': 'no_terms',
+                'requested_terms': [],
+            }
 
         self._capture_debug(f"[LLM] 🔍 Reviewing {len(limited)} terms for '{answer}' in {element}: {limited}")
         alias_map = {term.lower(): term for term in limited}
         candidate_lines = "\n".join(f"- {term}" for term in limited)
         
-        # For location, make it clear that LLM should determine which terms match semantically
-        if element == 'location':
-            user_prompt = (
-                f"Chief complaint context: {session.context['pre_hpi'].get('chief_complaint', 'unknown')}\n"
-                f"Patient statement about pain location: '{answer}'\n\n"
-                "Review the following location terms and determine which ones match the patient's statement.\n"
-                "Consider semantic meaning and anatomical relevance, not just exact word matching.\n"
-                "Candidate location terms:\n"
+        # Create element-specific prompts
+        element_prompts = {
+            'location': (
+                f"Chief complaint: {session.context['pre_hpi'].get('chief_complaint', 'unknown')}\n"
+                f"Patient's description of pain location: '{answer}'\n\n"
+                "You are a medical expert evaluating anatomical location terms. "
+                "Match the patient's description to the medical location terms based on ANATOMICAL ACCURACY.\n\n"
+                "IMPORTANT RULES:\n"
+                "- 'center of chest' or 'center of my chest' = 'behind your breastbone' (same anatomical location) → score 1.0\n"
+                "- 'center of chest' ≠ abdominal locations (belly, groin, ribs, etc.) → score 0.0\n"
+                "- Chest locations (center, middle, behind breastbone) are NOT the same as abdominal locations\n"
+                "- Groin locations are in the lower abdomen/pelvis, NOT the chest\n"
+                "- Rib locations are on the sides, NOT the center of chest\n\n"
+                "Location terms to evaluate:\n"
                 f"{candidate_lines}\n\n"
-                "Return JSON like {\"term\": score} where:\n"
-                "- score = 1.0 if the term matches the patient's statement semantically\n"
-                "- score = 0.0 if the term does NOT match\n"
-                "- score = 0.5-0.9 for partial or related matches\n"
-                "Example: If patient says 'center of my chest' and term is 'behind your breastbone', score should be 1.0 (same location)."
-            )
+                "Return ONLY valid JSON: {\"term\": score}\n"
+                "Scoring:\n"
+                "- 1.0 = Exact anatomical match (same body region and location)\n"
+                "- 0.0 = Completely different anatomical location (e.g., chest vs groin, chest vs lower abdomen)\n"
+                "- 0.1-0.4 = Unrelated or opposite locations\n"
+                "- Do NOT use scores 0.5-0.9 for location matching - be strict: either match (1.0) or no match (0.0)\n\n"
+                "Examples:\n"
+                "- Patient: 'center of my chest' → 'behind your breastbone' = 1.0\n"
+                "- Patient: 'center of my chest' → 'lower right side around your groin' = 0.0\n"
+                "- Patient: 'center of my chest' → 'around your belly button' = 0.0\n"
+                "- Patient: 'center of my chest' → 'all over your belly' = 0.0"
+            ),
+        }
+        
+        # Use element-specific prompt if available, otherwise use generic prompt
+        if element in element_prompts:
+            user_prompt = element_prompts[element]
         else:
             user_prompt = (
-                f"Chief complaint context: {session.context['pre_hpi'].get('chief_complaint', 'unknown')}\n"
-                f"Patient statement: {answer}\n"
-                "Candidate terms:\n"
-                f"{candidate_lines}\n"
-                "Return JSON like {\"term\": score} with score between 0 and 1 for each listed term."
+                f"Chief complaint: {session.context['pre_hpi'].get('chief_complaint', 'unknown')}\n"
+                f"Patient statement: '{answer}'\n\n"
+                f"You are a medical expert evaluating {element} terms. "
+                "Match the patient's statement to the medical guideline terms based on semantic meaning and medical relevance.\n\n"
+                f"{element.replace('_', ' ').title()} terms to evaluate:\n"
+                f"{candidate_lines}\n\n"
+                "Return ONLY valid JSON: {\"term\": score}\n"
+                "Scoring:\n"
+                "- 1.0 = Exact semantic match (same meaning)\n"
+                "- 0.0 = No match (different meaning)\n"
+                "- 0.5-0.9 = Partial or related match\n"
+                "Be accurate and consistent in your scoring."
             )
+        
+        # Use element-specific system prompt, otherwise use generic
+        if element == 'location':
+            system_prompt = (
+                "You are a medical expert specializing in anatomical location assessment. "
+                "Your task is to evaluate whether patient-described locations match medical location terms "
+                "based on ANATOMICAL ACCURACY and anatomical knowledge. "
+                "Be strict: chest locations are NOT abdominal locations, groin is NOT chest, etc. "
+                "Output ONLY valid JSON with scores: 1.0 for exact anatomical matches, 0.0 for different locations. "
+                "Do not include explanations or additional text."
+            )
+        else:
+            system_prompt = (
+                "You are a medical expert evaluating patient statements against medical guideline terms. "
+                "Your task is to determine semantic equivalence and medical relevance. "
+                "Output ONLY valid JSON with scores between 0 and 1 (higher = better match). "
+                "Do not include explanations or additional text."
+            )
+        
         self._capture_debug(f"[LLM] 🔍 Match review prompt:\n{user_prompt}")
+        self._capture_debug(f"[LLM] 🔍 System prompt: {system_prompt[:100]}...")
         response = self.llm_chat_fn(
             [
-                {"role": "system", "content": self.MATCH_REVIEW_SYSTEM_PROMPT},
+                {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
             ],
-            max_tokens=160,
+            max_tokens=250,  # More tokens for all elements (since we're sending all terms)
             temperature=0.0,
         )
         self._capture_debug(f"[LLM] 🔍 Match review raw response: {response}")
@@ -1050,13 +1080,13 @@ class AdvancedMedicalNavigator:
         refined_scores = dict(term_scores)
         review_rows: List[Tuple[str, float, float, float]] = []
 
-        # For location, use LLM scores exclusively (100% weight)
-        # For other elements, blend FAISS and LLM scores
-        use_llm_only = (element == 'location')
+        # For ALL elements, use LLM scores exclusively (100% weight)
+        # FAISS is bypassed completely - LLM is the decision maker for all elements
+        use_llm_only = True  # All elements now use LLM exclusively
         
-        # For location, if LLM didn't return scores, we can't proceed (LLM is required)
-        if use_llm_only and not had_scores:
-            self._capture_debug(f"[LLM] ⚠️ Location: LLM did not return scores for '{answer}'. Cannot determine matches without LLM decision.")
+        # If LLM didn't return scores, we can't proceed (LLM is required for all elements)
+        if not had_scores:
+            self._capture_debug(f"[LLM] ⚠️ {element}: LLM did not return scores for '{answer}'. Cannot determine matches without LLM decision.")
             return [], refined_scores, [], {
                 'invoked': True,
                 'requested_terms': limited,
@@ -1065,42 +1095,29 @@ class AdvancedMedicalNavigator:
             }
 
         for term in limited:
-            faiss_score = refined_scores.get(term, 0.0)
+            faiss_score = refined_scores.get(term, 0.0)  # FAISS score is always 0.0 (bypassed)
             llm_score = llm_scores.get(term, llm_scores.get(term.lower()))
             
-            if use_llm_only:
-                # For location, use LLM score exclusively
-                if llm_score is not None:
-                    refined_scores[term] = llm_score
-                    review_rows.append((term, faiss_score, llm_score, llm_score))
-                else:
-                    # If LLM didn't score it, set to 0.0 (no match)
-                    refined_scores[term] = 0.0
-                    review_rows.append((term, faiss_score, 0.0, 0.0))
+            # For ALL elements, use LLM score exclusively
+            if llm_score is not None:
+                refined_scores[term] = llm_score
+                review_rows.append((term, faiss_score, llm_score, llm_score))
             else:
-                # For other elements, blend FAISS and LLM scores
-                if llm_score is None:
-                    review_rows.append((term, faiss_score, 0.0, faiss_score))
-                    continue
-                blended = ((1 - self.LLM_MATCH_BLEND_WEIGHT) * faiss_score) + (self.LLM_MATCH_BLEND_WEIGHT * llm_score)
-                refined_scores[term] = blended
-                review_rows.append((term, faiss_score, llm_score, blended))
+                # If LLM didn't score it, set to 0.0 (no match)
+                refined_scores[term] = 0.0
+                review_rows.append((term, faiss_score, 0.0, 0.0))
 
         # Order terms by refined score for filtering
         ordered = sorted(limited, key=lambda t: refined_scores.get(t, 0.0), reverse=True)
         
-        # For location, use LLM's decision threshold (0.5 or higher means match)
-        # For other elements, use blended threshold
-        if use_llm_only:
-            blended_threshold = 0.5  # Location: LLM score >= 0.5 means match
-        else:
-            blended_threshold = max(self.LLM_MATCH_ACCEPT_THRESHOLD, threshold)
+        # For ALL elements, use LLM's decision threshold (0.5 or higher means match)
+        blended_threshold = 0.5  # LLM score >= 0.5 means match for all elements
         
         filtered = [term for term in ordered if refined_scores.get(term, 0.0) >= blended_threshold]
 
         if not filtered:
             best_term = max(ordered, key=lambda t: refined_scores.get(t, 0.0))
-            if refined_scores.get(best_term, 0.0) >= (0.5 if use_llm_only else self.LLM_MATCH_ACCEPT_THRESHOLD):
+            if refined_scores.get(best_term, 0.0) >= 0.5:
                 filtered = [best_term]
 
         review_meta = {
@@ -1245,7 +1262,9 @@ class AdvancedMedicalNavigator:
 
         sorted_scores = dict(sorted(term_scores.items(), key=lambda x: x[1], reverse=True))
         term_breakdown = []
-        threshold = 0.6
+        # For ALL elements, use LLM threshold (0.5) since LLM scores are used exclusively
+        # FAISS is bypassed completely - LLM is the decision maker for all elements
+        threshold = 0.5  # LLM threshold for all elements
         boosted_matches: Optional[List[str]] = None
         boosted_term_scores: Optional[Dict[str, float]] = None
         for key, meta in sorted(all_terms_patient.items()):
@@ -1261,11 +1280,14 @@ class AdvancedMedicalNavigator:
             })
 
         if element == 'location':
+            # For location, use LLM scores exclusively - check for high confidence (>= 0.95)
+            # or use the LLM threshold (0.5) for matches
             high_conf_keys: List[str] = []
             for key, meta in all_terms_patient.items():
                 pf = meta['patient_friendly']
                 score = sorted_scores.get(pf, sorted_scores.get(pf.lower(), 0.0))
-                if score >= self.LOCATION_HIGH_CONFIDENCE_THRESHOLD:
+                # For location, high confidence is 0.95 (very confident LLM match)
+                if score >= 0.95:
                     high_conf_keys.append(key)
 
             if high_conf_keys:
@@ -1529,11 +1551,11 @@ class AdvancedMedicalNavigator:
             f"[Location Analysis] 📍 All includes terms from {len(analysis.get('all_terms', []))} total guidelines: {analysis.get('all_terms', [])}"
         )
         self._capture_debug(f"[Location Analysis] 📝 Patient answer: '{answer}'")
-        self._capture_debug(f"[FAISS] 🔍 Scores for '{answer}' in location: {faiss_scores}")
-        self._capture_debug(f"[Location Analysis] 🔍 FAISS found {len(matches)} matches above threshold: {matches}")
+        # For location, scores are LLM scores (not FAISS)
+        self._capture_debug(f"[LLM] 🔍 LLM scores for '{answer}' in location: {faiss_scores}")
+        self._capture_debug(f"[Location Analysis] 🔍 LLM found {len(matches)} matches above threshold ({threshold}): {matches}")
         self._capture_debug(f"[Location Analysis]   - semantic_matches_set ({len(matches)} terms): {matches}")
-        self._capture_debug(f"[Location Analysis]   - faiss_scores ({len(faiss_scores)} terms): {faiss_scores}")
-        self._capture_debug(f"[Location Analysis]   - Raw FAISS scores ({len(faiss_scores)} terms): {faiss_scores}")
+        self._capture_debug(f"[Location Analysis]   - LLM scores ({len(faiss_scores)} terms): {faiss_scores}")
 
         normalized_answer = answer.lower().strip()
         semantic_set = {m.lower() for m in matches}
@@ -1550,14 +1572,14 @@ class AdvancedMedicalNavigator:
 
             self._capture_debug(f"[Location Analysis] 🔍 Checking term: '{term}' (patient answer: '{answer}')")
             self._capture_debug(
-                f"[Location Analysis]   FAISS check: in semantic_matches_set={term_lower in semantic_set}, score={score}"
+                f"[Location Analysis]   LLM check: in semantic_matches_set={term_lower in semantic_set}, score={score}"
             )
             self._capture_debug(
-                f"[Location Analysis]   Raw FAISS score for '{term}': {score:.3f} (threshold={threshold})"
+                f"[Location Analysis]   LLM score for '{term}': {score:.3f} (threshold={threshold})"
             )
             if score < threshold:
                 self._capture_debug(
-                    f"[Location Analysis]   ⚠️ Raw score {score:.3f} < {threshold} threshold, should NOT be in semantic_matches_set"
+                    f"[Location Analysis]   ⚠️ LLM score {score:.3f} < {threshold} threshold, should NOT be in semantic_matches_set"
                 )
             if in_semantic:
                 self._capture_debug(f"[Location Analysis]   ✅ '{term}' satisfied")
