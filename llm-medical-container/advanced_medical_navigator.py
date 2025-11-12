@@ -320,7 +320,7 @@ class AdvancedMedicalNavigator:
             return self._wrap_response(session, apology, status="awaiting_chief_complaint")
         
         session.context['matched_categories'] = categories
-        primary_category = categories[0] if categories else 'gastrointestinal'
+        primary_category = categories[0]  # categories is guaranteed to be non-empty here
         if len(categories) == 1:
             self._capture_debug(f"[Engine] 🎯 Category: {primary_category}")
         else:
@@ -1674,8 +1674,9 @@ class AdvancedMedicalNavigator:
     def _match_chief_complaint_to_category_llm(self, chief_complaint: str) -> List[str]:
         """Match chief complaint to medical categories using LLM only."""
         if not self.chief_complaint_triggers_data:
-            self._capture_debug("[Engine] ⚠️ No chief complaint triggers available - defaulting to gastrointestinal")
-            return ['gastrointestinal']
+            self._capture_debug("[Engine] ❌ No chief complaint triggers available - cannot match categories")
+            print("[Engine] ❌ No chief complaint triggers available - cannot match categories")
+            return []
 
         # Group triggers by category
         triggers_by_category: Dict[str, List[Dict]] = {}
@@ -1701,15 +1702,17 @@ class AdvancedMedicalNavigator:
             "Use your comprehensive medical knowledge to determine which categories and specific conditions match the patient's complaint. "
             "Consider synonyms, related terms, abbreviations, and medical context across all medical specialties.\n\n"
             "CRITICAL FORMAT REQUIREMENTS:\n"
-            "- Output ONLY valid JSON (no explanations, no text before or after)\n"
-            "- JSON must be an object with categories as keys and confidence scores (0.0-1.0) as values\n"
-            "- Example format: {\"cardiovascular\": 0.9, \"respiratory\": 0.2, \"gastrointestinal\": 0.1}\n"
+            "- Output ONLY valid JSON (no explanations, no text before or after, no markdown code blocks)\n"
+            "- JSON must be a valid JSON object with categories as keys and numeric scores (0.0-1.0) as values\n"
+            "- Example format: {\"cardiovascular\": 0.9, \"respiratory\": 0.2, \"gastrointestinal\": 0.1, \"conditions\": {\"MI\": 0.9, \"Angina\": 0.8}}\n"
             "- Scores: 1.0 = exact match, 0.0 = no match, 0.5-0.9 = partial match\n"
             "- Include ALL categories with scores, even if 0.0\n"
             "- Also include a \"conditions\" key with condition names (use common names or abbreviations) and their scores\n"
-            "- Example: {\"cardiovascular\": 0.9, \"respiratory\": 0.0, \"conditions\": {\"MI\": 0.9, \"Angina\": 0.8, \"GERD\": 0.1}}\n"
             "- Condition names can be abbreviations (e.g., \"MI\", \"GERD\", \"COPD\") or full names (e.g., \"Myocardial Infarction\", \"Gastroesophageal Reflux Disease\")\n"
-            "- Do NOT use any other format - only JSON object"
+            "- Do NOT include trailing commas, comments, or any non-JSON text\n"
+            "- Do NOT wrap JSON in markdown code blocks (```json ... ```)\n"
+            "- Output must be parseable by json.loads() directly\n"
+            "- Double-check that all strings are properly quoted and all numbers are valid (no NaN, Infinity)"
         )
 
         user_prompt = (
@@ -1733,20 +1736,108 @@ class AdvancedMedicalNavigator:
             )
             
             if not response:
-                self._capture_debug("[Engine] ⚠️ LLM returned empty response for chief complaint matching")
-                return ['gastrointestinal']
+                self._capture_debug("[Engine] ❌ LLM returned empty response for chief complaint matching")
+                print("[Engine] ❌ LLM returned EMPTY response for chief complaint matching")
+                return []
 
-            # Parse JSON response
+            # Clean response: Remove markdown code blocks if present
+            cleaned_response = response.strip()
+            # Remove markdown code blocks (```json ... ``` or ``` ... ```)
+            if cleaned_response.startswith('```'):
+                # Find the first newline after ```
+                first_newline = cleaned_response.find('\n')
+                if first_newline != -1:
+                    # Remove the opening ``` and optional language identifier
+                    cleaned_response = cleaned_response[first_newline+1:]
+                    # Remove closing ``` if present
+                    if cleaned_response.endswith('```'):
+                        cleaned_response = cleaned_response[:-3].strip()
+                    elif '```' in cleaned_response:
+                        # Find last occurrence of ```
+                        last_idx = cleaned_response.rfind('```')
+                        cleaned_response = cleaned_response[:last_idx].strip()
+            response = cleaned_response
+
+            # Debug: Log raw response
+            print(f"[Engine] ✅ LLM returned response (type: {type(response).__name__}, length: {len(response) if response else 0})")
+            if response:
+                print(f"[Engine] 🔍 Raw response (first 300 chars): {response[:300]}")
+                self._capture_debug(f"[Engine] 🔍 Raw response (first 500 chars): {response[:500]}")
+                if len(response) > 500:
+                    self._capture_debug(f"[Engine] 🔍 ... (response truncated, total length: {len(response)} chars)")
+
+            # Parse JSON response with robust extraction
+            parsed = None
+            parse_error = None
             try:
                 parsed = json.loads(response)
-            except json.JSONDecodeError:
-                # Try to extract JSON from response
-                json_match = re.search(r"\{.*\}", response, re.DOTALL)
-                if json_match:
-                    parsed = json.loads(json_match.group(0))
+                print(f"[Engine] ✅ Successfully parsed JSON directly")
+                self._capture_debug(f"[Engine] ✅ Successfully parsed JSON with {len(parsed) if isinstance(parsed, dict) else 'unknown'} keys")
+            except json.JSONDecodeError as e:
+                parse_error = str(e)
+                print(f"[Engine] ⚠️ JSON parse error: {parse_error}")
+                self._capture_debug(f"[Engine] ⚠️ JSON parse error: {parse_error}")
+                self._capture_debug(f"[Engine] ⚠️ Raw response (first 200 chars): {response[:200]}")
+                
+                # Try to extract JSON from response using brace counting (more robust)
+                start_idx = response.find('{')
+                if start_idx != -1:
+                    # Try to find matching closing brace by counting braces
+                    brace_count = 0
+                    end_idx = start_idx
+                    for i in range(start_idx, len(response)):
+                        if response[i] == '{':
+                            brace_count += 1
+                        elif response[i] == '}':
+                            brace_count -= 1
+                            if brace_count == 0:
+                                end_idx = i + 1
+                                break
+                    if end_idx > start_idx:
+                        try:
+                            extracted_json = response[start_idx:end_idx]
+                            # Try to fix common JSON issues before parsing
+                            # Remove trailing commas before closing braces/brackets (handles nested objects too)
+                            extracted_json = re.sub(r',(\s*[}\]])', r'\1', extracted_json)
+                            # Remove comments (JSON doesn't support comments, but some LLMs add them)
+                            extracted_json = re.sub(r'//.*?$', '', extracted_json, flags=re.MULTILINE)
+                            extracted_json = re.sub(r'/\*.*?\*/', '', extracted_json, flags=re.DOTALL)
+                            parsed = json.loads(extracted_json)
+                            parse_error = None
+                            print(f"[Engine] ✅ Successfully extracted and parsed JSON from response")
+                            self._capture_debug(f"[Engine] ✅ Extracted and parsed JSON from response")
+                        except json.JSONDecodeError as e2:
+                            parse_error = str(e2)
+                            parsed = None
+                            print(f"[Engine] ⚠️ Failed to parse extracted JSON: {parse_error}")
+                            self._capture_debug(f"[Engine] ⚠️ Failed to parse extracted JSON: {parse_error}")
+                            self._capture_debug(f"[Engine] ⚠️ Extracted JSON (first 300 chars): {extracted_json[:300]}")
+                            # Log the full extracted JSON for debugging
+                            if len(extracted_json) <= 1000:
+                                self._capture_debug(f"[Engine] ⚠️ Full extracted JSON: {extracted_json}")
+                            else:
+                                self._capture_debug(f"[Engine] ⚠️ Full extracted JSON (first 500, last 500): {extracted_json[:500]}...{extracted_json[-500:]}")
+                    else:
+                        print(f"[Engine] ⚠️ Could not find matching closing brace in JSON")
+                        self._capture_debug(f"[Engine] ⚠️ Could not find matching closing brace in JSON")
                 else:
-                    self._capture_debug(f"[Engine] ⚠️ Failed to parse LLM response: {response[:200]}")
-                    return ['gastrointestinal']
+                    print(f"[Engine] ⚠️ No opening brace found in response")
+                    self._capture_debug(f"[Engine] ⚠️ No opening brace found in response")
+                    self._capture_debug(f"[Engine] ⚠️ Full response: {response}")
+            
+            if parse_error or parsed is None:
+                self._capture_debug(f"[Engine] ❌ Failed to parse LLM response for chief complaint matching")
+                self._capture_debug(f"[Engine] ❌ Parse error: {parse_error}")
+                self._capture_debug(f"[Engine] ❌ Full response: {response}")
+                print(f"[Engine] ❌ Failed to parse LLM response. Error: {parse_error}")
+                print(f"[Engine] ❌ Full response: {response}")
+                return []
+            
+            if not isinstance(parsed, dict):
+                self._capture_debug(f"[Engine] ❌ Parsed JSON is not a dictionary. Type: {type(parsed)}")
+                self._capture_debug(f"[Engine] ❌ Response content: {response}")
+                print(f"[Engine] ❌ Parsed JSON is not a dictionary. Type: {type(parsed)}")
+                return []
 
             # Extract category scores
             category_scores: Dict[str, float] = {}
@@ -1777,19 +1868,18 @@ class AdvancedMedicalNavigator:
             ]
 
             if not matched_categories:
-                # If no categories above threshold, use top category
+                # No categories above threshold - return empty list (no fallbacks)
                 if category_scores:
                     sorted_cats = sorted(category_scores.items(), key=lambda x: x[1], reverse=True)
                     top_cat, top_score = sorted_cats[0]
-                    if top_score > 0.3:  # Lower threshold for fallback
-                        matched_categories = [top_cat]
-                        self._capture_debug(f"[Engine] ⚠️ No categories above threshold, using top category: {top_cat} ({top_score:.3f})")
-                    else:
-                        self._capture_debug(f"[Engine] ⚠️ No confident category match found, defaulting to gastrointestinal")
-                        matched_categories = ['gastrointestinal']
+                    self._capture_debug(f"[Engine] ❌ No categories above threshold ({self.CHIEF_COMPLAINT_LLM_THRESHOLD:.3f})")
+                    self._capture_debug(f"[Engine] ❌ Top category score: {top_cat} = {top_score:.3f}")
+                    self._capture_debug(f"[Engine] ❌ All category scores: {category_scores}")
+                    return []
                 else:
-                    self._capture_debug(f"[Engine] ⚠️ No category scores found, defaulting to gastrointestinal")
-                    matched_categories = ['gastrointestinal']
+                    self._capture_debug(f"[Engine] ❌ No category scores found in LLM response")
+                    self._capture_debug(f"[Engine] ❌ Parsed JSON keys: {list(parsed.keys())}")
+                    return []
 
             # Map LLM condition names to actual guideline condition names
             mapped_condition_scores = self._map_llm_condition_names_to_guidelines(
@@ -1821,8 +1911,11 @@ class AdvancedMedicalNavigator:
         except Exception as e:
             self._capture_debug(f"[Engine] ❌ Error in LLM chief complaint matching: {e}")
             import traceback
-            traceback.print_exc()
-            return ['gastrointestinal']
+            error_traceback = traceback.format_exc()
+            self._capture_debug(f"[Engine] ❌ Traceback: {error_traceback}")
+            print(f"[Engine] ❌ Error in LLM chief complaint matching: {e}")
+            print(f"[Engine] ❌ Traceback: {error_traceback}")
+            return []
  
      # ----------- Guidance builders -------------------------------------------
 
