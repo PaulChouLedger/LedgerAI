@@ -395,7 +395,7 @@ class AdvancedMedicalNavigator:
             if session.context['pre_hpi'].get('sex'):
                 session.stage = "hpi"
                 session.oldcarts_remaining = self._ordered_oldcarts_elements(session)
-        else:
+            else:
                 prompt = "And for medical documentation, what is your biological sex?"
                 return {'section': 'pre_hpi', 'field': 'sex', 'prompt': prompt, 'guidance': self.PRE_HPI_PROMPTS['sex']}
 
@@ -408,7 +408,10 @@ class AdvancedMedicalNavigator:
                     prompt = self._generate_question(session, 'pmh', field, self.PMH_PROMPTS[field])
                     return {'section': 'pmh', 'field': field, 'prompt': prompt, 'guidance': self.PMH_PROMPTS[field]}
             session.stage = "complete"
+            return None
 
+        # Skip pre-HPI checks if we're already past pre-HPI stage
+        if session.stage not in {"awaiting_chronicity", "awaiting_age", "awaiting_sex", "pre_hpi"}:
             return None
 
         remaining_pre_hpi = [field for field in self.PRE_HPI_ORDER if not session.context['pre_hpi'].get(field)]
@@ -635,15 +638,14 @@ class AdvancedMedicalNavigator:
                 scoring_element = source_element
 
         faiss_threshold = 0.6
-        priority_conditions = self._priority_condition_set(session)
-        active_conditions_filter = priority_conditions if priority_conditions else None
-
+        # Don't filter FAISS by priority conditions - let FAISS find all semantically similar terms
+        # Priority filtering will happen at scoring time based on blended scores
         matches = self.medical_rule_engine.find_matching_terms_faiss(
             prompt=answer,
             element=scoring_element,
             threshold=faiss_threshold,
             return_scores=True,
-            active_condition_names=active_conditions_filter,
+            active_condition_names=None,  # Search all terms, not just priority conditions
         )
         term_scores = getattr(self.medical_rule_engine, '_last_faiss_scores', {}) or {}
 
@@ -865,6 +867,7 @@ class AdvancedMedicalNavigator:
                 'requested_terms': [],
             }
 
+        self._capture_debug(f"[LLM] 🔍 Reviewing {len(limited)} terms for '{answer}' in {element}: {limited}")
         alias_map = {term.lower(): term for term in limited}
         candidate_lines = "\n".join(f"- {term}" for term in limited)
         user_prompt = (
