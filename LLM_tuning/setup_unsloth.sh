@@ -38,15 +38,14 @@ pip3 uninstall -y unsloth unsloth_zoo 2>/dev/null || {
 }
 
 echo ""
-echo "📥 Installing Unsloth wheel from Jetson AI Lab PyPI (cu126)..."
-echo "   (The wheel should automatically install all dependencies including unsloth_zoo)"
+echo "📥 Installing Unsloth from Jetson AI Lab PyPI (cu126)..."
+echo "   (Installing unsloth package - pip will automatically install all dependencies including unsloth_zoo)"
 
-# Install Unsloth wheel - let pip handle dependencies automatically
-# The wheel should include all required dependencies (unsloth_zoo, etc.)
-# Using cu126 index where the wheel is available
+# Install Unsloth from the cu126 index
+# Note: Use package name, not wheel filename - pip will find the wheel automatically
 pip3 install --index-url https://pypi.jetson-ai-lab.io/jp6/cu126 \
-    unsloth-2025.7.9-py3-none-any.whl || {
-    echo "⚠️  Wheel install failed, trying direct install from index..."
+    unsloth==2025.7.9 || {
+    echo "⚠️  Version-specific install failed, trying latest version..."
     pip3 install --index-url https://pypi.jetson-ai-lab.io/jp6/cu126 unsloth
 }
 
@@ -88,8 +87,8 @@ except (ImportError, IndexError, AttributeError, ModuleNotFoundError) as e:
     error_msg = str(e)
     if 'unsloth_zoo' in error_msg or ('No module named' in error_msg and 'unsloth_zoo' in error_msg):
         print('❌ unsloth_zoo is not properly installed.')
-        print('   The wheel should have installed it automatically. Try reinstalling:')
-        print('   pip install --force-reinstall --no-cache-dir --index-url https://pypi.jetson-ai-lab.io/jp6/cu126 unsloth-2025.7.9-py3-none-any.whl')
+        print('   The package should have installed unsloth_zoo automatically. Try reinstalling:')
+        print('   pip install --force-reinstall --no-cache-dir --index-url https://pypi.jetson-ai-lab.io/jp6/cu126 unsloth==2025.7.9')
         print('   Or install manually: pip install unsloth_zoo')
         sys.exit(1)
     elif 'IndexError' in str(type(e).__name__) or 'list index out of range' in error_msg:

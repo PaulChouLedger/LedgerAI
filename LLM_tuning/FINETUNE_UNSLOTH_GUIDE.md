@@ -23,24 +23,24 @@ The Jetson AI Lab provides optimized packages for Jetson devices. **The wheel fi
 pip3 uninstall -y unsloth unsloth_zoo
 ```
 
-Then install the wheel:
+Then install from the cu126 index:
 
 ```bash
-# Install Unsloth wheel - pip will automatically install all required dependencies
-# Using cu126 index where the wheel is available
-pip3 install --index-url https://pypi.jetson-ai-lab.io/jp6/cu126 \
-    unsloth-2025.7.9-py3-none-any.whl
+# Install Unsloth - pip will automatically install all required dependencies including unsloth_zoo
+# Using cu126 index where the package is available
+# Note: Use package name with version, not wheel filename
+pip3 install --index-url https://pypi.jetson-ai-lab.io/jp6/cu126 unsloth==2025.7.9
 ```
 
-**Alternative:** If you have the wheel file locally:
+**Alternative:** If you want to download and install the wheel file locally:
 
 ```bash
-# Download the wheel file first (optional)
+# Download the wheel file first
 wget https://pypi.jetson-ai-lab.io/jp6/cu126/+f/edc/0ac127024b8f9/unsloth-2025.7.9-py3-none-any.whl
 
-# Install it - dependencies will be installed automatically
+# Install the local wheel file - dependencies will be installed automatically
 pip3 install --index-url https://pypi.jetson-ai-lab.io/jp6/cu126 \
-    unsloth-2025.7.9-py3-none-any.whl
+    ./unsloth-2025.7.9-py3-none-any.whl
 ```
 
 **Note:** The wheel is available in the `cu126` index. If you need a different CUDA version, check the corresponding index (cu128, cu129, etc.) at [Jetson AI Lab PyPI](https://pypi.jetson-ai-lab.io/jp6/).
@@ -290,9 +290,11 @@ Watch for:
 
 **Solution:**
 ```bash
-pip3 install --index-url https://pypi.jetson-ai-lab.io/jp6/cu126 unsloth-2025.7.9-py3-none-any.whl
-# Or if wheel not found:
+# Install from cu126 index using package name
+pip3 install --index-url https://pypi.jetson-ai-lab.io/jp6/cu126 unsloth==2025.7.9
+# Or install latest version:
 pip3 install --index-url https://pypi.jetson-ai-lab.io/jp6/cu126 unsloth
+# If unsloth_zoo is still missing:
 pip3 install unsloth_zoo
 ```
 
@@ -300,12 +302,12 @@ pip3 install unsloth_zoo
 
 This usually means the wheel didn't install dependencies properly. **Solutions:**
 
-**Option 1: Reinstall the wheel (Recommended)**
+**Option 1: Reinstall from index (Recommended)**
 ```bash
-# Force reinstall the wheel to ensure dependencies are installed
+# Force reinstall to ensure dependencies are installed
 pip3 install --force-reinstall --no-cache-dir \
     --index-url https://pypi.jetson-ai-lab.io/jp6/cu126 \
-    unsloth-2025.7.9-py3-none-any.whl
+    unsloth==2025.7.9
 ```
 
 **Option 2: Install unsloth_zoo separately**
@@ -318,11 +320,15 @@ pip3 install unsloth_zoo
 pip3 install --upgrade --force-reinstall --no-cache-dir --no-deps unsloth unsloth_zoo
 ```
 
-**Option 4: Install from cu126 index**
+**Option 4: Download and install wheel locally**
 ```bash
+# Download the wheel first
+wget https://pypi.jetson-ai-lab.io/jp6/cu126/+f/edc/0ac127024b8f9/unsloth-2025.7.9-py3-none-any.whl
+
+# Install the local wheel file
 pip3 install --force-reinstall --no-cache-dir \
     --index-url https://pypi.jetson-ai-lab.io/jp6/cu126 \
-    unsloth-2025.7.9-py3-none-any.whl
+    ./unsloth-2025.7.9-py3-none-any.whl
 ```
 
 ### Issue: "cannot import name 'top_k_top_p_filtering' from 'transformers'"
