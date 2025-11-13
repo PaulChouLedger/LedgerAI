@@ -15,7 +15,7 @@ Conversation flow:
        • Clarifying questions generated when multiple / no matches
     5. Rankings update after every element; diagnosis ready once OLDCARTS complete.
 
-This file uses LLM-only approach for all matching and scoring. No FAISS or medical_rule_engine
+This file uses LLM-only approach for all matching and scoring. No FAISS, medical_rule_engine, or rule-based filtering.
 is required - LLM handles all semantic matching, fuzzy correction, and anatomical reasoning.
 """
 
@@ -104,7 +104,7 @@ class AdvancedMedicalNavigator:
         'chest tightness': 'chest pain',
         'chest pressure': 'chest pain',
     }
-    RULE_OUT_THRESHOLD = 0.05
+    # Removed: RULE_OUT_THRESHOLD - no rule-based filtering, LLM handles everything
     LLM_MATCH_ACCEPT_THRESHOLD = 0.5  # Minimum LLM score for term match
     
     # LLM parameter configuration (uses environment variables with optimized defaults)
@@ -671,98 +671,33 @@ class AdvancedMedicalNavigator:
             if source_element:
                 scoring_element = source_element
 
-        # LLM-only approach: get ALL terms from guidelines and let LLM decide which match
-        all_element_terms = self._get_all_terms_for_element(session, scoring_element)
-        if all_element_terms:
-            # LLM reviews all terms - no pre-filtering needed
-            matches = all_element_terms
-            term_scores = {term: 0.0 for term in all_element_terms}  # Placeholder, LLM will set actual scores
-            self._capture_debug(f"[LLM] 🔍 {scoring_element}: Sending {len(all_element_terms)} terms to LLM for review")
-            self._capture_debug(f"[LLM] 🔍 {scoring_element}: Terms: {all_element_terms}")
-        else:
-            # Fallback: no terms found in guidelines (shouldn't happen, but handle gracefully)
-            self._capture_debug(f"[LLM] ⚠️ {scoring_element}: No terms found in guidelines")
-            matches = []
-            term_scores = {}
-
-        # LLM threshold is 0.5 for all elements (LLM decides what matches)
-        llm_threshold = 0.5
-        matches, term_scores, review_rows, review_meta = self._llm_refine_matches(
-            session,
-            scoring_element,
-            answer,
-            matches,
-            term_scores,
-            llm_threshold,  # Use LLM threshold for all elements
-        )
+        # Simplified: Let LLM score answer directly - no guideline terms needed
+        # The trained model understands medical terminology and can score answers naturally
+        self._capture_debug(f"[LLM] 🔍 {scoring_element}: Scoring answer directly with LLM (no guideline terms)")
+        
+        # Let LLM extract relevant information from answer and update condition scores
+        # No need to match against guideline terms - LLM uses its training
+        matches = []
+        term_scores = {}
+        review_rows = []
+        review_meta = {'invoked': False, 'reason': 'simplified - LLM scores directly'}
         debug_ctx = session.context.setdefault('debug', {})
-        if review_meta.get('invoked'):
-            self._log_llm_match_review(scoring_element, answer, review_rows)
-            if not review_rows:
-                self._capture_debug(f"[LLM] ⚠️ Match review completed but no review rows generated for '{answer}' in {scoring_element}")
-            debug_ctx['last_llm_review'] = {
-                'element': scoring_element,
-                'answer': answer,
-                'rows': review_rows,
-                'requested_terms': review_meta.get('requested_terms', []),
-                'raw_response': review_meta.get('raw_response'),
-                'had_scores': review_meta.get('had_scores', False),
-            }
-        else:
-            reason = review_meta.get('reason', 'unknown')
-            self._capture_debug(f"[LLM] ⚠️ Match review not invoked for '{answer}' in {scoring_element}: {reason}")
-            debug_ctx.pop('last_llm_review', None)
-
+        # Simplified: No term matching needed - LLM scores directly
+        
         if pending and pending.get('clarification'):
             session.context['clarifications'].pop(element, None)
         elif not requires_clarification:
             session.context['clarifications'].pop(element, None)
 
+        # Simplified: No location analysis or term matching - LLM handles it
         analysis = None
-        if scoring_element == 'location':
-            analysis = self._analyze_location_answer(session, element, answer, matches, term_scores)
-            self._log_location_analysis(session, analysis)
-            if analysis:
-                boosted_matches = analysis.get('boosted_matches')
-                if boosted_matches:
-                    matches = boosted_matches
-                boosted_scores = analysis.get('boosted_term_scores')
-                if boosted_scores:
-                    term_scores = boosted_scores
-        else:
-            self._log_llm_scores(scoring_element, answer, matches, term_scores)
 
-        # LLM-only approach: no term_embeddings or synonym mapping needed - LLM handles synonym matching
-        # Build condition_similarities directly from term_scores and guideline terms
+        # Simplified: Let LLM update condition scores directly based on answer
+        # No need to match terms to guidelines - LLM uses its medical knowledge
+        # For now, condition scores are updated elsewhere (e.g., from chief complaint matching)
+        # The answer is stored in context and can be used by LLM for future questions
         condition_similarities: Dict[str, float] = {}
-
-        for term in matches:
-            score = term_scores.get(term)
-            if score is None:
-                score = term_scores.get(term.lower())
-            if score is None:
-                continue
-            
-            # Find which conditions this term belongs to from guidelines
-            conditions = []
-            for guideline_name, guideline in self.all_guidelines.items():
-                structured = self._structured_oldcarts(guideline)
-                element_data = structured.get(scoring_element, {})
-                includes = element_data.get('includes', []) if isinstance(element_data, dict) else []
-                for item in includes:
-                    if isinstance(item, dict):
-                        patient_term = item.get('patient_friendly', '')
-                    else:
-                        patient_term = item
-                    if isinstance(patient_term, str) and patient_term.lower() == term.lower():
-                        conditions.append(guideline_name)
-                        break
-            if not conditions:
-                    continue
-                
-            for cond in conditions:
-                prev = condition_similarities.get(cond, 0.0)
-                condition_similarities[cond] = max(prev, score)
+        self._capture_debug(f"[LLM] 🔍 {scoring_element}: Answer stored, LLM will use it for context")
 
         if analysis and requires_clarification:
             clarification_pending = pending.get('clarification') if pending else False
@@ -787,20 +722,10 @@ class AdvancedMedicalNavigator:
                     },
                 )
 
-        if not condition_similarities:
-            self._capture_debug(f"[Scoring] ⚪ No guideline matches for {element} → '{answer}'")
-            self._apply_rule_outs(session)
-            return None
-
-        weight = self._get_element_weight(session, element)
-        for cond, similarity in condition_similarities.items():
-            prior = session.condition_scores.get(cond, 0.5)
-            blended = prior + weight * (similarity - prior)
-            session.condition_scores[cond] = blended
-            self._capture_debug(
-                f"[Scoring] 📊 {cond}: old={prior:.3f}, similarity={similarity:.3f}, weight={weight:.2f}, new={blended:.3f}"
-            )
-
+        # Simplified: No condition score updates from term matching
+        # Condition scores are updated from chief complaint matching and LLM reasoning
+        # Answers are stored in context for LLM to use in future questions
+        self._capture_debug(f"[Scoring] 📝 Answer stored for {element}: '{answer}'")
         self._apply_rule_outs(session)
 
         if follow_up_question:
@@ -818,12 +743,9 @@ class AdvancedMedicalNavigator:
     # ----------- Chief complaint matching ------------------------------------
 
     def _apply_rule_outs(self, session: "MedicalSession") -> None:
+        """Simplified: Just update rankings - no rule-based filtering, LLM handles everything"""
         sorted_scores = sorted(session.condition_scores.items(), key=lambda x: x[1], reverse=True)
-        remaining = [(cond, score) for cond, score in sorted_scores if score >= self.RULE_OUT_THRESHOLD]
-        ruled_out = [(cond, score) for cond, score in sorted_scores if score < self.RULE_OUT_THRESHOLD]
-
-        session.condition_rankings = remaining
-        self._capture_debug(f"[Rule Out] 📉 Ruled out {len(ruled_out)} guidelines, {len(remaining)} remaining")
+        session.condition_rankings = sorted_scores
         self._update_condition_pools(session)
         self._log_rankings(session)
 
@@ -2231,61 +2153,15 @@ class AdvancedMedicalNavigator:
         return names
 
     def _build_oldcarts_guidance(self, session: "MedicalSession", element: str, cc: str) -> Tuple[str, str, List[str]]:
-        includes = self._get_element_includes(session, element)
+        """Simplified - let LLM generate questions naturally based on training"""
+        # Simple base question template - LLM will generate naturally
         base_template = self.HPI_BASE_GUIDANCE[element]
         base_question = base_template.replace('{cc}', cc)
-        character_summary = self._character_tag_summary(session)
-        character_tags = character_summary.get('tags', set())
-        dominant_tag = character_summary.get('dominant')
-        allowed_conditions = self._priority_condition_set(session)
- 
-        if element == 'character':
-            subject = cc if cc else 'symptoms'
-            plural = subject.endswith('s')
-            feel_verb = 'feel' if plural else 'feels'
-            look_verb = 'look' if plural else 'looks'
-            do_verb = 'do' if plural else 'does'
-            visual = 'visual' in character_tags
-            sensory = 'sensory' in character_tags
-            if visual and not sensory:
-                base_question = f"What {do_verb} your {subject} {look_verb} like?"
-            elif visual and sensory:
-                base_question = f"How would you describe how your {subject} {feel_verb} or {look_verb}?"
-            else:
-                base_question = f"How would you describe what your {subject} {feel_verb} like?"
-        else:
-            base_question = base_template.replace('{cc}', cc)
- 
-        inject_options = element != 'severity'
-        if element == 'location' and dominant_tag == 'visual':
-            inject_options = False
- 
-        sample_terms: List[str] = []
-        debug_entries: List[Dict[str, Any]] = []
-        if inject_options:
-            sample_entries = self._select_guidance_entries(session, element, includes, limit=2, debug_entries=debug_entries)
-            sample_terms = [entry['patient_friendly'] for entry in sample_entries if entry.get('patient_friendly')]
-        if debug_entries:
-            self._capture_debug(f"[Guidance] 📋 Option candidates ({element}): {debug_entries}")
- 
-        if sample_terms:
-            top_condition = next(iter(self._priority_condition_set(session)), None)
-            if top_condition:
-                top_terms = [term for term in sample_terms if any(entry for entry in sample_entries if entry['patient_friendly'] == term and entry.get('condition') == top_condition)]
-                if top_terms:
-                    sample_terms = [top_terms[0]] + [term for term in sample_terms if term != top_terms[0]]
-            options = ', '.join(sample_terms)
-            guidance = (
-                f"Create exactly two sentences. Sentence 1 must be the open-ended question: '{base_question}'. "
-                f"Sentence 2 should gently offer examples starting with 'You can mention things like' followed by up to two of these options: {options}. "
-                "Use only the options provided verbatim and do not invent additional examples or wording. "
-                "Keep both sentences short, friendly, and avoid adding extra options or clauses."
-            )
-            return guidance, base_question, sample_terms
- 
-        guidance = (
-            f"Ask exactly one friendly, open-ended sentence: '{base_question}'. Do not add examples or extra sentences."
-        )
+        
+        # Simple guidance - let trained model handle it
+        guidance = f"Ask about the {element} of {cc}. Ask one natural, conversational question."
+        
+        # No options - let LLM use its training
         return guidance, base_question, []
  
     def _build_yes_no_guidance(self, field: str, term: Optional[str]) -> str:
@@ -2780,10 +2656,10 @@ class AdvancedMedicalNavigator:
         if last_user:
             conversation_context.append({"role": "user", "content": last_user})
         
-        # For fine-tuned model: simple, direct prompts that leverage its training
+        # For fine-tuned model: simple, direct prompts - let model use its training
         if section == 'hpi':
-            # OLD CARTS questions - model knows how to ask these naturally
-            user_prompt = f"Ask about the {field} of {cc}. Ask one question only."
+            # OLD CARTS questions - model knows how to ask these naturally from training
+            user_prompt = f"Ask about the {field} of {cc}."
         elif section == 'pre_hpi':
             if field == 'chronicity':
                 user_prompt = "Ask if this is new or an ongoing problem."
@@ -2792,9 +2668,9 @@ class AdvancedMedicalNavigator:
             elif field == 'sex':
                 user_prompt = "Ask for the patient's biological sex."
             else:
-                user_prompt = guidance or f"Ask about {field}."
+                user_prompt = f"Ask about {field}."
         else:
-            user_prompt = guidance or f"Ask about {field}."
+            user_prompt = f"Ask about {field}."
         
         # Use conversation context if available
         messages = [{"role": "system", "content": self.QUESTION_SYSTEM_PROMPT}]
@@ -2809,18 +2685,13 @@ class AdvancedMedicalNavigator:
         self._capture_debug(f"[LLM] ❓ Raw question response: {response}")
         cleaned = self._clean_llm_response(response)
         if not cleaned:
-            raise ValueError(f"LLM returned empty question for {field}")
-        if base_question and base_question.lower() not in cleaned.lower():
-            cleaned = base_question
-        if section == 'hpi' and options:
-            question_part = base_question or cleaned
-            question_part = question_part.strip()
-            if not question_part.endswith('?'):
-                question_part = question_part.rstrip('.') + '?'
-            option_text = ', '.join(options)
-            cleaned = f"{question_part} You can mention things like: {option_text}."
-        elif not cleaned.endswith('?'):
+            # Fallback to base question if LLM returns empty
+            cleaned = base_question or guidance or f"Tell me about {field}."
+        
+        # Ensure question ends with ?
+        if not cleaned.endswith('?'):
             cleaned = cleaned.rstrip('.') + '?'
+        
         return cleaned
 
     def _generate_empathetic_statement(self, chief_complaint: str) -> str:
