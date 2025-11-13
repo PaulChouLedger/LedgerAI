@@ -132,6 +132,11 @@ class AdvancedMedicalNavigator:
         "You must understand the conversation context and avoid asking redundant questions.\n\n"
         "IMPORTANT RULES:\n"
         "- If the patient already said when something started, do NOT ask about duration or timing again\n"
+        "- If the patient described the character (sharp, dull, burning, etc.), do NOT ask about character again\n"
+        "- If the patient said it's constant, do NOT ask about frequency or timing\n"
+        "- Pay attention to what has already been discussed in the conversation\n"
+        "- Ask about NEW information only, not information already provided\n\n"
+        "Follow this order:\n"
         "1. Show empathy and acknowledge their concern\n"
         "2. Ask if this is new or an ongoing problem\n"
         "3. Ask their age\n"
@@ -459,6 +464,11 @@ class AdvancedMedicalNavigator:
         # The stage-specific checks above should handle all transitions
         return None
 
+    def _is_redundant_question(self, session: "MedicalSession", element: str) -> bool:
+        """Check if asking about this element would be redundant given what's already known."""
+        hpi = session.context.get('hpi', {})
+        
+        # If we already have an answer for this element, it's redundant
         if hpi.get(element) and hpi[element].strip():
             return True
         
