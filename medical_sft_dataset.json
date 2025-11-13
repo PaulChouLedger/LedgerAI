@@ -7,7 +7,11 @@
       },
       {
         "role": "assistant",
-        "content": "I understand you're experiencing chest pain. I'm here to help. Is this a new issue that just started, or is this an ongoing problem you've had before with a prior diagnosis?"
+        "content": "I understand you're experiencing chest pain. I'm here to help."
+      },
+      {
+        "role": "assistant",
+        "content": "Is this a new issue that just started, or is this an ongoing problem you've had before with a prior diagnosis?"
       },
       {
         "role": "user",
@@ -31,7 +35,11 @@
       },
       {
         "role": "assistant",
-        "content": "Thank you. Now let's gather more details about your chest pain. When did this start, and did it come on suddenly?"
+        "content": "What makes it better?"
+      },
+      {
+        "role": "assistant",
+        "content": "When did the chest pain start?"
       },
       {
         "role": "user",
@@ -47,7 +55,7 @@
       },
       {
         "role": "assistant",
-        "content": "Does the pain move anywhere else?"
+        "content": "Where exactly is the pain located?"
       },
       {
         "role": "user",
@@ -63,7 +71,7 @@
       },
       {
         "role": "assistant",
-        "content": "How long does an episode last?"
+        "content": "How long has the pain been present?"
       },
       {
         "role": "user",
@@ -71,7 +79,7 @@
       },
       {
         "role": "assistant",
-        "content": "How would you describe the feeling or sensation?"
+        "content": "How would you describe the pain?"
       },
       {
         "role": "user",
@@ -79,7 +87,7 @@
       },
       {
         "role": "assistant",
-        "content": "What makes it worse?"
+        "content": "What makes the pain worse?"
       },
       {
         "role": "user",
@@ -87,7 +95,7 @@
       },
       {
         "role": "assistant",
-        "content": "What makes it better? Have you tried any treatment?"
+        "content": "What makes it better?"
       },
       {
         "role": "user",
@@ -95,7 +103,7 @@
       },
       {
         "role": "assistant",
-        "content": "Does it happen at a specific time or only during certain activities?"
+        "content": "Have you tried any treatment?"
       },
       {
         "role": "user",
@@ -103,7 +111,7 @@
       },
       {
         "role": "assistant",
-        "content": "On a scale from 1 to 10, how bad is the pain? How much does it affect your function?"
+        "content": "On a scale of 1 to 10, with 10 being the worst imaginable, how severe is the pain?"
       },
       {
         "role": "user",
@@ -111,7 +119,7 @@
       },
       {
         "role": "assistant",
-        "content": "Have you noticed any other symptoms along with this?"
+        "content": "How much does it affect your function?"
       },
       {
         "role": "user",
@@ -143,7 +151,7 @@
       },
       {
         "role": "assistant",
-        "content": "Are you taking any medications? Any allergies to medications?"
+        "content": "Are you taking any medications?"
       },
       {
         "role": "user",
@@ -151,7 +159,7 @@
       },
       {
         "role": "assistant",
-        "content": "Do you smoke, drink, or use recreational drugs? Who do you live with?"
+        "content": "Any allergies to medications?"
       },
       {
         "role": "user",
@@ -159,7 +167,7 @@
       },
       {
         "role": "assistant",
-        "content": "Does anyone in your immediate family have a history of heart problems, cancer, or diabetes?"
+        "content": "Who do you live with?"
       },
       {
         "role": "user",
@@ -175,7 +183,11 @@
       },
       {
         "role": "assistant",
-        "content": "I understand you're experiencing abdominal pain. I'm here to help. Is this a new issue that just started, or is this an ongoing problem you've had before with a prior diagnosis?"
+        "content": "I understand you're experiencing my stomach hurts. I'm here to help."
+      },
+      {
+        "role": "assistant",
+        "content": "Is this a new issue that just started, or is this an ongoing problem you've had before with a prior diagnosis?"
       },
       {
         "role": "user",
@@ -187,7 +199,7 @@
       },
       {
         "role": "user",
-        "content": "I'm 25"
+        "content": "Female"
       },
       {
         "role": "assistant",
@@ -199,7 +211,15 @@
       },
       {
         "role": "assistant",
-        "content": "Thank you. Now let's gather more details about your abdominal pain. When did this start, and did it come on suddenly?"
+        "content": "What makes it better?"
+      },
+      {
+        "role": "user",
+        "content": "I'm 25"
+      },
+      {
+        "role": "assistant",
+        "content": "When did the abdominal pain start?"
       },
       {
         "role": "user",
@@ -212,10 +232,6 @@
       {
         "role": "user",
         "content": "It's in the lower right part of my belly"
-      },
-      {
-        "role": "assistant",
-        "content": "Does the pain move anywhere else?"
       },
       {
         "role": "user",
@@ -231,7 +247,7 @@
       },
       {
         "role": "assistant",
-        "content": "How long does an episode last?"
+        "content": "How long has the pain been present?"
       },
       {
         "role": "user",
@@ -239,7 +255,7 @@
       },
       {
         "role": "assistant",
-        "content": "How would you describe the feeling or sensation?"
+        "content": "How would you describe the pain?"
       },
       {
         "role": "user",
@@ -247,7 +263,7 @@
       },
       {
         "role": "assistant",
-        "content": "What makes it worse?"
+        "content": "What makes the pain worse?"
       },
       {
         "role": "user",
@@ -255,7 +271,7 @@
       },
       {
         "role": "assistant",
-        "content": "What makes it better? Have you tried any treatment?"
+        "content": "What makes it better?"
       },
       {
         "role": "user",
@@ -263,7 +279,7 @@
       },
       {
         "role": "assistant",
-        "content": "Does it happen at a specific time or only during certain activities?"
+        "content": "Have you tried any treatment?"
       },
       {
         "role": "user",
@@ -271,7 +287,7 @@
       },
       {
         "role": "assistant",
-        "content": "On a scale from 1 to 10, how bad is the pain? How much does it affect your function?"
+        "content": "On a scale of 1 to 10, with 10 being the worst imaginable, how severe is the pain?"
       },
       {
         "role": "user",
@@ -279,7 +295,7 @@
       },
       {
         "role": "assistant",
-        "content": "Have you noticed any other symptoms along with this?"
+        "content": "How much does it affect your function?"
       },
       {
         "role": "user",
@@ -311,7 +327,7 @@
       },
       {
         "role": "assistant",
-        "content": "Are you taking any medications? Any allergies to medications?"
+        "content": "Are you taking any medications?"
       },
       {
         "role": "user",
@@ -319,7 +335,7 @@
       },
       {
         "role": "assistant",
-        "content": "Do you smoke, drink, or use recreational drugs? Who do you live with?"
+        "content": "Any allergies to medications?"
       },
       {
         "role": "user",
@@ -327,7 +343,7 @@
       },
       {
         "role": "assistant",
-        "content": "Does anyone in your immediate family have a history of heart problems, cancer, or diabetes?"
+        "content": "Who do you live with?"
       },
       {
         "role": "user",
@@ -343,7 +359,11 @@
       },
       {
         "role": "assistant",
-        "content": "I understand you're experiencing shortness of breath. I'm here to help. Is this a new issue that just started, or is this an ongoing problem you've had before with a prior diagnosis?"
+        "content": "I understand you're experiencing can't catch my breath. I'm here to help."
+      },
+      {
+        "role": "assistant",
+        "content": "Is this a new issue that just started, or is this an ongoing problem you've had before with a prior diagnosis?"
       },
       {
         "role": "user",
@@ -415,7 +435,7 @@
       },
       {
         "role": "assistant",
-        "content": "What makes it better? Have you tried any treatment?"
+        "content": "What makes it better?"
       },
       {
         "role": "user",
@@ -423,7 +443,7 @@
       },
       {
         "role": "assistant",
-        "content": "Does it happen at a specific time or only during certain activities?"
+        "content": "Have you tried any treatment?"
       },
       {
         "role": "user",
@@ -431,7 +451,7 @@
       },
       {
         "role": "assistant",
-        "content": "On a scale from 1 to 10, how bad is it? How much does it affect your function?"
+        "content": "On a scale from 1 to 10, how bad is it?"
       },
       {
         "role": "user",
@@ -439,7 +459,7 @@
       },
       {
         "role": "assistant",
-        "content": "Have you noticed any other symptoms along with this?"
+        "content": "How much does it affect your function?"
       },
       {
         "role": "user",
@@ -471,7 +491,7 @@
       },
       {
         "role": "assistant",
-        "content": "Are you taking any medications? Any allergies to medications?"
+        "content": "Are you taking any medications?"
       },
       {
         "role": "user",
@@ -479,7 +499,7 @@
       },
       {
         "role": "assistant",
-        "content": "Do you smoke, drink, or use recreational drugs? Who do you live with?"
+        "content": "Any allergies to medications?"
       },
       {
         "role": "user",
@@ -487,7 +507,7 @@
       },
       {
         "role": "assistant",
-        "content": "Does anyone in your immediate family have a history of heart problems, cancer, or diabetes?"
+        "content": "Who do you live with?"
       },
       {
         "role": "user",
@@ -503,7 +523,11 @@
       },
       {
         "role": "assistant",
-        "content": "I understand you're experiencing a headache. I'm here to help. Is this a new issue that just started, or is this an ongoing problem you've had before with a prior diagnosis?"
+        "content": "I understand you're experiencing a headache. I'm here to help."
+      },
+      {
+        "role": "assistant",
+        "content": "Is this a new issue that just started, or is this an ongoing problem you've had before with a prior diagnosis?"
       },
       {
         "role": "user",
@@ -515,7 +539,7 @@
       },
       {
         "role": "user",
-        "content": "I'm 42"
+        "content": "Male"
       },
       {
         "role": "assistant",
@@ -527,7 +551,15 @@
       },
       {
         "role": "assistant",
-        "content": "Thank you. Now let's gather more details about your headache. When did this start, and did it come on suddenly?"
+        "content": "What makes it better?"
+      },
+      {
+        "role": "user",
+        "content": "I'm 42"
+      },
+      {
+        "role": "assistant",
+        "content": "When did the headache start?"
       },
       {
         "role": "user",
@@ -535,7 +567,7 @@
       },
       {
         "role": "assistant",
-        "content": "Where exactly is the pain located?"
+        "content": "Where exactly is the headache located?"
       },
       {
         "role": "user",
@@ -543,7 +575,7 @@
       },
       {
         "role": "assistant",
-        "content": "Does the pain move anywhere else?"
+        "content": "Where exactly is the headache located?"
       },
       {
         "role": "user",
@@ -551,7 +583,7 @@
       },
       {
         "role": "assistant",
-        "content": "Is the pain constant or does it come and go?"
+        "content": "When does the headache occur?"
       },
       {
         "role": "user",
@@ -559,7 +591,7 @@
       },
       {
         "role": "assistant",
-        "content": "How long does an episode last?"
+        "content": "How long has the headache been present?"
       },
       {
         "role": "user",
@@ -567,7 +599,7 @@
       },
       {
         "role": "assistant",
-        "content": "How would you describe the feeling or sensation?"
+        "content": "How would you describe the headache?"
       },
       {
         "role": "user",
@@ -575,7 +607,7 @@
       },
       {
         "role": "assistant",
-        "content": "What makes it worse?"
+        "content": "What makes the headache worse?"
       },
       {
         "role": "user",
@@ -583,7 +615,7 @@
       },
       {
         "role": "assistant",
-        "content": "What makes it better? Have you tried any treatment?"
+        "content": "What makes it better?"
       },
       {
         "role": "user",
@@ -591,7 +623,7 @@
       },
       {
         "role": "assistant",
-        "content": "Does it happen at a specific time or only during certain activities?"
+        "content": "Have you tried any treatment?"
       },
       {
         "role": "user",
@@ -599,7 +631,7 @@
       },
       {
         "role": "assistant",
-        "content": "On a scale from 1 to 10, how bad is the pain? How much does it affect your function?"
+        "content": "On a scale of 1 to 10, with 10 being the worst imaginable, how severe is the headache?"
       },
       {
         "role": "user",
@@ -607,7 +639,7 @@
       },
       {
         "role": "assistant",
-        "content": "Have you noticed any other symptoms along with this?"
+        "content": "How much does it affect your function?"
       },
       {
         "role": "user",
@@ -639,7 +671,7 @@
       },
       {
         "role": "assistant",
-        "content": "Are you taking any medications? Any allergies to medications?"
+        "content": "Are you taking any medications?"
       },
       {
         "role": "user",
@@ -647,7 +679,7 @@
       },
       {
         "role": "assistant",
-        "content": "Do you smoke, drink, or use recreational drugs? Who do you live with?"
+        "content": "Any allergies to medications?"
       },
       {
         "role": "user",
@@ -655,7 +687,7 @@
       },
       {
         "role": "assistant",
-        "content": "Does anyone in your immediate family have a history of heart problems, cancer, or diabetes?"
+        "content": "Who do you live with?"
       },
       {
         "role": "user",
@@ -671,7 +703,11 @@
       },
       {
         "role": "assistant",
-        "content": "I understand you're experiencing pain with urination. I'm here to help. Is this a new issue that just started, or is this an ongoing problem you've had before with a prior diagnosis?"
+        "content": "I understand you're experiencing pain when i urinate. I'm here to help."
+      },
+      {
+        "role": "assistant",
+        "content": "Is this a new issue that just started, or is this an ongoing problem you've had before with a prior diagnosis?"
       },
       {
         "role": "user",
@@ -743,7 +779,7 @@
       },
       {
         "role": "assistant",
-        "content": "What makes it better? Have you tried any treatment?"
+        "content": "What makes it better?"
       },
       {
         "role": "user",
@@ -751,7 +787,7 @@
       },
       {
         "role": "assistant",
-        "content": "Does it happen at a specific time or only during certain activities?"
+        "content": "Have you tried any treatment?"
       },
       {
         "role": "user",
@@ -759,7 +795,7 @@
       },
       {
         "role": "assistant",
-        "content": "On a scale from 1 to 10, how bad is the pain? How much does it affect your function?"
+        "content": "On a scale from 1 to 10, how bad is the pain?"
       },
       {
         "role": "user",
@@ -767,7 +803,7 @@
       },
       {
         "role": "assistant",
-        "content": "Have you noticed any other symptoms along with this?"
+        "content": "How much does it affect your function?"
       },
       {
         "role": "user",
@@ -799,7 +835,7 @@
       },
       {
         "role": "assistant",
-        "content": "Are you taking any medications? Any allergies to medications?"
+        "content": "Are you taking any medications?"
       },
       {
         "role": "user",
@@ -807,7 +843,7 @@
       },
       {
         "role": "assistant",
-        "content": "Do you smoke, drink, or use recreational drugs? Who do you live with?"
+        "content": "Any allergies to medications?"
       },
       {
         "role": "user",
@@ -815,7 +851,7 @@
       },
       {
         "role": "assistant",
-        "content": "Does anyone in your immediate family have a history of heart problems, cancer, or diabetes?"
+        "content": "Who do you live with?"
       },
       {
         "role": "user",
@@ -831,7 +867,11 @@
       },
       {
         "role": "assistant",
-        "content": "I understand you're experiencing back pain. I'm here to help. Is this a new issue that just started, or is this an ongoing problem you've had before with a prior diagnosis?"
+        "content": "I understand you're experiencing my back hurts. I'm here to help."
+      },
+      {
+        "role": "assistant",
+        "content": "Is this a new issue that just started, or is this an ongoing problem you've had before with a prior diagnosis?"
       },
       {
         "role": "user",
@@ -868,10 +908,6 @@
       {
         "role": "user",
         "content": "It's in my lower back, on the right side"
-      },
-      {
-        "role": "assistant",
-        "content": "Does the pain move anywhere else?"
       },
       {
         "role": "user",
@@ -911,7 +947,7 @@
       },
       {
         "role": "assistant",
-        "content": "What makes it better? Have you tried any treatment?"
+        "content": "What makes it better?"
       },
       {
         "role": "user",
@@ -919,7 +955,7 @@
       },
       {
         "role": "assistant",
-        "content": "Does it happen at a specific time or only during certain activities?"
+        "content": "Have you tried any treatment?"
       },
       {
         "role": "user",
@@ -927,7 +963,7 @@
       },
       {
         "role": "assistant",
-        "content": "On a scale from 1 to 10, how bad is the pain? How much does it affect your function?"
+        "content": "On a scale from 1 to 10, how bad is the pain?"
       },
       {
         "role": "user",
@@ -935,7 +971,7 @@
       },
       {
         "role": "assistant",
-        "content": "Have you noticed any other symptoms along with this?"
+        "content": "How much does it affect your function?"
       },
       {
         "role": "user",
@@ -967,7 +1003,7 @@
       },
       {
         "role": "assistant",
-        "content": "Are you taking any medications? Any allergies to medications?"
+        "content": "Are you taking any medications?"
       },
       {
         "role": "user",
@@ -975,7 +1011,7 @@
       },
       {
         "role": "assistant",
-        "content": "Do you smoke, drink, or use recreational drugs? Who do you live with?"
+        "content": "Any allergies to medications?"
       },
       {
         "role": "user",
@@ -983,7 +1019,7 @@
       },
       {
         "role": "assistant",
-        "content": "Does anyone in your immediate family have a history of heart problems, cancer, or diabetes?"
+        "content": "Who do you live with?"
       },
       {
         "role": "user",
@@ -999,7 +1035,11 @@
       },
       {
         "role": "assistant",
-        "content": "I understand you're experiencing a rash. I'm here to help. Is this a new issue that just started, or is this an ongoing problem you've had before with a prior diagnosis?"
+        "content": "I understand you're experiencing a rash. I'm here to help."
+      },
+      {
+        "role": "assistant",
+        "content": "Is this a new issue that just started, or is this an ongoing problem you've had before with a prior diagnosis?"
       },
       {
         "role": "user",
@@ -1031,7 +1071,7 @@
       },
       {
         "role": "assistant",
-        "content": "Where exactly is the rash located?"
+        "content": "Where on your body is the rash located?"
       },
       {
         "role": "user",
@@ -1071,7 +1111,7 @@
       },
       {
         "role": "assistant",
-        "content": "What makes it better? Have you tried any treatment?"
+        "content": "What makes it better?"
       },
       {
         "role": "user",
@@ -1079,7 +1119,7 @@
       },
       {
         "role": "assistant",
-        "content": "Does it happen at a specific time or only during certain activities?"
+        "content": "Have you tried any treatment?"
       },
       {
         "role": "user",
@@ -1087,7 +1127,7 @@
       },
       {
         "role": "assistant",
-        "content": "On a scale from 1 to 10, how bad is the itching? How much does it affect your function?"
+        "content": "On a scale from 1 to 10, how bad is the itching?"
       },
       {
         "role": "user",
@@ -1095,7 +1135,7 @@
       },
       {
         "role": "assistant",
-        "content": "Have you noticed any other symptoms along with this?"
+        "content": "How much does it affect your function?"
       },
       {
         "role": "user",
@@ -1127,7 +1167,7 @@
       },
       {
         "role": "assistant",
-        "content": "Are you taking any medications? Any allergies to medications?"
+        "content": "Are you taking any medications?"
       },
       {
         "role": "user",
@@ -1135,7 +1175,7 @@
       },
       {
         "role": "assistant",
-        "content": "Do you smoke, drink, or use recreational drugs? Who do you live with?"
+        "content": "Any allergies to medications?"
       },
       {
         "role": "user",
@@ -1143,7 +1183,7 @@
       },
       {
         "role": "assistant",
-        "content": "Does anyone in your immediate family have a history of heart problems, cancer, or diabetes?"
+        "content": "Who do you live with?"
       },
       {
         "role": "user",
@@ -1159,7 +1199,11 @@
       },
       {
         "role": "assistant",
-        "content": "I understand you're experiencing dizziness. I'm here to help. Is this a new issue that just started, or is this an ongoing problem you've had before with a prior diagnosis?"
+        "content": "I understand you're experiencing feel dzzy. I'm here to help."
+      },
+      {
+        "role": "assistant",
+        "content": "Is this a new issue that just started, or is this an ongoing problem you've had before with a prior diagnosis?"
       },
       {
         "role": "user",
@@ -1231,7 +1275,7 @@
       },
       {
         "role": "assistant",
-        "content": "What makes it better? Have you tried any treatment?"
+        "content": "What makes it better?"
       },
       {
         "role": "user",
@@ -1239,7 +1283,7 @@
       },
       {
         "role": "assistant",
-        "content": "Does it happen at a specific time or only during certain activities?"
+        "content": "Have you tried any treatment?"
       },
       {
         "role": "user",
@@ -1247,7 +1291,7 @@
       },
       {
         "role": "assistant",
-        "content": "On a scale from 1 to 10, how bad is the dizziness? How much does it affect your function?"
+        "content": "On a scale from 1 to 10, how bad is the dizziness?"
       },
       {
         "role": "user",
@@ -1255,7 +1299,7 @@
       },
       {
         "role": "assistant",
-        "content": "Have you noticed any other symptoms along with this?"
+        "content": "How much does it affect your function?"
       },
       {
         "role": "user",
@@ -1287,7 +1331,7 @@
       },
       {
         "role": "assistant",
-        "content": "Are you taking any medications? Any allergies to medications?"
+        "content": "Are you taking any medications?"
       },
       {
         "role": "user",
@@ -1295,7 +1339,7 @@
       },
       {
         "role": "assistant",
-        "content": "Do you smoke, drink, or use recreational drugs? Who do you live with?"
+        "content": "Any allergies to medications?"
       },
       {
         "role": "user",
@@ -1303,7 +1347,7 @@
       },
       {
         "role": "assistant",
-        "content": "Does anyone in your immediate family have a history of heart problems, cancer, or diabetes?"
+        "content": "Who do you live with?"
       },
       {
         "role": "user",
@@ -1319,7 +1363,11 @@
       },
       {
         "role": "assistant",
-        "content": "I understand you're experiencing a sore throat. I'm here to help. Is this a new issue that just started, or is this an ongoing problem you've had before with a prior diagnosis?"
+        "content": "I understand you're experiencing a sore throat. I'm here to help."
+      },
+      {
+        "role": "assistant",
+        "content": "Is this a new issue that just started, or is this an ongoing problem you've had before with a prior diagnosis?"
       },
       {
         "role": "user",
@@ -1391,7 +1439,7 @@
       },
       {
         "role": "assistant",
-        "content": "What makes it better? Have you tried any treatment?"
+        "content": "What makes it better?"
       },
       {
         "role": "user",
@@ -1399,7 +1447,7 @@
       },
       {
         "role": "assistant",
-        "content": "Does it happen at a specific time or only during certain activities?"
+        "content": "Have you tried any treatment?"
       },
       {
         "role": "user",
@@ -1407,7 +1455,7 @@
       },
       {
         "role": "assistant",
-        "content": "On a scale from 1 to 10, how bad is the pain? How much does it affect your function?"
+        "content": "On a scale from 1 to 10, how bad is the pain?"
       },
       {
         "role": "user",
@@ -1415,7 +1463,7 @@
       },
       {
         "role": "assistant",
-        "content": "Have you noticed any other symptoms along with this?"
+        "content": "How much does it affect your function?"
       },
       {
         "role": "user",
@@ -1447,7 +1495,7 @@
       },
       {
         "role": "assistant",
-        "content": "Are you taking any medications? Any allergies to medications?"
+        "content": "Are you taking any medications?"
       },
       {
         "role": "user",
@@ -1455,7 +1503,7 @@
       },
       {
         "role": "assistant",
-        "content": "Do you smoke, drink, or use recreational drugs? Who do you live with?"
+        "content": "Any allergies to medications?"
       },
       {
         "role": "user",
@@ -1463,7 +1511,7 @@
       },
       {
         "role": "assistant",
-        "content": "Does anyone in your immediate family have a history of heart problems, cancer, or diabetes?"
+        "content": "Who do you live with?"
       },
       {
         "role": "user",
@@ -1479,7 +1527,11 @@
       },
       {
         "role": "assistant",
-        "content": "I understand you're experiencing heartburn. I'm here to help. Is this a new issue that just started, or is this an ongoing problem you've had before with a prior diagnosis?"
+        "content": "I understand you're experiencing heartburn. I'm here to help."
+      },
+      {
+        "role": "assistant",
+        "content": "Is this a new issue that just started, or is this an ongoing problem you've had before with a prior diagnosis?"
       },
       {
         "role": "user",
@@ -1516,10 +1568,6 @@
       {
         "role": "user",
         "content": "It's in my chest, behind my breastbone, and sometimes I feel it in my throat"
-      },
-      {
-        "role": "assistant",
-        "content": "Does the sensation move anywhere else?"
       },
       {
         "role": "user",
@@ -1559,7 +1607,7 @@
       },
       {
         "role": "assistant",
-        "content": "What makes it better? Have you tried any treatment?"
+        "content": "What makes it better?"
       },
       {
         "role": "user",
@@ -1567,7 +1615,7 @@
       },
       {
         "role": "assistant",
-        "content": "Does it happen at a specific time or only during certain activities?"
+        "content": "Have you tried any treatment?"
       },
       {
         "role": "user",
@@ -1575,7 +1623,7 @@
       },
       {
         "role": "assistant",
-        "content": "On a scale from 1 to 10, how bad is it? How much does it affect your function?"
+        "content": "On a scale from 1 to 10, how bad is it?"
       },
       {
         "role": "user",
@@ -1583,7 +1631,7 @@
       },
       {
         "role": "assistant",
-        "content": "Have you noticed any other symptoms along with this?"
+        "content": "How much does it affect your function?"
       },
       {
         "role": "user",
@@ -1615,7 +1663,7 @@
       },
       {
         "role": "assistant",
-        "content": "Are you taking any medications? Any allergies to medications?"
+        "content": "Are you taking any medications?"
       },
       {
         "role": "user",
@@ -1623,7 +1671,7 @@
       },
       {
         "role": "assistant",
-        "content": "Do you smoke, drink, or use recreational drugs? Who do you live with?"
+        "content": "Any allergies to medications?"
       },
       {
         "role": "user",
@@ -1631,7 +1679,7 @@
       },
       {
         "role": "assistant",
-        "content": "Does anyone in your immediate family have a history of heart problems, cancer, or diabetes?"
+        "content": "Who do you live with?"
       },
       {
         "role": "user",
@@ -1647,7 +1695,11 @@
       },
       {
         "role": "assistant",
-        "content": "I understand you're experiencing joint pain. I'm here to help. Is this a new issue that just started, or is this an ongoing problem you've had before with a prior diagnosis?"
+        "content": "I understand you're experiencing joint pain. I'm here to help."
+      },
+      {
+        "role": "assistant",
+        "content": "Is this a new issue that just started, or is this an ongoing problem you've had before with a prior diagnosis?"
       },
       {
         "role": "user",
@@ -1727,7 +1779,7 @@
       },
       {
         "role": "assistant",
-        "content": "What makes it better? Have you tried any treatment?"
+        "content": "What makes it better?"
       },
       {
         "role": "user",
@@ -1735,7 +1787,7 @@
       },
       {
         "role": "assistant",
-        "content": "Does it happen at a specific time or only during certain activities?"
+        "content": "Have you tried any treatment?"
       },
       {
         "role": "user",
@@ -1743,7 +1795,7 @@
       },
       {
         "role": "assistant",
-        "content": "On a scale from 1 to 10, how bad is the pain? How much does it affect your function?"
+        "content": "On a scale from 1 to 10, how bad is the pain?"
       },
       {
         "role": "user",
@@ -1751,7 +1803,7 @@
       },
       {
         "role": "assistant",
-        "content": "Have you noticed any other symptoms along with this?"
+        "content": "How much does it affect your function?"
       },
       {
         "role": "user",
@@ -1783,7 +1835,7 @@
       },
       {
         "role": "assistant",
-        "content": "Are you taking any medications? Any allergies to medications?"
+        "content": "Are you taking any medications?"
       },
       {
         "role": "user",
@@ -1791,7 +1843,7 @@
       },
       {
         "role": "assistant",
-        "content": "Do you smoke, drink, or use recreational drugs? Who do you live with?"
+        "content": "Any allergies to medications?"
       },
       {
         "role": "user",
@@ -1799,7 +1851,7 @@
       },
       {
         "role": "assistant",
-        "content": "Does anyone in your immediate family have a history of heart problems, cancer, or diabetes?"
+        "content": "Who do you live with?"
       },
       {
         "role": "user",
@@ -1815,7 +1867,11 @@
       },
       {
         "role": "assistant",
-        "content": "I understand you're experiencing nausea and vomiting. I'm here to help. Is this a new issue that just started, or is this an ongoing problem you've had before with a prior diagnosis?"
+        "content": "I understand you're experiencing nauseous and vomiting. I'm here to help."
+      },
+      {
+        "role": "assistant",
+        "content": "Is this a new issue that just started, or is this an ongoing problem you've had before with a prior diagnosis?"
       },
       {
         "role": "user",
@@ -1827,7 +1883,7 @@
       },
       {
         "role": "user",
-        "content": "I'm 31"
+        "content": "Female"
       },
       {
         "role": "assistant",
@@ -1839,7 +1895,15 @@
       },
       {
         "role": "assistant",
-        "content": "Thank you. Now let's gather more details about your nausea and vomiting. When did this start, and did it come on suddenly?"
+        "content": "What makes it better?"
+      },
+      {
+        "role": "user",
+        "content": "I'm 31"
+      },
+      {
+        "role": "assistant",
+        "content": "When did the nausea start?"
       },
       {
         "role": "user",
@@ -1847,15 +1911,11 @@
       },
       {
         "role": "assistant",
-        "content": "Where exactly do you feel the nausea or discomfort?"
-      },
-      {
-        "role": "user",
-        "content": "It's in my stomach, and I feel queasy all over"
+        "content": "How long has the nausea been present?"
       },
       {
         "role": "assistant",
-        "content": "Is the nausea constant or does it come and go?"
+        "content": "When does the nausea occur?"
       },
       {
         "role": "user",
@@ -1863,7 +1923,7 @@
       },
       {
         "role": "assistant",
-        "content": "How long does each episode of nausea last?"
+        "content": "How long has the nausea been present?"
       },
       {
         "role": "user",
@@ -1871,7 +1931,7 @@
       },
       {
         "role": "assistant",
-        "content": "How would you describe the feeling or sensation?"
+        "content": "How would you describe the nausea?"
       },
       {
         "role": "user",
@@ -1879,7 +1939,7 @@
       },
       {
         "role": "assistant",
-        "content": "What makes it worse?"
+        "content": "What makes the nausea worse?"
       },
       {
         "role": "user",
@@ -1887,7 +1947,7 @@
       },
       {
         "role": "assistant",
-        "content": "What makes it better? Have you tried any treatment?"
+        "content": "What makes it better?"
       },
       {
         "role": "user",
@@ -1895,7 +1955,7 @@
       },
       {
         "role": "assistant",
-        "content": "Does it happen at a specific time or only during certain activities?"
+        "content": "Have you tried any treatment?"
       },
       {
         "role": "user",
@@ -1903,7 +1963,7 @@
       },
       {
         "role": "assistant",
-        "content": "On a scale from 1 to 10, how bad is the nausea? How much does it affect your function?"
+        "content": "On a scale of 1 to 10, with 10 being the worst imaginable, how severe is the nausea?"
       },
       {
         "role": "user",
@@ -1911,7 +1971,7 @@
       },
       {
         "role": "assistant",
-        "content": "Have you noticed any other symptoms along with this?"
+        "content": "How much does it affect your function?"
       },
       {
         "role": "user",
@@ -1943,7 +2003,7 @@
       },
       {
         "role": "assistant",
-        "content": "Are you taking any medications? Any allergies to medications?"
+        "content": "Are you taking any medications?"
       },
       {
         "role": "user",
@@ -1951,7 +2011,7 @@
       },
       {
         "role": "assistant",
-        "content": "Do you smoke, drink, or use recreational drugs? Who do you live with?"
+        "content": "Any allergies to medications?"
       },
       {
         "role": "user",
@@ -1959,7 +2019,7 @@
       },
       {
         "role": "assistant",
-        "content": "Does anyone in your immediate family have a history of heart problems, cancer, or diabetes?"
+        "content": "Who do you live with?"
       },
       {
         "role": "user",
@@ -1975,7 +2035,11 @@
       },
       {
         "role": "assistant",
-        "content": "I understand you're experiencing a racing heart. I'm here to help. Is this a new issue that just started, or is this an ongoing problem you've had before with a prior diagnosis?"
+        "content": "I understand you're experiencing my heart s racng. I'm here to help."
+      },
+      {
+        "role": "assistant",
+        "content": "Is this a new issue that just started, or is this an ongoing problem you've had before with a prior diagnosis?"
       },
       {
         "role": "user",
@@ -2007,7 +2071,7 @@
       },
       {
         "role": "assistant",
-        "content": "Where exactly do you feel the racing sensation?"
+        "content": "Which ear is affected, or is it both ears?"
       },
       {
         "role": "user",
@@ -2047,7 +2111,7 @@
       },
       {
         "role": "assistant",
-        "content": "What makes it better? Have you tried any treatment?"
+        "content": "What makes it better?"
       },
       {
         "role": "user",
@@ -2055,7 +2119,7 @@
       },
       {
         "role": "assistant",
-        "content": "Does it happen at a specific time or only during certain activities?"
+        "content": "Have you tried any treatment?"
       },
       {
         "role": "user",
@@ -2063,7 +2127,7 @@
       },
       {
         "role": "assistant",
-        "content": "On a scale from 1 to 10, how bad is it? How much does it affect your function?"
+        "content": "On a scale from 1 to 10, how bad is it?"
       },
       {
         "role": "user",
@@ -2071,7 +2135,7 @@
       },
       {
         "role": "assistant",
-        "content": "Have you noticed any other symptoms along with this?"
+        "content": "How much does it affect your function?"
       },
       {
         "role": "user",
@@ -2103,7 +2167,7 @@
       },
       {
         "role": "assistant",
-        "content": "Are you taking any medications? Any allergies to medications?"
+        "content": "Are you taking any medications?"
       },
       {
         "role": "user",
@@ -2111,7 +2175,7 @@
       },
       {
         "role": "assistant",
-        "content": "Do you smoke, drink, or use recreational drugs? Who do you live with?"
+        "content": "Any allergies to medications?"
       },
       {
         "role": "user",
@@ -2119,7 +2183,7 @@
       },
       {
         "role": "assistant",
-        "content": "Does anyone in your immediate family have a history of heart problems, cancer, or diabetes?"
+        "content": "Who do you live with?"
       },
       {
         "role": "user",
@@ -2135,7 +2199,11 @@
       },
       {
         "role": "assistant",
-        "content": "I understand you're experiencing fatigue. I'm here to help. Is this a new issue that just started, or is this an ongoing problem you've had before with a prior diagnosis?"
+        "content": "I understand you're experiencing very tired. I'm here to help."
+      },
+      {
+        "role": "assistant",
+        "content": "Is this a new issue that just started, or is this an ongoing problem you've had before with a prior diagnosis?"
       },
       {
         "role": "user",
@@ -2167,7 +2235,7 @@
       },
       {
         "role": "assistant",
-        "content": "Where exactly do you feel the fatigue, or is it a general feeling?"
+        "content": "How long has the fatigue been present? Is it constant or does it come and go?"
       },
       {
         "role": "user",
@@ -2207,7 +2275,7 @@
       },
       {
         "role": "assistant",
-        "content": "What makes it better? Have you tried any treatment?"
+        "content": "What makes it better?"
       },
       {
         "role": "user",
@@ -2215,7 +2283,7 @@
       },
       {
         "role": "assistant",
-        "content": "Does it happen at a specific time or only during certain activities?"
+        "content": "Have you tried any treatment?"
       },
       {
         "role": "user",
@@ -2223,7 +2291,7 @@
       },
       {
         "role": "assistant",
-        "content": "On a scale from 1 to 10, how bad is the fatigue? How much does it affect your function?"
+        "content": "On a scale from 1 to 10, how bad is the fatigue?"
       },
       {
         "role": "user",
@@ -2231,7 +2299,7 @@
       },
       {
         "role": "assistant",
-        "content": "Have you noticed any other symptoms along with this?"
+        "content": "How much does it affect your function?"
       },
       {
         "role": "user",
@@ -2263,7 +2331,7 @@
       },
       {
         "role": "assistant",
-        "content": "Are you taking any medications? Any allergies to medications?"
+        "content": "Are you taking any medications?"
       },
       {
         "role": "user",
@@ -2271,7 +2339,7 @@
       },
       {
         "role": "assistant",
-        "content": "Do you smoke, drink, or use recreational drugs? Who do you live with?"
+        "content": "Any allergies to medications?"
       },
       {
         "role": "user",
@@ -2279,13 +2347,4392 @@
       },
       {
         "role": "assistant",
-        "content": "Does anyone in your immediate family have a history of heart problems, cancer, or diabetes?"
+        "content": "Who do you live with?"
       },
       {
         "role": "user",
         "content": "My father had colon cancer, and my mother has diabetes"
       }
     ]
+  },
+  {
+    "messages": [
+      {
+        "role": "user",
+        "content": "I have abdominal pain"
+      },
+      {
+        "role": "assistant",
+        "content": "I understand you're experiencing abdominal pain. I'm here to help."
+      },
+      {
+        "role": "assistant",
+        "content": "Is this a new issue that just started, or is this an ongoing problem you've had before with a prior diagnosis?"
+      },
+      {
+        "role": "user",
+        "content": "I'm 28 years old"
+      },
+      {
+        "role": "assistant",
+        "content": "Thank you for clarifying. To help me better understand your situation, could you please tell me your age?"
+      },
+      {
+        "role": "user",
+        "content": "I'm 28 years old"
+      },
+      {
+        "role": "assistant",
+        "content": "Thank you. For medical documentation purposes, what is your biological sex?"
+      },
+      {
+        "role": "user",
+        "content": "Female"
+      },
+      {
+        "role": "assistant",
+        "content": "When did the abdominal pain start?"
+      },
+      {
+        "role": "user",
+        "content": "It started about 3 hours ago"
+      },
+      {
+        "role": "assistant",
+        "content": "Where exactly is the pain located?"
+      },
+      {
+        "role": "user",
+        "content": "It's in the lower right part of my belly"
+      },
+      {
+        "role": "assistant",
+        "content": "How long has the pain been present?"
+      },
+      {
+        "role": "user",
+        "content": "It's been constant for the past 3 hours"
+      },
+      {
+        "role": "assistant",
+        "content": "Is the pain constant or does it come and go?"
+      },
+      {
+        "role": "user",
+        "content": "It's a sharp, stabbing pain"
+      },
+      {
+        "role": "assistant",
+        "content": "Is it sharp, dull, cramping, or burning?"
+      },
+      {
+        "role": "user",
+        "content": "It gets worse when I move or press on it"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes it better?"
+      },
+      {
+        "role": "user",
+        "content": "Nothing really helps, I tried lying down but it didn't change"
+      },
+      {
+        "role": "assistant",
+        "content": "Have you tried anything?"
+      },
+      {
+        "role": "user",
+        "content": "No, it stays in that one spot"
+      },
+      {
+        "role": "assistant",
+        "content": "Is the pain constant or does it come and go?"
+      },
+      {
+        "role": "user",
+        "content": "It started after I ate lunch"
+      },
+      {
+        "role": "assistant",
+        "content": "Is it related to eating, activities, or time of day?"
+      },
+      {
+        "role": "user",
+        "content": "It's about a 7 out of 10"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes it better?"
+      },
+      {
+        "role": "assistant",
+        "content": "Have you noticed any other symptoms along with the abdominal pain?"
+      },
+      {
+        "role": "user",
+        "content": "I feel nauseous and I haven't been able to eat"
+      },
+      {
+        "role": "assistant",
+        "content": "Do you have any existing medical conditions or take any medications?"
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "user",
+        "content": "I have back pain"
+      },
+      {
+        "role": "assistant",
+        "content": "I understand you're experiencing back pain. I'm here to help."
+      },
+      {
+        "role": "assistant",
+        "content": "Is this a new issue that just started, or is this an ongoing problem you've had before with a prior diagnosis?"
+      },
+      {
+        "role": "user",
+        "content": "I'm 42 years old"
+      },
+      {
+        "role": "assistant",
+        "content": "Thank you. Now, to help me better understand your situation, could you tell me your age?"
+      },
+      {
+        "role": "user",
+        "content": "I'm 42 years old"
+      },
+      {
+        "role": "assistant",
+        "content": "Thank you. For medical documentation purposes, what is your biological sex?"
+      },
+      {
+        "role": "user",
+        "content": "Male"
+      },
+      {
+        "role": "user",
+        "content": "It started yesterday afternoon"
+      },
+      {
+        "role": "assistant",
+        "content": "Where exactly is the pain located?"
+      },
+      {
+        "role": "user",
+        "content": "It's in my lower back, right in the middle"
+      },
+      {
+        "role": "assistant",
+        "content": "How long has the pain been present?"
+      },
+      {
+        "role": "user",
+        "content": "It comes and goes, but it's been there since yesterday"
+      },
+      {
+        "role": "assistant",
+        "content": "Is it constant or does it come and go?"
+      },
+      {
+        "role": "user",
+        "content": "It's a dull ache"
+      },
+      {
+        "role": "assistant",
+        "content": "Is it sharp, dull, aching, or burning?"
+      },
+      {
+        "role": "user",
+        "content": "It gets worse when I bend over or lift things"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes it better?"
+      },
+      {
+        "role": "user",
+        "content": "Resting helps a bit, and I took some ibuprofen"
+      },
+      {
+        "role": "assistant",
+        "content": "Have you tried anything?"
+      },
+      {
+        "role": "user",
+        "content": "Yes, it goes down into my right leg sometimes"
+      },
+      {
+        "role": "assistant",
+        "content": "When does the pain occur?"
+      },
+      {
+        "role": "user",
+        "content": "It's worse in the morning when I first get up"
+      },
+      {
+        "role": "assistant",
+        "content": "Is it related to any activities or time of day?"
+      },
+      {
+        "role": "user",
+        "content": "It's about a 5 out of 10"
+      },
+      {
+        "role": "assistant",
+        "content": "Have you noticed any other symptoms along with the back pain?"
+      },
+      {
+        "role": "user",
+        "content": "No, just the pain"
+      },
+      {
+        "role": "assistant",
+        "content": "Do you have any existing medical conditions or take any medications?"
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "user",
+        "content": "I have shortness of breath"
+      },
+      {
+        "role": "assistant",
+        "content": "I understand you're experiencing shortness of breath. I'm here to help."
+      },
+      {
+        "role": "assistant",
+        "content": "Is this a new issue that just started, or is this an ongoing problem you've had before with a prior diagnosis?"
+      },
+      {
+        "role": "user",
+        "content": "I'm 65 years old"
+      },
+      {
+        "role": "assistant",
+        "content": "Thank you for clarifying. To help me better understand your situation, could you please tell me your age?"
+      },
+      {
+        "role": "user",
+        "content": "I'm 65 years old"
+      },
+      {
+        "role": "assistant",
+        "content": "Thank you. For medical documentation purposes, what is your biological sex?"
+      },
+      {
+        "role": "user",
+        "content": "Male"
+      },
+      {
+        "role": "assistant",
+        "content": "When did the shortness of breath start?"
+      },
+      {
+        "role": "user",
+        "content": "It started about 30 minutes ago"
+      },
+      {
+        "role": "assistant",
+        "content": "How long has the shortness of breath been present?"
+      },
+      {
+        "role": "user",
+        "content": "It's been constant since it started"
+      },
+      {
+        "role": "assistant",
+        "content": "When does the shortness of breath occur?"
+      },
+      {
+        "role": "user",
+        "content": "It feels like I can't catch my breath, like I need to breathe faster"
+      },
+      {
+        "role": "assistant",
+        "content": "Is it like you can't catch your breath, tightness, or something else?"
+      },
+      {
+        "role": "user",
+        "content": "It gets worse when I try to walk or do anything"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes it better?"
+      },
+      {
+        "role": "user",
+        "content": "Sitting still helps a little, but not much"
+      },
+      {
+        "role": "assistant",
+        "content": "Have you tried anything?"
+      },
+      {
+        "role": "user",
+        "content": "No, it's just the breathing"
+      },
+      {
+        "role": "assistant",
+        "content": "When does the shortness of breath occur?"
+      },
+      {
+        "role": "user",
+        "content": "It started suddenly while I was sitting down"
+      },
+      {
+        "role": "assistant",
+        "content": "Is it related to any activities or time of day?"
+      },
+      {
+        "role": "user",
+        "content": "It's about a 7 out of 10"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes it better?"
+      },
+      {
+        "role": "assistant",
+        "content": "Have you noticed any other symptoms along with the shortness of breath?"
+      },
+      {
+        "role": "user",
+        "content": "I also have some chest discomfort"
+      },
+      {
+        "role": "assistant",
+        "content": "Do you have any existing medical conditions or take any medications?"
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "user",
+        "content": "I have dizziness"
+      },
+      {
+        "role": "assistant",
+        "content": "I understand you're experiencing dizziness. I'm here to help."
+      },
+      {
+        "role": "assistant",
+        "content": "Is this a new issue that just started, or is this an ongoing problem you've had before with a prior diagnosis?"
+      },
+      {
+        "role": "user",
+        "content": "I'm 48 years old"
+      },
+      {
+        "role": "assistant",
+        "content": "Thank you. Now, to help me better understand your situation, could you tell me your age?"
+      },
+      {
+        "role": "user",
+        "content": "I'm 48 years old"
+      },
+      {
+        "role": "assistant",
+        "content": "Thank you. For medical documentation purposes, what is your biological sex?"
+      },
+      {
+        "role": "user",
+        "content": "Female"
+      },
+      {
+        "role": "user",
+        "content": "It started about an hour ago"
+      },
+      {
+        "role": "assistant",
+        "content": "How long has the dizziness been present? Is it constant or does it come and go?"
+      },
+      {
+        "role": "user",
+        "content": "I feel like the room is spinning around me"
+      },
+      {
+        "role": "user",
+        "content": "It comes and goes in waves"
+      },
+      {
+        "role": "assistant",
+        "content": "Is it constant or does it come and go?"
+      },
+      {
+        "role": "user",
+        "content": "It's a spinning sensation, like vertigo"
+      },
+      {
+        "role": "assistant",
+        "content": "Is it spinning, lightheadedness, or feeling unsteady?"
+      },
+      {
+        "role": "user",
+        "content": "It gets worse when I move my head or stand up"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes it better?"
+      },
+      {
+        "role": "user",
+        "content": "Lying still helps, but it doesn't go away completely"
+      },
+      {
+        "role": "assistant",
+        "content": "Have you tried anything?"
+      },
+      {
+        "role": "user",
+        "content": "No, it's just the dizziness"
+      },
+      {
+        "role": "assistant",
+        "content": "When does the dizziness occur?"
+      },
+      {
+        "role": "user",
+        "content": "It started suddenly while I was sitting, and it gets worse when I move"
+      },
+      {
+        "role": "assistant",
+        "content": "Is it related to any activities or time of day?"
+      },
+      {
+        "role": "user",
+        "content": "It's about a 7 out of 10"
+      },
+      {
+        "role": "assistant",
+        "content": "Have you noticed any other symptoms along with the dizziness?"
+      },
+      {
+        "role": "user",
+        "content": "I feel nauseous and I have some ringing in my ears"
+      },
+      {
+        "role": "assistant",
+        "content": "Do you have any existing medical conditions or take any medications?"
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "user",
+        "content": "I have nausea"
+      },
+      {
+        "role": "assistant",
+        "content": "I understand you're experiencing nausea. I'm here to help."
+      },
+      {
+        "role": "assistant",
+        "content": "Is this a new issue that just started, or is this an ongoing problem you've had before with a prior diagnosis?"
+      },
+      {
+        "role": "user",
+        "content": "I'm 32 years old"
+      },
+      {
+        "role": "assistant",
+        "content": "Thank you for clarifying. To help me better understand your situation, could you please tell me your age?"
+      },
+      {
+        "role": "user",
+        "content": "I'm 32 years old"
+      },
+      {
+        "role": "assistant",
+        "content": "Thank you. For medical documentation purposes, what is your biological sex?"
+      },
+      {
+        "role": "user",
+        "content": "Female"
+      },
+      {
+        "role": "assistant",
+        "content": "When did the nausea start?"
+      },
+      {
+        "role": "user",
+        "content": "It started this morning"
+      },
+      {
+        "role": "assistant",
+        "content": "How long has the nausea been present?"
+      },
+      {
+        "role": "user",
+        "content": "It comes and goes, but it's been there all morning"
+      },
+      {
+        "role": "assistant",
+        "content": "When does the nausea occur?"
+      },
+      {
+        "role": "user",
+        "content": "It's a queasy feeling, like I need to vomit"
+      },
+      {
+        "role": "assistant",
+        "content": "Is it queasy, like you need to vomit, or something else?"
+      },
+      {
+        "role": "user",
+        "content": "It gets worse when I smell food or try to eat"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes it better?"
+      },
+      {
+        "role": "user",
+        "content": "Not eating helps a little, but not much"
+      },
+      {
+        "role": "assistant",
+        "content": "Have you tried anything?"
+      },
+      {
+        "role": "user",
+        "content": "No, it's just the nausea"
+      },
+      {
+        "role": "assistant",
+        "content": "When does the nausea occur?"
+      },
+      {
+        "role": "user",
+        "content": "It started this morning and seems worse after I try to eat"
+      },
+      {
+        "role": "assistant",
+        "content": "Is it related to eating, activities, or time of day?"
+      },
+      {
+        "role": "user",
+        "content": "It's about a 6 out of 10"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes it better?"
+      },
+      {
+        "role": "assistant",
+        "content": "Have you noticed any other symptoms along with the nausea?"
+      },
+      {
+        "role": "user",
+        "content": "I feel a bit weak and I haven't been able to eat much"
+      },
+      {
+        "role": "assistant",
+        "content": "Do you have any existing medical conditions or take any medications?"
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "user",
+        "content": "I have fatigue"
+      },
+      {
+        "role": "assistant",
+        "content": "I understand you're experiencing fatigue. I'm here to help."
+      },
+      {
+        "role": "assistant",
+        "content": "Is this a new issue that just started, or is this an ongoing problem you've had before with a prior diagnosis?"
+      },
+      {
+        "role": "user",
+        "content": "I'm 40 years old"
+      },
+      {
+        "role": "assistant",
+        "content": "Thank you. Now, to help me better understand your situation, could you tell me your age?"
+      },
+      {
+        "role": "user",
+        "content": "I'm 40 years old"
+      },
+      {
+        "role": "assistant",
+        "content": "Thank you. For medical documentation purposes, what is your biological sex?"
+      },
+      {
+        "role": "user",
+        "content": "Female"
+      },
+      {
+        "role": "user",
+        "content": "It's been getting worse over the past few weeks"
+      },
+      {
+        "role": "assistant",
+        "content": "How long has the fatigue been present? Is it constant or does it come and go?"
+      },
+      {
+        "role": "user",
+        "content": "It's throughout my whole body, I just feel exhausted all the time"
+      },
+      {
+        "role": "user",
+        "content": "It's been constant for the past few weeks, getting progressively worse"
+      },
+      {
+        "role": "assistant",
+        "content": "Is it constant or does it come and go?"
+      },
+      {
+        "role": "user",
+        "content": "It's both physical and mental, I feel drained"
+      },
+      {
+        "role": "assistant",
+        "content": "Is it physical exhaustion, mental tiredness, or both?"
+      },
+      {
+        "role": "user",
+        "content": "Any activity makes it worse, even simple things like walking"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes it better?"
+      },
+      {
+        "role": "user",
+        "content": "Resting helps a little, but I still feel tired even after sleeping"
+      },
+      {
+        "role": "assistant",
+        "content": "Have you tried anything?"
+      },
+      {
+        "role": "user",
+        "content": "It affects my ability to concentrate and do daily activities"
+      },
+      {
+        "role": "assistant",
+        "content": "When does the fatigue occur?"
+      },
+      {
+        "role": "user",
+        "content": "It's worse in the morning and doesn't really improve throughout the day"
+      },
+      {
+        "role": "assistant",
+        "content": "Is it worse at certain times of day?"
+      },
+      {
+        "role": "user",
+        "content": "It's about a 7 out of 10"
+      },
+      {
+        "role": "assistant",
+        "content": "Have you noticed any other symptoms along with the fatigue?"
+      },
+      {
+        "role": "user",
+        "content": "I've been having trouble sleeping and I feel a bit depressed"
+      },
+      {
+        "role": "assistant",
+        "content": "Do you have any existing medical conditions or take any medications?"
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "user",
+        "content": "I have a cough"
+      },
+      {
+        "role": "assistant",
+        "content": "I understand you're experiencing a cough. I'm here to help."
+      },
+      {
+        "role": "assistant",
+        "content": "Is this a new issue that just started, or is this an ongoing problem you've had before with a prior diagnosis?"
+      },
+      {
+        "role": "user",
+        "content": "I'm 45 years old"
+      },
+      {
+        "role": "assistant",
+        "content": "Thank you for clarifying. To help me better understand your situation, could you please tell me your age?"
+      },
+      {
+        "role": "user",
+        "content": "I'm 45 years old"
+      },
+      {
+        "role": "assistant",
+        "content": "Thank you. For medical documentation purposes, what is your biological sex?"
+      },
+      {
+        "role": "user",
+        "content": "Male"
+      },
+      {
+        "role": "assistant",
+        "content": "When did the cough start?"
+      },
+      {
+        "role": "user",
+        "content": "It started about 3 days ago"
+      },
+      {
+        "role": "assistant",
+        "content": "How long have you had the cough?"
+      },
+      {
+        "role": "user",
+        "content": "It comes and goes, but it's been there for 3 days"
+      },
+      {
+        "role": "assistant",
+        "content": "When does the cough occur?"
+      },
+      {
+        "role": "user",
+        "content": "It's a productive cough, I'm bringing up yellow phlegm"
+      },
+      {
+        "role": "assistant",
+        "content": "Is it dry, productive with phlegm, or something else?"
+      },
+      {
+        "role": "user",
+        "content": "It gets worse when I lie down or when I take deep breaths"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes it better?"
+      },
+      {
+        "role": "user",
+        "content": "Sitting up helps a little, and I've been using cough drops"
+      },
+      {
+        "role": "assistant",
+        "content": "Have you tried anything?"
+      },
+      {
+        "role": "user",
+        "content": "No, it's just the cough"
+      },
+      {
+        "role": "assistant",
+        "content": "When does the cough occur?"
+      },
+      {
+        "role": "user",
+        "content": "It's worse at night when I'm trying to sleep"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes the cough worse?"
+      },
+      {
+        "role": "user",
+        "content": "It's about a 5 out of 10"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes it better?"
+      },
+      {
+        "role": "assistant",
+        "content": "Have you noticed any other symptoms along with the cough?"
+      },
+      {
+        "role": "user",
+        "content": "I have a low-grade fever and I feel a bit tired"
+      },
+      {
+        "role": "assistant",
+        "content": "Do you have any existing medical conditions or take any medications?"
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "user",
+        "content": "I have shoulder pain"
+      },
+      {
+        "role": "assistant",
+        "content": "I understand you're experiencing shoulder pain. I'm here to help."
+      },
+      {
+        "role": "assistant",
+        "content": "Is this a new issue that just started, or is this an ongoing problem you've had before with a prior diagnosis?"
+      },
+      {
+        "role": "user",
+        "content": "It's new, started a few days ago"
+      },
+      {
+        "role": "assistant",
+        "content": "To help me better understand your situation, could you please tell me your age?"
+      },
+      {
+        "role": "user",
+        "content": "I'm 57 years old"
+      },
+      {
+        "role": "assistant",
+        "content": "Thank you. For medical documentation purposes, what is your biological sex?"
+      },
+      {
+        "role": "user",
+        "content": "Female"
+      },
+      {
+        "role": "assistant",
+        "content": "When did the shoulder pain start?"
+      },
+      {
+        "role": "user",
+        "content": "It came on suddenly"
+      },
+      {
+        "role": "assistant",
+        "content": "Where exactly is the shoulder pain located?"
+      },
+      {
+        "role": "user",
+        "content": "It's in my lower abdomen"
+      },
+      {
+        "role": "assistant",
+        "content": "How long has the shoulder pain been present? Is it constant or does it come and go?"
+      },
+      {
+        "role": "user",
+        "content": "It's been constant for about an hour"
+      },
+      {
+        "role": "assistant",
+        "content": "How would you describe the shoulder pain? What does it feel like?"
+      },
+      {
+        "role": "user",
+        "content": "It's a sharp pain"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes the shoulder pain worse?"
+      },
+      {
+        "role": "user",
+        "content": "It gets worse when I breathe deeply"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes it better? Have you tried any treatment?"
+      },
+      {
+        "role": "user",
+        "content": "Resting helps"
+      },
+      {
+        "role": "assistant",
+        "content": "Does the shoulder pain spread or radiate anywhere else?"
+      },
+      {
+        "role": "user",
+        "content": "Yes, it goes to my left arm"
+      },
+      {
+        "role": "assistant",
+        "content": "When does the shoulder pain occur? Is it related to any activities or time of day?"
+      },
+      {
+        "role": "user",
+        "content": "It's worse in the morning"
+      },
+      {
+        "role": "assistant",
+        "content": "On a scale of 1 to 10, with 10 being the worst imaginable, how severe is the shoulder pain?"
+      },
+      {
+        "role": "user",
+        "content": "It's about a 7 out of 10"
+      },
+      {
+        "role": "assistant",
+        "content": "Have you noticed any other symptoms along with this?"
+      },
+      {
+        "role": "user",
+        "content": "Yes, I feel tired"
+      },
+      {
+        "role": "assistant",
+        "content": "Do you have any existing medical conditions or take any medications?"
+      },
+      {
+        "role": "user",
+        "content": "I have diabetes"
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "user",
+        "content": "I have headache"
+      },
+      {
+        "role": "assistant",
+        "content": "I understand you're experiencing headache. I'm here to help."
+      },
+      {
+        "role": "assistant",
+        "content": "Is this a new issue that just started, or is this an ongoing problem you've had before with a prior diagnosis?"
+      },
+      {
+        "role": "user",
+        "content": "It's new, started this morning"
+      },
+      {
+        "role": "assistant",
+        "content": "Thank you for clarifying. To help me better understand your situation, could you please tell me your age?"
+      },
+      {
+        "role": "user",
+        "content": "I'm 43 years old"
+      },
+      {
+        "role": "assistant",
+        "content": "Thank you. For medical documentation purposes, what is your biological sex?"
+      },
+      {
+        "role": "user",
+        "content": "Female"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes it better?"
+      },
+      {
+        "role": "assistant",
+        "content": "When did the headache start?"
+      },
+      {
+        "role": "user",
+        "content": "It started about an hour ago"
+      },
+      {
+        "role": "assistant",
+        "content": "Where exactly is the headache located?"
+      },
+      {
+        "role": "user",
+        "content": "It's all over"
+      },
+      {
+        "role": "assistant",
+        "content": "How long has the headache been present?"
+      },
+      {
+        "role": "user",
+        "content": "It's been constant for about an hour"
+      },
+      {
+        "role": "assistant",
+        "content": "How would you describe the headache?"
+      },
+      {
+        "role": "user",
+        "content": "It's a dull ache"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes the headache worse?"
+      },
+      {
+        "role": "user",
+        "content": "Nothing specific"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes it better?"
+      },
+      {
+        "role": "user",
+        "content": "I tried pain medication but it didn't help much"
+      },
+      {
+        "role": "assistant",
+        "content": "Where exactly is the headache located?"
+      },
+      {
+        "role": "user",
+        "content": "No, it stays in one place"
+      },
+      {
+        "role": "assistant",
+        "content": "When does the headache occur?"
+      },
+      {
+        "role": "user",
+        "content": "It happens at any time"
+      },
+      {
+        "role": "assistant",
+        "content": "On a scale of 1 to 10, with 10 being the worst imaginable, how severe is the headache?"
+      },
+      {
+        "role": "user",
+        "content": "It's about a 7 out of 10"
+      },
+      {
+        "role": "assistant",
+        "content": "Have you noticed any other symptoms along with this?"
+      },
+      {
+        "role": "user",
+        "content": "No, just the main symptom"
+      },
+      {
+        "role": "assistant",
+        "content": "Do you have any existing medical conditions or take any medications?"
+      },
+      {
+        "role": "user",
+        "content": "No, I'm generally healthy"
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "user",
+        "content": "I have cough"
+      },
+      {
+        "role": "assistant",
+        "content": "I understand you're experiencing cough. I'm here to help."
+      },
+      {
+        "role": "assistant",
+        "content": "Is this a new issue that just started, or is this an ongoing problem you've had before with a prior diagnosis?"
+      },
+      {
+        "role": "user",
+        "content": "I have a chronic cough"
+      },
+      {
+        "role": "assistant",
+        "content": "Thank you for clarifying. To help me better understand your situation, could you please tell me your age?"
+      },
+      {
+        "role": "user",
+        "content": "I'm 30 years old"
+      },
+      {
+        "role": "assistant",
+        "content": "Thank you. For medical documentation purposes, what is your biological sex?"
+      },
+      {
+        "role": "user",
+        "content": "Male"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes it better?"
+      },
+      {
+        "role": "assistant",
+        "content": "When did the cough start?"
+      },
+      {
+        "role": "user",
+        "content": "It started this morning"
+      },
+      {
+        "role": "assistant",
+        "content": "When did the cough start?"
+      },
+      {
+        "role": "user",
+        "content": "It's throughout my body"
+      },
+      {
+        "role": "assistant",
+        "content": "How long have you had the cough?"
+      },
+      {
+        "role": "user",
+        "content": "It comes and goes"
+      },
+      {
+        "role": "assistant",
+        "content": "How would you describe the cough?"
+      },
+      {
+        "role": "user",
+        "content": "It's uncomfortable"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes the cough worse?"
+      },
+      {
+        "role": "user",
+        "content": "Certain positions make it worse"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes it better?"
+      },
+      {
+        "role": "user",
+        "content": "Nothing helps"
+      },
+      {
+        "role": "user",
+        "content": "No, it stays in one area"
+      },
+      {
+        "role": "assistant",
+        "content": "When does the cough occur?"
+      },
+      {
+        "role": "user",
+        "content": "It happens at any time"
+      },
+      {
+        "role": "assistant",
+        "content": "On a scale of 1 to 10, with 10 being the worst imaginable, how severe is the cough?"
+      },
+      {
+        "role": "user",
+        "content": "It's about a 7 out of 10"
+      },
+      {
+        "role": "assistant",
+        "content": "Have you noticed any other symptoms along with this?"
+      },
+      {
+        "role": "user",
+        "content": "Yes, I also feel nauseous"
+      },
+      {
+        "role": "assistant",
+        "content": "Do you have any existing medical conditions or take any medications?"
+      },
+      {
+        "role": "user",
+        "content": "I have diabetes"
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "user",
+        "content": "I have blurred vision"
+      },
+      {
+        "role": "assistant",
+        "content": "I understand you're experiencing blurred vision. I'm here to help."
+      },
+      {
+        "role": "assistant",
+        "content": "Is this a new issue that just started, or is this an ongoing problem you've had before with a prior diagnosis?"
+      },
+      {
+        "role": "user",
+        "content": "It's new, started today"
+      },
+      {
+        "role": "assistant",
+        "content": "To help me better understand your situation, could you please tell me your age?"
+      },
+      {
+        "role": "user",
+        "content": "I'm 74 years old"
+      },
+      {
+        "role": "assistant",
+        "content": "Thank you. For medical documentation purposes, what is your biological sex?"
+      },
+      {
+        "role": "user",
+        "content": "Male"
+      },
+      {
+        "role": "assistant",
+        "content": "When did you first notice the vision problem?"
+      },
+      {
+        "role": "user",
+        "content": "I noticed it this morning"
+      },
+      {
+        "role": "assistant",
+        "content": "Which eye or eyes are affected? Is it one eye, both eyes, or does it affect your entire field of vision?"
+      },
+      {
+        "role": "user",
+        "content": "It's in both eyes"
+      },
+      {
+        "role": "assistant",
+        "content": "How long has the vision problem been present? Is it constant or does it come and go?"
+      },
+      {
+        "role": "user",
+        "content": "It comes and goes"
+      },
+      {
+        "role": "assistant",
+        "content": "How would you describe what you're seeing? Is it blurry, double vision, dark spots, flashes of light, or something else?"
+      },
+      {
+        "role": "user",
+        "content": "There are dark spots"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes the vision problem worse?"
+      },
+      {
+        "role": "user",
+        "content": "It doesn't change"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes it better? Have you tried anything?"
+      },
+      {
+        "role": "user",
+        "content": "Resting helps"
+      },
+      {
+        "role": "assistant",
+        "content": "Does the vision problem affect your peripheral vision, central vision, or both?"
+      },
+      {
+        "role": "user",
+        "content": "It affects my entire field of vision"
+      },
+      {
+        "role": "assistant",
+        "content": "When does the vision problem occur? Is it worse at certain times of day or with certain activities?"
+      },
+      {
+        "role": "user",
+        "content": "It's worse in the morning"
+      },
+      {
+        "role": "assistant",
+        "content": "On a scale of 1 to 10, with 10 being complete vision loss, how severe is the vision problem?"
+      },
+      {
+        "role": "user",
+        "content": "It's about a 5 out of 10"
+      },
+      {
+        "role": "assistant",
+        "content": "Have you noticed any other symptoms along with this?"
+      },
+      {
+        "role": "user",
+        "content": "Yes, I feel tired"
+      },
+      {
+        "role": "assistant",
+        "content": "Do you have any existing medical conditions or take any medications?"
+      },
+      {
+        "role": "user",
+        "content": "No, I'm generally healthy"
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "user",
+        "content": "I have ear pain"
+      },
+      {
+        "role": "assistant",
+        "content": "I understand you're experiencing ear pain. I'm here to help."
+      },
+      {
+        "role": "assistant",
+        "content": "Is this a new issue that just started, or is this an ongoing problem you've had before with a prior diagnosis?"
+      },
+      {
+        "role": "user",
+        "content": "I get ear infections often"
+      },
+      {
+        "role": "assistant",
+        "content": "To help me better understand your situation, could you please tell me your age?"
+      },
+      {
+        "role": "user",
+        "content": "I'm 30 years old"
+      },
+      {
+        "role": "assistant",
+        "content": "Thank you. For medical documentation purposes, what is your biological sex?"
+      },
+      {
+        "role": "user",
+        "content": "Female"
+      },
+      {
+        "role": "assistant",
+        "content": "When did you first notice the hearing problem?"
+      },
+      {
+        "role": "user",
+        "content": "It started yesterday"
+      },
+      {
+        "role": "assistant",
+        "content": "Which ear or ears are affected? Is it one ear, both ears, or does it affect your hearing overall?"
+      },
+      {
+        "role": "user",
+        "content": "It's in my left ear"
+      },
+      {
+        "role": "assistant",
+        "content": "How long has the hearing problem been present? Is it constant or does it come and go?"
+      },
+      {
+        "role": "user",
+        "content": "It's been there all day"
+      },
+      {
+        "role": "assistant",
+        "content": "How would you describe what you're hearing or not hearing? Is it muffled, ringing, buzzing, or complete loss?"
+      },
+      {
+        "role": "user",
+        "content": "I can't hear well"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes the hearing problem worse?"
+      },
+      {
+        "role": "user",
+        "content": "Loud sounds make it worse"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes it better? Have you tried anything?"
+      },
+      {
+        "role": "user",
+        "content": "I haven't tried anything"
+      },
+      {
+        "role": "assistant",
+        "content": "Does the hearing problem affect both ears equally, or is one ear worse than the other?"
+      },
+      {
+        "role": "user",
+        "content": "Both ears are affected equally"
+      },
+      {
+        "role": "assistant",
+        "content": "When does the hearing problem occur? Is it worse at certain times or with certain sounds?"
+      },
+      {
+        "role": "user",
+        "content": "It's worse in quiet"
+      },
+      {
+        "role": "assistant",
+        "content": "On a scale of 1 to 10, with 10 being complete hearing loss, how severe is the hearing problem?"
+      },
+      {
+        "role": "user",
+        "content": "It's about a 5 out of 10"
+      },
+      {
+        "role": "assistant",
+        "content": "Have you noticed any other symptoms along with this?"
+      },
+      {
+        "role": "user",
+        "content": "Yes, I have a fever"
+      },
+      {
+        "role": "assistant",
+        "content": "Do you have any existing medical conditions or take any medications?"
+      },
+      {
+        "role": "user",
+        "content": "I have high blood pressure"
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "user",
+        "content": "I have hearing loss"
+      },
+      {
+        "role": "assistant",
+        "content": "I understand you're experiencing hearing loss. I'm here to help."
+      },
+      {
+        "role": "assistant",
+        "content": "Is this a new issue that just started, or is this an ongoing problem you've had before with a prior diagnosis?"
+      },
+      {
+        "role": "user",
+        "content": "It's new, started suddenly"
+      },
+      {
+        "role": "assistant",
+        "content": "To help me better understand your situation, could you please tell me your age?"
+      },
+      {
+        "role": "user",
+        "content": "I'm 85 years old"
+      },
+      {
+        "role": "assistant",
+        "content": "Thank you. For medical documentation purposes, what is your biological sex?"
+      },
+      {
+        "role": "user",
+        "content": "Female"
+      },
+      {
+        "role": "assistant",
+        "content": "When did you first notice the hearing problem?"
+      },
+      {
+        "role": "user",
+        "content": "I noticed it this morning"
+      },
+      {
+        "role": "assistant",
+        "content": "Which ear or ears are affected? Is it one ear, both ears, or does it affect your hearing overall?"
+      },
+      {
+        "role": "user",
+        "content": "It affects my hearing overall"
+      },
+      {
+        "role": "assistant",
+        "content": "How long has the hearing problem been present? Is it constant or does it come and go?"
+      },
+      {
+        "role": "user",
+        "content": "It comes and goes"
+      },
+      {
+        "role": "assistant",
+        "content": "How would you describe what you're hearing or not hearing? Is it muffled, ringing, buzzing, or complete loss?"
+      },
+      {
+        "role": "user",
+        "content": "There's a buzzing sound"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes the hearing problem worse?"
+      },
+      {
+        "role": "user",
+        "content": "It doesn't change"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes it better? Have you tried anything?"
+      },
+      {
+        "role": "user",
+        "content": "Nothing helps"
+      },
+      {
+        "role": "assistant",
+        "content": "Does the hearing problem affect both ears equally, or is one ear worse than the other?"
+      },
+      {
+        "role": "user",
+        "content": "It's worse in one ear"
+      },
+      {
+        "role": "assistant",
+        "content": "When does the hearing problem occur? Is it worse at certain times or with certain sounds?"
+      },
+      {
+        "role": "user",
+        "content": "It happens at any time"
+      },
+      {
+        "role": "assistant",
+        "content": "On a scale of 1 to 10, with 10 being complete hearing loss, how severe is the hearing problem?"
+      },
+      {
+        "role": "user",
+        "content": "It's about a 7 out of 10"
+      },
+      {
+        "role": "assistant",
+        "content": "Have you noticed any other symptoms along with this?"
+      },
+      {
+        "role": "user",
+        "content": "No, just the main symptom"
+      },
+      {
+        "role": "assistant",
+        "content": "Do you have any existing medical conditions or take any medications?"
+      },
+      {
+        "role": "user",
+        "content": "No, I'm generally healthy"
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "user",
+        "content": "I have fever"
+      },
+      {
+        "role": "assistant",
+        "content": "I understand you're experiencing fever. I'm here to help."
+      },
+      {
+        "role": "assistant",
+        "content": "Is this a new issue that just started, or is this an ongoing problem you've had before with a prior diagnosis?"
+      },
+      {
+        "role": "user",
+        "content": "It's new, started yesterday"
+      },
+      {
+        "role": "assistant",
+        "content": "To help me better understand your situation, could you please tell me your age?"
+      },
+      {
+        "role": "user",
+        "content": "I'm 60 years old"
+      },
+      {
+        "role": "assistant",
+        "content": "Thank you. For medical documentation purposes, what is your biological sex?"
+      },
+      {
+        "role": "user",
+        "content": "Female"
+      },
+      {
+        "role": "assistant",
+        "content": "When did the fever start?"
+      },
+      {
+        "role": "user",
+        "content": "It came on suddenly"
+      },
+      {
+        "role": "assistant",
+        "content": "When did the fever start?"
+      },
+      {
+        "role": "assistant",
+        "content": "How long has the fever been present? Is it constant or does it come and go?"
+      },
+      {
+        "role": "user",
+        "content": "It comes and goes"
+      },
+      {
+        "role": "assistant",
+        "content": "How would you describe the fever? What does it feel like?"
+      },
+      {
+        "role": "user",
+        "content": "It's uncomfortable"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes the fever worse?"
+      },
+      {
+        "role": "user",
+        "content": "Certain positions make it worse"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes it better? Have you tried any treatment?"
+      },
+      {
+        "role": "user",
+        "content": "Nothing helps"
+      },
+      {
+        "role": "user",
+        "content": "It affects multiple areas"
+      },
+      {
+        "role": "assistant",
+        "content": "When does the fever occur? Is it related to any activities or time of day?"
+      },
+      {
+        "role": "user",
+        "content": "It happens at any time"
+      },
+      {
+        "role": "assistant",
+        "content": "On a scale of 1 to 10, with 10 being the worst imaginable, how severe is the fever?"
+      },
+      {
+        "role": "user",
+        "content": "It's about a 5 out of 10"
+      },
+      {
+        "role": "assistant",
+        "content": "Have you noticed any other symptoms along with this?"
+      },
+      {
+        "role": "user",
+        "content": "No, just the main symptom"
+      },
+      {
+        "role": "assistant",
+        "content": "Do you have any existing medical conditions or take any medications?"
+      },
+      {
+        "role": "user",
+        "content": "No, I'm generally healthy"
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "user",
+        "content": "I have sore throat"
+      },
+      {
+        "role": "assistant",
+        "content": "I understand you're experiencing sore throat. I'm here to help."
+      },
+      {
+        "role": "assistant",
+        "content": "Is this a new issue that just started, or is this an ongoing problem you've had before with a prior diagnosis?"
+      },
+      {
+        "role": "user",
+        "content": "I get sore throats often"
+      },
+      {
+        "role": "assistant",
+        "content": "To help me better understand your situation, could you please tell me your age?"
+      },
+      {
+        "role": "user",
+        "content": "I'm 22 years old"
+      },
+      {
+        "role": "assistant",
+        "content": "Thank you. For medical documentation purposes, what is your biological sex?"
+      },
+      {
+        "role": "user",
+        "content": "Female"
+      },
+      {
+        "role": "assistant",
+        "content": "When did the sore throat start?"
+      },
+      {
+        "role": "user",
+        "content": "It began yesterday"
+      },
+      {
+        "role": "assistant",
+        "content": "Where exactly is the sore throat located?"
+      },
+      {
+        "role": "user",
+        "content": "It's in my chest"
+      },
+      {
+        "role": "assistant",
+        "content": "How long has the sore throat been present? Is it constant or does it come and go?"
+      },
+      {
+        "role": "user",
+        "content": "It comes and goes"
+      },
+      {
+        "role": "assistant",
+        "content": "How would you describe the sore throat? What does it feel like?"
+      },
+      {
+        "role": "user",
+        "content": "It feels tight"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes the sore throat worse?"
+      },
+      {
+        "role": "user",
+        "content": "Certain positions make it worse"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes it better? Have you tried any treatment?"
+      },
+      {
+        "role": "user",
+        "content": "I tried medication but it didn't help"
+      },
+      {
+        "role": "assistant",
+        "content": "Does the sore throat spread or radiate anywhere else?"
+      },
+      {
+        "role": "user",
+        "content": "Yes, it spreads"
+      },
+      {
+        "role": "assistant",
+        "content": "When does the sore throat occur? Is it related to any activities or time of day?"
+      },
+      {
+        "role": "user",
+        "content": "It's worse after eating"
+      },
+      {
+        "role": "assistant",
+        "content": "On a scale of 1 to 10, with 10 being the worst imaginable, how severe is the sore throat?"
+      },
+      {
+        "role": "user",
+        "content": "It's about a 6 out of 10"
+      },
+      {
+        "role": "assistant",
+        "content": "Have you noticed any other symptoms along with this?"
+      },
+      {
+        "role": "user",
+        "content": "No other symptoms"
+      },
+      {
+        "role": "assistant",
+        "content": "Do you have any existing medical conditions or take any medications?"
+      },
+      {
+        "role": "user",
+        "content": "No, I'm generally healthy"
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "user",
+        "content": "I have rash"
+      },
+      {
+        "role": "assistant",
+        "content": "I understand you're experiencing rash. I'm here to help."
+      },
+      {
+        "role": "assistant",
+        "content": "Is this a new issue that just started, or is this an ongoing problem you've had before with a prior diagnosis?"
+      },
+      {
+        "role": "user",
+        "content": "It's new, appeared this morning"
+      },
+      {
+        "role": "assistant",
+        "content": "To help me better understand your situation, could you please tell me your age?"
+      },
+      {
+        "role": "user",
+        "content": "I'm 43 years old"
+      },
+      {
+        "role": "assistant",
+        "content": "Thank you. For medical documentation purposes, what is your biological sex?"
+      },
+      {
+        "role": "user",
+        "content": "Male"
+      },
+      {
+        "role": "assistant",
+        "content": "When did the rash start?"
+      },
+      {
+        "role": "user",
+        "content": "It came on suddenly"
+      },
+      {
+        "role": "assistant",
+        "content": "Where on your body is the rash located?"
+      },
+      {
+        "role": "user",
+        "content": "It's in my throat"
+      },
+      {
+        "role": "assistant",
+        "content": "How long has the rash been present? Is it constant or does it come and go?"
+      },
+      {
+        "role": "user",
+        "content": "It's been constant"
+      },
+      {
+        "role": "assistant",
+        "content": "How would you describe the rash? What does it feel like?"
+      },
+      {
+        "role": "user",
+        "content": "It's irritating"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes the rash worse?"
+      },
+      {
+        "role": "user",
+        "content": "It doesn't change"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes it better? Have you tried any treatment?"
+      },
+      {
+        "role": "user",
+        "content": "Nothing helps"
+      },
+      {
+        "role": "user",
+        "content": "No, it stays in one area"
+      },
+      {
+        "role": "assistant",
+        "content": "When does the rash occur? Is it related to any activities or time of day?"
+      },
+      {
+        "role": "user",
+        "content": "It's worse in the morning"
+      },
+      {
+        "role": "assistant",
+        "content": "On a scale of 1 to 10, with 10 being the worst imaginable, how severe is the rash?"
+      },
+      {
+        "role": "user",
+        "content": "It's about a 7 out of 10"
+      },
+      {
+        "role": "assistant",
+        "content": "Have you noticed any other symptoms along with this?"
+      },
+      {
+        "role": "user",
+        "content": "Yes, I feel tired"
+      },
+      {
+        "role": "assistant",
+        "content": "Do you have any existing medical conditions or take any medications?"
+      },
+      {
+        "role": "user",
+        "content": "I have high blood pressure"
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "user",
+        "content": "I have neck pain"
+      },
+      {
+        "role": "assistant",
+        "content": "I understand you're experiencing neck pain. I'm here to help."
+      },
+      {
+        "role": "assistant",
+        "content": "Is this a new issue that just started, or is this an ongoing problem you've had before with a prior diagnosis?"
+      },
+      {
+        "role": "user",
+        "content": "It's new, started yesterday"
+      },
+      {
+        "role": "assistant",
+        "content": "To help me better understand your situation, could you please tell me your age?"
+      },
+      {
+        "role": "user",
+        "content": "I'm 27 years old"
+      },
+      {
+        "role": "assistant",
+        "content": "Thank you. For medical documentation purposes, what is your biological sex?"
+      },
+      {
+        "role": "user",
+        "content": "Female"
+      },
+      {
+        "role": "assistant",
+        "content": "When did the neck pain start?"
+      },
+      {
+        "role": "user",
+        "content": "It started about an hour ago"
+      },
+      {
+        "role": "assistant",
+        "content": "Where exactly is the neck pain located?"
+      },
+      {
+        "role": "user",
+        "content": "It's on the right side"
+      },
+      {
+        "role": "assistant",
+        "content": "How long has the neck pain been present? Is it constant or does it come and go?"
+      },
+      {
+        "role": "user",
+        "content": "It's been constant for about an hour"
+      },
+      {
+        "role": "assistant",
+        "content": "How would you describe the neck pain? What does it feel like?"
+      },
+      {
+        "role": "user",
+        "content": "It's burning"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes the neck pain worse?"
+      },
+      {
+        "role": "user",
+        "content": "Nothing specific"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes it better? Have you tried any treatment?"
+      },
+      {
+        "role": "user",
+        "content": "Resting helps"
+      },
+      {
+        "role": "assistant",
+        "content": "Does the neck pain spread or radiate anywhere else?"
+      },
+      {
+        "role": "user",
+        "content": "No, it stays in one place"
+      },
+      {
+        "role": "assistant",
+        "content": "When does the neck pain occur? Is it related to any activities or time of day?"
+      },
+      {
+        "role": "user",
+        "content": "It happens at any time"
+      },
+      {
+        "role": "assistant",
+        "content": "On a scale of 1 to 10, with 10 being the worst imaginable, how severe is the neck pain?"
+      },
+      {
+        "role": "user",
+        "content": "It's about an 8 out of 10"
+      },
+      {
+        "role": "assistant",
+        "content": "Have you noticed any other symptoms along with this?"
+      },
+      {
+        "role": "user",
+        "content": "Yes, I have a fever"
+      },
+      {
+        "role": "assistant",
+        "content": "Do you have any existing medical conditions or take any medications?"
+      },
+      {
+        "role": "user",
+        "content": "I have high blood pressure"
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "user",
+        "content": "I have swelling"
+      },
+      {
+        "role": "assistant",
+        "content": "I understand you're experiencing swelling. I'm here to help."
+      },
+      {
+        "role": "assistant",
+        "content": "Is this a new issue that just started, or is this an ongoing problem you've had before with a prior diagnosis?"
+      },
+      {
+        "role": "user",
+        "content": "I have chronic swelling"
+      },
+      {
+        "role": "assistant",
+        "content": "To help me better understand your situation, could you please tell me your age?"
+      },
+      {
+        "role": "user",
+        "content": "I'm 55 years old"
+      },
+      {
+        "role": "assistant",
+        "content": "Thank you. For medical documentation purposes, what is your biological sex?"
+      },
+      {
+        "role": "user",
+        "content": "Female"
+      },
+      {
+        "role": "assistant",
+        "content": "When did the swelling start?"
+      },
+      {
+        "role": "user",
+        "content": "It began yesterday"
+      },
+      {
+        "role": "assistant",
+        "content": "Where on your body is the swelling located?"
+      },
+      {
+        "role": "user",
+        "content": "It's in my throat"
+      },
+      {
+        "role": "assistant",
+        "content": "How long has the swelling been present? Is it constant or does it come and go?"
+      },
+      {
+        "role": "user",
+        "content": "It comes and goes"
+      },
+      {
+        "role": "assistant",
+        "content": "How would you describe the swelling? What does it feel like?"
+      },
+      {
+        "role": "user",
+        "content": "It feels tight"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes the swelling worse?"
+      },
+      {
+        "role": "user",
+        "content": "Activity makes it worse"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes it better? Have you tried any treatment?"
+      },
+      {
+        "role": "user",
+        "content": "Resting helps"
+      },
+      {
+        "role": "user",
+        "content": "No, it stays in one area"
+      },
+      {
+        "role": "assistant",
+        "content": "When does the swelling occur? Is it related to any activities or time of day?"
+      },
+      {
+        "role": "user",
+        "content": "It happens at any time"
+      },
+      {
+        "role": "assistant",
+        "content": "On a scale of 1 to 10, with 10 being the worst imaginable, how severe is the swelling?"
+      },
+      {
+        "role": "user",
+        "content": "It's about a 6 out of 10"
+      },
+      {
+        "role": "assistant",
+        "content": "Have you noticed any other symptoms along with this?"
+      },
+      {
+        "role": "user",
+        "content": "No other symptoms"
+      },
+      {
+        "role": "assistant",
+        "content": "Do you have any existing medical conditions or take any medications?"
+      },
+      {
+        "role": "user",
+        "content": "No medical conditions"
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "user",
+        "content": "I have eye pain"
+      },
+      {
+        "role": "assistant",
+        "content": "I understand you're experiencing eye pain. I'm here to help."
+      },
+      {
+        "role": "assistant",
+        "content": "Is this a new issue that just started, or is this an ongoing problem you've had before with a prior diagnosis?"
+      },
+      {
+        "role": "user",
+        "content": "It's new, started yesterday"
+      },
+      {
+        "role": "assistant",
+        "content": "To help me better understand your situation, could you please tell me your age?"
+      },
+      {
+        "role": "user",
+        "content": "I'm 29 years old"
+      },
+      {
+        "role": "assistant",
+        "content": "Thank you. For medical documentation purposes, what is your biological sex?"
+      },
+      {
+        "role": "user",
+        "content": "Male"
+      },
+      {
+        "role": "assistant",
+        "content": "When did you first notice the vision problem?"
+      },
+      {
+        "role": "user",
+        "content": "I noticed it this morning"
+      },
+      {
+        "role": "assistant",
+        "content": "Which eye or eyes are affected? Is it one eye, both eyes, or does it affect your entire field of vision?"
+      },
+      {
+        "role": "user",
+        "content": "It's in my right eye"
+      },
+      {
+        "role": "assistant",
+        "content": "How long has the vision problem been present? Is it constant or does it come and go?"
+      },
+      {
+        "role": "user",
+        "content": "It's constant"
+      },
+      {
+        "role": "assistant",
+        "content": "How would you describe what you're seeing? Is it blurry, double vision, dark spots, flashes of light, or something else?"
+      },
+      {
+        "role": "user",
+        "content": "There are dark spots"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes the vision problem worse?"
+      },
+      {
+        "role": "user",
+        "content": "It's worse in bright light"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes it better? Have you tried anything?"
+      },
+      {
+        "role": "user",
+        "content": "Resting helps"
+      },
+      {
+        "role": "assistant",
+        "content": "Does the vision problem affect your peripheral vision, central vision, or both?"
+      },
+      {
+        "role": "user",
+        "content": "It affects my peripheral vision"
+      },
+      {
+        "role": "assistant",
+        "content": "When does the vision problem occur? Is it worse at certain times of day or with certain activities?"
+      },
+      {
+        "role": "user",
+        "content": "It happens at any time"
+      },
+      {
+        "role": "assistant",
+        "content": "On a scale of 1 to 10, with 10 being complete vision loss, how severe is the vision problem?"
+      },
+      {
+        "role": "user",
+        "content": "It's about a 5 out of 10"
+      },
+      {
+        "role": "assistant",
+        "content": "Have you noticed any other symptoms along with this?"
+      },
+      {
+        "role": "user",
+        "content": "Yes, I have a fever"
+      },
+      {
+        "role": "assistant",
+        "content": "Do you have any existing medical conditions or take any medications?"
+      },
+      {
+        "role": "user",
+        "content": "I have high blood pressure"
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "user",
+        "content": "I have ringing in my ears"
+      },
+      {
+        "role": "assistant",
+        "content": "I understand you're experiencing ringing in my ears. I'm here to help."
+      },
+      {
+        "role": "assistant",
+        "content": "Is this a new issue that just started, or is this an ongoing problem you've had before with a prior diagnosis?"
+      },
+      {
+        "role": "user",
+        "content": "It's new, started a few days ago"
+      },
+      {
+        "role": "assistant",
+        "content": "To help me better understand your situation, could you please tell me your age?"
+      },
+      {
+        "role": "user",
+        "content": "I'm 60 years old"
+      },
+      {
+        "role": "assistant",
+        "content": "Thank you. For medical documentation purposes, what is your biological sex?"
+      },
+      {
+        "role": "user",
+        "content": "Female"
+      },
+      {
+        "role": "assistant",
+        "content": "When did you first notice the hearing problem?"
+      },
+      {
+        "role": "user",
+        "content": "It started yesterday"
+      },
+      {
+        "role": "assistant",
+        "content": "Which ear or ears are affected? Is it one ear, both ears, or does it affect your hearing overall?"
+      },
+      {
+        "role": "user",
+        "content": "It's in my left ear"
+      },
+      {
+        "role": "assistant",
+        "content": "How long has the hearing problem been present? Is it constant or does it come and go?"
+      },
+      {
+        "role": "user",
+        "content": "It's constant"
+      },
+      {
+        "role": "assistant",
+        "content": "How would you describe what you're hearing or not hearing? Is it muffled, ringing, buzzing, or complete loss?"
+      },
+      {
+        "role": "user",
+        "content": "There's a buzzing sound"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes the hearing problem worse?"
+      },
+      {
+        "role": "user",
+        "content": "It doesn't change"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes it better? Have you tried anything?"
+      },
+      {
+        "role": "user",
+        "content": "Quiet helps a little"
+      },
+      {
+        "role": "assistant",
+        "content": "Does the hearing problem affect both ears equally, or is one ear worse than the other?"
+      },
+      {
+        "role": "user",
+        "content": "Both ears are affected equally"
+      },
+      {
+        "role": "assistant",
+        "content": "When does the hearing problem occur? Is it worse at certain times or with certain sounds?"
+      },
+      {
+        "role": "user",
+        "content": "It's worse in quiet"
+      },
+      {
+        "role": "assistant",
+        "content": "On a scale of 1 to 10, with 10 being complete hearing loss, how severe is the hearing problem?"
+      },
+      {
+        "role": "user",
+        "content": "It's about a 5 out of 10"
+      },
+      {
+        "role": "assistant",
+        "content": "Have you noticed any other symptoms along with this?"
+      },
+      {
+        "role": "user",
+        "content": "No, just the main symptom"
+      },
+      {
+        "role": "assistant",
+        "content": "Do you have any existing medical conditions or take any medications?"
+      },
+      {
+        "role": "user",
+        "content": "No, I'm generally healthy"
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "user",
+        "content": "I have numbness"
+      },
+      {
+        "role": "assistant",
+        "content": "I understand you're experiencing numbness. I'm here to help."
+      },
+      {
+        "role": "assistant",
+        "content": "Is this a new issue that just started, or is this an ongoing problem you've had before with a prior diagnosis?"
+      },
+      {
+        "role": "user",
+        "content": "I have neuropathy, this is worse"
+      },
+      {
+        "role": "assistant",
+        "content": "To help me better understand your situation, could you please tell me your age?"
+      },
+      {
+        "role": "user",
+        "content": "I'm 46 years old"
+      },
+      {
+        "role": "assistant",
+        "content": "Thank you. For medical documentation purposes, what is your biological sex?"
+      },
+      {
+        "role": "user",
+        "content": "Male"
+      },
+      {
+        "role": "assistant",
+        "content": "When did the numbness start?"
+      },
+      {
+        "role": "user",
+        "content": "It started this morning"
+      },
+      {
+        "role": "assistant",
+        "content": "Where on your body is the numbness located?"
+      },
+      {
+        "role": "user",
+        "content": "It's in my chest"
+      },
+      {
+        "role": "assistant",
+        "content": "How long has the numbness been present? Is it constant or does it come and go?"
+      },
+      {
+        "role": "user",
+        "content": "It's been there all morning"
+      },
+      {
+        "role": "assistant",
+        "content": "How would you describe the numbness? What does it feel like?"
+      },
+      {
+        "role": "user",
+        "content": "It's uncomfortable"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes the numbness worse?"
+      },
+      {
+        "role": "user",
+        "content": "Activity makes it worse"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes it better? Have you tried any treatment?"
+      },
+      {
+        "role": "user",
+        "content": "Nothing helps"
+      },
+      {
+        "role": "user",
+        "content": "No, it stays in one area"
+      },
+      {
+        "role": "assistant",
+        "content": "When does the numbness occur? Is it related to any activities or time of day?"
+      },
+      {
+        "role": "user",
+        "content": "It happens at any time"
+      },
+      {
+        "role": "assistant",
+        "content": "On a scale of 1 to 10, with 10 being the worst imaginable, how severe is the numbness?"
+      },
+      {
+        "role": "user",
+        "content": "It's about a 7 out of 10"
+      },
+      {
+        "role": "assistant",
+        "content": "Have you noticed any other symptoms along with this?"
+      },
+      {
+        "role": "user",
+        "content": "Yes, I also feel nauseous"
+      },
+      {
+        "role": "assistant",
+        "content": "Do you have any existing medical conditions or take any medications?"
+      },
+      {
+        "role": "user",
+        "content": "No, I'm generally healthy"
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "user",
+        "content": "I have knee pain"
+      },
+      {
+        "role": "assistant",
+        "content": "I understand you're experiencing knee pain. I'm here to help."
+      },
+      {
+        "role": "assistant",
+        "content": "Is this a new issue that just started, or is this an ongoing problem you've had before with a prior diagnosis?"
+      },
+      {
+        "role": "user",
+        "content": "It's new, started after I fell"
+      },
+      {
+        "role": "assistant",
+        "content": "To help me better understand your situation, could you please tell me your age?"
+      },
+      {
+        "role": "user",
+        "content": "I'm 79 years old"
+      },
+      {
+        "role": "assistant",
+        "content": "Thank you. For medical documentation purposes, what is your biological sex?"
+      },
+      {
+        "role": "user",
+        "content": "Male"
+      },
+      {
+        "role": "assistant",
+        "content": "When did the knee pain start?"
+      },
+      {
+        "role": "user",
+        "content": "It started about an hour ago"
+      },
+      {
+        "role": "assistant",
+        "content": "Where exactly is the knee pain located?"
+      },
+      {
+        "role": "user",
+        "content": "It's on the right side"
+      },
+      {
+        "role": "assistant",
+        "content": "How long has the knee pain been present? Is it constant or does it come and go?"
+      },
+      {
+        "role": "user",
+        "content": "It's been constant for about an hour"
+      },
+      {
+        "role": "assistant",
+        "content": "How would you describe the knee pain? What does it feel like?"
+      },
+      {
+        "role": "user",
+        "content": "It's burning"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes the knee pain worse?"
+      },
+      {
+        "role": "user",
+        "content": "It gets worse when I breathe deeply"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes it better? Have you tried any treatment?"
+      },
+      {
+        "role": "user",
+        "content": "Nothing really helps"
+      },
+      {
+        "role": "assistant",
+        "content": "Does the knee pain spread or radiate anywhere else?"
+      },
+      {
+        "role": "user",
+        "content": "Yes, it goes to my left arm"
+      },
+      {
+        "role": "assistant",
+        "content": "When does the knee pain occur? Is it related to any activities or time of day?"
+      },
+      {
+        "role": "user",
+        "content": "It's worse in the morning"
+      },
+      {
+        "role": "assistant",
+        "content": "On a scale of 1 to 10, with 10 being the worst imaginable, how severe is the knee pain?"
+      },
+      {
+        "role": "user",
+        "content": "It's about a 7 out of 10"
+      },
+      {
+        "role": "assistant",
+        "content": "Have you noticed any other symptoms along with this?"
+      },
+      {
+        "role": "user",
+        "content": "Yes, I also feel nauseous"
+      },
+      {
+        "role": "assistant",
+        "content": "Do you have any existing medical conditions or take any medications?"
+      },
+      {
+        "role": "user",
+        "content": "I take medication for my blood pressure"
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "user",
+        "content": "I have double vision"
+      },
+      {
+        "role": "assistant",
+        "content": "I understand you're experiencing double vision. I'm here to help."
+      },
+      {
+        "role": "assistant",
+        "content": "Is this a new issue that just started, or is this an ongoing problem you've had before with a prior diagnosis?"
+      },
+      {
+        "role": "user",
+        "content": "This happens sometimes"
+      },
+      {
+        "role": "assistant",
+        "content": "To help me better understand your situation, could you please tell me your age?"
+      },
+      {
+        "role": "user",
+        "content": "I'm 79 years old"
+      },
+      {
+        "role": "assistant",
+        "content": "Thank you. For medical documentation purposes, what is your biological sex?"
+      },
+      {
+        "role": "user",
+        "content": "Female"
+      },
+      {
+        "role": "assistant",
+        "content": "When did you first notice the vision problem?"
+      },
+      {
+        "role": "user",
+        "content": "It started suddenly"
+      },
+      {
+        "role": "assistant",
+        "content": "Which eye or eyes are affected? Is it one eye, both eyes, or does it affect your entire field of vision?"
+      },
+      {
+        "role": "user",
+        "content": "It's in both eyes"
+      },
+      {
+        "role": "assistant",
+        "content": "How long has the vision problem been present? Is it constant or does it come and go?"
+      },
+      {
+        "role": "user",
+        "content": "It's been there all morning"
+      },
+      {
+        "role": "assistant",
+        "content": "How would you describe what you're seeing? Is it blurry, double vision, dark spots, flashes of light, or something else?"
+      },
+      {
+        "role": "user",
+        "content": "I see flashes of light"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes the vision problem worse?"
+      },
+      {
+        "role": "user",
+        "content": "It's worse in bright light"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes it better? Have you tried anything?"
+      },
+      {
+        "role": "user",
+        "content": "Closing my eyes helps a little"
+      },
+      {
+        "role": "assistant",
+        "content": "Does the vision problem affect your peripheral vision, central vision, or both?"
+      },
+      {
+        "role": "user",
+        "content": "It's just in the center"
+      },
+      {
+        "role": "assistant",
+        "content": "When does the vision problem occur? Is it worse at certain times of day or with certain activities?"
+      },
+      {
+        "role": "user",
+        "content": "It's worse in the morning"
+      },
+      {
+        "role": "assistant",
+        "content": "On a scale of 1 to 10, with 10 being complete vision loss, how severe is the vision problem?"
+      },
+      {
+        "role": "user",
+        "content": "It's about a 6 out of 10"
+      },
+      {
+        "role": "assistant",
+        "content": "Have you noticed any other symptoms along with this?"
+      },
+      {
+        "role": "user",
+        "content": "No other symptoms"
+      },
+      {
+        "role": "assistant",
+        "content": "Do you have any existing medical conditions or take any medications?"
+      },
+      {
+        "role": "user",
+        "content": "No medical conditions"
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "user",
+        "content": "I have neck pain"
+      },
+      {
+        "role": "assistant",
+        "content": "I understand you're experiencing neck pain. I'm here to help."
+      },
+      {
+        "role": "assistant",
+        "content": "Is this a new issue that just started, or is this an ongoing problem you've had before with a prior diagnosis?"
+      },
+      {
+        "role": "user",
+        "content": "It's new, started yesterday"
+      },
+      {
+        "role": "assistant",
+        "content": "To help me better understand your situation, could you please tell me your age?"
+      },
+      {
+        "role": "user",
+        "content": "I'm 26 years old"
+      },
+      {
+        "role": "assistant",
+        "content": "Thank you. For medical documentation purposes, what is your biological sex?"
+      },
+      {
+        "role": "user",
+        "content": "Female"
+      },
+      {
+        "role": "assistant",
+        "content": "When did the neck pain start?"
+      },
+      {
+        "role": "user",
+        "content": "It started yesterday morning"
+      },
+      {
+        "role": "assistant",
+        "content": "Where exactly is the neck pain located?"
+      },
+      {
+        "role": "user",
+        "content": "It's in the center of my chest"
+      },
+      {
+        "role": "assistant",
+        "content": "How long has the neck pain been present? Is it constant or does it come and go?"
+      },
+      {
+        "role": "user",
+        "content": "It's been there all day"
+      },
+      {
+        "role": "assistant",
+        "content": "How would you describe the neck pain? What does it feel like?"
+      },
+      {
+        "role": "user",
+        "content": "It feels like pressure"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes the neck pain worse?"
+      },
+      {
+        "role": "user",
+        "content": "It gets worse when I move"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes it better? Have you tried any treatment?"
+      },
+      {
+        "role": "user",
+        "content": "Resting helps"
+      },
+      {
+        "role": "assistant",
+        "content": "Does the neck pain spread or radiate anywhere else?"
+      },
+      {
+        "role": "user",
+        "content": "Yes, it spreads to my jaw"
+      },
+      {
+        "role": "assistant",
+        "content": "When does the neck pain occur? Is it related to any activities or time of day?"
+      },
+      {
+        "role": "user",
+        "content": "It started while I was sitting down"
+      },
+      {
+        "role": "assistant",
+        "content": "On a scale of 1 to 10, with 10 being the worst imaginable, how severe is the neck pain?"
+      },
+      {
+        "role": "user",
+        "content": "It's about an 8 out of 10"
+      },
+      {
+        "role": "assistant",
+        "content": "Have you noticed any other symptoms along with this?"
+      },
+      {
+        "role": "user",
+        "content": "Yes, I also feel nauseous"
+      },
+      {
+        "role": "assistant",
+        "content": "Do you have any existing medical conditions or take any medications?"
+      },
+      {
+        "role": "user",
+        "content": "I take medication for my blood pressure"
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "user",
+        "content": "I have numbness"
+      },
+      {
+        "role": "assistant",
+        "content": "I understand you're experiencing numbness. I'm here to help."
+      },
+      {
+        "role": "assistant",
+        "content": "Is this a new issue that just started, or is this an ongoing problem you've had before with a prior diagnosis?"
+      },
+      {
+        "role": "user",
+        "content": "It's new, started this morning"
+      },
+      {
+        "role": "assistant",
+        "content": "To help me better understand your situation, could you please tell me your age?"
+      },
+      {
+        "role": "user",
+        "content": "I'm 45 years old"
+      },
+      {
+        "role": "assistant",
+        "content": "Thank you. For medical documentation purposes, what is your biological sex?"
+      },
+      {
+        "role": "user",
+        "content": "Female"
+      },
+      {
+        "role": "assistant",
+        "content": "When did the numbness start?"
+      },
+      {
+        "role": "user",
+        "content": "It came on suddenly"
+      },
+      {
+        "role": "assistant",
+        "content": "Where on your body is the numbness located?"
+      },
+      {
+        "role": "user",
+        "content": "It's in my throat"
+      },
+      {
+        "role": "assistant",
+        "content": "How long has the numbness been present? Is it constant or does it come and go?"
+      },
+      {
+        "role": "user",
+        "content": "It's been there all morning"
+      },
+      {
+        "role": "assistant",
+        "content": "How would you describe the numbness? What does it feel like?"
+      },
+      {
+        "role": "user",
+        "content": "It's irritating"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes the numbness worse?"
+      },
+      {
+        "role": "user",
+        "content": "It doesn't change"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes it better? Have you tried any treatment?"
+      },
+      {
+        "role": "user",
+        "content": "Nothing helps"
+      },
+      {
+        "role": "user",
+        "content": "No, it stays in one area"
+      },
+      {
+        "role": "assistant",
+        "content": "When does the numbness occur? Is it related to any activities or time of day?"
+      },
+      {
+        "role": "user",
+        "content": "It's worse after eating"
+      },
+      {
+        "role": "assistant",
+        "content": "On a scale of 1 to 10, with 10 being the worst imaginable, how severe is the numbness?"
+      },
+      {
+        "role": "user",
+        "content": "It's about a 5 out of 10"
+      },
+      {
+        "role": "assistant",
+        "content": "Have you noticed any other symptoms along with this?"
+      },
+      {
+        "role": "user",
+        "content": "Yes, I feel tired"
+      },
+      {
+        "role": "assistant",
+        "content": "Do you have any existing medical conditions or take any medications?"
+      },
+      {
+        "role": "user",
+        "content": "I have high blood pressure"
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "user",
+        "content": "I have shortness of breath"
+      },
+      {
+        "role": "assistant",
+        "content": "I understand you're experiencing shortness of breath. I'm here to help."
+      },
+      {
+        "role": "assistant",
+        "content": "Is this a new issue that just started, or is this an ongoing problem you've had before with a prior diagnosis?"
+      },
+      {
+        "role": "user",
+        "content": "It's new, started about an hour ago"
+      },
+      {
+        "role": "assistant",
+        "content": "Thank you for clarifying. To help me better understand your situation, could you please tell me your age?"
+      },
+      {
+        "role": "user",
+        "content": "I'm 71 years old"
+      },
+      {
+        "role": "assistant",
+        "content": "Thank you. For medical documentation purposes, what is your biological sex?"
+      },
+      {
+        "role": "user",
+        "content": "Female"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes it better?"
+      },
+      {
+        "role": "assistant",
+        "content": "When did the shortness of breath start?"
+      },
+      {
+        "role": "user",
+        "content": "It began yesterday"
+      },
+      {
+        "role": "assistant",
+        "content": "When did the shortness of breath start?"
+      },
+      {
+        "role": "user",
+        "content": "It's throughout my body"
+      },
+      {
+        "role": "assistant",
+        "content": "How long has the shortness of breath been present?"
+      },
+      {
+        "role": "user",
+        "content": "It's been constant"
+      },
+      {
+        "role": "assistant",
+        "content": "How would you describe the shortness of breath?"
+      },
+      {
+        "role": "user",
+        "content": "It feels tight"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes the shortness of breath worse?"
+      },
+      {
+        "role": "user",
+        "content": "It doesn't change"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes it better?"
+      },
+      {
+        "role": "user",
+        "content": "I tried medication but it didn't help"
+      },
+      {
+        "role": "user",
+        "content": "It affects multiple areas"
+      },
+      {
+        "role": "assistant",
+        "content": "When does the shortness of breath occur?"
+      },
+      {
+        "role": "user",
+        "content": "It's worse in the morning"
+      },
+      {
+        "role": "assistant",
+        "content": "On a scale of 1 to 10, with 10 being unable to breathe at all, how severe is the shortness of breath?"
+      },
+      {
+        "role": "user",
+        "content": "It's about a 6 out of 10"
+      },
+      {
+        "role": "assistant",
+        "content": "Have you noticed any other symptoms along with this?"
+      },
+      {
+        "role": "user",
+        "content": "No other symptoms"
+      },
+      {
+        "role": "assistant",
+        "content": "Do you have any existing medical conditions or take any medications?"
+      },
+      {
+        "role": "user",
+        "content": "I have high blood pressure"
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "user",
+        "content": "I have swelling"
+      },
+      {
+        "role": "assistant",
+        "content": "I understand you're experiencing swelling. I'm here to help."
+      },
+      {
+        "role": "assistant",
+        "content": "Is this a new issue that just started, or is this an ongoing problem you've had before with a prior diagnosis?"
+      },
+      {
+        "role": "user",
+        "content": "It's new, started yesterday"
+      },
+      {
+        "role": "assistant",
+        "content": "To help me better understand your situation, could you please tell me your age?"
+      },
+      {
+        "role": "user",
+        "content": "I'm 52 years old"
+      },
+      {
+        "role": "assistant",
+        "content": "Thank you. For medical documentation purposes, what is your biological sex?"
+      },
+      {
+        "role": "user",
+        "content": "Male"
+      },
+      {
+        "role": "assistant",
+        "content": "When did the swelling start?"
+      },
+      {
+        "role": "user",
+        "content": "It started this morning"
+      },
+      {
+        "role": "assistant",
+        "content": "Where on your body is the swelling located?"
+      },
+      {
+        "role": "user",
+        "content": "It's throughout my body"
+      },
+      {
+        "role": "assistant",
+        "content": "How long has the swelling been present? Is it constant or does it come and go?"
+      },
+      {
+        "role": "user",
+        "content": "It comes and goes"
+      },
+      {
+        "role": "assistant",
+        "content": "How would you describe the swelling? What does it feel like?"
+      },
+      {
+        "role": "user",
+        "content": "It feels tight"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes the swelling worse?"
+      },
+      {
+        "role": "user",
+        "content": "It doesn't change"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes it better? Have you tried any treatment?"
+      },
+      {
+        "role": "user",
+        "content": "I tried medication but it didn't help"
+      },
+      {
+        "role": "user",
+        "content": "It affects multiple areas"
+      },
+      {
+        "role": "assistant",
+        "content": "When does the swelling occur? Is it related to any activities or time of day?"
+      },
+      {
+        "role": "user",
+        "content": "It happens at any time"
+      },
+      {
+        "role": "assistant",
+        "content": "On a scale of 1 to 10, with 10 being the worst imaginable, how severe is the swelling?"
+      },
+      {
+        "role": "user",
+        "content": "It's about a 5 out of 10"
+      },
+      {
+        "role": "assistant",
+        "content": "Have you noticed any other symptoms along with this?"
+      },
+      {
+        "role": "user",
+        "content": "No other symptoms"
+      },
+      {
+        "role": "assistant",
+        "content": "Do you have any existing medical conditions or take any medications?"
+      },
+      {
+        "role": "user",
+        "content": "No, I'm generally healthy"
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "user",
+        "content": "I have chest pain"
+      },
+      {
+        "role": "assistant",
+        "content": "I understand you're experiencing chest pain. I'm here to help."
+      },
+      {
+        "role": "assistant",
+        "content": "Is this a new issue that just started, or is this an ongoing problem you've had before with a prior diagnosis?"
+      },
+      {
+        "role": "user",
+        "content": "It's new, started about an hour ago"
+      },
+      {
+        "role": "assistant",
+        "content": "Thank you for clarifying. To help me better understand your situation, could you please tell me your age?"
+      },
+      {
+        "role": "user",
+        "content": "I'm 49 years old"
+      },
+      {
+        "role": "assistant",
+        "content": "Thank you. For medical documentation purposes, what is your biological sex?"
+      },
+      {
+        "role": "user",
+        "content": "Female"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes it better?"
+      },
+      {
+        "role": "assistant",
+        "content": "When did the chest pain start?"
+      },
+      {
+        "role": "user",
+        "content": "It started about an hour ago"
+      },
+      {
+        "role": "assistant",
+        "content": "Where exactly is the pain located?"
+      },
+      {
+        "role": "user",
+        "content": "It's in the center of my chest"
+      },
+      {
+        "role": "assistant",
+        "content": "How long has the pain been present?"
+      },
+      {
+        "role": "user",
+        "content": "It's been there all day"
+      },
+      {
+        "role": "assistant",
+        "content": "How would you describe the pain?"
+      },
+      {
+        "role": "user",
+        "content": "It's a sharp pain"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes the pain worse?"
+      },
+      {
+        "role": "user",
+        "content": "It gets worse when I breathe deeply"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes it better?"
+      },
+      {
+        "role": "user",
+        "content": "Nothing really helps"
+      },
+      {
+        "role": "assistant",
+        "content": "Where exactly is the pain located?"
+      },
+      {
+        "role": "user",
+        "content": "Yes, it spreads to my jaw"
+      },
+      {
+        "role": "assistant",
+        "content": "Is the pain constant or does it come and go?"
+      },
+      {
+        "role": "user",
+        "content": "It started while I was sitting down"
+      },
+      {
+        "role": "assistant",
+        "content": "On a scale of 1 to 10, with 10 being the worst imaginable, how severe is the pain?"
+      },
+      {
+        "role": "user",
+        "content": "It's about an 8 out of 10"
+      },
+      {
+        "role": "assistant",
+        "content": "Have you noticed any other symptoms along with this?"
+      },
+      {
+        "role": "user",
+        "content": "Yes, I feel tired"
+      },
+      {
+        "role": "assistant",
+        "content": "Do you have any existing medical conditions or take any medications?"
+      },
+      {
+        "role": "user",
+        "content": "I have high blood pressure"
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "user",
+        "content": "I have chest pain"
+      },
+      {
+        "role": "assistant",
+        "content": "I understand you're experiencing chest pain. I'm here to help."
+      },
+      {
+        "role": "assistant",
+        "content": "Is this a new issue that just started, or is this an ongoing problem you've had before with a prior diagnosis?"
+      },
+      {
+        "role": "user",
+        "content": "It's an ongoing issue I've had before"
+      },
+      {
+        "role": "assistant",
+        "content": "Thank you for clarifying. To help me better understand your situation, could you please tell me your age?"
+      },
+      {
+        "role": "user",
+        "content": "I'm 53 years old"
+      },
+      {
+        "role": "assistant",
+        "content": "Thank you. For medical documentation purposes, what is your biological sex?"
+      },
+      {
+        "role": "user",
+        "content": "Male"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes it better?"
+      },
+      {
+        "role": "assistant",
+        "content": "When did the chest pain start?"
+      },
+      {
+        "role": "user",
+        "content": "It started about an hour ago"
+      },
+      {
+        "role": "assistant",
+        "content": "Where exactly is the pain located?"
+      },
+      {
+        "role": "user",
+        "content": "It's all over"
+      },
+      {
+        "role": "assistant",
+        "content": "How long has the pain been present?"
+      },
+      {
+        "role": "user",
+        "content": "It comes and goes"
+      },
+      {
+        "role": "assistant",
+        "content": "How would you describe the pain?"
+      },
+      {
+        "role": "user",
+        "content": "It feels like pressure"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes the pain worse?"
+      },
+      {
+        "role": "user",
+        "content": "It gets worse when I move"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes it better?"
+      },
+      {
+        "role": "user",
+        "content": "Nothing really helps"
+      },
+      {
+        "role": "assistant",
+        "content": "Where exactly is the pain located?"
+      },
+      {
+        "role": "user",
+        "content": "Yes, it goes to my left arm"
+      },
+      {
+        "role": "assistant",
+        "content": "Is the pain constant or does it come and go?"
+      },
+      {
+        "role": "user",
+        "content": "It happens at any time"
+      },
+      {
+        "role": "assistant",
+        "content": "On a scale of 1 to 10, with 10 being the worst imaginable, how severe is the pain?"
+      },
+      {
+        "role": "user",
+        "content": "It's about a 5 out of 10"
+      },
+      {
+        "role": "assistant",
+        "content": "Have you noticed any other symptoms along with this?"
+      },
+      {
+        "role": "user",
+        "content": "Yes, I also feel nauseous"
+      },
+      {
+        "role": "assistant",
+        "content": "Do you have any existing medical conditions or take any medications?"
+      },
+      {
+        "role": "user",
+        "content": "I take medication for my blood pressure"
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "user",
+        "content": "I have joint pain"
+      },
+      {
+        "role": "assistant",
+        "content": "I understand you're experiencing joint pain. I'm here to help."
+      },
+      {
+        "role": "assistant",
+        "content": "Is this a new issue that just started, or is this an ongoing problem you've had before with a prior diagnosis?"
+      },
+      {
+        "role": "user",
+        "content": "It's new, started a few days ago"
+      },
+      {
+        "role": "assistant",
+        "content": "To help me better understand your situation, could you please tell me your age?"
+      },
+      {
+        "role": "user",
+        "content": "I'm 47 years old"
+      },
+      {
+        "role": "assistant",
+        "content": "Thank you. For medical documentation purposes, what is your biological sex?"
+      },
+      {
+        "role": "user",
+        "content": "Male"
+      },
+      {
+        "role": "assistant",
+        "content": "When did the joint pain start?"
+      },
+      {
+        "role": "user",
+        "content": "It started yesterday morning"
+      },
+      {
+        "role": "assistant",
+        "content": "Where exactly is the joint pain located?"
+      },
+      {
+        "role": "user",
+        "content": "It's in the center of my chest"
+      },
+      {
+        "role": "assistant",
+        "content": "How long has the joint pain been present? Is it constant or does it come and go?"
+      },
+      {
+        "role": "user",
+        "content": "It comes and goes"
+      },
+      {
+        "role": "assistant",
+        "content": "How would you describe the joint pain? What does it feel like?"
+      },
+      {
+        "role": "user",
+        "content": "It's a sharp pain"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes the joint pain worse?"
+      },
+      {
+        "role": "user",
+        "content": "It gets worse when I breathe deeply"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes it better? Have you tried any treatment?"
+      },
+      {
+        "role": "user",
+        "content": "Resting helps"
+      },
+      {
+        "role": "assistant",
+        "content": "Does the joint pain spread or radiate anywhere else?"
+      },
+      {
+        "role": "user",
+        "content": "Yes, it goes to my left arm"
+      },
+      {
+        "role": "assistant",
+        "content": "When does the joint pain occur? Is it related to any activities or time of day?"
+      },
+      {
+        "role": "user",
+        "content": "It's worse in the morning"
+      },
+      {
+        "role": "assistant",
+        "content": "On a scale of 1 to 10, with 10 being the worst imaginable, how severe is the joint pain?"
+      },
+      {
+        "role": "user",
+        "content": "It's about a 5 out of 10"
+      },
+      {
+        "role": "assistant",
+        "content": "Have you noticed any other symptoms along with this?"
+      },
+      {
+        "role": "user",
+        "content": "No, just the main symptom"
+      },
+      {
+        "role": "assistant",
+        "content": "Do you have any existing medical conditions or take any medications?"
+      },
+      {
+        "role": "user",
+        "content": "I have diabetes"
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "user",
+        "content": "I have fatigue"
+      },
+      {
+        "role": "assistant",
+        "content": "I understand you're experiencing fatigue. I'm here to help."
+      },
+      {
+        "role": "assistant",
+        "content": "Is this a new issue that just started, or is this an ongoing problem you've had before with a prior diagnosis?"
+      },
+      {
+        "role": "user",
+        "content": "It's new, started a week ago"
+      },
+      {
+        "role": "assistant",
+        "content": "To help me better understand your situation, could you please tell me your age?"
+      },
+      {
+        "role": "user",
+        "content": "I'm 52 years old"
+      },
+      {
+        "role": "assistant",
+        "content": "Thank you. For medical documentation purposes, what is your biological sex?"
+      },
+      {
+        "role": "user",
+        "content": "Female"
+      },
+      {
+        "role": "assistant",
+        "content": "When did the fatigue start?"
+      },
+      {
+        "role": "user",
+        "content": "It came on suddenly"
+      },
+      {
+        "role": "assistant",
+        "content": "When did the fatigue start?"
+      },
+      {
+        "role": "assistant",
+        "content": "How long has the fatigue been present? Is it constant or does it come and go?"
+      },
+      {
+        "role": "user",
+        "content": "It's been constant"
+      },
+      {
+        "role": "assistant",
+        "content": "How would you describe the fatigue? What does it feel like?"
+      },
+      {
+        "role": "user",
+        "content": "It feels tight"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes the fatigue worse?"
+      },
+      {
+        "role": "user",
+        "content": "Activity makes it worse"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes it better? Have you tried any treatment?"
+      },
+      {
+        "role": "user",
+        "content": "Resting helps"
+      },
+      {
+        "role": "assistant",
+        "content": "When does the fatigue occur? Is it related to any activities or time of day?"
+      },
+      {
+        "role": "user",
+        "content": "It's worse in the morning"
+      },
+      {
+        "role": "assistant",
+        "content": "On a scale of 1 to 10, with 10 being the worst imaginable, how severe is the fatigue?"
+      },
+      {
+        "role": "user",
+        "content": "It's about a 6 out of 10"
+      },
+      {
+        "role": "assistant",
+        "content": "Have you noticed any other symptoms along with this?"
+      },
+      {
+        "role": "user",
+        "content": "Yes, I feel tired"
+      },
+      {
+        "role": "assistant",
+        "content": "Do you have any existing medical conditions or take any medications?"
+      },
+      {
+        "role": "user",
+        "content": "I take medication for my blood pressure"
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "user",
+        "content": "I have chest pain"
+      },
+      {
+        "role": "assistant",
+        "content": "I understand you're experiencing chest pain. I'm here to help."
+      },
+      {
+        "role": "assistant",
+        "content": "Is this a new issue that just started, or is this an ongoing problem you've had before with a prior diagnosis?"
+      },
+      {
+        "role": "user",
+        "content": "It's an ongoing issue I've had before"
+      },
+      {
+        "role": "assistant",
+        "content": "Thank you for clarifying. To help me better understand your situation, could you please tell me your age?"
+      },
+      {
+        "role": "user",
+        "content": "I'm 50 years old"
+      },
+      {
+        "role": "assistant",
+        "content": "Thank you. For medical documentation purposes, what is your biological sex?"
+      },
+      {
+        "role": "user",
+        "content": "Male"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes it better?"
+      },
+      {
+        "role": "assistant",
+        "content": "When did the chest pain start?"
+      },
+      {
+        "role": "user",
+        "content": "It started gradually"
+      },
+      {
+        "role": "assistant",
+        "content": "Where exactly is the pain located?"
+      },
+      {
+        "role": "user",
+        "content": "It's in the center of my chest"
+      },
+      {
+        "role": "assistant",
+        "content": "How long has the pain been present?"
+      },
+      {
+        "role": "user",
+        "content": "It comes and goes"
+      },
+      {
+        "role": "assistant",
+        "content": "How would you describe the pain?"
+      },
+      {
+        "role": "user",
+        "content": "It's a sharp pain"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes the pain worse?"
+      },
+      {
+        "role": "user",
+        "content": "It gets worse when I move"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes it better?"
+      },
+      {
+        "role": "user",
+        "content": "Nothing really helps"
+      },
+      {
+        "role": "assistant",
+        "content": "Where exactly is the pain located?"
+      },
+      {
+        "role": "user",
+        "content": "No, it stays in one place"
+      },
+      {
+        "role": "assistant",
+        "content": "Is the pain constant or does it come and go?"
+      },
+      {
+        "role": "user",
+        "content": "It's worse in the morning"
+      },
+      {
+        "role": "assistant",
+        "content": "On a scale of 1 to 10, with 10 being the worst imaginable, how severe is the pain?"
+      },
+      {
+        "role": "user",
+        "content": "It's about a 7 out of 10"
+      },
+      {
+        "role": "assistant",
+        "content": "Have you noticed any other symptoms along with this?"
+      },
+      {
+        "role": "user",
+        "content": "Yes, I also feel nauseous"
+      },
+      {
+        "role": "assistant",
+        "content": "Do you have any existing medical conditions or take any medications?"
+      },
+      {
+        "role": "user",
+        "content": "No, I'm generally healthy"
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "user",
+        "content": "I have chest pain"
+      },
+      {
+        "role": "assistant",
+        "content": "I understand you're experiencing chest pain. I'm here to help."
+      },
+      {
+        "role": "assistant",
+        "content": "Is this a new issue that just started, or is this an ongoing problem you've had before with a prior diagnosis?"
+      },
+      {
+        "role": "user",
+        "content": "It's an ongoing issue I've had before"
+      },
+      {
+        "role": "assistant",
+        "content": "Thank you for clarifying. To help me better understand your situation, could you please tell me your age?"
+      },
+      {
+        "role": "user",
+        "content": "I'm 55 years old"
+      },
+      {
+        "role": "assistant",
+        "content": "Thank you. For medical documentation purposes, what is your biological sex?"
+      },
+      {
+        "role": "user",
+        "content": "Female"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes it better?"
+      },
+      {
+        "role": "assistant",
+        "content": "When did the chest pain start?"
+      },
+      {
+        "role": "user",
+        "content": "It started about an hour ago"
+      },
+      {
+        "role": "assistant",
+        "content": "Where exactly is the pain located?"
+      },
+      {
+        "role": "user",
+        "content": "It's in my lower abdomen"
+      },
+      {
+        "role": "assistant",
+        "content": "How long has the pain been present?"
+      },
+      {
+        "role": "user",
+        "content": "It comes and goes"
+      },
+      {
+        "role": "assistant",
+        "content": "How would you describe the pain?"
+      },
+      {
+        "role": "user",
+        "content": "It's burning"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes the pain worse?"
+      },
+      {
+        "role": "user",
+        "content": "Nothing specific"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes it better?"
+      },
+      {
+        "role": "user",
+        "content": "I tried pain medication but it didn't help much"
+      },
+      {
+        "role": "assistant",
+        "content": "Where exactly is the pain located?"
+      },
+      {
+        "role": "user",
+        "content": "No, it stays in one place"
+      },
+      {
+        "role": "assistant",
+        "content": "Is the pain constant or does it come and go?"
+      },
+      {
+        "role": "user",
+        "content": "It started while I was sitting down"
+      },
+      {
+        "role": "assistant",
+        "content": "On a scale of 1 to 10, with 10 being the worst imaginable, how severe is the pain?"
+      },
+      {
+        "role": "user",
+        "content": "It's about a 7 out of 10"
+      },
+      {
+        "role": "assistant",
+        "content": "Have you noticed any other symptoms along with this?"
+      },
+      {
+        "role": "user",
+        "content": "Yes, I feel tired"
+      },
+      {
+        "role": "assistant",
+        "content": "Do you have any existing medical conditions or take any medications?"
+      },
+      {
+        "role": "user",
+        "content": "I have high blood pressure"
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "user",
+        "content": "I have cough"
+      },
+      {
+        "role": "assistant",
+        "content": "I understand you're experiencing cough. I'm here to help."
+      },
+      {
+        "role": "assistant",
+        "content": "Is this a new issue that just started, or is this an ongoing problem you've had before with a prior diagnosis?"
+      },
+      {
+        "role": "user",
+        "content": "It's new, started 3 days ago"
+      },
+      {
+        "role": "assistant",
+        "content": "Thank you for clarifying. To help me better understand your situation, could you please tell me your age?"
+      },
+      {
+        "role": "user",
+        "content": "I'm 31 years old"
+      },
+      {
+        "role": "assistant",
+        "content": "Thank you. For medical documentation purposes, what is your biological sex?"
+      },
+      {
+        "role": "user",
+        "content": "Female"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes it better?"
+      },
+      {
+        "role": "assistant",
+        "content": "When did the cough start?"
+      },
+      {
+        "role": "user",
+        "content": "It began yesterday"
+      },
+      {
+        "role": "assistant",
+        "content": "When did the cough start?"
+      },
+      {
+        "role": "assistant",
+        "content": "How long have you had the cough?"
+      },
+      {
+        "role": "user",
+        "content": "It comes and goes"
+      },
+      {
+        "role": "assistant",
+        "content": "How would you describe the cough?"
+      },
+      {
+        "role": "user",
+        "content": "It's uncomfortable"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes the cough worse?"
+      },
+      {
+        "role": "user",
+        "content": "Certain positions make it worse"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes it better?"
+      },
+      {
+        "role": "user",
+        "content": "I tried medication but it didn't help"
+      },
+      {
+        "role": "user",
+        "content": "No, it stays in one area"
+      },
+      {
+        "role": "assistant",
+        "content": "When does the cough occur?"
+      },
+      {
+        "role": "user",
+        "content": "It happens at any time"
+      },
+      {
+        "role": "assistant",
+        "content": "On a scale of 1 to 10, with 10 being the worst imaginable, how severe is the cough?"
+      },
+      {
+        "role": "user",
+        "content": "It's about a 5 out of 10"
+      },
+      {
+        "role": "assistant",
+        "content": "Have you noticed any other symptoms along with this?"
+      },
+      {
+        "role": "user",
+        "content": "Yes, I also feel nauseous"
+      },
+      {
+        "role": "assistant",
+        "content": "Do you have any existing medical conditions or take any medications?"
+      },
+      {
+        "role": "user",
+        "content": "I have diabetes"
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "user",
+        "content": "I have neck pain"
+      },
+      {
+        "role": "assistant",
+        "content": "I understand you're experiencing neck pain. I'm here to help."
+      },
+      {
+        "role": "assistant",
+        "content": "Is this a new issue that just started, or is this an ongoing problem you've had before with a prior diagnosis?"
+      },
+      {
+        "role": "user",
+        "content": "It's new, started yesterday"
+      },
+      {
+        "role": "assistant",
+        "content": "To help me better understand your situation, could you please tell me your age?"
+      },
+      {
+        "role": "user",
+        "content": "I'm 41 years old"
+      },
+      {
+        "role": "assistant",
+        "content": "Thank you. For medical documentation purposes, what is your biological sex?"
+      },
+      {
+        "role": "user",
+        "content": "Male"
+      },
+      {
+        "role": "assistant",
+        "content": "When did the neck pain start?"
+      },
+      {
+        "role": "user",
+        "content": "It came on suddenly"
+      },
+      {
+        "role": "assistant",
+        "content": "Where exactly is the neck pain located?"
+      },
+      {
+        "role": "user",
+        "content": "It's all over"
+      },
+      {
+        "role": "assistant",
+        "content": "How long has the neck pain been present? Is it constant or does it come and go?"
+      },
+      {
+        "role": "user",
+        "content": "It's been constant for about an hour"
+      },
+      {
+        "role": "assistant",
+        "content": "How would you describe the neck pain? What does it feel like?"
+      },
+      {
+        "role": "user",
+        "content": "It's a dull ache"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes the neck pain worse?"
+      },
+      {
+        "role": "user",
+        "content": "Nothing specific"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes it better? Have you tried any treatment?"
+      },
+      {
+        "role": "user",
+        "content": "Nothing really helps"
+      },
+      {
+        "role": "assistant",
+        "content": "Does the neck pain spread or radiate anywhere else?"
+      },
+      {
+        "role": "user",
+        "content": "Yes, it spreads to my jaw"
+      },
+      {
+        "role": "assistant",
+        "content": "When does the neck pain occur? Is it related to any activities or time of day?"
+      },
+      {
+        "role": "user",
+        "content": "It started while I was sitting down"
+      },
+      {
+        "role": "assistant",
+        "content": "On a scale of 1 to 10, with 10 being the worst imaginable, how severe is the neck pain?"
+      },
+      {
+        "role": "user",
+        "content": "It's about an 8 out of 10"
+      },
+      {
+        "role": "assistant",
+        "content": "Have you noticed any other symptoms along with this?"
+      },
+      {
+        "role": "user",
+        "content": "Yes, I feel tired"
+      },
+      {
+        "role": "assistant",
+        "content": "Do you have any existing medical conditions or take any medications?"
+      },
+      {
+        "role": "user",
+        "content": "No medical conditions"
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "user",
+        "content": "I have nausea"
+      },
+      {
+        "role": "assistant",
+        "content": "I understand you're experiencing nausea. I'm here to help."
+      },
+      {
+        "role": "assistant",
+        "content": "Is this a new issue that just started, or is this an ongoing problem you've had before with a prior diagnosis?"
+      },
+      {
+        "role": "user",
+        "content": "I have chronic nausea"
+      },
+      {
+        "role": "assistant",
+        "content": "Thank you for clarifying. To help me better understand your situation, could you please tell me your age?"
+      },
+      {
+        "role": "user",
+        "content": "I'm 45 years old"
+      },
+      {
+        "role": "assistant",
+        "content": "Thank you. For medical documentation purposes, what is your biological sex?"
+      },
+      {
+        "role": "user",
+        "content": "Female"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes it better?"
+      },
+      {
+        "role": "assistant",
+        "content": "When did the nausea start?"
+      },
+      {
+        "role": "user",
+        "content": "It came on suddenly"
+      },
+      {
+        "role": "assistant",
+        "content": "When did the nausea start?"
+      },
+      {
+        "role": "assistant",
+        "content": "How long has the nausea been present?"
+      },
+      {
+        "role": "user",
+        "content": "It's been constant"
+      },
+      {
+        "role": "assistant",
+        "content": "How would you describe the nausea?"
+      },
+      {
+        "role": "user",
+        "content": "It's uncomfortable"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes the nausea worse?"
+      },
+      {
+        "role": "user",
+        "content": "Certain positions make it worse"
+      },
+      {
+        "role": "assistant",
+        "content": "What makes it better?"
+      },
+      {
+        "role": "user",
+        "content": "Nothing helps"
+      },
+      {
+        "role": "user",
+        "content": "It affects multiple areas"
+      },
+      {
+        "role": "assistant",
+        "content": "When does the nausea occur?"
+      },
+      {
+        "role": "user",
+        "content": "It's worse after eating"
+      },
+      {
+        "role": "assistant",
+        "content": "On a scale of 1 to 10, with 10 being the worst imaginable, how severe is the nausea?"
+      },
+      {
+        "role": "user",
+        "content": "It's about a 6 out of 10"
+      },
+      {
+        "role": "assistant",
+        "content": "Have you noticed any other symptoms along with this?"
+      },
+      {
+        "role": "user",
+        "content": "No other symptoms"
+      },
+      {
+        "role": "assistant",
+        "content": "Do you have any existing medical conditions or take any medications?"
+      },
+      {
+        "role": "user",
+        "content": "No medical conditions"
+      }
+    ]
   }
 ]
-

@@ -35,16 +35,19 @@ OUTPUT_DIR = "outputs"
 GGUF_OUTPUT_DIR = "gguf_model"
 
 # Medical system prompt to guide the model's behavior
-MEDICAL_SYSTEM_PROMPT = """You are a professional medical assistant designed to help with patient assessment and documentation. Your role is to:
+# SIMPLIFIED: Model should learn from examples, not mimic the prompt structure
+# Keep it minimal - the dataset examples will teach the model the pattern
+MEDICAL_SYSTEM_PROMPT = """You are a professional medical assistant. When a patient tells you about a symptom, follow this order:
 
-1. Conduct thorough medical history taking following structured frameworks (e.g., SOCRATES, OLD CARTS)
-2. Ask appropriate follow-up questions to gather complete clinical information
-3. Use professional medical terminology while remaining empathetic
-4. Document information clearly and systematically
-5. Recognize when to escalate urgent medical concerns
-6. Maintain patient privacy and confidentiality
+1. Show empathy and acknowledge their concern
+2. Ask if this is new or an ongoing problem
+3. Ask their age
+4. Ask their biological sex
+5. Then ask about the symptom - one question at a time, waiting for each answer before asking the next
 
-Always be professional, empathetic, and thorough in your medical assessments."""
+Ask about: when it started, where it is, how long it's been present, what it feels like, what makes it worse, what makes it better, if it spreads, if it's constant or comes and goes, and how severe it is.
+
+Be natural and conversational. Ask only one question at a time. Do not list multiple questions. Do not mention frameworks or include instructions in your responses."""
 
 # ============================================================================
 # GPU Check
@@ -190,12 +193,12 @@ print("=" * 80)
 
 model = FastLanguageModel.get_peft_model(
     model,
-    r=64,  # LoRA rank - higher = more capacity, more memory
+    r=128,  # LoRA rank - increased from 64 for better OLD CARTS learning
     target_modules=[
         "q_proj", "k_proj", "v_proj", "o_proj",
         "gate_proj", "up_proj", "down_proj",
     ],
-    lora_alpha=128,  # LoRA scaling factor (usually 2x rank)
+    lora_alpha=256,  # LoRA scaling factor (2x rank for optimal scaling)
     lora_dropout=0,  # Supports any, but = 0 is optimized
     bias="none",     # Supports any, but = "none" is optimized
     use_gradient_checkpointing="unsloth",  # Unsloth's optimized version
@@ -216,22 +219,23 @@ print("Configuring Training")
 print("=" * 80)
 
 # Training arguments optimized for Unsloth and medical conversations
+# Enhanced for better OLD CARTS framework adherence
 training_args = TrainingArguments(
     per_device_train_batch_size=2,
     gradient_accumulation_steps=4,  # Effective batch size = 8
-    warmup_steps=50,  # Increased for better convergence
-    num_train_epochs=3,
-    learning_rate=2e-4,
+    warmup_steps=75,  # Increased warmup for better OLD CARTS learning
+    num_train_epochs=5,  # Increased from 3 to 5 for better framework adherence
+    learning_rate=1.5e-4,  # Slightly lower for more stable learning
     fp16=not torch.cuda.is_bf16_supported(),
     bf16=torch.cuda.is_bf16_supported(),
     logging_steps=25,
     optim="adamw_8bit",
     weight_decay=0.01,
-    lr_scheduler_type="linear",
+    lr_scheduler_type="cosine",  # Cosine scheduler for smoother learning
     seed=3407,
     output_dir=OUTPUT_DIR,
     save_strategy="epoch",
-    save_total_limit=2,
+    save_total_limit=3,  # Keep more checkpoints
     dataloader_pin_memory=False,
     report_to="none",  # Disable Weights & Biases logging
     # Medical-specific optimizations
@@ -252,8 +256,12 @@ print("✅ Training configured")
 print(f"   - Batch size: {training_args.per_device_train_batch_size}")
 print(f"   - Gradient accumulation: {training_args.gradient_accumulation_steps}")
 print(f"   - Effective batch size: {training_args.per_device_train_batch_size * training_args.gradient_accumulation_steps}")
-print(f"   - Epochs: {training_args.num_train_epochs}")
+print(f"   - Epochs: {training_args.num_train_epochs} (increased for better OLD CARTS adherence)")
 print(f"   - Learning rate: {training_args.learning_rate}")
+print(f"   - LoRA rank: 128 (increased for better framework learning)")
+print(f"   - LoRA alpha: 256")
+print(f"   - Warmup steps: {training_args.warmup_steps}")
+print(f"   - Scheduler: {training_args.lr_scheduler_type}")
 print()
 
 # ============================================================================
