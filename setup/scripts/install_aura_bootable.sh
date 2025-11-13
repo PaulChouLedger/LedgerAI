@@ -388,21 +388,36 @@ SERVICE_FILE="$LEDGERAI_DIR/setup/scripts/xvf3800-tuning.service"
 SYSTEMD_SERVICE="/etc/systemd/system/xvf3800-tuning.service"
 
 if [ -f "$SERVICE_FILE" ]; then
-    # Update service file with correct paths
-    sudo cp "$SERVICE_FILE" "$SYSTEMD_SERVICE"
+    # Create a temporary service file with correct paths
+    TEMP_SERVICE="/tmp/xvf3800-tuning.service"
+    cp "$SERVICE_FILE" "$TEMP_SERVICE"
     
-    # Update paths in service file if needed
-    sudo sed -i "s|/home/aura|$AURA_HOME|g" "$SYSTEMD_SERVICE"
+    # Update paths in service file (handle multiple possible patterns)
+    sed -i "s|User=aura|User=$AURA_USER|g" "$TEMP_SERVICE"
+    sed -i "s|User=ledger|User=$AURA_USER|g" "$TEMP_SERVICE"  # Also replace if already set to ledger
+    sed -i "s|/home/aura|$AURA_HOME|g" "$TEMP_SERVICE"
+    sed -i "s|/home/ledger|$AURA_HOME|g" "$TEMP_SERVICE"  # Also replace if already set
+    sed -i "s|/usr/bin/python3|$PYTHON_CMD|g" "$TEMP_SERVICE" || true
+    sed -i "s|python3 |$PYTHON_CMD |g" "$TEMP_SERVICE" || true
+    
+    # Update the ExecStart line with correct paths
+    sed -i "s|ExecStart=.*tune_xvf3800.py|ExecStart=$PYTHON_CMD $LEDGERAI_DIR/setup/scripts/tune_xvf3800.py|g" "$TEMP_SERVICE"
+    
+    # Copy to systemd
+    sudo cp "$TEMP_SERVICE" "$SYSTEMD_SERVICE"
+    rm -f "$TEMP_SERVICE"
     
     # Reload systemd
     sudo systemctl daemon-reload
     
-    # Enable and start service
+    # Enable service (but don't start - microphone may not be connected yet)
     sudo systemctl enable xvf3800-tuning.service
-    sudo systemctl start xvf3800-tuning.service
     
     print_info "XVF3800 tuning service installed and enabled"
+    print_info "Service configured for user: $AURA_USER"
     print_info "Service will configure microphone on boot"
+    print_info "Note: Service will start automatically when microphone is connected"
+    print_info "To test manually: sudo systemctl start xvf3800-tuning.service"
 else
     print_error "XVF3800 service file not found at $SERVICE_FILE"
 fi

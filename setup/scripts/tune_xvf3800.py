@@ -26,12 +26,16 @@ import os
 import json
 import subprocess
 import time
+from pathlib import Path
 
-# State file for listener to read - use aura user's home directory  
-CONFIG_STATE_FILE = '/home/aura/LedgerAI/data/xvf3800_config.json'
+# Detect user's home directory dynamically
+USER_HOME = os.path.expanduser("~")
 
-# Path to xvf_host binary - use aura user's home directory
-XVF_HOST_PATH = '/home/aura/reSpeaker_XVF3800_USB_4MIC_ARRAY/host_control/jetson/xvf_host'
+# State file for listener to read - use current user's home directory  
+CONFIG_STATE_FILE = os.path.join(USER_HOME, 'LedgerAI', 'data', 'xvf3800_config.json')
+
+# Path to xvf_host binary - use current user's home directory
+XVF_HOST_PATH = os.path.join(USER_HOME, 'reSpeaker_XVF3800_USB_4MIC_ARRAY', 'host_control', 'jetson', 'xvf_host')
 
 def run_xvf_command(cmd, *args):
     """Run xvf_host command and return result"""

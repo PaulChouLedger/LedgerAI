@@ -1510,35 +1510,51 @@ class AdvancedMedicalNavigator:
                     result.append(item)
             return result
 
-        def _filter_by_condition_scores(options: List[str]) -> List[str]:
+        def _filter_by_condition_scores(options: List[str], answer: str) -> List[str]:
+            """Filter and sort options by condition scores. LLM handles opposite-side detection."""
             if not options:
                 return options
+            
             baseline = 0.5 - 1e-6
-            filtered: List[str] = []
+            filtered: List[Tuple[str, float]] = []  # (option, max_condition_score)
             skipped: List[str] = []
+            
             for opt in options:
                 conds = term_to_guidelines.get(opt.lower(), [])
                 if not conds:
-                    filtered.append(opt)
+                    # No condition mapping - include with low priority
+                    filtered.append((opt, 0.3))
                     continue
-                if any(session.condition_scores.get(cond, 0.5) > baseline for cond in conds):
-                    filtered.append(opt)
+                
+                # Get max condition score for this option
+                max_score = max([session.condition_scores.get(cond, 0.5) for cond in conds], default=0.5)
+                
+                if max_score > baseline:
+                    filtered.append((opt, max_score))
                 else:
                     skipped.append(opt)
+            
             if skipped:
                 self._capture_debug(
-                    f"[Clarification] ⚖️ Skipping options tied to baseline scores: {skipped}"
+                    f"[Clarification] ⚖️ Skipping options: {skipped}"
                 )
+            
             if filtered:
-                return filtered
+                # Sort by condition score (highest first), then alphabetically
+                filtered.sort(key=lambda x: (-x[1], x[0]))
+                result = [opt for opt, _ in filtered]
+                self._capture_debug(f"[Clarification] ✅ Filtered and sorted options: {result}")
+                return result
             return options
 
         satisfied_options = _filter_by_condition_scores(
-            _unique([medical_to_patient.get(med.lower(), med) for med in satisfied_medical_terms])
+            _unique([medical_to_patient.get(med.lower(), med) for med in satisfied_medical_terms]),
+            answer
         )
 
         missing_options = _filter_by_condition_scores(
-            _unique([medical_to_patient.get(med.lower(), med) for med in missing_medical_terms])
+            _unique([medical_to_patient.get(med.lower(), med) for med in missing_medical_terms]),
+            answer
         )
 
         all_terms_list = sorted([meta['patient_friendly'] for meta in all_terms_patient.values()])
