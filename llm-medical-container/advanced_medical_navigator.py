@@ -137,7 +137,8 @@ class AdvancedMedicalNavigator:
         "Ask about: when it started, where it is, how long it's been present, what it feels like, "
         "what makes it worse, what makes it better, if it spreads, if it's constant or comes and goes, and how severe it is.\n\n"
         "Be natural and conversational. Ask only one question at a time. Do not list multiple questions. "
-        "Do not mention frameworks or include instructions in your responses."
+        "Do not mention frameworks or include instructions in your responses. "
+        "Do not include internal reasoning, acknowledgments, or explanations. Only ask the question."
     )
 
     EMPATHETIC_SYSTEM_PROMPT = (
@@ -147,7 +148,8 @@ class AdvancedMedicalNavigator:
 
     CHRONICITY_SYSTEM_PROMPT = (
         "You are a professional medical assistant. Ask if this is new or an ongoing problem. "
-        "Be natural and conversational. Ask only one question."
+        "Be natural and conversational. Ask only one question. "
+        "Do not include internal reasoning, acknowledgments, or explanations. Only ask the question."
     )
 
     SUMMARY_SYSTEM_PROMPT = (
@@ -414,8 +416,11 @@ class AdvancedMedicalNavigator:
                     session=session,
                     section='pre_hpi',
                     field='age',
-                    guidance=self.PRE_HPI_PROMPTS['age']
+                    guidance="Ask for the patient's age. Ask only the question, no acknowledgment or reasoning."
                 )
+                # Ensure clean question only
+                if not prompt.strip().endswith('?'):
+                    prompt = prompt.rstrip('.') + '?'
                 return {'section': 'pre_hpi', 'field': 'age', 'prompt': prompt, 'guidance': self.PRE_HPI_PROMPTS['age']}
             session.stage = "awaiting_sex"
 
@@ -429,8 +434,11 @@ class AdvancedMedicalNavigator:
                     session=session,
                     section='pre_hpi',
                     field='sex',
-                    guidance=self.PRE_HPI_PROMPTS['sex']
+                    guidance="Ask for the patient's biological sex. Ask only the question, no acknowledgment or reasoning."
                 )
+                # Ensure clean question only
+                if not prompt.strip().endswith('?'):
+                    prompt = prompt.rstrip('.') + '?'
                 return {'section': 'pre_hpi', 'field': 'sex', 'prompt': prompt, 'guidance': self.PRE_HPI_PROMPTS['sex']}
 
         if session.stage == "hpi":
@@ -444,57 +452,35 @@ class AdvancedMedicalNavigator:
             session.stage = "complete"
             return None
 
-        # Skip pre-HPI checks if we're already past pre-HPI stage
-        if session.stage not in {"awaiting_chronicity", "awaiting_age", "awaiting_sex", "pre_hpi"}:
-            return None
-
-        remaining_pre_hpi = [field for field in self.PRE_HPI_ORDER if not session.context['pre_hpi'].get(field)]
-        if remaining_pre_hpi:
-            next_field = remaining_pre_hpi[0]
-            if next_field == 'chronicity':
-                session.stage = "awaiting_chronicity"
-                prompt = self._generate_chronicity_question()
-                return {
-                    'section': 'pre_hpi',
-                    'field': 'chronicity',
-                    'prompt': prompt,
-                    'guidance': self.PRE_HPI_PROMPTS['chronicity'],
-                }
-            if next_field == 'age':
-                session.stage = "awaiting_age"
-                prompt = "Thank you. For our records, how old are you?"
-                return {
-                    'section': 'pre_hpi',
-                    'field': 'age',
-                    'prompt': prompt,
-                    'guidance': self.PRE_HPI_PROMPTS['age'],
-                }
-            if next_field == 'sex':
-                session.stage = "awaiting_sex"
-                prompt = "And for medical documentation, what is your biological sex?"
-                return {
-                    'section': 'pre_hpi',
-                    'field': 'sex',
-                    'prompt': prompt,
-                    'guidance': self.PRE_HPI_PROMPTS['sex'],
-                }
-
+        # Don't fall through to asking pre-HPI questions again if we're past that stage
+        # The stage-specific checks above should handle all transitions
         return None
 
     def _next_oldcarts_question(self, session: "MedicalSession") -> Optional[Dict[str, str]]:
+        # Initialize oldcarts_remaining if not set
+        if not session.oldcarts_remaining:
+            session.oldcarts_remaining = self._ordered_oldcarts_elements(session)
+        
         if not session.oldcarts_remaining:
             session.stage = "pmh"
             return self._determine_next_question(session)
 
         element = None
-        answered = {key for key, value in session.context['hpi'].items() if value}
+        # Check what's already been answered - only count non-empty values
+        answered = {key for key, value in session.context['hpi'].items() if value and value.strip()}
+        
+        # Find next unanswered element
         while session.oldcarts_remaining:
             candidate = session.oldcarts_remaining.pop(0)
+            # Skip if already answered
             if candidate in answered:
+                self._capture_debug(f"[HPI] ⏭️ Skipping {candidate} - already answered: {session.context['hpi'].get(candidate)}")
                 continue
             element = candidate
             break
+        
         if element is None:
+            # All OLD CARTS questions answered
             session.stage = "pmh"
             return self._determine_next_question(session)
         cc_subject = self._normalize_subject_for_questions(session.context['pre_hpi'].get('chief_complaint'))
@@ -606,13 +592,34 @@ class AdvancedMedicalNavigator:
                     'clarification': True,
                 })
 
+            # Store answer
             session.context['hpi'][field] = text
+            self._capture_debug(f"[HPI] ✅ Stored answer for {field}: {text}")
+            
+            # Remove from remaining list if present
+            if field in session.oldcarts_remaining:
+                session.oldcarts_remaining = [e for e in session.oldcarts_remaining if e != field]
+                self._capture_debug(f"[HPI] 📋 Removed {field} from remaining list. Remaining: {session.oldcarts_remaining}")
+            
+            # Score the answer (but don't update condition scores - simplified)
             response = self._score_oldcarts_answer(session, pending, field, text)
             if response:
                 return response
-            if field in session.oldcarts_remaining:
-                session.oldcarts_remaining = [e for e in session.oldcarts_remaining if e != field]
+            
+            # Get next OLD CARTS question
             session.pending = None
+            next_prompt = self._next_oldcarts_question(session)
+            if next_prompt:
+                session.pending = next_prompt
+                session.messages.append({"role": "assistant", "content": next_prompt['prompt']})
+                return self._wrap_response(
+                    session,
+                    next_prompt['prompt'],
+                    metadata={
+                        'section': next_prompt['section'],
+                        'field': next_prompt['field'],
+                    },
+                )
         elif section == 'pmh':
             session.context['pmh'][field] = text
             session.pending = None
@@ -2657,24 +2664,28 @@ class AdvancedMedicalNavigator:
             conversation_context.append({"role": "user", "content": last_user})
         
         # For fine-tuned model: simple, direct prompts - let model use its training
+        # Be very explicit about what to ask to prevent repetition
         if section == 'hpi':
             # OLD CARTS questions - model knows how to ask these naturally from training
-            user_prompt = f"Ask about the {field} of {cc}."
+            # Explicitly state this is the FIRST time asking this question
+            user_prompt = f"Ask about the {field} of {cc}. This is the first time asking about {field}. Ask only one question."
         elif section == 'pre_hpi':
             if field == 'chronicity':
-                user_prompt = "Ask if this is new or an ongoing problem."
+                user_prompt = "Ask if this is new or an ongoing problem. This is the first time asking. Ask only one question."
             elif field == 'age':
-                user_prompt = "Ask for the patient's age."
+                user_prompt = "Ask for the patient's age. This is the first time asking. Ask only one question."
             elif field == 'sex':
-                user_prompt = "Ask for the patient's biological sex."
+                user_prompt = "Ask for the patient's biological sex. This is the first time asking. Ask only one question."
             else:
-                user_prompt = f"Ask about {field}."
+                user_prompt = f"Ask about {field}. This is the first time asking. Ask only one question."
         else:
-            user_prompt = f"Ask about {field}."
+            user_prompt = f"Ask about {field}. This is the first time asking. Ask only one question."
         
-        # Use conversation context if available
+        # Use conversation context if available, but limit to recent messages to avoid confusion
         messages = [{"role": "system", "content": self.QUESTION_SYSTEM_PROMPT}]
-        messages.extend(conversation_context)
+        # Only include last 2-3 messages to maintain context without overwhelming
+        if conversation_context:
+            messages.extend(conversation_context[-3:])
         messages.append({"role": "user", "content": user_prompt})
         response = self.llm_chat_fn(
             messages,
@@ -2759,10 +2770,54 @@ class AdvancedMedicalNavigator:
     # ----------- Validation / Clarification ----------------------------------
 
     def _clean_llm_response(self, text: Optional[str], fallback: str = "") -> str:
+        """Clean LLM response to extract only the question, removing internal reasoning."""
         if not text:
             return fallback
-        cleaned = re.sub(r"^[^A-Za-z0-9]+", "", text.strip())
-        cleaned = cleaned.strip('"')
+        cleaned = text.strip()
+        
+        # Remove markdown code blocks if present
+        if cleaned.startswith('```'):
+            first_newline = cleaned.find('\n')
+            if first_newline != -1:
+                cleaned = cleaned[first_newline+1:]
+                if cleaned.endswith('```'):
+                    cleaned = cleaned[:-3].strip()
+        
+        # Remove quotes
+        cleaned = cleaned.strip('"').strip("'")
+        
+        # Extract only the question (first sentence ending with ?)
+        # Remove any internal reasoning or acknowledgment before the question
+        # Split on sentence boundaries but preserve question marks
+        sentences = re.split(r'(?<=[.!?])\s+', cleaned)
+        question = None
+        for sentence in sentences:
+            sentence = sentence.strip()
+            if sentence and sentence.endswith('?'):
+                question = sentence
+                break
+            # If no question found, look for sentences that are clearly questions
+            if sentence and any(word in sentence.lower() for word in ['how', 'what', 'when', 'where', 'who', 'which', 'are you', 'is this', 'do you', 'can you']):
+                question = sentence.rstrip('.!') + '?'
+                break
+        
+        if question:
+            # Remove any internal reasoning phrases
+            reasoning_phrases = [
+                r'now i have.*?which helps',
+                r'thank you.*?which helps',
+                r'for our records',
+                r'for medical documentation',
+                r'this helps with',
+                r'which helps with',
+            ]
+            for phrase in reasoning_phrases:
+                question = re.sub(phrase, '', question, flags=re.IGNORECASE)
+            question = re.sub(r'\s+', ' ', question).strip()
+            return question or fallback
+        
+        # If no question found, return cleaned text or fallback
+        cleaned = re.sub(r"^[^A-Za-z0-9]+", "", cleaned)
         return cleaned or fallback
 
     def _requires_clarification(self, element: str) -> bool:
