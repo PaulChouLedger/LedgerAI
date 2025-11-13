@@ -746,33 +746,58 @@ class AdvancedMedicalNavigator:
             if source_element:
                 scoring_element = source_element
 
-        # Simplified: Let LLM score answer directly - no guideline terms needed
-        # The trained model understands medical terminology and can score answers naturally
-        self._capture_debug(f"[LLM] 🔍 {scoring_element}: Scoring answer directly with LLM (no guideline terms)")
+        # Restored: Use FAISS + LLM to match answer against guideline terms
+        # Step 1: Collect all terms for this element from guidelines
+        all_terms = self._get_all_terms_for_element(session, scoring_element)
         
-        # Let LLM extract relevant information from answer and update condition scores
-        # No need to match against guideline terms - LLM uses its training
-        matches = []
-        term_scores = {}
-        review_rows = []
-        review_meta = {'invoked': False, 'reason': 'simplified - LLM scores directly'}
+        if not all_terms:
+            self._capture_debug(f"[LLM] ⚠️ {scoring_element}: No guideline terms found for this element")
+            matches = []
+            term_scores = {}
+        else:
+            # Step 2: Use FAISS + LLM to find matches
+            # Initialize matches with all terms (FAISS will filter)
+            matches = all_terms.copy()
+            term_scores = {term: 0.5 for term in all_terms}  # Default score
+            
+            # Use FAISS + LLM to refine matches
+            threshold = 0.5  # LLM threshold
+            matches, term_scores, review_rows, review_meta = self._llm_refine_matches(
+                session=session,
+                element=scoring_element,
+                answer=answer,
+                matches=matches,
+                term_scores=term_scores,
+                threshold=threshold,
+            )
+        
+        review_rows = review_rows if 'review_rows' in locals() else []
+        review_meta = review_meta if 'review_meta' in locals() else {'invoked': False, 'reason': 'no terms'}
         debug_ctx = session.context.setdefault('debug', {})
-        # Simplified: No term matching needed - LLM scores directly
 
         if pending and pending.get('clarification'):
             session.context['clarifications'].pop(element, None)
         elif not requires_clarification:
             session.context['clarifications'].pop(element, None)
 
-        # Simplified: No location analysis or term matching - LLM handles it
+        # Step 3: Analyze answer to generate satisfied/missing arrays for clarification
         analysis = None
+        if matches is not None and len(matches) > 0:
+            analysis = self._analyze_location_answer(
+                session=session,
+                element=scoring_element,
+                answer=answer,
+                matches=matches,
+                term_scores=term_scores,
+            )
+            if analysis:
+                satisfied_count = len(analysis.get('satisfied_medical_terms', []))
+                missing_count = len(analysis.get('missing_medical_terms', []))
+                self._capture_debug(f"[Analysis] ✅ Generated analysis for {scoring_element}: {satisfied_count} satisfied, {missing_count} missing")
 
-        # Simplified: Let LLM update condition scores directly based on answer
-        # No need to match terms to guidelines - LLM uses its medical knowledge
-        # For now, condition scores are updated elsewhere (e.g., from chief complaint matching)
-        # The answer is stored in context and can be used by LLM for future questions
+        # Store answer in context
         condition_similarities: Dict[str, float] = {}
-        self._capture_debug(f"[LLM] 🔍 {scoring_element}: Answer stored, LLM will use it for context")
+        self._capture_debug(f"[LLM] 🔍 {scoring_element}: Answer stored, analysis generated for clarification")
 
         if analysis and requires_clarification:
             clarification_pending = pending.get('clarification') if pending else False
@@ -1344,8 +1369,8 @@ class AdvancedMedicalNavigator:
         for guideline in guidelines:
             condition_name = guideline.get('condition', guideline.get('name', 'Unknown'))
             structured = self._structured_oldcarts(guideline)
-            location_data = structured.get('location', {})
-            includes = location_data.get('includes', []) if isinstance(location_data, dict) else []
+            element_data = structured.get(element, {})
+            includes = element_data.get('includes', []) if isinstance(element_data, dict) else []
             for item in includes:
                 if isinstance(item, dict):
                     patient_term = item.get('patient_friendly')
