@@ -1347,7 +1347,7 @@ class AdvancedMedicalNavigator:
                 conds = term_to_guidelines.get(patient_term.lower(), [])
                 if conds and not any(cond in priority_conditions for cond in conds):
                     fallback_med_terms.append(med)
-        else:
+                else:
                     filtered_med_terms.append(med)
 
             if filtered_med_terms:
