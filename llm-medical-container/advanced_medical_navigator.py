@@ -128,7 +128,10 @@ class AdvancedMedicalNavigator:
     # Simplified prompts to work with fine-tuned model
     # The fine-tuned model was trained to follow OLD CARTS naturally
     QUESTION_SYSTEM_PROMPT = (
-        "You are a professional medical assistant. Follow this order when a patient reports a symptom:\n"
+        "You are a professional medical assistant conducting a medical history. "
+        "You must understand the conversation context and avoid asking redundant questions.\n\n"
+        "IMPORTANT RULES:\n"
+        "- If the patient already said when something started, do NOT ask about duration or timing again\n"
         "1. Show empathy and acknowledge their concern\n"
         "2. Ask if this is new or an ongoing problem\n"
         "3. Ask their age\n"
@@ -456,6 +459,37 @@ class AdvancedMedicalNavigator:
         # The stage-specific checks above should handle all transitions
         return None
 
+        if hpi.get(element) and hpi[element].strip():
+            return True
+        
+        # Check for redundant relationships
+        # If onset is provided (e.g., "2 days ago"), don't ask duration
+        if element == 'duration' and hpi.get('onset'):
+            onset = hpi['onset'].lower()
+            if any(word in onset for word in ['day', 'days', 'week', 'weeks', 'hour', 'hours', 'minute', 'minutes']):
+                self._capture_debug(f"[HPI] ⏭️ Skipping duration - can infer from onset: {hpi['onset']}")
+                return True
+        
+        # If timing is "constant", don't ask about frequency
+        if element == 'frequency' and hpi.get('timing'):
+            timing = hpi['timing'].lower()
+            if 'constant' in timing or 'continuous' in timing:
+                self._capture_debug(f"[HPI] ⏭️ Skipping frequency - timing is constant: {hpi['timing']}")
+                return True
+        
+        # If character is already described, don't ask again
+        if element == 'character' and hpi.get('character'):
+            # Check if character was mentioned in other answers
+            for key, value in hpi.items():
+                if key != 'character' and value:
+                    value_lower = value.lower()
+                    # Common character descriptors
+                    if any(desc in value_lower for desc in ['sharp', 'dull', 'burning', 'aching', 'stabbing', 'pressure', 'tightness']):
+                        self._capture_debug(f"[HPI] ⏭️ Skipping character - already described in {key}: {value}")
+                        return True
+        
+        return False
+
     def _next_oldcarts_question(self, session: "MedicalSession") -> Optional[Dict[str, str]]:
         # Initialize oldcarts_remaining if not set
         if not session.oldcarts_remaining:
@@ -469,18 +503,21 @@ class AdvancedMedicalNavigator:
         # Check what's already been answered - only count non-empty values
         answered = {key for key, value in session.context['hpi'].items() if value and value.strip()}
         
-        # Find next unanswered element
+        # Find next unanswered element that's not redundant
         while session.oldcarts_remaining:
             candidate = session.oldcarts_remaining.pop(0)
             # Skip if already answered
             if candidate in answered:
                 self._capture_debug(f"[HPI] ⏭️ Skipping {candidate} - already answered: {session.context['hpi'].get(candidate)}")
                 continue
+            # Skip if redundant
+            if self._is_redundant_question(session, candidate):
+                continue
             element = candidate
             break
         
         if element is None:
-            # All OLD CARTS questions answered
+            # All OLD CARTS questions answered or redundant
             session.stage = "pmh"
             return self._determine_next_question(session)
         cc_subject = self._normalize_subject_for_questions(session.context['pre_hpi'].get('chief_complaint'))
@@ -2245,6 +2282,47 @@ class AdvancedMedicalNavigator:
                 break
         return last_assistant, last_user
 
+    def _build_context_summary(self, session: "MedicalSession") -> str:
+        """Build a summary of what information has already been collected to help LLM avoid redundant questions."""
+        parts = []
+        
+        # Pre-HPI information
+        pre_hpi = session.context.get('pre_hpi', {})
+        if pre_hpi.get('chief_complaint'):
+            parts.append(f"Chief complaint: {pre_hpi['chief_complaint']}")
+        if pre_hpi.get('chronicity'):
+            parts.append(f"Chronicity: {pre_hpi['chronicity']}")
+        if pre_hpi.get('age'):
+            parts.append(f"Age: {pre_hpi['age']}")
+        if pre_hpi.get('sex'):
+            parts.append(f"Biological sex: {pre_hpi['sex']}")
+        
+        # HPI information already collected
+        hpi = session.context.get('hpi', {})
+        hpi_labels = {
+            'onset': 'Onset',
+            'location': 'Location',
+            'duration': 'Duration',
+            'character': 'Character',
+            'aggravating': 'Aggravating factors',
+            'relieving': 'Relieving factors',
+            'radiation': 'Radiation',
+            'timing': 'Timing',
+            'severity': 'Severity',
+            'frequency': 'Frequency',
+            'progression': 'Progression',
+        }
+        
+        for key, label in hpi_labels.items():
+            value = hpi.get(key)
+            if value and value.strip() and value.strip().lower() not in ['none', 'none reported', 'n/a']:
+                parts.append(f"{label}: {value}")
+        
+        if not parts:
+            return "No information collected yet."
+        
+        return "\n".join(parts)
+
     def _collect_character_tags(self, session: "MedicalSession") -> set:
         summary = self._character_tag_summary(session)
         return summary.get('tags', set())
@@ -2652,40 +2730,44 @@ class AdvancedMedicalNavigator:
         if not self.llm_chat_fn:
             return base_question or guidance or ""
         cc = session.context['pre_hpi'].get('chief_complaint', 'your symptoms') or 'your symptoms'
-        # Simplified prompt for fine-tuned model
-        # The model was trained to generate natural questions from context
+        # Build comprehensive context for the LLM to understand what's already been discussed
+        context_summary = self._build_context_summary(session)
         last_assistant, last_user = self._last_exchange(session)
         
-        # Build conversation context for the fine-tuned model
+        # Build conversation context - include more messages for better understanding
         conversation_context = []
-        if last_assistant:
-            conversation_context.append({"role": "assistant", "content": last_assistant})
-        if last_user:
-            conversation_context.append({"role": "user", "content": last_user})
+        # Include last 5 exchanges for better context understanding
+        recent_messages = session.messages[-10:] if len(session.messages) > 10 else session.messages
+        for msg in recent_messages:
+            if msg.get('role') in ['assistant', 'user']:
+                conversation_context.append({"role": msg['role'], "content": msg['content']})
         
-        # For fine-tuned model: simple, direct prompts - let model use its training
-        # Be very explicit about what to ask to prevent repetition
+        # For fine-tuned model: provide context about what's already known
         if section == 'hpi':
-            # OLD CARTS questions - model knows how to ask these naturally from training
-            # Explicitly state this is the FIRST time asking this question
-            user_prompt = f"Ask about the {field} of {cc}. This is the first time asking about {field}. Ask only one question."
+            # Build context-aware prompt
+            user_prompt = f"""Context of what we already know:
+{context_summary}
+
+Now ask about the {field} of {cc}. 
+IMPORTANT: Do NOT ask about information already provided in the context above. 
+If {field} information is already in the context, ask about a DIFFERENT aspect of the symptom.
+Ask only one question."""
         elif section == 'pre_hpi':
             if field == 'chronicity':
-                user_prompt = "Ask if this is new or an ongoing problem. This is the first time asking. Ask only one question."
+                user_prompt = "Ask if this is new or an ongoing problem. Ask only one question."
             elif field == 'age':
-                user_prompt = "Ask for the patient's age. This is the first time asking. Ask only one question."
+                user_prompt = "Ask for the patient's age. Ask only one question."
             elif field == 'sex':
-                user_prompt = "Ask for the patient's biological sex. This is the first time asking. Ask only one question."
+                user_prompt = "Ask for the patient's biological sex. Ask only one question."
             else:
-                user_prompt = f"Ask about {field}. This is the first time asking. Ask only one question."
+                user_prompt = f"Ask about {field}. Ask only one question."
         else:
-            user_prompt = f"Ask about {field}. This is the first time asking. Ask only one question."
+            user_prompt = f"Ask about {field}. Ask only one question."
         
-        # Use conversation context if available, but limit to recent messages to avoid confusion
+        # Use comprehensive conversation context
         messages = [{"role": "system", "content": self.QUESTION_SYSTEM_PROMPT}]
-        # Only include last 2-3 messages to maintain context without overwhelming
         if conversation_context:
-            messages.extend(conversation_context[-3:])
+            messages.extend(conversation_context)
         messages.append({"role": "user", "content": user_prompt})
         response = self.llm_chat_fn(
             messages,
