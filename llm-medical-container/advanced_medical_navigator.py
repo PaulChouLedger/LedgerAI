@@ -125,26 +125,27 @@ class AdvancedMedicalNavigator:
         "meds_allergies": "What medications do you take, and do you have any medication allergies?",
     }
 
+    # Simplified prompts to work with fine-tuned model
+    # The fine-tuned model was trained to follow OLD CARTS naturally
     QUESTION_SYSTEM_PROMPT = (
-        "You are a compassionate medical assistant conducting a medical interview."
-        " Use the guidance to craft one concise, patient-friendly question."
-        " Return ONLY the question text (no prefixes, no reasoning)."
-        " Keep it ≤20 words and honor any provided options."
-        " Do NOT include phrases like 'Here is a friendly question' or similar meta commentary."
+        "You are a professional medical assistant. When a patient tells you about a symptom, "
+        "follow this order: Show empathy and acknowledge their concern, ask if this is new or an ongoing problem, "
+        "ask their age, ask their biological sex, then ask about the symptom - one question at a time, "
+        "waiting for each answer before asking the next. Ask about: when it started, where it is, "
+        "how long it's been present, what it feels like, what makes it worse, what makes it better, "
+        "if it spreads, if it's constant or comes and goes, and how severe it is. "
+        "Be natural and conversational. Ask only one question at a time. Do not list multiple questions. "
+        "Do not mention frameworks or include instructions in your responses."
     )
 
     EMPATHETIC_SYSTEM_PROMPT = (
-        "You are an empathetic medical assistant. Craft a 1–2 sentence acknowledgment"
-        " that validates the patient's concern and expresses willingness to help."
-        " Do not mention checking vitals, running tests, or any clinical actions—you are offering"
-        " emotional support only. Provide a single compassionate sentence and do not ask follow-up questions."
+        "You are a professional medical assistant. Show empathy and acknowledge the patient's concern. "
+        "Be natural and conversational. Do not ask questions yet."
     )
 
     CHRONICITY_SYSTEM_PROMPT = (
-        "You are a medical assistant. Ask the patient directly whether the problem is new or ongoing and"
-        " whether a prior diagnosis exists. Respond with exactly one simple question addressed to the patient."
-        " Do not mention laboratory tests, vital signs, additional steps, or introduce the question with phrases like"
-        " 'Here is the question'."
+        "You are a professional medical assistant. Ask if this is new or an ongoing problem. "
+        "Be natural and conversational. Ask only one question."
     )
 
     SUMMARY_SYSTEM_PROMPT = (
@@ -406,7 +407,13 @@ class AdvancedMedicalNavigator:
 
         if session.stage == "awaiting_age":
             if not session.context['pre_hpi'].get('age'):
-                prompt = "Thank you. For our records, how old are you?"
+                # Use fine-tuned model to generate age question naturally
+                prompt = self._generate_question(
+                    session=session,
+                    section='pre_hpi',
+                    field='age',
+                    guidance=self.PRE_HPI_PROMPTS['age']
+                )
                 return {'section': 'pre_hpi', 'field': 'age', 'prompt': prompt, 'guidance': self.PRE_HPI_PROMPTS['age']}
             session.stage = "awaiting_sex"
 
@@ -415,7 +422,13 @@ class AdvancedMedicalNavigator:
                 session.stage = "hpi"
                 session.oldcarts_remaining = self._ordered_oldcarts_elements(session)
             else:
-                prompt = "And for medical documentation, what is your biological sex?"
+                # Use fine-tuned model to generate sex question naturally
+                prompt = self._generate_question(
+                    session=session,
+                    section='pre_hpi',
+                    field='sex',
+                    guidance=self.PRE_HPI_PROMPTS['sex']
+                )
                 return {'section': 'pre_hpi', 'field': 'sex', 'prompt': prompt, 'guidance': self.PRE_HPI_PROMPTS['sex']}
 
         if session.stage == "hpi":
@@ -2746,54 +2759,39 @@ class AdvancedMedicalNavigator:
         if not self.llm_chat_fn:
             return base_question or guidance or ""
         cc = session.context['pre_hpi'].get('chief_complaint', 'your symptoms') or 'your symptoms'
+        # Simplified prompt for fine-tuned model
+        # The model was trained to generate natural questions from context
         last_assistant, last_user = self._last_exchange(session)
+        
+        # Build conversation context for the fine-tuned model
+        conversation_context = []
+        if last_assistant:
+            conversation_context.append({"role": "assistant", "content": last_assistant})
+        if last_user:
+            conversation_context.append({"role": "user", "content": last_user})
+        
+        # For fine-tuned model: simple, direct prompts that leverage its training
         if section == 'hpi':
-            exchange_lines = []
-            if last_assistant:
-                exchange_lines.append(f"assistant: {last_assistant}")
-            if last_user:
-                exchange_lines.append(f"user: {last_user}")
-            recent = "\n".join(exchange_lines)
-            element_instruction = (
-                f"Ask exactly one question about the '{field}' aspect of the chief complaint. "
-                "Do not repeat demographic questions (age, sex, chronicity) or acknowledge prior demographic answers. "
-                "Do not repeat previous questions verbatim."
-            )
+            # OLD CARTS questions - model knows how to ask these naturally
+            user_prompt = f"Ask about the {field} of {cc}. Ask one question only."
+        elif section == 'pre_hpi':
+            if field == 'chronicity':
+                user_prompt = "Ask if this is new or an ongoing problem."
+            elif field == 'age':
+                user_prompt = "Ask for the patient's age."
+            elif field == 'sex':
+                user_prompt = "Ask for the patient's biological sex."
+            else:
+                user_prompt = guidance or f"Ask about {field}."
         else:
-            exchange_lines = []
-            if last_assistant:
-                exchange_lines.append(f"assistant: {last_assistant}")
-            if last_user:
-                exchange_lines.append(f"user: {last_user}")
-            recent = "\n".join(exchange_lines)
-            element_instruction = ""
-        if section == 'pre_hpi' and field == 'chief_complaint':
-            guidance = (
-                "Greet the patient warmly (e.g., 'Hi there, it's nice to meet you.') and ask what brings them in today"
-                " and for how long. Return one friendly sentence combining greeting and question."
-            )
-        extra_rules = ""
-        if section == 'hpi':
-            extra_rules = (
-                "Address only the specified OLDCARTS element for the chief complaint."
-            )
-        elif section == 'pre_hpi' and field in {'age', 'sex'}:
-            extra_rules = "Ask this demographic question plainly in one sentence without additional commentary."
-        user_prompt = (
-            f"Section: {section}\n"
-            f"Field: {field}\n"
-            f"Chief complaint: {cc}\n"
-            f"Guidance: {guidance}\n"
-            f"Element instructions: {element_instruction}\n"
-            f"Additional instructions: {extra_rules}\n"
-            f"Recent conversation:\n{recent}\n"
-            "Return one concise question that follows the guidance without any preface."
-        )
+            user_prompt = guidance or f"Ask about {field}."
+        
+        # Use conversation context if available
+        messages = [{"role": "system", "content": self.QUESTION_SYSTEM_PROMPT}]
+        messages.extend(conversation_context)
+        messages.append({"role": "user", "content": user_prompt})
         response = self.llm_chat_fn(
-            [
-                {"role": "system", "content": self.QUESTION_SYSTEM_PROMPT},
-                {"role": "user", "content": user_prompt},
-            ],
+            messages,
             max_tokens=self.LLM_MAX_TOKENS_QUESTIONS,
             temperature=self.LLM_TEMPERATURE_QUESTIONS,
         )
@@ -2818,32 +2816,34 @@ class AdvancedMedicalNavigator:
     def _generate_empathetic_statement(self, chief_complaint: str) -> str:
         if not self.llm_chat_fn:
             return "I'm here to help you with that."
+        # Simplified for fine-tuned model - it knows how to show empathy
         response = self.llm_chat_fn(
             [
                 {"role": "system", "content": self.EMPATHETIC_SYSTEM_PROMPT},
-                {"role": "user", "content": f"Patient concern: {chief_complaint}"},
+                {"role": "user", "content": f"I have {chief_complaint}"},
             ],
             max_tokens=self.LLM_MAX_TOKENS_EMPATHETIC,
             temperature=self.LLM_TEMPERATURE_EMPATHETIC,
         )
         self._capture_debug(f"[LLM] ❤️ Empathy prompt: Patient concern: {chief_complaint}")
         self._capture_debug(f"[LLM] ❤️ Empathy response: {response}")
-        return self._clean_llm_response(response, fallback="I'm sorry you're dealing with that." )
+        return self._clean_llm_response(response, fallback="I understand you're experiencing that. I'm here to help.")
 
     def _generate_chronicity_question(self) -> str:
         if not self.llm_chat_fn:
             return "Is this a new problem or something you've experienced before?"
+        # Simplified for fine-tuned model - it knows how to ask chronicity questions
         response = self.llm_chat_fn(
             [
                 {"role": "system", "content": self.CHRONICITY_SYSTEM_PROMPT},
-                {"role": "user", "content": "Ask if the problem is new or ongoing, and if there's a prior diagnosis."},
+                {"role": "user", "content": "Ask if this is new or an ongoing problem."},
             ],
             max_tokens=self.LLM_MAX_TOKENS_CHRONICITY,
-            temperature=self.LLM_TEMPERATURE_QUESTIONS,  # Use question temperature for consistency
+            temperature=self.LLM_TEMPERATURE_QUESTIONS,
         )
         self._capture_debug("[LLM] 🕒 Chronicity prompt issued.")
         self._capture_debug(f"[LLM] 🕒 Chronicity response: {response}")
-        return self._clean_llm_response(response, fallback="Is this a new problem or something you've had before with a diagnosis?")
+        return self._clean_llm_response(response, fallback="Is this a new problem or something you've experienced before?")
 
     def _generate_summary(self, session: "MedicalSession") -> str:
         if not self.llm_chat_fn:
