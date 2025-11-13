@@ -128,12 +128,14 @@ class AdvancedMedicalNavigator:
     # Simplified prompts to work with fine-tuned model
     # The fine-tuned model was trained to follow OLD CARTS naturally
     QUESTION_SYSTEM_PROMPT = (
-        "You are a professional medical assistant. When a patient tells you about a symptom, "
-        "follow this order: Show empathy and acknowledge their concern, ask if this is new or an ongoing problem, "
-        "ask their age, ask their biological sex, then ask about the symptom - one question at a time, "
-        "waiting for each answer before asking the next. Ask about: when it started, where it is, "
-        "how long it's been present, what it feels like, what makes it worse, what makes it better, "
-        "if it spreads, if it's constant or comes and goes, and how severe it is. "
+        "You are a professional medical assistant. Follow this order when a patient reports a symptom:\n"
+        "1. Show empathy and acknowledge their concern\n"
+        "2. Ask if this is new or an ongoing problem\n"
+        "3. Ask their age\n"
+        "4. Ask their biological sex\n"
+        "5. Then ask about the symptom - one question at a time, waiting for each answer\n\n"
+        "Ask about: when it started, where it is, how long it's been present, what it feels like, "
+        "what makes it worse, what makes it better, if it spreads, if it's constant or comes and goes, and how severe it is.\n\n"
         "Be natural and conversational. Ask only one question at a time. Do not list multiple questions. "
         "Do not mention frameworks or include instructions in your responses."
     )
@@ -1748,41 +1750,19 @@ class AdvancedMedicalNavigator:
         
         triggers_text = '\n'.join(condition_trigger_list)
         
-        # Build system prompt emphasizing medical knowledge for validation
+        # Simple prompt - model is trained to handle medical conditions
         system_prompt = (
-            "You are a medical expert matching patient chief complaints to medical conditions. "
-            "You will be given a patient complaint and a list of conditions with their trigger terms. "
-            "Your task is to use your MEDICAL KNOWLEDGE to determine which conditions are medically relevant to the complaint.\n\n"
-            "CRITICAL INSTRUCTIONS:\n"
-            "1. Use your medical knowledge to understand the semantic relationship between the complaint and conditions\n"
-            "2. Match synonyms and related terms (e.g., 'chest pain' is medically related to GERD, 'belly ache' is related to 'abdominal pain')\n"
-            "3. Validate matches using medical reasoning - if a complaint is medically relevant to a condition, include it even if the exact trigger words don't match\n"
-            "4. Do NOT include conditions that are medically irrelevant (e.g., 'chest pain' is NOT related to appendicitis, which involves abdominal pain)\n"
-            "5. Use the trigger terms as GUIDANCE, but rely on your medical knowledge to validate relevance\n"
-            "6. Score based on medical relevance: 1.0 = highly relevant, 0.8-0.9 = relevant, 0.5-0.7 = possibly relevant, 0.0 = not relevant\n\n"
-            "VALIDATION RULES:\n"
-            "- 'chest pain' → GERD (medically relevant) ✓\n"
-            "- 'chest pain' → Appendicitis (medically irrelevant) ✗\n"
-            "- 'abdominal pain' → Appendicitis (medically relevant) ✓\n"
-            "- 'belly ache' → Abdominal conditions (medically relevant via synonym) ✓\n\n"
-            "OUTPUT FORMAT:\n"
-            "- Output ONLY valid JSON: {\"categories\": {\"category_name\": score}, \"conditions\": {\"condition_name\": score}}\n"
-            "- Include ALL categories with scores (0.0 if no matches)\n"
-            "- Include ONLY conditions that are medically relevant to the complaint (score > 0.0)\n"
-            "- Use EXACT condition names as provided\n"
-            "- NO explanations, NO markdown, NO text before/after JSON\n"
-            "- Scores MUST be 0.0-1.0\n"
-            "- Example: {\"categories\": {\"gastrointestinal\": 1.0, \"cardiovascular\": 0.0}, \"conditions\": {\"gastroesophageal reflux disease (GERD) (Gastroesophageal Reflux Disease)\": 1.0}}"
+            "Match the patient's chief complaint to medically relevant conditions. "
+            "Return JSON: {\"categories\": {\"category_name\": score}, \"conditions\": {\"condition_name\": score}}. "
+            "Scores: 1.0 = highly relevant, 0.0 = not relevant. "
+            "Include all categories with scores. Only include conditions with score > 0.0. "
+            "Output only JSON, no other text."
         )
         
         user_prompt = (
-            f"Patient complaint: '{chief_complaint}'\n\n"
-            f"Conditions and their trigger terms:\n{triggers_text}\n\n"
-            f"TASK:\n"
-            f"Use your medical knowledge to determine which conditions are medically relevant to '{chief_complaint}'. "
-            f"The trigger terms are provided as guidance, but use your medical expertise to validate matches. "
-            f"Only return conditions that are medically relevant to the complaint.\n\n"
-            f"Return JSON with categories and conditions that are medically relevant to the complaint."
+            f"Chief complaint: '{chief_complaint}'\n\n"
+            f"Available conditions:\n{triggers_text}\n\n"
+            f"Match the complaint to relevant conditions and return JSON."
         )
         
         try:
@@ -2177,18 +2157,21 @@ class AdvancedMedicalNavigator:
                             should_include = False
                         
                         if should_include:
+                            # Clean condition name - remove any duplicate abbreviations or malformed names
+                            # Extract base condition name (before any parentheses)
+                            base_condition = condition_name.split('(')[0].strip()
                             # Use the maximum score if condition is matched by multiple LLM names
-                            if condition_name in mapped_scores:
+                            if base_condition in mapped_scores:
                                 # Keep the higher score
-                                if match_score > mapped_scores[condition_name]:
-                                    mapped_scores[condition_name] = match_score
+                                if match_score > mapped_scores[base_condition]:
+                                    mapped_scores[base_condition] = match_score
                             else:
-                                mapped_scores[condition_name] = match_score
+                                mapped_scores[base_condition] = match_score
                             self._capture_debug(
                                 f"[Engine] 🔗 Mapped LLM condition '{llm_name_original}' (score: {score:.3f}, "
-                                f"type: {match_type}, final: {match_score:.3f}) → guideline condition '{condition_name}'"
+                                f"type: {match_type}, final: {match_score:.3f}) → guideline condition '{base_condition}'"
                             )
-                            print(f"[Engine] 🔗 Mapped '{llm_name_original}' ({score:.3f}) → '{condition_name}' ({match_score:.3f}) [{match_type}]")
+                            print(f"[Engine] 🔗 Mapped '{llm_name_original}' ({score:.3f}) → '{base_condition}' ({match_score:.3f}) [{match_type}]")
         
         return mapped_scores
 
