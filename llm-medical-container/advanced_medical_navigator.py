@@ -752,8 +752,8 @@ class AdvancedMedicalNavigator:
         
         # Let LLM extract relevant information from answer and update condition scores
         # No need to match against guideline terms - LLM uses its training
-            matches = []
-            term_scores = {}
+        matches = []
+        term_scores = {}
         review_rows = []
         review_meta = {'invoked': False, 'reason': 'simplified - LLM scores directly'}
         debug_ctx = session.context.setdefault('debug', {})
@@ -1221,7 +1221,7 @@ class AdvancedMedicalNavigator:
                     if not isinstance(value, (int, float)):
                         print(f"[LLM] ⚠️ Skipping '{key}': value is {type(value).__name__} (not numeric): {value}")
                         self._capture_debug(f"[LLM] ⚠️ Skipping '{key}': value is {type(value).__name__} (not numeric): {value}")
-                    continue
+                        continue
                     term_key = key.strip()
                     score = max(0.0, min(1.0, float(value)))
                     
@@ -1258,7 +1258,7 @@ class AdvancedMedicalNavigator:
                     self._capture_debug(f"[LLM] ⚠️ Match review for '{answer}' in {element}: LLM returned JSON with {len(parsed)} keys but NO valid numeric scores")
                     self._capture_debug(f"[LLM] ⚠️ JSON keys and sample values: {list(parsed.items())[:5]}")
                     self._capture_debug(f"[LLM] ⚠️ Expected terms: {limited[:10]}")
-            else:
+                else:
                     self._capture_debug(f"[LLM] ✅ Successfully extracted {len(llm_scores)} LLM scores")
                     # Log which terms were matched
                     matched_terms = [term for term in limited if term in llm_scores]
@@ -1392,7 +1392,7 @@ class AdvancedMedicalNavigator:
                 conds = term_to_guidelines.get(patient_term.lower(), [])
                 if conds and not any(cond in priority_conditions for cond in conds):
                     fallback_med_terms.append(med)
-        else:
+                else:
                     filtered_med_terms.append(med)
 
             if filtered_med_terms:
@@ -1498,7 +1498,7 @@ class AdvancedMedicalNavigator:
                     continue
                 if any(session.condition_scores.get(cond, 0.5) > baseline for cond in conds):
                     filtered.append(opt)
-        else:
+                else:
                     skipped.append(opt)
             if skipped:
                 self._capture_debug(
@@ -1619,7 +1619,7 @@ class AdvancedMedicalNavigator:
                         analysis['satisfied_medical_terms'] = [best_medical]
                         analysis['satisfied_options'] = [best_option]
                         self._capture_debug(f"[Clarification] ✅ Auto-selected: '{best_option}' → {best_medical}")
-        else:
+                    else:
                         # Last resort: use first satisfied medical term
                         if satisfied:
                             analysis['satisfied_medical_terms'] = [satisfied[0]]
@@ -1803,15 +1803,15 @@ class AdvancedMedicalNavigator:
             conditions = self.chief_complaint_trigger_to_condition.get(trigger, [])
             for condition in conditions:
                 # Find category for this condition
-        for trigger_data in self.chief_complaint_triggers_data:
+                for trigger_data in self.chief_complaint_triggers_data:
                     if trigger_data.get('condition') == condition:
-            category = trigger_data.get('category', 'gastrointestinal')
+                        category = trigger_data.get('category', 'gastrointestinal')
                         condition_to_category[condition] = category
                         all_categories.add(category)
                         break
                 
-            if condition not in triggers_by_condition:
-                triggers_by_condition[condition] = []
+                if condition not in triggers_by_condition:
+                    triggers_by_condition[condition] = []
                 triggers_by_condition[condition].append((trigger, faiss_score))
         
         available_categories = sorted(list(all_categories))
@@ -1906,7 +1906,7 @@ class AdvancedMedicalNavigator:
                             brace_count -= 1
                             if brace_count == 0:
                                 end_idx = i + 1
-                break
+                                break
                     if end_idx > start_idx:
                         try:
                             extracted_json = response[start_idx:end_idx]
@@ -2330,7 +2330,7 @@ class AdvancedMedicalNavigator:
                             # Condition name is contained in LLM name (e.g., "GERD" contains "reflux disease")
                             match_type = "name_contained"
                             match_score = score * 0.8
-        else:
+                        else:
                             # Check if LLM name matches key words in condition name
                             condition_words = set(condition_lower.split())
                             llm_words = set(llm_name_lower.split())
@@ -2368,7 +2368,7 @@ class AdvancedMedicalNavigator:
                         elif match_type == "trigger_partial":
                             # Only include partial trigger matches if score is high
                             should_include = score >= 0.8
-            else:
+                        else:
                             should_include = False
                         
                         if should_include:
@@ -2445,7 +2445,7 @@ class AdvancedMedicalNavigator:
         is_visual = self._is_visual_symptom(session, cc)
         if element == 'character' and is_visual:
             guidance = f"Ask about what the {cc} looks like. Ask one natural, conversational question with examples (e.g., 'What does it look like? For example, is it red, dark, bright, or something else?')."
-            else:
+        else:
             guidance = f"Ask about the {element} of {cc}. Ask one natural, conversational question."
         
         # No options - let LLM use its training
@@ -2999,7 +2999,7 @@ Now ask about what the {cc} looks like.
 IMPORTANT: This is a visual symptom - ask "What does it look like?" with examples, NOT "What does it feel like?"
 Do NOT ask about information already provided in the context above.
 Ask only one question."""
-        else:
+            else:
                 user_prompt = f"""Context of what we already know:
 {context_summary}
 

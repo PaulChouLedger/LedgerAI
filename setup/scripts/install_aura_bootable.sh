@@ -100,7 +100,12 @@ sudo apt install -y \
     x11-xserver-utils \
     alsa-utils \
     libasound2-dev \
-    pulseaudio
+    pulseaudio \
+    qtbase5-dev \
+    qttools5-dev \
+    qttools5-dev-tools \
+    python3-pyqt5 \
+    python3-sip-dev
 
 # Install audio packages (try multiple variants for different systems)
 print_info "Installing audio packages..."
@@ -189,7 +194,76 @@ if [ -f "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" ]; then
         print_info "      If audio doesn't work, you may need to build portaudio from source"
     fi
     
-    pip install -r "$LEDGERAI_DIR/aura-control/requirements/requirements.txt"
+    # Install PyQt5 separately with better error handling
+    # First, try to install all requirements
+    print_info "Installing all requirements..."
+    if pip install -r "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" 2>&1 | tee /tmp/pip_install.log; then
+        print_info "✅ All requirements installed successfully"
+    else
+        PIP_ERROR=$(cat /tmp/pip_install.log)
+        if echo "$PIP_ERROR" | grep -q "PyQt5\|pyqt5"; then
+            print_info "⚠️  PyQt5 installation failed, trying alternative approach..."
+            
+            # Check if system PyQt5 is available and can be used
+            if python3 -c "import sys; sys.path.insert(0, '/usr/lib/python3/dist-packages'); import PyQt5" 2>/dev/null; then
+                print_info "System PyQt5 is available, will use it"
+                # Create requirements without PyQt5
+                TEMP_REQUIREMENTS="/tmp/requirements_no_pyqt5.txt"
+                grep -v "^PyQt5" "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" > "$TEMP_REQUIREMENTS" || true
+                pip install -r "$TEMP_REQUIREMENTS"
+                rm -f "$TEMP_REQUIREMENTS"
+                
+                # Make system PyQt5 available in venv by creating a symlink or using --system-site-packages
+                print_info "Note: Using system PyQt5. If import fails, you may need to:"
+                print_info "      Recreate venv with: python3 -m venv --system-site-packages $VENV_DIR"
+            else
+                print_info "Attempting to install PyQt5 with Qt5 dev tools..."
+                # Check if qmake is available
+                if command -v qmake > /dev/null 2>&1; then
+                    print_info "qmake found: $(which qmake)"
+                    QMAKE_PATH=$(which qmake)
+                else
+                    print_info "qmake not in PATH, searching..."
+                    if [ -f "/usr/bin/qmake" ]; then
+                        QMAKE_PATH="/usr/bin/qmake"
+                        export PATH="/usr/bin:$PATH"
+                    elif [ -f "/usr/lib/qt5/bin/qmake" ]; then
+                        QMAKE_PATH="/usr/lib/qt5/bin/qmake"
+                        export PATH="/usr/lib/qt5/bin:$PATH"
+                    fi
+                fi
+                
+                # Try installing PyQt5 with --no-build-isolation (often works better)
+                if pip install PyQt5 --no-build-isolation; then
+                    print_info "✅ PyQt5 installed successfully with --no-build-isolation"
+                elif [ -n "$QMAKE_PATH" ]; then
+                    print_info "Trying PyQt5 install with explicit qmake path..."
+                    export QMAKE="$QMAKE_PATH"
+                    pip install PyQt5 --no-build-isolation || {
+                        print_error "PyQt5 installation failed"
+                        print_info "Trying to install remaining packages without PyQt5..."
+                        TEMP_REQUIREMENTS="/tmp/requirements_no_pyqt5.txt"
+                        grep -v "^PyQt5" "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" > "$TEMP_REQUIREMENTS" || true
+                        pip install -r "$TEMP_REQUIREMENTS"
+                        rm -f "$TEMP_REQUIREMENTS"
+                        print_info "⚠️  PyQt5 not installed. GUI may not work."
+                    }
+                else
+                    print_error "qmake not found. PyQt5 cannot be built."
+                    print_info "Trying to install remaining packages without PyQt5..."
+                    TEMP_REQUIREMENTS="/tmp/requirements_no_pyqt5.txt"
+                    grep -v "^PyQt5" "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" > "$TEMP_REQUIREMENTS" || true
+                    pip install -r "$TEMP_REQUIREMENTS"
+                    rm -f "$TEMP_REQUIREMENTS"
+                    print_info "⚠️  PyQt5 not installed. GUI may not work."
+                    print_info "   Install Qt5 dev tools: sudo apt install qtbase5-dev qttools5-dev"
+                fi
+            fi
+        else
+            print_error "Installation failed for other reasons. Check logs above."
+        fi
+        rm -f /tmp/pip_install.log
+    fi
 else
     print_error "Core requirements file not found!"
     exit 1
