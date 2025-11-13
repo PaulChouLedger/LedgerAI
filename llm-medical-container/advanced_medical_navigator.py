@@ -1032,6 +1032,13 @@ class AdvancedMedicalNavigator:
                 "- Same anatomical structure (organ, muscle, bone, etc.)\n"
                 "- Same relative position (left/right, upper/lower, anterior/posterior, etc.)\n"
                 "- Anatomical synonyms and equivalent descriptions\n\n"
+                "CRITICAL: Rule out OPPOSITE locations. If the patient says:\n"
+                "- 'right' or 'right side' → give 0.0 to ALL left-side locations (left, LUQ, LLQ, left upper, left lower, etc.)\n"
+                "- 'left' or 'left side' → give 0.0 to ALL right-side locations (right, RUQ, RLQ, right upper, right lower, etc.)\n"
+                "- 'upper' or 'upper quadrant' → give 0.0 to lower locations (lower quadrant, lower abdomen, etc.)\n"
+                "- 'lower' or 'lower quadrant' → give 0.0 to upper locations (upper quadrant, upper abdomen, etc.)\n"
+                "- 'anterior' or 'front' → give 0.0 to posterior locations (posterior, back, etc.)\n"
+                "- 'posterior' or 'back' → give 0.0 to anterior locations (anterior, front, etc.)\n\n"
                 "FAISS candidate terms to evaluate:\n"
                 f"{candidate_lines}\n\n"
                 "Return ONLY valid JSON with ALL terms as keys and their scores as values.\n"
@@ -1039,9 +1046,9 @@ class AdvancedMedicalNavigator:
                 "You MUST include ALL terms listed above with numeric scores (0.0 to 1.0).\n\n"
                 "Scoring guidelines:\n"
                 "- 1.0 = Exact anatomical match (same body region, structure, and relative position)\n"
-                "- 0.0 = Completely different anatomical location (different body region or structure)\n"
-                "- 0.1-0.4 = Distantly related or opposite locations (same body part but different side/position)\n"
-                "- For location matching, be precise: use 1.0 for matches, 0.0 for clear mismatches\n\n"
+                "- 0.0 = Completely different anatomical location OR OPPOSITE location (different body region, structure, or opposite side/position)\n"
+                "- 0.5-0.9 = Related but not exact match (same region but different specificity)\n"
+                "- For location matching, be precise: use 1.0 for exact matches, 0.0 for clear mismatches or opposites\n\n"
                 "Example format (not actual terms - your terms are listed above):\n"
                 "{\n"
                 '  "medical_term_1": 1.0,\n'
@@ -1091,12 +1098,18 @@ class AdvancedMedicalNavigator:
                 "Use your medical expertise to determine if descriptions refer to the same anatomical location. "
                 "Consider body regions, anatomical structures, relative positions, and anatomical terminology. "
                 "Be precise: match exact locations, distinguish different body regions, and recognize anatomical synonyms.\n\n"
+                "CRITICAL: You MUST rule out OPPOSITE locations. If the patient mentions a specific side or position, "
+                "you must give 0.0 to all opposite locations:\n"
+                "- Left vs Right (if patient says 'right', give 0.0 to all left locations)\n"
+                "- Upper vs Lower (if patient says 'upper', give 0.0 to all lower locations)\n"
+                "- Anterior vs Posterior (if patient says 'anterior', give 0.0 to all posterior locations)\n"
+                "- Use your anatomical knowledge to identify and exclude all opposite locations.\n\n"
                 "CRITICAL FORMAT REQUIREMENTS:\n"
                 "- Output ONLY valid JSON (no explanations, no text before or after)\n"
                 "- JSON must be an object with ALL terms as keys and numeric scores (0.0-1.0) as values\n"
                 "- Example format: {\"term1\": 1.0, \"term2\": 0.0, \"term3\": 0.0}\n"
                 "- Each term must be a key in the JSON object with its score as the value\n"
-                "- Scores: 1.0 = exact anatomical match, 0.0 = different location\n"
+                "- Scores: 1.0 = exact anatomical match, 0.0 = different location OR opposite location\n"
                 "- Do NOT use any other format - only JSON object with term keys and numeric values"
             )
         else:
@@ -1510,7 +1523,7 @@ class AdvancedMedicalNavigator:
                     result.append(item)
             return result
 
-        def _filter_by_condition_scores(options: List[str], answer: str) -> List[str]:
+        def _filter_by_condition_scores(options: List[str]) -> List[str]:
             """Filter and sort options by condition scores. LLM handles opposite-side detection."""
             if not options:
                 return options
@@ -1548,13 +1561,11 @@ class AdvancedMedicalNavigator:
             return options
 
         satisfied_options = _filter_by_condition_scores(
-            _unique([medical_to_patient.get(med.lower(), med) for med in satisfied_medical_terms]),
-            answer
+            _unique([medical_to_patient.get(med.lower(), med) for med in satisfied_medical_terms])
         )
 
         missing_options = _filter_by_condition_scores(
-            _unique([medical_to_patient.get(med.lower(), med) for med in missing_medical_terms]),
-            answer
+            _unique([medical_to_patient.get(med.lower(), med) for med in missing_medical_terms])
         )
 
         all_terms_list = sorted([meta['patient_friendly'] for meta in all_terms_patient.values()])
