@@ -1,22 +1,22 @@
 #!/usr/bin/env python3
 """
-Advanced Medical Navigator (LLM-only, Guideline-aware)
-======================================================
+Advanced Medical Navigator (FAISS + LLM Decision)
+==================================================
 
 Conversation flow:
-    1. Capture chief complaint → LLM-based matching to medical categories
-       • LLM matches chief complaint to guideline categories using medical knowledge
-       • Loads guideline categories & seeds condition scores.
+    1. Capture chief complaint → FAISS semantic matching → LLM final decision
+       • FAISS finds candidate matches from guideline triggers
+       • LLM evaluates candidates and decides best matches based on medical knowledge
     2. LLM empathetic acknowledgement + chronicity question (new vs known w/ prior Dx)
     3. Collect demographics: age, biological sex
-    4. OLDCARTS assessment using guideline terms & weights per category
-       • LLM crafts questions with injected options
-       • Responses scored via LLM against patient-friendly terms
+    4. OLDCARTS assessment using FAISS + LLM decision
+       • FAISS finds candidate terms for each element
+       • LLM evaluates candidates based on semantics, anatomy, and medical knowledge
        • Clarifying questions generated when multiple / no matches
     5. Rankings update after every element; diagnosis ready once OLDCARTS complete.
 
-This file uses LLM-only approach for all matching and scoring. No FAISS, medical_rule_engine, or rule-based filtering.
-is required - LLM handles all semantic matching, fuzzy correction, and anatomical reasoning.
+This file uses FAISS for semantic candidate selection, then LLM for final decision.
+No medical_rule_engine or medical_rules.json - LLM handles all filtering and decisions.
 """
 
 from dataclasses import dataclass, field
@@ -27,6 +27,13 @@ from pathlib import Path
 import re
 import random
 from typing import Dict, List, Optional, Tuple, Any
+import numpy as np
+try:
+    import faiss
+    FAISS_AVAILABLE = True
+except ImportError:
+    FAISS_AVAILABLE = False
+    print("[Navigator] ⚠️ FAISS not available - falling back to LLM-only matching")
 
 
 class AdvancedMedicalNavigator:
@@ -266,25 +273,39 @@ class AdvancedMedicalNavigator:
 
     # ----------- Lifecycle ----------------------------------------------------
 
-    def __init__(self, llm_chat_fn):
+    def __init__(self, llm_chat_fn, embedding_model=None):
         """
-        Initialize Advanced Medical Navigator with LLM-only approach.
+        Initialize Advanced Medical Navigator with FAISS + LLM decision approach.
         
         Args:
-            llm_chat_fn: LLM chat function for all matching and scoring
+            llm_chat_fn: LLM chat function for final decision making
+            embedding_model: Embedding model for FAISS semantic matching (optional)
         """
         self.llm_chat_fn = llm_chat_fn
+        self.embedding_model = embedding_model
         self.sessions: Dict[str, AdvancedMedicalNavigator.MedicalSession] = {}
         self._captured_debug_output: List[str] = []
         self.guidelines_dir = self._resolve_guidelines_dir()
         self.enabled_categories = self._get_enabled_categories()
         self.all_guidelines: Dict[str, Dict] = {}
-        self.chief_complaint_triggers_data: List[Dict] = []  # For LLM matching
+        self.chief_complaint_triggers_data: List[Dict] = []  # For FAISS + LLM matching
         self._chief_complaint_condition_seed: Dict[str, float] = {}
+        
+        # FAISS indexes
+        self.chief_complaint_index = None
+        self.chief_complaint_triggers_list: List[str] = []
+        self.chief_complaint_trigger_to_condition: Dict[str, List[str]] = {}
+        self.oldcarts_indexes: Dict[str, Any] = {}  # {element: {'index': faiss.Index, 'terms': List[str], 'term_to_conditions': Dict}}
+        
+        # FAISS thresholds
+        self.FAISS_CHIEF_COMPLAINT_THRESHOLD = 0.6  # Initial candidate selection
+        self.FAISS_OLDCARTS_THRESHOLD = 0.65  # Initial candidate selection
 
         if self.guidelines_dir:
             self._load_guidelines()
             self._build_chief_complaint_triggers()
+            if self.embedding_model and FAISS_AVAILABLE:
+                self._build_faiss_indexes()
         else:
             self._capture_debug("[Navigator] ⚠️ No guidelines directory found. Chief complaint matching may be limited.")
 
@@ -462,7 +483,7 @@ class AdvancedMedicalNavigator:
 
         # Don't fall through to asking pre-HPI questions again if we're past that stage
         # The stage-specific checks above should handle all transitions
-        return None
+            return None
 
     def _is_redundant_question(self, session: "MedicalSession", element: str) -> bool:
         """Check if asking about this element would be redundant given what's already known."""
@@ -731,13 +752,13 @@ class AdvancedMedicalNavigator:
         
         # Let LLM extract relevant information from answer and update condition scores
         # No need to match against guideline terms - LLM uses its training
-        matches = []
-        term_scores = {}
+            matches = []
+            term_scores = {}
         review_rows = []
         review_meta = {'invoked': False, 'reason': 'simplified - LLM scores directly'}
         debug_ctx = session.context.setdefault('debug', {})
         # Simplified: No term matching needed - LLM scores directly
-        
+
         if pending and pending.get('clarification'):
             session.context['clarifications'].pop(element, None)
         elif not requires_clarification:
@@ -908,10 +929,39 @@ class AdvancedMedicalNavigator:
             if term not in unique_matches:
                 unique_matches.append(term)
 
-        # For ALL elements, send ALL terms to LLM (no limit, no FAISS filtering)
-        # LLM is the decision maker for all elements
-        limited = unique_matches  # Send all terms to LLM
-        self._capture_debug(f"[LLM] 🔍 {element}: Sending ALL {len(limited)} terms to LLM for decision")
+        # Step 1: Use FAISS to find candidate terms
+        candidate_terms = []
+        if element in self.oldcarts_indexes and self.embedding_model and FAISS_AVAILABLE:
+            try:
+                index_data = self.oldcarts_indexes[element]
+                query_embedding = self.embedding_model.encode([answer.lower().strip()])[0]
+                query_embedding = np.array([query_embedding], dtype='float32')
+                faiss.normalize_L2(query_embedding)
+                
+                # Search for top candidates
+                k = min(20, len(index_data['terms']))
+                similarities, indices = index_data['index'].search(query_embedding, k)
+                
+                # Filter by threshold
+                for sim, idx in zip(similarities[0], indices[0]):
+                    if sim >= self.FAISS_OLDCARTS_THRESHOLD:
+                        term = index_data['terms'][idx]
+                        if term in unique_matches:  # Only include terms that were in original matches
+                            candidate_terms.append((term, float(sim)))
+                
+                candidate_terms.sort(key=lambda x: x[1], reverse=True)
+                self._capture_debug(f"[FAISS] 🔍 {element}: Found {len(candidate_terms)} candidate terms for '{answer}'")
+            except Exception as e:
+                self._capture_debug(f"[FAISS] ⚠️ Error in FAISS search for {element}: {e}")
+        
+        # If no FAISS candidates, use all unique matches
+        if not candidate_terms:
+            self._capture_debug(f"[FAISS] ⚠️ {element}: No FAISS candidates, using all {len(unique_matches)} terms for LLM evaluation")
+            limited = unique_matches
+        else:
+            # Use FAISS candidates (top 10)
+            limited = [term for term, _ in candidate_terms[:10]]
+            self._capture_debug(f"[FAISS] 🔍 {element}: Using {len(limited)} FAISS candidates for LLM evaluation")
 
         if not limited:
             self._capture_debug(f"[LLM] ⚠️ Match review skipped for '{answer}' in {element}: No terms to review")
@@ -933,7 +983,16 @@ class AdvancedMedicalNavigator:
             # Also add original term
             alias_map[term] = term
         
-        candidate_lines = "\n".join(f"- {term}" for term in limited)
+        # Build candidate lines with FAISS scores if available
+        if candidate_terms:
+            candidate_dict = {term: score for term, score in candidate_terms}
+            candidate_lines = "\n".join([
+                f"- {term} (FAISS similarity: {candidate_dict.get(term, 0.0):.2f})" 
+                if term in candidate_dict else f"- {term}"
+                for term in limited
+            ])
+        else:
+            candidate_lines = "\n".join(f"- {term}" for term in limited)
         
         # Create element-specific prompts (universal, condition-agnostic)
         element_prompts = {
@@ -941,14 +1000,14 @@ class AdvancedMedicalNavigator:
                 f"Chief complaint: {session.context['pre_hpi'].get('chief_complaint', 'unknown')}\n"
                 f"Patient's description of symptom location: '{answer}'\n\n"
                 "You are a medical expert evaluating anatomical location terms. "
-                "Match the patient's description to the medical location terms based on ANATOMICAL ACCURACY.\n\n"
-                "Use your medical knowledge to determine if the patient's description refers to the same anatomical location "
-                "as each medical term. Consider:\n"
+                "FAISS found these candidate matches based on semantic similarity. "
+                "Evaluate them and decide which are medically relevant based on ANATOMICAL ACCURACY.\n\n"
+                "Consider: semantic similarity, anatomical location, and medical knowledge.\n"
                 "- Same body region (head, chest, abdomen, limbs, etc.)\n"
                 "- Same anatomical structure (organ, muscle, bone, etc.)\n"
                 "- Same relative position (left/right, upper/lower, anterior/posterior, etc.)\n"
                 "- Anatomical synonyms and equivalent descriptions\n\n"
-                "Location terms to evaluate:\n"
+                "FAISS candidate terms to evaluate:\n"
                 f"{candidate_lines}\n\n"
                 "Return ONLY valid JSON with ALL terms as keys and their scores as values.\n"
                 "Format: {\"term1\": score1, \"term2\": score2, \"term3\": score3, ...}\n"
@@ -976,8 +1035,9 @@ class AdvancedMedicalNavigator:
                 f"Chief complaint: {session.context['pre_hpi'].get('chief_complaint', 'unknown')}\n"
                 f"Patient statement: '{answer}'\n\n"
                 f"You are a medical expert evaluating {element} terms. "
-                "Match the patient's statement to the medical guideline terms based on semantic meaning and medical relevance.\n\n"
-                f"{element.replace('_', ' ').title()} terms to evaluate:\n"
+                "FAISS found these candidate matches based on semantic similarity. "
+                "Evaluate them and decide which are medically relevant based on semantic meaning, anatomical location, and medical knowledge.\n\n"
+                f"FAISS candidate {element.replace('_', ' ').title()} terms to evaluate:\n"
                 f"{candidate_lines}\n\n"
                 "Return ONLY valid JSON with ALL terms as keys and their scores as values.\n"
                 "Format: {\"term1\": score1, \"term2\": score2, \"term3\": score3, ...}\n"
@@ -999,8 +1059,10 @@ class AdvancedMedicalNavigator:
         if element == 'location':
             system_prompt = (
                 "You are a medical expert specializing in anatomical location assessment. "
-                "Your task is to evaluate whether patient-described locations match medical location terms "
+                "FAISS found candidate matches based on semantic similarity. "
+                "Your task is to evaluate these candidates and decide which are medically relevant "
                 "based on ANATOMICAL ACCURACY and your comprehensive anatomical knowledge.\n\n"
+                "Consider: semantic similarity, anatomical location, and medical knowledge. "
                 "Use your medical expertise to determine if descriptions refer to the same anatomical location. "
                 "Consider body regions, anatomical structures, relative positions, and anatomical terminology. "
                 "Be precise: match exact locations, distinguish different body regions, and recognize anatomical synonyms.\n\n"
@@ -1015,7 +1077,9 @@ class AdvancedMedicalNavigator:
         else:
             system_prompt = (
                 "You are a medical expert evaluating patient statements against medical guideline terms. "
-                "Your task is to determine semantic equivalence and medical relevance.\n\n"
+                "FAISS found candidate matches based on semantic similarity. "
+                "Your task is to evaluate these candidates and decide which are medically relevant "
+                "based on semantic meaning, anatomical location, and medical knowledge.\n\n"
                 "CRITICAL FORMAT REQUIREMENTS:\n"
                 "- Output ONLY valid JSON (no explanations, no text before or after)\n"
                 "- JSON must be an object with ALL terms as keys and numeric scores (0.0-1.0) as values\n"
@@ -1221,19 +1285,22 @@ class AdvancedMedicalNavigator:
                 'had_scores': False,
             }
 
+        # Build FAISS score dict for review_rows
+        faiss_score_dict = {term: score for term, score in candidate_terms} if candidate_terms else {}
+        
         for term in limited:
-            # LLM-only approach: FAISS is bypassed, so first score is always 0.0 (kept for tuple compatibility)
-            unused_score = 0.0  # Placeholder (FAISS bypassed in LLM-only approach)
+            # FAISS + LLM approach: FAISS provides candidate selection, LLM makes final decision
+            faiss_score = faiss_score_dict.get(term, 0.0)  # FAISS similarity score
             llm_score = llm_scores.get(term, llm_scores.get(term.lower()))
             
-            # For ALL elements, use LLM score exclusively
+            # LLM makes final decision (uses FAISS candidates but decides based on medical knowledge)
             if llm_score is not None:
                 refined_scores[term] = llm_score
-                review_rows.append((term, unused_score, llm_score, llm_score))
+                review_rows.append((term, faiss_score, llm_score, llm_score))
             else:
                 # If LLM didn't score it, set to 0.0 (no match)
                 refined_scores[term] = 0.0
-                review_rows.append((term, unused_score, 0.0, 0.0))
+                review_rows.append((term, faiss_score, 0.0, 0.0))
 
         # Order terms by refined score for filtering
         ordered = sorted(limited, key=lambda t: refined_scores.get(t, 0.0), reverse=True)
@@ -1325,7 +1392,7 @@ class AdvancedMedicalNavigator:
                 conds = term_to_guidelines.get(patient_term.lower(), [])
                 if conds and not any(cond in priority_conditions for cond in conds):
                     fallback_med_terms.append(med)
-                else:
+        else:
                     filtered_med_terms.append(med)
 
             if filtered_med_terms:
@@ -1431,7 +1498,7 @@ class AdvancedMedicalNavigator:
                     continue
                 if any(session.condition_scores.get(cond, 0.5) > baseline for cond in conds):
                     filtered.append(opt)
-                else:
+        else:
                     skipped.append(opt)
             if skipped:
                 self._capture_debug(
@@ -1552,7 +1619,7 @@ class AdvancedMedicalNavigator:
                         analysis['satisfied_medical_terms'] = [best_medical]
                         analysis['satisfied_options'] = [best_option]
                         self._capture_debug(f"[Clarification] ✅ Auto-selected: '{best_option}' → {best_medical}")
-                    else:
+        else:
                         # Last resort: use first satisfied medical term
                         if satisfied:
                             analysis['satisfied_medical_terms'] = [satisfied[0]]
@@ -1682,54 +1749,88 @@ class AdvancedMedicalNavigator:
             )
 
     def _match_chief_complaint_to_category_llm(self, chief_complaint: str) -> List[str]:
-        """Match chief complaint to medical categories using LLM with explicit trigger matching.
+        """Match chief complaint to medical categories using FAISS + LLM decision.
         
-        LLM is used but with a highly structured prompt that forces it to:
-        1. First identify which triggers match the complaint
-        2. Then map those triggers to conditions
-        3. Only return conditions that have matching triggers
+        Flow:
+        1. FAISS finds candidate triggers (semantic similarity)
+        2. LLM evaluates candidates and decides best matches based on medical knowledge
         """
         if not self.chief_complaint_triggers_data:
             self._capture_debug("[Engine] ❌ No chief complaint triggers available - cannot match categories")
             print("[Engine] ❌ No chief complaint triggers available - cannot match categories")
             return []
 
-        # Group triggers by condition for structured presentation
-        triggers_by_condition: Dict[str, List[str]] = {}  # condition -> list of triggers
+        # Step 1: Use FAISS to find candidate triggers
+        candidate_triggers = []
+        if self.chief_complaint_index and self.embedding_model and FAISS_AVAILABLE:
+            try:
+                query_embedding = self.embedding_model.encode([chief_complaint.lower().strip()])[0]
+                query_embedding = np.array([query_embedding], dtype='float32')
+                faiss.normalize_L2(query_embedding)
+                
+                # Search for top 20 candidates
+                k = min(20, len(self.chief_complaint_triggers_list))
+                similarities, indices = self.chief_complaint_index.search(query_embedding, k)
+                
+                # Filter by threshold
+                for sim, idx in zip(similarities[0], indices[0]):
+                    if sim >= self.FAISS_CHIEF_COMPLAINT_THRESHOLD:
+                        trigger = self.chief_complaint_triggers_list[idx]
+                        candidate_triggers.append((trigger, float(sim)))
+                
+                candidate_triggers.sort(key=lambda x: x[1], reverse=True)
+                self._capture_debug(f"[FAISS] 🔍 Found {len(candidate_triggers)} candidate triggers for '{chief_complaint}'")
+                print(f"[FAISS] 🔍 Found {len(candidate_triggers)} candidate triggers (threshold: {self.FAISS_CHIEF_COMPLAINT_THRESHOLD})")
+            except Exception as e:
+                self._capture_debug(f"[FAISS] ⚠️ Error in FAISS search: {e}")
+                print(f"[FAISS] ⚠️ Error in FAISS search: {e}")
+        
+        # If no FAISS candidates, fall back to all triggers
+        if not candidate_triggers:
+            self._capture_debug("[FAISS] ⚠️ No FAISS candidates, using all triggers for LLM evaluation")
+            for trigger_data in self.chief_complaint_triggers_data:
+                trigger = trigger_data.get('trigger', '')
+                if trigger:
+                    candidate_triggers.append((trigger, 0.5))  # Default score
+        
+        # Group candidate triggers by condition
+        triggers_by_condition: Dict[str, List[Tuple[str, float]]] = {}  # condition -> list of (trigger, score)
         condition_to_category: Dict[str, str] = {}  # condition -> category
         all_categories = set()
         
+        for trigger, faiss_score in candidate_triggers:
+            # Find which conditions use this trigger
+            conditions = self.chief_complaint_trigger_to_condition.get(trigger, [])
+            for condition in conditions:
+                # Find category for this condition
         for trigger_data in self.chief_complaint_triggers_data:
+                    if trigger_data.get('condition') == condition:
             category = trigger_data.get('category', 'gastrointestinal')
-            condition = trigger_data.get('condition', '')
-            trigger = trigger_data.get('trigger', '')
-            
-            if not trigger or not condition:
-                continue
+                        condition_to_category[condition] = category
+                        all_categories.add(category)
+                        break
                 
             if condition not in triggers_by_condition:
                 triggers_by_condition[condition] = []
-            triggers_by_condition[condition].append(trigger)
-            condition_to_category[condition] = category
-            all_categories.add(category)
+                triggers_by_condition[condition].append((trigger, faiss_score))
         
-        # Build structured prompt showing condition -> triggers mapping
         available_categories = sorted(list(all_categories))
         
-        # Format: One condition per line with its triggers
+        # Step 2: LLM evaluates candidates and makes final decision
+        # Build prompt with FAISS candidates
         condition_trigger_list = []
         for condition in sorted(triggers_by_condition.keys()):
-            triggers = triggers_by_condition[condition]
-            triggers_str = ', '.join(triggers)
+            triggers_with_scores = triggers_by_condition[condition]
+            triggers_str = ', '.join([f"{t} (FAISS: {s:.2f})" for t, s in triggers_with_scores])
             category = condition_to_category.get(condition, 'unknown')
             condition_trigger_list.append(f"{condition} ({category}): {triggers_str}")
         
         triggers_text = '\n'.join(condition_trigger_list)
         
-        # Simple prompt - model is trained to handle medical conditions
         available_cats_str = ', '.join(available_categories)
         system_prompt = (
-            "Match the patient's chief complaint to medically relevant conditions. "
+            "You are a medical expert. Evaluate FAISS semantic matches and decide which conditions are medically relevant. "
+            "Consider: semantic similarity, anatomical location, and medical knowledge. "
             f"Return JSON: {{\"categories\": {{\"category_name\": score}}, \"conditions\": {{\"condition_name\": score}}}}. "
             f"Categories must be one of: {available_cats_str}. "
             "Scores must be between 0.0 and 1.0 (1.0 = highly relevant, 0.0 = not relevant). "
@@ -1739,13 +1840,14 @@ class AdvancedMedicalNavigator:
         
         user_prompt = (
             f"Chief complaint: '{chief_complaint}'\n\n"
-            f"Available conditions:\n{triggers_text}\n\n"
-            f"Match the complaint to relevant conditions and return JSON."
+            f"FAISS found these candidate matches:\n{triggers_text}\n\n"
+            f"Evaluate these candidates based on your medical knowledge. Consider semantic meaning, anatomical location, "
+            f"and clinical relevance. Return JSON with final scores."
         )
         
         try:
-            self._capture_debug(f"[Engine] 🔍 LLM matching chief complaint '{chief_complaint}' to categories")
-            print(f"[Engine] 🔍 LLM matching chief complaint '{chief_complaint}' to {len(triggers_by_condition)} conditions")
+            self._capture_debug(f"[Engine] 🔍 FAISS + LLM matching chief complaint '{chief_complaint}' to categories")
+            print(f"[Engine] 🔍 FAISS found {len(candidate_triggers)} candidates, LLM evaluating {len(triggers_by_condition)} conditions")
             
             response = self.llm_chat_fn(
                 [
@@ -1804,7 +1906,7 @@ class AdvancedMedicalNavigator:
                             brace_count -= 1
                             if brace_count == 0:
                                 end_idx = i + 1
-                                break
+                break
                     if end_idx > start_idx:
                         try:
                             extracted_json = response[start_idx:end_idx]
@@ -2006,7 +2108,7 @@ class AdvancedMedicalNavigator:
         self._capture_debug(f"[Navigator] 📚 Loaded {loaded} guidelines ({skipped} skipped)")
 
     def _build_chief_complaint_triggers(self) -> None:
-        """Build chief complaint triggers list for LLM matching (no FAISS index needed)."""
+        """Build chief complaint triggers list for FAISS + LLM matching."""
         self.chief_complaint_triggers_data = []
 
         for name, guideline in self.all_guidelines.items():
@@ -2024,7 +2126,117 @@ class AdvancedMedicalNavigator:
         if not self.chief_complaint_triggers_data:
             self._capture_debug("[Navigator] ⚠️ No chief complaint triggers found in guidelines")
         else:
-            self._capture_debug(f"[Navigator] ✅ Collected {len(self.chief_complaint_triggers_data)} chief complaint triggers for LLM matching")
+            self._capture_debug(f"[Navigator] ✅ Collected {len(self.chief_complaint_triggers_data)} chief complaint triggers for FAISS + LLM matching")
+    
+    def _build_faiss_indexes(self) -> None:
+        """Build FAISS indexes for chief complaints and OLD CARTS elements."""
+        if not self.embedding_model or not FAISS_AVAILABLE:
+            self._capture_debug("[Navigator] ⚠️ Cannot build FAISS indexes: embedding_model or FAISS not available")
+            return
+        
+        self._capture_debug("[Navigator] 🔨 Building FAISS indexes...")
+        
+        # Build chief complaint index
+        self._build_chief_complaint_faiss_index()
+        
+        # Build OLD CARTS element indexes
+        self._build_oldcarts_faiss_indexes()
+        
+        self._capture_debug("[Navigator] ✅ FAISS indexes built")
+    
+    def _build_chief_complaint_faiss_index(self) -> None:
+        """Build FAISS index for chief complaint triggers."""
+        if not self.chief_complaint_triggers_data:
+            return
+        
+        triggers = []
+        trigger_to_condition = {}
+        
+        for trigger_data in self.chief_complaint_triggers_data:
+            trigger = trigger_data['trigger']
+            condition = trigger_data['condition']
+            if trigger not in triggers:
+                triggers.append(trigger)
+            if trigger not in trigger_to_condition:
+                trigger_to_condition[trigger] = []
+            trigger_to_condition[trigger].append(condition)
+        
+        if not triggers:
+            return
+        
+        try:
+            embeddings = self.embedding_model.encode(triggers)
+            embeddings = np.array(embeddings, dtype='float32')
+            dimension = embeddings.shape[1]
+            
+            # Normalize for cosine similarity
+            faiss.normalize_L2(embeddings)
+            
+            index = faiss.IndexFlatIP(dimension)
+            index.add(embeddings)
+            
+            self.chief_complaint_index = index
+            self.chief_complaint_triggers_list = triggers
+            self.chief_complaint_trigger_to_condition = trigger_to_condition
+            
+            self._capture_debug(f"[FAISS] ✅ Built chief complaint index: {len(triggers)} triggers")
+        except Exception as e:
+            self._capture_debug(f"[FAISS] ⚠️ Error building chief complaint index: {e}")
+    
+    def _build_oldcarts_faiss_indexes(self) -> None:
+        """Build FAISS indexes for each OLD CARTS element."""
+        elements = ['onset', 'location', 'duration', 'character', 'aggravating', 
+                    'relieving', 'timing', 'severity', 'frequency', 'radiation']
+        
+        for element in elements:
+            terms = []
+            term_to_conditions = {}
+            
+            # Collect terms from all guidelines
+            for name, guideline in self.all_guidelines.items():
+                structured = self._structured_oldcarts(guideline)
+                element_data = structured.get(element, {})
+                includes = element_data.get('includes', []) if isinstance(element_data, dict) else []
+                
+                for item in includes:
+                    if isinstance(item, dict):
+                        patient_term = item.get('patient_friendly') or item.get('medical', '')
+                    else:
+                        patient_term = item
+                    
+                    if not isinstance(patient_term, str) or not patient_term.strip():
+                        continue
+                    
+                    term = patient_term.strip()
+                    if term not in terms:
+                        terms.append(term)
+                    if term not in term_to_conditions:
+                        term_to_conditions[term] = []
+                    term_to_conditions[term].append(name)
+            
+            if not terms:
+                continue
+            
+            try:
+                embeddings = self.embedding_model.encode(terms)
+                embeddings = np.array(embeddings, dtype='float32')
+                dimension = embeddings.shape[1]
+                
+                # Normalize for cosine similarity
+                faiss.normalize_L2(embeddings)
+                
+                index = faiss.IndexFlatIP(dimension)
+                index.add(embeddings)
+                
+                self.oldcarts_indexes[element] = {
+                    'index': index,
+                    'terms': terms,
+                    'term_to_conditions': term_to_conditions
+                }
+                
+                self._capture_debug(f"[FAISS] ✅ Built {element} index: {len(terms)} terms")
+            except Exception as e:
+                self._capture_debug(f"[FAISS] ⚠️ Error building {element} index: {e}")
 
     def _get_guideline_category(self, guideline: Dict) -> str:
         organ_system = guideline.get('organ_system', '')
@@ -2118,7 +2330,7 @@ class AdvancedMedicalNavigator:
                             # Condition name is contained in LLM name (e.g., "GERD" contains "reflux disease")
                             match_type = "name_contained"
                             match_score = score * 0.8
-                        else:
+        else:
                             # Check if LLM name matches key words in condition name
                             condition_words = set(condition_lower.split())
                             llm_words = set(llm_name_lower.split())
@@ -2156,7 +2368,7 @@ class AdvancedMedicalNavigator:
                         elif match_type == "trigger_partial":
                             # Only include partial trigger matches if score is high
                             should_include = score >= 0.8
-                        else:
+            else:
                             should_include = False
                         
                         if should_include:
@@ -2233,7 +2445,7 @@ class AdvancedMedicalNavigator:
         is_visual = self._is_visual_symptom(session, cc)
         if element == 'character' and is_visual:
             guidance = f"Ask about what the {cc} looks like. Ask one natural, conversational question with examples (e.g., 'What does it look like? For example, is it red, dark, bright, or something else?')."
-        else:
+            else:
             guidance = f"Ask about the {element} of {cc}. Ask one natural, conversational question."
         
         # No options - let LLM use its training
@@ -2787,7 +2999,7 @@ Now ask about what the {cc} looks like.
 IMPORTANT: This is a visual symptom - ask "What does it look like?" with examples, NOT "What does it feel like?"
 Do NOT ask about information already provided in the context above.
 Ask only one question."""
-            else:
+        else:
                 user_prompt = f"""Context of what we already know:
 {context_summary}
 
@@ -3058,10 +3270,10 @@ Ask only one question."""
             lines.append(f"[LLM] 🔍 Match review ({review['element']}) for '{review['answer']}':")
             lines.append(f"[LLM]   • Requested terms: {requested if requested else 'none'}")
             if rows:
-                for term, unused_score, llm_score, final_score in rows:
-                    # Note: first score is always 0.0 (FAISS bypassed), second is LLM score, third is final (LLM-only)
+                for term, faiss_score, llm_score, final_score in rows:
+                    # FAISS + LLM approach: FAISS provides candidates, LLM makes final decision
                     lines.append(
-                        f"[LLM]   • {term}: LLM={llm_score:.3f}, final={final_score:.3f}"
+                        f"[LLM]   • {term}: FAISS={faiss_score:.3f}, LLM={llm_score:.3f}, final={final_score:.3f}"
                     )
             else:
                 lines.append("[LLM]   • LLM returned no scores.")
@@ -3070,7 +3282,7 @@ Ask only one question."""
                 else:
                     lines.append("[LLM]   • Raw response: EMPTY or not captured")
                 lines.append(f"[LLM]   • Had scores: {had_scores}")
-                lines.append("[LLM]   • Note: LLM-only approach - no FAISS, all matching done by LLM")
+                lines.append("[LLM]   • Note: FAISS + LLM approach - FAISS finds candidates, LLM makes final decision")
         lines.append(self._format_rankings_debug(session))
         return '\n'.join(lines)
 

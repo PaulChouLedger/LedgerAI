@@ -81,6 +81,9 @@ else
 fi
 
 sudo apt update
+
+# Install essential packages (required)
+print_info "Installing essential packages..."
 sudo apt install -y \
     nano \
     git \
@@ -91,14 +94,46 @@ sudo apt install -y \
     cmake \
     pkg-config \
     libusb-1.0-0-dev \
-    libportaudio2 \
-    libportaudio-dev \
-    portaudio19-dev \
     unclutter \
     xdotool \
     wmctrl \
     x11-xserver-utils \
-    alsa-utils
+    alsa-utils \
+    libasound2-dev \
+    pulseaudio
+
+# Install audio packages (try multiple variants for different systems)
+print_info "Installing audio packages..."
+AUDIO_PACKAGES=""
+PORT_AUDIO_AVAILABLE=false
+
+# Check for available portaudio packages
+if apt-cache show portaudio19-dev > /dev/null 2>&1; then
+    AUDIO_PACKAGES="$AUDIO_PACKAGES portaudio19-dev"
+    PORT_AUDIO_AVAILABLE=true
+fi
+if apt-cache show libportaudio2 > /dev/null 2>&1; then
+    AUDIO_PACKAGES="$AUDIO_PACKAGES libportaudio2"
+    PORT_AUDIO_AVAILABLE=true
+fi
+if apt-cache show libportaudio-dev > /dev/null 2>&1; then
+    AUDIO_PACKAGES="$AUDIO_PACKAGES libportaudio-dev"
+    PORT_AUDIO_AVAILABLE=true
+fi
+
+if [ -n "$AUDIO_PACKAGES" ]; then
+    if sudo apt install -y $AUDIO_PACKAGES; then
+        print_info "PortAudio packages installed successfully"
+    else
+        print_info "⚠️  Some PortAudio packages failed to install, continuing anyway..."
+        print_info "   sounddevice may work with ALSA/PulseAudio if PortAudio isn't available"
+        PORT_AUDIO_AVAILABLE=false
+    fi
+else
+    print_info "⚠️  PortAudio packages not found in repositories"
+    print_info "   sounddevice will use ALSA/PulseAudio instead (should work on Jetson)"
+    PORT_AUDIO_AVAILABLE=false
+fi
 
 echo ""
 
@@ -145,6 +180,15 @@ source "$VENV_DIR/bin/activate"
 # Install core requirements
 if [ -f "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" ]; then
     print_info "Installing core requirements..."
+    
+    # Note: sounddevice uses portaudio via ctypes, so it needs the shared library
+    # On Jetson systems, ALSA/PulseAudio may be sufficient
+    if [ "$PORT_AUDIO_AVAILABLE" = false ]; then
+        print_info "Note: PortAudio system packages not available"
+        print_info "      sounddevice will attempt to use ALSA/PulseAudio"
+        print_info "      If audio doesn't work, you may need to build portaudio from source"
+    fi
+    
     pip install -r "$LEDGERAI_DIR/aura-control/requirements/requirements.txt"
 else
     print_error "Core requirements file not found!"
@@ -486,6 +530,11 @@ echo "6. View logs:"
 echo "   journalctl -u aura.service -f"
 echo "   journalctl -u xvf3800-tuning.service -n 50"
 echo "   journalctl -u disable-keyboard-monitor.service -f"
+echo ""
+echo "7. If audio doesn't work (PortAudio not available):"
+echo "   sounddevice may need PortAudio library. Try:"
+echo "   - Install from source: https://www.portaudio.com/download.html"
+echo "   - Or use ALSA directly (may require code changes)"
 echo ""
 echo "=========================================="
 echo "  Service Management"
