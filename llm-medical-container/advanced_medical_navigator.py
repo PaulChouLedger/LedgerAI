@@ -1453,7 +1453,7 @@ class AdvancedMedicalNavigator:
                     continue
                 if any(session.condition_scores.get(cond, 0.5) > baseline for cond in conds):
                     filtered.append(opt)
-        else:
+                else:
                     skipped.append(opt)
             if skipped:
                 self._capture_debug(
@@ -1574,7 +1574,7 @@ class AdvancedMedicalNavigator:
                         analysis['satisfied_medical_terms'] = [best_medical]
                         analysis['satisfied_options'] = [best_option]
                         self._capture_debug(f"[Clarification] ✅ Auto-selected: '{best_option}' → {best_medical}")
-        else:
+                    else:
                         # Last resort: use first satisfied medical term
                         if satisfied:
                             analysis['satisfied_medical_terms'] = [satisfied[0]]
@@ -1846,7 +1846,7 @@ class AdvancedMedicalNavigator:
                             brace_count -= 1
                             if brace_count == 0:
                                 end_idx = i + 1
-                break
+                                break
                     if end_idx > start_idx:
                         try:
                             extracted_json = response[start_idx:end_idx]
@@ -2135,7 +2135,7 @@ class AdvancedMedicalNavigator:
                             # Condition name is contained in LLM name (e.g., "GERD" contains "reflux disease")
                             match_type = "name_contained"
                             match_score = score * 0.8
-        else:
+                        else:
                             # Check if LLM name matches key words in condition name
                             condition_words = set(condition_lower.split())
                             llm_words = set(llm_name_lower.split())
@@ -2173,7 +2173,7 @@ class AdvancedMedicalNavigator:
                         elif match_type == "trigger_partial":
                             # Only include partial trigger matches if score is high
                             should_include = score >= 0.8
-            else:
+                        else:
                             should_include = False
                         
                         if should_include:
