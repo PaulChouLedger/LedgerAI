@@ -1751,11 +1751,13 @@ class AdvancedMedicalNavigator:
         triggers_text = '\n'.join(condition_trigger_list)
         
         # Simple prompt - model is trained to handle medical conditions
+        available_cats_str = ', '.join(available_categories)
         system_prompt = (
             "Match the patient's chief complaint to medically relevant conditions. "
-            "Return JSON: {\"categories\": {\"category_name\": score}, \"conditions\": {\"condition_name\": score}}. "
-            "Scores: 1.0 = highly relevant, 0.0 = not relevant. "
-            "Include all categories with scores. Only include conditions with score > 0.0. "
+            f"Return JSON: {{\"categories\": {{\"category_name\": score}}, \"conditions\": {{\"condition_name\": score}}}}. "
+            f"Categories must be one of: {available_cats_str}. "
+            "Scores must be between 0.0 and 1.0 (1.0 = highly relevant, 0.0 = not relevant). "
+            "Include all categories with scores (0.0 if no match). Only include conditions with score > 0.0. "
             "Output only JSON, no other text."
         )
         
@@ -1865,8 +1867,25 @@ class AdvancedMedicalNavigator:
                 categories_dict = parsed.get('categories', {})
                 if isinstance(categories_dict, dict):
                     for category, score in categories_dict.items():
-                        if category in available_categories and isinstance(score, (int, float)):
-                            category_scores[category] = max(0.0, min(1.0, float(score)))
+                        # Handle case where LLM puts condition names in categories field
+                        # Extract category from condition name if it has "(category)" suffix
+                        actual_category = None
+                        if category in available_categories:
+                            actual_category = category
+                        else:
+                            # Try to extract category from condition name like "Condition (category)"
+                            for cat in available_categories:
+                                if f"({cat})" in category.lower() or category.lower().endswith(f"({cat})"):
+                                    actual_category = cat
+                                    break
+                        
+                        if actual_category and isinstance(score, (int, float)):
+                            clamped_score = max(0.0, min(1.0, float(score)))
+                            # Use max if category already has a score
+                            if actual_category in category_scores:
+                                category_scores[actual_category] = max(category_scores[actual_category], clamped_score)
+                            else:
+                                category_scores[actual_category] = clamped_score
                 # Initialize all categories with 0.0 if not present
                 for category in available_categories:
                     if category not in category_scores:
@@ -1911,7 +1930,15 @@ class AdvancedMedicalNavigator:
                 for category in available_categories:
                     category_scores[category] = 0.0
                 for condition, score in condition_scores.items():
+                    # Try to find category for this condition
                     condition_category = condition_to_category.get(condition)
+                    if not condition_category:
+                        # Extract category from condition name if it has "(category)" suffix
+                        for cat in available_categories:
+                            if f"({cat})" in condition.lower() or condition.lower().endswith(f"({cat})"):
+                                condition_category = cat
+                                break
+                    
                     if condition_category and condition_category in category_scores:
                         category_scores[condition_category] = max(category_scores[condition_category], score)
             
