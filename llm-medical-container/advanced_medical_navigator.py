@@ -2085,8 +2085,12 @@ class AdvancedMedicalNavigator:
 
     def _load_guidelines(self) -> None:
         if not self.guidelines_dir or not self.guidelines_dir.exists():
+            msg = f"[Navigator] ⚠️ Guidelines directory not found: {self.guidelines_dir}"
+            print(msg)
+            self._capture_debug(msg)
             return
         
+        print(f"[Navigator] 📚 Loading guidelines from {self.guidelines_dir}...")
         loaded = 0
         skipped = 0
 
@@ -2103,9 +2107,13 @@ class AdvancedMedicalNavigator:
                 self.all_guidelines[condition_name] = guideline
                 loaded += 1
             except Exception as e:
-                self._capture_debug(f"[Navigator] ⚠️ Failed to load guideline {json_file.name}: {e}")
+                msg = f"[Navigator] ⚠️ Failed to load guideline {json_file.name}: {e}"
+                print(msg)
+                self._capture_debug(msg)
 
-        self._capture_debug(f"[Navigator] 📚 Loaded {loaded} guidelines ({skipped} skipped)")
+        msg = f"[Navigator] 📚 Loaded {loaded} guidelines ({skipped} skipped)"
+        print(msg)
+        self._capture_debug(msg)
 
     def _build_chief_complaint_triggers(self) -> None:
         """Build chief complaint triggers list for FAISS + LLM matching."""
@@ -2124,17 +2132,29 @@ class AdvancedMedicalNavigator:
                 })
 
         if not self.chief_complaint_triggers_data:
-            self._capture_debug("[Navigator] ⚠️ No chief complaint triggers found in guidelines")
+            msg = "[Navigator] ⚠️ No chief complaint triggers found in guidelines"
+            print(msg)
+            self._capture_debug(msg)
         else:
-            self._capture_debug(f"[Navigator] ✅ Collected {len(self.chief_complaint_triggers_data)} chief complaint triggers for FAISS + LLM matching")
+            msg = f"[Navigator] ✅ Collected {len(self.chief_complaint_triggers_data)} chief complaint triggers for FAISS + LLM matching"
+            print(msg)
+            self._capture_debug(msg)
     
     def _build_faiss_indexes(self) -> None:
         """Build FAISS indexes for chief complaints and OLD CARTS elements."""
         if not self.embedding_model or not FAISS_AVAILABLE:
-            self._capture_debug("[Navigator] ⚠️ Cannot build FAISS indexes: embedding_model or FAISS not available")
+            msg = "[FAISS] ⚠️ Cannot build FAISS indexes: embedding_model or FAISS not available"
+            print(msg)
+            self._capture_debug(msg)
+            if not FAISS_AVAILABLE:
+                print("[FAISS] ⚠️ FAISS library not installed")
+            if not self.embedding_model:
+                print("[FAISS] ⚠️ Embedding model not provided")
             return
         
-        self._capture_debug("[Navigator] 🔨 Building FAISS indexes...")
+        msg = "[FAISS] 🔨 Building FAISS indexes..."
+        print(msg)
+        self._capture_debug(msg)
         
         # Build chief complaint index
         self._build_chief_complaint_faiss_index()
@@ -2142,11 +2162,19 @@ class AdvancedMedicalNavigator:
         # Build OLD CARTS element indexes
         self._build_oldcarts_faiss_indexes()
         
-        self._capture_debug("[Navigator] ✅ FAISS indexes built")
+        # Print summary
+        cc_count = len(self.chief_complaint_triggers_list) if self.chief_complaint_index else 0
+        oldcarts_count = len(self.oldcarts_indexes)
+        msg = f"[FAISS] ✅ FAISS indexes built: {cc_count} chief complaint triggers, {oldcarts_count} OLD CARTS elements"
+        print(msg)
+        self._capture_debug(msg)
     
     def _build_chief_complaint_faiss_index(self) -> None:
         """Build FAISS index for chief complaint triggers."""
         if not self.chief_complaint_triggers_data:
+            msg = "[FAISS] ⚠️ No chief complaint triggers data available"
+            print(msg)
+            self._capture_debug(msg)
             return
         
         triggers = []
@@ -2162,9 +2190,13 @@ class AdvancedMedicalNavigator:
             trigger_to_condition[trigger].append(condition)
         
         if not triggers:
+            msg = "[FAISS] ⚠️ No unique triggers found after processing"
+            print(msg)
+            self._capture_debug(msg)
             return
         
         try:
+            print(f"[FAISS] 📊 Encoding {len(triggers)} chief complaint triggers...")
             embeddings = self.embedding_model.encode(triggers)
             embeddings = np.array(embeddings, dtype='float32')
             dimension = embeddings.shape[1]
@@ -2179,14 +2211,23 @@ class AdvancedMedicalNavigator:
             self.chief_complaint_triggers_list = triggers
             self.chief_complaint_trigger_to_condition = trigger_to_condition
             
-            self._capture_debug(f"[FAISS] ✅ Built chief complaint index: {len(triggers)} triggers")
+            msg = f"[FAISS] ✅ Built chief complaint index: {len(triggers)} triggers, dimension={dimension}"
+            print(msg)
+            self._capture_debug(msg)
         except Exception as e:
-            self._capture_debug(f"[FAISS] ⚠️ Error building chief complaint index: {e}")
+            msg = f"[FAISS] ⚠️ Error building chief complaint index: {e}"
+            print(msg)
+            self._capture_debug(msg)
+            import traceback
+            print(f"[FAISS] Traceback: {traceback.format_exc()}")
     
     def _build_oldcarts_faiss_indexes(self) -> None:
         """Build FAISS indexes for each OLD CARTS element."""
         elements = ['onset', 'location', 'duration', 'character', 'aggravating', 
                     'relieving', 'timing', 'severity', 'frequency', 'radiation']
+        
+        total_terms = 0
+        built_count = 0
         
         for element in elements:
             terms = []
@@ -2218,6 +2259,7 @@ class AdvancedMedicalNavigator:
                 continue
             
             try:
+                print(f"[FAISS] 📊 Encoding {len(terms)} terms for {element}...")
                 embeddings = self.embedding_model.encode(terms)
                 embeddings = np.array(embeddings, dtype='float32')
                 dimension = embeddings.shape[1]
@@ -2234,9 +2276,22 @@ class AdvancedMedicalNavigator:
                     'term_to_conditions': term_to_conditions
                 }
                 
-                self._capture_debug(f"[FAISS] ✅ Built {element} index: {len(terms)} terms")
+                total_terms += len(terms)
+                built_count += 1
+                msg = f"[FAISS] ✅ Built {element} index: {len(terms)} terms"
+                print(msg)
+                self._capture_debug(msg)
             except Exception as e:
-                self._capture_debug(f"[FAISS] ⚠️ Error building {element} index: {e}")
+                msg = f"[FAISS] ⚠️ Error building {element} index: {e}"
+                print(msg)
+                self._capture_debug(msg)
+                import traceback
+                print(f"[FAISS] Traceback: {traceback.format_exc()}")
+        
+        if built_count > 0:
+            msg = f"[FAISS] ✅ Built {built_count} OLD CARTS element indexes with {total_terms} total terms"
+            print(msg)
+            self._capture_debug(msg)
 
     def _get_guideline_category(self, guideline: Dict) -> str:
         organ_system = guideline.get('organ_system', '')
