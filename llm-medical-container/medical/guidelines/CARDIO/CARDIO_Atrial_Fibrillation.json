@@ -1,0 +1,183 @@
+{
+  "condition": "Atrial Fibrillation with Rapid Ventricular Response",
+  "icd10": "I48.91",
+  "snomed": "49436004",
+  "sex": "both",
+  "prevalence": "common",
+  "urgency": "emergent",
+  "chief_complaint_triggers": [
+    "palpitations",
+    "irregular heartbeat",
+    "rapid heartbeat",
+    "heart racing",
+    "chest pain",
+    "shortness of breath",
+    "dizziness",
+    "feeling faint"
+  ],
+  "key_features": {
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          {
+            "medical": "sudden",
+            "patient_friendly": "came on suddenly",
+            "emergent": true
+          },
+          {
+            "medical": "acute",
+            "patient_friendly": "recently occurred"
+          }
+        ],
+        "excludes": []
+      },
+      "location": {
+        "includes": [
+          {
+            "medical": "chest",
+            "patient_friendly": "in your chest - feeling your heart"
+          },
+          {
+            "medical": "generalized",
+            "patient_friendly": "feeling it throughout your body"
+          }
+        ],
+        "excludes": [],
+        "anatomical_type": "chest"
+      },
+      "duration": {
+        "includes": [
+          {
+            "medical": "hours",
+            "patient_friendly": "for several hours"
+          },
+          {
+            "medical": "continuous",
+            "patient_friendly": "continuous since it started"
+          }
+        ],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          {
+            "medical": "palpitations",
+            "patient_friendly": "feeling your heart racing or fluttering",
+            "question_tags": ["sensory"]
+          },
+          {
+            "medical": "irregular",
+            "patient_friendly": "irregular or skipping beats",
+            "question_tags": ["sensory"]
+          },
+          {
+            "medical": "rapid",
+            "patient_friendly": "very fast heart rate",
+            "question_tags": ["sensory"]
+          }
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [
+          {
+            "medical": "exertion",
+            "patient_friendly": "worse with activity"
+          },
+          {
+            "medical": "caffeine",
+            "patient_friendly": "worse after caffeine or alcohol"
+          },
+          {
+            "medical": "stress",
+            "patient_friendly": "worse with stress"
+          }
+        ],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [
+          {
+            "medical": "rest",
+            "patient_friendly": "better with rest"
+          },
+          {
+            "medical": "medication",
+            "patient_friendly": "better with heart rate medications"
+          }
+        ],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [
+          {
+            "medical": "constant",
+            "patient_friendly": "constant since it started"
+          },
+          {
+            "medical": "paroxysmal",
+            "patient_friendly": "comes and goes"
+          }
+        ],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [
+          {
+            "medical": "severe",
+            "patient_friendly": "severe - heart rate over 150",
+            "emergent": true
+          },
+          {
+            "medical": "moderate",
+            "patient_friendly": "moderate - noticeable but manageable"
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "chest pain",
+            "patient_friendly": "chest pain or pressure",
+            "emergent": true
+          },
+          {
+            "medical": "dyspnea",
+            "patient_friendly": "shortness of breath",
+            "emergent": true
+          },
+          {
+            "medical": "dizziness",
+            "patient_friendly": "dizziness or lightheadedness",
+            "emergent": true
+          },
+          {
+            "medical": "syncope",
+            "patient_friendly": "fainting or near-fainting",
+            "emergent": true
+          },
+          {
+            "medical": "fatigue",
+            "patient_friendly": "extreme tiredness"
+          },
+          {
+            "medical": "weakness",
+            "patient_friendly": "weakness"
+          },
+          {
+            "medical": "anxiety",
+            "patient_friendly": "feeling anxious"
+          },
+          {
+            "medical": "hypotension",
+            "patient_friendly": "low blood pressure",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      }
+    }
+  }
+}
+

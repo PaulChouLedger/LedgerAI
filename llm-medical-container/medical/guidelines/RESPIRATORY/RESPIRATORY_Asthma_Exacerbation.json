@@ -1,0 +1,178 @@
+{
+  "condition": "Asthma Exacerbation",
+  "icd10": "J45.901",
+  "snomed": "195967001",
+  "sex": "both",
+  "prevalence": "common",
+  "urgency": "emergent",
+  "chief_complaint_triggers": [
+    "wheezing",
+    "shortness of breath",
+    "difficulty breathing",
+    "can't breathe",
+    "chest tightness",
+    "cough",
+    "asthma attack"
+  ],
+  "key_features": {
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          {
+            "medical": "sudden",
+            "patient_friendly": "came on suddenly",
+            "emergent": true
+          },
+          {
+            "medical": "acute",
+            "patient_friendly": "recently occurred over hours"
+          }
+        ],
+        "excludes": []
+      },
+      "location": {
+        "includes": [
+          {
+            "medical": "chest",
+            "patient_friendly": "in your chest"
+          },
+          {
+            "medical": "generalized",
+            "patient_friendly": "feeling it throughout your chest"
+          }
+        ],
+        "excludes": [],
+        "anatomical_type": "chest"
+      },
+      "duration": {
+        "includes": [
+          {
+            "medical": "hours",
+            "patient_friendly": "for several hours"
+          },
+          {
+            "medical": "minutes",
+            "patient_friendly": "just started"
+          }
+        ],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          {
+            "medical": "wheezing",
+            "patient_friendly": "wheezing or whistling sound when breathing",
+            "question_tags": ["sensory"]
+          },
+          {
+            "medical": "dyspnea",
+            "patient_friendly": "shortness of breath or difficulty breathing",
+            "question_tags": ["sensory"]
+          },
+          {
+            "medical": "chest tightness",
+            "patient_friendly": "tightness in your chest",
+            "question_tags": ["sensory"]
+          }
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [
+          {
+            "medical": "exertion",
+            "patient_friendly": "worse with activity or exertion"
+          },
+          {
+            "medical": "allergens",
+            "patient_friendly": "worse with exposure to allergens, smoke, or cold air"
+          },
+          {
+            "medical": "respiratory infection",
+            "patient_friendly": "worse with cold or respiratory infection"
+          }
+        ],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [
+          {
+            "medical": "bronchodilator",
+            "patient_friendly": "better with inhaler or breathing treatment"
+          },
+          {
+            "medical": "rest",
+            "patient_friendly": "better with rest"
+          }
+        ],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [
+          {
+            "medical": "nocturnal",
+            "patient_friendly": "worse at night or early morning"
+          },
+          {
+            "medical": "progressive",
+            "patient_friendly": "getting worse"
+          }
+        ],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [
+          {
+            "medical": "severe",
+            "patient_friendly": "severe - cannot speak in full sentences",
+            "emergent": true
+          },
+          {
+            "medical": "moderate",
+            "patient_friendly": "moderate difficulty breathing"
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "cough",
+            "patient_friendly": "cough, especially at night"
+          },
+          {
+            "medical": "chest tightness",
+            "patient_friendly": "chest tightness or pressure"
+          },
+          {
+            "medical": "inability to speak",
+            "patient_friendly": "cannot speak in full sentences",
+            "emergent": true
+          },
+          {
+            "medical": "use of accessory muscles",
+            "patient_friendly": "using neck or chest muscles to breathe",
+            "emergent": true
+          },
+          {
+            "medical": "cyanosis",
+            "patient_friendly": "blue lips or fingernails",
+            "emergent": true
+          },
+          {
+            "medical": "altered mental status",
+            "patient_friendly": "confusion or drowsiness",
+            "emergent": true
+          },
+          {
+            "medical": "peak flow decreased",
+            "patient_friendly": "peak flow meter reading much lower than usual",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      }
+    }
+  }
+}
+

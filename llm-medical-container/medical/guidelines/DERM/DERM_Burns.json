@@ -1,0 +1,220 @@
+{
+  "condition": "Burns",
+  "icd10": "T30.0",
+  "snomed": "399190000",
+  "sex": "both",
+  "prevalence": "common",
+  "urgency": "emergent",
+  "chief_complaint_triggers": [
+    "burn",
+    "burned",
+    "scalded",
+    "fire",
+    "hot water",
+    "chemical",
+    "electrical",
+    "skin damage",
+    "blister"
+  ],
+  "key_features": {
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          {
+            "medical": "sudden",
+            "patient_friendly": "came on suddenly after exposure",
+            "emergent": true
+          },
+          {
+            "medical": "acute",
+            "patient_friendly": "recently occurred"
+          }
+        ],
+        "excludes": []
+      },
+      "location": {
+        "includes": [
+          {
+            "medical": "anywhere",
+            "patient_friendly": "anywhere on your body"
+          },
+          {
+            "medical": "face",
+            "patient_friendly": "on your face",
+            "emergent": true
+          },
+          {
+            "medical": "hands",
+            "patient_friendly": "on your hands",
+            "emergent": true
+          },
+          {
+            "medical": "feet",
+            "patient_friendly": "on your feet",
+            "emergent": true
+          },
+          {
+            "medical": "genitalia",
+            "patient_friendly": "on your genitals",
+            "emergent": true
+          },
+          {
+            "medical": "circumferential",
+            "patient_friendly": "all the way around a body part",
+            "emergent": true
+          }
+        ],
+        "excludes": [],
+        "anatomical_type": "dermatological"
+      },
+      "duration": {
+        "includes": [
+          {
+            "medical": "minutes",
+            "patient_friendly": "just happened"
+          },
+          {
+            "medical": "hours",
+            "patient_friendly": "for several hours"
+          }
+        ],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          {
+            "medical": "pain",
+            "patient_friendly": "painful",
+            "question_tags": ["sensory"]
+          },
+          {
+            "medical": "erythema",
+            "patient_friendly": "red skin",
+            "question_tags": ["visual"]
+          },
+          {
+            "medical": "blister",
+            "patient_friendly": "blisters",
+            "question_tags": ["visual"]
+          },
+          {
+            "medical": "charred",
+            "patient_friendly": "charred or white skin",
+            "question_tags": ["visual"]
+          }
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [
+          {
+            "medical": "touch",
+            "patient_friendly": "worse when you touch it"
+          },
+          {
+            "medical": "air",
+            "patient_friendly": "worse when exposed to air"
+          }
+        ],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [
+          {
+            "medical": "cool water",
+            "patient_friendly": "better with cool water"
+          },
+          {
+            "medical": "pain medication",
+            "patient_friendly": "better with pain medication"
+          }
+        ],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [
+          {
+            "medical": "constant",
+            "patient_friendly": "constant since the burn"
+          },
+          {
+            "medical": "worsening",
+            "patient_friendly": "getting worse",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [
+          {
+            "medical": "severe",
+            "patient_friendly": "severe - large area or deep burn",
+            "emergent": true
+          },
+          {
+            "medical": "moderate",
+            "patient_friendly": "moderate - significant area"
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "large surface area",
+            "patient_friendly": "covering a large area of your body",
+            "emergent": true
+          },
+          {
+            "medical": "full thickness",
+            "patient_friendly": "deep burn - white, charred, or leathery skin",
+            "emergent": true
+          },
+          {
+            "medical": "inhalation injury",
+            "patient_friendly": "smoke inhalation or breathing problems",
+            "emergent": true
+          },
+          {
+            "medical": "circumferential",
+            "patient_friendly": "burn all the way around a body part",
+            "emergent": true
+          },
+          {
+            "medical": "facial burn",
+            "patient_friendly": "burn on your face",
+            "emergent": true
+          },
+          {
+            "medical": "hand burn",
+            "patient_friendly": "burn on your hands",
+            "emergent": true
+          },
+          {
+            "medical": "foot burn",
+            "patient_friendly": "burn on your feet",
+            "emergent": true
+          },
+          {
+            "medical": "genital burn",
+            "patient_friendly": "burn on your genitals",
+            "emergent": true
+          },
+          {
+            "medical": "shock",
+            "patient_friendly": "signs of shock",
+            "emergent": true
+          },
+          {
+            "medical": "infection",
+            "patient_friendly": "signs of infection - pus, increasing redness",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      }
+    }
+  }
+}
+

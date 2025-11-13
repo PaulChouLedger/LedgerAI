@@ -1,0 +1,35 @@
+# Ubuntu Keyboard Disabler Service
+# Monitors Aura service and disables Ubuntu on-screen keyboard while it's running
+#
+# This service runs alongside aura.service and continuously disables
+# Ubuntu's on-screen keyboard (onboard, caribou, matchbox-keyboard)
+# while main.py is running.
+#
+# To disable this service:
+#   sudo systemctl disable disable-keyboard-monitor.service
+#
+# To check status:
+#   sudo systemctl status disable-keyboard-monitor.service
+#
+# To view logs:
+#   journalctl -u disable-keyboard-monitor.service -f
+
+[Unit]
+Description=Disable Ubuntu Keyboard While Aura is Running
+After=aura.service
+Wants=aura.service
+PartOf=aura.service
+
+[Service]
+Type=simple
+User=aura
+Group=aura
+Restart=on-failure
+RestartSec=5
+ExecStart=/bin/bash -c 'while systemctl is-active --quiet aura.service; do pkill -f "onboard|caribou|matchbox-keyboard" 2>/dev/null || true; sleep 2; done'
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=aura.service
+

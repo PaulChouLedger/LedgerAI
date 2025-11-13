@@ -1,0 +1,194 @@
+{
+  "condition": "Hypertensive Emergency",
+  "icd10": "I16.9",
+  "snomed": "371094000",
+  "sex": "both",
+  "prevalence": "uncommon",
+  "urgency": "emergent",
+  "chief_complaint_triggers": [
+    "high blood pressure",
+    "severe headache",
+    "chest pain",
+    "vision changes",
+    "shortness of breath",
+    "confusion",
+    "seizure"
+  ],
+  "key_features": {
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          {
+            "medical": "acute",
+            "patient_friendly": "recently occurred over hours",
+            "emergent": true
+          },
+          {
+            "medical": "sudden",
+            "patient_friendly": "came on suddenly"
+          }
+        ],
+        "excludes": [
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for months"
+          }
+        ]
+      },
+      "location": {
+        "includes": [
+          {
+            "medical": "head",
+            "patient_friendly": "in your head - severe headache"
+          },
+          {
+            "medical": "occipital",
+            "patient_friendly": "back of your head"
+          },
+          {
+            "medical": "chest",
+            "patient_friendly": "in your chest"
+          },
+          {
+            "medical": "generalized",
+            "patient_friendly": "all over - generalized symptoms"
+          }
+        ],
+        "excludes": [],
+        "anatomical_type": "systemic"
+      },
+      "duration": {
+        "includes": [
+          {
+            "medical": "hours",
+            "patient_friendly": "for several hours"
+          },
+          {
+            "medical": "continuous",
+            "patient_friendly": "continuous since it started"
+          }
+        ],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          {
+            "medical": "severe headache",
+            "patient_friendly": "severe headache",
+            "question_tags": ["sensory"]
+          },
+          {
+            "medical": "chest pain",
+            "patient_friendly": "chest pain or pressure",
+            "question_tags": ["sensory"]
+          },
+          {
+            "medical": "dyspnea",
+            "patient_friendly": "shortness of breath",
+            "question_tags": ["sensory"]
+          },
+          {
+            "medical": "vision changes",
+            "patient_friendly": "blurred vision or vision changes",
+            "question_tags": ["visual"]
+          }
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [
+          {
+            "medical": "stress",
+            "patient_friendly": "worse with stress"
+          },
+          {
+            "medical": "medication non-compliance",
+            "patient_friendly": "worse when you miss blood pressure medications"
+          }
+        ],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [
+          {
+            "medical": "blood pressure reduction",
+            "patient_friendly": "better when blood pressure is lowered"
+          }
+        ],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [
+          {
+            "medical": "progressive",
+            "patient_friendly": "getting worse over time"
+          },
+          {
+            "medical": "constant",
+            "patient_friendly": "constant"
+          }
+        ],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [
+          {
+            "medical": "severe",
+            "patient_friendly": "severe - 8 to 10 out of 10",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "severe hypertension",
+            "patient_friendly": "blood pressure over 180/120",
+            "emergent": true
+          },
+          {
+            "medical": "altered mental status",
+            "patient_friendly": "confusion or altered mental status",
+            "emergent": true
+          },
+          {
+            "medical": "chest pain",
+            "patient_friendly": "chest pain",
+            "emergent": true
+          },
+          {
+            "medical": "dyspnea",
+            "patient_friendly": "shortness of breath",
+            "emergent": true
+          },
+          {
+            "medical": "vision changes",
+            "patient_friendly": "blurred vision or vision loss",
+            "emergent": true
+          },
+          {
+            "medical": "seizure",
+            "patient_friendly": "seizure or convulsion",
+            "emergent": true
+          },
+          {
+            "medical": "nausea",
+            "patient_friendly": "nausea"
+          },
+          {
+            "medical": "vomiting",
+            "patient_friendly": "vomiting"
+          },
+          {
+            "medical": "pulmonary edema",
+            "patient_friendly": "fluid in lungs",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      }
+    }
+  }
+}
+

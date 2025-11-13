@@ -1,0 +1,183 @@
+{
+  "condition": "Acute Glomerulonephritis",
+  "icd10": "N05.9",
+  "snomed": "197927001",
+  "sex": "both",
+  "prevalence": "uncommon",
+  "urgency": "emergent",
+  "chief_complaint_triggers": [
+    "blood in urine",
+    "foamy urine",
+    "swelling",
+    "decreased urine output",
+    "high blood pressure",
+    "flank pain",
+    "facial swelling"
+  ],
+  "key_features": {
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          {
+            "medical": "acute",
+            "patient_friendly": "recently occurred over days to weeks"
+          },
+          {
+            "medical": "gradual",
+            "patient_friendly": "built up over time"
+          }
+        ],
+        "excludes": []
+      },
+      "location": {
+        "includes": [
+          {
+            "medical": "generalized",
+            "patient_friendly": "all over your body - generalized swelling"
+          },
+          {
+            "medical": "face",
+            "patient_friendly": "swelling in your face, especially around your eyes"
+          },
+          {
+            "medical": "lower extremities",
+            "patient_friendly": "swelling in your legs or feet"
+          }
+        ],
+        "excludes": [],
+        "anatomical_type": "systemic"
+      },
+      "duration": {
+        "includes": [
+          {
+            "medical": "days",
+            "patient_friendly": "over the past few days"
+          },
+          {
+            "medical": "weeks",
+            "patient_friendly": "over the past few weeks"
+          }
+        ],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          {
+            "medical": "edema",
+            "patient_friendly": "swelling in your body",
+            "question_tags": ["visual"]
+          },
+          {
+            "medical": "hematuria",
+            "patient_friendly": "blood in your urine - dark or cola-colored",
+            "question_tags": ["visual"]
+          },
+          {
+            "medical": "proteinuria",
+            "patient_friendly": "foamy or bubbly urine",
+            "question_tags": ["visual"]
+          }
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [
+          {
+            "medical": "fluid intake",
+            "patient_friendly": "worse after drinking fluids"
+          },
+          {
+            "medical": "lying flat",
+            "patient_friendly": "worse when lying flat"
+          }
+        ],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [
+          {
+            "medical": "sitting upright",
+            "patient_friendly": "better when sitting up"
+          },
+          {
+            "medical": "diuretics",
+            "patient_friendly": "better with water pills"
+          }
+        ],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [
+          {
+            "medical": "progressive",
+            "patient_friendly": "getting worse over time"
+          },
+          {
+            "medical": "constant",
+            "patient_friendly": "constant swelling"
+          }
+        ],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [
+          {
+            "medical": "moderate",
+            "patient_friendly": "moderate swelling"
+          },
+          {
+            "medical": "severe",
+            "patient_friendly": "severe swelling",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "hematuria",
+            "patient_friendly": "blood in your urine - dark or cola-colored",
+            "emergent": true
+          },
+          {
+            "medical": "proteinuria",
+            "patient_friendly": "foamy or bubbly urine",
+            "emergent": true
+          },
+          {
+            "medical": "peripheral edema",
+            "patient_friendly": "swelling in your legs, feet, or hands",
+            "emergent": true
+          },
+          {
+            "medical": "facial edema",
+            "patient_friendly": "swelling in your face, especially around your eyes",
+            "emergent": true
+          },
+          {
+            "medical": "hypertension",
+            "patient_friendly": "high blood pressure",
+            "emergent": true
+          },
+          {
+            "medical": "oliguria",
+            "patient_friendly": "decreased urine output",
+            "emergent": true
+          },
+          {
+            "medical": "recent infection",
+            "patient_friendly": "recent strep throat or skin infection",
+            "emergent": true
+          },
+          {
+            "medical": "fatigue",
+            "patient_friendly": "extreme tiredness"
+          }
+        ],
+        "excludes": []
+      }
+    }
+  }
+}
+

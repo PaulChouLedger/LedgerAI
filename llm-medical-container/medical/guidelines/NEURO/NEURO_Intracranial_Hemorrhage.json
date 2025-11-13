@@ -1,0 +1,180 @@
+{
+  "condition": "Intracranial Hemorrhage",
+  "icd10": "I61.9",
+  "snomed": "371040002",
+  "sex": "both",
+  "prevalence": "uncommon",
+  "urgency": "emergent",
+  "chief_complaint_triggers": [
+    "severe headache",
+    "sudden headache",
+    "worst headache",
+    "confusion",
+    "loss of consciousness",
+    "weakness",
+    "numbness",
+    "seizure",
+    "head trauma"
+  ],
+  "key_features": {
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          {
+            "medical": "sudden",
+            "patient_friendly": "came on suddenly",
+            "emergent": true
+          },
+          {
+            "medical": "acute",
+            "patient_friendly": "recently occurred",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      },
+      "location": {
+        "includes": [
+          {
+            "medical": "head",
+            "patient_friendly": "in your head - severe headache"
+          },
+          {
+            "medical": "unilateral",
+            "patient_friendly": "on one side of your body"
+          },
+          {
+            "medical": "generalized",
+            "patient_friendly": "all over - generalized symptoms"
+          }
+        ],
+        "excludes": [],
+        "anatomical_type": "neurological"
+      },
+      "duration": {
+        "includes": [
+          {
+            "medical": "continuous",
+            "patient_friendly": "continuous since it started",
+            "emergent": true
+          },
+          {
+            "medical": "persistent",
+            "patient_friendly": "has not gone away"
+          }
+        ],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          {
+            "medical": "severe headache",
+            "patient_friendly": "severe headache",
+            "question_tags": ["sensory"]
+          },
+          {
+            "medical": "weakness",
+            "patient_friendly": "weakness or paralysis",
+            "question_tags": ["sensory"]
+          },
+          {
+            "medical": "numbness",
+            "patient_friendly": "numbness or tingling",
+            "question_tags": ["sensory"]
+          }
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [
+          {
+            "medical": "movement",
+            "patient_friendly": "worse with head movement"
+          },
+          {
+            "medical": "coughing",
+            "patient_friendly": "worse with coughing or straining"
+          }
+        ],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [
+          {
+            "medical": "none",
+            "patient_friendly": "nothing helps"
+          }
+        ],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [
+          {
+            "medical": "progressive",
+            "patient_friendly": "getting worse",
+            "emergent": true
+          },
+          {
+            "medical": "constant",
+            "patient_friendly": "constant"
+          }
+        ],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [
+          {
+            "medical": "severe",
+            "patient_friendly": "severe - worst headache of your life",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "altered mental status",
+            "patient_friendly": "confusion or altered mental status",
+            "emergent": true
+          },
+          {
+            "medical": "loss of consciousness",
+            "patient_friendly": "loss of consciousness or blacking out",
+            "emergent": true
+          },
+          {
+            "medical": "focal neurological deficit",
+            "patient_friendly": "weakness, numbness, or vision problems on one side",
+            "emergent": true
+          },
+          {
+            "medical": "seizure",
+            "patient_friendly": "seizure or convulsion",
+            "emergent": true
+          },
+          {
+            "medical": "nausea",
+            "patient_friendly": "nausea"
+          },
+          {
+            "medical": "vomiting",
+            "patient_friendly": "vomiting"
+          },
+          {
+            "medical": "head trauma",
+            "patient_friendly": "recent head injury",
+            "emergent": true
+          },
+          {
+            "medical": "anticoagulation",
+            "patient_friendly": "taking blood thinners",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      }
+    }
+  }
+}
+

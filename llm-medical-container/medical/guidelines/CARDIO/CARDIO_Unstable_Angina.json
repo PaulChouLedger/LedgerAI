@@ -1,0 +1,200 @@
+{
+  "condition": "Unstable Angina",
+  "icd10": "I20.0",
+  "snomed": "57809003",
+  "sex": "both",
+  "prevalence": "common",
+  "urgency": "emergent",
+  "chief_complaint_triggers": [
+    "chest pain",
+    "chest pressure",
+    "chest tightness",
+    "chest discomfort",
+    "shortness of breath",
+    "arm pain",
+    "jaw pain"
+  ],
+  "key_features": {
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          {
+            "medical": "sudden",
+            "patient_friendly": "came on suddenly",
+            "emergent": true
+          },
+          {
+            "medical": "acute",
+            "patient_friendly": "recently occurred"
+          }
+        ],
+        "excludes": []
+      },
+      "location": {
+        "includes": [
+          {
+            "medical": "retrosternal",
+            "patient_friendly": "behind your breastbone or in the center of your chest"
+          },
+          {
+            "medical": "left chest",
+            "patient_friendly": "left side of your chest"
+          },
+          {
+            "medical": "epigastric",
+            "patient_friendly": "upper middle part of your belly"
+          }
+        ],
+        "excludes": [],
+        "anatomical_type": "chest"
+      },
+      "radiation": {
+        "includes": [
+          {
+            "medical": "left arm",
+            "patient_friendly": "radiates to your left arm or shoulder"
+          },
+          {
+            "medical": "jaw",
+            "patient_friendly": "radiates to your jaw or neck"
+          },
+          {
+            "medical": "back",
+            "patient_friendly": "radiates to your back"
+          }
+        ],
+        "excludes": []
+      },
+      "duration": {
+        "includes": [
+          {
+            "medical": "minutes",
+            "patient_friendly": "for several minutes"
+          },
+          {
+            "medical": "hours",
+            "patient_friendly": "for up to an hour"
+          }
+        ],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          {
+            "medical": "pressure",
+            "patient_friendly": "pressure or squeezing",
+            "question_tags": ["sensory"]
+          },
+          {
+            "medical": "tightness",
+            "patient_friendly": "tightness or heaviness",
+            "question_tags": ["sensory"]
+          },
+          {
+            "medical": "discomfort",
+            "patient_friendly": "discomfort or fullness",
+            "question_tags": ["sensory"]
+          }
+        ],
+        "excludes": [
+          {
+            "medical": "sharp",
+            "patient_friendly": "sharp or stabbing"
+          }
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          {
+            "medical": "exertion",
+            "patient_friendly": "worse with activity or exertion"
+          },
+          {
+            "medical": "emotional stress",
+            "patient_friendly": "worse with emotional stress"
+          },
+          {
+            "medical": "cold weather",
+            "patient_friendly": "worse in cold weather"
+          }
+        ],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [
+          {
+            "medical": "rest",
+            "patient_friendly": "better with rest"
+          },
+          {
+            "medical": "nitroglycerin",
+            "patient_friendly": "better with nitroglycerin"
+          }
+        ],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [
+          {
+            "medical": "at rest",
+            "patient_friendly": "occurs at rest",
+            "emergent": true
+          },
+          {
+            "medical": "increasing frequency",
+            "patient_friendly": "happening more often",
+            "emergent": true
+          },
+          {
+            "medical": "increasing severity",
+            "patient_friendly": "getting worse each time",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [
+          {
+            "medical": "moderate",
+            "patient_friendly": "moderate - 4 to 6 out of 10"
+          },
+          {
+            "medical": "severe",
+            "patient_friendly": "severe - 7 to 10 out of 10",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "dyspnea",
+            "patient_friendly": "shortness of breath",
+            "emergent": true
+          },
+          {
+            "medical": "diaphoresis",
+            "patient_friendly": "sweating"
+          },
+          {
+            "medical": "nausea",
+            "patient_friendly": "nausea"
+          },
+          {
+            "medical": "dizziness",
+            "patient_friendly": "dizziness"
+          },
+          {
+            "medical": "diaphoresis",
+            "patient_friendly": "profuse sweating",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      }
+    }
+  }
+}
+

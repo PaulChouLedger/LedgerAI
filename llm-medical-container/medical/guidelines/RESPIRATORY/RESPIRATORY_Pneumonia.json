@@ -1,0 +1,202 @@
+{
+  "condition": "Pneumonia",
+  "icd10": "J18.9",
+  "snomed": "233604007",
+  "sex": "both",
+  "prevalence": "common",
+  "urgency": "emergent",
+  "chief_complaint_triggers": [
+    "cough",
+    "shortness of breath",
+    "difficulty breathing",
+    "chest pain",
+    "fever",
+    "chills",
+    "can't breathe",
+    "chest tightness"
+  ],
+  "key_features": {
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          {
+            "medical": "acute",
+            "patient_friendly": "recently occurred over the past few days"
+          },
+          {
+            "medical": "sudden",
+            "patient_friendly": "came on suddenly",
+            "emergent": true
+          }
+        ],
+        "excludes": [
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for months"
+          }
+        ]
+      },
+      "location": {
+        "includes": [
+          {
+            "medical": "chest",
+            "patient_friendly": "in your chest"
+          },
+          {
+            "medical": "unilateral",
+            "patient_friendly": "on one side of your chest"
+          },
+          {
+            "medical": "bilateral",
+            "patient_friendly": "on both sides of your chest"
+          }
+        ],
+        "excludes": [],
+        "anatomical_type": "chest"
+      },
+      "duration": {
+        "includes": [
+          {
+            "medical": "days",
+            "patient_friendly": "for a few days"
+          },
+          {
+            "medical": "weeks",
+            "patient_friendly": "for a week or more"
+          }
+        ],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          {
+            "medical": "productive cough",
+            "patient_friendly": "coughing up phlegm or sputum",
+            "question_tags": ["sensory"]
+          },
+          {
+            "medical": "pleuritic",
+            "patient_friendly": "sharp chest pain that gets worse when you breathe in",
+            "question_tags": ["sensory"]
+          },
+          {
+            "medical": "dyspnea",
+            "patient_friendly": "shortness of breath or difficulty breathing",
+            "question_tags": ["sensory"]
+          }
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [
+          {
+            "medical": "deep breathing",
+            "patient_friendly": "worse when you take a deep breath"
+          },
+          {
+            "medical": "coughing",
+            "patient_friendly": "worse when you cough"
+          },
+          {
+            "medical": "lying flat",
+            "patient_friendly": "worse when lying flat"
+          }
+        ],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [
+          {
+            "medical": "sitting upright",
+            "patient_friendly": "better when sitting up"
+          },
+          {
+            "medical": "rest",
+            "patient_friendly": "better with rest"
+          }
+        ],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [
+          {
+            "medical": "constant",
+            "patient_friendly": "constant or continuous"
+          },
+          {
+            "medical": "worsening",
+            "patient_friendly": "getting worse over time"
+          }
+        ],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [
+          {
+            "medical": "moderate",
+            "patient_friendly": "moderate difficulty breathing"
+          },
+          {
+            "medical": "severe",
+            "patient_friendly": "severe difficulty breathing",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "fever",
+            "patient_friendly": "fever",
+            "emergent": true
+          },
+          {
+            "medical": "chills",
+            "patient_friendly": "chills or shaking",
+            "emergent": true
+          },
+          {
+            "medical": "rigors",
+            "patient_friendly": "shaking chills",
+            "emergent": true
+          },
+          {
+            "medical": "sputum",
+            "patient_friendly": "coughing up yellow, green, or bloody phlegm",
+            "emergent": true
+          },
+          {
+            "medical": "hemoptysis",
+            "patient_friendly": "coughing up blood",
+            "emergent": true
+          },
+          {
+            "medical": "fatigue",
+            "patient_friendly": "extreme tiredness or fatigue"
+          },
+          {
+            "medical": "malaise",
+            "patient_friendly": "feeling unwell or sick"
+          },
+          {
+            "medical": "anorexia",
+            "patient_friendly": "loss of appetite"
+          },
+          {
+            "medical": "confusion",
+            "patient_friendly": "confusion, especially in elderly",
+            "emergent": true
+          },
+          {
+            "medical": "hypoxia",
+            "patient_friendly": "low oxygen levels or blue lips",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      }
+    }
+  }
+}
+

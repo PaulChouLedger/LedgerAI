@@ -1,0 +1,179 @@
+{
+  "condition": "Pneumothorax",
+  "icd10": "J93.9",
+  "snomed": "59282003",
+  "sex": "both",
+  "prevalence": "uncommon",
+  "urgency": "emergent",
+  "chief_complaint_triggers": [
+    "chest pain",
+    "shortness of breath",
+    "difficulty breathing",
+    "sharp chest pain",
+    "sudden chest pain",
+    "can't breathe",
+    "rapid breathing"
+  ],
+  "key_features": {
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          {
+            "medical": "sudden",
+            "patient_friendly": "came on suddenly",
+            "emergent": true
+          },
+          {
+            "medical": "acute",
+            "patient_friendly": "recently occurred within minutes to hours"
+          }
+        ],
+        "excludes": []
+      },
+      "location": {
+        "includes": [
+          {
+            "medical": "unilateral chest",
+            "patient_friendly": "on one side of your chest"
+          },
+          {
+            "medical": "pleural",
+            "patient_friendly": "sharp pain in your chest"
+          }
+        ],
+        "excludes": [],
+        "anatomical_type": "chest"
+      },
+      "duration": {
+        "includes": [
+          {
+            "medical": "minutes",
+            "patient_friendly": "just started"
+          },
+          {
+            "medical": "hours",
+            "patient_friendly": "for several hours"
+          }
+        ],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          {
+            "medical": "sharp",
+            "patient_friendly": "sharp or stabbing chest pain",
+            "question_tags": ["sensory"]
+          },
+          {
+            "medical": "pleuritic",
+            "patient_friendly": "sharp pain worse when you breathe in",
+            "question_tags": ["sensory"]
+          },
+          {
+            "medical": "dyspnea",
+            "patient_friendly": "shortness of breath",
+            "question_tags": ["sensory"]
+          }
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [
+          {
+            "medical": "deep breathing",
+            "patient_friendly": "worse when you take a deep breath"
+          },
+          {
+            "medical": "coughing",
+            "patient_friendly": "worse when you cough"
+          },
+          {
+            "medical": "movement",
+            "patient_friendly": "worse with movement"
+          }
+        ],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [
+          {
+            "medical": "shallow breathing",
+            "patient_friendly": "better with shallow breathing"
+          },
+          {
+            "medical": "lying on affected side",
+            "patient_friendly": "better when lying on the affected side"
+          }
+        ],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [
+          {
+            "medical": "constant",
+            "patient_friendly": "constant since it started"
+          },
+          {
+            "medical": "worsening",
+            "patient_friendly": "getting worse",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [
+          {
+            "medical": "severe",
+            "patient_friendly": "severe - cannot breathe",
+            "emergent": true
+          },
+          {
+            "medical": "moderate",
+            "patient_friendly": "moderate chest pain and difficulty breathing"
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "dyspnea",
+            "patient_friendly": "shortness of breath or difficulty breathing",
+            "emergent": true
+          },
+          {
+            "medical": "tachycardia",
+            "patient_friendly": "rapid heart rate",
+            "emergent": true
+          },
+          {
+            "medical": "hypotension",
+            "patient_friendly": "low blood pressure or feeling faint",
+            "emergent": true
+          },
+          {
+            "medical": "cyanosis",
+            "patient_friendly": "blue lips or skin",
+            "emergent": true
+          },
+          {
+            "medical": "trauma",
+            "patient_friendly": "recent chest trauma or injury",
+            "emergent": true
+          },
+          {
+            "medical": "tall thin build",
+            "patient_friendly": "tall, thin build (spontaneous pneumothorax)"
+          },
+          {
+            "medical": "smoking",
+            "patient_friendly": "history of smoking"
+          }
+        ],
+        "excludes": []
+      }
+    }
+  }
+}
+

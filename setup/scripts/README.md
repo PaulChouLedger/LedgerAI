@@ -2,6 +2,34 @@
 
 ## Scripts Overview
 
+### Complete Installation
+
+- **`install_aura_bootable.sh`** - Complete bootable installation script
+  - Sets up Python virtual environment with all requirements
+  - Installs jetson-containers
+  - Installs and builds XVF3800 USB 4-Mic Array support
+  - Configures systemd services for boot startup
+  - Sets up Docker and audio permissions
+  - Makes Aura start automatically on boot
+  
+  **Usage:**
+  ```bash
+  cd /path/to/LedgerAI/setup/scripts
+  bash install_aura_bootable.sh
+  ```
+  
+  **What it does:**
+  1. Updates system packages and installs dependencies
+  2. Creates Python 3.10 virtual environment at `~/aura-env`
+  3. Installs all Python requirements from `aura-control/requirements/`
+  4. Clones and installs jetson-containers
+  5. Clones and builds XVF3800 mic array support (xvf_host)
+  6. Configures display settings (disables lock screen)
+  7. Installs XVF3800 tuning service (runs on boot)
+  8. Creates Aura systemd service (starts on boot)
+  9. Configures Docker and audio permissions
+  10. Creates necessary data directories
+
 ### Microphone Configuration
 
 - **`tune_xvf3800.py`** - Configure XVF3800 USB 4 Mic Array DSP
@@ -26,6 +54,12 @@ All tuning scripts are configured for the **XVF3800 4-Mic Array** (2 channels):
   - Installs to `/etc/systemd/system/`
   - Runs `tune_xvf3800.py` automatically on system startup
   - User aura (no sudo required)
+
+- **`disable-keyboard-monitor.service`** - Disable Ubuntu keyboard while Aura runs
+  - Monitors `aura.service` and disables Ubuntu on-screen keyboard (onboard, caribou, matchbox-keyboard) while Aura is running
+  - Automatically starts/stops with `aura.service`
+  - Runs as user aura (no sudo required)
+  - Checks every 2 seconds if Aura is running and kills keyboard processes
 
 ### Installation
 

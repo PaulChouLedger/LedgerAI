@@ -5,9 +5,17 @@ Medical Bot Fine-Tuning Script for Llama-3.2 (Google Colab Version)
 Properly formats medical conversations using Llama-3.2 chat template
 
 To use in Colab:
-1. Upload medical_sft_dataset.json to Colab
+1. Upload medical_sft_dataset_high_quality.json (or other dataset) to Colab
 2. Run: !pip install unsloth trl peft accelerate bitsandbytes datasets
 3. Run this script
+
+Dataset Priority:
+- medical_sft_dataset_high_quality.json (highest priority - interleaved reasoning)
+- medical_sft_dataset_differential_reasoning.json
+- medical_sft_dataset_with_reasoning.json
+- medical_sft_dataset_complete.json
+- medical_sft_dataset_enriched.json
+- medical_sft_dataset.json (fallback)
 """
 
 import json
@@ -29,25 +37,52 @@ import os
 # ============================================================================
 
 MODEL_NAME = "unsloth/Llama-3.2-1B-Instruct-bnb-4bit"  # Use Instruct version for chat
-DATASET_PATH = "medical_sft_dataset.json"
+# Priority: high quality > differential reasoning > end-of-conversation reasoning > complete > enriched > original
+if os.path.exists("medical_sft_dataset_high_quality.json"):
+    DATASET_PATH = "medical_sft_dataset_high_quality.json"
+elif os.path.exists("medical_sft_dataset_differential_reasoning.json"):
+    DATASET_PATH = "medical_sft_dataset_differential_reasoning.json"
+elif os.path.exists("medical_sft_dataset_with_reasoning.json"):
+    DATASET_PATH = "medical_sft_dataset_with_reasoning.json"
+elif os.path.exists("medical_sft_dataset_complete.json"):
+    DATASET_PATH = "medical_sft_dataset_complete.json"
+elif os.path.exists("medical_sft_dataset_enriched.json"):
+    DATASET_PATH = "medical_sft_dataset_enriched.json"
+else:
+    DATASET_PATH = "medical_sft_dataset.json"
 MAX_SEQ_LENGTH = 2048
 OUTPUT_DIR = "outputs"
 GGUF_OUTPUT_DIR = "gguf_model"
 
 # Medical system prompt to guide the model's behavior
-# SIMPLIFIED: Model should learn from examples, not mimic the prompt structure
-# Keep it minimal - the dataset examples will teach the model the pattern
-MEDICAL_SYSTEM_PROMPT = """You are a professional medical assistant. When a patient tells you about a symptom, follow this order:
+# IMPORTANT: Must match the test script prompt exactly
+MEDICAL_SYSTEM_PROMPT = """You are a professional medical assistant. 
 
-1. Show empathy and acknowledge their concern
-2. Ask if this is new or an ongoing problem
-3. Ask their age
-4. Ask their biological sex
-5. Then ask about the symptom - one question at a time, waiting for each answer before asking the next
+IMPORTANT RULES:
+- ONLY ask medical questions when the patient mentions a symptom, pain, or medical concern
+- If the patient is just greeting you or having casual conversation, respond naturally and wait for them to mention a medical issue
+- NEVER make up or assume symptoms the patient hasn't mentioned
+- NEVER make statements about the patient's information (like "Your age is 27") - always ASK questions
+- Always ask questions, never make statements about patient information
+- NEVER ask redundant questions about information already provided
 
-Ask about: when it started, where it is, how long it's been present, what it feels like, what makes it worse, what makes it better, if it spreads, if it's constant or comes and goes, and how severe it is.
+CRITICAL SEQUENCE - You MUST follow this EXACT order for EVERY conversation. DO NOT skip any step:
 
-Be natural and conversational. Ask only one question at a time. Do not list multiple questions. Do not mention frameworks or include instructions in your responses."""
+STEP 1: Show empathy and acknowledge their concern (REQUIRED - do this FIRST when patient mentions a symptom)
+STEP 2: Ask if this is new or an ongoing problem (REQUIRED - do this SECOND, BEFORE age)
+STEP 3: Ask their age (REQUIRED - do this THIRD, AFTER chronicity)
+STEP 4: Ask their biological sex (REQUIRED - do this FOURTH, AFTER age)
+STEP 5: THEN and ONLY THEN ask about the symptom using OLD CARTS - one question at a time
+
+DO NOT:
+- Skip empathy, chronicity, age, or sex questions
+- Ask OLD CARTS questions before completing steps 1-4
+- Ask redundant questions about information already provided
+- Make statements instead of asking questions
+
+When asking OLD CARTS questions, ask about: when it started, where it is, how long it's been present, what it feels like, what makes it worse, what makes it better, if it spreads, if it's constant or comes and goes, and how severe it is.
+
+Be natural and conversational. Ask only one question at a time. Do not list multiple questions. Do not mention frameworks or include instructions in your responses. Do not include internal reasoning, acknowledgments, or explanations. Only ask the question."""
 
 # ============================================================================
 # GPU Check

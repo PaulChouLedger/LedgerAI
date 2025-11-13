@@ -1,0 +1,210 @@
+{
+  "condition": "Acute Ischemic Stroke",
+  "icd10": "I63.9",
+  "snomed": "230690007",
+  "sex": "both",
+  "prevalence": "common",
+  "urgency": "emergent",
+  "chief_complaint_triggers": [
+    "stroke",
+    "weakness",
+    "numbness",
+    "speech problems",
+    "vision problems",
+    "confusion",
+    "facial droop",
+    "can't move",
+    "slurred speech"
+  ],
+  "key_features": {
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          {
+            "medical": "sudden",
+            "patient_friendly": "came on suddenly or over seconds to minutes",
+            "emergent": true
+          },
+          {
+            "medical": "acute",
+            "patient_friendly": "recently occurred within the past few hours"
+          }
+        ],
+        "excludes": [
+          {
+            "medical": "gradual",
+            "patient_friendly": "built up slowly over days or weeks"
+          }
+        ]
+      },
+      "location": {
+        "includes": [
+          {
+            "medical": "unilateral",
+            "patient_friendly": "on one side of your body"
+          },
+          {
+            "medical": "face",
+            "patient_friendly": "in your face - facial droop or weakness"
+          },
+          {
+            "medical": "arm",
+            "patient_friendly": "in your arm or leg"
+          },
+          {
+            "medical": "speech",
+            "patient_friendly": "affecting your speech or ability to talk"
+          }
+        ],
+        "excludes": [],
+        "anatomical_type": "neurological"
+      },
+      "duration": {
+        "includes": [
+          {
+            "medical": "continuous",
+            "patient_friendly": "continuous since it started",
+            "emergent": true
+          },
+          {
+            "medical": "persistent",
+            "patient_friendly": "has not gone away"
+          }
+        ],
+        "excludes": [
+          {
+            "medical": "transient",
+            "patient_friendly": "went away completely (that might be a TIA)"
+          }
+        ]
+      },
+      "character": {
+        "includes": [
+          {
+            "medical": "weakness",
+            "patient_friendly": "weakness or paralysis",
+            "question_tags": ["sensory"]
+          },
+          {
+            "medical": "numbness",
+            "patient_friendly": "numbness or tingling",
+            "question_tags": ["sensory"]
+          },
+          {
+            "medical": "speech difficulty",
+            "patient_friendly": "slurred speech or difficulty speaking",
+            "question_tags": ["sensory"]
+          },
+          {
+            "medical": "vision loss",
+            "patient_friendly": "vision problems or loss of vision",
+            "question_tags": ["visual"]
+          }
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [
+          {
+            "medical": "none",
+            "patient_friendly": "nothing makes it worse"
+          }
+        ],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [
+          {
+            "medical": "none",
+            "patient_friendly": "nothing makes it better"
+          }
+        ],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [
+          {
+            "medical": "constant",
+            "patient_friendly": "constant since it started"
+          },
+          {
+            "medical": "progressive",
+            "patient_friendly": "getting worse"
+          }
+        ],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [
+          {
+            "medical": "severe",
+            "patient_friendly": "severe - cannot move or speak",
+            "emergent": true
+          },
+          {
+            "medical": "moderate",
+            "patient_friendly": "moderate - significant difficulty"
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "facial droop",
+            "patient_friendly": "one side of your face drooping",
+            "emergent": true
+          },
+          {
+            "medical": "arm drift",
+            "patient_friendly": "one arm drifting down when you raise both arms",
+            "emergent": true
+          },
+          {
+            "medical": "aphasia",
+            "patient_friendly": "difficulty speaking or understanding speech",
+            "emergent": true
+          },
+          {
+            "medical": "dysarthria",
+            "patient_friendly": "slurred or unclear speech",
+            "emergent": true
+          },
+          {
+            "medical": "hemianopia",
+            "patient_friendly": "vision loss in half of your visual field",
+            "emergent": true
+          },
+          {
+            "medical": "ataxia",
+            "patient_friendly": "loss of balance or coordination",
+            "emergent": true
+          },
+          {
+            "medical": "confusion",
+            "patient_friendly": "confusion or altered mental status",
+            "emergent": true
+          },
+          {
+            "medical": "headache",
+            "patient_friendly": "severe headache"
+          },
+          {
+            "medical": "dizziness",
+            "patient_friendly": "dizziness or vertigo"
+          },
+          {
+            "medical": "nausea",
+            "patient_friendly": "nausea"
+          },
+          {
+            "medical": "vomiting",
+            "patient_friendly": "vomiting"
+          }
+        ],
+        "excludes": []
+      }
+    }
+  }
+}
+

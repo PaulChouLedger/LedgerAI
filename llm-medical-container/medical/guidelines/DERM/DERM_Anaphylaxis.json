@@ -1,0 +1,206 @@
+{
+  "condition": "Anaphylaxis",
+  "icd10": "T78.2",
+  "snomed": "39579001",
+  "sex": "both",
+  "prevalence": "uncommon",
+  "urgency": "emergent",
+  "chief_complaint_triggers": [
+    "allergic reaction",
+    "difficulty breathing",
+    "swelling",
+    "hives",
+    "rash",
+    "throat tightness",
+    "can't breathe",
+    "tongue swelling"
+  ],
+  "key_features": {
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          {
+            "medical": "sudden",
+            "patient_friendly": "came on suddenly within minutes",
+            "emergent": true
+          },
+          {
+            "medical": "acute",
+            "patient_friendly": "recently occurred",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      },
+      "location": {
+        "includes": [
+          {
+            "medical": "generalized",
+            "patient_friendly": "all over your body",
+            "emergent": true
+          },
+          {
+            "medical": "face",
+            "patient_friendly": "in your face, lips, or tongue",
+            "emergent": true
+          },
+          {
+            "medical": "throat",
+            "patient_friendly": "in your throat",
+            "emergent": true
+          },
+          {
+            "medical": "airway",
+            "patient_friendly": "affecting your breathing",
+            "emergent": true
+          }
+        ],
+        "excludes": [],
+        "anatomical_type": "dermatological"
+      },
+      "duration": {
+        "includes": [
+          {
+            "medical": "minutes",
+            "patient_friendly": "within minutes of exposure",
+            "emergent": true
+          },
+          {
+            "medical": "hours",
+            "patient_friendly": "for several hours"
+          }
+        ],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          {
+            "medical": "urticaria",
+            "patient_friendly": "hives or raised red bumps",
+            "question_tags": ["visual"]
+          },
+          {
+            "medical": "angioedema",
+            "patient_friendly": "swelling, especially of face, lips, or tongue",
+            "question_tags": ["visual"]
+          },
+          {
+            "medical": "dyspnea",
+            "patient_friendly": "shortness of breath or difficulty breathing",
+            "question_tags": ["sensory"]
+          },
+          {
+            "medical": "throat tightness",
+            "patient_friendly": "tightness in your throat",
+            "question_tags": ["sensory"]
+          }
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [
+          {
+            "medical": "allergen exposure",
+            "patient_friendly": "worse with continued exposure to the trigger"
+          }
+        ],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [
+          {
+            "medical": "epinephrine",
+            "patient_friendly": "better with epinephrine injection"
+          },
+          {
+            "medical": "antihistamines",
+            "patient_friendly": "better with antihistamines"
+          }
+        ],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [
+          {
+            "medical": "rapid progression",
+            "patient_friendly": "rapidly getting worse",
+            "emergent": true
+          },
+          {
+            "medical": "constant",
+            "patient_friendly": "constant since it started"
+          }
+        ],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [
+          {
+            "medical": "severe",
+            "patient_friendly": "severe - life-threatening",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "urticaria",
+            "patient_friendly": "hives or raised red bumps all over",
+            "emergent": true
+          },
+          {
+            "medical": "angioedema",
+            "patient_friendly": "swelling of face, lips, tongue, or throat",
+            "emergent": true
+          },
+          {
+            "medical": "dyspnea",
+            "patient_friendly": "shortness of breath or difficulty breathing",
+            "emergent": true
+          },
+          {
+            "medical": "wheezing",
+            "patient_friendly": "wheezing or stridor",
+            "emergent": true
+          },
+          {
+            "medical": "hypotension",
+            "patient_friendly": "low blood pressure or feeling faint",
+            "emergent": true
+          },
+          {
+            "medical": "syncope",
+            "patient_friendly": "fainting or passing out",
+            "emergent": true
+          },
+          {
+            "medical": "tachycardia",
+            "patient_friendly": "rapid heart rate",
+            "emergent": true
+          },
+          {
+            "medical": "nausea",
+            "patient_friendly": "nausea"
+          },
+          {
+            "medical": "vomiting",
+            "patient_friendly": "vomiting"
+          },
+          {
+            "medical": "diarrhea",
+            "patient_friendly": "diarrhea"
+          },
+          {
+            "medical": "recent exposure",
+            "patient_friendly": "recent exposure to food, medication, insect sting, or other allergen",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      }
+    }
+  }
+}
+

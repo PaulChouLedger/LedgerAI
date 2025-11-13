@@ -1,0 +1,173 @@
+{
+  "condition": "Testicular Torsion",
+  "icd10": "N44.00",
+  "snomed": "186906004",
+  "sex": "male",
+  "prevalence": "uncommon",
+  "urgency": "emergent",
+  "chief_complaint_triggers": [
+    "testicular pain",
+    "scrotal pain",
+    "testicle pain",
+    "sudden testicle pain",
+    "swollen testicle",
+    "testicle swelling",
+    "groin pain"
+  ],
+  "key_features": {
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          {
+            "medical": "sudden",
+            "patient_friendly": "came on suddenly",
+            "emergent": true
+          },
+          {
+            "medical": "acute",
+            "patient_friendly": "recently occurred within hours"
+          }
+        ],
+        "excludes": []
+      },
+      "location": {
+        "includes": [
+          {
+            "medical": "testicle",
+            "patient_friendly": "in your testicle or scrotum",
+            "emergent": true
+          },
+          {
+            "medical": "unilateral",
+            "patient_friendly": "on one side"
+          },
+          {
+            "medical": "groin",
+            "patient_friendly": "in your groin area"
+          }
+        ],
+        "excludes": [],
+        "anatomical_type": "genitourinary"
+      },
+      "duration": {
+        "includes": [
+          {
+            "medical": "hours",
+            "patient_friendly": "for several hours",
+            "emergent": true
+          },
+          {
+            "medical": "minutes",
+            "patient_friendly": "just started"
+          }
+        ],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          {
+            "medical": "severe",
+            "patient_friendly": "severe pain",
+            "question_tags": ["sensory"]
+          },
+          {
+            "medical": "sharp",
+            "patient_friendly": "sharp or stabbing",
+            "question_tags": ["sensory"]
+          },
+          {
+            "medical": "twisting",
+            "patient_friendly": "feeling like your testicle is twisted",
+            "question_tags": ["sensory"]
+          }
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [
+          {
+            "medical": "movement",
+            "patient_friendly": "worse with any movement"
+          },
+          {
+            "medical": "touch",
+            "patient_friendly": "worse when you touch it"
+          }
+        ],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [
+          {
+            "medical": "elevation",
+            "patient_friendly": "better when you elevate the testicle"
+          }
+        ],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [
+          {
+            "medical": "constant",
+            "patient_friendly": "constant since it started",
+            "emergent": true
+          },
+          {
+            "medical": "worsening",
+            "patient_friendly": "getting worse",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [
+          {
+            "medical": "severe",
+            "patient_friendly": "severe - 7 to 10 out of 10",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "testicular swelling",
+            "patient_friendly": "swollen testicle",
+            "emergent": true
+          },
+          {
+            "medical": "scrotal swelling",
+            "patient_friendly": "swollen scrotum",
+            "emergent": true
+          },
+          {
+            "medical": "elevated testicle",
+            "patient_friendly": "testicle appears higher than normal",
+            "emergent": true
+          },
+          {
+            "medical": "nausea",
+            "patient_friendly": "nausea"
+          },
+          {
+            "medical": "vomiting",
+            "patient_friendly": "vomiting"
+          },
+          {
+            "medical": "fever",
+            "patient_friendly": "fever",
+            "emergent": true
+          },
+          {
+            "medical": "abdominal pain",
+            "patient_friendly": "pain in your lower belly"
+          }
+        ],
+        "excludes": []
+      }
+    }
+  }
+}
+

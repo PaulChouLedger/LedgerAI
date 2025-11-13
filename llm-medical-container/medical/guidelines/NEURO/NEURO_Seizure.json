@@ -1,0 +1,186 @@
+{
+  "condition": "Seizure",
+  "icd10": "G40.909",
+  "snomed": "91175000",
+  "sex": "both",
+  "prevalence": "common",
+  "urgency": "emergent",
+  "chief_complaint_triggers": [
+    "seizure",
+    "convulsion",
+    "shaking",
+    "unconscious",
+    "confusion",
+    "loss of consciousness",
+    "staring",
+    "twitching"
+  ],
+  "key_features": {
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          {
+            "medical": "sudden",
+            "patient_friendly": "came on suddenly",
+            "emergent": true
+          },
+          {
+            "medical": "acute",
+            "patient_friendly": "recently occurred"
+          }
+        ],
+        "excludes": []
+      },
+      "location": {
+        "includes": [
+          {
+            "medical": "generalized",
+            "patient_friendly": "throughout your whole body"
+          },
+          {
+            "medical": "focal",
+            "patient_friendly": "in one part of your body"
+          },
+          {
+            "medical": "head",
+            "patient_friendly": "starting in your head or face"
+          }
+        ],
+        "excludes": [],
+        "anatomical_type": "neurological"
+      },
+      "duration": {
+        "includes": [
+          {
+            "medical": "minutes",
+            "patient_friendly": "lasted for a few minutes"
+          },
+          {
+            "medical": "seconds",
+            "patient_friendly": "lasted for seconds"
+          },
+          {
+            "medical": "prolonged",
+            "patient_friendly": "lasting more than 5 minutes",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          {
+            "medical": "tonic-clonic",
+            "patient_friendly": "shaking or convulsing",
+            "question_tags": ["sensory"]
+          },
+          {
+            "medical": "staring",
+            "patient_friendly": "staring into space or unresponsive",
+            "question_tags": ["visual"]
+          },
+          {
+            "medical": "twitching",
+            "patient_friendly": "twitching or jerking movements",
+            "question_tags": ["sensory"]
+          }
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [
+          {
+            "medical": "none",
+            "patient_friendly": "nothing makes it worse"
+          }
+        ],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [
+          {
+            "medical": "self-limited",
+            "patient_friendly": "stopped on its own"
+          }
+        ],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [
+          {
+            "medical": "single episode",
+            "patient_friendly": "one episode"
+          },
+          {
+            "medical": "recurrent",
+            "patient_friendly": "multiple episodes",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [
+          {
+            "medical": "severe",
+            "patient_friendly": "severe - prolonged or multiple seizures",
+            "emergent": true
+          },
+          {
+            "medical": "moderate",
+            "patient_friendly": "moderate - single brief episode"
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "loss of consciousness",
+            "patient_friendly": "loss of consciousness or blacking out",
+            "emergent": true
+          },
+          {
+            "medical": "postictal confusion",
+            "patient_friendly": "confusion after the seizure",
+            "emergent": true
+          },
+          {
+            "medical": "tongue biting",
+            "patient_friendly": "biting your tongue",
+            "emergent": true
+          },
+          {
+            "medical": "incontinence",
+            "patient_friendly": "loss of bladder or bowel control",
+            "emergent": true
+          },
+          {
+            "medical": "headache",
+            "patient_friendly": "headache after the seizure"
+          },
+          {
+            "medical": "muscle aches",
+            "patient_friendly": "muscle aches or soreness"
+          },
+          {
+            "medical": "fever",
+            "patient_friendly": "fever",
+            "emergent": true
+          },
+          {
+            "medical": "head trauma",
+            "patient_friendly": "recent head injury",
+            "emergent": true
+          },
+          {
+            "medical": "medication non-compliance",
+            "patient_friendly": "missed seizure medications"
+          }
+        ],
+        "excludes": []
+      }
+    }
+  }
+}
+

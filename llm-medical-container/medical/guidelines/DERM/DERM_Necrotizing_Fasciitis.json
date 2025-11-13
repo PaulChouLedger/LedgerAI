@@ -1,0 +1,209 @@
+{
+  "condition": "Necrotizing Fasciitis",
+  "icd10": "M72.6",
+  "snomed": "399190000",
+  "sex": "both",
+  "prevalence": "rare",
+  "urgency": "emergent",
+  "chief_complaint_triggers": [
+    "severe pain",
+    "rapidly spreading",
+    "red skin",
+    "swollen skin",
+    "skin infection",
+    "fever",
+    "chills",
+    "skin breakdown"
+  ],
+  "key_features": {
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          {
+            "medical": "sudden",
+            "patient_friendly": "came on suddenly",
+            "emergent": true
+          },
+          {
+            "medical": "rapid progression",
+            "patient_friendly": "rapidly getting worse over hours",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      },
+      "location": {
+        "includes": [
+          {
+            "medical": "extremity",
+            "patient_friendly": "on your arm or leg",
+            "emergent": true
+          },
+          {
+            "medical": "trunk",
+            "patient_friendly": "on your torso",
+            "emergent": true
+          },
+          {
+            "medical": "perineum",
+            "patient_friendly": "in your perineum or groin area",
+            "emergent": true
+          }
+        ],
+        "excludes": [],
+        "anatomical_type": "dermatological"
+      },
+      "duration": {
+        "includes": [
+          {
+            "medical": "hours",
+            "patient_friendly": "over the past few hours and rapidly spreading",
+            "emergent": true
+          },
+          {
+            "medical": "days",
+            "patient_friendly": "over the past few days"
+          }
+        ],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          {
+            "medical": "severe pain",
+            "patient_friendly": "severe pain out of proportion to appearance",
+            "question_tags": ["sensory"]
+          },
+          {
+            "medical": "erythema",
+            "patient_friendly": "red, rapidly spreading area",
+            "question_tags": ["visual"]
+          },
+          {
+            "medical": "bullae",
+            "patient_friendly": "blisters or skin breakdown",
+            "question_tags": ["visual"]
+          },
+          {
+            "medical": "necrosis",
+            "patient_friendly": "black or dead-looking skin",
+            "question_tags": ["visual"]
+          }
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [
+          {
+            "medical": "time",
+            "patient_friendly": "worse - rapidly spreading"
+          },
+          {
+            "medical": "touch",
+            "patient_friendly": "worse when you touch it"
+          }
+        ],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [
+          {
+            "medical": "surgical debridement",
+            "patient_friendly": "better after surgical removal of dead tissue"
+          }
+        ],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [
+          {
+            "medical": "rapid progression",
+            "patient_friendly": "rapidly spreading over hours",
+            "emergent": true
+          },
+          {
+            "medical": "constant",
+            "patient_friendly": "constant severe pain"
+          }
+        ],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [
+          {
+            "medical": "severe",
+            "patient_friendly": "severe - life-threatening",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "rapid progression",
+            "patient_friendly": "rapidly spreading over hours",
+            "emergent": true
+          },
+          {
+            "medical": "severe pain",
+            "patient_friendly": "severe pain out of proportion to appearance",
+            "emergent": true
+          },
+          {
+            "medical": "fever",
+            "patient_friendly": "fever",
+            "emergent": true
+          },
+          {
+            "medical": "chills",
+            "patient_friendly": "chills or shaking",
+            "emergent": true
+          },
+          {
+            "medical": "bullae",
+            "patient_friendly": "blisters or fluid-filled bumps",
+            "emergent": true
+          },
+          {
+            "medical": "necrosis",
+            "patient_friendly": "black, dead-looking, or gangrenous skin",
+            "emergent": true
+          },
+          {
+            "medical": "crepitus",
+            "patient_friendly": "crackling sensation under the skin",
+            "emergent": true
+          },
+          {
+            "medical": "altered mental status",
+            "patient_friendly": "confusion or altered mental status",
+            "emergent": true
+          },
+          {
+            "medical": "hypotension",
+            "patient_friendly": "low blood pressure or signs of shock",
+            "emergent": true
+          },
+          {
+            "medical": "recent trauma",
+            "patient_friendly": "recent injury, surgery, or wound",
+            "emergent": true
+          },
+          {
+            "medical": "diabetes",
+            "patient_friendly": "history of diabetes",
+            "emergent": true
+          },
+          {
+            "medical": "immunocompromised",
+            "patient_friendly": "weakened immune system",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      }
+    }
+  }
+}
+

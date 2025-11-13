@@ -1,0 +1,175 @@
+{
+  "condition": "Acute Urinary Retention",
+  "icd10": "R33.9",
+  "snomed": "109355002",
+  "sex": "both",
+  "prevalence": "common",
+  "urgency": "emergent",
+  "chief_complaint_triggers": [
+    "can't urinate",
+    "unable to urinate",
+    "no urine",
+    "bladder pain",
+    "lower abdominal pain",
+    "suprapubic pain",
+    "urge to urinate",
+    "full bladder"
+  ],
+  "key_features": {
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          {
+            "medical": "sudden",
+            "patient_friendly": "came on suddenly",
+            "emergent": true
+          },
+          {
+            "medical": "acute",
+            "patient_friendly": "recently occurred"
+          }
+        ],
+        "excludes": []
+      },
+      "location": {
+        "includes": [
+          {
+            "medical": "suprapubic",
+            "patient_friendly": "in your lower belly above your pubic bone",
+            "emergent": true
+          },
+          {
+            "medical": "bladder",
+            "patient_friendly": "feeling like your bladder is full"
+          }
+        ],
+        "excludes": [],
+        "anatomical_type": "genitourinary"
+      },
+      "duration": {
+        "includes": [
+          {
+            "medical": "hours",
+            "patient_friendly": "for several hours",
+            "emergent": true
+          },
+          {
+            "medical": "minutes",
+            "patient_friendly": "just started"
+          }
+        ],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          {
+            "medical": "pressure",
+            "patient_friendly": "pressure or fullness in your lower belly",
+            "question_tags": ["sensory"]
+          },
+          {
+            "medical": "pain",
+            "patient_friendly": "pain or discomfort",
+            "question_tags": ["sensory"]
+          },
+          {
+            "medical": "urgency",
+            "patient_friendly": "strong urge to urinate but cannot",
+            "question_tags": ["sensory"]
+          }
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [
+          {
+            "medical": "time",
+            "patient_friendly": "worse the longer you cannot urinate"
+          },
+          {
+            "medical": "movement",
+            "patient_friendly": "worse with movement"
+          }
+        ],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [
+          {
+            "medical": "catheterization",
+            "patient_friendly": "better after catheter is placed"
+          }
+        ],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [
+          {
+            "medical": "constant",
+            "patient_friendly": "constant since you cannot urinate",
+            "emergent": true
+          },
+          {
+            "medical": "worsening",
+            "patient_friendly": "getting worse",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [
+          {
+            "medical": "severe",
+            "patient_friendly": "severe - cannot urinate at all",
+            "emergent": true
+          },
+          {
+            "medical": "moderate",
+            "patient_friendly": "moderate - can only urinate small amounts"
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "inability to urinate",
+            "patient_friendly": "cannot urinate at all",
+            "emergent": true
+          },
+          {
+            "medical": "suprapubic distension",
+            "patient_friendly": "swollen or distended lower belly",
+            "emergent": true
+          },
+          {
+            "medical": "suprapubic tenderness",
+            "patient_friendly": "tender when you press on your lower belly",
+            "emergent": true
+          },
+          {
+            "medical": "overflow incontinence",
+            "patient_friendly": "leaking small amounts of urine",
+            "emergent": true
+          },
+          {
+            "medical": "agitation",
+            "patient_friendly": "restlessness or agitation"
+          },
+          {
+            "medical": "medication use",
+            "patient_friendly": "recent use of medications like anticholinergics or opioids"
+          },
+          {
+            "medical": "surgery",
+            "patient_friendly": "recent surgery",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      }
+    }
+  }
+}
+

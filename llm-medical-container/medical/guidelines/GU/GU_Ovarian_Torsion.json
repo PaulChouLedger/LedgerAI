@@ -1,0 +1,167 @@
+{
+  "condition": "Ovarian Torsion",
+  "icd10": "N83.5",
+  "snomed": "109355002",
+  "sex": "female",
+  "prevalence": "uncommon",
+  "urgency": "emergent",
+  "chief_complaint_triggers": [
+    "pelvic pain",
+    "ovarian pain",
+    "abdominal pain",
+    "sudden pelvic pain",
+    "lower abdominal pain",
+    "nausea",
+    "vomiting"
+  ],
+  "key_features": {
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          {
+            "medical": "sudden",
+            "patient_friendly": "came on suddenly",
+            "emergent": true
+          },
+          {
+            "medical": "acute",
+            "patient_friendly": "recently occurred within hours"
+          }
+        ],
+        "excludes": []
+      },
+      "location": {
+        "includes": [
+          {
+            "medical": "pelvic",
+            "patient_friendly": "in your pelvis or lower belly",
+            "emergent": true
+          },
+          {
+            "medical": "unilateral",
+            "patient_friendly": "on one side of your lower belly",
+            "emergent": true
+          },
+          {
+            "medical": "ovarian",
+            "patient_friendly": "in your ovary area"
+          }
+        ],
+        "excludes": [],
+        "anatomical_type": "genitourinary"
+      },
+      "duration": {
+        "includes": [
+          {
+            "medical": "hours",
+            "patient_friendly": "for several hours",
+            "emergent": true
+          },
+          {
+            "medical": "minutes",
+            "patient_friendly": "just started"
+          }
+        ],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          {
+            "medical": "severe",
+            "patient_friendly": "severe pain",
+            "question_tags": ["sensory"]
+          },
+          {
+            "medical": "sharp",
+            "patient_friendly": "sharp or stabbing",
+            "question_tags": ["sensory"]
+          },
+          {
+            "medical": "cramping",
+            "patient_friendly": "cramping pain",
+            "question_tags": ["sensory"]
+          }
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [
+          {
+            "medical": "movement",
+            "patient_friendly": "worse with movement"
+          },
+          {
+            "medical": "touch",
+            "patient_friendly": "worse when you press on your belly"
+          }
+        ],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [
+          {
+            "medical": "none",
+            "patient_friendly": "nothing helps"
+          }
+        ],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [
+          {
+            "medical": "constant",
+            "patient_friendly": "constant since it started",
+            "emergent": true
+          },
+          {
+            "medical": "worsening",
+            "patient_friendly": "getting worse",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [
+          {
+            "medical": "severe",
+            "patient_friendly": "severe - 7 to 10 out of 10",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "nausea",
+            "patient_friendly": "nausea",
+            "emergent": true
+          },
+          {
+            "medical": "vomiting",
+            "patient_friendly": "vomiting",
+            "emergent": true
+          },
+          {
+            "medical": "fever",
+            "patient_friendly": "fever",
+            "emergent": true
+          },
+          {
+            "medical": "adnexal mass",
+            "patient_friendly": "feeling a mass or lump in your pelvis",
+            "emergent": true
+          },
+          {
+            "medical": "ovarian cyst",
+            "patient_friendly": "history of ovarian cysts",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      }
+    }
+  }
+}
+

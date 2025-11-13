@@ -1,0 +1,210 @@
+{
+  "condition": "Nephrolithiasis (Kidney Stones)",
+  "icd10": "N20.0",
+  "snomed": "95570007",
+  "sex": "both",
+  "prevalence": "common",
+  "urgency": "emergent",
+  "chief_complaint_triggers": [
+    "kidney stone",
+    "flank pain",
+    "back pain",
+    "abdominal pain",
+    "painful urination",
+    "blood in urine",
+    "severe pain",
+    "colicky pain"
+  ],
+  "key_features": {
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          {
+            "medical": "sudden",
+            "patient_friendly": "came on suddenly",
+            "emergent": true
+          },
+          {
+            "medical": "acute",
+            "patient_friendly": "recently occurred"
+          }
+        ],
+        "excludes": []
+      },
+      "location": {
+        "includes": [
+          {
+            "medical": "flank",
+            "patient_friendly": "in your side or lower back",
+            "emergent": true
+          },
+          {
+            "medical": "costovertebral angle",
+            "patient_friendly": "in your back where your ribs meet your spine",
+            "emergent": true
+          },
+          {
+            "medical": "radiating to groin",
+            "patient_friendly": "radiates from your back down to your groin",
+            "emergent": true
+          },
+          {
+            "medical": "suprapubic",
+            "patient_friendly": "in your lower belly"
+          }
+        ],
+        "excludes": [],
+        "anatomical_type": "genitourinary"
+      },
+      "radiation": {
+        "includes": [
+          {
+            "medical": "groin",
+            "patient_friendly": "radiates down to your groin or genitals"
+          },
+          {
+            "medical": "testicle",
+            "patient_friendly": "radiates to your testicle (in men)"
+          },
+          {
+            "medical": "labia",
+            "patient_friendly": "radiates to your labia (in women)"
+          }
+        ],
+        "excludes": []
+      },
+      "duration": {
+        "includes": [
+          {
+            "medical": "hours",
+            "patient_friendly": "for several hours"
+          },
+          {
+            "medical": "minutes",
+            "patient_friendly": "comes in waves"
+          }
+        ],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          {
+            "medical": "colicky",
+            "patient_friendly": "colicky or cramping pain that comes in waves",
+            "question_tags": ["sensory"]
+          },
+          {
+            "medical": "severe",
+            "patient_friendly": "severe pain",
+            "question_tags": ["sensory"]
+          },
+          {
+            "medical": "sharp",
+            "patient_friendly": "sharp or stabbing",
+            "question_tags": ["sensory"]
+          }
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [
+          {
+            "medical": "movement",
+            "patient_friendly": "worse with movement"
+          },
+          {
+            "medical": "urination",
+            "patient_friendly": "worse when you urinate"
+          }
+        ],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [
+          {
+            "medical": "position change",
+            "patient_friendly": "better when you change positions"
+          },
+          {
+            "medical": "pain medication",
+            "patient_friendly": "better with pain medication"
+          }
+        ],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [
+          {
+            "medical": "colicky",
+            "patient_friendly": "comes in waves - gets better then worse again"
+          },
+          {
+            "medical": "constant",
+            "patient_friendly": "constant severe pain"
+          }
+        ],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [
+          {
+            "medical": "severe",
+            "patient_friendly": "severe - 7 to 10 out of 10",
+            "emergent": true
+          },
+          {
+            "medical": "moderate",
+            "patient_friendly": "moderate - 4 to 6 out of 10"
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "hematuria",
+            "patient_friendly": "blood in your urine",
+            "emergent": true
+          },
+          {
+            "medical": "dysuria",
+            "patient_friendly": "painful or burning urination"
+          },
+          {
+            "medical": "urgency",
+            "patient_friendly": "frequent urge to urinate"
+          },
+          {
+            "medical": "frequency",
+            "patient_friendly": "urinating very frequently"
+          },
+          {
+            "medical": "nausea",
+            "patient_friendly": "nausea"
+          },
+          {
+            "medical": "vomiting",
+            "patient_friendly": "vomiting"
+          },
+          {
+            "medical": "fever",
+            "patient_friendly": "fever",
+            "emergent": true
+          },
+          {
+            "medical": "chills",
+            "patient_friendly": "chills",
+            "emergent": true
+          },
+          {
+            "medical": "inability to urinate",
+            "patient_friendly": "cannot urinate",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      }
+    }
+  }
+}
+

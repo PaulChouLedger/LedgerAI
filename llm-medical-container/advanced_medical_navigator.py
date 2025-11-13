@@ -2206,14 +2206,35 @@ class AdvancedMedicalNavigator:
                     break
         return names
 
+    def _is_visual_symptom(self, session: "MedicalSession", chief_complaint: str) -> bool:
+        """Check if chief complaint is a visual symptom (needs 'look like' questions)."""
+        complaint_lower = chief_complaint.lower()
+        
+        # Explicitly exclude pain symptoms (they are sensory, not visual)
+        pain_keywords = ['pain', 'ache', 'aching', 'sore', 'tender', 'discomfort']
+        if any(keyword in complaint_lower for keyword in pain_keywords):
+            return False
+        
+        # Visual symptoms are things you can see, not feel
+        visual_keywords = [
+            'bloody', 'blood', 'rash', 'discoloration', 'swelling', 'lesion', 
+            'bruise', 'bleeding', 'discharge', 'stool', 'urine', 'vomit', 
+            'appearance', 'look', 'see', 'visual', 'color', 'red', 'dark'
+        ]
+        return any(keyword in complaint_lower for keyword in visual_keywords)
+
     def _build_oldcarts_guidance(self, session: "MedicalSession", element: str, cc: str) -> Tuple[str, str, List[str]]:
         """Simplified - let LLM generate questions naturally based on training"""
         # Simple base question template - LLM will generate naturally
         base_template = self.HPI_BASE_GUIDANCE[element]
         base_question = base_template.replace('{cc}', cc)
         
-        # Simple guidance - let trained model handle it
-        guidance = f"Ask about the {element} of {cc}. Ask one natural, conversational question."
+        # Check if visual symptom for character questions
+        is_visual = self._is_visual_symptom(session, cc)
+        if element == 'character' and is_visual:
+            guidance = f"Ask about what the {cc} looks like. Ask one natural, conversational question with examples (e.g., 'What does it look like? For example, is it red, dark, bright, or something else?')."
+        else:
+            guidance = f"Ask about the {element} of {cc}. Ask one natural, conversational question."
         
         # No options - let LLM use its training
         return guidance, base_question, []
@@ -2754,8 +2775,20 @@ class AdvancedMedicalNavigator:
         
         # For fine-tuned model: provide context about what's already known
         if section == 'hpi':
+            # Check if this is a visual symptom (needs "look like" instead of "feel like")
+            is_visual = self._is_visual_symptom(session, cc)
+            
             # Build context-aware prompt
-            user_prompt = f"""Context of what we already know:
+            if field == 'character' and is_visual:
+                user_prompt = f"""Context of what we already know:
+{context_summary}
+
+Now ask about what the {cc} looks like. 
+IMPORTANT: This is a visual symptom - ask "What does it look like?" with examples, NOT "What does it feel like?"
+Do NOT ask about information already provided in the context above.
+Ask only one question."""
+            else:
+                user_prompt = f"""Context of what we already know:
 {context_summary}
 
 Now ask about the {field} of {cc}. 

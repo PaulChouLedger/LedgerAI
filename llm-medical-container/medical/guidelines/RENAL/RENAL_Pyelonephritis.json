@@ -1,0 +1,199 @@
+{
+  "condition": "Acute Pyelonephritis",
+  "icd10": "N10",
+  "snomed": "90708001",
+  "sex": "both",
+  "prevalence": "common",
+  "urgency": "emergent",
+  "chief_complaint_triggers": [
+    "flank pain",
+    "back pain",
+    "fever",
+    "chills",
+    "urinary frequency",
+    "painful urination",
+    "nausea",
+    "vomiting"
+  ],
+  "key_features": {
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          {
+            "medical": "acute",
+            "patient_friendly": "recently occurred over days",
+            "emergent": true
+          },
+          {
+            "medical": "sudden",
+            "patient_friendly": "came on suddenly",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      },
+      "location": {
+        "includes": [
+          {
+            "medical": "flank",
+            "patient_friendly": "in your side or lower back",
+            "emergent": true
+          },
+          {
+            "medical": "costovertebral angle",
+            "patient_friendly": "in your back where your ribs meet your spine",
+            "emergent": true
+          },
+          {
+            "medical": "unilateral",
+            "patient_friendly": "on one side"
+          }
+        ],
+        "excludes": [],
+        "anatomical_type": "genitourinary"
+      },
+      "duration": {
+        "includes": [
+          {
+            "medical": "days",
+            "patient_friendly": "for a few days"
+          },
+          {
+            "medical": "hours",
+            "patient_friendly": "for several hours and getting worse"
+          }
+        ],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          {
+            "medical": "dull ache",
+            "patient_friendly": "dull ache or constant pain",
+            "question_tags": ["sensory"]
+          },
+          {
+            "medical": "tender",
+            "patient_friendly": "tender when you tap on your back",
+            "question_tags": ["sensory"]
+          },
+          {
+            "medical": "severe",
+            "patient_friendly": "severe pain",
+            "question_tags": ["sensory"]
+          }
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [
+          {
+            "medical": "movement",
+            "patient_friendly": "worse with movement"
+          },
+          {
+            "medical": "percussion",
+            "patient_friendly": "worse when you tap on your back"
+          }
+        ],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [
+          {
+            "medical": "antibiotics",
+            "patient_friendly": "better with antibiotics"
+          },
+          {
+            "medical": "rest",
+            "patient_friendly": "better with rest"
+          }
+        ],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [
+          {
+            "medical": "constant",
+            "patient_friendly": "constant pain"
+          },
+          {
+            "medical": "progressive",
+            "patient_friendly": "getting worse",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [
+          {
+            "medical": "moderate",
+            "patient_friendly": "moderate pain"
+          },
+          {
+            "medical": "severe",
+            "patient_friendly": "severe pain",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "fever",
+            "patient_friendly": "fever",
+            "emergent": true
+          },
+          {
+            "medical": "chills",
+            "patient_friendly": "chills or shaking",
+            "emergent": true
+          },
+          {
+            "medical": "rigors",
+            "patient_friendly": "shaking chills",
+            "emergent": true
+          },
+          {
+            "medical": "costovertebral angle tenderness",
+            "patient_friendly": "tender when you tap on your lower back",
+            "emergent": true
+          },
+          {
+            "medical": "dysuria",
+            "patient_friendly": "painful or burning urination"
+          },
+          {
+            "medical": "frequency",
+            "patient_friendly": "urinating very frequently"
+          },
+          {
+            "medical": "urgency",
+            "patient_friendly": "sudden strong urge to urinate"
+          },
+          {
+            "medical": "hematuria",
+            "patient_friendly": "blood in your urine",
+            "emergent": true
+          },
+          {
+            "medical": "nausea",
+            "patient_friendly": "nausea"
+          },
+          {
+            "medical": "vomiting",
+            "patient_friendly": "vomiting"
+          },
+          {
+            "medical": "malaise",
+            "patient_friendly": "feeling unwell or sick"
+          }
+        ],
+        "excludes": []
+      }
+    }
+  }
+}
+

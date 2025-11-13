@@ -1,0 +1,180 @@
+{
+  "condition": "Compartment Syndrome",
+  "icd10": "T79.A0",
+  "snomed": "125605004",
+  "sex": "both",
+  "prevalence": "uncommon",
+  "urgency": "emergent",
+  "chief_complaint_triggers": [
+    "severe pain",
+    "swelling",
+    "numbness",
+    "can't move",
+    "tight feeling",
+    "trauma",
+    "fracture",
+    "burn"
+  ],
+  "key_features": {
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          {
+            "medical": "acute",
+            "patient_friendly": "recently occurred after injury",
+            "emergent": true
+          },
+          {
+            "medical": "progressive",
+            "patient_friendly": "getting worse over hours",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      },
+      "location": {
+        "includes": [
+          {
+            "medical": "extremity",
+            "patient_friendly": "in your arm or leg",
+            "emergent": true
+          },
+          {
+            "medical": "forearm",
+            "patient_friendly": "in your forearm",
+            "emergent": true
+          },
+          {
+            "medical": "leg",
+            "patient_friendly": "in your leg or calf",
+            "emergent": true
+          }
+        ],
+        "excludes": [],
+        "anatomical_type": "musculoskeletal"
+      },
+      "duration": {
+        "includes": [
+          {
+            "medical": "hours",
+            "patient_friendly": "over the past few hours",
+            "emergent": true
+          },
+          {
+            "medical": "progressive",
+            "patient_friendly": "getting worse"
+          }
+        ],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          {
+            "medical": "severe",
+            "patient_friendly": "severe pain out of proportion to injury",
+            "question_tags": ["sensory"]
+          },
+          {
+            "medical": "tight",
+            "patient_friendly": "tight or tense feeling",
+            "question_tags": ["sensory"]
+          },
+          {
+            "medical": "burning",
+            "patient_friendly": "burning sensation",
+            "question_tags": ["sensory"]
+          }
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [
+          {
+            "medical": "passive stretch",
+            "patient_friendly": "worse when you stretch the muscle",
+            "emergent": true
+          },
+          {
+            "medical": "movement",
+            "patient_friendly": "worse with any movement"
+          }
+        ],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [
+          {
+            "medical": "fasciotomy",
+            "patient_friendly": "better after surgical release"
+          }
+        ],
+        "excludes": [
+          {
+            "medical": "pain medication",
+            "patient_friendly": "not relieved by pain medication"
+          }
+        ]
+      },
+      "timing": {
+        "includes": [
+          {
+            "medical": "progressive",
+            "patient_friendly": "rapidly getting worse",
+            "emergent": true
+          },
+          {
+            "medical": "constant",
+            "patient_friendly": "constant severe pain"
+          }
+        ],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [
+          {
+            "medical": "severe",
+            "patient_friendly": "severe - 8 to 10 out of 10",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "paresthesia",
+            "patient_friendly": "numbness or tingling",
+            "emergent": true
+          },
+          {
+            "medical": "pallor",
+            "patient_friendly": "pale skin",
+            "emergent": true
+          },
+          {
+            "medical": "pulselessness",
+            "patient_friendly": "cannot feel pulse in the affected area",
+            "emergent": true
+          },
+          {
+            "medical": "paralysis",
+            "patient_friendly": "weakness or inability to move",
+            "emergent": true
+          },
+          {
+            "medical": "tense compartment",
+            "patient_friendly": "tense or hard feeling in the muscle",
+            "emergent": true
+          },
+          {
+            "medical": "recent trauma",
+            "patient_friendly": "recent fracture, crush injury, or burn",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      }
+    }
+  }
+}
+

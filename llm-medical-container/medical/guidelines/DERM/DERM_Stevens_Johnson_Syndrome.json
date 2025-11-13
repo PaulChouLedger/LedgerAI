@@ -1,0 +1,196 @@
+{
+  "condition": "Stevens-Johnson Syndrome",
+  "icd10": "L51.9",
+  "snomed": "399190000",
+  "sex": "both",
+  "prevalence": "rare",
+  "urgency": "emergent",
+  "chief_complaint_triggers": [
+    "rash",
+    "blisters",
+    "skin peeling",
+    "mouth sores",
+    "eye problems",
+    "fever",
+    "recent medication",
+    "skin breakdown"
+  ],
+  "key_features": {
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          {
+            "medical": "acute",
+            "patient_friendly": "recently occurred over days",
+            "emergent": true
+          },
+          {
+            "medical": "sudden",
+            "patient_friendly": "came on suddenly",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      },
+      "location": {
+        "includes": [
+          {
+            "medical": "generalized",
+            "patient_friendly": "all over your body",
+            "emergent": true
+          },
+          {
+            "medical": "mucous membranes",
+            "patient_friendly": "in your mouth, eyes, or genitals",
+            "emergent": true
+          },
+          {
+            "medical": "trunk",
+            "patient_friendly": "on your torso"
+          },
+          {
+            "medical": "extremities",
+            "patient_friendly": "on your arms or legs"
+          }
+        ],
+        "excludes": [],
+        "anatomical_type": "dermatological"
+      },
+      "duration": {
+        "includes": [
+          {
+            "medical": "days",
+            "patient_friendly": "over the past few days"
+          },
+          {
+            "medical": "hours",
+            "patient_friendly": "rapidly getting worse over hours",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          {
+            "medical": "target lesions",
+            "patient_friendly": "target-shaped or bull's-eye lesions",
+            "question_tags": ["visual"]
+          },
+          {
+            "medical": "blisters",
+            "patient_friendly": "blisters or fluid-filled bumps",
+            "question_tags": ["visual"]
+          },
+          {
+            "medical": "skin peeling",
+            "patient_friendly": "skin peeling or sloughing off",
+            "question_tags": ["visual"]
+          },
+          {
+            "medical": "erythema",
+            "patient_friendly": "red, painful skin",
+            "question_tags": ["visual"]
+          }
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [
+          {
+            "medical": "touch",
+            "patient_friendly": "worse when you touch it"
+          },
+          {
+            "medical": "time",
+            "patient_friendly": "worse - rapidly spreading"
+          }
+        ],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [
+          {
+            "medical": "treatment",
+            "patient_friendly": "better with medical treatment"
+          }
+        ],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [
+          {
+            "medical": "rapid progression",
+            "patient_friendly": "rapidly spreading over hours to days",
+            "emergent": true
+          },
+          {
+            "medical": "constant",
+            "patient_friendly": "constant since it started"
+          }
+        ],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [
+          {
+            "medical": "severe",
+            "patient_friendly": "severe - life-threatening",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "fever",
+            "patient_friendly": "fever",
+            "emergent": true
+          },
+          {
+            "medical": "mucous membrane involvement",
+            "patient_friendly": "sores in your mouth, eyes, or genitals",
+            "emergent": true
+          },
+          {
+            "medical": "skin sloughing",
+            "patient_friendly": "skin peeling or sloughing off",
+            "emergent": true
+          },
+          {
+            "medical": "target lesions",
+            "patient_friendly": "target-shaped or bull's-eye lesions",
+            "emergent": true
+          },
+          {
+            "medical": "blisters",
+            "patient_friendly": "blisters or fluid-filled bumps",
+            "emergent": true
+          },
+          {
+            "medical": "recent medication",
+            "patient_friendly": "recent use of medications like antibiotics, anticonvulsants, or NSAIDs",
+            "emergent": true
+          },
+          {
+            "medical": "infection",
+            "patient_friendly": "recent infection",
+            "emergent": true
+          },
+          {
+            "medical": "malaise",
+            "patient_friendly": "feeling very unwell or sick"
+          },
+          {
+            "medical": "conjunctivitis",
+            "patient_friendly": "red, painful eyes",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      }
+    }
+  }
+}
+

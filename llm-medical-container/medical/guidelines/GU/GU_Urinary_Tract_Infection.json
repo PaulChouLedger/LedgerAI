@@ -1,0 +1,214 @@
+{
+  "condition": "Urinary Tract Infection",
+  "icd10": "N39.0",
+  "snomed": "68566005",
+  "sex": "both",
+  "prevalence": "common",
+  "urgency": "emergent",
+  "chief_complaint_triggers": [
+    "urinary frequency",
+    "burning with urination",
+    "painful urination",
+    "urge to urinate",
+    "blood in urine",
+    "cloudy urine",
+    "fever",
+    "lower abdominal pain",
+    "back pain"
+  ],
+  "key_features": {
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          {
+            "medical": "acute",
+            "patient_friendly": "recently occurred over the past few days"
+          },
+          {
+            "medical": "sudden",
+            "patient_friendly": "came on suddenly",
+            "emergent": true
+          }
+        ],
+        "excludes": [
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for months"
+          }
+        ]
+      },
+      "location": {
+        "includes": [
+          {
+            "medical": "suprapubic",
+            "patient_friendly": "lower belly or above your pubic bone"
+          },
+          {
+            "medical": "urethral",
+            "patient_friendly": "in your urethra or when you urinate"
+          },
+          {
+            "medical": "flank",
+            "patient_friendly": "in your lower back or sides",
+            "emergent": true
+          },
+          {
+            "medical": "costovertebral angle",
+            "patient_friendly": "in your back where your ribs meet your spine",
+            "emergent": true
+          }
+        ],
+        "excludes": [],
+        "anatomical_type": "genitourinary"
+      },
+      "duration": {
+        "includes": [
+          {
+            "medical": "days",
+            "patient_friendly": "for a few days"
+          },
+          {
+            "medical": "hours",
+            "patient_friendly": "for several hours"
+          }
+        ],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          {
+            "medical": "burning",
+            "patient_friendly": "burning sensation when you urinate",
+            "question_tags": ["sensory"]
+          },
+          {
+            "medical": "dysuria",
+            "patient_friendly": "painful or uncomfortable urination",
+            "question_tags": ["sensory"]
+          },
+          {
+            "medical": "urgency",
+            "patient_friendly": "sudden strong urge to urinate",
+            "question_tags": ["sensory"]
+          },
+          {
+            "medical": "frequency",
+            "patient_friendly": "urinating very frequently",
+            "question_tags": ["sensory"]
+          }
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [
+          {
+            "medical": "urination",
+            "patient_friendly": "worse when you urinate"
+          },
+          {
+            "medical": "movement",
+            "patient_friendly": "worse with movement or activity"
+          }
+        ],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [
+          {
+            "medical": "urination",
+            "patient_friendly": "temporarily better after urinating"
+          },
+          {
+            "medical": "hydration",
+            "patient_friendly": "better with increased fluid intake"
+          }
+        ],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [
+          {
+            "medical": "constant",
+            "patient_friendly": "constant urge or discomfort"
+          },
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes with urination"
+          }
+        ],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [
+          {
+            "medical": "moderate",
+            "patient_friendly": "moderate discomfort"
+          },
+          {
+            "medical": "severe",
+            "patient_friendly": "severe pain or cannot urinate",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "hematuria",
+            "patient_friendly": "blood in your urine",
+            "emergent": true
+          },
+          {
+            "medical": "pyuria",
+            "patient_friendly": "cloudy or foul-smelling urine",
+            "emergent": true
+          },
+          {
+            "medical": "fever",
+            "patient_friendly": "fever",
+            "emergent": true
+          },
+          {
+            "medical": "chills",
+            "patient_friendly": "chills or shaking",
+            "emergent": true
+          },
+          {
+            "medical": "flank pain",
+            "patient_friendly": "pain in your lower back or sides",
+            "emergent": true
+          },
+          {
+            "medical": "nausea",
+            "patient_friendly": "nausea"
+          },
+          {
+            "medical": "vomiting",
+            "patient_friendly": "vomiting"
+          },
+          {
+            "medical": "suprapubic tenderness",
+            "patient_friendly": "tenderness when you press on your lower belly"
+          },
+          {
+            "medical": "costovertebral angle tenderness",
+            "patient_friendly": "tenderness when you tap on your lower back",
+            "emergent": true
+          },
+          {
+            "medical": "confusion",
+            "patient_friendly": "confusion, especially in elderly",
+            "emergent": true
+          },
+          {
+            "medical": "incomplete emptying",
+            "patient_friendly": "feeling like you cannot completely empty your bladder"
+          }
+        ],
+        "excludes": []
+      }
+    }
+  }
+}
+

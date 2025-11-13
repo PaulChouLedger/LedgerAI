@@ -1,0 +1,183 @@
+{
+  "condition": "Rhabdomyolysis",
+  "icd10": "M62.82",
+  "snomed": "125605004",
+  "sex": "both",
+  "prevalence": "uncommon",
+  "urgency": "emergent",
+  "chief_complaint_triggers": [
+    "muscle pain",
+    "muscle weakness",
+    "dark urine",
+    "swollen muscles",
+    "severe muscle pain",
+    "can't move",
+    "trauma",
+    "crush injury"
+  ],
+  "key_features": {
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          {
+            "medical": "acute",
+            "patient_friendly": "recently occurred after injury or exertion",
+            "emergent": true
+          },
+          {
+            "medical": "sudden",
+            "patient_friendly": "came on suddenly"
+          }
+        ],
+        "excludes": []
+      },
+      "location": {
+        "includes": [
+          {
+            "medical": "muscle",
+            "patient_friendly": "in your muscles",
+            "emergent": true
+          },
+          {
+            "medical": "generalized",
+            "patient_friendly": "all over your body"
+          },
+          {
+            "medical": "extremities",
+            "patient_friendly": "in your arms or legs"
+          }
+        ],
+        "excludes": [],
+        "anatomical_type": "musculoskeletal"
+      },
+      "duration": {
+        "includes": [
+          {
+            "medical": "hours",
+            "patient_friendly": "over the past few hours"
+          },
+          {
+            "medical": "days",
+            "patient_friendly": "over the past few days"
+          }
+        ],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          {
+            "medical": "severe",
+            "patient_friendly": "severe muscle pain",
+            "question_tags": ["sensory"]
+          },
+          {
+            "medical": "weakness",
+            "patient_friendly": "muscle weakness or inability to move",
+            "question_tags": ["sensory"]
+          },
+          {
+            "medical": "swollen",
+            "patient_friendly": "swollen or tense muscles",
+            "question_tags": ["visual"]
+          }
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [
+          {
+            "medical": "movement",
+            "patient_friendly": "worse with movement"
+          },
+          {
+            "medical": "touch",
+            "patient_friendly": "worse when you touch the muscle"
+          }
+        ],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [
+          {
+            "medical": "hydration",
+            "patient_friendly": "better with intravenous fluids"
+          }
+        ],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [
+          {
+            "medical": "progressive",
+            "patient_friendly": "getting worse",
+            "emergent": true
+          },
+          {
+            "medical": "constant",
+            "patient_friendly": "constant severe pain"
+          }
+        ],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [
+          {
+            "medical": "severe",
+            "patient_friendly": "severe - 7 to 10 out of 10",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "dark urine",
+            "patient_friendly": "dark brown or cola-colored urine",
+            "emergent": true
+          },
+          {
+            "medical": "myoglobinuria",
+            "patient_friendly": "urine that looks like cola or tea",
+            "emergent": true
+          },
+          {
+            "medical": "muscle weakness",
+            "patient_friendly": "severe muscle weakness or paralysis",
+            "emergent": true
+          },
+          {
+            "medical": "swelling",
+            "patient_friendly": "swollen or tense muscles",
+            "emergent": true
+          },
+          {
+            "medical": "acute kidney injury",
+            "patient_friendly": "signs of kidney damage",
+            "emergent": true
+          },
+          {
+            "medical": "recent trauma",
+            "patient_friendly": "recent crush injury, trauma, or severe exertion",
+            "emergent": true
+          },
+          {
+            "medical": "nausea",
+            "patient_friendly": "nausea"
+          },
+          {
+            "medical": "vomiting",
+            "patient_friendly": "vomiting"
+          },
+          {
+            "medical": "confusion",
+            "patient_friendly": "confusion",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      }
+    }
+  }
+}
+
