@@ -672,7 +672,10 @@ print_step "10. Configuring Docker..."
 if ! groups "$AURA_USER" | grep -q docker; then
     print_info "Adding $AURA_USER to docker group..."
     sudo usermod -aG docker "$AURA_USER"
-    print_info "User added to docker group (logout/login required for changes)"
+    print_info "⚠️  User added to docker group"
+    print_info "   IMPORTANT: You must logout and login (or reboot) for Docker access to work"
+    print_info "   Or use: newgrp docker (in current session)"
+    print_info "   Or use: sudo docker (temporary workaround)"
 else
     print_info "User already in docker group"
 fi
@@ -682,6 +685,15 @@ if ! systemctl is-active --quiet docker; then
     print_info "Starting Docker service..."
     sudo systemctl start docker
     sudo systemctl enable docker
+fi
+
+# Test Docker access (will fail if user needs to logout/login, but that's expected)
+if docker ps > /dev/null 2>&1; then
+    print_info "✅ Docker is accessible"
+else
+    print_info "⚠️  Docker not accessible in current session"
+    print_info "   This is normal - logout/login or reboot to apply group changes"
+    print_info "   Temporary workaround: use 'sudo docker' or 'newgrp docker'"
 fi
 
 print_info "Docker configured"
@@ -755,8 +767,11 @@ echo "=========================================="
 echo "  Next Steps"
 echo "=========================================="
 echo ""
-echo "1. Logout and login again (or reboot) to apply group changes"
-echo "2. Ensure Docker containers are built:"
+echo "1. ⚠️  IMPORTANT: Logout and login again (or reboot) to apply Docker group changes"
+echo "   Without this, you'll get 'permission denied' errors with Docker"
+echo "   Temporary workaround: use 'sudo docker' or run 'newgrp docker'"
+echo ""
+echo "2. After logout/login, ensure Docker containers are built:"
 echo "   cd $LEDGERAI_DIR/setup"
 echo "   docker compose build"
 echo ""

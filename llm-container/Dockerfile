@@ -30,8 +30,6 @@ RUN python3 -c "from sentence_transformers import SentenceTransformer; SentenceT
 
 # Copy models (cached - these are large and rarely change)
 COPY models/Llama-3.2-1B-Instruct-Q4_K_M.gguf /models/Llama-3.2-1B-Instruct-Q4_K_M.gguf
-COPY models/Nemotron-Mini-4B-Instruct-Q4_K_M.gguf /models/Nemotron-Mini-4B-Instruct-Q4_K_M.gguf
-
 # === GENERIC CONVERSATIONAL CONTAINER ===
 # This container provides general conversation with RAG-powered knowledge:
 # - General conversational responses
