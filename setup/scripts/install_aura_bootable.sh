@@ -347,11 +347,11 @@ if [ -f "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" ]; then
                         print_info "   3. Install requirements excluding PyQt5"
                     fi
                 fi
+            else
+                print_error "Installation failed for other reasons (not PyQt5 related). Check logs above."
+                print_info "Attempting to install critical packages..."
+                pip install python-dotenv requests numpy scipy sounddevice soundfile pyusb flask werkzeug || true
             fi
-        else
-            print_error "Installation failed for other reasons. Check logs above."
-            print_info "Attempting to install critical packages..."
-            pip install python-dotenv requests numpy scipy sounddevice soundfile pyusb flask werkzeug || true
         fi
         rm -f /tmp/pip_install.log /tmp/pyqt5_build.log 2>/dev/null || true
     fi
