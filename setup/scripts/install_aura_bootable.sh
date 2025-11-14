@@ -129,15 +129,64 @@ fi
 if [ -n "$AUDIO_PACKAGES" ]; then
     if sudo apt install -y $AUDIO_PACKAGES; then
         print_info "PortAudio packages installed successfully"
+        PORT_AUDIO_AVAILABLE=true
     else
-        print_info "⚠️  Some PortAudio packages failed to install, continuing anyway..."
-        print_info "   sounddevice may work with ALSA/PulseAudio if PortAudio isn't available"
+        print_info "⚠️  Some PortAudio packages failed to install"
         PORT_AUDIO_AVAILABLE=false
     fi
 else
     print_info "⚠️  PortAudio packages not found in repositories"
-    print_info "   sounddevice will use ALSA/PulseAudio instead (should work on Jetson)"
     PORT_AUDIO_AVAILABLE=false
+fi
+
+# If PortAudio packages aren't available, build from source
+if [ "$PORT_AUDIO_AVAILABLE" = false ]; then
+    print_info "Building PortAudio from source (required for sounddevice)..."
+    
+    PORTAUDIO_DIR="/tmp/portaudio"
+    PORTAUDIO_VERSION="19.7.0"
+    
+    # Check if already built
+    if [ -f "/usr/local/lib/libportaudio.so" ] || [ -f "/usr/lib/libportaudio.so" ]; then
+        print_info "PortAudio library already exists, skipping build"
+        PORT_AUDIO_AVAILABLE=true
+    else
+        print_info "Downloading and building PortAudio..."
+        cd /tmp
+        rm -rf "$PORTAUDIO_DIR"
+        
+        # Download PortAudio source
+        if wget -q "http://files.portaudio.com/archives/pa_stable_v${PORTAUDIO_VERSION//./_}.tgz" -O portaudio.tgz; then
+            tar -xzf portaudio.tgz
+            cd portaudio
+            
+            # Configure and build
+            if ./configure && make -j$(nproc); then
+                sudo make install
+                sudo ldconfig
+                
+                # Verify installation
+                if [ -f "/usr/local/lib/libportaudio.so" ] || ldconfig -p | grep -q portaudio; then
+                    print_info "✅ PortAudio built and installed successfully"
+                    PORT_AUDIO_AVAILABLE=true
+                else
+                    print_error "PortAudio built but library not found"
+                    PORT_AUDIO_AVAILABLE=false
+                fi
+            else
+                print_error "PortAudio build failed"
+                print_info "   sounddevice may not work - audio input/output will fail"
+                PORT_AUDIO_AVAILABLE=false
+            fi
+            
+            cd /tmp
+            rm -rf portaudio portaudio.tgz
+        else
+            print_error "Failed to download PortAudio source"
+            print_info "   sounddevice may not work - audio input/output will fail"
+            PORT_AUDIO_AVAILABLE=false
+        fi
+    fi
 fi
 
 echo ""
