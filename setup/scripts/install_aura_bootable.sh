@@ -147,14 +147,45 @@ echo ""
 # ============================================================================
 print_step "2. Setting up Python virtual environment..."
 
+# Verify system PyQt5 installation (we just installed it in step 1)
+print_info "Verifying PyQt5 installation..."
+SYSTEM_PYQT5_AVAILABLE=false
+if python3 -c "import sys; sys.path.insert(0, '/usr/lib/python3/dist-packages'); import PyQt5" 2>/dev/null; then
+    SYSTEM_PYQT5_AVAILABLE=true
+    PYQT5_VERSION=$(python3 -c "import sys; sys.path.insert(0, '/usr/lib/python3/dist-packages'); import PyQt5; print(PyQt5.QtCore.PYQT_VERSION_STR)" 2>/dev/null || echo "unknown")
+    print_info "✅ System PyQt5 detected (version: $PYQT5_VERSION)"
+    print_info "   Will create venv with --system-site-packages to use system PyQt5"
+elif dpkg -l | grep -q python3-pyqt5; then
+    print_info "⚠️  python3-pyqt5 package installed but not importable"
+    print_info "   This may be a path issue - will try system-site-packages anyway"
+    SYSTEM_PYQT5_AVAILABLE=true  # Try anyway
+else
+    print_info "⚠️  System PyQt5 not found - will build from source if needed"
+    print_info "   Qt5 dev tools installed: qtbase5-dev, qttools5-dev"
+fi
+
 if [ -d "$VENV_DIR" ]; then
     print_info "Virtual environment already exists at $VENV_DIR"
     print_info "Removing old virtual environment..."
     rm -rf "$VENV_DIR"
 fi
 
-"$PYTHON_CMD" -m venv "$VENV_DIR"
-print_info "Virtual environment created at $VENV_DIR using $PYTHON_CMD"
+# Always try system-site-packages if system PyQt5 might be available
+# This ensures GUI works on Jetson/Ubuntu systems
+if [ "$SYSTEM_PYQT5_AVAILABLE" = true ]; then
+    "$PYTHON_CMD" -m venv --system-site-packages "$VENV_DIR"
+    print_info "Virtual environment created with --system-site-packages (to access system PyQt5)"
+else
+    # Even if not detected, try system-site-packages on Ubuntu/Jetson (PyQt5 is usually there)
+    if [ -f "/etc/os-release" ] && grep -q "Ubuntu\|Debian" /etc/os-release; then
+        print_info "Ubuntu/Debian detected - creating venv with --system-site-packages"
+        print_info "   (PyQt5 is typically pre-installed on Ubuntu/Jetson)"
+        "$PYTHON_CMD" -m venv --system-site-packages "$VENV_DIR"
+    else
+        "$PYTHON_CMD" -m venv "$VENV_DIR"
+        print_info "Virtual environment created at $VENV_DIR using $PYTHON_CMD"
+    fi
+fi
 
 # Activate virtual environment
 source "$VENV_DIR/bin/activate"
@@ -195,74 +226,151 @@ if [ -f "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" ]; then
     fi
     
     # Install PyQt5 separately with better error handling
-    # First, try to install all requirements
-    print_info "Installing all requirements..."
-    if pip install -r "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" 2>&1 | tee /tmp/pip_install.log; then
-        print_info "✅ All requirements installed successfully"
+    # Check if we should use system PyQt5 or install from pip
+    if [ "$SYSTEM_PYQT5_AVAILABLE" = true ]; then
+        print_info "Using system PyQt5 (pre-installed on system)"
+        print_info "Installing requirements without PyQt5..."
+        TEMP_REQUIREMENTS="/tmp/requirements_no_pyqt5.txt"
+        grep -v "^PyQt5" "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" > "$TEMP_REQUIREMENTS" || true
+        if pip install -r "$TEMP_REQUIREMENTS"; then
+            print_info "✅ All requirements installed successfully (using system PyQt5)"
+        else
+            print_error "Some requirements failed to install. Installing critical packages individually..."
+            pip install python-dotenv requests numpy scipy sounddevice soundfile pyusb flask werkzeug || true
+        fi
+        rm -f "$TEMP_REQUIREMENTS"
+        
+        # Verify PyQt5 is accessible in venv
+        print_info "Verifying PyQt5 is accessible in virtual environment..."
+        if python3 -c "import PyQt5; from PyQt5.QtWidgets import QApplication; print('✅ PyQt5 fully functional')" 2>/dev/null; then
+            PYQT5_VERSION=$(python3 -c "import PyQt5; print(PyQt5.QtCore.PYQT_VERSION_STR)" 2>/dev/null || echo "unknown")
+            print_info "✅ PyQt5 is accessible and functional (version: $PYQT5_VERSION)"
+            print_info "✅ GUI will work correctly"
+        else
+            print_error "⚠️  PyQt5 import failed in virtual environment!"
+            print_info "   Trying to diagnose..."
+            python3 -c "import sys; print('Python path:', sys.path)" 2>/dev/null || true
+            python3 -c "import PyQt5" 2>&1 || print_error "PyQt5 not accessible - GUI will NOT work"
+            print_info "   You may need to recreate venv or install PyQt5 from pip"
+        fi
     else
-        PIP_ERROR=$(cat /tmp/pip_install.log)
-        if echo "$PIP_ERROR" | grep -q "PyQt5\|pyqt5"; then
-            print_info "⚠️  PyQt5 installation failed, trying alternative approach..."
-            
-            # Check if system PyQt5 is available and can be used
-            if python3 -c "import sys; sys.path.insert(0, '/usr/lib/python3/dist-packages'); import PyQt5" 2>/dev/null; then
-                print_info "System PyQt5 is available, will use it"
-                # Create requirements without PyQt5
-                TEMP_REQUIREMENTS="/tmp/requirements_no_pyqt5.txt"
-                grep -v "^PyQt5" "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" > "$TEMP_REQUIREMENTS" || true
-                pip install -r "$TEMP_REQUIREMENTS"
-                rm -f "$TEMP_REQUIREMENTS"
+        # Try to install PyQt5 from pip
+        print_info "Installing all requirements (including PyQt5 from pip)..."
+        if pip install -r "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" 2>&1 | tee /tmp/pip_install.log; then
+            print_info "✅ All requirements installed successfully"
+        else
+            PIP_ERROR=$(cat /tmp/pip_install.log)
+            if echo "$PIP_ERROR" | grep -q "PyQt5\|pyqt5"; then
+                print_info "⚠️  PyQt5 installation failed, trying alternative approach..."
                 
-                # Make system PyQt5 available in venv by creating a symlink or using --system-site-packages
-                print_info "Note: Using system PyQt5. If import fails, you may need to:"
-                print_info "      Recreate venv with: python3 -m venv --system-site-packages $VENV_DIR"
-            else
-                print_info "Attempting to install PyQt5 with Qt5 dev tools..."
-                # Check if qmake is available
-                if command -v qmake > /dev/null 2>&1; then
-                    print_info "qmake found: $(which qmake)"
-                    QMAKE_PATH=$(which qmake)
-                else
-                    print_info "qmake not in PATH, searching..."
-                    if [ -f "/usr/bin/qmake" ]; then
-                        QMAKE_PATH="/usr/bin/qmake"
-                        export PATH="/usr/bin:$PATH"
-                    elif [ -f "/usr/lib/qt5/bin/qmake" ]; then
-                        QMAKE_PATH="/usr/lib/qt5/bin/qmake"
-                        export PATH="/usr/lib/qt5/bin:$PATH"
-                    fi
-                fi
+                # Try installing system PyQt5 packages
+                print_info "Attempting to install system PyQt5 packages..."
+                sudo apt install -y python3-pyqt5 python3-pyqt5.qtsvg python3-pyqt5.qtwebkit 2>/dev/null || true
                 
-                # Try installing PyQt5 with --no-build-isolation (often works better)
-                if pip install PyQt5 --no-build-isolation; then
-                    print_info "✅ PyQt5 installed successfully with --no-build-isolation"
-                elif [ -n "$QMAKE_PATH" ]; then
-                    print_info "Trying PyQt5 install with explicit qmake path..."
-                    export QMAKE="$QMAKE_PATH"
-                    pip install PyQt5 --no-build-isolation || {
-                        print_error "PyQt5 installation failed"
-                        print_info "Trying to install remaining packages without PyQt5..."
-                        TEMP_REQUIREMENTS="/tmp/requirements_no_pyqt5.txt"
-                        grep -v "^PyQt5" "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" > "$TEMP_REQUIREMENTS" || true
-                        pip install -r "$TEMP_REQUIREMENTS"
-                        rm -f "$TEMP_REQUIREMENTS"
-                        print_info "⚠️  PyQt5 not installed. GUI may not work."
-                    }
-                else
-                    print_error "qmake not found. PyQt5 cannot be built."
-                    print_info "Trying to install remaining packages without PyQt5..."
+                # Check if system PyQt5 is now available
+                if python3 -c "import sys; sys.path.insert(0, '/usr/lib/python3/dist-packages'); import PyQt5" 2>/dev/null; then
+                    print_info "System PyQt5 now available. Recreating venv with system-site-packages..."
+                    # We can't recreate venv here easily, so just install other packages
                     TEMP_REQUIREMENTS="/tmp/requirements_no_pyqt5.txt"
                     grep -v "^PyQt5" "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" > "$TEMP_REQUIREMENTS" || true
-                    pip install -r "$TEMP_REQUIREMENTS"
+                    if pip install -r "$TEMP_REQUIREMENTS"; then
+                        print_info "✅ All other requirements installed"
+                    else
+                        print_error "Some requirements failed. Installing critical packages..."
+                        pip install python-dotenv requests numpy scipy sounddevice soundfile pyusb flask werkzeug || true
+                    fi
                     rm -f "$TEMP_REQUIREMENTS"
-                    print_info "⚠️  PyQt5 not installed. GUI may not work."
-                    print_info "   Install Qt5 dev tools: sudo apt install qtbase5-dev qttools5-dev"
+                    print_info "⚠️  Note: You may need to recreate venv with --system-site-packages for PyQt5 to work"
+                    print_info "   Run: deactivate && rm -rf $VENV_DIR && $PYTHON_CMD -m venv --system-site-packages $VENV_DIR"
+                else
+                    print_info "Attempting to install PyQt5 with Qt5 dev tools..."
+                    # Check if qmake is available
+                    if command -v qmake > /dev/null 2>&1; then
+                        print_info "qmake found: $(which qmake)"
+                        QMAKE_PATH=$(which qmake)
+                    else
+                        print_info "qmake not in PATH, searching..."
+                        if [ -f "/usr/bin/qmake" ]; then
+                            QMAKE_PATH="/usr/bin/qmake"
+                            export PATH="/usr/bin:$PATH"
+                        elif [ -f "/usr/lib/qt5/bin/qmake" ]; then
+                            QMAKE_PATH="/usr/lib/qt5/bin/qmake"
+                            export PATH="/usr/lib/qt5/bin:$PATH"
+                        fi
+                    fi
+                    
+                    # Try installing PyQt5 with --no-build-isolation (often works better)
+                    print_info "Building PyQt5 from source (this may take 10-30 minutes)..."
+                    if pip install PyQt5 --no-build-isolation 2>&1 | tee /tmp/pyqt5_build.log; then
+                        print_info "✅ PyQt5 installed successfully from source"
+                        # Verify it works
+                        if python3 -c "import PyQt5; from PyQt5.QtWidgets import QApplication" 2>/dev/null; then
+                            print_info "✅ PyQt5 verified and functional - GUI will work"
+                        else
+                            print_error "⚠️  PyQt5 installed but import failed - GUI may not work"
+                        fi
+                    elif [ -n "$QMAKE_PATH" ]; then
+                        print_info "Trying PyQt5 install with explicit qmake path..."
+                        export QMAKE="$QMAKE_PATH"
+                        pip install PyQt5 --no-build-isolation || {
+                            print_error "PyQt5 installation failed"
+                            print_info "Installing remaining packages without PyQt5..."
+                            TEMP_REQUIREMENTS="/tmp/requirements_no_pyqt5.txt"
+                            grep -v "^PyQt5" "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" > "$TEMP_REQUIREMENTS" || true
+                            if pip install -r "$TEMP_REQUIREMENTS"; then
+                                print_info "✅ All other requirements installed successfully"
+                            else
+                                print_error "Some requirements failed to install. Installing critical packages individually..."
+                                pip install python-dotenv requests numpy scipy sounddevice soundfile pyusb flask werkzeug || true
+                            fi
+                            rm -f "$TEMP_REQUIREMENTS"
+                            print_info "⚠️  PyQt5 not installed. GUI may not work."
+                        }
+                    else
+                        print_error "qmake not found. PyQt5 cannot be built."
+                        print_info "Installing remaining packages without PyQt5..."
+                        TEMP_REQUIREMENTS="/tmp/requirements_no_pyqt5.txt"
+                        grep -v "^PyQt5" "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" > "$TEMP_REQUIREMENTS" || true
+                        if pip install -r "$TEMP_REQUIREMENTS"; then
+                            print_info "✅ All other requirements installed successfully"
+                        else
+                            print_error "Some requirements failed to install. Installing critical packages individually..."
+                            pip install python-dotenv requests numpy scipy sounddevice soundfile pyusb flask werkzeug || true
+                        fi
+                        rm -f "$TEMP_REQUIREMENTS"
+                        print_error "⚠️  PyQt5 not installed. GUI will NOT work."
+                        print_info "   Attempting final fallback: install system PyQt5 and recreate venv..."
+                        sudo apt install -y python3-pyqt5 python3-pyqt5.qtsvg python3-pyqt5.qtwebkit 2>/dev/null || true
+                        print_info "   If PyQt5 still doesn't work, you may need to:"
+                        print_info "   1. Recreate venv: deactivate && rm -rf $VENV_DIR"
+                        print_info "   2. Create with system packages: $PYTHON_CMD -m venv --system-site-packages $VENV_DIR"
+                        print_info "   3. Install requirements excluding PyQt5"
+                    fi
                 fi
             fi
         else
             print_error "Installation failed for other reasons. Check logs above."
+            print_info "Attempting to install critical packages..."
+            pip install python-dotenv requests numpy scipy sounddevice soundfile pyusb flask werkzeug || true
         fi
-        rm -f /tmp/pip_install.log
+        rm -f /tmp/pip_install.log /tmp/pyqt5_build.log 2>/dev/null || true
+    fi
+    
+    # Final verification: Ensure PyQt5 is accessible
+    print_info ""
+    print_info "🔍 Final PyQt5 verification..."
+    if python3 -c "import PyQt5; from PyQt5.QtWidgets import QApplication; print('SUCCESS')" 2>/dev/null; then
+        PYQT5_VERSION=$(python3 -c "import PyQt5; print(PyQt5.QtCore.PYQT_VERSION_STR)" 2>/dev/null || echo "unknown")
+        print_info "✅ PyQt5 is installed and functional (version: $PYQT5_VERSION)"
+        print_info "✅ GUI will work correctly on this device"
+    else
+        print_error "❌ PyQt5 is NOT accessible - GUI will NOT work!"
+        print_error "   This is a CRITICAL issue - the GUI requires PyQt5"
+        print_info "   Troubleshooting steps:"
+        print_info "   1. Check if system PyQt5 is installed: dpkg -l | grep pyqt5"
+        print_info "   2. Verify Qt5 dev tools: dpkg -l | grep qt5"
+        print_info "   3. Try: python3 -c 'import sys; sys.path.insert(0, \"/usr/lib/python3/dist-packages\"); import PyQt5'"
+        print_info "   4. If system PyQt5 works, recreate venv with --system-site-packages"
     fi
 else
     print_error "Core requirements file not found!"
