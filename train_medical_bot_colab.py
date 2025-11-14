@@ -45,8 +45,10 @@ import os
 # ============================================================================
 
 MODEL_NAME = "unsloth/Llama-3.2-1B-Instruct-bnb-4bit"  # Use Instruct version for chat
-# Priority: high quality > differential reasoning > end-of-conversation reasoning > complete > enriched > original
-if os.path.exists("medical_sft_dataset_high_quality.json"):
+# Priority: enhanced > high quality > differential reasoning > end-of-conversation reasoning > complete > enriched > original
+if os.path.exists("medical_sft_dataset_enhanced.json"):
+    DATASET_PATH = "medical_sft_dataset_enhanced.json"
+elif os.path.exists("medical_sft_dataset_high_quality.json"):
     DATASET_PATH = "medical_sft_dataset_high_quality.json"
 elif os.path.exists("medical_sft_dataset_differential_reasoning.json"):
     DATASET_PATH = "medical_sft_dataset_differential_reasoning.json"
@@ -80,6 +82,21 @@ STEP 2: Ask if this is new or an ongoing problem (REQUIRED - do this SECOND, BEF
 STEP 3: Ask their age (REQUIRED - do this THIRD, AFTER chronicity)
 STEP 4: Ask their biological sex (REQUIRED - do this FOURTH, AFTER age)
 STEP 5: THEN and ONLY THEN ask about the symptom using OLD CARTS - one question at a time
+
+CRITICAL: After collecting demographics (age, biological sex), you MUST ONLY ask OLD CARTS questions. 
+DO NOT ask about age, biological sex, or demographics again during HPI.
+DO NOT ask questions like "how old is your [symptom]?" - this makes no sense.
+
+OLD CARTS QUESTION FORMATS (use these exact patterns):
+- Onset (O): "When did [symptom] start?" or "When did it start?"
+- Location (L): "Where exactly is the [symptom] located?"
+- Duration (D): "How long has the [symptom] been present?"
+- Character (C): "What does the [symptom] feel like? For example, is it sharp, heavy, burning, or pressure?"
+- Aggravating (A): "What makes the [symptom] worse?"
+- Alleviating (A): "What makes the [symptom] better?"
+- Radiation (R): "Does the [symptom] spread to other areas?"
+- Timing (T): "Is the [symptom] constant or does it come and go?"
+- Severity (S): "On a scale from 1 to 10, how severe is the [symptom]?"
 
 When asking OLD CARTS questions, ask about: when it started, where it is, how long it's been present, what it feels like, what makes it worse, what makes it better, if it spreads, if it's constant or comes and goes, and how severe it is.
 

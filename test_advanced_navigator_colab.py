@@ -336,15 +336,18 @@ class SimpleMedicalNavigator:
         # Ask LLM to evaluate ALL conditions using its trained medical knowledge
         system_prompt = (
             "You are a medical expert with extensive training in clinical reasoning. "
+            "You MUST return ONLY valid JSON. No explanations, no text before or after the JSON.\n\n"
+            "CRITICAL FORMAT REQUIREMENTS:\n"
+            "- Output ONLY valid JSON (no explanations, no text before or after)\n"
+            "- JSON must be an object with ALL condition names as keys and numeric scores as values\n"
+            "- Example format: {\"Acute Appendicitis\": 0.2, \"Nephrolithiasis (Kidney Stones)\": -0.1, \"Acute Cholecystitis\": 0.0}\n"
+            "- Each condition must be a key in the JSON object with its score change as the value\n"
+            "- Scores must be between -0.3 and +0.3 (numeric values only)\n"
+            "- Do NOT use any other format - only JSON object with condition names as keys and numeric values\n\n"
             "Based on the patient's answer, evaluate how it affects the likelihood of EACH condition. "
-            "Use your trained medical knowledge to determine which conditions become more or less likely. "
-            "Consider: classic presentations, anatomical locations, symptom patterns, and differential diagnosis logic. "
-            "Return JSON: {\"condition_name\": score_change} where score_change is between -0.3 and +0.3. "
-            "Positive values mean the condition is MORE likely (rule in), negative means LESS likely (rule out). "
-            "Be specific: if the answer strongly supports a condition, use +0.2 to +0.3. "
-            "If it strongly rules out a condition, use -0.2 to -0.3. "
-            "If neutral or unclear, use small changes (-0.1 to +0.1). "
-            "You MUST evaluate ALL conditions listed. Output only JSON, no other text."
+            "Use your trained medical knowledge. Consider: classic presentations, anatomical locations, symptom patterns. "
+            "Positive values (+0.2 to +0.3) = condition MORE likely. Negative values (-0.2 to -0.3) = condition LESS likely. "
+            "Neutral = small changes (-0.1 to +0.1)."
         )
         
         user_prompt = (
@@ -353,11 +356,11 @@ class SimpleMedicalNavigator:
             f"Patient's answer: '{answer}'\n\n"
             f"All conditions to evaluate ({len(all_conditions)} total):\n"
             f"{', '.join(all_conditions)}\n\n"
-            f"Current top conditions: {ranking_context if ranking_context else 'all at baseline'}\n\n"
-            f"Conversation context:\n{conversation_context}\n\n"
-            f"Using your trained medical knowledge, evaluate how this answer affects EACH condition. "
-            f"Consider classic presentations, anatomical locations, and symptom patterns. "
-            f"Return JSON with score changes for ALL {len(all_conditions)} conditions listed above."
+            f"Return ONLY valid JSON with ALL {len(all_conditions)} conditions as keys and their score changes as values.\n"
+            f"Format: {{\"condition_name\": score_change, \"condition_name\": score_change, ...}}\n"
+            f"Example (not actual conditions): {{\"Condition1\": 0.2, \"Condition2\": -0.1, \"Condition3\": 0.0}}\n\n"
+            f"CRITICAL: Return ONLY the JSON object. No explanations, no text before or after. "
+            f"Every condition listed above must be a key in the JSON with a numeric score between -0.3 and +0.3."
         )
         
         try:
@@ -371,14 +374,42 @@ class SimpleMedicalNavigator:
             )
             
             if response:
-                # Parse JSON response
+                # Parse JSON response - try multiple extraction methods
                 cleaned = response.strip()
+                
+                # Method 1: Remove markdown code blocks
                 if cleaned.startswith('```'):
                     first_newline = cleaned.find('\n')
                     if first_newline != -1:
                         cleaned = cleaned[first_newline+1:]
                         if cleaned.endswith('```'):
                             cleaned = cleaned[:-3].strip()
+                        elif '```' in cleaned:
+                            # Find last ```
+                            last_idx = cleaned.rfind('```')
+                            cleaned = cleaned[:last_idx].strip()
+                
+                # Method 2: Extract JSON object using brace matching
+                start_idx = cleaned.find('{')
+                if start_idx != -1:
+                    brace_count = 0
+                    end_idx = start_idx
+                    for i in range(start_idx, len(cleaned)):
+                        if cleaned[i] == '{':
+                            brace_count += 1
+                        elif cleaned[i] == '}':
+                            brace_count -= 1
+                            if brace_count == 0:
+                                end_idx = i + 1
+                                break
+                    if end_idx > start_idx:
+                        cleaned = cleaned[start_idx:end_idx]
+                
+                # Method 3: Remove any text before first { or after last }
+                if '{' in cleaned:
+                    cleaned = cleaned[cleaned.find('{'):]
+                if '}' in cleaned:
+                    cleaned = cleaned[:cleaned.rfind('}')+1]
                 
                 try:
                     score_changes = json.loads(cleaned)
@@ -416,7 +447,8 @@ class SimpleMedicalNavigator:
                         
                 except json.JSONDecodeError as e:
                     print(f"[Scoring] ⚠️  Failed to parse LLM score changes: {e}")
-                    print(f"[Scoring] ⚠️  Response (first 300 chars): {response[:300]}")
+                    print(f"[Scoring] ⚠️  Response (first 500 chars): {response[:500]}")
+                    print(f"[Scoring] ⚠️  Extracted JSON attempt: {cleaned[:200]}")
         except Exception as e:
             print(f"[Scoring] ⚠️  Error updating scores: {e}")
     
@@ -497,6 +529,11 @@ def run_interactive_test(model, tokenizer, model_type):
     
     messages = [{"role": "system", "content": question_system_prompt}]
     stage = "chief_complaint"
+    last_question_type = None  # Track what question was just asked
+    last_question_element = None  # Track which OLD CARTS element was asked about
+    
+    # OLD CARTS elements in order
+    oldcarts_elements = ['onset', 'location', 'duration', 'character', 'aggravating', 'relieving', 'radiation', 'timing', 'severity']
     
     print("👤 Start by describing your symptoms (e.g., 'I have chest pain' or 'I have abdominal pain')")
     print("   Type 'quit' to exit, 'reset' to start over, 'rankings' to see current rankings\n")
@@ -513,6 +550,8 @@ def run_interactive_test(model, tokenizer, model_type):
             navigator = SimpleMedicalNavigator(model, tokenizer, model_type)
             messages = [{"role": "system", "content": question_system_prompt}]
             stage = "chief_complaint"
+            last_question_type = None
+            last_question_element = None
             print("👤 Start by describing your symptoms\n")
             continue
         
@@ -541,41 +580,197 @@ def run_interactive_test(model, tokenizer, model_type):
             response = navigator.llm_chat(messages, max_tokens=120, temperature=0.4)
             print(f"🤖 Assistant: {response}")
             messages.append({"role": "assistant", "content": response})
+            last_question_type = "chronicity"
             continue
         
-        # Handle answers and generate next question
-        # For simplicity, detect what type of answer this is
-        if 'chronicity' not in navigator.conversation_context['pre_hpi']:
-            navigator.conversation_context['pre_hpi']['chronicity'] = user_input
-            stage = "age"
-        elif 'age' not in navigator.conversation_context['pre_hpi']:
-            navigator.conversation_context['pre_hpi']['age'] = user_input
-            stage = "sex"
-        elif 'sex' not in navigator.conversation_context['pre_hpi']:
-            navigator.conversation_context['pre_hpi']['sex'] = user_input
-            stage = "hpi"
-        else:
-            # HPI answers - update condition scores
-            # Detect which element this might be (simplified)
-            hpi = navigator.conversation_context['hpi']
-            if 'onset' not in hpi:
-                hpi['onset'] = user_input
-                element = 'onset'
-            elif 'location' not in hpi:
-                hpi['location'] = user_input
-                element = 'location'
-            elif 'character' not in hpi:
-                hpi['character'] = user_input
-                element = 'character'
-            else:
-                element = 'unknown'
-            
-            # Update condition scores using LLM
-            if element != 'unknown':
-                navigator.update_condition_scores_from_answer(element, user_input)
+        # Handle answers based on what question was just asked
+        # Only score OLD CARTS elements, not demographics
+        pre_hpi = navigator.conversation_context['pre_hpi']
         
-        # Generate next question
-        response = navigator.llm_chat(messages, max_tokens=120, temperature=0.4)
+        if last_question_type == "chronicity":
+            pre_hpi['chronicity'] = user_input
+            stage = "age"
+            # Don't score chronicity - it's demographic, not OLD CARTS
+        elif last_question_type == "age":
+            pre_hpi['age'] = user_input
+            stage = "sex"
+            # Don't score age - it's demographic, not OLD CARTS
+        elif last_question_type == "sex":
+            pre_hpi['sex'] = user_input
+            stage = "hpi"
+            # Don't score sex - it's demographic, not OLD CARTS
+        elif last_question_type == "hpi":
+            # HPI answers - use tracked element or detect from question
+            hpi = navigator.conversation_context['hpi']
+            element = None
+            
+            # First, try to use the tracked element from when we asked the question
+            if last_question_element and last_question_element not in hpi:
+                element = last_question_element
+                hpi[element] = user_input
+            else:
+                # Fallback: detect which OLD CARTS element this is based on last question
+                last_assistant_msg = messages[-1]["content"] if messages and messages[-1].get("role") == "assistant" else ""
+                last_q_lower = last_assistant_msg.lower()
+                
+                if ('when' in last_q_lower or 'start' in last_q_lower or 'onset' in last_q_lower) and 'onset' not in hpi:
+                    hpi['onset'] = user_input
+                    element = 'onset'
+                elif ('where' in last_q_lower or 'location' in last_q_lower or 'located' in last_q_lower) and 'location' not in hpi:
+                    hpi['location'] = user_input
+                    element = 'location'
+                elif ('feel' in last_q_lower or 'character' in last_q_lower or 'describe' in last_q_lower or 
+                      'sharp' in last_q_lower or 'pressure' in last_q_lower or 'burning' in last_q_lower or 'heavy' in last_q_lower) and 'character' not in hpi:
+                    hpi['character'] = user_input
+                    element = 'character'
+                elif ('duration' in last_q_lower or ('how long' in last_q_lower and 'present' in last_q_lower)) and 'duration' not in hpi:
+                    # Only match duration if it's about "how long present", not "when did it start"
+                    if 'when' not in last_q_lower and 'start' not in last_q_lower:
+                        hpi['duration'] = user_input
+                        element = 'duration'
+                elif ('worse' in last_q_lower or 'aggravating' in last_q_lower) and 'aggravating' not in hpi:
+                    hpi['aggravating'] = user_input
+                    element = 'aggravating'
+                elif ('better' in last_q_lower or 'relieving' in last_q_lower or 'alleviating' in last_q_lower) and 'relieving' not in hpi:
+                    hpi['relieving'] = user_input
+                    element = 'relieving'
+                elif ('severity' in last_q_lower or 'scale' in last_q_lower or '1 to 10' in last_q_lower or 'bad' in last_q_lower) and 'severity' not in hpi:
+                    hpi['severity'] = user_input
+                    element = 'severity'
+                elif element is None and last_question_element:
+                    # Use tracked element even if already in hpi (might be updating)
+                    element = last_question_element
+                    hpi[element] = user_input
+            
+            # Update condition scores using LLM (only for OLD CARTS elements)
+            if element:
+                # Skip scoring if answer is confused/unclear
+                if user_input.lower() in ['what', 'what?', 'huh', 'i don\'t understand', 'clarify']:
+                    print(f"[Info] Skipping scoring for confused response: '{user_input}'")
+                else:
+                    navigator.update_condition_scores_from_answer(element, user_input)
+                last_question_element = None  # Reset after processing
+            else:
+                # If we couldn't detect the element, but we asked a question, try to use tracked element
+                if last_question_element and last_question_element not in hpi:
+                    # Store answer even if we couldn't detect it properly
+                    hpi[last_question_element] = user_input
+                    if user_input.lower() not in ['what', 'what?', 'huh', 'i don\'t understand']:
+                        navigator.update_condition_scores_from_answer(last_question_element, user_input)
+                    last_question_element = None
+        
+        # Generate next question based on what's missing
+        # Check what we still need to collect
+        if 'chronicity' not in pre_hpi:
+            # Ask chronicity question
+            chronicity_prompt = "Ask if this is new or an ongoing problem. Ask only the question, no acknowledgment or reasoning."
+            response = navigator.llm_chat(
+                messages + [{"role": "user", "content": chronicity_prompt}],
+                max_tokens=80,
+                temperature=0.4
+            )
+            last_question_type = "chronicity"
+        elif 'age' not in pre_hpi:
+            # Ask age question - use second person format matching training data
+            age_prompt = "Ask the patient their age using second person (e.g., 'How old are you?' or 'What is your age?'). Ask only the question, no acknowledgment or reasoning. Do NOT use third person like 'the patient's age'."
+            response = navigator.llm_chat(
+                messages + [{"role": "user", "content": age_prompt}],
+                max_tokens=60,
+                temperature=0.4
+            )
+            # Fallback to correct format if LLM generates wrong format
+            response = response.strip()
+            if 'patient' in response.lower() and ('age' in response.lower() or 'old' in response.lower()):
+                # LLM used third person, use correct second person format
+                response = "How old are you?"
+            last_question_type = "age"
+        elif 'sex' not in pre_hpi:
+            # Ask sex question - use second person format matching training data
+            sex_prompt = "Ask the patient their biological sex using second person (e.g., 'What is your biological sex?' or 'Are you male or female?'). Ask only the question, no acknowledgment or reasoning. Do NOT use third person like 'the patient' or 'is the patient male'."
+            response = navigator.llm_chat(
+                messages + [{"role": "user", "content": sex_prompt}],
+                max_tokens=60,
+                temperature=0.4
+            )
+            # Fallback to correct format if LLM generates wrong format
+            response = response.strip()
+            if 'patient' in response.lower() and ('male' in response.lower() or 'sex' in response.lower() or 'female' in response.lower()):
+                # LLM used third person, use correct second person format
+                response = "What is your biological sex?"
+            last_question_type = "sex"
+        else:
+            # All demographics collected - ask HPI questions
+            # Determine which OLD CARTS element to ask about next
+            hpi = navigator.conversation_context['hpi']
+            remaining_elements = [e for e in oldcarts_elements if e not in hpi]
+            
+            if not remaining_elements:
+                # All OLD CARTS collected
+                print("\n✅ All OLD CARTS elements collected!")
+                navigator._print_rankings()
+                print("\n👋 Conversation complete. Type 'reset' to start over or 'quit' to exit.")
+                continue
+            
+            # Ask about the next element in order
+            next_element = remaining_elements[0]
+            last_question_element = next_element  # Track which element we're asking about
+            
+            # Build context and specific guidance
+            context_summary = navigator._build_conversation_context()
+            raw_cc = navigator.conversation_context['pre_hpi'].get('chief_complaint', 'symptoms')
+            
+            # Normalize chief complaint (remove "I have", "I'm having", etc.)
+            chief_complaint = raw_cc.lower()
+            prefixes = ["i have ", "i've got ", "i am having ", "i'm having ", "i am ", "i'm ", "my ", "i feel "]
+            for prefix in prefixes:
+                if chief_complaint.startswith(prefix):
+                    chief_complaint = chief_complaint[len(prefix):].strip()
+                    break
+            chief_complaint = chief_complaint.strip(" .,!?:;")
+            if not chief_complaint:
+                chief_complaint = "symptoms"
+            
+            # Element-specific guidance with normalized complaint
+            element_guidance = {
+                'onset': f"When did the {chief_complaint} start?",
+                'location': f"Where exactly is the {chief_complaint} located?",
+                'duration': f"How long has the {chief_complaint} been present?",
+                'character': f"What does the {chief_complaint} feel like? For example, is it sharp, heavy, burning, or pressure?",
+                'aggravating': f"What makes the {chief_complaint} worse?",
+                'relieving': f"What makes the {chief_complaint} better?",
+                'radiation': f"Does the {chief_complaint} spread to other areas?",
+                'timing': f"Is the {chief_complaint} constant or does it come and go?",
+                'severity': f"On a scale from 1 to 10, how severe is the {chief_complaint}?",
+            }
+            
+            base_question = element_guidance.get(next_element, f"Tell me about the {next_element} of {chief_complaint}.")
+            
+            # Use base question directly - LLM can rephrase naturally but must ask about the correct element
+            hpi_prompt = (
+                f"Context of what we already know:\n{context_summary}\n\n"
+                f"You need to ask about the {next_element} of the {chief_complaint}. "
+                f"IMPORTANT: You MUST ask about {next_element} specifically. "
+                f"Do NOT ask about age, demographics, or information already in the context. "
+                f"Ask only one question about {next_element}. "
+                f"Example question format: {base_question}"
+            )
+            response = navigator.llm_chat(
+                messages + [{"role": "user", "content": hpi_prompt}],
+                max_tokens=120,
+                temperature=0.4
+            )
+            
+            # Clean up response - remove any weird phrasing
+            response = response.strip()
+            # If response seems wrong, use base question directly
+            if 'age' in response.lower() and 'old' in response.lower() and next_element != 'age':
+                print(f"[Warning] LLM generated wrong question, using base question instead")
+                response = base_question
+            elif not response or len(response) < 10:
+                response = base_question
+            
+            last_question_type = "hpi"
+        
         print(f"🤖 Assistant: {response}")
         messages.append({"role": "assistant", "content": response})
 
