@@ -1,22 +1,18 @@
 #!/usr/bin/env python3
 """
-Advanced Medical Navigator (FAISS + LLM Decision)
-==================================================
+Simplified Advanced Medical Navigator - LLM-Driven
+===================================================
 
 Conversation flow:
-    1. Capture chief complaint → FAISS semantic matching → LLM final decision
-       • FAISS finds candidate matches from guideline triggers
-       • LLM evaluates candidates and decides best matches based on medical knowledge
-    2. LLM empathetic acknowledgement + chronicity question (new vs known w/ prior Dx)
+    1. Capture chief complaint → LLM identifies relevant conditions
+    2. LLM empathetic acknowledgement + chronicity question
     3. Collect demographics: age, biological sex
-    4. OLDCARTS assessment using FAISS + LLM decision
-       • FAISS finds candidate terms for each element
-       • LLM evaluates candidates based on semantics, anatomy, and medical knowledge
-       • Clarifying questions generated when multiple / no matches
-    5. Rankings update after every element; diagnosis ready once OLDCARTS complete.
+    4. OLD CARTS assessment - LLM generates questions naturally
+    5. Condition rankings updated after each answer
+    6. Diagnosis ready once OLD CARTS complete
 
-This file uses FAISS for semantic candidate selection, then LLM for final decision.
-No medical_rule_engine or medical_rules.json - LLM handles all filtering and decisions.
+This file relies entirely on the fine-tuned LLM for all logic.
+No hardcoded rules, weights, or thresholds - LLM handles everything.
 """
 
 from dataclasses import dataclass, field
@@ -25,122 +21,56 @@ import json
 import os
 from pathlib import Path
 import re
-import random
 from typing import Dict, List, Optional, Tuple, Any
-import numpy as np
-try:
-    import faiss
-    FAISS_AVAILABLE = True
-except ImportError:
-    FAISS_AVAILABLE = False
-    print("[Navigator] ⚠️ FAISS not available - falling back to LLM-only matching")
 
 
 class AdvancedMedicalNavigator:
-    """LLM-driven navigator augmented with guideline intelligence."""
+    """LLM-driven navigator - simplified to rely on fine-tuned model."""
 
     # ----------- Configuration -------------------------------------------------
 
     PRE_HPI_ORDER = ["chief_complaint", "chronicity", "age", "sex"]
-    PRE_HPI_PROMPTS = {
-        "chronicity": "Determine if the problem is new or ongoing and whether there is a prior diagnosis.",
-        "age": "Ask for the patient's age (single number).",
-        "sex": "Ask for the patient's biological sex for medical documentation.",
-    }
-
+    
     HPI_ELEMENTS = [
         "onset",
-        "abruptness",
         "location",
         "duration",
-        "frequency",
         "character",
         "aggravating",
         "relieving",
+        "radiation",
         "timing",
         "severity",
         "associated",
-        "red_flags",
     ]
-
-    HPI_BASE_GUIDANCE = {
-        "onset": "When did this {cc} start?",
-        "abruptness": "Did it come on suddenly or build up gradually?",
-        "location": "Where exactly is your {cc} located?",
-        "duration": "How long does each episode typically last?",
-        "frequency": "Is it constant or does it come and go?",
-        "character": "How would you describe what it feels like?",
-        "aggravating": "What tends to make it worse?",
-        "relieving": "What tends to make it better?",
-        "timing": "Does it come on at specific times or during certain activities?",
-        "severity": "On a scale from 1 to 10, how bad is it?",
-        "associated": "Have you noticed any other symptoms along with it?",
-        "red_flags": "Have you experienced any urgent warning signs?",
-    }
 
     CATEGORY_TO_SYSTEM = {
         'gastrointestinal': 'GI',
         'cardiovascular': 'CARDIO',
-        'respiratory': 'PULMONARY',
+        'respiratory': 'RESPIRATORY',
         'neurological': 'NEURO',
         'musculoskeletal': 'MSK',
         'renal': 'RENAL',
         'genitourinary': 'GU',
-        'gynecological': 'GYN',
         'dermatological': 'DERM',
+        'endocrine': 'ENDO',
     }
 
-    # LLM-only matching thresholds
-    CHIEF_COMPLAINT_LLM_THRESHOLD = 0.5  # Minimum LLM confidence for category match
-    
-    # Synonym mapping for chief complaint matching (deterministic)
-    CHIEF_COMPLAINT_SYNONYMS = {
-        'belly ache': 'abdominal pain',
-        'bellyache': 'abdominal pain',
-        'stomach ache': 'abdominal pain',
-        'stomachache': 'abdominal pain',
-        'tummy ache': 'abdominal pain',
-        'tummy pain': 'abdominal pain',
-        'stomach pain': 'abdominal pain',
-        'tummy hurt': 'abdominal pain',
-        'belly hurt': 'abdominal pain',
-        'stomach hurt': 'abdominal pain',
-        'heart burn': 'heartburn',
-        'acid reflux': 'heartburn',
-        'chest discomfort': 'chest pain',
-        'chest tightness': 'chest pain',
-        'chest pressure': 'chest pain',
-    }
-    # Removed: RULE_OUT_THRESHOLD - no rule-based filtering, LLM handles everything
-    LLM_MATCH_ACCEPT_THRESHOLD = 0.5  # Minimum LLM score for term match
-    
-    # LLM parameter configuration (uses environment variables with optimized defaults)
-    # JSON scoring tasks use temperature=0.0 (deterministic, hardcoded in function)
-    # Question generation tasks use environment variables (defaults optimized for natural language)
-    LLM_TEMPERATURE_QUESTIONS = float(os.environ.get('LLM_TEMPERATURE_SIMPLE', '0.4'))  # Optimized for question generation
-    LLM_TEMPERATURE_EMPATHETIC = float(os.environ.get('LLM_TEMPERATURE_EMPATHETIC', '0.4'))  # Optimized for empathetic statements
-    LLM_TEMPERATURE_SUMMARY = float(os.environ.get('LLM_TEMPERATURE_SUMMARY', '0.25'))  # Optimized for summaries
-    LLM_MAX_TOKENS_QUESTIONS = int(os.environ.get('LLM_NUM_PREDICT', '120'))  # Enough for complete questions with options
-    LLM_MAX_TOKENS_EMPATHETIC = int(os.environ.get('LLM_MAX_TOKENS_EMPATHETIC', '80'))  # Enough for empathetic statements
-    LLM_MAX_TOKENS_CHRONICITY = int(os.environ.get('LLM_MAX_TOKENS_CHRONICITY', '60'))  # Enough for chronicity questions
-    LLM_MAX_TOKENS_SUMMARY = int(os.environ.get('LLM_MAX_TOKENS_SUMMARY', '220'))  # Enough for summaries
+    # LLM parameter configuration
+    LLM_TEMPERATURE_QUESTIONS = float(os.environ.get('LLM_TEMPERATURE_SIMPLE', '0.4'))
+    LLM_TEMPERATURE_EMPATHETIC = float(os.environ.get('LLM_TEMPERATURE_EMPATHETIC', '0.4'))
+    LLM_TEMPERATURE_SUMMARY = float(os.environ.get('LLM_TEMPERATURE_SUMMARY', '0.25'))
+    LLM_MAX_TOKENS_QUESTIONS = int(os.environ.get('LLM_NUM_PREDICT', '120'))
+    LLM_MAX_TOKENS_EMPATHETIC = int(os.environ.get('LLM_MAX_TOKENS_EMPATHETIC', '80'))
+    LLM_MAX_TOKENS_CHRONICITY = int(os.environ.get('LLM_MAX_TOKENS_CHRONICITY', '60'))
+    LLM_MAX_TOKENS_SUMMARY = int(os.environ.get('LLM_MAX_TOKENS_SUMMARY', '220'))
 
-    PMH_ELEMENTS = ["pmh", "psh", "meds_allergies"]
-    PMH_PROMPTS = {
-        "pmh": "Do you have any existing medical conditions?",
-        "psh": "Have you had any surgeries in the past?",
-        "meds_allergies": "What medications do you take, and do you have any medication allergies?",
-    }
-
-    # Simplified prompts to work with fine-tuned model
-    # The fine-tuned model was trained to follow OLD CARTS naturally
+    # System prompts - simplified for fine-tuned model
     QUESTION_SYSTEM_PROMPT = (
         "You are a professional medical assistant conducting a medical history. "
         "You must understand the conversation context and avoid asking redundant questions.\n\n"
         "IMPORTANT RULES:\n"
-        "- If the patient already said when something started, do NOT ask about duration or timing again\n"
-        "- If the patient described the character (sharp, dull, burning, etc.), do NOT ask about character again\n"
-        "- If the patient said it's constant, do NOT ask about frequency or timing\n"
+        "- If the patient already provided information, do NOT ask about it again\n"
         "- Pay attention to what has already been discussed in the conversation\n"
         "- Ask about NEW information only, not information already provided\n\n"
         "Follow this order:\n"
@@ -169,7 +99,7 @@ class AdvancedMedicalNavigator:
 
     SUMMARY_SYSTEM_PROMPT = (
         "You are a clinical assistant. Produce ≤6 bullet points summarising demographics, chief complaint,"
-        " focused OLDCARTS facts, PMH/meds/allergies, and top ranked differentials with urgency."
+        " focused OLDCARTS facts, and top ranked differentials with urgency."
     )
 
     GREETING_RESPONSES = (
@@ -177,57 +107,8 @@ class AdvancedMedicalNavigator:
         "Hello! Let me know what brings you in today so I can assist.",
     )
 
-    # Weights shared with adaptive engine for consistency
-    CATEGORY_ELEMENT_WEIGHTS = {
-        'gastrointestinal': {
-            'location': 0.65,
-            'character': 0.25,
-            'aggravating': 0.40,
-            'relieving': 0.40,
-            'onset': 0.31,
-            'abruptness': 0.30,
-            'timing': 0.30,
-            'duration': 0.29,
-            'frequency': 0.29,
-            'severity': 0.20,
-            'associated': 0.5,
-        },
-        'cardiovascular': {
-            'character': 0.65,
-            'location': 0.30,
-            'aggravating': 0.65,
-            'relieving': 0.35,
-            'onset': 0.30,
-            'timing': 0.25,
-            'duration': 0.30,
-            'severity': 0.25,
-            'associated': 0.30,
-            'abruptness': 0.30,
-            'frequency': 0.28,
-        },
-        'respiratory': {
-            'character': 0.35,
-            'location': 0.30,
-            'aggravating': 0.30,
-            'relieving': 0.25,
-            'onset': 0.30,
-            'timing': 0.25,
-            'duration': 0.25,
-            'severity': 0.25,
-            'associated': 0.35,
-            'abruptness': 0.28,
-            'frequency': 0.26,
-        },
-    }
-
-    DEFAULT_ELEMENT_WEIGHT = 0.30
-    CLEAR_LEAD_MARGIN = 0.08
-
-    # Auto-selection: if one match is clearly best, use it without clarification
-    AUTO_SELECT_BEST_THRESHOLD = 0.95  # Best score must be >= 0.95
-    AUTO_SELECT_MARGIN = 0.25  # Best must be >= 0.25 higher than next best
-    AUTO_SELECT_NEXT_MAX = 0.7  # Or next best must be < 0.7
-    LOCATION_HIGH_CONFIDENCE_THRESHOLD = 0.9  # High confidence LLM score for location matching
+    # Condition ranking configuration
+    CLEAR_LEAD_MARGIN = 0.08  # Margin for clear leader in rankings
 
     # ----------- Session container -------------------------------------------
 
@@ -242,13 +123,7 @@ class AdvancedMedicalNavigator:
             'pre_hpi': {},
             'hpi': {},
             'pmh': {},
-            'guideline_terms': {},
-            'guideline_includes': {},
             'matched_categories': [],
-            'clarifications': {},
-            'associated_state': {},
-            'red_flag_state': {},
-            'debug': {},
         })
         condition_scores: Dict[str, float] = field(default_factory=dict)
         condition_rankings: List[Tuple[str, float]] = field(default_factory=list)
@@ -259,53 +134,26 @@ class AdvancedMedicalNavigator:
         completed: bool = False
         last_field: Optional[str] = None
 
-    def _extract_chief_complaint_descriptors(self, complaint: str) -> Dict[str, bool]:
-        complaint_lower = (complaint or "").lower()
-        keywords = {
-            "sensory": ["ache", "aching", "pain", "sharp", "stabbing", "burning", "tender", "sore", "cramping", "cramp", "tingling", "numb"],
-            "visual": ["bleeding", "blood", "color", "discolor", "rash", "lesion", "swelling", "bruise", "ooze", "discharge"],
-        }
-        descriptors = {"sensory": False, "visual": False}
-        for tag, words in keywords.items():
-            if any(word in complaint_lower for word in words):
-                descriptors[tag] = True
-        return descriptors
-
     # ----------- Lifecycle ----------------------------------------------------
 
     def __init__(self, llm_chat_fn, embedding_model=None):
         """
-        Initialize Advanced Medical Navigator with FAISS + LLM decision approach.
+        Initialize Advanced Medical Navigator - LLM-only approach.
         
         Args:
-            llm_chat_fn: LLM chat function for final decision making
-            embedding_model: Embedding model for FAISS semantic matching (optional)
+            llm_chat_fn: LLM chat function for all decisions
+            embedding_model: Optional (not used in simplified version)
         """
         self.llm_chat_fn = llm_chat_fn
-        self.embedding_model = embedding_model
         self.sessions: Dict[str, AdvancedMedicalNavigator.MedicalSession] = {}
         self._captured_debug_output: List[str] = []
         self.guidelines_dir = self._resolve_guidelines_dir()
-        self.enabled_categories = self._get_enabled_categories()
         self.all_guidelines: Dict[str, Dict] = {}
-        self.chief_complaint_triggers_data: List[Dict] = []  # For FAISS + LLM matching
         self._chief_complaint_condition_seed: Dict[str, float] = {}
         
-        # FAISS indexes
-        self.chief_complaint_index = None
-        self.chief_complaint_triggers_list: List[str] = []
-        self.chief_complaint_trigger_to_condition: Dict[str, List[str]] = {}
-        self.oldcarts_indexes: Dict[str, Any] = {}  # {element: {'index': faiss.Index, 'terms': List[str], 'term_to_conditions': Dict}}
-        
-        # FAISS thresholds
-        self.FAISS_CHIEF_COMPLAINT_THRESHOLD = 0.6  # Initial candidate selection
-        self.FAISS_OLDCARTS_THRESHOLD = 0.65  # Initial candidate selection
-
         if self.guidelines_dir:
             self._load_guidelines()
             self._build_chief_complaint_triggers()
-            if self.embedding_model and FAISS_AVAILABLE:
-                self._build_faiss_indexes()
         else:
             self._capture_debug("[Navigator] ⚠️ No guidelines directory found. Chief complaint matching may be limited.")
 
@@ -353,13 +201,12 @@ class AdvancedMedicalNavigator:
             self._capture_debug(f"[Navigator] 🙋 Greeting detected: '{text}'")
             return self._wrap_response(session, reply, status="awaiting_chief_complaint")
 
-        # LLM-only approach: no FAISS, no medical_rule_engine, no embedding_model
-        # LLM handles fuzzy correction, semantic matching, and category assignment
         self._capture_debug(f"\n{'='*80}")
-        self._capture_debug(f"[Engine] 🚀 NEW ASSESSMENT (ADVANCED NAVIGATOR - LLM-ONLY)")
+        self._capture_debug(f"[Engine] 🚀 NEW ASSESSMENT (LLM-ONLY)")
         self._capture_debug(f"{'='*80}")
         self._capture_debug(f"[Engine] Chief Complaint: '{text}'")
         
+        # LLM identifies relevant conditions from chief complaint
         categories = self._match_chief_complaint_to_category_llm(text)
         if not categories:
             apology = (
@@ -373,43 +220,29 @@ class AdvancedMedicalNavigator:
             return self._wrap_response(session, apology, status="awaiting_chief_complaint")
         
         session.context['matched_categories'] = categories
-        primary_category = categories[0]  # categories is guaranteed to be non-empty here
+        primary_category = categories[0]
         if len(categories) == 1:
             self._capture_debug(f"[Engine] 🎯 Category: {primary_category}")
         else:
             self._capture_debug(f"[Engine] 🎯 Categories: {', '.join(categories)}")
 
-        seed_scores = self._chief_complaint_condition_seed or {}
+        # Initialize condition scores - start all conditions at balanced baseline
+        # LLM will narrow down based on answers, not initial seeding
+        all_conditions = self._get_conditions_for_categories(categories)
         session.condition_scores = {}
-
-        self._capture_debug(
-            f"[Engine] 🧾 Chief complaint seed map: { {k: round(v, 3) for k, v in seed_scores.items()} }"
-            if seed_scores else "[Engine] 🧾 Chief complaint seed map: {}"
-        )
-
-        for cond in self._get_conditions_for_categories(categories):
-            base = seed_scores.get(cond)
-            if base is not None:
-                seeded_value = max(0.5, float(base))
-                session.condition_scores[cond] = seeded_value
-                self._capture_debug(f"[Engine] 🔧 Seeded {cond} at {seeded_value:.3f} from chief complaint match")
-            else:
-                session.condition_scores[cond] = 0.5
-                self._capture_debug(f"[Engine] 🔧 Seeded {cond} at baseline 0.500 (no chief complaint match)")
-
-        if seed_scores:
-            seeded_sorted = sorted(seed_scores.items(), key=lambda item: item[1], reverse=True)
-            top_preview = ', '.join(f"{name}: {score:.3f}" for name, score in seeded_sorted[:5])
-            self._capture_debug(f"[Engine] 📊 Chief complaint seeding (top {min(5, len(seeded_sorted))}): {top_preview}")
-        else:
-            self._capture_debug(f"[Engine] 📋 No direct chief complaint guideline matches; seeded {len(session.condition_scores)} conditions at baseline 50.0%")
+        
+        # Start all conditions at balanced baseline (0.5)
+        # This allows LLM to evaluate and narrow down based on answers
+        for cond in all_conditions:
+            session.condition_scores[cond] = 0.5
+            self._capture_debug(f"[Engine] 🔧 Seeded {cond} at baseline 0.500 (balanced start)")
+        
+        self._capture_debug(f"[Engine] 📋 Seeded {len(session.condition_scores)} conditions at balanced baseline 50.0% - LLM will narrow down based on answers")
 
         self._apply_rule_outs(session)
 
         session.stage = "awaiting_chronicity"
         session.context['pre_hpi']['chief_complaint'] = text
-        session.context['guideline_terms']['chief_complaint_terms'] = self._get_element_includes(session, 'chief_complaint') if hasattr(self, '_get_element_includes') else []
-        session.context['guideline_terms']['chief_complaint_descriptors'] = self._extract_chief_complaint_descriptors(text)
 
         empathetic = self._generate_empathetic_statement(text)
         chronicity_prompt = self._generate_chronicity_question()
@@ -417,7 +250,6 @@ class AdvancedMedicalNavigator:
         session.pending = {
             'section': 'pre_hpi',
             'field': 'chronicity',
-            'guidance': self.PRE_HPI_PROMPTS['chronicity'],
             'prompt': chronicity_prompt,
         }
         session.messages.append({"role": "assistant", "content": empathetic})
@@ -440,17 +272,15 @@ class AdvancedMedicalNavigator:
 
         if session.stage == "awaiting_age":
             if not session.context['pre_hpi'].get('age'):
-                # Use fine-tuned model to generate age question naturally
                 prompt = self._generate_question(
                     session=session,
                     section='pre_hpi',
                     field='age',
                     guidance="Ask for the patient's age. Ask only the question, no acknowledgment or reasoning."
                 )
-                # Ensure clean question only
                 if not prompt.strip().endswith('?'):
                     prompt = prompt.rstrip('.') + '?'
-                return {'section': 'pre_hpi', 'field': 'age', 'prompt': prompt, 'guidance': self.PRE_HPI_PROMPTS['age']}
+                return {'section': 'pre_hpi', 'field': 'age', 'prompt': prompt}
             session.stage = "awaiting_sex"
 
         if session.stage == "awaiting_sex":
@@ -458,132 +288,95 @@ class AdvancedMedicalNavigator:
                 session.stage = "hpi"
                 session.oldcarts_remaining = self._ordered_oldcarts_elements(session)
             else:
-                # Use fine-tuned model to generate sex question naturally
                 prompt = self._generate_question(
                     session=session,
                     section='pre_hpi',
                     field='sex',
                     guidance="Ask for the patient's biological sex. Ask only the question, no acknowledgment or reasoning."
                 )
-                # Ensure clean question only
                 if not prompt.strip().endswith('?'):
                     prompt = prompt.rstrip('.') + '?'
-                return {'section': 'pre_hpi', 'field': 'sex', 'prompt': prompt, 'guidance': self.PRE_HPI_PROMPTS['sex']}
+                return {'section': 'pre_hpi', 'field': 'sex', 'prompt': prompt}
 
         if session.stage == "hpi":
             return self._next_oldcarts_question(session)
 
-        if session.stage == "pmh":
-            for field in self.PMH_ELEMENTS:
-                if field not in session.context['pmh']:
-                    prompt = self._generate_question(session, 'pmh', field, self.PMH_PROMPTS[field])
-                    return {'section': 'pmh', 'field': field, 'prompt': prompt, 'guidance': self.PMH_PROMPTS[field]}
-            session.stage = "complete"
-            return None
-
-        # Don't fall through to asking pre-HPI questions again if we're past that stage
-        # The stage-specific checks above should handle all transitions
-            return None
+        return None
 
     def _is_redundant_question(self, session: "MedicalSession", element: str) -> bool:
-        """Check if asking about this element would be redundant given what's already known."""
+        """Check if asking about this element would be redundant - LLM handles this."""
         hpi = session.context.get('hpi', {})
         
         # If we already have an answer for this element, it's redundant
         if hpi.get(element) and hpi[element].strip():
             return True
         
-        # Check for redundant relationships
-        # If onset is provided (e.g., "2 days ago"), don't ask duration
+        # Basic redundancy checks - LLM should handle most of this
         if element == 'duration' and hpi.get('onset'):
             onset = hpi['onset'].lower()
             if any(word in onset for word in ['day', 'days', 'week', 'weeks', 'hour', 'hours', 'minute', 'minutes']):
-                self._capture_debug(f"[HPI] ⏭️ Skipping duration - can infer from onset: {hpi['onset']}")
                 return True
         
-        # If timing is "constant", don't ask about frequency
         if element == 'frequency' and hpi.get('timing'):
             timing = hpi['timing'].lower()
             if 'constant' in timing or 'continuous' in timing:
-                self._capture_debug(f"[HPI] ⏭️ Skipping frequency - timing is constant: {hpi['timing']}")
                 return True
-        
-        # If character is already described, don't ask again
-        if element == 'character' and hpi.get('character'):
-            # Check if character was mentioned in other answers
-            for key, value in hpi.items():
-                if key != 'character' and value:
-                    value_lower = value.lower()
-                    # Common character descriptors
-                    if any(desc in value_lower for desc in ['sharp', 'dull', 'burning', 'aching', 'stabbing', 'pressure', 'tightness']):
-                        self._capture_debug(f"[HPI] ⏭️ Skipping character - already described in {key}: {value}")
-                        return True
         
         return False
 
     def _next_oldcarts_question(self, session: "MedicalSession") -> Optional[Dict[str, str]]:
-        # Initialize oldcarts_remaining if not set
         if not session.oldcarts_remaining:
             session.oldcarts_remaining = self._ordered_oldcarts_elements(session)
         
         if not session.oldcarts_remaining:
             session.stage = "pmh"
-            return self._determine_next_question(session)
+            return None
 
         element = None
-        # Check what's already been answered - only count non-empty values
         answered = {key for key, value in session.context['hpi'].items() if value and value.strip()}
         
-        # Find next unanswered element that's not redundant
         while session.oldcarts_remaining:
             candidate = session.oldcarts_remaining.pop(0)
-            # Skip if already answered
             if candidate in answered:
-                self._capture_debug(f"[HPI] ⏭️ Skipping {candidate} - already answered: {session.context['hpi'].get(candidate)}")
+                self._capture_debug(f"[HPI] ⏭️ Skipping {candidate} - already answered")
                 continue
-            # Skip if redundant
             if self._is_redundant_question(session, candidate):
                 continue
             element = candidate
             break
         
         if element is None:
-            # All OLD CARTS questions answered or redundant
             session.stage = "pmh"
-            return self._determine_next_question(session)
+            return None
+        
         cc_subject = self._normalize_subject_for_questions(session.context['pre_hpi'].get('chief_complaint'))
         session.last_field = element
 
         if element == 'associated':
-            question_info = self._prepare_next_associated_question(session)
-            if not question_info:
-                session.context['hpi']['associated'] = 'none reported'
-                return self._next_oldcarts_question(session)
-            return question_info
+            # LLM handles associated symptoms naturally
+            prompt = self._generate_question(
+                session=session,
+                section='hpi',
+                field='associated',
+                guidance=f"Ask about any other symptoms the patient might have along with {cc_subject}. Ask only one question."
+            )
+            return {
+                'section': 'hpi',
+                'field': element,
+                'prompt': prompt,
+            }
 
-        if element == 'red_flags':
-            question_info = self._prepare_next_red_flag_question(session)
-            if not question_info:
-                session.context['hpi']['red_flags'] = 'none reported'
-                return self._next_oldcarts_question(session)
-            return question_info
-
-        guidance, base_question, options = self._build_oldcarts_guidance(session, element, cc_subject)
+        # Generate question naturally using LLM
         prompt = self._generate_question(
             session=session,
             section='hpi',
             field=element,
-            guidance=guidance,
-            base_question=base_question,
-            options=options,
+            guidance=f"Ask about the {element} of {cc_subject}. Ask only one question, no acknowledgment or reasoning."
         )
         return {
             'section': 'hpi',
             'field': element,
             'prompt': prompt,
-            'guidance': guidance,
-            'base_question': base_question,
-            'options': options,
         }
 
     # ----------- Answer persistence & scoring --------------------------------
@@ -591,15 +384,11 @@ class AdvancedMedicalNavigator:
     def _store_answer(self, session: "MedicalSession", pending: Dict[str, str], answer: str) -> Optional[Dict[str, Any]]:
         section, field = pending['section'], pending['field']
         text = answer.strip()
+        
         if section == 'pre_hpi':
-            debug_ctx = session.context.setdefault('debug', {})
-            validation_message = None
-            normalized_value = text
             if field == 'age':
                 valid, normalized_value, validation_message = self._validate_age_answer(text)
                 if not valid:
-                    debug_ctx['last_validation_error'] = validation_message
-                    self._capture_debug(f"[Pre-HPI] ❌ Invalid age response '{text}'")
                     session.pending = pending
                     session.messages.append({"role": "assistant", "content": validation_message})
                     return self._wrap_response(
@@ -608,13 +397,30 @@ class AdvancedMedicalNavigator:
                         status="validation_error",
                         metadata={'field': field, 'section': section, 'validation_error': True},
                     )
-                debug_ctx.pop('last_validation_error', None)
-                self._capture_debug(f"[Pre-HPI] ✅ Recorded age: {normalized_value}")
+                session.context['pre_hpi'][field] = normalized_value
+                if field == 'chronicity':
+                    session.stage = "awaiting_age"
+                elif field == 'age':
+                    session.stage = "awaiting_sex"
+                elif field == 'sex':
+                    session.stage = "hpi"
+                    session.oldcarts_remaining = self._ordered_oldcarts_elements(session)
+                    session.pending = None
+                    next_prompt = self._next_oldcarts_question(session)
+                    if next_prompt:
+                        session.pending = next_prompt
+                        session.messages.append({"role": "assistant", "content": next_prompt['prompt']})
+                        return self._wrap_response(
+                            session,
+                            next_prompt['prompt'],
+                            metadata={
+                                'section': next_prompt['section'],
+                                'field': next_prompt['field'],
+                            },
+                        )
             elif field == 'sex':
                 valid, normalized_value, validation_message = self._validate_sex_answer(text)
                 if not valid:
-                    debug_ctx['last_validation_error'] = validation_message
-                    self._capture_debug(f"[Pre-HPI] ❌ Invalid sex response '{text}'")
                     session.pending = pending
                     session.messages.append({"role": "assistant", "content": validation_message})
                     return self._wrap_response(
@@ -623,16 +429,7 @@ class AdvancedMedicalNavigator:
                         status="validation_error",
                         metadata={'field': field, 'section': section, 'validation_error': True},
                     )
-                debug_ctx.pop('last_validation_error', None)
-                self._capture_debug(f"[Pre-HPI] ✅ Recorded sex: {normalized_value}")
-            else:
-                debug_ctx.pop('last_validation_error', None)
-            session.context['pre_hpi'][field] = normalized_value
-            if field == 'chronicity':
-                session.stage = "awaiting_age"
-            elif field == 'age':
-                session.stage = "awaiting_sex"
-            elif field == 'sex':
+                session.context['pre_hpi'][field] = normalized_value
                 session.stage = "hpi"
                 session.oldcarts_remaining = self._ordered_oldcarts_elements(session)
                 session.pending = None
@@ -648,18 +445,15 @@ class AdvancedMedicalNavigator:
                             'field': next_prompt['field'],
                         },
                     )
+            else:
+                session.context['pre_hpi'][field] = text
+                if field == 'chronicity':
+                    session.stage = "awaiting_age"
+            
             session.pending = None
             return None
+            
         elif section == 'hpi':
-            if self._is_confused_response(text):
-                clarification = self._clarify_element_question(session, field, pending)
-                session.pending = pending
-                return self._wrap_response(session, clarification, metadata={
-                    'section': 'hpi',
-                    'field': field,
-                    'clarification': True,
-                })
-
             # Store answer
             session.context['hpi'][field] = text
             self._capture_debug(f"[HPI] ✅ Stored answer for {field}: {text}")
@@ -667,12 +461,9 @@ class AdvancedMedicalNavigator:
             # Remove from remaining list if present
             if field in session.oldcarts_remaining:
                 session.oldcarts_remaining = [e for e in session.oldcarts_remaining if e != field]
-                self._capture_debug(f"[HPI] 📋 Removed {field} from remaining list. Remaining: {session.oldcarts_remaining}")
             
-            # Score the answer (but don't update condition scores - simplified)
-            response = self._score_oldcarts_answer(session, pending, field, text)
-            if response:
-                return response
+            # Update condition scores using LLM reasoning
+            self._update_condition_scores_from_answer(session, field, text)
             
             # Get next OLD CARTS question
             session.pending = None
@@ -688,1434 +479,235 @@ class AdvancedMedicalNavigator:
                         'field': next_prompt['field'],
                     },
                 )
-        elif section == 'pmh':
-            session.context['pmh'][field] = text
-            session.pending = None
+        
         return None
 
-    def _score_oldcarts_answer(
-        self,
-        session: "MedicalSession",
-        pending: Dict[str, str],
-        element: str,
-        answer: str,
-    ) -> Optional[Dict[str, Any]]:
-        # LLM-only approach: no medical_rule_engine, no embedding_model, no FAISS
-        # LLM handles all matching, fuzzy correction, and anatomical reasoning
-        requires_clarification = self._requires_clarification(element)
-
-        sequence_result: Optional[Dict[str, Any]] = None
-        follow_up_question: Optional[Dict[str, Any]] = None
-        answer_to_score: Optional[str] = answer
-        if element == 'associated':
-            sequence_result = self._handle_associated_answer(session, answer)
-        elif element == 'red_flags':
-            sequence_result = self._handle_red_flag_answer(session, answer)
-
-        if sequence_result is not None:
-            answer_to_score = sequence_result.get('score_text')
-            follow_up_question = sequence_result.get('next_question')
-            positives = sequence_result.get('positives', [])
-            if element == 'associated':
-                if positives:
-                    session.context['hpi']['associated'] = ', '.join(positives)
-                if sequence_result.get('completed'):
-                    session.context['hpi']['associated'] = ', '.join(positives) if positives else 'none reported'
-            elif element == 'red_flags':
-                if positives:
-                    session.context['hpi']['red_flags'] = ', '.join(positives)
-                if sequence_result.get('completed'):
-                    session.context['hpi']['red_flags'] = ', '.join(positives) if positives else 'none reported'
-
-            if answer_to_score is None:
-                if follow_up_question:
-                    session.pending = follow_up_question
-                    session.messages.append({"role": "assistant", "content": follow_up_question['prompt']})
-                    return self._wrap_response(
-                        session,
-                        follow_up_question['prompt'],
-                        metadata=follow_up_question,
-                    )
-                return None
-
-            answer = answer_to_score
-
-        scoring_element = element
-        if sequence_result is not None and element == 'red_flags':
-            source_element = sequence_result.get('source_element')
-            if source_element:
-                scoring_element = source_element
-
-        # Restored: Use FAISS + LLM to match answer against guideline terms
-        # Step 1: Collect all terms for this element from guidelines
-        all_terms = self._get_all_terms_for_element(session, scoring_element)
+    def _update_condition_scores_from_answer(self, session: "MedicalSession", element: str, answer: str) -> None:
+        """Update condition scores based on answer - LLM evaluates ALL conditions using trained knowledge."""
+        if not self.llm_chat_fn:
+            return
         
-        if not all_terms:
-            self._capture_debug(f"[LLM] ⚠️ {scoring_element}: No guideline terms found for this element")
-            matches = []
-            term_scores = {}
-        else:
-            # Step 2: Use FAISS + LLM to find matches
-            # Initialize matches with all terms (FAISS will filter)
-            matches = all_terms.copy()
-            term_scores = {term: 0.5 for term in all_terms}  # Default score
+        # Get ALL conditions in the session, not just top 5
+        # This allows LLM to discover the correct condition even if it wasn't initially high
+        all_conditions = list(session.condition_scores.keys())
+        
+        if not all_conditions:
+            return
+        
+        # Build context
+        chief_complaint = session.context['pre_hpi'].get('chief_complaint', '')
+        conversation_context = self._build_conversation_context(session)
+        
+        # Get current rankings for context (but evaluate ALL conditions)
+        current_rankings = session.condition_rankings[:10] if session.condition_rankings else []
+        ranking_context = ", ".join([f"{cond} ({score:.2f})" for cond, score in current_rankings[:5]])
+        
+        # Ask LLM to evaluate ALL conditions using its trained medical knowledge
+        system_prompt = (
+            "You are a medical expert with extensive training in clinical reasoning. "
+            "Based on the patient's answer, evaluate how it affects the likelihood of EACH condition. "
+            "Use your trained medical knowledge to determine which conditions become more or less likely. "
+            "Consider: classic presentations, anatomical locations, symptom patterns, and differential diagnosis logic. "
+            "Return JSON: {\"condition_name\": score_change} where score_change is between -0.3 and +0.3. "
+            "Positive values mean the condition is MORE likely (rule in), negative means LESS likely (rule out). "
+            "Be specific: if the answer strongly supports a condition, use +0.2 to +0.3. "
+            "If it strongly rules out a condition, use -0.2 to -0.3. "
+            "If neutral or unclear, use small changes (-0.1 to +0.1). "
+            "You MUST evaluate ALL conditions listed. Output only JSON, no other text."
+        )
+        
+        user_prompt = (
+            f"Chief complaint: {chief_complaint}\n"
+            f"OLD CARTS element: {element}\n"
+            f"Patient's answer: '{answer}'\n\n"
+            f"All conditions to evaluate ({len(all_conditions)} total):\n"
+            f"{', '.join(all_conditions)}\n\n"
+            f"Current top conditions: {ranking_context if ranking_context else 'all at baseline'}\n\n"
+            f"Conversation context:\n{conversation_context}\n\n"
+            f"Using your trained medical knowledge, evaluate how this answer affects EACH condition. "
+            f"Consider classic presentations, anatomical locations, and symptom patterns. "
+            f"Return JSON with score changes for ALL {len(all_conditions)} conditions listed above."
+        )
+        
+        try:
+            response = self.llm_chat_fn(
+                [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                max_tokens=500,  # Increased for evaluating all conditions
+                temperature=0.0,
+            )
             
-            # Use FAISS + LLM to refine matches
-            threshold = 0.5  # LLM threshold
-            matches, term_scores, review_rows, review_meta = self._llm_refine_matches(
-                session=session,
-                element=scoring_element,
-                answer=answer,
-                matches=matches,
-                term_scores=term_scores,
-                threshold=threshold,
-            )
+            if response:
+                # Parse JSON response
+                cleaned = response.strip()
+                if cleaned.startswith('```'):
+                    first_newline = cleaned.find('\n')
+                    if first_newline != -1:
+                        cleaned = cleaned[first_newline+1:]
+                        if cleaned.endswith('```'):
+                            cleaned = cleaned[:-3].strip()
+                
+                try:
+                    score_changes = json.loads(cleaned)
+                    if isinstance(score_changes, dict):
+                        # Apply score changes to all conditions
+                        updated_count = 0
+                        for condition, change in score_changes.items():
+                            if condition in session.condition_scores:
+                                current_score = session.condition_scores[condition]
+                                # Clamp change to reasonable range
+                                change_value = max(-0.3, min(0.3, float(change)))
+                                new_score = max(0.0, min(1.0, current_score + change_value))
+                                session.condition_scores[condition] = new_score
+                                updated_count += 1
+                                # Only log significant changes to reduce noise
+                                if abs(change_value) >= 0.1:
+                                    self._capture_debug(
+                                        f"[Scoring] {condition}: {current_score:.3f} → {new_score:.3f} (change: {change_value:+.3f})"
+                                    )
+                        
+                        if updated_count > 0:
+                            self._capture_debug(f"[Scoring] ✅ Updated {updated_count}/{len(all_conditions)} conditions based on {element} answer")
+                        else:
+                            self._capture_debug(f"[Scoring] ⚠️ No conditions matched in LLM response")
+                except json.JSONDecodeError as e:
+                    self._capture_debug(f"[Scoring] ⚠️ Failed to parse LLM score changes: {e}")
+                    self._capture_debug(f"[Scoring] ⚠️ Response (first 300 chars): {response[:300]}")
+        except Exception as e:
+            self._capture_debug(f"[Scoring] ⚠️ Error updating scores: {e}")
         
-        review_rows = review_rows if 'review_rows' in locals() else []
-        review_meta = review_meta if 'review_meta' in locals() else {'invoked': False, 'reason': 'no terms'}
-        debug_ctx = session.context.setdefault('debug', {})
-
-        if pending and pending.get('clarification'):
-            session.context['clarifications'].pop(element, None)
-        elif not requires_clarification:
-            session.context['clarifications'].pop(element, None)
-
-        # Step 3: Analyze answer to generate satisfied/missing arrays for clarification
-        analysis = None
-        if matches is not None and len(matches) > 0:
-            analysis = self._analyze_location_answer(
-                session=session,
-                element=scoring_element,
-                answer=answer,
-                matches=matches,
-                term_scores=term_scores,
-            )
-            if analysis:
-                satisfied_count = len(analysis.get('satisfied_medical_terms', []))
-                missing_count = len(analysis.get('missing_medical_terms', []))
-                self._capture_debug(f"[Analysis] ✅ Generated analysis for {scoring_element}: {satisfied_count} satisfied, {missing_count} missing")
-
-        # Store answer in context
-        condition_similarities: Dict[str, float] = {}
-        self._capture_debug(f"[LLM] 🔍 {scoring_element}: Answer stored, analysis generated for clarification")
-
-        if analysis and requires_clarification:
-            clarification_pending = pending.get('clarification') if pending else False
-            clarification = self._maybe_request_location_clarification(
-                session=session,
-                element=element,
-                answer=answer,
-                analysis=analysis,
-                clarification_just_asked=clarification_pending,
-            )
-            if clarification:
-                session.pending = clarification
-                session.messages.append({"role": "assistant", "content": clarification['prompt']})
-                return self._wrap_response(
-                    session,
-                    clarification['prompt'],
-                    metadata={
-                        'section': 'hpi',
-                        'field': element,
-                        'clarification': True,
-                        'mode': clarification.get('mode'),
-                    },
-                )
-
-        # Simplified: No condition score updates from term matching
-        # Condition scores are updated from chief complaint matching and LLM reasoning
-        # Answers are stored in context for LLM to use in future questions
-        self._capture_debug(f"[Scoring] 📝 Answer stored for {element}: '{answer}'")
+        # Update rankings
         self._apply_rule_outs(session)
 
-        if follow_up_question:
-            session.pending = follow_up_question
-            session.messages.append({"role": "assistant", "content": follow_up_question['prompt']})
-            return self._wrap_response(
-                session,
-                follow_up_question['prompt'],
-                metadata=follow_up_question,
-            )
+    def _build_conversation_context(self, session: "MedicalSession") -> str:
+        """Build conversation context for LLM."""
+        parts = []
+        
+        pre_hpi = session.context.get('pre_hpi', {})
+        if pre_hpi.get('chief_complaint'):
+            parts.append(f"Chief complaint: {pre_hpi['chief_complaint']}")
+        if pre_hpi.get('chronicity'):
+            parts.append(f"Chronicity: {pre_hpi['chronicity']}")
+        if pre_hpi.get('age'):
+            parts.append(f"Age: {pre_hpi['age']}")
+        if pre_hpi.get('sex'):
+            parts.append(f"Biological sex: {pre_hpi['sex']}")
+        
+        hpi = session.context.get('hpi', {})
+        hpi_labels = {
+            'onset': 'Onset',
+            'location': 'Location',
+            'duration': 'Duration',
+            'character': 'Character',
+            'aggravating': 'Aggravating factors',
+            'relieving': 'Relieving factors',
+            'radiation': 'Radiation',
+            'timing': 'Timing',
+            'severity': 'Severity',
+        }
+        
+        for key, label in hpi_labels.items():
+            value = hpi.get(key)
+            if value and value.strip():
+                parts.append(f"{label}: {value}")
+        
+        if not parts:
+            return "No information collected yet."
+        
+        return "\n".join(parts)
 
-        session.last_field = None
-        return None
-    
     # ----------- Chief complaint matching ------------------------------------
 
     def _apply_rule_outs(self, session: "MedicalSession") -> None:
-        """Simplified: Just update rankings - no rule-based filtering, LLM handles everything"""
+        """Update condition rankings - keep this for ranking system."""
         sorted_scores = sorted(session.condition_scores.items(), key=lambda x: x[1], reverse=True)
         session.condition_rankings = sorted_scores
         self._update_condition_pools(session)
         self._log_rankings(session)
 
-    def _log_llm_scores(
-        self,
-        element: str,
-        answer: str,
-        matches: List[str],
-        term_scores: Dict[str, float],
-    ) -> None:
-        """Log LLM scores for element matching (LLM-only approach)."""
-        sorted_scores = dict(sorted(term_scores.items(), key=lambda x: x[1], reverse=True))
-        self._capture_debug(f"[LLM] 🔍 LLM scores for '{answer}' in {element}: {sorted_scores}")
-        if matches:
-            self._capture_debug(f"[LLM] ✅ Matched terms for {element}: {matches}")
-        else:
-            self._capture_debug(f"[LLM] ⚠️ No patient-friendly terms matched {element} for '{answer}'")
-
-    def _log_llm_match_review(
-        self,
-        element: str,
-        answer: str,
-        review_rows: List[Tuple[str, float, float, float]],
-    ) -> None:
-        """Log LLM match review results (LLM-only approach, no FAISS)."""
-        if not review_rows:
-            return
-        self._capture_debug(f"[LLM] 🔍 Match review for '{answer}' in {element}:")
-        for term, unused_score, llm_score, final_score in review_rows:
-            # Note: first score is always 0.0 (FAISS bypassed), second is LLM score, third is final (LLM-only)
-            self._capture_debug(
-                f"[LLM]   • {term}: LLM={llm_score:.3f}, final={final_score:.3f}"
-            )
-
-    def _collect_guidelines_for_session(self, session: "MedicalSession") -> List[Dict[str, Any]]:
-        categories = session.context.get('matched_categories') or ['gastrointestinal']
-        conditions = set(session.condition_scores.keys())
-        collected: List[Dict[str, Any]] = []
-        seen: set = set()
-        for category in categories:
-            for name, guideline in self._get_guidelines_by_category(category).items():
-                condition_name = guideline.get('condition', name)
-                if condition_name in conditions and condition_name not in seen:
-                    collected.append(guideline)
-                    seen.add(condition_name)
-        return collected
-
-    def _get_all_location_terms(self, session: "MedicalSession") -> List[str]:
-        """Get all location terms from all guidelines in session"""
-        return self._get_all_terms_for_element(session, 'location')
-    
-    def _get_all_terms_for_element(self, session: "MedicalSession", element: str) -> List[str]:
-        """Get all terms for any element from all guidelines in session"""
-        guidelines = self._collect_guidelines_for_session(session)
-        all_terms = []
-        seen = set()
-        for guideline in guidelines:
-            structured = self._structured_oldcarts(guideline)
-            element_data = structured.get(element, {})
-            includes = element_data.get('includes', []) if isinstance(element_data, dict) else []
-            for item in includes:
-                if isinstance(item, dict):
-                    patient_term = item.get('patient_friendly')
-                else:
-                    patient_term = item
-                if not isinstance(patient_term, str):
-                    continue
-                normalized = patient_term.strip().lower()
-                if normalized and normalized not in seen:
-                    seen.add(normalized)
-                    all_terms.append(patient_term.strip())
-        return all_terms
-
-    # FAISS scoring removed - using LLM-only approach for all matching
-
-    def _structured_oldcarts(self, guideline: Dict[str, Any]) -> Dict[str, Any]:
-        structured = guideline.get('key_features', {}).get('structured_oldcarts', {})
-        if not structured:
-            structured = guideline.get('data', {}).get('key_features', {}).get('structured_oldcarts', {})
-        return structured or {}
-
-    def _llm_refine_matches(
-        self,
-        session: "MedicalSession",
-        element: str,
-        answer: str,
-        matches: List[str],
-        term_scores: Dict[str, float],
-        threshold: float,
-    ) -> Tuple[
-        List[str],
-        Dict[str, float],
-        List[Tuple[str, float, float, float]],
-        Dict[str, Any],
-    ]:
-        if not self.llm_chat_fn:
-            self._capture_debug(f"[LLM] ⚠️ Match review skipped for '{answer}' in {element}: LLM function not available")
-            return matches, term_scores, [], {'invoked': False, 'reason': 'no_llm_function'}
-        
-        if not matches:
-            self._capture_debug(f"[LLM] ⚠️ Match review skipped for '{answer}' in {element}: No terms to review")
-            return matches, term_scores, [], {'invoked': False, 'reason': 'no_matches'}
-
-        unique_matches: List[str] = []
-        for term in matches:
-            if term not in unique_matches:
-                unique_matches.append(term)
-
-        # Step 1: Use FAISS to find candidate terms
-        candidate_terms = []
-        if element in self.oldcarts_indexes and self.embedding_model and FAISS_AVAILABLE:
-            try:
-                index_data = self.oldcarts_indexes[element]
-                query_embedding = self.embedding_model.encode([answer.lower().strip()])[0]
-                query_embedding = np.array([query_embedding], dtype='float32')
-                faiss.normalize_L2(query_embedding)
-                
-                # Search for top candidates
-                k = min(20, len(index_data['terms']))
-                similarities, indices = index_data['index'].search(query_embedding, k)
-                
-                # Filter by threshold
-                for sim, idx in zip(similarities[0], indices[0]):
-                    if sim >= self.FAISS_OLDCARTS_THRESHOLD:
-                        term = index_data['terms'][idx]
-                        if term in unique_matches:  # Only include terms that were in original matches
-                            candidate_terms.append((term, float(sim)))
-                
-                candidate_terms.sort(key=lambda x: x[1], reverse=True)
-                self._capture_debug(f"[FAISS] 🔍 {element}: Found {len(candidate_terms)} candidate terms for '{answer}'")
-            except Exception as e:
-                self._capture_debug(f"[FAISS] ⚠️ Error in FAISS search for {element}: {e}")
-        
-        # If no FAISS candidates, use all unique matches
-        if not candidate_terms:
-            self._capture_debug(f"[FAISS] ⚠️ {element}: No FAISS candidates, using all {len(unique_matches)} terms for LLM evaluation")
-            limited = unique_matches
-        else:
-            # Use FAISS candidates (top 10)
-            limited = [term for term, _ in candidate_terms[:10]]
-            self._capture_debug(f"[FAISS] 🔍 {element}: Using {len(limited)} FAISS candidates for LLM evaluation")
-
-        if not limited:
-            self._capture_debug(f"[LLM] ⚠️ Match review skipped for '{answer}' in {element}: No terms to review")
-            return matches, term_scores, [], {
-                'invoked': False,
-                'reason': 'no_terms',
-                'requested_terms': [],
-            }
-
-        self._capture_debug(f"[LLM] 🔍 Reviewing {len(limited)} terms for '{answer}' in {element}: {limited}")
-        # Build alias map with multiple normalization strategies
-        alias_map = {}
-        for term in limited:
-            # Exact lowercase match
-            alias_map[term.lower()] = term
-            # Normalized match (remove quotes, extra spaces)
-            normalized = term.lower().strip().strip('"').strip("'").strip()
-            alias_map[normalized] = term
-            # Also add original term
-            alias_map[term] = term
-        
-        # Build candidate lines with FAISS scores if available
-        if candidate_terms:
-            candidate_dict = {term: score for term, score in candidate_terms}
-            candidate_lines = "\n".join([
-                f"- {term} (FAISS similarity: {candidate_dict.get(term, 0.0):.2f})" 
-                if term in candidate_dict else f"- {term}"
-                for term in limited
-            ])
-        else:
-            candidate_lines = "\n".join(f"- {term}" for term in limited)
-        
-        # Create element-specific prompts (universal, condition-agnostic)
-        element_prompts = {
-            'location': (
-                f"Chief complaint: {session.context['pre_hpi'].get('chief_complaint', 'unknown')}\n"
-                f"Patient's description of symptom location: '{answer}'\n\n"
-                "You are a medical expert evaluating anatomical location terms. "
-                "FAISS found these candidate matches based on semantic similarity. "
-                "Evaluate them and decide which are medically relevant based on ANATOMICAL ACCURACY.\n\n"
-                "Consider: semantic similarity, anatomical location, and medical knowledge.\n"
-                "- Same body region (head, chest, abdomen, limbs, etc.)\n"
-                "- Same anatomical structure (organ, muscle, bone, etc.)\n"
-                "- Same relative position (left/right, upper/lower, anterior/posterior, etc.)\n"
-                "- Anatomical synonyms and equivalent descriptions\n\n"
-                "CRITICAL: Rule out OPPOSITE locations. If the patient says:\n"
-                "- 'right' or 'right side' → give 0.0 to ALL left-side locations (left, LUQ, LLQ, left upper, left lower, etc.)\n"
-                "- 'left' or 'left side' → give 0.0 to ALL right-side locations (right, RUQ, RLQ, right upper, right lower, etc.)\n"
-                "- 'upper' or 'upper quadrant' → give 0.0 to lower locations (lower quadrant, lower abdomen, etc.)\n"
-                "- 'lower' or 'lower quadrant' → give 0.0 to upper locations (upper quadrant, upper abdomen, etc.)\n"
-                "- 'anterior' or 'front' → give 0.0 to posterior locations (posterior, back, etc.)\n"
-                "- 'posterior' or 'back' → give 0.0 to anterior locations (anterior, front, etc.)\n\n"
-                "FAISS candidate terms to evaluate:\n"
-                f"{candidate_lines}\n\n"
-                "Return ONLY valid JSON with ALL terms as keys and their scores as values.\n"
-                "Format: {\"term1\": score1, \"term2\": score2, \"term3\": score3, ...}\n"
-                "You MUST include ALL terms listed above with numeric scores (0.0 to 1.0).\n\n"
-                "Scoring guidelines:\n"
-                "- 1.0 = Exact anatomical match (same body region, structure, and relative position)\n"
-                "- 0.0 = Completely different anatomical location OR OPPOSITE location (different body region, structure, or opposite side/position)\n"
-                "- 0.5-0.9 = Related but not exact match (same region but different specificity)\n"
-                "- For location matching, be precise: use 1.0 for exact matches, 0.0 for clear mismatches or opposites\n\n"
-                "Example format (not actual terms - your terms are listed above):\n"
-                "{\n"
-                '  "medical_term_1": 1.0,\n'
-                '  "medical_term_2": 0.0,\n'
-                '  "medical_term_3": 0.0\n'
-                "}\n\n"
-                "CRITICAL: Return a JSON object with ALL terms above as keys, each with a numeric score (0.0-1.0)."
-            ),
-        }
-        
-        # Use element-specific prompt if available, otherwise use generic prompt
-        if element in element_prompts:
-            user_prompt = element_prompts[element]
-        else:
-            user_prompt = (
-                f"Chief complaint: {session.context['pre_hpi'].get('chief_complaint', 'unknown')}\n"
-                f"Patient statement: '{answer}'\n\n"
-                f"You are a medical expert evaluating {element} terms. "
-                "FAISS found these candidate matches based on semantic similarity. "
-                "Evaluate them and decide which are medically relevant based on semantic meaning, anatomical location, and medical knowledge.\n\n"
-                f"FAISS candidate {element.replace('_', ' ').title()} terms to evaluate:\n"
-                f"{candidate_lines}\n\n"
-                "Return ONLY valid JSON with ALL terms as keys and their scores as values.\n"
-                "Format: {\"term1\": score1, \"term2\": score2, \"term3\": score3, ...}\n"
-                "You MUST include ALL terms listed above with numeric scores (0.0 to 1.0).\n\n"
-                "Scoring:\n"
-                "- 1.0 = Exact semantic match (same meaning)\n"
-                "- 0.0 = No match (different meaning)\n"
-                "- 0.5-0.9 = Partial or related match\n\n"
-                "Example:\n"
-                "{\n"
-                '  "term1": 1.0,\n'
-                '  "term2": 0.0,\n'
-                '  "term3": 0.7\n'
-                "}\n\n"
-                "CRITICAL: Return a JSON object with ALL terms above as keys, each with a numeric score (0.0-1.0)."
-            )
-        
-        # Use element-specific system prompt, otherwise use generic
-        if element == 'location':
-            system_prompt = (
-                "You are a medical expert specializing in anatomical location assessment. "
-                "FAISS found candidate matches based on semantic similarity. "
-                "Your task is to evaluate these candidates and decide which are medically relevant "
-                "based on ANATOMICAL ACCURACY and your comprehensive anatomical knowledge.\n\n"
-                "Consider: semantic similarity, anatomical location, and medical knowledge. "
-                "Use your medical expertise to determine if descriptions refer to the same anatomical location. "
-                "Consider body regions, anatomical structures, relative positions, and anatomical terminology. "
-                "Be precise: match exact locations, distinguish different body regions, and recognize anatomical synonyms.\n\n"
-                "CRITICAL: You MUST rule out OPPOSITE locations. If the patient mentions a specific side or position, "
-                "you must give 0.0 to all opposite locations:\n"
-                "- Left vs Right (if patient says 'right', give 0.0 to all left locations)\n"
-                "- Upper vs Lower (if patient says 'upper', give 0.0 to all lower locations)\n"
-                "- Anterior vs Posterior (if patient says 'anterior', give 0.0 to all posterior locations)\n"
-                "- Use your anatomical knowledge to identify and exclude all opposite locations.\n\n"
-                "CRITICAL FORMAT REQUIREMENTS:\n"
-                "- Output ONLY valid JSON (no explanations, no text before or after)\n"
-                "- JSON must be an object with ALL terms as keys and numeric scores (0.0-1.0) as values\n"
-                "- Example format: {\"term1\": 1.0, \"term2\": 0.0, \"term3\": 0.0}\n"
-                "- Each term must be a key in the JSON object with its score as the value\n"
-                "- Scores: 1.0 = exact anatomical match, 0.0 = different location OR opposite location\n"
-                "- Do NOT use any other format - only JSON object with term keys and numeric values"
-            )
-        else:
-            system_prompt = (
-                "You are a medical expert evaluating patient statements against medical guideline terms. "
-                "FAISS found candidate matches based on semantic similarity. "
-                "Your task is to evaluate these candidates and decide which are medically relevant "
-                "based on semantic meaning, anatomical location, and medical knowledge.\n\n"
-                "CRITICAL FORMAT REQUIREMENTS:\n"
-                "- Output ONLY valid JSON (no explanations, no text before or after)\n"
-                "- JSON must be an object with ALL terms as keys and numeric scores (0.0-1.0) as values\n"
-                "- Example format: {\"term1\": 1.0, \"term2\": 0.5, \"term3\": 0.0}\n"
-                "- Each term must be a key in the JSON object with its score as the value\n"
-                "- Scores: 1.0 = exact match, 0.0 = no match, 0.5-0.9 = partial match\n"
-                "- Do NOT use any other format - only JSON object with term keys and numeric values"
-            )
-        
-        self._capture_debug(f"[LLM] 🔍 Calling LLM for {element} match review...")
-        self._capture_debug(f"[LLM] 🔍 System prompt: {system_prompt[:150]}...")
-        self._capture_debug(f"[LLM] 🔍 User prompt (first 500 chars): {user_prompt[:500]}...")
-        if len(user_prompt) > 500:
-            self._capture_debug(f"[LLM] 🔍 User prompt length: {len(user_prompt)} chars (truncated in log)")
-        
-        # Also print to console for debugging
-        print(f"[LLM] 🔍 Calling LLM for {element} match review - {len(limited)} terms")
-        print(f"[LLM] 🔍 Terms: {limited[:5]}...")
-        
-        try:
-            response = self.llm_chat_fn(
-                [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt},
-                ],
-                max_tokens=250,  # More tokens for all elements (since we're sending all terms)
-                temperature=0.0,
-            )
-            print(f"[LLM] ✅ LLM returned response (type: {type(response).__name__}, length: {len(response) if response else 0})")
-            if response:
-                print(f"[LLM] 🔍 Raw response (first 300 chars): {response[:300]}")
-            else:
-                print(f"[LLM] ⚠️ LLM returned EMPTY response")
-            self._capture_debug(f"[LLM] ✅ LLM function returned response (type: {type(response).__name__})")
-        except Exception as e:
-            print(f"[LLM] ❌ LLM function raised exception: {type(e).__name__}: {e}")
-            import traceback
-            traceback.print_exc()
-            self._capture_debug(f"[LLM] ❌ LLM function raised exception: {type(e).__name__}: {e}")
-            response = None
-        
-        if response:
-            self._capture_debug(f"[LLM] 🔍 Match review raw response (first 500 chars): {response[:500]}")
-            if len(response) > 500:
-                self._capture_debug(f"[LLM] 🔍 ... (response truncated, total length: {len(response)} chars)")
-        else:
-            self._capture_debug(f"[LLM] ⚠️ Match review raw response: EMPTY or None")
-
-        llm_scores: Dict[str, float] = {}
-        had_scores = False
-        parse_error = None
-        
-        if not response:
-            self._capture_debug(f"[LLM] ⚠️ Match review for '{answer}' in {element}: LLM returned EMPTY response")
-        else:
-            parsed = None
-            try:
-                parsed = json.loads(response)
-                self._capture_debug(f"[LLM] ✅ Successfully parsed JSON with {len(parsed) if isinstance(parsed, dict) else 'unknown'} keys")
-            except json.JSONDecodeError as e:
-                parse_error = str(e)
-                print(f"[LLM] ⚠️ JSON parse error: {parse_error}")
-                self._capture_debug(f"[LLM] ⚠️ Match review for '{answer}' in {element}: JSON parse error: {parse_error}")
-                self._capture_debug(f"[LLM] ⚠️ Raw response (first 200 chars): {response[:200]}")
-                # Try to extract JSON from response using a more robust method
-                # Look for JSON object boundaries (start with {, end with })
-                start_idx = response.find('{')
-                if start_idx != -1:
-                    # Try to find matching closing brace by counting braces
-                    brace_count = 0
-                    end_idx = start_idx
-                    for i in range(start_idx, len(response)):
-                        if response[i] == '{':
-                            brace_count += 1
-                        elif response[i] == '}':
-                            brace_count -= 1
-                            if brace_count == 0:
-                                end_idx = i + 1
-                                break
-                    if end_idx > start_idx:
-                        try:
-                            extracted_json = response[start_idx:end_idx]
-                            parsed = json.loads(extracted_json)
-                            parse_error = None
-                            print(f"[LLM] ✅ Successfully extracted and parsed JSON from response")
-                            self._capture_debug(f"[LLM] ✅ Extracted and parsed JSON from response")
-                        except json.JSONDecodeError as e2:
-                            parse_error = str(e2)
-                            parsed = None
-                            print(f"[LLM] ⚠️ Failed to parse extracted JSON: {parse_error}")
-                            self._capture_debug(f"[LLM] ⚠️ Failed to parse extracted JSON: {parse_error}")
-                            self._capture_debug(f"[LLM] ⚠️ Extracted JSON (first 300 chars): {extracted_json[:300]}")
-                    else:
-                        print(f"[LLM] ⚠️ Could not find matching closing brace in JSON")
-                        self._capture_debug(f"[LLM] ⚠️ Could not find matching closing brace in JSON")
-                else:
-                    print(f"[LLM] ⚠️ No opening brace found in response")
-                    self._capture_debug(f"[LLM] ⚠️ No opening brace found in response")
-            
-            if parse_error:
-                self._capture_debug(f"[LLM] ⚠️ Match review for '{answer}' in {element}: Failed to parse JSON. Error: {parse_error}")
-                self._capture_debug(f"[LLM] ⚠️ Full response: {response}")
-            elif parsed is None:
-                self._capture_debug(f"[LLM] ⚠️ Match review for '{answer}' in {element}: No JSON found in response")
-                self._capture_debug(f"[LLM] ⚠️ Response content: {response}")
-            elif not isinstance(parsed, dict):
-                self._capture_debug(f"[LLM] ⚠️ Match review for '{answer}' in {element}: Response is not a JSON object. Type: {type(parsed)}")
-                self._capture_debug(f"[LLM] ⚠️ Response content: {response}")
-            elif isinstance(parsed, dict):
-                llm_returned_keys = list(parsed.keys())
-                expected_keys = list(limited)
-                self._capture_debug(f"[LLM] ✅ Parsed JSON with {len(parsed)} keys")
-                print(f"[LLM] ✅ Parsed JSON with {len(parsed)} keys: {llm_returned_keys}")
-                self._capture_debug(f"[LLM] 🔍 LLM returned keys: {llm_returned_keys[:10]}")
-                self._capture_debug(f"[LLM] 🔍 Expected keys (sample): {expected_keys[:10]}")
-                
-                # Detect wrong format: LLM returned generic keys like "term" instead of actual term names
-                wrong_format_detected = False
-                if len(parsed) == 1 and "term" in parsed:
-                    wrong_format_detected = True
-                    print(f"[LLM] ❌ WRONG FORMAT DETECTED: LLM returned {{\"term\": \"{parsed.get('term')}\"}} instead of {{\"term_name\": score}}")
-                    self._capture_debug(f"[LLM] ❌ WRONG FORMAT: LLM returned generic key 'term' with value '{parsed.get('term')}' instead of term names as keys")
-                    self._capture_debug(f"[LLM] ❌ Expected format: {{\"medical_term_1\": 1.0, \"medical_term_2\": 0.0, \"medical_term_3\": 0.0, ...}}")
-                    self._capture_debug(f"[LLM] ❌ LLM should return ALL terms as keys with numeric scores (0.0-1.0) as values")
-                
-                # Check if any values are strings instead of numbers
-                string_values = [(k, v) for k, v in parsed.items() if isinstance(v, str)]
-                if string_values:
-                    print(f"[LLM] ⚠️ Found {len(string_values)} non-numeric values (should be numbers): {string_values[:3]}")
-                    self._capture_debug(f"[LLM] ⚠️ Found {len(string_values)} keys with string values (should be numeric scores): {string_values[:5]}")
-                
-                # Check how many keys match expected terms
-                matching_keys = [k for k in llm_returned_keys if k in expected_keys or k.lower() in [t.lower() for t in expected_keys]]
-                if len(matching_keys) == 0 and len(llm_returned_keys) > 0:
-                    print(f"[LLM] ⚠️ NO MATCHING KEYS: LLM returned keys {llm_returned_keys} but expected keys like {expected_keys[:3]}")
-                    wrong_format_detected = True
-                
-                for key, value in parsed.items():
-                    if not isinstance(value, (int, float)):
-                        print(f"[LLM] ⚠️ Skipping '{key}': value is {type(value).__name__} (not numeric): {value}")
-                        self._capture_debug(f"[LLM] ⚠️ Skipping '{key}': value is {type(value).__name__} (not numeric): {value}")
-                        continue
-                    term_key = key.strip()
-                    score = max(0.0, min(1.0, float(value)))
-                    
-                    # Try multiple matching strategies
-                    canonical = None
-                    # Strategy 1: Exact lowercase match
-                    canonical = alias_map.get(term_key.lower())
-                    # Strategy 2: Normalized match (remove quotes, extra spaces)
-                    if not canonical:
-                        normalized_key = term_key.lower().strip().strip('"').strip("'").strip()
-                        canonical = alias_map.get(normalized_key)
-                    # Strategy 3: Try exact match
-                    if not canonical:
-                        canonical = alias_map.get(term_key)
-                    # Strategy 4: Try fuzzy match (find closest term)
-                    if not canonical:
-                        # Find closest term by checking if key contains term or term contains key
-                        for term in limited:
-                            if term_key.lower() in term.lower() or term.lower() in term_key.lower():
-                                canonical = term
-                                self._capture_debug(f"[LLM] ✅ Fuzzy matched '{term_key}' to '{canonical}'")
-                                break
-                    
-                    if canonical:
-                        llm_scores[canonical] = score
-                        self._capture_debug(f"[LLM] ✅ Scored '{canonical}' (from LLM key '{term_key}'): {score:.3f}")
-                    else:
-                        # If no match found, still store it (might be a valid term we didn't send)
-                        llm_scores[term_key] = score
-                        self._capture_debug(f"[LLM] ⚠️ LLM key '{term_key}' not found in expected terms, storing as-is with score {score:.3f}")
-                    had_scores = True
-                
-                if not had_scores:
-                    self._capture_debug(f"[LLM] ⚠️ Match review for '{answer}' in {element}: LLM returned JSON with {len(parsed)} keys but NO valid numeric scores")
-                    self._capture_debug(f"[LLM] ⚠️ JSON keys and sample values: {list(parsed.items())[:5]}")
-                    self._capture_debug(f"[LLM] ⚠️ Expected terms: {limited[:10]}")
-                else:
-                    self._capture_debug(f"[LLM] ✅ Successfully extracted {len(llm_scores)} LLM scores")
-                    # Log which terms were matched
-                    matched_terms = [term for term in limited if term in llm_scores]
-                    unmatched_terms = [term for term in limited if term not in llm_scores]
-                    if matched_terms:
-                        self._capture_debug(f"[LLM] ✅ Matched terms: {matched_terms[:5]}")
-                    if unmatched_terms:
-                        self._capture_debug(f"[LLM] ⚠️ Unmatched terms: {unmatched_terms[:5]}")
-
-        refined_scores = dict(term_scores)
-        review_rows: List[Tuple[str, float, float, float]] = []
-
-        # For ALL elements, use LLM scores exclusively (100% weight)
-        # FAISS is bypassed completely - LLM is the decision maker for all elements
-        use_llm_only = True  # All elements now use LLM exclusively
-        
-        # If LLM didn't return scores, we can't proceed (LLM is required for all elements)
-        if not had_scores:
-            self._capture_debug(f"[LLM] ⚠️ {element}: LLM did not return scores for '{answer}'. Cannot determine matches without LLM decision.")
-            return [], refined_scores, [], {
-                'invoked': True,
-                'requested_terms': limited,
-                'raw_response': response,
-                'had_scores': False,
-            }
-
-        # Build FAISS score dict for review_rows
-        faiss_score_dict = {term: score for term, score in candidate_terms} if candidate_terms else {}
-        
-        for term in limited:
-            # FAISS + LLM approach: FAISS provides candidate selection, LLM makes final decision
-            faiss_score = faiss_score_dict.get(term, 0.0)  # FAISS similarity score
-            llm_score = llm_scores.get(term, llm_scores.get(term.lower()))
-            
-            # LLM makes final decision (uses FAISS candidates but decides based on medical knowledge)
-            if llm_score is not None:
-                refined_scores[term] = llm_score
-                review_rows.append((term, faiss_score, llm_score, llm_score))
-            else:
-                # If LLM didn't score it, set to 0.0 (no match)
-                refined_scores[term] = 0.0
-                review_rows.append((term, faiss_score, 0.0, 0.0))
-
-        # Order terms by refined score for filtering
-        ordered = sorted(limited, key=lambda t: refined_scores.get(t, 0.0), reverse=True)
-        
-        # For ALL elements, use LLM's decision threshold (0.5 or higher means match)
-        blended_threshold = 0.5  # LLM score >= 0.5 means match for all elements
-        
-        filtered = [term for term in ordered if refined_scores.get(term, 0.0) >= blended_threshold]
-
-        if not filtered:
-            best_term = max(ordered, key=lambda t: refined_scores.get(t, 0.0))
-            if refined_scores.get(best_term, 0.0) >= 0.5:
-                filtered = [best_term]
-
-        review_meta = {
-            'invoked': True,
-            'requested_terms': limited,
-            'raw_response': response,
-            'had_scores': had_scores,
-        }
-
-        return filtered, refined_scores, review_rows, review_meta
-
-    def _analyze_location_answer(
-        self,
-        session: "MedicalSession",
-        element: str,
-        answer: str,
-        matches: List[str],
-        term_scores: Dict[str, float],
-    ) -> Dict[str, Any]:
-        guidelines = self._collect_guidelines_for_session(session)
-        total_guidelines = len(guidelines)
-        answer_lower = answer.lower()
-
-        # LLM-only approach: no anatomical filtering needed - LLM handles anatomical reasoning
-        # Step 1: collect terms from all guidelines
-        all_terms_patient: Dict[str, Dict[str, str]] = {}
-        medical_to_patient: Dict[str, str] = {}
-        term_to_guidelines: Dict[str, List[str]] = {}
-        for guideline in guidelines:
-            condition_name = guideline.get('condition', guideline.get('name', 'Unknown'))
-            structured = self._structured_oldcarts(guideline)
-            element_data = structured.get(element, {})
-            includes = element_data.get('includes', []) if isinstance(element_data, dict) else []
-            for item in includes:
-                if isinstance(item, dict):
-                    patient_term = item.get('patient_friendly')
-                    medical_term = item.get('medical')
-                else:
-                    patient_term = item
-                    medical_term = item
-                if not isinstance(patient_term, str):
-                    continue
-                normalized_pf = patient_term.strip()
-                if not normalized_pf:
-                    continue
-                key = normalized_pf.lower()
-                all_terms_patient[key] = {
-                    'patient_friendly': normalized_pf,
-                    'medical': medical_term.strip() if isinstance(medical_term, str) else normalized_pf,
-                }
-                medical_to_patient[all_terms_patient[key]['medical'].lower()] = normalized_pf
-                term_to_guidelines.setdefault(key, []).append(condition_name)
-
-        # Step 3: satisfied terms (patient friendly)
-        semantic_set = {m.lower() for m in matches}
-        satisfied_pf_terms = [all_terms_patient[key]['patient_friendly'] for key in all_terms_patient if key in semantic_set]
-
-        # Map to medical terms and deduplicate
-        satisfied_medical_terms = []
-        seen_medical = set()
-        for key in all_terms_patient:
-            if key in semantic_set:
-                med = all_terms_patient[key]['medical']
-                med_key = med.lower()
-                if med_key not in seen_medical:
-                    seen_medical.add(med_key)
-                    satisfied_medical_terms.append(med)
-
-        priority_conditions = {
-            cond for cond, score in session.condition_scores.items() if score > (0.5 + 1e-6)
-        }
-        if priority_conditions and satisfied_medical_terms:
-            filtered_med_terms: List[str] = []
-            fallback_med_terms: List[str] = []
-            for med in satisfied_medical_terms:
-                patient_term = medical_to_patient.get(med.lower(), med)
-                conds = term_to_guidelines.get(patient_term.lower(), [])
-                if conds and not any(cond in priority_conditions for cond in conds):
-                    fallback_med_terms.append(med)
-                else:
-                    filtered_med_terms.append(med)
-
-            if filtered_med_terms:
-                satisfied_medical_terms = filtered_med_terms
-            elif fallback_med_terms:
-                satisfied_medical_terms = fallback_med_terms
-
-        # Missing medical terms if none satisfied
-        # LLM-only approach: no anatomical filtering needed - LLM already handled anatomical reasoning in scoring
-        missing_medical_terms = []
-        if not satisfied_medical_terms:
-            unsatisfied_keys = [key for key in all_terms_patient if key not in semantic_set]
-            unsatisfied_medical = []
-            seen_unsatisfied = set()
-            for key in unsatisfied_keys:
-                med = all_terms_patient[key]['medical']
-                med_key = med.lower()
-                if med_key not in seen_unsatisfied:
-                    seen_unsatisfied.add(med_key)
-                    unsatisfied_medical.append(med)
-            # Rank by LLM scores
-            scored_missing = []
-            for med in unsatisfied_medical:
-                pf = medical_to_patient.get(med.lower(), med)
-                score = term_scores.get(pf, term_scores.get(pf.lower(), 0.0))
-                scored_missing.append((med, score))
-            scored_missing.sort(key=lambda x: x[1], reverse=True)
-            missing_medical_terms = [med for med, _ in scored_missing[:5]]
-
-        sorted_scores = dict(sorted(term_scores.items(), key=lambda x: x[1], reverse=True))
-        term_breakdown = []
-        # For ALL elements, use LLM threshold (0.5) since LLM scores are used exclusively
-        # FAISS is bypassed completely - LLM is the decision maker for all elements
-        threshold = 0.5  # LLM threshold for all elements
-        boosted_matches: Optional[List[str]] = None
-        boosted_term_scores: Optional[Dict[str, float]] = None
-        for key, meta in sorted(all_terms_patient.items()):
-            patient_term = meta['patient_friendly']
-            score = sorted_scores.get(patient_term, sorted_scores.get(patient_term.lower(), 0.0))
-            term_breakdown.append({
-                'term': patient_term,
-                'score': score,
-                'in_semantic': patient_term.lower() in semantic_set,
-                'term_in_answer': patient_term.lower() in answer_lower,
-                'answer_in_term': answer_lower in patient_term.lower(),
-                'medical': meta['medical'],
-            })
-
-        if element == 'location':
-            # For location, use LLM scores exclusively - check for high confidence (>= 0.95)
-            # or use the LLM threshold (0.5) for matches
-            high_conf_keys: List[str] = []
-            for key, meta in all_terms_patient.items():
-                pf = meta['patient_friendly']
-                score = sorted_scores.get(pf, sorted_scores.get(pf.lower(), 0.0))
-                # For location, high confidence is 0.95 (very confident LLM match)
-                if score >= 0.95:
-                    high_conf_keys.append(key)
-
-            if high_conf_keys:
-                high_conf_matches: List[str] = []
-                high_conf_med_terms: List[str] = []
-                seen_high = set()
-                for key in high_conf_keys:
-                    pf_term = all_terms_patient[key]['patient_friendly']
-                    med_term = all_terms_patient[key]['medical']
-                    high_conf_matches.append(pf_term)
-                    med_lower = med_term.lower()
-                    if med_lower not in seen_high:
-                        seen_high.add(med_lower)
-                        high_conf_med_terms.append(med_term)
-
-                # LLM-only approach: no anatomical filtering needed - LLM already handled anatomical reasoning in scoring
-                if high_conf_med_terms:
-                    satisfied_medical_terms = high_conf_med_terms
-                    matches = high_conf_matches
-                    semantic_set = {term.lower() for term in matches}
-                    for entry in term_breakdown:
-                        entry['in_semantic'] = entry['term'].lower() in semantic_set
-                    boosted_matches = high_conf_matches
-                    boosted_term_scores = {pf: sorted_scores.get(pf, sorted_scores.get(pf.lower(), self.LOCATION_HIGH_CONFIDENCE_THRESHOLD)) for pf in high_conf_matches}
-
-        def _unique(sequence: List[str]) -> List[str]:
-            seen_local: set = set()
-            result: List[str] = []
-            for item in sequence:
-                key_local = item.lower()
-                if key_local not in seen_local:
-                    seen_local.add(key_local)
-                    result.append(item)
-            return result
-
-        def _filter_by_condition_scores(options: List[str]) -> List[str]:
-            """Filter and sort options by condition scores. LLM handles opposite-side detection."""
-            if not options:
-                return options
-            
-            baseline = 0.5 - 1e-6
-            filtered: List[Tuple[str, float]] = []  # (option, max_condition_score)
-            skipped: List[str] = []
-            
-            for opt in options:
-                conds = term_to_guidelines.get(opt.lower(), [])
-                if not conds:
-                    # No condition mapping - include with low priority
-                    filtered.append((opt, 0.3))
-                    continue
-                
-                # Get max condition score for this option
-                max_score = max([session.condition_scores.get(cond, 0.5) for cond in conds], default=0.5)
-                
-                if max_score > baseline:
-                    filtered.append((opt, max_score))
-                else:
-                    skipped.append(opt)
-            
-            if skipped:
-                self._capture_debug(
-                    f"[Clarification] ⚖️ Skipping options: {skipped}"
-                )
-            
-            if filtered:
-                # Sort by condition score (highest first), then alphabetically
-                filtered.sort(key=lambda x: (-x[1], x[0]))
-                result = [opt for opt, _ in filtered]
-                self._capture_debug(f"[Clarification] ✅ Filtered and sorted options: {result}")
-                return result
-            return options
-
-        satisfied_options = _filter_by_condition_scores(
-            _unique([medical_to_patient.get(med.lower(), med) for med in satisfied_medical_terms])
-        )
-
-        missing_options = _filter_by_condition_scores(
-            _unique([medical_to_patient.get(med.lower(), med) for med in missing_medical_terms])
-        )
-
-        all_terms_list = sorted([meta['patient_friendly'] for meta in all_terms_patient.values()])
-        
-        return {
-            'answer': answer,
-            'threshold': threshold,
-            'total_guidelines': total_guidelines,
-            'all_terms': all_terms_list,
-            'active_terms': [],
-            'semantic_matches': matches,
-            'llm_scores': sorted_scores,  # LLM scores for all terms (LLM-only approach)
-            'term_breakdown': term_breakdown,
-            'satisfied_medical_terms': satisfied_medical_terms,
-            'satisfied_options': satisfied_options,
-            'missing_medical_terms': missing_medical_terms,
-            'missing_options': missing_options,
-            'term_to_guidelines': term_to_guidelines,
-            'boosted_matches': boosted_matches,
-            'boosted_term_scores': boosted_term_scores,
-        }
-
-    def _maybe_request_location_clarification(
-        self,
-        session: "MedicalSession",
-        element: str,
-        answer: str,
-        analysis: Dict[str, Any],
-        clarification_just_asked: bool,
-    ) -> Optional[Dict[str, Any]]:
-        if clarification_just_asked:
-            return None
-
-        satisfied = analysis.get('satisfied_medical_terms', [])
-        missing = analysis.get('missing_medical_terms', [])
-
-        if len(satisfied) == 1:
-            self._capture_debug("[Clarification] ✅ Exactly one satisfied term - no clarification needed")
-            session.context['clarifications'].pop(element, None)
-            return None
-
-        if len(satisfied) >= 2:
-            # Check if one match is clearly best (auto-selection logic)
-            # Get LLM scores for satisfied options
-            scores = analysis.get('boosted_term_scores') or analysis.get('llm_scores', {})
-            satisfied_options = analysis.get('satisfied_options', [])
-            
-            # Build list of (option, score) tuples for satisfied options
-            option_scores = []
-            for option in satisfied_options:
-                score = scores.get(option, scores.get(option.lower(), 0.0))
-                option_scores.append((option, score))
-            
-            # Sort by score (highest first)
-            option_scores.sort(key=lambda x: x[1], reverse=True)
-            
-            if len(option_scores) >= 2:
-                best_option, best_score = option_scores[0]
-                next_best_score = option_scores[1][1]
-                
-                # Check if best match is clearly best
-                best_is_clear = (
-                    best_score >= self.AUTO_SELECT_BEST_THRESHOLD and
-                    (
-                        (best_score - next_best_score) >= self.AUTO_SELECT_MARGIN or
-                        next_best_score < self.AUTO_SELECT_NEXT_MAX
-                    )
-                )
-                
-                if best_is_clear:
-                    self._capture_debug(
-                        f"[Clarification] ✅ Auto-selecting best match: '{best_option}' "
-                        f"(score={best_score:.3f}, next_best={next_best_score:.3f})"
-                    )
-                    # Find medical term for best option using term_breakdown
-                    # Then verify it's in satisfied_medical_terms
-                    term_breakdown = analysis.get('term_breakdown', [])
-                    satisfied_set = {med.lower() for med in satisfied}
-                    best_medical = None
-                    
-                    for entry in term_breakdown:
-                        patient_term = entry.get('term', '').lower()
-                        medical_term = entry.get('medical', '')
-                        if patient_term == best_option.lower() and medical_term.lower() in satisfied_set:
-                            best_medical = medical_term
-                            break
-                    
-                    if not best_medical:
-                        # Fallback: find first satisfied medical term that might correspond
-                        # by checking if any satisfied option matches best_option
-                        for med in satisfied:
-                            # Try to find corresponding patient-friendly term
-                            for entry in term_breakdown:
-                                if entry.get('medical', '').lower() == med.lower():
-                                    if entry.get('term', '').lower() == best_option.lower():
-                                        best_medical = med
-                                        break
-                            if best_medical:
-                                break
-                    
-                    if best_medical:
-                        # Update analysis to only include best match
-                        analysis['satisfied_medical_terms'] = [best_medical]
-                        analysis['satisfied_options'] = [best_option]
-                        self._capture_debug(f"[Clarification] ✅ Auto-selected: '{best_option}' → {best_medical}")
-                    else:
-                        # Last resort: use first satisfied medical term
-                        if satisfied:
-                            analysis['satisfied_medical_terms'] = [satisfied[0]]
-                            analysis['satisfied_options'] = [best_option]
-                            self._capture_debug(f"[Clarification] ✅ Auto-selected (fallback): '{best_option}' → {satisfied[0]}")
-                    
-                    session.context['clarifications'].pop(element, None)
-                    return None
-            
-            # If no clear winner, trigger clarification
-            self._capture_debug(f"[Clarification] 🔍 {len(satisfied)} satisfied medical terms - generating clarification with satisfied context")
-            options = satisfied_options[:5]
-            question = self._build_clarifying_question(element, answer, options, satisfied_context=True)
-            clar_data = {
-                'section': 'hpi',
-                'field': element,
-                'prompt': question,
-                'guidance': 'clarification',
-                'clarification': True,
-                'mode': 'satisfied',
-                'options': options,
-            }
-            session.context['clarifications'][element] = clar_data
-            return clar_data
-
-        if not satisfied and missing:
-            self._capture_debug("[Clarification] 🔍 No satisfied terms - generating clarification with missing terms")
-            options = analysis.get('missing_options', [])[:5]
-            question = self._build_clarifying_question(element, answer, options, satisfied_context=False)
-            clar_data = {
-                'section': 'hpi',
-                'field': element,
-                'prompt': question,
-                'guidance': 'clarification',
-                'clarification': True,
-                'mode': 'missing',
-                'options': options,
-            }
-            session.context['clarifications'][element] = clar_data
-            return clar_data
-
-        session.context['clarifications'].pop(element, None)
-        return None
-
-    def _build_clarifying_question(
-        self,
-        element: str,
-        answer: str,
-        options: List[str],
-        satisfied_context: bool,
-    ) -> str:
-        if not options:
-            return "Could you describe the location a bit more specifically?"
-
-        friendly_options = ', '.join(options)
-        if satisfied_context:
-            return (
-                f"I heard a few possible locations based on what you said ({friendly_options}). "
-                f"Which one matches your {element} the best?"
-            )
-        return (
-            f"I'm still not sure exactly where you feel it. "
-            f"Would you say it's more like {friendly_options}?"
-        )
-
-    def _log_location_analysis(self, session: "MedicalSession", analysis: Dict[str, Any]) -> None:
-        answer = analysis['answer']
-        matches = analysis.get('semantic_matches', [])
-        term_breakdown = analysis.get('term_breakdown', [])
-        threshold = analysis.get('threshold', 0.6)
-        llm_scores = analysis.get('llm_scores', {})  # LLM scores for all terms (LLM-only approach)
-
-        self._capture_debug(
-            f"[Location Analysis] 📍 Checking satisfaction against ALL {analysis.get('total_guidelines', 0)} guidelines (active + reserve)"
-        )
-        self._capture_debug(
-            f"[Location Analysis] 📍 All includes terms from {len(analysis.get('all_terms', []))} total guidelines: {analysis.get('all_terms', [])}"
-        )
-        self._capture_debug(f"[Location Analysis] 📝 Patient answer: '{answer}'")
-        self._capture_debug(f"[LLM] 🔍 LLM scores for '{answer}' in location: {llm_scores}")
-        self._capture_debug(f"[Location Analysis] 🔍 LLM found {len(matches)} matches above threshold ({threshold}): {matches}")
-        self._capture_debug(f"[Location Analysis]   - semantic_matches_set ({len(matches)} terms): {matches}")
-        self._capture_debug(f"[Location Analysis]   - LLM scores ({len(llm_scores)} terms): {llm_scores}")
-
-        normalized_answer = answer.lower().strip()
-        semantic_set = {m.lower() for m in matches}
-
-        checked_terms: List[str] = []
-        satisfied_terms_log: List[str] = []
-        unsatisfied_terms_log: List[str] = []
-
-        for entry in term_breakdown:
-            term = entry['term']
-            score = entry['score']
-            in_semantic = entry['in_semantic']
-            term_lower = term.lower()
-
-            self._capture_debug(f"[Location Analysis] 🔍 Checking term: '{term}' (patient answer: '{answer}')")
-            self._capture_debug(
-                f"[Location Analysis]   LLM check: in semantic_matches_set={term_lower in semantic_set}, score={score}"
-            )
-            self._capture_debug(
-                f"[Location Analysis]   LLM score for '{term}': {score:.3f} (threshold={threshold})"
-            )
-            if score < threshold:
-                self._capture_debug(
-                    f"[Location Analysis]   ⚠️ LLM score {score:.3f} < {threshold} threshold, should NOT be in semantic_matches_set"
-                )
-            if in_semantic:
-                self._capture_debug(f"[Location Analysis]   ✅ '{term}' satisfied")
-                satisfied_terms_log.append(term)
-            else:
-                self._capture_debug(f"[Location Analysis]   ❌ '{term}' not satisfied")
-                unsatisfied_terms_log.append(term)
-            checked_terms.append(term)
-
-        self._capture_debug(
-            f"[Location Analysis] 📋 Terms checked ({len(checked_terms)}): {checked_terms}"
-        )
-        if satisfied_terms_log:
-            self._capture_debug(
-                f"[Location Analysis] ✅ Satisfied terms: {satisfied_terms_log}"
-            )
-        if unsatisfied_terms_log:
-            self._capture_debug(
-                f"[Location Analysis] ❌ Unsatisfied terms: {unsatisfied_terms_log}"
-            )
-
     def _match_chief_complaint_to_category_llm(self, chief_complaint: str) -> List[str]:
-        """Match chief complaint to medical categories using FAISS + LLM decision.
+        """Match chief complaint to medical categories using LLM only."""
+        if not self.llm_chat_fn:
+            # Fallback: return all categories
+            return list(self.CATEGORY_TO_SYSTEM.keys())
         
-        Flow:
-        1. FAISS finds candidate triggers (semantic similarity)
-        2. LLM evaluates candidates and decides best matches based on medical knowledge
-        """
-        if not self.chief_complaint_triggers_data:
-            self._capture_debug("[Engine] ❌ No chief complaint triggers available - cannot match categories")
-            print("[Engine] ❌ No chief complaint triggers available - cannot match categories")
-            return []
-
-        # Step 1: Use FAISS to find candidate triggers
-        candidate_triggers = []
-        if self.chief_complaint_index and self.embedding_model and FAISS_AVAILABLE:
-            try:
-                query_embedding = self.embedding_model.encode([chief_complaint.lower().strip()])[0]
-                query_embedding = np.array([query_embedding], dtype='float32')
-                faiss.normalize_L2(query_embedding)
-                
-                # Search for top 20 candidates
-                k = min(20, len(self.chief_complaint_triggers_list))
-                similarities, indices = self.chief_complaint_index.search(query_embedding, k)
-                
-                # Filter by threshold
-                for sim, idx in zip(similarities[0], indices[0]):
-                    if sim >= self.FAISS_CHIEF_COMPLAINT_THRESHOLD:
-                        trigger = self.chief_complaint_triggers_list[idx]
-                        candidate_triggers.append((trigger, float(sim)))
-                
-                candidate_triggers.sort(key=lambda x: x[1], reverse=True)
-                self._capture_debug(f"[FAISS] 🔍 Found {len(candidate_triggers)} candidate triggers for '{chief_complaint}'")
-                print(f"[FAISS] 🔍 Found {len(candidate_triggers)} candidate triggers (threshold: {self.FAISS_CHIEF_COMPLAINT_THRESHOLD})")
-            except Exception as e:
-                self._capture_debug(f"[FAISS] ⚠️ Error in FAISS search: {e}")
-                print(f"[FAISS] ⚠️ Error in FAISS search: {e}")
+        # Get available categories from guidelines
+        available_categories = set()
+        for guideline in self.all_guidelines.values():
+            organ_system = guideline.get('organ_system', '')
+            for cat, system in self.CATEGORY_TO_SYSTEM.items():
+                if system.upper() == organ_system.upper():
+                    available_categories.add(cat)
         
-        # If no FAISS candidates, fall back to all triggers
-        if not candidate_triggers:
-            self._capture_debug("[FAISS] ⚠️ No FAISS candidates, using all triggers for LLM evaluation")
-            for trigger_data in self.chief_complaint_triggers_data:
-                trigger = trigger_data.get('trigger', '')
-                if trigger:
-                    candidate_triggers.append((trigger, 0.5))  # Default score
+        if not available_categories:
+            available_categories = set(self.CATEGORY_TO_SYSTEM.keys())
         
-        # Group candidate triggers by condition
-        triggers_by_condition: Dict[str, List[Tuple[str, float]]] = {}  # condition -> list of (trigger, score)
-        condition_to_category: Dict[str, str] = {}  # condition -> category
-        all_categories = set()
+        available_cats_str = ', '.join(sorted(available_categories))
         
-        for trigger, faiss_score in candidate_triggers:
-            # Find which conditions use this trigger
-            conditions = self.chief_complaint_trigger_to_condition.get(trigger, [])
-            for condition in conditions:
-                # Find category for this condition
-                for trigger_data in self.chief_complaint_triggers_data:
-                    if trigger_data.get('condition') == condition:
-                        category = trigger_data.get('category', 'gastrointestinal')
-                        condition_to_category[condition] = category
-                        all_categories.add(category)
-                        break
-                
-                if condition not in triggers_by_condition:
-                    triggers_by_condition[condition] = []
-                triggers_by_condition[condition].append((trigger, faiss_score))
-        
-        available_categories = sorted(list(all_categories))
-        
-        # Step 2: LLM evaluates candidates and makes final decision
-        # Build prompt with FAISS candidates
-        condition_trigger_list = []
-        for condition in sorted(triggers_by_condition.keys()):
-            triggers_with_scores = triggers_by_condition[condition]
-            triggers_str = ', '.join([f"{t} (FAISS: {s:.2f})" for t, s in triggers_with_scores])
-            category = condition_to_category.get(condition, 'unknown')
-            condition_trigger_list.append(f"{condition} ({category}): {triggers_str}")
-        
-        triggers_text = '\n'.join(condition_trigger_list)
-        
-        available_cats_str = ', '.join(available_categories)
         system_prompt = (
-            "You are a medical expert. Evaluate FAISS semantic matches and decide which conditions are medically relevant. "
-            "Consider: semantic similarity, anatomical location, and medical knowledge. "
-            f"Return JSON: {{\"categories\": {{\"category_name\": score}}, \"conditions\": {{\"condition_name\": score}}}}. "
-            f"Categories must be one of: {available_cats_str}. "
-            "Scores must be between 0.0 and 1.0 (1.0 = highly relevant, 0.0 = not relevant). "
-            "Include all categories with scores (0.0 if no match). Only include conditions with score > 0.0. "
-            "Output only JSON, no other text."
+            "You are a medical expert. Based on the chief complaint, identify which medical categories are relevant. "
+            f"Categories: {available_cats_str}. "
+            "Return JSON: {\"categories\": [\"category1\", \"category2\", ...]}. "
+            "Include all relevant categories. Output only JSON, no other text."
         )
         
-        user_prompt = (
-            f"Chief complaint: '{chief_complaint}'\n\n"
-            f"FAISS found these candidate matches:\n{triggers_text}\n\n"
-            f"Evaluate these candidates based on your medical knowledge. Consider semantic meaning, anatomical location, "
-            f"and clinical relevance. Return JSON with final scores."
-        )
+        user_prompt = f"Chief complaint: '{chief_complaint}'\n\nIdentify relevant medical categories."
         
         try:
-            self._capture_debug(f"[Engine] 🔍 FAISS + LLM matching chief complaint '{chief_complaint}' to categories")
-            print(f"[Engine] 🔍 FAISS found {len(candidate_triggers)} candidates, LLM evaluating {len(triggers_by_condition)} conditions")
-            
             response = self.llm_chat_fn(
                 [
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt},
                 ],
-                max_tokens=500,
+                max_tokens=200,
                 temperature=0.0,
             )
             
             if not response:
-                self._capture_debug("[Engine] ❌ LLM returned empty response for chief complaint matching")
-                print("[Engine] ❌ LLM returned EMPTY response for chief complaint matching")
-                return []
-
-            # Clean response: Remove markdown code blocks if present
-            cleaned_response = response.strip()
-            if cleaned_response.startswith('```'):
-                first_newline = cleaned_response.find('\n')
+                return list(available_categories)[:1] if available_categories else ['gastrointestinal']
+            
+            # Parse JSON
+            cleaned = response.strip()
+            if cleaned.startswith('```'):
+                first_newline = cleaned.find('\n')
                 if first_newline != -1:
-                    cleaned_response = cleaned_response[first_newline+1:]
-                    if cleaned_response.endswith('```'):
-                        cleaned_response = cleaned_response[:-3].strip()
-                    elif '```' in cleaned_response:
-                        last_idx = cleaned_response.rfind('```')
-                        cleaned_response = cleaned_response[:last_idx].strip()
-            response = cleaned_response
-
-            # Debug: Log raw response
-            print(f"[Engine] ✅ LLM returned response (length: {len(response) if response else 0})")
-            if response:
-                print(f"[Engine] 🔍 Raw response (first 300 chars): {response[:300]}")
-                self._capture_debug(f"[Engine] 🔍 Raw response (first 500 chars): {response[:500]}")
-
-            # Parse JSON response with robust extraction
-            parsed = None
-            parse_error = None
+                    cleaned = cleaned[first_newline+1:]
+                    if cleaned.endswith('```'):
+                        cleaned = cleaned[:-3].strip()
+            
             try:
-                parsed = json.loads(response)
-                print(f"[Engine] ✅ Successfully parsed JSON directly")
-                self._capture_debug(f"[Engine] ✅ Successfully parsed JSON with {len(parsed) if isinstance(parsed, dict) else 'unknown'} keys")
-            except json.JSONDecodeError as e:
-                parse_error = str(e)
-                print(f"[Engine] ⚠️ JSON parse error: {parse_error}")
-                self._capture_debug(f"[Engine] ⚠️ JSON parse error: {parse_error}")
-                
-                # Try to extract JSON using brace counting
-                start_idx = response.find('{')
-                if start_idx != -1:
-                    brace_count = 0
-                    end_idx = start_idx
-                    for i in range(start_idx, len(response)):
-                        if response[i] == '{':
-                            brace_count += 1
-                        elif response[i] == '}':
-                            brace_count -= 1
-                            if brace_count == 0:
-                                end_idx = i + 1
-                                break
-                    if end_idx > start_idx:
-                        try:
-                            extracted_json = response[start_idx:end_idx]
-                            extracted_json = re.sub(r',(\s*[}\]])', r'\1', extracted_json)
-                            extracted_json = re.sub(r'//.*?$', '', extracted_json, flags=re.MULTILINE)
-                            extracted_json = re.sub(r'/\*.*?\*/', '', extracted_json, flags=re.DOTALL)
-                            parsed = json.loads(extracted_json)
-                            parse_error = None
-                            print(f"[Engine] ✅ Successfully extracted and parsed JSON from response")
-                            self._capture_debug(f"[Engine] ✅ Extracted and parsed JSON from response")
-                        except json.JSONDecodeError as e2:
-                            parse_error = str(e2)
-                            parsed = None
-                            print(f"[Engine] ⚠️ Failed to parse extracted JSON: {parse_error}")
-                            self._capture_debug(f"[Engine] ⚠️ Failed to parse extracted JSON: {parse_error}")
+                parsed = json.loads(cleaned)
+                if isinstance(parsed, dict) and 'categories' in parsed:
+                    categories = parsed['categories']
+                    if isinstance(categories, list):
+                        # Filter to valid categories
+                        valid_categories = [cat for cat in categories if cat in available_categories]
+                        if valid_categories:
+                            # Store condition seeds for matched categories
+                            self._build_condition_seeds_from_categories(valid_categories, chief_complaint)
+                            return valid_categories
+            except json.JSONDecodeError:
+                pass
             
-            if parse_error or parsed is None:
-                self._capture_debug(f"[Engine] ❌ Failed to parse LLM response for chief complaint matching")
-                self._capture_debug(f"[Engine] ❌ Parse error: {parse_error}")
-                self._capture_debug(f"[Engine] ❌ Full response: {response}")
-                print(f"[Engine] ❌ Failed to parse LLM response. Error: {parse_error}")
-                print(f"[Engine] ❌ Full response: {response}")
-                return []
+            # Fallback: return first available category
+            return list(available_categories)[:1] if available_categories else ['gastrointestinal']
             
-            if not isinstance(parsed, dict):
-                self._capture_debug(f"[Engine] ❌ Parsed JSON is not a dictionary. Type: {type(parsed)}")
-                print(f"[Engine] ❌ Parsed JSON is not a dictionary. Type: {type(parsed)}")
-                return []
-
-            # Extract category scores and condition scores
-            category_scores: Dict[str, float] = {}
-            condition_scores: Dict[str, float] = {}
-            
-            # Handle format: {"categories": {...}, "conditions": {...}}
-            if 'categories' in parsed:
-                categories_dict = parsed.get('categories', {})
-                if isinstance(categories_dict, dict):
-                    for category, score in categories_dict.items():
-                        # Handle case where LLM puts condition names in categories field
-                        # Extract category from condition name if it has "(category)" suffix
-                        actual_category = None
-                        if category in available_categories:
-                            actual_category = category
-                        else:
-                            # Try to extract category from condition name like "Condition (category)"
-                            for cat in available_categories:
-                                if f"({cat})" in category.lower() or category.lower().endswith(f"({cat})"):
-                                    actual_category = cat
-                                    break
-                        
-                        if actual_category and isinstance(score, (int, float)):
-                            clamped_score = max(0.0, min(1.0, float(score)))
-                            # Use max if category already has a score
-                            if actual_category in category_scores:
-                                category_scores[actual_category] = max(category_scores[actual_category], clamped_score)
-                            else:
-                                category_scores[actual_category] = clamped_score
-                # Initialize all categories with 0.0 if not present
-                for category in available_categories:
-                    if category not in category_scores:
-                        category_scores[category] = 0.0
-            else:
-                # Fallback to old format: {category: score, "conditions": {...}}
-                for key, value in parsed.items():
-                    if key == 'conditions':
-                        continue
-                    if key in available_categories and isinstance(value, (int, float)):
-                        category_scores[key] = max(0.0, min(1.0, float(value)))
-                for category in available_categories:
-                    if category not in category_scores:
-                        category_scores[category] = 0.0
-            
-            # Get conditions - trust LLM's medical knowledge
-            conditions_dict = parsed.get('conditions', {})
-            if isinstance(conditions_dict, dict):
-                for condition, score in conditions_dict.items():
-                    if isinstance(score, (int, float)):
-                        clamped_score = max(0.0, min(1.0, float(score)))
-                        if clamped_score > 0.0:
-                            condition_scores[condition] = clamped_score
-            
-            # Trust LLM's medical knowledge - no hardcoded validation
-            # LLM uses its medical expertise to validate matches
-            self._capture_debug(f"[Engine] 🔍 LLM category scores: {category_scores}")
-            if condition_scores:
-                sorted_conditions = sorted(condition_scores.items(), key=lambda x: x[1], reverse=True)
-                self._capture_debug(f"[Engine] 🔍 LLM condition scores ({len(condition_scores)}): {dict(sorted_conditions)}")
-                print(f"[Engine] 🔍 LLM returned {len(condition_scores)} condition scores (using medical knowledge):")
-                for cond, score in sorted_conditions[:10]:
-                    print(f"[Engine]   - {cond}: {score:.3f}")
-            else:
-                self._capture_debug(f"[Engine] ⚠️ No condition scores returned by LLM")
-                print(f"[Engine] ⚠️ No condition scores returned by LLM")
-            
-            # Recompute category scores from condition scores if needed
-            if not any(score > 0.0 for score in category_scores.values()) and condition_scores:
-                self._capture_debug(f"[Engine] ⚠️ No category scores provided, computing from condition scores")
-                category_scores = {}
-                for category in available_categories:
-                    category_scores[category] = 0.0
-                for condition, score in condition_scores.items():
-                    # Try to find category for this condition
-                    condition_category = condition_to_category.get(condition)
-                    if not condition_category:
-                        # Extract category from condition name if it has "(category)" suffix
-                        for cat in available_categories:
-                            if f"({cat})" in condition.lower() or condition.lower().endswith(f"({cat})"):
-                                condition_category = cat
-                                break
-                    
-                    if condition_category and condition_category in category_scores:
-                        category_scores[condition_category] = max(category_scores[condition_category], score)
-            
-            # Filter categories by threshold
-            matched_categories = [
-                cat for cat, score in category_scores.items()
-                if score >= self.CHIEF_COMPLAINT_LLM_THRESHOLD
-            ]
-
-            if not matched_categories:
-                if category_scores:
-                    sorted_cats = sorted(category_scores.items(), key=lambda x: x[1], reverse=True)
-                    top_cat, top_score = sorted_cats[0]
-                    self._capture_debug(f"[Engine] ❌ No categories above threshold ({self.CHIEF_COMPLAINT_LLM_THRESHOLD:.3f})")
-                    self._capture_debug(f"[Engine] ❌ Top category score: {top_cat} = {top_score:.3f}")
-                    return []
-                else:
-                    self._capture_debug(f"[Engine] ❌ No category scores found")
-                    return []
-
-            # Store condition seeds
-            self._chief_complaint_condition_seed = condition_scores
-            if condition_scores:
-                sorted_conditions = sorted(condition_scores.items(), key=lambda x: x[1], reverse=True)
-                top_preview = ', '.join(
-                    f"{name}: {score:.3f}" for name, score in sorted_conditions[:5]
-                )
-                self._capture_debug(f"[Engine] 📌 Chief complaint condition seeds: {top_preview}")
-                print(f"[Engine] 📌 Chief complaint condition seeds: {top_preview}")
-
-            if len(matched_categories) == 1:
-                self._capture_debug(f"[Engine] 🎯 Category matched: {matched_categories[0]} (score: {category_scores.get(matched_categories[0], 0.0):.3f})")
-            else:
-                scores = ', '.join(f"{cat} ({category_scores.get(cat, 0.0):.3f})" for cat in matched_categories)
-                self._capture_debug(f"[Engine] 🎯 Multiple categories matched: {scores}")
-
-            return matched_categories
-
         except Exception as e:
-            self._capture_debug(f"[Engine] ❌ Error in LLM chief complaint matching: {e}")
-            import traceback
-            error_traceback = traceback.format_exc()
-            self._capture_debug(f"[Engine] ❌ Traceback: {error_traceback}")
-            print(f"[Engine] ❌ Error in LLM chief complaint matching: {e}")
-            print(f"[Engine] ❌ Traceback: {error_traceback}")
-            return []
- 
+            self._capture_debug(f"[Engine] ❌ Error in LLM category matching: {e}")
+            return list(available_categories)[:1] if available_categories else ['gastrointestinal']
+
+    def _build_condition_seeds_from_categories(self, categories: List[str], chief_complaint: str) -> None:
+        """Build condition seed scores from categories and chief complaint.
+        
+        NOTE: This is kept for reference but not used for aggressive seeding.
+        All conditions now start at balanced baseline (0.5) to allow LLM to narrow down.
+        """
+        # Simplified: Don't aggressively seed conditions
+        # Let LLM evaluate and narrow down based on answers
+        self._chief_complaint_condition_seed = {}
+
     # ----------- Guidance builders -------------------------------------------
 
     def _resolve_guidelines_dir(self) -> Optional[Path]:
@@ -2129,12 +721,6 @@ class AdvancedMedicalNavigator:
                 return path
         return None
 
-    def _get_enabled_categories(self) -> List[str]:
-        enabled_env = os.environ.get('ENABLED_MEDICAL_CATEGORIES', '').strip()
-        if not enabled_env:
-            return []
-        return [cat.strip().upper() for cat in enabled_env.split(',') if cat.strip()]
-
     def _load_guidelines(self) -> None:
         if not self.guidelines_dir or not self.guidelines_dir.exists():
             msg = f"[Navigator] ⚠️ Guidelines directory not found: {self.guidelines_dir}"
@@ -2144,14 +730,10 @@ class AdvancedMedicalNavigator:
         
         print(f"[Navigator] 📚 Loading guidelines from {self.guidelines_dir}...")
         loaded = 0
-        skipped = 0
 
         for json_file in sorted(self.guidelines_dir.glob("**/*.json")):
             try:
                 organ_system = json_file.parent.name
-                if self.enabled_categories and organ_system.upper() not in self.enabled_categories:
-                    skipped += 1
-                    continue
                 with json_file.open('r') as f:
                     guideline = json.load(f)
                 condition_name = guideline.get('condition', json_file.stem)
@@ -2163,187 +745,14 @@ class AdvancedMedicalNavigator:
                 print(msg)
                 self._capture_debug(msg)
 
-        msg = f"[Navigator] 📚 Loaded {loaded} guidelines ({skipped} skipped)"
+        msg = f"[Navigator] 📚 Loaded {loaded} guidelines"
         print(msg)
         self._capture_debug(msg)
 
     def _build_chief_complaint_triggers(self) -> None:
-        """Build chief complaint triggers list for FAISS + LLM matching."""
-        self.chief_complaint_triggers_data = []
-
-        for name, guideline in self.all_guidelines.items():
-            trigger_list = guideline.get('chief_complaint_triggers', [])
-            category = self._get_guideline_category(guideline)
-            for trigger in trigger_list:
-                if not trigger:
-                    continue
-                self.chief_complaint_triggers_data.append({
-                    'trigger': trigger,
-                    'category': category,
-                    'condition': name,
-                })
-
-        if not self.chief_complaint_triggers_data:
-            msg = "[Navigator] ⚠️ No chief complaint triggers found in guidelines"
-            print(msg)
-            self._capture_debug(msg)
-        else:
-            msg = f"[Navigator] ✅ Collected {len(self.chief_complaint_triggers_data)} chief complaint triggers for FAISS + LLM matching"
-            print(msg)
-            self._capture_debug(msg)
-    
-    def _build_faiss_indexes(self) -> None:
-        """Build FAISS indexes for chief complaints and OLD CARTS elements."""
-        if not self.embedding_model or not FAISS_AVAILABLE:
-            msg = "[FAISS] ⚠️ Cannot build FAISS indexes: embedding_model or FAISS not available"
-            print(msg)
-            self._capture_debug(msg)
-            if not FAISS_AVAILABLE:
-                print("[FAISS] ⚠️ FAISS library not installed")
-            if not self.embedding_model:
-                print("[FAISS] ⚠️ Embedding model not provided")
-            return
-        
-        msg = "[FAISS] 🔨 Building FAISS indexes..."
-        print(msg)
-        self._capture_debug(msg)
-        
-        # Build chief complaint index
-        self._build_chief_complaint_faiss_index()
-        
-        # Build OLD CARTS element indexes
-        self._build_oldcarts_faiss_indexes()
-        
-        # Print summary
-        cc_count = len(self.chief_complaint_triggers_list) if self.chief_complaint_index else 0
-        oldcarts_count = len(self.oldcarts_indexes)
-        msg = f"[FAISS] ✅ FAISS indexes built: {cc_count} chief complaint triggers, {oldcarts_count} OLD CARTS elements"
-        print(msg)
-        self._capture_debug(msg)
-    
-    def _build_chief_complaint_faiss_index(self) -> None:
-        """Build FAISS index for chief complaint triggers."""
-        if not self.chief_complaint_triggers_data:
-            msg = "[FAISS] ⚠️ No chief complaint triggers data available"
-            print(msg)
-            self._capture_debug(msg)
-            return
-        
-        triggers = []
-        trigger_to_condition = {}
-        
-        for trigger_data in self.chief_complaint_triggers_data:
-            trigger = trigger_data['trigger']
-            condition = trigger_data['condition']
-            if trigger not in triggers:
-                triggers.append(trigger)
-            if trigger not in trigger_to_condition:
-                trigger_to_condition[trigger] = []
-            trigger_to_condition[trigger].append(condition)
-        
-        if not triggers:
-            msg = "[FAISS] ⚠️ No unique triggers found after processing"
-            print(msg)
-            self._capture_debug(msg)
-            return
-        
-        try:
-            print(f"[FAISS] 📊 Encoding {len(triggers)} chief complaint triggers...")
-            embeddings = self.embedding_model.encode(triggers)
-            embeddings = np.array(embeddings, dtype='float32')
-            dimension = embeddings.shape[1]
-            
-            # Normalize for cosine similarity
-            faiss.normalize_L2(embeddings)
-            
-            index = faiss.IndexFlatIP(dimension)
-            index.add(embeddings)
-            
-            self.chief_complaint_index = index
-            self.chief_complaint_triggers_list = triggers
-            self.chief_complaint_trigger_to_condition = trigger_to_condition
-            
-            msg = f"[FAISS] ✅ Built chief complaint index: {len(triggers)} triggers, dimension={dimension}"
-            print(msg)
-            self._capture_debug(msg)
-        except Exception as e:
-            msg = f"[FAISS] ⚠️ Error building chief complaint index: {e}"
-            print(msg)
-            self._capture_debug(msg)
-            import traceback
-            print(f"[FAISS] Traceback: {traceback.format_exc()}")
-    
-    def _build_oldcarts_faiss_indexes(self) -> None:
-        """Build FAISS indexes for each OLD CARTS element."""
-        elements = ['onset', 'location', 'duration', 'character', 'aggravating', 
-                    'relieving', 'timing', 'severity', 'frequency', 'radiation']
-        
-        total_terms = 0
-        built_count = 0
-        
-        for element in elements:
-            terms = []
-            term_to_conditions = {}
-            
-            # Collect terms from all guidelines
-            for name, guideline in self.all_guidelines.items():
-                structured = self._structured_oldcarts(guideline)
-                element_data = structured.get(element, {})
-                includes = element_data.get('includes', []) if isinstance(element_data, dict) else []
-                
-                for item in includes:
-                    if isinstance(item, dict):
-                        patient_term = item.get('patient_friendly') or item.get('medical', '')
-                    else:
-                        patient_term = item
-                    
-                    if not isinstance(patient_term, str) or not patient_term.strip():
-                        continue
-                    
-                    term = patient_term.strip()
-                    if term not in terms:
-                        terms.append(term)
-                    if term not in term_to_conditions:
-                        term_to_conditions[term] = []
-                    term_to_conditions[term].append(name)
-            
-            if not terms:
-                continue
-            
-            try:
-                print(f"[FAISS] 📊 Encoding {len(terms)} terms for {element}...")
-                embeddings = self.embedding_model.encode(terms)
-                embeddings = np.array(embeddings, dtype='float32')
-                dimension = embeddings.shape[1]
-                
-                # Normalize for cosine similarity
-                faiss.normalize_L2(embeddings)
-                
-                index = faiss.IndexFlatIP(dimension)
-                index.add(embeddings)
-                
-                self.oldcarts_indexes[element] = {
-                    'index': index,
-                    'terms': terms,
-                    'term_to_conditions': term_to_conditions
-                }
-                
-                total_terms += len(terms)
-                built_count += 1
-                msg = f"[FAISS] ✅ Built {element} index: {len(terms)} terms"
-                print(msg)
-                self._capture_debug(msg)
-            except Exception as e:
-                msg = f"[FAISS] ⚠️ Error building {element} index: {e}"
-                print(msg)
-                self._capture_debug(msg)
-                import traceback
-                print(f"[FAISS] Traceback: {traceback.format_exc()}")
-        
-        if built_count > 0:
-            msg = f"[FAISS] ✅ Built {built_count} OLD CARTS element indexes with {total_terms} total terms"
-            print(msg)
-            self._capture_debug(msg)
+        """Build chief complaint triggers list for reference."""
+        # Simplified - just for reference, LLM handles matching
+        pass
 
     def _get_guideline_category(self, guideline: Dict) -> str:
         organ_system = guideline.get('organ_system', '')
@@ -2366,137 +775,6 @@ class AdvancedMedicalNavigator:
             return self.all_guidelines
         return filtered
 
-    def _map_llm_condition_names_to_guidelines(
-        self, 
-        llm_condition_scores: Dict[str, float],
-        categories: List[str]
-    ) -> Dict[str, float]:
-        """Map LLM condition names to actual guideline condition names.
-        
-        LLM may return short names, abbreviations, or symptoms (e.g., "GERD", "MI", "Chest Pain", "Angina")
-        that need to be mapped to actual guideline condition names across all medical categories.
-        
-        Examples:
-        - "GERD" → "gastroesophageal reflux disease (GERD) (Gastroesophageal Reflux Disease)"
-        - "MI" → "myocardial infarction (MI) (Myocardial Infarction)"
-        - "Chest Pain" → conditions with "chest pain" as a trigger (e.g., MI, Angina, GERD)
-        - "Angina" → "angina pectoris (Angina) (Angina Pectoris)"
-        
-        Works universally for all medical categories: gastrointestinal, cardiovascular, respiratory, etc.
-        """
-        if not llm_condition_scores or not categories:
-            self._capture_debug(f"[Engine] ⚠️ Mapping skipped: llm_scores={bool(llm_condition_scores)}, categories={categories}")
-            return {}
-        
-        self._capture_debug(f"[Engine] 🔍 Mapping LLM condition names to guidelines: {list(llm_condition_scores.keys())} in categories: {categories}")
-        print(f"[Engine] 🔍 Mapping LLM condition names: {list(llm_condition_scores.keys())} (scores: {list(llm_condition_scores.values())})")
-        print(f"[Engine] 🔍 Categories to map: {categories}")
-        
-        mapped_scores: Dict[str, float] = {}
-        llm_names_lower = {name.lower(): (name, score) for name, score in llm_condition_scores.items()}
-        
-        # Get all guidelines for the matched categories
-        for category in categories:
-            guidelines = self._get_guidelines_by_category(category)
-            self._capture_debug(f"[Engine] 🔍 Checking {len(guidelines)} guidelines in category '{category}'")
-            for guideline_name, guideline in guidelines.items():
-                condition_name = guideline.get('condition', guideline_name)
-                if not condition_name:
-                    continue
-                
-                condition_lower = condition_name.lower()
-                
-                # Check each LLM condition name
-                for llm_name_lower, (llm_name_original, score) in llm_names_lower.items():
-                    match_type = None
-                    match_score = score
-                    
-                    # Priority 1: Exact match or abbreviation match (highest confidence)
-                    # Extract abbreviations from condition name (text in parentheses)
-                    abbreviations = re.findall(r'\(([^)]+)\)', condition_name)
-                    for abbrev in abbreviations:
-                        abbrev_lower = abbrev.lower().strip()
-                        # Exact abbreviation match (e.g., "GERD" matches "GERD" in parentheses)
-                        if llm_name_lower == abbrev_lower:
-                            match_type = "abbreviation_exact"
-                            match_score = score  # Full score for exact match
-                            break  # Exact match found, no need to check other abbreviations
-                        # Partial abbreviation match (only check if no exact match found yet)
-                        elif not match_type and (abbrev_lower in llm_name_lower or llm_name_lower in abbrev_lower):
-                            match_type = "abbreviation_partial"
-                            match_score = score * 0.9  # Slightly lower score for partial
-                            # Don't break - continue checking for exact matches
-                    
-                    # Priority 2: Condition name contains LLM name or vice versa (high confidence)
-                    if not match_type:
-                        if llm_name_lower in condition_lower:
-                            # LLM name is contained in condition name (e.g., "reflux" in "gastroesophageal reflux disease")
-                            match_type = "name_contains"
-                            match_score = score
-                        elif condition_lower in llm_name_lower:
-                            # Condition name is contained in LLM name (e.g., "GERD" contains "reflux disease")
-                            match_type = "name_contained"
-                            match_score = score * 0.8
-                        else:
-                            # Check if LLM name matches key words in condition name
-                            condition_words = set(condition_lower.split())
-                            llm_words = set(llm_name_lower.split())
-                            if llm_words.intersection(condition_words):
-                                match_type = "word_overlap"
-                                match_score = score * 0.7
-                    
-                    # Priority 3: Trigger match (lower confidence, only if no name match)
-                    if not match_type:
-                        triggers = guideline.get('chief_complaint_triggers', [])
-                        for trigger in triggers:
-                            trigger_lower = trigger.lower()
-                            # Exact trigger match (e.g., "chest pain" matches "chest pain")
-                            if llm_name_lower == trigger_lower:
-                                match_type = "trigger_exact"
-                                match_score = score * 0.8  # Lower score for trigger match
-                                break
-                            # Partial trigger match
-                            elif llm_name_lower in trigger_lower or trigger_lower in llm_name_lower:
-                                match_type = "trigger_partial"
-                                match_score = score * 0.6  # Even lower score for partial trigger match
-                                break
-                    
-                    # Apply the match if we found one
-                    # Prioritize abbreviation and name matches, but also include exact trigger matches
-                    if match_type:
-                        # For trigger matches, only include exact matches with high scores
-                        # For abbreviation/name matches, include all matches
-                        if match_type.startswith("abbreviation") or match_type.startswith("name") or match_type == "word_overlap":
-                            # Always include abbreviation and name matches
-                            should_include = True
-                        elif match_type == "trigger_exact":
-                            # Include exact trigger matches (they're reliable)
-                            should_include = True
-                        elif match_type == "trigger_partial":
-                            # Only include partial trigger matches if score is high
-                            should_include = score >= 0.8
-                        else:
-                            should_include = False
-                        
-                        if should_include:
-                            # Clean condition name - remove any duplicate abbreviations or malformed names
-                            # Extract base condition name (before any parentheses)
-                            base_condition = condition_name.split('(')[0].strip()
-                            # Use the maximum score if condition is matched by multiple LLM names
-                            if base_condition in mapped_scores:
-                                # Keep the higher score
-                                if match_score > mapped_scores[base_condition]:
-                                    mapped_scores[base_condition] = match_score
-                            else:
-                                mapped_scores[base_condition] = match_score
-                            self._capture_debug(
-                                f"[Engine] 🔗 Mapped LLM condition '{llm_name_original}' (score: {score:.3f}, "
-                                f"type: {match_type}, final: {match_score:.3f}) → guideline condition '{base_condition}'"
-                            )
-                            print(f"[Engine] 🔗 Mapped '{llm_name_original}' ({score:.3f}) → '{base_condition}' ({match_score:.3f}) [{match_type}]")
-        
-        return mapped_scores
-
     def _get_conditions_for_categories(self, categories: List[str]) -> List[str]:
         if not categories:
             categories = ['gastrointestinal']
@@ -2508,518 +786,14 @@ class AdvancedMedicalNavigator:
                     conditions.add(condition_name)
         return sorted(list(conditions))
 
-    def _top_condition_names(self, session: "MedicalSession", limit: int = 5) -> List[str]:
-        names: List[str] = []
-        rankings = session.condition_rankings or []
-        for condition, _score in rankings:
-            if condition and condition not in names:
-                names.append(condition)
-            if len(names) >= limit:
-                break
-        if len(names) < limit:
-            sorted_scores = sorted(session.condition_scores.items(), key=lambda item: item[1], reverse=True)
-            for condition, _ in sorted_scores:
-                if condition and condition not in names:
-                    names.append(condition)
-                if len(names) >= limit:
-                    break
-        return names
-
-    def _is_visual_symptom(self, session: "MedicalSession", chief_complaint: str) -> bool:
-        """Check if chief complaint is a visual symptom (needs 'look like' questions)."""
-        complaint_lower = chief_complaint.lower()
-        
-        # Explicitly exclude pain symptoms (they are sensory, not visual)
-        pain_keywords = ['pain', 'ache', 'aching', 'sore', 'tender', 'discomfort']
-        if any(keyword in complaint_lower for keyword in pain_keywords):
-            return False
-        
-        # Visual symptoms are things you can see, not feel
-        visual_keywords = [
-            'bloody', 'blood', 'rash', 'discoloration', 'swelling', 'lesion', 
-            'bruise', 'bleeding', 'discharge', 'stool', 'urine', 'vomit', 
-            'appearance', 'look', 'see', 'visual', 'color', 'red', 'dark'
-        ]
-        return any(keyword in complaint_lower for keyword in visual_keywords)
-
-    def _build_oldcarts_guidance(self, session: "MedicalSession", element: str, cc: str) -> Tuple[str, str, List[str]]:
-        """Simplified - let LLM generate questions naturally based on training"""
-        # Simple base question template - LLM will generate naturally
-        base_template = self.HPI_BASE_GUIDANCE[element]
-        base_question = base_template.replace('{cc}', cc)
-        
-        # Check if visual symptom for character questions
-        is_visual = self._is_visual_symptom(session, cc)
-        if element == 'character' and is_visual:
-            guidance = f"Ask about what the {cc} looks like. Ask one natural, conversational question with examples (e.g., 'What does it look like? For example, is it red, dark, bright, or something else?')."
-        else:
-            guidance = f"Ask about the {element} of {cc}. Ask one natural, conversational question."
-        
-        # No options - let LLM use its training
-        return guidance, base_question, []
- 
-    def _build_yes_no_guidance(self, field: str, term: Optional[str]) -> str:
-        term_text = term or "this symptom"
-        if field == 'associated':
-            context = "an associated symptom that might support a diagnosis"
-        elif field == 'red_flags':
-            context = "an urgent warning sign that could indicate an emergency"
-        else:
-            context = "this symptom"
-
-        return (
-            f"Create exactly one short, patient-friendly yes/no question to ask whether the patient has experienced \"{term_text}\". "
-            f"Keep it conversational and supportive, but do not add explanations, examples, or multiple sentences. "
-            f"Focus on confirming if the patient currently has {context}. "
-            "Return only the question ending with a question mark."
-        )
-
-    def _ensure_binary_prompt_format(self, prompt: str, fallback: str) -> str:
-        if not prompt:
-            return fallback
-        prompt = prompt.strip()
-        prompt = prompt.split('\n')[0].strip()
-        if prompt.endswith('yes/no'):
-            prompt = prompt[:-6].rstrip()
-        if not prompt.endswith('?'):
-            prompt = prompt.rstrip('.')
-            prompt = prompt + '?'
-        return f"{prompt} (yes/no)"
-
-    def _compose_binary_question(
-        self,
-        session: "MedicalSession",
-        field: str,
-        entry: Dict[str, Any],
-        mode: str,
-        fallback_template: str,
-    ) -> Dict[str, Any]:
-        term = (entry.get('patient_term') or '').strip()
-        if not term:
-            term = 'this symptom'
-        guidance = self._build_yes_no_guidance(field, term)
-        prompt = self._generate_question(
-            session=session,
-            section='hpi',
-            field=field,
-            guidance=guidance,
-            base_question=None,
-            options=None,
-        )
-        prompt = self._ensure_binary_prompt_format(prompt, f"Have you noticed {term}? (yes/no)")
-        
-        return {
-            'section': 'hpi',
-            'field': field,
-            'prompt': prompt,
-            'guidance': guidance,
-            'base_question': None,
-            'options': [],
-            'mode': mode,
-        }
-
-    def _last_exchange(self, session: "MedicalSession") -> Tuple[Optional[str], Optional[str]]:
-        last_user = None
-        last_assistant = None
-        for msg in reversed(session.messages):
-            role = msg.get('role')
-            content = msg.get('content')
-            if role == 'user' and last_user is None:
-                last_user = content
-            elif role == 'assistant' and last_assistant is None:
-                last_assistant = content
-            if last_user and last_assistant:
-                break
-        return last_assistant, last_user
-
-    def _build_context_summary(self, session: "MedicalSession") -> str:
-        """Build a summary of what information has already been collected to help LLM avoid redundant questions."""
-        parts = []
-        
-        # Pre-HPI information
-        pre_hpi = session.context.get('pre_hpi', {})
-        if pre_hpi.get('chief_complaint'):
-            parts.append(f"Chief complaint: {pre_hpi['chief_complaint']}")
-        if pre_hpi.get('chronicity'):
-            parts.append(f"Chronicity: {pre_hpi['chronicity']}")
-        if pre_hpi.get('age'):
-            parts.append(f"Age: {pre_hpi['age']}")
-        if pre_hpi.get('sex'):
-            parts.append(f"Biological sex: {pre_hpi['sex']}")
-        
-        # HPI information already collected
-        hpi = session.context.get('hpi', {})
-        hpi_labels = {
-            'onset': 'Onset',
-            'location': 'Location',
-            'duration': 'Duration',
-            'character': 'Character',
-            'aggravating': 'Aggravating factors',
-            'relieving': 'Relieving factors',
-            'radiation': 'Radiation',
-            'timing': 'Timing',
-            'severity': 'Severity',
-            'frequency': 'Frequency',
-            'progression': 'Progression',
-        }
-        
-        for key, label in hpi_labels.items():
-            value = hpi.get(key)
-            if value and value.strip() and value.strip().lower() not in ['none', 'none reported', 'n/a']:
-                parts.append(f"{label}: {value}")
-        
-        if not parts:
-            return "No information collected yet."
-        
-        return "\n".join(parts)
-
-    def _collect_character_tags(self, session: "MedicalSession") -> set:
-        summary = self._character_tag_summary(session)
-        return summary.get('tags', set())
-
-    def _character_tag_summary(self, session: "MedicalSession") -> Dict[str, Any]:
-        cache = session.context['guideline_terms'].get('character_tag_summary')
-        if cache is not None:
-            return cache
-
-        includes = self._get_element_includes(session, 'character')
-        top_conditions = [name.lower() for name in self._top_condition_names(session, limit=5)]
-        top_counts = {'visual': 0, 'sensory': 0}
-        all_counts = {'visual': 0, 'sensory': 0}
-        tag_set: set = set()
-
-        for entry in includes:
-            condition_name = (entry.get('condition') or '').lower()
-            entry_tags = entry.get('question_tags') or []
-            normalized_tags = []
-            for tag in entry_tags:
-                if isinstance(tag, str):
-                    tag_lower = tag.lower()
-                    if tag_lower in ('visual', 'sensory'):
-                        normalized_tags.append(tag_lower)
-                        tag_set.add(tag_lower)
-                        all_counts[tag_lower] += 1
-                        if condition_name in top_conditions:
-                            top_counts[tag_lower] += 1
-
-        dominant_tag = None
-        if sum(top_counts.values()) > 0:
-            if top_counts['visual'] > top_counts['sensory']:
-                dominant_tag = 'visual'
-            elif top_counts['sensory'] > top_counts['visual']:
-                dominant_tag = 'sensory'
-        if dominant_tag is None and sum(all_counts.values()) > 0:
-            if all_counts['visual'] > all_counts['sensory']:
-                dominant_tag = 'visual'
-            elif all_counts['sensory'] > all_counts['visual']:
-                dominant_tag = 'sensory'
-
-        summary = {
-            'tags': set(tag_set),
-            'top_counts': top_counts,
-            'all_counts': all_counts,
-            'dominant': dominant_tag,
-        }
-        session.context['guideline_terms']['character_tag_summary'] = summary
-        session.context['guideline_terms']['character_tags'] = summary['tags']
-        return summary
-
-    def _select_guidance_entries(self, session: "MedicalSession", element: str, entries: List[Dict[str, Any]], limit: int = 2, debug_entries: Optional[List[Dict[str, Any]]] = None) -> List[Dict[str, Any]]:
-        """Select patient-friendly terms for question guidance, preferring emergent conditions."""
-        if limit <= 0 or not entries:
-            if debug_entries is not None:
-                debug_entries.append({'note': 'no unique entries after filtering'})
-            return []
- 
-        sorted_conditions = sorted(session.condition_scores.items(), key=lambda item: item[1], reverse=True)
-        allowed_conditions = self._priority_condition_set(session)
-        top_condition_name = sorted_conditions[0][0] if sorted_conditions else None
-        if top_condition_name and top_condition_name not in allowed_conditions:
-            allowed_conditions = allowed_conditions | {top_condition_name}
-        top_conditions = [name for name, _ in sorted_conditions[:5]]
-        top_condition_set = {name.lower() for name in top_conditions}
- 
-        if debug_entries is not None and top_conditions:
-            debug_entries.append({
-                'top_ranked_conditions': top_conditions,
-                'allowed_conditions': list(allowed_conditions),
-            })
- 
-        unique_entries: List[Dict[str, Any]] = []
-        seen_pf = set()
-        for entry in entries:
-            pf = entry.get('patient_friendly')
-            if not isinstance(pf, str):
-                continue
-            cleaned = pf.strip()
-            if not cleaned:
-                continue
-            # Determine if this entry belongs to a guideline whose character terms carry sensory/visual tags
-            guideline_condition = entry.get('condition')
-            guideline_character_labels = self._get_guideline_character_tags(session, guideline_condition)
-            if element == 'location' and 'visual' in guideline_character_labels:
-                if debug_entries is not None:
-                    debug_entries.append({
-                        'term': cleaned,
-                        'condition': guideline_condition,
-                        'reason': 'excluded_visual_character',
-                        'character_tags': list(guideline_character_labels),
-                    })
-                continue
-            key = cleaned.lower()
-            if key in seen_pf:
-                continue
-            seen_pf.add(key)
-            copy_entry = dict(entry)
-            copy_entry['patient_friendly'] = cleaned
-            condition_name = copy_entry.get('condition')
-            condition_lower = condition_name.lower() if isinstance(condition_name, str) else None
-            condition_score = session.condition_scores.get(condition_name, 0.5) if condition_name else 0.5
-            copy_entry['condition_score'] = condition_score
-            copy_entry['from_priority_condition'] = bool(condition_name in allowed_conditions)
-            copy_entry['from_top_condition'] = bool(condition_lower and condition_lower in top_condition_set)
-            copy_entry['character_tags'] = list(guideline_character_labels)
-            unique_entries.append(copy_entry)
- 
-        if not unique_entries:
-            if debug_entries is not None:
-                debug_entries.append({'note': 'no unique entries after filtering'})
-            return []
- 
-        filtered_entries = [entry for entry in unique_entries if not allowed_conditions or entry.get('condition') in allowed_conditions]
-        if filtered_entries:
-            unique_entries = filtered_entries
-
-        def split_priority(pool: List[Dict[str, Any]]) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]], List[Dict[str, Any]]]:
-            priority = [entry for entry in pool if entry.get('from_priority_condition')]
-            secondary = [entry for entry in pool if entry.get('from_top_condition') and entry not in priority]
-            rest = [entry for entry in pool if entry not in priority and entry not in secondary]
-            return priority, secondary, rest
- 
-        emergent_entries = [entry for entry in unique_entries if entry.get('emergent_term') or entry.get('condition_urgency') == 'emergent']
-        urgent_entries = [entry for entry in unique_entries if entry.get('condition_urgency') == 'urgent' and entry not in emergent_entries]
-        other_entries = [entry for entry in unique_entries if entry not in emergent_entries and entry not in urgent_entries]
- 
-        selected: List[Dict[str, Any]] = []
- 
-        def choose_from(pool: List[Dict[str, Any]]):
-            nonlocal selected
-            if len(selected) >= limit or not pool:
-                return
-            primary_pool, secondary_pool, fallback_pool = split_priority(pool)
-            for candidate_pool in (primary_pool, secondary_pool, fallback_pool):
-                if len(selected) >= limit:
-                    break
-                available = [entry for entry in candidate_pool if entry not in selected]
-                if not available:
-                    continue
-                available_sorted = sorted(
-                    available,
-                    key=lambda entry: (
-                        -(1 if entry.get('emergent_term') or entry.get('condition_urgency') == 'emergent' else 0),
-                        entry.get('condition_score', 0.5),
-                    ),
-                    reverse=True,
-                )
-                needed = limit - len(selected)
-                selected.extend(available_sorted[:needed])
-                if len(selected) >= limit:
-                    break
- 
-        choose_from(emergent_entries)
-        choose_from(urgent_entries)
-        choose_from(other_entries)
- 
-        baseline = 0.5 + 1e-6
-        high_conf_selected = [entry for entry in selected if entry.get('condition_score', 0.5) > baseline]
-        if high_conf_selected:
-            selected = high_conf_selected
-        if top_condition_name and not any(entry.get('condition') == top_condition_name for entry in selected):
-            top_entries = [entry for entry in unique_entries if entry.get('condition') == top_condition_name]
-            if top_entries:
-                top_entry = max(top_entries, key=lambda e: e.get('condition_score', 0.5))
-                selected = [top_entry] + [entry for entry in selected if entry.get('condition') != top_condition_name]
-        selected = selected[:limit]
- 
-        if debug_entries is not None:
-            for entry in selected:
-                debug_entries.append({
-                    'term': entry.get('patient_friendly'),
-                    'condition': entry.get('condition'),
-                    'character_tags': entry.get('character_tags'),
-                    'from_top_condition': entry.get('from_top_condition'),
-                    'selected': True,
-                })
- 
-        return selected
-
-    def _get_guideline_character_tags(self, session: "MedicalSession", condition_name: Optional[str]) -> set:
-        if not condition_name:
-            return set()
-        character_includes = self._get_element_includes(session, 'character')
-        tags = set()
-        for entry in character_includes:
-            if entry.get('condition') != condition_name:
-                continue
-            entry_tags = entry.get('question_tags') or []
-            for tag in entry_tags:
-                if isinstance(tag, str):
-                    tags.add(tag.lower())
-        return tags
-
-    def _get_element_includes(self, session: "MedicalSession", element: str) -> List[Dict[str, Any]]:
-        cache = session.context.setdefault('guideline_includes', {})
-        if element in cache:
-            return cache[element]
-        categories = session.context.get('matched_categories') or ['gastrointestinal']
-        if element == 'red_flags':
-            collected = self._collect_emergent_entries(session, categories)
-            cache[element] = collected
-            return collected
-        collected: List[Dict[str, Any]] = []
-        for category in categories:
-            guidelines = self._get_guidelines_by_category(category)
-            for guideline in guidelines.values():
-                condition_name = guideline.get('condition') or guideline.get('data', {}).get('condition') or guideline.get('name', 'Unknown')
-                condition_urgency = guideline.get('urgency') or guideline.get('data', {}).get('urgency', '')
-                condition_prevalence = guideline.get('prevalence') or guideline.get('data', {}).get('prevalence', '')
-                structured = guideline.get('key_features', {}).get('structured_oldcarts', {})
-                if not structured:
-                    structured = guideline.get('data', {}).get('key_features', {}).get('structured_oldcarts', {})
-                element_data = structured.get(element, {})
-                include_items = element_data.get('includes', []) if isinstance(element_data, dict) else []
-                for entry in include_items:
-                    if isinstance(entry, dict):
-                        patient_term = entry.get('patient_friendly') or entry.get('medical')
-                        medical_term = entry.get('medical')
-                        tags = entry.get('question_tags')
-                        if tags is None:
-                            tags = entry.get('question_tag')
-                        if isinstance(tags, str):
-                            tag_list = [tags.lower()]
-                        elif isinstance(tags, (list, tuple, set)):
-                            tag_list = [str(tag).lower() for tag in tags if isinstance(tag, str)]
-                        else:
-                            tag_list = []
-                        emergent_term = bool(entry.get('emergent'))
-                        collected.append({
-                            'patient_friendly': patient_term.strip() if isinstance(patient_term, str) else '',
-                            'medical': medical_term.strip() if isinstance(medical_term, str) else '',
-                            'question_tags': tag_list,
-                            'emergent_term': emergent_term,
-                            'condition': condition_name,
-                            'condition_urgency': condition_urgency,
-                            'condition_prevalence': condition_prevalence,
-                        })
-                    elif isinstance(entry, str):
-                        stripped = entry.strip()
-                        collected.append({
-                            'patient_friendly': stripped,
-                            'medical': stripped,
-                            'question_tags': [],
-                            'emergent_term': False,
-                            'condition': condition_name,
-                            'condition_urgency': condition_urgency,
-                            'condition_prevalence': condition_prevalence,
-                        })
-        cache[element] = collected
-        return collected
-
-    def _collect_emergent_entries(self, session: "MedicalSession", categories: List[str]) -> List[Dict[str, Any]]:
-        entries: List[Dict[str, Any]] = []
-        seen: set = set()
-        for category in categories:
-            guidelines = self._get_guidelines_by_category(category)
-            for guideline in guidelines.values():
-                condition_name = guideline.get('condition') or guideline.get('data', {}).get('condition') or guideline.get('name', 'Unknown')
-                condition_urgency = guideline.get('urgency') or guideline.get('data', {}).get('urgency', '')
-                condition_prevalence = guideline.get('prevalence') or guideline.get('data', {}).get('prevalence', '')
-                structured = guideline.get('key_features', {}).get('structured_oldcarts', {})
-                if not structured:
-                    structured = guideline.get('data', {}).get('key_features', {}).get('structured_oldcarts', {})
-                for element_name, element_data in structured.items():
-                    include_items = element_data.get('includes', []) if isinstance(element_data, dict) else []
-                    for entry in include_items:
-                        if not isinstance(entry, dict):
-                            continue
-                        if not entry.get('emergent'):
-                            continue
-                        patient_term = entry.get('patient_friendly') or entry.get('medical')
-                        medical_term = entry.get('medical')
-                        if not isinstance(patient_term, str):
-                            continue
-                        cleaned = patient_term.strip()
-                        if not cleaned:
-                            continue
-                        key = (cleaned.lower(), condition_name)
-                        if key in seen:
-                            continue
-                        seen.add(key)
-                        entries.append({
-                            'patient_friendly': cleaned,
-                            'medical': medical_term.strip() if isinstance(medical_term, str) else '',
-                            'question_tags': [],
-                            'emergent_term': True,
-                            'condition': condition_name,
-                            'condition_urgency': condition_urgency,
-                            'condition_prevalence': condition_prevalence,
-                            'source_element': element_name,
-                        })
-        if not entries:
-            defaults = [
-                "fever over 103°F",
-                "difficulty breathing",
-                "fainting or passing out",
-                "severe chest pain",
-            ]
-            for term in defaults:
-                entries.append({
-                    'patient_friendly': term,
-                    'medical': term,
-                    'question_tags': [],
-                    'emergent_term': True,
-                    'condition': 'General emergency',
-                    'condition_urgency': 'emergent',
-                    'condition_prevalence': 'unknown',
-                    'source_element': 'default',
-                })
-        return entries
-
-    def _guideline_terms_for_element(self, session: "MedicalSession", element: str) -> List[str]:
-        cache = session.context['guideline_terms']
-        if element in cache:
-            return cache[element]
-        includes = self._get_element_includes(session, element)
-        terms: List[str] = []
-        seen = set()
-        for entry in includes:
-            term = entry.get('patient_friendly')
-            if isinstance(term, str):
-                cleaned = term.strip()
-                if cleaned and cleaned.lower() not in seen:
-                    seen.add(cleaned.lower())
-                    terms.append(cleaned)
-        cache[element] = terms
-        return terms
-
     def _normalize_subject_for_questions(self, text: Optional[str]) -> str:
         if not text:
             return 'symptoms'
         subject = text.strip()
         lowered = subject.lower()
         prefixes = [
-            "i have ",
-            "i've got ",
-            "i am having ",
-            "i'm having ",
-            "i am ",
-            "i'm ",
-            "my ",
-            "i feel ",
-            "i've been having ",
-            "i been having ",
-            "i've had ",
-            "i had ",
+            "i have ", "i've got ", "i am having ", "i'm having ",
+            "i am ", "i'm ", "my ", "i feel ",
         ]
         for prefix in prefixes:
             if lowered.startswith(prefix):
@@ -3031,28 +805,11 @@ class AdvancedMedicalNavigator:
         return subject
 
     def _ordered_oldcarts_elements(self, session: "MedicalSession") -> List[str]:
-        ordered = sorted(self.HPI_ELEMENTS, key=lambda e: self._get_element_weight(session, e), reverse=True)
-        ordered_list = ordered.copy()
-        if 'associated' in ordered_list:
-            ordered_list.remove('associated')
-        if 'red_flags' in ordered_list:
-            ordered_list.remove('red_flags')
-        if 'associated' in ordered:
-            ordered_list.append('associated')
-        if 'red_flags' in self.HPI_ELEMENTS:
-            ordered_list.append('red_flags')
-        answered = {key for key, value in session.context['hpi'].items() if value}
-        filtered = [element for element in ordered_list if element not in answered]
+        """Get ordered OLD CARTS elements - simplified, LLM handles priority."""
+        ordered = self.HPI_ELEMENTS.copy()
+        answered = {key for key, value in session.context['hpi'].items() if value and value.strip()}
+        filtered = [element for element in ordered if element not in answered]
         return filtered
-
-    def _get_element_weight(self, session: "MedicalSession", element: str) -> float:
-        categories = session.context['matched_categories'] or ['gastrointestinal']
-        best = self.DEFAULT_ELEMENT_WEIGHT
-        for cat in categories:
-            cat_weights = self.CATEGORY_ELEMENT_WEIGHTS.get(cat.lower(), {})
-            if element in cat_weights:
-                best = max(best, cat_weights[element])
-        return best
 
     # ----------- LLM helpers -------------------------------------------------
 
@@ -3062,52 +819,22 @@ class AdvancedMedicalNavigator:
         section: str,
         field: str,
         guidance: str,
-        base_question: Optional[str] = None,
-        options: Optional[List[str]] = None,
     ) -> str:
-        if section == 'hpi' and field == 'severity':
-            raw_subject = session.context['pre_hpi'].get('chief_complaint')
-            subject = self._normalize_subject_for_questions(raw_subject)
-            if subject.startswith(('your ', 'the ', 'this ')):
-                subject_phrase = subject
-            else:
-                subject_phrase = f"your {subject}"
-            guidance = (
-                f"Ask the patient to rate how bad {subject_phrase} is on a scale from 1 to 10. "
-                "Return a single concise question ending with a question mark."
-            )
-            base_question = f"On a scale from 1 to 10, how bad is {subject_phrase} right now?"
         if not self.llm_chat_fn:
-            return base_question or guidance or ""
-        cc = session.context['pre_hpi'].get('chief_complaint', 'your symptoms') or 'your symptoms'
-        # Build comprehensive context for the LLM to understand what's already been discussed
-        context_summary = self._build_context_summary(session)
-        last_assistant, last_user = self._last_exchange(session)
+            return guidance or f"Tell me about {field}."
         
-        # Build conversation context - include more messages for better understanding
+        cc = session.context['pre_hpi'].get('chief_complaint', 'your symptoms') or 'your symptoms'
+        context_summary = self._build_conversation_context(session)
+        
+        # Build conversation context
         conversation_context = []
-        # Include last 5 exchanges for better context understanding
         recent_messages = session.messages[-10:] if len(session.messages) > 10 else session.messages
         for msg in recent_messages:
             if msg.get('role') in ['assistant', 'user']:
                 conversation_context.append({"role": msg['role'], "content": msg['content']})
         
-        # For fine-tuned model: provide context about what's already known
         if section == 'hpi':
-            # Check if this is a visual symptom (needs "look like" instead of "feel like")
-            is_visual = self._is_visual_symptom(session, cc)
-            
-            # Build context-aware prompt
-            if field == 'character' and is_visual:
-                user_prompt = f"""Context of what we already know:
-{context_summary}
-
-Now ask about what the {cc} looks like. 
-IMPORTANT: This is a visual symptom - ask "What does it look like?" with examples, NOT "What does it feel like?"
-Do NOT ask about information already provided in the context above.
-Ask only one question."""
-            else:
-                user_prompt = f"""Context of what we already know:
+            user_prompt = f"""Context of what we already know:
 {context_summary}
 
 Now ask about the {field} of {cc}. 
@@ -3115,35 +842,28 @@ IMPORTANT: Do NOT ask about information already provided in the context above.
 If {field} information is already in the context, ask about a DIFFERENT aspect of the symptom.
 Ask only one question."""
         elif section == 'pre_hpi':
-            if field == 'chronicity':
-                user_prompt = "Ask if this is new or an ongoing problem. Ask only one question."
-            elif field == 'age':
-                user_prompt = "Ask for the patient's age. Ask only one question."
-            elif field == 'sex':
-                user_prompt = "Ask for the patient's biological sex. Ask only one question."
-            else:
-                user_prompt = f"Ask about {field}. Ask only one question."
+            user_prompt = guidance
         else:
             user_prompt = f"Ask about {field}. Ask only one question."
         
-        # Use comprehensive conversation context
         messages = [{"role": "system", "content": self.QUESTION_SYSTEM_PROMPT}]
         if conversation_context:
             messages.extend(conversation_context)
         messages.append({"role": "user", "content": user_prompt})
+        
         response = self.llm_chat_fn(
             messages,
             max_tokens=self.LLM_MAX_TOKENS_QUESTIONS,
             temperature=self.LLM_TEMPERATURE_QUESTIONS,
         )
+        
         self._capture_debug(f"[LLM] ❓ Question prompt:\n{user_prompt}")
         self._capture_debug(f"[LLM] ❓ Raw question response: {response}")
+        
         cleaned = self._clean_llm_response(response)
         if not cleaned:
-            # Fallback to base question if LLM returns empty
-            cleaned = base_question or guidance or f"Tell me about {field}."
+            cleaned = guidance or f"Tell me about {field}."
         
-        # Ensure question ends with ?
         if not cleaned.endswith('?'):
             cleaned = cleaned.rstrip('.') + '?'
         
@@ -3151,8 +871,8 @@ Ask only one question."""
 
     def _generate_empathetic_statement(self, chief_complaint: str) -> str:
         if not self.llm_chat_fn:
-            return "I'm here to help you with that."
-        # Simplified for fine-tuned model - it knows how to show empathy
+            return "I understand you're experiencing that. I'm here to help."
+        
         response = self.llm_chat_fn(
             [
                 {"role": "system", "content": self.EMPATHETIC_SYSTEM_PROMPT},
@@ -3161,14 +881,12 @@ Ask only one question."""
             max_tokens=self.LLM_MAX_TOKENS_EMPATHETIC,
             temperature=self.LLM_TEMPERATURE_EMPATHETIC,
         )
-        self._capture_debug(f"[LLM] ❤️ Empathy prompt: Patient concern: {chief_complaint}")
-        self._capture_debug(f"[LLM] ❤️ Empathy response: {response}")
         return self._clean_llm_response(response, fallback="I understand you're experiencing that. I'm here to help.")
 
     def _generate_chronicity_question(self) -> str:
         if not self.llm_chat_fn:
             return "Is this a new problem or something you've experienced before?"
-        # Simplified for fine-tuned model - it knows how to ask chronicity questions
+        
         response = self.llm_chat_fn(
             [
                 {"role": "system", "content": self.CHRONICITY_SYSTEM_PROMPT},
@@ -3177,28 +895,27 @@ Ask only one question."""
             max_tokens=self.LLM_MAX_TOKENS_CHRONICITY,
             temperature=self.LLM_TEMPERATURE_QUESTIONS,
         )
-        self._capture_debug("[LLM] 🕒 Chronicity prompt issued.")
-        self._capture_debug(f"[LLM] 🕒 Chronicity response: {response}")
         return self._clean_llm_response(response, fallback="Is this a new problem or something you've experienced before?")
 
     def _generate_summary(self, session: "MedicalSession") -> str:
         if not self.llm_chat_fn:
             return "History collection complete."
+        
         pre = session.context['pre_hpi']
         hpi = session.context['hpi']
-        pmh = session.context['pmh']
         rankings = session.condition_rankings[:3]
         ranking_text = ", ".join(f"{name} ({score:.0%})" for name, score in rankings) if rankings else "No ranked conditions yet"
+        
         user_prompt = (
             f"Chief complaint: {pre.get('chief_complaint', 'Not stated')}\n"
             f"Chronicity: {pre.get('chronicity', 'Unknown')}\n"
             f"Age: {pre.get('age', 'Unknown')}\n"
             f"Biological sex: {pre.get('sex', 'Unknown')}\n"
             f"OLDCARTS responses: {hpi}\n"
-            f"PMH/PSH/Meds/Allergies: {pmh}\n"
             f"Top differentials: {ranking_text}\n"
             "Summarise as bullet points."
         )
+        
         response = self.llm_chat_fn(
             [
                 {"role": "system", "content": self.SUMMARY_SYSTEM_PROMPT},
@@ -3207,19 +924,16 @@ Ask only one question."""
             max_tokens=self.LLM_MAX_TOKENS_SUMMARY,
             temperature=self.LLM_TEMPERATURE_SUMMARY,
         )
-        self._capture_debug(f"[LLM] 📝 Summary prompt:\n{user_prompt}")
-        self._capture_debug(f"[LLM] 📝 Summary response: {response}")
         return response.strip() if response else "History collection complete."
 
     # ----------- Validation / Clarification ----------------------------------
 
     def _clean_llm_response(self, text: Optional[str], fallback: str = "") -> str:
-        """Clean LLM response to extract only the question, removing internal reasoning."""
+        """Clean LLM response to extract only the question."""
         if not text:
             return fallback
         cleaned = text.strip()
         
-        # Remove markdown code blocks if present
         if cleaned.startswith('```'):
             first_newline = cleaned.find('\n')
             if first_newline != -1:
@@ -3227,12 +941,8 @@ Ask only one question."""
                 if cleaned.endswith('```'):
                     cleaned = cleaned[:-3].strip()
         
-        # Remove quotes
         cleaned = cleaned.strip('"').strip("'")
         
-        # Extract only the question (first sentence ending with ?)
-        # Remove any internal reasoning or acknowledgment before the question
-        # Split on sentence boundaries but preserve question marks
         sentences = re.split(r'(?<=[.!?])\s+', cleaned)
         question = None
         for sentence in sentences:
@@ -3240,44 +950,24 @@ Ask only one question."""
             if sentence and sentence.endswith('?'):
                 question = sentence
                 break
-            # If no question found, look for sentences that are clearly questions
             if sentence and any(word in sentence.lower() for word in ['how', 'what', 'when', 'where', 'who', 'which', 'are you', 'is this', 'do you', 'can you']):
                 question = sentence.rstrip('.!') + '?'
                 break
         
         if question:
-            # Remove any internal reasoning phrases
             reasoning_phrases = [
                 r'now i have.*?which helps',
                 r'thank you.*?which helps',
                 r'for our records',
-                r'for medical documentation',
                 r'this helps with',
-                r'which helps with',
             ]
             for phrase in reasoning_phrases:
                 question = re.sub(phrase, '', question, flags=re.IGNORECASE)
             question = re.sub(r'\s+', ' ', question).strip()
             return question or fallback
         
-        # If no question found, return cleaned text or fallback
         cleaned = re.sub(r"^[^A-Za-z0-9]+", "", cleaned)
         return cleaned or fallback
-
-    def _requires_clarification(self, element: str) -> bool:
-        no_clarification_elements = {
-            'onset',
-            'progression',
-            'duration',
-            'timing',
-            'severity',
-            'associated',
-            'character',
-            'abruptness',
-            'frequency',
-            'red_flags',
-        }
-        return element not in no_clarification_elements
 
     def _validate_age_answer(self, text: str) -> Tuple[bool, Optional[str], Optional[str]]:
         cleaned = text.strip()
@@ -3304,8 +994,8 @@ Ask only one question."""
         mappings = {
             'male': {'male', 'm', 'man', 'boy'},
             'female': {'female', 'f', 'woman', 'girl'},
-            'intersex/non-binary': {'intersex', 'nonbinary', 'non-binary', 'nb', 'enby', 'genderqueer'},
-            'unspecified': {'prefer not to say', 'decline', 'undisclosed', 'unknown', 'unsure', 'not sure'},
+            'intersex/non-binary': {'intersex', 'nonbinary', 'non-binary', 'nb', 'enby'},
+            'unspecified': {'prefer not to say', 'decline', 'unknown', 'unsure'},
         }
 
         for normalized, variants in mappings.items():
@@ -3339,7 +1029,7 @@ Ask only one question."""
         if not text:
             return False
         normalized = re.sub(r"[^a-zA-Z\s]", "", text).strip().lower()
-        greetings = {'hi', 'hello', 'hey', 'hey there', 'good morning', 'good afternoon', 'good evening', 'hola', 'sup', 'yo'}
+        greetings = {'hi', 'hello', 'hey', 'hey there', 'good morning', 'good afternoon', 'good evening'}
         return normalized in greetings
 
     # ----------- Debug helpers ----------------------------------------------
@@ -3350,9 +1040,10 @@ Ask only one question."""
     def _format_engine_debug(self, session: "MedicalSession") -> str:
         lines = []
         lines.append("=" * 80)
-        lines.append("[Telegram] 🧠 ENGINE DEBUG OUTPUT")
+        lines.append("[Engine] 🧠 ENGINE DEBUG OUTPUT")
         lines.append("=" * 80)
-        lines.append(f"[Engine] 🎯 Structured guidelines: Active={len(session.active_conditions)}, Reserve={len(session.reserve_conditions)}")
+        lines.append(f"[Engine] 🎯 Conditions: Active={len(session.active_conditions)}, Reserve={len(session.reserve_conditions)}")
+        
         pre_filled, pre_missing = self._get_pre_hpi_status(session)
         lines.append(f"[Engine] 👤 Demographics collected: {', '.join(pre_filled) if pre_filled else 'none'}")
         lines.append(f"[Engine] 📝 Demographics missing: {', '.join(pre_missing) if pre_missing else 'none'}")
@@ -3364,32 +1055,7 @@ Ask only one question."""
         lines.append(f"[Engine] ❔ Missing: {', '.join(missing) if missing else 'none'}")
         if current:
             lines.append(f"[Engine] 🔍 Currently asking: {current}")
-        debug_ctx = session.context.get('debug', {})
-        validation_error = debug_ctx.get('last_validation_error')
-        if validation_error:
-            lines.append(f"[Engine] ⚠️ Validation: {validation_error}")
-        review = debug_ctx.get('last_llm_review')
-        if review:
-            rows = review.get('rows', [])
-            requested = review.get('requested_terms', [])
-            raw_response = review.get('raw_response', '')
-            had_scores = review.get('had_scores', False)
-            lines.append(f"[LLM] 🔍 Match review ({review['element']}) for '{review['answer']}':")
-            lines.append(f"[LLM]   • Requested terms: {requested if requested else 'none'}")
-            if rows:
-                for term, faiss_score, llm_score, final_score in rows:
-                    # FAISS + LLM approach: FAISS provides candidates, LLM makes final decision
-                    lines.append(
-                        f"[LLM]   • {term}: FAISS={faiss_score:.3f}, LLM={llm_score:.3f}, final={final_score:.3f}"
-                    )
-            else:
-                lines.append("[LLM]   • LLM returned no scores.")
-                if raw_response:
-                    lines.append(f"[LLM]   • Raw response (first 300 chars): {raw_response[:300]}")
-                else:
-                    lines.append("[LLM]   • Raw response: EMPTY or not captured")
-                lines.append(f"[LLM]   • Had scores: {had_scores}")
-                lines.append("[LLM]   • Note: FAISS + LLM approach - FAISS finds candidates, LLM makes final decision")
+        
         lines.append(self._format_rankings_debug(session))
         return '\n'.join(lines)
 
@@ -3399,21 +1065,12 @@ Ask only one question."""
         for idx, (name, score) in enumerate(session.active_conditions[:5], start=1):
             pct = round(score * 100, 1)
             lines.append(f"[Engine]   {idx}. {name}: {pct}% 📋")
-            lines.append(f"[Scoring] 🏆 Top {idx}: {name}")
-            lines.append(f"[Scoring]   📊 Score: {pct}%")
-            lines.append(f"[Scoring]   🎯 ML Confidence: High similarity match")
-            lines.append(f"[Scoring]   🚨 Urgency: unknown")
         lines.append("")
         lines.append(f"[Engine] 🔄 Pool status: Active={len(session.active_conditions)}, Reserve={len(session.reserve_conditions)}, Ruled out=0")
-        lines.append("[Scoring] 📊 Final statistics:")
-        lines.append(f"[Scoring]   🎯 Active Conditions: {len(session.active_conditions)}")
-        lines.append(f"[Scoring]   📋 Reserve Conditions: {len(session.reserve_conditions)}")
-        lines.append(f"[Scoring]   ❌ Ruled Out: 0")
-        total = len(session.active_conditions) + len(session.reserve_conditions)
-        lines.append(f"[Scoring]   📈 Total Processed: {total}")
         return '\n'.join(lines)
 
     def _update_condition_pools(self, session: "MedicalSession") -> None:
+        """Update active and reserve condition pools based on rankings."""
         active = session.condition_rankings[:5]
         reserve = session.condition_rankings[5:]
         previous_active = session.previous_active
@@ -3444,32 +1101,11 @@ Ask only one question."""
         for idx, (name, score) in enumerate(session.active_conditions[:5], start=1):
             pct = round(score * 100, 1)
             self._capture_debug(f"[Engine]   {idx}. {name}: {pct}% 📋")
-            self._capture_debug(f"[Scoring] 🏆 Top {idx}: {name}")
-            self._capture_debug(f"[Scoring]   📊 Score: {pct}%")
-            self._capture_debug(f"[Scoring]   📋 Prevalence: unknown")
-            self._capture_debug(f"[Scoring]   🎯 ML Confidence: High similarity match")
-            self._capture_debug(f"[Scoring]   🚨 Urgency: unknown")
-        self._capture_debug(f"\n[Engine] 🔄 Pool status: Active={len(session.active_conditions)}, Reserve={len(session.reserve_conditions)}, Ruled out=0")
-        self._capture_debug("[Scoring] 📊 Final statistics:")
-        self._capture_debug(f"[Scoring]   🎯 Active Conditions: {len(session.active_conditions)}")
-        self._capture_debug(f"[Scoring]   📋 Reserve Conditions: {len(session.reserve_conditions)}")
-        self._capture_debug(f"[Scoring]   ❌ Ruled Out: 0")
-        total = len(session.active_conditions) + len(session.reserve_conditions)
-        self._capture_debug(f"[Scoring]   📈 Total Processed: {total}")
-
-    def _extract_similarity(self, matches: List[Dict], condition: str) -> float:
-        if not matches:
-            return 0.0
-        for match in matches:
-            cond = match.get('condition') or match.get('name')
-            if cond == condition:
-                return float(match.get('score', 0.0))
-        return 0.0
 
     def _get_oldcarts_status(self, session: "MedicalSession") -> Tuple[List[str], List[str], Optional[str]]:
         hpi_answers = session.context.get('hpi', {})
-        satisfied = [element for element in self.HPI_ELEMENTS if element in hpi_answers]
-        missing = [element for element in self.HPI_ELEMENTS if element not in hpi_answers]
+        satisfied = [element for element in self.HPI_ELEMENTS if element in hpi_answers and hpi_answers[element]]
+        missing = [element for element in self.HPI_ELEMENTS if element not in hpi_answers or not hpi_answers[element]]
         current = None
         if session.pending and session.pending.get('section') == 'hpi':
             current = session.pending.get('field')
@@ -3480,447 +1116,3 @@ Ask only one question."""
         collected = [item for item in self.PRE_HPI_ORDER if pre.get(item)]
         missing = [item for item in self.PRE_HPI_ORDER if item not in collected]
         return collected, missing
-
-    def _is_confused_response(self, text: str) -> bool:
-        if not text:
-            return False
-        normalized = text.strip().lower()
-        confusion_markers = [
-            "what do you mean",
-            "i don't understand",
-            "can you explain",
-            "not sure",
-            "clarify",
-        ]
-        if any(marker in normalized for marker in confusion_markers):
-            return True
-        if normalized.endswith('?') and len(normalized) <= 60:
-            return True
-        return False
-
-    def _clarify_element_question(self, session: "MedicalSession", element: str, pending: Optional[Dict[str, Any]] = None) -> str:
-        pending = pending or session.pending or {}
-        prompt_text = pending.get('prompt')
-        base_question = pending.get('base_question')
-        options = pending.get('options')
-        cc_subject = self._normalize_subject_for_questions(session.context['pre_hpi'].get('chief_complaint'))
-
-        if not base_question and element in self.HPI_BASE_GUIDANCE:
-            base_question = self.HPI_BASE_GUIDANCE[element].replace('{cc}', cc_subject)
-
-        if not prompt_text and base_question:
-            prompt_text = base_question if base_question.endswith('?') else f"{base_question}?"
-            if options:
-                option_text = ', '.join(options[:2])
-                prompt_text = f"{prompt_text} You can mention things like: {option_text}."
-
-        if element == 'red_flags':
-            includes = self._get_element_includes(session, 'red_flags')
-            emergent_terms = [entry['patient_friendly'] for entry in includes if entry.get('emergent_term')]
-            if not emergent_terms:
-                emergent_terms = [entry['patient_friendly'] for entry in includes[:3]]
-            emergent_terms = [term for term in emergent_terms if term]
-            if emergent_terms:
-                examples = ', '.join(emergent_terms[:4])
-                guidance = f"By urgent warning signs I mean things like {examples}."
-                if prompt_text:
-                    return f"{guidance} {prompt_text}"
-                return f"{guidance} Have you noticed any of those?"
-            if prompt_text:
-                return f"I'm checking for any severe or alarming symptoms. {prompt_text}"
-            return "I'm asking if you've noticed any severe or alarming symptoms that might need urgent attention."
-
-        if prompt_text:
-            return f"Sure—I'm asking: {prompt_text}"
-
-        return "Could you share a bit more detail about that?"
-
-    def _filter_options_by_condition_scores(
-        self,
-        session: "MedicalSession",
-        element: str,
-        options: List[str],
-        term_to_conditions: Optional[Dict[str, List[str]]] = None,
-        allowed_conditions: Optional[set] = None,
-    ) -> List[str]:
-        if not options:
-            return options
- 
-        baseline = 0.5 + 1e-6
-        prioritized: List[str] = []
-        fallback: List[str] = []
-        skipped: List[str] = []
-        mapping = term_to_conditions or {}
-        top_condition = None
-        if allowed_conditions:
-            top_condition = next(iter(sorted(allowed_conditions, key=lambda name: session.condition_scores.get(name, 0.0), reverse=True)), None)
-        elif session.condition_scores:
-            top_condition = max(session.condition_scores.items(), key=lambda item: item[1])[0]
- 
-        for opt in options:
-            conds = mapping.get(opt.lower(), [])
-            if allowed_conditions:
-                conds = [cond for cond in conds if cond in allowed_conditions]
-            if not conds:
-                fallback.append(opt)
-                continue
-            if any(session.condition_scores.get(cond, 0.5) > baseline for cond in conds):
-                prioritized.append(opt)
-        else:
-                skipped.append(opt)
- 
-        if skipped:
-            self._capture_debug(
-                f"[Clarification] ⚖️ Skipping options for {element} tied to baseline scores: {skipped}"
-            )
- 
-        if top_condition:
-            top_options = [opt for opt in prioritized if top_condition in mapping.get(opt.lower(), [])]
-            if not top_options:
-                extra_top = [opt for opt in fallback if top_condition in mapping.get(opt.lower(), [])]
-                if extra_top:
-                    prioritized = [extra_top[0]] + prioritized
-                else:
-                    for opt, conds in mapping.items():
-                        if conds and top_condition in conds and opt not in prioritized:
-                            prioritized = [opt] + prioritized
-                            break
- 
-        if prioritized:
-            return prioritized
-        if fallback:
-            return fallback
- 
-        return options
-
-    def _ensure_associated_state(self, session: "MedicalSession") -> Dict[str, Any]:
-        state = session.context.setdefault('associated_state', {})
-        state.setdefault('queue', [])
-        state.setdefault('index', 0)
-        state.setdefault('positives', [])
-        state.setdefault('negatives', [])
-        state.setdefault('current', None)
-        return state
-
-    def _prepare_associated_queue(self, session: "MedicalSession") -> None:
-        state = self._ensure_associated_state(session)
-        if state['queue']:
-            return
-
-        includes = self._get_element_includes(session, 'associated')
-        baseline = 0.5 + 1e-6
-        priority_bucket: List[Dict[str, Any]] = []
-        fallback_bucket: List[Dict[str, Any]] = []
-        seen_terms: set = set()
-
-        target_condition = None
-        sorted_scores = sorted(session.condition_scores.items(), key=lambda item: item[1], reverse=True)
-        if sorted_scores:
-            target_condition = sorted_scores[0][0]
-
-        filtered_entries = []
-        if target_condition:
-            for entry in includes:
-                if entry.get('condition') == target_condition:
-                    filtered_entries.append(entry)
-        if not filtered_entries:
-            filtered_entries = includes
-
-        for entry in filtered_entries:
-            patient_term = (entry.get('patient_friendly') or entry.get('medical') or '').strip()
-            if not patient_term:
-                continue
-            key = patient_term.lower()
-            if key in seen_terms:
-                continue
-            seen_terms.add(key)
-            condition_name = entry.get('condition')
-            score = session.condition_scores.get(condition_name, 0.5) if condition_name else 0.5
-            item = {
-                'patient_term': patient_term,
-                'medical_term': entry.get('medical') or patient_term,
-                'condition': condition_name,
-                'score': score,
-                'emergent': bool(entry.get('emergent_term') or entry.get('condition_urgency') == 'emergent'),
-            }
-            if score > baseline:
-                priority_bucket.append(item)
-        else:
-                fallback_bucket.append(item)
-
-        def sort_entries(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-            return sorted(
-                items,
-                key=lambda x: (
-                    -(1 if x['emergent'] else 0),
-                    -x['score'],
-                    x['patient_term'],
-                ),
-            )
-
-        queue = sort_entries(priority_bucket) + sort_entries(fallback_bucket)
-        state['queue'] = queue
-        state['index'] = 0
-        state['positives'] = []
-        state['negatives'] = []
-        state['current'] = None
-
-    def _prepare_next_associated_question(self, session: "MedicalSession") -> Optional[Dict[str, Any]]:
-        self._prepare_associated_queue(session)
-        state = self._ensure_associated_state(session)
-        queue = state.get('queue', [])
-        index = state.get('index', 0)
-
-        if index >= len(queue):
-            return None
-
-        entry = queue[index]
-        state['current'] = entry
-        return self._compose_binary_question(
-            session=session,
-            field='associated',
-            entry=entry,
-            mode='associated_sequence',
-            fallback_template="Have you noticed {term}? (yes/no)",
-        )
-
-    def _advance_associated_queue(self, session: "MedicalSession") -> Optional[Dict[str, Any]]:
-        state = self._ensure_associated_state(session)
-        state['index'] = state.get('index', 0) + 1
-        if state['index'] >= len(state.get('queue', [])):
-            state['current'] = None
-        return None
-        entry = state['queue'][state['index']]
-        state['current'] = entry
-        return self._compose_binary_question(
-            session=session,
-            field='associated',
-            entry=entry,
-            mode='associated_sequence',
-            fallback_template="Have you noticed {term}? (yes/no)",
-        )
-
-    def _handle_associated_answer(
-        self,
-        session: "MedicalSession",
-        answer: str,
-    ) -> Dict[str, Any]:
-        state = self._ensure_associated_state(session)
-        entry = state.get('current')
-        if not entry:
-            return {'completed': True}
-
-        normalized = answer.strip().lower()
-        positive_markers = {'yes', 'y', 'yeah', 'yep', 'affirmative', 'correct', 'sure', 'absolutely', 'definitely'}
-        negative_markers = {'no', 'n', 'not really', 'nope', 'nah', 'none', 'negative'}
-
-        positive = False
-        negative = False
-        if normalized in positive_markers or normalized.startswith('yes'):
-            positive = True
-        elif normalized in negative_markers or normalized.startswith('no'):
-            negative = True
-
-        result: Dict[str, Any] = {
-            'score_text': None,
-            'next_question': None,
-            'completed': False,
-        }
-
-        if positive:
-            state['positives'].append(entry['patient_term'])
-            hpi_assoc = session.context['hpi'].get('associated')
-            if not isinstance(hpi_assoc, list):
-                hpi_assoc = []
-            if entry['patient_term'] not in hpi_assoc:
-                hpi_assoc.append(entry['patient_term'])
-            session.context['hpi']['associated'] = hpi_assoc
-            result['score_text'] = entry['patient_term']
-        elif negative:
-            state['negatives'].append(entry['patient_term'])
-        else:
-            # Treat ambiguous answer as positive evidence text for scoring
-            result['score_text'] = answer
-
-        next_question = self._advance_associated_queue(session)
-        if next_question:
-            result['next_question'] = next_question
-        else:
-            result['completed'] = True
-            state['current'] = None
-            state['queue'] = []
-            state['index'] = 0
-
-        result['positives'] = list(state.get('positives', []))
-        result['negatives'] = list(state.get('negatives', []))
-
-        return result
-
-    def _ensure_red_flag_state(self, session: "MedicalSession") -> Dict[str, Any]:
-        state = session.context.setdefault('red_flag_state', {})
-        state.setdefault('queue', [])
-        state.setdefault('index', 0)
-        state.setdefault('positives', [])
-        state.setdefault('negatives', [])
-        state.setdefault('current', None)
-        return state
-
-    def _prepare_red_flag_queue(self, session: "MedicalSession") -> None:
-        state = self._ensure_red_flag_state(session)
-        if state['queue']:
-            return
-
-        includes = self._get_element_includes(session, 'red_flags')
-        seen_terms: set = set()
-        queue: List[Dict[str, Any]] = []
-
-        for entry in includes:
-            patient_term = (entry.get('patient_friendly') or entry.get('medical') or '').strip()
-            if not patient_term:
-                continue
-            key = patient_term.lower()
-            if key in seen_terms:
-                continue
-            seen_terms.add(key)
-            condition_name = entry.get('condition')
-            score = session.condition_scores.get(condition_name, 0.5) if condition_name else 0.5
-            queue.append({
-                'patient_term': patient_term,
-                'medical_term': entry.get('medical') or patient_term,
-                'condition': condition_name,
-                'score': score,
-                'urgency': entry.get('condition_urgency', ''),
-                'source_element': entry.get('source_element') or 'associated',
-            })
-
-        if not queue:
-            defaults = [
-                "high fever over 103°F",
-                "shortness of breath",
-                "fainting or passing out",
-                "severe chest pain",
-            ]
-            for term in defaults:
-                queue.append({
-                    'patient_term': term,
-                    'medical_term': term,
-                    'condition': 'General emergency',
-                    'score': 0.5,
-                    'urgency': 'emergent',
-                    'source_element': 'associated',
-                })
-
-        queue.sort(key=lambda item: (-item['score'], item['patient_term']))
-
-        state['queue'] = queue
-        state['index'] = 0
-        state['positives'] = []
-        state['negatives'] = []
-        state['current'] = queue[0] if queue else None
-
-    def _prepare_next_red_flag_question(self, session: "MedicalSession") -> Optional[Dict[str, Any]]:
-        self._prepare_red_flag_queue(session)
-        state = self._ensure_red_flag_state(session)
-        queue = state.get('queue', [])
-        index = state.get('index', 0)
-
-        if index >= len(queue):
-            return None
-
-        entry = queue[index]
-        state['current'] = entry
-        return self._compose_binary_question(
-            session=session,
-            field='red_flags',
-            entry=entry,
-            mode='red_flag_sequence',
-            fallback_template="Have you experienced {term}? (yes/no)",
-        )
-
-    def _advance_red_flag_queue(self, session: "MedicalSession") -> Optional[Dict[str, Any]]:
-        state = self._ensure_red_flag_state(session)
-        state['index'] = state.get('index', 0) + 1
-        queue = state.get('queue', [])
-        if state['index'] >= len(queue):
-            state['current'] = None
-            return None
-        entry = queue[state['index']]
-        state['current'] = entry
-        return self._compose_binary_question(
-            session=session,
-            field='red_flags',
-            entry=entry,
-            mode='red_flag_sequence',
-            fallback_template="Have you experienced {term}? (yes/no)",
-        )
-
-    def _handle_red_flag_answer(
-        self,
-        session: "MedicalSession",
-        answer: str,
-    ) -> Dict[str, Any]:
-        state = self._ensure_red_flag_state(session)
-        entry = state.get('current')
-        if not entry:
-            return {'completed': True}
-
-        normalized = answer.strip().lower()
-        positive_markers = {'yes', 'y', 'yeah', 'yep', 'affirmative', 'correct', 'sure', 'absolutely', 'definitely', 'i have'}
-        negative_markers = {'no', 'n', 'not really', 'nope', 'nah', 'none', 'negative'}
-
-        positive = False
-        negative = False
-        if normalized in positive_markers or normalized.startswith('yes'):
-            positive = True
-        elif normalized in negative_markers or normalized.startswith('no'):
-            negative = True
-
-        result: Dict[str, Any] = {
-            'score_text': None,
-            'next_question': None,
-            'completed': False,
-        }
-
-        if positive:
-            state['positives'].append(entry['patient_term'])
-            result['score_text'] = entry['patient_term']
-        elif negative:
-            state['negatives'].append(entry['patient_term'])
-        else:
-            result['score_text'] = answer
-
-        next_question = self._advance_red_flag_queue(session)
-        if next_question:
-            result['next_question'] = next_question
-        else:
-            result['completed'] = True
-            state['current'] = None
-            state['queue'] = []
-            state['index'] = 0
-
-        result['positives'] = list(state.get('positives', []))
-        result['negatives'] = list(state.get('negatives', []))
-        result['source_element'] = entry.get('source_element')
-
-        return result
-
-    def _priority_condition_set(self, session: "MedicalSession") -> set:
-        baseline = 0.5 + 1e-6
-        sorted_conditions = sorted(session.condition_scores.items(), key=lambda item: item[1], reverse=True)
-        if not sorted_conditions:
-            return set()
-
-        top_name, top_score = sorted_conditions[0]
-        second_score = sorted_conditions[1][1] if len(sorted_conditions) > 1 else None
-
-        if second_score is None or top_score - second_score >= self.CLEAR_LEAD_MARGIN:
-            return {top_name}
-
-        priority = {name for name, score in sorted_conditions if score > baseline}
-        if priority:
-            return priority
-
-        if len(sorted_conditions) > 1:
-            return {top_name, sorted_conditions[1][0]}
-
-        return {top_name}

@@ -1,0 +1,198 @@
+{
+  "condition": "Hypothyroidism",
+  "icd10": "E03.9",
+  "snomed": "40930008",
+  "sex": "both",
+  "prevalence": "common",
+  "urgency": "non-emergent",
+  "chief_complaint_triggers": [
+    "fatigue",
+    "tired",
+    "weight gain",
+    "cold intolerance",
+    "feeling cold",
+    "constipation",
+    "depression",
+    "slowed thinking",
+    "hair loss",
+    "dry skin",
+    "hypothyroidism",
+    "underactive thyroid",
+    "low thyroid"
+  ],
+  "key_features": {
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          {
+            "medical": "gradual",
+            "patient_friendly": "developed slowly over weeks to months"
+          },
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing problem that has been getting worse"
+          }
+        ],
+        "excludes": [
+          {
+            "medical": "sudden",
+            "patient_friendly": "came on suddenly"
+          }
+        ]
+      },
+      "location": {
+        "includes": [
+          {
+            "medical": "generalized",
+            "patient_friendly": "throughout your body or all over"
+          },
+          {
+            "medical": "systemic",
+            "patient_friendly": "affecting your whole body"
+          }
+        ],
+        "excludes": [],
+        "anatomical_type": "systemic"
+      },
+      "duration": {
+        "includes": [
+          {
+            "medical": "weeks to months",
+            "patient_friendly": "for several weeks to months"
+          },
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for a long time"
+          }
+        ],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          {
+            "medical": "fatigue",
+            "patient_friendly": "feeling tired or exhausted",
+            "question_tags": ["sensory"]
+          },
+          {
+            "medical": "weakness",
+            "patient_friendly": "feeling weak or lacking energy",
+            "question_tags": ["sensory"]
+          },
+          {
+            "medical": "slowed",
+            "patient_friendly": "feeling slowed down or sluggish",
+            "question_tags": ["sensory"]
+          }
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [
+          {
+            "medical": "cold exposure",
+            "patient_friendly": "being in cold temperatures"
+          },
+          {
+            "medical": "stress",
+            "patient_friendly": "stress or emotional upset"
+          },
+          {
+            "medical": "exertion",
+            "patient_friendly": "physical activity or exercise"
+          }
+        ],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [
+          {
+            "medical": "rest",
+            "patient_friendly": "resting or sleeping"
+          },
+          {
+            "medical": "warmth",
+            "patient_friendly": "being in warm temperatures"
+          }
+        ],
+        "excludes": []
+      },
+      "radiation": {
+        "includes": [],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [
+          {
+            "medical": "constant",
+            "patient_friendly": "constant or always present"
+          },
+          {
+            "medical": "worse in morning",
+            "patient_friendly": "worse in the morning"
+          }
+        ],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [
+          {
+            "medical": "mild to moderate",
+            "patient_friendly": "mild to moderate - 3 to 6 out of 10"
+          },
+          {
+            "medical": "variable",
+            "patient_friendly": "varies from day to day"
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "weight gain",
+            "patient_friendly": "weight gain"
+          },
+          {
+            "medical": "cold intolerance",
+            "patient_friendly": "feeling cold or cold intolerance"
+          },
+          {
+            "medical": "constipation",
+            "patient_friendly": "constipation"
+          },
+          {
+            "medical": "depression",
+            "patient_friendly": "depression or low mood"
+          },
+          {
+            "medical": "hair loss",
+            "patient_friendly": "hair loss or thinning"
+          },
+          {
+            "medical": "dry skin",
+            "patient_friendly": "dry skin"
+          },
+          {
+            "medical": "bradycardia",
+            "patient_friendly": "slow heartbeat"
+          },
+          {
+            "medical": "hoarse voice",
+            "patient_friendly": "hoarse voice"
+          },
+          {
+            "medical": "puffy face",
+            "patient_friendly": "puffy or swollen face"
+          },
+          {
+            "medical": "muscle weakness",
+            "patient_friendly": "muscle weakness"
+          }
+        ],
+        "excludes": []
+      }
+    }
+  }
+}
+

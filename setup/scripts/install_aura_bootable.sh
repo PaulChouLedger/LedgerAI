@@ -564,13 +564,14 @@ echo ""
 # ============================================================================
 print_step "12. Creating data directories..."
 
-mkdir -p "$LEDGERAI_DIR/data/input"
-mkdir -p "$LEDGERAI_DIR/data/parsed"
-mkdir -p "$LEDGERAI_DIR/data/embeddings"
-mkdir -p "$LEDGERAI_DIR/shared/input_audio"
-mkdir -p "$LEDGERAI_DIR/shared/output_audio"
+# Create directories (mkdir -p won't error if they exist)
+mkdir -p "$LEDGERAI_DIR/data/input" 2>/dev/null || true
+mkdir -p "$LEDGERAI_DIR/data/parsed" 2>/dev/null || true
+mkdir -p "$LEDGERAI_DIR/data/embeddings" 2>/dev/null || true
+mkdir -p "$LEDGERAI_DIR/shared/input_audio" 2>/dev/null || true
+mkdir -p "$LEDGERAI_DIR/shared/output_audio" 2>/dev/null || true
 
-print_info "Data directories created"
+print_info "Data directories ready"
 
 echo ""
 

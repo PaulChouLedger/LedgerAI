@@ -1,0 +1,207 @@
+{
+  "condition": "Adrenal Crisis",
+  "icd10": "E27.2",
+  "snomed": "237601000",
+  "sex": "both",
+  "prevalence": "rare",
+  "urgency": "emergent",
+  "chief_complaint_triggers": [
+    "adrenal crisis",
+    "adrenal insufficiency",
+    "addison's crisis",
+    "low blood pressure with weakness",
+    "severe weakness with low blood pressure",
+    "adrenal emergency",
+    "addisonian crisis"
+  ],
+  "key_features": {
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          {
+            "medical": "sudden",
+            "patient_friendly": "came on suddenly or over hours",
+            "emergent": true
+          },
+          {
+            "medical": "acute",
+            "patient_friendly": "started recently, within the past few hours",
+            "emergent": true
+          }
+        ],
+        "excludes": [
+          {
+            "medical": "gradual",
+            "patient_friendly": "built up slowly over days"
+          }
+        ]
+      },
+      "location": {
+        "includes": [
+          {
+            "medical": "abdominal",
+            "patient_friendly": "in your abdomen or belly",
+            "emergent": true
+          },
+          {
+            "medical": "generalized",
+            "patient_friendly": "throughout your body",
+            "emergent": true
+          }
+        ],
+        "excludes": [],
+        "anatomical_type": "abdominal/systemic"
+      },
+      "duration": {
+        "includes": [
+          {
+            "medical": "hours",
+            "patient_friendly": "for several hours",
+            "emergent": true
+          },
+          {
+            "medical": "acute",
+            "patient_friendly": "started recently",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          {
+            "medical": "severe weakness",
+            "patient_friendly": "severe weakness or feeling very weak",
+            "question_tags": ["sensory"],
+            "emergent": true
+          },
+          {
+            "medical": "abdominal pain",
+            "patient_friendly": "abdominal pain or discomfort",
+            "question_tags": ["sensory"],
+            "emergent": true
+          },
+          {
+            "medical": "dizziness",
+            "patient_friendly": "feeling dizzy or lightheaded",
+            "question_tags": ["sensory"],
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      },
+      "aggravating": {
+        "includes": [
+          {
+            "medical": "standing",
+            "patient_friendly": "standing up or being upright",
+            "emergent": true
+          },
+          {
+            "medical": "infection",
+            "patient_friendly": "infection or illness",
+            "emergent": true
+          },
+          {
+            "medical": "stress",
+            "patient_friendly": "stress or trauma",
+            "emergent": true
+          },
+          {
+            "medical": "missed steroids",
+            "patient_friendly": "missing steroid medications",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [
+          {
+            "medical": "lying down",
+            "patient_friendly": "lying down or being flat"
+          }
+        ],
+        "excludes": []
+      },
+      "radiation": {
+        "includes": [],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [
+          {
+            "medical": "constant",
+            "patient_friendly": "constant and severe",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [
+          {
+            "medical": "severe",
+            "patient_friendly": "severe - 8 to 10 out of 10",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "severe hypotension",
+            "patient_friendly": "low blood pressure or dizziness when standing",
+            "emergent": true
+          },
+          {
+            "medical": "weakness",
+            "patient_friendly": "severe weakness",
+            "emergent": true
+          },
+          {
+            "medical": "abdominal pain",
+            "patient_friendly": "abdominal pain",
+            "emergent": true
+          },
+          {
+            "medical": "nausea",
+            "patient_friendly": "nausea",
+            "emergent": true
+          },
+          {
+            "medical": "vomiting",
+            "patient_friendly": "vomiting",
+            "emergent": true
+          },
+          {
+            "medical": "confusion",
+            "patient_friendly": "confusion or altered mental status",
+            "emergent": true
+          },
+          {
+            "medical": "hypoglycemia",
+            "patient_friendly": "low blood sugar",
+            "emergent": true
+          },
+          {
+            "medical": "hyponatremia",
+            "patient_friendly": "low sodium levels"
+          },
+          {
+            "medical": "hyperkalemia",
+            "patient_friendly": "high potassium levels"
+          },
+          {
+            "medical": "fever",
+            "patient_friendly": "fever",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      }
+    }
+  }
+}
+

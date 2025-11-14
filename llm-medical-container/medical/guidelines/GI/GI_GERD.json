@@ -1,117 +1,83 @@
 {
-  "condition": "gastroesophageal reflux disease (GERD) (Gastroesophageal Reflux Disease)",
+  "condition": "Gastroesophageal Reflux Disease (GERD)",
   "icd10": "K21.9",
   "snomed": "235595009",
   "sex": "both",
-  "prevalence": "uncommon",
-  "urgency": "routine",
+  "prevalence": "common",
+  "urgency": "non-emergent",
   "chief_complaint_triggers": [
-    "abdominal pain",
     "heartburn",
-    "chest pain",
-    "burning sensation",
+    "chest burning",
     "acid reflux",
-    "regurgitation"
+    "reflux",
+    "indigestion",
+    "chest pain",
+    "upper abdominal pain",
+    "burning in chest",
+    "stomach acid",
+    "regurgitation",
+    "sour taste",
+    "bitter taste"
   ],
   "key_features": {
     "structured_oldcarts": {
       "onset": {
         "includes": [
           {
+            "medical": "gradual",
+            "patient_friendly": "built up over time"
+          },
+          {
             "medical": "chronic",
-            "patient_friendly": "ongoing for a long time more than 3 months"
+            "patient_friendly": "ongoing problem that comes and goes"
           },
-          {
-            "medical": "acute",
-            "patient_friendly": "recently occurred less than 1 month"
-          }
-        ],
-        "excludes": []
-      },
-      "location": {
-        "includes": [
-          {
-            "medical": "retrosternal",
-            "patient_friendly": "behind your breastbone"
-          },
-          {
-            "medical": "epigastric",
-            "patient_friendly": "upper middle part of your belly"
-          }
-        ],
-        "excludes": [],
-        "anatomical_type": "upper"
-      },
-      "timing": {
-        "includes": [
-          {
-            "medical": "postprandial",
-            "patient_friendly": "within an hour after eating a meal"
-          },
-          {
-            "medical": "nocturnal",
-            "patient_friendly": "late at night when you're lying down"
-          }
-        ],
-        "excludes": []
-      },
-      "frequency": {
-        "includes": [
           {
             "medical": "episodic",
-            "patient_friendly": "happens off and on"
-          },
-          {
-            "medical": "daily",
-            "patient_friendly": "occurs almost every day"
-          }
-        ],
-        "excludes": []
-      },
-      "abruptness": {
-        "includes": [
-          {
-            "medical": "gradual",
-            "patient_friendly": "builds up slowly over time"
+            "patient_friendly": "happens in episodes"
           }
         ],
         "excludes": [
           {
             "medical": "sudden",
-            "patient_friendly": "starts out of nowhere without warning"
+            "patient_friendly": "came on suddenly"
           }
         ]
+      },
+      "location": {
+        "includes": [
+          {
+            "medical": "retrosternal",
+            "patient_friendly": "behind your breastbone or in the center of your chest"
+          },
+          {
+            "medical": "epigastric",
+            "patient_friendly": "upper middle part of your belly"
+          },
+          {
+            "medical": "upper abdomen",
+            "patient_friendly": "upper part of your abdomen"
+          },
+          {
+            "medical": "throat",
+            "patient_friendly": "in your throat or neck"
+          }
+        ],
+        "excludes": [],
+        "anatomical_type": "chest/abdominal"
       },
       "duration": {
         "includes": [
           {
-            "medical": "minutes",
-            "patient_friendly": "for a few minutes"
+            "medical": "minutes to hours",
+            "patient_friendly": "lasts for minutes to a few hours"
           },
           {
-            "medical": "hours",
-            "patient_friendly": "for several hours"
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes"
           },
           {
-            "medical": "days",
-            "patient_friendly": "for a few days"
-          },
-          {
-            "medical": "weeks",
-            "patient_friendly": "for a few weeks"
-          }
-        ],
-        "excludes": []
-      },
-      "progression": {
-        "includes": [
-          {
-            "medical": "waxing/waning",
-            "patient_friendly": "flares up and settles down over weeks"
-          },
-          {
-            "medical": "worsening",
-            "patient_friendly": "symptoms have been getting worse over time"
+            "medical": "episodic",
+            "patient_friendly": "happens in episodes"
           }
         ],
         "excludes": []
@@ -124,31 +90,52 @@
             "question_tags": ["sensory"]
           },
           {
-            "medical": "sharp",
-            "patient_friendly": "sharp or stabbing",
+            "medical": "pressure",
+            "patient_friendly": "pressure or fullness",
             "question_tags": ["sensory"]
           },
           {
-            "medical": "pressure",
-            "patient_friendly": "pressure-like",
+            "medical": "discomfort",
+            "patient_friendly": "uncomfortable feeling",
             "question_tags": ["sensory"]
           }
         ],
-        "excludes": []
+        "excludes": [
+          {
+            "medical": "crushing",
+            "patient_friendly": "crushing or heavy sensation"
+          },
+          {
+            "medical": "sharp",
+            "patient_friendly": "sharp or stabbing"
+          }
+        ]
       },
       "aggravating": {
         "includes": [
           {
-            "medical": "postprandial",
-            "patient_friendly": "consuming spicy or fatty foods"
-          },
-          {
-            "medical": "postprandial",
-            "patient_friendly": "drinking coffee or alcohol"
-          },
-          {
             "medical": "lying down",
-            "patient_friendly": "lying down after having a meal"
+            "patient_friendly": "worse when lying down or bending over"
+          },
+          {
+            "medical": "after meals",
+            "patient_friendly": "worse after eating, especially large meals"
+          },
+          {
+            "medical": "certain foods",
+            "patient_friendly": "worse with spicy, fatty, or acidic foods"
+          },
+          {
+            "medical": "alcohol",
+            "patient_friendly": "worse with alcohol"
+          },
+          {
+            "medical": "caffeine",
+            "patient_friendly": "worse with coffee or caffeinated drinks"
+          },
+          {
+            "medical": "smoking",
+            "patient_friendly": "worse with smoking"
           }
         ],
         "excludes": []
@@ -157,64 +144,124 @@
         "includes": [
           {
             "medical": "antacids",
-            "patient_friendly": "antacids or proton pump inhibitors"
+            "patient_friendly": "better with antacids or acid-reducing medications"
           },
           {
-            "medical": "sitting upright",
-            "patient_friendly": "sitting up"
+            "medical": "sitting up",
+            "patient_friendly": "better when sitting up or standing"
+          },
+          {
+            "medical": "upright position",
+            "patient_friendly": "better when upright"
           }
         ],
         "excludes": []
+      },
+      "radiation": {
+        "includes": [
+          {
+            "medical": "throat",
+            "patient_friendly": "radiates up to your throat or neck"
+          },
+          {
+            "medical": "jaw",
+            "patient_friendly": "radiates to your jaw"
+          }
+        ],
+        "excludes": [
+          {
+            "medical": "arm",
+            "patient_friendly": "does not radiate to your arm"
+          }
+        ]
+      },
+      "timing": {
+        "includes": [
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes, often related to meals or position"
+          },
+          {
+            "medical": "episodic",
+            "patient_friendly": "happens in episodes"
+          },
+          {
+            "medical": "postprandial",
+            "patient_friendly": "often occurs after meals"
+          },
+          {
+            "medical": "nocturnal",
+            "patient_friendly": "often occurs at night when lying down"
+          }
+        ],
+        "excludes": [
+          {
+            "medical": "constant",
+            "patient_friendly": "constant pain"
+          }
+        ]
       },
       "severity": {
         "includes": [
           {
-            "medical": "mild",
-            "patient_friendly": "mild discomfort"
+            "medical": "mild to moderate",
+            "patient_friendly": "mild to moderate - 2 to 6 out of 10"
           },
           {
             "medical": "moderate",
-            "patient_friendly": "moderate discomfort"
-          },
-          {
-            "medical": "severe",
-            "patient_friendly": "severe discomfort",
-            "emergent": true
+            "patient_friendly": "moderate - 4 to 6 out of 10"
           }
         ],
-        "excludes": []
+        "excludes": [
+          {
+            "medical": "severe",
+            "patient_friendly": "severe - 7 to 10 out of 10"
+          }
+        ]
       },
       "associated": {
         "includes": [
           {
-            "medical": "pyrosis",
-            "patient_friendly": "burning sensation in your chest"
+            "medical": "regurgitation",
+            "patient_friendly": "regurgitation or sour/bitter taste in your mouth"
           },
           {
             "medical": "dysphagia",
-            "patient_friendly": "difficulty swallowing"
+            "patient_friendly": "difficulty swallowing",
+            "emergent": true
+          },
+          {
+            "medical": "odynophagia",
+            "patient_friendly": "painful swallowing",
+            "emergent": true
+          },
+          {
+            "medical": "water brash",
+            "patient_friendly": "excessive saliva or water in your mouth"
+          },
+          {
+            "medical": "belching",
+            "patient_friendly": "frequent belching or burping"
+          },
+          {
+            "medical": "bloating",
+            "patient_friendly": "feeling bloated or full"
+          },
+          {
+            "medical": "nausea",
+            "patient_friendly": "nausea"
           },
           {
             "medical": "chronic cough",
-            "patient_friendly": "chronic cough"
+            "patient_friendly": "chronic cough, especially at night"
           },
           {
             "medical": "hoarseness",
-            "patient_friendly": "hoarseness"
+            "patient_friendly": "hoarse voice"
           },
           {
-            "medical": "melena",
-            "patient_friendly": "black, tarry stool",
-            "emergent": true
-          },
-          {
-            "medical": "hematemesis",
-            "patient_friendly": "vomiting blood",
-            "emergent": true
-          },
-          {
-            "medical": "NSAID use",
-            "patient_friendly": "taking nonsteroidal anti-inflammatory drugs (NSAIDs) like ibuprofen or aspirin"
+            "medical": "asthma",
+            "patient_friendly": "worsening asthma symptoms"
           }
         ],
         "excludes": []
@@ -222,3 +269,4 @@
     }
   }
 }
+

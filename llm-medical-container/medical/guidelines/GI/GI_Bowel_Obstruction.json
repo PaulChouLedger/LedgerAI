@@ -1,101 +1,82 @@
 {
-  "condition": "Small Bowel Obstruction",
+  "condition": "Bowel Obstruction",
   "icd10": "K56.60",
-  "snomed": "81060008",
+  "snomed": "95570007",
   "sex": "both",
-  "prevalence": "uncommon",
-  "urgency": "urgent",
+  "prevalence": "common",
+  "urgency": "emergent",
   "chief_complaint_triggers": [
     "abdominal pain",
-    "constipation",
+    "belly pain",
     "vomiting",
-    "no bowel movement",
+    "nausea",
+    "constipation",
     "can't pass gas",
-    "bloating"
+    "can't have bowel movement",
+    "blocked bowel",
+    "intestinal obstruction",
+    "bowel blockage",
+    "stomach cramps",
+    "abdominal distension",
+    "bloated belly"
   ],
   "key_features": {
     "structured_oldcarts": {
       "onset": {
         "includes": [
           {
-            "medical": "sudden",
-            "patient_friendly": "all at once or very quickly"
+            "medical": "acute",
+            "patient_friendly": "started suddenly, within the past few hours to days",
+            "emergent": true
           },
           {
-            "medical": "acute",
-            "patient_friendly": "sudden and severe"
+            "medical": "sudden",
+            "patient_friendly": "came on suddenly",
+            "emergent": true
           }
         ],
-        "excludes": []
+        "excludes": [
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for weeks or months"
+          }
+        ]
       },
       "location": {
         "includes": [
           {
             "medical": "periumbilical",
-            "patient_friendly": "around your belly button"
+            "patient_friendly": "around your belly button",
+            "emergent": true
+          },
+          {
+            "medical": "diffuse",
+            "patient_friendly": "throughout your abdomen",
+            "emergent": true
+          },
+          {
+            "medical": "lower abdomen",
+            "patient_friendly": "lower part of your belly"
+          },
+          {
+            "medical": "upper abdomen",
+            "patient_friendly": "upper part of your belly"
           }
         ],
         "excludes": [],
-        "anatomical_type": "vague"
-      },
-      "timing": {
-        "includes": [
-          {
-            "medical": "episodic",
-            "patient_friendly": "comes and goes in waves"
-          }
-        ],
-        "excludes": []
-      },
-      "frequency": {
-        "includes": [
-          {
-            "medical": "intermittent",
-            "patient_friendly": "on and off throughout the day"
-          },
-          {
-            "medical": "recurrent",
-            "patient_friendly": "has happened more than once"
-          }
-        ],
-        "excludes": []
-      },
-      "abruptness": {
-        "includes": [
-          {
-            "medical": "sudden",
-            "patient_friendly": "came on suddenly"
-          }
-        ],
-        "excludes": [
-          {
-            "medical": "gradual",
-            "patient_friendly": "built up slowly over time"
-          }
-        ]
+        "anatomical_type": "abdominal"
       },
       "duration": {
         "includes": [
           {
-            "medical": "hours",
-            "patient_friendly": "for several hours"
+            "medical": "hours to days",
+            "patient_friendly": "for several hours to a few days",
+            "emergent": true
           },
           {
-            "medical": "days",
-            "patient_friendly": "for a few days"
-          }
-        ],
-        "excludes": []
-      },
-      "progression": {
-        "includes": [
-          {
-            "medical": "worsening",
-            "patient_friendly": "the pain episodes last longer each time"
-          },
-          {
-            "medical": "waxing/waning",
-            "patient_friendly": "it swells up and settles down repeatedly"
+            "medical": "progressive",
+            "patient_friendly": "getting worse over time",
+            "emergent": true
           }
         ],
         "excludes": []
@@ -103,9 +84,25 @@
       "character": {
         "includes": [
           {
-            "medical": "colicky pain",
-            "patient_friendly": "crampy pain",
+            "medical": "crampy",
+            "patient_friendly": "crampy or colicky pain",
             "question_tags": ["sensory"]
+          },
+          {
+            "medical": "colicky",
+            "patient_friendly": "colicky pain that comes in waves",
+            "question_tags": ["sensory"]
+          },
+          {
+            "medical": "sharp",
+            "patient_friendly": "sharp pain",
+            "question_tags": ["sensory"]
+          },
+          {
+            "medical": "constant",
+            "patient_friendly": "constant pain",
+            "question_tags": ["sensory"],
+            "emergent": true
           }
         ],
         "excludes": []
@@ -113,12 +110,12 @@
       "aggravating": {
         "includes": [
           {
-            "medical": "oral intake",
-            "patient_friendly": "eating or drinking"
+            "medical": "food",
+            "patient_friendly": "worse after eating or drinking"
           },
           {
             "medical": "movement",
-            "patient_friendly": "moving around"
+            "patient_friendly": "worse with movement"
           }
         ],
         "excludes": []
@@ -126,12 +123,41 @@
       "relieving": {
         "includes": [
           {
-            "medical": "emesis",
-            "patient_friendly": "vomiting"
+            "medical": "vomiting",
+            "patient_friendly": "temporarily better after vomiting"
           },
           {
-            "medical": "decreased oral intake",
-            "patient_friendly": "not eating or drinking"
+            "medical": "position",
+            "patient_friendly": "better in certain positions"
+          }
+        ],
+        "excludes": []
+      },
+      "radiation": {
+        "includes": [
+          {
+            "medical": "back",
+            "patient_friendly": "radiates to your back"
+          }
+        ],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes in waves or cramps",
+            "emergent": true
+          },
+          {
+            "medical": "colicky",
+            "patient_friendly": "colicky pain that comes and goes",
+            "emergent": true
+          },
+          {
+            "medical": "constant",
+            "patient_friendly": "constant pain (suggests strangulation)",
+            "emergent": true
           }
         ],
         "excludes": []
@@ -139,22 +165,28 @@
       "severity": {
         "includes": [
           {
-            "medical": "moderate",
-            "patient_friendly": "moderate"
+            "medical": "severe",
+            "patient_friendly": "severe - 7 to 10 out of 10",
+            "emergent": true
           },
           {
-            "medical": "severe",
-            "patient_friendly": "severe",
+            "medical": "moderate to severe",
+            "patient_friendly": "moderate to severe - 5 to 9 out of 10",
             "emergent": true
           }
         ],
-        "excludes": []
+        "excludes": [
+          {
+            "medical": "mild",
+            "patient_friendly": "mild - 1 to 3 out of 10"
+          }
+        ]
       },
       "associated": {
         "includes": [
           {
-            "medical": "emesis",
-            "patient_friendly": "vomiting",
+            "medical": "vomiting",
+            "patient_friendly": "vomiting, especially if it becomes feculent (smells like stool)",
             "emergent": true
           },
           {
@@ -162,36 +194,58 @@
             "patient_friendly": "nausea"
           },
           {
+            "medical": "constipation",
+            "patient_friendly": "inability to have a bowel movement",
+            "emergent": true
+          },
+          {
             "medical": "obstipation",
-            "patient_friendly": "difficulty passing gas or bowel movement for more than 12-24 hours"
-          },
-          {
-            "medical": "distension",
-            "patient_friendly": "inflated abdomen",
+            "patient_friendly": "inability to pass gas or stool",
             "emergent": true
           },
           {
-            "medical": "surgical history",
-            "patient_friendly": "previous abdominal surgery"
-          },
-          {
-            "medical": "small bowel obstruction history",
-            "patient_friendly": "previous episodes of small bowel obstruction",
+            "medical": "abdominal distension",
+            "patient_friendly": "swollen or distended belly",
             "emergent": true
           },
           {
-            "medical": "hematochezia",
-            "patient_friendly": "blood in the stool",
+            "medical": "hyperactive bowel sounds",
+            "patient_friendly": "loud gurgling sounds in your belly (early obstruction)"
+          },
+          {
+            "medical": "absent bowel sounds",
+            "patient_friendly": "no sounds in your belly (late obstruction or strangulation)",
             "emergent": true
           },
           {
-            "medical": "pyrexia",
-            "patient_friendly": "fever",
+            "medical": "fever",
+            "patient_friendly": "fever (suggests strangulation or perforation)",
             "emergent": true
           },
           {
-            "medical": "anorexia",
-            "patient_friendly": "poor appetite/dehydration"
+            "medical": "tachycardia",
+            "patient_friendly": "rapid heart rate",
+            "emergent": true
+          },
+          {
+            "medical": "hypotension",
+            "patient_friendly": "low blood pressure",
+            "emergent": true
+          },
+          {
+            "medical": "dehydration",
+            "patient_friendly": "signs of dehydration",
+            "emergent": true
+          },
+          {
+            "medical": "previous surgery",
+            "patient_friendly": "history of abdominal surgery (adhesions)",
+            "emergent": true
+          },
+          {
+            "medical": "hernia",
+            "patient_friendly": "known hernia",
+            "emergent": true
           }
         ],
         "excludes": []
@@ -199,3 +253,4 @@
     }
   }
 }
+

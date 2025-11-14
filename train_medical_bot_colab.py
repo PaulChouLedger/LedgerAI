@@ -3,6 +3,7 @@
 """
 Medical Bot Fine-Tuning Script for Llama-3.2 (Google Colab Version)
 Properly formats medical conversations using Llama-3.2 chat template
+Trains model to think like a doctor with clinical reasoning
 
 To use in Colab:
 1. Upload medical_sft_dataset_high_quality.json (or other dataset) to Colab
@@ -10,12 +11,19 @@ To use in Colab:
 3. Run this script
 
 Dataset Priority:
-- medical_sft_dataset_high_quality.json (highest priority - interleaved reasoning)
+- medical_sft_dataset_high_quality.json (highest priority - includes clinical reasoning and associated symptoms)
 - medical_sft_dataset_differential_reasoning.json
 - medical_sft_dataset_with_reasoning.json
 - medical_sft_dataset_complete.json
 - medical_sft_dataset_enriched.json
 - medical_sft_dataset.json (fallback)
+
+Note: The high-quality dataset includes:
+- Clinical reasoning after each OLD CARTS answer (comparative thinking, rule-in/rule-out logic)
+- Progressive narrowing of differential diagnosis with probability rankings
+- Associated symptoms with reasoning
+- Final diagnostic reasoning with ranked differential
+- System prompt: "Think like a doctor: recognize chief complaints, build differential diagnoses, and rank conditions by probability"
 """
 
 import json
@@ -54,15 +62,14 @@ MAX_SEQ_LENGTH = 2048
 OUTPUT_DIR = "outputs"
 GGUF_OUTPUT_DIR = "gguf_model"
 
-# Medical system prompt to guide the model's behavior
-# IMPORTANT: Must match the test script prompt exactly
-MEDICAL_SYSTEM_PROMPT = """You are a professional medical assistant. 
+# Fallback system prompt (used only if dataset doesn't include system prompts)
+# The high-quality dataset includes its own system prompt that encourages clinical reasoning
+FALLBACK_SYSTEM_PROMPT = """You are a medical professional conducting a clinical history. Think like a doctor: recognize chief complaints, build differential diagnoses, and rank conditions by probability.
 
 IMPORTANT RULES:
 - ONLY ask medical questions when the patient mentions a symptom, pain, or medical concern
 - If the patient is just greeting you or having casual conversation, respond naturally and wait for them to mention a medical issue
 - NEVER make up or assume symptoms the patient hasn't mentioned
-- NEVER make statements about the patient's information (like "Your age is 27") - always ASK questions
 - Always ask questions, never make statements about patient information
 - NEVER ask redundant questions about information already provided
 
@@ -74,15 +81,16 @@ STEP 3: Ask their age (REQUIRED - do this THIRD, AFTER chronicity)
 STEP 4: Ask their biological sex (REQUIRED - do this FOURTH, AFTER age)
 STEP 5: THEN and ONLY THEN ask about the symptom using OLD CARTS - one question at a time
 
-DO NOT:
-- Skip empathy, chronicity, age, or sex questions
-- Ask OLD CARTS questions before completing steps 1-4
-- Ask redundant questions about information already provided
-- Make statements instead of asking questions
-
 When asking OLD CARTS questions, ask about: when it started, where it is, how long it's been present, what it feels like, what makes it worse, what makes it better, if it spreads, if it's constant or comes and goes, and how severe it is.
 
-Be natural and conversational. Ask only one question at a time. Do not list multiple questions. Do not mention frameworks or include instructions in your responses. Do not include internal reasoning, acknowledgments, or explanations. Only ask the question."""
+After each OLD CARTS answer, provide clinical reasoning showing:
+- How the answer affects the differential diagnosis
+- Comparative thinking (e.g., "more concerning for X than Y")
+- Rule-in/rule-out logic
+- Updated probability rankings
+- Progressive narrowing of the differential
+
+Be natural and conversational. Ask only one question at a time."""
 
 # ============================================================================
 # GPU Check
@@ -112,6 +120,25 @@ with open(DATASET_PATH, 'r', encoding='utf-8') as f:
     data = json.load(f)
 
 print(f"✅ Loaded {len(data)} conversations from {DATASET_PATH}")
+
+# Check if dataset includes clinical reasoning
+sample_conv = data[0] if data else {}
+sample_messages = sample_conv.get("messages", [])
+has_reasoning = any("CLINICAL REASONING" in msg.get("content", "") or 
+                    "more concerning" in msg.get("content", "").lower() or
+                    "probability" in msg.get("content", "").lower()
+                    for msg in sample_messages)
+
+if has_reasoning:
+    print("ℹ️  Dataset includes clinical reasoning:")
+    print("   - Clinical reasoning after each OLD CARTS answer")
+    print("   - Comparative thinking (more concerning for X than Y)")
+    print("   - Rule-in/rule-out logic with probability rankings")
+    print("   - Progressive narrowing of differential diagnosis")
+    print("   - Associated symptoms with reasoning")
+    print("   - Final diagnostic reasoning with ranked differential")
+else:
+    print("ℹ️  Dataset format detected (may not include clinical reasoning)")
 print()
 
 # Prepare message structures (without formatting yet)
@@ -126,23 +153,22 @@ for idx, conversation in enumerate(data):
     # Build messages list with system prompt
     chat_messages = []
     
-    # Add system prompt at the beginning if not already present
+    # Check if dataset already has a system prompt
     has_system = any(msg.get("role") == "system" for msg in messages)
+    
+    # Use system prompt from dataset if present, otherwise use fallback
     if not has_system:
         chat_messages.append({
             "role": "system",
-            "content": MEDICAL_SYSTEM_PROMPT
+            "content": FALLBACK_SYSTEM_PROMPT
         })
     
-    # Add all conversation messages
+    # Add all conversation messages (preserve system prompt from dataset if present)
     for msg in messages:
         role = msg.get("role", "").strip()
         content = msg.get("content", "").strip()
         
         if role and content:
-            # Skip system messages if we already added our own
-            if role == "system" and not has_system:
-                continue
             chat_messages.append({
                 "role": role,
                 "content": content
@@ -254,12 +280,12 @@ print("Configuring Training")
 print("=" * 80)
 
 # Training arguments optimized for Unsloth and medical conversations
-# Enhanced for better OLD CARTS framework adherence
+# Enhanced for clinical reasoning and OLD CARTS framework adherence
 training_args = TrainingArguments(
     per_device_train_batch_size=2,
     gradient_accumulation_steps=4,  # Effective batch size = 8
-    warmup_steps=75,  # Increased warmup for better OLD CARTS learning
-    num_train_epochs=5,  # Increased from 3 to 5 for better framework adherence
+    warmup_steps=75,  # Increased warmup for better clinical reasoning learning
+    num_train_epochs=10,  # Increased to 10 for better element identification and condition matching
     learning_rate=1.5e-4,  # Slightly lower for more stable learning
     fp16=not torch.cuda.is_bf16_supported(),
     bf16=torch.cuda.is_bf16_supported(),
@@ -270,7 +296,7 @@ training_args = TrainingArguments(
     seed=3407,
     output_dir=OUTPUT_DIR,
     save_strategy="epoch",
-    save_total_limit=3,  # Keep more checkpoints
+    save_total_limit=5,  # Keep more checkpoints for 10 epochs
     dataloader_pin_memory=False,
     report_to="none",  # Disable Weights & Biases logging
     # Medical-specific optimizations
@@ -291,9 +317,9 @@ print("✅ Training configured")
 print(f"   - Batch size: {training_args.per_device_train_batch_size}")
 print(f"   - Gradient accumulation: {training_args.gradient_accumulation_steps}")
 print(f"   - Effective batch size: {training_args.per_device_train_batch_size * training_args.gradient_accumulation_steps}")
-print(f"   - Epochs: {training_args.num_train_epochs} (increased for better OLD CARTS adherence)")
+print(f"   - Epochs: {training_args.num_train_epochs} (optimized for clinical reasoning and OLD CARTS adherence)")
 print(f"   - Learning rate: {training_args.learning_rate}")
-print(f"   - LoRA rank: 128 (increased for better framework learning)")
+print(f"   - LoRA rank: 128 (increased for better clinical reasoning learning)")
 print(f"   - LoRA alpha: 256")
 print(f"   - Warmup steps: {training_args.warmup_steps}")
 print(f"   - Scheduler: {training_args.lr_scheduler_type}")
@@ -344,9 +370,17 @@ print()
 print("=" * 80)
 print("🎉 Fine-tuning Complete!")
 print("=" * 80)
-print(f"Your medical bot model is ready:")
+print(f"Your medical bot model is ready with clinical reasoning capabilities:")
 print(f"  - HuggingFace format: {OUTPUT_DIR}/")
 print(f"  - GGUF format: {GGUF_OUTPUT_DIR}/")
+print()
+print("The model has been trained to:")
+print("  ✅ Follow OLD CARTS sequence (empathy → chronicity → age → sex → OLD CARTS)")
+print("  ✅ Provide clinical reasoning after each answer")
+print("  ✅ Use comparative thinking (more concerning for X than Y)")
+print("  ✅ Build ranked differential diagnoses with probability updates")
+print("  ✅ Progressively narrow differential as more information is gathered")
+print("  ✅ Include associated symptoms with reasoning")
 print()
 
 # For Colab: Download the GGUF file

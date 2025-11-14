@@ -1,13 +1,20 @@
 {
   "condition": "Acute Appendicitis",
   "icd10": "K35.80",
-  "snomed": "85189001",
+  "snomed": "8186001",
   "sex": "both",
   "prevalence": "common",
   "urgency": "emergent",
   "chief_complaint_triggers": [
     "abdominal pain",
-    "right lower abdominal pain"
+    "belly pain",
+    "right lower quadrant pain",
+    "RLQ pain",
+    "lower right side pain",
+    "appendicitis",
+    "appendix pain",
+    "stomach pain",
+    "right side pain"
   ],
   "key_features": {
     "structured_oldcarts": {
@@ -15,53 +22,9 @@
         "includes": [
           {
             "medical": "acute",
-            "patient_friendly": "recently occurred less than 1 month"
-          }
-        ],
-        "excludes": []
-      },
-      "location": {
-        "includes": [
-          {
-            "medical": "right lower quadrant",
-            "patient_friendly": "lower right side around your groin"
+            "patient_friendly": "started suddenly, within the past 12-48 hours",
+            "emergent": true
           },
-          {
-            "medical": "periumbilical",
-            "patient_friendly": "around your belly button migrating to right lower quadrant"
-          }
-        ],
-        "excludes": [],
-        "anatomical_type": "right_lower"
-      },
-      "timing": {
-        "includes": [
-          {
-            "medical": "overnight_worsening",
-            "patient_friendly": "often wakes you in the night or early morning as it intensifies"
-          },
-          {
-            "medical": "progressive_24h",
-            "patient_friendly": "builds steadily over the first 12–24 hours after it starts"
-          }
-        ],
-        "excludes": []
-      },
-      "frequency": {
-        "includes": [
-          {
-            "medical": "constant",
-            "patient_friendly": "constant pain that does not go away"
-          },
-          {
-            "medical": "single_episode",
-            "patient_friendly": "a single continuous episode rather than repeated attacks"
-          }
-        ],
-        "excludes": []
-      },
-      "abruptness": {
-        "includes": [
           {
             "medical": "sudden",
             "patient_friendly": "came on suddenly",
@@ -70,56 +33,118 @@
         ],
         "excludes": [
           {
-            "medical": "gradual",
-            "patient_friendly": "built up slowly over several days"
+            "medical": "chronic",
+            "patient_friendly": "ongoing for weeks or months"
           }
         ]
+      },
+      "location": {
+        "includes": [
+          {
+            "medical": "right lower quadrant",
+            "patient_friendly": "lower right side of your belly",
+            "emergent": true
+          },
+          {
+            "medical": "RLQ",
+            "patient_friendly": "right lower part of your abdomen",
+            "emergent": true
+          },
+          {
+            "medical": "McBurney's point",
+            "patient_friendly": "lower right side, about one-third of the way from your belly button to your hip bone",
+            "emergent": true
+          },
+          {
+            "medical": "periumbilical migrating to RLQ",
+            "patient_friendly": "started around your belly button and moved to the lower right side",
+            "emergent": true
+          }
+        ],
+        "excludes": [
+          {
+            "medical": "left side",
+            "patient_friendly": "left side of your belly"
+          },
+          {
+            "medical": "upper abdomen",
+            "patient_friendly": "upper part of your belly"
+          }
+        ],
+        "anatomical_type": "abdominal"
       },
       "duration": {
         "includes": [
           {
-            "medical": "hours",
-            "patient_friendly": "for several hours"
+            "medical": "hours to days",
+            "patient_friendly": "for several hours to 1-2 days",
+            "emergent": true
           },
           {
-            "medical": "days",
-            "patient_friendly": "for a few days"
+            "medical": "progressive",
+            "patient_friendly": "getting worse over time",
+            "emergent": true
           }
         ],
-        "excludes": []
-      },
-      "progression": {
-        "includes": [
+        "excludes": [
           {
-            "medical": "worsening",
-            "patient_friendly": "it has been getting worse over time"
-          },
-          {
-            "medical": "unchanged",
-            "patient_friendly": "it has stayed about the same since it started"
+            "medical": "weeks",
+            "patient_friendly": "ongoing for weeks"
           }
-        ],
-        "excludes": []
+        ]
       },
       "character": {
         "includes": [
           {
             "medical": "sharp",
-            "patient_friendly": "sharp or stabbing",
+            "patient_friendly": "sharp or stabbing pain",
             "question_tags": ["sensory"]
+          },
+          {
+            "medical": "constant",
+            "patient_friendly": "constant, steady pain",
+            "question_tags": ["sensory"]
+          },
+          {
+            "medical": "crampy",
+            "patient_friendly": "crampy or colicky pain",
+            "question_tags": ["sensory"]
+          },
+          {
+            "medical": "severe",
+            "patient_friendly": "severe pain",
+            "question_tags": ["sensory"],
+            "emergent": true
           }
         ],
-        "excludes": []
+        "excludes": [
+          {
+            "medical": "dull",
+            "patient_friendly": "dull ache"
+          }
+        ]
       },
       "aggravating": {
         "includes": [
           {
-            "medical": "physical activity",
-            "patient_friendly": "moving around or jumping"
+            "medical": "movement",
+            "patient_friendly": "worse with movement, walking, or jarring",
+            "emergent": true
           },
           {
             "medical": "coughing",
-            "patient_friendly": "coughing"
+            "patient_friendly": "worse when coughing or sneezing",
+            "emergent": true
+          },
+          {
+            "medical": "palpation",
+            "patient_friendly": "worse when pressing on the area",
+            "emergent": true
+          },
+          {
+            "medical": "rebound tenderness",
+            "patient_friendly": "worse when you release pressure after pressing",
+            "emergent": true
           }
         ],
         "excludes": []
@@ -127,58 +152,115 @@
       "relieving": {
         "includes": [
           {
-            "medical": "nothing",
-            "patient_friendly": "nothing helps"
+            "medical": "position",
+            "patient_friendly": "better when lying still, especially with knees bent"
+          },
+          {
+            "medical": "still",
+            "patient_friendly": "better when not moving"
           }
         ],
-        "excludes": []
+        "excludes": [
+          {
+            "medical": "food",
+            "patient_friendly": "better after eating"
+          }
+        ]
+      },
+      "radiation": {
+        "includes": [],
+        "excludes": [
+          {
+            "medical": "no radiation",
+            "patient_friendly": "stays in the lower right side"
+          }
+        ]
+      },
+      "timing": {
+        "includes": [
+          {
+            "medical": "constant",
+            "patient_friendly": "constant pain that doesn't go away",
+            "emergent": true
+          },
+          {
+            "medical": "progressive",
+            "patient_friendly": "getting progressively worse",
+            "emergent": true
+          }
+        ],
+        "excludes": [
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes"
+          }
+        ]
       },
       "severity": {
         "includes": [
           {
-            "medical": "moderate",
-            "patient_friendly": "moderate"
+            "medical": "severe",
+            "patient_friendly": "severe - 7 to 10 out of 10",
+            "emergent": true
           },
           {
-            "medical": "severe",
-            "patient_friendly": "severe",
+            "medical": "moderate to severe",
+            "patient_friendly": "moderate to severe - 5 to 9 out of 10",
             "emergent": true
           }
         ],
-        "excludes": []
+        "excludes": [
+          {
+            "medical": "mild",
+            "patient_friendly": "mild - 1 to 3 out of 10"
+          }
+        ]
       },
       "associated": {
         "includes": [
           {
-            "medical": "anorexia",
-            "patient_friendly": "poor appetite/dehydration"
+            "medical": "fever",
+            "patient_friendly": "fever",
+            "emergent": true
           },
           {
             "medical": "nausea",
             "patient_friendly": "nausea"
           },
           {
-            "medical": "emesis",
+            "medical": "vomiting",
             "patient_friendly": "vomiting"
           },
           {
-            "medical": "pyrexia",
-            "patient_friendly": "fever",
+            "medical": "anorexia",
+            "patient_friendly": "loss of appetite"
+          },
+          {
+            "medical": "constipation",
+            "patient_friendly": "constipation or inability to pass gas"
+          },
+          {
+            "medical": "diarrhea",
+            "patient_friendly": "diarrhea (less common)"
+          },
+          {
+            "medical": "McBurney's sign",
+            "patient_friendly": "tenderness at a specific point in your lower right belly",
             "emergent": true
           },
           {
-            "medical": "hypotension",
-            "patient_friendly": "low blood pressure",
+            "medical": "Rovsing's sign",
+            "patient_friendly": "pain in your lower right side when pressing on your lower left side",
             "emergent": true
           },
           {
-            "medical": "encephalopathy",
-            "patient_friendly": "confusion or disorientation",
+            "medical": "psoas sign",
+            "patient_friendly": "pain when lifting your right leg",
             "emergent": true
           },
           {
-            "medical": "rigors",
-            "patient_friendly": "shaking chills",
+            "medical": "obturator sign",
+            "patient_friendly": "pain when rotating your right hip",
             "emergent": true
           }
         ],
@@ -187,3 +269,4 @@
     }
   }
 }
+

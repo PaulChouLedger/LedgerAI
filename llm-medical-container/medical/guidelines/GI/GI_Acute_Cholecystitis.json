@@ -1,15 +1,21 @@
 {
   "condition": "Acute Cholecystitis",
   "icd10": "K81.0",
-  "snomed": "65275009",
+  "snomed": "365500007",
   "sex": "both",
   "prevalence": "common",
   "urgency": "emergent",
   "chief_complaint_triggers": [
+    "right upper quadrant pain",
+    "RUQ pain",
+    "upper right abdominal pain",
+    "gallbladder pain",
+    "right side pain",
     "abdominal pain",
-    "right upper abdominal pain",
-    "pain after eating",
-    "gallbladder pain"
+    "belly pain",
+    "right upper belly pain",
+    "biliary colic",
+    "gallstone pain"
   ],
   "key_features": {
     "structured_oldcarts": {
@@ -17,106 +23,126 @@
         "includes": [
           {
             "medical": "acute",
-            "patient_friendly": "recently occurred less than 1 month"
+            "patient_friendly": "started suddenly, within the past few hours to days",
+            "emergent": true
+          },
+          {
+            "medical": "sudden",
+            "patient_friendly": "came on suddenly",
+            "emergent": true
           }
         ],
-        "excludes": []
+        "excludes": [
+          {
+            "medical": "chronic",
+            "patient_friendly": "ongoing for weeks or months"
+          }
+        ]
       },
       "location": {
         "includes": [
           {
             "medical": "right upper quadrant",
-            "patient_friendly": "top right side near your ribs"
-          }
-        ],
-        "excludes": [],
-        "anatomical_type": "right_upper"
-      },
-      "timing": {
-        "includes": [
-          {
-            "medical": "postprandial",
-            "patient_friendly": "within an hour after eating a heavy or greasy meal"
+            "patient_friendly": "upper right side of your belly, below your ribs",
+            "emergent": true
           },
           {
-            "medical": "nocturnal",
-            "patient_friendly": "late in the evening after you've gone to bed"
-          }
-        ],
-        "excludes": []
-      },
-      "frequency": {
-        "includes": [
-          {
-            "medical": "constant",
-            "patient_friendly": "constant pain that does not let up"
-          }
-        ],
-        "excludes": []
-      },
-      "abruptness": {
-        "includes": [
-          {
-            "medical": "sudden",
-            "patient_friendly": "started very suddenly after a meal"
+            "medical": "RUQ",
+            "patient_friendly": "right upper part of your abdomen",
+            "emergent": true
           },
           {
-            "medical": "gradual",
-            "patient_friendly": "builds up over several hours"
+            "medical": "epigastric",
+            "patient_friendly": "upper middle part of your belly"
+          },
+          {
+            "medical": "right flank",
+            "patient_friendly": "right side of your belly"
           }
         ],
-        "excludes": []
+        "excludes": [
+          {
+            "medical": "left side",
+            "patient_friendly": "left side of your belly"
+          },
+          {
+            "medical": "lower abdomen",
+            "patient_friendly": "lower part of your belly"
+          }
+        ],
+        "anatomical_type": "abdominal"
       },
       "duration": {
         "includes": [
           {
+            "medical": "hours to days",
+            "patient_friendly": "for several hours to a few days",
+            "emergent": true
+          },
+          {
+            "medical": "persistent",
+            "patient_friendly": "continuous and not going away",
+            "emergent": true
+          }
+        ],
+        "excludes": [
+          {
             "medical": "minutes",
-            "patient_friendly": "for a few minutes"
-          },
-          {
-            "medical": ">6 hours",
-            "patient_friendly": "more than 6 hours"
+            "patient_friendly": "only lasted a few minutes"
           }
-        ],
-        "excludes": []
-      },
-      "progression": {
-        "includes": [
-          {
-            "medical": "worsening",
-            "patient_friendly": "it has been getting worse over time"
-          },
-          {
-            "medical": "unchanged",
-            "patient_friendly": "it has stayed about the same"
-          }
-        ],
-        "excludes": []
+        ]
       },
       "character": {
         "includes": [
           {
             "medical": "sharp",
-            "patient_friendly": "sharp or stabbing",
+            "patient_friendly": "sharp or stabbing pain",
             "question_tags": ["sensory"]
           },
           {
-            "medical": "aching",
-            "patient_friendly": "aching",
+            "medical": "colicky",
+            "patient_friendly": "colicky or crampy pain",
             "question_tags": ["sensory"]
+          },
+          {
+            "medical": "constant",
+            "patient_friendly": "constant, steady pain",
+            "question_tags": ["sensory"]
+          },
+          {
+            "medical": "severe",
+            "patient_friendly": "severe pain",
+            "question_tags": ["sensory"],
+            "emergent": true
           }
         ],
-        "excludes": []
+        "excludes": [
+          {
+            "medical": "dull",
+            "patient_friendly": "dull ache"
+          }
+        ]
       },
       "aggravating": {
         "includes": [
           {
-            "medical": "diaphragmatic breathing",
-            "patient_friendly": "taking deep breaths"
+            "medical": "fatty foods",
+            "patient_friendly": "worse after eating fatty or greasy foods"
           },
           {
-            "medical": "postprandial lipemia",
-            "patient_friendly": "eating fatty or greasy foods"
+            "medical": "deep breathing",
+            "patient_friendly": "worse when taking deep breaths",
+            "emergent": true
+          },
+          {
+            "medical": "movement",
+            "patient_friendly": "worse with movement or jarring",
+            "emergent": true
+          },
+          {
+            "medical": "palpation",
+            "patient_friendly": "worse when you press on the area",
+            "emergent": true
           }
         ],
         "excludes": []
@@ -124,80 +150,117 @@
       "relieving": {
         "includes": [
           {
-            "medical": "nothing",
-            "patient_friendly": "nothing helps"
+            "medical": "position",
+            "patient_friendly": "better when lying still or in certain positions"
           },
           {
-            "medical": "rest",
-            "patient_friendly": "resting"
+            "medical": "fasting",
+            "patient_friendly": "better when not eating"
+          }
+        ],
+        "excludes": [
+          {
+            "medical": "food",
+            "patient_friendly": "better after eating"
+          }
+        ]
+      },
+      "radiation": {
+        "includes": [
+          {
+            "medical": "right shoulder",
+            "patient_friendly": "radiates to your right shoulder or back",
+            "emergent": true
+          },
+          {
+            "medical": "back",
+            "patient_friendly": "radiates to your back, especially right side",
+            "emergent": true
+          },
+          {
+            "medical": "scapula",
+            "patient_friendly": "radiates to your right shoulder blade"
           }
         ],
         "excludes": []
+      },
+      "timing": {
+        "includes": [
+          {
+            "medical": "constant",
+            "patient_friendly": "constant pain that doesn't go away",
+            "emergent": true
+          },
+          {
+            "medical": "persistent",
+            "patient_friendly": "persistent and getting worse",
+            "emergent": true
+          }
+        ],
+        "excludes": [
+          {
+            "medical": "intermittent",
+            "patient_friendly": "comes and goes"
+          }
+        ]
       },
       "severity": {
         "includes": [
           {
             "medical": "severe",
-            "patient_friendly": "severe",
+            "patient_friendly": "severe - 7 to 10 out of 10",
+            "emergent": true
+          },
+          {
+            "medical": "moderate to severe",
+            "patient_friendly": "moderate to severe - 5 to 9 out of 10",
             "emergent": true
           }
         ],
-        "excludes": []
-      },
-      "radiation": {
-        "includes": [
+        "excludes": [
           {
-            "medical": "shoulder",
-            "patient_friendly": "spreads to your right shoulder"
-          },
-          {
-            "medical": "scapula",
-            "patient_friendly": "your shoulder blade"
+            "medical": "mild",
+            "patient_friendly": "mild - 1 to 3 out of 10"
           }
-        ],
-        "excludes": []
+        ]
       },
       "associated": {
         "includes": [
+          {
+            "medical": "fever",
+            "patient_friendly": "fever",
+            "emergent": true
+          },
           {
             "medical": "nausea",
             "patient_friendly": "nausea"
           },
           {
-            "medical": "emesis",
+            "medical": "vomiting",
             "patient_friendly": "vomiting"
           },
           {
-            "medical": "pyrexia",
-            "patient_friendly": "fever",
-            "emergent": true
-          },
-          {
             "medical": "anorexia",
-            "patient_friendly": "poor appetite/dehydration"
-          },
-          {
-            "medical": "postprandial lipemia",
-            "patient_friendly": "eating fatty or greasy foods"
-          },
-          {
-            "medical": "hypotension",
-            "patient_friendly": "low blood pressure",
-            "emergent": true
-          },
-          {
-            "medical": "encephalopathy",
-            "patient_friendly": "confusion or disorientation",
-            "emergent": true
-          },
-          {
-            "medical": "rigors",
-            "patient_friendly": "shaking chills",
-            "emergent": true
+            "patient_friendly": "loss of appetite"
           },
           {
             "medical": "jaundice",
-            "patient_friendly": "yellow skin or eyes",
+            "patient_friendly": "yellowing of your skin or eyes",
+            "emergent": true
+          },
+          {
+            "medical": "Murphy's sign",
+            "patient_friendly": "pain when pressing on your right upper belly and taking a deep breath",
+            "emergent": true
+          },
+          {
+            "medical": "tenderness",
+            "patient_friendly": "very tender to touch in the right upper belly",
+            "emergent": true
+          },
+          {
+            "medical": "rigidity",
+            "patient_friendly": "muscle guarding or rigidity in your belly",
             "emergent": true
           }
         ],
@@ -206,3 +269,4 @@
     }
   }
 }
+

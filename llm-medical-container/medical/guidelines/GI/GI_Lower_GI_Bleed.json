@@ -1,0 +1,233 @@
+{
+  "condition": "Acute Lower GI Bleed",
+  "icd10": "K92.2",
+  "snomed": "74474003",
+  "sex": "both",
+  "prevalence": "common",
+  "urgency": "emergent",
+  "chief_complaint_triggers": [
+    "rectal bleeding",
+    "bloody stools",
+    "blood in stool",
+    "bright red blood",
+    "hematochezia",
+    "lower GI bleed",
+    "bleeding from rectum",
+    "blood when wiping",
+    "red blood in toilet",
+    "bloody diarrhea"
+  ],
+  "key_features": {
+    "structured_oldcarts": {
+      "onset": {
+        "includes": [
+          {
+            "medical": "acute",
+            "patient_friendly": "started suddenly",
+            "emergent": true
+          },
+          {
+            "medical": "sudden",
+            "patient_friendly": "came on suddenly",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      },
+      "location": {
+        "includes": [],
+        "excludes": [],
+        "anatomical_type": "visual"
+      },
+      "duration": {
+        "includes": [
+          {
+            "medical": "ongoing",
+            "patient_friendly": "ongoing bleeding",
+            "emergent": true
+          },
+          {
+            "medical": "recurrent",
+            "patient_friendly": "happening repeatedly",
+            "emergent": true
+          },
+          {
+            "medical": "episodic",
+            "patient_friendly": "happening in episodes",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      },
+      "character": {
+        "includes": [
+          {
+            "medical": "bright red blood",
+            "patient_friendly": "bright red blood in or on stools",
+            "question_tags": ["visual"],
+            "emergent": true
+          },
+          {
+            "medical": "dark red blood",
+            "patient_friendly": "dark red blood mixed with stools",
+            "question_tags": ["visual"],
+            "emergent": true
+          },
+          {
+            "medical": "blood clots",
+            "patient_friendly": "blood clots in stools",
+            "question_tags": ["visual"],
+            "emergent": true
+          },
+          {
+            "medical": "blood on toilet paper",
+            "patient_friendly": "blood on toilet paper when wiping",
+            "question_tags": ["visual"],
+            "emergent": true
+          }
+        ],
+        "excludes": [
+          {
+            "medical": "black tarry",
+            "patient_friendly": "black, tarry stools (this suggests upper GI bleed)"
+          }
+        ]
+      },
+      "aggravating": {
+        "includes": [
+          {
+            "medical": "bowel movement",
+            "patient_friendly": "worse with bowel movements"
+          },
+          {
+            "medical": "straining",
+            "patient_friendly": "worse with straining during bowel movements"
+          },
+          {
+            "medical": "certain foods",
+            "patient_friendly": "worse with certain foods"
+          }
+        ],
+        "excludes": []
+      },
+      "relieving": {
+        "includes": [
+          {
+            "medical": "medical intervention",
+            "patient_friendly": "requires medical treatment to stop"
+          }
+        ],
+        "excludes": []
+      },
+      "radiation": {
+        "includes": [],
+        "excludes": []
+      },
+      "timing": {
+        "includes": [
+          {
+            "medical": "continuous",
+            "patient_friendly": "ongoing bleeding",
+            "emergent": true
+          },
+          {
+            "medical": "episodic",
+            "patient_friendly": "happening in episodes",
+            "emergent": true
+          },
+          {
+            "medical": "with bowel movements",
+            "patient_friendly": "occurs with bowel movements"
+          }
+        ],
+        "excludes": []
+      },
+      "severity": {
+        "includes": [
+          {
+            "medical": "severe",
+            "patient_friendly": "large amount of blood",
+            "emergent": true
+          },
+          {
+            "medical": "moderate",
+            "patient_friendly": "moderate amount of blood",
+            "emergent": true
+          },
+          {
+            "medical": "minimal",
+            "patient_friendly": "small amount of blood, just on toilet paper",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      },
+      "associated": {
+        "includes": [
+          {
+            "medical": "hematochezia",
+            "patient_friendly": "bright red blood in stools",
+            "emergent": true
+          },
+          {
+            "medical": "dizziness",
+            "patient_friendly": "dizziness or lightheadedness",
+            "emergent": true
+          },
+          {
+            "medical": "syncope",
+            "patient_friendly": "fainting or passing out",
+            "emergent": true
+          },
+          {
+            "medical": "weakness",
+            "patient_friendly": "weakness or fatigue",
+            "emergent": true
+          },
+          {
+            "medical": "pallor",
+            "patient_friendly": "pale skin",
+            "emergent": true
+          },
+          {
+            "medical": "tachycardia",
+            "patient_friendly": "rapid heart rate",
+            "emergent": true
+          },
+          {
+            "medical": "hypotension",
+            "patient_friendly": "low blood pressure or feeling faint",
+            "emergent": true
+          },
+          {
+            "medical": "abdominal pain",
+            "patient_friendly": "abdominal pain or cramping"
+          },
+          {
+            "medical": "diarrhea",
+            "patient_friendly": "diarrhea"
+          },
+          {
+            "medical": "constipation",
+            "patient_friendly": "constipation"
+          },
+          {
+            "medical": "tenesmus",
+            "patient_friendly": "feeling like you need to have a bowel movement but can't"
+          },
+          {
+            "medical": "urgency",
+            "patient_friendly": "urgent need to have a bowel movement"
+          },
+          {
+            "medical": "anemia",
+            "patient_friendly": "symptoms of anemia (tiredness, weakness)",
+            "emergent": true
+          }
+        ],
+        "excludes": []
+      }
+    }
+  }
+}
+
