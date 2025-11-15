@@ -37,28 +37,86 @@ print_step() {
 
 print_step "1. Checking X Server Status"
 
-# Check if X server is running
-if pgrep -x "Xorg\|X" > /dev/null; then
-    print_info "✅ X server is running"
-    X_PID=$(pgrep -x "Xorg\|X" | head -1)
-    print_info "   PID: $X_PID"
-else
-    print_error "❌ X server is NOT running"
-    print_warning "   Solution: Make sure you're logged into a graphical session"
-    exit 1
+# Check if X server is running (try multiple process names)
+X_SERVER_FOUND=false
+X_PID=""
+X_PROCESS=""
+
+# Try different X server process names
+for xproc in Xorg Xwayland X Xtigervnc Xvnc; do
+    if pgrep -x "$xproc" > /dev/null 2>&1; then
+        X_SERVER_FOUND=true
+        X_PID=$(pgrep -x "$xproc" | head -1)
+        X_PROCESS="$xproc"
+        break
+    fi
+done
+
+# Also check for processes containing X in their name (for Xorg variants)
+if [ "$X_SERVER_FOUND" = false ]; then
+    X_PID=$(pgrep -f "^.*/X.*" | head -1)
+    if [ -n "$X_PID" ]; then
+        X_SERVER_FOUND=true
+        X_PROCESS=$(ps -p "$X_PID" -o comm= 2>/dev/null || echo "unknown")
+    fi
 fi
 
-# Check X server sockets
+# Check display manager processes (indicates GUI session)
+DISPLAY_MANAGER=""
+if pgrep -x "gdm3\|gdm\|lightdm\|sddm" > /dev/null 2>&1; then
+    DISPLAY_MANAGER=$(pgrep -xl "gdm3\|gdm\|lightdm\|sddm" | head -1 | awk '{print $2}')
+fi
+
+# Check if DISPLAY is set and accessible (more reliable than process check)
+DISPLAY_VAL="${DISPLAY:-NOT SET}"
+X_ACCESSIBLE=false
+if [ "$DISPLAY_VAL" != "NOT SET" ]; then
+    # Try to test X11 connection
+    if command -v xset >/dev/null 2>&1; then
+        if xset q >/dev/null 2>&1; then
+            X_ACCESSIBLE=true
+        fi
+    fi
+fi
+
+# Report findings
+if [ "$X_SERVER_FOUND" = true ] && [ -n "$X_PID" ]; then
+    print_info "✅ X server process found: $X_PROCESS (PID: $X_PID)"
+elif [ "$X_ACCESSIBLE" = true ]; then
+    print_info "✅ X server accessible (DISPLAY=$DISPLAY_VAL) - process detection may have failed"
+elif [ -n "$DISPLAY_MANAGER" ]; then
+    print_warning "⚠️  Display manager running ($DISPLAY_MANAGER) but X server process not detected"
+    print_info "   This might be normal if using Wayland or remote X11"
+elif [ -d "/tmp/.X11-unix/" ]; then
+    print_warning "⚠️  X socket directory exists (/tmp/.X11-unix/) but process not detected"
+    print_info "   X server may be running under a different name or via remote connection"
+else
+    print_error "❌ X server appears to be NOT running"
+    print_warning "   Solution: Make sure you're logged into a graphical session"
+    print_warning "   Note: If GUI works, this check may be too strict - check DISPLAY and X sockets below"
+fi
+
+# Check X server sockets (most reliable indicator)
 print_info "Checking X server sockets..."
 if [ -d "/tmp/.X11-unix/" ]; then
-    sockets=$(ls /tmp/.X11-unix/ | grep "^X")
+    sockets=$(ls /tmp/.X11-unix/ 2>/dev/null | grep "^X" || true)
     if [ -n "$sockets" ]; then
         print_info "✅ Found X sockets: $(echo $sockets | tr '\n' ' ')"
+        print_info "   This indicates X server IS running, even if process not detected"
+        
+        # Test if sockets are accessible
+        for socket in $sockets; do
+            socket_path="/tmp/.X11-unix/$socket"
+            if [ -S "$socket_path" ]; then
+                print_info "   Socket $socket exists and is accessible"
+            fi
+        done
     else
-        print_error "❌ No X sockets found in /tmp/.X11-unix/"
+        print_warning "⚠️  No X sockets found in /tmp/.X11-unix/ (but directory exists)"
     fi
 else
-    print_error "❌ /tmp/.X11-unix/ directory doesn't exist"
+    print_warning "⚠️  /tmp/.X11-unix/ directory doesn't exist"
+    print_info "   This might be normal if using Wayland or remote X11 connection"
 fi
 
 print_step "2. Checking DISPLAY Environment"
