@@ -315,13 +315,17 @@ def tts_playback_thread(text, tts_start_time):
             if not first_chunk:
                 raise RuntimeError("No audio received")
 
-            # Use auto-detected device if available, otherwise use default
+            # Use ALSA 'plug' plugin for automatic format conversion (handles sample rate and channels)
+            # This ensures proper conversion from ElevenLabs mono 22050 Hz to device's native format
             proc = None
             if OUTPUT_CARD_INDEX is not None:
-                device_spec = f"hw:{OUTPUT_CARD_INDEX},0"
+                # Use plughw: instead of hw: to enable automatic format conversion
+                device_spec = f"plughw:{OUTPUT_CARD_INDEX},0"
                 try:
+                    # Let plug plugin handle conversion - specify input format (mono 22050)
+                    # Output will be automatically converted to device's native format
                     proc = subprocess.Popen(
-                        ["aplay", "-D", device_spec, "-f", "S16_LE", "-r", str(PCM_SAMPLE_RATE), "-c", "2"],
+                        ["aplay", "-D", device_spec, "-f", "S16_LE", "-r", str(PCM_SAMPLE_RATE), "-c", "1"],
                         stdin=subprocess.PIPE,
                         stdout=subprocess.DEVNULL,
                         stderr=subprocess.PIPE
@@ -344,10 +348,11 @@ def tts_playback_thread(text, tts_start_time):
                     print(f"[Speaker] 🔄 Falling back to default ALSA device...")
                     proc = None  # Will be set to default below
             
-            # Use default ALSA device (either no device detected or explicit device failed)
+            # Use default ALSA device with plug plugin (either no device detected or explicit device failed)
             if proc is None:
+                # Use default device with plug plugin for automatic conversion
                 proc = subprocess.Popen(
-                    ["aplay", "-f", "S16_LE", "-r", str(PCM_SAMPLE_RATE), "-c", "2"],
+                    ["aplay", "-D", "plug:default", "-f", "S16_LE", "-r", str(PCM_SAMPLE_RATE), "-c", "1"],
                     stdin=subprocess.PIPE,
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL
@@ -357,25 +362,14 @@ def tts_playback_thread(text, tts_start_time):
             tts_latency = time.time() - tts_start_time
             print(f"⏱️ TTS latency: {tts_latency:.2f}s")
             
-            # Convert mono PCM to stereo (ElevenLabs outputs mono, device needs stereo)
-            def mono_to_stereo(mono_data):
-                """Convert mono 16-bit PCM to stereo by duplicating channel"""
-                # Convert bytes to numpy array (16-bit signed integers)
-                mono_samples = np.frombuffer(mono_data, dtype=np.int16)
-                # Interleave: duplicate each sample [L, R, L, R, ...]
-                stereo_samples = np.repeat(mono_samples, 2).astype(np.int16)
-                # Convert back to bytes
-                return stereo_samples.tobytes()
-            
-            # Write chunks with error handling for broken pipe
+            # Write chunks directly (ALSA plug plugin handles mono->stereo and sample rate conversion)
             try:
                 # Verify process is still running before writing first chunk
                 if proc.poll() is not None:
                     raise BrokenPipeError(f"aplay process terminated before writing (exit code: {proc.returncode})")
                 
-                # Convert first chunk from mono to stereo
-                stereo_first_chunk = mono_to_stereo(first_chunk)
-                proc.stdin.write(stereo_first_chunk)
+                # Write first chunk directly (plug plugin handles conversion)
+                proc.stdin.write(first_chunk)
                 proc.stdin.flush()
                 
                 for chunk in stream:
@@ -385,9 +379,8 @@ def tts_playback_thread(text, tts_start_time):
                             raise BrokenPipeError(f"aplay process terminated during playback (exit code: {proc.returncode})")
                         
                         try:
-                            # Convert chunk from mono to stereo
-                            stereo_chunk = mono_to_stereo(chunk)
-                            proc.stdin.write(stereo_chunk)
+                            # Write chunk directly (plug plugin handles conversion)
+                            proc.stdin.write(chunk)
                             proc.stdin.flush()
                         except BrokenPipeError:
                             # Process terminated during write
