@@ -357,13 +357,25 @@ def tts_playback_thread(text, tts_start_time):
             tts_latency = time.time() - tts_start_time
             print(f"⏱️ TTS latency: {tts_latency:.2f}s")
             
+            # Convert mono PCM to stereo (ElevenLabs outputs mono, device needs stereo)
+            def mono_to_stereo(mono_data):
+                """Convert mono 16-bit PCM to stereo by duplicating channel"""
+                # Convert bytes to numpy array (16-bit signed integers)
+                mono_samples = np.frombuffer(mono_data, dtype=np.int16)
+                # Interleave: duplicate each sample [L, R, L, R, ...]
+                stereo_samples = np.repeat(mono_samples, 2).astype(np.int16)
+                # Convert back to bytes
+                return stereo_samples.tobytes()
+            
             # Write chunks with error handling for broken pipe
             try:
                 # Verify process is still running before writing first chunk
                 if proc.poll() is not None:
                     raise BrokenPipeError(f"aplay process terminated before writing (exit code: {proc.returncode})")
                 
-                proc.stdin.write(first_chunk)
+                # Convert first chunk from mono to stereo
+                stereo_first_chunk = mono_to_stereo(first_chunk)
+                proc.stdin.write(stereo_first_chunk)
                 proc.stdin.flush()
                 
                 for chunk in stream:
@@ -373,7 +385,9 @@ def tts_playback_thread(text, tts_start_time):
                             raise BrokenPipeError(f"aplay process terminated during playback (exit code: {proc.returncode})")
                         
                         try:
-                            proc.stdin.write(chunk)
+                            # Convert chunk from mono to stereo
+                            stereo_chunk = mono_to_stereo(chunk)
+                            proc.stdin.write(stereo_chunk)
                             proc.stdin.flush()
                         except BrokenPipeError:
                             # Process terminated during write
