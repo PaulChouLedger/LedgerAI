@@ -29,7 +29,7 @@ RUN python3 -c "from sentence_transformers import SentenceTransformer; SentenceT
     echo "✅ all-distilroberta-v1 model pre-downloaded into image"
 
 # Copy models (cached - these are large and rarely change)
-COPY models/Llama-3.2-1B-Instruct.Q4_K_M.gguf /models/Llama-3.2-1B-Instruct.Q4_K_M.gguf
+COPY models/Qwen2.5-1.5B-Instruct.Q4_K_M.gguf /models/Qwen2.5-1.5B-Instruct.Q4_K_M.gguf
 
 # Copy static files (cached - these change less frequently than Python code)
 COPY ml/ /app/ml/
@@ -46,7 +46,7 @@ COPY config/ /app/config/
 # - Smart LLM-based question generation and answer extraction
 # - Fuzzy medical matching for typo correction
 # - RAG integration for semantic similarity and medical knowledge
-# - Single LLM support (Llama-3.2-1B for all tasks)
+# - Single LLM support (Qwen2.5-1.5B for all tasks)
 # - Session management built into container_rest.py
 
 # Copy all Python application files in one layer (frequently changed - no caching)
@@ -61,9 +61,10 @@ COPY rag/ /app/rag/
 # Models already copied above (cached layer)
 
 # === Environment defaults (can be overridden by .env or -e) ===
-ENV SIMPLE_MODEL_PATH=/models/Llama-3.2-1B-Instruct.Q4_K_M.gguf
-ENV SIMPLE_CHAT_FORMAT=llama-3
+ENV SIMPLE_MODEL_PATH=/models/Qwen2.5-1.5B-Instruct.Q4_K_M.gguf
+ENV SIMPLE_CHAT_FORMAT=qwen
 ENV SIMPLE_N_CTX=2048
+ENV LLM_STOP=<|eot_id|>
 
 
 # Expose port for API

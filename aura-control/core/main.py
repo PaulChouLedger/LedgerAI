@@ -22,7 +22,7 @@ sys.path.insert(0, parent_dir)
 # Import from organized directories
 from gui.aura_gui import launch_gui, run_gui_loop, is_gui_ready
 from listener import listen
-import speaker  # ✅ Starts TTS playback loop and queue
+# Note: speaker import is delayed until after WiFi setup to avoid ElevenLabs API connection failure
 try:
     from server.web_upload_server import start_upload_server
     UPLOAD_SERVER_AVAILABLE = True
@@ -1152,7 +1152,7 @@ def main():
     # Start keyboard monitor (disables Ubuntu keyboard while running)
     start_keyboard_monitor()
     
-    # Launch GUI FIRST so user sees something immediately
+    # Launch GUI FIRST so user sees something immediately (needed for welcome dialog)
     print("[Aura] 🎨 Launching GUI...")
     try:
         launch_gui()
@@ -1176,12 +1176,70 @@ def main():
         time.sleep(0.05)  # Check every 50ms
     
     if is_gui_ready():
-        print("[Aura] ✅ GUI ready - starting services")
+        print("[Aura] ✅ GUI ready - showing welcome setup")
     else:
         print("[Aura] ⚠️  GUI ready timeout - continuing anyway")
 
-    # Start TTS warm-up FIRST (fast, shows system is responsive)
-    warm_up_tts()
+    # === Welcome Setup Dialog (WiFi Connection) ===
+    # This must happen before TTS initialization (TTS requires WiFi for ElevenLabs API)
+    print("[Aura] 👋 Showing welcome setup dialog...")
+    try:
+        from gui.welcome_setup_dialog import WelcomeSetupDialog
+        from PyQt5.QtWidgets import QApplication, QDialog, QMessageBox
+        
+        app = QApplication.instance()
+        if app is None:
+            app = QApplication(sys.argv)
+        
+        welcome_dialog = WelcomeSetupDialog()
+        
+        # Show dialog and wait for user to complete setup (blocks until closed)
+        result = welcome_dialog.exec_()
+        
+        if result == QDialog.Accepted:
+            print("[Aura] ✅ Welcome setup completed - proceeding with Aura initialization")
+        else:
+            print("[Aura] ⚠️ Welcome setup cancelled or closed - proceeding anyway")
+            # Ask user if they want to continue without WiFi
+            reply = QMessageBox.question(
+                None,
+                "Continue Without WiFi?",
+                "WiFi is not connected. TTS will fail without internet.\n\n"
+                "Do you want to continue anyway?",
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No
+            )
+            if reply != QMessageBox.Yes:
+                print("[Aura] 🚪 User cancelled - exiting")
+                sys.exit(0)
+    except Exception as e:
+        print(f"[Aura] ⚠️ Welcome setup dialog failed: {e}")
+        import traceback
+        traceback.print_exc()
+        # Continue anyway - user can set WiFi later via settings
+        print("[Aura] 💡 Continuing without welcome setup - WiFi can be configured via Settings")
+    
+    # Now import speaker module AFTER WiFi is connected (avoids ElevenLabs API connection failure)
+    print("[Aura] 🔊 Initializing TTS (speaker module)...")
+    try:
+        import speaker  # ✅ Starts TTS playback loop and queue
+        print("[Aura] ✅ TTS initialized successfully")
+    except RuntimeError as e:
+        print(f"[Aura] ⚠️ TTS initialization failed: {e}")
+        print("[Aura] 💡 This is expected if WiFi is not connected")
+        print("[Aura] 💡 Connect WiFi via Settings and restart Aura")
+        # Continue anyway - Aura can work without TTS for testing
+    except Exception as e:
+        print(f"[Aura] ⚠️ TTS initialization error: {e}")
+        import traceback
+        traceback.print_exc()
+    
+    # Start TTS warm-up (only if speaker was imported successfully)
+    try:
+        if 'speaker' in sys.modules:
+            warm_up_tts()
+    except NameError:
+        print("[Aura] ⚠️ warm_up_tts not available (speaker not loaded)")
     
     # Check for new medical guidelines (but don't rebuild embeddings yet if found)
     # This is quick - just checks if new JSONs exist

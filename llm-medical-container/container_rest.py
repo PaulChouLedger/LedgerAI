@@ -862,7 +862,7 @@ if __name__ == "__main__":
     print("    • FAISS semantic matching and anatomical filtering")
     print("    • Multi-category support with fuzzy fallback")
     print("    • Uses local CPU FAISS for medical knowledge")
-    print("    • Single LLM model (Llama-3.2-1B) for all tasks")
+    print("    • Single LLM model (Qwen2.5-1.5B) for all tasks")
 
     app.run(host='0.0.0.0', port=11434, debug=False)
 
