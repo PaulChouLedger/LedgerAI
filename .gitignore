@@ -7,6 +7,7 @@ __pycache__/
 
 # dotenv
 !docker/template.env
+!.env.example
 **/*.env
 
 # IDE

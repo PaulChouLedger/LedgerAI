@@ -840,9 +840,68 @@ fi
 echo ""
 
 # ============================================================================
-# Step 13: Create data directories if needed
+# Step 13: Create .env file from template if it doesn't exist
 # ============================================================================
-print_step "13. Creating data directories..."
+print_step "13. Setting up .env configuration file..."
+
+ENV_FILE="$LEDGERAI_DIR/.env"
+ENV_EXAMPLE="$LEDGERAI_DIR/.env.example"
+
+if [ ! -f "$ENV_FILE" ]; then
+    if [ -f "$ENV_EXAMPLE" ]; then
+        print_info "Creating .env from .env.example template..."
+        cp "$ENV_EXAMPLE" "$ENV_FILE"
+        chown "$AURA_USER:$AURA_USER" "$ENV_FILE"
+        print_info "✅ Created .env file from template"
+        print_warning "⚠️  IMPORTANT: Edit .env file and add your API keys:"
+        print_info "   - ELEVENLABS_API_KEY (required for TTS)"
+        print_info "   - TELEGRAM_BOT_TOKEN (optional)"
+        print_info "   - GITHUB_TOKEN (optional)"
+        print_info "   Run: nano $ENV_FILE"
+        print_info "   Or use: cd $LEDGERAI_DIR && ./aura_config.sh"
+    else
+        print_warning ".env.example not found - creating minimal .env template..."
+        cat > "$ENV_FILE" << 'EOF'
+# ============================================
+# AURA CONFIGURATION
+# ============================================
+# Edit this file with your actual API keys and settings
+
+# ElevenLabs API Key (REQUIRED for TTS)
+ELEVENLABS_API_KEY=your_api_key_here
+ELEVENLABS_VOICE_ID=default
+TTS_VOLUME=70
+
+# LLM Configuration
+USE_MEDICAL_MODE=true
+RAG_MODE=CPU
+RAG_THRESHOLD=0.3
+RAG_TOP_K=5
+
+# Optional: Telegram Bot
+TELEGRAM_BOT_TOKEN=your_bot_token_here
+
+# Optional: GitHub OTA Updates
+GITHUB_TOKEN=your_github_token_here
+
+# Debug Settings
+DEBUG_MODE=false
+LOG_LEVEL=INFO
+EOF
+        chown "$AURA_USER:$AURA_USER" "$ENV_FILE"
+        print_info "✅ Created minimal .env file"
+        print_warning "⚠️  Edit .env file and add your API keys before running Aura"
+    fi
+else
+    print_info "✅ .env file already exists (skipping template copy)"
+fi
+
+echo ""
+
+# ============================================================================
+# Step 14: Create data directories if needed
+# ============================================================================
+print_step "14. Creating data directories..."
 
 # Create directories (mkdir -p won't error if they exist)
 mkdir -p "$LEDGERAI_DIR/data/input" 2>/dev/null || true
@@ -886,6 +945,11 @@ echo "✅ Docker: Configured"
 echo "✅ Display settings: Configured"
 echo "✅ X11 authentication: Configured (xhost +local: in service)"
 echo "✅ HDMI display support: Configured (DISPLAY=:0, waits for display-manager)"
+if [ -f "$LEDGERAI_DIR/.env" ]; then
+    echo "✅ .env file: Exists"
+else
+    echo "⚠️  .env file: Created from template (needs API keys)"
+fi
 echo ""
 echo "=========================================="
 echo "  Next Steps"
@@ -895,6 +959,15 @@ echo "1. ⚠️  IMPORTANT: Logout and login again (or reboot) to apply Docker g
 echo "   Without this, you'll get 'permission denied' errors with Docker"
 echo "   Temporary workaround: use 'sudo docker' or run 'newgrp docker'"
 echo ""
+if [ ! -f "$LEDGERAI_DIR/.env" ] || grep -q "your_api_key_here\|your_bot_token_here" "$LEDGERAI_DIR/.env" 2>/dev/null; then
+    echo "1.5. ⚠️  IMPORTANT: Configure .env file with your API keys:"
+    echo "   cd $LEDGERAI_DIR"
+    echo "   nano .env"
+    echo "   # Or use interactive config: ./aura_config.sh"
+    echo "   # Required: ELEVENLABS_API_KEY"
+    echo "   # Optional: TELEGRAM_BOT_TOKEN, GITHUB_TOKEN"
+    echo ""
+fi
 echo "2. After logout/login, ensure Docker containers are built:"
 echo "   cd $LEDGERAI_DIR/setup"
 echo "   docker compose build"
