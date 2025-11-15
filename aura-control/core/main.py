@@ -31,7 +31,11 @@ except ImportError as e:
     print(f"[Aura] 💡 Install Flask: pip install flask")
     UPLOAD_SERVER_AVAILABLE = False
 
-os.environ["DISPLAY"] = ":0"
+# Set DISPLAY only if not already set (e.g., for SSH X11 forwarding)
+# When running as systemd service on the device, it will be :0
+# When running via SSH -X, it will be set by SSH (e.g., localhost:10.0)
+if "DISPLAY" not in os.environ or not os.environ.get("DISPLAY"):
+    os.environ["DISPLAY"] = ":0"
 
 # Load unified .env from workspace root
 workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
