@@ -9,7 +9,7 @@ from PyQt5.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel,
                              QPushButton, QTextEdit, QProgressBar,
                              QMessageBox, QListWidget, QListWidgetItem, QInputDialog,
                              QLineEdit, QWidget, QApplication, QGridLayout)
-from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer
+from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer, QPropertyAnimation, QEasingCurve
 from PyQt5.QtGui import QFont
 import threading
 from dotenv import dotenv_values
@@ -444,8 +444,52 @@ class SettingsDialog(QDialog):
             }
         """)
         
+        # Initialize opacity to 0 for fade-in animation
+        self.setWindowOpacity(0.0)
+        
         self.setup_ui()
         self.center_dialog()
+    
+    def showEvent(self, event):
+        """Handle dialog show event with smooth fade-in animation"""
+        super().showEvent(event)
+        
+        # Create smooth fade-in animation
+        self.fade_in = QPropertyAnimation(self, b"windowOpacity")
+        self.fade_in.setDuration(250)  # 250ms for smooth transition
+        self.fade_in.setStartValue(0.0)
+        self.fade_in.setEndValue(1.0)
+        self.fade_in.setEasingCurve(QEasingCurve.OutCubic)  # Smooth ease-out
+        self.fade_in.start()
+        
+        # Ensure dialog is raised and focused
+        self.raise_()
+        self.activateWindow()
+    
+    def closeEvent(self, event):
+        """Handle dialog close event with smooth fade-out animation"""
+        # Only animate if we're actually closing (not just hiding)
+        if event.spontaneous() or not self.isVisible():
+            event.accept()
+            return
+        
+        # Cancel fade-in if still running
+        if hasattr(self, 'fade_in') and self.fade_in.state() == QPropertyAnimation.Running:
+            self.fade_in.stop()
+        
+        # Create smooth fade-out animation
+        self.fade_out = QPropertyAnimation(self, b"windowOpacity")
+        self.fade_out.setDuration(200)  # 200ms for quick but smooth fade-out
+        self.fade_out.setStartValue(self.windowOpacity())
+        self.fade_out.setEndValue(0.0)
+        self.fade_out.setEasingCurve(QEasingCurve.InCubic)  # Smooth ease-in
+        
+        # Connect finished signal to actually close the dialog
+        self.fade_out.finished.connect(lambda: event.accept())
+        self.fade_out.start()
+        
+        # Prevent immediate close
+        event.ignore()
     
     def center_dialog(self):
         """Center dialog on screen"""
@@ -501,6 +545,11 @@ class SettingsDialog(QDialog):
         self.connect_wifi_btn.setStyleSheet(self.get_button_style())
         self.connect_wifi_btn.setEnabled(False)
         wifi_button_layout.addWidget(self.connect_wifi_btn)
+        
+        self.disconnect_wifi_btn = QPushButton("🔌 Disconnect")
+        self.disconnect_wifi_btn.clicked.connect(self.disconnect_wifi)
+        self.disconnect_wifi_btn.setStyleSheet(self.get_button_style())
+        wifi_button_layout.addWidget(self.disconnect_wifi_btn)
         
         main_layout.addLayout(wifi_button_layout)
         
@@ -655,6 +704,9 @@ class SettingsDialog(QDialog):
         self.ota_update_thread = None
         self.selected_wifi = None
         
+        # Check WiFi connection status and update disconnect button
+        self.update_disconnect_button()
+        
         self.log_status("Settings dialog ready")
     
     def get_button_style(self):
@@ -784,6 +836,9 @@ class SettingsDialog(QDialog):
         
         if networks:
             self.log_status(f"Select a network to connect ({len(networks)} available)")
+        
+        # Update disconnect button after scan
+        self.update_disconnect_button()
     
     def on_wifi_scan_error(self, error):
         """Handle WiFi scan error"""
@@ -838,6 +893,10 @@ class SettingsDialog(QDialog):
             if result.returncode == 0:
                 self.log_status(f"Successfully connected to {ssid}")
                 QMessageBox.information(self, "Success", f"Connected to {ssid}")
+                # Update disconnect button after successful connection
+                self.update_disconnect_button()
+                # Refresh network list to show updated connection status
+                self.scan_wifi()
             else:
                 error_msg = result.stderr or result.stdout
                 self.log_status(f"Connection failed: {error_msg}")
@@ -845,6 +904,115 @@ class SettingsDialog(QDialog):
         except Exception as e:
             self.log_status(f"Error: {str(e)}")
             QMessageBox.warning(self, "Error", str(e))
+    
+    def update_disconnect_button(self):
+        """Update disconnect button state based on WiFi connection status"""
+        try:
+            # Check if WiFi is connected using nmcli
+            result = subprocess.run(
+                ['nmcli', '-t', '-f', 'DEVICE,TYPE,STATE', 'device', 'status'],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            
+            if result.returncode == 0:
+                # Look for WiFi devices that are connected
+                wifi_connected = False
+                for line in result.stdout.strip().split('\n'):
+                    if ':wifi:' in line.lower() and ':connected' in line.lower():
+                        wifi_connected = True
+                        break
+                
+                self.disconnect_wifi_btn.setEnabled(wifi_connected)
+                if wifi_connected:
+                    self.log_status("WiFi connected - disconnect button enabled")
+                else:
+                    self.log_status("WiFi not connected - disconnect button disabled")
+            else:
+                # If nmcli fails, disable disconnect button
+                self.disconnect_wifi_btn.setEnabled(False)
+        except Exception as e:
+            print(f"[Settings] ⚠️ Error checking WiFi status: {e}")
+            self.disconnect_wifi_btn.setEnabled(False)
+    
+    def disconnect_wifi(self):
+        """Disconnect from currently connected WiFi network"""
+        reply = QMessageBox.question(
+            self,
+            "Disconnect WiFi",
+            "Disconnect from the current WiFi network?",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No
+        )
+        
+        if reply != QMessageBox.Yes:
+            return
+        
+        self.log_status("Disconnecting from WiFi...")
+        self.disconnect_wifi_btn.setEnabled(False)
+        self.disconnect_wifi_btn.setText("🔄 Disconnecting...")
+        
+        try:
+            # Get the WiFi device name
+            result = subprocess.run(
+                ['nmcli', '-t', '-f', 'DEVICE,TYPE', 'device', 'status'],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            
+            wifi_device = None
+            if result.returncode == 0:
+                for line in result.stdout.strip().split('\n'):
+                    if ':wifi:' in line.lower():
+                        wifi_device = line.split(':')[0]
+                        break
+            
+            if wifi_device:
+                # Disconnect using device name
+                disconnect_result = subprocess.run(
+                    ['nmcli', 'device', 'disconnect', wifi_device],
+                    capture_output=True,
+                    text=True,
+                    timeout=10
+                )
+                
+                if disconnect_result.returncode == 0:
+                    self.log_status(f"Successfully disconnected from WiFi")
+                    QMessageBox.information(self, "Success", "Disconnected from WiFi")
+                    # Refresh network list to show updated connection status
+                    self.scan_wifi()
+                else:
+                    error_msg = disconnect_result.stderr or disconnect_result.stdout
+                    self.log_status(f"Disconnect failed: {error_msg}")
+                    QMessageBox.warning(self, "Disconnect Failed", error_msg)
+                    self.update_disconnect_button()
+            else:
+                # Fallback: disconnect all WiFi connections
+                disconnect_result = subprocess.run(
+                    ['nmcli', 'device', 'disconnect', 'wifi'],
+                    capture_output=True,
+                    text=True,
+                    timeout=10
+                )
+                
+                if disconnect_result.returncode == 0:
+                    self.log_status(f"Successfully disconnected from WiFi")
+                    QMessageBox.information(self, "Success", "Disconnected from WiFi")
+                    self.scan_wifi()
+                else:
+                    error_msg = disconnect_result.stderr or disconnect_result.stdout
+                    self.log_status(f"Disconnect failed: {error_msg}")
+                    QMessageBox.warning(self, "Disconnect Failed", error_msg)
+                    self.update_disconnect_button()
+                    
+        except Exception as e:
+            self.log_status(f"Error: {str(e)}")
+            QMessageBox.warning(self, "Error", str(e))
+            self.update_disconnect_button()
+        finally:
+            self.disconnect_wifi_btn.setText("🔌 Disconnect")
     
     def start_ota_update(self):
         """Start OTA update process"""

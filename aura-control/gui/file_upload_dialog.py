@@ -106,11 +106,30 @@ class FileUploadDialog(QDialog):
             }
         """)
         
+        # Initialize opacity to 0 for fade-in animation
+        self.setWindowOpacity(0.0)
+        
         # Set up UI (only once!)
         self.setup_ui()
         
         # Center the dialog on the actual screen
         self.center_dialog()
+    
+    def showEvent(self, event):
+        """Handle dialog show event with smooth fade-in animation"""
+        super().showEvent(event)
+        
+        # Create smooth fade-in animation
+        self.fade_in = QPropertyAnimation(self, b"windowOpacity")
+        self.fade_in.setDuration(250)  # 250ms for smooth transition
+        self.fade_in.setStartValue(0.0)
+        self.fade_in.setEndValue(1.0)
+        self.fade_in.setEasingCurve(QEasingCurve.OutCubic)  # Smooth ease-out
+        self.fade_in.start()
+        
+        # Ensure dialog is raised and focused
+        self.raise_()
+        self.activateWindow()
         
     def mousePressEvent(self, event):
         """Capture mouse/touch coordinates for debugging"""
@@ -190,12 +209,16 @@ class FileUploadDialog(QDialog):
         """Close dialog with smooth fade-out animation"""
         print("[Upload] 🔄 Closing dialog with fade-out animation...")
         
+        # Cancel fade-in if still running
+        if hasattr(self, 'fade_in') and self.fade_in.state() == QPropertyAnimation.Running:
+            self.fade_in.stop()
+        
         # Create fade-out animation
         self.fade_out = QPropertyAnimation(self, b"windowOpacity")
-        self.fade_out.setDuration(200)
-        self.fade_out.setStartValue(1.0)
+        self.fade_out.setDuration(200)  # 200ms for quick but smooth fade-out
+        self.fade_out.setStartValue(self.windowOpacity())
         self.fade_out.setEndValue(0.0)
-        self.fade_out.setEasingCurve(QEasingCurve.OutCubic)
+        self.fade_out.setEasingCurve(QEasingCurve.InCubic)  # Smooth ease-in
         
         # Connect finished signal to actually close the dialog
         self.fade_out.finished.connect(self._final_close)
@@ -207,9 +230,34 @@ class FileUploadDialog(QDialog):
         self.accept()
     
     def closeEvent(self, event):
-        """Handle dialog close event"""
-        print("[Upload] ✅ Dialog closed")
-        event.accept()
+        """Handle dialog close event with smooth fade-out animation"""
+        # If already animating or not visible, accept immediately
+        if hasattr(self, 'fade_out') and self.fade_out.state() == QPropertyAnimation.Running:
+            event.accept()
+            return
+        
+        # Only animate if we're actually closing (not just hiding)
+        if event.spontaneous() or not self.isVisible():
+            event.accept()
+            return
+        
+        # Cancel fade-in if still running
+        if hasattr(self, 'fade_in') and self.fade_in.state() == QPropertyAnimation.Running:
+            self.fade_in.stop()
+        
+        # Create smooth fade-out animation
+        self.fade_out = QPropertyAnimation(self, b"windowOpacity")
+        self.fade_out.setDuration(200)  # 200ms for quick but smooth fade-out
+        self.fade_out.setStartValue(self.windowOpacity())
+        self.fade_out.setEndValue(0.0)
+        self.fade_out.setEasingCurve(QEasingCurve.InCubic)  # Smooth ease-in
+        
+        # Connect finished signal to actually close the dialog
+        self.fade_out.finished.connect(lambda: event.accept())
+        self.fade_out.start()
+        
+        # Prevent immediate close
+        event.ignore()
 
     def center_dialog_manually(self, screen_center_x, screen_center_y):
         """Manually center the dialog based on screen center coordinates"""

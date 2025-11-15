@@ -2,7 +2,7 @@
 
 from PyQt5.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel, 
                              QPushButton, QLineEdit, QTextEdit, QMessageBox)
-from PyQt5.QtCore import Qt, QThread, pyqtSignal
+from PyQt5.QtCore import Qt, QThread, pyqtSignal, QPropertyAnimation, QEasingCurve
 from PyQt5.QtGui import QFont
 # Set up proper imports for organized structure
 import os
@@ -90,8 +90,27 @@ class PaymentDialog(QDialog):
             }
         """)
         
+        # Initialize opacity to 0 for fade-in animation
+        self.setWindowOpacity(0.0)
+        
         self.setup_ui()
         self.center_dialog()
+    
+    def showEvent(self, event):
+        """Handle dialog show event with smooth fade-in animation"""
+        super().showEvent(event)
+        
+        # Create smooth fade-in animation
+        self.fade_in = QPropertyAnimation(self, b"windowOpacity")
+        self.fade_in.setDuration(250)  # 250ms for smooth transition
+        self.fade_in.setStartValue(0.0)
+        self.fade_in.setEndValue(1.0)
+        self.fade_in.setEasingCurve(QEasingCurve.OutCubic)  # Smooth ease-out
+        self.fade_in.start()
+        
+        # Ensure dialog is raised and focused
+        self.raise_()
+        self.activateWindow()
     
     def setup_ui(self):
         """Setup payment dialog UI"""
@@ -433,6 +452,37 @@ class PaymentDialog(QDialog):
         else:
             self.log_message(f"❌ {message}")
             QMessageBox.critical(self, "Error", f"Transaction failed:\n\n{message}")
+    
+    def closeEvent(self, event):
+        """Handle dialog close event with smooth fade-out animation"""
+        # If already animating or not visible, accept immediately
+        if hasattr(self, 'fade_out') and self.fade_out.state() == QPropertyAnimation.Running:
+            event.accept()
+            return
+        
+        # Only animate if we're actually closing (not just hiding)
+        if event.spontaneous() or not self.isVisible():
+            event.accept()
+            return
+        
+        # Cancel fade-in if still running
+        if hasattr(self, 'fade_in') and self.fade_in.state() == QPropertyAnimation.Running:
+            self.fade_in.stop()
+        
+        # Create smooth fade-out animation
+        self.fade_out = QPropertyAnimation(self, b"windowOpacity")
+        self.fade_out.setDuration(200)  # 200ms for quick but smooth fade-out
+        self.fade_out.setStartValue(self.windowOpacity())
+        self.fade_out.setEndValue(0.0)
+        self.fade_out.setEasingCurve(QEasingCurve.InCubic)  # Smooth ease-in
+        
+        # Connect finished signal to actually close the dialog
+        self.fade_out.finished.connect(lambda: event.accept())
+        self.fade_out.start()
+        
+        # Prevent immediate close
+        event.ignore()
+        print("[PaymentDialog] 🔄 Closing dialog with fade-out animation...")
     
     def center_dialog(self):
         """Center the dialog on screen"""

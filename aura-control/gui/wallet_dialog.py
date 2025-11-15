@@ -2,7 +2,7 @@
 
 from PyQt5.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel, 
                             QPushButton, QLineEdit, QTextEdit, QGroupBox, QMessageBox)
-from PyQt5.QtCore import Qt, QTimer, QThread, pyqtSignal
+from PyQt5.QtCore import Qt, QTimer, QThread, pyqtSignal, QPropertyAnimation, QEasingCurve
 from PyQt5.QtGui import QFont, QColor
 import os
 import sys
@@ -101,6 +101,9 @@ class WalletDialog(QDialog):
                 background-color: rgba(142, 142, 147, 0.6);
             }
         """)
+        
+        # Initialize opacity to 0 for fade-in animation
+        self.setWindowOpacity(0.0)
         
         self.setup_ui()
         self.update_connection_status()
@@ -640,6 +643,22 @@ class WalletDialog(QDialog):
         self.raise_()
         self.activateWindow()
     
+    def showEvent(self, event):
+        """Handle dialog show event with smooth fade-in animation"""
+        super().showEvent(event)
+        
+        # Create smooth fade-in animation
+        self.fade_in = QPropertyAnimation(self, b"windowOpacity")
+        self.fade_in.setDuration(250)  # 250ms for smooth transition
+        self.fade_in.setStartValue(0.0)
+        self.fade_in.setEndValue(1.0)
+        self.fade_in.setEasingCurve(QEasingCurve.OutCubic)  # Smooth ease-out
+        self.fade_in.start()
+        
+        # Ensure dialog is raised and focused
+        self.raise_()
+        self.activateWindow()
+    
     def open_payment_dialog(self):
         """Open payment dialog to send tokens to client"""
         if not self.wallet_manager.connected_address:
@@ -735,9 +754,37 @@ class WalletDialog(QDialog):
             QMessageBox.critical(self, "Error", f"Failed to open payment dialog:\n{str(e)}")
     
     def closeEvent(self, event):
-        """Handle dialog close"""
+        """Handle dialog close event with smooth fade-out animation"""
+        # Stop timers first
         self.balance_refresh_timer.stop()
         self.usage_refresh_timer.stop()
-        print("[WalletDialog] ✅ Dialog closed")
-        event.accept()
+        
+        # If already animating or not visible, accept immediately
+        if hasattr(self, 'fade_out') and self.fade_out.state() == QPropertyAnimation.Running:
+            event.accept()
+            return
+        
+        # Only animate if we're actually closing (not just hiding)
+        if event.spontaneous() or not self.isVisible():
+            event.accept()
+            return
+        
+        # Cancel fade-in if still running
+        if hasattr(self, 'fade_in') and self.fade_in.state() == QPropertyAnimation.Running:
+            self.fade_in.stop()
+        
+        # Create smooth fade-out animation
+        self.fade_out = QPropertyAnimation(self, b"windowOpacity")
+        self.fade_out.setDuration(200)  # 200ms for quick but smooth fade-out
+        self.fade_out.setStartValue(self.windowOpacity())
+        self.fade_out.setEndValue(0.0)
+        self.fade_out.setEasingCurve(QEasingCurve.InCubic)  # Smooth ease-in
+        
+        # Connect finished signal to actually close the dialog
+        self.fade_out.finished.connect(lambda: event.accept())
+        self.fade_out.start()
+        
+        # Prevent immediate close
+        event.ignore()
+        print("[WalletDialog] 🔄 Closing dialog with fade-out animation...")
 
