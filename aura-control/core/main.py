@@ -1200,7 +1200,15 @@ def main():
     # Bring GUI to front after launch
     threading.Thread(target=focus_gui_window, daemon=True).start()
     
+    # Run GUI loop (blocks until GUI exits)
     run_gui_loop()
+    
+    # Check if shutdown was requested
+    from state import should_shutdown
+    if should_shutdown():
+        print("[Aura] 🚪 Shutdown requested - exiting cleanly...")
+        stop_keyboard_monitor()  # Allow Ubuntu keyboard to restart
+        sys.exit(0)
 
 if __name__ == "__main__":
     main()

@@ -579,6 +579,45 @@ class SettingsDialog(QDialog):
         """)
         main_layout.addWidget(self.progress_bar)
         
+        # Exit to Desktop Section
+        exit_label = QLabel("🚪 Exit to Desktop")
+        exit_label.setFont(QFont("Arial", 14, QFont.Bold))
+        exit_label.setStyleSheet("color: #ffffff; margin-top: 20px;")
+        main_layout.addWidget(exit_label)
+        
+        exit_desc = QLabel("Exit Aura and return to the desktop environment")
+        exit_desc.setStyleSheet("color: #aaaaaa; font-size: 12px; margin-bottom: 10px;")
+        main_layout.addWidget(exit_desc)
+        
+        # Exit button (orange/yellow to distinguish from close)
+        exit_button_layout = QHBoxLayout()
+        exit_button_layout.setSpacing(15)
+        exit_button_layout.addStretch()
+        
+        self.exit_btn = QPushButton("🚪 Exit to Desktop")
+        self.exit_btn.clicked.connect(self.exit_to_desktop)
+        self.exit_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #FF9500;
+                color: white;
+                font-size: 16px;
+                font-weight: 600;
+                padding: 15px 30px;
+                border-radius: 20px;
+                border: none;
+                min-width: 200px;
+            }
+            QPushButton:hover {
+                background-color: #E58500;
+            }
+            QPushButton:pressed {
+                background-color: #CC7500;
+            }
+        """)
+        exit_button_layout.addWidget(self.exit_btn)
+        exit_button_layout.addStretch()
+        main_layout.addLayout(exit_button_layout)
+        
         # Close button (red, matching other dialogs)
         close_layout = QHBoxLayout()
         close_layout.addStretch()
@@ -647,6 +686,54 @@ class SettingsDialog(QDialog):
         """Add message to status log"""
         self.status_log.append(f"[Settings] {message}")
         print(f"[Settings] {message}")
+    
+    def exit_to_desktop(self):
+        """Exit Aura and return to desktop"""
+        reply = QMessageBox.question(
+            self,
+            "Exit to Desktop",
+            "Exit Aura and return to the desktop environment?\n\nThis will stop all Aura services.",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No
+        )
+        
+        if reply == QMessageBox.Yes:
+            self.log_status("Exiting Aura...")
+            
+            # Request shutdown via state management
+            try:
+                import sys
+                import os
+                # Add parent directory to path to import state module
+                current_dir = os.path.dirname(os.path.abspath(__file__))
+                parent_dir = os.path.dirname(current_dir)
+                if parent_dir not in sys.path:
+                    sys.path.insert(0, parent_dir)
+                
+                from core.state import request_shutdown
+                request_shutdown()
+                print("[Settings] ✅ Shutdown requested")
+            except ImportError as e:
+                print(f"[Settings] ⚠️ Could not import request_shutdown: {e}")
+            except Exception as e:
+                print(f"[Settings] ⚠️ Error requesting shutdown: {e}")
+            
+            # Close settings dialog first
+            self.close()
+            
+            # Close main GUI window and exit Qt application
+            try:
+                from gui.aura_gui import close_gui
+                close_gui()
+                print("[Settings] ✅ GUI closed")
+            except ImportError:
+                # Fallback: quit Qt application directly
+                QApplication.instance().quit()
+                print("[Settings] ✅ Application quit (fallback)")
+            except Exception as e:
+                print(f"[Settings] ⚠️ Error closing GUI: {e}")
+                # Fallback: quit Qt application directly
+                QApplication.instance().quit()
     
     def scan_wifi(self):
         """Scan for available WiFi networks"""
