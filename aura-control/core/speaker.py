@@ -359,34 +359,60 @@ def tts_playback_thread(text, tts_start_time):
             
             # Write chunks with error handling for broken pipe
             try:
+                # Verify process is still running before writing first chunk
+                if proc.poll() is not None:
+                    raise BrokenPipeError(f"aplay process terminated before writing (exit code: {proc.returncode})")
+                
                 proc.stdin.write(first_chunk)
                 proc.stdin.flush()
                 
                 for chunk in stream:
                     if chunk:
-                        # Check if process is still alive
+                        # Check if process is still alive before writing
                         if proc.poll() is not None:
-                            raise BrokenPipeError(f"aplay process terminated (exit code: {proc.returncode})")
+                            raise BrokenPipeError(f"aplay process terminated during playback (exit code: {proc.returncode})")
                         
-                        proc.stdin.write(chunk)
-                        proc.stdin.flush()
+                        try:
+                            proc.stdin.write(chunk)
+                            proc.stdin.flush()
+                        except BrokenPipeError:
+                            # Process terminated during write
+                            if proc.poll() is not None:
+                                raise BrokenPipeError(f"aplay process terminated (exit code: {proc.returncode})")
+                            raise
                 
+                # Close stdin and wait for process to finish
                 proc.stdin.close()
+                
                 # Wait for process to finish (with timeout if available)
                 try:
                     proc.wait(timeout=10)  # Wait up to 10 seconds for process to finish
                 except TypeError:
                     # Python < 3.3 doesn't support timeout
                     proc.wait()
+                except subprocess.TimeoutExpired:
+                    print(f"[Speaker] ⚠️ aplay process timeout - killing...")
+                    if proc:
+                        proc.kill()
+                        proc.wait()
                 
             except BrokenPipeError as e:
                 print(f"[Speaker] ❌ Audio pipe broken: {e}")
+                # Try to get stderr if available for better diagnostics
+                if proc and proc.stderr:
+                    try:
+                        stderr = proc.stderr.read().decode().strip()
+                        if stderr:
+                            print(f"[Speaker] aplay stderr: {stderr}")
+                    except Exception:
+                        pass
                 if proc:
                     proc.kill()
                     proc.wait()
-                raise
-            except subprocess.TimeoutExpired:
-                print(f"[Speaker] ⚠️ aplay process timeout - killing...")
+                # Don't re-raise - just log the error
+                print(f"[Speaker] ⚠️ TTS playback failed - continuing...")
+            except Exception as e:
+                print(f"[Speaker] ❌ Unexpected TTS error: {e}")
                 if proc:
                     proc.kill()
                     proc.wait()

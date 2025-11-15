@@ -216,7 +216,8 @@ class AdvancedMedicalNavigator:
                 )
                 reply = self._clean_llm_response(reply, fallback=self.GREETING_RESPONSES[0])
             else:
-            reply = self.GREETING_RESPONSES[0]
+                reply = self.GREETING_RESPONSES[0]
+            
             self._capture_debug(f"[Navigator] 🙋 Greeting/casual conversation detected: '{text}'")
             session.messages.append({"role": "assistant", "content": reply})
             return self._wrap_response(session, reply, status="awaiting_chief_complaint")
@@ -452,19 +453,19 @@ class AdvancedMedicalNavigator:
                         metadata={'field': field, 'section': section, 'validation_error': True},
                     )
             session.context['pre_hpi'][field] = normalized_value
-                session.stage = "hpi"
-                session.oldcarts_remaining = self._ordered_oldcarts_elements(session)
-                session.pending = None
-                next_prompt = self._next_oldcarts_question(session)
-                if next_prompt:
-                    session.pending = next_prompt
-                    session.messages.append({"role": "assistant", "content": next_prompt['prompt']})
-                    return self._wrap_response(
-                        session,
-                        next_prompt['prompt'],
-                        metadata={
-                            'section': next_prompt['section'],
-                            'field': next_prompt['field'],
+            session.stage = "hpi"
+            session.oldcarts_remaining = self._ordered_oldcarts_elements(session)
+            session.pending = None
+            next_prompt = self._next_oldcarts_question(session)
+            if next_prompt:
+                session.pending = next_prompt
+                session.messages.append({"role": "assistant", "content": next_prompt['prompt']})
+                return self._wrap_response(
+                    session,
+                    next_prompt['prompt'],
+                    metadata={
+                        'section': next_prompt['section'],
+                        'field': next_prompt['field'],
                         },
                     )
             else:
@@ -486,8 +487,8 @@ class AdvancedMedicalNavigator:
                 # Don't update scores for confused responses
                 # Re-ask the same question with clearer format
                 session.pending = pending  # Keep the same question
-                    return self._wrap_response(
-                        session,
+                return self._wrap_response(
+                    session,
                     pending['prompt'],  # Re-use the same question
                     metadata={
                         'section': pending['section'],
@@ -598,8 +599,8 @@ class AdvancedMedicalNavigator:
                 max_tokens=500,  # Increased for evaluating all conditions
                 temperature=0.0,  # Deterministic for scoring
             )
-        
-        if response:
+            
+            if response:
                 self._capture_debug(f"[Scoring] 📥 Raw LLM response (first 200 chars): {response[:200]}")
                 # Parse JSON response - try multiple extraction methods
                 cleaned = response.strip()
@@ -658,7 +659,7 @@ class AdvancedMedicalNavigator:
                                     significant_changes.append(
                                         f"{condition}: {current_score:.3f} → {new_score:.3f} ({change_value:+.3f})"
                                     )
-                    self._capture_debug(
+                                    self._capture_debug(
                                         f"[Scoring]   📈 {condition}: {current_score:.3f} → {new_score:.3f} ({change_value:+.3f})"
                                     )
                             else:
@@ -805,18 +806,18 @@ class AdvancedMedicalNavigator:
             
             # Extract JSON using brace matching
             start_idx = cleaned.find('{')
-                if start_idx != -1:
-                    brace_count = 0
-                    end_idx = start_idx
+            if start_idx != -1:
+                brace_count = 0
+                end_idx = start_idx
                 for i in range(start_idx, len(cleaned)):
                     if cleaned[i] == '{':
-                            brace_count += 1
+                        brace_count += 1
                     elif cleaned[i] == '}':
-                            brace_count -= 1
-                            if brace_count == 0:
-                                end_idx = i + 1
-                break
-                    if end_idx > start_idx:
+                        brace_count -= 1
+                        if brace_count == 0:
+                            end_idx = i + 1
+                            break
+                if end_idx > start_idx:
                     cleaned = cleaned[start_idx:end_idx]
             
             try:
@@ -828,10 +829,10 @@ class AdvancedMedicalNavigator:
                         if valid_cats:
                             self._capture_debug(f"[Category] LLM matched '{chief_complaint}' to categories: {valid_cats}")
                             return valid_cats
-            else:
+                        else:
                             self._capture_debug(f"[Category] LLM returned invalid categories: {parsed_categories}, defaulting to all categories")
-            else:
-                        self._capture_debug(f"[Category] LLM returned non-list categories, defaulting to all categories")
+                    else:
+                        self._capture_debug(f"[Category] LLM returned non-list categories: {parsed_categories}, defaulting to all categories")
                 else:
                     self._capture_debug(f"[Category] Failed to parse categories from LLM response, defaulting to all categories")
             except json.JSONDecodeError as e:
@@ -1039,7 +1040,7 @@ class AdvancedMedicalNavigator:
                                     # Could be {"Condition Name"} or {"conditions": ["Condition"]} or just keys
                                     if 'conditions' in parsed and isinstance(parsed['conditions'], list):
                                         suggested_conditions.extend(parsed['conditions'])
-        else:
+                                    else:
                                         # Extract all string values from dict
                                         for key, value in parsed.items():
                                             if isinstance(value, str):
