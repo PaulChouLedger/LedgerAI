@@ -687,8 +687,8 @@ fi
 cat > "$AURA_SERVICE_FILE" << EOF
 [Unit]
 Description=Aura Voice Assistant
-After=network.target docker.service xvf3800-tuning.service
-Wants=docker.service xvf3800-tuning.service
+After=network.target docker.service xvf3800-tuning.service display-manager.service
+Wants=docker.service xvf3800-tuning.service display-manager.service
 Requires=docker.service
 
 [Service]
@@ -701,8 +701,10 @@ Environment="HOME=$AURA_HOME"
 Environment="PATH=$VENV_DIR/bin:/usr/local/bin:/usr/bin:/bin"
 Environment="XDG_RUNTIME_DIR=/run/user/$AURA_UID"
 Environment="XAUTHORITY=$XAUTH_PATH"
+# Wait for display to be ready and allow X11 connections
+ExecStartPre=/bin/bash -c 'while [ ! -e /tmp/.X11-unix/X0 ]; do sleep 1; done'
 ExecStartPre=/bin/bash -c 'xhost +local: 2>/dev/null || true'
-ExecStartPre=/bin/sleep 10
+ExecStartPre=/bin/sleep 5
 ExecStart=$VENV_DIR/bin/python3 $LEDGERAI_DIR/aura-control/core/main.py
 Restart=always
 RestartSec=10
@@ -872,6 +874,7 @@ echo "✅ Keyboard monitor service: Enabled (disables Ubuntu keyboard while Aura
 echo "✅ Docker: Configured"
 echo "✅ Display settings: Configured"
 echo "✅ X11 authentication: Configured (xhost +local: in service)"
+echo "✅ HDMI display support: Configured (DISPLAY=:0, waits for display-manager)"
 echo ""
 echo "=========================================="
 echo "  Next Steps"

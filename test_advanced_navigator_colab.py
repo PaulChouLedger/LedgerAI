@@ -183,41 +183,13 @@ def generate_response(model, tokenizer, messages: List[Dict], model_type: str, m
 class SimpleMedicalNavigator:
     """Simplified navigator that mirrors advanced_medical_navigator.py logic."""
     
-    # Medical categories and their conditions (simplified - in production, load from guidelines)
-    CATEGORY_CONDITIONS = {
-        'gastrointestinal': [
-            'Acute Appendicitis',
-            'Acute Cholecystitis',
-            'Acute Cholangitis',
-            'Acute Diverticulitis',
-            'Acute Gastroenteritis',
-            'Gastroesophageal Reflux Disease (GERD)',
-            'Acute Upper GI Bleed',
-            'Acute Lower GI Bleed',
-            'Bowel Obstruction',
-        ],
-        'cardiovascular': [
-            'Acute Myocardial Infarction (Heart Attack)',
-            'Unstable Angina',
-            'Stable Angina',
-            'Aortic Dissection',
-            'Pericarditis',
-            'Pulmonary Embolism',
-        ],
-        'renal': [
-            'Nephrolithiasis (Kidney Stones)',
-            'Acute Kidney Injury',
-            'Acute Glomerulonephritis',
-            'Urinary Tract Infection',
-            'Urinary Retention',
-        ],
-        'respiratory': [
-            'Pneumonia',
-            'Asthma Exacerbation',
-            'COPD Exacerbation',
-            'Pneumothorax',
-            'Respiratory Failure',
-        ],
+    # Medical categories (for reference - LLM will suggest conditions dynamically)
+    # This is just used to show available categories to LLM, not to limit conditions
+    CATEGORY_EXAMPLES = {
+        'gastrointestinal': ['Acute Appendicitis', 'GERD', 'Acute Cholecystitis'],
+        'cardiovascular': ['Acute Myocardial Infarction', 'Unstable Angina', 'Aortic Dissection'],
+        'renal': ['Nephrolithiasis', 'Acute Kidney Injury', 'UTI'],
+        'respiratory': ['Pneumonia', 'Asthma Exacerbation', 'Pulmonary Embolism'],
     }
     
     def __init__(self, model, tokenizer, model_type):
@@ -231,6 +203,10 @@ class SimpleMedicalNavigator:
             'hpi': {},
         }
         self.matched_categories = []
+        # Pool tracking
+        self.active_conditions = []  # Top 5 conditions
+        self.reserve_conditions = []  # Conditions ranked 6+
+        self.previous_active = set()  # Track promotions/demotions
     
     def llm_chat(self, messages: List[Dict], max_tokens: int = 512, temperature: float = 0.0) -> str:
         """Wrapper for LLM chat function."""
@@ -262,19 +238,33 @@ class SimpleMedicalNavigator:
         return any(keyword in user_lower for keyword in medical_keywords)
     
     def match_chief_complaint_to_categories(self, chief_complaint: str) -> List[str]:
-        """Match chief complaint to medical categories using LLM."""
-        # Get available categories
-        available_categories = list(self.CATEGORY_CONDITIONS.keys())
+        """Match chief complaint to medical categories using LLM's trained medical knowledge."""
+        # Get available categories (just for reference - LLM knows all medical categories)
+        available_categories = list(self.CATEGORY_EXAMPLES.keys())
         available_cats_str = ', '.join(available_categories)
         
+        # Use LLM's trained medical knowledge to determine relevant categories
+        # The model has been trained on medical knowledge and can recognize:
+        # - Chest pain can be cardiac, pulmonary, OR gastrointestinal (GERD)
+        # - Abdominal pain can be GI, renal, gynecological, etc.
+        # - Multiple categories may be relevant
         system_prompt = (
-            "You are a medical expert. Based on the chief complaint, identify which medical categories are relevant. "
-            f"Categories: {available_cats_str}. "
-            "Return JSON: {\"categories\": [\"category1\", \"category2\", ...]}. "
-            "Include all relevant categories. Output only JSON, no other text."
+            "You are a medical expert with extensive training in clinical reasoning. "
+            "Based on the chief complaint, identify which medical categories are relevant using your medical knowledge.\n\n"
+            f"Available categories: {available_cats_str}\n\n"
+            "IMPORTANT: Consider all possible causes. For example:\n"
+            "- Chest pain can be cardiovascular (MI, angina), respiratory (PE, pneumonia), OR gastrointestinal (GERD)\n"
+            "- Abdominal pain can be gastrointestinal, renal, gynecological, etc.\n"
+            "- Include ALL relevant categories, not just the most obvious one.\n\n"
+            "Return ONLY valid JSON: {\"categories\": [\"category1\", \"category2\", ...]}\n"
+            "No explanations, no other text. Just the JSON object."
         )
         
-        user_prompt = f"Chief complaint: '{chief_complaint}'\n\nIdentify relevant medical categories."
+        user_prompt = (
+            f"Chief complaint: '{chief_complaint}'\n\n"
+            "Using your medical knowledge, identify which categories are relevant. "
+            "Consider all possible causes, not just the most obvious one."
+        )
         
         try:
             response = self.llm_chat(
@@ -287,49 +277,239 @@ class SimpleMedicalNavigator:
             )
             
             if not response:
-                return ['gastrointestinal']  # Default fallback
+                print(f"[Category] LLM returned empty response, defaulting to all categories")
+                return list(available_categories)
             
-            # Parse JSON
+            # Parse JSON - use same robust parsing as scoring
             cleaned = response.strip()
+            
+            # Remove markdown code blocks
             if cleaned.startswith('```'):
                 first_newline = cleaned.find('\n')
                 if first_newline != -1:
                     cleaned = cleaned[first_newline+1:]
                     if cleaned.endswith('```'):
                         cleaned = cleaned[:-3].strip()
+                    elif '```' in cleaned:
+                        last_idx = cleaned.rfind('```')
+                        cleaned = cleaned[:last_idx].strip()
+            
+            # Extract JSON using brace matching
+            start_idx = cleaned.find('{')
+            if start_idx != -1:
+                brace_count = 0
+                end_idx = start_idx
+                for i in range(start_idx, len(cleaned)):
+                    if cleaned[i] == '{':
+                        brace_count += 1
+                    elif cleaned[i] == '}':
+                        brace_count -= 1
+                        if brace_count == 0:
+                            end_idx = i + 1
+                            break
+                if end_idx > start_idx:
+                    cleaned = cleaned[start_idx:end_idx]
             
             try:
                 parsed = json.loads(cleaned)
                 if isinstance(parsed, dict) and 'categories' in parsed:
-                    categories = parsed['categories']
-                    if isinstance(categories, list):
-                        valid_categories = [cat for cat in categories if cat in available_categories]
-                        if valid_categories:
-                            return valid_categories
-            except json.JSONDecodeError:
-                pass
+                    parsed_categories = parsed['categories']
+                    if isinstance(parsed_categories, list):
+                        valid_cats = [cat for cat in parsed_categories if cat in available_categories]
+                        if valid_cats:
+                            print(f"[Category] LLM matched '{chief_complaint}' to categories: {valid_cats}")
+                            return valid_cats
+                        else:
+                            print(f"[Category] LLM returned invalid categories: {parsed_categories}, defaulting to all categories")
+                    else:
+                        print(f"[Category] LLM returned non-list categories, defaulting to all categories")
+                else:
+                    print(f"[Category] Failed to parse categories from LLM response, defaulting to all categories")
+            except json.JSONDecodeError as e:
+                print(f"[Category] JSON parse error: {e}, defaulting to all categories")
             
-            return ['gastrointestinal']  # Default fallback
+            # If LLM fails, default to all categories (let scoring narrow down)
+            print(f"[Category] Defaulting to all available categories: {available_categories}")
+            return list(available_categories)
             
         except Exception as e:
-            print(f"⚠️  Error in category matching: {e}")
-            return ['gastrointestinal']  # Default fallback
+            print(f"⚠️  Error in category matching: {e}, defaulting to all categories")
+            return list(available_categories)
     
-    def initialize_condition_scores(self, categories: List[str]):
-        """Initialize condition scores - ALL at balanced baseline (0.5)."""
-        all_conditions = []
-        for category in categories:
-            if category in self.CATEGORY_CONDITIONS:
-                all_conditions.extend(self.CATEGORY_CONDITIONS[category])
+    def initialize_condition_scores(self, categories: List[str], chief_complaint: str = ""):
+        """Initialize condition scores - LLM suggests relevant conditions dynamically."""
+        # Use LLM's medical knowledge to suggest relevant conditions
+        system_prompt = (
+            "You are a medical expert with extensive training in clinical reasoning. "
+            "Based on the chief complaint and medical categories, suggest relevant medical conditions "
+            "that should be considered in the differential diagnosis.\n\n"
+            "Use your medical knowledge to identify conditions that could cause these symptoms. "
+            "Include common conditions, serious conditions that must be ruled out, and relevant differential diagnoses.\n\n"
+            "CRITICAL FORMAT REQUIREMENT:\n"
+            "Return ONLY valid JSON in this EXACT format: {\"conditions\": [\"Condition 1\", \"Condition 2\", \"Condition 3\", ...]}\n"
+            "Example: {\"conditions\": [\"Acute Myocardial Infarction (Heart Attack)\", \"Unstable Angina\", \"Aortic Dissection\"]}\n"
+            "DO NOT return multiple JSON objects on separate lines.\n"
+            "DO NOT return just condition names without the array.\n"
+            "Return ONLY the single JSON object. No explanations, no other text."
+        )
         
-        # Start ALL conditions at balanced baseline (0.5)
-        # This allows LLM to evaluate and narrow down based on answers
-        self.condition_scores = {cond: 0.5 for cond in all_conditions}
-        print(f"\n📋 Seeded {len(self.condition_scores)} conditions at balanced baseline 50.0%")
-        print(f"   Categories: {', '.join(categories)}")
-        print(f"   LLM will narrow down based on answers\n")
+        user_prompt = (
+            f"Chief complaint: '{chief_complaint}'\n"
+            f"Medical categories: {', '.join(categories)}\n\n"
+            "Suggest relevant medical conditions for differential diagnosis. "
+            "Include all conditions that could reasonably cause these symptoms."
+        )
         
-        self._update_rankings()
+        try:
+            response = self.llm_chat(
+                [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                max_tokens=500,  # More tokens for longer condition lists
+                temperature=0.0,
+            )
+            
+            if response:
+                print(f"[Condition Init] 📥 LLM response (first 300 chars): {response[:300]}")
+                # Parse JSON response - handle multiple formats
+                cleaned = response.strip()
+                
+                # Remove markdown code blocks
+                if cleaned.startswith('```'):
+                    first_newline = cleaned.find('\n')
+                    if first_newline != -1:
+                        cleaned = cleaned[first_newline+1:]
+                        if cleaned.endswith('```'):
+                            cleaned = cleaned[:-3].strip()
+                        elif '```' in cleaned:
+                            last_idx = cleaned.rfind('```')
+                            cleaned = cleaned[:last_idx].strip()
+                
+                # Try to parse as single JSON object first
+                start_idx = cleaned.find('{')
+                if start_idx != -1:
+                    brace_count = 0
+                    end_idx = start_idx
+                    for i in range(start_idx, len(cleaned)):
+                        if cleaned[i] == '{':
+                            brace_count += 1
+                        elif cleaned[i] == '}':
+                            brace_count -= 1
+                            if brace_count == 0:
+                                end_idx = i + 1
+                                break
+                    if end_idx > start_idx:
+                        single_json = cleaned[start_idx:end_idx]
+                        try:
+                            parsed = json.loads(single_json)
+                            if isinstance(parsed, dict) and 'conditions' in parsed:
+                                suggested_conditions = parsed['conditions']
+                                if isinstance(suggested_conditions, list) and suggested_conditions:
+                                    # Start ALL suggested conditions at balanced baseline (0.5)
+                                    self.condition_scores = {cond: 0.5 for cond in suggested_conditions}
+                                    print(f"\n📋 LLM suggested {len(self.condition_scores)} conditions at balanced baseline 50.0%")
+                                    print(f"   Categories: {', '.join(categories)}")
+                                    print(f"   Conditions: {', '.join(list(self.condition_scores.keys())[:5])}{'...' if len(self.condition_scores) > 5 else ''}")
+                                    print(f"   LLM will narrow down based on answers")
+                                    print(f"   Additional conditions can be added dynamically during scoring\n")
+                                    self._update_rankings()
+                                    self._update_condition_pools()
+                                    return
+                        except json.JSONDecodeError:
+                            pass  # Try alternative parsing below
+                
+                # Alternative: Handle multiple JSON objects on separate lines
+                # Format: {"Condition 1"}\n{"Condition 2"}\n...
+                suggested_conditions = []
+                lines = cleaned.split('\n')
+                for line in lines:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    # Try to extract JSON object from line
+                    start_idx = line.find('{')
+                    if start_idx != -1:
+                        brace_count = 0
+                        end_idx = start_idx
+                        for i in range(start_idx, len(line)):
+                            if line[i] == '{':
+                                brace_count += 1
+                            elif line[i] == '}':
+                                brace_count -= 1
+                                if brace_count == 0:
+                                    end_idx = i + 1
+                                    break
+                        if end_idx > start_idx:
+                            json_str = line[start_idx:end_idx]
+                            try:
+                                parsed = json.loads(json_str)
+                                if isinstance(parsed, dict):
+                                    # Extract condition name from dict
+                                    # Could be {"Condition Name"} or {"conditions": ["Condition"]} or just keys
+                                    if 'conditions' in parsed and isinstance(parsed['conditions'], list):
+                                        suggested_conditions.extend(parsed['conditions'])
+                                    else:
+                                        # Extract all string values from dict
+                                        for key, value in parsed.items():
+                                            if isinstance(value, str):
+                                                suggested_conditions.append(value)
+                                            elif isinstance(value, list):
+                                                suggested_conditions.extend([v for v in value if isinstance(v, str)])
+                                        # If no values, use keys as condition names
+                                        if not suggested_conditions:
+                                            suggested_conditions.extend([k for k in parsed.keys() if isinstance(k, str)])
+                            except json.JSONDecodeError:
+                                continue
+                
+                # If we found conditions in the alternative format
+                if suggested_conditions:
+                    # Remove duplicates and clean up
+                    suggested_conditions = list(dict.fromkeys(suggested_conditions))  # Preserve order, remove dupes
+                    self.condition_scores = {cond: 0.5 for cond in suggested_conditions}
+                    print(f"\n📋 LLM suggested {len(self.condition_scores)} conditions at balanced baseline 50.0%")
+                    print(f"   Categories: {', '.join(categories)}")
+                    print(f"   Conditions: {', '.join(list(self.condition_scores.keys())[:5])}{'...' if len(self.condition_scores) > 5 else ''}")
+                    print(f"   LLM will narrow down based on answers")
+                    print(f"   Additional conditions can be added dynamically during scoring\n")
+                    self._update_rankings()
+                    self._update_condition_pools()
+                    return
+                
+                # If we still couldn't parse, show error
+                print(f"[Condition Init] ⚠️ Failed to parse JSON in any format")
+                print(f"[Condition Init] ⚠️ Extracted JSON attempt (first 200 chars): {cleaned[:200]}")
+            else:
+                print(f"[Condition Init] ⚠️ LLM returned empty response")
+            
+            # Fallback: Use example conditions from categories (limited, but better than nothing)
+            print(f"[Condition Init] ⚠️ LLM condition suggestion failed, using category examples as fallback")
+            all_conditions = []
+            for category in categories:
+                if category in self.CATEGORY_EXAMPLES:
+                    all_conditions.extend(self.CATEGORY_EXAMPLES[category])
+            
+            if all_conditions:
+                self.condition_scores = {cond: 0.5 for cond in all_conditions}
+                print(f"\n📋 Seeded {len(self.condition_scores)} example conditions at balanced baseline 50.0%")
+                print(f"   Categories: {', '.join(categories)}")
+                print(f"   Note: Using limited example conditions. LLM can still reason about other conditions.\n")
+            else:
+                # Last resort: empty dict, let scoring add conditions dynamically
+                self.condition_scores = {}
+                print(f"\n📋 No conditions initialized - LLM will suggest during scoring\n")
+            
+            self._update_rankings()
+            
+        except Exception as e:
+            print(f"⚠️  Error initializing conditions: {e}, using category examples")
+            all_conditions = []
+            for category in categories:
+                if category in self.CATEGORY_EXAMPLES:
+                    all_conditions.extend(self.CATEGORY_EXAMPLES[category])
+            self.condition_scores = {cond: 0.5 for cond in all_conditions} if all_conditions else {}
+            self._update_rankings()
+            self._update_condition_pools()
     
     def _update_rankings(self):
         """Update condition rankings."""
@@ -339,8 +519,131 @@ class SimpleMedicalNavigator:
             reverse=True
         )
     
+    def _update_condition_pools(self):
+        """Update active and reserve condition pools, track promotions/demotions."""
+        # Active = top 5, Reserve = rest
+        new_active = self.condition_rankings[:5]
+        new_reserve = self.condition_rankings[5:]
+        
+        new_active_names = {name for name, _ in new_active}
+        previous_active_names = self.previous_active
+        
+        # Track promotions (moved into top 5)
+        promotions = new_active_names - previous_active_names
+        if promotions:
+            print(f"\n[Pool] 🔼 PROMOTED to active ({len(promotions)}):")
+            for name in promotions:
+                score = next((score for n, score in new_active if n == name), 0.0)
+                print(f"[Pool]   ↑ {name}: {score:.1%}")
+        
+        # Track demotions (moved out of top 5)
+        demotions = previous_active_names - new_active_names
+        if demotions:
+            print(f"[Pool] 🔽 DEMOTED to reserve ({len(demotions)}):")
+            for name in demotions:
+                score = next((score for n, score in new_reserve if n == name), 0.0)
+                print(f"[Pool]   ↓ {name}: {score:.1%}")
+        
+        self.active_conditions = new_active
+        self.reserve_conditions = new_reserve
+        self.previous_active = new_active_names
+        
+        # Print pool status
+        print(f"\n[Pool] 📊 Condition Pool Status:")
+        print(f"[Pool]   Total conditions: {len(self.condition_scores)}")
+        print(f"[Pool]   Active (top 5): {len(self.active_conditions)}")
+        print(f"[Pool]   Reserve: {len(self.reserve_conditions)}")
+    
+    def _check_for_missing_conditions(self, element: str, answer: str):
+        """Check if LLM should consider additional conditions based on answer."""
+        # Only check for missing conditions on key elements that might reveal new diagnoses
+        if element not in ['character', 'aggravating', 'relieving', 'location']:
+            return
+        
+        chief_complaint = self.conversation_context['pre_hpi'].get('chief_complaint', '')
+        current_conditions = list(self.condition_scores.keys())
+        
+        # Ask LLM if there are other conditions that should be considered
+        system_prompt = (
+            "You are a medical expert. Based on the patient's answer, identify if there are "
+            "other medical conditions that should be considered in the differential diagnosis.\n\n"
+            "Return ONLY valid JSON: {\"additional_conditions\": [\"Condition 1\", \"Condition 2\", ...]}\n"
+            "If no additional conditions are needed, return empty list: {\"additional_conditions\": []}\n"
+            "No explanations, no other text. Just the JSON object."
+        )
+        
+        user_prompt = (
+            f"Chief complaint: {chief_complaint}\n"
+            f"OLD CARTS element: {element}\n"
+            f"Patient's answer: '{answer}'\n"
+            f"Currently evaluating: {', '.join(current_conditions[:5])}{'...' if len(current_conditions) > 5 else ''}\n\n"
+            "Are there other medical conditions that should be considered based on this answer? "
+            "For example, if chest pain is 'burning' and 'worse after meals', consider GERD. "
+            "If no additional conditions, return empty list."
+        )
+        
+        try:
+            response = self.llm_chat(
+                [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                max_tokens=200,
+                temperature=0.0,
+            )
+            
+            if response:
+                # Parse JSON
+                cleaned = response.strip()
+                if cleaned.startswith('```'):
+                    first_newline = cleaned.find('\n')
+                    if first_newline != -1:
+                        cleaned = cleaned[first_newline+1:]
+                        if cleaned.endswith('```'):
+                            cleaned = cleaned[:-3].strip()
+                
+                start_idx = cleaned.find('{')
+                if start_idx != -1:
+                    brace_count = 0
+                    end_idx = start_idx
+                    for i in range(start_idx, len(cleaned)):
+                        if cleaned[i] == '{':
+                            brace_count += 1
+                        elif cleaned[i] == '}':
+                            brace_count -= 1
+                            if brace_count == 0:
+                                end_idx = i + 1
+                                break
+                    if end_idx > start_idx:
+                        cleaned = cleaned[start_idx:end_idx]
+                
+                try:
+                    parsed = json.loads(cleaned)
+                    if isinstance(parsed, dict) and 'additional_conditions' in parsed:
+                        additional = parsed['additional_conditions']
+                        if isinstance(additional, list) and additional:
+                            # Add new conditions at baseline
+                            added_count = 0
+                            for cond in additional:
+                                if cond not in self.condition_scores:
+                                    self.condition_scores[cond] = 0.5
+                                    added_count += 1
+                                    print(f"[Pool] 🆕 LLM suggested additional condition: {cond}")
+                            if added_count > 0:
+                                print(f"[Pool] ✅ Added {added_count} new condition(s) to evaluation pool")
+                                self._update_rankings()
+                except json.JSONDecodeError:
+                    pass
+        except Exception as e:
+            # Silently fail - not critical
+            pass
+    
     def update_condition_scores_from_answer(self, element: str, answer: str):
-        """Update condition scores based on answer - LLM evaluates ALL conditions."""
+        """Update condition scores based on answer - LLM evaluates ALL conditions and can add new ones."""
+        # Allow LLM to suggest additional conditions that should be considered
+        # This handles cases where initial suggestions missed relevant conditions (e.g., GERD for chest pain)
+        self._check_for_missing_conditions(element, answer)
+        
         if not self.condition_scores:
             return
         
@@ -388,7 +691,12 @@ class SimpleMedicalNavigator:
             f"Every condition listed above must be a key in the JSON with a numeric score between -0.3 and +0.3."
         )
         
+        # Show what we're evaluating
+        print(f"\n[Scoring] 🔍 Evaluating {len(all_conditions)} conditions for {element} answer: '{answer}'")
+        print(f"[Scoring] 📋 Conditions: {', '.join(all_conditions[:5])}{'...' if len(all_conditions) > 5 else ''}")
+        
         try:
+            print(f"[Scoring] 🤖 Calling LLM for score evaluation...")
             response = self.llm_chat(
                 [
                     {"role": "system", "content": system_prompt},
@@ -399,6 +707,7 @@ class SimpleMedicalNavigator:
             )
             
             if response:
+                print(f"[Scoring] 📥 Raw LLM response (first 200 chars): {response[:200]}")
                 # Parse JSON response - try multiple extraction methods
                 cleaned = response.strip()
                 
@@ -439,6 +748,7 @@ class SimpleMedicalNavigator:
                 try:
                     score_changes = json.loads(cleaned)
                     if isinstance(score_changes, dict):
+                        print(f"[Scoring] ✅ Successfully parsed JSON with {len(score_changes)} condition scores")
                         # Apply score changes to all conditions
                         updated_count = 0
                         significant_changes = []
@@ -455,25 +765,41 @@ class SimpleMedicalNavigator:
                                 # Log significant changes
                                 if abs(change_value) >= 0.1:
                                     significant_changes.append(
-                                        f"  {condition}: {current_score:.3f} → {new_score:.3f} ({change_value:+.3f})"
+                                        f"{condition}: {current_score:.3f} → {new_score:.3f} ({change_value:+.3f})"
                                     )
+                                    print(f"[Scoring]   📈 {condition}: {current_score:.3f} → {new_score:.3f} ({change_value:+.3f})")
+                            else:
+                                # LLM suggested a new condition - add it at baseline and apply change
+                                change_value = max(-0.3, min(0.3, float(change)))
+                                new_score = max(0.0, min(1.0, 0.5 + change_value))
+                                self.condition_scores[condition] = new_score
+                                updated_count += 1
+                                print(f"[Scoring] 🆕 Added new condition: {condition} (initial score: {new_score:.3f})")
                         
                         if updated_count > 0:
-                            print(f"\n[Scoring] ✅ Updated {updated_count}/{len(all_conditions)} conditions based on {element} answer")
+                            print(f"\n[Scoring] ✅ Updated {updated_count}/{len(self.condition_scores)} conditions based on {element} answer")
                             if significant_changes:
-                                print("[Scoring] Significant changes:")
-                                for change in significant_changes[:5]:  # Show top 5
-                                    print(change)
+                                print(f"[Scoring] 📊 Significant changes ({len(significant_changes)}):")
+                                for change in significant_changes[:10]:  # Show top 10
+                                    print(f"[Scoring]   • {change}")
                         else:
                             print(f"[Scoring] ⚠️  No conditions matched in LLM response")
+                            print(f"[Scoring] ⚠️  LLM returned {len(score_changes)} conditions, but none matched session conditions")
+                            print(f"[Scoring] ⚠️  LLM keys: {list(score_changes.keys())[:5]}")
+                            print(f"[Scoring] ⚠️  Session keys: {list(self.condition_scores.keys())[:5]}")
                             
                         self._update_rankings()
+                        self._update_condition_pools()
                         self._print_rankings()
                         
                 except json.JSONDecodeError as e:
-                    print(f"[Scoring] ⚠️  Failed to parse LLM score changes: {e}")
-                    print(f"[Scoring] ⚠️  Response (first 500 chars): {response[:500]}")
-                    print(f"[Scoring] ⚠️  Extracted JSON attempt: {cleaned[:200]}")
+                    print(f"[Scoring] ❌ Failed to parse LLM score changes: {e}")
+                    print(f"[Scoring] ⚠️  Raw response (first 500 chars): {response[:500]}")
+                    print(f"[Scoring] ⚠️  Extracted JSON attempt (first 300 chars): {cleaned[:300]}")
+                    print(f"[Scoring] ⚠️  This usually means LLM returned conversational text instead of JSON")
+                    print(f"[Scoring] ⚠️  Check if model is fine-tuned and following JSON-only instructions")
+                    print(f"[Scoring] ⚠️  SKIPPING score update - model needs to be retrained with JSON scoring examples")
+                    # Don't update scores if we can't parse JSON - better to skip than use wrong data
         except Exception as e:
             print(f"[Scoring] ⚠️  Error updating scores: {e}")
     
@@ -515,11 +841,26 @@ class SimpleMedicalNavigator:
         return "\n".join(parts)
     
     def _print_rankings(self):
-        """Print current condition rankings."""
-        print(f"\n[Rankings] 📊 Top 5 conditions:")
-        for idx, (condition, score) in enumerate(self.condition_rankings[:5], 1):
+        """Print current condition rankings with pool status."""
+        if not self.condition_rankings:
+            print("\n[Rankings] No conditions ranked yet.")
+            return
+        
+        print(f"\n[Rankings] 📊 Top 5 conditions (Active Pool):")
+        for idx, (condition, score) in enumerate(self.active_conditions[:5], 1):
             pct = round(score * 100, 1)
             print(f"  {idx}. {condition}: {pct}%")
+        
+        if self.reserve_conditions:
+            print(f"\n[Rankings] 📋 Reserve Pool ({len(self.reserve_conditions)} conditions):")
+            for idx, (condition, score) in enumerate(self.reserve_conditions[:5], 1):
+                pct = round(score * 100, 1)
+                print(f"  {idx+5}. {condition}: {pct}%")
+            if len(self.reserve_conditions) > 5:
+                print(f"  ... and {len(self.reserve_conditions) - 5} more")
+        
+        print(f"\n[Rankings] 📊 Total conditions in pool: {len(self.condition_scores)}")
+        print(f"[Rankings]    Active: {len(self.active_conditions)}, Reserve: {len(self.reserve_conditions)}")
 
 # ============================================================================
 # Interactive Test
@@ -592,6 +933,24 @@ def run_interactive_test(model, tokenizer, model_type):
         
         # Handle chief complaint
         if stage == "chief_complaint":
+            # First check if it's a simple greeting (before medical complaint check)
+            user_lower = user_input.lower().strip()
+            simple_greetings = ['hello', 'hi', 'hey', 'hey there', 'good morning', 'good afternoon', 'good evening', 'greetings', 'how are you', 'what\'s up']
+            
+            # Check for exact match or starts with greeting
+            is_greeting = (user_lower in simple_greetings or 
+                          any(user_lower == g or user_lower.startswith(g + ' ') or user_lower.startswith(g + '!') or user_lower.startswith(g + '.') 
+                              for g in simple_greetings))
+            
+            if is_greeting:
+                # It's a greeting - respond naturally WITHOUT treating as medical complaint
+                print(f"[Debug] Detected greeting: '{user_input}'")
+                greeting_response = "Hi there! How can I help you today? If you're experiencing any symptoms or have a medical concern, please let me know."
+                print(f"🤖 Assistant: {greeting_response}")
+                messages.append({"role": "assistant", "content": greeting_response})
+                # Stay in chief_complaint stage, wait for actual medical complaint
+                continue
+            
             # Check if this is a medical complaint or just casual conversation
             if not navigator.is_medical_complaint(user_input):
                 # It's a greeting or casual conversation - respond naturally
@@ -619,14 +978,38 @@ def run_interactive_test(model, tokenizer, model_type):
             navigator.matched_categories = categories
             navigator.conversation_context['pre_hpi']['chief_complaint'] = user_input
             
-            # Initialize condition scores (balanced baseline)
-            navigator.initialize_condition_scores(categories)
+            # Initialize condition scores - LLM suggests conditions dynamically
+            navigator.initialize_condition_scores(categories, user_input)
             
-            # Generate empathetic response and first question
+            # Generate empathetic response
+            empathetic_prompt = f"The patient just said: '{user_input}'\n\nShow empathy and acknowledge their concern. Be natural and conversational. Do not ask questions yet."
+            empathetic_response = navigator.llm_chat(
+                [{"role": "system", "content": question_system_prompt},
+                 {"role": "user", "content": empathetic_prompt}],
+                max_tokens=80,
+                temperature=0.4
+            )
+            print(f"🤖 Assistant: {empathetic_response}")
+            messages.append({"role": "assistant", "content": empathetic_response})
+            
+            # Now ask chronicity question
             stage = "chronicity"
-            response = navigator.llm_chat(messages, max_tokens=120, temperature=0.4)
-            print(f"🤖 Assistant: {response}")
-            messages.append({"role": "assistant", "content": response})
+            chronicity_prompt = "Ask if this is new or an ongoing problem. Ask only the question, no acknowledgment or reasoning."
+            try:
+                chronicity_response = navigator.llm_chat(
+                    messages + [{"role": "user", "content": chronicity_prompt}],
+                    max_tokens=80,
+                    temperature=0.4
+                )
+                # Fallback if LLM returns empty or invalid response
+                if not chronicity_response or not chronicity_response.strip():
+                    chronicity_response = "Is this a new issue that just started, or is this an ongoing problem you've had before with a prior diagnosis?"
+            except Exception as e:
+                print(f"[Warning] Error generating chronicity question: {e}")
+                chronicity_response = "Is this a new issue that just started, or is this an ongoing problem you've had before with a prior diagnosis?"
+            
+            print(f"🤖 Assistant: {chronicity_response}")
+            messages.append({"role": "assistant", "content": chronicity_response})
             last_question_type = "chronicity"
             continue
         
@@ -652,13 +1035,17 @@ def run_interactive_test(model, tokenizer, model_type):
             element = None
             
             # First, try to use the tracked element from when we asked the question
-            if last_question_element and last_question_element not in hpi:
+            # This is the most reliable method
+            if last_question_element:
                 element = last_question_element
-                hpi[element] = user_input
+                if element not in hpi:
+                    hpi[element] = user_input
+                # Even if already in hpi, use it for scoring (might be updating)
             else:
                 # Fallback: detect which OLD CARTS element this is based on last question
                 last_assistant_msg = messages[-1]["content"] if messages and messages[-1].get("role") == "assistant" else ""
                 last_q_lower = last_assistant_msg.lower()
+                print(f"[Debug] No tracked element, detecting from question: '{last_assistant_msg[:50]}...'")
                 
                 if ('when' in last_q_lower or 'start' in last_q_lower or 'onset' in last_q_lower) and 'onset' not in hpi:
                     hpi['onset'] = user_input
@@ -691,6 +1078,7 @@ def run_interactive_test(model, tokenizer, model_type):
             
             # Update condition scores using LLM (only for OLD CARTS elements)
             if element:
+                print(f"[Debug] Detected element: {element} for answer: '{user_input}'")
                 # Skip scoring if answer is confused/unclear
                 confused_phrases = [
                     'what', 'what?', 'huh', 'i don\'t understand', 'clarify',
@@ -720,8 +1108,11 @@ def run_interactive_test(model, tokenizer, model_type):
         
         # Generate next question based on what's missing
         # Check what we still need to collect
-        if 'chronicity' not in pre_hpi:
+        # IMPORTANT: Check stage first to avoid asking questions that were just answered
+        if stage == "chronicity" or 'chronicity' not in pre_hpi:
             # Ask chronicity question
+            if stage != "chronicity":
+                stage = "chronicity"  # Set stage if not already set
             chronicity_prompt = "Ask if this is new or an ongoing problem. Ask only the question, no acknowledgment or reasoning."
             response = navigator.llm_chat(
                 messages + [{"role": "user", "content": chronicity_prompt}],
@@ -729,8 +1120,10 @@ def run_interactive_test(model, tokenizer, model_type):
                 temperature=0.4
             )
             last_question_type = "chronicity"
-        elif 'age' not in pre_hpi:
+        elif stage == "age" or 'age' not in pre_hpi:
             # Ask age question - use second person format matching training data
+            if stage != "age":
+                stage = "age"  # Set stage if not already set
             age_prompt = "Ask the patient their age using second person (e.g., 'How old are you?' or 'What is your age?'). Ask only the question, no acknowledgment or reasoning. Do NOT use third person like 'the patient's age'."
             response = navigator.llm_chat(
                 messages + [{"role": "user", "content": age_prompt}],
@@ -743,8 +1136,10 @@ def run_interactive_test(model, tokenizer, model_type):
                 # LLM used third person, use correct second person format
                 response = "How old are you?"
             last_question_type = "age"
-        elif 'sex' not in pre_hpi:
+        elif stage == "sex" or 'sex' not in pre_hpi:
             # Ask sex question - use second person format matching training data
+            if stage != "sex":
+                stage = "sex"  # Set stage if not already set
             sex_prompt = "Ask the patient their biological sex using second person (e.g., 'What is your biological sex?' or 'Are you male or female?'). Ask only the question, no acknowledgment or reasoning. Do NOT use third person like 'the patient' or 'is the patient male'."
             response = navigator.llm_chat(
                 messages + [{"role": "user", "content": sex_prompt}],
@@ -775,6 +1170,7 @@ def run_interactive_test(model, tokenizer, model_type):
             # Ask about the next element in order
             next_element = remaining_elements[0]
             last_question_element = next_element  # Track which element we're asking about
+            print(f"[Debug] Asking about element: {next_element}, tracking as last_question_element")
             
             # Build context and specific guidance
             context_summary = navigator._build_conversation_context()

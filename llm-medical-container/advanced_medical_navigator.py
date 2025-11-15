@@ -246,18 +246,10 @@ class AdvancedMedicalNavigator:
         else:
             self._capture_debug(f"[Engine] 🎯 Categories: {', '.join(categories)}")
 
-        # Initialize condition scores - start all conditions at balanced baseline
-        # LLM will narrow down based on answers, not initial seeding
-        all_conditions = self._get_conditions_for_categories(categories)
-        session.condition_scores = {}
-
-        # Start all conditions at balanced baseline (0.5)
-        # This allows LLM to evaluate and narrow down based on answers
-        for cond in all_conditions:
-                session.condition_scores[cond] = 0.5
-            self._capture_debug(f"[Engine] 🔧 Seeded {cond} at baseline 0.500 (balanced start)")
+        # Initialize condition scores - LLM suggests relevant conditions dynamically
+        session.condition_scores = self._initialize_condition_scores_llm(categories, text)
         
-        self._capture_debug(f"[Engine] 📋 Seeded {len(session.condition_scores)} conditions at balanced baseline 50.0% - LLM will narrow down based on answers")
+        self._capture_debug(f"[Engine] 📋 Initialized {len(session.condition_scores)} conditions at balanced baseline 50.0% - LLM will narrow down based on answers")
 
         self._apply_rule_outs(session)
 
@@ -331,7 +323,7 @@ class AdvancedMedicalNavigator:
         if session.stage == "hpi":
             return self._next_oldcarts_question(session)
 
-        return None
+            return None
 
     def _is_redundant_question(self, session: "MedicalSession", element: str) -> bool:
         """Check if asking about this element would be redundant - LLM handles this."""
@@ -483,7 +475,7 @@ class AdvancedMedicalNavigator:
             session.pending = None
         return None
 
-        el        if section == 'hpi':
+        if section == 'hpi':
             # Check if this is a confused/clarification request
             if self._is_confused_response(text):
                 self._capture_debug(f"[HPI] ⚠️ Confused/clarification request detected: '{text}'")
@@ -494,8 +486,8 @@ class AdvancedMedicalNavigator:
                 # Don't update scores for confused responses
                 # Re-ask the same question with clearer format
                 session.pending = pending  # Keep the same question
-                return self._wrap_response(
-                    session,
+                    return self._wrap_response(
+                        session,
                     pending['prompt'],  # Re-use the same question
                     metadata={
                         'section': pending['section'],
@@ -533,9 +525,12 @@ class AdvancedMedicalNavigator:
             return None
 
     def _update_condition_scores_from_answer(self, session: "MedicalSession", element: str, answer: str) -> None:
-        """Update condition scores based on answer - LLM evaluates ALL conditions using trained knowledge."""
+        """Update condition scores based on answer - LLM evaluates ALL conditions and can add new ones."""
         if not self.llm_chat_fn:
             return
+        
+        # Check for missing conditions that should be added (e.g., GERD for chest pain)
+        self._check_for_missing_conditions(session, element, answer)
         
         # Get ALL conditions in the session, not just top 5
         # This allows LLM to discover the correct condition even if it wasn't initially high
@@ -553,17 +548,28 @@ class AdvancedMedicalNavigator:
         ranking_context = ", ".join([f"{cond} ({score:.2f})" for cond, score in current_rankings[:5]])
         
         # Ask LLM to evaluate ALL conditions using its trained medical knowledge
+        # CRITICAL: Use very strong JSON-only prompt to prevent conversational responses
         system_prompt = (
             "You are a medical expert with extensive training in clinical reasoning. "
+            "You MUST return ONLY valid JSON. No explanations, no text before or after the JSON.\n\n"
+            "CRITICAL FORMAT REQUIREMENTS:\n"
+            "- Output ONLY valid JSON (no explanations, no text before or after)\n"
+            "- JSON must be an object with ALL condition names as keys and numeric scores as values\n"
+            "- Example format: {\"Acute Appendicitis\": 0.2, \"Nephrolithiasis (Kidney Stones)\": -0.1, \"Acute Cholecystitis\": 0.0}\n"
+            "- Each condition must be a key in the JSON object with its score change as the value\n"
+            "- Scores must be between -0.3 and +0.3 (numeric values only)\n"
+            "- Do NOT use any other format - only JSON object with condition names as keys and numeric values\n\n"
             "Based on the patient's answer, evaluate how it affects the likelihood of EACH condition. "
-            "Use your trained medical knowledge to determine which conditions become more or less likely. "
-            "Consider: classic presentations, anatomical locations, symptom patterns, and differential diagnosis logic. "
-            "Return JSON: {\"condition_name\": score_change} where score_change is between -0.3 and +0.3. "
-            "Positive values mean the condition is MORE likely (rule in), negative means LESS likely (rule out). "
-            "Be specific: if the answer strongly supports a condition, use +0.2 to +0.3. "
-            "If it strongly rules out a condition, use -0.2 to -0.3. "
-            "If neutral or unclear, use small changes (-0.1 to +0.1). "
-            "You MUST evaluate ALL conditions listed. Output only JSON, no other text."
+            "Use your trained medical knowledge. Consider: classic presentations, anatomical locations, symptom patterns.\n\n"
+            "CRITICAL: Know classic symptom patterns:\n"
+            "- GERD: Burning chest pain, WORSE when laying down (especially after meals), better with antacids/sitting up\n"
+            "- Cardiac: Chest pain worse with exertion, better with rest, NOT typically worse when laying down\n"
+            "- Pleuritic: Chest pain worse with breathing, coughing\n"
+            "- Biliary: Right upper quadrant pain, worse after fatty meals\n"
+            "- Appendicitis: Right lower quadrant pain, worse with movement\n\n"
+            "Positive values (+0.2 to +0.3) = condition MORE likely (answer matches classic pattern). "
+            "Negative values (-0.2 to -0.3) = condition LESS likely (answer contradicts classic pattern). "
+            "Neutral = small changes (-0.1 to +0.1)."
         )
         
         user_prompt = (
@@ -572,24 +578,29 @@ class AdvancedMedicalNavigator:
             f"Patient's answer: '{answer}'\n\n"
             f"All conditions to evaluate ({len(all_conditions)} total):\n"
             f"{', '.join(all_conditions)}\n\n"
-            f"Current top conditions: {ranking_context if ranking_context else 'all at baseline'}\n\n"
-            f"Conversation context:\n{conversation_context}\n\n"
-            f"Using your trained medical knowledge, evaluate how this answer affects EACH condition. "
-            f"Consider classic presentations, anatomical locations, and symptom patterns. "
-            f"Return JSON with score changes for ALL {len(all_conditions)} conditions listed above."
+            f"Return ONLY valid JSON with ALL {len(all_conditions)} conditions as keys and their score changes as values.\n"
+            f"Format: {{\"condition_name\": score_change, \"condition_name\": score_change, ...}}\n"
+            f"Example (not actual conditions): {{\"Condition1\": 0.2, \"Condition2\": -0.1, \"Condition3\": 0.0}}\n\n"
+            f"CRITICAL: Return ONLY the JSON object. No explanations, no text before or after. "
+            f"Every condition listed above must be a key in the JSON with a numeric score between -0.3 and +0.3."
         )
         
+        self._capture_debug(f"[Scoring] 🔍 Evaluating {len(all_conditions)} conditions for {element} answer: '{answer}'")
+        self._capture_debug(f"[Scoring] 📋 Conditions: {', '.join(all_conditions[:5])}{'...' if len(all_conditions) > 5 else ''}")
+        
         try:
+            self._capture_debug(f"[Scoring] 🤖 Calling LLM for score evaluation...")
             response = self.llm_chat_fn(
                 [
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt},
                 ],
                 max_tokens=500,  # Increased for evaluating all conditions
-                temperature=0.0,
+                temperature=0.0,  # Deterministic for scoring
             )
-            
-            if response:
+        
+        if response:
+                self._capture_debug(f"[Scoring] 📥 Raw LLM response (first 200 chars): {response[:200]}")
                 # Parse JSON response - try multiple extraction methods
                 cleaned = response.strip()
                 
@@ -630,8 +641,10 @@ class AdvancedMedicalNavigator:
                 try:
                     score_changes = json.loads(cleaned)
                     if isinstance(score_changes, dict):
+                        self._capture_debug(f"[Scoring] ✅ Successfully parsed JSON with {len(score_changes)} condition scores")
                         # Apply score changes to all conditions
                         updated_count = 0
+                        significant_changes = []
                         for condition, change in score_changes.items():
                             if condition in session.condition_scores:
                                 current_score = session.condition_scores[condition]
@@ -640,19 +653,39 @@ class AdvancedMedicalNavigator:
                                 new_score = max(0.0, min(1.0, current_score + change_value))
                                 session.condition_scores[condition] = new_score
                                 updated_count += 1
-                                # Only log significant changes to reduce noise
+                                # Log significant changes
                                 if abs(change_value) >= 0.1:
-                                    self._capture_debug(
-                                        f"[Scoring] {condition}: {current_score:.3f} → {new_score:.3f} (change: {change_value:+.3f})"
+                                    significant_changes.append(
+                                        f"{condition}: {current_score:.3f} → {new_score:.3f} ({change_value:+.3f})"
                                     )
+                    self._capture_debug(
+                                        f"[Scoring]   📈 {condition}: {current_score:.3f} → {new_score:.3f} ({change_value:+.3f})"
+                                    )
+                            else:
+                                # LLM suggested a new condition - add it at baseline and apply change
+                                change_value = max(-0.3, min(0.3, float(change)))
+                                new_score = max(0.0, min(1.0, 0.5 + change_value))
+                                session.condition_scores[condition] = new_score
+                                updated_count += 1
+                                self._capture_debug(f"[Scoring] 🆕 Added new condition: {condition} (initial score: {new_score:.3f})")
                         
                         if updated_count > 0:
-                            self._capture_debug(f"[Scoring] ✅ Updated {updated_count}/{len(all_conditions)} conditions based on {element} answer")
+                            self._capture_debug(f"[Scoring] ✅ Updated {updated_count}/{len(session.condition_scores)} conditions based on {element} answer")
+                            if significant_changes:
+                                self._capture_debug(f"[Scoring] 📊 Significant changes ({len(significant_changes)}):")
+                                for change in significant_changes[:10]:  # Show top 10
+                                    self._capture_debug(f"[Scoring]   • {change}")
                         else:
                             self._capture_debug(f"[Scoring] ⚠️ No conditions matched in LLM response")
+                            self._capture_debug(f"[Scoring] ⚠️ LLM returned {len(score_changes)} conditions, but none matched session conditions")
+                            self._capture_debug(f"[Scoring] ⚠️ LLM keys: {list(score_changes.keys())[:5]}")
+                            self._capture_debug(f"[Scoring] ⚠️ Session keys: {list(session.condition_scores.keys())[:5]}")
                 except json.JSONDecodeError as e:
-                    self._capture_debug(f"[Scoring] ⚠️ Failed to parse LLM score changes: {e}")
-                    self._capture_debug(f"[Scoring] ⚠️ Response (first 300 chars): {response[:300]}")
+                    self._capture_debug(f"[Scoring] ❌ Failed to parse LLM score changes: {e}")
+                    self._capture_debug(f"[Scoring] ⚠️ Raw response (first 500 chars): {response[:500]}")
+                    self._capture_debug(f"[Scoring] ⚠️ Extracted JSON attempt (first 300 chars): {cleaned[:300]}")
+                    self._capture_debug(f"[Scoring] ⚠️ This usually means LLM returned conversational text instead of JSON")
+                    self._capture_debug(f"[Scoring] ⚠️ Check if model is fine-tuned and following JSON-only instructions")
         except Exception as e:
             self._capture_debug(f"[Scoring] ⚠️ Error updating scores: {e}")
         
@@ -725,13 +758,22 @@ class AdvancedMedicalNavigator:
         available_cats_str = ', '.join(sorted(available_categories))
         
         system_prompt = (
-            "You are a medical expert. Based on the chief complaint, identify which medical categories are relevant. "
-            f"Categories: {available_cats_str}. "
-            "Return JSON: {\"categories\": [\"category1\", \"category2\", ...]}. "
-            "Include all relevant categories. Output only JSON, no other text."
+            "You are a medical expert with extensive training in clinical reasoning. "
+            "Based on the chief complaint, identify which medical categories are relevant using your medical knowledge.\n\n"
+            f"Available categories: {available_cats_str}\n\n"
+            "IMPORTANT: Consider all possible causes. For example:\n"
+            "- Chest pain can be cardiovascular (MI, angina), respiratory (PE, pneumonia), OR gastrointestinal (GERD)\n"
+            "- Abdominal pain can be gastrointestinal, renal, gynecological, etc.\n"
+            "- Include ALL relevant categories, not just the most obvious one.\n\n"
+            "Return ONLY valid JSON: {\"categories\": [\"category1\", \"category2\", ...]}\n"
+            "No explanations, no other text. Just the JSON object."
         )
         
-        user_prompt = f"Chief complaint: '{chief_complaint}'\n\nIdentify relevant medical categories."
+        user_prompt = (
+            f"Chief complaint: '{chief_complaint}'\n\n"
+            "Using your medical knowledge, identify which categories are relevant. "
+            "Consider all possible causes, not just the most obvious one."
+        )
         
         try:
             response = self.llm_chat_fn(
@@ -744,37 +786,64 @@ class AdvancedMedicalNavigator:
             )
             
             if not response:
-                return list(available_categories)[:1] if available_categories else ['gastrointestinal']
+                self._capture_debug(f"[Category] LLM returned empty response, defaulting to all categories")
+                return list(available_categories) if available_categories else ['gastrointestinal']
             
-            # Parse JSON
+            # Parse JSON - use robust parsing
             cleaned = response.strip()
+            
+            # Remove markdown code blocks
             if cleaned.startswith('```'):
                 first_newline = cleaned.find('\n')
                 if first_newline != -1:
                     cleaned = cleaned[first_newline+1:]
                     if cleaned.endswith('```'):
                         cleaned = cleaned[:-3].strip()
+                    elif '```' in cleaned:
+                        last_idx = cleaned.rfind('```')
+                        cleaned = cleaned[:last_idx].strip()
+            
+            # Extract JSON using brace matching
+            start_idx = cleaned.find('{')
+                if start_idx != -1:
+                    brace_count = 0
+                    end_idx = start_idx
+                for i in range(start_idx, len(cleaned)):
+                    if cleaned[i] == '{':
+                            brace_count += 1
+                    elif cleaned[i] == '}':
+                            brace_count -= 1
+                            if brace_count == 0:
+                                end_idx = i + 1
+                break
+                    if end_idx > start_idx:
+                    cleaned = cleaned[start_idx:end_idx]
             
             try:
                 parsed = json.loads(cleaned)
                 if isinstance(parsed, dict) and 'categories' in parsed:
-                    categories = parsed['categories']
-                    if isinstance(categories, list):
-                        # Filter to valid categories
-                        valid_categories = [cat for cat in categories if cat in available_categories]
-                        if valid_categories:
-                            # Store condition seeds for matched categories
-                            self._build_condition_seeds_from_categories(valid_categories, chief_complaint)
-                            return valid_categories
-            except json.JSONDecodeError:
-                pass
+                    parsed_categories = parsed['categories']
+                    if isinstance(parsed_categories, list):
+                        valid_cats = [cat for cat in parsed_categories if cat in available_categories]
+                        if valid_cats:
+                            self._capture_debug(f"[Category] LLM matched '{chief_complaint}' to categories: {valid_cats}")
+                            return valid_cats
+            else:
+                            self._capture_debug(f"[Category] LLM returned invalid categories: {parsed_categories}, defaulting to all categories")
+            else:
+                        self._capture_debug(f"[Category] LLM returned non-list categories, defaulting to all categories")
+                else:
+                    self._capture_debug(f"[Category] Failed to parse categories from LLM response, defaulting to all categories")
+            except json.JSONDecodeError as e:
+                self._capture_debug(f"[Category] JSON parse error: {e}, defaulting to all categories")
             
-            # Fallback: return first available category
-            return list(available_categories)[:1] if available_categories else ['gastrointestinal']
+            # If LLM fails, default to all categories (let scoring narrow down)
+            self._capture_debug(f"[Category] Defaulting to all available categories: {list(available_categories)}")
+            return list(available_categories) if available_categories else ['gastrointestinal']
             
         except Exception as e:
-            self._capture_debug(f"[Engine] ❌ Error in LLM category matching: {e}")
-            return list(available_categories)[:1] if available_categories else ['gastrointestinal']
+            self._capture_debug(f"⚠️  Error in category matching: {e}, defaulting to all categories")
+            return list(available_categories) if available_categories else ['gastrointestinal']
 
     def _build_condition_seeds_from_categories(self, categories: List[str], chief_complaint: str) -> None:
         """Build condition seed scores from categories and chief complaint.
@@ -853,7 +922,174 @@ class AdvancedMedicalNavigator:
             return self.all_guidelines
         return filtered
 
+    def _initialize_condition_scores_llm(self, categories: List[str], chief_complaint: str) -> Dict[str, float]:
+        """Initialize condition scores - LLM suggests relevant conditions dynamically."""
+        if not self.llm_chat_fn:
+            # Fallback: use guidelines
+            return self._get_conditions_from_guidelines(categories)
+        
+        # Use LLM's medical knowledge to suggest relevant conditions
+        system_prompt = (
+            "You are a medical expert with extensive training in clinical reasoning. "
+            "Based on the chief complaint and medical categories, suggest relevant medical conditions "
+            "that should be considered in the differential diagnosis.\n\n"
+            "Use your medical knowledge to identify conditions that could cause these symptoms. "
+            "Include common conditions, serious conditions that must be ruled out, and relevant differential diagnoses.\n\n"
+            "CRITICAL FORMAT REQUIREMENT:\n"
+            "Return ONLY valid JSON in this EXACT format: {\"conditions\": [\"Condition 1\", \"Condition 2\", \"Condition 3\", ...]}\n"
+            "Example: {\"conditions\": [\"Acute Myocardial Infarction (Heart Attack)\", \"Unstable Angina\", \"Aortic Dissection\"]}\n"
+            "DO NOT return multiple JSON objects on separate lines.\n"
+            "DO NOT return just condition names without the array.\n"
+            "Return ONLY the single JSON object. No explanations, no other text."
+        )
+        
+        available_conditions = self._get_conditions_from_guidelines(categories)
+        available_conditions_str = ', '.join(available_conditions[:20])  # Show sample for context
+        
+        user_prompt = (
+            f"Chief complaint: '{chief_complaint}'\n"
+            f"Medical categories: {', '.join(categories)}\n"
+            f"Available conditions (examples): {available_conditions_str}\n\n"
+            "Suggest relevant medical conditions for differential diagnosis. "
+            "Include all conditions that could reasonably cause these symptoms. "
+            "You can suggest conditions from the examples above, or other conditions you know about."
+        )
+        
+        try:
+            response = self.llm_chat_fn(
+                [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                max_tokens=500,  # More tokens for longer condition lists
+                temperature=0.0,
+            )
+            
+            if response:
+                self._capture_debug(f"[Condition Init] 📥 LLM response (first 300 chars): {response[:300]}")
+                # Parse JSON response - handle multiple formats
+                cleaned = response.strip()
+                
+                # Remove markdown code blocks
+                if cleaned.startswith('```'):
+                    first_newline = cleaned.find('\n')
+                    if first_newline != -1:
+                        cleaned = cleaned[first_newline+1:]
+                        if cleaned.endswith('```'):
+                            cleaned = cleaned[:-3].strip()
+                        elif '```' in cleaned:
+                            last_idx = cleaned.rfind('```')
+                            cleaned = cleaned[:last_idx].strip()
+                
+                # Try to parse as single JSON object first
+                start_idx = cleaned.find('{')
+                if start_idx != -1:
+                    brace_count = 0
+                    end_idx = start_idx
+                    for i in range(start_idx, len(cleaned)):
+                        if cleaned[i] == '{':
+                            brace_count += 1
+                        elif cleaned[i] == '}':
+                            brace_count -= 1
+                            if brace_count == 0:
+                                end_idx = i + 1
+                                break
+                    if end_idx > start_idx:
+                        single_json = cleaned[start_idx:end_idx]
+                        try:
+                            parsed = json.loads(single_json)
+                            if isinstance(parsed, dict) and 'conditions' in parsed:
+                                suggested_conditions = parsed['conditions']
+                                if isinstance(suggested_conditions, list) and suggested_conditions:
+                                    # Start ALL suggested conditions at balanced baseline (0.5)
+                                    condition_scores = {cond: 0.5 for cond in suggested_conditions}
+                                    self._capture_debug(f"[Engine] 📋 LLM suggested {len(condition_scores)} conditions at balanced baseline 50.0%")
+                                    self._capture_debug(f"[Engine]    Conditions: {', '.join(list(condition_scores.keys())[:5])}{'...' if len(condition_scores) > 5 else ''}")
+                                    return condition_scores
+                        except json.JSONDecodeError:
+                            pass  # Try alternative parsing below
+                
+                # Alternative: Handle multiple JSON objects on separate lines
+                # Format: {"Condition 1"}\n{"Condition 2"}\n...
+                suggested_conditions = []
+                lines = cleaned.split('\n')
+                for line in lines:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    # Try to extract JSON object from line
+                    start_idx = line.find('{')
+                    if start_idx != -1:
+                        brace_count = 0
+                        end_idx = start_idx
+                        for i in range(start_idx, len(line)):
+                            if line[i] == '{':
+                                brace_count += 1
+                            elif line[i] == '}':
+                                brace_count -= 1
+                                if brace_count == 0:
+                                    end_idx = i + 1
+                                    break
+                        if end_idx > start_idx:
+                            json_str = line[start_idx:end_idx]
+                            try:
+                                parsed = json.loads(json_str)
+                                if isinstance(parsed, dict):
+                                    # Extract condition name from dict
+                                    # Could be {"Condition Name"} or {"conditions": ["Condition"]} or just keys
+                                    if 'conditions' in parsed and isinstance(parsed['conditions'], list):
+                                        suggested_conditions.extend(parsed['conditions'])
+        else:
+                                        # Extract all string values from dict
+                                        for key, value in parsed.items():
+                                            if isinstance(value, str):
+                                                suggested_conditions.append(value)
+                                            elif isinstance(value, list):
+                                                suggested_conditions.extend([v for v in value if isinstance(v, str)])
+                                        # If no values, use keys as condition names
+                                        if not suggested_conditions:
+                                            suggested_conditions.extend([k for k in parsed.keys() if isinstance(k, str)])
+                            except json.JSONDecodeError:
+                                continue
+                
+                # If we found conditions in the alternative format
+                if suggested_conditions:
+                    # Remove duplicates and clean up
+                    suggested_conditions = list(dict.fromkeys(suggested_conditions))  # Preserve order, remove dupes
+                    condition_scores = {cond: 0.5 for cond in suggested_conditions}
+                    self._capture_debug(f"[Engine] 📋 LLM suggested {len(condition_scores)} conditions at balanced baseline 50.0%")
+                    self._capture_debug(f"[Engine]    Conditions: {', '.join(list(condition_scores.keys())[:5])}{'...' if len(condition_scores) > 5 else ''}")
+                    return condition_scores
+                
+                # If we still couldn't parse, show error
+                self._capture_debug(f"[Condition Init] ⚠️ Failed to parse JSON in any format")
+                self._capture_debug(f"[Condition Init] ⚠️ Extracted JSON attempt (first 200 chars): {cleaned[:200]}")
+            else:
+                self._capture_debug(f"[Condition Init] ⚠️ LLM returned empty response")
+            
+            # Fallback: Use conditions from guidelines
+            self._capture_debug(f"[Condition Init] ⚠️ LLM condition suggestion failed, using guidelines as fallback")
+            return self._get_conditions_from_guidelines(categories)
+            
+        except Exception as e:
+            self._capture_debug(f"⚠️  Error initializing conditions: {e}, using guidelines")
+            return self._get_conditions_from_guidelines(categories)
+    
+    def _get_conditions_from_guidelines(self, categories: List[str]) -> Dict[str, float]:
+        """Get conditions from guidelines as fallback."""
+        if not categories:
+            categories = ['gastrointestinal']
+        conditions = set()
+        for category in categories:
+            for name, guideline in self._get_guidelines_by_category(category).items():
+                condition_name = guideline.get('condition', name)
+                if condition_name:
+                    conditions.add(condition_name)
+        # Return as dict with 0.5 baseline
+        return {cond: 0.5 for cond in sorted(list(conditions))}
+
     def _get_conditions_for_categories(self, categories: List[str]) -> List[str]:
+        """Get condition names from categories (for reference only)."""
         if not categories:
             categories = ['gastrointestinal']
         conditions = set()
@@ -1240,22 +1476,115 @@ Ask only one question about {field}."""
         demotions = previous_active - current_active
 
         if promotions:
-            self._capture_debug("\n[Engine] 🔼 PROMOTED to active:")
+            self._capture_debug(f"\n[Pool] 🔼 PROMOTED to active ({len(promotions)}):")
             for name in promotions:
                 score = next((score for cond, score in active if cond == name), 0.0)
                 pct = round(score * 100, 1)
-                self._capture_debug(f"[Engine]   ↑ {name} (score: {pct}%)")
+                self._capture_debug(f"[Pool]   ↑ {name}: {pct:.1%}")
 
         if demotions:
-            self._capture_debug("\n[Engine] 🔽 DEMOTED to reserve:")
+            self._capture_debug(f"[Pool] 🔽 DEMOTED to reserve ({len(demotions)}):")
             for name in demotions:
                 score = next((score for cond, score in reserve if cond == name), 0.0)
                 pct = round(score * 100, 1)
-                self._capture_debug(f"[Engine]   ↓ {name} (score: {pct}%)")
+                self._capture_debug(f"[Pool]   ↓ {name}: {pct:.1%}")
 
         session.active_conditions = active
         session.reserve_conditions = reserve
         session.previous_active = current_active
+        
+        # Print pool status
+        self._capture_debug(f"\n[Pool] 📊 Condition Pool Status:")
+        self._capture_debug(f"[Pool]   Total conditions: {len(session.condition_scores)}")
+        self._capture_debug(f"[Pool]   Active (top 5): {len(session.active_conditions)}")
+        self._capture_debug(f"[Pool]   Reserve: {len(session.reserve_conditions)}")
+    
+    def _check_for_missing_conditions(self, session: "MedicalSession", element: str, answer: str) -> None:
+        """Check if LLM should consider additional conditions based on answer."""
+        # Only check for missing conditions on key elements that might reveal new diagnoses
+        if element not in ['character', 'aggravating', 'relieving', 'location']:
+            return
+        
+        chief_complaint = session.context['pre_hpi'].get('chief_complaint', '')
+        current_conditions = list(session.condition_scores.keys())
+        
+        if not self.llm_chat_fn:
+            return
+        
+        # Ask LLM if there are other conditions that should be considered
+        system_prompt = (
+            "You are a medical expert. Based on the patient's answer, identify if there are "
+            "other medical conditions that should be considered in the differential diagnosis.\n\n"
+            "Return ONLY valid JSON: {\"additional_conditions\": [\"Condition 1\", \"Condition 2\", ...]}\n"
+            "If no additional conditions are needed, return empty list: {\"additional_conditions\": []}\n"
+            "No explanations, no other text. Just the JSON object."
+        )
+        
+        user_prompt = (
+            f"Chief complaint: {chief_complaint}\n"
+            f"OLD CARTS element: {element}\n"
+            f"Patient's answer: '{answer}'\n"
+            f"Currently evaluating: {', '.join(current_conditions[:5])}{'...' if len(current_conditions) > 5 else ''}\n\n"
+            "Are there other medical conditions that should be considered based on this answer? "
+            "For example, if chest pain is 'burning' and 'worse after meals', consider GERD. "
+            "If no additional conditions, return empty list."
+        )
+        
+        try:
+            response = self.llm_chat_fn(
+                [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                max_tokens=200,
+                temperature=0.0,
+            )
+            
+            if response:
+                # Parse JSON
+                cleaned = response.strip()
+                if cleaned.startswith('```'):
+                    first_newline = cleaned.find('\n')
+                    if first_newline != -1:
+                        cleaned = cleaned[first_newline+1:]
+                        if cleaned.endswith('```'):
+                            cleaned = cleaned[:-3].strip()
+                
+                start_idx = cleaned.find('{')
+                if start_idx != -1:
+                    brace_count = 0
+                    end_idx = start_idx
+                    for i in range(start_idx, len(cleaned)):
+                        if cleaned[i] == '{':
+                            brace_count += 1
+                        elif cleaned[i] == '}':
+                            brace_count -= 1
+                            if brace_count == 0:
+                                end_idx = i + 1
+                                break
+                    if end_idx > start_idx:
+                        cleaned = cleaned[start_idx:end_idx]
+                
+                try:
+                    parsed = json.loads(cleaned)
+                    if isinstance(parsed, dict) and 'additional_conditions' in parsed:
+                        additional = parsed['additional_conditions']
+                        if isinstance(additional, list) and additional:
+                            # Add new conditions at baseline
+                            added_count = 0
+                            for cond in additional:
+                                if cond not in session.condition_scores:
+                                    session.condition_scores[cond] = 0.5
+                                    added_count += 1
+                                    self._capture_debug(f"[Pool] 🆕 LLM suggested additional condition: {cond}")
+                            if added_count > 0:
+                                self._capture_debug(f"[Pool] ✅ Added {added_count} new condition(s) to evaluation pool")
+                                self._apply_rule_outs(session)
+                except json.JSONDecodeError:
+                    pass
+        except Exception as e:
+            # Silently fail - not critical
+            pass
 
     def _log_rankings(self, session: "MedicalSession") -> None:
         self._capture_debug("\n[Engine] 📊 UPDATED RANKINGS:")

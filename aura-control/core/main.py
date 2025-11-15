@@ -105,6 +105,61 @@ def stop_keyboard_monitor():
 import atexit
 atexit.register(stop_keyboard_monitor)
 
+# === X11 Display Diagnostics ===
+def check_x11_display():
+    """Check if X11 display is accessible and auto-fix common issues"""
+    display = os.environ.get("DISPLAY", "NOT SET")
+    
+    # Test X11 connection first - if it works, we're done
+    x11_working = False
+    try:
+        result = subprocess.run(["xset", "q"], 
+                              capture_output=True, 
+                              timeout=2,
+                              stderr=subprocess.PIPE)
+        if result.returncode == 0:
+            x11_working = True
+    except Exception:
+        pass
+    
+    # If X11 works, silently continue
+    if x11_working:
+        return
+    
+    # Otherwise, print diagnostics and try to fix
+    print(f"[Aura] 🔍 Checking X11 display...")
+    print(f"  DISPLAY={display}")
+    
+    # Check if X server is running
+    x11_socket = "/tmp/.X11-unix/X0"
+    if not os.path.exists(x11_socket):
+        print(f"  ⚠️  X server socket not found: {x11_socket}")
+        if os.path.exists("/tmp/.X11-unix/"):
+            sockets = [f for f in os.listdir("/tmp/.X11-unix/") if f.startswith("X")]
+            if sockets:
+                print(f"  📋 Available X sockets: {', '.join(sockets)}")
+    
+    # Try to fix XAUTHORITY
+    xauth = os.environ.get("XAUTHORITY", "NOT SET")
+    if xauth == "NOT SET" or (xauth != "NOT SET" and not os.path.exists(xauth)):
+        home = os.path.expanduser("~")
+        default_xauth = os.path.join(home, ".Xauthority")
+        if os.path.exists(default_xauth):
+            os.environ["XAUTHORITY"] = default_xauth
+            print(f"  ✅ Set XAUTHORITY to: {default_xauth}")
+    
+    # Try xhost +local: to allow connections
+    try:
+        subprocess.run(["xhost", "+local:"], 
+                      capture_output=True, 
+                      timeout=2,
+                      stderr=subprocess.PIPE)
+        print(f"  ✅ Enabled xhost +local:")
+    except Exception:
+        print(f"  ⚠️  Could not run xhost +local:")
+    
+    print("")
+
 # === Display Setup ===
 def setup_display():
     """
@@ -924,6 +979,9 @@ def main():
     except Exception:
         pass
     
+    # Check X11 display accessibility FIRST
+    check_x11_display()
+    
     # Setup display fully (cursor hide, etc.)
     setup_display()
     
@@ -931,7 +989,20 @@ def main():
     start_keyboard_monitor()
     
     # Launch GUI FIRST so user sees something immediately
-    launch_gui()
+    print("[Aura] 🎨 Launching GUI...")
+    try:
+        launch_gui()
+    except Exception as e:
+        print(f"[Aura] ❌ Failed to launch GUI: {e}")
+        print(f"[Aura] 💡 Troubleshooting:")
+        print(f"  1. Make sure you're logged into a graphical session on the device")
+        print(f"  2. Check DISPLAY: echo $DISPLAY (should be :0 for HDMI)")
+        print(f"  3. Allow X11 access: xhost +local:")
+        print(f"  4. Verify X server is running: ps aux | grep X")
+        print(f"  5. Try running on the device directly (not via SSH)")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
     
     # Wait for GUI to be fully ready (instead of fixed delay)
     print("[Aura] ⏳ Waiting for GUI to be ready...")

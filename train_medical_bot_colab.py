@@ -1,38 +1,51 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Medical Bot Fine-Tuning Script for Llama-3.2 (Google Colab Version)
-Properly formats medical conversations using Llama-3.2 chat template
+Medical Bot Fine-Tuning Script for Qwen 2.5 (Google Colab Version)
+Properly formats medical conversations using Qwen 2.5 chat template
 Trains model to think like a doctor with clinical reasoning
 
+Configuration:
+- Model: Qwen2.5-1.5B-Instruct (better instruction following and reasoning than 0.5B)
+- LoRA Rank: 256 (good balance for 1.5B model)
+- Strategy: 1.5B provides better base reasoning + LoRA adaptation for task patterns
+
 To use in Colab:
-1. Upload medical_sft_dataset_high_quality.json (or other dataset) to Colab
+1. Upload medical_sft_dataset_enhanced.json (or other dataset) to Colab
 2. Run: !pip install unsloth trl peft accelerate bitsandbytes datasets
 3. Run this script
 
-Dataset Priority:
-- medical_sft_dataset_high_quality.json (highest priority - includes clinical reasoning and associated symptoms)
-- medical_sft_dataset_differential_reasoning.json
-- medical_sft_dataset_with_reasoning.json
-- medical_sft_dataset_complete.json
-- medical_sft_dataset_enriched.json
-- medical_sft_dataset.json (fallback)
+Dataset Priority (automatically selects best available):
+1. medical_sft_dataset_enhanced.json (LATEST & MOST ADVANCED - highest priority)
+   - Negative examples (what NOT to ask)
+   - Improved OLD CARTS question formats
+   - Better instruction following examples
+   - Clinical reasoning and associated symptoms
+2. medical_sft_dataset_high_quality.json (includes clinical reasoning)
+3. medical_sft_dataset_differential_reasoning.json
+4. medical_sft_dataset_with_reasoning.json
+5. medical_sft_dataset_complete.json
+6. medical_sft_dataset_enriched.json
+7. medical_sft_dataset.json (fallback)
 
-Note: The high-quality dataset includes:
+Note: The ENHANCED dataset (recommended) includes:
+- Negative examples showing what NOT to ask (prevents repetitive/nonsensical questions)
+- Improved OLD CARTS question formats (prevents awkward phrasing)
+- Better instruction following examples
 - Clinical reasoning after each OLD CARTS answer (comparative thinking, rule-in/rule-out logic)
 - Progressive narrowing of differential diagnosis with probability rankings
 - Associated symptoms with reasoning
 - Final diagnostic reasoning with ranked differential
-- System prompt: "Think like a doctor: recognize chief complaints, build differential diagnoses, and rank conditions by probability"
 """
 
 import json
+import os
+import shutil
 import torch
 from datasets import Dataset
 from unsloth import FastLanguageModel
 from trl import SFTTrainer
 from transformers import TrainingArguments
-import os
 
 # ============================================================================
 # Install Dependencies (Colab)
@@ -44,10 +57,20 @@ import os
 # Configuration
 # ============================================================================
 
-MODEL_NAME = "unsloth/Llama-3.2-1B-Instruct-bnb-4bit"  # Use Instruct version for chat
-# Priority: enhanced > high quality > differential reasoning > end-of-conversation reasoning > complete > enriched > original
+MODEL_NAME = "unsloth/Qwen2.5-1.5B-Instruct-bnb-4bit"  # Qwen 2.5 1.5B - better instruction following and reasoning
+
+# Dataset Priority (highest to lowest):
+# 1. medical_sft_dataset_enhanced.json - LATEST & MOST ADVANCED (includes negative examples, better OLD CARTS formats)
+# 2. medical_sft_dataset_high_quality.json - Includes clinical reasoning
+# 3. medical_sft_dataset_differential_reasoning.json - Includes differential reasoning
+# 4. medical_sft_dataset_with_reasoning.json - Includes basic reasoning
+# 5. medical_sft_dataset_complete.json - Complete conversations
+# 6. medical_sft_dataset_enriched.json - Enriched version
+# 7. medical_sft_dataset.json - Original fallback
+
 if os.path.exists("medical_sft_dataset_enhanced.json"):
     DATASET_PATH = "medical_sft_dataset_enhanced.json"
+    print("✅ Using ENHANCED dataset (latest, most advanced)")
 elif os.path.exists("medical_sft_dataset_high_quality.json"):
     DATASET_PATH = "medical_sft_dataset_high_quality.json"
 elif os.path.exists("medical_sft_dataset_differential_reasoning.json"):
@@ -66,14 +89,44 @@ GGUF_OUTPUT_DIR = "gguf_model"
 
 # Fallback system prompt (used only if dataset doesn't include system prompts)
 # The high-quality dataset includes its own system prompt that encourages clinical reasoning
-FALLBACK_SYSTEM_PROMPT = """You are a medical professional conducting a clinical history. Think like a doctor: recognize chief complaints, build differential diagnoses, and rank conditions by probability.
+FALLBACK_SYSTEM_PROMPT = """You are a medical professional with extensive medical knowledge. You can:
+1. Answer general medical information questions (e.g., "what is diabetes?")
+2. Conduct clinical assessments when patients mention symptoms (using OLD CARTS framework)
+
+CRITICAL: Distinguish between:
+- **Informational questions** (e.g., "what is diabetes?", "explain heart attack") → Provide clear, helpful medical information
+- **Symptom complaints** (e.g., "I have chest pain") → Conduct systematic OLD CARTS assessment
+
+When conducting a clinical assessment, your job is to STRUCTURE the conversation and REASON SYSTEMATICALLY to arrive at a diagnosis.
+
+CRITICAL INSIGHT: You already know medical facts. What you need is STRUCTURE:
+1. Ask questions SYSTEMATICALLY using OLD CARTS framework (one element at a time)
+2. After EACH answer, reason methodically: How does this affect the differential?
+3. Build diagnosis STEP-BY-STEP: Rule IN conditions that match, Rule OUT conditions that don't
+4. Progressively narrow: Each collected element should refine your differential
+5. Use your medical knowledge, but apply it in a STRUCTURED, SYSTEMATIC way
+
+SYSTEMATIC REASONING PROCESS:
+- Step 1: Collect Onset (O) → Reason: How does onset pattern affect differential?
+- Step 2: Collect Location (L) → Reason: How does location narrow the differential?
+- Step 3: Collect Character (C) → Reason: How does character further refine diagnosis?
+- Continue systematically through all OLD CARTS elements
+- Build diagnosis progressively: Each answer should update your differential rankings
+
+Use your medical knowledge to understand:
+- Anatomical relationships (e.g., "right upper quadrant pain" → liver, gallbladder, biliary system)
+- Medical terminology (e.g., "epigastric" → stomach/pancreas, "pleuritic" → pleural/pulmonary)
+- Clinical patterns (e.g., "fatty meal trigger" → gallbladder, "worse with breathing" → pulmonary)
+But apply this knowledge SYSTEMATICALLY through structured questioning and step-by-step reasoning.
 
 IMPORTANT RULES:
-- ONLY ask medical questions when the patient mentions a symptom, pain, or medical concern
+- Answer general medical questions naturally and informatively
+- ONLY ask medical assessment questions when the patient mentions a symptom, pain, or medical concern
 - If the patient is just greeting you or having casual conversation, respond naturally and wait for them to mention a medical issue
 - NEVER make up or assume symptoms the patient hasn't mentioned
-- Always ask questions, never make statements about patient information
+- Always ask questions during assessments, never make statements about patient information
 - NEVER ask redundant questions about information already provided
+- USE YOUR MEDICAL KNOWLEDGE: When patients describe symptoms, use your understanding of anatomy, medical terminology, and clinical patterns to make connections and guide your reasoning
 
 CRITICAL SEQUENCE - You MUST follow this EXACT order for EVERY conversation. DO NOT skip any step:
 
@@ -137,6 +190,11 @@ with open(DATASET_PATH, 'r', encoding='utf-8') as f:
     data = json.load(f)
 
 print(f"✅ Loaded {len(data)} conversations from {DATASET_PATH}")
+if "enhanced" in DATASET_PATH.lower():
+    print("   📚 This is the ENHANCED dataset with:")
+    print("      - Negative examples (what NOT to ask)")
+    print("      - Improved OLD CARTS question formats")
+    print("      - Better instruction following examples")
 
 # Check if dataset includes clinical reasoning
 sample_conv = data[0] if data else {}
@@ -217,11 +275,12 @@ model, tokenizer = FastLanguageModel.from_pretrained(
     load_in_4bit=True,
 )
 
-# Set chat template for Llama-3.2
-tokenizer.chat_template = "{% for message in messages %}{% if message['role'] == 'system' %}{{ '<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n' + message['content'] + '<|eot_id|>' }}{% elif message['role'] == 'user' %}{{ '<|start_header_id|>user<|end_header_id|>\n\n' + message['content'] + '<|eot_id|>' }}{% elif message['role'] == 'assistant' %}{{ '<|start_header_id|>assistant<|end_header_id|>\n\n' + message['content'] + '<|eot_id|>' }}{% endif %}{% endfor %}{% if add_generation_prompt %}{{ '<|start_header_id|>assistant<|end_header_id|>\n\n' }}{% endif %}"
+# Qwen 2.5 uses its own chat template (automatically set by tokenizer)
+# The tokenizer from unsloth should have the correct template already
+# If needed, we can verify it's using Qwen format: <|im_start|>system\n...<|im_end|>\n
 
 print(f"✅ Model loaded: {MODEL_NAME}")
-print(f"✅ Chat template configured for Llama-3.2")
+print(f"✅ Chat template: Qwen 2.5 format (auto-configured by tokenizer)")
 print()
 
 # ============================================================================
@@ -271,14 +330,15 @@ print("=" * 80)
 
 # LoRA Configuration
 # r=128: ~90M trainable (6.80%) - Good balance, works on T4/V100
-# r=256: ~180M trainable (13.6%) - Better capacity, needs 16GB+ VRAM
+# r=256: ~180M trainable (13.6%) - Better capacity, needs 16GB+ VRAM (CURRENT)
 # r=512: ~360M trainable (27.2%) - Maximum capacity, needs 24GB+ VRAM
 # 
-# Recommendation: Start with r=128. If model underfits or you have extra VRAM, try r=256.
-# See LORA_CONFIGURATION_GUIDE.md for details.
+# Using r=256 with Qwen2.5-1.5B for good balance of base model reasoning + task adaptation.
+# 1.5B provides better instruction following and reasoning than 0.5B.
+# See BASE_MODEL_SIZE_VS_LORA_RANK.md and UPGRADE_TO_1.5B_RECOMMENDATION.md for details.
 
-LORA_RANK = 128  # Change to 256 or 512 to train more parameters
-LORA_ALPHA = LORA_RANK * 2  # Optimal scaling: alpha = 2x rank
+LORA_RANK = 256  # Good balance for 1.5B model
+LORA_ALPHA = LORA_RANK * 2  # Optimal scaling: alpha = 2x rank (512)
 
 model = FastLanguageModel.get_peft_model(
     model,
@@ -401,7 +461,19 @@ model.save_pretrained_gguf(
     tokenizer,
     quantization_method="q4_k_m"  # Q4_K_M quantization for good balance
 )
-print(f"✅ GGUF model saved to {GGUF_OUTPUT_DIR}")
+
+# Rename GGUF file to append "-medical" to filename
+gguf_files = [f for f in os.listdir(GGUF_OUTPUT_DIR) if f.endswith(".gguf")]
+if gguf_files:
+    original_file = os.path.join(GGUF_OUTPUT_DIR, gguf_files[0])
+    # Extract base name and add "-medical" before .gguf extension
+    base_name = os.path.splitext(gguf_files[0])[0]
+    new_filename = f"{base_name}-medical.gguf"
+    new_file = os.path.join(GGUF_OUTPUT_DIR, new_filename)
+    shutil.move(original_file, new_file)
+    print(f"✅ GGUF model saved as: {new_filename}")
+else:
+    print(f"✅ GGUF model saved to {GGUF_OUTPUT_DIR}")
 
 print()
 print("=" * 80)
@@ -422,11 +494,15 @@ print()
 
 # For Colab: Download the GGUF file
 from google.colab import files
-import os
 
 gguf_files = [f for f in os.listdir(GGUF_OUTPUT_DIR) if f.endswith(".gguf")]
 if gguf_files:
-    gguf_file = os.path.join(GGUF_OUTPUT_DIR, gguf_files[0])
+    # Prefer the -medical file if it exists, otherwise use any GGUF file
+    medical_file = [f for f in gguf_files if "-medical" in f]
+    if medical_file:
+        gguf_file = os.path.join(GGUF_OUTPUT_DIR, medical_file[0])
+    else:
+        gguf_file = os.path.join(GGUF_OUTPUT_DIR, gguf_files[0])
     print(f"Downloading: {gguf_file}")
     files.download(gguf_file)
 else:
