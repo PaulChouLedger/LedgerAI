@@ -30,7 +30,7 @@ class AdvancedMedicalNavigator:
     # ----------- Configuration -------------------------------------------------
 
     PRE_HPI_ORDER = ["chief_complaint", "chronicity", "age", "sex"]
-    
+
     HPI_ELEMENTS = [
         "onset",
         "location",
@@ -150,7 +150,7 @@ class AdvancedMedicalNavigator:
         self.guidelines_dir = self._resolve_guidelines_dir()
         self.all_guidelines: Dict[str, Dict] = {}
         self._chief_complaint_condition_seed: Dict[str, float] = {}
-        
+
         if self.guidelines_dir:
             self._load_guidelines()
             self._build_chief_complaint_triggers()
@@ -196,9 +196,29 @@ class AdvancedMedicalNavigator:
     # ----------- Stage handlers ----------------------------------------------
 
     def _handle_initial_complaint(self, session: "MedicalSession", text: str) -> Dict[str, any]:
-        if self._is_greeting(text):
+        # Check if this is a greeting or casual conversation
+        if self._is_greeting(text) or not self._is_medical_complaint(text):
+            # It's a greeting or casual conversation - respond naturally
+            if self.llm_chat_fn:
+                greeting_prompt = (
+                    f"The user just said: '{text}'\n\n"
+                    "This is a greeting or casual conversation, NOT a medical complaint. "
+                    "Respond naturally and friendly. Wait for them to mention a medical concern "
+                    "before asking any medical questions. Keep it brief and welcoming."
+                )
+                reply = self.llm_chat_fn(
+                    [
+                        {"role": "system", "content": self.QUESTION_SYSTEM_PROMPT},
+                        {"role": "user", "content": greeting_prompt}
+                    ],
+                    max_tokens=100,
+                    temperature=0.7
+                )
+                reply = self._clean_llm_response(reply, fallback=self.GREETING_RESPONSES[0])
+            else:
             reply = self.GREETING_RESPONSES[0]
-            self._capture_debug(f"[Navigator] 🙋 Greeting detected: '{text}'")
+            self._capture_debug(f"[Navigator] 🙋 Greeting/casual conversation detected: '{text}'")
+            session.messages.append({"role": "assistant", "content": reply})
             return self._wrap_response(session, reply, status="awaiting_chief_complaint")
 
         self._capture_debug(f"\n{'='*80}")
@@ -230,11 +250,11 @@ class AdvancedMedicalNavigator:
         # LLM will narrow down based on answers, not initial seeding
         all_conditions = self._get_conditions_for_categories(categories)
         session.condition_scores = {}
-        
+
         # Start all conditions at balanced baseline (0.5)
         # This allows LLM to evaluate and narrow down based on answers
         for cond in all_conditions:
-            session.condition_scores[cond] = 0.5
+                session.condition_scores[cond] = 0.5
             self._capture_debug(f"[Engine] 🔧 Seeded {cond} at baseline 0.500 (balanced start)")
         
         self._capture_debug(f"[Engine] 📋 Seeded {len(session.condition_scores)} conditions at balanced baseline 50.0% - LLM will narrow down based on answers")
@@ -276,10 +296,15 @@ class AdvancedMedicalNavigator:
                     session=session,
                     section='pre_hpi',
                     field='age',
-                    guidance="Ask for the patient's age. Ask only the question, no acknowledgment or reasoning."
+                    guidance="Ask the patient their age using second person (e.g., 'How old are you?' or 'What is your age?'). Ask only the question, no acknowledgment or reasoning. Do NOT use third person like 'the patient's age'."
                 )
                 if not prompt.strip().endswith('?'):
                     prompt = prompt.rstrip('.') + '?'
+                # Fallback to correct format if LLM generates wrong format
+                prompt_cleaned = prompt.strip()
+                if 'patient' in prompt_cleaned.lower() and ('age' in prompt_cleaned.lower() or 'old' in prompt_cleaned.lower()):
+                    # LLM used third person, use correct second person format
+                    prompt = "How old are you?"
                 return {'section': 'pre_hpi', 'field': 'age', 'prompt': prompt}
             session.stage = "awaiting_sex"
 
@@ -292,10 +317,15 @@ class AdvancedMedicalNavigator:
                     session=session,
                     section='pre_hpi',
                     field='sex',
-                    guidance="Ask for the patient's biological sex. Ask only the question, no acknowledgment or reasoning."
+                    guidance="Ask the patient their biological sex using second person (e.g., 'What is your biological sex?' or 'Are you male or female?'). Ask only the question, no acknowledgment or reasoning. Do NOT use third person like 'the patient' or 'is the patient male'."
                 )
                 if not prompt.strip().endswith('?'):
                     prompt = prompt.rstrip('.') + '?'
+                # Fallback to correct format if LLM generates wrong format
+                prompt_cleaned = prompt.strip()
+                if 'patient' in prompt_cleaned.lower() and ('male' in prompt_cleaned.lower() or 'sex' in prompt_cleaned.lower() or 'female' in prompt_cleaned.lower()):
+                    # LLM used third person, use correct second person format
+                    prompt = "What is your biological sex?"
                 return {'section': 'pre_hpi', 'field': 'sex', 'prompt': prompt}
 
         if session.stage == "hpi":
@@ -429,7 +459,7 @@ class AdvancedMedicalNavigator:
                         status="validation_error",
                         metadata={'field': field, 'section': section, 'validation_error': True},
                     )
-                session.context['pre_hpi'][field] = normalized_value
+            session.context['pre_hpi'][field] = normalized_value
                 session.stage = "hpi"
                 session.oldcarts_remaining = self._ordered_oldcarts_elements(session)
                 session.pending = None
@@ -451,10 +481,30 @@ class AdvancedMedicalNavigator:
                     session.stage = "awaiting_age"
             
             session.pending = None
-            return None
+        return None
+
+        el        if section == 'hpi':
+            # Check if this is a confused/clarification request
+            if self._is_confused_response(text):
+                self._capture_debug(f"[HPI] ⚠️ Confused/clarification request detected: '{text}'")
+                # Don't store confused responses as answers - we'll re-ask the question
+                if field in session.context['hpi']:
+                    del session.context['hpi'][field]  # Remove if it was incorrectly stored
+                # Keep the pending question so we can re-ask it
+                # Don't update scores for confused responses
+                # Re-ask the same question with clearer format
+                session.pending = pending  # Keep the same question
+                return self._wrap_response(
+                    session,
+                    pending['prompt'],  # Re-use the same question
+                    metadata={
+                        'section': pending['section'],
+                        'field': pending['field'],
+                        'reasking': True,
+                    },
+                )
             
-        elif section == 'hpi':
-            # Store answer
+            # Store answer (not a confused response)
             session.context['hpi'][field] = text
             self._capture_debug(f"[HPI] ✅ Stored answer for {field}: {text}")
             
@@ -480,7 +530,7 @@ class AdvancedMedicalNavigator:
                     },
                 )
         
-        return None
+            return None
 
     def _update_condition_scores_from_answer(self, session: "MedicalSession", element: str, answer: str) -> None:
         """Update condition scores based on answer - LLM evaluates ALL conditions using trained knowledge."""
@@ -540,14 +590,42 @@ class AdvancedMedicalNavigator:
             )
             
             if response:
-                # Parse JSON response
+                # Parse JSON response - try multiple extraction methods
                 cleaned = response.strip()
+                
+                # Method 1: Remove markdown code blocks
                 if cleaned.startswith('```'):
                     first_newline = cleaned.find('\n')
                     if first_newline != -1:
                         cleaned = cleaned[first_newline+1:]
                         if cleaned.endswith('```'):
                             cleaned = cleaned[:-3].strip()
+                        elif '```' in cleaned:
+                            # Find last ```
+                            last_idx = cleaned.rfind('```')
+                            cleaned = cleaned[:last_idx].strip()
+                
+                # Method 2: Extract JSON object using brace matching
+                start_idx = cleaned.find('{')
+                if start_idx != -1:
+                    brace_count = 0
+                    end_idx = start_idx
+                    for i in range(start_idx, len(cleaned)):
+                        if cleaned[i] == '{':
+                            brace_count += 1
+                        elif cleaned[i] == '}':
+                            brace_count -= 1
+                            if brace_count == 0:
+                                end_idx = i + 1
+                                break
+                    if end_idx > start_idx:
+                        cleaned = cleaned[start_idx:end_idx]
+                
+                # Method 3: Remove any text before first { or after last }
+                if '{' in cleaned:
+                    cleaned = cleaned[cleaned.find('{'):]
+                if '}' in cleaned:
+                    cleaned = cleaned[:cleaned.rfind('}')+1]
                 
                 try:
                     score_changes = json.loads(cleaned)
@@ -707,7 +785,7 @@ class AdvancedMedicalNavigator:
         # Simplified: Don't aggressively seed conditions
         # Let LLM evaluate and narrow down based on answers
         self._chief_complaint_condition_seed = {}
-
+ 
     # ----------- Guidance builders -------------------------------------------
 
     def _resolve_guidelines_dir(self) -> Optional[Path]:
@@ -803,11 +881,51 @@ class AdvancedMedicalNavigator:
         if not subject:
             return 'symptoms'
         return subject
+    
+    def _get_base_question_for_element(self, element: str, chief_complaint: str) -> str:
+        """Get base question format for OLD CARTS element."""
+        element_guidance = {
+            'onset': f"When did the {chief_complaint} start?",
+            'location': f"Where exactly is the {chief_complaint} located?",
+            'duration': f"How long has the {chief_complaint} been present?",
+            'character': f"What does the {chief_complaint} feel like? For example, is it sharp, heavy, burning, or pressure?",
+            'aggravating': f"What makes the {chief_complaint} worse?",
+            'relieving': f"What makes the {chief_complaint} better?",
+            'radiation': f"Does the {chief_complaint} spread to other areas?",
+            'timing': f"Is the {chief_complaint} constant or does it come and go?",
+            'severity': f"On a scale from 1 to 10, how severe is the {chief_complaint}?",
+            'associated': f"Are there any other symptoms you're experiencing along with the {chief_complaint}?",
+        }
+        return element_guidance.get(element, f"Tell me about the {element} of {chief_complaint}.")
+    
+    def _validate_hpi_question(self, question: str, element: str, chief_complaint: str) -> str:
+        """Validate and fix HPI questions to avoid nonsensical phrasing."""
+        question_lower = question.lower()
+        
+        # Check for nonsensical questions like "how old is your chest pain?"
+        if 'old' in question_lower and 'age' not in question_lower and element != 'age':
+            # LLM generated wrong question, use base question
+            self._capture_debug(f"[LLM] ⚠️ Detected nonsensical question, using base question instead")
+            return self._get_base_question_for_element(element, chief_complaint)
+        
+        # Check for awkward character phrasing
+        if element == 'character' and ('character of' in question_lower or 'the character' in question_lower):
+            # LLM generated awkward phrasing for character - use base question
+            self._capture_debug(f"[LLM] ⚠️ Detected awkward character question, using base question instead")
+            return self._get_base_question_for_element(element, chief_complaint)
+        
+        # Check if question is too short or empty
+        if not question or len(question) < 10:
+            return self._get_base_question_for_element(element, chief_complaint)
+        
+        return question
 
     def _ordered_oldcarts_elements(self, session: "MedicalSession") -> List[str]:
         """Get ordered OLD CARTS elements - simplified, LLM handles priority."""
         ordered = self.HPI_ELEMENTS.copy()
-        answered = {key for key, value in session.context['hpi'].items() if value and value.strip()}
+        # Only include elements that are actually answered (not confused responses)
+        answered_elements = {k: v for k, v in session.context['hpi'].items() if v and v.strip() and not self._is_confused_response(v)}
+        answered = set(answered_elements.keys())
         filtered = [element for element in ordered if element not in answered]
         return filtered
 
@@ -834,13 +952,17 @@ class AdvancedMedicalNavigator:
                 conversation_context.append({"role": msg['role'], "content": msg['content']})
         
         if section == 'hpi':
+            # Get base question format for this element
+            base_question = self._get_base_question_for_element(field, cc)
+            
             user_prompt = f"""Context of what we already know:
 {context_summary}
 
-Now ask about the {field} of {cc}. 
-IMPORTANT: Do NOT ask about information already provided in the context above. 
-If {field} information is already in the context, ask about a DIFFERENT aspect of the symptom.
-Ask only one question."""
+You need to ask about the {field} of the {cc}. 
+IMPORTANT: You MUST ask about {field} specifically using this exact format: '{base_question}' 
+Do NOT ask about age, demographics, or information already in the context. 
+Do NOT use phrases like 'character of' or 'the {field}' - use the natural question format shown above. 
+Ask only one question about {field}."""
         elif section == 'pre_hpi':
             user_prompt = guidance
         else:
@@ -866,6 +988,10 @@ Ask only one question."""
         
         if not cleaned.endswith('?'):
             cleaned = cleaned.rstrip('.') + '?'
+        
+        # Quality check: detect nonsensical questions
+        if section == 'hpi':
+            cleaned = self._validate_hpi_question(cleaned, field, cc)
         
         return cleaned
 
@@ -1031,6 +1157,41 @@ Ask only one question."""
         normalized = re.sub(r"[^a-zA-Z\s]", "", text).strip().lower()
         greetings = {'hi', 'hello', 'hey', 'hey there', 'good morning', 'good afternoon', 'good evening'}
         return normalized in greetings
+    
+    def _is_medical_complaint(self, user_input: str) -> bool:
+        """Check if user input contains a medical complaint or is just casual conversation"""
+        user_lower = user_input.lower().strip()
+        
+        # Common greetings and casual phrases (not medical)
+        greetings = ['hello', 'hi', 'hey', 'good morning', 'good afternoon', 'good evening', 
+                     'how are you', 'what\'s up', 'sup', 'greetings', 'hi there']
+        
+        # Check if it's just a greeting
+        if user_lower in greetings or any(user_lower.startswith(g) for g in greetings):
+            return False
+        
+        # Medical complaint indicators
+        medical_keywords = [
+            'pain', 'ache', 'hurt', 'sore', 'discomfort', 'symptom', 'problem', 'issue',
+            'fever', 'nausea', 'vomit', 'dizzy', 'shortness', 'breath', 'cough', 'chest',
+            'abdominal', 'headache', 'stomach', 'bleeding', 'blood', 'rash', 'swelling',
+            'burning', 'pressure', 'tightness', 'numbness', 'tingling', 'weakness',
+            'dizziness', 'fatigue', 'tired', 'unwell', 'sick', 'ill', 'feeling',
+            'concerned about', 'worried about', 'having', 'experiencing', 'feeling'
+        ]
+        
+        # Check if input contains medical keywords
+        return any(keyword in user_lower for keyword in medical_keywords)
+    
+    def _is_confused_response(self, text: str) -> bool:
+        """Check if user response is a confused/clarification request"""
+        confused_phrases = [
+            'what', 'what?', 'huh', 'i don\'t understand', 'clarify',
+            'what do you mean', 'what does that mean', 'i don\'t know',
+            'not sure', 'unclear', 'confused', 'can you explain',
+            'what are you asking', 'repeat', 'again'
+        ]
+        return any(phrase in text.lower() for phrase in confused_phrases)
 
     # ----------- Debug helpers ----------------------------------------------
 

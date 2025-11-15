@@ -143,39 +143,55 @@ fi
 if [ "$PORT_AUDIO_AVAILABLE" = false ]; then
     print_info "Building PortAudio from source (required for sounddevice)..."
     
-    PORTAUDIO_DIR="/tmp/portaudio"
-    PORTAUDIO_VERSION="19.7.0"
-    
     # Check if already built
-    if [ -f "/usr/local/lib/libportaudio.so" ] || [ -f "/usr/lib/libportaudio.so" ]; then
+    if ldconfig -p | grep -q libportaudio || [ -f "/usr/local/lib/libportaudio.so" ] || [ -f "/usr/lib/libportaudio.so" ]; then
         print_info "PortAudio library already exists, skipping build"
-        PORT_AUDIO_AVAILABLE=true
-    else
-        print_info "Downloading and building PortAudio..."
-        cd /tmp
-        rm -rf "$PORTAUDIO_DIR"
+        # Verify it works with Python
+        if python3 -c "import sounddevice as sd" 2>/dev/null; then
+            print_info "✅ PortAudio verified and working"
+            PORT_AUDIO_AVAILABLE=true
+        else
+            print_info "PortAudio exists but Python can't find it - rebuilding..."
+            PORT_AUDIO_AVAILABLE=false
+        fi
+    fi
+    
+    if [ "$PORT_AUDIO_AVAILABLE" = false ]; then
+        print_info "Installing build dependencies for PortAudio..."
+        sudo apt install -y autoconf automake libasound2-dev wget || true
         
-        # Download PortAudio source
-        if wget -q "http://files.portaudio.com/archives/pa_stable_v${PORTAUDIO_VERSION//./_}.tgz" -O portaudio.tgz; then
+        print_info "Downloading PortAudio source..."
+        cd /tmp
+        rm -rf portaudio portaudio.tgz
+        
+        # Download PortAudio source (fixed URL)
+        PORTAUDIO_URL="http://files.portaudio.com/archives/pa_stable_v190700_20210406.tgz"
+        if wget -q "$PORTAUDIO_URL" -O portaudio.tgz; then
             tar -xzf portaudio.tgz
             cd portaudio
             
             # Configure and build
+            print_info "Building PortAudio (this may take 2-5 minutes)..."
             if ./configure && make -j$(nproc); then
                 sudo make install
                 sudo ldconfig
                 
                 # Verify installation
-                if [ -f "/usr/local/lib/libportaudio.so" ] || ldconfig -p | grep -q portaudio; then
+                if ldconfig -p | grep -q portaudio || [ -f "/usr/local/lib/libportaudio.so" ]; then
                     print_info "✅ PortAudio built and installed successfully"
+                    
+                    # Verify library is in cache
+                    print_info "✅ PortAudio library installed and registered"
                     PORT_AUDIO_AVAILABLE=true
+                    print_info "   Python import will be tested after virtual environment setup"
                 else
-                    print_error "PortAudio built but library not found"
+                    print_error "PortAudio built but library not found in cache"
                     PORT_AUDIO_AVAILABLE=false
                 fi
             else
                 print_error "PortAudio build failed"
                 print_info "   sounddevice may not work - audio input/output will fail"
+                print_info "   You can try building manually: bash $LEDGERAI_DIR/setup/scripts/build_portaudio.sh"
                 PORT_AUDIO_AVAILABLE=false
             fi
             
@@ -184,6 +200,7 @@ if [ "$PORT_AUDIO_AVAILABLE" = false ]; then
         else
             print_error "Failed to download PortAudio source"
             print_info "   sounddevice may not work - audio input/output will fail"
+            print_info "   You can try building manually: bash $LEDGERAI_DIR/setup/scripts/build_portaudio.sh"
             PORT_AUDIO_AVAILABLE=false
         fi
     fi
@@ -267,11 +284,19 @@ if [ -f "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" ]; then
     print_info "Installing core requirements..."
     
     # Note: sounddevice uses portaudio via ctypes, so it needs the shared library
-    # On Jetson systems, ALSA/PulseAudio may be sufficient
-    if [ "$PORT_AUDIO_AVAILABLE" = false ]; then
-        print_info "Note: PortAudio system packages not available"
-        print_info "      sounddevice will attempt to use ALSA/PulseAudio"
-        print_info "      If audio doesn't work, you may need to build portaudio from source"
+    # PortAudio should have been built from source if packages weren't available
+    print_info "Verifying PortAudio is accessible for sounddevice..."
+    if python3 -c "import sounddevice as sd; print('✅ PortAudio working!')" 2>/dev/null; then
+        print_info "✅ PortAudio is accessible - sounddevice will work"
+        PORT_AUDIO_AVAILABLE=true
+    elif [ "$PORT_AUDIO_AVAILABLE" = true ]; then
+        print_info "⚠️  PortAudio library installed but Python import failed"
+        print_info "   This may resolve after installing sounddevice package"
+        print_info "   Will continue with installation..."
+    else
+        print_error "⚠️  PortAudio not available - sounddevice will NOT work"
+        print_error "   Build PortAudio: bash $LEDGERAI_DIR/setup/scripts/build_portaudio.sh"
+        print_info "   Continuing with installation, but audio input/output will fail"
     fi
     
     # Install PyQt5 separately with better error handling
@@ -405,9 +430,12 @@ if [ -f "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" ]; then
         rm -f /tmp/pip_install.log /tmp/pyqt5_build.log 2>/dev/null || true
     fi
     
-    # Final verification: Ensure PyQt5 is accessible
+    # Final verification: Ensure PyQt5 and PortAudio are accessible
     print_info ""
-    print_info "🔍 Final PyQt5 verification..."
+    print_info "🔍 Final verification..."
+    
+    # Test PyQt5
+    print_info "Testing PyQt5..."
     if python3 -c "import PyQt5; from PyQt5.QtWidgets import QApplication; print('SUCCESS')" 2>/dev/null; then
         PYQT5_VERSION=$(python3 -c "import PyQt5; print(PyQt5.QtCore.PYQT_VERSION_STR)" 2>/dev/null || echo "unknown")
         print_info "✅ PyQt5 is installed and functional (version: $PYQT5_VERSION)"
@@ -420,6 +448,25 @@ if [ -f "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" ]; then
         print_info "   2. Verify Qt5 dev tools: dpkg -l | grep qt5"
         print_info "   3. Try: python3 -c 'import sys; sys.path.insert(0, \"/usr/lib/python3/dist-packages\"); import PyQt5'"
         print_info "   4. If system PyQt5 works, recreate venv with --system-site-packages"
+    fi
+    
+    # Test PortAudio (sounddevice)
+    print_info "Testing PortAudio (sounddevice)..."
+    if python3 -c "import sounddevice as sd; print('SUCCESS')" 2>/dev/null; then
+        print_info "✅ PortAudio is accessible - sounddevice will work"
+        print_info "✅ Audio input/output will work correctly"
+        PORT_AUDIO_AVAILABLE=true
+    else
+        if ldconfig -p | grep -q portaudio || [ -f "/usr/local/lib/libportaudio.so" ]; then
+            print_error "⚠️  PortAudio library installed but Python can't access it"
+            print_info "   Try: source $VENV_DIR/bin/activate && python3 -c 'import sounddevice as sd'"
+            print_info "   Or rebuild PortAudio: bash $LEDGERAI_DIR/setup/scripts/build_portaudio.sh"
+        else
+            print_error "❌ PortAudio not installed - sounddevice will NOT work!"
+            print_error "   Audio input/output will fail - listener will not work"
+            print_info "   Build PortAudio: bash $LEDGERAI_DIR/setup/scripts/build_portaudio.sh"
+        fi
+        PORT_AUDIO_AVAILABLE=false
     fi
 else
     print_error "Core requirements file not found!"
@@ -755,6 +802,17 @@ echo "=========================================="
 echo ""
 echo "✅ Virtual environment: $VENV_DIR"
 echo "✅ Python requirements: Installed"
+if [ "$PORT_AUDIO_AVAILABLE" = true ]; then
+    echo "✅ PortAudio: Installed (sounddevice will work)"
+else
+    echo "⚠️  PortAudio: Not available (audio may not work)"
+    echo "   Run: bash $LEDGERAI_DIR/setup/scripts/build_portaudio.sh"
+fi
+if python3 -c "import PyQt5" 2>/dev/null; then
+    echo "✅ PyQt5: Installed (GUI will work)"
+else
+    echo "❌ PyQt5: Not available (GUI will NOT work)"
+fi
 echo "✅ jetson-containers: $JETSON_CONTAINERS_DIR"
 echo "✅ XVF3800 support: $XVF3800_REPO_DIR"
 echo "✅ XVF3800 tuning service: Enabled (runs on boot)"
@@ -793,10 +851,18 @@ echo "   journalctl -u aura.service -f"
 echo "   journalctl -u xvf3800-tuning.service -n 50"
 echo "   journalctl -u disable-keyboard-monitor.service -f"
 echo ""
-echo "7. If audio doesn't work (PortAudio not available):"
-echo "   sounddevice may need PortAudio library. Try:"
-echo "   - Install from source: https://www.portaudio.com/download.html"
-echo "   - Or use ALSA directly (may require code changes)"
+echo "7. If PortAudio/audio doesn't work:"
+if [ "$PORT_AUDIO_AVAILABLE" = false ]; then
+    echo "   PortAudio not installed. Build it:"
+    echo "   bash $LEDGERAI_DIR/setup/scripts/build_portaudio.sh"
+    echo "   Or: cd /tmp && wget http://files.portaudio.com/archives/pa_stable_v190700_20210406.tgz"
+    echo "        tar -xzf pa_stable_v190700_20210406.tgz && cd portaudio"
+    echo "        ./configure && make -j$(nproc) && sudo make install && sudo ldconfig"
+else
+    echo "   PortAudio is installed. If audio still doesn't work:"
+    echo "   - Test: python3 -c 'import sounddevice as sd; print(sd.query_devices())'"
+    echo "   - Check microphone permissions: groups | grep audio"
+fi
 echo ""
 echo "=========================================="
 echo "  Service Management"

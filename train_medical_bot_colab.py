@@ -269,14 +269,25 @@ print("=" * 80)
 print("Configuring LoRA Adapters")
 print("=" * 80)
 
+# LoRA Configuration
+# r=128: ~90M trainable (6.80%) - Good balance, works on T4/V100
+# r=256: ~180M trainable (13.6%) - Better capacity, needs 16GB+ VRAM
+# r=512: ~360M trainable (27.2%) - Maximum capacity, needs 24GB+ VRAM
+# 
+# Recommendation: Start with r=128. If model underfits or you have extra VRAM, try r=256.
+# See LORA_CONFIGURATION_GUIDE.md for details.
+
+LORA_RANK = 128  # Change to 256 or 512 to train more parameters
+LORA_ALPHA = LORA_RANK * 2  # Optimal scaling: alpha = 2x rank
+
 model = FastLanguageModel.get_peft_model(
     model,
-    r=128,  # LoRA rank - increased from 64 for better OLD CARTS learning
+    r=LORA_RANK,
     target_modules=[
         "q_proj", "k_proj", "v_proj", "o_proj",
         "gate_proj", "up_proj", "down_proj",
     ],
-    lora_alpha=256,  # LoRA scaling factor (2x rank for optimal scaling)
+    lora_alpha=LORA_ALPHA,
     lora_dropout=0,  # Supports any, but = 0 is optimized
     bias="none",     # Supports any, but = "none" is optimized
     use_gradient_checkpointing="unsloth",  # Unsloth's optimized version
@@ -336,8 +347,17 @@ print(f"   - Gradient accumulation: {training_args.gradient_accumulation_steps}"
 print(f"   - Effective batch size: {training_args.per_device_train_batch_size * training_args.gradient_accumulation_steps}")
 print(f"   - Epochs: {training_args.num_train_epochs} (optimized for clinical reasoning and OLD CARTS adherence)")
 print(f"   - Learning rate: {training_args.learning_rate}")
-print(f"   - LoRA rank: 128 (increased for better clinical reasoning learning)")
-print(f"   - LoRA alpha: 256")
+# Calculate approximate trainable parameters
+approx_params = {
+    64: (45, 3.4),
+    128: (90, 6.8),
+    256: (180, 13.6),
+    512: (360, 27.2),
+}
+params_m, params_pct = approx_params.get(LORA_RANK, (90, 6.8))
+print(f"   - LoRA rank: {LORA_RANK} (~{params_m}M trainable parameters, ~{params_pct}% of model)")
+print(f"   - LoRA alpha: {LORA_ALPHA} (2x rank for optimal scaling)")
+print(f"   - To train more parameters, change LORA_RANK to 256 or 512 (see LORA_CONFIGURATION_GUIDE.md)")
 print(f"   - Warmup steps: {training_args.warmup_steps}")
 print(f"   - Scheduler: {training_args.lr_scheduler_type}")
 print()

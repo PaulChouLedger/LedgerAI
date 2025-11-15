@@ -236,6 +236,31 @@ class SimpleMedicalNavigator:
         """Wrapper for LLM chat function."""
         return generate_response(self.model, self.tokenizer, messages, self.model_type, max_tokens, temperature)
     
+    def is_medical_complaint(self, user_input: str) -> bool:
+        """Check if user input contains a medical complaint or is just casual conversation"""
+        user_lower = user_input.lower().strip()
+        
+        # Common greetings and casual phrases (not medical)
+        greetings = ['hello', 'hi', 'hey', 'good morning', 'good afternoon', 'good evening', 
+                     'how are you', 'what\'s up', 'sup', 'greetings', 'hi there']
+        
+        # Check if it's just a greeting
+        if user_lower in greetings or any(user_lower.startswith(g) for g in greetings):
+            return False
+        
+        # Medical complaint indicators
+        medical_keywords = [
+            'pain', 'ache', 'hurt', 'sore', 'discomfort', 'symptom', 'problem', 'issue',
+            'fever', 'nausea', 'vomit', 'dizzy', 'shortness', 'breath', 'cough', 'chest',
+            'abdominal', 'headache', 'stomach', 'bleeding', 'blood', 'rash', 'swelling',
+            'burning', 'pressure', 'tightness', 'numbness', 'tingling', 'weakness',
+            'dizziness', 'fatigue', 'tired', 'unwell', 'sick', 'ill', 'feeling',
+            'concerned about', 'worried about', 'having', 'experiencing', 'feeling'
+        ]
+        
+        # Check if input contains medical keywords
+        return any(keyword in user_lower for keyword in medical_keywords)
+    
     def match_chief_complaint_to_categories(self, chief_complaint: str) -> List[str]:
         """Match chief complaint to medical categories using LLM."""
         # Get available categories
@@ -567,6 +592,28 @@ def run_interactive_test(model, tokenizer, model_type):
         
         # Handle chief complaint
         if stage == "chief_complaint":
+            # Check if this is a medical complaint or just casual conversation
+            if not navigator.is_medical_complaint(user_input):
+                # It's a greeting or casual conversation - respond naturally
+                greeting_prompt = (
+                    "The user just said: '{user_input}'\n\n"
+                    "This is a greeting or casual conversation, NOT a medical complaint. "
+                    "Respond naturally and friendly. Wait for them to mention a medical concern "
+                    "before asking any medical questions. Keep it brief and welcoming."
+                ).format(user_input=user_input)
+                
+                greeting_response = navigator.llm_chat(
+                    [{"role": "system", "content": question_system_prompt},
+                     {"role": "user", "content": greeting_prompt}],
+                    max_tokens=100,
+                    temperature=0.7
+                )
+                print(f"🤖 Assistant: {greeting_response}")
+                messages.append({"role": "assistant", "content": greeting_response})
+                # Stay in chief_complaint stage, wait for actual medical complaint
+                continue
+            
+            # It's a medical complaint - start assessment
             # Match categories
             categories = navigator.match_chief_complaint_to_categories(user_input)
             navigator.matched_categories = categories
@@ -645,11 +692,23 @@ def run_interactive_test(model, tokenizer, model_type):
             # Update condition scores using LLM (only for OLD CARTS elements)
             if element:
                 # Skip scoring if answer is confused/unclear
-                if user_input.lower() in ['what', 'what?', 'huh', 'i don\'t understand', 'clarify']:
-                    print(f"[Info] Skipping scoring for confused response: '{user_input}'")
+                confused_phrases = [
+                    'what', 'what?', 'huh', 'i don\'t understand', 'clarify',
+                    'what do you mean', 'what does that mean', 'i don\'t know',
+                    'not sure', 'unclear', 'confused', 'can you explain',
+                    'what are you asking', 'repeat', 'again'
+                ]
+                is_confused = any(phrase in user_input.lower() for phrase in confused_phrases)
+                
+                if is_confused:
+                    print(f"[Info] Skipping scoring for confused/clarification request: '{user_input}'")
+                    # Don't store confused responses as answers - we'll re-ask the question
+                    if element in hpi:
+                        del hpi[element]  # Remove if it was incorrectly stored
+                    # Keep last_question_element so we can re-ask
                 else:
                     navigator.update_condition_scores_from_answer(element, user_input)
-                last_question_element = None  # Reset after processing
+                    last_question_element = None  # Reset after processing
             else:
                 # If we couldn't detect the element, but we asked a question, try to use tracked element
                 if last_question_element and last_question_element not in hpi:
@@ -702,7 +761,9 @@ def run_interactive_test(model, tokenizer, model_type):
             # All demographics collected - ask HPI questions
             # Determine which OLD CARTS element to ask about next
             hpi = navigator.conversation_context['hpi']
-            remaining_elements = [e for e in oldcarts_elements if e not in hpi]
+            # Only include elements that are actually answered (not confused responses)
+            answered_elements = {k: v for k, v in hpi.items() if v and v.strip()}
+            remaining_elements = [e for e in oldcarts_elements if e not in answered_elements]
             
             if not remaining_elements:
                 # All OLD CARTS collected
@@ -745,29 +806,41 @@ def run_interactive_test(model, tokenizer, model_type):
             
             base_question = element_guidance.get(next_element, f"Tell me about the {next_element} of {chief_complaint}.")
             
-            # Use base question directly - LLM can rephrase naturally but must ask about the correct element
-            hpi_prompt = (
-                f"Context of what we already know:\n{context_summary}\n\n"
-                f"You need to ask about the {next_element} of the {chief_complaint}. "
-                f"IMPORTANT: You MUST ask about {next_element} specifically. "
-                f"Do NOT ask about age, demographics, or information already in the context. "
-                f"Ask only one question about {next_element}. "
-                f"Example question format: {base_question}"
-            )
-            response = navigator.llm_chat(
-                messages + [{"role": "user", "content": hpi_prompt}],
-                max_tokens=120,
-                temperature=0.4
-            )
+            # Check if we're re-asking due to confusion
+            is_reasking = last_question_element == next_element and next_element in hpi
             
-            # Clean up response - remove any weird phrasing
-            response = response.strip()
-            # If response seems wrong, use base question directly
-            if 'age' in response.lower() and 'old' in response.lower() and next_element != 'age':
-                print(f"[Warning] LLM generated wrong question, using base question instead")
+            if is_reasking:
+                # Re-asking the same question - use base question directly with clarification
                 response = base_question
-            elif not response or len(response) < 10:
-                response = base_question
+                print(f"[Info] Re-asking {next_element} question with clearer format")
+            else:
+                # Use base question directly - LLM can rephrase naturally but must ask about the correct element
+                hpi_prompt = (
+                    f"Context of what we already know:\n{context_summary}\n\n"
+                    f"You need to ask about the {next_element} of the {chief_complaint}. "
+                    f"IMPORTANT: You MUST ask about {next_element} specifically using this exact format: '{base_question}' "
+                    f"Do NOT ask about age, demographics, or information already in the context. "
+                    f"Do NOT use phrases like 'character of' or 'the {next_element}' - use the natural question format shown above. "
+                    f"Ask only one question about {next_element}."
+                )
+                response = navigator.llm_chat(
+                    messages + [{"role": "user", "content": hpi_prompt}],
+                    max_tokens=120,
+                    temperature=0.4
+                )
+                
+                # Clean up response - remove any weird phrasing
+                response = response.strip()
+                # If response seems wrong or doesn't match expected format, use base question directly
+                if 'age' in response.lower() and 'old' in response.lower() and next_element != 'age':
+                    print(f"[Warning] LLM generated wrong question, using base question instead")
+                    response = base_question
+                elif next_element == 'character' and ('character of' in response.lower() or 'the character' in response.lower()):
+                    # LLM generated awkward phrasing for character - use base question
+                    print(f"[Warning] LLM generated awkward character question, using base question instead")
+                    response = base_question
+                elif not response or len(response) < 10:
+                    response = base_question
             
             last_question_type = "hpi"
         
