@@ -500,6 +500,11 @@ def start_services():
             workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
             setup_dir = os.path.join(workspace_root, 'setup')
             
+            # Check if containers need rebuilding (after OTA update)
+            if should_rebuild_containers(workspace_root):
+                print("[Aura] 🔄 Code changes detected - rebuilding containers...")
+                rebuild_containers(setup_dir, USE_MEDICAL_MODE, RAG_MODE)
+            
             # Stop any existing containers first
             print("[Aura] 🛑 Stopping existing containers...")
             subprocess.run(
@@ -716,6 +721,112 @@ def focus_gui_window():
         print(f"[Aura] ⚠️  Window focus warning: {e}")
 
 # === Auto-Convert New Medical Guidelines ===
+def should_rebuild_containers(workspace_root):
+    """
+    Check if containers need rebuilding after OTA update.
+    Returns True if rebuild is needed (code changed), False otherwise.
+    """
+    try:
+        # Check if we're in a git repository
+        git_dir = os.path.join(workspace_root, '.git')
+        if not os.path.exists(git_dir):
+            # Not a git repo - skip rebuild check
+            return False
+        
+        # Get current commit hash
+        result = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=workspace_root,
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        
+        if result.returncode != 0:
+            # Git command failed - skip rebuild check
+            return False
+        
+        current_commit = result.stdout.strip()
+        
+        # Check if we have a saved commit hash
+        commit_file = os.path.join(workspace_root, '.last_built_commit')
+        
+        if os.path.exists(commit_file):
+            with open(commit_file, 'r') as f:
+                last_built_commit = f.read().strip()
+            
+            # If commit hasn't changed, no rebuild needed
+            if current_commit == last_built_commit:
+                print(f"[Aura] ✅ Containers up to date (commit: {current_commit[:8]})")
+                return False
+        
+        # Commit changed or first run - rebuild needed
+        print(f"[Aura] 🔍 Code changes detected (new commit: {current_commit[:8]})")
+        return True
+        
+    except Exception as e:
+        print(f"[Aura] ⚠️ Error checking for rebuild: {e}")
+        # On error, don't rebuild (safer)
+        return False
+
+def rebuild_containers(setup_dir, use_medical_mode, rag_mode):
+    """
+    Rebuild Docker containers after code changes.
+    """
+    try:
+        workspace_root = os.path.abspath(os.path.join(setup_dir, '..'))
+        
+        print("[Aura] 🔨 Rebuilding containers (this may take a few minutes)...")
+        
+        # Determine which services to build
+        services_to_build = ["whisper"]
+        if use_medical_mode:
+            services_to_build.append("llm-medical")
+        else:
+            services_to_build.append("llm-generic")
+        
+        if rag_mode == 'GPU':
+            services_to_build.append("rag")
+        
+        # Build containers
+        cmd = ["docker", "compose", "build"] + services_to_build
+        result = subprocess.run(
+            cmd,
+            cwd=setup_dir,
+            capture_output=True,
+            text=True
+        )
+        
+        if result.returncode != 0:
+            print(f"[Aura] ❌ Container build failed: {result.stderr}")
+            return False
+        
+        print("[Aura] ✅ Containers rebuilt successfully")
+        
+        # Save current commit hash after successful build
+        try:
+            result = subprocess.run(
+                ["git", "rev-parse", "HEAD"],
+                cwd=workspace_root,
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            if result.returncode == 0:
+                commit_hash = result.stdout.strip()
+                commit_file = os.path.join(workspace_root, '.last_built_commit')
+                with open(commit_file, 'w') as f:
+                    f.write(commit_hash)
+                print(f"[Aura] 💾 Saved build commit: {commit_hash[:8]}")
+        except Exception as e:
+            print(f"[Aura] ⚠️ Failed to save commit hash: {e}")
+        
+        return True
+        
+    except Exception as e:
+        print(f"[Aura] ❌ Error rebuilding containers: {e}")
+        return False
+
 def check_for_new_guidelines_quick():
     """
     Quick check if new guidelines exist (doesn't convert)
