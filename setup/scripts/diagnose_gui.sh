@@ -230,18 +230,65 @@ fi
 
 print_step "7. Checking Window Manager"
 
-WM=$(pgrep -l "gnome-shell\|kwin\|xfwm\|openbox\|i3" | head -1 | awk '{print $2}')
+# Check for various window managers (more comprehensive)
+WM=""
+WM_PID=""
+
+# Try multiple window manager process names
+for wm_proc in gnome-shell kwin xfwm4 openbox i3 mutter marco metacity; do
+    if pgrep -x "$wm_proc" > /dev/null 2>&1; then
+        WM="$wm_proc"
+        WM_PID=$(pgrep -x "$wm_proc" | head -1)
+        break
+    fi
+done
+
+# Also check for processes containing window manager names
+if [ -z "$WM" ]; then
+    WM_PID=$(pgrep -f "gnome-shell\|kwin\|xfwm\|openbox\|i3\|mutter" | head -1)
+    if [ -n "$WM_PID" ]; then
+        WM=$(ps -p "$WM_PID" -o comm= 2>/dev/null || echo "unknown")
+    fi
+fi
+
+# For GNOME, check if it's using X11 or Wayland
+if [ -z "$WM" ] && [ -n "$DISPLAY_MANAGER" ]; then
+    # GNOME Shell might not be detected if using Wayland
+    if pgrep -f "gnome" > /dev/null 2>&1; then
+        WM="gnome-shell (possibly Wayland mode)"
+    fi
+fi
+
 if [ -n "$WM" ]; then
     print_info "✅ Window manager detected: $WM"
+    if [ -n "$WM_PID" ]; then
+        print_info "   PID: $WM_PID"
+    fi
 else
     print_warning "⚠️  No window manager detected"
+    print_info "   This might be normal if using Wayland (Gnome Shell runs under different name)"
+    print_info "   Or if window manager hasn't started yet"
 fi
 
 print_step "8. Checking Aura GUI Scripts"
 
-WORKSPACE_DIR="${1:-$(pwd)}"
-if [ ! -d "$WORKSPACE_DIR" ]; then
-    WORKSPACE_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
+# Detect workspace directory properly (go up 2 levels from scripts/ to project root)
+WORKSPACE_DIR="${1}"
+if [ -z "$WORKSPACE_DIR" ] || [ ! -d "$WORKSPACE_DIR" ]; then
+    # Try to detect from script location (setup/scripts/diagnose_gui.sh -> ../.. -> project root)
+    SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+    WORKSPACE_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
+    
+    # Verify it's the right directory by checking for aura-control/
+    if [ ! -d "$WORKSPACE_DIR/aura-control" ]; then
+        # Fallback: try current directory
+        WORKSPACE_DIR="$(pwd)"
+        if [ ! -d "$WORKSPACE_DIR/aura-control" ]; then
+            print_warning "⚠️  Could not find workspace root (looking for aura-control/)"
+            print_info "   Tried: $WORKSPACE_DIR"
+            print_info "   You can specify workspace directory as first argument: $0 /path/to/LedgerAI"
+        fi
+    fi
 fi
 
 print_info "Workspace directory: $WORKSPACE_DIR"

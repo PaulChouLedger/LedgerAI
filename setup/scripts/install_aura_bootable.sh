@@ -691,6 +691,18 @@ if [ ! -f "$XAUTH_PATH" ]; then
     XAUTH_PATH="/run/user/$AURA_UID/.Xauthority"
 fi
 
+# Detect available DISPLAY dynamically from X sockets at install time
+# This provides a default, but the service will auto-detect at runtime too
+DETECTED_DISPLAY=":0"  # Default fallback
+if [ -d "/tmp/.X11-unix/" ]; then
+    FIRST_SOCKET=$(ls /tmp/.X11-unix/ 2>/dev/null | grep "^X" | head -1)
+    if [ -n "$FIRST_SOCKET" ]; then
+        DISPLAY_NUM=$(echo "$FIRST_SOCKET" | sed 's/X//')
+        DETECTED_DISPLAY=":$DISPLAY_NUM"
+        print_info "Detected DISPLAY=$DETECTED_DISPLAY from X socket $FIRST_SOCKET (will auto-detect at runtime)"
+    fi
+fi
+
 cat > "$AURA_SERVICE_FILE" << EOF
 [Unit]
 Description=Aura Voice Assistant
@@ -703,18 +715,18 @@ Type=simple
 User=$AURA_USER
 Group=$AURA_USER
 WorkingDirectory=$LEDGERAI_DIR/aura-control/core
-Environment="DISPLAY=:0"
+Environment="DISPLAY=$DETECTED_DISPLAY"
 Environment="HOME=$AURA_HOME"
 Environment="PATH=$VENV_DIR/bin:/usr/local/bin:/usr/bin:/bin"
 Environment="XDG_RUNTIME_DIR=/run/user/$AURA_UID"
 Environment="XAUTHORITY=$XAUTH_PATH"
-# Wait for display to be ready and allow X11 connections
-ExecStartPre=/bin/bash -c 'while [ ! -e /tmp/.X11-unix/X0 ]; do sleep 1; done'
-ExecStartPre=/bin/bash -c 'xhost +local: 2>/dev/null || true'
-# Disable lock screen on boot (in case it re-enables)
-ExecStartPre=/bin/bash -c 'export DISPLAY=:0 && gsettings set org.gnome.desktop.screensaver lock-enabled false 2>/dev/null || true'
-ExecStartPre=/bin/bash -c 'export DISPLAY=:0 && gsettings set org.gnome.desktop.lockdown disable-lock-screen true 2>/dev/null || true'
-ExecStartPre=/bin/bash -c 'export DISPLAY=:0 && gsettings set org.gnome.desktop.screensaver idle-activation-enabled false 2>/dev/null || true'
+# Auto-detect DISPLAY from X sockets at runtime (handles :0, :1, etc.)
+ExecStartPre=/bin/bash -c 'SOCKET=\$(ls /tmp/.X11-unix/ 2>/dev/null | grep "^X" | head -1); if [ -n "\$SOCKET" ]; then NUM=\$(echo "\$SOCKET" | sed "s/X//"); export DISPLAY=:\$NUM; else export DISPLAY=:0; fi; while [ ! -e "/tmp/.X11-unix/\${SOCKET:-X0}" ]; do sleep 1; done'
+ExecStartPre=/bin/bash -c 'SOCKET=\$(ls /tmp/.X11-unix/ 2>/dev/null | grep "^X" | head -1); if [ -n "\$SOCKET" ]; then NUM=\$(echo "\$SOCKET" | sed "s/X//"); export DISPLAY=:\$NUM; else export DISPLAY=:0; fi; xhost +local: 2>/dev/null || true'
+# Disable lock screen on boot (in case it re-enables) - use detected DISPLAY
+ExecStartPre=/bin/bash -c 'SOCKET=\$(ls /tmp/.X11-unix/ 2>/dev/null | grep "^X" | head -1); if [ -n "\$SOCKET" ]; then NUM=\$(echo "\$SOCKET" | sed "s/X//"); export DISPLAY=:\$NUM; else export DISPLAY=:0; fi; gsettings set org.gnome.desktop.screensaver lock-enabled false 2>/dev/null || true'
+ExecStartPre=/bin/bash -c 'SOCKET=\$(ls /tmp/.X11-unix/ 2>/dev/null | grep "^X" | head -1); if [ -n "\$SOCKET" ]; then NUM=\$(echo "\$SOCKET" | sed "s/X//"); export DISPLAY=:\$NUM; else export DISPLAY=:0; fi; gsettings set org.gnome.desktop.lockdown disable-lock-screen true 2>/dev/null || true'
+ExecStartPre=/bin/bash -c 'SOCKET=\$(ls /tmp/.X11-unix/ 2>/dev/null | grep "^X" | head -1); if [ -n "\$SOCKET" ]; then NUM=\$(echo "\$SOCKET" | sed "s/X//"); export DISPLAY=:\$NUM; else export DISPLAY=:0; fi; gsettings set org.gnome.desktop.screensaver idle-activation-enabled false 2>/dev/null || true'
 ExecStartPre=/bin/sleep 5
 ExecStart=$VENV_DIR/bin/python3 $LEDGERAI_DIR/aura-control/core/main.py
 Restart=always
