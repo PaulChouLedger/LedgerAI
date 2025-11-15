@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 Pure Transcription Testing Script with Advanced Audio Feature Analysis
 

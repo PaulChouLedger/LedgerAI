@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # scripts/generate_cached_prompts.py
 
 import os

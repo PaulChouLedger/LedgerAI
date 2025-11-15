@@ -32,10 +32,27 @@ except ImportError as e:
     UPLOAD_SERVER_AVAILABLE = False
 
 # Set DISPLAY only if not already set (e.g., for SSH X11 forwarding)
-# When running as systemd service on the device, it will be :0
+# When running as systemd service, DISPLAY should be set by the service
 # When running via SSH -X, it will be set by SSH (e.g., localhost:10.0)
+# If not set, auto-detect from X sockets (:0, :1, etc.)
 if "DISPLAY" not in os.environ or not os.environ.get("DISPLAY"):
-    os.environ["DISPLAY"] = ":0"
+    # Auto-detect DISPLAY from X sockets
+    if os.path.exists("/tmp/.X11-unix/"):
+        sockets = [f for f in os.listdir("/tmp/.X11-unix/") if f.startswith("X")]
+        if sockets:
+            # Extract display numbers (X0 -> :0, X1 -> :1, etc.)
+            display_nums = [int(s[1:]) for s in sockets if s[1:].isdigit()]
+            if display_nums:
+                # Use the lowest available display number
+                correct_display_num = min(display_nums)
+                os.environ["DISPLAY"] = f":{correct_display_num}"
+                print(f"[Aura] 🔍 Auto-detected DISPLAY={os.environ['DISPLAY']} from X socket X{correct_display_num}")
+            else:
+                os.environ["DISPLAY"] = ":0"
+        else:
+            os.environ["DISPLAY"] = ":0"
+    else:
+        os.environ["DISPLAY"] = ":0"
 
 # Load unified .env from workspace root
 workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))

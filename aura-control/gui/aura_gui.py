@@ -819,10 +819,23 @@ class AuraGUI(QMainWindow):
     @pyqtSlot()
     def _show_buttons(self):
         """Thread-safe method to show buttons (must be called from GUI thread)"""
-        if hasattr(self, 'buttons'):
-            for btn in self.buttons:
+        if hasattr(self, 'buttons') and self.buttons:
+            print(f"[AuraGUI] 🔘 Showing {len(self.buttons)} buttons...")
+            for i, btn in enumerate(self.buttons):
                 btn.show()
-            print("[AuraGUI] 🔘 Buttons now visible")
+                btn.raise_()  # Ensure buttons are on top
+                btn.update()  # Force repaint
+                print(f"[AuraGUI]   Button {i+1}: visible={btn.isVisible()}, enabled={btn.isEnabled()}")
+            
+            # Ensure window is active and focused
+            self.raise_()
+            self.activateWindow()
+            
+            # Force event processing to ensure visibility
+            QApplication.processEvents()
+            print("[AuraGUI] 🔘 Buttons should now be visible")
+        else:
+            print("[AuraGUI] ⚠️ No buttons to show (buttons list is empty or missing)")
     
     @pyqtSlot(bool)
     def _update_transcribing_state(self, active):
@@ -869,10 +882,27 @@ class AuraGUI(QMainWindow):
 # === GUI Control ===
 def launch_gui():
     global _app, _window
+    # Display diagnostics
+    display = os.environ.get("DISPLAY", "NOT SET")
+    print(f"[AuraGUI] 🎨 Launching GUI with DISPLAY={display}")
+    
     _app = QApplication(sys.argv)
     _window = AuraGUI()
+    
+    # Ensure window is visible and on top
     _window.showFullScreen()
-    _app.processEvents()  # ✅ Ensure GUI renders before returning
+    _window.raise_()
+    _window.activateWindow()
+    
+    # Force event processing to ensure window renders
+    _app.processEvents()
+    
+    # Additional processing to ensure everything is rendered
+    import time
+    time.sleep(0.1)  # Small delay to let window fully render
+    _app.processEvents()
+    
+    print(f"[AuraGUI] ✅ Window created and shown (size: {_window.width()}x{_window.height()})")
 
 def is_gui_ready():
     """Check if GUI is fully initialized and visible"""
