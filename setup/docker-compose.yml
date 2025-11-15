@@ -11,9 +11,9 @@ services:
     volumes:
       - ../shared:/shared
       - ../data:/app/data
-      - /home/aura/LedgerAI/.env:/app/.env
+      - ../.env:/app/.env
     working_dir: /app
-    env_file: /home/aura/LedgerAI/.env
+    env_file: ../.env
     deploy:
       resources:
         reservations:
@@ -28,9 +28,9 @@ services:
     volumes:
       - ../shared:/shared
       - ../data:/app/data
-      - /home/aura/LedgerAI/.env:/app/.env
+      - ../.env:/app/.env
     working_dir: /app
-    env_file: /home/aura/LedgerAI/.env
+    env_file: ../.env
     deploy:
       resources:
         reservations:

@@ -573,11 +573,18 @@ echo ""
 # ============================================================================
 print_step "6. Configuring display settings..."
 
-# Disable password prompt when waking from sleep
-sudo -u "$AURA_USER" gsettings set org.gnome.desktop.screensaver lock-enabled false || true
-
-# Disable lock screen after suspend
-sudo -u "$AURA_USER" gsettings set org.gnome.desktop.lockdown disable-lock-screen true || true
+# Disable password prompt when waking from sleep and lock screen
+# Run these commands as the user (same as original orin_setup.sh)
+print_info "Configuring lock screen settings..."
+if [ "$(whoami)" = "$AURA_USER" ]; then
+    # Running as the user - use gsettings directly
+    gsettings set org.gnome.desktop.screensaver lock-enabled false 2>/dev/null || true
+    gsettings set org.gnome.desktop.lockdown disable-lock-screen true 2>/dev/null || true
+else
+    # Running as root/sudo - need to run as the user
+    su - "$AURA_USER" -c "gsettings set org.gnome.desktop.screensaver lock-enabled false" 2>/dev/null || true
+    su - "$AURA_USER" -c "gsettings set org.gnome.desktop.lockdown disable-lock-screen true" 2>/dev/null || true
+fi
 
 print_info "Display settings configured"
 
@@ -704,6 +711,10 @@ Environment="XAUTHORITY=$XAUTH_PATH"
 # Wait for display to be ready and allow X11 connections
 ExecStartPre=/bin/bash -c 'while [ ! -e /tmp/.X11-unix/X0 ]; do sleep 1; done'
 ExecStartPre=/bin/bash -c 'xhost +local: 2>/dev/null || true'
+# Disable lock screen on boot (in case it re-enables)
+ExecStartPre=/bin/bash -c 'export DISPLAY=:0 && gsettings set org.gnome.desktop.screensaver lock-enabled false 2>/dev/null || true'
+ExecStartPre=/bin/bash -c 'export DISPLAY=:0 && gsettings set org.gnome.desktop.lockdown disable-lock-screen true 2>/dev/null || true'
+ExecStartPre=/bin/bash -c 'export DISPLAY=:0 && gsettings set org.gnome.desktop.screensaver idle-activation-enabled false 2>/dev/null || true'
 ExecStartPre=/bin/sleep 5
 ExecStart=$VENV_DIR/bin/python3 $LEDGERAI_DIR/aura-control/core/main.py
 Restart=always

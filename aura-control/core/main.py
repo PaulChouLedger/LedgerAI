@@ -197,6 +197,17 @@ def setup_display():
     """
     print("[Aura] 🖥️  Configuring display...")
     
+    # Disable lock screen and screensaver (in case they re-enable)
+    try:
+        subprocess.run(["gsettings", "set", "org.gnome.desktop.screensaver", "lock-enabled", "false"], 
+                      check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run(["gsettings", "set", "org.gnome.desktop.lockdown", "disable-lock-screen", "true"], 
+                      check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run(["gsettings", "set", "org.gnome.desktop.screensaver", "idle-activation-enabled", "false"], 
+                      check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except Exception:
+        pass
+    
     # Disable Ubuntu on-screen keyboard - will be monitored in background thread
     print("[Aura] ⌨️  Disabling Ubuntu on-screen keyboard (monitored while running)...")
     try:
