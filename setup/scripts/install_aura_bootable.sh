@@ -629,12 +629,61 @@ fi
 echo ""
 
 # ============================================================================
-# Step 8: Create Aura systemd service for boot
+# Step 8: Configure X11 authentication for GUI access
 # ============================================================================
-print_step "8. Creating Aura systemd service for boot startup..."
+print_step "8. Configuring X11 authentication for GUI access..."
+
+# Allow user to access X11 display
+print_info "Setting up X11 authentication..."
+# Get the display session for the user
+if [ -n "$DISPLAY" ]; then
+    CURRENT_DISPLAY="$DISPLAY"
+else
+    CURRENT_DISPLAY=":0"
+fi
+
+# Allow local connections (xhost method - simpler but less secure)
+sudo -u "$AURA_USER" xhost +local: 2>/dev/null || {
+    print_info "xhost command not available, will use xauth method"
+}
+
+# Create X11 auth setup script
+X11_SETUP_SCRIPT="$AURA_HOME/.x11_setup.sh"
+cat > "$X11_SETUP_SCRIPT" << 'EOFX11'
+#!/bin/bash
+# X11 authentication setup for Aura
+export DISPLAY=:0
+# Allow local connections
+xhost +local: 2>/dev/null || true
+# Copy X11 auth if it exists
+if [ -f "$HOME/.Xauthority" ]; then
+    export XAUTHORITY="$HOME/.Xauthority"
+elif [ -f "/tmp/.X11-unix/X0" ]; then
+    # Try to find XAUTHORITY from current session
+    export XAUTHORITY="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/.Xauthority" 2>/dev/null || true
+fi
+EOFX11
+
+chmod +x "$X11_SETUP_SCRIPT"
+print_info "X11 setup script created at $X11_SETUP_SCRIPT"
+
+echo ""
+
+# ============================================================================
+# Step 9: Create Aura systemd service for boot
+# ============================================================================
+print_step "9. Creating Aura systemd service for boot startup..."
 
 AURA_SERVICE_FILE="/tmp/aura.service"
 AURA_UID=$(id -u "$AURA_USER")
+
+# Get XAUTHORITY path if available
+XAUTH_PATH="$AURA_HOME/.Xauthority"
+if [ ! -f "$XAUTH_PATH" ]; then
+    # Try to find it from runtime directory
+    XAUTH_PATH="/run/user/$AURA_UID/.Xauthority"
+fi
+
 cat > "$AURA_SERVICE_FILE" << EOF
 [Unit]
 Description=Aura Voice Assistant
@@ -651,6 +700,8 @@ Environment="DISPLAY=:0"
 Environment="HOME=$AURA_HOME"
 Environment="PATH=$VENV_DIR/bin:/usr/local/bin:/usr/bin:/bin"
 Environment="XDG_RUNTIME_DIR=/run/user/$AURA_UID"
+Environment="XAUTHORITY=$XAUTH_PATH"
+ExecStartPre=/bin/bash -c 'xhost +local: 2>/dev/null || true'
 ExecStartPre=/bin/sleep 10
 ExecStart=$VENV_DIR/bin/python3 $LEDGERAI_DIR/aura-control/core/main.py
 Restart=always
@@ -679,9 +730,9 @@ print_info "To view logs: journalctl -u aura.service -f"
 echo ""
 
 # ============================================================================
-# Step 9: Install keyboard monitor service
+# Step 10: Install keyboard monitor service
 # ============================================================================
-print_step "9. Installing keyboard monitor service..."
+print_step "10. Installing keyboard monitor service..."
 
 KEYBOARD_SERVICE_FILE="$LEDGERAI_DIR/setup/scripts/disable-keyboard-monitor.service"
 SYSTEMD_KEYBOARD_SERVICE="/etc/systemd/system/disable-keyboard-monitor.service"
@@ -711,9 +762,9 @@ fi
 echo ""
 
 # ============================================================================
-# Step 10: Set up Docker (if not already configured)
+# Step 11: Set up Docker (if not already configured)
 # ============================================================================
-print_step "10. Configuring Docker..."
+print_step "11. Configuring Docker..."
 
 # Check if user is in docker group
 if ! groups "$AURA_USER" | grep -q docker; then
@@ -748,9 +799,9 @@ print_info "Docker configured"
 echo ""
 
 # ============================================================================
-# Step 11: Set permissions for audio devices
+# Step 12: Set permissions for audio devices
 # ============================================================================
-print_step "11. Configuring audio device permissions..."
+print_step "12. Configuring audio device permissions..."
 
 # Add user to audio group
 if ! groups "$AURA_USER" | grep -q audio; then
@@ -776,9 +827,9 @@ fi
 echo ""
 
 # ============================================================================
-# Step 12: Create data directories if needed
+# Step 13: Create data directories if needed
 # ============================================================================
-print_step "12. Creating data directories..."
+print_step "13. Creating data directories..."
 
 # Create directories (mkdir -p won't error if they exist)
 mkdir -p "$LEDGERAI_DIR/data/input" 2>/dev/null || true
@@ -820,6 +871,7 @@ echo "✅ Aura service: Enabled (will start on boot)"
 echo "✅ Keyboard monitor service: Enabled (disables Ubuntu keyboard while Aura runs)"
 echo "✅ Docker: Configured"
 echo "✅ Display settings: Configured"
+echo "✅ X11 authentication: Configured (xhost +local: in service)"
 echo ""
 echo "=========================================="
 echo "  Next Steps"
@@ -834,9 +886,20 @@ echo "   cd $LEDGERAI_DIR/setup"
 echo "   docker compose build"
 echo ""
 echo "3. Test Aura manually first:"
+echo "   IMPORTANT: If running from SSH or terminal without display access:"
+echo "   - Run directly on the device (not via SSH) OR"
+echo "   - Use SSH with X11 forwarding: ssh -X user@host"
+echo "   - OR allow X11 access: xhost +local:"
+echo ""
 echo "   cd $LEDGERAI_DIR/aura-control/core"
 echo "   source $VENV_DIR/bin/activate"
+echo "   export DISPLAY=:0"
+echo "   xhost +local:  # Allow local X11 connections"
 echo "   python3 main.py"
+echo ""
+echo "   If you get 'Qt platform plugin' errors:"
+echo "   - Make sure you're logged into a graphical session on the device"
+echo "   - Or run from the device's console, not SSH"
 echo ""
 echo "4. If everything works, reboot to test auto-start:"
 echo "   sudo reboot"
