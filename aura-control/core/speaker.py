@@ -321,7 +321,7 @@ def tts_playback_thread(text, tts_start_time):
                 device_spec = f"hw:{OUTPUT_CARD_INDEX},0"
                 try:
                     proc = subprocess.Popen(
-                        ["aplay", "-D", device_spec, "-f", "S16_LE", "-r", str(PCM_SAMPLE_RATE), "-c", "1"],
+                        ["aplay", "-D", device_spec, "-f", "S16_LE", "-r", str(PCM_SAMPLE_RATE), "-c", "2"],
                         stdin=subprocess.PIPE,
                         stdout=subprocess.DEVNULL,
                         stderr=subprocess.PIPE
@@ -347,7 +347,7 @@ def tts_playback_thread(text, tts_start_time):
             # Use default ALSA device (either no device detected or explicit device failed)
             if proc is None:
                 proc = subprocess.Popen(
-                    ["aplay", "-f", "S16_LE", "-r", str(PCM_SAMPLE_RATE), "-c", "1"],
+                    ["aplay", "-f", "S16_LE", "-r", str(PCM_SAMPLE_RATE), "-c", "2"],
                     stdin=subprocess.PIPE,
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL
