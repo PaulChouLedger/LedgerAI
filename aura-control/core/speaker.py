@@ -285,8 +285,12 @@ def tts_playback_thread(text, tts_start_time):
             if not first_chunk:
                 raise RuntimeError("No audio received")
 
+            # Use UACDemoV1.0 device explicitly (hw:card_index,0)
+            card_index = detect_card_index(DEVICE_NAME)
+            device_spec = f"hw:{card_index},0"
+            
             proc = subprocess.Popen(
-                ["aplay", "-f", "S16_LE", "-r", str(PCM_SAMPLE_RATE), "-c", "1"],
+                ["aplay", "-D", device_spec, "-f", "S16_LE", "-r", str(PCM_SAMPLE_RATE), "-c", "1"],
                 stdin=subprocess.PIPE,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL

@@ -1,10 +1,9 @@
 # === container_rest.py — Aura Medical Container (Direct Routing Architecture)
 # Simplified architecture with direct routing to medical engines:
 # - Advanced Medical Navigator (USE_MEDICAL_NAVIGATOR=true) - hybrid LLM/RAG/FAISS
-# - Adaptive Diagnostic Engine (default) - guideline-based assessment
 #
 # Architecture:
-# container_rest.py → medical_navigator.py OR adaptive_diagnostic_engine.py
+# container_rest.py → medical_navigator.py
 #
 # No intermediate layers - cleaner, simpler, easier to debug.
 
@@ -35,26 +34,8 @@ class RAGEmbeddingAPI:
         else:
             raise RuntimeError("RAG embedding failed")
 
-AdaptiveDiagnosticEngine = None
 AdvancedMedicalNavigator = None
-ADAPTIVE_ENGINE_AVAILABLE = False
 MEDICAL_NAVIGATOR_AVAILABLE = False
-
-
-def _ensure_adaptive_engine_import():
-    global AdaptiveDiagnosticEngine, ADAPTIVE_ENGINE_AVAILABLE
-    if ADAPTIVE_ENGINE_AVAILABLE:
-        return True
-    try:
-        from adaptive_diagnostic_engine import AdaptiveDiagnosticEngine as ImportedAdaptive
-        AdaptiveDiagnosticEngine = ImportedAdaptive
-        ADAPTIVE_ENGINE_AVAILABLE = True
-        print("[Container] ✅ Adaptive diagnostic engine imported")
-        return True
-    except ImportError as e:
-        ADAPTIVE_ENGINE_AVAILABLE = False
-        print(f"[Container] ⚠️ Adaptive engine not available: {e}")
-        return False
 
 
 def _ensure_medical_navigator_import():
@@ -77,7 +58,6 @@ load_dotenv()
 
 # === Singleton Instances (Expensive to Create, Reused Across Sessions) ===
 _global_medical_rule_engine = None
-_global_adaptive_engine = None
 _global_medical_navigator = None
 
 def get_medical_rule_engine(embedding_api):
@@ -97,24 +77,6 @@ def get_medical_rule_engine(embedding_api):
         print(f"[Container] ♻️  Reusing Medical Rule Engine (FAISS already built)")
     
     return _global_medical_rule_engine
-
-def get_adaptive_engine(llm_chat_fn, llm_chat_simple_fn, embedding_api):
-    """Get or create singleton adaptive engine (expensive to create, reuse!)"""
-    global _global_adaptive_engine
-    if not _ensure_adaptive_engine_import():
-        raise RuntimeError("Adaptive Diagnostic Engine not available")
-
-    if _global_adaptive_engine is None:
-        print("[Container] 🔧 Initializing Adaptive Diagnostic Engine (one-time setup)...")
-        _global_adaptive_engine = AdaptiveDiagnosticEngine(
-            llm_chat_fn=llm_chat_fn,
-            embedding_model=embedding_api,
-            llm_chat_simple_fn=llm_chat_simple_fn
-        )
-        guideline_count = len(_global_adaptive_engine.all_guidelines) if hasattr(_global_adaptive_engine, 'all_guidelines') else 0
-        print(f"[Container] ✅ Adaptive engine initialized: {guideline_count} guidelines")
-    
-    return _global_adaptive_engine
 
 def get_medical_navigator(llm_chat_fn, embedding_model=None):
     """Get or create singleton medical navigator (FAISS + LLM decision)"""
@@ -153,14 +115,9 @@ def get_or_create_session(session_id: str) -> Dict:
 
 def reset_session(session_id: str):
     """Reset session state"""
-    global _global_adaptive_engine, _global_medical_navigator
+    global _global_medical_navigator
     
     print(f"[Container] 🔄 Resetting session: {session_id}")
-    
-    # Reset engines (they maintain session state internally)
-    if _global_adaptive_engine:
-        _global_adaptive_engine.reset_assessment()
-        print(f"[Container] ✅ Adaptive engine reset")
     
     if _global_medical_navigator and session_id in _global_medical_navigator.sessions:
         del _global_medical_navigator.sessions[session_id]
@@ -424,23 +381,6 @@ def chat_tg():
             # Process message through navigator
             response = navigator.process_message(session_id=session_id, user_message=prompt)
             print(f"[Container] ✅ Navigator response processed")
-        elif _ensure_adaptive_engine_import():
-            # ===== ADAPTIVE ENGINE PATH =====
-            print(f"[Telegram] 🩺 Using Adaptive Diagnostic Engine")
-            
-            # Initialize singletons (rag_api is module-level global)
-            engine = get_adaptive_engine(llm_chat, llm_chat_simple, rag_api)
-            
-            # Check if this is first message (start assessment) or continuation (process answer)
-            if session_id not in active_sessions or not hasattr(engine, 'chief_complaint') or not engine.chief_complaint:
-                # First message - start assessment
-                response = engine.start_assessment(prompt)
-            else:
-                # Continuation - process answer
-                response = engine.process_answer(prompt)
-            
-            print(f"[Container] ✅ Adaptive engine response processed")
-        
         else:
             raise ValueError("No medical engine available")
         
@@ -462,11 +402,11 @@ def chat_tg():
             # Extract response text from dict
             response_text = response.get('response', '')  # Navigator uses 'response'
             if not response_text:
-                response_text = response.get('message', '')  # Adaptive engine might use 'message'
+                response_text = response.get('message', '')  # Fallback for 'message' key
             if not response_text:
                 response_text = response.get('question', '')  # Or 'question'
             
-            # Handle message + question format (adaptive engine)
+            # Handle message + question format
             if response.get('message') and response.get('question'):
                 response_text = response['message']
                 if response.get('has_pause'):
@@ -501,7 +441,7 @@ def chat_tts():
     Routes requests to CLINICIAN mode for all interactions:
     - Casual greetings and general conversation
     - Medical knowledge queries with GPU-accelerated RAG
-    - Symptom assessment with adaptive diagnostic engine
+    - Symptom assessment with medical navigator
     - OLDCARTS-based questioning with guideline matching
     """
     data = request.get_json()
@@ -546,19 +486,8 @@ def chat_tts():
                 
                 response = navigator.process_message(session_id=session_id, user_message=prompt)
                 
-            elif _ensure_adaptive_engine_import():
-                # ===== ADAPTIVE ENGINE PATH =====
-                print(f"[TTS] 🩺 Using Adaptive Diagnostic Engine")
-                
-                engine = get_adaptive_engine(llm_chat, llm_chat_simple, rag_api)
-                
-                # Check if starting or continuing assessment
-                if not hasattr(engine, 'chief_complaint') or not engine.chief_complaint:
-                    response = engine.start_assessment(prompt)
-                else:
-                    response = engine.process_answer(prompt)
             else:
-                raise ValueError("No medical engine available")
+                raise ValueError("No medical engine available - Medical Navigator required")
             
             print(f"[Container] ✅ Got response from medical engine")
             
@@ -940,7 +869,7 @@ if __name__ == "__main__":
         print("    • Dynamic condition ranking and smart question selection")
         print("    • On-demand guideline loading for low latency")
     else:
-        print("  - MODE: Adaptive Diagnostic Engine (Guideline-Based)")
+        print("  - MODE: Advanced Medical Navigator")
         print("    • Structured OLDCARTS assessment with clarifying questions")
         print("    • FAISS semantic matching and anatomical filtering")
         print("    • Multi-category support with fuzzy fallback")
