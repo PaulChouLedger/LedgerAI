@@ -41,9 +41,45 @@ if tts_volume_raw is None or not tts_volume_raw.strip().isdigit() or not (0 <= i
     )
 TTS_VOLUME = int(tts_volume_raw)  # percent
 
-# Device identification
-DEVICE_NAME = "UACDemoV1.0"   # part of the USB device name from `aplay -l`
+# Device identification - auto-detect connected output device
 ALSA_CONTROLS = ["PCM", "Speaker", "Master"]  # try these in order
+
+# Auto-detect output device (prefer UACDemoV1.0, fallback to any USB audio, then default)
+def detect_output_device():
+    """Auto-detect audio output device - prefer UACDemoV1.0, fallback to any USB audio or default"""
+    try:
+        output = subprocess.check_output(["aplay", "-l"], text=True)
+        # First, try to find UACDemoV1.0
+        for line in output.splitlines():
+            if "UACDemoV1.0" in line:
+                match = re.search(r"card (\d+):", line)
+                if match:
+                    card_num = int(match.group(1))
+                    return f"UACDemoV1.0", card_num
+        
+        # Fallback: find any USB audio device with output (0 in, X out)
+        for line in output.splitlines():
+            if "USB Audio" in line and ("0 in" in line or "out" in line):
+                match = re.search(r"card (\d+):", line)
+                if match:
+                    card_num = int(match.group(1))
+                    # Extract device name from line
+                    device_match = re.search(r"card \d+: (\w+)", line)
+                    device_name = device_match.group(1) if device_match else f"USB_Audio_{card_num}"
+                    return device_name, card_num
+        
+        # No USB device found - return None to use default
+        return None, None
+    except Exception as e:
+        print(f"[Speaker] ⚠️ Failed to detect output device: {e}")
+        return None, None
+
+# Detect output device on startup
+OUTPUT_DEVICE_NAME, OUTPUT_CARD_INDEX = detect_output_device()
+if OUTPUT_DEVICE_NAME:
+    print(f"[Speaker] 🔍 Auto-detected output device: {OUTPUT_DEVICE_NAME} (card {OUTPUT_CARD_INDEX})")
+else:
+    print(f"[Speaker] 🔍 Using default ALSA device (no specific device detected)")
 
 # === TTS config ===
 SENTENCE_QUEUE = queue.Queue()
@@ -62,36 +98,30 @@ DEFAULT_EMOTION = "neutral"
 RATE = "100%"
 PITCH = "100%"
 
-# === Detect ALSA card index dynamically ===
-def detect_card_index(device_name: str) -> int:
-    try:
-        output = subprocess.check_output(["aplay", "-l"], text=True)
-        for line in output.splitlines():
-            if device_name in line:
-                match = re.search(r"card (\d+):", line)
-                if match:
-                    return int(match.group(1))
-    except Exception as e:
-        print(f"[Speaker] ⚠️ Failed to detect ALSA card index: {e}")
-    return 0  # fallback
+# Note: detect_output_device() is called at module load time above
+# These functions use the pre-detected OUTPUT_CARD_INDEX
 
 # === Set playback volume once ===
 def set_volume_once():
     global VOLUME_SET
     if not VOLUME_SET:
-        card_index = detect_card_index(DEVICE_NAME)
-        for ctrl in ALSA_CONTROLS:
-            try:
-                subprocess.run(
-                    ["amixer", "-c", str(card_index), "sset", ctrl, f"{TTS_VOLUME}%"],
-                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True
-                )
-                print(f"[Speaker] 🔊 Volume set to {TTS_VOLUME}% on card {card_index}:{ctrl}")
-                VOLUME_SET = True
-                return
-            except Exception:
-                continue
-        print("[Speaker] ⚠️ Could not set volume — check ALSA controls")
+        if OUTPUT_CARD_INDEX is not None:
+            for ctrl in ALSA_CONTROLS:
+                try:
+                    subprocess.run(
+                        ["amixer", "-c", str(OUTPUT_CARD_INDEX), "sset", ctrl, f"{TTS_VOLUME}%"],
+                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True
+                    )
+                    print(f"[Speaker] 🔊 Volume set to {TTS_VOLUME}% on card {OUTPUT_CARD_INDEX}:{ctrl}")
+                    VOLUME_SET = True
+                    return
+                except Exception:
+                    continue
+            print("[Speaker] ⚠️ Could not set volume — check ALSA controls")
+        else:
+            # Using default device - volume control may not be available
+            print(f"[Speaker] 🔊 Using default ALSA device (volume: {TTS_VOLUME}%)")
+            VOLUME_SET = True
 
 def detect_emotion(text):
     lowered = text.lower()
@@ -285,37 +315,81 @@ def tts_playback_thread(text, tts_start_time):
             if not first_chunk:
                 raise RuntimeError("No audio received")
 
-            # Use UACDemoV1.0 device explicitly (hw:card_index,0)
-            card_index = detect_card_index(DEVICE_NAME)
-            device_spec = f"hw:{card_index},0"
+            # Use auto-detected device if available, otherwise use default
+            proc = None
+            if OUTPUT_CARD_INDEX is not None:
+                device_spec = f"hw:{OUTPUT_CARD_INDEX},0"
+                try:
+                    proc = subprocess.Popen(
+                        ["aplay", "-D", device_spec, "-f", "S16_LE", "-r", str(PCM_SAMPLE_RATE), "-c", "1"],
+                        stdin=subprocess.PIPE,
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.PIPE
+                    )
+                    # Wait a moment to see if process starts successfully
+                    time.sleep(0.1)
+                    if proc.poll() is not None:
+                        # Process died immediately - try default device
+                        try:
+                            if proc.stderr:
+                                stderr_output = proc.stderr.read().decode().strip()
+                                if stderr_output:
+                                    print(f"[Speaker] ⚠️ Device {device_spec} failed: {stderr_output}")
+                        except Exception:
+                            pass
+                        print(f"[Speaker] 🔄 Falling back to default ALSA device...")
+                        proc = None  # Will be set to default below
+                except Exception as e:
+                    print(f"[Speaker] ⚠️ Failed to start aplay with device {device_spec}: {e}")
+                    print(f"[Speaker] 🔄 Falling back to default ALSA device...")
+                    proc = None  # Will be set to default below
             
-            proc = subprocess.Popen(
-                ["aplay", "-D", device_spec, "-f", "S16_LE", "-r", str(PCM_SAMPLE_RATE), "-c", "1"],
-                stdin=subprocess.PIPE,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL
-            )
+            # Use default ALSA device (either no device detected or explicit device failed)
+            if proc is None:
+                proc = subprocess.Popen(
+                    ["aplay", "-f", "S16_LE", "-r", str(PCM_SAMPLE_RATE), "-c", "1"],
+                    stdin=subprocess.PIPE,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL
+                )
 
             # Calculate TTS latency from transcription end to TTS initiation
             tts_latency = time.time() - tts_start_time
             print(f"⏱️ TTS latency: {tts_latency:.2f}s")
             
-            proc.stdin.write(first_chunk)
-            proc.stdin.flush()
-            
-            # Skip frequency analysis during warm-up and setup
-            pass
-
-            for chunk in stream:
-                if chunk:
-                    proc.stdin.write(chunk)
-                    proc.stdin.flush()
-                    
-                    # Skip frequency analysis during warm-up and setup
-                    pass
-
-            proc.stdin.close()
-            proc.wait()
+            # Write chunks with error handling for broken pipe
+            try:
+                proc.stdin.write(first_chunk)
+                proc.stdin.flush()
+                
+                for chunk in stream:
+                    if chunk:
+                        # Check if process is still alive
+                        if proc.poll() is not None:
+                            raise BrokenPipeError(f"aplay process terminated (exit code: {proc.returncode})")
+                        
+                        proc.stdin.write(chunk)
+                        proc.stdin.flush()
+                
+                proc.stdin.close()
+                # Wait for process to finish (with timeout if available)
+                try:
+                    proc.wait(timeout=10)  # Wait up to 10 seconds for process to finish
+                except TypeError:
+                    # Python < 3.3 doesn't support timeout
+                    proc.wait()
+                
+            except BrokenPipeError as e:
+                print(f"[Speaker] ❌ Audio pipe broken: {e}")
+                if proc:
+                    proc.kill()
+                    proc.wait()
+                raise
+            except subprocess.TimeoutExpired:
+                print(f"[Speaker] ⚠️ aplay process timeout - killing...")
+                if proc:
+                    proc.kill()
+                    proc.wait()
 
         except Exception as e:
             print(f"[Speaker] ❌ TTS error: {e}")

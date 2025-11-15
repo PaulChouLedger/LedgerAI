@@ -1,9 +1,9 @@
 # === container_rest.py — Aura Medical Container (Direct Routing Architecture)
-# Simplified architecture with direct routing to medical engines:
-# - Advanced Medical Navigator (USE_MEDICAL_NAVIGATOR=true) - hybrid LLM/RAG/FAISS
+# Simplified architecture using Advanced Medical Navigator:
+# - Advanced Medical Navigator (default, only option) - hybrid LLM/RAG/FAISS
 #
 # Architecture:
-# container_rest.py → medical_navigator.py
+# container_rest.py → advanced_medical_navigator.py
 #
 # No intermediate layers - cleaner, simpler, easier to debug.
 
@@ -364,25 +364,19 @@ def chat_tg():
         if random.randint(1, 10) == 1:
             cleanup_inactive_sessions()
         
-        # Route to appropriate medical engine
-        use_medical_navigator = os.environ.get('USE_MEDICAL_NAVIGATOR', 'false').lower() == 'true'
+        # Advanced Medical Navigator is the default and only option
+        if not _ensure_medical_navigator_import():
+            raise RuntimeError("Advanced Medical Navigator not available")
         
         print(f"[Container] 🔍 Telegram request: '{prompt[:50]}{'...' if len(prompt) > 50 else ''}'")
+        print(f"[Telegram] 🔀 Using Advanced Medical Navigator")
         
-        if use_medical_navigator:
-            if not _ensure_medical_navigator_import():
-                raise RuntimeError("Advanced Medical Navigator requested but not available")
-            # ===== MEDICAL NAVIGATOR PATH =====
-            print(f"[Telegram] 🔀 Using Advanced Medical Navigator (LLM-only)")
-            
-            # Initialize singleton (FAISS + LLM decision)
-            navigator = get_medical_navigator(llm_chat, embedding_model=rag_api)
-            
-            # Process message through navigator
-            response = navigator.process_message(session_id=session_id, user_message=prompt)
-            print(f"[Container] ✅ Navigator response processed")
-        else:
-            raise ValueError("No medical engine available")
+        # Initialize singleton (FAISS + LLM decision)
+        navigator = get_medical_navigator(llm_chat, embedding_model=rag_api)
+        
+        # Process message through navigator
+        response = navigator.process_message(session_id=session_id, user_message=prompt)
+        print(f"[Container] ✅ Navigator response processed")
         
         # Format response for Telegram
         print(f"[Container] 🔍 Response type: {type(response)}")
@@ -470,24 +464,20 @@ def chat_tts():
     # Get or create session
     get_or_create_session(session_id)
     
-    # Route to appropriate medical engine
-    use_medical_navigator = os.environ.get('USE_MEDICAL_NAVIGATOR', 'false').lower() == 'true'
+    # Advanced Medical Navigator is the default and only option
+    if not _ensure_medical_navigator_import():
+        raise RuntimeError("Advanced Medical Navigator not available")
 
     # Dispatch to medical engine with streaming
     def generate_medical_response():
         try:
             # rag_api is module-level global (initialized at startup)
-            if use_medical_navigator and MEDICAL_NAVIGATOR_AVAILABLE:
-                # ===== MEDICAL NAVIGATOR PATH =====
-                print(f"[TTS] 🔀 Using Advanced Medical Navigator (LLM-only)")
-                
-                # Initialize singleton (LLM-only, no medical_rule_engine or embedding_model needed)
-                navigator = get_medical_navigator(llm_chat)
-                
-                response = navigator.process_message(session_id=session_id, user_message=prompt)
-                
-            else:
-                raise ValueError("No medical engine available - Medical Navigator required")
+            print(f"[TTS] 🔀 Using Advanced Medical Navigator")
+            
+            # Initialize singleton (LLM-only, no medical_rule_engine or embedding_model needed)
+            navigator = get_medical_navigator(llm_chat)
+            
+            response = navigator.process_message(session_id=session_id, user_message=prompt)
             
             print(f"[Container] ✅ Got response from medical engine")
             
@@ -862,17 +852,15 @@ if __name__ == "__main__":
     
     print("[Aura-LLM] 🚀 Starting Aura LLM Container (Direct Routing Architecture)")
     print("[Aura-LLM] 📋 Configuration:")
-    use_navigator = os.environ.get('USE_MEDICAL_NAVIGATOR', 'false').lower() == 'true'
-    if use_navigator:
-        print("  - MODE: Advanced Medical Navigator (Hybrid LLM/RAG/FAISS)")
-        print("    • Natural conversation flow with guideline-based assessment")
-        print("    • Dynamic condition ranking and smart question selection")
-        print("    • On-demand guideline loading for low latency")
-    else:
-        print("  - MODE: Advanced Medical Navigator")
-        print("    • Structured OLDCARTS assessment with clarifying questions")
-        print("    • FAISS semantic matching and anatomical filtering")
-        print("    • Multi-category support with fuzzy fallback")
+    
+    # Advanced Medical Navigator is the default and only option
+    _ensure_medical_navigator_import()
+    print("  - MODE: Advanced Medical Navigator (Hybrid LLM/RAG/FAISS)")
+    print("    • Natural conversation flow with guideline-based assessment")
+    print("    • Dynamic condition ranking and smart question selection")
+    print("    • On-demand guideline loading for low latency")
+    print("    • FAISS semantic matching and anatomical filtering")
+    print("    • Multi-category support with fuzzy fallback")
     print("    • Uses local CPU FAISS for medical knowledge")
     print("    • Single LLM model (Llama-3.2-1B) for all tasks")
 
