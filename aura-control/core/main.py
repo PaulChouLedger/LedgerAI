@@ -128,16 +128,37 @@ def check_x11_display():
     
     # Otherwise, print diagnostics and try to fix
     print(f"[Aura] 🔍 Checking X11 display...")
-    print(f"  DISPLAY={display}")
+    print(f"  Current DISPLAY={display}")
     
-    # Check if X server is running
-    x11_socket = "/tmp/.X11-unix/X0"
-    if not os.path.exists(x11_socket):
-        print(f"  ⚠️  X server socket not found: {x11_socket}")
-        if os.path.exists("/tmp/.X11-unix/"):
-            sockets = [f for f in os.listdir("/tmp/.X11-unix/") if f.startswith("X")]
-            if sockets:
-                print(f"  📋 Available X sockets: {', '.join(sockets)}")
+    # Find available X server sockets and fix DISPLAY if needed
+    if os.path.exists("/tmp/.X11-unix/"):
+        sockets = [f for f in os.listdir("/tmp/.X11-unix/") if f.startswith("X")]
+        if sockets:
+            # Extract display numbers (X0 -> :0, X1 -> :1, etc.)
+            display_nums = [int(s[1:]) for s in sockets if s[1:].isdigit()]
+            if display_nums:
+                # Use the lowest available display number
+                correct_display_num = min(display_nums)
+                correct_display = f":{correct_display_num}"
+                
+                # Check if current DISPLAY matches
+                current_num = None
+                if display.startswith(":"):
+                    try:
+                        current_num = int(display[1:].split(".")[0])
+                    except ValueError:
+                        pass
+                
+                if current_num != correct_display_num:
+                    print(f"  ⚠️  DISPLAY mismatch - socket is {sockets[0]} but DISPLAY={display}")
+                    os.environ["DISPLAY"] = correct_display
+                    print(f"  ✅ Fixed DISPLAY to: {correct_display} (matches socket {sockets[0]})")
+                else:
+                    print(f"  📋 Available X sockets: {', '.join(sockets)}")
+        else:
+            print(f"  ❌ No X sockets found in /tmp/.X11-unix/")
+    else:
+        print(f"  ❌ /tmp/.X11-unix/ directory doesn't exist")
     
     # Try to fix XAUTHORITY
     xauth = os.environ.get("XAUTHORITY", "NOT SET")
@@ -148,15 +169,19 @@ def check_x11_display():
             os.environ["XAUTHORITY"] = default_xauth
             print(f"  ✅ Set XAUTHORITY to: {default_xauth}")
     
-    # Try xhost +local: to allow connections
+    # Try xhost +local: to allow connections (from the correct display)
     try:
-        subprocess.run(["xhost", "+local:"], 
-                      capture_output=True, 
-                      timeout=2,
-                      stderr=subprocess.PIPE)
-        print(f"  ✅ Enabled xhost +local:")
-    except Exception:
-        print(f"  ⚠️  Could not run xhost +local:")
+        result = subprocess.run(["xhost", "+local:"], 
+                              capture_output=True, 
+                              timeout=2,
+                              stderr=subprocess.PIPE,
+                              env=os.environ)
+        if result.returncode == 0:
+            print(f"  ✅ Enabled xhost +local:")
+        else:
+            print(f"  ⚠️  xhost +local: failed (might need to run on device directly)")
+    except Exception as e:
+        print(f"  ⚠️  Could not run xhost +local: {e}")
     
     print("")
 
