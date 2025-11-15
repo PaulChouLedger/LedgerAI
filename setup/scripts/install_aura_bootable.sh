@@ -586,6 +586,49 @@ else
     su - "$AURA_USER" -c "gsettings set org.gnome.desktop.lockdown disable-lock-screen true" 2>/dev/null || true
 fi
 
+# Configure automatic login (no password required on boot)
+print_info "Configuring automatic login (no password on boot)..."
+if [ -f "/etc/gdm3/custom.conf" ]; then
+    # Backup original config
+    if [ ! -f "/etc/gdm3/custom.conf.bak" ]; then
+        sudo cp /etc/gdm3/custom.conf /etc/gdm3/custom.conf.bak
+    fi
+    
+    # Check if automatic login is already configured
+    if ! grep -q "^AutomaticLogin=$AURA_USER" /etc/gdm3/custom.conf 2>/dev/null; then
+        # Enable automatic login in GDM3
+        # Remove any existing AutomaticLogin lines first
+        sudo sed -i '/^AutomaticLogin=/d' /etc/gdm3/custom.conf
+        
+        # Find the [daemon] section and add AutomaticLogin after it
+        if grep -q "^\[daemon\]" /etc/gdm3/custom.conf; then
+            # Add AutomaticLogin in the [daemon] section
+            sudo sed -i "/^\[daemon\]/a AutomaticLogin=$AURA_USER" /etc/gdm3/custom.conf
+            sudo sed -i "/^AutomaticLogin=$AURA_USER/a AutomaticLoginEnable=true" /etc/gdm3/custom.conf
+            print_info "✅ Automatic login configured for user: $AURA_USER"
+        else
+            # Create [daemon] section if it doesn't exist
+            sudo bash -c "cat >> /etc/gdm3/custom.conf << 'EOFGDM'
+
+[daemon]
+AutomaticLogin=$AURA_USER
+AutomaticLoginEnable=true
+EOFGDM
+"
+            print_info "✅ Automatic login configured for user: $AURA_USER (created [daemon] section)"
+        fi
+    else
+        print_info "✅ Automatic login already configured for user: $AURA_USER"
+    fi
+else
+    print_warning "⚠️  GDM3 configuration file not found at /etc/gdm3/custom.conf"
+    print_warning "   Automatic login may need to be configured manually"
+    print_info "   Edit /etc/gdm3/custom.conf and add:"
+    print_info "   [daemon]"
+    print_info "   AutomaticLogin=$AURA_USER"
+    print_info "   AutomaticLoginEnable=true"
+fi
+
 print_info "Display settings configured"
 
 echo ""
@@ -989,8 +1032,9 @@ echo "✅ Aura service: Enabled (will start on boot)"
 echo "✅ Keyboard monitor service: Enabled (disables Ubuntu keyboard while Aura runs)"
 echo "✅ Docker: Configured"
 echo "✅ Display settings: Configured"
+echo "✅ Automatic login: Configured (no password on boot)"
 echo "✅ X11 authentication: Configured (xhost +local: in service)"
-echo "✅ HDMI display support: Configured (DISPLAY=:0, waits for display-manager)"
+echo "✅ HDMI display support: Configured (auto-detects DISPLAY from X sockets)"
 if [ -f "$LEDGERAI_DIR/.env" ]; then
     echo "✅ .env file: Exists"
 else
