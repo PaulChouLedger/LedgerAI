@@ -838,9 +838,6 @@ class AdvancedMedicalNavigator:
         # Get available categories from default categories
         available_categories = set(self.CATEGORY_TO_SYSTEM.keys())
         
-        if not available_categories:
-            available_categories = set(self.CATEGORY_TO_SYSTEM.keys())
-        
         available_cats_str = ', '.join(sorted(available_categories))
         
         system_prompt = (
@@ -937,16 +934,6 @@ class AdvancedMedicalNavigator:
             self._capture_debug(f"⚠️  Error in category matching: {e}, defaulting to all categories")
             return list(available_categories) if available_categories else ['gastrointestinal']
 
-    def _build_condition_seeds_from_categories(self, categories: List[str], chief_complaint: str) -> None:
-        """Build condition seed scores from categories and chief complaint.
-        
-        NOTE: This is kept for reference but not used for aggressive seeding.
-        All conditions now start at balanced baseline (0.5) to allow LLM to narrow down.
-        """
-        # Simplified: Don't aggressively seed conditions
-        # Let LLM evaluate and narrow down based on answers
-        self._chief_complaint_condition_seed = {}
- 
     # ----------- Guidance builders -------------------------------------------
 
 
