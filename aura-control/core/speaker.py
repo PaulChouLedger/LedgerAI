@@ -86,9 +86,9 @@ SENTENCE_QUEUE = queue.Queue()
 playback_lock = threading.Lock()
 # Batching: Accumulate chunks before sending to TTS (reduces API calls)
 TTS_BATCH_ENABLED = os.getenv("TTS_BATCH_ENABLED", "true").lower() == "true"
-TTS_BATCH_MAX_WORDS = int(os.getenv("TTS_BATCH_MAX_WORDS", "150"))  # Max words per batch
-TTS_BATCH_MAX_CHUNKS = int(os.getenv("TTS_BATCH_MAX_CHUNKS", "4"))  # Max chunks per batch
-TTS_BATCH_TIMEOUT = float(os.getenv("TTS_BATCH_TIMEOUT", "0.5"))  # Seconds to wait for more chunks
+TTS_BATCH_MAX_WORDS = int(os.getenv("TTS_BATCH_MAX_WORDS", "100"))  # Max words per batch (reduced for faster flush)
+TTS_BATCH_MAX_CHUNKS = int(os.getenv("TTS_BATCH_MAX_CHUNKS", "3"))  # Max chunks per batch (reduced for faster flush)
+TTS_BATCH_TIMEOUT = float(os.getenv("TTS_BATCH_TIMEOUT", "0.15"))  # Seconds to wait for more chunks (reduced from 0.5s)
 _batch_buffer = []  # Buffer for batching chunks
 _batch_lock = threading.Lock()
 _batch_timer = None  # Timer for delayed flush
@@ -224,13 +224,24 @@ def enqueue_tts_chunk(text):
                 batched_text = " ".join(_batch_buffer)
                 SENTENCE_QUEUE.put(batched_text)
                 _batch_buffer = []
-                print(f"[Speaker] 📦 Batched {total_chunks} chunks ({total_words} words) into single TTS request")
+                print(f"[Speaker] 📦 Batched {total_chunks} chunks ({total_words} words) - flushing immediately (threshold reached)")
             else:
-                # Cancel existing timer and start a new one (reset timeout)
-                if _batch_timer:
-                    _batch_timer.cancel()
-                _batch_timer = threading.Timer(TTS_BATCH_TIMEOUT, _flush_batch_if_ready)
-                _batch_timer.start()
+                # For very short responses (single chunk), flush immediately to avoid timeout delay
+                if total_chunks == 1 and total_words >= 50:
+                    # Single chunk with decent length - flush immediately (no timeout wait)
+                    batched_text = " ".join(_batch_buffer)
+                    SENTENCE_QUEUE.put(batched_text)
+                    _batch_buffer = []
+                    if _batch_timer:
+                        _batch_timer.cancel()
+                        _batch_timer = None
+                    print(f"[Speaker] 📦 Single large chunk ({total_words} words) - flushing immediately")
+                else:
+                    # Cancel existing timer and start a new one (reset timeout)
+                    if _batch_timer:
+                        _batch_timer.cancel()
+                    _batch_timer = threading.Timer(TTS_BATCH_TIMEOUT, _flush_batch_if_ready)
+                    _batch_timer.start()
     else:
         # No batching - send immediately
         SENTENCE_QUEUE.put(text)
