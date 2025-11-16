@@ -568,13 +568,9 @@ def speak_llm_response(prompt, context=""):
     tts_start_time = time.time()
     
     # Get the correct LLM port based on global state (default medical)
-    try:
-        from core.state import get_llm_mode
-        llm_mode = get_llm_mode()
-    except Exception:
-        llm_mode = "medical"
-    primary_port = "11434" if llm_mode == "medical" else "11436"
-    fallback_port = "11436" if primary_port == "11434" else "11434"
+    # Use a single endpoint to avoid port/fallback warnings.
+    # Both medical and generic containers bind to the same host port; only one runs at a time.
+    primary_port = "11434"
     
     def _post_stream(port: str):
         return requests.post(
@@ -585,23 +581,13 @@ def speak_llm_response(prompt, context=""):
         )
 
     try:
-        # Try primary (based on current mode)
         response = _post_stream(primary_port)
         if response.status_code != 200:
             raise RuntimeError(f"LLM HTTP {response.status_code} on port {primary_port}")
     except Exception as e_primary:
-        print(f"[LLM] ⚠️ Primary LLM {llm_mode} on {primary_port} unavailable: {e_primary}")
-        # Fallback to the other container if available
-        try:
-            print(f"[LLM] 🔁 Trying fallback LLM on {fallback_port}...")
-            response = _post_stream(fallback_port)
-            if response.status_code != 200:
-                raise RuntimeError(f"LLM HTTP {response.status_code} on port {fallback_port}")
-        except Exception as e_fallback:
-            print(f"[LLM] ❌ Fallback LLM on {fallback_port} also unavailable: {e_fallback}")
-            print("[LLM] 🛑 Aborting TTS stream due to no LLM containers reachable.")
-            enqueue_tts_chunk("I'm having trouble reaching the language model right now.")
-            return
+        print(f"[LLM] ❌ LLM unavailable on {primary_port}: {e_primary}")
+        enqueue_tts_chunk("I'm having trouble reaching the language model right now.")
+        return
         buffer = []
         for line in response.iter_lines(decode_unicode=True):
             token = line.strip()

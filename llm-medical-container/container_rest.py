@@ -9,7 +9,6 @@
 
 from flask import Flask, request, jsonify, stream_with_context, Response
 from llama_cpp import Llama
-from dotenv import load_dotenv
 import os, re, json, string, threading, time
 from datetime import datetime, timedelta
 from glob import glob
@@ -54,7 +53,6 @@ def _ensure_medical_navigator_import():
         return False
 
 app = Flask(__name__)
-load_dotenv()
 
 # === Singleton Instances (Expensive to Create, Reused Across Sessions) ===
 _global_medical_rule_engine = None
@@ -231,7 +229,39 @@ def cpu_faiss_status():
         logger.error(f"Error getting CPU FAISS status: {e}")
         return jsonify({'error': str(e)}), 500
 
-# === Model Config (auto-resolve from app settings) ===
+# === Model/LLM Config (hardcoded for easy tuning) ===
+LLM_TEMPERATURE_SIMPLE = 0.4
+LLM_TOP_P = 0.95
+LLM_TOP_K = 40
+LLM_REPEAT_PENALTY = 1.1
+LLM_PRESENCE_PENALTY = 0.0
+LLM_FREQUENCY_PENALTY = 0.0
+LLM_NUM_PREDICT_DEFAULT = 220
+SIMPLE_N_CTX = 2048
+SIMPLE_CHAT_FORMAT = "qwen"
+
+# RAG Mode toggle: "CPU", "GPU", or "OFF" (resolved from app_settings.json if present)
+def _resolve_rag_mode():
+    try:
+        settings_path = "/app/data/app_settings.json"
+        if os.path.isfile(settings_path):
+            with open(settings_path, "r") as f:
+                data = json.load(f)
+                mode = (data.get("rag_mode") or "").strip().upper()
+                if mode in ("CPU", "GPU", "OFF"):
+                    print(f"[LLM] 🎛️ RAG_MODE from settings: {mode}")
+                    return mode
+                elif mode:
+                    print(f"[LLM] ⚠️ Invalid rag_mode '{mode}' in settings; using default")
+    except Exception as e:
+        print(f"[LLM] ⚠️ Failed reading rag_mode from settings: {e}")
+    default_mode = "CPU"
+    print(f"[LLM] 🛟 Using default RAG_MODE: {default_mode}")
+    return default_mode
+
+RAG_MODE = _resolve_rag_mode()
+
+# === Model Config (auto-resolve from app settings for model path only) ===
 def _resolve_model_path():
     """
     Determine model path priority:
@@ -254,21 +284,11 @@ def _resolve_model_path():
                         print(f"[LLM] ⚠️ Model from settings not found: {candidate}")
     except Exception as e:
         print(f"[LLM] ⚠️ Failed reading app settings: {e}")
-    env_path = os.getenv("SIMPLE_MODEL_PATH")
-    if env_path:
-        if not os.path.isabs(env_path):
-            if env_path.startswith("models/"):
-                env_path = env_path.replace("models/", "", 1)
-            env_path = f"/models/{env_path}"
-        print(f"[LLM] 🔧 Using model from env: {env_path}")
-        return env_path
     fallback = "/models/Qwen2.5-1.5B-Instruct.Q4_K_M.gguf"
     print(f"[LLM] 🛟 Using default model: {fallback}")
     return fallback
 
 SIMPLE_MODEL_PATH = _resolve_model_path()
-SIMPLE_N_CTX = int(os.environ.get("SIMPLE_N_CTX", "2048"))
-SIMPLE_CHAT_FORMAT = os.environ.get("SIMPLE_CHAT_FORMAT", "qwen")
 
 # Models will be loaded in __main__ block to prevent double loading
 import os
@@ -742,31 +762,26 @@ def llm_chat(messages, max_tokens=None, temperature=None, stream=False, **kwargs
     """
     # Apply centralized speed optimizations
     if temperature is None:
-        temperature = float(os.environ["LLM_TEMPERATURE_SIMPLE"])
+        temperature = float(LLM_TEMPERATURE_SIMPLE)
     
     # Handle max_tokens: use LLM_NUM_PREDICT as default if not provided
     if max_tokens is None:
-        num_predict_env = os.getenv("LLM_NUM_PREDICT")
-        if num_predict_env and num_predict_env.isdigit():
-            max_tokens = int(num_predict_env)
-        else:
-            raise ValueError("LLM_NUM_PREDICT must be set in environment")
+        max_tokens = int(LLM_NUM_PREDICT_DEFAULT)
     
     generation_params = {
         "messages": messages,
         "max_tokens": max_tokens,
         "temperature": temperature,
-        "top_p": kwargs.pop("top_p", float(os.environ["LLM_TOP_P"])),
-        "top_k": kwargs.pop("top_k", int(os.environ["LLM_TOP_K"])),
-        "repeat_penalty": kwargs.pop("repeat_penalty", float(os.environ["LLM_REPEAT_PENALTY"])),
-        "presence_penalty": kwargs.pop("presence_penalty", float(os.environ["LLM_PRESENCE_PENALTY"])),
-        "frequency_penalty": kwargs.pop("frequency_penalty", float(os.environ["LLM_FREQUENCY_PENALTY"])),
+        "top_p": kwargs.pop("top_p", float(LLM_TOP_P)),
+        "top_k": kwargs.pop("top_k", int(LLM_TOP_K)),
+        "repeat_penalty": kwargs.pop("repeat_penalty", float(LLM_REPEAT_PENALTY)),
+        "presence_penalty": kwargs.pop("presence_penalty", float(LLM_PRESENCE_PENALTY)),
+        "frequency_penalty": kwargs.pop("frequency_penalty", float(LLM_FREQUENCY_PENALTY)),
         "stream": stream,
         **kwargs
     }
     # Optional stop sequences from environment
-    stop_env = os.getenv("LLM_STOP", "").strip()
-    stop_sequences = [s for s in stop_env.split(",") if s] if stop_env else []
+    stop_sequences = []
     
     # Add reasoning-specific stop sequences to prevent internal reasoning
     # These are patterns that indicate reasoning/explanation, not the actual question
@@ -819,31 +834,26 @@ def llm_chat_simple(messages, max_tokens=None, temperature=None, stream=False, *
         **kwargs: Additional LLM parameters
     """
     if temperature is None:
-        temperature = float(os.environ["LLM_TEMPERATURE_SIMPLE"])
+        temperature = float(LLM_TEMPERATURE_SIMPLE)
     
     # Handle max_tokens: use LLM_NUM_PREDICT as default if not provided
     if max_tokens is None:
-        num_predict_env = os.getenv("LLM_NUM_PREDICT")
-        if num_predict_env and num_predict_env.isdigit():
-            max_tokens = int(num_predict_env)
-        else:
-            raise ValueError("LLM_NUM_PREDICT must be set in environment")
+        max_tokens = int(LLM_NUM_PREDICT_DEFAULT)
     
     generation_params = {
         "messages": messages,
         "max_tokens": max_tokens,
         "temperature": temperature,
-        "top_p": kwargs.pop("top_p", float(os.environ["LLM_TOP_P"])),
-        "top_k": kwargs.pop("top_k", int(os.environ["LLM_TOP_K"])),
-        "repeat_penalty": kwargs.pop("repeat_penalty", float(os.environ["LLM_REPEAT_PENALTY"])),
-        "presence_penalty": kwargs.pop("presence_penalty", float(os.environ["LLM_PRESENCE_PENALTY"])),
-        "frequency_penalty": kwargs.pop("frequency_penalty", float(os.environ["LLM_FREQUENCY_PENALTY"])),
+        "top_p": kwargs.pop("top_p", float(LLM_TOP_P)),
+        "top_k": kwargs.pop("top_k", int(LLM_TOP_K)),
+        "repeat_penalty": kwargs.pop("repeat_penalty", float(LLM_REPEAT_PENALTY)),
+        "presence_penalty": kwargs.pop("presence_penalty", float(LLM_PRESENCE_PENALTY)),
+        "frequency_penalty": kwargs.pop("frequency_penalty", float(LLM_FREQUENCY_PENALTY)),
         "stream": stream,
         **kwargs
     }
     # Optional stop sequences from environment
-    stop_env = os.getenv("LLM_STOP", "").strip()
-    stop_sequences = [s for s in stop_env.split(",") if s] if stop_env else []
+    stop_sequences = []
     
     # Add reasoning-specific stop sequences to prevent internal reasoning
     reasoning_stop_sequences = [
@@ -885,13 +895,17 @@ def llm_chat_once(messages, **kwargs):
 
 if __name__ == "__main__":
     # Initialize RAG embedding API (module-level variable, no global needed in __main__ block)
-    print("[Container] 🔧 Initializing RAG embedding API...")
-    try:
-        rag_api = RAGEmbeddingAPI()
-        test_embedding = rag_api.encode(["test"])
-        print(f"[Container] ✅ RAG embedding API initialized")
-    except Exception as e:
-        print(f"[Container] ⚠️ RAG API not available: {e}")
+    if RAG_MODE in ("CPU", "GPU"):
+        print("[Container] 🔧 Initializing RAG embedding API...")
+        try:
+            rag_api = RAGEmbeddingAPI()
+            test_embedding = rag_api.encode(["test"])
+            print(f"[Container] ✅ RAG embedding API initialized")
+        except Exception as e:
+            print(f"[Container] ⚠️ RAG API not available: {e}")
+            rag_api = None
+    else:
+        print("[Container] ℹ️ RAG_MODE=OFF — skipping RAG embedding API initialization")
         rag_api = None
     
     # Load model ONLY when running as main script (prevents double loading on import)
@@ -921,10 +935,10 @@ if __name__ == "__main__":
         use_mlock=True,
         use_mmap=True,
         verbose=False,
-        temperature=float(os.environ["LLM_TEMPERATURE_SIMPLE"]),
-        top_p=float(os.environ["LLM_TOP_P"]),
-        top_k=int(os.environ["LLM_TOP_K"]),
-        repeat_penalty=float(os.environ["LLM_REPEAT_PENALTY"])
+        temperature=float(LLM_TEMPERATURE_SIMPLE),
+        top_p=float(LLM_TOP_P),
+        top_k=int(LLM_TOP_K),
+        repeat_penalty=float(LLM_REPEAT_PENALTY)
     )
     load_time = time.time() - start_time
     print(f"[LLM] ✅ Simple model loaded: {SIMPLE_MODEL_PATH} (took {load_time:.1f}s)")

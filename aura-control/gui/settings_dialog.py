@@ -801,6 +801,31 @@ class AIModelSettingsDialog(QDialog):
             mode = get_llm_mode(); self.mode_generic_btn.setChecked(mode == "generic"); self.mode_medical_btn.setChecked(mode == "medical")
         except Exception: self.mode_medical_btn.setChecked(True)
         self._populate_models()
+        # RAG mode UI (CPU/GPU/OFF)
+        rag_row = QHBoxLayout(); rag_row.setSpacing(12)
+        rag_label = QLabel("RAG Mode:")
+        rag_label.setStyleSheet("color: #ffffff;")
+        self.rag_combo = QComboBox()
+        self.rag_combo.setStyleSheet("""
+            QComboBox { background-color: rgba(44,44,46,0.8); color: #ffffff; padding: 8px; border: none; border-radius: 10px; min-height: 36px; }
+            QComboBox QAbstractItemView { background-color: #2d2d2d; color: #ffffff; selection-background-color: #4D94D9; }
+        """)
+        self.rag_combo.addItems(["CPU", "GPU", "OFF"])
+        rag_row.addWidget(rag_label)
+        rag_row.addWidget(self.rag_combo, 1)
+        layout.addLayout(rag_row)
+        # Initialize rag_combo from settings file
+        try:
+            import json, os
+            settings_path = os.path.expanduser("~/LedgerAI/data/app_settings.json")
+            if os.path.exists(settings_path):
+                with open(settings_path, "r") as f:
+                    data = json.load(f)
+                    current_rag = (data.get("rag_mode") or "CPU").upper()
+                    idx = self.rag_combo.findText(current_rag)
+                    if idx >= 0: self.rag_combo.setCurrentIndex(idx)
+        except Exception:
+            pass
         
         def on_mode_clicked():
             sender = self.sender()
@@ -829,6 +854,7 @@ class AIModelSettingsDialog(QDialog):
             # Users can press the Restart button when ready.
         self.model_combo.currentIndexChanged.connect(on_model_changed)
         self.restart_llm_btn.clicked.connect(self._prompt_restart)
+        self.rag_combo.currentIndexChanged.connect(self._on_rag_mode_changed)
     
     def _populate_models(self):
         self.model_combo.clear()
@@ -927,6 +953,25 @@ class AIModelSettingsDialog(QDialog):
             return True
         except Exception:
             return False
+    
+    def _on_rag_mode_changed(self, index: int):
+        # Save rag_mode to app_settings.json and inform user to restart
+        try:
+            mode_val = self.rag_combo.currentText().upper()
+            settings_path = os.path.expanduser("~/LedgerAI/data/app_settings.json")
+            os.makedirs(os.path.dirname(settings_path), exist_ok=True)
+            data = {}
+            if os.path.exists(settings_path):
+                import json
+                with open(settings_path, "r") as f:
+                    data = json.load(f) or {}
+            data["rag_mode"] = mode_val
+            import json
+            with open(settings_path, "w") as f:
+                json.dump(data, f, indent=2)
+        except Exception as e:
+            print(f"[ModelSettings] Error saving rag_mode: {e}")
+        # Do not auto-restart; user can press Restart LLM
 
 class SettingsDialog(QDialog):
     def __init__(self, parent=None):
