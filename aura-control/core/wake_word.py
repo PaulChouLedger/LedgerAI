@@ -6,10 +6,15 @@ For Jetson (ARM64), you may need to build from source:
   git clone https://github.com/Picovoice/porcupine
   cd porcupine/binding/python
   python setup.py build_ext --inplace
+
+Access Key:
+  Get free access key from: https://console.picovoice.ai/
+  Set in .env: PORCUPINE_ACCESS_KEY=your_key_here
 """
 
 import os
 import numpy as np
+from dotenv import load_dotenv
 
 # Try to import Porcupine
 try:
@@ -30,13 +35,14 @@ class PorcupineWakeWord:
             detected, confidence = wake_word.process(audio_frame)
     """
     
-    def __init__(self, keyword_path=None, sensitivity=None):
+    def __init__(self, keyword_path=None, sensitivity=None, access_key=None):
         """
         Initialize Porcupine wake word detector.
         
         Args:
             keyword_path: Path to .ppn model file (or None for built-in/default)
             sensitivity: Detection sensitivity (0.0-1.0, default from state)
+            access_key: Picovoice access key (or None to load from .env)
         """
         # Load from state module (preferred) or use provided values
         try:
@@ -47,6 +53,16 @@ class PorcupineWakeWord:
             # Fallback if state module not available
             self.keyword_path = keyword_path
             self.sensitivity = sensitivity if sensitivity is not None else 0.5
+        
+        # Load access key from .env if not provided
+        if access_key is None:
+            # Load .env from workspace root (2 levels up from this file)
+            workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+            dotenv_path = os.path.join(workspace_root, '.env')
+            load_dotenv(dotenv_path)
+            access_key = os.getenv("PORCUPINE_ACCESS_KEY")
+        
+        self.access_key = access_key
         self.porcupine = None
         self.is_active = False
         self.frame_length = None
@@ -64,11 +80,19 @@ class PorcupineWakeWord:
             print("[Wake Word] 💡 For Jetson ARM64, you may need to build from source")
             return False
         
+        # Check for access key
+        if not self.access_key:
+            print("[Wake Word] ❌ Porcupine access key required!")
+            print("[Wake Word] 💡 Get free access key from: https://console.picovoice.ai/")
+            print("[Wake Word] 💡 Set in .env: PORCUPINE_ACCESS_KEY=your_key_here")
+            return False
+        
         try:
             # Check if custom model path is provided
             if self.keyword_path and os.path.exists(self.keyword_path):
                 # Use custom model file
                 self.porcupine = pvporcupine.create(
+                    access_key=self.access_key,
                     keyword_paths=[self.keyword_path],
                     sensitivities=[self.sensitivity]
                 )
@@ -100,6 +124,7 @@ class PorcupineWakeWord:
                     
                     if found_keyword:
                         self.porcupine = pvporcupine.create(
+                            access_key=self.access_key,
                             keywords=[found_keyword],
                             sensitivities=[self.sensitivity]
                         )
@@ -118,6 +143,7 @@ class PorcupineWakeWord:
                             print(f"[Wake Word] ⚠️  'hey aura' not found, using fallback: '{fallback_found}'")
                             print(f"[Wake Word] 💡 Train custom 'hey aura' model at: https://console.picovoice.ai/")
                             self.porcupine = pvporcupine.create(
+                                access_key=self.access_key,
                                 keywords=[fallback_found],
                                 sensitivities=[self.sensitivity]
                             )
