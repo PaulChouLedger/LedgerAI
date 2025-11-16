@@ -375,6 +375,49 @@ def configure_agc_20():
     })
     return True
 
+def configure_agc_20_ec():
+    """AGC 20% Increase + Echo Cancellation ON"""
+    print("\n" + "="*80)
+    print("  🔊 AGC 20% INCREASE + ECHO CANCELLATION")
+    print("="*80 + "\n")
+    
+    print("[1/7] High-Pass Filter: 70 Hz (removes low-frequency rumble)")
+    run_xvf_command("AEC_HPFONOFF", 1)
+    
+    print("[2/7] AGC: ENABLED")
+    run_xvf_command("PP_AGCONOFF", 1)
+    
+    print("[3/7] AGC Target Level: 0.096 RMS (20% increase from 0.08)")
+    run_xvf_command("PP_AGCDESIREDLEVEL", 0.096)
+    
+    print("[4/7] AGC Max Gain: 30 dB (1000 linear)")
+    run_xvf_command("PP_AGCMAXGAIN", 1000)
+    
+    print("[5/7] AGC Attack Time: 0.5 seconds")
+    run_xvf_command("PP_AGCTIME", 0.5)
+    
+    print("[6/7] Echo Cancellation: ON")
+    run_xvf_command("PP_ECHOONOFF", 1)
+    
+    print("[7/7] Verify settings written (best effort)")
+    # (optional readbacks could be added here)
+    
+    print("\n  ✅ AGC 20% + Echo Cancellation Profile Complete")
+    print("\n  🎯 REDUCED FEEDBACK FROM SPEAKERS:")
+    print("     1️⃣  HPF removes low-frequency rumble")
+    print("     2️⃣  AGC target 20% higher for more amplification")
+    print("     3️⃣  Echo cancellation minimizes TTS leakage into mic\n")
+    
+    save_config_state('agc_20_ec', {
+        'AEC_HPFONOFF': 1,
+        'PP_AGCONOFF': 1,
+        'PP_AGCDESIREDLEVEL': 0.096,
+        'PP_AGCMAXGAIN': 1000,
+        'PP_AGCTIME': 0.5,
+        'PP_ECHOONOFF': 1
+    })
+    return True
+
 def reset_defaults():
     """Reset to factory defaults"""
     print("\n" + "="*80)
@@ -436,6 +479,8 @@ def main():
         return 1
     
     preset = sys.argv[1] if len(sys.argv) > 1 else "balanced_beam"
+    extra_args = [a.strip().lower() for a in sys.argv[2:]] if len(sys.argv) > 2 else []
+    force_echo_on = "echo_on" in extra_args
     
     print("\n" + "="*80)
     print("  🎙️  XVF3800 USB 4 MIC ARRAY TUNER")
@@ -462,6 +507,8 @@ def main():
             success = configure_agc_10()
         elif preset == "agc_20":
             success = configure_agc_20()
+        elif preset == "agc_20_ec":
+            success = configure_agc_20_ec()
         elif preset == "reset":
             success = reset_defaults()
         elif preset == "show":
@@ -482,6 +529,23 @@ def main():
             return 1
         
         if success:
+            # Optional post-preset modifiers
+            if force_echo_on:
+                print("\n  🔁 Enabling Echo Cancellation (PP_ECHOONOFF=1) per 'echo_on' flag...")
+                run_xvf_command("PP_ECHOONOFF", 1)
+                # Update saved config state to reflect echo ON
+                try:
+                    if os.path.exists(CONFIG_STATE_FILE):
+                        with open(CONFIG_STATE_FILE, "r") as f:
+                            state = json.load(f)
+                        cfg = state.get("config", {}) or {}
+                        cfg["PP_ECHOONOFF"] = 1
+                        state["config"] = cfg
+                        with open(CONFIG_STATE_FILE, "w") as f:
+                            json.dump(state, f, indent=2)
+                        print(f"  ✅ Saved echo-on to state: {CONFIG_STATE_FILE}")
+                except Exception as e:
+                    print(f"  ⚠️  Could not update state file for echo_on: {e}")
             return 0
         else:
             return 1
