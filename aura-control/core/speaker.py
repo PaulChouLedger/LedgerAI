@@ -86,12 +86,14 @@ SENTENCE_QUEUE = queue.Queue()
 playback_lock = threading.Lock()
 # Batching: Accumulate chunks before sending to TTS (reduces API calls)
 TTS_BATCH_ENABLED = os.getenv("TTS_BATCH_ENABLED", "true").lower() == "true"
-TTS_BATCH_MAX_WORDS = int(os.getenv("TTS_BATCH_MAX_WORDS", "100"))  # Max words per batch (reduced for faster flush)
-TTS_BATCH_MAX_CHUNKS = int(os.getenv("TTS_BATCH_MAX_CHUNKS", "3"))  # Max chunks per batch (reduced for faster flush)
-TTS_BATCH_TIMEOUT = float(os.getenv("TTS_BATCH_TIMEOUT", "0.15"))  # Seconds to wait for more chunks (reduced from 0.5s)
+TTS_BATCH_MAX_WORDS = int(os.getenv("TTS_BATCH_MAX_WORDS", "50"))  # Max words per batch (very aggressive for low latency)
+TTS_BATCH_MIN_WORDS = int(os.getenv("TTS_BATCH_MIN_WORDS", "30"))  # Min words to start first batch (triggers immediately)
+TTS_BATCH_MAX_CHUNKS = int(os.getenv("TTS_BATCH_MAX_CHUNKS", "2"))  # Max chunks per batch (reduced for faster flush)
+TTS_BATCH_TIMEOUT = float(os.getenv("TTS_BATCH_TIMEOUT", "0.1"))  # Seconds to wait for more chunks (very short)
 _batch_buffer = []  # Buffer for batching chunks
 _batch_lock = threading.Lock()
 _batch_timer = None  # Timer for delayed flush
+_batch_started = False  # Track if we've sent the first batch (for low-latency start)
 tts_limit_raw = os.getenv("TTS_TOKEN_LIMIT")
 if tts_limit_raw is None or not tts_limit_raw.strip().isdigit() or int(tts_limit_raw) <= 0:
     raise RuntimeError(
@@ -200,15 +202,29 @@ def enqueue_tts_chunk(text):
     
     text = text.strip()
     
-    # Batching: Accumulate chunks to reduce API calls
+    # Batching: Accumulate chunks to reduce API calls (with low-latency start)
     if TTS_BATCH_ENABLED:
-        global _batch_timer
+        global _batch_timer, _batch_started
         with _batch_lock:
             _batch_buffer.append(text)
             total_words = sum(len(chunk.split()) for chunk in _batch_buffer)
             total_chunks = len(_batch_buffer)
             
-            # Check if we should flush the batch immediately
+            # LOW-LATENCY START: Flush immediately if we have enough for first batch
+            # This starts TTS ASAP even if more text is coming
+            if not _batch_started and total_words >= TTS_BATCH_MIN_WORDS:
+                # First batch - flush immediately to start TTS as fast as possible
+                batched_text = " ".join(_batch_buffer)
+                SENTENCE_QUEUE.put(batched_text)
+                _batch_buffer = []
+                _batch_started = True
+                if _batch_timer:
+                    _batch_timer.cancel()
+                    _batch_timer = None
+                print(f"[Speaker] 🚀 First batch ({total_chunks} chunks, {total_words} words) - flushing immediately (low-latency start)")
+                return
+            
+            # Check if we should flush the batch immediately (subsequent batches)
             should_flush = (
                 total_words >= TTS_BATCH_MAX_WORDS or
                 total_chunks >= TTS_BATCH_MAX_CHUNKS
@@ -226,16 +242,16 @@ def enqueue_tts_chunk(text):
                 _batch_buffer = []
                 print(f"[Speaker] 📦 Batched {total_chunks} chunks ({total_words} words) - flushing immediately (threshold reached)")
             else:
-                # For very short responses (single chunk), flush immediately to avoid timeout delay
-                if total_chunks == 1 and total_words >= 50:
-                    # Single chunk with decent length - flush immediately (no timeout wait)
+                # For single chunk with decent length, flush immediately to avoid timeout delay
+                if total_chunks == 1 and total_words >= TTS_BATCH_MIN_WORDS:
                     batched_text = " ".join(_batch_buffer)
                     SENTENCE_QUEUE.put(batched_text)
                     _batch_buffer = []
+                    _batch_started = True
                     if _batch_timer:
                         _batch_timer.cancel()
                         _batch_timer = None
-                    print(f"[Speaker] 📦 Single large chunk ({total_words} words) - flushing immediately")
+                    print(f"[Speaker] 📦 Single chunk ({total_words} words) - flushing immediately")
                 else:
                     # Cancel existing timer and start a new one (reset timeout)
                     if _batch_timer:
@@ -248,7 +264,7 @@ def enqueue_tts_chunk(text):
 
 def _flush_batch_if_ready():
     """Flush the batch buffer if it has content"""
-    global _batch_buffer, _batch_timer
+    global _batch_buffer, _batch_timer, _batch_started
     with _batch_lock:
         if _batch_buffer:
             batched_text = " ".join(_batch_buffer)
@@ -256,6 +272,7 @@ def _flush_batch_if_ready():
             total_chunks = len(_batch_buffer)
             SENTENCE_QUEUE.put(batched_text)
             _batch_buffer = []
+            _batch_started = True
             _batch_timer = None
             print(f"[Speaker] 📦 Flushed batch ({total_chunks} chunks, {total_words} words) after timeout")
 
@@ -520,9 +537,12 @@ def playback_loop():
 
 # === Stream LLM output ===
 def speak_llm_response(prompt, context=""):
-    global pending_initials
+    global pending_initials, _batch_started
     import requests
     print(f"[LLM] ✅ Prompt to LLM: {prompt}")
+    
+    # Reset batch tracking for new response
+    _batch_started = False
     
     # Track token usage for this query
     try:
@@ -545,7 +565,7 @@ def speak_llm_response(prompt, context=""):
     except Exception as e:
         print(f"[TokenUsage] ⚠️ Failed to track usage: {e}")
     
-    # Start TTS latency measurement
+    # Start TTS latency measurement (measured from LLM request start)
     tts_start_time = time.time()
     
     # Get the correct LLM port based on mode
