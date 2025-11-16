@@ -584,10 +584,7 @@ def speak_llm_response(prompt, context=""):
         response = _post_stream(primary_port)
         if response.status_code != 200:
             raise RuntimeError(f"LLM HTTP {response.status_code} on port {primary_port}")
-    except Exception as e_primary:
-        print(f"[LLM] ❌ LLM unavailable on {primary_port}: {e_primary}")
-        enqueue_tts_chunk("I'm having trouble reaching the language model right now.")
-        return
+        # Process streaming tokens
         buffer = []
         for line in response.iter_lines(decode_unicode=True):
             token = line.strip()
@@ -692,7 +689,6 @@ def speak_llm_response(prompt, context=""):
             clean_text = re.sub(r'<sentence_start>|<sentence_end>', '', chunk_text).strip()
             if clean_text:
                 enqueue_tts_chunk(clean_text)
-        
         # Flush any remaining batched chunks when streaming ends
         if TTS_BATCH_ENABLED:
             _flush_batch_if_ready()
