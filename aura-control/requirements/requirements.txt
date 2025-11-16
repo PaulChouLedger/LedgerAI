@@ -14,6 +14,9 @@ soundfile>=0.12.1
 numpy>=1.24.0
 scipy>=1.10.0
 
+# Wake Word Detection (optional - for Jetson ARM64, may need to build from source)
+pvporcupine>=3.0.0
+
 # GUI Framework
 PyQt5>=5.15.0
 

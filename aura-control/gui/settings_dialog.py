@@ -827,6 +827,38 @@ class AIModelSettingsDialog(QDialog):
         except Exception:
             pass
         
+        # Wake word toggle
+        wake_word_row = QHBoxLayout(); wake_word_row.setSpacing(12)
+        wake_word_label = QLabel("Wake Word Detection:")
+        wake_word_label.setStyleSheet("color: #ffffff;")
+        self.wake_word_toggle = QPushButton("OFF")
+        self.wake_word_toggle.setCheckable(True)
+        self.wake_word_toggle.setStyleSheet(SettingsDialog.get_button_style(None))
+        wake_word_row.addWidget(wake_word_label)
+        wake_word_row.addWidget(self.wake_word_toggle, 1)
+        layout.addLayout(wake_word_row)
+        
+        # Initialize wake word toggle from state
+        try:
+            from core.state import get_wake_word_enabled
+            enabled = get_wake_word_enabled()
+            self.wake_word_toggle.setChecked(enabled)
+            self.wake_word_toggle.setText("ON" if enabled else "OFF")
+        except Exception:
+            self.wake_word_toggle.setChecked(False)
+            self.wake_word_toggle.setText("OFF")
+        
+        def on_wake_word_toggled(checked):
+            self.wake_word_toggle.setText("ON" if checked else "OFF")
+            try:
+                from core.state import set_wake_word_enabled
+                set_wake_word_enabled(checked)
+                print(f"[ModelSettings] Wake word detection: {'enabled' if checked else 'disabled'}")
+            except Exception as e:
+                print(f"[ModelSettings] Error saving wake word setting: {e}")
+        
+        self.wake_word_toggle.toggled.connect(on_wake_word_toggled)
+        
         def on_mode_clicked():
             sender = self.sender()
             if sender == self.mode_generic_btn:

@@ -20,6 +20,7 @@ sys.path.insert(0, parent_dir)
 
 from speaker import speak_llm_response, is_playing
 from gui.aura_gui import set_transcribing
+from wake_word import create_wake_word_detector
 
 # === Config ===
 SAMPLE_RATE = 16000
@@ -28,6 +29,10 @@ SILENCE_TIMEOUT = 0.2  # 500ms of silence before stopping
 VAD_START_THRESHOLD = 0.25  # Lowered - beamforming provides good noise rejection
 VAD_SILENCE_THRESHOLD = 0.15  # Lower = more conservative about ending
 MIN_AUDIO_SAMPLES = 2000
+
+# === Wake Word Configuration ===
+# Wake word detection is controlled via Settings dialog (state.py)
+# Default: disabled (can be toggled in Settings → AI Model Settings)
 
 # === Device Configuration ===
 DEVICE_NAME = "reSpeaker"
@@ -516,14 +521,25 @@ def listen():
     config = load_xvf3800_config()
     display_hardware_config(config)
     
+    # Initialize wake word detector (if enabled)
+    wake_word_detector = create_wake_word_detector()
+    wake_word_enabled = wake_word_detector is not None
+    
+    if wake_word_enabled:
+        print("\n" + "="*70)
+        print("[Audio] WAKE WORD PIPELINE")
+        print("[Audio]   Hardware DSP → Wake Word → VAD → Whisper")
+        print("[Audio]   (Configure: python3 setup/scripts/tune_xvf3800.py [preset])")
+        print("="*70 + "\n")
+    else:
+        print("\n" + "="*70)
+        print("[Audio] BARE-BONES PIPELINE")
+        print("[Audio]   Hardware DSP → Channel 0 → VAD → Whisper")
+        print("[Audio]   (Configure: python3 setup/scripts/tune_xvf3800.py [preset])")
+        print("="*70 + "\n")
+    
     # Warm up Whisper model (eliminates slow first transcription)
     warmup_whisper()
-    
-    print("\n" + "="*70)
-    print("[Audio] BARE-BONES PIPELINE")
-    print("[Audio]   Hardware DSP → Channel 0 → VAD → Whisper")
-    print("[Audio]   (Configure: python3 setup/scripts/tune_xvf3800.py [preset])")
-    print("="*70 + "\n")
     
     # ARM/Jetson-specific audio configuration
     import platform
@@ -559,147 +575,249 @@ def listen():
             print("[Audio] 💡 Try: sudo apt-get install --reinstall libportaudio2")
             raise
     
-    with stream:
-        
-        play_welcome_prompt(stream)
-        
-        while True:
-            # Pause during TTS
-            if is_playing():
-                print("[Listener] ⏸️ Pausing mic during playback")
-                stream.stop()
-                while is_playing():
-                    time.sleep(0.1)
-                stream.start()
+    try:
+        with stream:
+            
+            play_welcome_prompt(stream)
+            
+            # Wake word buffer for Porcupine (needs specific frame size)
+            wake_word_buffer = []
+            listening_active = False  # True after wake word detected
+            
+            while True:
+                # Pause during TTS
+                if is_playing():
+                    print("[Listener] ⏸️ Pausing mic during playback")
+                    stream.stop()
+                    while is_playing():
+                        time.sleep(0.1)
+                    stream.start()
+                    
+                    # Flush buffer
+                    print("[Listener] 🧹 Flushing mic buffer...")
+                    for _ in range(5):
+                        try:
+                            stream.read(FRAME_SIZE)
+                        except:
+                            break
+                    
+                    print("[Listener] ▶️ Mic resumed after playback (buffer flushed)")
+                    listening_active = False  # Reset after TTS
                 
-                # Flush buffer
-                print("[Listener] 🧹 Flushing mic buffer...")
-                for _ in range(5):
+                # === STAGE 1: Wake Word Detection (if enabled) ===
+                if wake_word_enabled and not listening_active:
                     try:
-                        stream.read(FRAME_SIZE)
-                    except:
-                        break
-                
-                print("[Listener] ▶️ Mic resumed after playback (buffer flushed)")
-            
-            buffer = []
-            silence_start = None
-            last_vad_reset = time.time()  # Track last VAD reset to prevent decay
-            
-            # === Wait for speech ===
-            while True:
-                # Check if transcription is blocked (dialog open or mic button pressed)
-                if is_transcription_blocked():
-                    time.sleep(0.1)
-                    continue
-                
-                if is_playing():
-                    break
-                
-                try:
-                    audio_block, _ = stream.read(FRAME_SIZE)
-                except Exception as e:
-                    print(f"\n[Listener] ⚠️  Stream error: {e}")
-                    time.sleep(0.1)
-                    continue
-                
-                # Periodic VAD reset to prevent state decay during long silence
-                # Reset every 5 seconds to keep VAD responsive
-                if time.time() - last_vad_reset > 5.0:
-                    model_vad.reset_states()
-                    last_vad_reset = time.time()
-                    print(f"\n[VAD] 🔄 Periodic state reset (prevents decay)", end="\r")
-                
-                channel_audio = audio_block[:, MICROPHONE_CHANNEL]
-                
-                if channel_audio.size < 512:
-                    continue
-                
-                # Hardware HPF already applied in ReSpeaker DSP
-                vad_prob = model_vad(torch.from_numpy(channel_audio), SAMPLE_RATE).item()
-                
-                # Calculate audio features (no pre-gain)
-                features = calculate_audio_features(channel_audio)
-                
-                print(f"[VAD] {vad_prob:.2f} | RMS {features['rms']:.4f} | Peak {features['peak']:.3f}", end="\r")
-                
-                if vad_prob > VAD_START_THRESHOLD:
-                    print(f"\n[VAD] 🔊 Speech detected (VAD={vad_prob:.2f}, RMS={features['rms']:.4f}, Peak={features['peak']:.3f})")
-                    print(f"[Features] ZCR={features['zcr']:.3f} | SpCentroid={features['spectral_centroid']:.0f}Hz | SpFlat={features['spectral_flatness']:.3f}")
-                    
-                    # Apply advanced filter if enabled
-                    if ENABLE_ADVANCED_FILTER:
-                        is_speech_result, reason = is_likely_speech(features)
-                        if not is_speech_result:
-                            print(f"[Filter] ❌ REJECTED: {reason}")
-                            print("[Filter] 🔄 Returning to listening (not speech)\n")
-                            continue  # Back to waiting for speech
+                        audio_block, _ = stream.read(FRAME_SIZE)
+                        channel_audio = audio_block[:, MICROPHONE_CHANNEL]
+                        
+                        if channel_audio.size < 512:
+                            continue
+                        
+                        # Convert to int16 for Porcupine (if needed)
+                        # Porcupine requires specific frame length, so we buffer frames
+                        wake_word_buffer.append(channel_audio)
+                        
+                        # Check if we have enough samples for Porcupine frame
+                        if wake_word_detector and wake_word_detector.frame_length:
+                            required_samples = wake_word_detector.frame_length
+                            total_samples = sum(len(chunk) for chunk in wake_word_buffer)
+                            
+                            if total_samples >= required_samples:
+                                # Concatenate enough samples for one Porcupine frame
+                                combined_audio = np.concatenate(wake_word_buffer)
+                                wake_word_frame = combined_audio[:required_samples]
+                                
+                                # Keep remaining samples for next frame
+                                if len(combined_audio) > required_samples:
+                                    wake_word_buffer = [combined_audio[required_samples:]]
+                                else:
+                                    wake_word_buffer = []
+                                
+                                # Detect wake word
+                                wake_detected, confidence = wake_word_detector.process(wake_word_frame)
+                                
+                                if wake_detected:
+                                    print(f"\n[Wake Word] ✅ Wake word detected! (confidence: {confidence:.2f})")
+                                    listening_active = True
+                                    
+                                    # Visual feedback (if GUI available)
+                                    try:
+                                        from gui.aura_gui import set_wake_word_activated
+                                        set_wake_word_activated(True)
+                                    except ImportError:
+                                        pass
+                                    
+                                    # Clear wake word buffer
+                                    wake_word_buffer = []
+                                    
+                                    # Wait a moment before starting VAD (avoid wake word in transcription)
+                                    time.sleep(0.3)
+                                    
+                                    # Reset VAD state for fresh start
+                                    model_vad.reset_states()
+                                    
+                                    print("[Wake Word] 🎤 Listening for speech...")
+                            else:
+                                # Not enough samples yet, continue buffering
+                                pass
                         else:
-                            print(f"[Filter] ✅ PASSED: {reason}")
-                    
-                    set_transcribing(True)
-                    buffer.append(audio_block)
-                    break
-            
-            # === Record speech ===
-            while True:
-                if is_playing():
-                    set_transcribing(False)
-                    break
+                            # Wake word detector not properly initialized, skip
+                            wake_word_buffer = []
+                            
+                    except Exception as e:
+                        print(f"[Wake Word] ⚠️ Error: {e}")
+                        wake_word_buffer = []
+                        continue
                 
-                try:
-                    audio_block, _ = stream.read(FRAME_SIZE)
-                except Exception as e:
-                    print(f"\n[Listener] ⚠️  Error: {e}")
-                    set_transcribing(False)
-                    break
-                
-                channel_audio = audio_block[:, MICROPHONE_CHANNEL]
-                
-                if channel_audio.size < 512:
-                    continue
-                
-                buffer.append(audio_block)
-                
-                # Hardware HPF already applied in ReSpeaker DSP
-                vad_prob = model_vad(torch.from_numpy(channel_audio), SAMPLE_RATE).item()
-                
-                if vad_prob < VAD_SILENCE_THRESHOLD:
-                    if silence_start is None:
-                        silence_start = time.time()
-                    elif time.time() - silence_start > SILENCE_TIMEOUT:
-                        print(f"\n[VAD] ⏹️  Speech ended")
-                        set_transcribing(False)
-                        break
-                else:
+                # === STAGE 2: VAD + Speech Processing (only after wake word or if wake word disabled) ===
+                if not wake_word_enabled or listening_active:
+                    buffer = []
                     silence_start = None
-                
-                print(".", end="", flush=True)
-            
-            if is_playing():
-                set_transcribing(False)
-                continue
-            
-            # === Process audio ===
-            full_audio = np.concatenate(buffer)
-            mono = full_audio[:, 0]  # Channel 0 only
-            
-            # RAW audio from hardware - no software processing
-            if len(mono) < MIN_AUDIO_SAMPLES:
-                print("⚠️  Too short\n")
-                set_transcribing(False)
-                # Reset VAD state before next utterance
-                model_vad.reset_states()
-                continue
-            
-            # Send to Whisper (initial filter already passed)
-            text = transcribe(mono)
-            
-            # Reset VAD state for next utterance (critical for consistent performance)
-            model_vad.reset_states()
-            
-            if text:
-                send_to_llm(text)
+                    last_vad_reset = time.time()  # Track last VAD reset to prevent decay
+                    
+                    # === Wait for speech ===
+                    while True:
+                        # Check if transcription is blocked (dialog open or mic button pressed)
+                        if is_transcription_blocked():
+                            time.sleep(0.1)
+                            continue
+                        
+                        if is_playing():
+                            break
+                        
+                        try:
+                            audio_block, _ = stream.read(FRAME_SIZE)
+                        except Exception as e:
+                            print(f"\n[Listener] ⚠️  Stream error: {e}")
+                            time.sleep(0.1)
+                            continue
+                        
+                        # Periodic VAD reset to prevent state decay during long silence
+                        # Reset every 5 seconds to keep VAD responsive
+                        if time.time() - last_vad_reset > 5.0:
+                            model_vad.reset_states()
+                            last_vad_reset = time.time()
+                            print(f"\n[VAD] 🔄 Periodic state reset (prevents decay)", end="\r")
+                        
+                        channel_audio = audio_block[:, MICROPHONE_CHANNEL]
+                        
+                        if channel_audio.size < 512:
+                            continue
+                        
+                        # Hardware HPF already applied in ReSpeaker DSP
+                        vad_prob = model_vad(torch.from_numpy(channel_audio), SAMPLE_RATE).item()
+                        
+                        # Calculate audio features (no pre-gain)
+                        features = calculate_audio_features(channel_audio)
+                        
+                        if wake_word_enabled:
+                            print(f"[Wake Word Active] VAD {vad_prob:.2f} | RMS {features['rms']:.4f} | Peak {features['peak']:.3f}", end="\r")
+                        else:
+                            print(f"[VAD] {vad_prob:.2f} | RMS {features['rms']:.4f} | Peak {features['peak']:.3f}", end="\r")
+                        
+                        if vad_prob > VAD_START_THRESHOLD:
+                            print(f"\n[VAD] 🔊 Speech detected (VAD={vad_prob:.2f}, RMS={features['rms']:.4f}, Peak={features['peak']:.3f})")
+                            print(f"[Features] ZCR={features['zcr']:.3f} | SpCentroid={features['spectral_centroid']:.0f}Hz | SpFlat={features['spectral_flatness']:.3f}")
+                            
+                            # Apply advanced filter if enabled
+                            if ENABLE_ADVANCED_FILTER:
+                                is_speech_result, reason = is_likely_speech(features)
+                                if not is_speech_result:
+                                    print(f"[Filter] ❌ REJECTED: {reason}")
+                                    print("[Filter] 🔄 Returning to listening (not speech)\n")
+                                    continue  # Back to waiting for speech
+                                else:
+                                    print(f"[Filter] ✅ PASSED: {reason}")
+                            
+                            set_transcribing(True)
+                            buffer.append(audio_block)
+                            break
+                    
+                    # === Record speech ===
+                    while True:
+                        if is_playing():
+                            set_transcribing(False)
+                            break
+                        
+                        try:
+                            audio_block, _ = stream.read(FRAME_SIZE)
+                        except Exception as e:
+                            print(f"\n[Listener] ⚠️  Error: {e}")
+                            set_transcribing(False)
+                            break
+                        
+                        channel_audio = audio_block[:, MICROPHONE_CHANNEL]
+                        
+                        if channel_audio.size < 512:
+                            continue
+                        
+                        buffer.append(audio_block)
+                        
+                        # Hardware HPF already applied in ReSpeaker DSP
+                        vad_prob = model_vad(torch.from_numpy(channel_audio), SAMPLE_RATE).item()
+                        
+                        if vad_prob < VAD_SILENCE_THRESHOLD:
+                            if silence_start is None:
+                                silence_start = time.time()
+                            elif time.time() - silence_start > SILENCE_TIMEOUT:
+                                print(f"\n[VAD] ⏹️  Speech ended")
+                                set_transcribing(False)
+                                break
+                        else:
+                            silence_start = None
+                        
+                        print(".", end="", flush=True)
+                    
+                    if is_playing():
+                        set_transcribing(False)
+                        continue
+                    
+                    # === Process audio ===
+                    full_audio = np.concatenate(buffer)
+                    mono = full_audio[:, 0]  # Channel 0 only
+                    
+                    # RAW audio from hardware - no software processing
+                    if len(mono) < MIN_AUDIO_SAMPLES:
+                        print("⚠️  Too short\n")
+                        set_transcribing(False)
+                        # Reset VAD state before next utterance
+                        model_vad.reset_states()
+                        continue
+                    
+                    # Send to Whisper (initial filter already passed)
+                    text = transcribe(mono)
+                    
+                    # Reset VAD state for next utterance (critical for consistent performance)
+                    model_vad.reset_states()
+                    
+                    if text:
+                        # Optional: Strip wake word from transcription if present
+                        if wake_word_enabled:
+                            # Remove common wake word phrases from start of text
+                            text_lower = text.lower().strip()
+                            wake_phrases = ["hey aura", "hey aura,", "hey aura.", "aura", "aura,"]
+                            for phrase in wake_phrases:
+                                if text_lower.startswith(phrase):
+                                    text = text[len(phrase):].strip().lstrip(",.")
+                                    print(f"[Wake Word] 🧹 Removed wake word from transcription")
+                                    break
+                        
+                        send_to_llm(text)
+                    
+                    # Reset listening state for next wake word (if enabled)
+                    if wake_word_enabled:
+                        listening_active = False
+                        try:
+                            from gui.aura_gui import set_wake_word_activated
+                            set_wake_word_activated(False)
+                        except ImportError:
+                            pass
+                        print("[Wake Word] 🔄 Waiting for wake word...")
+    finally:
+        # Cleanup wake word detector on exit
+        if wake_word_detector:
+            wake_word_detector.release()
+            print("[Wake Word] 🧹 Cleaned up wake word detector")
 
 if __name__ == "__main__":
     try:

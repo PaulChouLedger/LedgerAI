@@ -1151,6 +1151,10 @@ TELEGRAM_BOT_TOKEN=
 #
 # Optional: GitHub OTA Updates
 GITHUB_TOKEN=
+#
+# Required: TTS Volume (0-100, default: 50)
+# Controls the volume of text-to-speech output
+TTS_VOLUME=50
 EOF
 chown "$AURA_USER:$AURA_USER" "$ENV_FILE"
 print_info "✅ Wrote minimal .env (API keys only)"

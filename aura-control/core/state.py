@@ -46,15 +46,21 @@ def is_playing():
 _settings_file = os.path.expanduser("~/LedgerAI/data/app_settings.json")
 _llm_mode = "medical"  # 'medical' or 'generic'
 _llm_model = ""        # filename or path inside container; empty means default
+_wake_word_enabled = False  # Wake word detection enabled/disabled
+_wake_word_sensitivity = 0.5  # Wake word detection sensitivity (0.0-1.0)
+_wake_word_model_path = None  # Optional path to custom .ppn model file
 
 def _load_settings_from_disk():
-    global _llm_mode, _llm_model
+    global _llm_mode, _llm_model, _wake_word_enabled, _wake_word_sensitivity, _wake_word_model_path
     try:
         import json
         with open(_settings_file, "r") as f:
             data = json.load(f)
             _llm_mode = data.get("llm_mode", _llm_mode)
             _llm_model = data.get("llm_model", _llm_model)
+            _wake_word_enabled = data.get("wake_word_enabled", _wake_word_enabled)
+            _wake_word_sensitivity = float(data.get("wake_word_sensitivity", _wake_word_sensitivity))
+            _wake_word_model_path = data.get("wake_word_model_path", _wake_word_model_path)
     except FileNotFoundError:
         pass
     except Exception as e:
@@ -64,8 +70,16 @@ def _save_settings_to_disk():
     try:
         import json, os
         os.makedirs(os.path.dirname(_settings_file), exist_ok=True)
+        settings_data = {
+            "llm_mode": _llm_mode,
+            "llm_model": _llm_model,
+            "wake_word_enabled": _wake_word_enabled,
+            "wake_word_sensitivity": _wake_word_sensitivity
+        }
+        if _wake_word_model_path:
+            settings_data["wake_word_model_path"] = _wake_word_model_path
         with open(_settings_file, "w") as f:
-            json.dump({"llm_mode": _llm_mode, "llm_model": _llm_model}, f, indent=2)
+            json.dump(settings_data, f, indent=2)
     except Exception as e:
         print(f"[State] ⚠️ Failed to save settings: {e}")
 
@@ -89,6 +103,37 @@ def set_llm_model(model: str):
     """Set selected model name/path."""
     global _llm_model
     _llm_model = model or ""
+    _save_settings_to_disk()
+
+# === Wake Word Settings ===
+def get_wake_word_enabled() -> bool:
+    """Return whether wake word detection is enabled."""
+    return _wake_word_enabled
+
+def set_wake_word_enabled(enabled: bool):
+    """Enable or disable wake word detection."""
+    global _wake_word_enabled
+    _wake_word_enabled = bool(enabled)
+    _save_settings_to_disk()
+
+def get_wake_word_sensitivity() -> float:
+    """Return wake word detection sensitivity (0.0-1.0)."""
+    return _wake_word_sensitivity
+
+def set_wake_word_sensitivity(sensitivity: float):
+    """Set wake word detection sensitivity (0.0-1.0)."""
+    global _wake_word_sensitivity
+    _wake_word_sensitivity = max(0.0, min(1.0, float(sensitivity)))
+    _save_settings_to_disk()
+
+def get_wake_word_model_path() -> str:
+    """Return path to custom wake word model file (or None)."""
+    return _wake_word_model_path
+
+def set_wake_word_model_path(path: str):
+    """Set path to custom wake word model file (or None to use built-in)."""
+    global _wake_word_model_path
+    _wake_word_model_path = path if path else None
     _save_settings_to_disk()
 
 # Initialize settings at import
