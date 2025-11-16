@@ -1124,61 +1124,37 @@ fi
 echo ""
 
 # ============================================================================
-# Step 13: Create .env file from template if it doesn't exist
+# Step 13: Create minimal .env with only API keys (deployment-friendly)
 # ============================================================================
-print_step "13. Setting up .env configuration file..."
+print_step "13. Setting up .env configuration file (API keys only)..."
 
 ENV_FILE="$LEDGERAI_DIR/.env"
-ENV_EXAMPLE="$LEDGERAI_DIR/.env.example"
 
-if [ ! -f "$ENV_FILE" ]; then
-    if [ -f "$ENV_EXAMPLE" ]; then
-        print_info "Creating .env from .env.example template..."
-        cp "$ENV_EXAMPLE" "$ENV_FILE"
-        chown "$AURA_USER:$AURA_USER" "$ENV_FILE"
-        print_info "✅ Created .env file from template"
-        print_warning "⚠️  IMPORTANT: Edit .env file and add your API keys:"
-        print_info "   - ELEVENLABS_API_KEY (required for TTS)"
-        print_info "   - TELEGRAM_BOT_TOKEN (optional)"
-        print_info "   - GITHUB_TOKEN (optional)"
-        print_info "   Run: nano $ENV_FILE"
-        print_info "   Or use: cd $LEDGERAI_DIR && ./aura_config.sh"
-    else
-        print_warning ".env.example not found - creating minimal .env template..."
-        cat > "$ENV_FILE" << 'EOF'
-# ============================================
-# AURA CONFIGURATION
-# ============================================
-# Edit this file with your actual API keys and settings
-
-# ElevenLabs API Key (REQUIRED for TTS)
-ELEVENLABS_API_KEY=your_api_key_here
-ELEVENLABS_VOICE_ID=default
-TTS_VOLUME=70
-
-# LLM Configuration
-USE_MEDICAL_MODE=true
-RAG_MODE=CPU
-RAG_THRESHOLD=0.3
-RAG_TOP_K=5
-
-# Optional: Telegram Bot
-TELEGRAM_BOT_TOKEN=your_bot_token_here
-
-# Optional: GitHub OTA Updates
-GITHUB_TOKEN=your_github_token_here
-
-# Debug Settings
-DEBUG_MODE=false
-LOG_LEVEL=INFO
-EOF
-        chown "$AURA_USER:$AURA_USER" "$ENV_FILE"
-        print_info "✅ Created minimal .env file"
-        print_warning "⚠️  Edit .env file and add your API keys before running Aura"
-    fi
-else
-    print_info "✅ .env file already exists (skipping template copy)"
+# Backup existing .env if present
+if [ -f "$ENV_FILE" ]; then
+    cp "$ENV_FILE" "$ENV_FILE.bak.$(date +%s)" 2>/dev/null || true
 fi
+
+cat > "$ENV_FILE" << 'EOF'
+# ============================================
+# Aura API Keys (Deployment)
+# ============================================
+# Only API keys belong here. All other settings are hardcoded in code.
+#
+# Required: ElevenLabs (TTS)
+ELEVENLABS_API_KEY=
+# Optional: ElevenLabs voice (if left empty, default voice is used)
+ELEVENLABS_VOICE_ID=
+#
+# Optional: Telegram Bot
+TELEGRAM_BOT_TOKEN=
+#
+# Optional: GitHub OTA Updates
+GITHUB_TOKEN=
+EOF
+chown "$AURA_USER:$AURA_USER" "$ENV_FILE"
+print_info "✅ Wrote minimal .env (API keys only)"
+print_warning "⚠️  Edit .env to add API keys before running Aura: nano $ENV_FILE"
 
 echo ""
 

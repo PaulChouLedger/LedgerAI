@@ -568,9 +568,13 @@ def speak_llm_response(prompt, context=""):
     # Start TTS latency measurement (measured from LLM request start)
     tts_start_time = time.time()
     
-    # Get the correct LLM port based on mode
-    USE_MEDICAL_MODE = os.environ.get('USE_MEDICAL_MODE', 'true').lower() == 'true'
-    llm_port = "11434" if USE_MEDICAL_MODE else "11436"
+    # Get the correct LLM port based on global state (default medical)
+    try:
+        from core.state import get_llm_mode
+        llm_mode = get_llm_mode()
+    except Exception:
+        llm_mode = "medical"
+    llm_port = "11434" if llm_mode == "medical" else "11436"
     
     try:
         response = requests.post(

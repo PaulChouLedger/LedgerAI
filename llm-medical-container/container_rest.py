@@ -231,11 +231,44 @@ def cpu_faiss_status():
         logger.error(f"Error getting CPU FAISS status: {e}")
         return jsonify({'error': str(e)}), 500
 
-# === Model Config ===
-# Model configuration from .env only - no fallback defaults
-SIMPLE_MODEL_PATH = os.environ["SIMPLE_MODEL_PATH"]
-SIMPLE_N_CTX = int(os.environ["SIMPLE_N_CTX"])
-SIMPLE_CHAT_FORMAT = os.environ["SIMPLE_CHAT_FORMAT"]
+# === Model Config (auto-resolve from app settings) ===
+def _resolve_model_path():
+    """
+    Determine model path priority:
+    1) app_settings.json llm_model (filename) -> /models/<filename> if exists
+    2) SIMPLE_MODEL_PATH from env
+    3) Default fallback
+    """
+    try:
+        settings_path = "/app/data/app_settings.json"
+        if os.path.isfile(settings_path):
+            with open(settings_path, "r") as f:
+                data = json.load(f)
+                name = (data.get("llm_model") or "").strip()
+                if name:
+                    candidate = f"/models/{name}" if not name.startswith("/") else name
+                    if os.path.isfile(candidate):
+                        print(f"[LLM] 🎯 Using model from settings: {candidate}")
+                        return candidate
+                    else:
+                        print(f"[LLM] ⚠️ Model from settings not found: {candidate}")
+    except Exception as e:
+        print(f"[LLM] ⚠️ Failed reading app settings: {e}")
+    env_path = os.getenv("SIMPLE_MODEL_PATH")
+    if env_path:
+        if not os.path.isabs(env_path):
+            if env_path.startswith("models/"):
+                env_path = env_path.replace("models/", "", 1)
+            env_path = f"/models/{env_path}"
+        print(f"[LLM] 🔧 Using model from env: {env_path}")
+        return env_path
+    fallback = "/models/Qwen2.5-1.5B-Instruct.Q4_K_M.gguf"
+    print(f"[LLM] 🛟 Using default model: {fallback}")
+    return fallback
+
+SIMPLE_MODEL_PATH = _resolve_model_path()
+SIMPLE_N_CTX = int(os.environ.get("SIMPLE_N_CTX", "2048"))
+SIMPLE_CHAT_FORMAT = os.environ.get("SIMPLE_CHAT_FORMAT", "qwen")
 
 # Models will be loaded in __main__ block to prevent double loading
 import os

@@ -64,8 +64,6 @@ class WalletDialog(QDialog):
         
         # Ensure resources are freed on close
         self.setAttribute(Qt.WA_DeleteOnClose, True)
-        # Enable smoother compositing for opacity transitions
-        self.setAttribute(Qt.WA_TranslucentBackground, True)
         
         # Apply dark theme styling - match upload dialog exactly
         self.setStyleSheet("""

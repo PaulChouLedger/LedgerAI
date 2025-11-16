@@ -13,6 +13,7 @@ from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer, QPropertyAnimation, QE
 from PyQt5.QtGui import QFont
 import threading
 from dotenv import dotenv_values
+import glob
 
 class WiFiScanThread(QThread):
     """Thread to scan for WiFi networks without blocking UI"""
@@ -407,8 +408,7 @@ class SettingsDialog(QDialog):
         else:
             self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
         
-        # Enable smoother compositing for opacity transitions
-        self.setAttribute(Qt.WA_TranslucentBackground, True)
+        # (No translucent background to preserve readability)
         
         self.setStyleSheet("""
             QDialog {
@@ -706,11 +706,180 @@ class SettingsDialog(QDialog):
         self.wifi_scan_thread = None
         self.ota_update_thread = None
         self.selected_wifi = None
+        self._init_llm_controls()
         
         # Check WiFi connection status and update disconnect button
         self.update_disconnect_button()
         
         self.log_status("Settings dialog ready")
+
+    def _init_llm_controls(self):
+        """Add controls for LLM mode and model selection"""
+        try:
+            # Append below existing content
+            layout = self.layout()
+            # Section title
+            llm_label = QLabel("🧠 AI Model Settings")
+            llm_label.setFont(QFont("Arial", 14, QFont.Bold))
+            llm_label.setStyleSheet("color: #ffffff; margin-top: 20px;")
+            layout.addWidget(llm_label)
+            
+            # Mode toggle buttons
+            mode_row = QHBoxLayout()
+            mode_row.setSpacing(12)
+            self.mode_generic_btn = QPushButton("Generic")
+            self.mode_medical_btn = QPushButton("Medical")
+            for b in (self.mode_generic_btn, self.mode_medical_btn):
+                b.setCheckable(True)
+                b.setStyleSheet(self.get_button_style())
+            mode_row.addWidget(self.mode_generic_btn)
+            mode_row.addWidget(self.mode_medical_btn)
+            layout.addLayout(mode_row)
+            
+            # Model dropdown + restart button row
+            from PyQt5.QtWidgets import QComboBox
+            model_row = QHBoxLayout()
+            model_row.setSpacing(10)
+            self.model_combo = QComboBox()
+            self.model_combo.setStyleSheet("""
+                QComboBox {
+                    background-color: rgba(44,44,46,0.8);
+                    color: #ffffff;
+                    padding: 8px;
+                    border: none;
+                    border-radius: 10px;
+                    min-height: 36px;
+                }
+                QComboBox QAbstractItemView {
+                    background-color: #2d2d2d;
+                    color: #ffffff;
+                    selection-background-color: #4D94D9;
+                }
+            """)
+            self.restart_llm_btn = QPushButton("🔁 Restart LLM")
+            self.restart_llm_btn.setStyleSheet(self.get_button_style())
+            model_row.addWidget(self.model_combo, 2)
+            model_row.addWidget(self.restart_llm_btn, 1)
+            layout.addLayout(model_row)
+            
+            # Load initial state
+            try:
+                from core.state import get_llm_mode, get_llm_model, set_llm_mode, set_llm_model
+                mode = get_llm_mode()
+                self.mode_generic_btn.setChecked(mode == "generic")
+                self.mode_medical_btn.setChecked(mode == "medical")
+            except Exception:
+                self.mode_medical_btn.setChecked(True)
+            
+            # Populate models based on mode
+            def populate_models():
+                self.model_combo.clear()
+                mode_now = "medical" if self.mode_medical_btn.isChecked() else "generic"
+                # List available .gguf models in corresponding container models folder
+                workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+                if mode_now == "medical":
+                    model_dir = os.path.join(workspace_root, 'llm-medical-container', 'data', 'models')
+                else:
+                    model_dir = os.path.join(workspace_root, 'llm-container', 'data', 'models')
+                paths = sorted(glob.glob(os.path.join(model_dir, "*.gguf")))
+                display_names = [os.path.basename(p) for p in paths]
+                if display_names:
+                    self.model_combo.addItems(display_names)
+                else:
+                    self.model_combo.addItem("(no models found)")
+                # Set current selection to saved model if present
+                try:
+                    from core.state import get_llm_model
+                    saved = get_llm_model()
+                    if saved:
+                        base = os.path.basename(saved)
+                        idx = self.model_combo.findText(base)
+                        if idx >= 0:
+                            self.model_combo.setCurrentIndex(idx)
+                except Exception:
+                    pass
+            
+            populate_models()
+            
+            # Handlers
+            def on_mode_clicked():
+                # Make them mutually exclusive
+                sender = self.sender()
+                if sender == self.mode_generic_btn:
+                    self.mode_medical_btn.setChecked(not self.mode_generic_btn.isChecked())
+                else:
+                    self.mode_generic_btn.setChecked(not self.mode_medical_btn.isChecked())
+                mode_now = "medical" if self.mode_medical_btn.isChecked() else "generic"
+                try:
+                    from core.state import set_llm_mode
+                    set_llm_mode(mode_now)
+                    self.log_status(f"LLM mode set to: {mode_now}")
+                except Exception as e:
+                    self.log_status(f"Error saving mode: {e}")
+                populate_models()
+            
+            self.mode_generic_btn.clicked.connect(on_mode_clicked)
+            self.mode_medical_btn.clicked.connect(on_mode_clicked)
+            
+            def _restart_container_for_mode(mode_now: str):
+                """Restart the appropriate LLM container"""
+                try:
+                    from PyQt5.QtWidgets import QMessageBox
+                    service = "llm-medical" if mode_now == "medical" else "llm-generic"
+                    # Confirm restart
+                    reply = QMessageBox.question(
+                        self,
+                        "Restart Required",
+                        f"Restart the {service} container now to apply the new model?",
+                        QMessageBox.Yes | QMessageBox.No,
+                        QMessageBox.Yes
+                    )
+                    if reply != QMessageBox.Yes:
+                        return
+                    # Run docker compose restart in setup directory
+                    workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+                    setup_dir = os.path.join(workspace_root, 'setup')
+                    import subprocess
+                    result = subprocess.run(
+                        ["bash", "-lc", f"cd '{setup_dir}' && docker compose restart {service}"],
+                        capture_output=True,
+                        text=True,
+                        timeout=60
+                    )
+                    if result.returncode == 0:
+                        QMessageBox.information(self, "Restarted", f"{service} restarted successfully.")
+                    else:
+                        QMessageBox.warning(self, "Restart Failed", result.stderr or result.stdout or "Unknown error")
+                except Exception as e:
+                    try:
+                        from PyQt5.QtWidgets import QMessageBox
+                        QMessageBox.warning(self, "Error", f"Failed to restart container: {e}")
+                    except:
+                        pass
+
+            def on_model_changed(index):
+                name = self.model_combo.currentText()
+                if not name or name.startswith("("):
+                    return
+                try:
+                    from core.state import set_llm_model
+                    set_llm_model(name)
+                    self.log_status(f"Selected model: {name}")
+                    # Prompt to restart to apply model
+                    mode_now = "medical" if self.mode_medical_btn.isChecked() else "generic"
+                    _restart_container_for_mode(mode_now)
+                except Exception as e:
+                    self.log_status(f"Error saving model: {e}")
+            
+            self.model_combo.currentIndexChanged.connect(on_model_changed)
+
+            # Manual restart button
+            def on_restart_clicked():
+                mode_now = "medical" if self.mode_medical_btn.isChecked() else "generic"
+                _restart_container_for_mode(mode_now)
+            self.restart_llm_btn.clicked.connect(on_restart_clicked)
+        except Exception as e:
+            print(f"[Settings] ⚠️ Failed to initialize LLM controls: {e}")
     
     def get_button_style(self):
         """Get consistent button styling"""

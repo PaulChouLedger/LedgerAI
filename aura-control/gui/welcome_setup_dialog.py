@@ -108,8 +108,6 @@ class WelcomeSetupDialog(QDialog):
         
         # Ensure resources are freed when closed
         self.setAttribute(Qt.WA_DeleteOnClose, True)
-        # Enable smoother compositing for opacity transitions
-        self.setAttribute(Qt.WA_TranslucentBackground, True)
         
         # Initialize opacity to 0 for fade-in
         self.setWindowOpacity(0.0)

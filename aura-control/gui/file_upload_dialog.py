@@ -48,8 +48,7 @@ class FileUploadDialog(QDialog):
             # If no parent, stay on top
             self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
         
-        # Enable smoother compositing for opacity transitions
-        self.setAttribute(Qt.WA_TranslucentBackground, True)
+        # (No translucent background to preserve readability)
         
         # Set stylesheet before creating UI
         print("[Upload] 👁️ Dialog initialized and ready")

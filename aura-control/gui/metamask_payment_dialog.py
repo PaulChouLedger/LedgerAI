@@ -38,8 +38,7 @@ class MetaMaskPaymentDialog(QDialog):
         else:
             self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
         
-        # Enable smoother compositing for opacity transitions
-        self.setAttribute(Qt.WA_TranslucentBackground, True)
+        # (No translucent background to preserve readability)
         
         self.setStyleSheet("""
             QDialog {
