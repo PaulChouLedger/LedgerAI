@@ -407,6 +407,8 @@ class WifiSettingsDialog(QDialog):
             self.setModal(True)
         else:
             self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
+        # Ensure dialog is destroyed on close to prevent ghost event handlers
+        self.setAttribute(Qt.WA_DeleteOnClose, True)
         self.setStyleSheet("""
             QDialog { background-color: rgba(28,28,30,1.0); color: white; border: none; border-radius: 536px; }
             QLabel { color: white; font-size: 12px; }
@@ -436,7 +438,16 @@ class WifiSettingsDialog(QDialog):
         self.fade_out.setStartValue(self.windowOpacity())
         self.fade_out.setEndValue(0.0)
         self.fade_out.setEasingCurve(QEasingCurve.InOutCubic)
-        self.fade_out.finished.connect(lambda: event.accept())
+        def _finalize():
+            # Stop any running threads and disconnect signals to avoid late emissions
+            try:
+                if self.wifi_scan_thread and self.wifi_scan_thread.isRunning():
+                    self.wifi_scan_thread.quit()
+                    self.wifi_scan_thread.wait(500)
+            except Exception:
+                pass
+            event.accept()
+        self.fade_out.finished.connect(_finalize)
         self.fade_out.start()
         event.ignore()
     
@@ -619,6 +630,7 @@ class UpdateDialog(QDialog):
             self.setWindowFlags(Qt.Dialog | Qt.FramelessWindowHint); self.setModal(True)
         else:
             self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
+        self.setAttribute(Qt.WA_DeleteOnClose, True)
         self.setStyleSheet("QDialog { background-color: rgba(28,28,30,1.0); color: white; border: none; border-radius: 536px; } QLabel { color: white; }")
         self.setWindowOpacity(0.0)
         self._setup_ui()
@@ -635,7 +647,14 @@ class UpdateDialog(QDialog):
         if hasattr(self, 'fade_in') and self.fade_in.state() == QPropertyAnimation.Running: self.fade_in.stop()
         self.fade_out = QPropertyAnimation(self, b"windowOpacity"); self.fade_out.setDuration(250)
         self.fade_out.setStartValue(self.windowOpacity()); self.fade_out.setEndValue(0.0); self.fade_out.setEasingCurve(QEasingCurve.InOutCubic)
-        self.fade_out.finished.connect(lambda: event.accept()); self.fade_out.start(); event.ignore()
+        def _finalize():
+            try:
+                if self.ota_update_thread and self.ota_update_thread.isRunning():
+                    self.ota_update_thread.terminate()
+            except Exception:
+                pass
+            event.accept()
+        self.fade_out.finished.connect(_finalize); self.fade_out.start(); event.ignore()
     
     def _center_dialog(self):
         screen = QApplication.primaryScreen().geometry(); x = (screen.width() - self.width()) // 2; y = (screen.height() - self.height()) // 2; self.move(x, y)
@@ -696,6 +715,7 @@ class AIModelSettingsDialog(QDialog):
             self.setWindowFlags(Qt.Dialog | Qt.FramelessWindowHint); self.setModal(True)
         else:
             self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
+        self.setAttribute(Qt.WA_DeleteOnClose, True)
         self.setStyleSheet("QDialog { background-color: rgba(28,28,30,1.0); color: white; border: none; border-radius: 536px; } QLabel { color: white; }")
         self.setWindowOpacity(0.0)
         self._setup_ui(); self._center_dialog()
