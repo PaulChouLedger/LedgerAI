@@ -30,6 +30,7 @@ cd porcupine/binding/python
 
 # Build and install
 python3 setup.py build_ext --inplace
+# Note: You may see a deprecation warning about license classifiers - this is harmless, ignore it
 pip3 install .
 ```
 
@@ -179,25 +180,88 @@ pip install pvporcupine
 **Solution:**
 1. Train custom model at https://console.picovoice.ai/
 2. Download `.ppn` file
-3. Set `WAKE_WORD_MODEL_PATH` in `.env`
+3. Save model path in `~/LedgerAI/data/app_settings.json`:
+   ```json
+   {
+     "wake_word_model_path": "/path/to/your/hey-aura_en_linux_v3_0_0.ppn"
+   }
+   ```
 
-### Issue: "ImportError on Jetson"
+### Issue: "ImportError on Jetson" or "Unsupported CPU: '0xd42'"
 
-**Solution:**
-Build from source (see Jetson installation above)
+**Problem:** Porcupine doesn't recognize Jetson CPU architectures by default.
+
+**Solution:** Patch Porcupine to support Jetson CPUs:
+
+```bash
+# Run the patch script
+cd ~/LedgerAI/setup/scripts
+python3 patch_porcupine_jetson.py
+```
+
+**Alternative manual patch:**
+
+If the script doesn't work, manually edit the Porcupine util file:
+
+1. Find Porcupine installation:
+   ```bash
+   python3 -c "import pvporcupine; import os; print(os.path.dirname(pvporcupine.__file__))"
+   ```
+
+2. Edit `_util.py` in that directory:
+   ```bash
+   nano /path/to/pvporcupine/_util.py
+   ```
+
+3. Find the `_pv_linux_machine` function and add Jetson support before the `raise NotImplementedError` line:
+   ```python
+   # Jetson CPU support
+   jetson_cpus = ['0xd42', '0xd49', '0xd0b', '0xd07', '0xd08']  # Jetson Orin, Orin NX, TX1, TX2, Nano
+   if cpu_part in jetson_cpus:
+       return 'arm64'  # Jetson uses ARM64 architecture
+   ```
+
+**Note:** During build, you may see deprecation warnings about license classifiers - these are harmless and can be ignored.
+
+### Issue: Build fails with compilation errors
+
+**Possible solutions:**
+
+1. **Install build dependencies:**
+   ```bash
+   sudo apt-get update
+   sudo apt-get install -y python3-dev python3-pip build-essential cmake
+   ```
+
+2. **Try with pip install instead:**
+   ```bash
+   cd porcupine/binding/python
+   pip3 install . --no-cache-dir
+   ```
+
+3. **Check Python version compatibility:**
+   ```bash
+   python3 --version  # Should be 3.8+
+   ```
+
+4. **If still failing, try pre-built wheel:**
+   ```bash
+   pip3 install pvporcupine --no-cache-dir
+   ```
 
 ### Issue: Wake word not detecting
 
 **Possible causes:**
-1. **Sensitivity too low**: Increase `WAKE_WORD_SENSITIVITY` (try 0.7)
+1. **Sensitivity too low**: Edit `~/LedgerAI/data/app_settings.json` and increase `wake_word_sensitivity` (try 0.7)
 2. **Wrong wake word**: Check if you're using the correct phrase
 3. **Audio quality**: Ensure microphone is working and audio levels are good
 4. **Model mismatch**: Verify model matches your language/accent
+5. **Wake word disabled**: Check Settings → AI Model Settings → Wake Word Detection is ON
 
 ### Issue: Too many false positives
 
 **Solution:**
-- Decrease `WAKE_WORD_SENSITIVITY` (try 0.3-0.4)
+- Edit `~/LedgerAI/data/app_settings.json` and decrease `wake_word_sensitivity` (try 0.3-0.4)
 - Ensure quiet environment
 - Consider training custom model with your voice
 
