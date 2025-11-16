@@ -84,6 +84,14 @@ else:
 # === TTS config ===
 SENTENCE_QUEUE = queue.Queue()
 playback_lock = threading.Lock()
+# Batching: Accumulate chunks before sending to TTS (reduces API calls)
+TTS_BATCH_ENABLED = os.getenv("TTS_BATCH_ENABLED", "true").lower() == "true"
+TTS_BATCH_MAX_WORDS = int(os.getenv("TTS_BATCH_MAX_WORDS", "150"))  # Max words per batch
+TTS_BATCH_MAX_CHUNKS = int(os.getenv("TTS_BATCH_MAX_CHUNKS", "4"))  # Max chunks per batch
+TTS_BATCH_TIMEOUT = float(os.getenv("TTS_BATCH_TIMEOUT", "0.5"))  # Seconds to wait for more chunks
+_batch_buffer = []  # Buffer for batching chunks
+_batch_lock = threading.Lock()
+_batch_timer = None  # Timer for delayed flush
 tts_limit_raw = os.getenv("TTS_TOKEN_LIMIT")
 if tts_limit_raw is None or not tts_limit_raw.strip().isdigit() or int(tts_limit_raw) <= 0:
     raise RuntimeError(
@@ -157,7 +165,11 @@ def preprocess_for_tts(text):
     return text.strip()
 
 def enqueue_tts_chunk(text):
-    global pending_initials
+    """
+    Enqueue TTS chunk with optional batching to reduce API calls.
+    If batching is enabled, accumulates chunks until threshold or timeout.
+    """
+    global pending_initials, _batch_buffer
     
     # Check if this should be merged with pending initials
     if pending_initials:
@@ -172,8 +184,9 @@ def enqueue_tts_chunk(text):
             merged_text = pending_initials + " " + text
             pending_initials = None
             if merged_text and not re.match(r"^[\s.,!?]+$", merged_text):
-                SENTENCE_QUEUE.put(merged_text.strip())
-            return
+                text = merged_text.strip()
+            else:
+                return
     
     # Check if this text ends with initials
     initials_pattern = r'\b[A-Z]\.(?:[A-Z]\.)*\s*$'
@@ -182,8 +195,58 @@ def enqueue_tts_chunk(text):
         return  # Don't enqueue this yet, wait for the name
     
     # Normal enqueue
-    if text and not re.match(r"^[\s.,!?]+$", text):
-        SENTENCE_QUEUE.put(text.strip())
+    if not text or re.match(r"^[\s.,!?]+$", text):
+        return
+    
+    text = text.strip()
+    
+    # Batching: Accumulate chunks to reduce API calls
+    if TTS_BATCH_ENABLED:
+        global _batch_timer
+        with _batch_lock:
+            _batch_buffer.append(text)
+            total_words = sum(len(chunk.split()) for chunk in _batch_buffer)
+            total_chunks = len(_batch_buffer)
+            
+            # Check if we should flush the batch immediately
+            should_flush = (
+                total_words >= TTS_BATCH_MAX_WORDS or
+                total_chunks >= TTS_BATCH_MAX_CHUNKS
+            )
+            
+            if should_flush:
+                # Cancel any pending timer
+                if _batch_timer:
+                    _batch_timer.cancel()
+                    _batch_timer = None
+                
+                # Join chunks with spaces
+                batched_text = " ".join(_batch_buffer)
+                SENTENCE_QUEUE.put(batched_text)
+                _batch_buffer = []
+                print(f"[Speaker] 📦 Batched {total_chunks} chunks ({total_words} words) into single TTS request")
+            else:
+                # Cancel existing timer and start a new one (reset timeout)
+                if _batch_timer:
+                    _batch_timer.cancel()
+                _batch_timer = threading.Timer(TTS_BATCH_TIMEOUT, _flush_batch_if_ready)
+                _batch_timer.start()
+    else:
+        # No batching - send immediately
+        SENTENCE_QUEUE.put(text)
+
+def _flush_batch_if_ready():
+    """Flush the batch buffer if it has content"""
+    global _batch_buffer, _batch_timer
+    with _batch_lock:
+        if _batch_buffer:
+            batched_text = " ".join(_batch_buffer)
+            total_words = sum(len(chunk.split()) for chunk in _batch_buffer)
+            total_chunks = len(_batch_buffer)
+            SENTENCE_QUEUE.put(batched_text)
+            _batch_buffer = []
+            _batch_timer = None
+            print(f"[Speaker] 📦 Flushed batch ({total_chunks} chunks, {total_words} words) after timeout")
 
 def merge_initials_with_names(text):
     """Post-process text to merge initials with names that might have been split"""
@@ -588,8 +651,15 @@ def speak_llm_response(prompt, context=""):
             clean_text = re.sub(r'<sentence_start>|<sentence_end>', '', chunk_text).strip()
             if clean_text:
                 enqueue_tts_chunk(clean_text)
+        
+        # Flush any remaining batched chunks when streaming ends
+        if TTS_BATCH_ENABLED:
+            _flush_batch_if_ready()
     except Exception as e:
         print(f"[LLM] ❌ Streaming error: {e}")
+        # Flush batch even on error to avoid losing buffered chunks
+        if TTS_BATCH_ENABLED:
+            _flush_batch_if_ready()
 
 # === Warmup ===
 def warm_up_tts():
