@@ -76,8 +76,18 @@ class PorcupineWakeWord:
             else:
                 # Try to use built-in keywords
                 try:
-                    # Check available keywords
-                    available_keywords = pvporcupine.KEYWORDS
+                    # Check available keywords (KEYWORDS is a set, not a dict)
+                    if hasattr(pvporcupine, 'KEYWORDS'):
+                        # KEYWORDS might be a set or dict
+                        if isinstance(pvporcupine.KEYWORDS, set):
+                            available_keywords = pvporcupine.KEYWORDS
+                        elif isinstance(pvporcupine.KEYWORDS, dict):
+                            available_keywords = set(pvporcupine.KEYWORDS.keys())
+                        else:
+                            available_keywords = set(pvporcupine.KEYWORDS)
+                    else:
+                        # Fallback: try common keywords directly
+                        available_keywords = set()
                     
                     # Try common wake word phrases
                     wake_phrases = ['hey aura', 'hey aura assistant', 'aura']
@@ -95,16 +105,36 @@ class PorcupineWakeWord:
                         )
                         print(f"[Wake Word] ✅ Porcupine initialized with built-in keyword: '{found_keyword}'")
                     else:
-                        # No built-in keyword found - need custom model
-                        print("[Wake Word] ❌ No built-in 'hey aura' keyword found")
-                        print("[Wake Word] 💡 Options:")
-                        print("[Wake Word]    1. Train custom model at: https://console.picovoice.ai/")
-                        print("[Wake Word]    2. Download .ppn file and set WAKE_WORD_MODEL_PATH in .env")
-                        print("[Wake Word]    3. Use closest available keyword (e.g., 'hey siri', 'hey google')")
-                        return False
+                        # No built-in "hey aura" found - try fallback keywords for testing
+                        fallback_keywords = ['hey siri', 'hey google', 'computer', 'porcupine', 'picovoice']
+                        fallback_found = None
+                        
+                        for keyword in fallback_keywords:
+                            if keyword in available_keywords:
+                                fallback_found = keyword
+                                break
+                        
+                        if fallback_found:
+                            print(f"[Wake Word] ⚠️  'hey aura' not found, using fallback: '{fallback_found}'")
+                            print(f"[Wake Word] 💡 Train custom 'hey aura' model at: https://console.picovoice.ai/")
+                            self.porcupine = pvporcupine.create(
+                                keywords=[fallback_found],
+                                sensitivities=[self.sensitivity]
+                            )
+                            print(f"[Wake Word] ✅ Porcupine initialized with fallback keyword: '{fallback_found}'")
+                        else:
+                            # No built-in keyword found - need custom model
+                            print("[Wake Word] ❌ No built-in 'hey aura' keyword found")
+                            print(f"[Wake Word] 📋 Available keywords: {sorted(list(available_keywords))[:10]}...")
+                            print("[Wake Word] 💡 Options:")
+                            print("[Wake Word]    1. Train custom model at: https://console.picovoice.ai/")
+                            print("[Wake Word]    2. Download .ppn file and set wake_word_model_path in app_settings.json")
+                            return False
                         
                 except Exception as e:
                     print(f"[Wake Word] ❌ Failed to initialize with built-in keywords: {e}")
+                    import traceback
+                    traceback.print_exc()
                     print("[Wake Word] 💡 Train custom model at: https://console.picovoice.ai/")
                     return False
             

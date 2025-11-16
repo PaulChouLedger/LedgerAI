@@ -522,8 +522,23 @@ def listen():
     display_hardware_config(config)
     
     # Initialize wake word detector (if enabled)
+    # Check if wake word is enabled in settings (even if detector fails to initialize)
+    try:
+        from state import get_wake_word_enabled
+        wake_word_setting_enabled = get_wake_word_enabled()
+    except ImportError:
+        wake_word_setting_enabled = False
+    
     wake_word_detector = create_wake_word_detector()
-    wake_word_enabled = wake_word_detector is not None
+    # wake_word_enabled should be True if:
+    # 1. Detector initialized successfully, OR
+    # 2. Wake word is enabled in settings (even if detector failed - we'll block transcription)
+    wake_word_enabled = (wake_word_detector is not None) or wake_word_setting_enabled
+    
+    if wake_word_setting_enabled and wake_word_detector is None:
+        print("[Wake Word] ⚠️  Wake word enabled in settings but detector failed to initialize")
+        print("[Wake Word] 🔒 Transcription will be BLOCKED until wake word detector is fixed")
+        print("[Wake Word] 💡 Check logs above for initialization errors")
     
     if wake_word_enabled:
         print("\n" + "="*70)
@@ -605,7 +620,8 @@ def listen():
                     listening_active = False  # Reset after TTS
                 
                 # === STAGE 1: Wake Word Detection (if enabled) ===
-                if wake_word_enabled and not listening_active:
+                # Only process wake word if detector is actually available
+                if wake_word_enabled and not listening_active and wake_word_detector is not None:
                     try:
                         audio_block, _ = stream.read(FRAME_SIZE)
                         channel_audio = audio_block[:, MICROPHONE_CHANNEL]
@@ -636,6 +652,13 @@ def listen():
                                 # Detect wake word
                                 wake_detected, confidence = wake_word_detector.process(wake_word_frame)
                                 
+                                # Debug output (only every 100 frames to avoid spam)
+                                if not hasattr(wake_word_detector, '_debug_counter'):
+                                    wake_word_detector._debug_counter = 0
+                                wake_word_detector._debug_counter += 1
+                                if wake_word_detector._debug_counter % 100 == 0:
+                                    print(f"[Wake Word] 🔍 Listening... (frame {wake_word_detector._debug_counter})", end="\r")
+                                
                                 if wake_detected:
                                     print(f"\n[Wake Word] ✅ Wake word detected! (confidence: {confidence:.2f})")
                                     listening_active = True
@@ -661,16 +684,26 @@ def listen():
                                 # Not enough samples yet, continue buffering
                                 pass
                         else:
-                            # Wake word detector not properly initialized, skip
+                            # Wake word detector not properly initialized
+                            if not hasattr(wake_word_detector, '_warned_init'):
+                                print(f"[Wake Word] ⚠️ Detector not initialized: frame_length={getattr(wake_word_detector, 'frame_length', None)}")
+                                wake_word_detector._warned_init = True
                             wake_word_buffer = []
                             
                     except Exception as e:
                         print(f"[Wake Word] ⚠️ Error: {e}")
+                        import traceback
+                        traceback.print_exc()
                         wake_word_buffer = []
                         continue
                 
                 # === STAGE 2: VAD + Speech Processing (only after wake word or if wake word disabled) ===
-                if not wake_word_enabled or listening_active:
+                # Only allow transcription if:
+                # 1. Wake word is disabled in settings, OR
+                # 2. Wake word was detected (listening_active = True)
+                # If wake word is enabled but detector failed, block transcription
+                allow_transcription = (not wake_word_setting_enabled) or listening_active
+                if allow_transcription:
                     buffer = []
                     silence_start = None
                     last_vad_reset = time.time()  # Track last VAD reset to prevent decay
