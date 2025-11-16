@@ -108,6 +108,8 @@ class WelcomeSetupDialog(QDialog):
         
         # Ensure resources are freed when closed
         self.setAttribute(Qt.WA_DeleteOnClose, True)
+        # Enable smoother compositing for opacity transitions
+        self.setAttribute(Qt.WA_TranslucentBackground, True)
         
         # Initialize opacity to 0 for fade-in
         self.setWindowOpacity(0.0)
@@ -168,8 +170,8 @@ class WelcomeSetupDialog(QDialog):
         self.wifi_connected = False
         self.check_wifi_connection()
         
-        # Auto-scan on startup
-        QTimer.singleShot(500, self.scan_wifi)
+        # Auto-scan on startup (kept minimal; also re-triggered post fade-in)
+        QTimer.singleShot(300, self.scan_wifi)
     
     def showEvent(self, event):
         """Handle dialog show event with smooth fade-in animation"""
@@ -177,10 +179,15 @@ class WelcomeSetupDialog(QDialog):
         
         # Create smooth fade-in animation
         self.fade_in = QPropertyAnimation(self, b"windowOpacity")
-        self.fade_in.setDuration(250)
+        self.fade_in.setDuration(300)
         self.fade_in.setStartValue(0.0)
         self.fade_in.setEndValue(1.0)
-        self.fade_in.setEasingCurve(QEasingCurve.OutCubic)
+        self.fade_in.setEasingCurve(QEasingCurve.InOutCubic)
+        # Start scanning shortly after fade-in to avoid stutter
+        try:
+            self.fade_in.finished.connect(lambda: QTimer.singleShot(100, self.scan_wifi))
+        except Exception:
+            pass
         self.fade_in.start()
         
         self.raise_()
@@ -207,10 +214,10 @@ class WelcomeSetupDialog(QDialog):
             self.fade_in.stop()
         
         self.fade_out = QPropertyAnimation(self, b"windowOpacity")
-        self.fade_out.setDuration(200)
+        self.fade_out.setDuration(250)
         self.fade_out.setStartValue(self.windowOpacity())
         self.fade_out.setEndValue(0.0)
-        self.fade_out.setEasingCurve(QEasingCurve.InCubic)
+        self.fade_out.setEasingCurve(QEasingCurve.InOutCubic)
         self.fade_out.finished.connect(lambda: event.accept())
         self.fade_out.start()
         event.ignore()

@@ -407,6 +407,9 @@ class SettingsDialog(QDialog):
         else:
             self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
         
+        # Enable smoother compositing for opacity transitions
+        self.setAttribute(Qt.WA_TranslucentBackground, True)
+        
         self.setStyleSheet("""
             QDialog {
                 background-color: rgba(28, 28, 30, 1.0);
@@ -456,10 +459,10 @@ class SettingsDialog(QDialog):
         
         # Create smooth fade-in animation
         self.fade_in = QPropertyAnimation(self, b"windowOpacity")
-        self.fade_in.setDuration(250)  # 250ms for smooth transition
+        self.fade_in.setDuration(300)  # Slightly longer for smoother feel
         self.fade_in.setStartValue(0.0)
         self.fade_in.setEndValue(1.0)
-        self.fade_in.setEasingCurve(QEasingCurve.OutCubic)  # Smooth ease-out
+        self.fade_in.setEasingCurve(QEasingCurve.InOutCubic)  # Smooth ease-in/out
         self.fade_in.start()
         
         # Ensure dialog is raised and focused
@@ -479,10 +482,10 @@ class SettingsDialog(QDialog):
         
         # Create smooth fade-out animation
         self.fade_out = QPropertyAnimation(self, b"windowOpacity")
-        self.fade_out.setDuration(200)  # 200ms for quick but smooth fade-out
+        self.fade_out.setDuration(250)  # Slightly longer for smoother feel
         self.fade_out.setStartValue(self.windowOpacity())
         self.fade_out.setEndValue(0.0)
-        self.fade_out.setEasingCurve(QEasingCurve.InCubic)  # Smooth ease-in
+        self.fade_out.setEasingCurve(QEasingCurve.InOutCubic)  # Symmetric easing
         
         # Connect finished signal to actually close the dialog
         self.fade_out.finished.connect(lambda: event.accept())

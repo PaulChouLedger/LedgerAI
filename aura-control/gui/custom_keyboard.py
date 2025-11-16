@@ -27,6 +27,9 @@ class CircularKeyboard(QDialog):
         else:
             self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
         
+        # Enable smoother compositing for opacity transitions
+        self.setAttribute(Qt.WA_TranslucentBackground, True)
+        
         # Circular dark theme
         self.setStyleSheet("""
             QDialog {

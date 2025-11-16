@@ -64,6 +64,8 @@ class WalletDialog(QDialog):
         
         # Ensure resources are freed on close
         self.setAttribute(Qt.WA_DeleteOnClose, True)
+        # Enable smoother compositing for opacity transitions
+        self.setAttribute(Qt.WA_TranslucentBackground, True)
         
         # Apply dark theme styling - match upload dialog exactly
         self.setStyleSheet("""
@@ -118,9 +120,9 @@ class WalletDialog(QDialog):
         # Center the dialog on the actual screen
         self.center_dialog()
         
-        # Load balance in background (non-blocking, happens after dialog is visible)
-        QTimer.singleShot(100, self.refresh_balance_async)  # Small delay to ensure dialog is shown first
-        
+        # Defer initial background work until after fade-in (set in showEvent)
+        self._initial_refresh_scheduled = False
+
         # Auto-refresh timer for balance updates (Ethereum queries)
         self.balance_refresh_timer = QTimer()
         self.balance_refresh_timer.timeout.connect(self.refresh_balance_async)
@@ -653,10 +655,14 @@ class WalletDialog(QDialog):
         
         # Create smooth fade-in animation
         self.fade_in = QPropertyAnimation(self, b"windowOpacity")
-        self.fade_in.setDuration(250)  # 250ms for smooth transition
+        self.fade_in.setDuration(300)  # Slightly longer for smoother feel
         self.fade_in.setStartValue(0.0)
         self.fade_in.setEndValue(1.0)
-        self.fade_in.setEasingCurve(QEasingCurve.OutCubic)  # Smooth ease-out
+        self.fade_in.setEasingCurve(QEasingCurve.InOutCubic)  # Smooth ease-in/out
+        # After fade-in completes, start the initial refresh to avoid jank
+        if not self._initial_refresh_scheduled:
+            self._initial_refresh_scheduled = True
+            self.fade_in.finished.connect(lambda: QTimer.singleShot(50, self.refresh_balance_async))
         self.fade_in.start()
         
         # Ensure dialog is raised and focused
@@ -802,10 +808,10 @@ class WalletDialog(QDialog):
         
         # Create smooth fade-out animation
         self.fade_out = QPropertyAnimation(self, b"windowOpacity")
-        self.fade_out.setDuration(200)  # 200ms for quick but smooth fade-out
+        self.fade_out.setDuration(250)  # Slightly longer for smoother feel
         self.fade_out.setStartValue(self.windowOpacity())
         self.fade_out.setEndValue(0.0)
-        self.fade_out.setEasingCurve(QEasingCurve.InCubic)  # Smooth ease-in
+        self.fade_out.setEasingCurve(QEasingCurve.InOutCubic)  # Symmetric easing
         
         # Connect finished signal to actually close and free dialog
         def _finalize_close():
