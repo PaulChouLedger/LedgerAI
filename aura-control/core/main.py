@@ -1221,25 +1221,31 @@ def main():
     
     # Now import speaker module AFTER WiFi is connected (avoids ElevenLabs API connection failure)
     print("[Aura] 🔊 Initializing TTS (speaker module)...")
+    speaker_loaded = False
     try:
         import speaker  # ✅ Starts TTS playback loop and queue
+        speaker_loaded = True
         print("[Aura] ✅ TTS initialized successfully")
     except RuntimeError as e:
         print(f"[Aura] ⚠️ TTS initialization failed: {e}")
         print("[Aura] 💡 This is expected if WiFi is not connected")
         print("[Aura] 💡 Connect WiFi via Settings and restart Aura")
+        speaker_loaded = False
         # Continue anyway - Aura can work without TTS for testing
     except Exception as e:
         print(f"[Aura] ⚠️ TTS initialization error: {e}")
         import traceback
         traceback.print_exc()
+        speaker_loaded = False
     
     # Start TTS warm-up (only if speaker was imported successfully)
-    try:
-        if 'speaker' in sys.modules:
+    if speaker_loaded:
+        try:
             warm_up_tts()
-    except NameError:
-        print("[Aura] ⚠️ warm_up_tts not available (speaker not loaded)")
+        except Exception as e:
+            print(f"[Aura] ⚠️ TTS warm-up failed: {e}")
+    else:
+        print("[Aura] ⚠️ TTS not available (speaker module not loaded)")
     
     # Check for new medical guidelines (but don't rebuild embeddings yet if found)
     # This is quick - just checks if new JSONs exist

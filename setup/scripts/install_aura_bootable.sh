@@ -864,6 +864,8 @@ ExecStartPre=/bin/bash -c 'SOCKET=\$(ls /tmp/.X11-unix/ 2>/dev/null | grep "^X" 
 ExecStartPre=/bin/bash -c 'SOCKET=\$(ls /tmp/.X11-unix/ 2>/dev/null | grep "^X" | head -1); if [ -n "\$SOCKET" ]; then NUM=\$(echo "\$SOCKET" | sed "s/X//"); export DISPLAY=:\$NUM; else export DISPLAY=:0; fi; gsettings set org.gnome.desktop.screensaver lock-enabled false 2>/dev/null || true'
 ExecStartPre=/bin/bash -c 'SOCKET=\$(ls /tmp/.X11-unix/ 2>/dev/null | grep "^X" | head -1); if [ -n "\$SOCKET" ]; then NUM=\$(echo "\$SOCKET" | sed "s/X//"); export DISPLAY=:\$NUM; else export DISPLAY=:0; fi; gsettings set org.gnome.desktop.lockdown disable-lock-screen true 2>/dev/null || true'
 ExecStartPre=/bin/bash -c 'SOCKET=\$(ls /tmp/.X11-unix/ 2>/dev/null | grep "^X" | head -1); if [ -n "\$SOCKET" ]; then NUM=\$(echo "\$SOCKET" | sed "s/X//"); export DISPLAY=:\$NUM; else export DISPLAY=:0; fi; gsettings set org.gnome.desktop.screensaver idle-activation-enabled false 2>/dev/null || true'
+# Set default audio output (UACDemoV1.0) on every boot - ALSA and PulseAudio
+ExecStartPre=$LEDGERAI_DIR/setup/scripts/set_default_audio_on_boot.sh
 ExecStartPre=/bin/sleep 5
 ExecStart=$VENV_DIR/bin/python3 $LEDGERAI_DIR/aura-control/core/main.py
 Restart=always
@@ -984,6 +986,12 @@ EOF
     sudo udevadm control --reload-rules
     sudo udevadm trigger
     print_info "Udev rules created"
+fi
+
+# Make audio setup script executable
+if [ -f "$LEDGERAI_DIR/setup/scripts/set_default_audio_on_boot.sh" ]; then
+    chmod +x "$LEDGERAI_DIR/setup/scripts/set_default_audio_on_boot.sh"
+    print_info "✅ Audio setup script made executable"
 fi
 
 # Set default ALSA device to UACDemoV1.0 (if present)
