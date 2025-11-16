@@ -7,6 +7,7 @@ import soundfile as sf
 import sounddevice as sd
 import requests
 import subprocess
+import re
 from scipy.fft import rfft, rfftfreq
 # Set up proper imports for organized structure
 import os
@@ -385,11 +386,52 @@ def send_to_llm(text):
     speak_llm_response(text)
 
 # === Welcome Prompt ===
+def detect_output_device_for_welcome():
+    """Auto-detect audio output device for welcome prompt (same logic as speaker.py)"""
+    try:
+        output = subprocess.check_output(["aplay", "-l"], text=True)
+        # First, try to find UACDemoV1.0
+        for line in output.splitlines():
+            if "UACDemoV1.0" in line:
+                match = re.search(r"card (\d+):", line)
+                if match:
+                    card_num = int(match.group(1))
+                    return f"plughw:{card_num},0"  # Use plug plugin for format conversion
+        
+        # Fallback: find any USB audio device with output
+        for line in output.splitlines():
+            if "USB Audio" in line and ("0 in" in line or "out" in line):
+                match = re.search(r"card (\d+):", line)
+                if match:
+                    card_num = int(match.group(1))
+                    return f"plughw:{card_num},0"  # Use plug plugin for format conversion
+        
+        # No USB device found - use default with plug plugin
+        return "plug:default"
+    except Exception as e:
+        print(f"[Listener] ⚠️ Failed to detect output device for welcome: {e}")
+        return "default"
+
 def play_welcome_prompt(stream):
     try:
         print("[Aura] 🔊 Playing welcome prompt...")
         stream.stop()
-        subprocess.run(["aplay", WELCOME_AUDIO_PATH], check=False)
+        
+        # Detect output device (same as speaker module)
+        output_device = detect_output_device_for_welcome()
+        print(f"[Aura] 🔊 Using output device: {output_device}")
+        
+        # Use plughw or plug:default for automatic format conversion (44100 Hz mono -> device format)
+        # Welcome audio is 44100 Hz mono, device might need different format
+        cmd = ["aplay", "-D", output_device, WELCOME_AUDIO_PATH]
+        result = subprocess.run(cmd, check=False, capture_output=True, text=True)
+        
+        if result.returncode != 0:
+            print(f"[Aura] ⚠️ aplay failed with device {output_device}: {result.stderr}")
+            # Fallback to default device
+            print(f"[Aura] 🔄 Trying default device...")
+            subprocess.run(["aplay", "-D", "default", WELCOME_AUDIO_PATH], check=False)
+        
         time.sleep(0.25)
         stream.start()
         
@@ -412,6 +454,8 @@ def play_welcome_prompt(stream):
             pass
     except Exception as e:
         print(f"[Aura] ❌ Failed to play welcome prompt: {e}")
+        import traceback
+        traceback.print_exc()
 
 # === Main Loop ===
 def listen():
