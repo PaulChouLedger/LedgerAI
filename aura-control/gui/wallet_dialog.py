@@ -56,10 +56,14 @@ class WalletDialog(QDialog):
         if parent:
             # If we have a parent, use Dialog flag for proper modal behavior
             self.setWindowFlags(Qt.Dialog | Qt.FramelessWindowHint)
-            self.setModal(True)  # Make it modal to block parent interaction
+            # Keep non-modal to avoid freezing/transcription blocking
+            self.setModal(False)
         else:
             # If no parent, stay on top
             self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
+        
+        # Ensure resources are freed on close
+        self.setAttribute(Qt.WA_DeleteOnClose, True)
         
         # Apply dark theme styling - match upload dialog exactly
         self.setStyleSheet("""
@@ -756,8 +760,31 @@ class WalletDialog(QDialog):
     def closeEvent(self, event):
         """Handle dialog close event with smooth fade-out animation"""
         # Stop timers first
-        self.balance_refresh_timer.stop()
-        self.usage_refresh_timer.stop()
+        try:
+            self.balance_refresh_timer.stop()
+            self.usage_refresh_timer.stop()
+        except Exception:
+            pass
+        
+        # Gracefully stop background worker if running
+        try:
+            if hasattr(self, "balance_worker") and self.balance_worker and self.balance_worker.isRunning():
+                try:
+                    self.balance_worker.balance_ready.disconnect(self.on_balance_ready)
+                except Exception:
+                    pass
+                self.balance_worker.quit()
+                self.balance_worker.wait(1000)
+                self.balance_worker = None
+        except Exception:
+            pass
+        
+        # Ensure dialog is non-modal during shutdown
+        try:
+            self.setModal(False)
+            self.setWindowModality(Qt.NonModal)
+        except Exception:
+            pass
         
         # If already animating or not visible, accept immediately
         if hasattr(self, 'fade_out') and self.fade_out.state() == QPropertyAnimation.Running:
@@ -780,8 +807,15 @@ class WalletDialog(QDialog):
         self.fade_out.setEndValue(0.0)
         self.fade_out.setEasingCurve(QEasingCurve.InCubic)  # Smooth ease-in
         
-        # Connect finished signal to actually close the dialog
-        self.fade_out.finished.connect(lambda: event.accept())
+        # Connect finished signal to actually close and free dialog
+        def _finalize_close():
+            try:
+                self.hide()
+                self.deleteLater()
+            except Exception:
+                pass
+            event.accept()
+        self.fade_out.finished.connect(_finalize_close)
         self.fade_out.start()
         
         # Prevent immediate close

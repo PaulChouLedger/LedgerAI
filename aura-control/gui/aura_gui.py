@@ -314,32 +314,33 @@ class AuraGUI(QMainWindow):
         """Handle analytics button click - show wallet & token balance"""
         print("[AuraGUI] 📊 Analytics button clicked - opening wallet dialog")
         
-        # Block transcription while dialog is open
-        try:
-            from listener import block_transcription, unblock_transcription
-            block_transcription("Wallet dialog open")
-        except ImportError:
-            print("[AuraGUI] ⚠️ Could not import listener blocking functions")
-        
         try:
             from gui.wallet_dialog import WalletDialog
-
-            # Create and show wallet dialog (modal, like upload dialog)
-            dialog = WalletDialog(parent=self)
-            dialog.exec_()  # Modal blocking call, same as upload dialog
             
-            print("[AuraGUI] ✅ Wallet dialog closed")
+            # Keep a reference so it's not garbage-collected
+            if not hasattr(self, "_wallet_dialog") or self._wallet_dialog is None:
+                self._wallet_dialog = WalletDialog(parent=self)
+            else:
+                # If an old dialog exists, close it and recreate
+                try:
+                    self._wallet_dialog.close()
+                except Exception:
+                    pass
+                self._wallet_dialog = WalletDialog(parent=self)
+            
+            # Show non-modally to avoid blocking GUI/transcription
+            self._wallet_dialog.show()
+            self._wallet_dialog.raise_()
+            self._wallet_dialog.activateWindow()
+            print("[AuraGUI] ✅ Wallet dialog shown (non-modal)")
         except ImportError as e:
             print(f"[AuraGUI] ❌ Wallet dialog not available: {e}")
             print(f"[AuraGUI] 💡 Install web3: pip install web3")
         except Exception as e:
             print(f"[AuraGUI] ❌ Error opening wallet dialog: {e}")
         finally:
-            # Always unblock transcription when done
-            try:
-                unblock_transcription()
-            except:
-                pass
+            # Do not block/unblock transcription for wallet dialog anymore
+            pass
     
     def _handle_voice(self):
         """Handle voice button click - toggle transcription blocking"""

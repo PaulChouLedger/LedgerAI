@@ -728,6 +728,56 @@ print_info "Boot logo configuration complete (reboot required for full effect)"
 echo ""
 
 # ============================================================================
+# Step 6.8: Configure WiFi privileges (allow nmcli without password)
+# ============================================================================
+print_step "6.8. Configuring WiFi privileges (Polkit rule for nmcli)..."
+
+# Create a dedicated group for NetworkManager privileged actions
+if ! getent group nm-authed >/dev/null; then
+    print_info "Creating group: nm-authed"
+    sudo groupadd nm-authed
+else
+    print_info "Group nm-authed already exists"
+fi
+
+# Add Aura user to the group
+if groups "$AURA_USER" | grep -q "\bnm-authed\b"; then
+    print_info "User $AURA_USER already in nm-authed group"
+else
+    print_info "Adding $AURA_USER to nm-authed group"
+    sudo usermod -aG nm-authed "$AURA_USER"
+    print_warning "You must logout/login (or reboot) for group changes to take effect"
+fi
+
+# Install Polkit rule to allow users in nm-authed to perform NetworkManager actions
+POLKIT_RULE="/etc/polkit-1/rules.d/10-allow-nmcli.rules"
+if [ ! -f "$POLKIT_RULE" ]; then
+    print_info "Creating Polkit rule at $POLKIT_RULE"
+    sudo tee "$POLKIT_RULE" >/dev/null <<'EORULE'
+polkit.addRule(function(action, subject) {
+  if ((action.id.indexOf("org.freedesktop.NetworkManager") === 0) &&
+      subject.isInGroup("nm-authed")) {
+    return polkit.Result.YES;
+  }
+});
+EORULE
+    sudo chmod 0644 "$POLKIT_RULE"
+    print_info "✅ Polkit rule installed"
+else
+    print_info "Polkit rule already exists at $POLKIT_RULE"
+fi
+
+# Restart polkit to apply rule immediately (safe if present)
+if systemctl list-unit-files | grep -q polkit; then
+    print_info "Restarting polkit service to apply rule..."
+    sudo systemctl restart polkit || true
+fi
+
+print_warning "If nmcli still prompts for authorization, logout/login (or reboot) to apply group membership."
+
+echo ""
+
+# ============================================================================
 # Step 7: Install XVF3800 tuning service
 # ============================================================================
 print_step "7. Installing XVF3800 tuning service..."
