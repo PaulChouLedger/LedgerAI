@@ -1056,7 +1056,9 @@ class AdvancedMedicalNavigator:
         )
         
         available_conditions = self._get_conditions_from_guidelines(categories)
-        available_conditions_str = ', '.join(available_conditions[:20])  # Show sample for context
+        # _get_conditions_from_guidelines returns a dict of {condition: score}; use keys
+        available_sample = list(available_conditions.keys())[:20]
+        available_conditions_str = ', '.join(available_sample)  # Show sample for context
         
         user_prompt = (
             f"Chief complaint: '{chief_complaint}'\n"
