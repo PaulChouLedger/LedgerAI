@@ -6,12 +6,28 @@ Test Porcupine installation and check available keywords
 try:
     import pvporcupine
     print("✅ Porcupine imported successfully!")
-    print(f"   Version: {pvporcupine.__version__}")
+    
+    # Try to get version (may not be available in all versions)
+    try:
+        version = pvporcupine.__version__
+        print(f"   Version: {version}")
+    except AttributeError:
+        print("   Version: (not available in this build)")
     print()
     
     # Check available keywords
     print("📋 Available built-in keywords:")
-    keywords = list(pvporcupine.KEYWORDS.keys())
+    try:
+        keywords = list(pvporcupine.KEYWORDS.keys())
+    except AttributeError:
+        # Try alternative way to get keywords
+        keywords = []
+        if hasattr(pvporcupine, 'KEYWORDS'):
+            keywords = list(pvporcupine.KEYWORDS.keys())
+        else:
+            print("   ⚠️  KEYWORDS attribute not found")
+            print("   This may be a source build - you'll need a custom model")
+            keywords = []
     if keywords:
         for i, keyword in enumerate(keywords[:20], 1):  # Show first 20
             print(f"   {i}. {keyword}")
