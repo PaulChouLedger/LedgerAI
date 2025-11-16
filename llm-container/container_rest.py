@@ -24,8 +24,11 @@ LLM_TOP_P = 0.95
 LLM_TOP_K = 40
 LLM_REPEAT_PENALTY = 1.1
 LLM_NUM_PREDICT_DEFAULT = 300
-SIMPLE_N_CTX = 2048
+SIMPLE_N_CTX = 1024
 SIMPLE_CHAT_FORMAT = "qwen"
+N_THREADS = 8
+N_BATCH = 512
+CACHE_PROMPT = True
 
 # RAG Mode toggle: "CPU", "GPU", or "OFF" (resolved from app_settings.json if present)
 def _resolve_rag_mode():
@@ -432,7 +435,12 @@ if __name__ == "__main__":
     llm_simple = Llama(
         model_path=SIMPLE_MODEL_PATH,
         n_ctx=SIMPLE_N_CTX,
+        n_threads=N_THREADS,
+        n_batch=N_BATCH,
+        cache_prompt=CACHE_PROMPT,
         chat_format=SIMPLE_CHAT_FORMAT,
+        use_mlock=True,
+        use_mmap=True,
         verbose=False
     )
     print(f"[Generic] ✅ Model loaded: {SIMPLE_MODEL_PATH}")

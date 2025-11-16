@@ -87,9 +87,9 @@ playback_lock = threading.Lock()
 # Batching: Accumulate chunks before sending to TTS (reduces API calls)
 TTS_BATCH_ENABLED = os.getenv("TTS_BATCH_ENABLED", "true").lower() == "true"
 TTS_BATCH_MAX_WORDS = int(os.getenv("TTS_BATCH_MAX_WORDS", "50"))  # Max words per batch (very aggressive for low latency)
-TTS_BATCH_MIN_WORDS = int(os.getenv("TTS_BATCH_MIN_WORDS", "30"))  # Min words to start first batch (triggers immediately)
-TTS_BATCH_MAX_CHUNKS = int(os.getenv("TTS_BATCH_MAX_CHUNKS", "2"))  # Max chunks per batch (reduced for faster flush)
-TTS_BATCH_TIMEOUT = float(os.getenv("TTS_BATCH_TIMEOUT", "0.1"))  # Seconds to wait for more chunks (very short)
+TTS_BATCH_MIN_WORDS = int(os.getenv("TTS_BATCH_MIN_WORDS", "12"))  # Lower to start speaking earlier
+TTS_BATCH_MAX_CHUNKS = int(os.getenv("TTS_BATCH_MAX_CHUNKS", "2"))  # Keep small batches
+TTS_BATCH_TIMEOUT = float(os.getenv("TTS_BATCH_TIMEOUT", "0.05"))  # Cut timeout to reduce gap to first audio
 _batch_buffer = []  # Buffer for batching chunks
 _batch_lock = threading.Lock()
 _batch_timer = None  # Timer for delayed flush

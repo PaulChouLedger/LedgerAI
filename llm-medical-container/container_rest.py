@@ -237,8 +237,11 @@ LLM_REPEAT_PENALTY = 1.1
 LLM_PRESENCE_PENALTY = 0.0
 LLM_FREQUENCY_PENALTY = 0.0
 LLM_NUM_PREDICT_DEFAULT = 220
-SIMPLE_N_CTX = 2048
+SIMPLE_N_CTX = 1024
 SIMPLE_CHAT_FORMAT = "qwen"
+N_THREADS = 8
+N_BATCH = 512
+CACHE_PROMPT = True
 
 # RAG Mode toggle: "CPU", "GPU", or "OFF" (resolved from app_settings.json if present)
 def _resolve_rag_mode():
@@ -931,7 +934,9 @@ if __name__ == "__main__":
         model_path=SIMPLE_MODEL_PATH,
         n_ctx=SIMPLE_N_CTX,
         n_gpu_layers=32,  # Use fewer layers for simple model on Orin32
-        n_threads=6,
+        n_threads=N_THREADS,
+        n_batch=N_BATCH,
+        cache_prompt=CACHE_PROMPT,
         chat_format=SIMPLE_CHAT_FORMAT,
         use_mlock=True,
         use_mmap=True,

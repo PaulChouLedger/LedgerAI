@@ -2,7 +2,8 @@
 # Automatically configures XVF3800 hardware DSP on boot
 #
 # Available Presets (change in ExecStart line):
-#   - agc_20          : HPF 70Hz + AGC with 20% increase (0.096) - DEFAULT ⭐ RECOMMENDED
+#   - agc_20_ec       : agc_20 + Echo Cancellation ON (PP_ECHOONOFF=1) - DEFAULT ⭐ RECOMMENDED
+#   - agc_20          : HPF 70Hz + AGC with 20% increase (0.096)
 #   - agc_10          : HPF 70Hz + AGC with 10% increase (0.088)
 #   - balanced_beam    : HPF 70Hz + AGC (0.08, 30dB)
 #   - agc_only        : AGC only (0.08, 30dB) - no HPF
@@ -31,7 +32,7 @@ Wants=network.target
 Type=oneshot
 RemainAfterExit=yes
 User=aura
-ExecStart=/usr/bin/python3 /home/aura/LedgerAI/setup/scripts/tune_xvf3800.py agc_20
+ExecStart=/usr/bin/python3 /home/aura/LedgerAI/setup/scripts/tune_xvf3800.py agc_20_ec
 StandardOutput=journal
 StandardError=journal
 
