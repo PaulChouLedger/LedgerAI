@@ -604,7 +604,7 @@ def speak_llm_response(prompt, context=""):
             enqueue_tts_chunk("I'm having trouble reaching the language model right now.")
             return
     buffer = []
-        for line in response.iter_lines(decode_unicode=True):
+    for line in response.iter_lines(decode_unicode=True):
             token = line.strip()
             if not token:
                 continue
