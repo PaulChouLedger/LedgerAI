@@ -28,13 +28,17 @@ import subprocess
 import time
 from pathlib import Path
 
-# Detect user's home directory dynamically
-USER_HOME = os.path.expanduser("~")
+# Detect target user's home directory dynamically (works even when run via sudo)
+_sudo_user = os.environ.get("SUDO_USER")
+if _sudo_user:
+    USER_HOME = os.path.expanduser(f"~{_sudo_user}")
+else:
+    USER_HOME = os.path.expanduser("~")
 
-# State file for listener to read - use current user's home directory  
+# State file for listener to read - use target user's home directory  
 CONFIG_STATE_FILE = os.path.join(USER_HOME, 'LedgerAI', 'data', 'xvf3800_config.json')
 
-# Path to xvf_host binary - use current user's home directory
+# Path to xvf_host binary - use target user's home directory
 XVF_HOST_PATH = os.path.join(USER_HOME, 'reSpeaker_XVF3800_USB_4MIC_ARRAY', 'host_control', 'jetson', 'xvf_host')
 
 def run_xvf_command(cmd, *args):
