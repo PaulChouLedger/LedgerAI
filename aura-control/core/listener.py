@@ -39,18 +39,18 @@ ENABLE_ADVANCED_FILTER = True
 
 # Thresholds tuned from empirical testing
 SPEECH_ZCR_MAX = 0.40           # Reject if ZCR > this
-SPEECH_FLATNESS_MAX = 0.45      # Reject if too "flat" (noisy, not tonal) - raised from 0.30 for new firmware
+SPEECH_FLATNESS_MAX = 0.60      # More tolerant of flatness for far-field/quiet speech
 SPEECH_CENTROID_MIN = 300       # Hz - reject if too low (rumble/fan)
 SPEECH_CENTROID_MAX = 3000      # Hz - reject if too high (hiss)
 SPEECH_BAND_MIN = 0.30          # Reject if insufficient energy in speech band
 SPEECH_DURATION_MIN = 0.4       # Seconds - reject if too short (noise bursts)
-SPEECH_HIGH_FREQ_MAX = 0.06     # Reject if high freq ratio > this (hiss/noise)
+SPEECH_HIGH_FREQ_MAX = 0.08     # Allow a bit more high-frequency content
 
 # CRITICAL: Energy thresholds (most reliable discriminators)
 # Updated after firmware tweaks - speech now has lower RMS/Peak values
-SPEECH_RMS_MIN = 0.005          # Reject if RMS < this (updated from 0.035 for new firmware)
+SPEECH_RMS_MIN = 0.0015         # Lower RMS threshold to accept quieter speech
 SPEECH_RMS_MAX = 0.40           # Reject if RMS > this (abnormally loud = likely noise/artifact)
-SPEECH_PEAK_MIN = 0.010         # Reject if peak < this (updated from 0.15 for new firmware)
+SPEECH_PEAK_MIN = 0.003         # Lower peak threshold to accept softer speech
 
 # BARE-BONES: Hardware DSP → Channel 0 → VAD → Advanced Filter → Whisper
 
