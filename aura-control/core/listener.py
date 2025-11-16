@@ -30,7 +30,7 @@ VAD_SILENCE_THRESHOLD = 0.15  # Lower = more conservative about ending
 MIN_AUDIO_SAMPLES = 2000
 
 # === Device Configuration ===
-DEVICE_NAME = "XVF3800 4-Mic Array"
+DEVICE_NAME = "reSpeaker"
 MICROPHONE_CHANNEL = 0  # Channel to use for audio processing (0 or 1, device has 2 channels total)
 
 # === Advanced Multi-Feature Speech Detection ===
