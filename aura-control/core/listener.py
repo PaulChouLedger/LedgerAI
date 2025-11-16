@@ -162,6 +162,14 @@ def calculate_audio_features(audio_chunk, sample_rate=SAMPLE_RATE):
         features['high_freq_ratio'] = high_freq_energy / total_energy
     else:
         features['high_freq_ratio'] = 0
+
+    # Low Frequency Rumble (0-100 Hz) - for diagnostics parity with test script
+    low_freq_mask = fft_freq <= 100
+    low_freq_energy = np.sum(magnitude[low_freq_mask] ** 2)
+    if total_energy > 0:
+        features['low_freq_ratio'] = low_freq_energy / total_energy
+    else:
+        features['low_freq_ratio'] = 0
     
     return features
 
