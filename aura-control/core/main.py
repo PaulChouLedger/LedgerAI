@@ -356,7 +356,13 @@ def wait_for_container(url, name, timeout=15):
 
 # === ElevenLabs warm-up ===
 def warm_up_tts():
-    speaker.warm_up_tts()
+    """Warm up TTS - only if speaker module is available"""
+    try:
+        import speaker
+        speaker.warm_up_tts()
+    except (NameError, ImportError, AttributeError) as e:
+        print(f"[Aura] ⚠️ TTS warm-up not available: {e}")
+        # Speaker module not loaded - this is expected if WiFi wasn't connected
 
 # === LLM warm-up ===
 def warm_up_llm():
