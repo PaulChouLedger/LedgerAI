@@ -33,6 +33,10 @@ print_info() {
     echo -e "${YELLOW}[INFO]${NC} $1"
 }
 
+print_warning() {
+    echo -e "${YELLOW}[WARNING]${NC} $1"
+}
+
 print_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
