@@ -161,6 +161,18 @@ class PorcupineWakeWord:
                             print("[Wake Word]    2. Download .ppn file and set wake_word_model_path in app_settings.json")
                             return False
                         
+                except NotImplementedError as e:
+                    if "Unsupported platform" in str(e):
+                        print(f"[Wake Word] ❌ Platform not supported: {e}")
+                        print("[Wake Word] 💡 The pip-installed pvporcupine doesn't include ARM64 binaries for Jetson")
+                        print("[Wake Word] 💡 Install picovoice package in your virtual environment:")
+                        print("[Wake Word]     pip install picovoice picovoicedemo")
+                        print("[Wake Word] 💡 According to Picovoice docs, it should work on Jetson:")
+                        print("[Wake Word]     https://www.hackster.io/dilek/speech-recognition-for-self-driving-toy-car-on-jetson-57b0aa")
+                        print("[Wake Word] 💡 If that doesn't work, you may need to build from source")
+                    else:
+                        print(f"[Wake Word] ❌ Failed to initialize: {e}")
+                    return False
                 except Exception as e:
                     print(f"[Wake Word] ❌ Failed to initialize with built-in keywords: {e}")
                     import traceback
@@ -179,6 +191,18 @@ class PorcupineWakeWord:
             self.is_active = True
             return True
             
+        except NotImplementedError as e:
+            if "Unsupported platform" in str(e):
+                print(f"[Wake Word] ❌ Platform not supported: {e}")
+                print("[Wake Word] 💡 The pip-installed pvporcupine doesn't include ARM64 binaries for Jetson")
+                print("[Wake Word] 💡 Install picovoice package in your virtual environment:")
+                print("[Wake Word]     pip install picovoice picovoicedemo")
+                print("[Wake Word] 💡 According to Picovoice docs, it should work on Jetson:")
+                print("[Wake Word]     https://www.hackster.io/dilek/speech-recognition-for-self-driving-toy-car-on-jetson-57b0aa")
+                print("[Wake Word] 💡 If that doesn't work, you may need to build from source")
+            else:
+                print(f"[Wake Word] ❌ Failed to initialize: {e}")
+            return False
         except Exception as e:
             print(f"[Wake Word] ❌ Failed to initialize Porcupine: {e}")
             import traceback
