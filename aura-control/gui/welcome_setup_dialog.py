@@ -11,6 +11,7 @@ from PyQt5.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel,
                              QMessageBox, QInputDialog, QLineEdit, QApplication)
 from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer, QPropertyAnimation, QEasingCurve
 from PyQt5.QtGui import QFont
+import shutil
 
 # Add parent directory to path for imports
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -104,6 +105,9 @@ class WelcomeSetupDialog(QDialog):
             self.setModal(True)
         else:
             self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
+        
+        # Ensure resources are freed when closed
+        self.setAttribute(Qt.WA_DeleteOnClose, True)
         
         # Initialize opacity to 0 for fade-in
         self.setWindowOpacity(0.0)
@@ -212,17 +216,23 @@ class WelcomeSetupDialog(QDialog):
         event.ignore()
     
     def center_dialog(self):
-        """Center dialog on screen"""
-        if self.parent():
-            parent_geometry = self.parent().geometry()
-            x = parent_geometry.x() + (parent_geometry.width() - self.width()) // 2
-            y = parent_geometry.y() + (parent_geometry.height() - self.height()) // 2
+        """Center dialog on screen/parent using available geometry and clamp to visible area"""
+        try:
+            if self.parent():
+                parent_geometry = self.parent().geometry()
+                x = parent_geometry.x() + (parent_geometry.width() - self.width()) // 2
+                y = parent_geometry.y() + (parent_geometry.height() - self.height()) // 2
+            else:
+                screen = QApplication.primaryScreen().availableGeometry()
+                x = (screen.width() - self.width()) // 2
+                y = (screen.height() - self.height()) // 2
+            # Clamp to ensure not cut off on small bars/margins
+            x = max(0, x)
+            y = max(0, y)
             self.move(x, y)
-        else:
-            screen = QApplication.primaryScreen().geometry()
-            x = (screen.width() - self.width()) // 2
-            y = (screen.height() - self.height()) // 2
-            self.move(x, y)
+        except Exception:
+            # Fallback
+            self.move(0, 0)
     
     def setup_ui(self):
         """Setup the welcome setup UI"""
@@ -439,31 +449,49 @@ class WelcomeSetupDialog(QDialog):
         self.connect_wifi_btn.setEnabled(False)
         self.connect_wifi_btn.setText("🔄 Connecting...")
         
-        # Connect using nmcli
+        # Connect using nmcli, retrying with pkexec if permission is denied
         try:
+            base_cmd = ['nmcli', 'device', 'wifi', 'connect', ssid]
             if password:
-                cmd = ['nmcli', 'device', 'wifi', 'connect', ssid, 'password', password]
-            else:
-                cmd = ['nmcli', 'device', 'wifi', 'connect', ssid]
+                base_cmd += ['password', password]
+
+            # Attempt without elevation first
+            result = subprocess.run(base_cmd, capture_output=True, text=True, timeout=30)
+
+            if result.returncode != 0:
+                error_msg = (result.stderr or result.stdout or "").strip()
+                needs_priv = any(term in error_msg.lower() for term in [
+                    "permission denied", "not authorized", "authorization failed", "polkit", "not permitted"
+                ])
+
+                if needs_priv and shutil.which("pkexec"):
+                    # Retry with pkexec to trigger GUI auth prompt
+                    pkexec_cmd = ['pkexec'] + base_cmd
+                    result2 = subprocess.run(pkexec_cmd, capture_output=True, text=True, timeout=60)
+                    if result2.returncode == 0:
+                        result = result2
+                        error_msg = ""
+                    else:
+                        # If pkexec failed, use its error
+                        error_msg = (result2.stderr or result2.stdout or error_msg).strip()
+
+                if result.returncode != 0:
+                    self.status_label.setText("❌ Connection failed")
+                    self.status_label.setStyleSheet("color: #FF3B30; margin: 10px;")
+                    QMessageBox.warning(self, "Connection Failed", error_msg or "Unknown error")
+                    self.check_wifi_connection()
+                    return
+
+            # Success
+            self.status_label.setText(f"✅ Connected to {ssid}")
+            self.status_label.setStyleSheet("color: #34C759; margin: 10px;")
+            QMessageBox.information(self, "Success", f"Connected to {ssid}")
             
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
-            
-            if result.returncode == 0:
-                self.status_label.setText(f"✅ Connected to {ssid}")
-                self.status_label.setStyleSheet("color: #34C759; margin: 10px;")
-                QMessageBox.information(self, "Success", f"Connected to {ssid}")
-                
-                # Wait a moment for connection to stabilize
-                time.sleep(2)
-                self.check_wifi_connection()
-                # Refresh network list
-                self.scan_wifi()
-            else:
-                error_msg = result.stderr or result.stdout
-                self.status_label.setText("❌ Connection failed")
-                self.status_label.setStyleSheet("color: #FF3B30; margin: 10px;")
-                QMessageBox.warning(self, "Connection Failed", error_msg)
-                self.check_wifi_connection()
+            # Wait a moment for connection to stabilize
+            time.sleep(2)
+            self.check_wifi_connection()
+            # Refresh network list
+            self.scan_wifi()
         except Exception as e:
             self.status_label.setText("❌ Connection error")
             self.status_label.setStyleSheet("color: #FF3B30; margin: 10px;")
