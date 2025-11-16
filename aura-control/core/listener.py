@@ -48,17 +48,13 @@ SPEECH_HIGH_FREQ_MAX = 0.08     # Allow a bit more high-frequency content
 
 # CRITICAL: Energy thresholds (most reliable discriminators)
 # Updated after firmware tweaks - speech now has lower RMS/Peak values
-SPEECH_RMS_MIN = 0.0015         # Lower RMS threshold to accept quieter speech
+SPEECH_RMS_MIN = 0.0012         # Lower RMS threshold to accept quieter speech
 SPEECH_RMS_MAX = 0.40           # Reject if RMS > this (abnormally loud = likely noise/artifact)
-SPEECH_PEAK_MIN = 0.003         # Lower peak threshold to accept softer speech
+SPEECH_PEAK_MIN = 0.0025        # Lower peak threshold to accept softer speech
 
 # BARE-BONES: Hardware DSP → Channel 0 → VAD → Advanced Filter → Whisper
 
-# === Optional Pre-Gain for Quiet Inputs ===
-# Boosts very quiet frames before feature checks; safe due to soft clipping and downstream limits
-ENABLE_PRE_GAIN = True
-PRE_GAIN_MULTIPLIER = 2.5       # 2.0–3.0 typical for far-field quiet rooms
-PRE_GAIN_RMS_TRIGGER = 0.001    # Only apply gain if frame RMS is below this
+# (Pre-gain removed)
 
 # === Soft Clipping Prevention ===
 ENABLE_SOFT_LIMITER = False      # Prevent clipping from near-field speech
@@ -575,12 +571,7 @@ def listen():
                 # Hardware HPF already applied in ReSpeaker DSP
                 vad_prob = model_vad(torch.from_numpy(channel_audio), SAMPLE_RATE).item()
                 
-                # Calculate audio features
-                # Optional pre-gain for very quiet frames
-                if ENABLE_PRE_GAIN:
-                    frame_rms = float(np.sqrt(np.mean(channel_audio ** 2)))
-                    if frame_rms < PRE_GAIN_RMS_TRIGGER and frame_rms > 0.0:
-                        channel_audio = np.clip(channel_audio * PRE_GAIN_MULTIPLIER, -1.0, 1.0).astype(np.float32)
+                # Calculate audio features (no pre-gain)
                 features = calculate_audio_features(channel_audio)
                 
                 print(f"[VAD] {vad_prob:.2f} | RMS {features['rms']:.4f} | Peak {features['peak']:.3f}", end="\r")

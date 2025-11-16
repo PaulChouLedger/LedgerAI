@@ -544,28 +544,35 @@ class AdvancedMedicalNavigator:
                         status="validation_error",
                         metadata={'field': field, 'section': section, 'validation_error': True},
                     )
-            session.context['pre_hpi'][field] = normalized_value
-            session.stage = "hpi"
-            session.oldcarts_remaining = self._ordered_oldcarts_elements(session)
-            session.pending = None
-            next_prompt = self._next_oldcarts_question(session)
-            if next_prompt:
-                session.pending = next_prompt
-                session.messages.append({"role": "assistant", "content": next_prompt['prompt']})
-                return self._wrap_response(
-                    session,
-                    next_prompt['prompt'],
-                    metadata={
-                        'section': next_prompt['section'],
-                        'field': next_prompt['field'],
-                        },
-                    )
+            # Persist only for fields that provided normalized_value (age/sex)
+            if field in ('age', 'sex'):
+                session.context['pre_hpi'][field] = normalized_value
+                # Advance stages appropriately
+                if field == 'sex':
+                    session.stage = "hpi"
+                    session.oldcarts_remaining = self._ordered_oldcarts_elements(session)
+                    session.pending = None
+                    next_prompt = self._next_oldcarts_question(session)
+                    if next_prompt:
+                        session.pending = next_prompt
+                        session.messages.append({"role": "assistant", "content": next_prompt['prompt']})
+                        return self._wrap_response(
+                            session,
+                            next_prompt['prompt'],
+                            metadata={
+                                'section': next_prompt['section'],
+                                'field': next_prompt['field'],
+                            },
+                        )
+                elif field == 'age':
+                    session.stage = "awaiting_sex"
+                session.pending = None
             else:
+                # For other pre_hpi fields (e.g., chronicity), store raw text and adjust stage
                 session.context['pre_hpi'][field] = text
                 if field == 'chronicity':
                     session.stage = "awaiting_age"
-            
-            session.pending = None
+                session.pending = None
         return None
 
         if section == 'hpi':
