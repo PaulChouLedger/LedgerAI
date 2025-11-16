@@ -114,6 +114,10 @@ SPEECH_RMS_MAX = 0.40
 SPEECH_PEAK_MIN = 0.0025
 SPEECH_HIGH_FREQ_MAX = 0.08
 
+# === Audio Normalization (for optimal Whisper transcription) ===
+ENABLE_AUDIO_NORMALIZATION = True  # Normalize audio to optimal RMS for Whisper
+TARGET_RMS_FOR_WHISPER = 0.12      # Optimal RMS level for Whisper (found via find_optimal_rms.py)
+
 # === Soft Clipping Prevention ===
 ENABLE_SOFT_LIMITER = False      # Prevent clipping from near-field speech
 LIMITER_THRESHOLD = 0.95        # Start limiting above this peak level
@@ -213,6 +217,33 @@ def calculate_audio_features(audio_chunk, sample_rate=SAMPLE_RATE):
         features['low_freq_ratio'] = 0
     
     return features
+
+def normalize_audio_for_whisper(audio_data, target_rms=TARGET_RMS_FOR_WHISPER):
+    """
+    Normalize audio to target RMS level for optimal Whisper transcription.
+    This matches the approach in find_optimal_rms.py which shows better results.
+    
+    Args:
+        audio_data: Raw audio array
+        target_rms: Target RMS level (default 0.12 - optimal for Whisper)
+    
+    Returns:
+        Normalized audio array
+    """
+    if not ENABLE_AUDIO_NORMALIZATION:
+        return audio_data
+    
+    current_rms = np.sqrt(np.mean(audio_data ** 2))
+    
+    if current_rms < 1e-6:
+        return audio_data
+    
+    gain = target_rms / current_rms
+    normalized = audio_data * gain
+    # Soft clip to prevent distortion
+    normalized = np.clip(normalized, -0.95, 0.95)
+    
+    return normalized
 
 def soft_limit(audio_data):
     """
@@ -390,15 +421,23 @@ def transcribe(audio):
     
     duration = len(audio) / SAMPLE_RATE
     
+    # Normalize audio to optimal RMS level for Whisper (like find_optimal_rms.py)
+    original_rms = np.sqrt(np.mean(audio ** 2))
+    audio = normalize_audio_for_whisper(audio)
+    normalized_rms = np.sqrt(np.mean(audio ** 2))
+    
     # Apply soft limiting to prevent clipping from near-field speech
     original_peak = np.max(np.abs(audio))
     audio = soft_limit(audio)
     limited_peak = np.max(np.abs(audio))
     
-    if original_peak > LIMITER_THRESHOLD:
-        print(f"\n[Limiter] 🎚️  Peak reduced: {original_peak:.4f} → {limited_peak:.4f}")
+    if ENABLE_AUDIO_NORMALIZATION and abs(original_rms - normalized_rms) > 0.001:
+        print(f"[Normalize] 🔊 RMS normalized: {original_rms:.4f} → {normalized_rms:.4f} (target: {TARGET_RMS_FOR_WHISPER})")
     
-    # Calculate comprehensive audio features (on limited audio)
+    if original_peak > LIMITER_THRESHOLD:
+        print(f"[Limiter] 🎚️  Peak reduced: {original_peak:.4f} → {limited_peak:.4f}")
+    
+    # Calculate comprehensive audio features (on normalized/limited audio)
     features = calculate_audio_features(audio)
     peak = limited_peak
     
