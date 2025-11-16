@@ -40,7 +40,6 @@ class MedicalRuleEngine:
         self.embedding_model = embedding_model
         self.medical_rules = self._load_medical_rules()
         self.term_embeddings_by_category = {}  # Category-specific indexes: {category: {element: {...}}}
-        # REMOVED: synonym_cache - synonym files no longer used
         self.active_category = None  # Currently active category
         self.term_embeddings = {}  # Current index (global or category-specific)
         self.global_term_embeddings = {}  # Preserved global index (for multi-category matching)
@@ -182,7 +181,6 @@ class MedicalRuleEngine:
                     except Exception as e:
                         print(f"[FAISS] ⚠️ Could not load guideline {file}: {e}")
             
-            # REMOVED: Synonym file loading - no longer needed since we index patient_friendly terms directly
             # The patient_friendly -> medical mapping is built from guidelines themselves
             
             # Build FAISS indexes for this category
@@ -719,7 +717,6 @@ class MedicalRuleEngine:
             'method': 'semantic_similarity_ml' if self.ml_enhancer else 'semantic_similarity'
         }
     
-    # REMOVED: _normalize_with_synonyms - synonym files no longer used, FAISS handles semantic matching directly
     
     def _compute_word_match_boost(self, patient_text: str, normalized_text: str,
                                   guideline_text: str, organ_system: str, 

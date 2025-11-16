@@ -25,8 +25,9 @@ RUN pip3 install \
 
 
 # Pre-download sentence transformer model (cached layer)
+# Model will be cached in default location (/root/.cache/huggingface/) which is baked into image
 RUN python3 -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-distilroberta-v1')" && \
-    echo "✅ all-distilroberta-v1 model pre-downloaded into image"
+    echo "✅ all-distilroberta-v1 model pre-downloaded into image cache"
 
 # Copy models (cached - these are large and rarely change)
 COPY models/Qwen2.5-1.5B-Instruct.Q4_K_M.gguf /models/Qwen2.5-1.5B-Instruct.Q4_K_M.gguf

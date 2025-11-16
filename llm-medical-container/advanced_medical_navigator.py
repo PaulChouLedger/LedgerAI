@@ -60,10 +60,10 @@ class AdvancedMedicalNavigator:
     LLM_TEMPERATURE_QUESTIONS = float(os.environ.get('LLM_TEMPERATURE_SIMPLE', '0.4'))
     LLM_TEMPERATURE_EMPATHETIC = float(os.environ.get('LLM_TEMPERATURE_EMPATHETIC', '0.4'))
     LLM_TEMPERATURE_SUMMARY = float(os.environ.get('LLM_TEMPERATURE_SUMMARY', '0.25'))
-    LLM_MAX_TOKENS_QUESTIONS = int(os.environ.get('LLM_NUM_PREDICT', '120'))
-    LLM_MAX_TOKENS_EMPATHETIC = int(os.environ.get('LLM_MAX_TOKENS_EMPATHETIC', '80'))
-    LLM_MAX_TOKENS_CHRONICITY = int(os.environ.get('LLM_MAX_TOKENS_CHRONICITY', '60'))
-    LLM_MAX_TOKENS_SUMMARY = int(os.environ.get('LLM_MAX_TOKENS_SUMMARY', '220'))
+    LLM_MAX_TOKENS_QUESTIONS = int(os.environ.get('LLM_NUM_PREDICT', '100'))
+    LLM_MAX_TOKENS_EMPATHETIC = int(os.environ.get('LLM_MAX_TOKENS_EMPATHETIC', '60'))
+    LLM_MAX_TOKENS_CHRONICITY = int(os.environ.get('LLM_MAX_TOKENS_CHRONICITY', '50'))
+    LLM_MAX_TOKENS_SUMMARY = int(os.environ.get('LLM_MAX_TOKENS_SUMMARY', '180'))
 
     # System prompts - simplified for fine-tuned model
     QUESTION_SYSTEM_PROMPT = (
@@ -147,15 +147,6 @@ class AdvancedMedicalNavigator:
         self.llm_chat_fn = llm_chat_fn
         self.sessions: Dict[str, AdvancedMedicalNavigator.MedicalSession] = {}
         self._captured_debug_output: List[str] = []
-        self.guidelines_dir = self._resolve_guidelines_dir()
-        self.all_guidelines: Dict[str, Dict] = {}
-        self._chief_complaint_condition_seed: Dict[str, float] = {}
-
-        if self.guidelines_dir:
-            self._load_guidelines()
-            self._build_chief_complaint_triggers()
-        else:
-            self._capture_debug("[Navigator] ⚠️ No guidelines directory found. Chief complaint matching may be limited.")
 
     # ----------- Public API ---------------------------------------------------
 
@@ -327,7 +318,7 @@ class AdvancedMedicalNavigator:
                 "like 'I have stomach pain' or 'I'm feeling short of breath'?"
             )
             self._capture_debug(
-                f"[Engine] ❌ Unable to match chief complaint '{text}' to guidelines. Requesting clarification."
+                f"[Engine] ❌ Unable to match chief complaint '{text}'. Requesting clarification."
             )
             session.stage = "awaiting_chief_complaint"
             return self._wrap_response(session, apology, status="awaiting_chief_complaint")
@@ -844,13 +835,8 @@ class AdvancedMedicalNavigator:
             # Fallback: return all categories
             return list(self.CATEGORY_TO_SYSTEM.keys())
         
-        # Get available categories from guidelines
-        available_categories = set()
-        for guideline in self.all_guidelines.values():
-            organ_system = guideline.get('organ_system', '')
-            for cat, system in self.CATEGORY_TO_SYSTEM.items():
-                if system.upper() == organ_system.upper():
-                    available_categories.add(cat)
+        # Get available categories from default categories
+        available_categories = set(self.CATEGORY_TO_SYSTEM.keys())
         
         if not available_categories:
             available_categories = set(self.CATEGORY_TO_SYSTEM.keys())
@@ -963,76 +949,12 @@ class AdvancedMedicalNavigator:
  
     # ----------- Guidance builders -------------------------------------------
 
-    def _resolve_guidelines_dir(self) -> Optional[Path]:
-        candidates = [
-            Path("/app/medical/guidelines"),
-            Path("medical/guidelines"),
-            Path(__file__).resolve().parent / "medical" / "guidelines",
-        ]
-        for path in candidates:
-            if path.exists():
-                return path
-        return None
-
-    def _load_guidelines(self) -> None:
-        if not self.guidelines_dir or not self.guidelines_dir.exists():
-            msg = f"[Navigator] ⚠️ Guidelines directory not found: {self.guidelines_dir}"
-            print(msg)
-            self._capture_debug(msg)
-            return
-        
-        print(f"[Navigator] 📚 Loading guidelines from {self.guidelines_dir}...")
-        loaded = 0
-
-        for json_file in sorted(self.guidelines_dir.glob("**/*.json")):
-            try:
-                organ_system = json_file.parent.name
-                with json_file.open('r') as f:
-                    guideline = json.load(f)
-                condition_name = guideline.get('condition', json_file.stem)
-                guideline['organ_system'] = organ_system
-                self.all_guidelines[condition_name] = guideline
-                loaded += 1
-            except Exception as e:
-                msg = f"[Navigator] ⚠️ Failed to load guideline {json_file.name}: {e}"
-                print(msg)
-                self._capture_debug(msg)
-
-        msg = f"[Navigator] 📚 Loaded {loaded} guidelines"
-        print(msg)
-        self._capture_debug(msg)
-
-    def _build_chief_complaint_triggers(self) -> None:
-        """Build chief complaint triggers list for reference."""
-        # Simplified - just for reference, LLM handles matching
-        pass
-
-    def _get_guideline_category(self, guideline: Dict) -> str:
-        organ_system = guideline.get('organ_system', '')
-        for category, system in self.CATEGORY_TO_SYSTEM.items():
-            if system.upper() == organ_system.upper():
-                return category
-        return 'gastrointestinal'
-
-    def _get_guidelines_by_category(self, category: str) -> Dict[str, Dict]:
-        if category == 'ALL':
-            return self.all_guidelines
-
-        target_system = self.CATEGORY_TO_SYSTEM.get(category.lower(), category.upper())
-        filtered = {}
-        for name, guideline in self.all_guidelines.items():
-            organ_system = guideline.get('organ_system', '')
-            if organ_system.upper() == target_system or target_system in organ_system.upper():
-                filtered[name] = guideline
-        if not filtered:
-            return self.all_guidelines
-        return filtered
 
     def _initialize_condition_scores_llm(self, categories: List[str], chief_complaint: str) -> Dict[str, float]:
         """Initialize condition scores - LLM suggests relevant conditions dynamically."""
         if not self.llm_chat_fn:
-            # Fallback: use guidelines
-            return self._get_conditions_from_guidelines(categories)
+            # No LLM available - return empty dict
+            return {}
         
         # Use LLM's medical knowledge to suggest relevant conditions
         system_prompt = (
@@ -1062,10 +984,7 @@ class AdvancedMedicalNavigator:
             "Return ONLY the single JSON object. No explanations, no other text."
         )
         
-        available_conditions = self._get_conditions_from_guidelines(categories)
-        # _get_conditions_from_guidelines returns a dict of {condition: score}; use keys
-        available_sample = list(available_conditions.keys())[:20]
-        available_conditions_str = ', '.join(available_sample)  # Show sample for context
+        available_conditions_str = "LLM will suggest based on medical knowledge"
         
         user_prompt = (
             f"Chief complaint: '{chief_complaint}'\n"
@@ -1190,38 +1109,14 @@ class AdvancedMedicalNavigator:
             else:
                 self._capture_debug(f"[Condition Init] ⚠️ LLM returned empty response")
             
-            # Fallback: Use conditions from guidelines
-            self._capture_debug(f"[Condition Init] ⚠️ LLM condition suggestion failed, using guidelines as fallback")
-            return self._get_conditions_from_guidelines(categories)
+            # LLM failed - return empty dict
+            self._capture_debug(f"[Condition Init] ⚠️ LLM condition suggestion failed, returning empty conditions")
+            return {}
             
         except Exception as e:
-            self._capture_debug(f"⚠️  Error initializing conditions: {e}, using guidelines")
-            return self._get_conditions_from_guidelines(categories)
-    
-    def _get_conditions_from_guidelines(self, categories: List[str]) -> Dict[str, float]:
-        """Get conditions from guidelines as fallback."""
-        if not categories:
-            categories = ['gastrointestinal']
-        conditions = set()
-        for category in categories:
-            for name, guideline in self._get_guidelines_by_category(category).items():
-                condition_name = guideline.get('condition', name)
-                if condition_name:
-                    conditions.add(condition_name)
-        # Return as dict with 0.5 baseline
-        return {cond: 0.5 for cond in sorted(list(conditions))}
+            self._capture_debug(f"⚠️  Error initializing conditions: {e}, returning empty conditions")
+            return {}
 
-    def _get_conditions_for_categories(self, categories: List[str]) -> List[str]:
-        """Get condition names from categories (for reference only)."""
-        if not categories:
-            categories = ['gastrointestinal']
-        conditions = set()
-        for category in categories:
-            for name, guideline in self._get_guidelines_by_category(category).items():
-                condition_name = guideline.get('condition', name)
-                if condition_name:
-                    conditions.add(condition_name)
-        return sorted(list(conditions))
 
     def _normalize_subject_for_questions(self, text: Optional[str]) -> str:
         if not text:
@@ -1305,7 +1200,7 @@ class AdvancedMedicalNavigator:
         
         # Build conversation context
         conversation_context = []
-        recent_messages = session.messages[-10:] if len(session.messages) > 10 else session.messages
+        recent_messages = session.messages[-6:] if len(session.messages) > 6 else session.messages
         for msg in recent_messages:
             if msg.get('role') in ['assistant', 'user']:
                 conversation_context.append({"role": msg['role'], "content": msg['content']})
@@ -1380,7 +1275,7 @@ Ask only one question about {field}."""
         
         # Build conversation context
         conversation_context = []
-        recent_messages = session.messages[-10:] if len(session.messages) > 10 else session.messages
+        recent_messages = session.messages[-6:] if len(session.messages) > 6 else session.messages
         for msg in recent_messages:
             if msg.get('role') in ['assistant', 'user']:
                 conversation_context.append({"role": msg['role'], "content": msg['content']})

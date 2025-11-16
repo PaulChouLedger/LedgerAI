@@ -531,7 +531,7 @@ def chat_tts():
             print(f"[TTS] 🔀 Using Advanced Medical Navigator (streaming)")
             
             # Initialize singleton (LLM-only, no medical_rule_engine or embedding_model needed)
-            navigator = get_medical_navigator(llm_chat)
+            navigator = get_medical_navigator(llm_chat, embedding_model=rag_api)
             
             # STREAMING: Use streaming mode to get tokens as they're generated
             result = navigator.process_message(session_id=session_id, user_message=prompt, stream=True)
