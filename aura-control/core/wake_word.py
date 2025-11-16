@@ -1,14 +1,41 @@
 """
 Porcupine Wake Word Detection Integration
-Requires: pip install pvporcupine
 
-For Jetson (ARM64), you may need to build from source:
-  git clone https://github.com/Picovoice/porcupine
-  cd porcupine/binding/python
-  python setup.py build_ext --inplace
+Installation:
+  According to current Picovoice docs (https://picovoice.ai/docs/quick-start/porcupine-python/):
+  - Linux (x86_64) - supported via pip
+  - Raspberry Pi (Zero, 3, 4, 5) - supported via pip
+  - Linux ARM64 (Jetson) - NOT listed as supported by pip package
+  
+  However, pre-built ARM64 libraries are available on GitHub:
+  https://github.com/Picovoice/porcupine/tree/master/lib/linux/aarch64
+  
+  Installation options (try in order):
+  
+  Option 1: Use automated installer (RECOMMENDED for Jetson):
+    ./setup/scripts/install_porcupine_jetson.sh
+    This downloads the pre-built library and configures it automatically.
+  
+  Option 2: Try pip install (may work on Jetson Nano):
+    pip install picovoice picovoicedemo
+  
+  Option 3: Manual library download + pip install:
+    mkdir -p porcupine_lib && cd porcupine_lib
+    curl -LO https://github.com/Picovoice/porcupine/raw/v3.0.3/lib/linux/aarch64/libpv_porcupine.so
+    pip install pvporcupine
+    # Then copy libpv_porcupine.so to pvporcupine package lib/ directory
+  
+  Option 4: Build from source (if above options fail):
+    git clone https://github.com/Picovoice/porcupine
+    cd porcupine/binding/python
+    python setup.py build_ext --inplace
+    pip install -e .
+  
+  Note: Support may vary by Jetson model (Nano vs Orin vs Xavier) and Picovoice version.
 
 Access Key:
-  Get free access key from: https://console.picovoice.ai/signup
+  Get FREE access key (no credit card required): https://console.picovoice.ai/signup
+  Free Plan available for personal/non-commercial use
   Set in .env: PORCUPINE_ACCESS_KEY=your_key_here
 """
 
@@ -164,12 +191,15 @@ class PorcupineWakeWord:
                 except NotImplementedError as e:
                     if "Unsupported platform" in str(e):
                         print(f"[Wake Word] ❌ Platform not supported: {e}")
-                        print("[Wake Word] 💡 The pip-installed pvporcupine doesn't include ARM64 binaries for Jetson")
-                        print("[Wake Word] 💡 Install picovoice package in your virtual environment:")
-                        print("[Wake Word]     pip install picovoice picovoicedemo")
-                        print("[Wake Word] 💡 According to Picovoice docs, it should work on Jetson:")
-                        print("[Wake Word]     https://www.hackster.io/dilek/speech-recognition-for-self-driving-toy-car-on-jetson-57b0aa")
-                        print("[Wake Word] 💡 If that doesn't work, you may need to build from source")
+                        print("[Wake Word] 💡 Pre-built ARM64 libraries are available on GitHub!")
+                        print("[Wake Word] 💡 EASIEST: Use automated installer:")
+                        print("[Wake Word]     ./setup/scripts/install_porcupine_jetson.sh")
+                        print("[Wake Word] 💡 OR manually download library:")
+                        print("[Wake Word]     mkdir -p porcupine_lib && cd porcupine_lib")
+                        print("[Wake Word]     curl -LO https://github.com/Picovoice/porcupine/raw/v3.0.3/lib/linux/aarch64/libpv_porcupine.so")
+                        print("[Wake Word]     pip install pvporcupine")
+                        print("[Wake Word]     # Then copy libpv_porcupine.so to pvporcupine package lib/ directory")
+                        print("[Wake Word] 💡 Library location: https://github.com/Picovoice/porcupine/tree/master/lib/linux/aarch64")
                     else:
                         print(f"[Wake Word] ❌ Failed to initialize: {e}")
                     return False
@@ -194,12 +224,15 @@ class PorcupineWakeWord:
         except NotImplementedError as e:
             if "Unsupported platform" in str(e):
                 print(f"[Wake Word] ❌ Platform not supported: {e}")
-                print("[Wake Word] 💡 The pip-installed pvporcupine doesn't include ARM64 binaries for Jetson")
-                print("[Wake Word] 💡 Install picovoice package in your virtual environment:")
-                print("[Wake Word]     pip install picovoice picovoicedemo")
-                print("[Wake Word] 💡 According to Picovoice docs, it should work on Jetson:")
-                print("[Wake Word]     https://www.hackster.io/dilek/speech-recognition-for-self-driving-toy-car-on-jetson-57b0aa")
-                print("[Wake Word] 💡 If that doesn't work, you may need to build from source")
+                print("[Wake Word] 💡 Pre-built ARM64 libraries are available on GitHub!")
+                print("[Wake Word] 💡 EASIEST: Use automated installer:")
+                print("[Wake Word]     ./setup/scripts/install_porcupine_jetson.sh")
+                print("[Wake Word] 💡 OR manually download library:")
+                print("[Wake Word]     mkdir -p porcupine_lib && cd porcupine_lib")
+                print("[Wake Word]     curl -LO https://github.com/Picovoice/porcupine/raw/v3.0.3/lib/linux/aarch64/libpv_porcupine.so")
+                print("[Wake Word]     pip install pvporcupine")
+                print("[Wake Word]     # Then copy libpv_porcupine.so to pvporcupine package lib/ directory")
+                print("[Wake Word] 💡 Library location: https://github.com/Picovoice/porcupine/tree/master/lib/linux/aarch64")
             else:
                 print(f"[Wake Word] ❌ Failed to initialize: {e}")
             return False
