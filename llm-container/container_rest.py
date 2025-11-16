@@ -154,9 +154,21 @@ def llm_chat_simple(messages, max_tokens=None, temperature=None, stream=False, *
 
 # === Conversational Logic ===
 def handle_conversation(
-    prompt: str, session_id: str, memory_context: Optional[str] = None
+    prompt: str, session_id: str, memory_context: Optional[str] = None, stream: bool = False
 ):
-    """Handle general conversation with optional RAG"""
+    """
+    Handle general conversation with optional RAG
+    
+    Args:
+        prompt: User's message
+        session_id: Session identifier
+        memory_context: Optional conversation memory context
+        stream: If True, returns a generator that yields tokens. If False, returns complete response string.
+    
+    Returns:
+        If stream=False: Complete response string
+        If stream=True: Generator that yields tokens as they're generated
+    """
     
     # Try RAG first for knowledge queries
     RAG_ENABLED = os.getenv("RAG_ENABLED", "false").lower() == "true"
@@ -194,7 +206,7 @@ def handle_conversation(
                 ),
             }
         ]
-        return llm_chat_simple(messages, max_tokens=300)
+        return llm_chat_simple(messages, max_tokens=300, stream=stream)
 
     # Fallback to direct LLM conversation without external context
     system_prompt = (
@@ -213,7 +225,7 @@ def handle_conversation(
         },
     ]
 
-    return llm_chat_simple(messages, max_tokens=300)
+    return llm_chat_simple(messages, max_tokens=300, stream=stream)
 
 
 def _embed_texts(texts: List[str]) -> List[List[float]]:
@@ -268,7 +280,7 @@ def chat_tg():
 
 @app.route("/chat-tts", methods=["POST"])
 def chat_tts():
-    """Streaming chat endpoint for TTS/Voice"""
+    """Streaming chat endpoint for TTS/Voice - streams tokens as they're generated"""
     data = request.get_json()
     prompt = (data.get("prompt") or "").strip()
     session_id = (data.get("chat_id") or data.get("session_id") or None)
@@ -280,10 +292,37 @@ def chat_tts():
     
     def generate_response():
         try:
-            response = handle_conversation(prompt, session_id or "default")
-            yield response
+            # Use streaming mode to get tokens as they're generated
+            result = handle_conversation(prompt, session_id or "default", stream=True)
+            
+            # Check if result is a generator (streaming)
+            if hasattr(result, '__iter__') and not isinstance(result, str):
+                # Stream tokens as they come from the LLM
+                print(f"[Generic] ✅ Streaming enabled - tokens will be yielded as generated")
+                for chunk in result:
+                    if isinstance(chunk, dict):
+                        # Extract content from chunk (OpenAI-style format)
+                        if 'choices' in chunk and len(chunk['choices']) > 0:
+                            delta = chunk['choices'][0].get('delta', {})
+                            content = delta.get('content', '')
+                            if content:
+                                yield content  # Yield token immediately
+                        elif 'content' in chunk:
+                            yield chunk['content']  # Yield token immediately
+                    elif isinstance(chunk, str):
+                        yield chunk  # Yield token immediately
+                    else:
+                        # Fallback: convert to string
+                        yield str(chunk)
+                print(f"[Generic] ✅ Streamed response complete")
+            else:
+                # Fallback: non-streaming (result is a string)
+                print(f"[Generic] ⚠️ Streaming not available - yielding complete response")
+                yield result if result else "I apologize, I encountered an error."
         except Exception as e:
             print(f"[Generic] ❌ Error: {e}")
+            import traceback
+            traceback.print_exc()
             yield "I apologize, I encountered an error."
     
     return Response(stream_with_context(generate_response()), mimetype="text/plain")

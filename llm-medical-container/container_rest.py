@@ -472,20 +472,41 @@ def chat_tts():
     def generate_medical_response():
         try:
             # rag_api is module-level global (initialized at startup)
-            print(f"[TTS] 🔀 Using Advanced Medical Navigator")
+            print(f"[TTS] 🔀 Using Advanced Medical Navigator (streaming)")
             
             # Initialize singleton (LLM-only, no medical_rule_engine or embedding_model needed)
             navigator = get_medical_navigator(llm_chat)
             
-            response = navigator.process_message(session_id=session_id, user_message=prompt)
+            # STREAMING: Use streaming mode to get tokens as they're generated
+            result = navigator.process_message(session_id=session_id, user_message=prompt, stream=True)
+            
+            # Check if streaming is supported (returns tuple of (response_dict, token_stream))
+            if isinstance(result, tuple) and len(result) == 2:
+                response_dict, token_stream = result
+                print(f"[Container] ✅ Streaming enabled - tokens will be yielded as generated")
+                
+                # Stream tokens as they come from the LLM (immediate TTS start)
+                # Note: Session storage is handled by the navigator's token_stream generator
+                yield "<sentence_start>\n"
+                for token in token_stream:
+                    yield token  # Yield token immediately for low latency (session updated by navigator)
+                yield "\n"
+                yield "<sentence_end>\n"
+                
+                print(f"[Container] ✅ Streamed response complete (session updated by navigator)")
+                return
+            
+            # Fallback: Non-streaming mode (original behavior)
+            print(f"[Container] ⚠️ Streaming not available - using blocking mode")
+            response = navigator.process_message(session_id=session_id, user_message=prompt, stream=False)
             
             print(f"[Container] ✅ Got response from medical engine")
             
-            # Stream response to TTS
+            # Stream response to TTS - send as chunks for batching
             if isinstance(response, dict):
                 # Handle empathetic statement + question (with pause)
                 if response.get('message') and response.get('question'):
-                    # Stream empathetic statement first
+                    # Stream empathetic statement first (as single chunk for batching)
                     message_text = response.get('message', '')
                     yield "<sentence_start>\n"
                     yield f"{message_text}\n"
@@ -495,7 +516,7 @@ def chat_tts():
                     if response.get('has_pause'):
                         yield "<pause>\n"  # Pause marker for TTS
                     
-                    # Then stream question
+                    # Then stream question (as single chunk for batching)
                     question_text = response.get('question', '')
                     yield "<sentence_start>\n"
                     yield f"{question_text}\n"
@@ -513,21 +534,46 @@ def chat_tts():
                     yield f"{message_text}\n"
                     yield "<sentence_end>\n"
                 elif response.get('response'):
-                    # Navigator uses 'response' key
+                    # Navigator uses 'response' key - split into sentences for better batching
                     response_text = response.get('response', '')
-                    yield "<sentence_start>\n"
-                    yield f"{response_text}\n"
-                    yield "<sentence_end>\n"
+                    # Split by sentence boundaries for better chunking
+                    sentences = re.split(r'([.!?]+\s+)', response_text)
+                    current_sentence = ""
+                    for part in sentences:
+                        current_sentence += part
+                        # If we have a complete sentence ending, yield it
+                        if part.strip() and part.strip()[-1] in '.!?':
+                            yield "<sentence_start>\n"
+                            yield f"{current_sentence.strip()}\n"
+                            yield "<sentence_end>\n"
+                            current_sentence = ""
+                    # Yield any remaining text
+                    if current_sentence.strip():
+                        yield "<sentence_start>\n"
+                        yield f"{current_sentence.strip()}\n"
+                        yield "<sentence_end>\n"
                 else:
                     # Fallback
                     yield "<sentence_start>\n"
                     yield "I'm processing your response...\n"
                     yield "<sentence_end>\n"
             elif isinstance(response, str):
-                # Simple text response
-                yield "<sentence_start>\n"
-                yield f"{response}\n"
-                yield "<sentence_end>\n"
+                # Simple text response - split into sentences for better batching
+                sentences = re.split(r'([.!?]+\s+)', response)
+                current_sentence = ""
+                for part in sentences:
+                    current_sentence += part
+                    # If we have a complete sentence ending, yield it
+                    if part.strip() and part.strip()[-1] in '.!?':
+                        yield "<sentence_start>\n"
+                        yield f"{current_sentence.strip()}\n"
+                        yield "<sentence_end>\n"
+                        current_sentence = ""
+                # Yield any remaining text
+                if current_sentence.strip():
+                    yield "<sentence_start>\n"
+                    yield f"{current_sentence.strip()}\n"
+                    yield "<sentence_end>\n"
             else:
                 # Fallback
                 yield "<sentence_start>\n"

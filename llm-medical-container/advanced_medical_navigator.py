@@ -159,7 +159,21 @@ class AdvancedMedicalNavigator:
 
     # ----------- Public API ---------------------------------------------------
 
-    def process_message(self, session_id: str, user_message: str) -> Dict[str, any]:
+    def process_message(self, session_id: str, user_message: str, stream: bool = False) -> Dict[str, any]:
+        """
+        Process user message and generate response.
+        
+        Args:
+            session_id: Session identifier
+            user_message: User's message
+            stream: If True, returns a generator that yields tokens for the final response.
+                    If False, returns a dict with the complete response (blocking).
+        
+        Returns:
+            If stream=False: Dict with response
+            If stream=True: Generator that yields (response_dict, token_stream) where
+                           token_stream yields tokens as they're generated
+        """
         self._captured_debug_output = []
         session = self._get_or_create_session(session_id)
         session.messages.append({"role": "user", "content": user_message})
@@ -167,31 +181,109 @@ class AdvancedMedicalNavigator:
             session.messages = session.messages[-50:]
 
         if session.stage == "awaiting_chief_complaint":
-            return self._handle_initial_complaint(session, user_message)
+            response = self._handle_initial_complaint(session, user_message)
+            if stream:
+                # For streaming, yield the response dict first, then stream tokens
+                response_text = response.get('response', '') or response.get('message', '') or response.get('question', '')
+                if response_text:
+                    def token_stream():
+                        # Stream the response word-by-word for immediate TTS start
+                        words = response_text.split()
+                        for word in words:
+                            yield word + " "
+                        yield ""  # End marker
+                    return response, token_stream()
+                else:
+                    return response, iter([])
+            return response
 
         if session.pending:
             response = self._store_answer(session, session.pending, user_message)
             if response:
+                if stream:
+                    response_text = response.get('response', '') or response.get('message', '') or response.get('question', '')
+                    if response_text:
+                        def token_stream():
+                            words = response_text.split()
+                            for word in words:
+                                yield word + " "
+                            yield ""
+                        return response, token_stream()
+                    else:
+                        return response, iter([])
                 return response
 
         if session.completed:
             follow_up = "Thanks for the update. If anything changes, let me know."
             session.messages.append({"role": "assistant", "content": follow_up})
-            return self._wrap_response(session, follow_up, status="complete")
+            response = self._wrap_response(session, follow_up, status="complete")
+            if stream:
+                def token_stream():
+                    words = follow_up.split()
+                    for word in words:
+                        yield word + " "
+                    yield ""
+                return response, token_stream()
+            return response
 
         next_prompt = self._determine_next_question(session)
         if next_prompt:
-            session.pending = next_prompt
-            session.messages.append({"role": "assistant", "content": next_prompt['prompt']})
-            return self._wrap_response(session, next_prompt['prompt'], metadata={
-                'section': session.stage,
-                'field': next_prompt['field'],
-            })
+            # STREAMING: For the final question, stream it token-by-token
+            if stream:
+                # Generate question with streaming - returns a generator
+                question_stream = self._generate_question_streaming(
+                    session, next_prompt['section'], next_prompt['field'], 
+                    next_prompt.get('guidance', '')
+                )
+                # Accumulate full response for session storage
+                # Use a list to store accumulated text (can be modified in nested function)
+                accumulated = [""]
+                def token_stream():
+                    # Accumulate tokens as they're yielded
+                    for token in question_stream:
+                        accumulated[0] += token
+                        yield token
+                    # After streaming completes, store in session
+                    full_question = accumulated[0].strip()
+                    if full_question:
+                        session.pending = next_prompt
+                        session.pending['prompt'] = full_question
+                        session.messages.append({"role": "assistant", "content": full_question})
+                
+                session.pending = next_prompt  # Set pending early
+                # Build response dict (will contain accumulated text after streaming)
+                response_dict = self._wrap_response(session, "", metadata={
+                    'section': session.stage,
+                    'field': next_prompt['field'],
+                })
+                return response_dict, token_stream()  # Return dict and generator
+            else:
+                # Non-streaming (blocking)
+                question_text = self._generate_question(
+                    session, next_prompt['section'], next_prompt['field'],
+                    next_prompt.get('guidance', '')
+                )
+                session.pending = next_prompt
+                session.pending['prompt'] = question_text
+                session.messages.append({"role": "assistant", "content": question_text})
+                return self._wrap_response(session, question_text, metadata={
+                    'section': session.stage,
+                    'field': next_prompt['field'],
+                })
 
+        # Summary generation (blocking, no streaming needed)
         summary = self._generate_summary(session)
         session.completed = True
         session.messages.append({"role": "assistant", "content": summary})
-        return self._wrap_response(session, summary, status="complete", metadata={'summary': True})
+        response = self._wrap_response(session, summary, status="complete", metadata={'summary': True})
+        if stream:
+            def token_stream():
+                words = summary.split()
+                for word in words:
+                    yield word + " "
+                yield ""
+            return response, token_stream()
+        return response
 
     # ----------- Stage handlers ----------------------------------------------
 
@@ -1252,6 +1344,103 @@ Ask only one question about {field}."""
             cleaned = self._validate_hpi_question(cleaned, field, cc)
         
         return cleaned
+
+    def _generate_question_streaming(
+        self,
+        session: "MedicalSession",
+        section: str,
+        field: str,
+        guidance: str,
+    ):
+        """
+        Generate question with streaming - yields tokens as they're generated.
+        Returns a generator that yields token strings as they come from the LLM.
+        
+        NOTE: This is a generator - it must be consumed to get the tokens.
+        The full response is accumulated internally, but tokens are yielded immediately.
+        """
+        if not self.llm_chat_fn:
+            fallback = guidance or f"Tell me about {field}."
+            # Yield fallback token-by-token
+            for token in fallback.split():
+                yield token + " "
+            return
+        
+        cc = session.context['pre_hpi'].get('chief_complaint', 'your symptoms') or 'your symptoms'
+        context_summary = self._build_conversation_context(session)
+        
+        # Build conversation context
+        conversation_context = []
+        recent_messages = session.messages[-10:] if len(session.messages) > 10 else session.messages
+        for msg in recent_messages:
+            if msg.get('role') in ['assistant', 'user']:
+                conversation_context.append({"role": msg['role'], "content": msg['content']})
+        
+        if section == 'hpi':
+            base_question = self._get_base_question_for_element(field, cc)
+            user_prompt = f"""Context of what we already know:
+{context_summary}
+
+You need to ask about the {field} of the {cc}. 
+IMPORTANT: You MUST ask about {field} specifically using this exact format: '{base_question}' 
+Do NOT ask about age, demographics, or information already in the context. 
+Do NOT use phrases like 'character of' or 'the {field}' - use the natural question format shown above. 
+Ask only one question about {field}."""
+        elif section == 'pre_hpi':
+            user_prompt = guidance
+        else:
+            user_prompt = f"Ask about {field}. Ask only one question."
+        
+        messages = [{"role": "system", "content": self.QUESTION_SYSTEM_PROMPT}]
+        if conversation_context:
+            messages.extend(conversation_context)
+        messages.append({"role": "user", "content": user_prompt})
+        
+        self._capture_debug(f"[LLM] ❓ Question prompt (streaming):\n{user_prompt}")
+        
+        # Call LLM with streaming enabled
+        try:
+            stream = self.llm_chat_fn(
+                messages,
+                max_tokens=self.LLM_MAX_TOKENS_QUESTIONS,
+                temperature=self.LLM_TEMPERATURE_QUESTIONS,
+                stream=True,  # Enable streaming
+            )
+            
+            # Yield tokens as they come from the LLM stream
+            for chunk in stream:
+                if isinstance(chunk, dict):
+                    # Extract content from chunk (OpenAI-style format)
+                    if 'choices' in chunk and len(chunk['choices']) > 0:
+                        delta = chunk['choices'][0].get('delta', {})
+                        content = delta.get('content', '')
+                        if content:
+                            yield content  # Yield token immediately
+                elif isinstance(chunk, str):
+                    yield chunk  # Yield token immediately
+                # Note: We don't accumulate here - tokens are yielded immediately for low latency
+        except Exception as e:
+            print(f"[Navigator] ⚠️ Streaming error: {e}")
+            import traceback
+            traceback.print_exc()
+            # Fallback to non-streaming if streaming fails
+            try:
+                response = self.llm_chat_fn(
+                    messages,
+                    max_tokens=self.LLM_MAX_TOKENS_QUESTIONS,
+                    temperature=self.LLM_TEMPERATURE_QUESTIONS,
+                    stream=False,
+                )
+                full_response = response or (guidance or f"Tell me about {field}.")
+                # Yield fallback word-by-word
+                for token in full_response.split():
+                    yield token + " "
+            except Exception as e2:
+                print(f"[Navigator] ❌ Fallback also failed: {e2}")
+                # Last resort fallback
+                fallback = guidance or f"Tell me about {field}."
+                for token in fallback.split():
+                    yield token + " "
 
     def _generate_empathetic_statement(self, chief_complaint: str) -> str:
         if not self.llm_chat_fn:
