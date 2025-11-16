@@ -458,6 +458,15 @@ class WifiSettingsDialog(QDialog):
         main_layout.setSpacing(20)
         main_layout.addStretch(1)
         
+        # Top bar with Back
+        top_row = QHBoxLayout()
+        back_btn = QPushButton("◀ Back")
+        back_btn.setStyleSheet(SettingsDialog.get_button_style(None))
+        back_btn.clicked.connect(self.close)
+        top_row.addWidget(back_btn)
+        top_row.addStretch()
+        main_layout.addLayout(top_row)
+        
         title = QLabel("📶 WiFi Settings")
         title.setFont(QFont("Arial", 18, QFont.Bold))
         title.setAlignment(Qt.AlignCenter)
@@ -633,6 +642,14 @@ class UpdateDialog(QDialog):
     
     def _setup_ui(self):
         main_layout = QVBoxLayout(); main_layout.setContentsMargins(120, 100, 120, 100); main_layout.setSpacing(20); main_layout.addStretch(1)
+        # Top bar with Back
+        top_row = QHBoxLayout()
+        back_btn = QPushButton("◀ Back")
+        back_btn.setStyleSheet(SettingsDialog.get_button_style(None))
+        back_btn.clicked.connect(self.close)
+        top_row.addWidget(back_btn)
+        top_row.addStretch()
+        main_layout.addLayout(top_row)
         title = QLabel("🔄 Over-the-Air Updates"); title.setFont(QFont("Arial", 18, QFont.Bold)); title.setAlignment(Qt.AlignCenter); title.setStyleSheet("color: #ffffff; font-weight: 600; margin: 10px;"); main_layout.addWidget(title)
         self.status_log = QTextEdit(); self.status_log.setMaximumHeight(120); self.status_log.setReadOnly(True); self.status_log.setStyleSheet("QTextEdit { background-color: rgba(44,44,46,0.8); color: #ffffff; border-radius: 15px; border: none; padding: 10px; font-size: 11px; }"); main_layout.addWidget(self.status_log)
         button_row = QHBoxLayout(); button_row.setSpacing(15)
@@ -700,6 +717,14 @@ class AIModelSettingsDialog(QDialog):
     
     def _setup_ui(self):
         layout = QVBoxLayout(); layout.setContentsMargins(120, 100, 120, 100); layout.setSpacing(20); layout.addStretch(1)
+        # Top bar with Back
+        top_row = QHBoxLayout()
+        back_btn = QPushButton("◀ Back")
+        back_btn.setStyleSheet(SettingsDialog.get_button_style(None))
+        back_btn.clicked.connect(self.close)
+        top_row.addWidget(back_btn)
+        top_row.addStretch()
+        layout.addLayout(top_row)
         title = QLabel("🧠 AI Model Settings"); title.setFont(QFont("Arial", 18, QFont.Bold)); title.setAlignment(Qt.AlignCenter); title.setStyleSheet("color: #ffffff; font-weight: 600; margin: 10px;"); layout.addWidget(title)
         
         # Mode toggle
@@ -756,16 +781,36 @@ class AIModelSettingsDialog(QDialog):
         self.model_combo.clear()
         mode_now = "medical" if self.mode_medical_btn.isChecked() else "generic"
         workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-        model_dir = os.path.join(workspace_root, 'llm-medical-container', 'data', 'models') if mode_now == "medical" else os.path.join(workspace_root, 'llm-container', 'data', 'models')
-        paths = sorted(glob.glob(os.path.join(model_dir, "*.gguf"))); display_names = [os.path.basename(p) for p in paths]
-        if display_names: self.model_combo.addItems(display_names)
-        else: self.model_combo.addItem("(no models found)")
+        base_dir = os.path.join(workspace_root, 'llm-medical-container') if mode_now == "medical" else os.path.join(workspace_root, 'llm-container')
+        # Prefer data/models; fallback to models
+        candidate_dirs = [
+            os.path.join(base_dir, 'data', 'models'),
+            os.path.join(base_dir, 'models'),
+        ]
+        found = []
+        for d in candidate_dirs:
+            try:
+                found = sorted(glob.glob(os.path.join(d, "*.gguf")))
+                if found:
+                    break
+            except Exception:
+                continue
+        display_names = [os.path.basename(p) for p in found]
+        if display_names:
+            self.model_combo.addItems(display_names)
+        else:
+            self.model_combo.addItem("(no models found)")
+        # Try to select saved model
         try:
-            from core.state import get_llm_model; saved = get_llm_model()
+            from core.state import get_llm_model
+            saved = get_llm_model()
             if saved:
-                base = os.path.basename(saved); idx = self.model_combo.findText(base); 
-                if idx >= 0: self.model_combo.setCurrentIndex(idx)
-        except Exception: pass
+                base = os.path.basename(saved)
+                idx = self.model_combo.findText(base)
+                if idx >= 0:
+                    self.model_combo.setCurrentIndex(idx)
+        except Exception:
+            pass
     
     def _prompt_restart(self):
         try:
@@ -780,6 +825,55 @@ class AIModelSettingsDialog(QDialog):
             else: QMessageBox.warning(self, "Restart Failed", result.stderr or result.stdout or "Unknown error")
         except Exception as e:
             QMessageBox.warning(self, "Error", f"Failed to restart container: {e}")
+    
+    # Override on_mode_clicked and on_model_changed to persist even if import fails
+    def _save_mode_locally(self, mode_now: str):
+        try:
+            # Try state API
+            from core.state import set_llm_mode
+            set_llm_mode(mode_now)
+            return True
+        except Exception:
+            pass
+        # Fallback: write app_settings.json directly
+        try:
+            settings_path = os.path.expanduser("~/LedgerAI/data/app_settings.json")
+            os.makedirs(os.path.dirname(settings_path), exist_ok=True)
+            data = {}
+            if os.path.exists(settings_path):
+                import json
+                with open(settings_path, "r") as f:
+                    data = json.load(f)
+            data["llm_mode"] = mode_now
+            import json
+            with open(settings_path, "w") as f:
+                json.dump(data, f, indent=2)
+            return True
+        except Exception:
+            return False
+    
+    def _save_model_locally(self, model_name: str):
+        try:
+            from core.state import set_llm_model
+            set_llm_model(model_name)
+            return True
+        except Exception:
+            pass
+        try:
+            settings_path = os.path.expanduser("~/LedgerAI/data/app_settings.json")
+            os.makedirs(os.path.dirname(settings_path), exist_ok=True)
+            data = {}
+            if os.path.exists(settings_path):
+                import json
+                with open(settings_path, "r") as f:
+                    data = json.load(f)
+            data["llm_model"] = model_name
+            import json
+            with open(settings_path, "w") as f:
+                json.dump(data, f, indent=2)
+            return True
+        except Exception:
+            return False
 
 class SettingsDialog(QDialog):
     def __init__(self, parent=None):
