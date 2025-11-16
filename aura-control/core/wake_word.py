@@ -8,7 +8,7 @@ For Jetson (ARM64), you may need to build from source:
   python setup.py build_ext --inplace
 
 Access Key:
-  Get free access key from: https://console.picovoice.ai/
+  Get free access key from: https://console.picovoice.ai/signup
   Set in .env: PORCUPINE_ACCESS_KEY=your_key_here
 """
 
@@ -84,8 +84,11 @@ class PorcupineWakeWord:
         # Check for access key (must be non-empty string)
         if not self.access_key or not self.access_key.strip():
             print("[Wake Word] ❌ Porcupine access key required!")
-            print("[Wake Word] 💡 Get free access key from: https://console.picovoice.ai/")
+            print("[Wake Word] 💡 Get FREE access key (no credit card required): https://console.picovoice.ai/signup")
+            print("[Wake Word] 💡 Free tier available for personal/non-commercial use")
             print("[Wake Word] 💡 Set in .env: PORCUPINE_ACCESS_KEY=your_key_here")
+            print("[Wake Word] ℹ️  Note: Porcupine requires internet for initial model download")
+            print("[Wake Word] ℹ️  After first download, models are cached and work offline")
             return False
         
         try:
@@ -142,7 +145,7 @@ class PorcupineWakeWord:
                         
                         if fallback_found:
                             print(f"[Wake Word] ⚠️  'hey aura' not found, using fallback: '{fallback_found}'")
-                            print(f"[Wake Word] 💡 Train custom 'hey aura' model at: https://console.picovoice.ai/")
+                            print(f"[Wake Word] 💡 Train custom 'hey aura' model (free tier): https://console.picovoice.ai/signup")
                             self.porcupine = pvporcupine.create(
                                 access_key=self.access_key,
                                 keywords=[fallback_found],
@@ -154,7 +157,7 @@ class PorcupineWakeWord:
                             print("[Wake Word] ❌ No built-in 'hey aura' keyword found")
                             print(f"[Wake Word] 📋 Available keywords: {sorted(list(available_keywords))[:10]}...")
                             print("[Wake Word] 💡 Options:")
-                            print("[Wake Word]    1. Train custom model at: https://console.picovoice.ai/")
+                            print("[Wake Word]    1. Train custom model (free tier): https://console.picovoice.ai/signup")
                             print("[Wake Word]    2. Download .ppn file and set wake_word_model_path in app_settings.json")
                             return False
                         
@@ -162,7 +165,7 @@ class PorcupineWakeWord:
                     print(f"[Wake Word] ❌ Failed to initialize with built-in keywords: {e}")
                     import traceback
                     traceback.print_exc()
-                    print("[Wake Word] 💡 Train custom model at: https://console.picovoice.ai/")
+                    print("[Wake Word] 💡 Train custom model (free tier): https://console.picovoice.ai/signup")
                     return False
             
             # Get required frame length and sample rate

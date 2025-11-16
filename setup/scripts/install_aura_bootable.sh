@@ -562,7 +562,8 @@ fi
 print_info "Verifying Porcupine installation..."
 if python3 -c "import pvporcupine; print('✅ Porcupine is ready')" 2>/dev/null; then
     print_info "✅ Porcupine wake word detection is ready"
-    print_info "   Get free access key from: https://console.picovoice.ai/"
+    print_info "   Get FREE access key from: https://console.picovoice.ai/signup"
+    print_info "   Free Plan available for personal use (no credit card required)"
     print_info "   Add to .env: PORCUPINE_ACCESS_KEY=your_key_here"
 else
     print_warning "⚠️  Porcupine not working - wake word detection will be disabled"
@@ -1237,7 +1238,8 @@ GITHUB_TOKEN=
 TTS_VOLUME=50
 #
 # Optional: Porcupine Wake Word Detection
-# Get free access key from: https://console.picovoice.ai/
+# Get FREE access key from: https://console.picovoice.ai/signup
+# Free Plan available for personal use (no credit card required)
 PORCUPINE_ACCESS_KEY=
 EOF
 chown "$AURA_USER:$AURA_USER" "$ENV_FILE"

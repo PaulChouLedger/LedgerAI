@@ -539,6 +539,15 @@ def listen():
         print("[Wake Word] ⚠️  Wake word enabled in settings but detector failed to initialize")
         print("[Wake Word] 🔒 Transcription will be BLOCKED until wake word detector is fixed")
         print("[Wake Word] 💡 Check logs above for initialization errors")
+        print("[Wake Word] ℹ️  Porcupine requires internet for initial model download")
+        print("[Wake Word] ℹ️  After first download, models are cached and work offline")
+        print("[Wake Word] 💡 To fix:")
+        print("[Wake Word]    1. Ensure internet connection is available")
+        print("[Wake Word]    2. Get FREE access key (no credit card): https://console.picovoice.ai/signup")
+        print("[Wake Word]       Free tier available for personal/non-commercial use")
+        print("[Wake Word]    3. Add to .env: PORCUPINE_ACCESS_KEY=your_key_here")
+        print("[Wake Word]    4. Restart Aura (models will download on first use)")
+        block_transcription("Wake word required but not available")
     
     if wake_word_enabled:
         print("\n" + "="*70)

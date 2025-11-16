@@ -3,6 +3,10 @@
 # AURA UNIFIED CONFIGURATION MANAGER
 # Easy management of all Aura settings from one place
 # ============================================================================
+#
+# NOTE: .env file now only contains API keys and basic settings.
+# LLM/RAG settings are hardcoded in scripts or managed via Settings Dialog.
+# ============================================================================
 
 CONFIG_FILE=".env"
 EXAMPLE_FILE=".env.example"
@@ -42,7 +46,7 @@ set_config_value() {
     local value=$2
     
     if [ ! -f "$CONFIG_FILE" ]; then
-        cp "$EXAMPLE_FILE" "$CONFIG_FILE"
+        cp "$EXAMPLE_FILE" "$CONFIG_FILE" 2>/dev/null || touch "$CONFIG_FILE"
         echo "Created $CONFIG_FILE from template"
     fi
     
@@ -65,142 +69,47 @@ set_config_value() {
 show_all_settings() {
     print_header "CURRENT AURA CONFIGURATION"
     
-    echo -e "${BOLD}🏥 EHR INTEGRATION${NC}"
-    local ehr_enabled=$(get_config_value "EHR_INTEGRATION_ENABLED")
-    if [ "$ehr_enabled" == "true" ]; then
-        echo -e "  ${GREEN}●${NC} Enabled"
-        echo "  FHIR Server: $(get_config_value 'SYSTMONE_FHIR_URL')"
-    else
-        echo -e "  ${RED}○${NC} Disabled"
-    fi
-    echo ""
-    
-    echo -e "${BOLD}🧠 LLM CONTAINER MODE${NC}"
-    local medical_mode=$(get_config_value "USE_MEDICAL_MODE")
-    if [ "$medical_mode" == "true" ]; then
-        echo -e "  ${GREEN}●${NC} Medical Mode (symptom assessment with Advanced Medical Navigator)"
-        local enabled_categories=$(get_config_value "ENABLED_MEDICAL_CATEGORIES")
-        if [ -z "$enabled_categories" ]; then
-            enabled_categories="GI (default)"
-        fi
-        echo "  Enabled Categories: $enabled_categories"
-        echo "  Available: GI, CARDIO, DERM, GU, GYN, MSK, NEURO, PULMONARY, RENAL"
-        echo -e "  ${CYAN}🔀 Advanced Medical Navigator: ${GREEN}ENABLED${NC} (default - hybrid LLM/RAG)"
-    else
-        echo -e "  ${YELLOW}○${NC} Generic Mode (general conversation, RAG Q&A)"
-    fi
-    echo ""
-    
-    echo -e "${BOLD}🧠 LLM MODEL${NC}"
-    # Advanced Medical Navigator is always enabled now (default)
-    ensure_medical_navigator_enabled
-    echo -e "  ${CYAN}📋 Advanced Medical Navigator (default) - Task-specific parameters shown below${NC}"
-    echo "  Model:         $(get_config_value 'SIMPLE_MODEL_PATH' | sed 's|.*/||')"
-    echo "  Context:       $(get_config_value 'SIMPLE_N_CTX')"
-    echo "  Chat Format:   $(get_config_value 'SIMPLE_CHAT_FORMAT')"
-    echo "  Temperature:   $(get_config_value 'LLM_TEMPERATURE_SIMPLE') (questions)"
-    echo "  Top P:         $(get_config_value 'LLM_TOP_P')"
-    echo "  Top K:         $(get_config_value 'LLM_TOP_K')"
-    echo "  Repeat Penalty:$(get_config_value 'LLM_REPEAT_PENALTY')"
-    echo "  Presence Pen.: $(get_config_value 'LLM_PRESENCE_PENALTY')"
-    echo "  Frequency Pen.:$(get_config_value 'LLM_FREQUENCY_PENALTY')"
-    echo "  Num Predict:   $(get_config_value 'LLM_NUM_PREDICT') (questions)"
-    echo "  Stop (CSV):    $(get_config_value 'LLM_STOP')"
-    
-    # Show task-specific parameters (Advanced Medical Navigator is default)
-    echo ""
-    echo -e "${BOLD}  📋 Medical Navigator Task-Specific Settings${NC}"
-    echo "  Temperature (Questions):     $(get_config_value 'LLM_TEMPERATURE_SIMPLE' || echo '0.4')"
-    echo "  Temperature (Empathetic):    $(get_config_value 'LLM_TEMPERATURE_EMPATHETIC' || echo '0.4')"
-    echo "  Temperature (Summary):       $(get_config_value 'LLM_TEMPERATURE_SUMMARY' || echo '0.25')"
-    echo "  Max Tokens (Questions):      $(get_config_value 'LLM_NUM_PREDICT' || echo '120')"
-    echo "  Max Tokens (Empathetic):     $(get_config_value 'LLM_MAX_TOKENS_EMPATHETIC' || echo '80')"
-    echo "  Max Tokens (Chronicity):     $(get_config_value 'LLM_MAX_TOKENS_CHRONICITY' || echo '60')"
-    echo "  Max Tokens (Summary):        $(get_config_value 'LLM_MAX_TOKENS_SUMMARY' || echo '220')"
-    echo "  ${YELLOW}Note: JSON scoring uses temperature=0.0 (deterministic, hardcoded)${NC}"
-    echo ""
-    
-    echo -e "${BOLD}📚 RAG SEARCH${NC}"
-    local rag_mode=$(get_config_value 'RAG_MODE')
-    if [ "$rag_mode" == "GPU" ]; then
-        echo -e "  ${GREEN}●${NC} Mode:          GPU (RAG container - port 11435)"
-    else
-        echo -e "  ${YELLOW}○${NC} Mode:          CPU (FAISS in LLM containers - ports 11434/11436)"
-    fi
-    echo "  Threshold:     $(get_config_value 'RAG_THRESHOLD')"
-    echo "  Top K:         $(get_config_value 'RAG_TOP_K')"
-    echo "  Phonetic:      $(get_config_value 'RAG_USE_PHONETIC_MATCHING')"
+    echo -e "${BOLD}📝 NOTE${NC}"
+    echo -e "  ${CYAN}ℹ️  .env file now only contains API keys and basic settings${NC}"
+    echo -e "  ${CYAN}ℹ️  LLM/RAG settings are hardcoded in scripts or managed via Settings Dialog${NC}"
     echo ""
     
     echo -e "${BOLD}🔊 TEXT-TO-SPEECH${NC}"
     local api_key=$(get_config_value 'ELEVENLABS_API_KEY')
     local voice_id=$(get_config_value 'ELEVENLABS_VOICE_ID')
-    local tts_limit=$(get_config_value 'TTS_TOKEN_LIMIT')
     local tts_volume=$(get_config_value 'TTS_VOLUME')
-    if [ -n "$api_key" ] && [ "$api_key" != "your_elevenlabs_api_key_here" ]; then
+    if [ -n "$api_key" ] && [ "$api_key" != "your_elevenlabs_api_key_here" ] && [ "$api_key" != "" ]; then
         echo -e "  ${GREEN}✅ API Key configured${NC}"
-        if [ -n "$voice_id" ] && [ "$voice_id" != "default" ]; then
+        if [ -n "$voice_id" ] && [ "$voice_id" != "default" ] && [ "$voice_id" != "" ]; then
             echo "  Voice ID:      $voice_id"
         else
             echo "  Voice ID:      default"
         fi
     else
         echo -e "  ${RED}❌ API Key not set${NC}"
-    fi
-    if [ -n "$tts_limit" ]; then
-        echo "  Token limit:  $tts_limit"
-    else
-        echo "  Token limit:  (not set)"
+        echo -e "  ${YELLOW}⚠️  TTS will not work without API key${NC}"
     fi
     if [ -n "$tts_volume" ]; then
         echo "  Volume:       $tts_volume%"
     else
-        echo "  Volume:       (not set)"
-    fi
-    
-    # TTS Batching Settings
-    local tts_batch_enabled=$(get_config_value 'TTS_BATCH_ENABLED')
-    local tts_batch_max_words=$(get_config_value 'TTS_BATCH_MAX_WORDS')
-    local tts_batch_max_chunks=$(get_config_value 'TTS_BATCH_MAX_CHUNKS')
-    local tts_batch_timeout=$(get_config_value 'TTS_BATCH_TIMEOUT')
-    [ -z "$tts_batch_enabled" ] && tts_batch_enabled="true"
-    [ -z "$tts_batch_max_words" ] && tts_batch_max_words="150"
-    [ -z "$tts_batch_max_chunks" ] && tts_batch_max_chunks="4"
-    [ -z "$tts_batch_timeout" ] && tts_batch_timeout="0.5"
-    
-    if [ "$tts_batch_enabled" == "true" ]; then
-        echo -e "  ${GREEN}●${NC} Batching:      Enabled (reduces API calls, ~60-70% faster)"
-        echo "  Batch max words:  ${tts_batch_max_words}"
-        echo "  Batch max chunks: ${tts_batch_max_chunks}"
-        echo "  Batch timeout:    ${tts_batch_timeout}s"
-    else
-        echo -e "  ${YELLOW}○${NC} Batching:      Disabled (immediate TTS, more API calls)"
+        echo "  Volume:       50% (default)"
     fi
     echo ""
-
-    local activation_keywords=$(get_config_value 'ACTIVATION_KEYWORDS')
-    local activation_window=$(get_config_value 'ACTIVATION_WINDOW_SECONDS')
-    local activation_cooldown=$(get_config_value 'ACTIVATION_COOLDOWN_SECONDS')
-    local memory_dir=$(get_config_value 'CONVERSATION_MEMORY_DIR')
-    local memory_persist_every=$(get_config_value 'CONVERSATION_MEMORY_PERSIST_EVERY')
-    local memory_max_entries=$(get_config_value 'CONVERSATION_MEMORY_MAX_ENTRIES')
-    local memory_top_k=$(get_config_value 'CONVERSATION_MEMORY_TOP_K')
-    local memory_min_score=$(get_config_value 'CONVERSATION_MEMORY_MIN_SCORE')
-
-    echo -e "${BOLD}🎙️ VOICE ACTIVATION & MEMORY${NC}"
-    echo "  Keywords:       ${activation_keywords:-hey aura}"
-    echo "  Window (sec):   ${activation_window:-15}"
-    echo "  Cooldown (sec): ${activation_cooldown:-3}"
-    echo "  Memory dir:     ${memory_dir:-data/learning/conversation_memory}"
-    echo "  Persist every:  ${memory_persist_every:-10}"
-    echo "  Max entries:    ${memory_max_entries:-5000}"
-    echo "  Top K recall:   ${memory_top_k:-3}"
-    echo "  Min score:      ${memory_min_score:-0.35}"
+    
+    echo -e "${BOLD}🎤 WAKE WORD DETECTION${NC}"
+    local porcupine_key=$(get_config_value 'PORCUPINE_ACCESS_KEY')
+    if [ -n "$porcupine_key" ] && [ "$porcupine_key" != "" ]; then
+        echo -e "  ${GREEN}✅ Porcupine access key configured${NC}"
+        echo "  Access Key:    ${porcupine_key:0:20}..."
+    else
+        echo -e "  ${YELLOW}○${NC} Not configured (optional)"
+        echo "  Get FREE key:  https://console.picovoice.ai/signup"
+    fi
     echo ""
     
     echo -e "${BOLD}💬 TELEGRAM BOT${NC}"
     local tg_token=$(get_config_value 'TELEGRAM_BOT_TOKEN')
-    if [ -n "$tg_token" ] && [ "$tg_token" != "your_telegram_bot_token" ]; then
+    if [ -n "$tg_token" ] && [ "$tg_token" != "your_telegram_bot_token" ] && [ "$tg_token" != "" ]; then
         echo -e "  ${GREEN}✅ Bot token configured${NC}"
     else
         echo -e "  ${YELLOW}○${NC} Not configured (optional)"
@@ -209,7 +118,7 @@ show_all_settings() {
     
     echo -e "${BOLD}🔄 GITHUB OTA UPDATES${NC}"
     local gh_token=$(get_config_value 'GITHUB_TOKEN')
-    if [ -n "$gh_token" ] && [ "$gh_token" != "your_github_token_here" ]; then
+    if [ -n "$gh_token" ] && [ "$gh_token" != "your_github_token_here" ] && [ "$gh_token" != "" ]; then
         echo -e "  ${GREEN}✅ GitHub token configured${NC}"
         echo "  Token:       ${gh_token:0:20}..."
     else
@@ -224,558 +133,49 @@ show_all_settings() {
         echo -e "  ${GREEN}✅ NHS credentials configured${NC}"
         echo "  Client ID:     ${nhs_client_id:0:20}..."
     else
-        echo -e "  ${YELLOW}○${NC} Not configured (needed for production)"
+        echo -e "  ${YELLOW}○${NC} Not configured (needed for production EHR)"
     fi
     echo ""
     
-    echo -e "${BOLD}🐛 DEBUGGING${NC}"
-    echo "  Debug Mode:    $(get_config_value 'DEBUG_MODE')"
-    echo "  Log Level:     $(get_config_value 'LOG_LEVEL')"
-    echo ""
-    
-    echo -e "${BOLD}🤖 MACHINE LEARNING${NC}"
-    local ml_enabled=$(get_config_value "ENABLE_ML_LEARNING")
-    if [ "$ml_enabled" == "true" ]; then
-        echo -e "  ${GREEN}●${NC} Enabled - Learning new synonyms and guideline terms"
-    else
-        echo -e "  ${RED}○${NC} Disabled - No learning from interactions"
-    fi
+    echo -e "${BOLD}⚙️  OTHER SETTINGS${NC}"
+    echo -e "  ${CYAN}LLM Mode (Medical/Generic):${NC} Managed via Settings Dialog"
+    echo -e "  ${CYAN}LLM Model Selection:${NC} Managed via Settings Dialog"
+    echo -e "  ${CYAN}RAG Mode (CPU/GPU/OFF):${NC} Managed via Settings Dialog"
+    echo -e "  ${CYAN}LLM Parameters:${NC} Hardcoded in container_rest.py (top-level variables)"
     echo ""
     
     echo "========================================================================"
 }
 
 # ============================================================================
-# Toggle Functions
-# ============================================================================
-
-toggle_ehr() {
-    local action=$1
-    
-    if [ "$action" == "on" ]; then
-        set_config_value "EHR_INTEGRATION_ENABLED" "true"
-        echo ""
-        echo -e "${GREEN}✅ EHR Integration ENABLED${NC}"
-        echo ""
-        echo "FHIR calls will be made to: $(get_config_value 'SYSTMONE_FHIR_URL')"
-        echo "Data will be saved to SystmOne EHR"
-        echo ""
-    else
-        set_config_value "EHR_INTEGRATION_ENABLED" "false"
-        echo ""
-        echo -e "${GREEN}✅ EHR Integration DISABLED${NC}"
-        echo ""
-        echo "Normal Aura mode (local data only)"
-        echo ""
-    fi
-    
-    show_restart_message
-}
-
-toggle_medical_mode() {
-    local action=$1
-    
-    if [ "$action" == "on" ]; then
-        set_config_value "USE_MEDICAL_MODE" "true"
-        echo ""
-        echo -e "${GREEN}✅ Medical Mode ENABLED${NC}"
-        echo ""
-        echo "Container will handle:"
-        echo "  • Medical symptom assessment"
-        echo "  • Advanced Medical Navigator (hybrid LLM/RAG/FAISS)"
-        echo "  • OLDCARTS-based questioning"
-        echo "  • Guideline matching"
-        echo ""
-    else
-        set_config_value "USE_MEDICAL_MODE" "false"
-        echo ""
-        echo -e "${GREEN}✅ Generic Mode ENABLED${NC}"
-        echo ""
-        echo "Container will handle:"
-        echo "  • General conversation"
-        echo "  • RAG-powered document Q&A"
-        echo "  • Flexible LLM interactions"
-        echo ""
-    fi
-    
-    show_restart_message
-}
-
-toggle_ml_learning() {
-    local action=$1
-    
-    if [ "$action" == "on" ]; then
-        set_config_value "ENABLE_ML_LEARNING" "true"
-        echo ""
-        echo -e "${GREEN}✅ ML Learning ENABLED${NC}"
-        echo ""
-        echo "System will:"
-        echo "  • Record successful term matches"
-        echo "  • Track unmatched patient responses"
-        echo "  • Generate suggestions for new synonyms"
-        echo "  • Generate suggestions for new guideline terms"
-        echo ""
-        echo "Review suggestions with: python3 ml/review_suggestions.py"
-        echo ""
-    else
-        set_config_value "ENABLE_ML_LEARNING" "false"
-        echo ""
-        echo -e "${GREEN}✅ ML Learning DISABLED${NC}"
-        echo ""
-        echo "No learning from interactions"
-        echo "System will not record or suggest new terms"
-        echo ""
-    fi
-    
-    show_restart_message
-}
-
-# Advanced Medical Navigator is now the default and only option
-# This function ensures USE_MEDICAL_NAVIGATOR is always set to true
-ensure_medical_navigator_enabled() {
-    local current=$(get_config_value "USE_MEDICAL_NAVIGATOR")
-    if [ "$current" != "true" ]; then
-        set_config_value "USE_MEDICAL_NAVIGATOR" "true" > /dev/null 2>&1
-    fi
-}
-
-# ============================================================================
 # Configuration Menus
 # ============================================================================
-
-configure_ehr() {
-    print_header "EHR CONFIGURATION"
-    
-    echo "Current Status: $(get_config_value 'EHR_INTEGRATION_ENABLED')"
-    echo ""
-    echo "1) Enable EHR integration"
-    echo "2) Disable EHR integration"
-    echo "3) Change FHIR server URL"
-    echo "4) Back to main menu"
-    echo ""
-    read -p "Choice [1-4]: " choice
-    
-    case $choice in
-        1) toggle_ehr on ;;
-        2) toggle_ehr off ;;
-        3)
-            echo ""
-            echo "Current: $(get_config_value 'SYSTMONE_FHIR_URL')"
-            echo ""
-            echo "Common options:"
-            echo "  1) https://hapi.fhir.org/baseR4 (test server)"
-            echo "  2) https://api.systmone.nhs.uk/fhir (production)"
-            echo "  3) Custom URL"
-            echo ""
-            read -p "Choice [1-3]: " url_choice
-            case $url_choice in
-                1) set_config_value "SYSTMONE_FHIR_URL" "https://hapi.fhir.org/baseR4" ;;
-                2) set_config_value "SYSTMONE_FHIR_URL" "https://api.systmone.nhs.uk/fhir" ;;
-                3)
-                    read -p "Enter FHIR URL: " custom_url
-                    set_config_value "SYSTMONE_FHIR_URL" "$custom_url"
-                    ;;
-            esac
-            show_restart_message
-            ;;
-        4) return ;;
-    esac
-}
-
-configure_llm() {
-    print_header "LLM MODEL CONFIGURATION"
-    
-    # Advanced Medical Navigator is always enabled (default)
-    ensure_medical_navigator_enabled
-    echo -e "${CYAN}Advanced Medical Navigator (default) - Task-specific parameters available${NC}"
-    echo ""
-    echo "Model:         $(get_config_value 'SIMPLE_MODEL_PATH' | sed 's|.*/||')"
-    echo "Context:       $(get_config_value 'SIMPLE_N_CTX')"
-    echo "Temperature:   $(get_config_value 'LLM_TEMPERATURE_SIMPLE')"
-    echo ""
-    
-    echo "General Settings (used by all LLM tasks):"
-    echo "  1) Change model path"
-    echo "  2) Change context size"
-    echo "  3) Adjust temperature (default for question generation)"
-    echo "  4) Set top_p (nucleus sampling)"
-    echo "  5) Set top_k (top-k sampling)"
-    echo "  6) Set repeat_penalty (penalty for repetition)"
-    echo "  7) Set presence_penalty (encourages diversity)"
-    echo "  8) Set frequency_penalty (penalty for word repetition)"
-    echo "  9) Set num_predict (default max tokens for questions)"
-    echo " 10) Set stop sequences (CSV)"
-    echo " 11) Set chat format (e.g., llama-3, qwen2, qwen2.5)"
-    echo ""
-    echo "Medical Navigator Task-Specific Settings:"
-    echo "  (JSON scoring always uses temperature=0.0 for deterministic output)"
-    echo " 12) Set temperature for empathetic statements (default: 0.4)"
-    echo " 13) Set temperature for summaries (default: 0.25, lower = more accurate)"
-    echo " 14) Set max tokens for empathetic statements (default: 80)"
-    echo " 15) Set max tokens for chronicity questions (default: 60)"
-    echo " 16) Set max tokens for summaries (default: 220)"
-    echo " 17) Back to main menu"
-    echo ""
-    
-    read -p "Choice [1-17]: " choice
-    
-    case $choice in
-        1)
-            read -p "Enter model path: " model_path
-            set_config_value "SIMPLE_MODEL_PATH" "$model_path"
-            show_restart_message
-            ;;
-        2)
-            echo ""
-            echo "Common values: 2048, 4096, 8192"
-            read -p "Enter context size: " ctx
-            set_config_value "SIMPLE_N_CTX" "$ctx"
-            show_restart_message
-            ;;
-        3)
-            echo ""
-            echo "Current temperature: $(get_config_value 'LLM_TEMPERATURE_SIMPLE')"
-            echo "Used for: Question generation (default)"
-            echo "Note: JSON scoring uses temperature=0.0 (hardcoded, deterministic)"
-            read -p "Enter temperature (0.0-1.0): " temp
-            if [ -n "$temp" ]; then
-                set_config_value "LLM_TEMPERATURE_SIMPLE" "$temp"
-                show_restart_message
-            fi
-            ;;
-        4)
-            read -p "Enter top_p (0.0-1.0): " v
-            set_config_value "LLM_TOP_P" "$v"; show_restart_message ;;
-        5)
-            read -p "Enter top_k (integer): " v
-            set_config_value "LLM_TOP_K" "$v"; show_restart_message ;;
-        6)
-            read -p "Enter repeat_penalty (>=1.0): " v
-            set_config_value "LLM_REPEAT_PENALTY" "$v"; show_restart_message ;;
-        7)
-            read -p "Enter presence_penalty: " v
-            set_config_value "LLM_PRESENCE_PENALTY" "$v"; show_restart_message ;;
-        8)
-            read -p "Enter frequency_penalty: " v
-            set_config_value "LLM_FREQUENCY_PENALTY" "$v"; show_restart_message ;;
-        9)
-            echo ""
-            echo "Current num_predict: $(get_config_value 'LLM_NUM_PREDICT')"
-            echo "Used for: Question generation (default max tokens)"
-            read -p "Enter num_predict (max tokens): " v
-            if [ -n "$v" ]; then
-                set_config_value "LLM_NUM_PREDICT" "$v"
-                show_restart_message
-            fi
-            ;;
-        10)
-            echo ""
-            echo "Current stop sequences: $(get_config_value 'LLM_STOP')"
-            echo ""
-            echo "Examples:"
-            echo "  - ChatML (Nemotron, Qwen): <|im_end|>,</s>"
-            echo "  - Llama-3: </s>"
-            echo "  - Double newline: \\n\\n"
-            echo ""
-            read -p "Enter stop sequences as CSV: " v
-            set_config_value "LLM_STOP" "$v"; show_restart_message ;;
-        11)
-            echo ""
-            echo "Current chat format: $(get_config_value 'SIMPLE_CHAT_FORMAT')"
-            read -p "Enter chat format (e.g., llama-3, qwen2, qwen2.5): " cf
-            if [ -n "$cf" ]; then
-                set_config_value "SIMPLE_CHAT_FORMAT" "$cf"
-                show_restart_message
-            fi
-            ;;
-        12)
-            echo ""
-            echo "Current empathetic temperature: $(get_config_value 'LLM_TEMPERATURE_EMPATHETIC' || echo '0.4')"
-            echo "Used for: Empathetic statements and responses"
-            read -p "Enter temperature for empathetic statements (0.0-1.0): " temp
-            if [ -n "$temp" ]; then
-                set_config_value "LLM_TEMPERATURE_EMPATHETIC" "$temp"
-                show_restart_message
-            fi
-            ;;
-        13)
-            echo ""
-            echo "Current summary temperature: $(get_config_value 'LLM_TEMPERATURE_SUMMARY' || echo '0.25')"
-            echo "Used for: History summaries (lower = more accurate)"
-            read -p "Enter temperature for summaries (0.0-1.0): " temp
-            if [ -n "$temp" ]; then
-                set_config_value "LLM_TEMPERATURE_SUMMARY" "$temp"
-                show_restart_message
-            fi
-            ;;
-        14)
-            echo ""
-            echo "Current empathetic max tokens: $(get_config_value 'LLM_MAX_TOKENS_EMPATHETIC' || echo '80')"
-            echo "Used for: Empathetic statements"
-            read -p "Enter max tokens for empathetic statements: " tokens
-            if [ -n "$tokens" ] && [[ "$tokens" =~ ^[0-9]+$ ]]; then
-                set_config_value "LLM_MAX_TOKENS_EMPATHETIC" "$tokens"
-                show_restart_message
-            else
-                echo -e "${RED}Invalid value. Please enter a positive integer.${NC}"
-                sleep 1
-            fi
-            ;;
-        15)
-            echo ""
-            echo "Current chronicity max tokens: $(get_config_value 'LLM_MAX_TOKENS_CHRONICITY' || echo '60')"
-            echo "Used for: Chronicity questions"
-            read -p "Enter max tokens for chronicity questions: " tokens
-            if [ -n "$tokens" ] && [[ "$tokens" =~ ^[0-9]+$ ]]; then
-                set_config_value "LLM_MAX_TOKENS_CHRONICITY" "$tokens"
-                show_restart_message
-            else
-                echo -e "${RED}Invalid value. Please enter a positive integer.${NC}"
-                sleep 1
-            fi
-            ;;
-        16)
-            echo ""
-            echo "Current summary max tokens: $(get_config_value 'LLM_MAX_TOKENS_SUMMARY' || echo '220')"
-            echo "Used for: History summaries"
-            read -p "Enter max tokens for summaries: " tokens
-            if [ -n "$tokens" ] && [[ "$tokens" =~ ^[0-9]+$ ]]; then
-                set_config_value "LLM_MAX_TOKENS_SUMMARY" "$tokens"
-                show_restart_message
-            else
-                echo -e "${RED}Invalid value. Please enter a positive integer.${NC}"
-                sleep 1
-            fi
-            ;;
-        17)
-            return
-            ;;
-        *)
-            echo ""
-            echo -e "${RED}Invalid choice${NC}"
-            sleep 1
-            ;;
-    esac
-}
-
-configure_medical_mode() {
-    print_header "LLM CONTAINER MODE CONFIGURATION"
-    
-    local current=$(get_config_value 'USE_MEDICAL_MODE')
-    
-    echo "Current Mode:"
-    if [ "$current" == "true" ]; then
-        echo -e "  ${GREEN}Medical Mode${NC} - Symptom assessment with Advanced Medical Navigator"
-        echo ""
-        echo "  Endpoints available:"
-        echo "    • /chat-medical - Medical conversations"
-        echo "    • /chat-tg - Routes to medical mode"
-        echo "    • /chat-tts - Routes to medical mode (streaming)"
-    else
-        echo -e "  ${YELLOW}Generic Mode${NC} - General conversation, RAG Q&A"
-        echo ""
-        echo "  Endpoints available:"
-        echo "    • /chat-generic - Generic conversations"
-        echo "    • /chat-tg - Routes to generic mode"
-        echo "    • /chat-tts - Routes to generic mode (streaming)"
-    fi
-    echo ""
-    echo "1) Enable Medical Mode"
-    echo "2) Enable Generic Mode"
-    echo "3) Back to main menu"
-    echo ""
-    read -p "Choice [1-3]: " choice
-    
-    case $choice in
-        1) toggle_medical_mode on ;;
-        2) toggle_medical_mode off ;;
-        3) return ;;
-    esac
-}
-
-configure_medical_categories() {
-    print_header "MEDICAL CATEGORIES CONFIGURATION"
-    
-    local current=$(get_config_value 'ENABLED_MEDICAL_CATEGORIES')
-    if [ -z "$current" ]; then
-        current="GI (default)"
-    fi
-    
-    echo "Current Enabled Categories: $current"
-    echo ""
-    echo "Available Categories:"
-    echo "  • GI         - Gastrointestinal (curated)"
-    echo "  • CARDIO     - Cardiovascular"
-    echo "  • DERM       - Dermatology"
-    echo "  • GU         - Genitourinary"
-    echo "  • GYN        - Gynecological"
-    echo "  • MSK        - Musculoskeletal"
-    echo "  • NEURO      - Neurological"
-    echo "  • PULMONARY  - Pulmonary"
-    echo "  • RENAL      - Renal"
-    echo ""
-    echo "Note: Only curated categories (GI) are recommended for use."
-    echo "      Other categories may have incomplete guidelines."
-    echo ""
-    echo "1) Set enabled categories (comma-separated, e.g., 'GI' or 'GI,CARDIO')"
-    echo "2) Clear (use all categories - not recommended)"
-    echo "3) Back to main menu"
-    echo ""
-    read -p "Choice [1-3]: " choice
-    
-    case $choice in
-        1)
-            echo ""
-            echo "Enter categories (comma-separated, e.g., 'GI' or 'GI,CARDIO'):"
-            echo "Available: GI, CARDIO, DERM, GU, GYN, MSK, NEURO, PULMONARY, RENAL"
-            read -p "Categories: " categories
-            if [ -n "$categories" ]; then
-                set_config_value "ENABLED_MEDICAL_CATEGORIES" "$categories"
-                echo ""
-                echo -e "${GREEN}✅ Updated enabled categories to: $categories${NC}"
-                echo ""
-                echo "The system will now only load guidelines from these categories."
-                echo "Other categories will be ignored."
-                show_restart_message
-            else
-                echo "No categories entered. Keeping current setting."
-            fi
-            ;;
-        2)
-            echo ""
-            read -p "Clear enabled categories (load all)? This is not recommended. (y/n): " answer
-            if [ "$answer" == "y" ] || [ "$answer" == "Y" ]; then
-                # Remove the line from .env
-                if [ -f "$CONFIG_FILE" ]; then
-                    grep -v "^ENABLED_MEDICAL_CATEGORIES=" "$CONFIG_FILE" > "${CONFIG_FILE}.tmp" 2>/dev/null || true
-                    mv "${CONFIG_FILE}.tmp" "$CONFIG_FILE"
-                fi
-                echo ""
-                echo -e "${YELLOW}⚠️  Cleared enabled categories - will load all categories${NC}"
-                echo ""
-                echo "This is not recommended as only GI is curated."
-                show_restart_message
-            fi
-            ;;
-        3)
-            return ;;
-    esac
-}
-
-configure_rag() {
-    print_header "RAG SEARCH CONFIGURATION"
-    
-    local rag_mode=$(get_config_value 'RAG_MODE')
-    
-    echo "Current Settings:"
-    echo ""
-    if [ "$rag_mode" == "GPU" ]; then
-        echo -e "  RAG Mode:     ${GREEN}GPU${NC} (RAG container - port 11435)"
-    else
-        echo -e "  RAG Mode:     ${YELLOW}CPU${NC} (FAISS in LLM containers)"
-    fi
-    echo "  Threshold:    $(get_config_value 'RAG_THRESHOLD')"
-    echo "  Top K:        $(get_config_value 'RAG_TOP_K')"
-    echo "  Phonetic:     $(get_config_value 'RAG_USE_PHONETIC_MATCHING')"
-    echo ""
-    echo "1) Toggle RAG mode (GPU vs CPU)"
-    echo "2) Adjust threshold (0.0 = loose, 1.0 = strict)"
-    echo "3) Change Top K (number of results)"
-    echo "4) Toggle phonetic matching"
-    echo "5) Back to main menu"
-    echo ""
-    read -p "Choice [1-5]: " choice
-    
-    case $choice in
-        1)
-            echo ""
-            local current=$(get_config_value 'RAG_MODE')
-            if [ "$current" == "GPU" ]; then
-                echo "Currently: RAG_MODE=GPU (RAG container - port 11435)"
-                echo ""
-                read -p "Switch to RAG_MODE=CPU (FAISS in LLM containers)? (y/n): " answer
-                if [ "$answer" == "y" ] || [ "$answer" == "Y" ]; then
-                    set_config_value "RAG_MODE" "CPU"
-                    echo ""
-                    echo -e "${GREEN}✅ Switched to RAG_MODE=CPU${NC}"
-                    echo ""
-                    echo "RAG is still enabled, but now using:"
-                    echo "  • CPU FAISS within LLM containers (ports 11434/11436)"
-                    echo "  • No separate RAG container needed"
-                    echo "  • Simpler setup, no network calls"
-                    echo "  • Direct file processing in LLM containers"
-                    echo ""
-                    show_restart_message
-                fi
-            else
-                echo "Currently: RAG_MODE=CPU (FAISS in LLM containers)"
-                echo ""
-                read -p "Switch to RAG_MODE=GPU (separate RAG container)? (y/n): " answer
-                if [ "$answer" == "y" ] || [ "$answer" == "Y" ]; then
-                    set_config_value "RAG_MODE" "GPU"
-                    echo ""
-                    echo -e "${GREEN}✅ Switched to RAG_MODE=GPU${NC}"
-                    echo ""
-                    echo "RAG is still enabled, but now using:"
-                    echo "  • Separate RAG container (port 11435)"
-                    echo "  • GPU-accelerated FAISS"
-                    echo "  • Faster for large batches"
-                    echo "  • Better scalability"
-                    echo ""
-                    echo "Note: Requires GPU and RAG container to be running"
-                    echo ""
-                    show_restart_message
-                fi
-            fi
-            ;;
-        2)
-            read -p "Enter threshold (0.0-1.0): " threshold
-            set_config_value "RAG_THRESHOLD" "$threshold"
-            show_restart_message
-            ;;
-        3)
-            read -p "Enter Top K (1-10): " topk
-            set_config_value "RAG_TOP_K" "$topk"
-            show_restart_message
-            ;;
-        4)
-            local current=$(get_config_value 'RAG_USE_PHONETIC_MATCHING')
-            if [ "$current" == "true" ]; then
-                set_config_value "RAG_USE_PHONETIC_MATCHING" "false"
-            else
-                set_config_value "RAG_USE_PHONETIC_MATCHING" "true"
-            fi
-            show_restart_message
-            ;;
-        5) return ;;
-    esac
-}
 
 configure_tts() {
     print_header "TEXT-TO-SPEECH CONFIGURATION"
     
     local api_key=$(get_config_value 'ELEVENLABS_API_KEY')
     local voice_id=$(get_config_value 'ELEVENLABS_VOICE_ID')
+    local tts_volume=$(get_config_value 'TTS_VOLUME')
     
     echo "Current Settings:"
     echo ""
-    if [ -n "$api_key" ] && [ "$api_key" != "your_elevenlabs_api_key_here" ]; then
+    if [ -n "$api_key" ] && [ "$api_key" != "your_elevenlabs_api_key_here" ] && [ "$api_key" != "" ]; then
         echo -e "  API Key:  ${GREEN}✅ Configured${NC}"
         echo "  Voice ID: ${voice_id:-default}"
     else
         echo -e "  API Key:  ${RED}❌ Not set${NC}"
         echo "  Voice ID: ${voice_id:-default}"
     fi
+    echo "  Volume:    ${tts_volume:-50}%"
     echo ""
     echo "1) Set ElevenLabs API key"
     echo "2) Set voice ID (optional)"
-    echo "3) Set TTS token limit (tokens per chunk)"
-    echo "4) Set TTS volume (0-100%)"
-    echo "5) Configure TTS batching (reduce API calls, faster TTS)"
-    echo "6) Clear API key"
-    echo "7) Back to main menu"
+    echo "3) Set TTS volume (0-100%)"
+    echo "4) Clear API key"
+    echo "5) Back to main menu"
     echo ""
-    read -p "Choice [1-7]: " choice
+    read -p "Choice [1-5]: " choice
     
     case $choice in
         1)
@@ -788,7 +188,7 @@ configure_tts() {
                 echo ""
                 echo -e "${GREEN}✅ API key saved${NC}"
                 echo ""
-                echo "Note: No container restart needed for TTS changes"
+                echo "Note: No restart needed for TTS changes"
             fi
             ;;
         2)
@@ -808,269 +208,95 @@ configure_tts() {
             ;;
         3)
             echo ""
-            echo "Current token limit: ${tts_limit:-not set}"
-            read -p "Enter TTS token limit (positive integer): " tts_limit_new
-            if [[ "$tts_limit_new" =~ ^[0-9]+$ ]] && [ "$tts_limit_new" -gt 0 ]; then
-                set_config_value "TTS_TOKEN_LIMIT" "$tts_limit_new"
-                echo -e "${GREEN}✅ TTS token limit saved${NC}"
-                echo ""
-                echo "Note: Restart speaker service to apply"
-            else
-                echo -e "${RED}Invalid value. Please enter a positive integer.${NC}"
-            fi
-            ;;
-        4)
-            echo ""
-            echo "Current volume: ${tts_volume:-not set}"
+            echo "Current volume: ${tts_volume:-50}%"
             read -p "Enter TTS volume (0-100): " tts_volume_new
             if [[ "$tts_volume_new" =~ ^[0-9]+$ ]] && [ "$tts_volume_new" -ge 0 ] && [ "$tts_volume_new" -le 100 ]; then
                 set_config_value "TTS_VOLUME" "$tts_volume_new"
                 echo -e "${GREEN}✅ TTS volume saved${NC}"
                 echo ""
-                echo "Note: Restart speaker service to apply"
+                echo "Note: Restart Aura for volume change to take effect"
             else
                 echo -e "${RED}Invalid value. Please enter an integer 0-100.${NC}"
             fi
             ;;
-        5)
-            echo ""
-            print_header "TTS BATCHING CONFIGURATION"
-            
-            local batch_enabled=$(get_config_value 'TTS_BATCH_ENABLED')
-            local batch_max_words=$(get_config_value 'TTS_BATCH_MAX_WORDS')
-            local batch_max_chunks=$(get_config_value 'TTS_BATCH_MAX_CHUNKS')
-            local batch_timeout=$(get_config_value 'TTS_BATCH_TIMEOUT')
-            [ -z "$batch_enabled" ] && batch_enabled="true"
-            [ -z "$batch_max_words" ] && batch_max_words="150"
-            [ -z "$batch_max_chunks" ] && batch_max_chunks="4"
-            [ -z "$batch_timeout" ] && batch_timeout="0.5"
-            
-            echo "Current Settings:"
-            echo ""
-            if [ "$batch_enabled" == "true" ]; then
-                echo -e "  Batching:       ${GREEN}Enabled${NC}"
-            else
-                echo -e "  Batching:       ${YELLOW}Disabled${NC}"
-            fi
-            echo "  Max words:      $batch_max_words"
-            echo "  Max chunks:     $batch_max_chunks"
-            echo "  Timeout:        ${batch_timeout}s"
-            echo ""
-            echo "Batching reduces TTS latency by combining multiple chunks into"
-            echo "fewer API calls, resulting in ~60-70% faster response times."
-            echo ""
-            echo "1) Toggle batching (on/off)"
-            echo "2) Set max words per batch (default: 150)"
-            echo "3) Set max chunks per batch (default: 4)"
-            echo "4) Set timeout seconds (default: 0.5)"
-            echo "5) Back to TTS menu"
-            echo ""
-            read -p "Choice [1-5]: " batch_choice
-            
-            case $batch_choice in
-                1)
-                    echo ""
-                    if [ "$batch_enabled" == "true" ]; then
-                        echo "Batching is currently: ENABLED"
-                        echo ""
-                        read -p "Disable batching? (y/n): " answer
-                        if [ "$answer" == "y" ] || [ "$answer" == "Y" ]; then
-                            set_config_value "TTS_BATCH_ENABLED" "false"
-                            echo ""
-                            echo -e "${YELLOW}✅ Batching DISABLED${NC}"
-                            echo ""
-                            echo "TTS will send each chunk immediately (more API calls, slower)"
-                        fi
-                    else
-                        echo "Batching is currently: DISABLED"
-                        echo ""
-                        read -p "Enable batching? (y/n): " answer
-                        if [ "$answer" == "y" ] || [ "$answer" == "Y" ]; then
-                            set_config_value "TTS_BATCH_ENABLED" "true"
-                            echo ""
-                            echo -e "${GREEN}✅ Batching ENABLED${NC}"
-                            echo ""
-                            echo "TTS will batch chunks together (~60-70% faster)"
-                        fi
-                    fi
-                    ;;
-                2)
-                    echo ""
-                    echo "Current max words: $batch_max_words"
-                    echo ""
-                    echo "This is the maximum number of words to accumulate before"
-                    echo "sending to TTS. Higher = fewer API calls but longer waits."
-                    read -p "Enter max words per batch (50-300, default: 150): " val
-                    if [[ "$val" =~ ^[0-9]+$ ]] && [ "$val" -ge 50 ] && [ "$val" -le 300 ]; then
-                        set_config_value "TTS_BATCH_MAX_WORDS" "$val"
-                        echo -e "${GREEN}✅ Max words saved${NC}"
-                    elif [ -z "$val" ]; then
-                        set_config_value "TTS_BATCH_MAX_WORDS" "150"
-                        echo -e "${GREEN}✅ Reset to default: 150${NC}"
-                    else
-                        echo -e "${RED}Invalid value. Please enter 50-300.${NC}"
-                    fi
-                    ;;
-                3)
-                    echo ""
-                    echo "Current max chunks: $batch_max_chunks"
-                    echo ""
-                    echo "This is the maximum number of chunks to accumulate before"
-                    echo "sending to TTS. Higher = fewer API calls."
-                    read -p "Enter max chunks per batch (2-10, default: 4): " val
-                    if [[ "$val" =~ ^[0-9]+$ ]] && [ "$val" -ge 2 ] && [ "$val" -le 10 ]; then
-                        set_config_value "TTS_BATCH_MAX_CHUNKS" "$val"
-                        echo -e "${GREEN}✅ Max chunks saved${NC}"
-                    elif [ -z "$val" ]; then
-                        set_config_value "TTS_BATCH_MAX_CHUNKS" "4"
-                        echo -e "${GREEN}✅ Reset to default: 4${NC}"
-                    else
-                        echo -e "${RED}Invalid value. Please enter 2-10.${NC}"
-                    fi
-                    ;;
-                4)
-                    echo ""
-                    echo "Current timeout: ${batch_timeout}s"
-                    echo ""
-                    echo "This is how long to wait (in seconds) for more chunks"
-                    echo "before flushing the batch. Lower = faster but more API calls."
-                    read -p "Enter timeout seconds (0.1-2.0, default: 0.5): " val
-                    if [[ "$val" =~ ^[0-9]+\.?[0-9]*$ ]] && (( $(echo "$val >= 0.1" | bc -l) )) && (( $(echo "$val <= 2.0" | bc -l) )); then
-                        set_config_value "TTS_BATCH_TIMEOUT" "$val"
-                        echo -e "${GREEN}✅ Timeout saved${NC}"
-                    elif [ -z "$val" ]; then
-                        set_config_value "TTS_BATCH_TIMEOUT" "0.5"
-                        echo -e "${GREEN}✅ Reset to default: 0.5${NC}"
-                    else
-                        echo -e "${RED}Invalid value. Please enter 0.1-2.0.${NC}"
-                    fi
-                    ;;
-                5)
-                    return
-                    ;;
-                *)
-                    echo ""
-                    echo -e "${RED}Invalid choice${NC}"
-                    sleep 1
-                    ;;
-            esac
-            ;;
-        6)
-            set_config_value "ELEVENLABS_API_KEY" "your_elevenlabs_api_key_here"
+        4)
+            set_config_value "ELEVENLABS_API_KEY" ""
             echo ""
             echo -e "${GREEN}✅ API key cleared${NC}"
             ;;
-        7) return ;;
+        5) return ;;
     esac
 }
 
-configure_voice_activation() {
-    print_header "VOICE ACTIVATION & CONVERSATION MEMORY"
-
-    local keywords=$(get_config_value 'ACTIVATION_KEYWORDS')
-    local window=$(get_config_value 'ACTIVATION_WINDOW_SECONDS')
-    local cooldown=$(get_config_value 'ACTIVATION_COOLDOWN_SECONDS')
-    local memory_dir=$(get_config_value 'CONVERSATION_MEMORY_DIR')
-    local persist_every=$(get_config_value 'CONVERSATION_MEMORY_PERSIST_EVERY')
-    local max_entries=$(get_config_value 'CONVERSATION_MEMORY_MAX_ENTRIES')
-    local top_k=$(get_config_value 'CONVERSATION_MEMORY_TOP_K')
-    local min_score=$(get_config_value 'CONVERSATION_MEMORY_MIN_SCORE')
-
-    [ -z "$keywords" ] && keywords="hey aura"
-    [ -z "$window" ] && window="15"
-    [ -z "$cooldown" ] && cooldown="3"
-    [ -z "$memory_dir" ] && memory_dir="data/learning/conversation_memory"
-    [ -z "$persist_every" ] && persist_every="10"
-    [ -z "$max_entries" ] && max_entries="5000"
-    [ -z "$top_k" ] && top_k="3"
-    [ -z "$min_score" ] && min_score="0.35"
-
+configure_wake_word() {
+    print_header "WAKE WORD DETECTION CONFIGURATION (PORCUPINE/PICOVOICE)"
+    
+    local porcupine_key=$(get_config_value 'PORCUPINE_ACCESS_KEY')
+    
     echo "Current Settings:"
     echo ""
-    echo "  Activation keywords:     $keywords"
-    echo "  Activation window (sec): $window"
-    echo "  Activation cooldown (sec): $cooldown"
-    echo "  Memory directory:        $memory_dir"
-    echo "  Persist every (entries): $persist_every"
-    echo "  Max entries stored:      $max_entries"
-    echo "  Memory Top K recall:     $top_k"
-    echo "  Memory minimum score:    $min_score"
+    if [ -n "$porcupine_key" ] && [ "$porcupine_key" != "" ]; then
+        echo -e "  Access Key: ${GREEN}✅ Configured${NC}"
+        echo "  Key:       ${porcupine_key:0:20}..."
+    else
+        echo -e "  Access Key: ${RED}❌ Not set${NC}"
+    fi
     echo ""
-
-    echo "1) Set activation keywords (comma-separated)"
-    echo "2) Set activation window (seconds)"
-    echo "3) Set activation cooldown (seconds)"
-    echo "4) Set memory directory"
-    echo "5) Set persistence interval (entries)"
-    echo "6) Set memory max entries"
-    echo "7) Set memory Top K recall"
-    echo "8) Set memory minimum score"
-    echo "9) Back to main menu"
+    echo "Porcupine Wake Word Detection (Picovoice):"
+    echo "  • FREE access key available (no credit card required)"
+    echo "  • Get key from: https://console.picovoice.ai/signup"
+    echo "  • Free tier available for personal/non-commercial use"
+    echo "  • Requires internet for initial model download"
+    echo "  • Works offline after first download"
     echo ""
-    read -p "Choice [1-9]: " choice
-
+    echo "1) Set Porcupine/Picovoice access key"
+    echo "2) Clear access key"
+    echo "3) Back to main menu"
+    echo ""
+    read -p "Choice [1-3]: " choice
+    
     case $choice in
         1)
             echo ""
-            read -p "Enter activation keywords (comma-separated): " val
-            if [ -n "$val" ]; then
-                set_config_value "ACTIVATION_KEYWORDS" "$val"
-            else
-                set_config_value "ACTIVATION_KEYWORDS" "hey aura"
+            echo "Get your FREE access key from: https://console.picovoice.ai/signup"
+            echo "Free tier available for personal use (no credit card required)"
+            echo ""
+            echo "You can paste:"
+            echo "  • Just the key value (e.g., abc123xyz...)"
+            echo "  • Or the full line (e.g., PORCUPINE_ACCESS_KEY=abc123xyz...)"
+            echo ""
+            read -p "Enter Porcupine/Picovoice access key: " porcupine_key
+            if [ -n "$porcupine_key" ]; then
+                # Extract value if user pasted "PORCUPINE_ACCESS_KEY=value" format
+                if [[ "$porcupine_key" == *"="* ]]; then
+                    porcupine_key=$(echo "$porcupine_key" | cut -d'=' -f2- | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                fi
+                # Remove any quotes if user pasted with quotes
+                porcupine_key=$(echo "$porcupine_key" | sed "s/^['\"]//;s/['\"]$//")
+                
+                if [ -n "$porcupine_key" ]; then
+                    set_config_value "PORCUPINE_ACCESS_KEY" "$porcupine_key"
+                    echo ""
+                    echo -e "${GREEN}✅ Access key saved${NC}"
+                    echo ""
+                    echo "Note: Restart Aura for wake word detection to take effect"
+                else
+                    echo -e "${RED}❌ Invalid key format. Please try again.${NC}"
+                fi
             fi
-            show_restart_message
             ;;
         2)
-            read -p "Enter activation window in seconds (e.g., 15): " val
-            if [ -n "$val" ]; then
-                set_config_value "ACTIVATION_WINDOW_SECONDS" "$val"
-                show_restart_message
-            fi
+            set_config_value "PORCUPINE_ACCESS_KEY" ""
+            echo ""
+            echo -e "${GREEN}✅ Access key cleared${NC}"
             ;;
-        3)
-            read -p "Enter activation cooldown in seconds (e.g., 3): " val
-            if [ -n "$val" ]; then
-                set_config_value "ACTIVATION_COOLDOWN_SECONDS" "$val"
-                show_restart_message
-            fi
-            ;;
-        4)
-            read -p "Enter memory directory path: " val
-            if [ -n "$val" ]; then
-                set_config_value "CONVERSATION_MEMORY_DIR" "$val"
-                show_restart_message
-            fi
-            ;;
-        5)
-            read -p "Persist to disk after how many entries (e.g., 10): " val
-            if [ -n "$val" ]; then
-                set_config_value "CONVERSATION_MEMORY_PERSIST_EVERY" "$val"
-                show_restart_message
-            fi
-            ;;
-        6)
-            read -p "Maximum number of transcript entries to retain (e.g., 5000): " val
-            if [ -n "$val" ]; then
-                set_config_value "CONVERSATION_MEMORY_MAX_ENTRIES" "$val"
-                show_restart_message
-            fi
-            ;;
-        7)
-            read -p "Number of memory snippets to recall (Top K, e.g., 3): " val
-            if [ -n "$val" ]; then
-                set_config_value "CONVERSATION_MEMORY_TOP_K" "$val"
-                show_restart_message
-            fi
-            ;;
-        8)
-            read -p "Minimum similarity score for recall (0.0-1.0, e.g., 0.35): " val
-            if [ -n "$val" ]; then
-                set_config_value "CONVERSATION_MEMORY_MIN_SCORE" "$val"
-                show_restart_message
-            fi
-            ;;
-        9) return ;;
+        3) return ;;
     esac
+}
+
+configure_picovoice() {
+    # Alias for configure_wake_word - Picovoice is the company, Porcupine is the product
+    configure_wake_word
 }
 
 configure_telegram() {
@@ -1080,7 +306,7 @@ configure_telegram() {
     
     echo "Current Settings:"
     echo ""
-    if [ -n "$tg_token" ] && [ "$tg_token" != "your_telegram_bot_token" ]; then
+    if [ -n "$tg_token" ] && [ "$tg_token" != "your_telegram_bot_token" ] && [ "$tg_token" != "" ]; then
         echo -e "  Bot Token: ${GREEN}✅ Configured${NC}"
         echo "  Token:     ${tg_token:0:20}..."
     else
@@ -1111,7 +337,7 @@ configure_telegram() {
             fi
             ;;
         2)
-            set_config_value "TELEGRAM_BOT_TOKEN" "your_telegram_bot_token"
+            set_config_value "TELEGRAM_BOT_TOKEN" ""
             echo ""
             echo -e "${GREEN}✅ Telegram bot token cleared${NC}"
             ;;
@@ -1126,7 +352,7 @@ configure_github() {
     
     echo "Current Settings:"
     echo ""
-    if [ -n "$gh_token" ] && [ "$gh_token" != "your_github_token_here" ]; then
+    if [ -n "$gh_token" ] && [ "$gh_token" != "your_github_token_here" ] && [ "$gh_token" != "" ]; then
         echo -e "  GitHub Token: ${GREEN}✅ Configured${NC}"
         echo "  Token:        ${gh_token:0:20}..."
     else
@@ -1163,7 +389,7 @@ configure_github() {
             fi
             ;;
         2)
-            set_config_value "GITHUB_TOKEN" "your_github_token_here"
+            set_config_value "GITHUB_TOKEN" ""
             echo ""
             echo -e "${GREEN}✅ GitHub token cleared${NC}"
             ;;
@@ -1245,23 +471,11 @@ configure_nhs_fhir() {
 # Utility Functions
 # ============================================================================
 
-show_restart_message() {
-    echo ""
-    echo -e "${YELLOW}⚠️  To apply changes, restart Docker containers:${NC}"
-    echo ""
-    echo "  docker-compose restart"
-    echo ""
-    echo "Or restart specific container:"
-    echo "  docker-compose restart llm     (for LLM/EHR changes)"
-    echo "  docker-compose restart rag     (for RAG changes)"
-    echo ""
-}
-
 edit_file() {
     if [ -f "$CONFIG_FILE" ]; then
         ${EDITOR:-nano} "$CONFIG_FILE"
     else
-        cp "$EXAMPLE_FILE" "$CONFIG_FILE"
+        cp "$EXAMPLE_FILE" "$CONFIG_FILE" 2>/dev/null || touch "$CONFIG_FILE"
         echo "Created $CONFIG_FILE from template"
         ${EDITOR:-nano} "$CONFIG_FILE"
     fi
@@ -1277,142 +491,46 @@ main_menu() {
         
         echo "QUICK ACTIONS:"
         echo ""
-        echo "  1) Toggle EHR (on/off)"
-        echo "  2) Configure EHR settings"
-        echo "  3) Toggle LLM Mode (Medical/Generic)"
-        echo "  4) Configure LLM Mode settings"
-        echo "  5) Configure Medical Categories (guidelines)"
-        echo "  6) Configure LLM models"
-        echo "  7) Configure RAG search"
-        echo "  8) Configure TTS (ElevenLabs)"
-        echo "  9) Configure Telegram bot"
-        echo " 10) Configure GitHub OTA updates"
-        echo " 11) Configure NHS/FHIR credentials"
-        echo " 12) Toggle ML Learning (on/off)"
-        echo " 13) Configure Voice Activation & Memory"
+        echo "  1) Configure TTS (ElevenLabs)"
+        echo "  2) Configure Wake Word (Porcupine/Picovoice)"
+        echo "  3) Configure Telegram bot"
+        echo "  4) Configure GitHub OTA updates"
+        echo "  5) Configure NHS/FHIR credentials"
+        echo "  6) Configure Picovoice API Key"
         echo "  a) Edit .env file directly"
-        echo "  b) Restart Docker containers"
         echo "  0) Exit"
         echo ""
-        read -p "Enter choice [0-13ab]: " choice
+        echo -e "${CYAN}ℹ️  Note: LLM/RAG settings are managed via Settings Dialog in Aura GUI${NC}"
+        echo ""
+        read -p "Enter choice [0-6a]: " choice
         
         case $choice in
             1)
-                # Show current state and ask what to do
-                local current=$(get_config_value 'EHR_INTEGRATION_ENABLED')
-                echo ""
-                if [ "$current" == "true" ]; then
-                    echo "EHR is currently: ENABLED"
-                    echo ""
-                    read -p "Turn it OFF? (y/n): " answer
-                    if [ "$answer" == "y" ] || [ "$answer" == "Y" ]; then
-                        toggle_ehr off
-                    fi
-                else
-                    echo "EHR is currently: DISABLED"
-                    echo ""
-                    read -p "Turn it ON? (y/n): " answer
-                    if [ "$answer" == "y" ] || [ "$answer" == "Y" ]; then
-                        toggle_ehr on
-                    fi
-                fi
-                echo ""
-                read -p "Press Enter to continue..."
-                ;;
-            2)
-                configure_ehr
-                read -p "Press Enter to continue..."
-                ;;
-            3)
-                # Show current state and ask what to do
-                local current=$(get_config_value 'USE_MEDICAL_MODE')
-                echo ""
-                if [ "$current" == "true" ]; then
-                    echo "LLM Mode is currently: MEDICAL"
-                    echo ""
-                    read -p "Switch to GENERIC mode? (y/n): " answer
-                    if [ "$answer" == "y" ] || [ "$answer" == "Y" ]; then
-                        toggle_medical_mode off
-                    fi
-                else
-                    echo "LLM Mode is currently: GENERIC"
-                    echo ""
-                    read -p "Switch to MEDICAL mode? (y/n): " answer
-                    if [ "$answer" == "y" ] || [ "$answer" == "Y" ]; then
-                        toggle_medical_mode on
-                    fi
-                fi
-                echo ""
-                read -p "Press Enter to continue..."
-                ;;
-            4)
-                configure_medical_mode
-                read -p "Press Enter to continue..."
-                ;;
-            5)
-                configure_medical_categories
-                read -p "Press Enter to continue..."
-                ;;
-            6)
-                configure_llm
-                read -p "Press Enter to continue..."
-                ;;
-            7)
-                configure_rag
-                read -p "Press Enter to continue..."
-                ;;
-            8)
                 configure_tts
                 read -p "Press Enter to continue..."
                 ;;
-            9)
+            2)
+                configure_wake_word
+                read -p "Press Enter to continue..."
+                ;;
+            3)
                 configure_telegram
                 read -p "Press Enter to continue..."
                 ;;
-            10)
+            4)
                 configure_github
                 read -p "Press Enter to continue..."
                 ;;
-            11)
+            5)
                 configure_nhs_fhir
                 read -p "Press Enter to continue..."
                 ;;
-            12)
-                # Show current state and ask what to do
-                local current=$(get_config_value 'ENABLE_ML_LEARNING')
-                echo ""
-                if [ "$current" == "true" ]; then
-                    echo "ML Learning is currently: ENABLED"
-                    echo ""
-                    read -p "Turn it OFF? (y/n): " answer
-                    if [ "$answer" == "y" ] || [ "$answer" == "Y" ]; then
-                        toggle_ml_learning off
-                    fi
-                else
-                    echo "ML Learning is currently: DISABLED"
-                    echo ""
-                    read -p "Turn it ON? (y/n): " answer
-                    if [ "$answer" == "y" ] || [ "$answer" == "Y" ]; then
-                        toggle_ml_learning on
-                    fi
-                fi
-                echo ""
-                read -p "Press Enter to continue..."
-                ;;
-            13)
-                configure_voice_activation
+            6)
+                configure_wake_word
                 read -p "Press Enter to continue..."
                 ;;
             a|A)
                 edit_file
-                ;;
-            b|B)
-                echo ""
-                echo "Restarting Docker containers..."
-                docker-compose restart
-                echo ""
-                echo -e "${GREEN}✅ Containers restarted${NC}"
-                read -p "Press Enter to continue..."
                 ;;
             0)
                 echo ""
@@ -1437,39 +555,20 @@ case "${1:-}" in
     show|status)
         show_all_settings
         ;;
-    ehr)
-        case "${2:-}" in
-            on|enable) toggle_ehr on ;;
-            off|disable) toggle_ehr off ;;
-            *) configure_ehr ;;
-        esac
+    tts)
+        configure_tts
         ;;
-    mode|medical)
-        case "${2:-}" in
-            on|enable|medical) toggle_medical_mode on ;;
-            off|disable|generic) toggle_medical_mode off ;;
-            *) configure_medical_mode ;;
-        esac
+    wake|porcupine|picovoice)
+        configure_wake_word
         ;;
-    ml|learning)
-        case "${2:-}" in
-            on|enable) toggle_ml_learning on ;;
-            off|disable) toggle_ml_learning off ;;
-            *) 
-                echo "Usage: $0 ml [on|off]"
-                echo "  on  - Enable ML learning"
-                echo "  off - Disable ML learning"
-                ;;
-        esac
+    telegram)
+        configure_telegram
         ;;
-    navigator|medical-navigator)
-        # Advanced Medical Navigator is now always enabled (default)
-        ensure_medical_navigator_enabled
-        echo ""
-        echo -e "${GREEN}Advanced Medical Navigator is always enabled (default)${NC}"
-        echo ""
-        echo "This is the default medical engine and cannot be disabled."
-        echo ""
+    github)
+        configure_github
+        ;;
+    nhs|fhir)
+        configure_nhs_fhir
         ;;
     edit)
         edit_file
@@ -1479,4 +578,3 @@ case "${1:-}" in
         main_menu
         ;;
 esac
-
