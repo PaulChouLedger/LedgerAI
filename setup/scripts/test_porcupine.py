@@ -17,17 +17,22 @@ try:
     
     # Check available keywords
     print("📋 Available built-in keywords:")
+    keywords = []
     try:
-        keywords = list(pvporcupine.KEYWORDS.keys())
-    except AttributeError:
-        # Try alternative way to get keywords
-        keywords = []
         if hasattr(pvporcupine, 'KEYWORDS'):
-            keywords = list(pvporcupine.KEYWORDS.keys())
+            # KEYWORDS might be a set or dict
+            if isinstance(pvporcupine.KEYWORDS, set):
+                keywords = sorted(list(pvporcupine.KEYWORDS))
+            elif isinstance(pvporcupine.KEYWORDS, dict):
+                keywords = sorted(list(pvporcupine.KEYWORDS.keys()))
+            else:
+                keywords = sorted(list(pvporcupine.KEYWORDS))
         else:
             print("   ⚠️  KEYWORDS attribute not found")
             print("   This may be a source build - you'll need a custom model")
-            keywords = []
+    except Exception as e:
+        print(f"   ⚠️  Could not access KEYWORDS: {e}")
+        print("   You'll need to use a custom model")
     if keywords:
         for i, keyword in enumerate(keywords[:20], 1):  # Show first 20
             print(f"   {i}. {keyword}")
