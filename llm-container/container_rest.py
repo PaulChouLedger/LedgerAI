@@ -312,14 +312,14 @@ def chat_tts():
                             delta = chunk['choices'][0].get('delta', {})
                             content = delta.get('content', '')
                             if content:
-                                yield content  # Yield token immediately
+                                yield content + "\n"  # Add newline to flush to clients using iter_lines()
                         elif 'content' in chunk:
-                            yield chunk['content']  # Yield token immediately
+                            yield chunk['content'] + "\n"  # Add newline for line-delimited streaming
                     elif isinstance(chunk, str):
-                        yield chunk  # Yield token immediately
+                        yield chunk + "\n"  # Add newline for line-delimited streaming
                     else:
                         # Fallback: convert to string
-                        yield str(chunk)
+                        yield str(chunk) + "\n"
                 print(f"[Generic] ✅ Streamed response complete")
             else:
                 # Fallback: non-streaming (result is a string)

@@ -542,7 +542,8 @@ def chat_tts():
                 # Note: Session storage is handled by the navigator's token_stream generator
                 yield "<sentence_start>\n"
                 for token in token_stream:
-                    yield token  # Yield token immediately for low latency (session updated by navigator)
+                    # Ensure newline after each token so HTTP clients using iter_lines() receive tokens promptly
+                    yield f"{token}\n"
                 yield "\n"
                 yield "<sentence_end>\n"
                 
