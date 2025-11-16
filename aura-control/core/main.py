@@ -228,6 +228,37 @@ def setup_display():
     # Disable Ubuntu on-screen keyboard - will be monitored in background thread
     print("[Aura] ⌨️  Disabling Ubuntu on-screen keyboard (monitored while running)...")
     try:
+        # Disable GNOME on-screen keyboard via gsettings (prevents OSK from popping up)
+        subprocess.run(["gsettings", "set", "org.gnome.desktop.a11y.applications", "screen-keyboard-enabled", "false"],
+                      check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        
+        # Create per-user autostart override to prevent 'onboard' from starting
+        try:
+            home_dir = os.path.expanduser("~")
+            autostart_dir = os.path.join(home_dir, ".config", "autostart")
+            os.makedirs(autostart_dir, exist_ok=True)
+            onboard_override = os.path.join(autostart_dir, "onboard-autostart.desktop")
+            if not os.path.exists(onboard_override):
+                with open(onboard_override, "w") as f:
+                    f.write("[Desktop Entry]\n")
+                    f.write("Type=Application\n")
+                    f.write("Name=Onboard On-screen Keyboard (Disabled by Aura)\n")
+                    f.write("Exec=onboard\n")
+                    f.write("Hidden=true\n")
+                    f.write("X-GNOME-Autostart-enabled=false\n")
+            # Also disable Caribou autostart if present
+            caribou_override = os.path.join(autostart_dir, "caribou-autostart.desktop")
+            if not os.path.exists(caribou_override):
+                with open(caribou_override, "w") as f:
+                    f.write("[Desktop Entry]\n")
+                    f.write("Type=Application\n")
+                    f.write("Name=Caribou On-screen Keyboard (Disabled by Aura)\n")
+                    f.write("Exec=caribou\n")
+                    f.write("Hidden=true\n")
+                    f.write("X-GNOME-Autostart-enabled=false\n")
+        except Exception:
+            pass
+        
         # Initial kill of any running on-screen keyboard processes
         subprocess.run(["pkill", "-f", "onboard"], check=False,
                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)

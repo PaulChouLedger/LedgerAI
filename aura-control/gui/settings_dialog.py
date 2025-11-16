@@ -8,7 +8,7 @@ import re
 from PyQt5.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel, 
                              QPushButton, QTextEdit, QProgressBar,
                              QMessageBox, QListWidget, QListWidgetItem, QInputDialog,
-                             QLineEdit, QWidget, QApplication, QGridLayout)
+                             QLineEdit, QWidget, QApplication, QGridLayout, QComboBox)
 from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer, QPropertyAnimation, QEasingCurve
 from PyQt5.QtGui import QFont
 import threading
@@ -394,6 +394,393 @@ class OTAUpdateThread(QThread):
         
         return masked_text
 
+# === Sub-Dialogs (WiFi / Updates / AI Model) ===
+
+class WifiSettingsDialog(QDialog):
+    """Dedicated dialog for WiFi scanning/connect/disconnect"""
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("WiFi Settings")
+        self.setFixedSize(1080, 1080)
+        if parent:
+            self.setWindowFlags(Qt.Dialog | Qt.FramelessWindowHint)
+            self.setModal(True)
+        else:
+            self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
+        self.setStyleSheet("""
+            QDialog { background-color: rgba(28,28,30,1.0); color: white; border: none; border-radius: 536px; }
+            QLabel { color: white; font-size: 12px; }
+        """)
+        self.setWindowOpacity(0.0)
+        self._setup_ui()
+        self._center_dialog()
+        self.wifi_scan_thread = None
+        self.selected_wifi = None
+        self._update_disconnect_button()
+    
+    def showEvent(self, event):
+        super().showEvent(event)
+        self.fade_in = QPropertyAnimation(self, b"windowOpacity")
+        self.fade_in.setDuration(300)
+        self.fade_in.setStartValue(0.0)
+        self.fade_in.setEndValue(1.0)
+        self.fade_in.setEasingCurve(QEasingCurve.InOutCubic)
+        self.fade_in.start()
+        self.raise_(); self.activateWindow()
+    
+    def closeEvent(self, event):
+        if hasattr(self, 'fade_in') and self.fade_in.state() == QPropertyAnimation.Running:
+            self.fade_in.stop()
+        self.fade_out = QPropertyAnimation(self, b"windowOpacity")
+        self.fade_out.setDuration(250)
+        self.fade_out.setStartValue(self.windowOpacity())
+        self.fade_out.setEndValue(0.0)
+        self.fade_out.setEasingCurve(QEasingCurve.InOutCubic)
+        self.fade_out.finished.connect(lambda: event.accept())
+        self.fade_out.start()
+        event.ignore()
+    
+    def _center_dialog(self):
+        if self.parent():
+            parent_geometry = self.parent().geometry()
+            x = parent_geometry.x() + (parent_geometry.width() - self.width()) // 2
+            y = parent_geometry.y() + (parent_geometry.height() - self.height()) // 2
+            self.move(x, y)
+        else:
+            screen = QApplication.primaryScreen().geometry()
+            x = (screen.width() - self.width()) // 2
+            y = (screen.height() - self.height()) // 2
+            self.move(x, y)
+    
+    def _setup_ui(self):
+        main_layout = QVBoxLayout()
+        main_layout.setContentsMargins(120, 100, 120, 100)
+        main_layout.setSpacing(20)
+        main_layout.addStretch(1)
+        
+        title = QLabel("📶 WiFi Settings")
+        title.setFont(QFont("Arial", 18, QFont.Bold))
+        title.setAlignment(Qt.AlignCenter)
+        title.setStyleSheet("color: #ffffff; font-weight: 600; margin: 10px;")
+        main_layout.addWidget(title)
+        
+        self.status_log = QTextEdit()
+        self.status_log.setMaximumHeight(100)
+        self.status_log.setReadOnly(True)
+        self.status_log.setStyleSheet("QTextEdit { background-color: rgba(44,44,46,0.8); color: #ffffff; border-radius: 15px; border: none; padding: 10px; font-size: 11px; }")
+        main_layout.addWidget(self.status_log)
+        
+        wifi_button_layout = QHBoxLayout()
+        wifi_button_layout.setSpacing(15)
+        self.scan_wifi_btn = QPushButton("🔍 Scan Networks")
+        self.scan_wifi_btn.setStyleSheet(SettingsDialog.get_button_style(None))
+        self.scan_wifi_btn.clicked.connect(self._scan_wifi)
+        wifi_button_layout.addWidget(self.scan_wifi_btn)
+        
+        self.connect_wifi_btn = QPushButton("🔗 Connect")
+        self.connect_wifi_btn.setStyleSheet(SettingsDialog.get_button_style(None))
+        self.connect_wifi_btn.clicked.connect(self._connect_wifi)
+        self.connect_wifi_btn.setEnabled(False)
+        wifi_button_layout.addWidget(self.connect_wifi_btn)
+        
+        self.disconnect_wifi_btn = QPushButton("🔌 Disconnect")
+        self.disconnect_wifi_btn.setStyleSheet(SettingsDialog.get_button_style(None))
+        self.disconnect_wifi_btn.clicked.connect(self._disconnect_wifi)
+        wifi_button_layout.addWidget(self.disconnect_wifi_btn)
+        
+        main_layout.addLayout(wifi_button_layout)
+        
+        self.wifi_list = QListWidget()
+        self.wifi_list.setMaximumHeight(180)
+        self.wifi_list.setStyleSheet("""
+            QListWidget { background-color: rgba(44,44,46,0.8); color: #ffffff; border-radius: 15px; border: none; padding: 10px; font-size: 12px; }
+            QListWidget::item { padding: 8px; border-radius: 8px; margin: 2px; }
+            QListWidget::item:selected { background-color: rgba(0,122,255,0.3); }
+        """)
+        self.wifi_list.itemSelectionChanged.connect(self._on_wifi_selection_changed)
+        main_layout.addWidget(self.wifi_list)
+        
+        main_layout.addStretch(1)
+        self.setLayout(main_layout)
+    
+    def _log(self, message): self.status_log.append(f"[WiFi] {message}")
+    
+    def _scan_wifi(self):
+        self._log("Scanning for WiFi networks...")
+        self.scan_wifi_btn.setEnabled(False)
+        self.scan_wifi_btn.setText("🔄 Scanning...")
+        self.wifi_list.clear()
+        self.wifi_list.addItem("Scanning... Please wait...")
+        self.wifi_scan_thread = WiFiScanThread()
+        self.wifi_scan_thread.networks_found.connect(self._on_wifi_networks_found)
+        self.wifi_scan_thread.scan_error.connect(self._on_wifi_scan_error)
+        self.wifi_scan_thread.finished.connect(lambda: (self.scan_wifi_btn.setEnabled(True), self.scan_wifi_btn.setText("🔍 Scan Networks")))
+        self.wifi_scan_thread.start()
+    
+    def _on_wifi_networks_found(self, networks):
+        self.wifi_list.clear()
+        if not networks:
+            self._log("No networks found. Make sure WiFi is enabled.")
+            self.wifi_list.addItem("No networks found")
+            return
+        self._log(f"Found {len(networks)} network(s)")
+        for network in networks:
+            ssid = network['ssid']; signal = network['signal']; security = network['security']; connected = network.get('connected', False)
+            signal_display = f"{signal}%" if signal > 0 else "weak"
+            item_text = f"{ssid} ({signal_display})"
+            if connected: item_text = f"● {item_text} (Connected)"
+            if security and security != "Open" and security != "--": item_text += f" 🔒 {security}"
+            item = QListWidgetItem(item_text); item.setData(Qt.UserRole, network); self.wifi_list.addItem(item)
+        self._update_disconnect_button()
+    
+    def _on_wifi_scan_error(self, error):
+        self._log(f"Error: {error}")
+        QMessageBox.warning(self, "WiFi Scan Error", error)
+    
+    def _on_wifi_selection_changed(self):
+        self.connect_wifi_btn.setEnabled(len(self.wifi_list.selectedItems()) > 0)
+    
+    def _connect_wifi(self):
+        selected_items = self.wifi_list.selectedItems()
+        if not selected_items:
+            QMessageBox.warning(self, "No Selection", "Please select a WiFi network"); return
+        item = selected_items[0]; network = item.data(Qt.UserRole); ssid = network['ssid']; security = network['security']
+        password = None
+        if security and security != "Open" and "Open" not in security:
+            password, ok = QInputDialog.getText(self, "WiFi Password", f"Enter password for {ssid}:", QLineEdit.Password)
+            if not ok: return
+        self._log(f"Connecting to {ssid}...")
+        try:
+            cmd = ['nmcli', 'device', 'wifi', 'connect', ssid] + (['password', password] if password else [])
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+            if result.returncode == 0:
+                self._log(f"Successfully connected to {ssid}")
+                QMessageBox.information(self, "Success", f"Connected to {ssid}")
+                self._update_disconnect_button(); self._scan_wifi()
+            else:
+                error_msg = result.stderr or result.stdout
+                self._log(f"Connection failed: {error_msg}")
+                QMessageBox.warning(self, "Connection Failed", error_msg)
+        except Exception as e:
+            self._log(f"Error: {str(e)}"); QMessageBox.warning(self, "Error", str(e))
+    
+    def _update_disconnect_button(self):
+        try:
+            result = subprocess.run(['nmcli', '-t', '-f', 'DEVICE,TYPE,STATE', 'device', 'status'], capture_output=True, text=True, timeout=5)
+            wifi_connected = False
+            if result.returncode == 0:
+                for line in result.stdout.strip().split('\n'):
+                    if ':wifi:' in line.lower() and ':connected' in line.lower(): wifi_connected = True; break
+            self.disconnect_wifi_btn.setEnabled(wifi_connected)
+        except Exception:
+            self.disconnect_wifi_btn.setEnabled(False)
+    
+    def _disconnect_wifi(self):
+        reply = QMessageBox.question(self, "Disconnect WiFi", "Disconnect from the current WiFi network?", QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        if reply != QMessageBox.Yes: return
+        self._log("Disconnecting from WiFi..."); self.disconnect_wifi_btn.setEnabled(False); self.disconnect_wifi_btn.setText("🔄 Disconnecting...")
+        try:
+            result = subprocess.run(['nmcli', '-t', '-f', 'DEVICE,TYPE', 'device', 'status'], capture_output=True, text=True, timeout=5)
+            wifi_device = None
+            if result.returncode == 0:
+                for line in result.stdout.strip().split('\n'):
+                    if ':wifi:' in line.lower(): wifi_device = line.split(':')[0]; break
+            if wifi_device:
+                disconnect_result = subprocess.run(['nmcli', 'device', 'disconnect', wifi_device], capture_output=True, text=True, timeout=10)
+            else:
+                disconnect_result = subprocess.run(['nmcli', 'device', 'disconnect', 'wifi'], capture_output=True, text=True, timeout=10)
+            if disconnect_result.returncode == 0:
+                self._log("Successfully disconnected from WiFi"); QMessageBox.information(self, "Success", "Disconnected from WiFi"); self._scan_wifi()
+            else:
+                error_msg = disconnect_result.stderr or disconnect_result.stdout
+                self._log(f"Disconnect failed: {error_msg}"); QMessageBox.warning(self, "Disconnect Failed", error_msg); self._update_disconnect_button()
+        except Exception as e:
+            self._log(f"Error: {str(e)}"); QMessageBox.warning(self, "Error", str(e)); self._update_disconnect_button()
+        finally:
+            self.disconnect_wifi_btn.setText("🔌 Disconnect")
+
+
+class UpdateDialog(QDialog):
+    """Dedicated dialog for OTA updates"""
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Updates")
+        self.setFixedSize(1080, 1080)
+        if parent:
+            self.setWindowFlags(Qt.Dialog | Qt.FramelessWindowHint); self.setModal(True)
+        else:
+            self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
+        self.setStyleSheet("QDialog { background-color: rgba(28,28,30,1.0); color: white; border: none; border-radius: 536px; } QLabel { color: white; }")
+        self.setWindowOpacity(0.0)
+        self._setup_ui()
+        self._center_dialog()
+        self.ota_update_thread = None
+    
+    def showEvent(self, event):
+        super().showEvent(event)
+        self.fade_in = QPropertyAnimation(self, b"windowOpacity"); self.fade_in.setDuration(300)
+        self.fade_in.setStartValue(0.0); self.fade_in.setEndValue(1.0); self.fade_in.setEasingCurve(QEasingCurve.InOutCubic); self.fade_in.start()
+        self.raise_(); self.activateWindow()
+    
+    def closeEvent(self, event):
+        if hasattr(self, 'fade_in') and self.fade_in.state() == QPropertyAnimation.Running: self.fade_in.stop()
+        self.fade_out = QPropertyAnimation(self, b"windowOpacity"); self.fade_out.setDuration(250)
+        self.fade_out.setStartValue(self.windowOpacity()); self.fade_out.setEndValue(0.0); self.fade_out.setEasingCurve(QEasingCurve.InOutCubic)
+        self.fade_out.finished.connect(lambda: event.accept()); self.fade_out.start(); event.ignore()
+    
+    def _center_dialog(self):
+        screen = QApplication.primaryScreen().geometry(); x = (screen.width() - self.width()) // 2; y = (screen.height() - self.height()) // 2; self.move(x, y)
+    
+    def _setup_ui(self):
+        main_layout = QVBoxLayout(); main_layout.setContentsMargins(120, 100, 120, 100); main_layout.setSpacing(20); main_layout.addStretch(1)
+        title = QLabel("🔄 Over-the-Air Updates"); title.setFont(QFont("Arial", 18, QFont.Bold)); title.setAlignment(Qt.AlignCenter); title.setStyleSheet("color: #ffffff; font-weight: 600; margin: 10px;"); main_layout.addWidget(title)
+        self.status_log = QTextEdit(); self.status_log.setMaximumHeight(120); self.status_log.setReadOnly(True); self.status_log.setStyleSheet("QTextEdit { background-color: rgba(44,44,46,0.8); color: #ffffff; border-radius: 15px; border: none; padding: 10px; font-size: 11px; }"); main_layout.addWidget(self.status_log)
+        button_row = QHBoxLayout(); button_row.setSpacing(15)
+        self.update_btn = QPushButton("⬇️ Update from GitHub"); self.update_btn.setStyleSheet(SettingsDialog.get_button_style(None)); self.update_btn.clicked.connect(self._start_ota_update); button_row.addWidget(self.update_btn)
+        main_layout.addLayout(button_row)
+        self.progress_bar = QProgressBar(); self.progress_bar.setVisible(False); self.progress_bar.setStyleSheet("QProgressBar { border: 1px solid #555; border-radius: 8px; background-color: rgba(44,44,46,0.8); color: white; text-align: center; } QProgressBar::chunk { background-color: #007AFF; border-radius: 8px; }"); main_layout.addWidget(self.progress_bar)
+        main_layout.addStretch(1); self.setLayout(main_layout)
+    
+    def _log(self, message): self.status_log.append(f"[Update] {message}")
+    
+    def _start_ota_update(self):
+        workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+        dotenv_path = os.path.join(workspace_root, '.env')
+        github_token = None
+        try:
+            self._log(f"Checking for .env file at: {dotenv_path}")
+            if os.path.exists(dotenv_path):
+                self._log(".env file found, loading GITHUB_TOKEN...")
+                env_vars = dotenv_values(dotenv_path); github_token = env_vars.get('GITHUB_TOKEN', '')
+                if not github_token or github_token == 'your_github_token_here': github_token = None; self._log("GITHUB_TOKEN not set or placeholder")
+        except Exception as e:
+            self._log(f"Error loading .env: {e}")
+        repo_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+        self._log("Starting OTA update..."); self.update_btn.setEnabled(False); self.progress_bar.setVisible(True); self.progress_bar.setRange(0, 0)
+        self.ota_update_thread = OTAUpdateThread(repo_path, github_token or '')
+        self.ota_update_thread.update_progress.connect(lambda m: self._log(m))
+        self.ota_update_thread.update_complete.connect(self._on_update_complete)
+        self.ota_update_thread.finished.connect(lambda: (self.update_btn.setEnabled(True), self.progress_bar.setVisible(False)))
+        self.ota_update_thread.start()
+    
+    def _on_update_complete(self, success, message):
+        self.progress_bar.setRange(0, 100); self.progress_bar.setValue(100)
+        if success: self._log(f"✅ {message}"); QMessageBox.information(self, "Update Complete", message)
+        else: self._log(f"❌ {message}"); QMessageBox.warning(self, "Update Failed", message)
+
+
+class AIModelSettingsDialog(QDialog):
+    """Dedicated dialog for AI model selection and mode toggle"""
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("AI Model Settings")
+        self.setFixedSize(1080, 1080)
+        if parent:
+            self.setWindowFlags(Qt.Dialog | Qt.FramelessWindowHint); self.setModal(True)
+        else:
+            self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
+        self.setStyleSheet("QDialog { background-color: rgba(28,28,30,1.0); color: white; border: none; border-radius: 536px; } QLabel { color: white; }")
+        self.setWindowOpacity(0.0)
+        self._setup_ui(); self._center_dialog()
+    
+    def showEvent(self, event):
+        super().showEvent(event)
+        self.fade_in = QPropertyAnimation(self, b"windowOpacity"); self.fade_in.setDuration(300)
+        self.fade_in.setStartValue(0.0); self.fade_in.setEndValue(1.0); self.fade_in.setEasingCurve(QEasingCurve.InOutCubic); self.fade_in.start()
+        self.raise_(); self.activateWindow()
+    
+    def closeEvent(self, event):
+        if hasattr(self, 'fade_in') and self.fade_in.state() == QPropertyAnimation.Running: self.fade_in.stop()
+        self.fade_out = QPropertyAnimation(self, b"windowOpacity"); self.fade_out.setDuration(250)
+        self.fade_out.setStartValue(self.windowOpacity()); self.fade_out.setEndValue(0.0); self.fade_out.setEasingCurve(QEasingCurve.InOutCubic)
+        self.fade_out.finished.connect(lambda: event.accept()); self.fade_out.start(); event.ignore()
+    
+    def _center_dialog(self):
+        screen = QApplication.primaryScreen().geometry(); x = (screen.width() - self.width()) // 2; y = (screen.height() - self.height()) // 2; self.move(x, y)
+    
+    def _setup_ui(self):
+        layout = QVBoxLayout(); layout.setContentsMargins(120, 100, 120, 100); layout.setSpacing(20); layout.addStretch(1)
+        title = QLabel("🧠 AI Model Settings"); title.setFont(QFont("Arial", 18, QFont.Bold)); title.setAlignment(Qt.AlignCenter); title.setStyleSheet("color: #ffffff; font-weight: 600; margin: 10px;"); layout.addWidget(title)
+        
+        # Mode toggle
+        mode_row = QHBoxLayout(); mode_row.setSpacing(12)
+        self.mode_generic_btn = QPushButton("Generic"); self.mode_medical_btn = QPushButton("Medical")
+        for b in (self.mode_generic_btn, self.mode_medical_btn): b.setCheckable(True); b.setStyleSheet(SettingsDialog.get_button_style(None))
+        mode_row.addWidget(self.mode_generic_btn); mode_row.addWidget(self.mode_medical_btn); layout.addLayout(mode_row)
+        
+        # Model dropdown + restart
+        self.model_combo = QComboBox()
+        self.model_combo.setStyleSheet("""
+            QComboBox { background-color: rgba(44,44,46,0.8); color: #ffffff; padding: 8px; border: none; border-radius: 10px; min-height: 36px; }
+            QComboBox QAbstractItemView { background-color: #2d2d2d; color: #ffffff; selection-background-color: #4D94D9; }
+        """)
+        self.restart_llm_btn = QPushButton("🔁 Restart LLM"); self.restart_llm_btn.setStyleSheet(SettingsDialog.get_button_style(None))
+        row = QHBoxLayout(); row.setSpacing(10); row.addWidget(self.model_combo, 2); row.addWidget(self.restart_llm_btn, 1); layout.addLayout(row)
+        layout.addStretch(1); self.setLayout(layout)
+        
+        # Load state and populate
+        try:
+            from core.state import get_llm_mode, get_llm_model
+            mode = get_llm_mode(); self.mode_generic_btn.setChecked(mode == "generic"); self.mode_medical_btn.setChecked(mode == "medical")
+        except Exception: self.mode_medical_btn.setChecked(True)
+        self._populate_models()
+        
+        def on_mode_clicked():
+            sender = self.sender()
+            if sender == self.mode_generic_btn:
+                self.mode_medical_btn.setChecked(not self.mode_generic_btn.isChecked())
+            else:
+                self.mode_generic_btn.setChecked(not self.mode_medical_btn.isChecked())
+            mode_now = "medical" if self.mode_medical_btn.isChecked() else "generic"
+            try:
+                from core.state import set_llm_mode; set_llm_mode(mode_now)
+            except Exception as e:
+                print(f"[ModelSettings] Error saving mode: {e}")
+            self._populate_models()
+        
+        self.mode_generic_btn.clicked.connect(on_mode_clicked)
+        self.mode_medical_btn.clicked.connect(on_mode_clicked)
+        
+        def on_model_changed(index):
+            name = self.model_combo.currentText()
+            if not name or name.startswith("("): return
+            try:
+                from core.state import set_llm_model; set_llm_model(name)
+            except Exception as e:
+                print(f"[ModelSettings] Error saving model: {e}")
+            self._prompt_restart()
+        self.model_combo.currentIndexChanged.connect(on_model_changed)
+        self.restart_llm_btn.clicked.connect(self._prompt_restart)
+    
+    def _populate_models(self):
+        self.model_combo.clear()
+        mode_now = "medical" if self.mode_medical_btn.isChecked() else "generic"
+        workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+        model_dir = os.path.join(workspace_root, 'llm-medical-container', 'data', 'models') if mode_now == "medical" else os.path.join(workspace_root, 'llm-container', 'data', 'models')
+        paths = sorted(glob.glob(os.path.join(model_dir, "*.gguf"))); display_names = [os.path.basename(p) for p in paths]
+        if display_names: self.model_combo.addItems(display_names)
+        else: self.model_combo.addItem("(no models found)")
+        try:
+            from core.state import get_llm_model; saved = get_llm_model()
+            if saved:
+                base = os.path.basename(saved); idx = self.model_combo.findText(base); 
+                if idx >= 0: self.model_combo.setCurrentIndex(idx)
+        except Exception: pass
+    
+    def _prompt_restart(self):
+        try:
+            mode_now = "medical" if self.mode_medical_btn.isChecked() else "generic"
+            service = "llm-medical" if mode_now == "medical" else "llm-generic"
+            reply = QMessageBox.question(self, "Restart Required", f"Restart the {service} container now to apply the new model?", QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
+            if reply != QMessageBox.Yes: return
+            workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')); setup_dir = os.path.join(workspace_root, 'setup')
+            import subprocess
+            result = subprocess.run(["bash", "-lc", f"cd '{setup_dir}' && docker compose restart {service}"], capture_output=True, text=True, timeout=60)
+            if result.returncode == 0: QMessageBox.information(self, "Restarted", f"{service} restarted successfully.")
+            else: QMessageBox.warning(self, "Restart Failed", result.stderr or result.stdout or "Unknown error")
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"Failed to restart container: {e}")
+
 class SettingsDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -509,15 +896,12 @@ class SettingsDialog(QDialog):
             self.move(x, y)
     
     def setup_ui(self):
-        """Setup the settings UI"""
+        """Setup simplified settings UI with subsections"""
         main_layout = QVBoxLayout()
         main_layout.setContentsMargins(120, 100, 120, 100)
         main_layout.setSpacing(20)
-        
-        # Add top spacer
         main_layout.addStretch(1)
         
-        # Title
         title_layout = QHBoxLayout()
         title_layout.addStretch()
         title = QLabel("⚙️ Settings")
@@ -528,124 +912,29 @@ class SettingsDialog(QDialog):
         title_layout.addStretch()
         main_layout.addLayout(title_layout)
         
-        # WiFi Section
-        wifi_label = QLabel("📶 WiFi Setup")
-        wifi_label.setFont(QFont("Arial", 18, QFont.Bold))
-        wifi_label.setStyleSheet("color: #ffffff; margin-top: 20px; font-size: 18px;")
-        main_layout.addWidget(wifi_label)
+        row1 = QHBoxLayout()
+        row1.setSpacing(15)
+        wifi_btn = QPushButton("📶 WiFi Settings")
+        wifi_btn.setStyleSheet(self.get_button_style())
+        wifi_btn.clicked.connect(self.open_wifi_settings)
+        row1.addWidget(wifi_btn)
+        update_btn = QPushButton("🔄 Updates")
+        update_btn.setStyleSheet(self.get_button_style())
+        update_btn.clicked.connect(self.open_update_dialog)
+        row1.addWidget(update_btn)
+        main_layout.addLayout(row1)
         
-        # WiFi buttons
-        wifi_button_layout = QHBoxLayout()
-        wifi_button_layout.setSpacing(15)
+        row2 = QHBoxLayout()
+        row2.setSpacing(15)
+        model_btn = QPushButton("🧠 AI Model Settings")
+        model_btn.setStyleSheet(self.get_button_style())
+        model_btn.clicked.connect(self.open_model_settings)
+        row2.addWidget(model_btn)
+        main_layout.addLayout(row2)
         
-        self.scan_wifi_btn = QPushButton("🔍 Scan Networks")
-        self.scan_wifi_btn.clicked.connect(self.scan_wifi)
-        self.scan_wifi_btn.setStyleSheet(self.get_button_style())
-        wifi_button_layout.addWidget(self.scan_wifi_btn)
-        
-        self.connect_wifi_btn = QPushButton("🔗 Connect")
-        self.connect_wifi_btn.clicked.connect(self.connect_wifi)
-        self.connect_wifi_btn.setStyleSheet(self.get_button_style())
-        self.connect_wifi_btn.setEnabled(False)
-        wifi_button_layout.addWidget(self.connect_wifi_btn)
-        
-        self.disconnect_wifi_btn = QPushButton("🔌 Disconnect")
-        self.disconnect_wifi_btn.clicked.connect(self.disconnect_wifi)
-        self.disconnect_wifi_btn.setStyleSheet(self.get_button_style())
-        wifi_button_layout.addWidget(self.disconnect_wifi_btn)
-        
-        main_layout.addLayout(wifi_button_layout)
-        
-        # WiFi networks list
-        self.wifi_list = QListWidget()
-        self.wifi_list.setMaximumHeight(150)
-        self.wifi_list.setStyleSheet("""
-            QListWidget {
-                background-color: rgba(44, 44, 46, 0.8);
-                color: #ffffff;
-                border-radius: 15px;
-                border: none;
-                padding: 10px;
-                font-size: 12px;
-            }
-            QListWidget::item {
-                padding: 8px;
-                border-radius: 8px;
-                margin: 2px;
-            }
-            QListWidget::item:selected {
-                background-color: rgba(0, 122, 255, 0.3);
-            }
-        """)
-        self.wifi_list.itemSelectionChanged.connect(self.on_wifi_selection_changed)
-        main_layout.addWidget(self.wifi_list)
-        
-        # OTA Update Section
-        ota_label = QLabel("🔄 Over-the-Air Updates")
-        ota_label.setFont(QFont("Arial", 14, QFont.Bold))
-        ota_label.setStyleSheet("color: #ffffff; margin-top: 20px;")
-        main_layout.addWidget(ota_label)
-        
-        # OTA buttons
-        ota_button_layout = QHBoxLayout()
-        ota_button_layout.setSpacing(15)
-        
-        self.update_btn = QPushButton("⬇️ Update from GitHub")
-        self.update_btn.clicked.connect(self.start_ota_update)
-        self.update_btn.setStyleSheet(self.get_button_style())
-        ota_button_layout.addWidget(self.update_btn)
-        
-        main_layout.addLayout(ota_button_layout)
-        
-        # Status log
-        self.status_log = QTextEdit()
-        self.status_log.setMaximumHeight(100)
-        self.status_log.setReadOnly(True)
-        self.status_log.setStyleSheet("""
-            QTextEdit {
-                background-color: rgba(44, 44, 46, 0.8);
-                color: #ffffff;
-                border-radius: 15px;
-                border: none;
-                padding: 10px;
-                font-size: 11px;
-            }
-        """)
-        main_layout.addWidget(self.status_log)
-        
-        # Progress bar
-        self.progress_bar = QProgressBar()
-        self.progress_bar.setVisible(False)
-        self.progress_bar.setStyleSheet("""
-            QProgressBar {
-                border: 1px solid #555;
-                border-radius: 8px;
-                background-color: rgba(44, 44, 46, 0.8);
-                color: white;
-                text-align: center;
-            }
-            QProgressBar::chunk {
-                background-color: #007AFF;
-                border-radius: 8px;
-            }
-        """)
-        main_layout.addWidget(self.progress_bar)
-        
-        # Exit to Desktop Section
-        exit_label = QLabel("🚪 Exit to Desktop")
-        exit_label.setFont(QFont("Arial", 14, QFont.Bold))
-        exit_label.setStyleSheet("color: #ffffff; margin-top: 20px;")
-        main_layout.addWidget(exit_label)
-        
-        exit_desc = QLabel("Exit Aura and return to the desktop environment")
-        exit_desc.setStyleSheet("color: #aaaaaa; font-size: 12px; margin-bottom: 10px;")
-        main_layout.addWidget(exit_desc)
-        
-        # Exit button (orange/yellow to distinguish from close)
         exit_button_layout = QHBoxLayout()
         exit_button_layout.setSpacing(15)
         exit_button_layout.addStretch()
-        
         self.exit_btn = QPushButton("🚪 Exit to Desktop")
         self.exit_btn.clicked.connect(self.exit_to_desktop)
         self.exit_btn.setStyleSheet("""
@@ -659,18 +948,13 @@ class SettingsDialog(QDialog):
                 border: none;
                 min-width: 200px;
             }
-            QPushButton:hover {
-                background-color: #E58500;
-            }
-            QPushButton:pressed {
-                background-color: #CC7500;
-            }
+            QPushButton:hover { background-color: #E58500; }
+            QPushButton:pressed { background-color: #CC7500; }
         """)
         exit_button_layout.addWidget(self.exit_btn)
         exit_button_layout.addStretch()
         main_layout.addLayout(exit_button_layout)
         
-        # Close button (red, matching other dialogs)
         close_layout = QHBoxLayout()
         close_layout.addStretch()
         self.close_btn = QPushButton("Close")
@@ -686,32 +970,27 @@ class SettingsDialog(QDialog):
                 border: none;
                 min-width: 120px;
             }
-            QPushButton:hover {
-                background-color: #D70015;
-            }
-            QPushButton:pressed {
-                background-color: #B30000;
-            }
+            QPushButton:hover { background-color: #D70015; }
+            QPushButton:pressed { background-color: #B30000; }
         """)
         close_layout.addWidget(self.close_btn)
         close_layout.addStretch()
         main_layout.addLayout(close_layout)
         
-        # Add bottom spacer
         main_layout.addStretch(1)
-        
         self.setLayout(main_layout)
-        
-        # Initialize
-        self.wifi_scan_thread = None
-        self.ota_update_thread = None
-        self.selected_wifi = None
-        self._init_llm_controls()
-        
-        # Check WiFi connection status and update disconnect button
-        self.update_disconnect_button()
-        
-        self.log_status("Settings dialog ready")
+    
+    def open_wifi_settings(self):
+        dlg = WifiSettingsDialog(self)
+        dlg.exec_()
+    
+    def open_update_dialog(self):
+        dlg = UpdateDialog(self)
+        dlg.exec_()
+    
+    def open_model_settings(self):
+        dlg = AIModelSettingsDialog(self)
+        dlg.exec_()
 
     def _init_llm_controls(self):
         """Add controls for LLM mode and model selection"""
