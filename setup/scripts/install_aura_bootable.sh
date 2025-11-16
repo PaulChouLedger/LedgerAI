@@ -492,6 +492,86 @@ fi
 echo ""
 
 # ============================================================================
+# Step 3.5: Install and patch Porcupine for wake word detection
+# ============================================================================
+print_step "3.5. Installing Porcupine wake word detection..."
+
+# Check if Porcupine is already installed
+if python3 -c "import pvporcupine" 2>/dev/null; then
+    print_info "Porcupine already installed, checking version..."
+    PORCUPINE_VERSION=$(python3 -c "import pvporcupine; print(getattr(pvporcupine, '__version__', 'unknown'))" 2>/dev/null || echo "unknown")
+    print_info "Porcupine version: $PORCUPINE_VERSION"
+else
+    print_info "Installing Porcupine (pvporcupine)..."
+    if pip install pvporcupine; then
+        print_info "✅ Porcupine installed successfully"
+    else
+        print_warning "⚠️  Porcupine installation failed"
+        print_info "   This may be due to missing build dependencies"
+        print_info "   Wake word detection will not be available"
+    fi
+fi
+
+# Patch Porcupine for Jetson CPU support (if on ARM64/Jetson)
+if python3 -c "import platform; print(platform.machine())" 2>/dev/null | grep -q "aarch64\|arm64"; then
+    print_info "Detected ARM64 architecture - checking if Jetson patch is needed..."
+    
+    # Test if Porcupine can be imported (will fail if CPU not supported)
+    if python3 -c "import pvporcupine" 2>/dev/null; then
+        print_info "✅ Porcupine imports successfully - no patch needed"
+    else
+        print_info "Porcupine import failed - likely needs Jetson CPU patch"
+        
+        # Check if patch script exists
+        PATCH_SCRIPT="$LEDGERAI_DIR/setup/scripts/fix_porcupine_correct.py"
+        if [ -f "$PATCH_SCRIPT" ]; then
+            print_info "Applying Jetson CPU patch..."
+            if python3 "$PATCH_SCRIPT" 2>&1; then
+                print_info "✅ Jetson CPU patch applied"
+                
+                # Also apply platform detection patch
+                PLATFORM_PATCH="$LEDGERAI_DIR/setup/scripts/fix_porcupine_platform.py"
+                if [ -f "$PLATFORM_PATCH" ]; then
+                    print_info "Applying platform detection patch..."
+                    if python3 "$PLATFORM_PATCH" 2>&1; then
+                        print_info "✅ Platform detection patch applied"
+                    fi
+                fi
+                
+                # Verify patch worked
+                if python3 -c "import pvporcupine; print('✅ Porcupine patched and working!')" 2>/dev/null; then
+                    print_info "✅ Porcupine verified - wake word detection will work"
+                else
+                    print_warning "⚠️  Patch applied but Porcupine still fails to import"
+                    print_info "   You may need to manually patch _util.py"
+                fi
+            else
+                print_warning "⚠️  Jetson patch script failed"
+                print_info "   You may need to manually patch Porcupine"
+            fi
+        else
+            print_warning "⚠️  Patch script not found at $PATCH_SCRIPT"
+            print_info "   Porcupine may not work on Jetson without manual patching"
+        fi
+    fi
+else
+    print_info "Not ARM64 architecture - Jetson patch not needed"
+fi
+
+# Verify Porcupine installation
+print_info "Verifying Porcupine installation..."
+if python3 -c "import pvporcupine; print('✅ Porcupine is ready')" 2>/dev/null; then
+    print_info "✅ Porcupine wake word detection is ready"
+    print_info "   Get free access key from: https://console.picovoice.ai/"
+    print_info "   Add to .env: PORCUPINE_ACCESS_KEY=your_key_here"
+else
+    print_warning "⚠️  Porcupine not working - wake word detection will be disabled"
+    print_info "   Check logs above for errors"
+fi
+
+echo ""
+
+# ============================================================================
 # Step 4: Install jetson-containers
 # ============================================================================
 print_step "4. Installing jetson-containers..."
@@ -1155,6 +1235,10 @@ GITHUB_TOKEN=
 # Required: TTS Volume (0-100, default: 50)
 # Controls the volume of text-to-speech output
 TTS_VOLUME=50
+#
+# Optional: Porcupine Wake Word Detection
+# Get free access key from: https://console.picovoice.ai/
+PORCUPINE_ACCESS_KEY=
 EOF
 chown "$AURA_USER:$AURA_USER" "$ENV_FILE"
 print_info "✅ Wrote minimal .env (API keys only)"
@@ -1216,6 +1300,11 @@ if [ -f "$LEDGERAI_DIR/.env" ]; then
 else
     echo "⚠️  .env file: Created from template (needs API keys)"
 fi
+if python3 -c "import pvporcupine" 2>/dev/null; then
+    echo "✅ Porcupine: Installed (wake word detection available)"
+else
+    echo "⚠️  Porcupine: Not installed (wake word detection disabled)"
+fi
 echo ""
 echo "=========================================="
 echo "  Next Steps"
@@ -1231,7 +1320,13 @@ if [ ! -f "$LEDGERAI_DIR/.env" ] || grep -q "your_api_key_here\|your_bot_token_h
     echo "   nano .env"
     echo "   # Or use interactive config: ./aura_config.sh"
     echo "   # Required: ELEVENLABS_API_KEY"
-    echo "   # Optional: TELEGRAM_BOT_TOKEN, GITHUB_TOKEN"
+    echo "   # Optional: TELEGRAM_BOT_TOKEN, GITHUB_TOKEN, PORCUPINE_ACCESS_KEY"
+    echo ""
+fi
+if python3 -c "import pvporcupine" 2>/dev/null && ( [ ! -f "$LEDGERAI_DIR/.env" ] || ! grep -q "PORCUPINE_ACCESS_KEY=" "$LEDGERAI_DIR/.env" 2>/dev/null || grep -q "^PORCUPINE_ACCESS_KEY=$" "$LEDGERAI_DIR/.env" 2>/dev/null ); then
+    echo "1.6. ⚠️  IMPORTANT: Configure Porcupine access key for wake word detection:"
+    echo "   Get free access key from: https://console.picovoice.ai/"
+    echo "   Add to .env: PORCUPINE_ACCESS_KEY=your_key_here"
     echo ""
 fi
 echo "2. After logout/login, ensure Docker containers are built:"

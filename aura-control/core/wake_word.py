@@ -62,7 +62,8 @@ class PorcupineWakeWord:
             load_dotenv(dotenv_path)
             access_key = os.getenv("PORCUPINE_ACCESS_KEY")
         
-        self.access_key = access_key
+        # Store access key (strip whitespace if present, handle None)
+        self.access_key = access_key.strip() if access_key and access_key.strip() else None
         self.porcupine = None
         self.is_active = False
         self.frame_length = None
@@ -80,8 +81,8 @@ class PorcupineWakeWord:
             print("[Wake Word] 💡 For Jetson ARM64, you may need to build from source")
             return False
         
-        # Check for access key
-        if not self.access_key:
+        # Check for access key (must be non-empty string)
+        if not self.access_key or not self.access_key.strip():
             print("[Wake Word] ❌ Porcupine access key required!")
             print("[Wake Word] 💡 Get free access key from: https://console.picovoice.ai/")
             print("[Wake Word] 💡 Set in .env: PORCUPINE_ACCESS_KEY=your_key_here")
@@ -131,7 +132,7 @@ class PorcupineWakeWord:
                         print(f"[Wake Word] ✅ Porcupine initialized with built-in keyword: '{found_keyword}'")
                     else:
                         # No built-in "hey aura" found - try fallback keywords for testing
-                        fallback_keywords = ['hey siri', 'hey google', 'computer', 'porcupine', 'picovoice']
+                        fallback_keywords = ['jarvis', 'hey google', 'computer', 'porcupine', 'picovoice', 'hey siri']
                         fallback_found = None
                         
                         for keyword in fallback_keywords:
