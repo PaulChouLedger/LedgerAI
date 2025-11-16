@@ -732,6 +732,12 @@ echo ""
 # ============================================================================
 print_step "6.8. Configuring WiFi privileges (Polkit rule for nmcli)..."
 
+# Ensure polkit is installed
+if ! dpkg -s policykit-1 >/dev/null 2>&1; then
+    print_info "Installing policykit-1 (Polkit)..."
+    sudo apt install -y policykit-1 || true
+fi
+
 # Create a dedicated group for NetworkManager privileged actions
 if ! getent group nm-authed >/dev/null; then
     print_info "Creating group: nm-authed"
@@ -749,11 +755,24 @@ else
     print_warning "You must logout/login (or reboot) for group changes to take effect"
 fi
 
-# Install Polkit rule to allow users in nm-authed to perform NetworkManager actions
-POLKIT_RULE="/etc/polkit-1/rules.d/10-allow-nmcli.rules"
-if [ ! -f "$POLKIT_RULE" ]; then
-    print_info "Creating Polkit rule at $POLKIT_RULE"
-    sudo tee "$POLKIT_RULE" >/dev/null <<'EORULE'
+# Determine Polkit rules directory (prefer /etc, fallback to /usr/share)
+POLKIT_DIR="/etc/polkit-1/rules.d"
+if [ ! -d "$POLKIT_DIR" ]; then
+    print_info "Creating Polkit rules directory at $POLKIT_DIR"
+    sudo mkdir -p "$POLKIT_DIR" 2>/dev/null || true
+fi
+if [ ! -d "$POLKIT_DIR" ]; then
+    POLKIT_DIR="/usr/share/polkit-1/rules.d"
+    print_warning "Using fallback Polkit rules directory: $POLKIT_DIR"
+    sudo mkdir -p "$POLKIT_DIR" 2>/dev/null || true
+fi
+
+POLKIT_RULE="$POLKIT_DIR/10-allow-nmcli.rules"
+
+install_rules_file() {
+    local target_file="$1"
+    print_info "Creating Polkit rule at $target_file"
+    sudo tee "$target_file" >/dev/null <<'EORULE'
 polkit.addRule(function(action, subject) {
   if ((action.id.indexOf("org.freedesktop.NetworkManager") === 0) &&
       subject.isInGroup("nm-authed")) {
@@ -761,8 +780,29 @@ polkit.addRule(function(action, subject) {
   }
 });
 EORULE
-    sudo chmod 0644 "$POLKIT_RULE"
-    print_info "✅ Polkit rule installed"
+    sudo chmod 0644 "$target_file" 2>/dev/null || true
+}
+
+# Try to install a .rules file; if it fails, fallback to .pkla for older Polkit
+if [ ! -f "$POLKIT_RULE" ]; then
+    if install_rules_file "$POLKIT_RULE"; then
+        print_info "✅ Polkit .rules installed at $POLKIT_RULE"
+    else
+        print_warning "Failed to write .rules file; attempting .pkla fallback"
+        PKLA_DIR="/etc/polkit-1/localauthority/50-local.d"
+        sudo mkdir -p "$PKLA_DIR" 2>/dev/null || true
+        PKLA_FILE="$PKLA_DIR/10-allow-nmcli.pkla"
+        sudo tee "$PKLA_FILE" >/dev/null <<'EOPKLA'
+[Allow NetworkManager for nm-authed]
+Identity=unix-group:nm-authed
+Action=org.freedesktop.NetworkManager.*
+ResultAny=yes
+ResultInactive=yes
+ResultActive=yes
+EOPKLA
+        sudo chmod 0644 "$PKLA_FILE" 2>/dev/null || true
+        print_info "✅ Polkit .pkla rule installed at $PKLA_FILE"
+    fi
 else
     print_info "Polkit rule already exists at $POLKIT_RULE"
 fi
@@ -771,6 +811,9 @@ fi
 if systemctl list-unit-files | grep -q polkit; then
     print_info "Restarting polkit service to apply rule..."
     sudo systemctl restart polkit || true
+else
+    # Some systems use polkit.service name polkitd or don't permit restart; ignore failures
+    sudo systemctl restart polkit.service 2>/dev/null || true
 fi
 
 print_warning "If nmcli still prompts for authorization, logout/login (or reboot) to apply group membership."
