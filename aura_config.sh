@@ -77,7 +77,6 @@ show_all_settings() {
     echo -e "${BOLD}🔊 TEXT-TO-SPEECH${NC}"
     local api_key=$(get_config_value 'ELEVENLABS_API_KEY')
     local voice_id=$(get_config_value 'ELEVENLABS_VOICE_ID')
-    local tts_volume=$(get_config_value 'TTS_VOLUME')
     if [ -n "$api_key" ] && [ "$api_key" != "your_elevenlabs_api_key_here" ] && [ "$api_key" != "" ]; then
         echo -e "  ${GREEN}✅ API Key configured${NC}"
         if [ -n "$voice_id" ] && [ "$voice_id" != "default" ] && [ "$voice_id" != "" ]; then
@@ -89,11 +88,7 @@ show_all_settings() {
         echo -e "  ${RED}❌ API Key not set${NC}"
         echo -e "  ${YELLOW}⚠️  TTS will not work without API key${NC}"
     fi
-    if [ -n "$tts_volume" ]; then
-        echo "  Volume:       $tts_volume%"
-    else
-        echo "  Volume:       50% (default)"
-    fi
+    echo -e "  ${CYAN}Volume:${NC} Controlled via Settings Dialog in GUI"
     echo ""
     
     echo -e "${BOLD}🎤 WAKE WORD DETECTION${NC}"
@@ -156,7 +151,6 @@ configure_tts() {
     
     local api_key=$(get_config_value 'ELEVENLABS_API_KEY')
     local voice_id=$(get_config_value 'ELEVENLABS_VOICE_ID')
-    local tts_volume=$(get_config_value 'TTS_VOLUME')
     
     echo "Current Settings:"
     echo ""
@@ -167,15 +161,14 @@ configure_tts() {
         echo -e "  API Key:  ${RED}❌ Not set${NC}"
         echo "  Voice ID: ${voice_id:-default}"
     fi
-    echo "  Volume:    ${tts_volume:-50}%"
+    echo -e "  Volume:   ${CYAN}Controlled via Settings Dialog in GUI${NC}"
     echo ""
     echo "1) Set ElevenLabs API key"
     echo "2) Set voice ID (optional)"
-    echo "3) Set TTS volume (0-100%)"
-    echo "4) Clear API key"
-    echo "5) Back to main menu"
+    echo "3) Clear API key"
+    echo "4) Back to main menu"
     echo ""
-    read -p "Choice [1-5]: " choice
+    read -p "Choice [1-4]: " choice
     
     case $choice in
         1)
@@ -207,24 +200,11 @@ configure_tts() {
             echo -e "${GREEN}✅ Voice ID saved${NC}"
             ;;
         3)
-            echo ""
-            echo "Current volume: ${tts_volume:-50}%"
-            read -p "Enter TTS volume (0-100): " tts_volume_new
-            if [[ "$tts_volume_new" =~ ^[0-9]+$ ]] && [ "$tts_volume_new" -ge 0 ] && [ "$tts_volume_new" -le 100 ]; then
-                set_config_value "TTS_VOLUME" "$tts_volume_new"
-                echo -e "${GREEN}✅ TTS volume saved${NC}"
-                echo ""
-                echo "Note: Restart Aura for volume change to take effect"
-            else
-                echo -e "${RED}Invalid value. Please enter an integer 0-100.${NC}"
-            fi
-            ;;
-        4)
             set_config_value "ELEVENLABS_API_KEY" ""
             echo ""
             echo -e "${GREEN}✅ API key cleared${NC}"
             ;;
-        5) return ;;
+        4) return ;;
     esac
 }
 
@@ -496,13 +476,12 @@ main_menu() {
         echo "  3) Configure Telegram bot"
         echo "  4) Configure GitHub OTA updates"
         echo "  5) Configure NHS/FHIR credentials"
-        echo "  6) Configure Picovoice API Key"
         echo "  a) Edit .env file directly"
         echo "  0) Exit"
         echo ""
         echo -e "${CYAN}ℹ️  Note: LLM/RAG settings are managed via Settings Dialog in Aura GUI${NC}"
         echo ""
-        read -p "Enter choice [0-6a]: " choice
+        read -p "Enter choice [0-5a]: " choice
         
         case $choice in
             1)
@@ -523,10 +502,6 @@ main_menu() {
                 ;;
             5)
                 configure_nhs_fhir
-                read -p "Press Enter to continue..."
-                ;;
-            6)
-                configure_wake_word
                 read -p "Press Enter to continue..."
                 ;;
             a|A)
