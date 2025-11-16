@@ -54,6 +54,12 @@ SPEECH_PEAK_MIN = 0.003         # Lower peak threshold to accept softer speech
 
 # BARE-BONES: Hardware DSP → Channel 0 → VAD → Advanced Filter → Whisper
 
+# === Optional Pre-Gain for Quiet Inputs ===
+# Boosts very quiet frames before feature checks; safe due to soft clipping and downstream limits
+ENABLE_PRE_GAIN = True
+PRE_GAIN_MULTIPLIER = 2.5       # 2.0–3.0 typical for far-field quiet rooms
+PRE_GAIN_RMS_TRIGGER = 0.001    # Only apply gain if frame RMS is below this
+
 # === Soft Clipping Prevention ===
 ENABLE_SOFT_LIMITER = False      # Prevent clipping from near-field speech
 LIMITER_THRESHOLD = 0.95        # Start limiting above this peak level
@@ -570,6 +576,11 @@ def listen():
                 vad_prob = model_vad(torch.from_numpy(channel_audio), SAMPLE_RATE).item()
                 
                 # Calculate audio features
+                # Optional pre-gain for very quiet frames
+                if ENABLE_PRE_GAIN:
+                    frame_rms = float(np.sqrt(np.mean(channel_audio ** 2)))
+                    if frame_rms < PRE_GAIN_RMS_TRIGGER and frame_rms > 0.0:
+                        channel_audio = np.clip(channel_audio * PRE_GAIN_MULTIPLIER, -1.0, 1.0).astype(np.float32)
                 features = calculate_audio_features(channel_audio)
                 
                 print(f"[VAD] {vad_prob:.2f} | RMS {features['rms']:.4f} | Peak {features['peak']:.3f}", end="\r")

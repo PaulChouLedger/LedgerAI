@@ -441,9 +441,23 @@ class WifiSettingsDialog(QDialog):
         def _finalize():
             # Stop any running threads and disconnect signals to avoid late emissions
             try:
-                if self.wifi_scan_thread and self.wifi_scan_thread.isRunning():
-                    self.wifi_scan_thread.quit()
-                    self.wifi_scan_thread.wait(500)
+                if hasattr(self, "wifi_scan_thread") and self.wifi_scan_thread:
+                    try:
+                        self.wifi_scan_thread.networks_found.disconnect(self._on_wifi_networks_found)
+                    except Exception:
+                        pass
+                    try:
+                        self.wifi_scan_thread.scan_error.disconnect(self._on_wifi_scan_error)
+                    except Exception:
+                        pass
+                    try:
+                        self.wifi_scan_thread.finished.disconnect()
+                    except Exception:
+                        pass
+                    if self.wifi_scan_thread.isRunning():
+                        self.wifi_scan_thread.quit()
+                        self.wifi_scan_thread.wait(500)
+                    self.wifi_scan_thread = None
             except Exception:
                 pass
             event.accept()
@@ -531,7 +545,7 @@ class WifiSettingsDialog(QDialog):
         self.scan_wifi_btn.setText("🔄 Scanning...")
         self.wifi_list.clear()
         self.wifi_list.addItem("Scanning... Please wait...")
-        self.wifi_scan_thread = WiFiScanThread()
+        self.wifi_scan_thread = WiFiScanThread(self)
         self.wifi_scan_thread.networks_found.connect(self._on_wifi_networks_found)
         self.wifi_scan_thread.scan_error.connect(self._on_wifi_scan_error)
         self.wifi_scan_thread.finished.connect(lambda: (self.scan_wifi_btn.setEnabled(True), self.scan_wifi_btn.setText("🔍 Scan Networks")))
@@ -649,8 +663,26 @@ class UpdateDialog(QDialog):
         self.fade_out.setStartValue(self.windowOpacity()); self.fade_out.setEndValue(0.0); self.fade_out.setEasingCurve(QEasingCurve.InOutCubic)
         def _finalize():
             try:
-                if self.ota_update_thread and self.ota_update_thread.isRunning():
-                    self.ota_update_thread.terminate()
+                if hasattr(self, "ota_update_thread") and self.ota_update_thread:
+                    try:
+                        self.ota_update_thread.update_progress.disconnect()
+                    except Exception:
+                        pass
+                    try:
+                        self.ota_update_thread.update_complete.disconnect()
+                    except Exception:
+                        pass
+                    try:
+                        self.ota_update_thread.finished.disconnect()
+                    except Exception:
+                        pass
+                    if self.ota_update_thread.isRunning():
+                        # Prefer graceful stop if possible; fall back to terminate
+                        try:
+                            self.ota_update_thread.terminate()
+                        except Exception:
+                            pass
+                    self.ota_update_thread = None
             except Exception:
                 pass
             event.accept()
