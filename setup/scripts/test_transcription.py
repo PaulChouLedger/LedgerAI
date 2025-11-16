@@ -88,7 +88,7 @@ from scipy.fft import rfft, rfftfreq
 # === Config ===
 SAMPLE_RATE = 16000
 FRAME_SIZE = int(SAMPLE_RATE * 0.032)
-SILENCE_TIMEOUT = 0.5  # 500ms of silence before stopping
+SILENCE_TIMEOUT = 0.2  # 200ms of silence before stopping (align with listener.py)
 VAD_START_THRESHOLD = 0.25  # Lowered - beamforming provides good noise rejection
 VAD_SILENCE_THRESHOLD = 0.15  # Lower = more conservative about ending
 MIN_AUDIO_SAMPLES = 2000
@@ -100,19 +100,19 @@ ENABLE_ADVANCED_FILTER = True  # Toggle this to test
 
 # Thresholds based on your ACTUAL speech patterns:
 # Updated after comparing real speech vs noise bursts
-SPEECH_ZCR_MAX = 0.40           # Reject if ZCR > this (speech can be 0.15-0.35)
-SPEECH_FLATNESS_MAX = 0.45      # Reject if too "flat" (noisy, not tonal) - raised from 0.30 for new firmware
+SPEECH_ZCR_MAX = 0.40           # Reject if ZCR > this
+SPEECH_FLATNESS_MAX = 0.60      # More tolerant of flatness for far-field/quiet speech
 SPEECH_CENTROID_MIN = 300       # Hz - reject if too low (rumble/fan)
-SPEECH_CENTROID_MAX = 3000      # Hz - reject if too high (hiss) - raised for fricatives
+SPEECH_CENTROID_MAX = 3000      # Hz - reject if too high (hiss)
 SPEECH_BAND_MIN = 0.30          # Reject if insufficient energy in speech band
 SPEECH_DURATION_MIN = 0.4       # Seconds - reject if too short (noise bursts)
 
 # CRITICAL: Energy thresholds (most reliable for your noise pattern)
 # Updated after firmware tweaks - speech now has lower RMS/Peak values
-SPEECH_RMS_MIN = 0.005          # Reject if RMS < this (updated from 0.035 for new firmware)
-SPEECH_RMS_MAX = 0.40           # Reject if RMS > this (abnormally loud = likely noise/artifact)
-SPEECH_PEAK_MIN = 0.010         # Reject if peak < this (updated from 0.15 for new firmware)
-SPEECH_HIGH_FREQ_MAX = 0.06     # Reject if high freq ratio > this (hiss/noise)
+SPEECH_RMS_MIN = 0.0012         # Align with listener.py
+SPEECH_RMS_MAX = 0.40
+SPEECH_PEAK_MIN = 0.0025
+SPEECH_HIGH_FREQ_MAX = 0.08
 
 # === Soft Clipping Prevention ===
 ENABLE_SOFT_LIMITER = False      # Prevent clipping from near-field speech
@@ -124,7 +124,7 @@ LIMITER_KNEE = 0.05             # Soft knee width for smooth limiting
 
 # BARE-BONES: No software processing - testing hardware optimization only
 
-DEVICE_NAME = "XVF3800 4-Mic Array"
+DEVICE_NAME = "reSpeaker"
 DEVICE_INDEX = None
 
 # === Stats Tracking ===
@@ -140,7 +140,7 @@ def find_device_index():
         if DEVICE_NAME.lower() in device["name"].lower():
             DEVICE_INDEX = i
             print(f"[Listener] 🎧 Found: {device['name']} (index {i})")
-            return 2  # XVF3800 has 2 channels
+            return 2  # reSpeaker has 2 channels (2 in, 2 out)
     raise RuntimeError("Microphone not found")
 
 # === Audio Feature Extraction ===
