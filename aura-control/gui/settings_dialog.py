@@ -431,6 +431,34 @@ class WifiSettingsDialog(QDialog):
         self.raise_(); self.activateWindow()
     
     def closeEvent(self, event):
+        # For sub-dialogs, accept immediately to avoid blocking
+        if self.isModal():
+            # Clean up threads first
+            try:
+                if hasattr(self, "wifi_scan_thread") and self.wifi_scan_thread:
+                    try:
+                        self.wifi_scan_thread.networks_found.disconnect(self._on_wifi_networks_found)
+                    except Exception:
+                        pass
+                    try:
+                        self.wifi_scan_thread.scan_error.disconnect(self._on_wifi_scan_error)
+                    except Exception:
+                        pass
+                    try:
+                        self.wifi_scan_thread.finished.disconnect()
+                    except Exception:
+                        pass
+                    if self.wifi_scan_thread.isRunning():
+                        self.wifi_scan_thread.quit()
+                        self.wifi_scan_thread.wait(500)
+                    self.wifi_scan_thread = None
+            except Exception:
+                pass
+            # Accept immediately for modal dialogs (no fade animation to avoid blocking)
+            event.accept()
+            return
+        
+        # Non-modal: use fade animation
         if hasattr(self, 'fade_in') and self.fade_in.state() == QPropertyAnimation.Running:
             self.fade_in.stop()
         self.fade_out = QPropertyAnimation(self, b"windowOpacity")
@@ -487,7 +515,8 @@ class WifiSettingsDialog(QDialog):
         top_row = QHBoxLayout()
         back_btn = QPushButton("◀ Back")
         back_btn.setStyleSheet(SettingsDialog.get_button_style(None))
-        back_btn.clicked.connect(self.close)
+        # Use accept() for modal dialogs to ensure immediate response
+        back_btn.clicked.connect(lambda: self.accept() if self.isModal() else self.close())
         top_row.addWidget(back_btn)
         top_row.addStretch()
         main_layout.addLayout(top_row)
@@ -658,9 +687,43 @@ class UpdateDialog(QDialog):
         self.raise_(); self.activateWindow()
     
     def closeEvent(self, event):
-        if hasattr(self, 'fade_in') and self.fade_in.state() == QPropertyAnimation.Running: self.fade_in.stop()
-        self.fade_out = QPropertyAnimation(self, b"windowOpacity"); self.fade_out.setDuration(250)
-        self.fade_out.setStartValue(self.windowOpacity()); self.fade_out.setEndValue(0.0); self.fade_out.setEasingCurve(QEasingCurve.InOutCubic)
+        # For modal sub-dialogs, accept immediately to avoid blocking
+        if self.isModal():
+            # Clean up threads first
+            try:
+                if hasattr(self, "ota_update_thread") and self.ota_update_thread:
+                    try:
+                        self.ota_update_thread.update_progress.disconnect()
+                    except Exception:
+                        pass
+                    try:
+                        self.ota_update_thread.update_complete.disconnect()
+                    except Exception:
+                        pass
+                    try:
+                        self.ota_update_thread.finished.disconnect()
+                    except Exception:
+                        pass
+                    if self.ota_update_thread.isRunning():
+                        try:
+                            self.ota_update_thread.terminate()
+                        except Exception:
+                            pass
+                    self.ota_update_thread = None
+            except Exception:
+                pass
+            # Accept immediately for modal dialogs
+            event.accept()
+            return
+        
+        # Non-modal: use fade animation
+        if hasattr(self, 'fade_in') and self.fade_in.state() == QPropertyAnimation.Running: 
+            self.fade_in.stop()
+        self.fade_out = QPropertyAnimation(self, b"windowOpacity"); 
+        self.fade_out.setDuration(250)
+        self.fade_out.setStartValue(self.windowOpacity()); 
+        self.fade_out.setEndValue(0.0); 
+        self.fade_out.setEasingCurve(QEasingCurve.InOutCubic)
         def _finalize():
             try:
                 if hasattr(self, "ota_update_thread") and self.ota_update_thread:
@@ -677,7 +740,6 @@ class UpdateDialog(QDialog):
                     except Exception:
                         pass
                     if self.ota_update_thread.isRunning():
-                        # Prefer graceful stop if possible; fall back to terminate
                         try:
                             self.ota_update_thread.terminate()
                         except Exception:
@@ -686,7 +748,9 @@ class UpdateDialog(QDialog):
             except Exception:
                 pass
             event.accept()
-        self.fade_out.finished.connect(_finalize); self.fade_out.start(); event.ignore()
+        self.fade_out.finished.connect(_finalize); 
+        self.fade_out.start(); 
+        event.ignore()
     
     def _center_dialog(self):
         screen = QApplication.primaryScreen().geometry(); x = (screen.width() - self.width()) // 2; y = (screen.height() - self.height()) // 2; self.move(x, y)
@@ -697,7 +761,8 @@ class UpdateDialog(QDialog):
         top_row = QHBoxLayout()
         back_btn = QPushButton("◀ Back")
         back_btn.setStyleSheet(SettingsDialog.get_button_style(None))
-        back_btn.clicked.connect(self.close)
+        # Use accept() for modal dialogs to ensure immediate response
+        back_btn.clicked.connect(lambda: self.accept() if self.isModal() else self.close())
         top_row.addWidget(back_btn)
         top_row.addStretch()
         main_layout.addLayout(top_row)
@@ -759,10 +824,22 @@ class AIModelSettingsDialog(QDialog):
         self.raise_(); self.activateWindow()
     
     def closeEvent(self, event):
-        if hasattr(self, 'fade_in') and self.fade_in.state() == QPropertyAnimation.Running: self.fade_in.stop()
-        self.fade_out = QPropertyAnimation(self, b"windowOpacity"); self.fade_out.setDuration(250)
-        self.fade_out.setStartValue(self.windowOpacity()); self.fade_out.setEndValue(0.0); self.fade_out.setEasingCurve(QEasingCurve.InOutCubic)
-        self.fade_out.finished.connect(lambda: event.accept()); self.fade_out.start(); event.ignore()
+        # For modal sub-dialogs, accept immediately to avoid blocking
+        if self.isModal():
+            event.accept()
+            return
+        
+        # Non-modal: use fade animation
+        if hasattr(self, 'fade_in') and self.fade_in.state() == QPropertyAnimation.Running: 
+            self.fade_in.stop()
+        self.fade_out = QPropertyAnimation(self, b"windowOpacity"); 
+        self.fade_out.setDuration(250)
+        self.fade_out.setStartValue(self.windowOpacity()); 
+        self.fade_out.setEndValue(0.0); 
+        self.fade_out.setEasingCurve(QEasingCurve.InOutCubic)
+        self.fade_out.finished.connect(lambda: event.accept()); 
+        self.fade_out.start(); 
+        event.ignore()
     
     def _center_dialog(self):
         screen = QApplication.primaryScreen().geometry(); x = (screen.width() - self.width()) // 2; y = (screen.height() - self.height()) // 2; self.move(x, y)
@@ -773,7 +850,8 @@ class AIModelSettingsDialog(QDialog):
         top_row = QHBoxLayout()
         back_btn = QPushButton("◀ Back")
         back_btn.setStyleSheet(SettingsDialog.get_button_style(None))
-        back_btn.clicked.connect(self.close)
+        # Use accept() for modal dialogs to ensure immediate response
+        back_btn.clicked.connect(lambda: self.accept() if self.isModal() else self.close())
         top_row.addWidget(back_btn)
         top_row.addStretch()
         layout.addLayout(top_row)
