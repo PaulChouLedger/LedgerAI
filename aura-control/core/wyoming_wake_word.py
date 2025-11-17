@@ -274,6 +274,13 @@ class WyomingWakeWordClient:
                             print("[Wyoming] ⏳ Waiting for events from server...", flush=True, file=sys.stderr)
                             sys.stderr.flush()
                             self._waiting_logged = True
+                    # Log periodically that we're still waiting (every 10 seconds)
+                    if not hasattr(self, '_last_wait_log'):
+                        self._last_wait_log = time.time()
+                    elif time.time() - self._last_wait_log > 10.0:
+                        print(f"[Wyoming] ⏳ Still waiting for events... (received {event_count} events so far)", flush=True, file=sys.stderr)
+                        sys.stderr.flush()
+                        self._last_wait_log = time.time()
                     continue
                 except Exception as e:
                     if self.connected:  # Only log if still connected
@@ -366,6 +373,7 @@ class WyomingWakeWordClient:
     
     async def _async_send_audio(self, audio_int16: np.ndarray) -> Tuple[bool, float]:
         """Async send audio."""
+        import sys
         try:
             # Create AudioChunk
             chunk = AudioChunk(
@@ -379,22 +387,30 @@ class WyomingWakeWordClient:
             
             # Debug: check client methods on first call
             if not hasattr(self, '_client_debugged'):
-                print(f"[Wyoming] 🔍 Client type: {type(self.client)}")
+                print(f"[Wyoming] 🔍 Client type: {type(self.client)}", flush=True, file=sys.stderr)
                 client_methods = [m for m in dir(self.client) if not m.startswith('_') and callable(getattr(self.client, m, None))]
-                print(f"[Wyoming] 🔍 Client methods: {client_methods[:10]}...")  # First 10 methods
-                print(f"[Wyoming] 🔍 Event type: {type(event)}")
+                print(f"[Wyoming] 🔍 Client methods: {client_methods[:10]}...", flush=True, file=sys.stderr)  # First 10 methods
+                print(f"[Wyoming] 🔍 Event type: {type(event)}", flush=True, file=sys.stderr)
+                sys.stderr.flush()
                 self._client_debugged = True
             
-            # Write the event - the error suggests write_event might be trying to serialize incorrectly
-            # Try passing AudioChunk directly if Event doesn't work
+            # Write the event
             try:
                 await self.client.write_event(event)
-            except AttributeError as e:
-                if "to_dict" in str(e):
-                    # Try passing AudioChunk directly instead
-                    await self.client.write_event(chunk)
-                else:
-                    raise
+                # Log first few sends to verify audio is being sent
+                if not hasattr(self, '_audio_send_count'):
+                    self._audio_send_count = 0
+                self._audio_send_count += 1
+                if self._audio_send_count <= 3:
+                    print(f"[Wyoming] ✅ Sent audio chunk {self._audio_send_count} ({len(audio_int16)} samples)", flush=True, file=sys.stderr)
+                    sys.stderr.flush()
+            except Exception as write_err:
+                # Only log errors occasionally to avoid spam
+                if not hasattr(self, '_last_write_error') or time.time() - self._last_write_error > 1.0:
+                    print(f"[Wyoming] ⚠️ Error writing audio: {write_err}", flush=True, file=sys.stderr)
+                    sys.stderr.flush()
+                    self._last_write_error = time.time()
+                raise
             
             # Detection events are read by background task _read_detections()
             # Just return the last known detection state
