@@ -633,6 +633,15 @@ def listen():
                         audio_block, _ = stream.read(FRAME_SIZE)
                         channel_audio = audio_block[:, MICROPHONE_CHANNEL]
                         
+                        # Debug: check audio levels occasionally
+                        if not hasattr(wake_word_detector, '_audio_level_debug'):
+                            wake_word_detector._audio_level_debug = 0
+                        wake_word_detector._audio_level_debug += 1
+                        if wake_word_detector._audio_level_debug <= 10:
+                            rms = np.sqrt(np.mean(channel_audio**2))
+                            peak = np.abs(channel_audio).max()
+                            print(f"[Wake Word] 📊 Raw audio: RMS={rms:.4f}, Peak={peak:.4f}, shape={channel_audio.shape}")
+                        
                         if channel_audio.size < 512:
                             continue
                         

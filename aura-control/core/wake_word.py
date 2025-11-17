@@ -196,16 +196,36 @@ class OpenWakeWordDetector:
             return False, 0.0
         
         try:
+            # Debug: log audio stats on first few calls
+            if not hasattr(self, '_audio_debug_count'):
+                self._audio_debug_count = 0
+            
+            self._audio_debug_count += 1
+            if self._audio_debug_count <= 5:
+                print(f"[Wake Word] 🔍 Audio frame stats: shape={audio_frame.shape}, dtype={audio_frame.dtype}, "
+                      f"min={audio_frame.min():.4f}, max={audio_frame.max():.4f}, "
+                      f"mean={np.abs(audio_frame).mean():.4f}, rms={np.sqrt(np.mean(audio_frame**2)):.4f}")
+            
             # Ensure float32 format
             if audio_frame.dtype != 'float32':
                 audio_frame = audio_frame.astype('float32')
             
             # Normalize to [-1, 1] range if needed
-            if audio_frame.max() > 1.0 or audio_frame.min() < -1.0:
-                # Assume int16 format, convert to float32
-                if audio_frame.dtype == 'int16' or audio_frame.max() > 1.0:
+            # Check if audio is already normalized or needs conversion
+            abs_max = np.abs(audio_frame).max()
+            if abs_max > 1.0:
+                # Audio is likely in int16 or other integer format, normalize
+                if abs_max > 32767:
+                    # Very large values, might be int32 or other
+                    audio_frame = audio_frame.astype('float32') / abs_max
+                else:
+                    # Likely int16 range
                     audio_frame = audio_frame.astype('float32') / 32768.0
-                    audio_frame = np.clip(audio_frame, -1.0, 1.0)
+                audio_frame = np.clip(audio_frame, -1.0, 1.0)
+            elif abs_max < 0.01:
+                # Very quiet audio - might be an issue
+                if self._audio_debug_count <= 10:
+                    print(f"[Wake Word] ⚠️  Very quiet audio detected: max={abs_max:.6f}")
             
             # Ensure correct length (OpenWakeWord expects 1280 samples)
             if len(audio_frame) != self.frame_length:
