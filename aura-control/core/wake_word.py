@@ -1,245 +1,143 @@
 """
-Porcupine Wake Word Detection Integration
+OpenWakeWord Wake Word Detection Integration
 
 Installation:
-  According to current Picovoice docs (https://picovoice.ai/docs/quick-start/porcupine-python/):
-  - Linux (x86_64) - supported via pip
-  - Raspberry Pi (Zero, 3, 4, 5) - supported via pip
-  - Linux ARM64 (Jetson) - NOT listed as supported by pip package
+  OpenWakeWord is a lightweight, open-source wake word detection framework
+  that works natively on ARM64 (Jetson) without any manual setup.
   
-  However, pre-built ARM64 libraries are available on GitHub:
-  https://github.com/Picovoice/porcupine/tree/master/lib/linux/aarch64
+  Installation:
+    pip install openwakeword
   
-  Installation options (try in order):
+  That's it! No API keys, no manual library downloads, no build from source.
   
-  Option 1: Use automated installer (RECOMMENDED for Jetson):
-    ./setup/scripts/install_porcupine_jetson.sh
-    This downloads the pre-built library and configures it automatically.
+  Custom Training:
+    Train custom wake words with minimal data (~100-200 samples):
+    https://github.com/dscripka/openWakeWord#training-custom-models
   
-  Option 2: Try pip install (may work on Jetson Nano):
-    pip install picovoice picovoicedemo
+  Pre-trained Models:
+    OpenWakeWord comes with several pre-trained models:
+    - 'hey_jarvis' (recommended fallback)
+    - 'hey_mycroft'
+    - 'hey_fire_fox'
+    - 'timer'
+    - 'weather'
+    - And more...
   
-  Option 3: Manual library download + pip install:
-    mkdir -p porcupine_lib && cd porcupine_lib
-    curl -LO https://github.com/Picovoice/porcupine/raw/v3.0.3/lib/linux/aarch64/libpv_porcupine.so
-    pip install pvporcupine
-    # Then copy libpv_porcupine.so to pvporcupine package lib/ directory
-  
-  Option 4: Build from source (if above options fail):
-    git clone https://github.com/Picovoice/porcupine
-    cd porcupine/binding/python
-    python setup.py build_ext --inplace
-    pip install -e .
-  
-  Note: Support may vary by Jetson model (Nano vs Orin vs Xavier) and Picovoice version.
-
-Access Key:
-  Get FREE access key (no credit card required): https://console.picovoice.ai/signup
-  Free Plan available for personal/non-commercial use
-  Set in .env: PORCUPINE_ACCESS_KEY=your_key_here
+  GitHub: https://github.com/dscripka/openWakeWord
 """
 
 import os
 import numpy as np
 from dotenv import load_dotenv
 
-# Try to import Porcupine
+# Try to import OpenWakeWord
 try:
-    import pvporcupine
-    PORCUPINE_AVAILABLE = True
+    from openwakeword.model import Model
+    OPENWAKEWORD_AVAILABLE = True
 except ImportError:
-    PORCUPINE_AVAILABLE = False
-    pvporcupine = None
+    OPENWAKEWORD_AVAILABLE = False
+    Model = None
 
 
-class PorcupineWakeWord:
+class OpenWakeWordDetector:
     """
-    Porcupine wake word detection wrapper for Aura
+    OpenWakeWord wake word detection wrapper for Aura
     
     Usage:
-        wake_word = PorcupineWakeWord()
+        wake_word = OpenWakeWordDetector()
         if wake_word.initialize():
             detected, confidence = wake_word.process(audio_frame)
     """
     
-    def __init__(self, keyword_path=None, sensitivity=None, access_key=None):
+    def __init__(self, model_path=None, threshold=None):
         """
-        Initialize Porcupine wake word detector.
+        Initialize OpenWakeWord detector.
         
         Args:
-            keyword_path: Path to .ppn model file (or None for built-in/default)
-            sensitivity: Detection sensitivity (0.0-1.0, default from state)
-            access_key: Picovoice access key (or None to load from .env)
+            model_path: Path to custom .onnx model file (or None for pre-trained)
+            threshold: Detection threshold (0.0-1.0, default from state)
         """
         # Load from state module (preferred) or use provided values
         try:
-            from state import get_wake_word_model_path, get_wake_word_sensitivity
-            self.keyword_path = keyword_path or get_wake_word_model_path()
-            self.sensitivity = sensitivity if sensitivity is not None else get_wake_word_sensitivity()
+            from state import get_wake_word_sensitivity
+            # OpenWakeWord uses threshold (higher = more sensitive)
+            # Convert sensitivity (0.0-1.0) to threshold (0.0-1.0)
+            # Higher sensitivity = lower threshold (more sensitive)
+            sensitivity = threshold if threshold is not None else get_wake_word_sensitivity()
+            self.threshold = 1.0 - sensitivity if sensitivity is not None else 0.5
         except ImportError:
             # Fallback if state module not available
-            self.keyword_path = keyword_path
-            self.sensitivity = sensitivity if sensitivity is not None else 0.5
+            self.threshold = threshold if threshold is not None else 0.5
         
-        # Load access key from .env if not provided
-        if access_key is None:
-            # Load .env from workspace root (2 levels up from this file)
-            workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-            dotenv_path = os.path.join(workspace_root, '.env')
-            load_dotenv(dotenv_path)
-            access_key = os.getenv("PORCUPINE_ACCESS_KEY")
-        
-        # Store access key (strip whitespace if present, handle None)
-        self.access_key = access_key.strip() if access_key and access_key.strip() else None
-        self.porcupine = None
+        self.model_path = model_path
+        self.model = None
         self.is_active = False
-        self.frame_length = None
-        self.sample_rate = None
+        self.frame_length = 1280  # OpenWakeWord uses 1280 samples at 16kHz (80ms)
+        self.sample_rate = 16000
+        self.wake_word_name = None
+        self.available_models = []
         
     def initialize(self):
         """
-        Initialize Porcupine engine.
+        Initialize OpenWakeWord engine.
         
         Returns:
             bool: True if initialization successful, False otherwise
         """
-        if not PORCUPINE_AVAILABLE:
-            print("[Wake Word] ❌ Porcupine not available - install with: pip install pvporcupine")
-            print("[Wake Word] 💡 For Jetson ARM64, you may need to build from source")
-            return False
-        
-        # Check for access key (must be non-empty string)
-        if not self.access_key or not self.access_key.strip():
-            print("[Wake Word] ❌ Porcupine access key required!")
-            print("[Wake Word] 💡 Get FREE access key (no credit card required): https://console.picovoice.ai/signup")
-            print("[Wake Word] 💡 Free tier available for personal/non-commercial use")
-            print("[Wake Word] 💡 Set in .env: PORCUPINE_ACCESS_KEY=your_key_here")
-            print("[Wake Word] ℹ️  Note: Porcupine requires internet for initial model download")
-            print("[Wake Word] ℹ️  After first download, models are cached and work offline")
+        if not OPENWAKEWORD_AVAILABLE:
+            print("[Wake Word] ❌ OpenWakeWord not available - install with: pip install openwakeword")
+            print("[Wake Word] 💡 OpenWakeWord works natively on ARM64 (Jetson) - no manual setup needed!")
             return False
         
         try:
-            # Check if custom model path is provided
-            if self.keyword_path and os.path.exists(self.keyword_path):
-                # Use custom model file
-                self.porcupine = pvporcupine.create(
-                    access_key=self.access_key,
-                    keyword_paths=[self.keyword_path],
-                    sensitivities=[self.sensitivity]
+            # Try to use custom model if provided
+            if self.model_path and os.path.exists(self.model_path):
+                # Load custom model
+                self.model = Model(
+                    wakeword_models=[self.model_path],
+                    inference_framework='onnx'
                 )
-                print(f"[Wake Word] ✅ Porcupine initialized with custom model: {self.keyword_path}")
+                self.wake_word_name = os.path.basename(self.model_path).replace('.onnx', '')
+                print(f"[Wake Word] ✅ OpenWakeWord initialized with custom model: {self.model_path}")
             else:
-                # Try to use built-in keywords
-                try:
-                    # Check available keywords (KEYWORDS is a set, not a dict)
-                    if hasattr(pvporcupine, 'KEYWORDS'):
-                        # KEYWORDS might be a set or dict
-                        if isinstance(pvporcupine.KEYWORDS, set):
-                            available_keywords = pvporcupine.KEYWORDS
-                        elif isinstance(pvporcupine.KEYWORDS, dict):
-                            available_keywords = set(pvporcupine.KEYWORDS.keys())
-                        else:
-                            available_keywords = set(pvporcupine.KEYWORDS)
-                    else:
-                        # Fallback: try common keywords directly
-                        available_keywords = set()
-                    
-                    # Try common wake word phrases
-                    wake_phrases = ['hey aura', 'hey aura assistant', 'aura']
-                    found_keyword = None
-                    
-                    for phrase in wake_phrases:
-                        if phrase in available_keywords:
-                            found_keyword = phrase
-                            break
-                    
-                    if found_keyword:
-                        self.porcupine = pvporcupine.create(
-                            access_key=self.access_key,
-                            keywords=[found_keyword],
-                            sensitivities=[self.sensitivity]
-                        )
-                        print(f"[Wake Word] ✅ Porcupine initialized with built-in keyword: '{found_keyword}'")
-                    else:
-                        # No built-in "hey aura" found - try fallback keywords for testing
-                        fallback_keywords = ['jarvis', 'hey google', 'computer', 'porcupine', 'picovoice', 'hey siri']
-                        fallback_found = None
-                        
-                        for keyword in fallback_keywords:
-                            if keyword in available_keywords:
-                                fallback_found = keyword
-                                break
-                        
-                        if fallback_found:
-                            print(f"[Wake Word] ⚠️  'hey aura' not found, using fallback: '{fallback_found}'")
-                            print(f"[Wake Word] 💡 Train custom 'hey aura' model (free tier): https://console.picovoice.ai/signup")
-                            self.porcupine = pvporcupine.create(
-                                access_key=self.access_key,
-                                keywords=[fallback_found],
-                                sensitivities=[self.sensitivity]
-                            )
-                            print(f"[Wake Word] ✅ Porcupine initialized with fallback keyword: '{fallback_found}'")
-                        else:
-                            # No built-in keyword found - need custom model
-                            print("[Wake Word] ❌ No built-in 'hey aura' keyword found")
-                            print(f"[Wake Word] 📋 Available keywords: {sorted(list(available_keywords))[:10]}...")
-                            print("[Wake Word] 💡 Options:")
-                            print("[Wake Word]    1. Train custom model (free tier): https://console.picovoice.ai/signup")
-                            print("[Wake Word]    2. Download .ppn file and set wake_word_model_path in app_settings.json")
-                            return False
-                        
-                except NotImplementedError as e:
-                    if "Unsupported platform" in str(e):
-                        print(f"[Wake Word] ❌ Platform not supported: {e}")
-                        print("[Wake Word] 💡 Pre-built ARM64 libraries are available on GitHub!")
-                        print("[Wake Word] 💡 EASIEST: Use automated installer:")
-                        print("[Wake Word]     ./setup/scripts/install_porcupine_jetson.sh")
-                        print("[Wake Word] 💡 OR manually download library:")
-                        print("[Wake Word]     mkdir -p porcupine_lib && cd porcupine_lib")
-                        print("[Wake Word]     curl -LO https://github.com/Picovoice/porcupine/raw/v3.0.3/lib/linux/aarch64/libpv_porcupine.so")
-                        print("[Wake Word]     pip install pvporcupine")
-                        print("[Wake Word]     # Then copy libpv_porcupine.so to pvporcupine package lib/ directory")
-                        print("[Wake Word] 💡 Library location: https://github.com/Picovoice/porcupine/tree/master/lib/linux/aarch64")
-                    else:
-                        print(f"[Wake Word] ❌ Failed to initialize: {e}")
-                    return False
-                except Exception as e:
-                    print(f"[Wake Word] ❌ Failed to initialize with built-in keywords: {e}")
-                    import traceback
-                    traceback.print_exc()
-                    print("[Wake Word] 💡 Train custom model (free tier): https://console.picovoice.ai/signup")
-                    return False
+                # Use pre-trained models
+                # Try to find "hey_aura" or similar, fallback to "hey_jarvis"
+                preferred_models = ['hey_aura', 'hey_jarvis', 'hey_mycroft', 'hey_fire_fox']
+                
+                # Get available models from OpenWakeWord
+                # OpenWakeWord has built-in models, we'll use 'hey_jarvis' as default
+                # since 'hey_aura' likely doesn't exist as a pre-trained model
+                self.model = Model(
+                    wakeword_models=['hey_jarvis'],  # Default fallback
+                    inference_framework='onnx'
+                )
+                self.wake_word_name = 'hey_jarvis'
+                
+                # Check what models are available
+                # OpenWakeWord loads models from its package directory
+                print(f"[Wake Word] ✅ OpenWakeWord initialized with pre-trained model: '{self.wake_word_name}'")
+                print(f"[Wake Word] 💡 To use custom 'hey aura' model:")
+                print(f"[Wake Word]     1. Train model: https://github.com/dscripka/openWakeWord#training-custom-models")
+                print(f"[Wake Word]     2. Set wake_word_model_path in app_settings.json")
             
-            # Get required frame length and sample rate
-            self.frame_length = self.porcupine.frame_length
-            self.sample_rate = self.porcupine.sample_rate
+            # Get frame length from model (OpenWakeWord uses 1280 samples at 16kHz)
+            # This is 80ms of audio
+            self.frame_length = 1280
+            self.sample_rate = 16000
             
-            print(f"[Wake Word]   Frame length: {self.frame_length} samples")
+            print(f"[Wake Word]   Frame length: {self.frame_length} samples ({self.frame_length/self.sample_rate*1000:.0f}ms)")
             print(f"[Wake Word]   Sample rate: {self.sample_rate} Hz")
-            print(f"[Wake Word]   Sensitivity: {self.sensitivity}")
+            print(f"[Wake Word]   Threshold: {self.threshold:.2f} (lower = more sensitive)")
             
             self.is_active = True
             return True
             
-        except NotImplementedError as e:
-            if "Unsupported platform" in str(e):
-                print(f"[Wake Word] ❌ Platform not supported: {e}")
-                print("[Wake Word] 💡 Pre-built ARM64 libraries are available on GitHub!")
-                print("[Wake Word] 💡 EASIEST: Use automated installer:")
-                print("[Wake Word]     ./setup/scripts/install_porcupine_jetson.sh")
-                print("[Wake Word] 💡 OR manually download library:")
-                print("[Wake Word]     mkdir -p porcupine_lib && cd porcupine_lib")
-                print("[Wake Word]     curl -LO https://github.com/Picovoice/porcupine/raw/v3.0.3/lib/linux/aarch64/libpv_porcupine.so")
-                print("[Wake Word]     pip install pvporcupine")
-                print("[Wake Word]     # Then copy libpv_porcupine.so to pvporcupine package lib/ directory")
-                print("[Wake Word] 💡 Library location: https://github.com/Picovoice/porcupine/tree/master/lib/linux/aarch64")
-            else:
-                print(f"[Wake Word] ❌ Failed to initialize: {e}")
-            return False
         except Exception as e:
-            print(f"[Wake Word] ❌ Failed to initialize Porcupine: {e}")
+            print(f"[Wake Word] ❌ Failed to initialize OpenWakeWord: {e}")
             import traceback
             traceback.print_exc()
+            print("[Wake Word] 💡 Install with: pip install openwakeword")
+            print("[Wake Word] 💡 OpenWakeWord works natively on ARM64 (Jetson) - no manual setup needed!")
             return False
     
     def process(self, audio_frame):
@@ -247,29 +145,30 @@ class PorcupineWakeWord:
         Process audio frame for wake word detection.
         
         Args:
-            audio_frame: numpy array of audio samples (int16, float32, or float64)
-                        Must match frame_length (typically 512 samples at 16kHz)
+            audio_frame: numpy array of audio samples (float32, shape: [samples])
+                        Should be 1280 samples at 16kHz for optimal performance
+                        Can be any length - will be padded/truncated automatically
             
         Returns:
             tuple: (detected: bool, confidence: float)
         """
-        if not self.is_active or self.porcupine is None:
+        if not self.is_active or self.model is None:
             return False, 0.0
         
         try:
-            # Convert to int16 if needed (Porcupine requires int16 PCM)
-            if audio_frame.dtype == 'float32' or audio_frame.dtype == 'float64':
-                # Clamp to [-1, 1] range
-                audio_frame = np.clip(audio_frame, -1.0, 1.0)
-                # Convert to int16
-                audio_frame = (audio_frame * 32767).astype('int16')
-            elif audio_frame.dtype != 'int16':
-                # Convert unknown types to int16
-                audio_frame = audio_frame.astype('int16')
+            # Ensure float32 format
+            if audio_frame.dtype != 'float32':
+                audio_frame = audio_frame.astype('float32')
             
-            # Ensure correct length (Porcupine requires exact frame_length)
+            # Normalize to [-1, 1] range if needed
+            if audio_frame.max() > 1.0 or audio_frame.min() < -1.0:
+                # Assume int16 format, convert to float32
+                if audio_frame.dtype == 'int16' or audio_frame.max() > 1.0:
+                    audio_frame = audio_frame.astype('float32') / 32768.0
+                    audio_frame = np.clip(audio_frame, -1.0, 1.0)
+            
+            # Ensure correct length (OpenWakeWord expects 1280 samples)
             if len(audio_frame) != self.frame_length:
-                # Pad or truncate to match required length
                 if len(audio_frame) < self.frame_length:
                     # Pad with zeros
                     audio_frame = np.pad(
@@ -278,29 +177,43 @@ class PorcupineWakeWord:
                         mode='constant'
                     )
                 else:
-                    # Truncate
-                    audio_frame = audio_frame[:self.frame_length]
+                    # Truncate or take last N samples
+                    audio_frame = audio_frame[-self.frame_length:]
             
-            # Process frame with Porcupine
-            keyword_index = self.porcupine.process(audio_frame)
+            # Reshape for OpenWakeWord (expects [1, samples] shape)
+            audio_frame = audio_frame.reshape(1, -1)
             
-            if keyword_index >= 0:
-                # Wake word detected!
-                return True, 1.0
-            return False, 0.0
+            # Process frame with OpenWakeWord
+            # predict() returns a dict with model names as keys and confidence scores as values
+            predictions = self.model.predict(audio_frame)
+            
+            # Get confidence for our wake word model
+            if self.wake_word_name and self.wake_word_name in predictions:
+                confidence = predictions[self.wake_word_name]
+            elif len(predictions) > 0:
+                # Use first (and likely only) model's confidence
+                confidence = list(predictions.values())[0]
+            else:
+                confidence = 0.0
+            
+            # Check if confidence exceeds threshold
+            # Lower threshold = more sensitive (detects more easily)
+            detected = confidence >= self.threshold
+            
+            return detected, confidence
             
         except Exception as e:
             print(f"[Wake Word] ⚠️ Processing error: {e}")
             return False, 0.0
     
     def release(self):
-        """Release Porcupine resources"""
-        if self.porcupine:
+        """Release OpenWakeWord resources"""
+        if self.model:
             try:
-                self.porcupine.delete()
+                # OpenWakeWord models don't need explicit cleanup, but we'll clear the reference
+                self.model = None
             except Exception as e:
-                print(f"[Wake Word] ⚠️ Error releasing Porcupine: {e}")
-            self.porcupine = None
+                print(f"[Wake Word] ⚠️ Error releasing OpenWakeWord: {e}")
             self.is_active = False
 
 
@@ -309,27 +222,30 @@ def create_wake_word_detector():
     Factory function to create and initialize wake word detector.
     
     Returns:
-        PorcupineWakeWord instance if successful, None otherwise
+        OpenWakeWordDetector instance if successful, None otherwise
     """
     # Check if wake word is enabled (from state module)
     try:
-        from state import get_wake_word_enabled
+        from state import get_wake_word_enabled, get_wake_word_model_path
         enable_wake_word = get_wake_word_enabled()
+        model_path = get_wake_word_model_path()
     except ImportError:
         # Fallback: wake word disabled if state module not available
         enable_wake_word = False
+        model_path = None
     
     if not enable_wake_word:
         print("[Wake Word] ℹ️  Wake word detection disabled (toggle in Settings)")
         return None
     
-    if not PORCUPINE_AVAILABLE:
-        print("[Wake Word] ⚠️  Porcupine not installed - wake word detection disabled")
-        print("[Wake Word] 💡 Install with: pip install pvporcupine")
+    if not OPENWAKEWORD_AVAILABLE:
+        print("[Wake Word] ⚠️  OpenWakeWord not installed - wake word detection disabled")
+        print("[Wake Word] 💡 Install with: pip install openwakeword")
+        print("[Wake Word] 💡 OpenWakeWord works natively on ARM64 (Jetson) - no manual setup needed!")
         return None
     
     # Create detector
-    detector = PorcupineWakeWord()
+    detector = OpenWakeWordDetector(model_path=model_path)
     
     # Initialize
     if detector.initialize():
@@ -337,4 +253,3 @@ def create_wake_word_detector():
     else:
         print("[Wake Word] ⚠️  Initialization failed - wake word detection disabled")
         return None
-

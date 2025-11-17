@@ -92,14 +92,10 @@ show_all_settings() {
     echo ""
     
     echo -e "${BOLD}🎤 WAKE WORD DETECTION${NC}"
-    local porcupine_key=$(get_config_value 'PORCUPINE_ACCESS_KEY')
-    if [ -n "$porcupine_key" ] && [ "$porcupine_key" != "" ]; then
-        echo -e "  ${GREEN}✅ Porcupine access key configured${NC}"
-        echo "  Access Key:    ${porcupine_key:0:20}..."
-    else
-        echo -e "  ${YELLOW}○${NC} Not configured (optional)"
-        echo "  Get FREE key:  https://console.picovoice.ai/signup"
-    fi
+    echo -e "  ${GREEN}✅ OpenWakeWord${NC} (no API key required)"
+    echo "  Status:      Works natively on ARM64/Jetson"
+    echo "  Install:     pip install openwakeword"
+    echo "  GitHub:      https://github.com/dscripka/openWakeWord"
     echo ""
     
     echo -e "${BOLD}💬 TELEGRAM BOT${NC}"
@@ -209,69 +205,29 @@ configure_tts() {
 }
 
 configure_wake_word() {
-    print_header "WAKE WORD DETECTION CONFIGURATION (PORCUPINE/PICOVOICE)"
+    print_header "WAKE WORD DETECTION CONFIGURATION (OPENWAKEWORD)"
     
-    local porcupine_key=$(get_config_value 'PORCUPINE_ACCESS_KEY')
-    
-    echo "Current Settings:"
+    echo "OpenWakeWord Wake Word Detection:"
+    echo "  • ✅ Fully open source (Apache 2.0)"
+    echo "  • ✅ No API keys required"
+    echo "  • ✅ Works natively on ARM64/Jetson"
+    echo "  • ✅ Simple installation: pip install openwakeword"
+    echo "  • ✅ Lightweight and efficient"
+    echo "  • ✅ Easy custom training (~100-200 samples)"
     echo ""
-    if [ -n "$porcupine_key" ] && [ "$porcupine_key" != "" ]; then
-        echo -e "  Access Key: ${GREEN}✅ Configured${NC}"
-        echo "  Key:       ${porcupine_key:0:20}..."
-    else
-        echo -e "  Access Key: ${RED}❌ Not set${NC}"
-    fi
+    echo "Installation:"
+    echo "  pip install openwakeword"
     echo ""
-    echo "Porcupine Wake Word Detection (Picovoice):"
-    echo "  • FREE access key available (no credit card required)"
-    echo "  • Get key from: https://console.picovoice.ai/signup"
-    echo "  • Free tier available for personal/non-commercial use"
-    echo "  • Requires internet for initial model download"
-    echo "  • Works offline after first download"
+    echo "Custom Training:"
+    echo "  https://github.com/dscripka/openWakeWord#training-custom-models"
     echo ""
-    echo "1) Set Porcupine/Picovoice access key"
-    echo "2) Clear access key"
-    echo "3) Back to main menu"
+    echo "GitHub:"
+    echo "  https://github.com/dscripka/openWakeWord"
     echo ""
-    read -p "Choice [1-3]: " choice
-    
-    case $choice in
-        1)
-            echo ""
-            echo "Get your FREE access key from: https://console.picovoice.ai/signup"
-            echo "Free tier available for personal use (no credit card required)"
-            echo ""
-            echo "You can paste:"
-            echo "  • Just the key value (e.g., abc123xyz...)"
-            echo "  • Or the full line (e.g., PORCUPINE_ACCESS_KEY=abc123xyz...)"
-            echo ""
-            read -p "Enter Porcupine/Picovoice access key: " porcupine_key
-            if [ -n "$porcupine_key" ]; then
-                # Extract value if user pasted "PORCUPINE_ACCESS_KEY=value" format
-                if [[ "$porcupine_key" == *"="* ]]; then
-                    porcupine_key=$(echo "$porcupine_key" | cut -d'=' -f2- | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-                fi
-                # Remove any quotes if user pasted with quotes
-                porcupine_key=$(echo "$porcupine_key" | sed "s/^['\"]//;s/['\"]$//")
-                
-                if [ -n "$porcupine_key" ]; then
-                    set_config_value "PORCUPINE_ACCESS_KEY" "$porcupine_key"
-                    echo ""
-                    echo -e "${GREEN}✅ Access key saved${NC}"
-                    echo ""
-                    echo "Note: Restart Aura for wake word detection to take effect"
-                else
-                    echo -e "${RED}❌ Invalid key format. Please try again.${NC}"
-                fi
-            fi
-            ;;
-        2)
-            set_config_value "PORCUPINE_ACCESS_KEY" ""
-            echo ""
-            echo -e "${GREEN}✅ Access key cleared${NC}"
-            ;;
-        3) return ;;
-    esac
+    echo "Note: Wake word detection is controlled via Settings Dialog in GUI"
+    echo "      (Settings → AI Model Settings → Wake Word toggle)"
+    echo ""
+    read -p "Press Enter to return to main menu..."
 }
 
 configure_picovoice() {

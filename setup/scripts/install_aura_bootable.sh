@@ -1156,10 +1156,9 @@ GITHUB_TOKEN=
 # Controls the volume of text-to-speech output
 TTS_VOLUME=50
 #
-# Optional: Porcupine Wake Word Detection
-# Get FREE access key from: https://console.picovoice.ai/signup
-# Free Plan available for personal use (no credit card required)
-PORCUPINE_ACCESS_KEY=
+# Wake Word Detection: OpenWakeWord (no API key required)
+# Install with: pip install openwakeword
+# Works natively on ARM64/Jetson - no manual setup needed
 EOF
 chown "$AURA_USER:$AURA_USER" "$ENV_FILE"
 print_info "✅ Wrote minimal .env (API keys only)"
@@ -1221,7 +1220,7 @@ if [ -f "$LEDGERAI_DIR/.env" ]; then
 else
     echo "⚠️  .env file: Created from template (needs API keys)"
 fi
-echo "ℹ️  Porcupine: Install manually if needed (pip install picovoice picovoicedemo)"
+echo "ℹ️  Wake Word: OpenWakeWord (pip install openwakeword) - works natively on ARM64/Jetson"
 echo ""
 echo "=========================================="
 echo "  Next Steps"
@@ -1237,7 +1236,7 @@ if [ ! -f "$LEDGERAI_DIR/.env" ] || grep -q "your_api_key_here\|your_bot_token_h
     echo "   nano .env"
     echo "   # Or use interactive config: ./aura_config.sh"
     echo "   # Required: ELEVENLABS_API_KEY"
-    echo "   # Optional: TELEGRAM_BOT_TOKEN, GITHUB_TOKEN, PORCUPINE_ACCESS_KEY"
+    echo "   # Optional: TELEGRAM_BOT_TOKEN, GITHUB_TOKEN"
     echo ""
 fi
 echo "2. After logout/login, ensure Docker containers are built:"

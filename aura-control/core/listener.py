@@ -539,15 +539,9 @@ def listen():
         print("[Wake Word] ⚠️  Wake word enabled in settings but detector failed to initialize")
         print("[Wake Word] 🔒 Transcription will be BLOCKED until wake word detector is fixed")
         print("[Wake Word] 💡 Check logs above for initialization errors")
-        print("[Wake Word] 💡 Pre-built ARM64 libraries are available on GitHub!")
-        print("[Wake Word] 💡 EASIEST: Use automated installer:")
-        print("[Wake Word]     ./setup/scripts/install_porcupine_jetson.sh")
-        print("[Wake Word] 💡 OR manually download library:")
-        print("[Wake Word]     mkdir -p porcupine_lib && cd porcupine_lib")
-        print("[Wake Word]     curl -LO https://github.com/Picovoice/porcupine/raw/v3.0.3/lib/linux/aarch64/libpv_porcupine.so")
-        print("[Wake Word]     pip install pvporcupine")
-        print("[Wake Word]     # Then copy libpv_porcupine.so to pvporcupine package lib/ directory")
-        print("[Wake Word] 💡 Library: https://github.com/Picovoice/porcupine/tree/master/lib/linux/aarch64")
+        print("[Wake Word] 💡 Install OpenWakeWord:")
+        print("[Wake Word]     pip install openwakeword")
+        print("[Wake Word] 💡 OpenWakeWord works natively on ARM64 (Jetson) - no manual setup needed!")
         print("[Wake Word] 💡 Or disable wake word in Settings → AI Model Settings")
         block_transcription("Wake word required but not available")
     
@@ -606,7 +600,7 @@ def listen():
             
             play_welcome_prompt(stream)
             
-            # Wake word buffer for Porcupine (needs specific frame size)
+            # Wake word buffer for OpenWakeWord (needs 1280 samples = 80ms at 16kHz)
             wake_word_buffer = []
             listening_active = False  # True after wake word detected
             
@@ -640,17 +634,16 @@ def listen():
                         if channel_audio.size < 512:
                             continue
                         
-                        # Convert to int16 for Porcupine (if needed)
-                        # Porcupine requires specific frame length, so we buffer frames
+                        # OpenWakeWord requires 1280 samples (80ms at 16kHz), so we buffer frames
                         wake_word_buffer.append(channel_audio)
                         
-                        # Check if we have enough samples for Porcupine frame
+                        # Check if we have enough samples for OpenWakeWord frame
                         if wake_word_detector and wake_word_detector.frame_length:
                             required_samples = wake_word_detector.frame_length
                             total_samples = sum(len(chunk) for chunk in wake_word_buffer)
                             
                             if total_samples >= required_samples:
-                                # Concatenate enough samples for one Porcupine frame
+                                # Concatenate enough samples for one OpenWakeWord frame
                                 combined_audio = np.concatenate(wake_word_buffer)
                                 wake_word_frame = combined_audio[:required_samples]
                                 
