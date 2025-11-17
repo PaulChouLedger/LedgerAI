@@ -64,17 +64,18 @@ class OpenWakeWordDetector:
             # Convert sensitivity (0.0-1.0) to threshold (0.0-1.0)
             # Higher sensitivity = lower threshold (more sensitive)
             sensitivity = threshold if threshold is not None else get_wake_word_sensitivity()
-            # OpenWakeWord confidence values are typically very low
+            # OpenWakeWord confidence values are typically VERY low
             # Based on observed values: 0.0 for silence, 1e-06 to 1e-05 for background, 
             # spikes to 0.1-1.0 when wake word is detected
-            # Default sensitivity 0.5 should map to threshold 0.0001 (very sensitive)
-            # Sensitivity 0.0 (least sensitive) -> threshold 0.001 (higher threshold)
-            # Sensitivity 1.0 (most sensitive) -> threshold 0.00001 (very low threshold)
+            # Default sensitivity 0.5 should map to threshold 0.00001 (extremely sensitive)
+            # Sensitivity 0.0 (least sensitive) -> threshold 0.0001 (higher threshold)
+            # Sensitivity 1.0 (most sensitive) -> threshold 0.000001 (very low threshold)
             if sensitivity is not None:
-                # Map sensitivity to threshold range 0.00001 to 0.001
-                self.threshold = 0.001 - (sensitivity * 0.00099)  # Maps 0.0->0.001, 0.5->0.0005, 1.0->0.00001
+                # Map sensitivity to threshold range 0.000001 to 0.0001
+                # This is much lower than before because OpenWakeWord values are extremely low
+                self.threshold = 0.0001 - (sensitivity * 0.000099)  # Maps 0.0->0.0001, 0.5->0.00005, 1.0->0.000001
             else:
-                self.threshold = 0.0001  # Very sensitive default for OpenWakeWord
+                self.threshold = 0.00001  # Extremely sensitive default for OpenWakeWord
         except ImportError:
             # Fallback if state module not available
             self.threshold = threshold if threshold is not None else 0.5

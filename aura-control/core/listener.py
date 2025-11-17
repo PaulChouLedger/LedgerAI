@@ -651,14 +651,31 @@ def listen():
                         audio_block, _ = stream.read(FRAME_SIZE)
                         channel_audio = audio_block[:, MICROPHONE_CHANNEL]
                         
+                        # Normalize/amplify audio for wake word detection
+                        # OpenWakeWord works better with normalized audio
+                        if channel_audio.size > 0:
+                            # Calculate RMS
+                            rms = np.sqrt(np.mean(channel_audio**2))
+                            peak = np.abs(channel_audio).max()
+                            
+                            # Normalize to target RMS if audio is too quiet
+                            TARGET_RMS = 0.05  # Target RMS for wake word detection
+                            if rms > 0.0001:  # Only normalize if we have some signal
+                                gain = TARGET_RMS / max(rms, 0.0001)
+                                # Limit gain to avoid distortion
+                                gain = min(gain, 10.0)  # Max 10x amplification
+                                channel_audio = channel_audio * gain
+                                # Soft clipping to prevent distortion
+                                channel_audio = np.clip(channel_audio, -0.95, 0.95)
+                        
                         # Debug: check audio levels occasionally
                         if not hasattr(wake_word_detector, '_audio_level_debug'):
                             wake_word_detector._audio_level_debug = 0
                         wake_word_detector._audio_level_debug += 1
                         if wake_word_detector._audio_level_debug <= 10:
-                            rms = np.sqrt(np.mean(channel_audio**2))
-                            peak = np.abs(channel_audio).max()
-                            print(f"[Wake Word] 📊 Raw audio: RMS={rms:.4f}, Peak={peak:.4f}, shape={channel_audio.shape}")
+                            rms_after = np.sqrt(np.mean(channel_audio**2))
+                            peak_after = np.abs(channel_audio).max()
+                            print(f"[Wake Word] 📊 Audio: RMS={rms:.4f}→{rms_after:.4f}, Peak={peak:.4f}→{peak_after:.4f}")
                         
                         if channel_audio.size < 512:
                             # Not enough samples, continue to next iteration
@@ -708,13 +725,13 @@ def listen():
                                     print(f"[Wake Word] 💓 Still listening for wake word... (Frame {wake_word_detector._debug_counter})")
                                 
                                 if wake_detected:
-                                    print(f"\n[Wake Word] ✅ Wake word detected! (confidence: {confidence:.2f})")
+                                    print(f"\n[Wake Word] ✅ Wake word detected! (confidence: {confidence:.6f})")
                                     listening_active = True
                                     
-                                    # Visual feedback (if GUI available)
+                                    # Visual feedback (if GUI available) - trigger LED ring pulsation
                                     try:
-                                        from gui.aura_gui import set_wake_word_activated
-                                        set_wake_word_activated(True)
+                                        from gui.aura_gui import set_transcribing
+                                        set_transcribing(True)  # This triggers the red LED ring pulsation
                                     except ImportError:
                                         pass
                                     
