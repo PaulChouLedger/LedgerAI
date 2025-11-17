@@ -253,14 +253,32 @@ class OpenWakeWordDetector:
                     audio_frame = audio_frame[:self.frame_length]
             
             # Process frame with OpenWakeWord
-            # predict() expects 1D array of shape (1280,)
-            predictions = self.model.predict(audio_frame)
+            # OpenWakeWord's predict() might expect 2D array with batch dimension
+            # Try both formats to see which works
+            try:
+                # First try: 1D array (1280,)
+                predictions = self.model.predict(audio_frame)
+            except Exception as e1:
+                # If that fails, try 2D with batch dimension (1, 1280)
+                try:
+                    audio_2d = audio_frame.reshape(1, -1)
+                    predictions = self.model.predict(audio_2d)
+                    if self._audio_debug_count <= 3:
+                        print(f"[Wake Word] 🔍 Using 2D format (1, 1280) - 1D failed: {e1}")
+                except Exception as e2:
+                    print(f"[Wake Word] ❌ Both formats failed - 1D: {e1}, 2D: {e2}")
+                    return False, 0.0
             
-            # Debug: print available keys on first call
+            # Debug: print available keys and raw predictions on first call
             if not hasattr(self, '_printed_keys'):
                 print(f"[Wake Word] 🔍 Available prediction keys: {list(predictions.keys())}")
                 print(f"[Wake Word] 🔍 Looking for: '{self.wake_word_name}'")
+                print(f"[Wake Word] 🔍 Raw predictions: {predictions}")
                 self._printed_keys = True
+            
+            # Debug: show raw prediction values occasionally
+            if self._audio_debug_count <= 10 or (self._audio_debug_count % 200 == 0):
+                print(f"[Wake Word] 🔍 Raw predictions: {predictions}")
             
             # Get confidence for our wake word model
             # Try exact match first
