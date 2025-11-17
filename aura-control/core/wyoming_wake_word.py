@@ -63,13 +63,20 @@ class WyomingWakeWordClient:
     def connect(self) -> bool:
         """Connect to Wyoming OpenWakeWord service."""
         try:
+            print(f"[Wyoming] 🔄 Starting connection to {self.host}:{self.port}...")
             # Start async event loop in background thread
             self.loop_thread = threading.Thread(target=self._run_async_loop, daemon=True)
             self.loop_thread.start()
-            time.sleep(0.1)  # Wait for loop to start
+            time.sleep(0.2)  # Wait a bit longer for loop to start
+            
+            # Verify loop is running
+            if not self.loop or not self.loop.is_running():
+                print("[Wyoming] ⚠️ Event loop not running, waiting...")
+                time.sleep(0.3)
             
             # Connect using async client
             uri = f"tcp://{self.host}:{self.port}"
+            print(f"[Wyoming] 🔄 Calling _async_connect({uri})...")
             future = asyncio.run_coroutine_threadsafe(
                 self._async_connect(uri),
                 self.loop
@@ -82,9 +89,13 @@ class WyomingWakeWordClient:
                 print(f"[Wyoming] ✅ Connected via official client at {self.host}:{self.port}")
                 print(f"[Wyoming] 💡 Using official client: proper Protocol Buffers support, reliable")
                 return True
+            else:
+                print("[Wyoming] ❌ Connection returned False")
             return False
         except Exception as e:
             print(f"[Wyoming] ❌ Connection error: {e}")
+            import traceback
+            print(f"[Wyoming] 🔍 Traceback: {traceback.format_exc()}")
             if "Connection refused" in str(e) or isinstance(e, ConnectionRefusedError):
                 print(f"[Wyoming] 💡 Start container with: cd setup && docker compose up -d wyoming-openwakeword")
             return False
