@@ -14,8 +14,10 @@ soundfile>=0.12.1
 numpy>=1.24.0
 scipy>=1.10.0
 
-# Wake Word Detection: Uses Wyoming container (no dependencies needed)
-# Container includes everything - client uses only Python standard library
+# Wake Word Detection: Wyoming Protocol client (recommended)
+# Official client provides proper Protocol Buffers support and reliable detection
+wyoming>=1.0.0
+# Note: Raw socket fallback is available if wyoming package is not installed
 
 # GUI Framework
 PyQt5>=5.15.0
