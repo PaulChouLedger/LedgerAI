@@ -121,6 +121,8 @@ class WyomingWakeWordClient:
     
     async def _read_detections(self):
         """Background task to continuously read detection events."""
+        print("[Wyoming] 🔄 Starting background detection reader...")
+        event_count = 0
         try:
             while self.connected and self.client:
                 try:
@@ -129,22 +131,49 @@ class WyomingWakeWordClient:
                         timeout=1.0
                     )
                     
+                    event_count += 1
+                    if event_count == 1:
+                        print(f"[Wyoming] ✅ Received first event: {type(event)}")
+                    
                     if event:
-                        detection = Detection.from_event(event)
-                        if detection:
-                            with self.lock:
-                                self.last_detection = (True, detection.confidence)
+                        # Debug: check event type
+                        if not hasattr(self, '_event_types_seen'):
+                            self._event_types_seen = set()
+                        event_type = type(event).__name__
+                        if event_type not in self._event_types_seen:
+                            self._event_types_seen.add(event_type)
+                            print(f"[Wyoming] 🔍 Event type: {event_type}, methods: {[m for m in dir(event) if not m.startswith('_')][:5]}")
+                        
+                        # Try to parse as Detection
+                        try:
+                            detection = Detection.from_event(event)
+                            if detection:
+                                with self.lock:
+                                    self.last_detection = (True, detection.confidence)
                                 print(f"[Wyoming] 🎤 Wake word detected! Confidence: {detection.confidence:.3f}")
+                        except Exception as parse_error:
+                            # Not a detection event, that's OK
+                            if event_count <= 3:  # Only log first few non-detection events
+                                print(f"[Wyoming] 🔍 Event is not a detection: {parse_error}")
                 except asyncio.TimeoutError:
                     # No event received, continue
+                    if event_count == 0 and self.connected:
+                        # Log once that we're waiting
+                        if not hasattr(self, '_waiting_logged'):
+                            print("[Wyoming] ⏳ Waiting for events from server...")
+                            self._waiting_logged = True
                     continue
                 except Exception as e:
                     if self.connected:  # Only log if still connected
                         print(f"[Wyoming] ⚠️ Error reading detection: {e}")
+                        import traceback
+                        print(f"[Wyoming] 🔍 Traceback: {traceback.format_exc()}")
                     break
         except Exception as e:
             if self.connected:
                 print(f"[Wyoming] ⚠️ Detection reader error: {e}")
+                import traceback
+                print(f"[Wyoming] 🔍 Traceback: {traceback.format_exc()}")
     
     def disconnect(self):
         """Disconnect from Wyoming service."""
