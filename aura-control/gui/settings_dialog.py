@@ -438,7 +438,6 @@ class WifiSettingsDialog(QDialog):
             self.fade_in.setStartValue(0.0)
             self.fade_in.setEndValue(1.0)
             self.fade_in.setEasingCurve(QEasingCurve.OutCubic)
-            self.fade_in.setUpdateInterval(16)
             self.fade_in.start()
     
     def closeEvent(self, event):
@@ -485,7 +484,6 @@ class WifiSettingsDialog(QDialog):
         self.fade_out.setStartValue(self.windowOpacity())
         self.fade_out.setEndValue(0.0)
         self.fade_out.setEasingCurve(QEasingCurve.InCubic)  # Smooth ease-in for exit
-        self.fade_out.setUpdateInterval(16)  # ~60fps for smooth animation
         def _finalize():
             # Stop any running threads and disconnect signals to avoid late emissions
             try:
@@ -719,7 +717,6 @@ class UpdateDialog(QDialog):
             self.fade_in.setStartValue(0.0)
             self.fade_in.setEndValue(1.0)
             self.fade_in.setEasingCurve(QEasingCurve.OutCubic)
-            self.fade_in.setUpdateInterval(16)
             self.fade_in.start()
     
     def closeEvent(self, event):
@@ -768,7 +765,6 @@ class UpdateDialog(QDialog):
         self.fade_out.setStartValue(self.windowOpacity())
         self.fade_out.setEndValue(0.0)
         self.fade_out.setEasingCurve(QEasingCurve.InCubic)  # Smooth ease-in for exit
-        self.fade_out.setUpdateInterval(16)  # ~60fps for smooth animation
         def _finalize():
             try:
                 if hasattr(self, "ota_update_thread") and self.ota_update_thread:
@@ -890,7 +886,6 @@ class AIModelSettingsDialog(QDialog):
             self.fade_in.setStartValue(0.0)
             self.fade_in.setEndValue(1.0)
             self.fade_in.setEasingCurve(QEasingCurve.OutCubic)
-            self.fade_in.setUpdateInterval(16)
             self.fade_in.start()
         
         # Update mode status after dialog is shown (non-blocking)
@@ -918,7 +913,6 @@ class AIModelSettingsDialog(QDialog):
         self.fade_out.setStartValue(self.windowOpacity())
         self.fade_out.setEndValue(0.0)
         self.fade_out.setEasingCurve(QEasingCurve.InCubic)  # Smooth ease-in for exit
-        self.fade_out.setUpdateInterval(16)  # ~60fps for smooth animation
         self.fade_out.finished.connect(lambda: event.accept())
         self.fade_out.start()
         event.ignore()
@@ -2085,11 +2079,18 @@ class SettingsDialog(QDialog):
     
     def closeEvent(self, event):
         """Handle dialog close"""
-        # Clean up threads
-        if self.wifi_scan_thread and self.wifi_scan_thread.isRunning():
-            self.wifi_scan_thread.terminate()
-        if self.ota_update_thread and self.ota_update_thread.isRunning():
-            self.ota_update_thread.terminate()
+        # Clean up threads (only if they exist - these are sub-dialog attributes)
+        try:
+            if hasattr(self, 'wifi_scan_thread') and self.wifi_scan_thread and self.wifi_scan_thread.isRunning():
+                self.wifi_scan_thread.terminate()
+        except Exception:
+            pass
+        
+        try:
+            if hasattr(self, 'ota_update_thread') and self.ota_update_thread and self.ota_update_thread.isRunning():
+                self.ota_update_thread.terminate()
+        except Exception:
+            pass
         
         event.accept()
 

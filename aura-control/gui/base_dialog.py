@@ -76,7 +76,6 @@ class BaseAuraDialog(QDialog):
             self.fade_in.setStartValue(0.0)
             self.fade_in.setEndValue(1.0)
             self.fade_in.setEasingCurve(QEasingCurve.OutCubic)
-            self.fade_in.setUpdateInterval(16)  # ~60fps for smooth animation
             self.fade_in.start()
         
         # Call subclass hook for additional show logic
@@ -120,7 +119,6 @@ class BaseAuraDialog(QDialog):
         self.fade_out.setStartValue(self.windowOpacity())
         self.fade_out.setEndValue(0.0)
         self.fade_out.setEasingCurve(QEasingCurve.InCubic)  # Smooth ease-in for exit
-        self.fade_out.setUpdateInterval(16)  # ~60fps for smooth animation
         
         # Connect finished signal to actually close the dialog
         def _finalize():

@@ -344,23 +344,37 @@ class AuraGUI(QMainWindow):
                     print(f"[AuraGUI] ⚠️ Error checking existing dialog: {e}")
                     self._wallet_dialog = None
             
-            # Create new dialog
-            self._wallet_dialog = WalletDialog(parent=self)
-            
-            # Connect to destroyed signal to clear reference when dialog is deleted
-            def on_dialog_destroyed():
-                if hasattr(self, "_wallet_dialog"):
-                    self._wallet_dialog = None
-                    print("[AuraGUI] 🗑️ Wallet dialog reference cleared")
-            
-            self._wallet_dialog.destroyed.connect(on_dialog_destroyed)
-            
-            # Show non-modally to avoid blocking GUI/transcription
-            self._wallet_dialog.show()
-            self._wallet_dialog.raise_()
-            self._wallet_dialog.activateWindow()
-            QApplication.processEvents()  # Ensure dialog is rendered
-            print("[AuraGUI] ✅ Wallet dialog shown (non-modal)")
+            # Create new dialog (wrapped in try-except to catch initialization errors)
+            try:
+                self._wallet_dialog = WalletDialog(parent=self)
+                
+                # Connect to destroyed signal to clear reference when dialog is deleted
+                def on_dialog_destroyed():
+                    if hasattr(self, "_wallet_dialog"):
+                        self._wallet_dialog = None
+                        print("[AuraGUI] 🗑️ Wallet dialog reference cleared")
+                
+                self._wallet_dialog.destroyed.connect(on_dialog_destroyed)
+                
+                # Show non-modally to avoid blocking GUI/transcription
+                self._wallet_dialog.show()
+                self._wallet_dialog.raise_()
+                self._wallet_dialog.activateWindow()
+                QApplication.processEvents()  # Ensure dialog is rendered
+                print("[AuraGUI] ✅ Wallet dialog shown (non-modal)")
+            except Exception as e:
+                print(f"[AuraGUI] ❌ Error creating wallet dialog: {e}")
+                import traceback
+                traceback.print_exc()
+                # Clear invalid reference
+                self._wallet_dialog = None
+                # Show error to user
+                try:
+                    QMessageBox.critical(self, "Wallet Dialog Error", 
+                                       f"Failed to open wallet dialog:\n{e}\n\n"
+                                       "Please check the console for details.")
+                except Exception:
+                    pass
         except ImportError as e:
             print(f"[AuraGUI] ❌ Wallet dialog not available: {e}")
             print(f"[AuraGUI] 💡 Install web3: pip install web3")

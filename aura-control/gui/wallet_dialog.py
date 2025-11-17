@@ -117,13 +117,22 @@ class WalletDialog(BaseAuraDialog):
     def _setup_ui(self):
         """Set up dialog UI (called by base class)"""
         try:
+            # Setup UI first (this creates all the widgets)
             self.setup_ui()
+            
+            # Then update status if wallet manager is available
             if self.wallet_manager:
-                self.update_connection_status()
+                try:
+                    self.update_connection_status()
+                except Exception as e:
+                    print(f"[WalletDialog] ⚠️ Error updating connection status: {e}")
             
             # Show usage stats immediately (instant, no network call)
             if self.usage_tracker:
-                self.update_usage_stats()
+                try:
+                    self.update_usage_stats()
+                except Exception as e:
+                    print(f"[WalletDialog] ⚠️ Error updating usage stats: {e}")
             
             # Initialize timers (started in _on_show)
             self.balance_refresh_timer = QTimer()
@@ -135,6 +144,13 @@ class WalletDialog(BaseAuraDialog):
             print(f"[WalletDialog] ❌ Error setting up UI: {e}")
             import traceback
             traceback.print_exc()
+            # Show error message to user
+            try:
+                QMessageBox.critical(None, "Wallet Dialog Error", 
+                                    f"Failed to initialize wallet dialog:\n{e}\n\n"
+                                    "The dialog may not function correctly.")
+            except Exception:
+                pass
     
     def _on_show(self):
         """Block transcription and schedule balance refresh when dialog opens"""
@@ -193,7 +209,13 @@ class WalletDialog(BaseAuraDialog):
         wallet_layout.setSpacing(8)  # Tighter spacing
         
         # Check if saved wallet exists
-        saved_wallet = self.wallet_manager.get_saved_wallet()
+        saved_wallet = None
+        if self.wallet_manager:
+            try:
+                saved_wallet = self.wallet_manager.get_saved_wallet()
+            except Exception as e:
+                print(f"[WalletDialog] ⚠️ Error getting saved wallet: {e}")
+                saved_wallet = None
         
         if saved_wallet:
             # Show saved wallet option
@@ -401,6 +423,9 @@ class WalletDialog(BaseAuraDialog):
     
     def connect_saved_wallet(self, address: str):
         """Connect using the saved wallet address"""
+        if not self.wallet_manager:
+            QMessageBox.warning(self, "Error", "Wallet manager not available")
+            return
         if self.wallet_manager.connect_wallet(address, auto_save=False):
             self.balance_label.setText("⏳ Fetching balance...")
             self.refresh_balance_async()  # Non-blocking
@@ -409,6 +434,9 @@ class WalletDialog(BaseAuraDialog):
     
     def clear_saved_wallet(self):
         """Clear the saved wallet address"""
+        if not self.wallet_manager:
+            QMessageBox.warning(self, "Error", "Wallet manager not available")
+            return
         if self.wallet_manager.clear_saved_wallet():
             # Reload dialog to update UI
             self.close()

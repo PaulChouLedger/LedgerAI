@@ -15,6 +15,7 @@ GitHub: https://github.com/MycroftAI/mycroft-precise
 """
 
 import os
+import subprocess
 import numpy as np
 from typing import Optional, Tuple
 
@@ -147,16 +148,89 @@ class PreciseWakeWordDetector:
             # NOTE: chunk_size parameter is in BYTES, not samples!
             # For int16 audio: 2048 samples = 4096 bytes
             chunk_size_bytes = self.frame_length * 2  # int16 = 2 bytes per sample
-            self.engine = PreciseEngine(exe_file=exe_file, model_file=model_file, chunk_size=chunk_size_bytes)
+            
+            # Verify executable exists and is executable before creating engine
+            if not os.path.exists(exe_file):
+                print(f"[Wake Word] ❌ Executable not found: {exe_file}")
+                return False
+            if not os.access(exe_file, os.X_OK):
+                print(f"[Wake Word] ❌ Executable not executable: {exe_file}")
+                print(f"[Wake Word] 💡 Fix with: chmod +x {exe_file}")
+                return False
+            
+            # Test executable manually first
+            try:
+                test_result = subprocess.run(
+                    [exe_file, '--help'],
+                    capture_output=True,
+                    timeout=5,
+                    text=True
+                )
+                if test_result.returncode != 0:
+                    print(f"[Wake Word] ⚠️ Executable test failed (return code: {test_result.returncode})")
+                    if test_result.stderr:
+                        print(f"[Wake Word] 🔍 stderr: {test_result.stderr[:200]}")
+            except subprocess.TimeoutExpired:
+                print("[Wake Word] ⚠️ Executable test timed out")
+            except Exception as test_err:
+                print(f"[Wake Word] ⚠️ Executable test error: {test_err}")
+            
+            # Create engine
+            try:
+                self.engine = PreciseEngine(exe_file=exe_file, model_file=model_file, chunk_size=chunk_size_bytes)
+            except Exception as engine_err:
+                print(f"[Wake Word] ❌ Failed to create PreciseEngine: {engine_err}")
+                import traceback
+                print(f"[Wake Word] 🔍 Traceback: {traceback.format_exc()}")
+                return False
+            
+            # Check if proc attribute exists and verify subprocess
+            if not hasattr(self.engine, 'proc'):
+                print("[Wake Word] ⚠️ PreciseEngine has no 'proc' attribute - checking if subprocess starts on first call...")
             
             # PreciseEngine creates subprocess lazily on first get_prediction() call
-            # Let's test it with a dummy call to trigger subprocess creation and catch any errors
+            # The subprocess creation happens inside get_prediction(), but if it fails,
+            # proc might be None. Let's check the PreciseEngine source to understand this better.
+            # For now, let's try to manually inspect what's happening
+            
+            # Check engine internals before first call
+            print(f"[Wake Word] 🔍 Engine created, checking internals...")
+            if hasattr(self.engine, 'proc'):
+                print(f"[Wake Word] 🔍 proc before first call: {self.engine.proc}")
+            if hasattr(self.engine, 'exe_file'):
+                print(f"[Wake Word] 🔍 exe_file: {self.engine.exe_file}")
+            if hasattr(self.engine, 'model_file'):
+                print(f"[Wake Word] 🔍 model_file: {self.engine.model_file}")
+            
+            # Try to manually start subprocess if PreciseEngine has a start method
+            if hasattr(self.engine, 'start'):
+                try:
+                    self.engine.start()
+                    print("[Wake Word] ✅ Called engine.start()")
+                except Exception as start_err:
+                    print(f"[Wake Word] ⚠️ engine.start() failed: {start_err}")
+            
+            # Test with a dummy call to trigger subprocess creation
             try:
                 dummy_audio = np.zeros(self.frame_length, dtype=np.int16)
                 dummy_bytes = dummy_audio.tobytes()
+                print(f"[Wake Word] 🔍 Calling get_prediction() with {len(dummy_bytes)} bytes...")
+                
                 # This should trigger subprocess creation
                 _ = self.engine.get_prediction(dummy_bytes)
-                print("[Wake Word] ✅ Engine subprocess started successfully")
+                
+                # Verify subprocess was created
+                if hasattr(self.engine, 'proc'):
+                    if self.engine.proc is None:
+                        print("[Wake Word] ❌ Subprocess is still None after get_prediction() call")
+                        print("[Wake Word] 💡 This suggests subprocess creation failed silently")
+                        print("[Wake Word] 💡 Check if precise-engine binary works:")
+                        print(f"[Wake Word]     {exe_file} {model_file}")
+                        return False
+                    print("[Wake Word] ✅ Engine subprocess started successfully")
+                    print(f"[Wake Word] 🔍 Subprocess PID: {self.engine.proc.pid if hasattr(self.engine.proc, 'pid') else 'N/A'}")
+                else:
+                    print("[Wake Word] ⚠️ PreciseEngine doesn't expose 'proc' attribute - assuming it's working")
             except Exception as init_error:
                 print(f"[Wake Word] ❌ Failed to start engine subprocess: {init_error}")
                 import traceback
@@ -164,15 +238,14 @@ class PreciseWakeWordDetector:
                 print("[Wake Word] 💡 Troubleshooting:")
                 print(f"[Wake Word]     1. Check executable: ls -la {exe_file}")
                 print(f"[Wake Word]     2. Test executable: {exe_file} --help")
-                print(f"[Wake Word]     3. Check model file: ls -la {model_file}")
+                print(f"[Wake Word]     3. Test with model: {exe_file} {model_file}")
+                print(f"[Wake Word]     4. Check model file: ls -la {model_file}")
+                print(f"[Wake Word]     5. Check permissions: chmod +x {exe_file}")
                 return False
             
             # Verify subprocess is running
-            if hasattr(self.engine, 'proc'):
-                if self.engine.proc is None:
-                    print("[Wake Word] ❌ Engine subprocess is still None after initialization")
-                    return False
-                elif hasattr(self.engine.proc, 'poll') and self.engine.proc.poll() is not None:
+            if hasattr(self.engine, 'proc') and self.engine.proc is not None:
+                if hasattr(self.engine.proc, 'poll') and self.engine.proc.poll() is not None:
                     print(f"[Wake Word] ❌ Engine subprocess exited with code: {self.engine.proc.returncode}")
                     if hasattr(self.engine.proc, 'stderr'):
                         try:

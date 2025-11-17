@@ -199,7 +199,6 @@ class FileUploadDialog(BaseAuraDialog):
         self.fade_out.setStartValue(self.windowOpacity())
         self.fade_out.setEndValue(0.0)
         self.fade_out.setEasingCurve(QEasingCurve.InCubic)  # Smooth ease-in for exit
-        self.fade_out.setUpdateInterval(16)  # ~60fps for smooth animation
         
         # Connect finished signal to actually close the dialog
         self.fade_out.finished.connect(self._final_close)
