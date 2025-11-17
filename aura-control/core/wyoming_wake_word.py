@@ -27,11 +27,13 @@ try:
     from wyoming.audio import AudioChunk
     from wyoming.wake import Detection
     WYOMING_AVAILABLE = True
-except ImportError:
+except ImportError as e:
     WYOMING_AVAILABLE = False
     AsyncWyomingClient = None
     AudioChunk = None
     Detection = None
+    # Store error for debugging
+    _WYOMING_IMPORT_ERROR = str(e)
 
 
 class WyomingWakeWordClient:
@@ -226,6 +228,26 @@ def create_wyoming_wake_word_detector(host: str = "localhost", port: int = 10400
     if not WYOMING_AVAILABLE:
         print("[Wyoming] ❌ Wyoming client not available")
         print("[Wyoming] 💡 Install with: pip install wyoming")
+        # Show import error for debugging
+        try:
+            import sys
+            print(f"[Wyoming] 🔍 Import error: {_WYOMING_IMPORT_ERROR}")
+            print(f"[Wyoming] 🔍 Python executable: {sys.executable}")
+            print(f"[Wyoming] 🔍 Python path (first 3): {sys.path[:3]}")
+            # Try to check if wyoming is actually installed
+            try:
+                import wyoming
+                print(f"[Wyoming] 🔍 Wyoming package found at: {wyoming.__file__}")
+                print(f"[Wyoming] 🔍 But submodule import failed - check wyoming package version")
+                print(f"[Wyoming] 🔍 Try: pip install --upgrade wyoming")
+            except ImportError:
+                print("[Wyoming] 🔍 Wyoming package not found in Python path")
+                print(f"[Wyoming] 🔍 Make sure you're using the virtual environment: source ~/aura-env/bin/activate")
+        except NameError:
+            # _WYOMING_IMPORT_ERROR might not be defined if import failed differently
+            print("[Wyoming] 🔍 Could not retrieve import error details")
+        except Exception as e:
+            print(f"[Wyoming] 🔍 Debug error: {e}")
         return None
     
     client = WyomingWakeWordClient(host, port)
