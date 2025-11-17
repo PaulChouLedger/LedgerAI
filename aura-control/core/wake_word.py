@@ -101,21 +101,44 @@ class OpenWakeWordDetector:
                 print(f"[Wake Word] ✅ OpenWakeWord initialized with custom model: {self.model_path}")
             else:
                 # Use pre-trained models
-                # Try to find "hey_aura" or similar, fallback to "hey_jarvis"
-                preferred_models = ['hey_aura', 'hey_jarvis', 'hey_mycroft', 'hey_fire_fox']
+                # First, try to download models if they're missing
+                try:
+                    from openwakeword.utils import download_models
+                    print("[Wake Word] 📥 Checking for model files...")
+                    download_models()
+                    print("[Wake Word] ✅ Models downloaded/verified")
+                except Exception as download_error:
+                    print(f"[Wake Word] ⚠️  Could not download models automatically: {download_error}")
+                    print("[Wake Word] 💡 You may need to download models manually:")
+                    print("[Wake Word]     python -c 'import openwakeword; openwakeword.utils.download_models()'")
                 
-                # Get available models from OpenWakeWord
+                # Try to use pre-trained models
                 # OpenWakeWord has built-in models, we'll use 'hey_jarvis' as default
-                # since 'hey_aura' likely doesn't exist as a pre-trained model
-                self.model = Model(
-                    wakeword_models=['hey_jarvis'],  # Default fallback
-                    inference_framework='onnx'
-                )
-                self.wake_word_name = 'hey_jarvis'
+                preferred_models = ['hey_jarvis', 'hey_mycroft', 'hey_fire_fox']
                 
-                # Check what models are available
-                # OpenWakeWord loads models from its package directory
-                print(f"[Wake Word] ✅ OpenWakeWord initialized with pre-trained model: '{self.wake_word_name}'")
+                # Try each model until one works
+                model_initialized = False
+                for model_name in preferred_models:
+                    try:
+                        self.model = Model(
+                            wakeword_models=[model_name],
+                            inference_framework='onnx'
+                        )
+                        self.wake_word_name = model_name
+                        model_initialized = True
+                        print(f"[Wake Word] ✅ OpenWakeWord initialized with pre-trained model: '{self.wake_word_name}'")
+                        break
+                    except Exception as model_error:
+                        if "NO_SUCHFILE" in str(model_error) or "File doesn't exist" in str(model_error):
+                            # Try next model
+                            continue
+                        else:
+                            # Different error, re-raise
+                            raise
+                
+                if not model_initialized:
+                    raise Exception("No pre-trained models available. Please download models first.")
+                
                 print(f"[Wake Word] 💡 To use custom 'hey aura' model:")
                 print(f"[Wake Word]     1. Train model: https://github.com/dscripka/openWakeWord#training-custom-models")
                 print(f"[Wake Word]     2. Set wake_word_model_path in app_settings.json")
@@ -133,11 +156,22 @@ class OpenWakeWordDetector:
             return True
             
         except Exception as e:
+            error_str = str(e)
             print(f"[Wake Word] ❌ Failed to initialize OpenWakeWord: {e}")
-            import traceback
-            traceback.print_exc()
-            print("[Wake Word] 💡 Install with: pip install openwakeword")
-            print("[Wake Word] 💡 OpenWakeWord works natively on ARM64 (Jetson) - no manual setup needed!")
+            
+            # Check if it's a missing model file error
+            if "NO_SUCHFILE" in error_str or "File doesn't exist" in error_str:
+                print("[Wake Word] 💡 Models are missing. Download them with:")
+                print("[Wake Word]     python -c 'import openwakeword; openwakeword.utils.download_models()'")
+                print("[Wake Word] 💡 Or in Python:")
+                print("[Wake Word]     from openwakeword.utils import download_models")
+                print("[Wake Word]     download_models()")
+            else:
+                import traceback
+                traceback.print_exc()
+                print("[Wake Word] 💡 Install with: pip install openwakeword")
+                print("[Wake Word] 💡 OpenWakeWord works natively on ARM64 (Jetson) - no manual setup needed!")
+            
             return False
     
     def process(self, audio_frame):

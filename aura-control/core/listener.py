@@ -541,7 +541,9 @@ def listen():
         print("[Wake Word] 💡 Check logs above for initialization errors")
         print("[Wake Word] 💡 Install OpenWakeWord:")
         print("[Wake Word]     pip install openwakeword")
-        print("[Wake Word] 💡 OpenWakeWord works natively on ARM64 (Jetson) - no manual setup needed!")
+        print("[Wake Word] 💡 Download models:")
+        print("[Wake Word]     python setup/scripts/download_openwakeword_models.py")
+        print("[Wake Word] 💡 Or: python -c 'from openwakeword.utils import download_models; download_models()'")
         print("[Wake Word] 💡 Or disable wake word in Settings → AI Model Settings")
         block_transcription("Wake word required but not available")
     
