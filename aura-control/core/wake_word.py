@@ -139,7 +139,7 @@ class OpenWakeWordDetector:
                         self.wake_word_name = model_name
                         model_initialized = True
                         print(f"[Wake Word] ✅ OpenWakeWord initialized with pre-trained model: '{self.wake_word_name}'")
-                                break
+                        break
                     except Exception as model_error:
                         if "NO_SUCHFILE" in str(model_error) or "File doesn't exist" in str(model_error):
                             # Try next model
@@ -180,8 +180,8 @@ class OpenWakeWordDetector:
                 print("[Wake Word]     from openwakeword.utils import download_models")
                 print("[Wake Word]     download_models()")
             else:
-            import traceback
-            traceback.print_exc()
+                import traceback
+                traceback.print_exc()
                 print("[Wake Word] 💡 Install with: pip install openwakeword")
                 print("[Wake Word] 💡 OpenWakeWord works natively on ARM64 (Jetson) - no manual setup needed!")
             
