@@ -112,10 +112,33 @@ class PreciseWakeWordDetector:
                     print("[Wake Word] 💡 Or train your own: https://github.com/MycroftAI/mycroft-precise")
                     return False
             
+            # Find precise-engine executable
+            # It's usually installed with precise-runner package
+            import shutil
+            exe_file = shutil.which('precise-engine')
+            if not exe_file:
+                # Try common locations
+                possible_paths = [
+                    '/usr/local/bin/precise-engine',
+                    '/usr/bin/precise-engine',
+                    os.path.expanduser('~/.local/bin/precise-engine'),
+                ]
+                for path in possible_paths:
+                    if os.path.exists(path) and os.access(path, os.X_OK):
+                        exe_file = path
+                        break
+            
+            if not exe_file:
+                print("[Wake Word] ❌ precise-engine executable not found")
+                print("[Wake Word] 💡 Install precise-engine:")
+                print("[Wake Word]     pip install precise-engine")
+                print("[Wake Word]     Or: sudo apt-get install precise-engine")
+                return False
+            
             # Create Precise engine
-            # PreciseEngine requires model_file as keyword argument
+            # PreciseEngine requires exe_file and model_file
             # Precise uses 2048 samples at 16kHz (128ms chunks)
-            self.engine = PreciseEngine(model_file=model_file, chunk_size=self.frame_length)
+            self.engine = PreciseEngine(exe_file=exe_file, model_file=model_file, chunk_size=self.frame_length)
             
             # Use ListenerEngine for frame-by-frame processing
             # This is better suited for our use case than PreciseRunner

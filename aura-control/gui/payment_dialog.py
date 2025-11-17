@@ -36,7 +36,8 @@ class PaymentDialog(QDialog):
         
         # Modal behavior
         if parent:
-            self.setWindowFlags(Qt.Dialog | Qt.FramelessWindowHint)
+            # Use Window flag instead of Dialog to ensure proper z-ordering above parent
+            self.setWindowFlags(Qt.Window | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
             self.setModal(True)
         else:
             self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)

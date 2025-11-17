@@ -41,8 +41,8 @@ class FileUploadDialog(QDialog):
         
         # Use different window flags depending on whether we have a parent
         if parent:
-            # If we have a parent, use Dialog flag for proper modal behavior
-            self.setWindowFlags(Qt.Dialog | Qt.FramelessWindowHint)
+            # Use Window flag instead of Dialog to ensure proper z-ordering above parent
+            self.setWindowFlags(Qt.Window | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
             self.setModal(True)  # Make it modal to block parent interaction
         else:
             # If no parent, stay on top

@@ -24,9 +24,9 @@ if [ -z "$VIRTUAL_ENV" ]; then
     fi
 fi
 
-# Install precise-runner
-echo "[1/3] Installing precise-runner..."
-pip install precise-runner
+# Install precise-runner and precise-engine
+echo "[1/3] Installing precise-runner and precise-engine..."
+pip install precise-runner precise-engine
 
 # Download default model
 echo ""
@@ -50,6 +50,15 @@ python3 -c "from precise_runner import PreciseEngine; print('✅ Precise importe
     echo "❌ Precise import failed"
     exit 1
 }
+
+# Check if precise-engine executable is available
+if command -v precise-engine &> /dev/null; then
+    echo "✅ precise-engine executable found: $(which precise-engine)"
+else
+    echo "⚠️  precise-engine executable not found in PATH"
+    echo "💡 Try: pip install --upgrade precise-engine"
+    echo "💡 Or check if it's installed: pip show precise-engine"
+fi
 
 echo ""
 echo "=========================================="

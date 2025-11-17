@@ -54,8 +54,8 @@ class WalletDialog(QDialog):
         
         # Use same window flags as upload dialog for proper modal behavior
         if parent:
-            # If we have a parent, use Dialog flag for proper modal behavior
-            self.setWindowFlags(Qt.Dialog | Qt.FramelessWindowHint)
+            # Use Window flag instead of Dialog to ensure proper z-ordering above parent
+            self.setWindowFlags(Qt.Window | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
             # Keep non-modal to avoid freezing/transcription blocking
             self.setModal(False)
         else:

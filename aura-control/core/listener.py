@@ -561,19 +561,18 @@ def listen():
     wake_word_enabled = (wake_word_detector is not None) or wake_word_setting_enabled
     
     if wake_word_detector:
-        print("[Wake Word] ✅ Wyoming container initialized successfully")
+        print("[Wake Word] ✅ Mycroft Precise initialized successfully")
     else:
-        print("[Wake Word] ❌ Wyoming container failed to initialize")
+        print("[Wake Word] ❌ Mycroft Precise failed to initialize")
     
     if wake_word_setting_enabled and wake_word_detector is None:
         print("[Wake Word] ⚠️  Wake word enabled in settings but detector failed to initialize")
         print("[Wake Word] 🔒 Transcription will be BLOCKED until wake word detector is fixed")
         print("[Wake Word] 💡 Check logs above for initialization errors")
-        print("[Wake Word] 💡 Wyoming container setup:")
-        print("[Wake Word]     1. Start container: cd setup && docker compose up -d wyoming-openwakeword")
-        print("[Wake Word]     2. Check container status: docker compose ps wyoming-openwakeword")
-        print("[Wake Word]     3. Check container logs: docker compose logs wyoming-openwakeword")
-        print("[Wake Word] 💡 No pip install needed - container includes everything!")
+        print("[Wake Word] 💡 Mycroft Precise setup:")
+        print("[Wake Word]     1. Install: pip install precise-runner precise-engine")
+        print("[Wake Word]     2. Download model: wget https://github.com/MycroftAI/precise-data/raw/models/hey-mycroft.pb")
+        print("[Wake Word]     3. Place model in: ~/precise-models/ or ~/")
         print("[Wake Word] 💡 Or disable wake word in Settings → AI Model Settings")
         block_transcription("Wake word required but not available")
     
@@ -632,7 +631,7 @@ def listen():
             
             play_welcome_prompt(stream)
             
-            # Wake word buffer for Wyoming/OpenWakeWord (needs 1280 samples = 80ms at 16kHz)
+            # Wake word buffer for Mycroft Precise (needs 2048 samples = 128ms at 16kHz)
             wake_word_buffer = []
             listening_active = False  # True after wake word detected
             stream_valid = True  # Track if stream is still valid
@@ -686,7 +685,7 @@ def listen():
                         channel_audio = audio_block[:, MICROPHONE_CHANNEL]
                         
                         # Normalize/amplify audio for wake word detection
-                        # Wyoming/OpenWakeWord works better with normalized audio
+                        # Mycroft Precise works better with normalized audio
                         if channel_audio.size > 0:
                             # Calculate RMS
                             rms = np.sqrt(np.mean(channel_audio**2))
@@ -715,19 +714,19 @@ def listen():
                             # Not enough samples, continue to next iteration
                             continue
                         
-                        # Wyoming/OpenWakeWord requires 1280 samples (80ms at 16kHz), so we buffer frames
+                        # Mycroft Precise requires 2048 samples (128ms at 16kHz), so we buffer frames
                         # Ensure channel_audio is 1D before appending
                         if channel_audio.ndim > 1:
                             channel_audio = channel_audio.flatten()
                         wake_word_buffer.append(channel_audio)
                         
-                        # Check if we have enough samples for Wyoming/OpenWakeWord frame
+                        # Check if we have enough samples for Mycroft Precise frame
                         if wake_word_detector and wake_word_detector.frame_length:
                             required_samples = wake_word_detector.frame_length
                             total_samples = sum(len(chunk) for chunk in wake_word_buffer)
                             
                             if total_samples >= required_samples:
-                                # Concatenate enough samples for one Wyoming/OpenWakeWord frame
+                                # Concatenate enough samples for one Mycroft Precise frame
                                 # Ensure all arrays in buffer are 1D before concatenation
                                 flattened_buffer = [chunk.flatten() if chunk.ndim > 1 else chunk for chunk in wake_word_buffer]
                                 combined_audio = np.concatenate(flattened_buffer)
