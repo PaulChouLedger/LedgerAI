@@ -640,6 +640,11 @@ def listen():
                 # Check stream_valid at start of each iteration
                 if not stream_valid:
                     break
+                
+                # Debug: Log wake word detection state
+                if wake_word_enabled and not hasattr(wake_word_detector, '_state_logged'):
+                    print(f"[Wake Word] 🔄 Wake word detection active: enabled={wake_word_enabled}, listening_active={listening_active}, detector={'available' if wake_word_detector is not None else 'None'}")
+                    wake_word_detector._state_logged = True
                     
                 if wake_word_enabled and not listening_active and wake_word_detector is not None:
                     try:
@@ -656,6 +661,7 @@ def listen():
                             print(f"[Wake Word] 📊 Raw audio: RMS={rms:.4f}, Peak={peak:.4f}, shape={channel_audio.shape}")
                         
                         if channel_audio.size < 512:
+                            # Not enough samples, continue to next iteration
                             continue
                         
                         # OpenWakeWord requires 1280 samples (80ms at 16kHz), so we buffer frames
@@ -695,7 +701,11 @@ def listen():
                                 show_debug = (wake_word_detector._debug_counter % 50 == 0) or (confidence > threshold / 10)
                                 if show_debug:
                                     status = "🔴" if confidence < threshold * 0.5 else "🟡" if confidence < threshold else "🟢"
-                                    print(f"[Wake Word] {status} Confidence: {confidence:.6f} (threshold: {threshold:.6f}) - Frame {wake_word_detector._debug_counter}", end="\r")
+                                    print(f"[Wake Word] {status} Confidence: {confidence:.6f} (threshold: {threshold:.6f}) - Frame {wake_word_detector._debug_counter}")
+                                    
+                                # Heartbeat every 200 frames to confirm we're still listening
+                                if wake_word_detector._debug_counter % 200 == 0:
+                                    print(f"[Wake Word] 💓 Still listening for wake word... (Frame {wake_word_detector._debug_counter})")
                                 
                                 if wake_detected:
                                     print(f"\n[Wake Word] ✅ Wake word detected! (confidence: {confidence:.2f})")
@@ -719,14 +729,16 @@ def listen():
                                     
                                     print("[Wake Word] 🎤 Listening for speech...")
                             else:
-                                # Not enough samples yet, continue buffering
-                                pass
+                                # Not enough samples yet, continue buffering - loop back to read more
+                                continue
                         else:
                             # Wake word detector not properly initialized
                             if not hasattr(wake_word_detector, '_warned_init'):
                                 print(f"[Wake Word] ⚠️ Detector not initialized: frame_length={getattr(wake_word_detector, 'frame_length', None)}")
                                 wake_word_detector._warned_init = True
                             wake_word_buffer = []
+                            # Continue to next iteration to keep trying
+                            continue
                     except KeyboardInterrupt:
                         # Allow clean exit on Ctrl+C
                         raise
@@ -739,16 +751,16 @@ def listen():
                             stream_valid = False
                             break
                         else:
-                            # Other PortAudio errors - log and continue
+                            # Other PortAudio errors - log and continue listening
                             print(f"[Wake Word] ⚠️  PortAudio error: {pa_error}")
                             wake_word_buffer = []
-                            continue
+                            continue  # Continue to next iteration to keep listening
                     except Exception as e:
                         print(f"[Wake Word] ⚠️ Error: {e}")
                         import traceback
                         traceback.print_exc()
                         wake_word_buffer = []
-                        continue
+                        continue  # Continue to next iteration to keep listening
                 
                 # Check stream_valid before transcription stage
                 if not stream_valid:
