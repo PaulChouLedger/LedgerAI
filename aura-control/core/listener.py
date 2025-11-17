@@ -766,7 +766,7 @@ def listen():
                             print(f"\n[Wake Word] ⚠️  Audio stream error: {pa_error}")
                             print("[Wake Word] 🔄 Stream invalid, exiting listener")
                             stream_valid = False
-                            break
+                            break  # Exit wake word loop
                         else:
                             # Other PortAudio errors - log and continue listening
                             print(f"[Wake Word] ⚠️  PortAudio error: {pa_error}")
@@ -779,7 +779,7 @@ def listen():
                         wake_word_buffer = []
                         continue  # Continue to next iteration to keep listening
                 
-                # Check stream_valid before transcription stage
+                # Exit main loop if stream became invalid during wake word detection
                 if not stream_valid:
                     break
                 
