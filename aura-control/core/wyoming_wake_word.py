@@ -52,6 +52,7 @@ class WyomingWakeWordClient:
         self.client: Optional[AsyncWyomingClient] = None
         self.loop: Optional[asyncio.AbstractEventLoop] = None
         self.loop_thread: Optional[threading.Thread] = None
+        self._detection_task: Optional[asyncio.Task] = None
         
     def _run_async_loop(self):
         """Run async event loop in a separate thread."""
@@ -107,6 +108,10 @@ class WyomingWakeWordClient:
                 self.client = AsyncWyomingClient(uri)
             
             await self.client.connect()
+            
+            # Start background task to read detection events
+            self._detection_task = self.loop.create_task(self._read_detections())
+            
             return True
         except Exception as e:
             print(f"[Wyoming] ❌ Async connection error: {e}")
@@ -114,9 +119,40 @@ class WyomingWakeWordClient:
             print(f"[Wyoming] 🔍 Traceback: {traceback.format_exc()}")
             return False
     
+    async def _read_detections(self):
+        """Background task to continuously read detection events."""
+        try:
+            while self.connected and self.client:
+                try:
+                    event = await asyncio.wait_for(
+                        self.client.read_event(),
+                        timeout=1.0
+                    )
+                    
+                    if event:
+                        detection = Detection.from_event(event)
+                        if detection:
+                            with self.lock:
+                                self.last_detection = (True, detection.confidence)
+                                print(f"[Wyoming] 🎤 Wake word detected! Confidence: {detection.confidence:.3f}")
+                except asyncio.TimeoutError:
+                    # No event received, continue
+                    continue
+                except Exception as e:
+                    if self.connected:  # Only log if still connected
+                        print(f"[Wyoming] ⚠️ Error reading detection: {e}")
+                    break
+        except Exception as e:
+            if self.connected:
+                print(f"[Wyoming] ⚠️ Detection reader error: {e}")
+    
     def disconnect(self):
         """Disconnect from Wyoming service."""
         with self.lock:
+            # Cancel detection task
+            if self._detection_task and not self._detection_task.done() and self.loop:
+                self.loop.call_soon_threadsafe(self._detection_task.cancel)
+            
             if self.client and self.loop:
                 future = asyncio.run_coroutine_threadsafe(
                     self.client.disconnect(),
@@ -215,22 +251,10 @@ class WyomingWakeWordClient:
                 else:
                     raise
             
-            # Read events - check for Detection
-            try:
-                event = await asyncio.wait_for(
-                    self.client.read_event(),
-                    timeout=0.01
-                )
-                
-                # Parse Detection from event if available
-                if event:
-                    detection = Detection.from_event(event)
-                    if detection:
-                        return True, detection.confidence
-            except asyncio.TimeoutError:
-                pass
-            
-            return False, 0.0
+            # Detection events are read by background task _read_detections()
+            # Just return the last known detection state
+            with self.lock:
+                return self.last_detection
         except Exception as e:
             # Only print error once per second to avoid spam
             import time
