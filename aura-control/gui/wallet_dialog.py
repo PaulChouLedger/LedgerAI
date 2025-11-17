@@ -48,8 +48,15 @@ class WalletDialog(BaseAuraDialog):
     """Dialog for connecting wallet and viewing token balance"""
     
     def __init__(self, parent=None):
-        self.wallet_manager = get_wallet_manager()
-        self.usage_tracker = get_usage_tracker()
+        # Initialize attributes first (before base class)
+        try:
+            self.wallet_manager = get_wallet_manager()
+            self.usage_tracker = get_usage_tracker()
+        except Exception as e:
+            print(f"[WalletDialog] ⚠️ Error initializing wallet manager: {e}")
+            # Set to None to handle gracefully
+            self.wallet_manager = None
+            self.usage_tracker = None
         
         # Initialize base dialog (non-modal to avoid blocking)
         super().__init__(
@@ -100,26 +107,58 @@ class WalletDialog(BaseAuraDialog):
             }
         """)
         
-        # Defer initial background work until after fade-in (set in showEvent)
+        # Defer initial background work until after fade-in
         self._initial_refresh_scheduled = False
+        
+        # Initialize timers (but don't start them until shown)
+        self.balance_refresh_timer = None
+        self.usage_refresh_timer = None
     
     def _setup_ui(self):
         """Set up dialog UI (called by base class)"""
-        self.setup_ui()
-        self.update_connection_status()
+        try:
+            self.setup_ui()
+            if self.wallet_manager:
+                self.update_connection_status()
+            
+            # Show usage stats immediately (instant, no network call)
+            if self.usage_tracker:
+                self.update_usage_stats()
+            
+            # Initialize timers (started in _on_show)
+            self.balance_refresh_timer = QTimer()
+            self.balance_refresh_timer.timeout.connect(self.refresh_balance_async)
+            
+            self.usage_refresh_timer = QTimer()
+            self.usage_refresh_timer.timeout.connect(self.update_usage_stats)
+        except Exception as e:
+            print(f"[WalletDialog] ❌ Error setting up UI: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    def _on_show(self):
+        """Block transcription and schedule balance refresh when dialog opens"""
+        # Base class already blocks transcription, but we call it explicitly for clarity
+        self._block_transcription("Wallet dialog open")
         
-        # Show usage stats immediately (instant, no network call)
-        self.update_usage_stats()
+        # Start timers now that dialog is shown
+        try:
+            if self.balance_refresh_timer:
+                self.balance_refresh_timer.start(30000)  # Refresh balance every 30 seconds
+            if self.usage_refresh_timer:
+                self.usage_refresh_timer.start(1000)  # Update usage every 1 second
+        except Exception as e:
+            print(f"[WalletDialog] ⚠️ Error starting timers: {e}")
         
-        # Auto-refresh timer for balance updates (Ethereum queries)
-        self.balance_refresh_timer = QTimer()
-        self.balance_refresh_timer.timeout.connect(self.refresh_balance_async)
-        self.balance_refresh_timer.start(30000)  # Refresh balance every 30 seconds
-        
-        # Real-time usage stats timer (no network calls, instant)
-        self.usage_refresh_timer = QTimer()
-        self.usage_refresh_timer.timeout.connect(self.update_usage_stats)
-        self.usage_refresh_timer.start(1000)  # Update usage every 1 second for real-time feel
+        # After fade-in completes, start the initial refresh to avoid jank
+        if not self._initial_refresh_scheduled:
+            self._initial_refresh_scheduled = True
+            # Check if fade animation exists (it will for non-modal dialogs)
+            if hasattr(self, 'fade_in') and self.fade_in:
+                self.fade_in.finished.connect(lambda: QTimer.singleShot(50, self.refresh_balance_async))
+            else:
+                # If no fade animation (modal with parent), refresh immediately
+                QTimer.singleShot(50, self.refresh_balance_async)
     
     def setup_ui(self):
         """Setup the dialog UI"""
@@ -351,6 +390,8 @@ class WalletDialog(BaseAuraDialog):
     
     def update_connection_status(self):
         """Update network connection status"""
+        if not self.wallet_manager:
+            return
         if self.wallet_manager.is_connected():
             self.status_label.setText("✅ Connected to Ethereum Mainnet")
             self.status_label.setStyleSheet("color: #34C759; font-weight: bold; margin: 5px;")
@@ -517,6 +558,10 @@ class WalletDialog(BaseAuraDialog):
     
     def connect_wallet(self):
         """Connect to the entered wallet address"""
+        if not self.wallet_manager:
+            QMessageBox.warning(self, "Error", "Wallet manager not available")
+            return
+        
         address = self.entered_address.strip()
         
         if not address:
@@ -538,6 +583,8 @@ class WalletDialog(BaseAuraDialog):
     
     def refresh_balance_async(self):
         """Refresh wallet balance in background (non-blocking)"""
+        if not self.wallet_manager:
+            return
         if not self.wallet_manager.connected_address:
             # Still update usage stats even if no wallet connected
             self.update_usage_stats()
@@ -583,8 +630,9 @@ class WalletDialog(BaseAuraDialog):
                 self.eth_balance_label.setText(f"Ξ {eth_balance:.6f} ETH")
             
             # Display address
-            short_addr = self.wallet_manager.format_address(wallet_info['address'])
-            self.address_display.setText(f"Address: {short_addr}")
+            if self.wallet_manager:
+                short_addr = self.wallet_manager.format_address(wallet_info['address'])
+                self.address_display.setText(f"Address: {short_addr}")
         
         # Update usage stats
         self.update_usage_stats()
@@ -594,6 +642,8 @@ class WalletDialog(BaseAuraDialog):
     
     def update_usage_stats(self):
         """Update usage statistics display (can be called independently)"""
+        if not self.usage_tracker:
+            return
         session_usage = self.usage_tracker.get_session_usage()
         total_paid = self.usage_tracker.get_total_paid()
         balance_owed = self.usage_tracker.get_balance_owed()
@@ -610,6 +660,9 @@ class WalletDialog(BaseAuraDialog):
     
     def open_payment_dialog(self):
         """Open payment dialog to send tokens to client"""
+        if not self.wallet_manager:
+            QMessageBox.warning(self, "Error", "Wallet manager not available")
+            return
         if not self.wallet_manager.connected_address:
             QMessageBox.warning(self, "Not Connected", 
                               "Please connect your wallet first before making payments.")
@@ -646,6 +699,9 @@ class WalletDialog(BaseAuraDialog):
     
     def open_native_wallet(self):
         """Open native wallet integrated into Aura"""
+        if not self.usage_tracker or not self.wallet_manager:
+            QMessageBox.warning(self, "Error", "Wallet manager or usage tracker not available")
+            return
         try:
             from wallet.native_wallet import NativeWalletDialog
             
@@ -662,7 +718,8 @@ class WalletDialog(BaseAuraDialog):
             
             if result == QDialog.Accepted:
                 # Record payment
-                self.usage_tracker.record_payment(balance_owed)
+                if self.usage_tracker:
+                    self.usage_tracker.record_payment(balance_owed)
                 print("[WalletDialog] ✅ Native wallet payment completed, refreshing balance")
                 self.refresh_balance_async()
                 
@@ -672,6 +729,9 @@ class WalletDialog(BaseAuraDialog):
     
     def open_metamask_payment(self):
         """Open mobile wallet QR code payment dialog"""
+        if not self.wallet_manager:
+            QMessageBox.warning(self, "Error", "Wallet manager not available")
+            return
         try:
             from gui.metamask_payment_dialog import MetaMaskPaymentDialog
             
@@ -688,6 +748,9 @@ class WalletDialog(BaseAuraDialog):
     
     def open_direct_payment(self):
         """Open direct payment dialog (private key method)"""
+        if not self.wallet_manager:
+            QMessageBox.warning(self, "Error", "Wallet manager not available")
+            return
         try:
             from gui.payment_dialog import PaymentDialog
             
@@ -706,8 +769,10 @@ class WalletDialog(BaseAuraDialog):
         """Cleanup when dialog closes (called by base class)"""
         # Stop timers first
         try:
-            self.balance_refresh_timer.stop()
-            self.usage_refresh_timer.stop()
+            if self.balance_refresh_timer:
+                self.balance_refresh_timer.stop()
+            if self.usage_refresh_timer:
+                self.usage_refresh_timer.stop()
         except Exception:
             pass
         

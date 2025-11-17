@@ -149,6 +149,40 @@ class PreciseWakeWordDetector:
             chunk_size_bytes = self.frame_length * 2  # int16 = 2 bytes per sample
             self.engine = PreciseEngine(exe_file=exe_file, model_file=model_file, chunk_size=chunk_size_bytes)
             
+            # PreciseEngine creates subprocess lazily on first get_prediction() call
+            # Let's test it with a dummy call to trigger subprocess creation and catch any errors
+            try:
+                dummy_audio = np.zeros(self.frame_length, dtype=np.int16)
+                dummy_bytes = dummy_audio.tobytes()
+                # This should trigger subprocess creation
+                _ = self.engine.get_prediction(dummy_bytes)
+                print("[Wake Word] ✅ Engine subprocess started successfully")
+            except Exception as init_error:
+                print(f"[Wake Word] ❌ Failed to start engine subprocess: {init_error}")
+                import traceback
+                print(f"[Wake Word] 🔍 Traceback: {traceback.format_exc()}")
+                print("[Wake Word] 💡 Troubleshooting:")
+                print(f"[Wake Word]     1. Check executable: ls -la {exe_file}")
+                print(f"[Wake Word]     2. Test executable: {exe_file} --help")
+                print(f"[Wake Word]     3. Check model file: ls -la {model_file}")
+                return False
+            
+            # Verify subprocess is running
+            if hasattr(self.engine, 'proc'):
+                if self.engine.proc is None:
+                    print("[Wake Word] ❌ Engine subprocess is still None after initialization")
+                    return False
+                elif hasattr(self.engine.proc, 'poll') and self.engine.proc.poll() is not None:
+                    print(f"[Wake Word] ❌ Engine subprocess exited with code: {self.engine.proc.returncode}")
+                    if hasattr(self.engine.proc, 'stderr'):
+                        try:
+                            stderr_output = self.engine.proc.stderr.read()
+                            if stderr_output:
+                                print(f"[Wake Word] 🔍 Subprocess stderr: {stderr_output}")
+                        except:
+                            pass
+                    return False
+            
             # For manual frame processing, we use the engine directly
             # PreciseRunner is designed for automatic streaming, not manual frame feeding
             # We'll call engine.get_prediction() directly in process()
@@ -211,6 +245,14 @@ class PreciseWakeWordDetector:
             # We have self.frame_length samples = self.frame_length * 2 bytes
             # Engine was initialized with chunk_size = self.frame_length * 2 bytes
             # So we need to send exactly self.frame_length samples = self.frame_length * 2 bytes
+            
+            # Check if subprocess is running before calling get_prediction
+            if hasattr(self.engine, 'proc') and self.engine.proc is None:
+                print("[Wake Word] ⚠️ Subprocess not started - attempting to start...")
+                # The subprocess should be created on first get_prediction() call
+                # But if it's None, something went wrong during initialization
+                return False, 0.0
+            
             try:
                 prediction = self.engine.get_prediction(audio_int16.tobytes())
                 
