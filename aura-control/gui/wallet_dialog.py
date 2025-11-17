@@ -629,6 +629,12 @@ class WalletDialog(BaseAuraDialog):
     
     def on_balance_ready(self, wallet_info):
         """Handle balance data received from background worker"""
+        # Check if dialog still exists before accessing widgets
+        try:
+            _ = self.isVisible()  # This will raise RuntimeError if dialog is deleted
+        except (RuntimeError, AttributeError):
+            print("[WalletDialog] ⚠️ Dialog deleted, ignoring balance update")
+            return
         
         if wallet_info['connected']:
             # Display token balance
@@ -795,34 +801,57 @@ class WalletDialog(BaseAuraDialog):
     
     def _on_close(self):
         """Cleanup when dialog closes (called by base class)"""
-        # Stop timers first
+        # Stop timers first (before any widget access)
         try:
-            if self.balance_refresh_timer:
-                self.balance_refresh_timer.stop()
-            if self.usage_refresh_timer:
-                self.usage_refresh_timer.stop()
+            if hasattr(self, "balance_refresh_timer") and self.balance_refresh_timer:
+                try:
+                    self.balance_refresh_timer.stop()
+                except (RuntimeError, AttributeError):
+                    pass  # Timer or dialog already deleted
         except Exception:
             pass
         
-        # Gracefully stop background worker if running
         try:
-            if hasattr(self, "balance_worker") and self.balance_worker and self.balance_worker.isRunning():
+            if hasattr(self, "usage_refresh_timer") and self.usage_refresh_timer:
                 try:
-                    self.balance_worker.balance_ready.disconnect(self.on_balance_ready)
+                    self.usage_refresh_timer.stop()
+                except (RuntimeError, AttributeError):
+                    pass  # Timer or dialog already deleted
+        except Exception:
+            pass
+        
+        # Gracefully stop background worker if running (before widget access)
+        try:
+            if hasattr(self, "balance_worker") and self.balance_worker:
+                try:
+                    if self.balance_worker.isRunning():
+                        try:
+                            # Disconnect signal before quitting
+                            self.balance_worker.balance_ready.disconnect()
+                        except (RuntimeError, AttributeError, TypeError):
+                            pass  # Signal already disconnected or object deleted
+                        self.balance_worker.quit()
+                        self.balance_worker.wait(500)  # Reduced timeout
+                except (RuntimeError, AttributeError):
+                    pass  # Worker already deleted
+                try:
+                    self.balance_worker = None
                 except Exception:
                     pass
-                self.balance_worker.quit()
-                self.balance_worker.wait(1000)
-                self.balance_worker = None
         except Exception:
             pass
         
-        # Ensure dialog is non-modal during shutdown
+        # Ensure dialog is non-modal during shutdown (but don't access if already deleted)
         try:
-            self.setModal(False)
-            self.setWindowModality(Qt.NonModal)
-        except Exception:
-            pass
+            # Check if dialog still exists before accessing properties
+            _ = self.isVisible()  # This will raise RuntimeError if deleted
+            try:
+                self.setModal(False)
+                self.setWindowModality(Qt.NonModal)
+            except (RuntimeError, AttributeError):
+                pass  # Dialog already deleted
+        except (RuntimeError, AttributeError):
+            pass  # Dialog already deleted, skip cleanup
         
-        print("[WalletDialog] 🔄 Closing dialog with fade-out animation...")
+        print("[WalletDialog] ✅ Cleanup complete")
 

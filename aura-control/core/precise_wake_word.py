@@ -57,11 +57,12 @@ class PreciseWakeWordDetector:
                 model_path = get_wake_word_model_path()
             
             # Precise uses threshold (lower = more sensitive)
-            # Map sensitivity (0.0-1.0) to threshold (0.3-0.7)
+            # Map sensitivity (0.0-1.0) to threshold (0.15-0.5)
+            # Lower default threshold for better detection
             if sensitivity is not None:
-                self.threshold = 0.7 - (sensitivity * 0.4)  # Maps 0.0->0.7, 0.5->0.5, 1.0->0.3
+                self.threshold = 0.5 - (sensitivity * 0.35)  # Maps 0.0->0.5, 0.5->0.325, 1.0->0.15
             else:
-                self.threshold = 0.5  # Balanced default
+                self.threshold = 0.3  # More sensitive default (was 0.5)
         except ImportError:
             # Fallback if state module not available
             self.threshold = threshold if threshold is not None else 0.5
@@ -350,10 +351,45 @@ class PreciseWakeWordDetector:
                         print(f"[Wake Word] ⚠️ Unexpected prediction type: {type(prediction)}, value: {prediction!r}")
                         return False, 0.0
                 
-                # Debug logging (first 10, then every 100 frames, or if confidence > 0)
-                debug_this = (self._prediction_debug_count <= 10) or (self._prediction_debug_count % 100 == 0) or (confidence > 0.001)
+                # Debug logging:
+                # - First 10 frames (to see initial behavior)
+                # - Every 100 frames (heartbeat)
+                # - When confidence > 0.001 (any significant activity)
+                # - When confidence > threshold/10 (getting close to detection)
+                # - When confidence is rising (last confidence was lower)
+                debug_this = False
+                if self._prediction_debug_count <= 10:
+                    debug_this = True
+                elif self._prediction_debug_count % 100 == 0:
+                    debug_this = True
+                elif confidence > 0.001:
+                    debug_this = True
+                elif confidence > self.threshold / 10:
+                    debug_this = True
+                else:
+                    # Check if confidence is rising (compared to last value)
+                    if not hasattr(self, '_last_confidence'):
+                        self._last_confidence = 0.0
+                    if confidence > self._last_confidence * 1.5 and confidence > 0.0001:
+                        debug_this = True
+                    self._last_confidence = confidence
+                
                 if debug_this:
-                    print(f"[Wake Word] 🔍 DEBUG Prediction: {confidence:.6f} (threshold: {self.threshold:.6f}, frame: {self._prediction_debug_count})")
+                    # Show status indicator based on confidence level
+                    if confidence >= self.threshold:
+                        status = "🟢 DETECTED!"
+                    elif confidence >= self.threshold * 0.8:
+                        status = "🟡 VERY CLOSE"
+                    elif confidence >= self.threshold * 0.5:
+                        status = "🟠 CLOSE"
+                    elif confidence >= self.threshold * 0.2:
+                        status = "🔵 RISING"
+                    elif confidence > 0.001:
+                        status = "⚪ ACTIVITY"
+                    else:
+                        status = "🔴 QUIET"
+                    
+                    print(f"[Wake Word] {status} Confidence: {confidence:.6f} (threshold: {self.threshold:.6f}, {confidence/self.threshold*100:.1f}%)")
                 
                 # Check if confidence exceeds threshold
                 detected = confidence >= self.threshold
