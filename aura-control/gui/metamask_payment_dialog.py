@@ -351,7 +351,8 @@ class MetaMaskPaymentDialog(QDialog):
         details_dialog = QDialog(self)
         details_dialog.setWindowTitle("Payment Information")
         details_dialog.setFixedSize(1080, 1080)
-        details_dialog.setWindowFlags(Qt.Dialog | Qt.FramelessWindowHint)
+        # Use Window flag instead of Dialog to ensure proper z-ordering above parent
+        details_dialog.setWindowFlags(Qt.Window | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
         details_dialog.setModal(True)
         details_dialog.setStyleSheet("QDialog { background-color: rgba(28, 28, 30, 0.95); border-radius: 532px; }")
         

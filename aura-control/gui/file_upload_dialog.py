@@ -670,7 +670,8 @@ class FileUploadDialog(QDialog):
                 # Create a new dialog to show QR code - full screen for circular screen
                 qr_dialog = QDialog(self)
                 qr_dialog.setWindowTitle("📱 Mobile Upload QR Code")
-                qr_dialog.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)  # Full screen
+                # Use Window flag to ensure proper z-ordering above parent dialog
+                qr_dialog.setWindowFlags(Qt.Window | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)  # Full screen
                 qr_dialog.setStyleSheet("""
                     QDialog {
                         background-color: rgba(28, 28, 30, 1.0);
