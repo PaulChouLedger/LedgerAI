@@ -207,17 +207,50 @@ class PreciseWakeWordDetector:
             # PreciseEngine.get_prediction() returns probability (0.0-1.0)
             try:
                 prediction = self.engine.get_prediction(audio_int16.tobytes())
-                confidence = float(prediction)
+                
+                # Debug: log first few predictions and occasionally after
+                if not hasattr(self, '_prediction_debug_count'):
+                    self._prediction_debug_count = 0
+                self._prediction_debug_count += 1
+                
+                # Try to convert prediction to float
+                try:
+                    confidence = float(prediction)
+                except (ValueError, TypeError):
+                    # Prediction might be a string or other type
+                    if isinstance(prediction, bytes):
+                        prediction_str = prediction.decode('utf-8', errors='ignore').strip()
+                        try:
+                            confidence = float(prediction_str)
+                        except ValueError:
+                            print(f"[Wake Word] ⚠️ Could not parse prediction: {prediction!r}")
+                            return False, 0.0
+                    else:
+                        print(f"[Wake Word] ⚠️ Unexpected prediction type: {type(prediction)}, value: {prediction!r}")
+                        return False, 0.0
+                
+                # Debug logging (first 10, then every 100 frames, or if confidence > 0)
+                debug_this = (self._prediction_debug_count <= 10) or (self._prediction_debug_count % 100 == 0) or (confidence > 0.001)
+                if debug_this:
+                    print(f"[Wake Word] 🔍 DEBUG Prediction: {confidence:.6f} (threshold: {self.threshold:.6f}, frame: {self._prediction_debug_count})")
                 
                 # Check if confidence exceeds threshold
                 detected = confidence >= self.threshold
                 
                 if detected:
+                    print(f"[Wake Word] 🎤 WAKE WORD DETECTED! Confidence: {confidence:.6f}")
                     return True, confidence
                 else:
                     return False, confidence
             except Exception as pred_error:
                 # Engine might return empty or invalid response
+                if not hasattr(self, '_prediction_error_count'):
+                    self._prediction_error_count = 0
+                self._prediction_error_count += 1
+                if self._prediction_error_count <= 3:
+                    print(f"[Wake Word] ⚠️ Prediction error: {pred_error}")
+                    import traceback
+                    print(f"[Wake Word] 🔍 Traceback: {traceback.format_exc()}")
                 return False, 0.0
             
         except Exception as e:

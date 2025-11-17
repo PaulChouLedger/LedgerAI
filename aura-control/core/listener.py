@@ -701,14 +701,14 @@ def listen():
                                 # Soft clipping to prevent distortion
                                 channel_audio = np.clip(channel_audio, -0.95, 0.95)
                         
-                        # Debug: check audio levels occasionally
+                        # Debug: check audio levels occasionally (every 100 frames or first 5)
                         if not hasattr(wake_word_detector, '_audio_level_debug'):
                             wake_word_detector._audio_level_debug = 0
                         wake_word_detector._audio_level_debug += 1
-                        if wake_word_detector._audio_level_debug <= 10:
+                        if wake_word_detector._audio_level_debug <= 5 or wake_word_detector._audio_level_debug % 100 == 0:
                             rms_after = np.sqrt(np.mean(channel_audio**2))
                             peak_after = np.abs(channel_audio).max()
-                            print(f"[Wake Word] 📊 Audio: RMS={rms:.4f}→{rms_after:.4f}, Peak={peak:.4f}→{peak_after:.4f}")
+                            print(f"[Wake Word] 🔍 DEBUG Audio: RMS={rms:.4f}→{rms_after:.4f}, Peak={peak:.4f}→{peak_after:.4f} (Frame {wake_word_detector._audio_level_debug})")
                         
                         if channel_audio.size < 512:
                             # Not enough samples, continue to next iteration
@@ -741,20 +741,20 @@ def listen():
                                 # Detect wake word
                                 wake_detected, confidence = wake_word_detector.process(wake_word_frame)
                                 
-                                # Debug output (show confidence more frequently)
+                                # Debug output (show confidence less frequently to reduce spam)
                                 if not hasattr(wake_word_detector, '_debug_counter'):
                                     wake_word_detector._debug_counter = 0
                                 wake_word_detector._debug_counter += 1
                                 
-                                # Show confidence every 50 frames, or if confidence > threshold/10 (getting close)
-                                threshold = getattr(wake_word_detector, 'threshold', 0.0001)
-                                show_debug = (wake_word_detector._debug_counter % 50 == 0) or (confidence > threshold / 10)
+                                # Show confidence every 100 frames, or if confidence > threshold/10 (getting close), or if confidence > 0
+                                threshold = getattr(wake_word_detector, 'threshold', 0.5)
+                                show_debug = (wake_word_detector._debug_counter % 100 == 0) or (confidence > threshold / 10) or (confidence > 0.001)
                                 if show_debug:
                                     status = "🔴" if confidence < threshold * 0.5 else "🟡" if confidence < threshold else "🟢"
                                     print(f"[Wake Word] {status} Confidence: {confidence:.6f} (threshold: {threshold:.6f}) - Frame {wake_word_detector._debug_counter}")
                                     
-                                # Heartbeat every 200 frames to confirm we're still listening
-                                if wake_word_detector._debug_counter % 200 == 0:
+                                # Heartbeat every 500 frames to confirm we're still listening
+                                if wake_word_detector._debug_counter % 500 == 0:
                                     print(f"[Wake Word] 💓 Still listening for wake word... (Frame {wake_word_detector._debug_counter})")
                                 
                                 if wake_detected:

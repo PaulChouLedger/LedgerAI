@@ -317,30 +317,60 @@ class AuraGUI(QMainWindow):
         try:
             from gui.wallet_dialog import WalletDialog
             
-            # Keep a reference so it's not garbage-collected
-            if not hasattr(self, "_wallet_dialog") or self._wallet_dialog is None:
-                self._wallet_dialog = WalletDialog(parent=self)
-            else:
-                # If an old dialog exists, close it and recreate
+            # Check if dialog exists and is still valid
+            if hasattr(self, "_wallet_dialog") and self._wallet_dialog is not None:
                 try:
-                    self._wallet_dialog.close()
-                except Exception:
-                    pass
-                self._wallet_dialog = WalletDialog(parent=self)
+                    # Check if dialog is still valid (not deleted) and visible
+                    # This will raise RuntimeError if the C++ object was deleted
+                    if self._wallet_dialog.isVisible():
+                        # Dialog is already open, just raise it
+                        self._wallet_dialog.raise_()
+                        self._wallet_dialog.activateWindow()
+                        print("[AuraGUI] ✅ Wallet dialog already open, raised to front")
+                        return
+                    else:
+                        # Dialog exists but is hidden, close it first (safely)
+                        try:
+                            self._wallet_dialog.close()
+                        except RuntimeError:
+                            pass  # Already deleted
+                        self._wallet_dialog = None
+                except (RuntimeError, AttributeError):
+                    # Dialog was deleted (Qt.WA_DeleteOnClose), reference is invalid
+                    # RuntimeError: wrapped C/C++ object has been deleted
+                    self._wallet_dialog = None
+                    print("[AuraGUI] 🗑️ Previous wallet dialog was deleted, creating new one")
+                except Exception as e:
+                    print(f"[AuraGUI] ⚠️ Error checking existing dialog: {e}")
+                    self._wallet_dialog = None
+            
+            # Create new dialog
+            self._wallet_dialog = WalletDialog(parent=self)
+            
+            # Connect to destroyed signal to clear reference when dialog is deleted
+            def on_dialog_destroyed():
+                if hasattr(self, "_wallet_dialog"):
+                    self._wallet_dialog = None
+                    print("[AuraGUI] 🗑️ Wallet dialog reference cleared")
+            
+            self._wallet_dialog.destroyed.connect(on_dialog_destroyed)
             
             # Show non-modally to avoid blocking GUI/transcription
             self._wallet_dialog.show()
             self._wallet_dialog.raise_()
             self._wallet_dialog.activateWindow()
+            QApplication.processEvents()  # Ensure dialog is rendered
             print("[AuraGUI] ✅ Wallet dialog shown (non-modal)")
         except ImportError as e:
             print(f"[AuraGUI] ❌ Wallet dialog not available: {e}")
             print(f"[AuraGUI] 💡 Install web3: pip install web3")
         except Exception as e:
             print(f"[AuraGUI] ❌ Error opening wallet dialog: {e}")
-        finally:
-            # Do not block/unblock transcription for wallet dialog anymore
-                pass
+            import traceback
+            traceback.print_exc()
+            # Clear invalid reference
+            if hasattr(self, "_wallet_dialog"):
+                self._wallet_dialog = None
     
     def _handle_voice(self):
         """Handle voice button click - toggle transcription blocking"""
