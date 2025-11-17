@@ -220,11 +220,20 @@ class OpenWakeWordDetector:
                     # Truncate or take last N samples
                     audio_frame = audio_frame[-self.frame_length:]
             
-            # Reshape for OpenWakeWord (expects [1, samples] shape)
-            audio_frame = audio_frame.reshape(1, -1)
+            # OpenWakeWord expects 1D array (1280,) not 2D
+            # Ensure it's 1D
+            if audio_frame.ndim > 1:
+                audio_frame = audio_frame.flatten()
+            
+            # Ensure it's exactly 1280 samples
+            if len(audio_frame) != self.frame_length:
+                if len(audio_frame) < self.frame_length:
+                    audio_frame = np.pad(audio_frame, (0, self.frame_length - len(audio_frame)), mode='constant')
+                else:
+                    audio_frame = audio_frame[:self.frame_length]
             
             # Process frame with OpenWakeWord
-            # predict() returns a dict with model names as keys and confidence scores as values
+            # predict() expects 1D array of shape (1280,)
             predictions = self.model.predict(audio_frame)
             
             # Debug: print available keys on first call

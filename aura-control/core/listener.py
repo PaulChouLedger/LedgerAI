@@ -637,6 +637,9 @@ def listen():
                             continue
                         
                         # OpenWakeWord requires 1280 samples (80ms at 16kHz), so we buffer frames
+                        # Ensure channel_audio is 1D before appending
+                        if channel_audio.ndim > 1:
+                            channel_audio = channel_audio.flatten()
                         wake_word_buffer.append(channel_audio)
                         
                         # Check if we have enough samples for OpenWakeWord frame
@@ -646,7 +649,9 @@ def listen():
                             
                             if total_samples >= required_samples:
                                 # Concatenate enough samples for one OpenWakeWord frame
-                                combined_audio = np.concatenate(wake_word_buffer)
+                                # Ensure all arrays in buffer are 1D before concatenation
+                                flattened_buffer = [chunk.flatten() if chunk.ndim > 1 else chunk for chunk in wake_word_buffer]
+                                combined_audio = np.concatenate(flattened_buffer)
                                 wake_word_frame = combined_audio[:required_samples]
                                 
                                 # Keep remaining samples for next frame
