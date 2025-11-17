@@ -658,12 +658,17 @@ def listen():
                                 # Detect wake word
                                 wake_detected, confidence = wake_word_detector.process(wake_word_frame)
                                 
-                                # Debug output (only every 100 frames to avoid spam)
+                                # Debug output (show confidence more frequently)
                                 if not hasattr(wake_word_detector, '_debug_counter'):
                                     wake_word_detector._debug_counter = 0
                                 wake_word_detector._debug_counter += 1
-                                if wake_word_detector._debug_counter % 100 == 0:
-                                    print(f"[Wake Word] 🔍 Listening... (frame {wake_word_detector._debug_counter})", end="\r")
+                                
+                                # Show confidence every 50 frames, or if confidence > 0.1 (getting close)
+                                show_debug = (wake_word_detector._debug_counter % 50 == 0) or (confidence > 0.1)
+                                if show_debug:
+                                    threshold = getattr(wake_word_detector, 'threshold', 0.5)
+                                    status = "🔴" if confidence < threshold * 0.5 else "🟡" if confidence < threshold else "🟢"
+                                    print(f"[Wake Word] {status} Confidence: {confidence:.3f} (threshold: {threshold:.2f}) - Frame {wake_word_detector._debug_counter}", end="\r")
                                 
                                 if wake_detected:
                                     print(f"\n[Wake Word] ✅ Wake word detected! (confidence: {confidence:.2f})")

@@ -60,11 +60,17 @@ class OpenWakeWordDetector:
         # Load from state module (preferred) or use provided values
         try:
             from state import get_wake_word_sensitivity
-            # OpenWakeWord uses threshold (higher = more sensitive)
+            # OpenWakeWord uses threshold (lower = more sensitive)
             # Convert sensitivity (0.0-1.0) to threshold (0.0-1.0)
             # Higher sensitivity = lower threshold (more sensitive)
             sensitivity = threshold if threshold is not None else get_wake_word_sensitivity()
-            self.threshold = 1.0 - sensitivity if sensitivity is not None else 0.5
+            # Default sensitivity 0.5 should map to threshold 0.3 (more sensitive default)
+            # Sensitivity 0.0 (least sensitive) -> threshold 0.7 (high threshold, less detections)
+            # Sensitivity 1.0 (most sensitive) -> threshold 0.1 (low threshold, more detections)
+            if sensitivity is not None:
+                self.threshold = 0.7 - (sensitivity * 0.6)  # Maps 0.0->0.7, 0.5->0.4, 1.0->0.1
+            else:
+                self.threshold = 0.3  # More sensitive default (was 0.5)
         except ImportError:
             # Fallback if state module not available
             self.threshold = threshold if threshold is not None else 0.5
@@ -221,14 +227,31 @@ class OpenWakeWordDetector:
             # predict() returns a dict with model names as keys and confidence scores as values
             predictions = self.model.predict(audio_frame)
             
+            # Debug: print available keys on first call
+            if not hasattr(self, '_printed_keys'):
+                print(f"[Wake Word] 🔍 Available prediction keys: {list(predictions.keys())}")
+                print(f"[Wake Word] 🔍 Looking for: '{self.wake_word_name}'")
+                self._printed_keys = True
+            
             # Get confidence for our wake word model
+            # Try exact match first
+            confidence = 0.0
             if self.wake_word_name and self.wake_word_name in predictions:
                 confidence = predictions[self.wake_word_name]
-            elif len(predictions) > 0:
-                # Use first (and likely only) model's confidence
-                confidence = list(predictions.values())[0]
             else:
-                confidence = 0.0
+                # Try partial match (e.g., 'hey_jarvis' might be 'hey_jarvis_v0.1' in predictions)
+                for key in predictions.keys():
+                    if self.wake_word_name in key or key.startswith(self.wake_word_name):
+                        confidence = predictions[key]
+                        break
+                
+                # If still no match, use first available prediction
+                if confidence == 0.0 and len(predictions) > 0:
+                    confidence = list(predictions.values())[0]
+                    if not hasattr(self, '_warned_key_mismatch'):
+                        print(f"[Wake Word] ⚠️  Model name '{self.wake_word_name}' not found in predictions")
+                        print(f"[Wake Word] ⚠️  Using first available: {list(predictions.keys())[0]} = {confidence:.3f}")
+                        self._warned_key_mismatch = True
             
             # Check if confidence exceeds threshold
             # Lower threshold = more sensitive (detects more easily)

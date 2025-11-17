@@ -31,6 +31,17 @@ def main():
         
         download_models()
         
+        # Show where models were saved
+        try:
+            import openwakeword
+            package_path = os.path.dirname(openwakeword.__file__)
+            models_dir = os.path.join(package_path, 'resources', 'models')
+            print()
+            print("Models saved to:")
+            print(f"  {models_dir}")
+        except:
+            pass
+        
         print()
         print("="*70)
         print("✅ Models downloaded successfully!")
@@ -38,6 +49,9 @@ def main():
         print()
         print("You can now use wake word detection in Aura.")
         print("Restart Aura if it's currently running.")
+        print()
+        print("To check model location later, run:")
+        print("  python setup/scripts/check_openwakeword_models.py")
         
     except ImportError:
         print("❌ download_models() function not found in this version of OpenWakeWord")
