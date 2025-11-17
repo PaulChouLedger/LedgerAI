@@ -108,9 +108,16 @@ class WyomingWakeWordClient:
                 self.client = AsyncWyomingClient(uri)
             
             await self.client.connect()
+            print("[Wyoming] ✅ Connected to server")
             
             # Start background task to read detection events
-            self._detection_task = self.loop.create_task(self._read_detections())
+            try:
+                self._detection_task = self.loop.create_task(self._read_detections())
+                print("[Wyoming] ✅ Background detection task created")
+            except Exception as task_error:
+                print(f"[Wyoming] ⚠️ Failed to create detection task: {task_error}")
+                import traceback
+                print(f"[Wyoming] 🔍 Traceback: {traceback.format_exc()}")
             
             return True
         except Exception as e:
