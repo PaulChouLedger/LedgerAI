@@ -410,7 +410,8 @@ def warm_up_llm():
             USE_MEDICAL_MODE = (llm_mode == "medical")
         except Exception:
             USE_MEDICAL_MODE = os.environ.get('USE_MEDICAL_MODE', 'true').lower() == 'true'
-        llm_port = "11434" if USE_MEDICAL_MODE else "11436"
+        # Both medical and generic now use port 11434
+        llm_port = "11434"
         
         try:
             response = requests.post(
@@ -623,10 +624,8 @@ def start_services():
                 return False
             
             # Check LLM (different ports for medical vs generic)
-            if USE_MEDICAL_MODE:
-                llm_ready = wait_for_container("http://localhost:11434/health", "LLM", timeout=30)
-            else:
-                llm_ready = wait_for_container("http://localhost:11436/health", "LLM", timeout=30)
+            # Both medical and generic now use port 11434
+            llm_ready = wait_for_container("http://localhost:11434/health", "LLM", timeout=30)
             if not llm_ready:
                 return False
             
@@ -660,7 +659,8 @@ def start_services():
         USE_MEDICAL_MODE = (llm_mode == "medical")
     except Exception:
         pass  # Use existing USE_MEDICAL_MODE
-    llm_port = "11434" if USE_MEDICAL_MODE else "11436"
+    # Both medical and generic now use port 11434
+    llm_port = "11434"
     try:
         # Try to get model name from health endpoint
         response = requests.get(f"http://localhost:{llm_port}/health", timeout=2)
@@ -1090,7 +1090,7 @@ def ingest_and_rebuild_embeddings():
         
         def trigger_cpu_rag_generic():
             try:
-                cpu_response = requests.post("http://localhost:11436/cpu-faiss/ingest", timeout=30)
+                cpu_response = requests.post("http://localhost:11434/cpu-faiss/ingest", timeout=30)
                 if cpu_response.status_code == 200:
                     print("[Aura] ✅ Generic CPU FAISS ingest triggered")
                 else:

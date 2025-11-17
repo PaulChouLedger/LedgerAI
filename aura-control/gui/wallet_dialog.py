@@ -659,21 +659,23 @@ class WalletDialog(QDialog):
         except ImportError:
             print("[WalletDialog] ⚠️ Could not import listener blocking functions")
         
-        # Create smooth fade-in animation
+        # Ensure dialog is positioned and ready before animation
+        self.raise_()
+        self.activateWindow()
+        QApplication.processEvents()  # Process pending events for smooth start
+        
+        # Create optimized fade-in animation
         self.fade_in = QPropertyAnimation(self, b"windowOpacity")
-        self.fade_in.setDuration(300)  # Slightly longer for smoother feel
+        self.fade_in.setDuration(400)  # Slightly longer for smoother feel
         self.fade_in.setStartValue(0.0)
         self.fade_in.setEndValue(1.0)
-        self.fade_in.setEasingCurve(QEasingCurve.InOutCubic)  # Smooth ease-in/out
+        self.fade_in.setEasingCurve(QEasingCurve.OutCubic)  # Smoother ease-out
+        self.fade_in.setUpdateInterval(16)  # ~60fps for smooth animation
         # After fade-in completes, start the initial refresh to avoid jank
         if not self._initial_refresh_scheduled:
             self._initial_refresh_scheduled = True
             self.fade_in.finished.connect(lambda: QTimer.singleShot(50, self.refresh_balance_async))
         self.fade_in.start()
-        
-        # Ensure dialog is raised and focused
-        self.raise_()
-        self.activateWindow()
     
     def open_payment_dialog(self):
         """Open payment dialog to send tokens to client"""
@@ -822,12 +824,13 @@ class WalletDialog(QDialog):
         if hasattr(self, 'fade_in') and self.fade_in.state() == QPropertyAnimation.Running:
             self.fade_in.stop()
         
-        # Create smooth fade-out animation
+        # Create optimized fade-out animation
         self.fade_out = QPropertyAnimation(self, b"windowOpacity")
-        self.fade_out.setDuration(250)  # Slightly longer for smoother feel
+        self.fade_out.setDuration(300)  # Slightly longer for smoother exit
         self.fade_out.setStartValue(self.windowOpacity())
         self.fade_out.setEndValue(0.0)
-        self.fade_out.setEasingCurve(QEasingCurve.InOutCubic)  # Symmetric easing
+        self.fade_out.setEasingCurve(QEasingCurve.InCubic)  # Smooth ease-in for exit
+        self.fade_out.setUpdateInterval(16)  # ~60fps for smooth animation
         
         # Connect finished signal to actually close and free dialog
         def _finalize_close():

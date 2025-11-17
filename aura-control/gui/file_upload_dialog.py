@@ -121,17 +121,19 @@ class FileUploadDialog(QDialog):
         """Handle dialog show event with smooth fade-in animation"""
         super().showEvent(event)
         
-        # Create smooth fade-in animation
-        self.fade_in = QPropertyAnimation(self, b"windowOpacity")
-        self.fade_in.setDuration(300)  # Slightly longer for smoother feel
-        self.fade_in.setStartValue(0.0)
-        self.fade_in.setEndValue(1.0)
-        self.fade_in.setEasingCurve(QEasingCurve.InOutCubic)  # Smooth ease-in/out
-        self.fade_in.start()
-        
-        # Ensure dialog is raised and focused
+        # Ensure dialog is positioned and ready before animation
         self.raise_()
         self.activateWindow()
+        QApplication.processEvents()  # Process pending events for smooth start
+        
+        # Create optimized fade-in animation
+        self.fade_in = QPropertyAnimation(self, b"windowOpacity")
+        self.fade_in.setDuration(400)  # Slightly longer for smoother feel
+        self.fade_in.setStartValue(0.0)
+        self.fade_in.setEndValue(1.0)
+        self.fade_in.setEasingCurve(QEasingCurve.OutCubic)  # Smoother ease-out
+        self.fade_in.setUpdateInterval(16)  # ~60fps for smooth animation
+        self.fade_in.start()
         
     def mousePressEvent(self, event):
         """Capture mouse/touch coordinates for debugging"""
@@ -215,12 +217,13 @@ class FileUploadDialog(QDialog):
         if hasattr(self, 'fade_in') and self.fade_in.state() == QPropertyAnimation.Running:
             self.fade_in.stop()
         
-        # Create fade-out animation
+        # Create optimized fade-out animation
         self.fade_out = QPropertyAnimation(self, b"windowOpacity")
-        self.fade_out.setDuration(250)  # Slightly longer for smoother feel
+        self.fade_out.setDuration(300)  # Slightly longer for smoother exit
         self.fade_out.setStartValue(self.windowOpacity())
         self.fade_out.setEndValue(0.0)
-        self.fade_out.setEasingCurve(QEasingCurve.InOutCubic)  # Symmetric easing
+        self.fade_out.setEasingCurve(QEasingCurve.InCubic)  # Smooth ease-in for exit
+        self.fade_out.setUpdateInterval(16)  # ~60fps for smooth animation
         
         # Connect finished signal to actually close the dialog
         self.fade_out.finished.connect(self._final_close)

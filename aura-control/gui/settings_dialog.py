@@ -9,7 +9,7 @@ from PyQt5.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel,
                              QPushButton, QTextEdit, QProgressBar,
                              QMessageBox, QListWidget, QListWidgetItem, QInputDialog,
                              QLineEdit, QWidget, QApplication, QGridLayout, QComboBox, QSlider)
-from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer, QPropertyAnimation, QEasingCurve
+from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer, QPropertyAnimation, QEasingCurve, QParallelAnimationGroup
 from PyQt5.QtGui import QFont
 import threading
 from dotenv import dotenv_values
@@ -422,13 +422,19 @@ class WifiSettingsDialog(QDialog):
     
     def showEvent(self, event):
         super().showEvent(event)
+        # Ensure dialog is positioned and ready before animation
+        self.raise_()
+        self.activateWindow()
+        QApplication.processEvents()  # Process pending events for smooth start
+        
+        # Create optimized fade-in animation
         self.fade_in = QPropertyAnimation(self, b"windowOpacity")
-        self.fade_in.setDuration(300)
+        self.fade_in.setDuration(400)  # Slightly longer for smoother feel
         self.fade_in.setStartValue(0.0)
         self.fade_in.setEndValue(1.0)
-        self.fade_in.setEasingCurve(QEasingCurve.InOutCubic)
+        self.fade_in.setEasingCurve(QEasingCurve.OutCubic)  # Smoother ease-out
+        self.fade_in.setUpdateInterval(16)  # ~60fps for smooth animation
         self.fade_in.start()
-        self.raise_(); self.activateWindow()
     
     def closeEvent(self, event):
         # Always ensure transcription is unblocked when dialog closes
@@ -470,10 +476,11 @@ class WifiSettingsDialog(QDialog):
         if hasattr(self, 'fade_in') and self.fade_in.state() == QPropertyAnimation.Running:
             self.fade_in.stop()
         self.fade_out = QPropertyAnimation(self, b"windowOpacity")
-        self.fade_out.setDuration(250)
+        self.fade_out.setDuration(300)  # Slightly longer for smoother exit
         self.fade_out.setStartValue(self.windowOpacity())
         self.fade_out.setEndValue(0.0)
-        self.fade_out.setEasingCurve(QEasingCurve.InOutCubic)
+        self.fade_out.setEasingCurve(QEasingCurve.InCubic)  # Smooth ease-in for exit
+        self.fade_out.setUpdateInterval(16)  # ~60fps for smooth animation
         def _finalize():
             # Stop any running threads and disconnect signals to avoid late emissions
             try:
@@ -690,9 +697,19 @@ class UpdateDialog(QDialog):
     
     def showEvent(self, event):
         super().showEvent(event)
-        self.fade_in = QPropertyAnimation(self, b"windowOpacity"); self.fade_in.setDuration(300)
-        self.fade_in.setStartValue(0.0); self.fade_in.setEndValue(1.0); self.fade_in.setEasingCurve(QEasingCurve.InOutCubic); self.fade_in.start()
-        self.raise_(); self.activateWindow()
+        # Ensure dialog is positioned and ready before animation
+        self.raise_()
+        self.activateWindow()
+        QApplication.processEvents()  # Process pending events for smooth start
+        
+        # Create optimized fade-in animation
+        self.fade_in = QPropertyAnimation(self, b"windowOpacity")
+        self.fade_in.setDuration(400)  # Slightly longer for smoother feel
+        self.fade_in.setStartValue(0.0)
+        self.fade_in.setEndValue(1.0)
+        self.fade_in.setEasingCurve(QEasingCurve.OutCubic)  # Smoother ease-out
+        self.fade_in.setUpdateInterval(16)  # ~60fps for smooth animation
+        self.fade_in.start()
     
     def closeEvent(self, event):
         # Always ensure transcription is unblocked when dialog closes
@@ -735,11 +752,12 @@ class UpdateDialog(QDialog):
         # Non-modal: use fade animation
         if hasattr(self, 'fade_in') and self.fade_in.state() == QPropertyAnimation.Running: 
             self.fade_in.stop()
-        self.fade_out = QPropertyAnimation(self, b"windowOpacity"); 
-        self.fade_out.setDuration(250)
-        self.fade_out.setStartValue(self.windowOpacity()); 
-        self.fade_out.setEndValue(0.0); 
-        self.fade_out.setEasingCurve(QEasingCurve.InOutCubic)
+        self.fade_out = QPropertyAnimation(self, b"windowOpacity")
+        self.fade_out.setDuration(300)  # Slightly longer for smoother exit
+        self.fade_out.setStartValue(self.windowOpacity())
+        self.fade_out.setEndValue(0.0)
+        self.fade_out.setEasingCurve(QEasingCurve.InCubic)  # Smooth ease-in for exit
+        self.fade_out.setUpdateInterval(16)  # ~60fps for smooth animation
         def _finalize():
             try:
                 if hasattr(self, "ota_update_thread") and self.ota_update_thread:
@@ -835,9 +853,19 @@ class AIModelSettingsDialog(QDialog):
     
     def showEvent(self, event):
         super().showEvent(event)
-        self.fade_in = QPropertyAnimation(self, b"windowOpacity"); self.fade_in.setDuration(300)
-        self.fade_in.setStartValue(0.0); self.fade_in.setEndValue(1.0); self.fade_in.setEasingCurve(QEasingCurve.InOutCubic); self.fade_in.start()
-        self.raise_(); self.activateWindow()
+        # Ensure dialog is positioned and ready before animation
+        self.raise_()
+        self.activateWindow()
+        QApplication.processEvents()  # Process pending events for smooth start
+        
+        # Create optimized fade-in animation
+        self.fade_in = QPropertyAnimation(self, b"windowOpacity")
+        self.fade_in.setDuration(400)  # Slightly longer for smoother feel
+        self.fade_in.setStartValue(0.0)
+        self.fade_in.setEndValue(1.0)
+        self.fade_in.setEasingCurve(QEasingCurve.OutCubic)  # Smoother ease-out
+        self.fade_in.setUpdateInterval(16)  # ~60fps for smooth animation
+        self.fade_in.start()
     
     def closeEvent(self, event):
         # Always ensure transcription is unblocked when dialog closes
@@ -856,13 +884,14 @@ class AIModelSettingsDialog(QDialog):
         # Non-modal: use fade animation
         if hasattr(self, 'fade_in') and self.fade_in.state() == QPropertyAnimation.Running: 
             self.fade_in.stop()
-        self.fade_out = QPropertyAnimation(self, b"windowOpacity"); 
-        self.fade_out.setDuration(250)
-        self.fade_out.setStartValue(self.windowOpacity()); 
-        self.fade_out.setEndValue(0.0); 
-        self.fade_out.setEasingCurve(QEasingCurve.InOutCubic)
-        self.fade_out.finished.connect(lambda: event.accept()); 
-        self.fade_out.start(); 
+        self.fade_out = QPropertyAnimation(self, b"windowOpacity")
+        self.fade_out.setDuration(300)  # Slightly longer for smoother exit
+        self.fade_out.setStartValue(self.windowOpacity())
+        self.fade_out.setEndValue(0.0)
+        self.fade_out.setEasingCurve(QEasingCurve.InCubic)  # Smooth ease-in for exit
+        self.fade_out.setUpdateInterval(16)  # ~60fps for smooth animation
+        self.fade_out.finished.connect(lambda: event.accept())
+        self.fade_out.start()
         event.ignore()
     
     def _center_dialog(self):

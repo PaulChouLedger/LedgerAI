@@ -207,6 +207,23 @@ class WelcomeSetupDialog(QDialog):
                 event.ignore()
                 return
         
+        # Clean up WiFi scan thread to prevent accessing deleted widgets
+        if hasattr(self, 'wifi_scan_thread') and self.wifi_scan_thread:
+            try:
+                # Disconnect all signals to prevent callbacks after deletion
+                self.wifi_scan_thread.networks_found.disconnect()
+                self.wifi_scan_thread.scan_error.disconnect()
+                self.wifi_scan_thread.finished.disconnect()
+            except Exception:
+                pass
+            try:
+                if self.wifi_scan_thread.isRunning():
+                    self.wifi_scan_thread.quit()
+                    self.wifi_scan_thread.wait(1000)  # Wait up to 1 second
+            except Exception:
+                pass
+            self.wifi_scan_thread = None
+        
         # Animate fade-out
         if hasattr(self, 'fade_in') and self.fade_in.state() == QPropertyAnimation.Running:
             self.fade_in.stop()
@@ -378,47 +395,74 @@ class WelcomeSetupDialog(QDialog):
         self.wifi_scan_thread = WiFiScanThread()
         self.wifi_scan_thread.networks_found.connect(self.on_wifi_networks_found)
         self.wifi_scan_thread.scan_error.connect(self.on_wifi_scan_error)
-        self.wifi_scan_thread.finished.connect(lambda: (
-            self.scan_wifi_btn.setEnabled(True),
-            self.scan_wifi_btn.setText("🔍 Scan Networks")
-        ))
+        self.wifi_scan_thread.finished.connect(self._on_scan_finished)
         self.wifi_scan_thread.start()
+    
+    def _on_scan_finished(self):
+        """Handle WiFi scan thread finished - safely update UI"""
+        try:
+            # Check if dialog and button still exist before accessing
+            # Use try-except to catch RuntimeError if widget was deleted
+            if hasattr(self, 'scan_wifi_btn') and self.scan_wifi_btn is not None:
+                try:
+                    self.scan_wifi_btn.setEnabled(True)
+                    self.scan_wifi_btn.setText("🔍 Scan Networks")
+                except RuntimeError:
+                    # Widget was deleted, ignore silently
+                    pass
+        except (RuntimeError, AttributeError):
+            # Dialog or widget was deleted, ignore silently
+            pass
     
     def on_wifi_networks_found(self, networks):
         """Handle WiFi networks found"""
-        self.wifi_list.clear()
-        
-        if not networks:
-            self.wifi_list.addItem("No networks found")
-            return
-        
-        for network in networks:
-            ssid = network['ssid']
-            signal = network['signal']
-            security = network['security']
-            connected = network.get('connected', False)
+        try:
+            # Check if dialog still exists
+            if not hasattr(self, 'wifi_list'):
+                return
+            self.wifi_list.clear()
             
-            signal_display = f"{signal}%" if signal > 0 else "weak"
-            item_text = f"{ssid} ({signal_display})"
+            if not networks:
+                self.wifi_list.addItem("No networks found")
+                return
             
-            if connected:
-                item_text = f"● {item_text} (Connected)"
-            if security and security != "Open" and security != "--":
-                item_text += f" 🔒 {security}"
+            for network in networks:
+                ssid = network['ssid']
+                signal = network['signal']
+                security = network['security']
+                connected = network.get('connected', False)
+                
+                signal_display = f"{signal}%" if signal > 0 else "weak"
+                item_text = f"{ssid} ({signal_display})"
+                
+                if connected:
+                    item_text = f"● {item_text} (Connected)"
+                if security and security != "Open" and security != "--":
+                    item_text += f" 🔒 {security}"
+                
+                item = QListWidgetItem(item_text)
+                item.setData(Qt.UserRole, network)
+                self.wifi_list.addItem(item)
             
-            item = QListWidgetItem(item_text)
-            item.setData(Qt.UserRole, network)
-            self.wifi_list.addItem(item)
-        
-        # Check connection status after scan
-        self.check_wifi_connection()
+            # Check connection status after scan
+            self.check_wifi_connection()
+        except (RuntimeError, AttributeError):
+            # Dialog was deleted, ignore silently
+            pass
     
     def on_wifi_scan_error(self, error):
         """Handle WiFi scan error"""
-        self.wifi_list.clear()
-        self.wifi_list.addItem(f"Error: {error}")
-        QMessageBox.warning(self, "WiFi Scan Error", error)
-        self.check_wifi_connection()
+        try:
+            # Check if dialog still exists
+            if not hasattr(self, 'wifi_list'):
+                return
+            self.wifi_list.clear()
+            self.wifi_list.addItem(f"Error: {error}")
+            QMessageBox.warning(self, "WiFi Scan Error", error)
+            self.check_wifi_connection()
+        except (RuntimeError, AttributeError):
+            # Dialog was deleted, ignore silently
+            pass
     
     def on_wifi_selection_changed(self):
         """Handle WiFi network selection"""
