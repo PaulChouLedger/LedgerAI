@@ -83,7 +83,7 @@ def _resolve_model_path():
                     if os.path.isfile(candidate):
                         print(f"[Generic] 🎯 Using model from settings: {candidate}")
                         return candidate
-else:
+                    else:
                         print(f"[Generic] ⚠️ Model from settings not found: {candidate}")
     except Exception as e:
         print(f"[Generic] ⚠️ Failed reading app settings: {e}")
