@@ -21,8 +21,8 @@ sys.path.insert(0, parent_dir)
 
 from speaker import speak_llm_response, is_playing
 from gui.aura_gui import set_transcribing
-# Use Wyoming container for wake word detection (more reliable)
-from wyoming_wake_word import create_wyoming_wake_word_detector
+# Use Mycroft Precise for wake word detection (most reliable for Jetson)
+from precise_wake_word import create_precise_wake_word_detector
 
 # === Config ===
 SAMPLE_RATE = 16000
@@ -534,52 +534,26 @@ def listen():
     except ImportError:
         wake_word_setting_enabled = False
     
-    # Initialize wake word detection - try multiple options in order of reliability
+    # Initialize wake word detection - Mycroft Precise only (most reliable for Jetson)
     import sys
     wake_word_detector = None
     
-    # Option 1: Mycroft Precise (MOST RELIABLE for Jetson)
-    print("[Wake Word] 🔄 Trying Mycroft Precise (RECOMMENDED for Jetson)...", flush=True)
+    print("[Wake Word] 🔄 Initializing Mycroft Precise...", flush=True)
     sys.stdout.flush()
     try:
-        from precise_wake_word import create_precise_wake_word_detector
         wake_word_detector = create_precise_wake_word_detector()
         if wake_word_detector:
             print("[Wake Word] ✅ Mycroft Precise initialized successfully", flush=True)
             sys.stdout.flush()
+        else:
+            print("[Wake Word] ❌ Mycroft Precise initialization returned None", flush=True)
+            sys.stdout.flush()
     except Exception as e:
-        print(f"[Wake Word] ⚠️  Mycroft Precise failed: {e}", flush=True)
+        print(f"[Wake Word] ❌ Mycroft Precise failed: {e}", flush=True)
+        import traceback
+        print(f"[Wake Word] 🔍 Traceback: {traceback.format_exc()}", flush=True)
         sys.stdout.flush()
         wake_word_detector = None
-    
-    # Option 2: Direct OpenWakeWord (like reference implementation)
-    if wake_word_detector is None:
-        print("[Wake Word] 🔄 Trying direct OpenWakeWord (like reference implementation)...", flush=True)
-        sys.stdout.flush()
-        try:
-            from wake_word import create_wake_word_detector
-            wake_word_detector = create_wake_word_detector()
-            if wake_word_detector:
-                print("[Wake Word] ✅ Direct OpenWakeWord initialized successfully", flush=True)
-                sys.stdout.flush()
-        except Exception as e:
-            print(f"[Wake Word] ⚠️  Direct OpenWakeWord failed: {e}", flush=True)
-            sys.stdout.flush()
-            wake_word_detector = None
-    
-    # Option 3: Wyoming container (last resort - has been problematic)
-    if wake_word_detector is None:
-        print("[Wake Word] 🔄 Trying Wyoming container (last resort)...", flush=True)
-        sys.stdout.flush()
-        try:
-            wake_word_detector = create_wyoming_wake_word_detector()
-            if wake_word_detector:
-                print("[Wake Word] ✅ Wyoming container initialized successfully", flush=True)
-                sys.stdout.flush()
-        except Exception as e:
-            print(f"[Wake Word] ⚠️  Wyoming container failed: {e}", flush=True)
-            sys.stdout.flush()
-            wake_word_detector = None
     
     # wake_word_enabled should be True if:
     # 1. Detector initialized successfully, OR

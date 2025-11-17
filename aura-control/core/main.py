@@ -591,7 +591,7 @@ def start_services():
                 llm_service = "llm-generic"
                 print("[Aura] 💬 Generic Mode - starting llm-generic container")
             
-            # Check if wake word is enabled (to start Wyoming container)
+            # Check if wake word is enabled
             try:
                 from state import get_wake_word_enabled
                 wake_word_enabled = get_wake_word_enabled()
@@ -606,10 +606,7 @@ def start_services():
             else:
                 print("[Aura] ⏭️  RAG_MODE=CPU - starting Whisper and LLM only (CPU FAISS in LLM containers)")
             
-            # Add Wyoming container if wake word is enabled
-            if wake_word_enabled:
-                services_to_start.append("wyoming-openwakeword")
-                print("[Aura] 🎤 Wake word enabled - starting wyoming-openwakeword container")
+            # Wake word detection uses Mycroft Precise (no container needed)
             
             # Start selected services with Docker Compose (different ports for each LLM)
             cmd = ["docker", "compose", "up", "-d"] + services_to_start
@@ -647,11 +644,7 @@ def start_services():
                 if not rag_ready:
                     return False
             
-            # Wait for Wyoming container if wake word is enabled (no HTTP endpoint, just wait a moment)
-            if wake_word_enabled:
-                print("[Aura] ⏳ Waiting for Wyoming container to start...")
-                time.sleep(3)  # Give Wyoming container time to start (TCP socket service)
-                print("[Aura] ✅ Wyoming container should be ready")
+            # Wake word detection uses Mycroft Precise (no container needed)
             
             print("[Aura] ✅ All containers are ready!")
             return True

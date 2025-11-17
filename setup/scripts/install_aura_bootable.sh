@@ -1156,8 +1156,9 @@ GITHUB_TOKEN=
 # Controls the volume of text-to-speech output
 TTS_VOLUME=50
 #
-# Wake Word Detection: OpenWakeWord (no API key required)
-# Install with: pip install openwakeword
+# Wake Word Detection: Mycroft Precise (RECOMMENDED for Jetson - most reliable)
+# Install with: pip install precise-runner
+# Download model: wget https://github.com/MycroftAI/precise-data/raw/models/hey-mycroft.pb
 # Works natively on ARM64/Jetson - no manual setup needed
 EOF
 chown "$AURA_USER:$AURA_USER" "$ENV_FILE"
@@ -1220,7 +1221,7 @@ if [ -f "$LEDGERAI_DIR/.env" ]; then
 else
     echo "⚠️  .env file: Created from template (needs API keys)"
 fi
-echo "ℹ️  Wake Word: OpenWakeWord (pip install openwakeword) - works natively on ARM64/Jetson"
+echo "ℹ️  Wake Word: Mycroft Precise (pip install precise-runner) - most reliable for Jetson"
 echo ""
 echo "=========================================="
 echo "  Next Steps"

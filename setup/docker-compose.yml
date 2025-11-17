@@ -37,17 +37,6 @@ services:
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
 
-  # Wyoming OpenWakeWord service
-  # Note: Uses pre-built image (no build step needed)
-  # To pull/start: docker compose pull wyoming-openwakeword && docker compose up -d wyoming-openwakeword
-  wyoming-openwakeword:
-    image: rhasspy/wyoming-openwakeword:latest
-    network_mode: host
-    environment:
-      - TZ=UTC
-    command: --uri tcp://0.0.0.0:10400
-    restart: unless-stopped
-
   # rag:
   #   build: ../rag-container
   #   network_mode: host

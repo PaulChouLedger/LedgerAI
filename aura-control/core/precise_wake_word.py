@@ -113,8 +113,9 @@ class PreciseWakeWordDetector:
                     return False
             
             # Create Precise engine
+            # PreciseEngine requires model_file as keyword argument
             # Precise uses 2048 samples at 16kHz (128ms chunks)
-            self.engine = PreciseEngine(model_file, chunk_size=self.frame_length)
+            self.engine = PreciseEngine(model_file=model_file, chunk_size=self.frame_length)
             
             # Use ListenerEngine for frame-by-frame processing
             # This is better suited for our use case than PreciseRunner

@@ -1029,64 +1029,17 @@ class AIModelSettingsDialog(QDialog):
                 set_wake_word_enabled(checked)
                 print(f"[ModelSettings] Wake word detection: {'enabled' if checked else 'disabled'}")
                 
-                # If enabling wake word, try to start Wyoming container
+                # Wake word uses Mycroft Precise (no container needed)
                 if checked:
-                    print("[ModelSettings] 🔄 Wake word enabled - checking Wyoming container...")
-                    try:
-                        import subprocess
-                        import os
-                        workspace_root = os.path.expanduser("~/LedgerAI")
-                        setup_dir = os.path.join(workspace_root, "setup")
-                        
-                        # Check if container is running
-                        result = subprocess.run(
-                            ["docker", "compose", "ps", "-q", "wyoming-openwakeword"],
-                            cwd=setup_dir,
-                            capture_output=True,
-                            text=True,
-                            timeout=5
-                        )
-                        
-                        if not result.stdout.strip():
-                            # Container not running, try to start it
-                            print("[ModelSettings] 🚀 Starting Wyoming container...")
-                            start_result = subprocess.run(
-                                ["docker", "compose", "up", "-d", "wyoming-openwakeword"],
-                                cwd=setup_dir,
-                                capture_output=True,
-                                text=True,
-                                timeout=30
-                            )
-                            
-                            if start_result.returncode == 0:
-                                print("[ModelSettings] ✅ Wyoming container started successfully")
-                                QMessageBox.information(
-                                    self,
-                                    "Wake Word Enabled",
-                                    "Wake word detection enabled.\n\nWyoming container has been started.\n\nYou may need to restart Aura for wake word to work."
-                                )
-                            else:
-                                print(f"[ModelSettings] ⚠️ Failed to start container: {start_result.stderr}")
-                                QMessageBox.warning(
-                                    self,
-                                    "Container Start Failed",
-                                    "Wake word enabled, but failed to start Wyoming container.\n\n"
-                                    "Please start it manually:\n"
-                                    "cd ~/LedgerAI/setup\n"
-                                    "docker compose up -d wyoming-openwakeword"
-                                )
-                        else:
-                            print("[ModelSettings] ✅ Wyoming container is already running")
-                    except Exception as e:
-                        print(f"[ModelSettings] ⚠️ Error checking/starting container: {e}")
-                        QMessageBox.warning(
-                            self,
-                            "Container Check Failed",
-                            f"Wake word enabled, but couldn't verify container status.\n\n"
-                            f"Please ensure Wyoming container is running:\n"
-                            f"cd ~/LedgerAI/setup\n"
-                            f"docker compose up -d wyoming-openwakeword"
-                        )
+                    print("[ModelSettings] ✅ Wake word enabled - using Mycroft Precise")
+                    from PyQt5.QtWidgets import QMessageBox
+                    QMessageBox.information(
+                        self,
+                        "Wake Word Enabled",
+                        "Wake word detection enabled.\n\n"
+                        "Using Mycroft Precise (no container needed).\n\n"
+                        "You may need to restart Aura for wake word to work."
+                    )
             except Exception as e:
                 print(f"[ModelSettings] Error saving wake word setting: {e}")
         

@@ -14,17 +14,10 @@ soundfile>=0.12.1
 numpy>=1.24.0
 scipy>=1.10.0
 
-# Wake Word Detection Options (try in order):
-# 1. Mycroft Precise (RECOMMENDED for Jetson - most reliable)
+# Wake Word Detection: Mycroft Precise (RECOMMENDED for Jetson - most reliable)
+# Install: pip install precise-runner
+# Download model: wget https://github.com/MycroftAI/precise-data/raw/models/hey-mycroft.pb
 precise-runner>=0.3.0
-
-# 2. OpenWakeWord (direct, no container needed)
-openwakeword>=0.5.0
-
-# 3. Wyoming Protocol client (container-based, optional)
-# Official client provides proper Protocol Buffers support
-# Note: If AsyncWyomingClient is not available, try: pip install --upgrade wyoming
-wyoming>=1.0.0
 
 # GUI Framework
 PyQt5>=5.15.0
