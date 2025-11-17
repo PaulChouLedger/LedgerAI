@@ -1119,39 +1119,46 @@ class AIModelSettingsDialog(QDialog):
         self.rag_combo.currentIndexChanged.connect(self._on_rag_mode_changed)
     
     def _populate_models(self):
-        self.model_combo.clear()
-        mode_now = "medical" if self.mode_medical_btn.isChecked() else "generic"
-        workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-        base_dir = os.path.join(workspace_root, 'llm-medical-container') if mode_now == "medical" else os.path.join(workspace_root, 'llm-container')
-        # Prefer data/models; fallback to models
-        candidate_dirs = [
-            os.path.join(base_dir, 'data', 'models'),
-            os.path.join(base_dir, 'models'),
-        ]
-        found = []
-        for d in candidate_dirs:
-            try:
-                found = sorted(glob.glob(os.path.join(d, "*.gguf")))
-                if found:
-                    break
-            except Exception:
-                continue
-        display_names = [os.path.basename(p) for p in found]
-        if display_names:
-            self.model_combo.addItems(display_names)
-        else:
-            self.model_combo.addItem("(no models found)")
-        # Try to select saved model
         try:
-            from core.state import get_llm_model
-            saved = get_llm_model()
-            if saved:
-                base = os.path.basename(saved)
-                idx = self.model_combo.findText(base)
-                if idx >= 0:
-                    self.model_combo.setCurrentIndex(idx)
-        except Exception:
-            pass
+            self.model_combo.clear()
+            mode_now = "medical" if self.mode_medical_btn.isChecked() else "generic"
+            workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+            base_dir = os.path.join(workspace_root, 'llm-medical-container') if mode_now == "medical" else os.path.join(workspace_root, 'llm-container')
+            # Prefer data/models; fallback to models
+            candidate_dirs = [
+                os.path.join(base_dir, 'data', 'models'),
+                os.path.join(base_dir, 'models'),
+            ]
+            found = []
+            for d in candidate_dirs:
+                try:
+                    found = sorted(glob.glob(os.path.join(d, "*.gguf")))
+                    if found:
+                        break
+                except Exception:
+                    continue
+            display_names = [os.path.basename(p) for p in found]
+            if display_names:
+                self.model_combo.addItems(display_names)
+            else:
+                self.model_combo.addItem("(no models found)")
+            # Try to select saved model
+            try:
+                from core.state import get_llm_model
+                saved = get_llm_model()
+                if saved:
+                    base = os.path.basename(saved)
+                    idx = self.model_combo.findText(base)
+                    if idx >= 0:
+                        self.model_combo.setCurrentIndex(idx)
+            except Exception:
+                pass
+        except Exception as e:
+            print(f"[AIModelSettings] ⚠️ Error populating models: {e}")
+            import traceback
+            traceback.print_exc()
+            self.model_combo.clear()
+            self.model_combo.addItem("(error loading models)")
     
     def _update_mode_status(self):
         """Update status label to show which container is active (non-blocking)."""
