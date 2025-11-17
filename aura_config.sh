@@ -90,7 +90,7 @@ show_all_settings() {
     fi
     echo -e "  ${CYAN}Volume:${NC} Controlled via Settings Dialog in GUI"
     echo ""
-    
+
     echo -e "${BOLD}🎤 WAKE WORD DETECTION${NC}"
     echo -e "  ${GREEN}✅ OpenWakeWord${NC} (no API key required)"
     echo "  Status:      Works natively on ARM64/Jetson"
@@ -223,7 +223,7 @@ configure_wake_word() {
     echo ""
     echo "GitHub:"
     echo "  https://github.com/dscripka/openWakeWord"
-    echo ""
+            echo ""
     echo "Note: Wake word detection is controlled via Settings Dialog in GUI"
     echo "      (Settings → AI Model Settings → Wake Word toggle)"
     echo ""

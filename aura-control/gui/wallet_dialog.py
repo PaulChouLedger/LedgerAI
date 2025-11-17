@@ -120,7 +120,7 @@ class WalletDialog(QDialog):
         
         # Defer initial background work until after fade-in (set in showEvent)
         self._initial_refresh_scheduled = False
-
+        
         # Auto-refresh timer for balance updates (Ethereum queries)
         self.balance_refresh_timer = QTimer()
         self.balance_refresh_timer.timeout.connect(self.refresh_balance_async)
@@ -765,8 +765,8 @@ class WalletDialog(QDialog):
         """Handle dialog close event with smooth fade-out animation"""
         # Stop timers first
         try:
-            self.balance_refresh_timer.stop()
-            self.usage_refresh_timer.stop()
+        self.balance_refresh_timer.stop()
+        self.usage_refresh_timer.stop()
         except Exception:
             pass
         
@@ -797,7 +797,7 @@ class WalletDialog(QDialog):
         
         # Only animate if we're actually closing (not just hiding)
         if event.spontaneous() or not self.isVisible():
-            event.accept()
+        event.accept()
             return
         
         # Cancel fade-in if still running

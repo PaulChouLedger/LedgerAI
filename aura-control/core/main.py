@@ -52,7 +52,7 @@ if "DISPLAY" not in os.environ or not os.environ.get("DISPLAY"):
         else:
             os.environ["DISPLAY"] = ":0"
     else:
-        os.environ["DISPLAY"] = ":0"
+os.environ["DISPLAY"] = ":0"
 
 # Load unified .env from workspace root
 workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
@@ -390,7 +390,7 @@ def warm_up_tts():
     """Warm up TTS - only if speaker module is available"""
     try:
         import speaker
-        speaker.warm_up_tts()
+    speaker.warm_up_tts()
     except (NameError, ImportError, AttributeError) as e:
         print(f"[Aura] ⚠️ TTS warm-up not available: {e}")
         # Speaker module not loaded - this is expected if WiFi wasn't connected
@@ -1192,7 +1192,7 @@ def main():
     # Launch GUI FIRST so user sees something immediately (needed for welcome dialog)
     print("[Aura] 🎨 Launching GUI...")
     try:
-        launch_gui()
+    launch_gui()
     except Exception as e:
         print(f"[Aura] ❌ Failed to launch GUI: {e}")
         print(f"[Aura] 💡 Troubleshooting:")
@@ -1278,7 +1278,7 @@ def main():
     # Start TTS warm-up (only if speaker was imported successfully)
     if speaker_loaded:
         try:
-            warm_up_tts()
+    warm_up_tts()
         except Exception as e:
             print(f"[Aura] ⚠️ TTS warm-up failed: {e}")
     else:

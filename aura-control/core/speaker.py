@@ -111,18 +111,18 @@ def set_volume_once():
     global VOLUME_SET
     if not VOLUME_SET:
         if OUTPUT_CARD_INDEX is not None:
-            for ctrl in ALSA_CONTROLS:
-                try:
-                    subprocess.run(
+        for ctrl in ALSA_CONTROLS:
+            try:
+                subprocess.run(
                         ["amixer", "-c", str(OUTPUT_CARD_INDEX), "sset", ctrl, f"{TTS_VOLUME}%"],
-                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True
-                    )
+                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True
+                )
                     print(f"[Speaker] 🔊 Volume set to {TTS_VOLUME}% on card {OUTPUT_CARD_INDEX}:{ctrl}")
-                    VOLUME_SET = True
-                    return
-                except Exception:
-                    continue
-            print("[Speaker] ⚠️ Could not set volume — check ALSA controls")
+                VOLUME_SET = True
+                return
+            except Exception:
+                continue
+        print("[Speaker] ⚠️ Could not set volume — check ALSA controls")
         else:
             # Using default device - volume control may not be available
             print(f"[Speaker] 🔊 Using default ALSA device (volume: {TTS_VOLUME}%)")
@@ -183,7 +183,7 @@ def enqueue_tts_chunk(text):
             if merged_text and not re.match(r"^[\s.,!?]+$", merged_text):
                 text = merged_text.strip()
             else:
-                return
+            return
     
     # Check if this text ends with initials
     initials_pattern = r'\b[A-Z]\.(?:[A-Z]\.)*\s*$'
@@ -437,12 +437,12 @@ def tts_playback_thread(text, tts_start_time):
             # Use default ALSA device with plug plugin (either no device detected or explicit device failed)
             if proc is None:
                 # Use default device with plug plugin for automatic conversion
-                proc = subprocess.Popen(
+            proc = subprocess.Popen(
                     ["aplay", "-D", "plug:default", "-f", "S16_LE", "-r", str(PCM_SAMPLE_RATE), "-c", "1"],
-                    stdin=subprocess.PIPE,
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL
-                )
+                stdin=subprocess.PIPE,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL
+            )
 
             # Calculate TTS latency from transcription end to TTS initiation
             tts_latency = time.time() - tts_start_time
@@ -455,18 +455,18 @@ def tts_playback_thread(text, tts_start_time):
                     raise BrokenPipeError(f"aplay process terminated before writing (exit code: {proc.returncode})")
                 
                 # Write first chunk directly (plug plugin handles conversion)
-                proc.stdin.write(first_chunk)
-                proc.stdin.flush()
+            proc.stdin.write(first_chunk)
+            proc.stdin.flush()
 
-                for chunk in stream:
-                    if chunk:
+            for chunk in stream:
+                if chunk:
                         # Check if process is still alive before writing
                         if proc.poll() is not None:
                             raise BrokenPipeError(f"aplay process terminated during playback (exit code: {proc.returncode})")
                         try:
                             # Write chunk directly (plug plugin handles conversion)
-                            proc.stdin.write(chunk)
-                            proc.stdin.flush()
+                    proc.stdin.write(chunk)
+                    proc.stdin.flush()
                         except BrokenPipeError:
                             # Process terminated during write
                             if proc.poll() is not None:
@@ -507,7 +507,7 @@ def tts_playback_thread(text, tts_start_time):
                 print(f"[Speaker] ❌ Unexpected TTS error: {e}")
                 if proc:
                     proc.kill()
-                    proc.wait()
+            proc.wait()
 
         except Exception as e:
             print(f"[Speaker] ❌ TTS error: {e}")

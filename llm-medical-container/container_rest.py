@@ -426,13 +426,13 @@ def chat_tg():
         
         print(f"[Container] 🔍 Telegram request: '{prompt[:50]}{'...' if len(prompt) > 50 else ''}'")
         print(f"[Telegram] 🔀 Using Advanced Medical Navigator")
-        
-        # Initialize singleton (FAISS + LLM decision)
-        navigator = get_medical_navigator(llm_chat, embedding_model=rag_api)
-        
-        # Process message through navigator
-        response = navigator.process_message(session_id=session_id, user_message=prompt)
-        print(f"[Container] ✅ Navigator response processed")
+            
+            # Initialize singleton (FAISS + LLM decision)
+            navigator = get_medical_navigator(llm_chat, embedding_model=rag_api)
+            
+            # Process message through navigator
+            response = navigator.process_message(session_id=session_id, user_message=prompt)
+            print(f"[Container] ✅ Navigator response processed")
         
         # Format response for Telegram
         print(f"[Container] 🔍 Response type: {type(response)}")
@@ -529,10 +529,10 @@ def chat_tts():
         try:
             # rag_api is module-level global (initialized at startup)
             print(f"[TTS] 🔀 Using Advanced Medical Navigator (streaming)")
-            
-            # Initialize singleton (LLM-only, no medical_rule_engine or embedding_model needed)
+                
+                # Initialize singleton (LLM-only, no medical_rule_engine or embedding_model needed)
             navigator = get_medical_navigator(llm_chat, embedding_model=rag_api)
-            
+                
             # STREAMING: Use streaming mode to get tokens as they're generated
             result = navigator.process_message(session_id=session_id, user_message=prompt, stream=True)
             
@@ -600,7 +600,7 @@ def chat_tts():
                         current_sentence += part
                         # If we have a complete sentence ending, yield it
                         if part.strip() and part.strip()[-1] in '.!?':
-                            yield "<sentence_start>\n"
+                    yield "<sentence_start>\n"
                             yield f"{current_sentence.strip()}\n"
                             yield "<sentence_end>\n"
                             current_sentence = ""
@@ -608,7 +608,7 @@ def chat_tts():
                     if current_sentence.strip():
                         yield "<sentence_start>\n"
                         yield f"{current_sentence.strip()}\n"
-                        yield "<sentence_end>\n"
+                    yield "<sentence_end>\n"
                 else:
                     # Fallback
                     yield "<sentence_start>\n"
@@ -622,7 +622,7 @@ def chat_tts():
                     current_sentence += part
                     # If we have a complete sentence ending, yield it
                     if part.strip() and part.strip()[-1] in '.!?':
-                        yield "<sentence_start>\n"
+                yield "<sentence_start>\n"
                         yield f"{current_sentence.strip()}\n"
                         yield "<sentence_end>\n"
                         current_sentence = ""
@@ -630,7 +630,7 @@ def chat_tts():
                 if current_sentence.strip():
                     yield "<sentence_start>\n"
                     yield f"{current_sentence.strip()}\n"
-                    yield "<sentence_end>\n"
+                yield "<sentence_end>\n"
             else:
                 # Fallback
                 yield "<sentence_start>\n"
@@ -900,13 +900,13 @@ def llm_chat_once(messages, **kwargs):
 if __name__ == "__main__":
     # Initialize RAG embedding API (module-level variable, no global needed in __main__ block)
     if RAG_MODE in ("CPU", "GPU"):
-        print("[Container] 🔧 Initializing RAG embedding API...")
-        try:
-            rag_api = RAGEmbeddingAPI()
-            test_embedding = rag_api.encode(["test"])
-            print(f"[Container] ✅ RAG embedding API initialized")
-        except Exception as e:
-            print(f"[Container] ⚠️ RAG API not available: {e}")
+    print("[Container] 🔧 Initializing RAG embedding API...")
+    try:
+        rag_api = RAGEmbeddingAPI()
+        test_embedding = rag_api.encode(["test"])
+        print(f"[Container] ✅ RAG embedding API initialized")
+    except Exception as e:
+        print(f"[Container] ⚠️ RAG API not available: {e}")
             rag_api = None
     else:
         print("[Container] ℹ️ RAG_MODE=OFF — skipping RAG embedding API initialization")
@@ -954,12 +954,12 @@ if __name__ == "__main__":
     
     # Advanced Medical Navigator is the default and only option
     _ensure_medical_navigator_import()
-    print("  - MODE: Advanced Medical Navigator (Hybrid LLM/RAG/FAISS)")
-    print("    • Natural conversation flow with guideline-based assessment")
-    print("    • Dynamic condition ranking and smart question selection")
-    print("    • On-demand guideline loading for low latency")
-    print("    • FAISS semantic matching and anatomical filtering")
-    print("    • Multi-category support with fuzzy fallback")
+        print("  - MODE: Advanced Medical Navigator (Hybrid LLM/RAG/FAISS)")
+        print("    • Natural conversation flow with guideline-based assessment")
+        print("    • Dynamic condition ranking and smart question selection")
+        print("    • On-demand guideline loading for low latency")
+        print("    • FAISS semantic matching and anatomical filtering")
+        print("    • Multi-category support with fuzzy fallback")
     print("    • Uses local CPU FAISS for medical knowledge")
     print("    • Single LLM model (Qwen2.5-1.5B) for all tasks")
 

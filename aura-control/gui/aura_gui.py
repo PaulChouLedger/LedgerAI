@@ -340,7 +340,7 @@ class AuraGUI(QMainWindow):
             print(f"[AuraGUI] ❌ Error opening wallet dialog: {e}")
         finally:
             # Do not block/unblock transcription for wallet dialog anymore
-            pass
+                pass
     
     def _handle_voice(self):
         """Handle voice button click - toggle transcription blocking"""

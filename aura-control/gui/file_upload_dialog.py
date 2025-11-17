@@ -235,7 +235,7 @@ class FileUploadDialog(QDialog):
         """Handle dialog close event with smooth fade-out animation"""
         # If already animating or not visible, accept immediately
         if hasattr(self, 'fade_out') and self.fade_out.state() == QPropertyAnimation.Running:
-            event.accept()
+        event.accept()
             return
         
         # Only animate if we're actually closing (not just hiding)
