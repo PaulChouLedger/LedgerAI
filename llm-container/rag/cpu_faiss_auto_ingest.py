@@ -48,9 +48,12 @@ class CPUFAISSAutoIngest:
     """Auto-ingestion system for CPU FAISS"""
     
     def __init__(self):
-        self.input_dir = Path("../data/input")  # Relative to container
-        self.parsed_dir = Path("../data/parsed")  # Read parsed text from GPU RAG extraction
-        self.cpu_embeddings_dir = Path("../data/embeddings")  # Relative to container
+        # Use absolute paths based on container working directory (/app)
+        # Data is mounted at /app/data in docker-compose.yml
+        base_dir = Path("/app/data")
+        self.input_dir = base_dir / "input"
+        self.parsed_dir = base_dir / "parsed"  # For future use if needed
+        self.cpu_embeddings_dir = base_dir / "embeddings"
         self.model_name = "all-distilroberta-v1"
         self.embedding_dimension = 768
         
@@ -59,7 +62,7 @@ class CPUFAISSAutoIngest:
         self.index = None
         self.chunks = []
         self.metadata = []
-        self.state_file = Path("data/cpu_ingest_state.json")
+        self.state_file = base_dir / "cpu_ingest_state.json"
         self.state = self._load_state()
         
         # Ensure directories exist
@@ -244,8 +247,7 @@ class CPUFAISSAutoIngest:
                     "document_name": doc_name,
                     "chunk_index": i,
                     "text": chunk,
-                    "file_path": str(file_path),
-                    "parsed_file": str(parsed_file)
+                    "file_path": str(file_path)
                 })
             
             # Add to existing data
@@ -323,19 +325,27 @@ class CPUFAISSAutoIngest:
             raise
     
     def scan_and_process(self) -> Dict[str, Any]:
-        """Scan input directory and process new/modified files from parsed text"""
-        print("[Auto-Ingest] 🔍 Scanning for new/modified files...")
+        """Scan input directory and process new/modified files"""
+        print(f"[Auto-Ingest] 🔍 Scanning {self.input_dir} for new/modified files...")
+        
+        # Ensure input directory exists
+        if not self.input_dir.exists():
+            print(f"[Auto-Ingest] ⚠️ Input directory does not exist: {self.input_dir}")
+            print(f"[Auto-Ingest] 💡 Creating directory...")
+            self.input_dir.mkdir(parents=True, exist_ok=True)
+            return {"processed": 0, "skipped": 0, "errors": 0, "total_chunks": len(self.chunks)}
         
         processed_count = 0
         skipped_count = 0
         error_count = 0
         
         # Find all files in input directory (PDF, DOCX, TXT, MD, XLSX, XLS, etc.)
-        # We'll process them by reading their parsed text counterparts
         supported_extensions = ['.pdf', '.docx', '.txt', '.md', '.xlsx', '.xls']
         input_files = []
         for ext in supported_extensions:
             input_files.extend(self.input_dir.glob(f"*{ext}"))
+        
+        print(f"[Auto-Ingest] 📂 Found {len(input_files)} file(s) in input directory")
         
         for file_path in input_files:
             try:
@@ -398,13 +408,21 @@ class CPUFAISSAutoIngest:
             class GuidelineHandler(FileSystemEventHandler):
                 def __init__(self, auto_ingest):
                     self.auto_ingest = auto_ingest
+                    # Supported file extensions for auto-ingestion
+                    self.supported_extensions = ['.pdf', '.docx', '.txt', '.md', '.xlsx', '.xls']
+                
+                def _is_supported_file(self, path):
+                    """Check if file has a supported extension"""
+                    return any(path.lower().endswith(ext) for ext in self.supported_extensions)
                 
                 def on_created(self, event):
-                    if not event.is_directory and event.src_path.endswith('.txt'):
+                    if not event.is_directory and self._is_supported_file(event.src_path):
+                        print(f"[Auto-Ingest] 📥 New file detected: {event.src_path}")
                         self.auto_ingest.scan_and_process()
                 
                 def on_modified(self, event):
-                    if not event.is_directory and event.src_path.endswith('.txt'):
+                    if not event.is_directory and self._is_supported_file(event.src_path):
+                        print(f"[Auto-Ingest] 📝 File modified: {event.src_path}")
                         self.auto_ingest.scan_and_process()
             
             self.observer = Observer()
