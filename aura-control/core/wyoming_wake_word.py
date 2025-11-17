@@ -115,8 +115,7 @@ class WyomingWakeWordClient:
             result = future.result(timeout=10.0)
             
             if result:
-                self.connected = True
-                self.is_active = True
+                # connected and is_active are now set inside _async_connect before task starts
                 print(f"[Wyoming] ✅ Connected via official client at {self.host}:{self.port}", flush=True, file=sys.stderr)
                 print(f"[Wyoming] 💡 Using official client: proper Protocol Buffers support, reliable", flush=True, file=sys.stderr)
                 sys.stderr.flush()
@@ -158,10 +157,16 @@ class WyomingWakeWordClient:
             print("[Wyoming] ✅ Connected to server", flush=True)
             sys.stdout.flush()
             
+            # IMPORTANT: Set connected=True BEFORE starting the task
+            # The task checks self.connected in its while loop
+            self.connected = True
+            self.is_active = True
+            
             # Start background task to read detection events
             try:
                 # Use stderr as well to ensure visibility
                 print("[Wyoming] 🔄 Creating background detection task...", flush=True, file=sys.stderr)
+                print(f"[Wyoming] 🔍 self.connected={self.connected}, self.client={self.client is not None}", flush=True, file=sys.stderr)
                 sys.stderr.flush()
                 self._detection_task = self.loop.create_task(self._read_detections())
                 print("[Wyoming] ✅ Background detection task created", flush=True, file=sys.stderr)
@@ -177,6 +182,8 @@ class WyomingWakeWordClient:
                         # Get the result/exception - this will raise if there was an exception
                         result = self._detection_task.result()
                         print(f"[Wyoming] ⚠️ Task returned normally: {result}", flush=True, file=sys.stderr)
+                        print(f"[Wyoming] 🔍 Task completed but should be running - checking state...", flush=True, file=sys.stderr)
+                        print(f"[Wyoming] 🔍 self.connected={self.connected}, self.client={self.client is not None}", flush=True, file=sys.stderr)
                     except Exception as task_exc:
                         print(f"[Wyoming] ❌❌❌ TASK EXCEPTION: {task_exc}", flush=True, file=sys.stderr)
                         print(f"[Wyoming] ❌ Exception type: {type(task_exc).__name__}", flush=True, file=sys.stderr)

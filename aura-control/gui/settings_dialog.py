@@ -866,6 +866,9 @@ class AIModelSettingsDialog(QDialog):
         self.fade_in.setEasingCurve(QEasingCurve.OutCubic)  # Smoother ease-out
         self.fade_in.setUpdateInterval(16)  # ~60fps for smooth animation
         self.fade_in.start()
+        
+        # Update mode status after dialog is shown (non-blocking)
+        QTimer.singleShot(200, self._update_mode_status)
     
     def closeEvent(self, event):
         # Always ensure transcription is unblocked when dialog closes
@@ -944,10 +947,12 @@ class AIModelSettingsDialog(QDialog):
             mode = get_llm_mode()
             self.mode_generic_btn.setChecked(mode == "generic")
             self.mode_medical_btn.setChecked(mode == "medical")
-            self._update_mode_status()
+            # Defer status update to avoid blocking during initialization
+            QTimer.singleShot(100, self._update_mode_status)
         except Exception: 
             self.mode_medical_btn.setChecked(True)
-            self._update_mode_status()
+            # Defer status update to avoid blocking during initialization
+            QTimer.singleShot(100, self._update_mode_status)
         self._populate_models()
         # RAG mode UI (CPU/GPU/OFF)
         rag_row = QHBoxLayout(); rag_row.setSpacing(12)
@@ -1141,34 +1146,50 @@ class AIModelSettingsDialog(QDialog):
             pass
     
     def _update_mode_status(self):
-        """Update status label to show which container is active."""
+        """Update status label to show which container is active (non-blocking)."""
         try:
             mode_now = "medical" if self.mode_medical_btn.isChecked() else "generic"
             container_name = "llm-medical" if mode_now == "medical" else "llm-generic"
             
-            # Check if container is running
-            try:
-                import subprocess
-                workspace_root = os.path.expanduser("~/LedgerAI")
-                setup_dir = os.path.join(workspace_root, "setup")
-                result = subprocess.run(
-                    ["docker", "compose", "ps", "-q", container_name],
-                    cwd=setup_dir,
-                    capture_output=True,
-                    text=True,
-                    timeout=5
-                )
-                is_running = bool(result.stdout.strip())
-                
-                if is_running:
-                    self.mode_status_label.setText(f"✅ {container_name} (running)")
-                    self.mode_status_label.setStyleSheet("color: #00ff00; font-size: 12px; padding: 5px; font-weight: bold;")
-                else:
-                    self.mode_status_label.setText(f"⏸️ {container_name} (stopped)")
-                    self.mode_status_label.setStyleSheet("color: #ff9900; font-size: 12px; padding: 5px;")
-            except Exception:
-                self.mode_status_label.setText(f"📋 {container_name}")
-                self.mode_status_label.setStyleSheet("color: #4D94D9; font-size: 12px; padding: 5px;")
+            # Set initial status immediately (non-blocking)
+            self.mode_status_label.setText(f"📋 {container_name} (checking...)")
+            self.mode_status_label.setStyleSheet("color: #4D94D9; font-size: 12px; padding: 5px;")
+            
+            # Check if container is running in a separate thread to avoid blocking UI
+            def check_container_status():
+                try:
+                    import subprocess
+                    workspace_root = os.path.expanduser("~/LedgerAI")
+                    setup_dir = os.path.join(workspace_root, "setup")
+                    result = subprocess.run(
+                        ["docker", "compose", "ps", "-q", container_name],
+                        cwd=setup_dir,
+                        capture_output=True,
+                        text=True,
+                        timeout=5
+                    )
+                    is_running = bool(result.stdout.strip())
+                    
+                    # Update UI from main thread using QTimer
+                    def update_ui():
+                        if is_running:
+                            self.mode_status_label.setText(f"✅ {container_name} (running)")
+                            self.mode_status_label.setStyleSheet("color: #00ff00; font-size: 12px; padding: 5px; font-weight: bold;")
+                        else:
+                            self.mode_status_label.setText(f"⏸️ {container_name} (stopped)")
+                            self.mode_status_label.setStyleSheet("color: #ff9900; font-size: 12px; padding: 5px;")
+                    
+                    QTimer.singleShot(0, update_ui)
+                except Exception as e:
+                    # Update UI from main thread on error
+                    def update_ui_error():
+                        self.mode_status_label.setText(f"📋 {container_name}")
+                        self.mode_status_label.setStyleSheet("color: #4D94D9; font-size: 12px; padding: 5px;")
+                    QTimer.singleShot(0, update_ui_error)
+            
+            # Run check in background thread to avoid blocking
+            thread = threading.Thread(target=check_container_status, daemon=True)
+            thread.start()
         except Exception:
             self.mode_status_label.setText("")
     
