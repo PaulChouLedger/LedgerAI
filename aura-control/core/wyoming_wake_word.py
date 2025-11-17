@@ -99,11 +99,19 @@ class WyomingWakeWordClient:
             port = int(port_str)
             
             # Create AsyncTcpClient with host and port
-            self.client = AsyncWyomingClient(host, port)
+            # Check if AsyncTcpClient needs different initialization
+            try:
+                self.client = AsyncWyomingClient(host, port)
+            except TypeError:
+                # Try with URI string instead
+                self.client = AsyncWyomingClient(uri)
+            
             await self.client.connect()
             return True
         except Exception as e:
             print(f"[Wyoming] ❌ Async connection error: {e}")
+            import traceback
+            print(f"[Wyoming] 🔍 Traceback: {traceback.format_exc()}")
             return False
     
     def disconnect(self):
@@ -187,18 +195,25 @@ class WyomingWakeWordClient:
             )
             # Convert AudioChunk to Event using .event() method
             event = chunk.event()
-            # Debug: check event structure
-            if not hasattr(self, '_event_debugged'):
+            
+            # Debug: check client methods on first call
+            if not hasattr(self, '_client_debugged'):
+                print(f"[Wyoming] 🔍 Client type: {type(self.client)}")
+                client_methods = [m for m in dir(self.client) if not m.startswith('_') and callable(getattr(self.client, m, None))]
+                print(f"[Wyoming] 🔍 Client methods: {client_methods[:10]}...")  # First 10 methods
                 print(f"[Wyoming] 🔍 Event type: {type(event)}")
-                print(f"[Wyoming] 🔍 Event dir: {[x for x in dir(event) if not x.startswith('_')]}")
-                self._event_debugged = True
-            # Write the event - try using async_write_event from wyoming.client if available
+                self._client_debugged = True
+            
+            # Write the event - the error suggests write_event might be trying to serialize incorrectly
+            # Try passing AudioChunk directly if Event doesn't work
             try:
-                from wyoming.client import async_write_event
-                await async_write_event(self.client, event)
-            except ImportError:
-                # Fallback to client method
                 await self.client.write_event(event)
+            except AttributeError as e:
+                if "to_dict" in str(e):
+                    # Try passing AudioChunk directly instead
+                    await self.client.write_event(chunk)
+                else:
+                    raise
             
             # Read events - check for Detection
             try:
