@@ -21,7 +21,8 @@ sys.path.insert(0, parent_dir)
 
 from speaker import speak_llm_response, is_playing
 from gui.aura_gui import set_transcribing
-from wake_word import create_wake_word_detector
+# Use Wyoming container for wake word detection (more reliable)
+from wyoming_wake_word import create_wyoming_wake_word_detector
 
 # === Config ===
 SAMPLE_RATE = 16000
@@ -530,21 +531,29 @@ def listen():
     except ImportError:
         wake_word_setting_enabled = False
     
-    wake_word_detector = create_wake_word_detector()
+    # Initialize Wyoming container for wake word detection
+    print("[Wake Word] 🔄 Initializing Wyoming container...")
+    wake_word_detector = create_wyoming_wake_word_detector()
+    
     # wake_word_enabled should be True if:
     # 1. Detector initialized successfully, OR
     # 2. Wake word is enabled in settings (even if detector failed - we'll block transcription)
     wake_word_enabled = (wake_word_detector is not None) or wake_word_setting_enabled
     
+    if wake_word_detector:
+        print("[Wake Word] ✅ Wyoming container initialized successfully")
+    else:
+        print("[Wake Word] ❌ Wyoming container failed to initialize")
+    
     if wake_word_setting_enabled and wake_word_detector is None:
         print("[Wake Word] ⚠️  Wake word enabled in settings but detector failed to initialize")
         print("[Wake Word] 🔒 Transcription will be BLOCKED until wake word detector is fixed")
         print("[Wake Word] 💡 Check logs above for initialization errors")
-        print("[Wake Word] 💡 Install OpenWakeWord:")
-        print("[Wake Word]     pip install openwakeword")
-        print("[Wake Word] 💡 Download models:")
-        print("[Wake Word]     python setup/scripts/download_openwakeword_models.py")
-        print("[Wake Word] 💡 Or: python -c 'from openwakeword.utils import download_models; download_models()'")
+        print("[Wake Word] 💡 Wyoming container setup:")
+        print("[Wake Word]     1. Start container: cd setup && docker compose up -d wyoming-openwakeword")
+        print("[Wake Word]     2. Check container status: docker compose ps wyoming-openwakeword")
+        print("[Wake Word]     3. Check container logs: docker compose logs wyoming-openwakeword")
+        print("[Wake Word] 💡 No pip install needed - container includes everything!")
         print("[Wake Word] 💡 Or disable wake word in Settings → AI Model Settings")
         block_transcription("Wake word required but not available")
     
@@ -603,7 +612,7 @@ def listen():
             
             play_welcome_prompt(stream)
             
-            # Wake word buffer for OpenWakeWord (needs 1280 samples = 80ms at 16kHz)
+            # Wake word buffer for Wyoming/OpenWakeWord (needs 1280 samples = 80ms at 16kHz)
             wake_word_buffer = []
             listening_active = False  # True after wake word detected
             stream_valid = True  # Track if stream is still valid
@@ -652,7 +661,7 @@ def listen():
                         channel_audio = audio_block[:, MICROPHONE_CHANNEL]
                         
                         # Normalize/amplify audio for wake word detection
-                        # OpenWakeWord works better with normalized audio
+                        # Wyoming/OpenWakeWord works better with normalized audio
                         if channel_audio.size > 0:
                             # Calculate RMS
                             rms = np.sqrt(np.mean(channel_audio**2))
@@ -681,19 +690,19 @@ def listen():
                             # Not enough samples, continue to next iteration
                             continue
                         
-                        # OpenWakeWord requires 1280 samples (80ms at 16kHz), so we buffer frames
+                        # Wyoming/OpenWakeWord requires 1280 samples (80ms at 16kHz), so we buffer frames
                         # Ensure channel_audio is 1D before appending
                         if channel_audio.ndim > 1:
                             channel_audio = channel_audio.flatten()
                         wake_word_buffer.append(channel_audio)
                         
-                        # Check if we have enough samples for OpenWakeWord frame
+                        # Check if we have enough samples for Wyoming/OpenWakeWord frame
                         if wake_word_detector and wake_word_detector.frame_length:
                             required_samples = wake_word_detector.frame_length
                             total_samples = sum(len(chunk) for chunk in wake_word_buffer)
                             
                             if total_samples >= required_samples:
-                                # Concatenate enough samples for one OpenWakeWord frame
+                                # Concatenate enough samples for one Wyoming/OpenWakeWord frame
                                 # Ensure all arrays in buffer are 1D before concatenation
                                 flattened_buffer = [chunk.flatten() if chunk.ndim > 1 else chunk for chunk in wake_word_buffer]
                                 combined_audio = np.concatenate(flattened_buffer)
@@ -730,9 +739,8 @@ def listen():
                                     
                                     # Visual feedback (if GUI available) - trigger LED ring pulsation
                                     try:
-                                        from gui.aura_gui import set_transcribing
                                         set_transcribing(True)  # This triggers the red LED ring pulsation
-                                    except ImportError:
+                                    except (ImportError, NameError):
                                         pass
                                     
                                     # Clear wake word buffer

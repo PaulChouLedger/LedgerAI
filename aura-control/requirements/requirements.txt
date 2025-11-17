@@ -14,8 +14,8 @@ soundfile>=0.12.1
 numpy>=1.24.0
 scipy>=1.10.0
 
-# Wake Word Detection (works natively on ARM64/Jetson - no manual setup needed)
-openwakeword>=0.5.0
+# Wake Word Detection: Uses Wyoming container (no dependencies needed)
+# Container includes everything - client uses only Python standard library
 
 # GUI Framework
 PyQt5>=5.15.0
