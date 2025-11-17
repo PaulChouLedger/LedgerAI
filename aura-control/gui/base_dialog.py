@@ -1,0 +1,170 @@
+# base_dialog.py — Base Dialog Template for Aura Dialogs
+# This template ensures consistent behavior across all dialogs:
+# - Proper z-ordering without artifacts
+# - Smooth animations
+# - Transcription blocking/unblocking
+# - Parent window reactivation
+# - Proper cleanup
+
+from PyQt5.QtWidgets import QDialog, QApplication
+from PyQt5.QtCore import Qt, QPropertyAnimation, QEasingCurve
+
+
+class BaseAuraDialog(QDialog):
+    """Base dialog class for all Aura dialogs with consistent behavior"""
+    
+    def __init__(self, parent=None, title="Aura Dialog", size=(1080, 1080), modal=True):
+        super().__init__(parent)
+        
+        self.setWindowTitle(title)
+        self.setFixedSize(size[0], size[1])
+        
+        # Window flags for proper z-ordering
+        if parent:
+            # Use Window flag instead of Dialog to ensure proper z-ordering above parent
+            self.setWindowFlags(Qt.Window | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
+            self.setModal(modal)
+        else:
+            # If no parent, stay on top
+            self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
+        
+        # Ensure resources are freed on close
+        self.setAttribute(Qt.WA_DeleteOnClose, True)
+        
+        # Initialize opacity to 0 for fade-in animation
+        self.setWindowOpacity(0.0)
+        
+        # Override in subclass to set up UI
+        self._setup_ui()
+        
+        # Center the dialog
+        self._center_dialog()
+    
+    def _setup_ui(self):
+        """Override in subclass to set up dialog UI"""
+        pass
+    
+    def _center_dialog(self):
+        """Center dialog on screen or parent"""
+        if self.parent():
+            parent_geometry = self.parent().geometry()
+            x = parent_geometry.x() + (parent_geometry.width() - self.width()) // 2
+            y = parent_geometry.y() + (parent_geometry.height() - self.height()) // 2
+            self.move(x, y)
+        else:
+            screen = QApplication.primaryScreen().geometry()
+            x = (screen.width() - self.width()) // 2
+            y = (screen.height() - self.height()) // 2
+            self.move(x, y)
+    
+    def showEvent(self, event):
+        """Handle dialog show event with smooth fade-in animation"""
+        super().showEvent(event)
+        
+        # Ensure dialog is positioned and ready
+        self.raise_()
+        self.activateWindow()
+        QApplication.processEvents()
+        
+        # For sub-dialogs opened from parent, skip fade animation to avoid rendering issues
+        if self.isModal() and self.parent():
+            self.setWindowOpacity(1.0)
+        else:
+            # Only use fade animation for standalone dialogs
+            self.fade_in = QPropertyAnimation(self, b"windowOpacity")
+            self.fade_in.setDuration(400)
+            self.fade_in.setStartValue(0.0)
+            self.fade_in.setEndValue(1.0)
+            self.fade_in.setEasingCurve(QEasingCurve.OutCubic)
+            self.fade_in.setUpdateInterval(16)  # ~60fps for smooth animation
+            self.fade_in.start()
+        
+        # Call subclass hook for additional show logic
+        self._on_show()
+    
+    def _on_show(self):
+        """Override in subclass for additional show logic (e.g., blocking transcription)"""
+        pass
+    
+    def closeEvent(self, event):
+        """Handle dialog close event with smooth fade-out animation"""
+        # Always ensure transcription is unblocked when dialog closes
+        self._unblock_transcription()
+        
+        # Reactivate parent window immediately to prevent freezing
+        if self.parent():
+            try:
+                self.parent().raise_()
+                self.parent().activateWindow()
+                QApplication.processEvents()
+            except Exception:
+                pass
+        
+        # Only animate if we're actually closing (not just hiding)
+        if event.spontaneous() or not self.isVisible():
+            event.accept()
+            return
+        
+        # Cancel fade-in if still running
+        if hasattr(self, 'fade_in') and self.fade_in.state() == QPropertyAnimation.Running:
+            self.fade_in.stop()
+        
+        # For modal dialogs opened from home screen, accept immediately to avoid blocking
+        if self.isModal() and self.parent():
+            event.accept()
+            return
+        
+        # Non-modal: use fade animation
+        self.fade_out = QPropertyAnimation(self, b"windowOpacity")
+        self.fade_out.setDuration(300)  # Slightly longer for smoother exit
+        self.fade_out.setStartValue(self.windowOpacity())
+        self.fade_out.setEndValue(0.0)
+        self.fade_out.setEasingCurve(QEasingCurve.InCubic)  # Smooth ease-in for exit
+        self.fade_out.setUpdateInterval(16)  # ~60fps for smooth animation
+        
+        # Connect finished signal to actually close the dialog
+        def _finalize():
+            # Call subclass cleanup hook
+            self._on_close()
+            event.accept()
+            # Ensure parent is reactivated after close
+            if self.parent():
+                try:
+                    self.parent().raise_()
+                    self.parent().activateWindow()
+                    QApplication.processEvents()
+                except Exception:
+                    pass
+        
+        self.fade_out.finished.connect(_finalize)
+        self.fade_out.start()
+        
+        # Prevent immediate close
+        event.ignore()
+    
+    def _on_close(self):
+        """Override in subclass for additional close logic (e.g., thread cleanup)"""
+        pass
+    
+    def _block_transcription(self, reason="Dialog open"):
+        """Block transcription when dialog opens"""
+        try:
+            from listener import block_transcription
+            block_transcription(reason)
+            print(f"[{self.__class__.__name__}] 🚫 Transcription blocked: {reason}")
+        except ImportError:
+            print(f"[{self.__class__.__name__}] ⚠️ Could not import listener blocking functions")
+        except Exception as e:
+            print(f"[{self.__class__.__name__}] ⚠️ Error blocking transcription: {e}")
+    
+    def _unblock_transcription(self):
+        """Unblock transcription when dialog closes"""
+        try:
+            from listener import unblock_transcription
+            unblock_transcription()
+            print(f"[{self.__class__.__name__}] ✅ Transcription unblocked")
+        except ImportError:
+            print(f"[{self.__class__.__name__}] ⚠️ Could not import listener unblocking functions")
+        except Exception as e:
+            print(f"[{self.__class__.__name__}] ⚠️ Error unblocking transcription: {e}")
+

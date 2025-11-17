@@ -15,6 +15,9 @@ import json
 import socket
 import webbrowser
 
+# Import base dialog template
+from gui.base_dialog import BaseAuraDialog
+
 def get_local_ip():
     """Get the local IP address"""
     try:
@@ -26,29 +29,21 @@ def get_local_ip():
     except:
         return "127.0.0.1"
 
-class FileUploadDialog(QDialog):
+class FileUploadDialog(BaseAuraDialog):
     def __init__(self, parent=None):
-        super().__init__(parent)
-        print("[Upload] 🔧 Initializing upload dialog...")
-        
         # Initialize attributes first
         self.uploaded_files = []
         self.touch_coordinates = []
         
-        self.setWindowTitle("Document Upload - AuraVision")
-        # Full screen for 5-inch 1080x1080 circular screen
-        self.setFixedSize(1080, 1080)  # Full screen size
+        print("[Upload] 🔧 Initializing upload dialog...")
         
-        # Use different window flags depending on whether we have a parent
-        if parent:
-            # Use Window flag instead of Dialog to ensure proper z-ordering above parent
-            self.setWindowFlags(Qt.Window | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
-            self.setModal(True)  # Make it modal to block parent interaction
-        else:
-            # If no parent, stay on top
-            self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
-        
-        # (No translucent background to preserve readability)
+        # Initialize base dialog
+        super().__init__(
+            parent=parent,
+            title="Document Upload - AuraVision",
+            size=(1080, 1080),
+            modal=True
+        )
         
         # Set stylesheet before creating UI
         print("[Upload] 👁️ Dialog initialized and ready")
@@ -107,33 +102,14 @@ class FileUploadDialog(QDialog):
                 border-radius: 3px;
             }
         """)
-        
-        # Initialize opacity to 0 for fade-in animation
-        self.setWindowOpacity(0.0)
-        
-        # Set up UI (only once!)
-        self.setup_ui()
-        
-        # Center the dialog on the actual screen
-        self.center_dialog()
     
-    def showEvent(self, event):
-        """Handle dialog show event with smooth fade-in animation"""
-        super().showEvent(event)
-        
-        # Ensure dialog is positioned and ready before animation
-        self.raise_()
-        self.activateWindow()
-        QApplication.processEvents()  # Process pending events for smooth start
-        
-        # Create optimized fade-in animation
-        self.fade_in = QPropertyAnimation(self, b"windowOpacity")
-        self.fade_in.setDuration(400)  # Slightly longer for smoother feel
-        self.fade_in.setStartValue(0.0)
-        self.fade_in.setEndValue(1.0)
-        self.fade_in.setEasingCurve(QEasingCurve.OutCubic)  # Smoother ease-out
-        self.fade_in.setUpdateInterval(16)  # ~60fps for smooth animation
-        self.fade_in.start()
+    def _setup_ui(self):
+        """Set up dialog UI (called by base class)"""
+        self.setup_ui()
+    
+    def _on_show(self):
+        """Block transcription when dialog opens"""
+        self._block_transcription("File upload dialog open")
         
     def mousePressEvent(self, event):
         """Capture mouse/touch coordinates for debugging"""
@@ -234,60 +210,9 @@ class FileUploadDialog(QDialog):
         print("[Upload] ✅ Dialog closing completely...")
         self.accept()
     
-    def closeEvent(self, event):
-        """Handle dialog close event with smooth fade-out animation"""
-        # Reactivate parent window immediately to prevent freezing
-        if self.parent():
-            try:
-                self.parent().raise_()
-                self.parent().activateWindow()
-                QApplication.processEvents()
-            except Exception:
-                pass
-        
-        # If already animating or not visible, accept immediately
-        if hasattr(self, 'fade_out') and self.fade_out.state() == QPropertyAnimation.Running:
-            event.accept()
-            return
-        
-        # Only animate if we're actually closing (not just hiding)
-        if event.spontaneous() or not self.isVisible():
-            event.accept()
-            return
-        
-        # For modal dialogs opened from home screen, accept immediately to avoid blocking
-        if self.isModal() and self.parent():
-            event.accept()
-            return
-        
-        # Cancel fade-in if still running
-        if hasattr(self, 'fade_in') and self.fade_in.state() == QPropertyAnimation.Running:
-            self.fade_in.stop()
-        
-        # Non-modal: use fade animation
-        self.fade_out = QPropertyAnimation(self, b"windowOpacity")
-        self.fade_out.setDuration(200)  # 200ms for quick but smooth fade-out
-        self.fade_out.setStartValue(self.windowOpacity())
-        self.fade_out.setEndValue(0.0)
-        self.fade_out.setEasingCurve(QEasingCurve.InCubic)  # Smooth ease-in
-        
-        # Connect finished signal to actually close the dialog
-        def _finalize():
-            event.accept()
-            # Ensure parent is reactivated after close
-            if self.parent():
-                try:
-                    self.parent().raise_()
-                    self.parent().activateWindow()
-                    QApplication.processEvents()
-                except Exception:
-                    pass
-        
-        self.fade_out.finished.connect(_finalize)
-        self.fade_out.start()
-        
-        # Prevent immediate close
-        event.ignore()
+    def _on_close(self):
+        """Additional cleanup when dialog closes (called by base class)"""
+        pass
 
     def center_dialog_manually(self, screen_center_x, screen_center_y):
         """Manually center the dialog based on screen center coordinates"""

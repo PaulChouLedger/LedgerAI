@@ -144,7 +144,10 @@ class PreciseWakeWordDetector:
             # Create Precise engine
             # PreciseEngine requires exe_file and model_file
             # Precise uses 2048 samples at 16kHz (128ms chunks)
-            self.engine = PreciseEngine(exe_file=exe_file, model_file=model_file, chunk_size=self.frame_length)
+            # NOTE: chunk_size parameter is in BYTES, not samples!
+            # For int16 audio: 2048 samples = 4096 bytes
+            chunk_size_bytes = self.frame_length * 2  # int16 = 2 bytes per sample
+            self.engine = PreciseEngine(exe_file=exe_file, model_file=model_file, chunk_size=chunk_size_bytes)
             
             # For manual frame processing, we use the engine directly
             # PreciseRunner is designed for automatic streaming, not manual frame feeding
@@ -204,7 +207,10 @@ class PreciseWakeWordDetector:
             audio_int16 = (audio_frame * 32767.0).astype(np.int16)
             
             # Get prediction directly from engine
-            # PreciseEngine.get_prediction() returns probability (0.0-1.0)
+            # PreciseEngine.get_prediction() expects chunk_size bytes (we initialized with bytes)
+            # We have self.frame_length samples = self.frame_length * 2 bytes
+            # Engine was initialized with chunk_size = self.frame_length * 2 bytes
+            # So we need to send exactly self.frame_length samples = self.frame_length * 2 bytes
             try:
                 prediction = self.engine.get_prediction(audio_int16.tobytes())
                 

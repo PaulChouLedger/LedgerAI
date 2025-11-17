@@ -14,6 +14,9 @@ sys.path.insert(0, parent_dir)
 
 from wallet.wallet_integration import get_wallet_manager, get_usage_tracker
 
+# Import base dialog template
+from gui.base_dialog import BaseAuraDialog
+
 
 class BalanceFetchWorker(QThread):
     """Background worker for fetching balance without blocking UI"""
@@ -41,29 +44,20 @@ class BalanceFetchWorker(QThread):
             })
 
 
-class WalletDialog(QDialog):
+class WalletDialog(BaseAuraDialog):
     """Dialog for connecting wallet and viewing token balance"""
     
     def __init__(self, parent=None):
-        super().__init__(parent)
         self.wallet_manager = get_wallet_manager()
         self.usage_tracker = get_usage_tracker()
         
-        self.setWindowTitle("Aura Token Wallet")
-        self.setFixedSize(1080, 1080)  # Full screen size to match main window
-        
-        # Use same window flags as upload dialog for proper modal behavior
-        if parent:
-            # Use Window flag instead of Dialog to ensure proper z-ordering above parent
-            self.setWindowFlags(Qt.Window | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
-            # Keep non-modal to avoid freezing/transcription blocking
-            self.setModal(False)
-        else:
-            # If no parent, stay on top
-            self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
-        
-        # Ensure resources are freed on close
-        self.setAttribute(Qt.WA_DeleteOnClose, True)
+        # Initialize base dialog (non-modal to avoid blocking)
+        super().__init__(
+            parent=parent,
+            title="Aura Token Wallet",
+            size=(1080, 1080),
+            modal=False
+        )
         
         # Apply dark theme styling - match upload dialog exactly
         self.setStyleSheet("""
@@ -106,20 +100,16 @@ class WalletDialog(QDialog):
             }
         """)
         
-        # Initialize opacity to 0 for fade-in animation
-        self.setWindowOpacity(0.0)
-        
+        # Defer initial background work until after fade-in (set in showEvent)
+        self._initial_refresh_scheduled = False
+    
+    def _setup_ui(self):
+        """Set up dialog UI (called by base class)"""
         self.setup_ui()
         self.update_connection_status()
         
         # Show usage stats immediately (instant, no network call)
         self.update_usage_stats()
-        
-        # Center the dialog on the actual screen
-        self.center_dialog()
-        
-        # Defer initial background work until after fade-in (set in showEvent)
-        self._initial_refresh_scheduled = False
         
         # Auto-refresh timer for balance updates (Ethereum queries)
         self.balance_refresh_timer = QTimer()
@@ -617,65 +607,6 @@ class WalletDialog(QDialog):
         self.refresh_balance_async()
     
     
-    def center_dialog(self):
-        """Center the dialog properly on the screen"""
-        from PyQt5.QtWidgets import QDesktopWidget
-        
-        # Get screen geometry
-        screen = QDesktopWidget().screenGeometry()
-        print(f"[WalletDialog] 🔍 Screen geometry: {screen.width()}x{screen.height()}")
-        
-        # Get dialog size (use fixed size since we set it to 1080x1080)
-        dialog_width = 1080
-        dialog_height = 1080
-        
-        # Calculate center position
-        x = (screen.width() - dialog_width) // 2
-        y = (screen.height() - dialog_height) // 2
-        
-        print(f"[WalletDialog] 📐 Calculated center position: ({x}, {y})")
-        
-        # Move to center
-        self.move(x, y)
-        print(f"[WalletDialog] ✅ Dialog centered at ({x}, {y})")
-        
-        # Verify final position
-        final_pos = self.pos()
-        print(f"[WalletDialog] 📐 Final dialog position: ({final_pos.x()}, {final_pos.y()})")
-        
-        # Ensure dialog is visible and active
-        self.raise_()
-        self.activateWindow()
-    
-    def showEvent(self, event):
-        """Handle dialog show event with smooth fade-in animation"""
-        super().showEvent(event)
-        
-        # Block transcription while wallet dialog is open
-        try:
-            from listener import block_transcription
-            block_transcription("Wallet dialog open")
-            print("[WalletDialog] 🚫 Transcription blocked")
-        except ImportError:
-            print("[WalletDialog] ⚠️ Could not import listener blocking functions")
-        
-        # Ensure dialog is positioned and ready before animation
-        self.raise_()
-        self.activateWindow()
-        QApplication.processEvents()  # Process pending events for smooth start
-        
-        # Create optimized fade-in animation
-        self.fade_in = QPropertyAnimation(self, b"windowOpacity")
-        self.fade_in.setDuration(400)  # Slightly longer for smoother feel
-        self.fade_in.setStartValue(0.0)
-        self.fade_in.setEndValue(1.0)
-        self.fade_in.setEasingCurve(QEasingCurve.OutCubic)  # Smoother ease-out
-        self.fade_in.setUpdateInterval(16)  # ~60fps for smooth animation
-        # After fade-in completes, start the initial refresh to avoid jank
-        if not self._initial_refresh_scheduled:
-            self._initial_refresh_scheduled = True
-            self.fade_in.finished.connect(lambda: QTimer.singleShot(50, self.refresh_balance_async))
-        self.fade_in.start()
     
     def open_payment_dialog(self):
         """Open payment dialog to send tokens to client"""
@@ -771,18 +702,8 @@ class WalletDialog(QDialog):
             print(f"[WalletDialog] ❌ Error opening direct payment: {e}")
             QMessageBox.critical(self, "Error", f"Failed to open payment dialog:\n{str(e)}")
     
-    def closeEvent(self, event):
-        """Handle dialog close event with smooth fade-out animation"""
-        # Always unblock transcription when dialog closes
-        try:
-            from listener import unblock_transcription
-            unblock_transcription()
-            print("[WalletDialog] ✅ Transcription unblocked")
-        except ImportError:
-            print("[WalletDialog] ⚠️ Could not import listener unblocking functions")
-        except Exception as e:
-            print(f"[WalletDialog] ⚠️ Error unblocking transcription: {e}")
-        
+    def _on_close(self):
+        """Cleanup when dialog closes (called by base class)"""
         # Stop timers first
         try:
             self.balance_refresh_timer.stop()
@@ -810,62 +731,5 @@ class WalletDialog(QDialog):
         except Exception:
             pass
         
-        # Reactivate parent window immediately to prevent freezing
-        if self.parent():
-            try:
-                self.parent().raise_()
-                self.parent().activateWindow()
-                QApplication.processEvents()
-            except Exception:
-                pass
-        
-        # If already animating or not visible, accept immediately
-        if hasattr(self, 'fade_out') and self.fade_out.state() == QPropertyAnimation.Running:
-            event.accept()
-            return
-        
-        # Only animate if we're actually closing (not just hiding)
-        if event.spontaneous() or not self.isVisible():
-            event.accept()
-            return
-        
-        # For modal dialogs opened from home screen, accept immediately to avoid blocking
-        if self.isModal() and self.parent():
-            event.accept()
-            return
-        
-        # Cancel fade-in if still running
-        if hasattr(self, 'fade_in') and self.fade_in.state() == QPropertyAnimation.Running:
-            self.fade_in.stop()
-        
-        # Non-modal: use fade animation
-        self.fade_out = QPropertyAnimation(self, b"windowOpacity")
-        self.fade_out.setDuration(300)  # Slightly longer for smoother exit
-        self.fade_out.setStartValue(self.windowOpacity())
-        self.fade_out.setEndValue(0.0)
-        self.fade_out.setEasingCurve(QEasingCurve.InCubic)  # Smooth ease-in for exit
-        self.fade_out.setUpdateInterval(16)  # ~60fps for smooth animation
-        
-        # Connect finished signal to actually close and free dialog
-        def _finalize_close():
-            try:
-                self.hide()
-                self.deleteLater()
-            except Exception:
-                pass
-            event.accept()
-            # Ensure parent is reactivated after close
-            if self.parent():
-                try:
-                    self.parent().raise_()
-                    self.parent().activateWindow()
-                    QApplication.processEvents()
-                except Exception:
-                    pass
-        self.fade_out.finished.connect(_finalize_close)
-        self.fade_out.start()
-        
-        # Prevent immediate close
-        event.ignore()
         print("[WalletDialog] 🔄 Closing dialog with fade-out animation...")
 
