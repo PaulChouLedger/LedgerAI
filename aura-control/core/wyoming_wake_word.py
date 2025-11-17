@@ -25,6 +25,7 @@ import asyncio
 from wyoming.client import AsyncTcpClient
 from wyoming.audio import AudioChunk
 from wyoming.wake import Detection
+from wyoming.event import Event
 
 # Alias for compatibility with existing code
 AsyncWyomingClient = AsyncTcpClient
@@ -177,26 +178,42 @@ class WyomingWakeWordClient:
     async def _async_send_audio(self, audio_int16: np.ndarray) -> Tuple[bool, float]:
         """Async send audio."""
         try:
+            # Create AudioChunk - pass directly to write_event
             chunk = AudioChunk(
                 rate=16000,
-                width=2,
+                width=2,  # 16-bit = 2 bytes
                 channels=1,
                 audio=audio_int16.tobytes()
             )
+            # Write the chunk directly - AsyncTcpClient should handle conversion
             await self.client.write_event(chunk)
             
-            detection = await asyncio.wait_for(
-                self.client.read_event(),
-                timeout=0.01
-            )
+            # Read events - check for Detection
+            try:
+                event = await asyncio.wait_for(
+                    self.client.read_event(),
+                    timeout=0.01
+                )
+                
+                # Parse Detection from event if available
+                if event:
+                    detection = Detection.from_event(event)
+                    if detection:
+                        return True, detection.confidence
+            except asyncio.TimeoutError:
+                pass
             
-            if isinstance(detection, Detection):
-                return True, detection.confidence
-            return False, 0.0
-        except asyncio.TimeoutError:
             return False, 0.0
         except Exception as e:
-            print(f"[Wyoming] ⚠️ Async error: {e}")
+            # Only print error once per second to avoid spam
+            import time
+            if not hasattr(self, '_last_error_time') or time.time() - self._last_error_time > 1.0:
+                print(f"[Wyoming] ⚠️ Async error: {e}")
+                import traceback
+                if "payload" in str(e).lower():
+                    print(f"[Wyoming] 🔍 AudioChunk API issue - checking available methods...")
+                    print(f"[Wyoming] 🔍 AudioChunk dir: {[x for x in dir(AudioChunk) if not x.startswith('_')]}")
+                self._last_error_time = time.time()
             return False, 0.0
     
     def is_connected(self) -> bool:
