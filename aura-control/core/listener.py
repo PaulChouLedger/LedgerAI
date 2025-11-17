@@ -637,6 +637,10 @@ def listen():
                 
                 # === STAGE 1: Wake Word Detection (if enabled) ===
                 # Only process wake word if detector is actually available
+                # Check stream_valid at start of each iteration
+                if not stream_valid:
+                    break
+                    
                 if wake_word_enabled and not listening_active and wake_word_detector is not None:
                     try:
                         audio_block, _ = stream.read(FRAME_SIZE)
@@ -686,12 +690,12 @@ def listen():
                                     wake_word_detector._debug_counter = 0
                                 wake_word_detector._debug_counter += 1
                                 
-                                # Show confidence every 50 frames, or if confidence > 0.1 (getting close)
-                                show_debug = (wake_word_detector._debug_counter % 50 == 0) or (confidence > 0.1)
+                                # Show confidence every 50 frames, or if confidence > threshold/10 (getting close)
+                                threshold = getattr(wake_word_detector, 'threshold', 0.0001)
+                                show_debug = (wake_word_detector._debug_counter % 50 == 0) or (confidence > threshold / 10)
                                 if show_debug:
-                                    threshold = getattr(wake_word_detector, 'threshold', 0.5)
                                     status = "🔴" if confidence < threshold * 0.5 else "🟡" if confidence < threshold else "🟢"
-                                    print(f"[Wake Word] {status} Confidence: {confidence:.3f} (threshold: {threshold:.2f}) - Frame {wake_word_detector._debug_counter}", end="\r")
+                                    print(f"[Wake Word] {status} Confidence: {confidence:.6f} (threshold: {threshold:.6f}) - Frame {wake_word_detector._debug_counter}", end="\r")
                                 
                                 if wake_detected:
                                     print(f"\n[Wake Word] ✅ Wake word detected! (confidence: {confidence:.2f})")
@@ -723,7 +727,9 @@ def listen():
                                 print(f"[Wake Word] ⚠️ Detector not initialized: frame_length={getattr(wake_word_detector, 'frame_length', None)}")
                                 wake_word_detector._warned_init = True
                             wake_word_buffer = []
-                            
+                    except KeyboardInterrupt:
+                        # Allow clean exit on Ctrl+C
+                        raise
                     except PortAudioError as pa_error:
                         # Stream error - stream may be invalid, exit entire loop
                         error_code = getattr(pa_error, 'errno', None)
@@ -744,11 +750,20 @@ def listen():
                         wake_word_buffer = []
                         continue
                 
+                # Check stream_valid before transcription stage
+                if not stream_valid:
+                    break
+                
                 # === STAGE 2: VAD + Speech Processing (only after wake word or if wake word disabled) ===
                 # Only allow transcription if:
                 # 1. Wake word is disabled in settings, OR
                 # 2. Wake word was detected (listening_active = True)
-                # If wake word is enabled but detector failed, block transcription
+                # If wake word is enabled but not detected, loop back to wake word detection
+                if wake_word_enabled and not listening_active:
+                    # Wake word enabled but not detected yet - continue listening for wake word
+                    continue
+                
+                # Transcription is allowed (either wake word disabled, or wake word was detected)
                 allow_transcription = (not wake_word_setting_enabled) or listening_active
                 if allow_transcription:
                     buffer = []
