@@ -16,8 +16,8 @@ scipy>=1.10.0
 
 # Wake Word Detection: Wyoming Protocol client (recommended)
 # Official client provides proper Protocol Buffers support and reliable detection
+# Note: If AsyncWyomingClient is not available, try: pip install --upgrade wyoming
 wyoming>=1.0.0
-# Note: Raw socket fallback is available if wyoming package is not installed
 
 # GUI Framework
 PyQt5>=5.15.0

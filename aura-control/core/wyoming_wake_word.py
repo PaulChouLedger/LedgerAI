@@ -22,61 +22,13 @@ import time
 import asyncio
 
 # Require official Wyoming client
-# Try different import patterns as API may vary by version
-WYOMING_AVAILABLE = False
-AsyncWyomingClient = None
-AudioChunk = None
-Detection = None
-_WYOMING_IMPORT_ERROR = None
+from wyoming.client import AsyncTcpClient
+from wyoming.audio import AudioChunk
+from wyoming.wake import Detection
 
-try:
-    # Try standard import first
-    from wyoming.client import AsyncWyomingClient
-    from wyoming.audio import AudioChunk
-    from wyoming.wake import Detection
-    WYOMING_AVAILABLE = True
-except ImportError as e1:
-    _WYOMING_IMPORT_ERROR = str(e1)
-    try:
-        # Try importing the modules and inspecting what's available
-        import wyoming.client as wyoming_client
-        import wyoming.audio as wyoming_audio
-        import wyoming.wake as wyoming_wake
-        
-        # Inspect what's actually available
-        client_attrs = [attr for attr in dir(wyoming_client) if not attr.startswith('_')]
-        audio_attrs = [attr for attr in dir(wyoming_audio) if not attr.startswith('_')]
-        wake_attrs = [attr for attr in dir(wyoming_wake) if not attr.startswith('_')]
-        
-        print(f"[Wyoming] 🔍 Available in wyoming.client: {client_attrs}")
-        print(f"[Wyoming] 🔍 Available in wyoming.audio: {audio_attrs}")
-        print(f"[Wyoming] 🔍 Available in wyoming.wake: {wake_attrs}")
-        
-        # Try to find the correct class names
-        if 'AsyncWyomingClient' in client_attrs:
-            AsyncWyomingClient = getattr(wyoming_client, 'AsyncWyomingClient')
-        elif 'WyomingClient' in client_attrs:
-            # Some versions might only have sync client
-            print("[Wyoming] ⚠️  Only sync WyomingClient found, async not available")
-            _WYOMING_IMPORT_ERROR = f"AsyncWyomingClient not found. Available classes: {client_attrs}"
-        else:
-            _WYOMING_IMPORT_ERROR = f"Client class not found. Available: {client_attrs}"
-        
-        if 'AudioChunk' in audio_attrs:
-            AudioChunk = getattr(wyoming_audio, 'AudioChunk')
-        else:
-            _WYOMING_IMPORT_ERROR = f"{_WYOMING_IMPORT_ERROR}; AudioChunk not found in {audio_attrs}"
-        
-        if 'Detection' in wake_attrs:
-            Detection = getattr(wyoming_wake, 'Detection')
-        else:
-            _WYOMING_IMPORT_ERROR = f"{_WYOMING_IMPORT_ERROR}; Detection not found in {wake_attrs}"
-        
-        if AsyncWyomingClient and AudioChunk and Detection:
-            WYOMING_AVAILABLE = True
-            print("[Wyoming] ✅ Found classes via inspection")
-    except Exception as e2:
-        _WYOMING_IMPORT_ERROR = f"Primary: {e1}, Inspection: {e2}"
+# Alias for compatibility with existing code
+AsyncWyomingClient = AsyncTcpClient
+WYOMING_AVAILABLE = True
 
 
 class WyomingWakeWordClient:
@@ -87,11 +39,6 @@ class WyomingWakeWordClient:
     """
     
     def __init__(self, host: str = "localhost", port: int = 10400):
-        if not WYOMING_AVAILABLE:
-            raise ImportError(
-                "Wyoming client not available. Install with: pip install wyoming"
-            )
-        
         self.host = host
         self.port = port
         self.connected = False
@@ -143,7 +90,15 @@ class WyomingWakeWordClient:
     async def _async_connect(self, uri: str) -> bool:
         """Async connection."""
         try:
-            self.client = AsyncWyomingClient.from_uri(uri)
+            # AsyncTcpClient takes host and port directly, not a URI
+            # Parse URI format: tcp://host:port
+            if uri.startswith("tcp://"):
+                uri = uri[6:]  # Remove tcp:// prefix
+            host, port_str = uri.split(":")
+            port = int(port_str)
+            
+            # Create AsyncTcpClient with host and port
+            self.client = AsyncWyomingClient(host, port)
             await self.client.connect()
             return True
         except Exception as e:
@@ -261,6 +216,8 @@ def create_wyoming_wake_word_detector(host: str = "localhost", port: int = 10400
     """
     Create Wyoming OpenWakeWord detector client.
     
+    Uses official Wyoming client (AsyncTcpClient) for proper Protocol Buffers support.
+    
     Args:
         host: Service host (default: localhost)
         port: Service port (default: 10400)
@@ -268,31 +225,6 @@ def create_wyoming_wake_word_detector(host: str = "localhost", port: int = 10400
     Returns:
         WyomingWakeWordClient instance or None
     """
-    if not WYOMING_AVAILABLE:
-        print("[Wyoming] ❌ Wyoming client not available")
-        print("[Wyoming] 💡 Install with: pip install wyoming")
-        # Show import error for debugging
-        try:
-            import sys
-            print(f"[Wyoming] 🔍 Import error: {_WYOMING_IMPORT_ERROR}")
-            print(f"[Wyoming] 🔍 Python executable: {sys.executable}")
-            print(f"[Wyoming] 🔍 Python path (first 3): {sys.path[:3]}")
-            # Try to check if wyoming is actually installed
-            try:
-                import wyoming
-                print(f"[Wyoming] 🔍 Wyoming package found at: {wyoming.__file__}")
-                print(f"[Wyoming] 🔍 But submodule import failed - check wyoming package version")
-                print(f"[Wyoming] 🔍 Try: pip install --upgrade wyoming")
-            except ImportError:
-                print("[Wyoming] 🔍 Wyoming package not found in Python path")
-                print(f"[Wyoming] 🔍 Make sure you're using the virtual environment: source ~/aura-env/bin/activate")
-        except NameError:
-            # _WYOMING_IMPORT_ERROR might not be defined if import failed differently
-            print("[Wyoming] 🔍 Could not retrieve import error details")
-        except Exception as e:
-            print(f"[Wyoming] 🔍 Debug error: {e}")
-        return None
-    
     client = WyomingWakeWordClient(host, port)
     if client.connect():
         return client

@@ -400,9 +400,9 @@ def warm_up_llm():
     """Warm up LLM with a test request - assumes health check already passed"""
     try:
         print("[Aura] 🧪 Testing LLM with warm-up request...")
-        print("[Aura] 💡 First request loads adaptive engine (65 guidelines) - may take 15-20s...")
+        print("[Aura] 💡 First request initializes medical navigator - may take a few seconds...")
         
-        # Single test request with VERY generous timeout (adaptive engine loads on first request)
+        # Single test request with generous timeout for first-time initialization
         # Get the correct LLM port based on mode (from app_settings.json)
         try:
             from state import get_llm_mode
@@ -418,7 +418,7 @@ def warm_up_llm():
                 f"http://localhost:{llm_port}/chat-tts",
                 json={"prompt": "Hello", "session_id": "warmup"},
                 stream=True,
-                timeout=120  # Increased from 45s - adaptive engine needs time to load
+                timeout=60  # Generous timeout for first-time initialization
             )
             
             if response.status_code == 200:
