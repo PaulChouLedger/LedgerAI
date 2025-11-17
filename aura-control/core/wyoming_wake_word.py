@@ -62,42 +62,77 @@ class WyomingWakeWordClient:
         
     def connect(self) -> bool:
         """Connect to Wyoming OpenWakeWord service."""
+        import sys
         try:
-            print(f"[Wyoming] 🔄 Starting connection to {self.host}:{self.port}...")
+            # Check if port is accessible first
+            import socket
+            test_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            test_socket.settimeout(2)
+            try:
+                result = test_socket.connect_ex((self.host, self.port))
+                test_socket.close()
+                if result != 0:
+                    print(f"[Wyoming] ❌ Port {self.port} is not accessible (connection refused)", flush=True, file=sys.stderr)
+                    print(f"[Wyoming] 💡 Container may not be running or not listening on port {self.port}", flush=True, file=sys.stderr)
+                    print(f"[Wyoming] 💡 Check: docker compose ps wyoming-openwakeword", flush=True, file=sys.stderr)
+                    print(f"[Wyoming] 💡 Start: cd setup && docker compose up -d wyoming-openwakeword", flush=True, file=sys.stderr)
+                    print(f"[Wyoming] 💡 Check logs: docker compose logs wyoming-openwakeword", flush=True, file=sys.stderr)
+                    sys.stderr.flush()
+                    return False
+                else:
+                    print(f"[Wyoming] ✅ Port {self.port} is accessible", flush=True, file=sys.stderr)
+                    sys.stderr.flush()
+            except Exception as sock_err:
+                print(f"[Wyoming] ⚠️ Socket test failed: {sock_err}", flush=True, file=sys.stderr)
+                sys.stderr.flush()
+            
+            print(f"[Wyoming] 🔄 Starting connection to {self.host}:{self.port}...", flush=True, file=sys.stderr)
+            sys.stderr.flush()
             # Start async event loop in background thread
             self.loop_thread = threading.Thread(target=self._run_async_loop, daemon=True)
             self.loop_thread.start()
-            time.sleep(0.2)  # Wait a bit longer for loop to start
+            time.sleep(0.3)  # Wait for loop to start
             
             # Verify loop is running
-            if not self.loop or not self.loop.is_running():
-                print("[Wyoming] ⚠️ Event loop not running, waiting...")
-                time.sleep(0.3)
+            max_wait = 10
+            for i in range(max_wait):
+                if self.loop and self.loop.is_running():
+                    break
+                time.sleep(0.1)
+            else:
+                print("[Wyoming] ❌ Event loop failed to start", flush=True, file=sys.stderr)
+                sys.stderr.flush()
+                return False
             
             # Connect using async client
             uri = f"tcp://{self.host}:{self.port}"
-            print(f"[Wyoming] 🔄 Calling _async_connect({uri})...")
+            print(f"[Wyoming] 🔄 Calling _async_connect({uri})...", flush=True, file=sys.stderr)
+            sys.stderr.flush()
             future = asyncio.run_coroutine_threadsafe(
                 self._async_connect(uri),
                 self.loop
             )
-            result = future.result(timeout=5.0)
+            result = future.result(timeout=10.0)
             
             if result:
                 self.connected = True
                 self.is_active = True
-                print(f"[Wyoming] ✅ Connected via official client at {self.host}:{self.port}")
-                print(f"[Wyoming] 💡 Using official client: proper Protocol Buffers support, reliable")
+                print(f"[Wyoming] ✅ Connected via official client at {self.host}:{self.port}", flush=True, file=sys.stderr)
+                print(f"[Wyoming] 💡 Using official client: proper Protocol Buffers support, reliable", flush=True, file=sys.stderr)
+                sys.stderr.flush()
                 return True
             else:
-                print("[Wyoming] ❌ Connection returned False")
+                print("[Wyoming] ❌ Connection returned False", flush=True, file=sys.stderr)
+                sys.stderr.flush()
             return False
         except Exception as e:
-            print(f"[Wyoming] ❌ Connection error: {e}")
+            print(f"[Wyoming] ❌ Connection error: {e}", flush=True, file=sys.stderr)
             import traceback
-            print(f"[Wyoming] 🔍 Traceback: {traceback.format_exc()}")
+            print(f"[Wyoming] 🔍 Traceback: {traceback.format_exc()}", flush=True, file=sys.stderr)
+            sys.stderr.flush()
             if "Connection refused" in str(e) or isinstance(e, ConnectionRefusedError):
-                print(f"[Wyoming] 💡 Start container with: cd setup && docker compose up -d wyoming-openwakeword")
+                print(f"[Wyoming] 💡 Start container with: cd setup && docker compose up -d wyoming-openwakeword", flush=True, file=sys.stderr)
+                sys.stderr.flush()
             return False
     
     async def _async_connect(self, uri: str) -> bool:
@@ -119,16 +154,37 @@ class WyomingWakeWordClient:
                 self.client = AsyncWyomingClient(uri)
             
             await self.client.connect()
-            print("[Wyoming] ✅ Connected to server")
+            import sys
+            print("[Wyoming] ✅ Connected to server", flush=True)
+            sys.stdout.flush()
             
             # Start background task to read detection events
             try:
+                # Use stderr as well to ensure visibility
+                print("[Wyoming] 🔄 Creating background detection task...", flush=True, file=sys.stderr)
+                sys.stderr.flush()
                 self._detection_task = self.loop.create_task(self._read_detections())
-                print("[Wyoming] ✅ Background detection task created")
+                print("[Wyoming] ✅ Background detection task created", flush=True, file=sys.stderr)
+                sys.stderr.flush()
+                # Give it a moment to start
+                await asyncio.sleep(0.1)
+                # Verify task is running
+                if self._detection_task.done():
+                    print("[Wyoming] ⚠️ Detection task completed immediately - checking exception...", flush=True, file=sys.stderr)
+                    try:
+                        self._detection_task.result()
+                    except Exception as task_exc:
+                        print(f"[Wyoming] ❌ Task exception: {task_exc}", flush=True, file=sys.stderr)
+                        import traceback
+                        print(f"[Wyoming] 🔍 Traceback: {traceback.format_exc()}", flush=True, file=sys.stderr)
+                else:
+                    print("[Wyoming] ✅ Detection task is running", flush=True, file=sys.stderr)
+                sys.stderr.flush()
             except Exception as task_error:
-                print(f"[Wyoming] ⚠️ Failed to create detection task: {task_error}")
+                print(f"[Wyoming] ⚠️ Failed to create detection task: {task_error}", flush=True, file=sys.stderr)
                 import traceback
-                print(f"[Wyoming] 🔍 Traceback: {traceback.format_exc()}")
+                print(f"[Wyoming] 🔍 Traceback: {traceback.format_exc()}", flush=True, file=sys.stderr)
+                sys.stderr.flush()
             
             return True
         except Exception as e:
@@ -139,9 +195,13 @@ class WyomingWakeWordClient:
     
     async def _read_detections(self):
         """Background task to continuously read detection events."""
-        print("[Wyoming] 🔄 Starting background detection reader...")
+        import sys
+        print("[Wyoming] 🔄 Starting background detection reader...", flush=True, file=sys.stderr)
+        sys.stderr.flush()
         event_count = 0
         try:
+            print("[Wyoming] ✅ Detection reader loop started, waiting for events...", flush=True, file=sys.stderr)
+            sys.stderr.flush()
             while self.connected and self.client:
                 try:
                     event = await asyncio.wait_for(
@@ -151,7 +211,8 @@ class WyomingWakeWordClient:
                     
                     event_count += 1
                     if event_count == 1:
-                        print(f"[Wyoming] ✅ Received first event: {type(event)}")
+                        print(f"[Wyoming] ✅ Received first event: {type(event)}", flush=True, file=sys.stderr)
+                        sys.stderr.flush()
                     
                     if event:
                         # Debug: check event type
@@ -160,7 +221,8 @@ class WyomingWakeWordClient:
                         event_type = type(event).__name__
                         if event_type not in self._event_types_seen:
                             self._event_types_seen.add(event_type)
-                            print(f"[Wyoming] 🔍 Event type: {event_type}, methods: {[m for m in dir(event) if not m.startswith('_')][:5]}")
+                            print(f"[Wyoming] 🔍 Event type: {event_type}, methods: {[m for m in dir(event) if not m.startswith('_')][:5]}", flush=True, file=sys.stderr)
+                            sys.stderr.flush()
                         
                         # Try to parse as Detection
                         try:
@@ -168,30 +230,35 @@ class WyomingWakeWordClient:
                             if detection:
                                 with self.lock:
                                     self.last_detection = (True, detection.confidence)
-                                print(f"[Wyoming] 🎤 Wake word detected! Confidence: {detection.confidence:.3f}")
+                                print(f"[Wyoming] 🎤 Wake word detected! Confidence: {detection.confidence:.3f}", flush=True, file=sys.stderr)
+                                sys.stderr.flush()
                         except Exception as parse_error:
                             # Not a detection event, that's OK
                             if event_count <= 3:  # Only log first few non-detection events
-                                print(f"[Wyoming] 🔍 Event is not a detection: {parse_error}")
+                                print(f"[Wyoming] 🔍 Event is not a detection: {parse_error}", flush=True, file=sys.stderr)
+                                sys.stderr.flush()
                 except asyncio.TimeoutError:
                     # No event received, continue
                     if event_count == 0 and self.connected:
                         # Log once that we're waiting
                         if not hasattr(self, '_waiting_logged'):
-                            print("[Wyoming] ⏳ Waiting for events from server...")
+                            print("[Wyoming] ⏳ Waiting for events from server...", flush=True, file=sys.stderr)
+                            sys.stderr.flush()
                             self._waiting_logged = True
                     continue
                 except Exception as e:
                     if self.connected:  # Only log if still connected
-                        print(f"[Wyoming] ⚠️ Error reading detection: {e}")
+                        print(f"[Wyoming] ⚠️ Error reading detection: {e}", flush=True, file=sys.stderr)
                         import traceback
-                        print(f"[Wyoming] 🔍 Traceback: {traceback.format_exc()}")
+                        print(f"[Wyoming] 🔍 Traceback: {traceback.format_exc()}", flush=True, file=sys.stderr)
+                        sys.stderr.flush()
                     break
         except Exception as e:
             if self.connected:
-                print(f"[Wyoming] ⚠️ Detection reader error: {e}")
+                print(f"[Wyoming] ⚠️ Detection reader error: {e}", flush=True, file=sys.stderr)
                 import traceback
-                print(f"[Wyoming] 🔍 Traceback: {traceback.format_exc()}")
+                print(f"[Wyoming] 🔍 Traceback: {traceback.format_exc()}", flush=True, file=sys.stderr)
+                sys.stderr.flush()
     
     def disconnect(self):
         """Disconnect from Wyoming service."""

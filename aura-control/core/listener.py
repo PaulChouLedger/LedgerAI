@@ -515,6 +515,9 @@ def play_welcome_prompt(stream):
 
 # === Main Loop ===
 def listen():
+    import sys
+    print("[Listener] 🎧 listen() function called", flush=True)
+    sys.stdout.flush()
     global vad_zero_count
     
     channels = find_device_index()
