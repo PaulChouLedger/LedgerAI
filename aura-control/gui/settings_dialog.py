@@ -861,19 +861,24 @@ class AIModelSettingsDialog(QDialog):
     
     def showEvent(self, event):
         super().showEvent(event)
-        # Ensure dialog is positioned and ready before animation
+        # Ensure dialog is positioned and ready
         self.raise_()
         self.activateWindow()
-        QApplication.processEvents()  # Process pending events for smooth start
+        QApplication.processEvents()  # Process pending events
         
-        # Create optimized fade-in animation
-        self.fade_in = QPropertyAnimation(self, b"windowOpacity")
-        self.fade_in.setDuration(400)  # Slightly longer for smoother feel
-        self.fade_in.setStartValue(0.0)
-        self.fade_in.setEndValue(1.0)
-        self.fade_in.setEasingCurve(QEasingCurve.OutCubic)  # Smoother ease-out
-        self.fade_in.setUpdateInterval(16)  # ~60fps for smooth animation
-        self.fade_in.start()
+        # For sub-dialogs opened from settings, skip fade animation to avoid rendering issues
+        # Just ensure it's fully visible immediately
+        if self.isModal() and self.parent():
+            self.setWindowOpacity(1.0)
+        else:
+            # Only use fade animation for standalone dialogs
+            self.fade_in = QPropertyAnimation(self, b"windowOpacity")
+            self.fade_in.setDuration(400)
+            self.fade_in.setStartValue(0.0)
+            self.fade_in.setEndValue(1.0)
+            self.fade_in.setEasingCurve(QEasingCurve.OutCubic)
+            self.fade_in.setUpdateInterval(16)
+            self.fade_in.start()
         
         # Update mode status after dialog is shown (non-blocking)
         QTimer.singleShot(200, self._update_mode_status)
@@ -1643,24 +1648,80 @@ class SettingsDialog(QDialog):
             pass
     
     def open_wifi_settings(self):
-        dlg = WifiSettingsDialog(self)
-        dlg.exec_()
+        try:
+            # Hide parent dialog temporarily to avoid rendering conflicts
+            self.hide()
+            QApplication.processEvents()
+            
+            dlg = WifiSettingsDialog(self)
+            dlg.setWindowOpacity(1.0)  # Show immediately without fade
+            dlg.show()
+            dlg.raise_()
+            dlg.activateWindow()
+            QApplication.processEvents()
+            dlg.exec_()
+            
+            # Restore parent dialog
+            self.show()
+            self.raise_()
+            self.activateWindow()
+        except Exception as e:
+            print(f"[Settings] ❌ Error opening WiFi Settings: {e}")
+            self.show()
+            self.raise_()
     
     def open_update_dialog(self):
-        dlg = UpdateDialog(self)
-        dlg.exec_()
+        try:
+            # Hide parent dialog temporarily to avoid rendering conflicts
+            self.hide()
+            QApplication.processEvents()
+            
+            dlg = UpdateDialog(self)
+            dlg.setWindowOpacity(1.0)  # Show immediately without fade
+            dlg.show()
+            dlg.raise_()
+            dlg.activateWindow()
+            QApplication.processEvents()
+            dlg.exec_()
+            
+            # Restore parent dialog
+            self.show()
+            self.raise_()
+            self.activateWindow()
+        except Exception as e:
+            print(f"[Settings] ❌ Error opening Update Dialog: {e}")
+            self.show()
+            self.raise_()
     
     def open_model_settings(self):
         try:
+            # Hide parent dialog temporarily to avoid rendering conflicts
+            self.hide()
+            QApplication.processEvents()
+            
             dlg = AIModelSettingsDialog(self)
-            # Ensure dialog is visible before exec (even if at 0 opacity for animation)
+            # Set opacity to 1.0 initially to avoid rendering issues, then animate
+            dlg.setWindowOpacity(1.0)
             dlg.show()
-            QApplication.processEvents()  # Process events to ensure dialog is rendered
+            dlg.raise_()
+            dlg.activateWindow()
+            QApplication.processEvents()
+            
+            # Now start fade-in animation from 1.0 to 1.0 (no-op) or use a different approach
+            # Actually, let's just show it normally without the fade animation for sub-dialogs
             dlg.exec_()
+            
+            # Restore parent dialog
+            self.show()
+            self.raise_()
+            self.activateWindow()
         except Exception as e:
             print(f"[Settings] ❌ Error opening AI Model Settings: {e}")
             import traceback
             traceback.print_exc()
+            # Restore parent dialog even on error
+            self.show()
+            self.raise_()
             QMessageBox.warning(self, "Error", f"Failed to open AI Model Settings:\n{e}")
 
     def _init_llm_controls(self):

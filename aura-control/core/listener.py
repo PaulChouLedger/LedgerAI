@@ -534,26 +534,27 @@ def listen():
     except ImportError:
         wake_word_setting_enabled = False
     
-    # Initialize wake word detection - try Wyoming first, fallback to direct OpenWakeWord
+    # Initialize wake word detection - try multiple options in order of reliability
     import sys
     wake_word_detector = None
     
-    # Try Wyoming first (container-based, more reliable)
-    print("[Wake Word] 🔄 Trying Wyoming container (recommended)...", flush=True)
+    # Option 1: Mycroft Precise (MOST RELIABLE for Jetson)
+    print("[Wake Word] 🔄 Trying Mycroft Precise (RECOMMENDED for Jetson)...", flush=True)
     sys.stdout.flush()
     try:
-        wake_word_detector = create_wyoming_wake_word_detector()
+        from precise_wake_word import create_precise_wake_word_detector
+        wake_word_detector = create_precise_wake_word_detector()
         if wake_word_detector:
-            print("[Wake Word] ✅ Wyoming container initialized successfully", flush=True)
+            print("[Wake Word] ✅ Mycroft Precise initialized successfully", flush=True)
             sys.stdout.flush()
     except Exception as e:
-        print(f"[Wake Word] ⚠️  Wyoming container failed: {e}", flush=True)
+        print(f"[Wake Word] ⚠️  Mycroft Precise failed: {e}", flush=True)
         sys.stdout.flush()
         wake_word_detector = None
     
-    # Fallback to direct OpenWakeWord (like reference implementation)
+    # Option 2: Direct OpenWakeWord (like reference implementation)
     if wake_word_detector is None:
-        print("[Wake Word] 🔄 Falling back to direct OpenWakeWord (like reference implementation)...", flush=True)
+        print("[Wake Word] 🔄 Trying direct OpenWakeWord (like reference implementation)...", flush=True)
         sys.stdout.flush()
         try:
             from wake_word import create_wake_word_detector
@@ -562,9 +563,21 @@ def listen():
                 print("[Wake Word] ✅ Direct OpenWakeWord initialized successfully", flush=True)
                 sys.stdout.flush()
         except Exception as e:
-            print(f"[Wake Word] ❌ Direct OpenWakeWord also failed: {e}", flush=True)
-            import traceback
-            print(f"[Wake Word] 🔍 Traceback: {traceback.format_exc()}", flush=True)
+            print(f"[Wake Word] ⚠️  Direct OpenWakeWord failed: {e}", flush=True)
+            sys.stdout.flush()
+            wake_word_detector = None
+    
+    # Option 3: Wyoming container (last resort - has been problematic)
+    if wake_word_detector is None:
+        print("[Wake Word] 🔄 Trying Wyoming container (last resort)...", flush=True)
+        sys.stdout.flush()
+        try:
+            wake_word_detector = create_wyoming_wake_word_detector()
+            if wake_word_detector:
+                print("[Wake Word] ✅ Wyoming container initialized successfully", flush=True)
+                sys.stdout.flush()
+        except Exception as e:
+            print(f"[Wake Word] ⚠️  Wyoming container failed: {e}", flush=True)
             sys.stdout.flush()
             wake_word_detector = None
     
