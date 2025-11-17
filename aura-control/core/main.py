@@ -403,8 +403,13 @@ def warm_up_llm():
         print("[Aura] 💡 First request loads adaptive engine (65 guidelines) - may take 15-20s...")
         
         # Single test request with VERY generous timeout (adaptive engine loads on first request)
-        # Get the correct LLM port based on mode
-        USE_MEDICAL_MODE = os.environ.get('USE_MEDICAL_MODE', 'true').lower() == 'true'
+        # Get the correct LLM port based on mode (from app_settings.json)
+        try:
+            from state import get_llm_mode
+            llm_mode = get_llm_mode()
+            USE_MEDICAL_MODE = (llm_mode == "medical")
+        except Exception:
+            USE_MEDICAL_MODE = os.environ.get('USE_MEDICAL_MODE', 'true').lower() == 'true'
         llm_port = "11434" if USE_MEDICAL_MODE else "11436"
         
         try:
@@ -538,8 +543,17 @@ def start_services():
     # Check RAG mode (GPU = RAG container, CPU = CPU FAISS in LLM containers)
     RAG_MODE = os.environ.get('RAG_MODE', 'CPU').upper()
     
-    # Check which LLM mode to use
-    USE_MEDICAL_MODE = os.environ.get('USE_MEDICAL_MODE', 'true').lower() == 'true'
+    # Check which LLM mode to use (from app_settings.json, not environment)
+    try:
+        from state import get_llm_mode
+        llm_mode = get_llm_mode()
+        USE_MEDICAL_MODE = (llm_mode == "medical")
+        print(f"[Aura] 📋 LLM Mode from settings: {llm_mode}")
+    except Exception as e:
+        print(f"[Aura] ⚠️ Could not read LLM mode from settings: {e}")
+        # Fallback to environment variable
+        USE_MEDICAL_MODE = os.environ.get('USE_MEDICAL_MODE', 'true').lower() == 'true'
+        print(f"[Aura] 📋 Using environment variable: USE_MEDICAL_MODE={USE_MEDICAL_MODE}")
     
     if RAG_MODE == 'GPU':
         print("[Aura] 🚀 Starting all containers in parallel (RAG_MODE=GPU - using RAG container)...")
@@ -639,6 +653,13 @@ def start_services():
     
     # Get model name from health endpoint or environment
     model_name = "LLM model"
+    # Re-read mode from settings (in case it changed)
+    try:
+        from state import get_llm_mode
+        llm_mode = get_llm_mode()
+        USE_MEDICAL_MODE = (llm_mode == "medical")
+    except Exception:
+        pass  # Use existing USE_MEDICAL_MODE
     llm_port = "11434" if USE_MEDICAL_MODE else "11436"
     try:
         # Try to get model name from health endpoint

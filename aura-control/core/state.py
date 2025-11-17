@@ -44,7 +44,7 @@ def is_playing():
 
 # === App Settings (LLM mode/model) ===
 _settings_file = os.path.expanduser("~/LedgerAI/data/app_settings.json")
-_llm_mode = "medical"  # 'medical' or 'generic'
+_llm_mode = "medical"  # 'medical' or 'generic' - default to medical
 _llm_model = ""        # filename or path inside container; empty means default
 _wake_word_enabled = False  # Wake word detection enabled/disabled
 _wake_word_sensitivity = 0.5  # Wake word detection sensitivity (0.0-1.0)
@@ -62,9 +62,14 @@ def _load_settings_from_disk():
             _wake_word_sensitivity = float(data.get("wake_word_sensitivity", _wake_word_sensitivity))
             _wake_word_model_path = data.get("wake_word_model_path", _wake_word_model_path)
     except FileNotFoundError:
-        pass
+        # File doesn't exist - use defaults and create it
+        _save_settings_to_disk()
+        print(f"[State] 📝 Created default settings file: {_settings_file}")
     except Exception as e:
         print(f"[State] ⚠️ Failed to load settings: {e}")
+
+# Load settings on import
+_load_settings_from_disk()
 
 def _save_settings_to_disk():
     try:

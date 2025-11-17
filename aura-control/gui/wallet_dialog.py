@@ -651,6 +651,14 @@ class WalletDialog(QDialog):
         """Handle dialog show event with smooth fade-in animation"""
         super().showEvent(event)
         
+        # Block transcription while wallet dialog is open
+        try:
+            from listener import block_transcription
+            block_transcription("Wallet dialog open")
+            print("[WalletDialog] 🚫 Transcription blocked")
+        except ImportError:
+            print("[WalletDialog] ⚠️ Could not import listener blocking functions")
+        
         # Create smooth fade-in animation
         self.fade_in = QPropertyAnimation(self, b"windowOpacity")
         self.fade_in.setDuration(300)  # Slightly longer for smoother feel
@@ -763,6 +771,16 @@ class WalletDialog(QDialog):
     
     def closeEvent(self, event):
         """Handle dialog close event with smooth fade-out animation"""
+        # Always unblock transcription when dialog closes
+        try:
+            from listener import unblock_transcription
+            unblock_transcription()
+            print("[WalletDialog] ✅ Transcription unblocked")
+        except ImportError:
+            print("[WalletDialog] ⚠️ Could not import listener unblocking functions")
+        except Exception as e:
+            print(f"[WalletDialog] ⚠️ Error unblocking transcription: {e}")
+        
         # Stop timers first
         try:
             self.balance_refresh_timer.stop()

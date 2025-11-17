@@ -431,6 +431,14 @@ class WifiSettingsDialog(QDialog):
         self.raise_(); self.activateWindow()
     
     def closeEvent(self, event):
+        # Always ensure transcription is unblocked when dialog closes
+        try:
+            from listener import unblock_transcription
+            unblock_transcription()
+            print("[WifiSettings] ✅ Transcription unblocked")
+        except Exception:
+            pass
+        
         # For sub-dialogs, accept immediately to avoid blocking
         if self.isModal():
             # Clean up threads first
@@ -687,6 +695,14 @@ class UpdateDialog(QDialog):
         self.raise_(); self.activateWindow()
     
     def closeEvent(self, event):
+        # Always ensure transcription is unblocked when dialog closes
+        try:
+            from listener import unblock_transcription
+            unblock_transcription()
+            print("[UpdateDialog] ✅ Transcription unblocked")
+        except Exception:
+            pass
+        
         # For modal sub-dialogs, accept immediately to avoid blocking
         if self.isModal():
             # Clean up threads first
@@ -824,6 +840,14 @@ class AIModelSettingsDialog(QDialog):
         self.raise_(); self.activateWindow()
     
     def closeEvent(self, event):
+        # Always ensure transcription is unblocked when dialog closes
+        try:
+            from listener import unblock_transcription
+            unblock_transcription()
+            print("[AIModelSettings] ✅ Transcription unblocked")
+        except Exception:
+            pass
+        
         # For modal sub-dialogs, accept immediately to avoid blocking
         if self.isModal():
             event.accept()
@@ -857,11 +881,23 @@ class AIModelSettingsDialog(QDialog):
         layout.addLayout(top_row)
         title = QLabel("🧠 AI Model Settings"); title.setFont(QFont("Arial", 18, QFont.Bold)); title.setAlignment(Qt.AlignCenter); title.setStyleSheet("color: #ffffff; font-weight: 600; margin: 10px;"); layout.addWidget(title)
         
-        # Mode toggle
+        # Mode toggle with status label
+        mode_label = QLabel("LLM Mode:")
+        mode_label.setStyleSheet("color: #ffffff; font-weight: bold; font-size: 14px;")
+        layout.addWidget(mode_label)
+        
         mode_row = QHBoxLayout(); mode_row.setSpacing(12)
-        self.mode_generic_btn = QPushButton("Generic"); self.mode_medical_btn = QPushButton("Medical")
-        for b in (self.mode_generic_btn, self.mode_medical_btn): b.setCheckable(True); b.setStyleSheet(SettingsDialog.get_button_style(None))
-        mode_row.addWidget(self.mode_generic_btn); mode_row.addWidget(self.mode_medical_btn); layout.addLayout(mode_row)
+        self.mode_generic_btn = QPushButton("💬 Generic"); self.mode_medical_btn = QPushButton("🏥 Medical")
+        for b in (self.mode_generic_btn, self.mode_medical_btn): 
+            b.setCheckable(True)
+            b.setStyleSheet(SettingsDialog.get_button_style(None))
+        mode_row.addWidget(self.mode_generic_btn); mode_row.addWidget(self.mode_medical_btn)
+        
+        # Status label showing current active container
+        self.mode_status_label = QLabel("")
+        self.mode_status_label.setStyleSheet("color: #4D94D9; font-size: 12px; padding: 5px;")
+        mode_row.addWidget(self.mode_status_label, 1)
+        layout.addLayout(mode_row)
         
         # Model dropdown + restart
         self.model_combo = QComboBox()
@@ -876,8 +912,13 @@ class AIModelSettingsDialog(QDialog):
         # Load state and populate
         try:
             from core.state import get_llm_mode, get_llm_model
-            mode = get_llm_mode(); self.mode_generic_btn.setChecked(mode == "generic"); self.mode_medical_btn.setChecked(mode == "medical")
-        except Exception: self.mode_medical_btn.setChecked(True)
+            mode = get_llm_mode()
+            self.mode_generic_btn.setChecked(mode == "generic")
+            self.mode_medical_btn.setChecked(mode == "medical")
+            self._update_mode_status()
+        except Exception: 
+            self.mode_medical_btn.setChecked(True)
+            self._update_mode_status()
         self._populate_models()
         # RAG mode UI (CPU/GPU/OFF)
         rag_row = QHBoxLayout(); rag_row.setSpacing(12)
@@ -1003,11 +1044,21 @@ class AIModelSettingsDialog(QDialog):
             else:
                 self.mode_generic_btn.setChecked(not self.mode_medical_btn.isChecked())
             mode_now = "medical" if self.mode_medical_btn.isChecked() else "generic"
+            
+            # Save mode
             try:
-                from core.state import set_llm_mode; set_llm_mode(mode_now)
+                from core.state import set_llm_mode
+                set_llm_mode(mode_now)
+                print(f"[ModelSettings] ✅ LLM mode saved: {mode_now}")
             except Exception as e:
                 print(f"[ModelSettings] Error saving mode: {e}")
+            
+            # Update UI
+            self._update_mode_status()
             self._populate_models()
+            
+            # Restart container to apply new mode
+            self._restart_llm_container(mode_now)
         
         self.mode_generic_btn.clicked.connect(on_mode_clicked)
         self.mode_medical_btn.clicked.connect(on_mode_clicked)
@@ -1060,6 +1111,100 @@ class AIModelSettingsDialog(QDialog):
         except Exception:
             pass
     
+    def _update_mode_status(self):
+        """Update status label to show which container is active."""
+        try:
+            mode_now = "medical" if self.mode_medical_btn.isChecked() else "generic"
+            container_name = "llm-medical" if mode_now == "medical" else "llm-generic"
+            
+            # Check if container is running
+            try:
+                import subprocess
+                workspace_root = os.path.expanduser("~/LedgerAI")
+                setup_dir = os.path.join(workspace_root, "setup")
+                result = subprocess.run(
+                    ["docker", "compose", "ps", "-q", container_name],
+                    cwd=setup_dir,
+                    capture_output=True,
+                    text=True,
+                    timeout=5
+                )
+                is_running = bool(result.stdout.strip())
+                
+                if is_running:
+                    self.mode_status_label.setText(f"✅ {container_name} (running)")
+                    self.mode_status_label.setStyleSheet("color: #00ff00; font-size: 12px; padding: 5px; font-weight: bold;")
+                else:
+                    self.mode_status_label.setText(f"⏸️ {container_name} (stopped)")
+                    self.mode_status_label.setStyleSheet("color: #ff9900; font-size: 12px; padding: 5px;")
+            except Exception:
+                self.mode_status_label.setText(f"📋 {container_name}")
+                self.mode_status_label.setStyleSheet("color: #4D94D9; font-size: 12px; padding: 5px;")
+        except Exception:
+            self.mode_status_label.setText("")
+    
+    def _restart_llm_container(self, mode_now: str):
+        """Restart LLM container when mode changes."""
+        try:
+            import subprocess
+            workspace_root = os.path.expanduser("~/LedgerAI")
+            setup_dir = os.path.join(workspace_root, "setup")
+            
+            # Determine which containers to stop/start
+            new_service = "llm-medical" if mode_now == "medical" else "llm-generic"
+            old_service = "llm-generic" if mode_now == "medical" else "llm-medical"
+            
+            print(f"[ModelSettings] 🔄 Switching LLM mode: {mode_now}")
+            print(f"[ModelSettings] 🛑 Stopping: {old_service}")
+            print(f"[ModelSettings] 🚀 Starting: {new_service}")
+            
+            # Stop old container
+            stop_result = subprocess.run(
+                ["docker", "compose", "stop", old_service],
+                cwd=setup_dir,
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+            
+            # Start new container
+            start_result = subprocess.run(
+                ["docker", "compose", "up", "-d", new_service],
+                cwd=setup_dir,
+                capture_output=True,
+                text=True,
+                timeout=60
+            )
+            
+            if start_result.returncode == 0:
+                print(f"[ModelSettings] ✅ Container switched successfully: {new_service}")
+                self._update_mode_status()
+                QMessageBox.information(
+                    self,
+                    "Container Switched",
+                    f"LLM mode changed to {mode_now}.\n\n"
+                    f"Container {new_service} has been started.\n"
+                    f"Container {old_service} has been stopped.\n\n"
+                    "Aura will use the new container on next interaction."
+                )
+            else:
+                print(f"[ModelSettings] ⚠️ Failed to start container: {start_result.stderr}")
+                QMessageBox.warning(
+                    self,
+                    "Container Switch Failed",
+                    f"Failed to start {new_service} container.\n\n"
+                    f"Error: {start_result.stderr or 'Unknown error'}\n\n"
+                    "Please restart Aura manually to apply the change."
+                )
+        except Exception as e:
+            print(f"[ModelSettings] ⚠️ Error switching container: {e}")
+            QMessageBox.warning(
+                self,
+                "Error",
+                f"Failed to switch container: {e}\n\n"
+                "Please restart Aura manually to apply the change."
+            )
+    
     def _prompt_restart(self):
         try:
             mode_now = "medical" if self.mode_medical_btn.isChecked() else "generic"
@@ -1069,7 +1214,9 @@ class AIModelSettingsDialog(QDialog):
             workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')); setup_dir = os.path.join(workspace_root, 'setup')
             import subprocess
             result = subprocess.run(["bash", "-lc", f"cd '{setup_dir}' && docker compose restart {service}"], capture_output=True, text=True, timeout=60)
-            if result.returncode == 0: QMessageBox.information(self, "Restarted", f"{service} restarted successfully.")
+            if result.returncode == 0: 
+                QMessageBox.information(self, "Restarted", f"{service} restarted successfully.")
+                self._update_mode_status()
             else: QMessageBox.warning(self, "Restart Failed", result.stderr or result.stdout or "Unknown error")
         except Exception as e:
             QMessageBox.warning(self, "Error", f"Failed to restart container: {e}")

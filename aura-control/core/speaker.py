@@ -565,7 +565,14 @@ def speak_llm_response(prompt, context=""):
     # Get the correct LLM port based on global state (default medical)
     # Use a single endpoint to avoid port/fallback warnings.
     # Both medical and generic containers bind to the same host port; only one runs at a time.
-    primary_port = "11434"
+    # Get LLM port from settings (not hardcoded)
+    try:
+        from state import get_llm_mode
+        llm_mode = get_llm_mode()
+        primary_port = "11434" if llm_mode == "medical" else "11436"
+    except Exception:
+        # Fallback to medical port (default)
+        primary_port = "11434"
     
     def _post_stream(port: str):
         return requests.post(

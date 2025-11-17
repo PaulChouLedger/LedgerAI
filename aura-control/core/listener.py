@@ -651,9 +651,14 @@ def listen():
                     break
                 
                 # Debug: Log wake word detection state
-                if wake_word_enabled and not hasattr(wake_word_detector, '_state_logged'):
-                    print(f"[Wake Word] 🔄 Wake word detection active: enabled={wake_word_enabled}, listening_active={listening_active}, detector={'available' if wake_word_detector is not None else 'None'}")
+                if wake_word_enabled and wake_word_detector is not None and not hasattr(wake_word_detector, '_state_logged'):
+                    print(f"[Wake Word] 🔄 Wake word detection active: enabled={wake_word_enabled}, listening_active={listening_active}, detector=available")
                     wake_word_detector._state_logged = True
+                elif wake_word_enabled and wake_word_detector is None:
+                    # Only log once if detector is None
+                    if not hasattr(listen, '_wake_word_none_logged'):
+                        print(f"[Wake Word] ⚠️  Wake word enabled but detector is None - transcription will be blocked")
+                        listen._wake_word_none_logged = True
                     
                 if wake_word_enabled and not listening_active and wake_word_detector is not None:
                     try:
@@ -798,9 +803,17 @@ def listen():
                 # If wake word is enabled but not detected, loop back to wake word detection
                 if wake_word_enabled and not listening_active:
                     # Wake word enabled but not detected yet - continue listening for wake word
+                    # But check if transcription is blocked first
+                    if is_transcription_blocked():
+                        time.sleep(0.1)
                     continue
                 
                 # Transcription is allowed (either wake word disabled, or wake word was detected)
+                # But check if transcription is blocked (dialog open, etc.)
+                if is_transcription_blocked():
+                    time.sleep(0.1)
+                    continue
+                
                 allow_transcription = (not wake_word_setting_enabled) or listening_active
                 if allow_transcription:
                     buffer = []
@@ -811,10 +824,17 @@ def listen():
                     while True:
                         # Check if transcription is blocked (dialog open or mic button pressed)
                         if is_transcription_blocked():
+                            # Check every 100ms, but also check stream_valid to avoid infinite loop
+                            if not stream_valid:
+                                break
                             time.sleep(0.1)
                             continue
                         
                         if is_playing():
+                            break
+                        
+                        # Ensure stream is still valid
+                        if not stream_valid:
                             break
                         
                         try:
