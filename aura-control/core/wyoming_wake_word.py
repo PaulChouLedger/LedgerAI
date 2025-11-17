@@ -168,18 +168,24 @@ class WyomingWakeWordClient:
                 sys.stderr.flush()
                 # Give it a moment to start
                 await asyncio.sleep(0.1)
-                # Verify task is running
+                # Verify task is running - wait a moment to see if it completes
+                await asyncio.sleep(0.2)
                 if self._detection_task.done():
                     print("[Wyoming] ⚠️ Detection task completed immediately - checking exception...", flush=True, file=sys.stderr)
+                    sys.stderr.flush()
                     try:
-                        self._detection_task.result()
+                        # Get the result/exception
+                        result = self._detection_task.result()
+                        print(f"[Wyoming] ⚠️ Task returned: {result}", flush=True, file=sys.stderr)
                     except Exception as task_exc:
                         print(f"[Wyoming] ❌ Task exception: {task_exc}", flush=True, file=sys.stderr)
                         import traceback
-                        print(f"[Wyoming] 🔍 Traceback: {traceback.format_exc()}", flush=True, file=sys.stderr)
+                        print(f"[Wyoming] 🔍 Full traceback:", flush=True, file=sys.stderr)
+                        print(traceback.format_exc(), flush=True, file=sys.stderr)
+                    sys.stderr.flush()
                 else:
                     print("[Wyoming] ✅ Detection task is running", flush=True, file=sys.stderr)
-                sys.stderr.flush()
+                    sys.stderr.flush()
             except Exception as task_error:
                 print(f"[Wyoming] ⚠️ Failed to create detection task: {task_error}", flush=True, file=sys.stderr)
                 import traceback
@@ -196,12 +202,23 @@ class WyomingWakeWordClient:
     async def _read_detections(self):
         """Background task to continuously read detection events."""
         import sys
-        print("[Wyoming] 🔄 Starting background detection reader...", flush=True, file=sys.stderr)
-        sys.stderr.flush()
-        event_count = 0
         try:
+            print("[Wyoming] 🔄 Starting background detection reader...", flush=True, file=sys.stderr)
+            sys.stderr.flush()
+            
+            # Verify client is available
+            if not self.client:
+                print("[Wyoming] ❌ No client available in _read_detections", flush=True, file=sys.stderr)
+                sys.stderr.flush()
+                return
+            
+            print("[Wyoming] ✅ Client available, starting read loop...", flush=True, file=sys.stderr)
+            sys.stderr.flush()
+            
+            event_count = 0
             print("[Wyoming] ✅ Detection reader loop started, waiting for events...", flush=True, file=sys.stderr)
             sys.stderr.flush()
+            
             while self.connected and self.client:
                 try:
                     event = await asyncio.wait_for(
@@ -254,11 +271,13 @@ class WyomingWakeWordClient:
                         sys.stderr.flush()
                     break
         except Exception as e:
-            if self.connected:
-                print(f"[Wyoming] ⚠️ Detection reader error: {e}", flush=True, file=sys.stderr)
-                import traceback
-                print(f"[Wyoming] 🔍 Traceback: {traceback.format_exc()}", flush=True, file=sys.stderr)
-                sys.stderr.flush()
+            print(f"[Wyoming] ❌ Detection reader crashed: {e}", flush=True, file=sys.stderr)
+            import traceback
+            print(f"[Wyoming] 🔍 Full traceback:", flush=True, file=sys.stderr)
+            print(traceback.format_exc(), flush=True, file=sys.stderr)
+            sys.stderr.flush()
+            # Re-raise so the task shows the exception
+            raise
     
     def disconnect(self):
         """Disconnect from Wyoming service."""
