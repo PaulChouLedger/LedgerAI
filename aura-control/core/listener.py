@@ -5,6 +5,7 @@ import torch
 import numpy as np
 import soundfile as sf
 import sounddevice as sd
+from sounddevice import PortAudioError
 import requests
 import subprocess
 import re
@@ -715,6 +716,18 @@ def listen():
                                 wake_word_detector._warned_init = True
                             wake_word_buffer = []
                             
+                    except PortAudioError as pa_error:
+                        # Stream error - stream may be invalid, break out of loop
+                        error_code = getattr(pa_error, 'errno', None)
+                        if error_code in [-9999, -9988]:  # Invalid stream or host error
+                            print(f"\n[Wake Word] ⚠️  Audio stream error: {pa_error}")
+                            print("[Wake Word] 🔄 Stream may be invalid, breaking wake word loop")
+                            break
+                        else:
+                            # Other PortAudio errors - log and continue
+                            print(f"[Wake Word] ⚠️  PortAudio error: {pa_error}")
+                            wake_word_buffer = []
+                            continue
                     except Exception as e:
                         print(f"[Wake Word] ⚠️ Error: {e}")
                         import traceback
@@ -745,6 +758,17 @@ def listen():
                         
                         try:
                             audio_block, _ = stream.read(FRAME_SIZE)
+                        except PortAudioError as pa_error:
+                            # Stream error - stream may be invalid
+                            error_code = getattr(pa_error, 'errno', None)
+                            if error_code in [-9999, -9988]:  # Invalid stream or host error
+                                print(f"\n[Listener] ⚠️  Audio stream error: {pa_error}")
+                                print("[Listener] 🔄 Stream may be invalid, breaking loop")
+                                break
+                            else:
+                                print(f"\n[Listener] ⚠️  PortAudio error: {pa_error}")
+                                time.sleep(0.1)
+                                continue
                         except Exception as e:
                             print(f"\n[Listener] ⚠️  Stream error: {e}")
                             time.sleep(0.1)
@@ -799,6 +823,14 @@ def listen():
                         
                         try:
                             audio_block, _ = stream.read(FRAME_SIZE)
+                        except PortAudioError as pa_error:
+                            # Stream error - stream may be invalid
+                            error_code = getattr(pa_error, 'errno', None)
+                            if error_code in [-9999, -9988]:  # Invalid stream or host error
+                                print(f"\n[Listener] ⚠️  Audio stream error: {pa_error}")
+                                print("[Listener] 🔄 Stream may be invalid, breaking loop")
+                            set_transcribing(False)
+                            break
                         except Exception as e:
                             print(f"\n[Listener] ⚠️  Error: {e}")
                             set_transcribing(False)
