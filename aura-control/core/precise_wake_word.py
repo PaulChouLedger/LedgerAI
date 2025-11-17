@@ -149,9 +149,10 @@ class PreciseWakeWordDetector:
             # Precise uses 2048 samples at 16kHz (128ms chunks)
             self.engine = PreciseEngine(exe_file=exe_file, model_file=model_file, chunk_size=self.frame_length)
             
-            # Use ListenerEngine for frame-by-frame processing
-            # This is better suited for our use case than PreciseRunner
-            self.listener = ListenerEngine(self.engine, on_activation=self._on_activation)
+            # Use PreciseRunner with callback for wake word detection
+            # PreciseRunner handles the audio streaming and calls on_activation when wake word is detected
+            self.runner = PreciseRunner(self.engine, on_activation=self._on_activation)
+            self.runner.start()
             
             self.is_active = True
             print(f"[Wake Word] ✅ Mycroft Precise initialized with model: {model_file}")
@@ -181,7 +182,7 @@ class PreciseWakeWordDetector:
         Returns:
             Tuple[bool, float]: (detected, confidence)
         """
-        if not self.is_active or not self.listener:
+        if not self.is_active or not self.runner:
             return False, 0.0
         
         try:
@@ -209,8 +210,9 @@ class PreciseWakeWordDetector:
             # Convert to int16 for Precise
             audio_int16 = (audio_frame * 32767.0).astype(np.int16)
             
-            # Feed to Precise listener engine
-            self.listener.update(audio_int16.tobytes())
+            # Feed to Precise runner
+            # PreciseRunner.update() expects bytes of int16 audio
+            self.runner.update(audio_int16.tobytes())
             
             # Check if detection occurred
             if self.last_detection:
@@ -225,12 +227,12 @@ class PreciseWakeWordDetector:
     
     def release(self):
         """Release Precise resources."""
-        if self.listener:
+        if self.runner:
             try:
-                # ListenerEngine doesn't have a stop method, just clear reference
-                self.listener = None
+                self.runner.stop()
             except:
                 pass
+            self.runner = None
         if self.engine:
             try:
                 self.engine = None
