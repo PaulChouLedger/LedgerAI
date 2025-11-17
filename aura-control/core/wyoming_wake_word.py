@@ -157,6 +157,21 @@ class WyomingWakeWordClient:
             print("[Wyoming] ✅ Connected to server", flush=True)
             sys.stdout.flush()
             
+            # Try to read initial events from server (might send info about available models)
+            try:
+                initial_event = await asyncio.wait_for(
+                    self.client.read_event(),
+                    timeout=2.0
+                )
+                print(f"[Wyoming] ✅ Received initial event: {type(initial_event)}", flush=True, file=sys.stderr)
+                sys.stderr.flush()
+            except asyncio.TimeoutError:
+                print("[Wyoming] ⏳ No initial event from server (this is OK)", flush=True, file=sys.stderr)
+                sys.stderr.flush()
+            except Exception as e:
+                print(f"[Wyoming] ⚠️ Error reading initial event: {e}", flush=True, file=sys.stderr)
+                sys.stderr.flush()
+            
             # IMPORTANT: Set connected=True BEFORE starting the task
             # The task checks self.connected in its while loop
             self.connected = True
@@ -237,12 +252,12 @@ class WyomingWakeWordClient:
                         self.client.read_event(),
                         timeout=1.0
                     )
-                    
+
                     event_count += 1
                     if event_count == 1:
                         print(f"[Wyoming] ✅ Received first event: {type(event)}", flush=True, file=sys.stderr)
                         sys.stderr.flush()
-                    
+
                     if event:
                         # Debug: check event type
                         if not hasattr(self, '_event_types_seen'):
@@ -251,8 +266,16 @@ class WyomingWakeWordClient:
                         if event_type not in self._event_types_seen:
                             self._event_types_seen.add(event_type)
                             print(f"[Wyoming] 🔍 Event type: {event_type}, methods: {[m for m in dir(event) if not m.startswith('_')][:5]}", flush=True, file=sys.stderr)
+                            # Try to get event data
+                            try:
+                                if hasattr(event, 'data'):
+                                    print(f"[Wyoming] 🔍 Event data type: {type(event.data)}", flush=True, file=sys.stderr)
+                                if hasattr(event, 'type'):
+                                    print(f"[Wyoming] 🔍 Event type attribute: {event.type}", flush=True, file=sys.stderr)
+                            except:
+                                pass
                             sys.stderr.flush()
-                        
+
                         # Try to parse as Detection
                         try:
                             detection = Detection.from_event(event)

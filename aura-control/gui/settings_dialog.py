@@ -849,7 +849,15 @@ class AIModelSettingsDialog(QDialog):
         self.setAttribute(Qt.WA_DeleteOnClose, True)
         self.setStyleSheet("QDialog { background-color: rgba(28,28,30,1.0); color: white; border: none; border-radius: 536px; } QLabel { color: white; }")
         self.setWindowOpacity(0.0)
-        self._setup_ui(); self._center_dialog()
+        try:
+            self._setup_ui()
+            self._center_dialog()
+        except Exception as e:
+            print(f"[AIModelSettings] ❌ Error during initialization: {e}")
+            import traceback
+            traceback.print_exc()
+            # Still show dialog even if setup fails partially
+            QMessageBox.warning(None, "Initialization Error", f"AI Model Settings dialog had an error:\n{e}\n\nSome features may not work correctly.")
     
     def showEvent(self, event):
         super().showEvent(event)
@@ -1636,8 +1644,17 @@ class SettingsDialog(QDialog):
         dlg.exec_()
     
     def open_model_settings(self):
-        dlg = AIModelSettingsDialog(self)
-        dlg.exec_()
+        try:
+            dlg = AIModelSettingsDialog(self)
+            # Ensure dialog is visible before exec (even if at 0 opacity for animation)
+            dlg.show()
+            QApplication.processEvents()  # Process events to ensure dialog is rendered
+            dlg.exec_()
+        except Exception as e:
+            print(f"[Settings] ❌ Error opening AI Model Settings: {e}")
+            import traceback
+            traceback.print_exc()
+            QMessageBox.warning(self, "Error", f"Failed to open AI Model Settings:\n{e}")
 
     def _init_llm_controls(self):
         # Deprecated: inline LLM controls replaced by AIModelSettingsDialog

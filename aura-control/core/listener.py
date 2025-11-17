@@ -534,22 +534,39 @@ def listen():
     except ImportError:
         wake_word_setting_enabled = False
     
-    # Initialize Wyoming container for wake word detection
+    # Initialize wake word detection - try Wyoming first, fallback to direct OpenWakeWord
     import sys
-    print("[Wake Word] 🔄 Initializing Wyoming container...", flush=True)
+    wake_word_detector = None
+    
+    # Try Wyoming first (container-based, more reliable)
+    print("[Wake Word] 🔄 Trying Wyoming container (recommended)...", flush=True)
     sys.stdout.flush()
     try:
-        print("[Wake Word] 🔍 About to call create_wyoming_wake_word_detector()...", flush=True)
-        sys.stdout.flush()
         wake_word_detector = create_wyoming_wake_word_detector()
-        print(f"[Wake Word] 🔍 create_wyoming_wake_word_detector() returned: {wake_word_detector}", flush=True)
-        sys.stdout.flush()
+        if wake_word_detector:
+            print("[Wake Word] ✅ Wyoming container initialized successfully", flush=True)
+            sys.stdout.flush()
     except Exception as e:
-        print(f"[Wake Word] ❌ Exception in create_wyoming_wake_word_detector(): {e}", flush=True)
-        import traceback
-        print(f"[Wake Word] 🔍 Traceback: {traceback.format_exc()}", flush=True)
+        print(f"[Wake Word] ⚠️  Wyoming container failed: {e}", flush=True)
         sys.stdout.flush()
         wake_word_detector = None
+    
+    # Fallback to direct OpenWakeWord (like reference implementation)
+    if wake_word_detector is None:
+        print("[Wake Word] 🔄 Falling back to direct OpenWakeWord (like reference implementation)...", flush=True)
+        sys.stdout.flush()
+        try:
+            from wake_word import create_wake_word_detector
+            wake_word_detector = create_wake_word_detector()
+            if wake_word_detector:
+                print("[Wake Word] ✅ Direct OpenWakeWord initialized successfully", flush=True)
+                sys.stdout.flush()
+        except Exception as e:
+            print(f"[Wake Word] ❌ Direct OpenWakeWord also failed: {e}", flush=True)
+            import traceback
+            print(f"[Wake Word] 🔍 Traceback: {traceback.format_exc()}", flush=True)
+            sys.stdout.flush()
+            wake_word_detector = None
     
     # wake_word_enabled should be True if:
     # 1. Detector initialized successfully, OR
