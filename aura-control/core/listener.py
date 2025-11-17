@@ -606,25 +606,33 @@ def listen():
             # Wake word buffer for OpenWakeWord (needs 1280 samples = 80ms at 16kHz)
             wake_word_buffer = []
             listening_active = False  # True after wake word detected
+            stream_valid = True  # Track if stream is still valid
             
-            while True:
+            while stream_valid:
                 # Pause during TTS
                 if is_playing():
                     print("[Listener] ⏸️ Pausing mic during playback")
-                    stream.stop()
-                    while is_playing():
-                        time.sleep(0.1)
-                    stream.start()
-                    
-                    # Flush buffer
-                    print("[Listener] 🧹 Flushing mic buffer...")
-                    for _ in range(5):
-                        try:
-                            stream.read(FRAME_SIZE)
-                        except:
+                    try:
+                        stream.stop()
+                        while is_playing():
+                            time.sleep(0.1)
+                        stream.start()
+                        
+                        # Flush buffer
+                        print("[Listener] 🧹 Flushing mic buffer...")
+                        for _ in range(5):
+                            try:
+                                stream.read(FRAME_SIZE)
+                            except (PortAudioError, Exception):
+                                break
+                        
+                        print("[Listener] ▶️ Mic resumed after playback (buffer flushed)")
+                    except PortAudioError as pa_error:
+                        error_code = getattr(pa_error, 'errno', None)
+                        if error_code in [-9999, -9988]:
+                            print(f"[Listener] ⚠️  Stream error during TTS pause: {pa_error}")
+                            stream_valid = False
                             break
-                    
-                    print("[Listener] ▶️ Mic resumed after playback (buffer flushed)")
                     listening_active = False  # Reset after TTS
                 
                 # === STAGE 1: Wake Word Detection (if enabled) ===
@@ -717,11 +725,12 @@ def listen():
                             wake_word_buffer = []
                             
                     except PortAudioError as pa_error:
-                        # Stream error - stream may be invalid, break out of loop
+                        # Stream error - stream may be invalid, exit entire loop
                         error_code = getattr(pa_error, 'errno', None)
                         if error_code in [-9999, -9988]:  # Invalid stream or host error
                             print(f"\n[Wake Word] ⚠️  Audio stream error: {pa_error}")
-                            print("[Wake Word] 🔄 Stream may be invalid, breaking wake word loop")
+                            print("[Wake Word] 🔄 Stream invalid, exiting listener")
+                            stream_valid = False
                             break
                         else:
                             # Other PortAudio errors - log and continue
@@ -763,7 +772,8 @@ def listen():
                             error_code = getattr(pa_error, 'errno', None)
                             if error_code in [-9999, -9988]:  # Invalid stream or host error
                                 print(f"\n[Listener] ⚠️  Audio stream error: {pa_error}")
-                                print("[Listener] 🔄 Stream may be invalid, breaking loop")
+                                print("[Listener] 🔄 Stream invalid, exiting listener")
+                                stream_valid = False
                                 break
                             else:
                                 print(f"\n[Listener] ⚠️  PortAudio error: {pa_error}")
@@ -828,7 +838,8 @@ def listen():
                             error_code = getattr(pa_error, 'errno', None)
                             if error_code in [-9999, -9988]:  # Invalid stream or host error
                                 print(f"\n[Listener] ⚠️  Audio stream error: {pa_error}")
-                                print("[Listener] 🔄 Stream may be invalid, breaking loop")
+                                print("[Listener] 🔄 Stream invalid, exiting listener")
+                                stream_valid = False
                             set_transcribing(False)
                             break
                         except Exception as e:

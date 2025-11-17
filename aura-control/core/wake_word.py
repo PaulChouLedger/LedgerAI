@@ -64,13 +64,17 @@ class OpenWakeWordDetector:
             # Convert sensitivity (0.0-1.0) to threshold (0.0-1.0)
             # Higher sensitivity = lower threshold (more sensitive)
             sensitivity = threshold if threshold is not None else get_wake_word_sensitivity()
-            # Default sensitivity 0.5 should map to threshold 0.3 (more sensitive default)
-            # Sensitivity 0.0 (least sensitive) -> threshold 0.7 (high threshold, less detections)
-            # Sensitivity 1.0 (most sensitive) -> threshold 0.1 (low threshold, more detections)
+            # OpenWakeWord confidence values are typically very low
+            # Based on observed values: 0.0 for silence, 1e-06 to 1e-05 for background, 
+            # spikes to 0.1-1.0 when wake word is detected
+            # Default sensitivity 0.5 should map to threshold 0.0001 (very sensitive)
+            # Sensitivity 0.0 (least sensitive) -> threshold 0.001 (higher threshold)
+            # Sensitivity 1.0 (most sensitive) -> threshold 0.00001 (very low threshold)
             if sensitivity is not None:
-                self.threshold = 0.7 - (sensitivity * 0.6)  # Maps 0.0->0.7, 0.5->0.4, 1.0->0.1
+                # Map sensitivity to threshold range 0.00001 to 0.001
+                self.threshold = 0.001 - (sensitivity * 0.00099)  # Maps 0.0->0.001, 0.5->0.0005, 1.0->0.00001
             else:
-                self.threshold = 0.3  # More sensitive default (was 0.5)
+                self.threshold = 0.0001  # Very sensitive default for OpenWakeWord
         except ImportError:
             # Fallback if state module not available
             self.threshold = threshold if threshold is not None else 0.5
@@ -156,7 +160,8 @@ class OpenWakeWordDetector:
             
             print(f"[Wake Word]   Frame length: {self.frame_length} samples ({self.frame_length/self.sample_rate*1000:.0f}ms)")
             print(f"[Wake Word]   Sample rate: {self.sample_rate} Hz")
-            print(f"[Wake Word]   Threshold: {self.threshold:.2f} (lower = more sensitive)")
+            print(f"[Wake Word]   Threshold: {self.threshold:.6f} (lower = more sensitive)")
+            print(f"[Wake Word]   Note: OpenWakeWord uses very low confidence values (typically 0.0-0.01)")
             
             self.is_active = True
             return True
