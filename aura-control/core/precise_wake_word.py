@@ -113,15 +113,20 @@ class PreciseWakeWordDetector:
                     return False
             
             # Find precise-engine executable
-            # It's usually installed with precise-runner package
+            # For Jetson, it needs to be downloaded separately as a binary
             import shutil
+            import platform
             exe_file = shutil.which('precise-engine')
             if not exe_file:
-                # Try common locations
+                # Try common locations including Mycroft's default location
+                machine = platform.machine()
                 possible_paths = [
                     '/usr/local/bin/precise-engine',
                     '/usr/bin/precise-engine',
                     os.path.expanduser('~/.local/bin/precise-engine'),
+                    os.path.expanduser('~/.mycroft/precise/precise-engine/precise-engine'),
+                    os.path.expanduser('~/precise-engine/precise-engine'),
+                    os.path.expanduser('~/precise/precise-engine'),
                 ]
                 for path in possible_paths:
                     if os.path.exists(path) and os.access(path, os.X_OK):
@@ -130,9 +135,13 @@ class PreciseWakeWordDetector:
             
             if not exe_file:
                 print("[Wake Word] ❌ precise-engine executable not found")
-                print("[Wake Word] 💡 Install precise-engine:")
-                print("[Wake Word]     pip install precise-engine")
-                print("[Wake Word]     Or: sudo apt-get install precise-engine")
+                print("[Wake Word] 💡 For Jetson, you need to download the binary:")
+                print("[Wake Word]     cd ~")
+                print("[Wake Word]     wget https://github.com/MycroftAI/mycroft-precise/releases/download/v0.3.0/precise-all_0.3.0_aarch64.tar.gz")
+                print("[Wake Word]     tar xzf precise-all_0.3.0_aarch64.tar.gz")
+                print("[Wake Word]     chmod +x precise/precise-engine")
+                print("[Wake Word]     mv precise ~/.mycroft/precise/")
+                print("[Wake Word] 💡 Or run: ~/LedgerAI/setup/scripts/setup_precise_wake_word.sh")
                 return False
             
             # Create Precise engine

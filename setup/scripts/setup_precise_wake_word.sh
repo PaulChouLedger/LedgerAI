@@ -24,13 +24,37 @@ if [ -z "$VIRTUAL_ENV" ]; then
     fi
 fi
 
-# Install precise-runner and precise-engine
-echo "[1/3] Installing precise-runner and precise-engine..."
-pip install precise-runner precise-engine
+# Install precise-runner (Python package)
+echo "[1/4] Installing precise-runner (Python package)..."
+pip install precise-runner
+
+# Download precise-engine binary for Jetson (aarch64)
+echo ""
+echo "[2/4] Downloading precise-engine binary for Jetson..."
+PRECISE_DIR="$HOME/.mycroft/precise"
+mkdir -p "$PRECISE_DIR"
+
+if [ ! -f "$PRECISE_DIR/precise-engine/precise-engine" ]; then
+    cd /tmp
+    echo "Downloading precise-engine for aarch64..."
+    wget -q https://github.com/MycroftAI/mycroft-precise/releases/download/v0.3.0/precise-all_0.3.0_aarch64.tar.gz || {
+        echo "❌ Failed to download precise-engine"
+        echo "💡 Try manually:"
+        echo "   wget https://github.com/MycroftAI/mycroft-precise/releases/download/v0.3.0/precise-all_0.3.0_aarch64.tar.gz"
+        exit 1
+    }
+    tar xzf precise-all_0.3.0_aarch64.tar.gz
+    mv precise "$PRECISE_DIR/precise-engine"
+    chmod +x "$PRECISE_DIR/precise-engine/precise-engine"
+    rm precise-all_0.3.0_aarch64.tar.gz
+    echo "✅ precise-engine installed to: $PRECISE_DIR/precise-engine/precise-engine"
+else
+    echo "✅ precise-engine already exists: $PRECISE_DIR/precise-engine/precise-engine"
+fi
 
 # Download default model
 echo ""
-echo "[2/3] Downloading wake word model..."
+echo "[3/4] Downloading wake word model..."
 MODEL_DIR="$HOME/precise-models"
 mkdir -p "$MODEL_DIR"
 cd "$MODEL_DIR"
@@ -45,19 +69,18 @@ fi
 
 # Test installation
 echo ""
-echo "[3/3] Testing installation..."
+echo "[4/4] Testing installation..."
 python3 -c "from precise_runner import PreciseEngine; print('✅ Precise imported successfully!')" || {
     echo "❌ Precise import failed"
     exit 1
 }
 
 # Check if precise-engine executable is available
-if command -v precise-engine &> /dev/null; then
-    echo "✅ precise-engine executable found: $(which precise-engine)"
+if [ -f "$PRECISE_DIR/precise-engine/precise-engine" ] && [ -x "$PRECISE_DIR/precise-engine/precise-engine" ]; then
+    echo "✅ precise-engine executable found: $PRECISE_DIR/precise-engine/precise-engine"
 else
-    echo "⚠️  precise-engine executable not found in PATH"
-    echo "💡 Try: pip install --upgrade precise-engine"
-    echo "💡 Or check if it's installed: pip show precise-engine"
+    echo "⚠️  precise-engine executable not found or not executable"
+    echo "💡 Check: ls -la $PRECISE_DIR/precise-engine/precise-engine"
 fi
 
 echo ""
