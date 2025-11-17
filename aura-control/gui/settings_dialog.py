@@ -403,7 +403,8 @@ class WifiSettingsDialog(QDialog):
         self.setWindowTitle("WiFi Settings")
         self.setFixedSize(1080, 1080)
         if parent:
-            self.setWindowFlags(Qt.Dialog | Qt.FramelessWindowHint)
+            # Use Window flag instead of Dialog to ensure proper z-ordering above parent
+            self.setWindowFlags(Qt.Window | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
             self.setModal(True)
         else:
             self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
@@ -689,7 +690,9 @@ class UpdateDialog(QDialog):
         self.setWindowTitle("Updates")
         self.setFixedSize(1080, 1080)
         if parent:
-            self.setWindowFlags(Qt.Dialog | Qt.FramelessWindowHint); self.setModal(True)
+            # Use Window flag instead of Dialog to ensure proper z-ordering above parent
+            self.setWindowFlags(Qt.Window | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
+            self.setModal(True)
         else:
             self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
         self.setAttribute(Qt.WA_DeleteOnClose, True)
@@ -851,7 +854,9 @@ class AIModelSettingsDialog(QDialog):
         self.setWindowTitle("AI Model Settings")
         self.setFixedSize(1080, 1080)
         if parent:
-            self.setWindowFlags(Qt.Dialog | Qt.FramelessWindowHint); self.setModal(True)
+            # Use Window flag instead of Dialog to ensure proper z-ordering above parent
+            self.setWindowFlags(Qt.Window | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
+            self.setModal(True)
         else:
             self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
         self.setAttribute(Qt.WA_DeleteOnClose, True)
@@ -1329,7 +1334,8 @@ class SettingsDialog(QDialog):
         self.setFixedSize(1080, 1080)
         
         if parent:
-            self.setWindowFlags(Qt.Dialog | Qt.FramelessWindowHint)
+            # Use Window flag instead of Dialog to ensure proper z-ordering above parent
+            self.setWindowFlags(Qt.Window | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
             self.setModal(True)
         else:
             self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
@@ -1610,10 +1616,7 @@ class SettingsDialog(QDialog):
     
     def open_wifi_settings(self):
         try:
-            # Hide parent dialog temporarily to avoid rendering conflicts
-            self.hide()
-            QApplication.processEvents()
-            
+            # Keep parent visible, just show sub-dialog on top
             dlg = WifiSettingsDialog(self)
             dlg.setWindowOpacity(1.0)  # Show immediately without fade
             dlg.show()
@@ -1621,22 +1624,14 @@ class SettingsDialog(QDialog):
             dlg.activateWindow()
             QApplication.processEvents()
             dlg.exec_()
-            
-            # Restore parent dialog
-            self.show()
-            self.raise_()
-            self.activateWindow()
         except Exception as e:
             print(f"[Settings] ❌ Error opening WiFi Settings: {e}")
-            self.show()
-            self.raise_()
+            import traceback
+            traceback.print_exc()
     
     def open_update_dialog(self):
         try:
-            # Hide parent dialog temporarily to avoid rendering conflicts
-            self.hide()
-            QApplication.processEvents()
-            
+            # Keep parent visible, just show sub-dialog on top
             dlg = UpdateDialog(self)
             dlg.setWindowOpacity(1.0)  # Show immediately without fade
             dlg.show()
@@ -1644,45 +1639,25 @@ class SettingsDialog(QDialog):
             dlg.activateWindow()
             QApplication.processEvents()
             dlg.exec_()
-            
-            # Restore parent dialog
-            self.show()
-            self.raise_()
-            self.activateWindow()
         except Exception as e:
             print(f"[Settings] ❌ Error opening Update Dialog: {e}")
-            self.show()
-            self.raise_()
+            import traceback
+            traceback.print_exc()
     
     def open_model_settings(self):
         try:
-            # Hide parent dialog temporarily to avoid rendering conflicts
-            self.hide()
-            QApplication.processEvents()
-            
+            # Keep parent visible, just show sub-dialog on top
             dlg = AIModelSettingsDialog(self)
-            # Set opacity to 1.0 initially to avoid rendering issues, then animate
-            dlg.setWindowOpacity(1.0)
+            dlg.setWindowOpacity(1.0)  # Show immediately without fade
             dlg.show()
             dlg.raise_()
             dlg.activateWindow()
             QApplication.processEvents()
-            
-            # Now start fade-in animation from 1.0 to 1.0 (no-op) or use a different approach
-            # Actually, let's just show it normally without the fade animation for sub-dialogs
             dlg.exec_()
-            
-            # Restore parent dialog
-            self.show()
-            self.raise_()
-            self.activateWindow()
         except Exception as e:
             print(f"[Settings] ❌ Error opening AI Model Settings: {e}")
             import traceback
             traceback.print_exc()
-            # Restore parent dialog even on error
-            self.show()
-            self.raise_()
             QMessageBox.warning(self, "Error", f"Failed to open AI Model Settings:\n{e}")
 
     def _init_llm_controls(self):
