@@ -340,12 +340,17 @@ def create_wyoming_wake_word_detector(host: str = "localhost", port: int = 10400
     Returns:
         WyomingWakeWordClient instance or None
     """
-    print(f"[Wyoming] 🔄 Creating detector for {host}:{port}...")
+    import sys
+    print(f"[Wyoming] 🔄 Creating detector for {host}:{port}...", flush=True)
+    sys.stdout.flush()
     client = WyomingWakeWordClient(host, port)
-    print(f"[Wyoming] 🔄 Calling client.connect()...")
+    print(f"[Wyoming] 🔄 Calling client.connect()...", flush=True)
+    sys.stdout.flush()
     if client.connect():
-        print(f"[Wyoming] ✅ Detector created and connected")
+        print(f"[Wyoming] ✅ Detector created and connected", flush=True)
+        sys.stdout.flush()
         return client
     else:
-        print(f"[Wyoming] ❌ Detector creation failed - connect() returned False")
+        print(f"[Wyoming] ❌ Detector creation failed - connect() returned False", flush=True)
+        sys.stdout.flush()
     return None

@@ -532,15 +532,20 @@ def listen():
         wake_word_setting_enabled = False
     
     # Initialize Wyoming container for wake word detection
-    print("[Wake Word] 🔄 Initializing Wyoming container...")
+    import sys
+    print("[Wake Word] 🔄 Initializing Wyoming container...", flush=True)
+    sys.stdout.flush()
     try:
-        print("[Wake Word] 🔍 About to call create_wyoming_wake_word_detector()...")
+        print("[Wake Word] 🔍 About to call create_wyoming_wake_word_detector()...", flush=True)
+        sys.stdout.flush()
         wake_word_detector = create_wyoming_wake_word_detector()
-        print(f"[Wake Word] 🔍 create_wyoming_wake_word_detector() returned: {wake_word_detector}")
+        print(f"[Wake Word] 🔍 create_wyoming_wake_word_detector() returned: {wake_word_detector}", flush=True)
+        sys.stdout.flush()
     except Exception as e:
-        print(f"[Wake Word] ❌ Exception in create_wyoming_wake_word_detector(): {e}")
+        print(f"[Wake Word] ❌ Exception in create_wyoming_wake_word_detector(): {e}", flush=True)
         import traceback
-        print(f"[Wake Word] 🔍 Traceback: {traceback.format_exc()}")
+        print(f"[Wake Word] 🔍 Traceback: {traceback.format_exc()}", flush=True)
+        sys.stdout.flush()
         wake_word_detector = None
     
     # wake_word_enabled should be True if:
