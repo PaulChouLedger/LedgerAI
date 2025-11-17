@@ -178,15 +178,27 @@ class WyomingWakeWordClient:
     async def _async_send_audio(self, audio_int16: np.ndarray) -> Tuple[bool, float]:
         """Async send audio."""
         try:
-            # Create AudioChunk - pass directly to write_event
+            # Create AudioChunk
             chunk = AudioChunk(
                 rate=16000,
                 width=2,  # 16-bit = 2 bytes
                 channels=1,
                 audio=audio_int16.tobytes()
             )
-            # Write the chunk directly - AsyncTcpClient should handle conversion
-            await self.client.write_event(chunk)
+            # Convert AudioChunk to Event using .event() method
+            event = chunk.event()
+            # Debug: check event structure
+            if not hasattr(self, '_event_debugged'):
+                print(f"[Wyoming] 🔍 Event type: {type(event)}")
+                print(f"[Wyoming] 🔍 Event dir: {[x for x in dir(event) if not x.startswith('_')]}")
+                self._event_debugged = True
+            # Write the event - try using async_write_event from wyoming.client if available
+            try:
+                from wyoming.client import async_write_event
+                await async_write_event(self.client, event)
+            except ImportError:
+                # Fallback to client method
+                await self.client.write_event(event)
             
             # Read events - check for Detection
             try:
