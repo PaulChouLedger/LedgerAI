@@ -169,19 +169,24 @@ class WyomingWakeWordClient:
                 # Give it a moment to start
                 await asyncio.sleep(0.1)
                 # Verify task is running - wait a moment to see if it completes
-                await asyncio.sleep(0.2)
+                await asyncio.sleep(0.3)
                 if self._detection_task.done():
                     print("[Wyoming] ⚠️ Detection task completed immediately - checking exception...", flush=True, file=sys.stderr)
                     sys.stderr.flush()
                     try:
-                        # Get the result/exception
+                        # Get the result/exception - this will raise if there was an exception
                         result = self._detection_task.result()
-                        print(f"[Wyoming] ⚠️ Task returned: {result}", flush=True, file=sys.stderr)
+                        print(f"[Wyoming] ⚠️ Task returned normally: {result}", flush=True, file=sys.stderr)
                     except Exception as task_exc:
-                        print(f"[Wyoming] ❌ Task exception: {task_exc}", flush=True, file=sys.stderr)
+                        print(f"[Wyoming] ❌❌❌ TASK EXCEPTION: {task_exc}", flush=True, file=sys.stderr)
+                        print(f"[Wyoming] ❌ Exception type: {type(task_exc).__name__}", flush=True, file=sys.stderr)
                         import traceback
-                        print(f"[Wyoming] 🔍 Full traceback:", flush=True, file=sys.stderr)
-                        print(traceback.format_exc(), flush=True, file=sys.stderr)
+                        print(f"[Wyoming] 🔍 FULL TRACEBACK:", flush=True, file=sys.stderr)
+                        tb_str = traceback.format_exc()
+                        print(tb_str, flush=True, file=sys.stderr)
+                        # Also print to stdout as backup
+                        print(f"\n[Wyoming] ❌ TASK CRASHED: {task_exc}", flush=True)
+                        print(f"[Wyoming] 🔍 {tb_str}", flush=True)
                     sys.stderr.flush()
                 else:
                     print("[Wyoming] ✅ Detection task is running", flush=True, file=sys.stderr)
