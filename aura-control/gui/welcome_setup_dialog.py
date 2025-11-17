@@ -225,7 +225,21 @@ class WelcomeSetupDialog(QDialog):
                 pass
             self.wifi_scan_thread = None
         
-        # Animate fade-out
+        # Reactivate parent window immediately to prevent freezing
+        if self.parent():
+            try:
+                self.parent().raise_()
+                self.parent().activateWindow()
+                QApplication.processEvents()
+            except Exception:
+                pass
+        
+        # For modal dialogs opened from home screen, accept immediately to avoid blocking
+        if self.isModal() and self.parent():
+            event.accept()
+            return
+        
+        # Non-modal: use fade animation
         if hasattr(self, 'fade_in') and self.fade_in.state() == QPropertyAnimation.Running:
             self.fade_in.stop()
         
@@ -234,7 +248,19 @@ class WelcomeSetupDialog(QDialog):
         self.fade_out.setStartValue(self.windowOpacity())
         self.fade_out.setEndValue(0.0)
         self.fade_out.setEasingCurve(QEasingCurve.InOutCubic)
-        self.fade_out.finished.connect(lambda: event.accept())
+        
+        def _finalize():
+            event.accept()
+            # Ensure parent is reactivated after close
+            if self.parent():
+                try:
+                    self.parent().raise_()
+                    self.parent().activateWindow()
+                    QApplication.processEvents()
+                except Exception:
+                    pass
+        
+        self.fade_out.finished.connect(_finalize)
         self.fade_out.start()
         event.ignore()
     

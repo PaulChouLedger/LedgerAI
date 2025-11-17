@@ -67,12 +67,9 @@ class PreciseWakeWordDetector:
         
         self.model_path = model_path
         self.engine: Optional[PreciseEngine] = None
-        self.runner: Optional[PreciseRunner] = None
         self.is_active = False
         self.frame_length = 2048  # Precise uses 2048 samples at 16kHz (128ms)
         self.sample_rate = 16000
-        self.last_detection = False
-        self.last_confidence = 0.0
         
     def initialize(self) -> bool:
         """
@@ -149,10 +146,9 @@ class PreciseWakeWordDetector:
             # Precise uses 2048 samples at 16kHz (128ms chunks)
             self.engine = PreciseEngine(exe_file=exe_file, model_file=model_file, chunk_size=self.frame_length)
             
-            # Use PreciseRunner with callback for wake word detection
-            # PreciseRunner handles the audio streaming and calls on_activation when wake word is detected
-            self.runner = PreciseRunner(self.engine, on_activation=self._on_activation)
-            self.runner.start()
+            # For manual frame processing, we use the engine directly
+            # PreciseRunner is designed for automatic streaming, not manual frame feeding
+            # We'll call engine.get_prediction() directly in process()
             
             self.is_active = True
             print(f"[Wake Word] ✅ Mycroft Precise initialized with model: {model_file}")
@@ -167,10 +163,7 @@ class PreciseWakeWordDetector:
             print("[Wake Word] 💡 Download model: wget https://github.com/MycroftAI/precise-data/raw/models/hey-mycroft.pb")
             return False
     
-    def _on_activation(self):
-        """Callback when wake word is detected."""
-        self.last_detection = True
-        self.last_confidence = 1.0  # Precise doesn't provide confidence, assume max
+    # Note: _on_activation callback not needed when using engine.get_prediction() directly
     
     def process(self, audio_frame: np.ndarray) -> Tuple[bool, float]:
         """
@@ -182,7 +175,7 @@ class PreciseWakeWordDetector:
         Returns:
             Tuple[bool, float]: (detected, confidence)
         """
-        if not self.is_active or not self.runner:
+        if not self.is_active or not self.engine:
             return False, 0.0
         
         try:
@@ -210,16 +203,22 @@ class PreciseWakeWordDetector:
             # Convert to int16 for Precise
             audio_int16 = (audio_frame * 32767.0).astype(np.int16)
             
-            # Feed to Precise runner
-            # PreciseRunner.update() expects bytes of int16 audio
-            self.runner.update(audio_int16.tobytes())
-            
-            # Check if detection occurred
-            if self.last_detection:
-                self.last_detection = False  # Reset for next check
-                return True, self.last_confidence
-            
-            return False, 0.0
+            # Get prediction directly from engine
+            # PreciseEngine.get_prediction() returns probability (0.0-1.0)
+            try:
+                prediction = self.engine.get_prediction(audio_int16.tobytes())
+                confidence = float(prediction)
+                
+                # Check if confidence exceeds threshold
+                detected = confidence >= self.threshold
+                
+                if detected:
+                    return True, confidence
+                else:
+                    return False, confidence
+            except Exception as pred_error:
+                # Engine might return empty or invalid response
+                return False, 0.0
             
         except Exception as e:
             print(f"[Wake Word] ⚠️ Processing error: {e}")
@@ -227,14 +226,9 @@ class PreciseWakeWordDetector:
     
     def release(self):
         """Release Precise resources."""
-        if self.runner:
-            try:
-                self.runner.stop()
-            except:
-                pass
-            self.runner = None
         if self.engine:
             try:
+                # PreciseEngine cleanup if needed
                 self.engine = None
             except:
                 pass

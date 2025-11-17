@@ -1403,6 +1403,23 @@ class SettingsDialog(QDialog):
     
     def closeEvent(self, event):
         """Handle dialog close event with smooth fade-out animation"""
+        # Always ensure transcription is unblocked when dialog closes
+        try:
+            from listener import unblock_transcription
+            unblock_transcription()
+            print("[SettingsDialog] ✅ Transcription unblocked")
+        except Exception:
+            pass
+        
+        # Reactivate parent window immediately to prevent freezing
+        if self.parent():
+            try:
+                self.parent().raise_()
+                self.parent().activateWindow()
+                QApplication.processEvents()
+            except Exception:
+                pass
+        
         # Only animate if we're actually closing (not just hiding)
         if event.spontaneous() or not self.isVisible():
             event.accept()
@@ -1412,7 +1429,12 @@ class SettingsDialog(QDialog):
         if hasattr(self, 'fade_in') and self.fade_in.state() == QPropertyAnimation.Running:
             self.fade_in.stop()
         
-        # Create smooth fade-out animation
+        # For modal dialogs opened from home screen, accept immediately to avoid blocking
+        if self.isModal() and self.parent():
+            event.accept()
+            return
+        
+        # Non-modal: use fade animation
         self.fade_out = QPropertyAnimation(self, b"windowOpacity")
         self.fade_out.setDuration(250)  # Slightly longer for smoother feel
         self.fade_out.setStartValue(self.windowOpacity())
@@ -1420,7 +1442,18 @@ class SettingsDialog(QDialog):
         self.fade_out.setEasingCurve(QEasingCurve.InOutCubic)  # Symmetric easing
         
         # Connect finished signal to actually close the dialog
-        self.fade_out.finished.connect(lambda: event.accept())
+        def _finalize():
+            event.accept()
+            # Ensure parent is reactivated after close
+            if self.parent():
+                try:
+                    self.parent().raise_()
+                    self.parent().activateWindow()
+                    QApplication.processEvents()
+                except Exception:
+                    pass
+        
+        self.fade_out.finished.connect(_finalize)
         self.fade_out.start()
         
         # Prevent immediate close

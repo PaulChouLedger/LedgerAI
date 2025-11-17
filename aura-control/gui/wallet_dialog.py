@@ -1,7 +1,7 @@
 # wallet_dialog.py — Wallet Connection Dialog for Aura
 
 from PyQt5.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel, 
-                            QPushButton, QLineEdit, QTextEdit, QGroupBox, QMessageBox)
+                            QPushButton, QLineEdit, QTextEdit, QGroupBox, QMessageBox, QApplication)
 from PyQt5.QtCore import Qt, QTimer, QThread, pyqtSignal, QPropertyAnimation, QEasingCurve
 from PyQt5.QtGui import QFont, QColor
 import os
@@ -810,6 +810,15 @@ class WalletDialog(QDialog):
         except Exception:
             pass
         
+        # Reactivate parent window immediately to prevent freezing
+        if self.parent():
+            try:
+                self.parent().raise_()
+                self.parent().activateWindow()
+                QApplication.processEvents()
+            except Exception:
+                pass
+        
         # If already animating or not visible, accept immediately
         if hasattr(self, 'fade_out') and self.fade_out.state() == QPropertyAnimation.Running:
             event.accept()
@@ -820,11 +829,16 @@ class WalletDialog(QDialog):
             event.accept()
             return
         
+        # For modal dialogs opened from home screen, accept immediately to avoid blocking
+        if self.isModal() and self.parent():
+            event.accept()
+            return
+        
         # Cancel fade-in if still running
         if hasattr(self, 'fade_in') and self.fade_in.state() == QPropertyAnimation.Running:
             self.fade_in.stop()
         
-        # Create optimized fade-out animation
+        # Non-modal: use fade animation
         self.fade_out = QPropertyAnimation(self, b"windowOpacity")
         self.fade_out.setDuration(300)  # Slightly longer for smoother exit
         self.fade_out.setStartValue(self.windowOpacity())
@@ -840,6 +854,14 @@ class WalletDialog(QDialog):
             except Exception:
                 pass
             event.accept()
+            # Ensure parent is reactivated after close
+            if self.parent():
+                try:
+                    self.parent().raise_()
+                    self.parent().activateWindow()
+                    QApplication.processEvents()
+                except Exception:
+                    pass
         self.fade_out.finished.connect(_finalize_close)
         self.fade_out.start()
         

@@ -458,6 +458,16 @@ class PaymentDialog(QDialog):
     
     def closeEvent(self, event):
         """Handle dialog close event with smooth fade-out animation"""
+        # Reactivate parent window immediately to prevent freezing
+        if self.parent():
+            try:
+                self.parent().raise_()
+                self.parent().activateWindow()
+                from PyQt5.QtWidgets import QApplication
+                QApplication.processEvents()
+            except Exception:
+                pass
+        
         # If already animating or not visible, accept immediately
         if hasattr(self, 'fade_out') and self.fade_out.state() == QPropertyAnimation.Running:
             event.accept()
@@ -468,11 +478,16 @@ class PaymentDialog(QDialog):
             event.accept()
             return
         
+        # For modal dialogs opened from home screen, accept immediately to avoid blocking
+        if self.isModal() and self.parent():
+            event.accept()
+            return
+        
         # Cancel fade-in if still running
         if hasattr(self, 'fade_in') and self.fade_in.state() == QPropertyAnimation.Running:
             self.fade_in.stop()
         
-        # Create smooth fade-out animation
+        # Non-modal: use fade animation
         self.fade_out = QPropertyAnimation(self, b"windowOpacity")
         self.fade_out.setDuration(250)  # Slightly longer for smoother feel
         self.fade_out.setStartValue(self.windowOpacity())
@@ -480,7 +495,19 @@ class PaymentDialog(QDialog):
         self.fade_out.setEasingCurve(QEasingCurve.InOutCubic)  # Symmetric easing
         
         # Connect finished signal to actually close the dialog
-        self.fade_out.finished.connect(lambda: event.accept())
+        def _finalize():
+            event.accept()
+            # Ensure parent is reactivated after close
+            if self.parent():
+                try:
+                    self.parent().raise_()
+                    self.parent().activateWindow()
+                    from PyQt5.QtWidgets import QApplication
+                    QApplication.processEvents()
+                except Exception:
+                    pass
+        
+        self.fade_out.finished.connect(_finalize)
         self.fade_out.start()
         
         # Prevent immediate close
