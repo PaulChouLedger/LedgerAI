@@ -25,7 +25,7 @@ LLM_TEMPERATURE_SIMPLE = 0.7
 LLM_TOP_P = 0.95
 LLM_TOP_K = 40
 LLM_REPEAT_PENALTY = 1.1
-LLM_NUM_PREDICT_DEFAULT = 300
+LLM_NUM_PREDICT_DEFAULT = 150  # Reduced from 300 for faster responses (shorter = faster)
 SIMPLE_N_CTX = 1024
 SIMPLE_CHAT_FORMAT = "qwen"
 N_THREADS = 8
@@ -234,7 +234,7 @@ def handle_conversation(
                 ),
             }
         ]
-        return llm_chat_simple(messages, max_tokens=300, stream=stream)
+        return llm_chat_simple(messages, max_tokens=150, stream=stream)
 
     # Fallback to direct LLM conversation without external context
     system_prompt = (
@@ -565,13 +565,18 @@ def cpu_faiss_status():
 if __name__ == "__main__":
     print("[Generic] 🚀 Starting Aura Generic LLM Container...")
     
-    # Load model
+    # Load model with GPU acceleration
     print(f"[Generic] 📦 Loading model: {SIMPLE_MODEL_PATH}")
+    # Offload all layers to GPU for maximum acceleration (set to 0 to disable GPU)
+    # For Jetson, offloading all layers typically provides best performance
+    n_gpu_layers = -1  # -1 = offload all layers to GPU, 0 = CPU only
+    print(f"[Generic] 🚀 GPU acceleration: {n_gpu_layers} layers offloaded to GPU")
     llm_simple = Llama(
         model_path=SIMPLE_MODEL_PATH,
         n_ctx=SIMPLE_N_CTX,
         n_threads=N_THREADS,
         n_batch=N_BATCH,
+        n_gpu_layers=n_gpu_layers,  # Enable GPU acceleration
         cache_prompt=CACHE_PROMPT,
         chat_format=SIMPLE_CHAT_FORMAT,
         use_mlock=True,

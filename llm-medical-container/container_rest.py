@@ -240,7 +240,7 @@ LLM_NUM_PREDICT_DEFAULT = 220
 SIMPLE_N_CTX = 1024
 SIMPLE_CHAT_FORMAT = "qwen"
 N_THREADS = 8
-N_BATCH = 512
+N_BATCH = 256  # Reduced from 512 for faster generation (smaller batches = lower latency)
 CACHE_PROMPT = True
 
 # RAG Mode toggle: "CPU", "GPU", or "OFF" (resolved from app_settings.json if present)
@@ -933,7 +933,7 @@ if __name__ == "__main__":
     llm_simple = Llama(
         model_path=SIMPLE_MODEL_PATH,
         n_ctx=SIMPLE_N_CTX,
-        n_gpu_layers=32,  # Use fewer layers for simple model on Orin32
+        n_gpu_layers=-1,  # -1 = offload all layers to GPU for maximum acceleration
         n_threads=N_THREADS,
         n_batch=N_BATCH,
         cache_prompt=CACHE_PROMPT,
