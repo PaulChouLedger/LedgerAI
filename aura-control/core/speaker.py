@@ -569,7 +569,8 @@ def speak_llm_response(prompt, context=""):
     try:
         from state import get_llm_mode
         llm_mode = get_llm_mode()
-        primary_port = "11434" if llm_mode == "medical" else "11436"
+        # Both medical and generic now use port 11434
+        primary_port = "11434"
     except Exception:
         # Fallback to medical port (default)
         primary_port = "11434"

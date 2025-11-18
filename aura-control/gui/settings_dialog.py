@@ -794,7 +794,17 @@ class UpdateDialog(QDialog):
         event.ignore()
     
     def _center_dialog(self):
-        screen = QApplication.primaryScreen().geometry(); x = (screen.width() - self.width()) // 2; y = (screen.height() - self.height()) // 2; self.move(x, y)
+        """Center dialog within parent or screen"""
+        if self.parent():
+            parent_geometry = self.parent().geometry()
+            x = parent_geometry.x() + (parent_geometry.width() - self.width()) // 2
+            y = parent_geometry.y() + (parent_geometry.height() - self.height()) // 2
+            self.move(x, y)
+        else:
+            screen = QApplication.primaryScreen().geometry()
+            x = (screen.width() - self.width()) // 2
+            y = (screen.height() - self.height()) // 2
+            self.move(x, y)
     
     def _setup_ui(self):
         main_layout = QVBoxLayout(); main_layout.setContentsMargins(120, 100, 120, 100); main_layout.setSpacing(20); main_layout.addStretch(1)
@@ -918,7 +928,17 @@ class AIModelSettingsDialog(QDialog):
         event.ignore()
     
     def _center_dialog(self):
-        screen = QApplication.primaryScreen().geometry(); x = (screen.width() - self.width()) // 2; y = (screen.height() - self.height()) // 2; self.move(x, y)
+        """Center dialog within parent or screen"""
+        if self.parent():
+            parent_geometry = self.parent().geometry()
+            x = parent_geometry.x() + (parent_geometry.width() - self.width()) // 2
+            y = parent_geometry.y() + (parent_geometry.height() - self.height()) // 2
+            self.move(x, y)
+        else:
+            screen = QApplication.primaryScreen().geometry()
+            x = (screen.width() - self.width()) // 2
+            y = (screen.height() - self.height()) // 2
+            self.move(x, y)
     
     def _setup_ui(self):
         layout = QVBoxLayout(); layout.setContentsMargins(120, 100, 120, 100); layout.setSpacing(20); layout.addStretch(1)

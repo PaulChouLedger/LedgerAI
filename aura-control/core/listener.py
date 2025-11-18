@@ -67,6 +67,16 @@ SPEECH_PEAK_MIN = 0.0023        # Lower peak threshold to accept softer speech
 ENABLE_AUDIO_NORMALIZATION = True  # Normalize audio to optimal RMS for Whisper
 TARGET_RMS_FOR_WHISPER = 0.12      # Optimal RMS level for Whisper (found via find_optimal_rms.py)
 
+# === Wake Word Audio Normalization ===
+# Wake word uses same normalization function as Whisper, but with different target RMS
+# Import from precise_wake_word.py to avoid duplication
+try:
+    from precise_wake_word import WAKE_WORD_TARGET_RMS, WAKE_WORD_MAX_GAIN
+except ImportError:
+    # Fallback if import fails
+    WAKE_WORD_TARGET_RMS = 0.05
+    WAKE_WORD_MAX_GAIN = 10.0
+
 # === Soft Clipping Prevention ===
 ENABLE_SOFT_LIMITER = False      # Prevent clipping from near-field speech
 LIMITER_THRESHOLD = 0.95        # Start limiting above this peak level
@@ -184,14 +194,16 @@ def calculate_audio_features(audio_chunk, sample_rate=SAMPLE_RATE):
     
     return features
 
-def normalize_audio_for_whisper(audio_data, target_rms=TARGET_RMS_FOR_WHISPER):
+def normalize_audio_for_whisper(audio_data, target_rms=TARGET_RMS_FOR_WHISPER, max_gain=None):
     """
     Normalize audio to target RMS level for optimal Whisper transcription.
     This matches the approach in find_optimal_rms.py which shows better results.
+    Also used for wake word detection with different target RMS.
     
     Args:
         audio_data: Raw audio array
-        target_rms: Target RMS level (default 0.12 - optimal for Whisper)
+        target_rms: Target RMS level (default 0.12 - optimal for Whisper, 0.05 for wake word)
+        max_gain: Maximum gain factor to prevent distortion (default: no limit for Whisper, 10.0 for wake word)
     
     Returns:
         Normalized audio array
@@ -201,10 +213,16 @@ def normalize_audio_for_whisper(audio_data, target_rms=TARGET_RMS_FOR_WHISPER):
     
     current_rms = np.sqrt(np.mean(audio_data ** 2))
     
-    if current_rms < 1e-6:
+    # Use same threshold as wake word logic for consistency (0.0001 = 1e-4)
+    if current_rms < 0.0001:
         return audio_data
     
     gain = target_rms / current_rms
+    
+    # Apply gain limiting if specified (for wake word detection)
+    if max_gain is not None:
+        gain = min(gain, max_gain)
+    
     normalized = audio_data * gain
     # Soft clip to prevent distortion
     normalized = np.clip(normalized, -0.95, 0.95)
@@ -695,30 +713,28 @@ def listen():
                         channel_audio = audio_block[:, MICROPHONE_CHANNEL]
                         
                         # Normalize/amplify audio for wake word detection
-                        # Mycroft Precise works better with normalized audio
+                        # Use same normalization function as Whisper for consistency
                         if channel_audio.size > 0:
-                            # Calculate RMS
-                            rms = np.sqrt(np.mean(channel_audio**2))
-                            peak = np.abs(channel_audio).max()
+                            # Calculate RMS before normalization for debug output
+                            rms_before = np.sqrt(np.mean(channel_audio**2))
+                            peak_before = np.abs(channel_audio).max()
                             
-                            # Normalize to target RMS if audio is too quiet
-                            TARGET_RMS = 0.05  # Target RMS for wake word detection
-                            if rms > 0.0001:  # Only normalize if we have some signal
-                                gain = TARGET_RMS / max(rms, 0.0001)
-                                # Limit gain to avoid distortion
-                                gain = min(gain, 10.0)  # Max 10x amplification
-                                channel_audio = channel_audio * gain
-                                # Soft clipping to prevent distortion
-                                channel_audio = np.clip(channel_audio, -0.95, 0.95)
-                        
-                        # Debug: check audio levels occasionally (every 100 frames or first 5)
-                        if not hasattr(wake_word_detector, '_audio_level_debug'):
-                            wake_word_detector._audio_level_debug = 0
-                        wake_word_detector._audio_level_debug += 1
-                        if wake_word_detector._audio_level_debug <= 5 or wake_word_detector._audio_level_debug % 100 == 0:
-                            rms_after = np.sqrt(np.mean(channel_audio**2))
-                            peak_after = np.abs(channel_audio).max()
-                            print(f"[Wake Word] 🔍 DEBUG Audio: RMS={rms:.4f}→{rms_after:.4f}, Peak={peak:.4f}→{peak_after:.4f} (Frame {wake_word_detector._audio_level_debug})")
+                            # Use same normalization function as Whisper, but with wake word target RMS and gain limit
+                            # This ensures consistent processing logic across all components
+                            channel_audio = normalize_audio_for_whisper(
+                                channel_audio, 
+                                target_rms=WAKE_WORD_TARGET_RMS,
+                                max_gain=WAKE_WORD_MAX_GAIN
+                            )
+                            
+                            # Debug: check audio levels occasionally (every 100 frames or first 5)
+                            if not hasattr(wake_word_detector, '_audio_level_debug'):
+                                wake_word_detector._audio_level_debug = 0
+                            wake_word_detector._audio_level_debug += 1
+                            if wake_word_detector._audio_level_debug <= 5 or wake_word_detector._audio_level_debug % 100 == 0:
+                                rms_after = np.sqrt(np.mean(channel_audio**2))
+                                peak_after = np.abs(channel_audio).max()
+                                print(f"[Wake Word] 🔍 DEBUG Audio: RMS={rms_before:.4f}→{rms_after:.4f}, Peak={peak_before:.4f}→{peak_after:.4f} (Frame {wake_word_detector._audio_level_debug})")
                         
                         if channel_audio.size < 512:
                             # Not enough samples, continue to next iteration

@@ -19,6 +19,23 @@ import subprocess
 import numpy as np
 from typing import Optional, Tuple
 
+# === Wake Word Detection Configuration ===
+# Tune these values for optimal detection performance
+
+# Default threshold (lower = more sensitive, higher = less sensitive)
+# Typical range: 0.1 (very sensitive) to 0.5 (less sensitive)
+DEFAULT_THRESHOLD = 0.25
+
+# Sensitivity mapping: Maps sensitivity (0.0-1.0) to threshold range
+# Formula: threshold = MAX_THRESHOLD - (sensitivity * (MAX_THRESHOLD - MIN_THRESHOLD))
+SENSITIVITY_MAX_THRESHOLD = 0.35  # Less sensitive (sensitivity = 0.0)
+SENSITIVITY_MIN_THRESHOLD = 0.15  # More sensitive (sensitivity = 1.0)
+
+# Audio normalization for wake word detection
+# Target RMS level for consistent audio processing (same as listener.py)
+WAKE_WORD_TARGET_RMS = 0.05
+WAKE_WORD_MAX_GAIN = 10.0  # Maximum amplification factor to prevent distortion
+
 # Try to import Precise
 try:
     from precise_runner import PreciseEngine, PreciseRunner
@@ -57,15 +74,15 @@ class PreciseWakeWordDetector:
                 model_path = get_wake_word_model_path()
             
             # Precise uses threshold (lower = more sensitive)
-            # Map sensitivity (0.0-1.0) to threshold (0.05-0.2)
-            # Lower default threshold for easier detection
+            # Map sensitivity (0.0-1.0) to threshold range
             if sensitivity is not None:
-                self.threshold = 0.2 - (sensitivity * 0.15)  # Maps 0.0->0.2, 0.5->0.125, 1.0->0.05
+                threshold_range = SENSITIVITY_MAX_THRESHOLD - SENSITIVITY_MIN_THRESHOLD
+                self.threshold = SENSITIVITY_MAX_THRESHOLD - (sensitivity * threshold_range)
             else:
-                self.threshold = 0.001245  # Very sensitive default (user-specified)
+                self.threshold = DEFAULT_THRESHOLD
         except ImportError:
             # Fallback if state module not available
-            self.threshold = threshold if threshold is not None else 0.001245
+            self.threshold = threshold if threshold is not None else DEFAULT_THRESHOLD
         
         self.model_path = model_path
         self.engine: Optional[PreciseEngine] = None
@@ -301,15 +318,24 @@ class PreciseWakeWordDetector:
                 else:
                     audio_frame = audio_frame[:self.frame_length]
             
-            # Normalize to [-1, 1]
-            abs_max = np.abs(audio_frame).max()
-            if abs_max > 1.0:
-                audio_frame = audio_frame / abs_max
-            elif abs_max < 0.01:
-                # Boost quiet audio
-                gain = 0.1 / max(abs_max, 0.0001)
-                audio_frame = audio_frame * min(gain, 10.0)
-                audio_frame = np.clip(audio_frame, -1.0, 1.0)
+            # Normalize audio using same logic as listener.py and test_transcription.py
+            # This ensures consistent audio processing across all components
+            # Calculate RMS for normalization (same as normalize_audio_for_whisper in listener.py)
+            rms = np.sqrt(np.mean(audio_frame**2))
+            peak = np.abs(audio_frame).max()
+            
+            # Normalize to target RMS if audio is too quiet
+            # Same logic as listener.py normalize_audio_for_whisper() function
+            if rms > 0.0001:  # Only normalize if we have some signal (same threshold as listener.py)
+                gain = WAKE_WORD_TARGET_RMS / max(rms, 0.0001)
+                # Limit gain to avoid distortion (same as listener.py)
+                gain = min(gain, WAKE_WORD_MAX_GAIN)
+                audio_frame = audio_frame * gain
+                # Soft clipping to prevent distortion (same as listener.py normalize_audio_for_whisper)
+                audio_frame = np.clip(audio_frame, -0.95, 0.95)
+            elif peak > 1.0:
+                # If audio is too loud, normalize down (safety check)
+                audio_frame = audio_frame / peak
             
             # Convert to int16 for Precise
             audio_int16 = (audio_frame * 32767.0).astype(np.int16)
