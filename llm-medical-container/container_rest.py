@@ -269,8 +269,8 @@ def _resolve_model_path():
     """
     Determine model path priority:
     1) app_settings.json llm_model (filename) -> /models/<filename> if exists
-    2) SIMPLE_MODEL_PATH from env
-    3) Default fallback
+    2) SIMPLE_MODEL_PATH from env (set by Dockerfile)
+    3) Default fallback (matches Dockerfile)
     """
     try:
         settings_path = "/app/data/app_settings.json"
@@ -287,7 +287,15 @@ def _resolve_model_path():
                         print(f"[LLM] ⚠️ Model from settings not found: {candidate}")
     except Exception as e:
         print(f"[LLM] ⚠️ Failed reading app settings: {e}")
-    fallback = "/models/Qwen2.5-1.5B-Instruct.Q4_K_M.gguf"
+    
+    # Use environment variable (set by Dockerfile) as fallback
+    env_path = os.getenv("SIMPLE_MODEL_PATH", "")
+    if env_path and os.path.isfile(env_path):
+        print(f"[LLM] 🛟 Using model from environment: {env_path}")
+        return env_path
+    
+    # Final fallback (matches Dockerfile default)
+    fallback = "/models/Qwen2.5-1.5B-Instruct.Q4_K_M-medical.gguf"
     print(f"[LLM] 🛟 Using default model: {fallback}")
     return fallback
 
