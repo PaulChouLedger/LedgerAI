@@ -42,8 +42,9 @@ else
 fi
 
 # Step 1: Install precise-runner (Python package)
+# Note: precise-engine is NOT a pip package - it's a binary downloaded separately
 print_info "Installing precise-runner Python package..."
-if pip install precise-runner precise-engine 2>&1 | tee /tmp/precise_install.log; then
+if pip install precise-runner 2>&1 | tee /tmp/precise_install.log; then
     print_success "precise-runner installed successfully"
 else
     print_error "precise-runner installation had issues (check /tmp/precise_install.log)"
@@ -111,10 +112,22 @@ print_info "Verifying Mycroft Precise installation..."
 
 VERIFICATION_PASSED=true
 
-if python3 -c "from precise_runner import PreciseEngine, PreciseRunner" 2>/dev/null; then
+# Use the Python from the virtual environment for verification
+PYTHON_CMD="python3"
+if [ -f "$AURA_HOME/aura-env/bin/python3" ]; then
+    PYTHON_CMD="$AURA_HOME/aura-env/bin/python3"
+fi
+
+if $PYTHON_CMD -c "from precise_runner import PreciseEngine, PreciseRunner" 2>/dev/null; then
     print_success "Mycroft Precise Python package is importable"
 else
     print_error "Mycroft Precise Python package not importable"
+    print_info "   Attempting to diagnose..."
+    if $PYTHON_CMD -c "import precise_runner" 2>&1; then
+        print_info "   Module exists but import failed - checking dependencies..."
+    else
+        print_info "   Module not found - may need to reinstall: pip install precise-runner"
+    fi
     VERIFICATION_PASSED=false
 fi
 
@@ -144,7 +157,11 @@ fi
 
 echo ""
 print_info "Installation locations:"
-print_info "   Python package: $(python3 -c 'import precise_runner; print(precise_runner.__file__)' 2>/dev/null || echo 'Not found')"
+if $PYTHON_CMD -c "import precise_runner; print(precise_runner.__file__)" 2>/dev/null; then
+    print_info "   Python package: $($PYTHON_CMD -c 'import precise_runner; print(precise_runner.__file__)' 2>/dev/null)"
+else
+    print_info "   Python package: Not found (may need to reinstall)"
+fi
 print_info "   Binary: $PRECISE_ENGINE_DIR/precise-engine"
 print_info "   Model: $MODEL_DIR/hey-mycroft.pb"
 

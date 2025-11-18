@@ -497,8 +497,9 @@ echo ""
 print_step "3.5. Installing Mycroft Precise for wake word detection..."
 
 # Install precise-runner (Python package)
+# Note: precise-engine is NOT a pip package - it's a binary downloaded separately
 print_info "Installing precise-runner..."
-if pip install precise-runner precise-engine 2>&1 | tee /tmp/precise_install.log; then
+if pip install precise-runner 2>&1 | tee /tmp/precise_install.log; then
     print_info "✅ precise-runner installed successfully"
 else
     print_warning "⚠️  precise-runner installation had issues (check logs)"
@@ -1275,6 +1276,24 @@ print_info "Creating models directories for LLM containers..."
 mkdir -p "$LEDGERAI_DIR/llm-container/models" 2>/dev/null || true
 mkdir -p "$LEDGERAI_DIR/llm-medical-container/models" 2>/dev/null || true
 print_info "✅ Models directories created for LLM containers"
+
+# Download Qwen2.5 model for generic LLM container (if not already present)
+GENERIC_MODEL_PATH="$LEDGERAI_DIR/llm-container/models/Qwen2.5-1.5B-Instruct.Q4_K_M.gguf"
+if [ -f "$GENERIC_MODEL_PATH" ]; then
+    print_info "✅ Generic LLM model already exists: $GENERIC_MODEL_PATH"
+else
+    print_info "Downloading Qwen2.5-1.5B-Instruct model for generic LLM container..."
+    print_info "   This is a large file (~1GB) - may take several minutes..."
+    if wget -q --show-progress -O "$GENERIC_MODEL_PATH" https://huggingface.co/RichardErkhov/unsloth_-_Qwen2.5-1.5B-Instruct-gguf/resolve/main/Qwen2.5-1.5B-Instruct.Q4_K_M.gguf; then
+        print_info "✅ Generic LLM model downloaded successfully"
+    else
+        print_warning "⚠️  Failed to download generic LLM model"
+        print_info "   You can download manually:"
+        print_info "   cd $LEDGERAI_DIR/llm-container/models"
+        print_info "   wget https://huggingface.co/RichardErkhov/unsloth_-_Qwen2.5-1.5B-Instruct-gguf/resolve/main/Qwen2.5-1.5B-Instruct.Q4_K_M.gguf"
+        print_info "   Note: Docker build will fail if model is missing"
+    fi
+fi
 
 print_info "Data directories ready"
 
