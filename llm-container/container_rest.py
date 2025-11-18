@@ -201,13 +201,24 @@ def handle_conversation(
         
         if is_knowledge_query:
             try:
+                print(f"[Generic] 🔍 RAG search triggered for knowledge query: '{prompt[:50]}...'")
                 rag_client = get_rag_client()
+                rag_mode = "GPU" if rag_client.use_gpu else "CPU"
+                print(f"[Generic] 🔍 RAG mode: {rag_mode}")
                 results = rag_client.search(query=prompt, k=3)
                 
                 if results and len(results) > 0:
+                    print(f"[Generic] ✅ RAG found {len(results)} results")
+                    for i, result in enumerate(results[:3], 1):
+                        score = result.get('score', 0)
+                        text_preview = result.get('text', '')[:50]
+                        print(f"[Generic]   [{i}] Score: {score:.3f}, Preview: '{text_preview}...'")
                     rag_context = "\n".join(
                         [r.get("text", "") for r in results[:3] if r.get("text")]
                     )
+                    print(f"[Generic] ✅ Using RAG context ({len(rag_context)} chars) for LLM response")
+                else:
+                    print(f"[Generic] ⚠️ RAG search returned no results")
             except Exception as e:
                 print(f"[Generic] ⚠️ RAG failed, using direct LLM: {e}")
         else:
@@ -216,9 +227,14 @@ def handle_conversation(
     contextual_sections: List[str] = []
     if rag_context:
         contextual_sections.append(f"Knowledge context:\n{rag_context}")
+        print(f"[Generic] 📝 LLM prompt includes RAG context")
     if memory_context:
         contextual_sections.append(f"Conversation memory:\n{memory_context}")
+        print(f"[Generic] 📝 LLM prompt includes conversation memory")
     combined_context = "\n\n".join(contextual_sections).strip()
+    
+    if not combined_context:
+        print(f"[Generic] 📝 LLM prompt: direct conversation (no RAG, no memory)")
 
     if combined_context:
         messages = [

@@ -968,11 +968,18 @@ def llm_chat_once(messages, **kwargs):
 if __name__ == "__main__":
     # Initialize RAG embedding API (module-level variable, no global needed in __main__ block)
     if RAG_MODE in ("CPU", "GPU"):
-        print("[Container] 🔧 Initializing RAG embedding API...")
+        print(f"[Container] 🔧 Initializing RAG embedding API (mode: {RAG_MODE})...")
         try:
             rag_api = RAGEmbeddingAPI()
             test_embedding = rag_api.encode(["test"])
-            print(f"[Container] ✅ RAG embedding API initialized")
+            rag_client = get_rag_client()
+            rag_mode_display = "GPU" if rag_client.use_gpu else "CPU"
+            print(f"[Container] ✅ RAG embedding API initialized ({rag_mode_display} mode)")
+            if not rag_client.use_gpu:
+                # Show CPU index status
+                if hasattr(rag_client, '_cpu_chunks'):
+                    chunk_count = len(rag_client._cpu_chunks) if rag_client._cpu_chunks else 0
+                    print(f"[Container] 📊 RAG CPU index: {chunk_count} chunks available")
         except Exception as e:
             print(f"[Container] ⚠️ RAG API not available: {e}")
             rag_api = None

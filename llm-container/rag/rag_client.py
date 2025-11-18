@@ -147,12 +147,15 @@ class RAGClient:
             
             # Load existing embeddings
             if self._auto_ingest.load_existing_embeddings():
+                print("[RAG Client] ✅ Loaded existing embeddings via auto-ingestion")
                 logger.info("[RAG Client] ✅ Loaded existing embeddings via auto-ingestion")
             else:
+                print("[RAG Client] ⚠️ No existing embeddings found, will process on first scan")
                 logger.info("[RAG Client] ⚠️ No existing embeddings found, will process on first scan")
             
             # Start file watching
             self._auto_ingest.start_watching()
+            print(f"[RAG Client] 👀 Started auto-ingestion file watching: {self._auto_ingest.input_dir}")
             logger.info("[RAG Client] 👀 Started auto-ingestion file watching")
             
         except ImportError as e:
@@ -181,6 +184,7 @@ class RAGClient:
     
     def _search_gpu(self, query: str, k: int, threshold: float) -> List[Dict]:
         """Search using external RAG container (GPU)"""
+        print(f"[RAG Client] 🚀 GPU search: query='{query[:50]}...', k={k}, threshold={threshold}")
         try:
             response = requests.post(
                 f"{RAG_SERVICE_URL}/rag/search",
@@ -190,24 +194,33 @@ class RAGClient:
             
             if response.status_code == 200:
                 data = response.json()
-                return data.get('results', [])
+                results = data.get('results', [])
+                print(f"[RAG Client] ✅ GPU search returned {len(results)} results")
+                return results
             else:
+                print(f"[RAG Client] ❌ GPU search failed: HTTP {response.status_code}")
                 logger.error(f"[RAG Client] GPU search failed: {response.status_code}")
                 return []
                 
         except requests.exceptions.Timeout:
+            print(f"[RAG Client] ⏱️ GPU search timeout after {RAG_TIMEOUT}s")
             logger.error(f"[RAG Client] GPU search timeout after {RAG_TIMEOUT}s")
             return []
         except Exception as e:
+            print(f"[RAG Client] ❌ GPU search error: {e}")
             logger.error(f"[RAG Client] GPU search error: {e}")
             return []
     
     def _search_cpu(self, query: str, k: int, threshold: float) -> List[Dict]:
         """Search using local CPU FAISS"""
+        print(f"[RAG Client] 🔍 CPU search: query='{query[:50]}...', k={k}, threshold={threshold}")
         try:
             if self._cpu_index is None or len(self._cpu_chunks) == 0:
+                print(f"[RAG Client] ⚠️ CPU index is empty (no documents indexed)")
                 logger.warning("[RAG Client] CPU index is empty")
                 return []
+            
+            print(f"[RAG Client] 📊 CPU index: {len(self._cpu_chunks)} chunks available")
             
             # Generate query embedding
             query_embedding = self._embedding_model.encode([query])[0]
@@ -230,10 +243,24 @@ class RAGClient:
                         'metadata': self._cpu_metadata[idx] if idx < len(self._cpu_metadata) else {}
                     })
             
+            print(f"[RAG Client] ✅ CPU search found {len(results)} results (threshold={threshold})")
+            if results:
+                for i, result in enumerate(results, 1):
+                    # Extract file name from metadata
+                    file_name = "unknown"
+                    if isinstance(result.get('metadata'), dict):
+                        file_path = result['metadata'].get('file_path', '')
+                        if file_path:
+                            from pathlib import Path
+                            file_name = Path(file_path).name
+                        else:
+                            file_name = result['metadata'].get('document_name', 'unknown')
+                    print(f"[RAG Client]   [{i}] Score: {result['score']:.3f}, File: {file_name}, Preview: '{result['text'][:50]}...'")
             logger.info(f"[RAG Client] CPU search found {len(results)} results (threshold={threshold})")
             return results
             
         except Exception as e:
+            print(f"[RAG Client] ❌ CPU search error: {e}")
             logger.error(f"[RAG Client] CPU search error: {e}")
             return []
     

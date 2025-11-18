@@ -149,16 +149,54 @@ class CPUFAISSAutoIngest:
         
         return chunks
     
-    def _process_file(self, file_path: Path) -> bool:
-        """Process a single guideline file"""
+    def _process_file(self, file_path: Path, force: bool = False) -> bool:
+        """Process a single guideline file
+        
+        Args:
+            file_path: Path to file to process
+            force: If True, process even if already in state (for missing files)
+        """
         try:
-            # Check if file was already processed
-            file_hash = self._get_file_hash(file_path)
-            if file_path.name in self.state["processed_files"]:
-                if self.state["processed_files"][file_path.name]["hash"] == file_hash:
-                    return False  # Already processed, no changes
+            original_name = file_path.name
+            
+            # Check if file exists in embeddings metadata
+            file_in_embeddings = False
+            if self.metadata:
+                for meta in self.metadata:
+                    if isinstance(meta, dict):
+                        meta_file_path = meta.get("file_path", "")
+                        if meta_file_path and Path(meta_file_path).name == original_name:
+                            file_in_embeddings = True
+                            break
+                        doc_name = meta.get("document_name", "") or meta.get("guideline_name", "")
+                        if doc_name == original_name or doc_name == file_path.stem:
+                            file_in_embeddings = True
+                            break
+            
+            # If file is missing from embeddings, force processing
+            if not file_in_embeddings and original_name in self.state.get("processed_files", {}):
+                print(f"[Auto-Ingest] 🔄 Re-processing {file_path.name} (missing from embeddings, forcing reprocess)")
+                force = True
+            
+            # Check if file was already processed (unless forced)
+            if not force:
+                file_hash = self._get_file_hash(file_path)
+                if original_name in self.state.get("processed_files", {}):
+                    if self.state["processed_files"][original_name]["hash"] == file_hash:
+                        if file_in_embeddings:
+                            print(f"[Auto-Ingest] ⏭️ Skipping {file_path.name} (already processed, no changes)")
+                            return False  # Already processed, no changes
+                        else:
+                            # In state but not in embeddings - force reprocess
+                            print(f"[Auto-Ingest] 🔄 Re-processing {file_path.name} (in state but missing from embeddings)")
+                            force = True
+                    else:
+                        print(f"[Auto-Ingest] 🔄 Re-processing {file_path.name} (file modified)")
             
             print(f"[Auto-Ingest] 📄 Processing: {file_path.name}")
+            
+            # Get file hash for state tracking
+            file_hash = self._get_file_hash(file_path)
             
             # Extract text based on file type
             content = self._extract_text(file_path)
@@ -202,7 +240,7 @@ class CPUFAISSAutoIngest:
                 "chunks": len(chunks)
             }
             
-            print(f"[Auto-Ingest] ✅ Processed {file_path.name}: {len(chunks)} chunks")
+            print(f"[Auto-Ingest] ✅ Processed {file_path.name}: {len(chunks)} chunks (total chunks now: {len(self.chunks)})")
             return True
             
         except Exception as e:
@@ -359,6 +397,23 @@ class CPUFAISSAutoIngest:
             self.input_dir.mkdir(parents=True, exist_ok=True)
             return {"processed": 0, "skipped": 0, "errors": 0, "total_chunks": len(self.chunks)}
         
+        # Get list of files currently in embeddings/metadata
+        files_in_embeddings = set()
+        if self.metadata:
+            for meta in self.metadata:
+                if isinstance(meta, dict):
+                    file_path = meta.get("file_path", "")
+                    if file_path:
+                        files_in_embeddings.add(Path(file_path).name)
+                    else:
+                        doc_name = meta.get("document_name", "") or meta.get("guideline_name", "")
+                        if doc_name:
+                            # Try to match by document name (might need file extension)
+                            files_in_embeddings.add(doc_name)
+        
+        # Also check state file for processed files
+        files_in_state = set(self.state.get("processed_files", {}).keys())
+        
         processed_count = 0
         skipped_count = 0
         error_count = 0
@@ -370,7 +425,28 @@ class CPUFAISSAutoIngest:
             input_files.extend(self.input_dir.glob(f"*{ext}"))
         
         print(f"[Auto-Ingest] 📂 Found {len(input_files)} file(s) in input directory")
+        if input_files:
+            print(f"[Auto-Ingest] 📋 Files found:")
+            for file_path in input_files:
+                print(f"[Auto-Ingest]   - {file_path.name}")
         
+        # Check for missing files (in input but not in embeddings)
+        # A file is "missing" if it's in input but not in embeddings (regardless of state)
+        # This handles cases where embeddings were deleted or state is out of sync
+        missing_files = []
+        for file_path in input_files:
+            file_name = file_path.name
+            if file_name not in files_in_embeddings:
+                missing_files.append(file_path)
+        
+        if missing_files:
+            print(f"[Auto-Ingest] ⚠️ Found {len(missing_files)} file(s) in input but missing from embeddings:")
+            for file_path in missing_files:
+                in_state = file_path.name in files_in_state
+                status = "in state but missing from embeddings" if in_state else "not in state or embeddings"
+                print(f"[Auto-Ingest]   - {file_path.name} ({status}) - will be processed")
+        
+        # Process all input files (will skip if already processed and unchanged)
         for file_path in input_files:
             try:
                 if self._process_file(file_path):
@@ -413,7 +489,28 @@ class CPUFAISSAutoIngest:
             self.chunks = metadata.get("chunks", [])
             self.metadata = metadata.get("metadata", [])
             
-            print(f"[Auto-Ingest] ✅ Loaded existing embeddings: {len(self.chunks)} chunks")
+            # Extract unique file names from metadata
+            unique_files = set()
+            for meta in self.metadata:
+                if isinstance(meta, dict):
+                    file_path = meta.get("file_path", "")
+                    if file_path:
+                        unique_files.add(Path(file_path).name)
+                    else:
+                        doc_name = meta.get("document_name", "") or meta.get("guideline_name", "")
+                        if doc_name:
+                            unique_files.add(doc_name)
+            
+            print(f"[Auto-Ingest] ✅ Loaded existing embeddings: {len(self.chunks)} chunks from {len(unique_files)} file(s)")
+            if unique_files:
+                print(f"[Auto-Ingest] 📚 Files in index:")
+                for file_name in sorted(unique_files):
+                    # Count chunks per file
+                    file_chunks = sum(1 for meta in self.metadata if isinstance(meta, dict) and 
+                                    (meta.get("file_path", "").endswith(file_name) or 
+                                     meta.get("document_name") == file_name or 
+                                     meta.get("guideline_name") == file_name))
+                    print(f"[Auto-Ingest]   - {file_name} ({file_chunks} chunks)")
             return True
             
         except Exception as e:
@@ -423,7 +520,10 @@ class CPUFAISSAutoIngest:
     def start_watching(self):
         """Start file system watching"""
         if self.watching:
+            print(f"[Auto-Ingest] ⚠️ Already watching: {self.input_dir}")
             return
+        
+        print(f"[Auto-Ingest] 👀 Starting file watcher for: {self.input_dir}")
         
         try:
             from watchdog.observers import Observer
@@ -441,12 +541,18 @@ class CPUFAISSAutoIngest:
                 
                 def on_created(self, event):
                     if not event.is_directory and self._is_supported_file(event.src_path):
-                        print(f"[Auto-Ingest] 📥 New file detected: {event.src_path}")
+                        file_name = Path(event.src_path).name
+                        print(f"[Auto-Ingest] 📥 New file detected: {file_name}")
+                        time.sleep(1)  # Wait for file to be fully written
+                        print(f"[Auto-Ingest] 🔄 Processing new file: {file_name}")
                         self.auto_ingest.scan_and_process()
                 
                 def on_modified(self, event):
                     if not event.is_directory and self._is_supported_file(event.src_path):
-                        print(f"[Auto-Ingest] 📝 File modified: {event.src_path}")
+                        file_name = Path(event.src_path).name
+                        print(f"[Auto-Ingest] 📝 File modified: {file_name}")
+                        time.sleep(1)  # Wait for file to be fully written
+                        print(f"[Auto-Ingest] 🔄 Re-processing modified file: {file_name}")
                         self.auto_ingest.scan_and_process()
             
             self.observer = Observer()
@@ -454,7 +560,8 @@ class CPUFAISSAutoIngest:
             self.observer.start()
             self.watching = True
             
-            print("[Auto-Ingest] 👀 Started file watching")
+            print(f"[Auto-Ingest] ✅ File watcher started for: {self.input_dir}")
+            print(f"[Auto-Ingest] 👁️ Watching for changes to: PDF, DOCX, TXT, MD, XLSX, XLS files")
             
         except ImportError:
             print("[Auto-Ingest] ⚠️ Watchdog not available, file watching disabled")
