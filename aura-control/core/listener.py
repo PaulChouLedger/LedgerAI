@@ -68,13 +68,13 @@ ENABLE_AUDIO_NORMALIZATION = True  # Normalize audio to optimal RMS for Whisper
 TARGET_RMS_FOR_WHISPER = 0.12      # Optimal RMS level for Whisper (found via find_optimal_rms.py)
 
 # === Wake Word Audio Normalization ===
-# Wake word uses same normalization function as Whisper, but with different target RMS
+# Wake word uses same normalization function and target RMS as Whisper for consistency
 # Import from precise_wake_word.py to avoid duplication
 try:
     from precise_wake_word import WAKE_WORD_TARGET_RMS, WAKE_WORD_MAX_GAIN
 except ImportError:
-    # Fallback if import fails
-    WAKE_WORD_TARGET_RMS = 0.05
+    # Fallback if import fails - use same as Whisper for consistency
+    WAKE_WORD_TARGET_RMS = 0.12  # Same as TARGET_RMS_FOR_WHISPER
     WAKE_WORD_MAX_GAIN = 10.0
 
 # === Soft Clipping Prevention ===

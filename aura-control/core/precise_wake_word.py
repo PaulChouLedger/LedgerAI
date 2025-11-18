@@ -33,8 +33,9 @@ SENSITIVITY_MAX_THRESHOLD = 0.35  # Less sensitive (sensitivity = 0.0)
 SENSITIVITY_MIN_THRESHOLD = 0.15  # More sensitive (sensitivity = 1.0)
 
 # Audio normalization for wake word detection
-# Target RMS level for consistent audio processing (same as listener.py)
-WAKE_WORD_TARGET_RMS = 0.05
+# Use same target RMS as main listener for consistent audio levels
+# This ensures wake word sees the same audio levels as transcription
+WAKE_WORD_TARGET_RMS = 0.12  # Same as TARGET_RMS_FOR_WHISPER in listener.py
 WAKE_WORD_MAX_GAIN = 10.0  # Maximum amplification factor to prevent distortion
 
 # Try to import Precise

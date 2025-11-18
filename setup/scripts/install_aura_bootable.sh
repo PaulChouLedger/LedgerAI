@@ -743,96 +743,6 @@ print_info "Display settings configured"
 echo ""
 
 # ============================================================================
-# Step 6.5: Disable NVIDIA boot logo/splash screen
-# ============================================================================
-print_step "6.5. Disabling NVIDIA boot logo..."
-
-# Disable Plymouth splash screen (boot logo)
-print_info "Configuring boot splash screen..."
-if command -v plymouth >/dev/null 2>&1; then
-    # Set Plymouth theme to blank/black (no logo)
-    sudo plymouth-set-default-theme -R text 2>/dev/null || sudo plymouth-set-default-theme -R details 2>/dev/null || true
-    
-    # Alternative: disable Plymouth entirely (black screen during boot)
-    # sudo systemctl mask plymouth-quit.service 2>/dev/null || true
-    # sudo systemctl mask plymouth-quit-wait.service 2>/dev/null || true
-    
-    print_info "✅ Plymouth splash screen configured (minimal/blank theme)"
-else
-    print_warning "⚠️  Plymouth not found - boot logo may still appear"
-fi
-
-# Configure GRUB to disable boot logos and add quiet boot
-print_info "Configuring GRUB boot parameters..."
-GRUB_CMDLINE_LINUX_DEFAULT=""
-if [ -f "/etc/default/grub" ]; then
-    # Backup GRUB config
-    if [ ! -f "/etc/default/grub.bak" ]; then
-        sudo cp /etc/default/grub /etc/default/grub.bak
-    fi
-    
-    # Get current GRUB_CMDLINE_LINUX_DEFAULT
-    CURRENT_CMDLINE=$(grep "^GRUB_CMDLINE_LINUX_DEFAULT=" /etc/default/grub | cut -d'"' -f2 || echo "")
-    
-    # Add parameters to disable logos if not already present
-    NEW_CMDLINE="$CURRENT_CMDLINE"
-    
-    # Add quiet (reduces boot messages and hides some logos)
-    if [[ ! "$NEW_CMDLINE" =~ quiet ]]; then
-        NEW_CMDLINE="$NEW_CMDLINE quiet"
-    fi
-    
-    # Add splash (may be needed for Plymouth, but with blank theme)
-    if [[ ! "$NEW_CMDLINE" =~ splash ]]; then
-        NEW_CMDLINE="$NEW_CMDLINE splash"
-    fi
-    
-    # Add logo.nologo (disables kernel logo)
-    if [[ ! "$NEW_CMDLINE" =~ logo.nologo ]]; then
-        NEW_CMDLINE="$NEW_CMDLINE logo.nologo"
-    fi
-    
-    # Add vt.global_cursor_default=0 (hides cursor during boot)
-    if [[ ! "$NEW_CMDLINE" =~ vt.global_cursor_default ]]; then
-        NEW_CMDLINE="$NEW_CMDLINE vt.global_cursor_default=0"
-    fi
-    
-    # Update GRUB config if it changed
-    if [ "$NEW_CMDLINE" != "$CURRENT_CMDLINE" ]; then
-        sudo sed -i "s|^GRUB_CMDLINE_LINUX_DEFAULT=.*|GRUB_CMDLINE_LINUX_DEFAULT=\"$NEW_CMDLINE\"|" /etc/default/grub
-        sudo update-grub 2>/dev/null || true
-        print_info "✅ GRUB boot parameters updated: $NEW_CMDLINE"
-        print_warning "⚠️  Boot logo changes will take effect after reboot"
-    else
-        print_info "✅ GRUB boot parameters already configured"
-    fi
-else
-    print_warning "⚠️  GRUB configuration file not found at /etc/default/grub"
-fi
-
-# For U-Boot (Jetson-specific), disable early boot logo if possible
-# This is harder to configure but can be done via extlinux.conf
-if [ -f "/boot/extlinux/extlinux.conf" ]; then
-    print_info "Configuring U-Boot bootloader (Jetson)..."
-    # Backup extlinux config
-    if [ ! -f "/boot/extlinux/extlinux.conf.bak" ]; then
-        sudo cp /boot/extlinux/extlinux.conf /boot/extlinux/extlinux.conf.bak
-    fi
-    
-    # Add logo.nologo and quiet to kernel command line in extlinux
-    if ! grep -q "logo.nologo" /boot/extlinux/extlinux.conf 2>/dev/null; then
-        sudo sed -i 's/APPEND \([^"]*\)/APPEND \1 logo.nologo quiet/' /boot/extlinux/extlinux.conf 2>/dev/null || true
-        print_info "✅ U-Boot boot parameters updated"
-    else
-        print_info "✅ U-Boot boot parameters already configured"
-    fi
-fi
-
-print_info "Boot logo configuration complete (reboot required for full effect)"
-
-echo ""
-
-# ============================================================================
 # Step 6.8: Configure WiFi privileges (allow nmcli without password)
 # ============================================================================
 print_step "6.8. Configuring WiFi privileges (Polkit rule for nmcli)..."
@@ -1363,7 +1273,7 @@ echo "✅ Keyboard monitor service: Enabled (disables Ubuntu keyboard while Aura
 echo "✅ Docker: Configured"
 echo "✅ Display settings: Configured"
 echo "✅ Automatic login: Configured (no password on boot)"
-echo "✅ Boot logo: Disabled (NVIDIA logo removed, minimal splash screen)"
+echo "ℹ️  Boot logo: Configure via BIOS/UEFI settings (not handled by script)"
 echo "✅ X11 authentication: Configured (xhost +local: in service)"
 echo "✅ HDMI display support: Configured (auto-detects DISPLAY from X sockets)"
 if [ -f "$LEDGERAI_DIR/.env" ]; then
