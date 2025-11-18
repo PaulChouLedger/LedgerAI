@@ -41,12 +41,13 @@ if [ -f "/etc/xdg/autostart/caribou.desktop" ]; then
 fi
 
 # Remove user-level disabled files
-AURA_USER="aura"
+# Detect the actual user (works even when run via sudo)
+AURA_USER="${SUDO_USER:-$USER}"
 AURA_HOME="/home/$AURA_USER"
 if [ -d "$AURA_HOME/.config/autostart" ]; then
     rm -f "$AURA_HOME/.config/autostart/onboard.desktop"
     rm -f "$AURA_HOME/.config/autostart/caribou.desktop"
-    echo "  ✅ Removed user-level disabled files"
+    echo "  ✅ Removed user-level disabled files for user: $AURA_USER"
 fi
 
 echo ""

@@ -578,57 +578,59 @@ def listen():
     except ImportError:
         wake_word_setting_enabled = False
     
-    # CRITICAL: Block transcription immediately if wake word is enabled
-    # This prevents transcription from starting before the detector is ready
-    if wake_word_setting_enabled:
-        print("[Wake Word] 🔒 Blocking transcription until wake word detector is ready...")
-        block_transcription("Wake word enabled - waiting for detector initialization")
-    
-    # Initialize wake word detection - Mycroft Precise only (most reliable for Jetson)
+    # Initialize wake word detection only if enabled in settings
     import sys
     wake_word_detector = None
+    wake_word_enabled = False
     
-    print("[Wake Word] 🔄 Initializing Mycroft Precise...", flush=True)
-    sys.stdout.flush()
-    try:
-        wake_word_detector = create_precise_wake_word_detector()
-        if wake_word_detector:
-            print("[Wake Word] ✅ Mycroft Precise initialized successfully", flush=True)
-            sys.stdout.flush()
-        else:
-            print("[Wake Word] ❌ Mycroft Precise initialization returned None", flush=True)
-            sys.stdout.flush()
-    except Exception as e:
-        print(f"[Wake Word] ❌ Mycroft Precise failed: {e}", flush=True)
-        import traceback
-        print(f"[Wake Word] 🔍 Traceback: {traceback.format_exc()}", flush=True)
+    if wake_word_setting_enabled:
+        # CRITICAL: Block transcription immediately if wake word is enabled
+        # This prevents transcription from starting before the detector is ready
+        print("[Wake Word] 🔒 Blocking transcription until wake word detector is ready...")
+        block_transcription("Wake word enabled - waiting for detector initialization")
+        
+        # Initialize wake word detection - Mycroft Precise only (most reliable for Jetson)
+        print("[Wake Word] 🔄 Initializing Mycroft Precise...", flush=True)
         sys.stdout.flush()
-        wake_word_detector = None
-    
-    # wake_word_enabled should be True if:
-    # 1. Detector initialized successfully, OR
-    # 2. Wake word is enabled in settings (even if detector failed - we'll block transcription)
-    wake_word_enabled = (wake_word_detector is not None) or wake_word_setting_enabled
-    
-    if wake_word_detector:
-        print("[Wake Word] ✅ Mycroft Precise initialized successfully")
-        # Unblock transcription now that detector is ready (but still require wake word)
-        if wake_word_setting_enabled:
-            unblock_transcription()
-            print("[Wake Word] ✅ Wake word detector ready - transcription will require wake word")
+        try:
+            wake_word_detector = create_precise_wake_word_detector()
+            if wake_word_detector:
+                print("[Wake Word] ✅ Mycroft Precise initialized successfully", flush=True)
+                sys.stdout.flush()
+                wake_word_enabled = True
+                # Unblock transcription now that detector is ready (but still require wake word)
+                unblock_transcription()
+                print("[Wake Word] ✅ Wake word detector ready - transcription will require wake word")
+            else:
+                print("[Wake Word] ❌ Mycroft Precise initialization returned None", flush=True)
+                sys.stdout.flush()
+                print("[Wake Word] ⚠️  Wake word enabled in settings but detector failed to initialize")
+                print("[Wake Word] 🔒 Transcription will remain BLOCKED until wake word detector is fixed")
+                print("[Wake Word] 💡 Check logs above for initialization errors")
+                print("[Wake Word] 💡 Mycroft Precise setup:")
+                print("[Wake Word]     1. Install: pip install precise-runner")
+                print("[Wake Word]     2. Download binary: See install_mycroft_precise.sh")
+                print("[Wake Word]     3. Download model: wget https://github.com/MycroftAI/precise-data/raw/models/hey-mycroft.pb")
+                print("[Wake Word]     4. Place model in: ~/precise-models/ or ~/")
+                print("[Wake Word] 💡 Or disable wake word in Settings → AI Model Settings")
+        except Exception as e:
+            print(f"[Wake Word] ❌ Mycroft Precise failed: {e}", flush=True)
+            import traceback
+            print(f"[Wake Word] 🔍 Traceback: {traceback.format_exc()}", flush=True)
+            sys.stdout.flush()
+            wake_word_detector = None
+            print("[Wake Word] ⚠️  Wake word enabled in settings but detector failed to initialize")
+            print("[Wake Word] 🔒 Transcription will remain BLOCKED until wake word detector is fixed")
+            print("[Wake Word] 💡 Check logs above for initialization errors")
+            print("[Wake Word] 💡 Mycroft Precise setup:")
+            print("[Wake Word]     1. Install: pip install precise-runner")
+            print("[Wake Word]     2. Download binary: See install_mycroft_precise.sh")
+            print("[Wake Word]     3. Download model: wget https://github.com/MycroftAI/precise-data/raw/models/hey-mycroft.pb")
+            print("[Wake Word]     4. Place model in: ~/precise-models/ or ~/")
+            print("[Wake Word] 💡 Or disable wake word in Settings → AI Model Settings")
     else:
-        print("[Wake Word] ❌ Mycroft Precise failed to initialize")
-    
-    if wake_word_setting_enabled and wake_word_detector is None:
-        print("[Wake Word] ⚠️  Wake word enabled in settings but detector failed to initialize")
-        print("[Wake Word] 🔒 Transcription will remain BLOCKED until wake word detector is fixed")
-        print("[Wake Word] 💡 Check logs above for initialization errors")
-        print("[Wake Word] 💡 Mycroft Precise setup:")
-        print("[Wake Word]     1. Install: pip install precise-runner precise-engine")
-        print("[Wake Word]     2. Download model: wget https://github.com/MycroftAI/precise-data/raw/models/hey-mycroft.pb")
-        print("[Wake Word]     3. Place model in: ~/precise-models/ or ~/")
-        print("[Wake Word] 💡 Or disable wake word in Settings → AI Model Settings")
-        # Keep transcription blocked (already blocked above)
+        print("[Wake Word] ℹ️  Wake word detection disabled (toggle in Settings)")
+        wake_word_enabled = False
     
     if wake_word_enabled:
         print("\n" + "="*70)

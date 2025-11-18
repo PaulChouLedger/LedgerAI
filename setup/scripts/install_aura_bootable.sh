@@ -563,10 +563,23 @@ fi
 
 # Verify installation
 print_info "Verifying Mycroft Precise installation..."
-if python3 -c "from precise_runner import PreciseEngine, PreciseRunner" 2>/dev/null; then
+
+# Use the Python from the virtual environment for verification
+PYTHON_CMD="python3"
+if [ -f "$VENV_DIR/bin/python3" ]; then
+    PYTHON_CMD="$VENV_DIR/bin/python3"
+fi
+
+if $PYTHON_CMD -c "from precise_runner import PreciseEngine, PreciseRunner" 2>/dev/null; then
     print_info "✅ Mycroft Precise Python package is importable"
 else
     print_warning "⚠️  Mycroft Precise Python package not importable"
+    print_info "   Attempting to diagnose..."
+    if $PYTHON_CMD -c "import precise_runner" 2>&1; then
+        print_info "   Module exists but import failed - checking dependencies..."
+    else
+        print_info "   Module not found - may need to reinstall: pip install precise-runner"
+    fi
 fi
 
 if [ -x "$PRECISE_ENGINE_DIR/precise-engine" ]; then
@@ -925,16 +938,27 @@ if [ -f "$SERVICE_FILE" ]; then
     TEMP_SERVICE="/tmp/xvf3800-tuning.service"
     cp "$SERVICE_FILE" "$TEMP_SERVICE"
     
-    # Update paths in service file (handle multiple possible patterns)
-    sed -i "s|User=aura|User=$AURA_USER|g" "$TEMP_SERVICE"
-    sed -i "s|User=ledger|User=$AURA_USER|g" "$TEMP_SERVICE"  # Also replace if already set to ledger
-    sed -i "s|/home/aura|$AURA_HOME|g" "$TEMP_SERVICE"
-    sed -i "s|/home/ledger|$AURA_HOME|g" "$TEMP_SERVICE"  # Also replace if already set
-    sed -i "s|/usr/bin/python3|$PYTHON_CMD|g" "$TEMP_SERVICE" || true
-    sed -i "s|python3 |$PYTHON_CMD |g" "$TEMP_SERVICE" || true
+    # Replace placeholders with actual values (supports both placeholders and legacy hardcoded values)
+    sed -i "s|__AURA_USER__|$AURA_USER|g" "$TEMP_SERVICE"
+    sed -i "s|__PYTHON_CMD__|$PYTHON_CMD|g" "$TEMP_SERVICE"
+    sed -i "s|__LEDGERAI_DIR__|$LEDGERAI_DIR|g" "$TEMP_SERVICE"
     
-    # Update the ExecStart line with correct paths
-    sed -i "s|ExecStart=.*tune_xvf3800.py|ExecStart=$PYTHON_CMD $LEDGERAI_DIR/setup/scripts/tune_xvf3800.py|g" "$TEMP_SERVICE"
+    # Also handle legacy hardcoded values for backward compatibility
+    sed -i "s|User=aura|User=$AURA_USER|g" "$TEMP_SERVICE"
+    sed -i "s|User=ledger|User=$AURA_USER|g" "$TEMP_SERVICE"
+    sed -i "s|/home/aura|$AURA_HOME|g" "$TEMP_SERVICE"
+    sed -i "s|/home/ledger|$AURA_HOME|g" "$TEMP_SERVICE"
+    sed -i "s|/usr/bin/python3|$PYTHON_CMD|g" "$TEMP_SERVICE" || true
+    
+    # Update the ExecStart line with correct paths, preserving the preset argument
+    # Extract preset from current ExecStart line (default to agc_20_ec if not found)
+    PRESET_ARG=$(grep "^ExecStart=" "$TEMP_SERVICE" | sed -n 's/.*tune_xvf3800.py[[:space:]]*\([^[:space:]]*\).*/\1/p' || echo "agc_20_ec")
+    if [ -z "$PRESET_ARG" ] || [ "$PRESET_ARG" = "$LEDGERAI_DIR/setup/scripts/tune_xvf3800.py" ] || [ "$PRESET_ARG" = "__LEDGERAI_DIR__/setup/scripts/tune_xvf3800.py" ]; then
+        # No preset found or extraction failed, use default
+        PRESET_ARG="agc_20_ec"
+    fi
+    # Replace ExecStart line, preserving preset
+    sed -i "s|^ExecStart=.*|ExecStart=$PYTHON_CMD $LEDGERAI_DIR/setup/scripts/tune_xvf3800.py $PRESET_ARG|g" "$TEMP_SERVICE"
     
     # Copy to systemd
     sudo cp "$TEMP_SERVICE" "$SYSTEMD_SERVICE"
@@ -1087,12 +1111,22 @@ KEYBOARD_SERVICE_FILE="$LEDGERAI_DIR/setup/scripts/disable-keyboard-monitor.serv
 SYSTEMD_KEYBOARD_SERVICE="/etc/systemd/system/disable-keyboard-monitor.service"
 
 if [ -f "$KEYBOARD_SERVICE_FILE" ]; then
-    # Update service file with correct user
-    sudo cp "$KEYBOARD_SERVICE_FILE" "$SYSTEMD_KEYBOARD_SERVICE"
+    # Create a temporary service file with correct paths
+    TEMP_KEYBOARD_SERVICE="/tmp/disable-keyboard-monitor.service"
+    cp "$KEYBOARD_SERVICE_FILE" "$TEMP_KEYBOARD_SERVICE"
     
-    # Update user in service file if needed
-    sudo sed -i "s|User=aura|User=$AURA_USER|g" "$SYSTEMD_KEYBOARD_SERVICE"
-    sudo sed -i "s|Group=aura|Group=$AURA_USER|g" "$SYSTEMD_KEYBOARD_SERVICE"
+    # Replace placeholders with actual values (supports both placeholders and legacy hardcoded values)
+    sed -i "s|__AURA_USER__|$AURA_USER|g" "$TEMP_KEYBOARD_SERVICE"
+    
+    # Also handle legacy hardcoded values for backward compatibility
+    sed -i "s|User=aura|User=$AURA_USER|g" "$TEMP_KEYBOARD_SERVICE"
+    sed -i "s|User=ledger|User=$AURA_USER|g" "$TEMP_KEYBOARD_SERVICE"
+    sed -i "s|Group=aura|Group=$AURA_USER|g" "$TEMP_KEYBOARD_SERVICE"
+    sed -i "s|Group=ledger|Group=$AURA_USER|g" "$TEMP_KEYBOARD_SERVICE"
+    
+    # Copy to systemd
+    sudo cp "$TEMP_KEYBOARD_SERVICE" "$SYSTEMD_KEYBOARD_SERVICE"
+    rm -f "$TEMP_KEYBOARD_SERVICE"
     
     # Reload systemd
     sudo systemctl daemon-reload

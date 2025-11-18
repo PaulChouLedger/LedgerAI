@@ -22,8 +22,8 @@ PartOf=aura.service
 
 [Service]
 Type=simple
-User=aura
-Group=aura
+User=__AURA_USER__
+Group=__AURA_USER__
 Restart=on-failure
 RestartSec=5
 ExecStart=/bin/bash -c 'while systemctl is-active --quiet aura.service; do pkill -f "onboard|caribou|matchbox-keyboard" 2>/dev/null || true; sleep 2; done'

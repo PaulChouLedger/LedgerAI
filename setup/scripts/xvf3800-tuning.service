@@ -31,8 +31,8 @@ Wants=network.target
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-User=aura
-ExecStart=/usr/bin/python3 /home/aura/LedgerAI/setup/scripts/tune_xvf3800.py agc_20_ec
+User=__AURA_USER__
+ExecStart=__PYTHON_CMD__ __LEDGERAI_DIR__/setup/scripts/tune_xvf3800.py agc_20_ec
 StandardOutput=journal
 StandardError=journal
 
