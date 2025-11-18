@@ -49,8 +49,8 @@ class PaymentDialog(QDialog):
             QDialog {
                 background-color: rgba(28, 28, 30, 0.95);
                 color: white;
-                border: none;
-                border-radius: 532px;
+                border: 8px solid white;
+                border-radius: 536px;
             }
             QLabel {
                 color: white;

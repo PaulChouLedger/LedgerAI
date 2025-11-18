@@ -45,15 +45,10 @@ class FileUploadDialog(BaseAuraDialog):
             modal=True
         )
         
-        # Set stylesheet before creating UI
+        # Set stylesheet before creating UI (base class already sets white border)
         print("[Upload] 👁️ Dialog initialized and ready")
-        self.setStyleSheet("""
-            QDialog {
-                background-color: rgba(28, 28, 30, 1.0);  /* Solid dark background */
-                color: white;
-                border: none;  /* No border */
-                border-radius: 536px;
-            }
+        # Add additional styles while preserving base white border
+        additional_styles = """
             /* Remove red border from message boxes */
             QMessageBox {
                 background-color: rgba(28, 28, 30, 1.0);
@@ -101,7 +96,10 @@ class FileUploadDialog(BaseAuraDialog):
                 background-color: #4CAF50;
                 border-radius: 3px;
             }
-        """)
+        """
+        # Combine with base stylesheet (preserving white border from base class)
+        base_stylesheet = self.styleSheet()
+        self.setStyleSheet(base_stylesheet + additional_styles)
     
     def _setup_ui(self):
         """Set up dialog UI (called by base class)"""

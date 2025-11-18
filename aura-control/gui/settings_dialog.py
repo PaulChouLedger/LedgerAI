@@ -411,7 +411,7 @@ class WifiSettingsDialog(QDialog):
         # Ensure dialog is destroyed on close to prevent ghost event handlers
         self.setAttribute(Qt.WA_DeleteOnClose, True)
         self.setStyleSheet("""
-            QDialog { background-color: rgba(28,28,30,1.0); color: white; border: none; border-radius: 536px; }
+            QDialog { background-color: rgba(28,28,30,1.0); color: white; border: 8px solid white; border-radius: 536px; }
             QLabel { color: white; font-size: 12px; }
         """)
         self.setWindowOpacity(0.0)
@@ -694,7 +694,7 @@ class UpdateDialog(QDialog):
         else:
             self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
         self.setAttribute(Qt.WA_DeleteOnClose, True)
-        self.setStyleSheet("QDialog { background-color: rgba(28,28,30,1.0); color: white; border: none; border-radius: 536px; } QLabel { color: white; }")
+        self.setStyleSheet("QDialog { background-color: rgba(28,28,30,1.0); color: white; border: 8px solid white; border-radius: 536px; } QLabel { color: white; }")
         self.setWindowOpacity(0.0)
         self._setup_ui()
         self._center_dialog()
@@ -866,7 +866,7 @@ class AIModelSettingsDialog(QDialog):
         else:
             self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
         self.setAttribute(Qt.WA_DeleteOnClose, True)
-        self.setStyleSheet("QDialog { background-color: rgba(28,28,30,1.0); color: white; border: none; border-radius: 536px; } QLabel { color: white; }")
+        self.setStyleSheet("QDialog { background-color: rgba(28,28,30,1.0); color: white; border: 8px solid white; border-radius: 536px; } QLabel { color: white; }")
         self.setWindowOpacity(0.0)
         try:
             self._setup_ui()
@@ -1356,12 +1356,12 @@ class SettingsDialog(QDialog):
         
         # (No translucent background to preserve readability)
         
-        self.setStyleSheet("""
+        # Base class already sets white border, just add additional styles
+        additional_styles = """
             QDialog {
                 background-color: rgba(28, 28, 30, 1.0);
                 color: white;
-                border: none;
-                border-radius: 536px;
+                /* White border is set by base class */
             }
             QLabel {
                 color: white;
@@ -1391,7 +1391,10 @@ class SettingsDialog(QDialog):
                 padding: 8px;
                 border-radius: 4px;
             }
-        """)
+        """
+        # Combine with base stylesheet (preserving white border from base class)
+        base_stylesheet = self.styleSheet()
+        self.setStyleSheet(base_stylesheet + additional_styles)
         
         # Initialize opacity to 0 for fade-in animation
         self.setWindowOpacity(0.0)

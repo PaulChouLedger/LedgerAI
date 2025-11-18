@@ -117,7 +117,7 @@ class WelcomeSetupDialog(QDialog):
             QDialog {
                 background-color: rgba(28, 28, 30, 1.0);
                 color: white;
-                border: none;
+                border: 8px solid white;
                 border-radius: 536px;
             }
             QLabel {

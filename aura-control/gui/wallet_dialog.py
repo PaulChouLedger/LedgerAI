@@ -66,13 +66,13 @@ class WalletDialog(BaseAuraDialog):
             modal=False
         )
         
-        # Apply dark theme styling - match upload dialog exactly
-        self.setStyleSheet("""
+        # Apply dark theme styling - preserve white border from base class
+        # Base class already sets white border, just add additional styles
+        additional_styles = """
             QDialog {
                 background-color: rgba(28, 28, 30, 0.95);
                 color: white;
-                border: none;
-                border-radius: 532px;
+                /* White border is set by base class */
             }
             QGroupBox {
                 background-color: rgba(44, 44, 46, 0.8);
@@ -105,7 +105,10 @@ class WalletDialog(BaseAuraDialog):
             QPushButton:pressed {
                 background-color: rgba(142, 142, 147, 0.6);
             }
-        """)
+        """
+        # Combine with base stylesheet (preserving white border from base class)
+        base_stylesheet = self.styleSheet()
+        self.setStyleSheet(base_stylesheet + additional_styles)
         
         # Defer initial background work until after fade-in
         self._initial_refresh_scheduled = False
