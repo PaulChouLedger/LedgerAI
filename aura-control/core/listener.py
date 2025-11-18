@@ -534,6 +534,12 @@ def listen():
     except ImportError:
         wake_word_setting_enabled = False
     
+    # CRITICAL: Block transcription immediately if wake word is enabled
+    # This prevents transcription from starting before the detector is ready
+    if wake_word_setting_enabled:
+        print("[Wake Word] 🔒 Blocking transcription until wake word detector is ready...")
+        block_transcription("Wake word enabled - waiting for detector initialization")
+    
     # Initialize wake word detection - Mycroft Precise only (most reliable for Jetson)
     import sys
     wake_word_detector = None
@@ -562,19 +568,23 @@ def listen():
     
     if wake_word_detector:
         print("[Wake Word] ✅ Mycroft Precise initialized successfully")
+        # Unblock transcription now that detector is ready (but still require wake word)
+        if wake_word_setting_enabled:
+            unblock_transcription()
+            print("[Wake Word] ✅ Wake word detector ready - transcription will require wake word")
     else:
         print("[Wake Word] ❌ Mycroft Precise failed to initialize")
     
     if wake_word_setting_enabled and wake_word_detector is None:
         print("[Wake Word] ⚠️  Wake word enabled in settings but detector failed to initialize")
-        print("[Wake Word] 🔒 Transcription will be BLOCKED until wake word detector is fixed")
+        print("[Wake Word] 🔒 Transcription will remain BLOCKED until wake word detector is fixed")
         print("[Wake Word] 💡 Check logs above for initialization errors")
         print("[Wake Word] 💡 Mycroft Precise setup:")
         print("[Wake Word]     1. Install: pip install precise-runner precise-engine")
         print("[Wake Word]     2. Download model: wget https://github.com/MycroftAI/precise-data/raw/models/hey-mycroft.pb")
         print("[Wake Word]     3. Place model in: ~/precise-models/ or ~/")
         print("[Wake Word] 💡 Or disable wake word in Settings → AI Model Settings")
-        block_transcription("Wake word required but not available")
+        # Keep transcription blocked (already blocked above)
     
     if wake_word_enabled:
         print("\n" + "="*70)

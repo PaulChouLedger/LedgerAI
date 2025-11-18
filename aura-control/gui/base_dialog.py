@@ -88,7 +88,10 @@ class BaseAuraDialog(QDialog):
     def closeEvent(self, event):
         """Handle dialog close event with smooth fade-out animation"""
         # Always ensure transcription is unblocked when dialog closes
-        self._unblock_transcription()
+        try:
+            self._unblock_transcription()
+        except Exception:
+            pass
         
         # Reactivate parent window immediately to prevent freezing
         if self.parent():
@@ -96,49 +99,82 @@ class BaseAuraDialog(QDialog):
                 self.parent().raise_()
                 self.parent().activateWindow()
                 QApplication.processEvents()
-            except Exception:
-                pass
+            except (RuntimeError, AttributeError):
+                pass  # Parent already deleted
         
         # Only animate if we're actually closing (not just hiding)
         if event.spontaneous() or not self.isVisible():
+            # Still call cleanup even if accepting immediately
+            try:
+                self._on_close()
+            except Exception:
+                pass
             event.accept()
             return
         
         # Cancel fade-in if still running
-        if hasattr(self, 'fade_in') and self.fade_in.state() == QPropertyAnimation.Running:
-            self.fade_in.stop()
+        if hasattr(self, 'fade_in') and self.fade_in:
+            try:
+                if self.fade_in.state() == QPropertyAnimation.Running:
+                    self.fade_in.stop()
+            except (RuntimeError, AttributeError):
+                pass  # Animation already deleted
         
         # For modal dialogs opened from home screen, accept immediately to avoid blocking
         if self.isModal() and self.parent():
+            # Still call cleanup
+            try:
+                self._on_close()
+            except Exception:
+                pass
             event.accept()
             return
         
         # Non-modal: use fade animation
-        self.fade_out = QPropertyAnimation(self, b"windowOpacity")
-        self.fade_out.setDuration(300)  # Slightly longer for smoother exit
-        self.fade_out.setStartValue(self.windowOpacity())
-        self.fade_out.setEndValue(0.0)
-        self.fade_out.setEasingCurve(QEasingCurve.InCubic)  # Smooth ease-in for exit
-        
-        # Connect finished signal to actually close the dialog
-        def _finalize():
-            # Call subclass cleanup hook
-            self._on_close()
-            event.accept()
-            # Ensure parent is reactivated after close
-            if self.parent():
+        try:
+            self.fade_out = QPropertyAnimation(self, b"windowOpacity")
+            self.fade_out.setDuration(300)  # Slightly longer for smoother exit
+            self.fade_out.setStartValue(self.windowOpacity())
+            self.fade_out.setEndValue(0.0)
+            self.fade_out.setEasingCurve(QEasingCurve.InCubic)  # Smooth ease-in for exit
+            
+            # Connect finished signal to actually close the dialog
+            def _finalize():
+                # Call subclass cleanup hook (with error handling)
                 try:
-                    self.parent().raise_()
-                    self.parent().activateWindow()
-                    QApplication.processEvents()
-                except Exception:
-                    pass
-        
-        self.fade_out.finished.connect(_finalize)
-        self.fade_out.start()
-        
-        # Prevent immediate close
-        event.ignore()
+                    self._on_close()
+                except Exception as e:
+                    print(f"[BaseAuraDialog] ⚠️ Error in _on_close: {e}")
+                
+                event.accept()
+                
+                # Ensure parent is reactivated after close
+                if self.parent():
+                    try:
+                        self.parent().raise_()
+                        self.parent().activateWindow()
+                        QApplication.processEvents()
+                    except (RuntimeError, AttributeError):
+                        pass  # Parent already deleted
+                
+                try:
+                    self.dialog_closed.emit()
+                except (RuntimeError, AttributeError):
+                    pass  # Dialog already deleted
+            
+            self.fade_out.finished.connect(_finalize)
+            self.fade_out.start()
+            
+            # Prevent immediate close
+            event.ignore()
+        except (RuntimeError, AttributeError) as e:
+            # If we can't create animation (dialog already being deleted), just accept
+            print(f"[BaseAuraDialog] ⚠️ Cannot animate close: {e}")
+            try:
+                self._on_close()
+            except Exception:
+                pass
+            event.accept()
     
     def _on_close(self):
         """Override in subclass for additional close logic (e.g., thread cleanup)"""
