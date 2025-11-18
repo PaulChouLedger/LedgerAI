@@ -57,31 +57,53 @@ class BaseAuraDialog(QDialog):
     
     def _center_dialog(self):
         """Center dialog on screen to align white border with home screen white perimeter"""
-        # Always center on screen, regardless of parent
-        # This ensures the white border (drawn at center 540,540) aligns with screen center
-        screen = QApplication.primaryScreen().geometry()
-        dialog_width = self.width() if self.width() > 0 else 1080
-        dialog_height = self.height() if self.height() > 0 else 1080
-        
-        x = (screen.width() - dialog_width) // 2
-        y = (screen.height() - dialog_height) // 2
-        
-        self.move(x, y)
-        print(f"[BaseAuraDialog] 🎯 Dialog centered on screen: screen={screen.width()}x{screen.height()}, dialog={dialog_width}x{dialog_height}, position=({x}, {y})")
+        try:
+            # Always center on screen, regardless of parent
+            # This ensures the white border (drawn at center 540,540) aligns with screen center
+            app = QApplication.instance()
+            if not app:
+                print("[BaseAuraDialog] ⚠️ No QApplication instance, cannot center")
+                return
+            
+            screen = app.primaryScreen()
+            if not screen:
+                print("[BaseAuraDialog] ⚠️ No primary screen, cannot center")
+                return
+            
+            screen_geometry = screen.geometry()
+            dialog_width = self.width() if self.width() > 0 else 1080
+            dialog_height = self.height() if self.height() > 0 else 1080
+            
+            x = (screen_geometry.width() - dialog_width) // 2
+            y = (screen_geometry.height() - dialog_height) // 2
+            
+            self.move(x, y)
+            # Force update to ensure position is applied
+            QApplication.processEvents()
+            
+            # Verify position
+            actual_pos = self.pos()
+            print(f"[BaseAuraDialog] 🎯 Dialog centered: screen={screen_geometry.width()}x{screen_geometry.height()}, dialog={dialog_width}x{dialog_height}, calculated=({x}, {y}), actual=({actual_pos.x()}, {actual_pos.y()})")
+        except Exception as e:
+            print(f"[BaseAuraDialog] ❌ Error centering dialog: {e}")
+            import traceback
+            traceback.print_exc()
     
     def showEvent(self, event):
         """Handle dialog show event with smooth fade-in animation"""
         super().showEvent(event)
         
-        # Reposition dialog after showing to ensure correct centering
-        # This is needed because geometry might not be accurate until after show
-        QApplication.processEvents()
-        self._center_dialog()
-        
-        # Ensure dialog is positioned and ready
+        # Ensure dialog is shown and ready
         self.raise_()
         self.activateWindow()
         QApplication.processEvents()
+        
+        # Reposition dialog after showing to ensure correct centering
+        # This is needed because geometry might not be accurate until after show
+        # Use a timer to ensure positioning happens after window is fully shown
+        from PyQt5.QtCore import QTimer
+        QTimer.singleShot(10, self._center_dialog)
+        QTimer.singleShot(50, self._center_dialog)  # Double-check after a short delay
         
         # For sub-dialogs opened from parent, skip fade animation to avoid rendering issues
         if self.isModal() and self.parent():
