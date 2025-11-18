@@ -50,7 +50,26 @@ _wake_word_enabled = False  # Wake word detection enabled/disabled
 _wake_word_sensitivity = 0.5  # Wake word detection sensitivity (0.0-1.0)
 _wake_word_model_path = None  # Optional path to custom .ppn model file
 
+def _save_settings_to_disk():
+    """Save current settings to disk"""
+    try:
+        import json, os
+        os.makedirs(os.path.dirname(_settings_file), exist_ok=True)
+        settings_data = {
+            "llm_mode": _llm_mode,
+            "llm_model": _llm_model,
+            "wake_word_enabled": _wake_word_enabled,
+            "wake_word_sensitivity": _wake_word_sensitivity
+        }
+        if _wake_word_model_path:
+            settings_data["wake_word_model_path"] = _wake_word_model_path
+        with open(_settings_file, "w") as f:
+            json.dump(settings_data, f, indent=2)
+    except Exception as e:
+        print(f"[State] ⚠️ Failed to save settings: {e}")
+
 def _load_settings_from_disk():
+    """Load settings from disk, creating default file if it doesn't exist"""
     global _llm_mode, _llm_model, _wake_word_enabled, _wake_word_sensitivity, _wake_word_model_path
     try:
         import json
@@ -70,23 +89,6 @@ def _load_settings_from_disk():
 
 # Load settings on import
 _load_settings_from_disk()
-
-def _save_settings_to_disk():
-    try:
-        import json, os
-        os.makedirs(os.path.dirname(_settings_file), exist_ok=True)
-        settings_data = {
-            "llm_mode": _llm_mode,
-            "llm_model": _llm_model,
-            "wake_word_enabled": _wake_word_enabled,
-            "wake_word_sensitivity": _wake_word_sensitivity
-        }
-        if _wake_word_model_path:
-            settings_data["wake_word_model_path"] = _wake_word_model_path
-        with open(_settings_file, "w") as f:
-            json.dump(settings_data, f, indent=2)
-    except Exception as e:
-        print(f"[State] ⚠️ Failed to save settings: {e}")
 
 def get_llm_mode() -> str:
     """Return 'medical' or 'generic'."""
@@ -140,9 +142,6 @@ def set_wake_word_model_path(path: str):
     global _wake_word_model_path
     _wake_word_model_path = path if path else None
     _save_settings_to_disk()
-
-# Initialize settings at import
-_load_settings_from_disk()
 
 
 # === Listener restart trigger ===
