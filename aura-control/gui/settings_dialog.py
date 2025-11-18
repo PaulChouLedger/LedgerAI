@@ -14,6 +14,7 @@ from PyQt5.QtGui import QFont
 import threading
 from dotenv import dotenv_values
 import glob
+from gui.base_dialog import BaseAuraDialog
 
 class WiFiScanThread(QThread):
     """Thread to scan for WiFi networks without blocking UI"""
@@ -396,51 +397,73 @@ class OTAUpdateThread(QThread):
 
 # === Sub-Dialogs (WiFi / Updates / AI Model) ===
 
-class WifiSettingsDialog(QDialog):
+class WifiSettingsDialog(BaseAuraDialog):
     """Dedicated dialog for WiFi scanning/connect/disconnect"""
     def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle("WiFi Settings")
-        self.setFixedSize(1080, 1080)
-        if parent:
-            # Use Window flag instead of Dialog to ensure proper z-ordering above parent
-            self.setWindowFlags(Qt.Window | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
-            self.setModal(True)
-        else:
-            self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
-        # Ensure dialog is destroyed on close to prevent ghost event handlers
-        self.setAttribute(Qt.WA_DeleteOnClose, True)
-        self.setStyleSheet("""
-            QDialog { background-color: rgba(28,28,30,1.0); color: white; border: 8px solid white; border-radius: 535px; }
+        super().__init__(parent, title="WiFi Settings", size=(1080, 1080), modal=True)
+        # Add additional styles
+        additional_styles = """
             QLabel { color: white; font-size: 12px; }
-        """)
-        self.setWindowOpacity(0.0)
-        self._setup_ui()
-        self._center_dialog()
+        """
+        base_stylesheet = self.styleSheet()
+        self.setStyleSheet(base_stylesheet + additional_styles)
         self.wifi_scan_thread = None
         self.selected_wifi = None
         self._update_disconnect_button()
     
-    def showEvent(self, event):
-        super().showEvent(event)
-        # Ensure dialog is positioned and ready
-        self.raise_()
-        self.activateWindow()
-        QApplication.processEvents()
-        
-        # For sub-dialogs opened from settings, skip fade animation to avoid rendering issues
-        if self.isModal() and self.parent():
-            self.setWindowOpacity(1.0)
-        else:
-            # Only use fade animation for standalone dialogs
-            self.fade_in = QPropertyAnimation(self, b"windowOpacity")
-            self.fade_in.setDuration(400)
-            self.fade_in.setStartValue(0.0)
-            self.fade_in.setEndValue(1.0)
-            self.fade_in.setEasingCurve(QEasingCurve.OutCubic)
-            self.fade_in.start()
+    def _setup_ui(self):
+        """Setup UI - called by BaseAuraDialog"""
+        self._setup_ui_original()
     
-    def closeEvent(self, event):
+    def _setup_ui_original(self):
+        main_layout = QVBoxLayout()
+        main_layout.setContentsMargins(120, 100, 120, 100)
+        main_layout.setSpacing(20)
+        main_layout.addStretch(1)
+        
+        # Top bar with Back
+        top_row = QHBoxLayout()
+        back_btn = QPushButton("◀ Back")
+        back_btn.setStyleSheet(SettingsDialog.get_button_style(None))
+        # Use accept() for modal dialogs to ensure immediate response
+        back_btn.clicked.connect(lambda: self.accept() if self.isModal() else self.close())
+        top_row.addWidget(back_btn)
+        top_row.addStretch()
+        main_layout.addLayout(top_row)
+    
+    def _on_close(self):
+        """Override for cleanup"""
+        # Always ensure transcription is unblocked when dialog closes
+        try:
+            from listener import unblock_transcription
+            unblock_transcription()
+            print("[WifiSettings] ✅ Transcription unblocked")
+        except Exception:
+            pass
+        
+        # Clean up threads
+        try:
+            if hasattr(self, "wifi_scan_thread") and self.wifi_scan_thread:
+                try:
+                    self.wifi_scan_thread.networks_found.disconnect(self._on_wifi_networks_found)
+                except Exception:
+                    pass
+                try:
+                    self.wifi_scan_thread.scan_error.disconnect(self._on_wifi_scan_error)
+                except Exception:
+                    pass
+                try:
+                    self.wifi_scan_thread.finished.disconnect()
+                except Exception:
+                    pass
+                if self.wifi_scan_thread.isRunning():
+                    self.wifi_scan_thread.quit()
+                    self.wifi_scan_thread.wait(500)
+                self.wifi_scan_thread = None
+        except Exception:
+            pass
+    
+    def closeEvent_OLD(self, event):
         # Always ensure transcription is unblocked when dialog closes
         try:
             from listener import unblock_transcription
@@ -510,21 +533,6 @@ class WifiSettingsDialog(QDialog):
         self.fade_out.finished.connect(_finalize)
         self.fade_out.start()
         event.ignore()
-    
-    def _center_dialog(self):
-        """Center dialog to align white border with home screen white perimeter"""
-        if self.parent():
-            # Center dialog within parent window so white borders align
-            parent_geometry = self.parent().geometry()
-            x = parent_geometry.x() + (parent_geometry.width() - self.width()) // 2
-            y = parent_geometry.y() + (parent_geometry.height() - self.height()) // 2
-            self.move(x, y)
-        else:
-            # No parent: center on screen
-            screen = QApplication.primaryScreen().geometry()
-            x = (screen.width() - self.width()) // 2
-            y = (screen.height() - self.height()) // 2
-            self.move(x, y)
     
     def _setup_ui(self):
         main_layout = QVBoxLayout()
@@ -684,45 +692,76 @@ class WifiSettingsDialog(QDialog):
             self.disconnect_wifi_btn.setText("🔌 Disconnect")
 
 
-class UpdateDialog(QDialog):
+class UpdateDialog(BaseAuraDialog):
     """Dedicated dialog for OTA updates"""
     def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle("Updates")
-        self.setFixedSize(1080, 1080)
-        if parent:
-            # Use Window flag instead of Dialog to ensure proper z-ordering above parent
-            self.setWindowFlags(Qt.Window | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
-            self.setModal(True)
-        else:
-            self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
-        self.setAttribute(Qt.WA_DeleteOnClose, True)
-        self.setStyleSheet("QDialog { background-color: rgba(28,28,30,1.0); color: white; border: 8px solid white; border-radius: 535px; } QLabel { color: white; }")
-        self.setWindowOpacity(0.0)
-        self._setup_ui()
-        self._center_dialog()
+        super().__init__(parent, title="Updates", size=(1080, 1080), modal=True)
+        # Add additional styles
+        additional_styles = """
+            QLabel { color: white; }
+        """
+        base_stylesheet = self.styleSheet()
+        self.setStyleSheet(base_stylesheet + additional_styles)
         self.ota_update_thread = None
     
-    def showEvent(self, event):
-        super().showEvent(event)
-        # Ensure dialog is positioned and ready
-        self.raise_()
-        self.activateWindow()
-        QApplication.processEvents()
-        
-        # For sub-dialogs opened from settings, skip fade animation to avoid rendering issues
-        if self.isModal() and self.parent():
-            self.setWindowOpacity(1.0)
-        else:
-            # Only use fade animation for standalone dialogs
-            self.fade_in = QPropertyAnimation(self, b"windowOpacity")
-            self.fade_in.setDuration(400)
-            self.fade_in.setStartValue(0.0)
-            self.fade_in.setEndValue(1.0)
-            self.fade_in.setEasingCurve(QEasingCurve.OutCubic)
-            self.fade_in.start()
+    def _setup_ui(self):
+        """Setup UI - called by BaseAuraDialog"""
+        self._setup_ui_original()
     
-    def closeEvent(self, event):
+    def _setup_ui_original(self):
+        main_layout = QVBoxLayout(); main_layout.setContentsMargins(120, 100, 120, 100); main_layout.setSpacing(20); main_layout.addStretch(1)
+        # Top bar with Back
+        top_row = QHBoxLayout()
+        back_btn = QPushButton("◀ Back")
+        back_btn.setStyleSheet(SettingsDialog.get_button_style(None))
+        # Use accept() for modal dialogs to ensure immediate response
+        back_btn.clicked.connect(lambda: self.accept() if self.isModal() else self.close())
+        top_row.addWidget(back_btn)
+        top_row.addStretch()
+        main_layout.addLayout(top_row)
+        title = QLabel("🔄 Over-the-Air Updates"); title.setFont(QFont("Arial", 18, QFont.Bold)); title.setAlignment(Qt.AlignCenter); title.setStyleSheet("color: #ffffff; font-weight: 600; margin: 10px;"); main_layout.addWidget(title)
+        self.status_log = QTextEdit(); self.status_log.setMaximumHeight(120); self.status_log.setReadOnly(True); self.status_log.setStyleSheet("QTextEdit { background-color: rgba(44,44,46,0.8); color: #ffffff; border-radius: 15px; border: none; padding: 10px; font-size: 11px; }"); main_layout.addWidget(self.status_log)
+        button_row = QHBoxLayout(); button_row.setSpacing(15)
+        self.update_btn = QPushButton("⬇️ Update from GitHub"); self.update_btn.setStyleSheet(SettingsDialog.get_button_style(None)); self.update_btn.clicked.connect(self._start_ota_update); button_row.addWidget(self.update_btn)
+        main_layout.addLayout(button_row)
+        self.progress_bar = QProgressBar(); self.progress_bar.setVisible(False); self.progress_bar.setStyleSheet("QProgressBar { border: 1px solid #555; border-radius: 8px; background-color: rgba(44,44,46,0.8); color: white; text-align: center; } QProgressBar::chunk { background-color: #007AFF; border-radius: 8px; }"); main_layout.addWidget(self.progress_bar)
+        main_layout.addStretch(1); self.setLayout(main_layout)
+    
+    def _on_close(self):
+        """Override for cleanup"""
+        # Always ensure transcription is unblocked when dialog closes
+        try:
+            from listener import unblock_transcription
+            unblock_transcription()
+            print("[UpdateDialog] ✅ Transcription unblocked")
+        except Exception:
+            pass
+        
+        # Clean up threads
+        try:
+            if hasattr(self, "ota_update_thread") and self.ota_update_thread:
+                try:
+                    self.ota_update_thread.update_progress.disconnect()
+                except Exception:
+                    pass
+                try:
+                    self.ota_update_thread.update_complete.disconnect()
+                except Exception:
+                    pass
+                try:
+                    self.ota_update_thread.finished.disconnect()
+                except Exception:
+                    pass
+                if self.ota_update_thread.isRunning():
+                    try:
+                        self.ota_update_thread.terminate()
+                    except Exception:
+                        pass
+                self.ota_update_thread = None
+        except Exception:
+            pass
+    
+    def closeEvent_OLD(self, event):
         # Always ensure transcription is unblocked when dialog closes
         try:
             from listener import unblock_transcription
@@ -796,37 +835,6 @@ class UpdateDialog(QDialog):
         self.fade_out.start(); 
         event.ignore()
     
-    def _center_dialog(self):
-        """Center dialog within parent or screen"""
-        if self.parent():
-            parent_geometry = self.parent().geometry()
-            x = parent_geometry.x() + (parent_geometry.width() - self.width()) // 2
-            y = parent_geometry.y() + (parent_geometry.height() - self.height()) // 2
-            self.move(x, y)
-        else:
-            screen = QApplication.primaryScreen().geometry()
-            x = (screen.width() - self.width()) // 2
-            y = (screen.height() - self.height()) // 2
-            self.move(x, y)
-    
-    def _setup_ui(self):
-        main_layout = QVBoxLayout(); main_layout.setContentsMargins(120, 100, 120, 100); main_layout.setSpacing(20); main_layout.addStretch(1)
-        # Top bar with Back
-        top_row = QHBoxLayout()
-        back_btn = QPushButton("◀ Back")
-        back_btn.setStyleSheet(SettingsDialog.get_button_style(None))
-        # Use accept() for modal dialogs to ensure immediate response
-        back_btn.clicked.connect(lambda: self.accept() if self.isModal() else self.close())
-        top_row.addWidget(back_btn)
-        top_row.addStretch()
-        main_layout.addLayout(top_row)
-        title = QLabel("🔄 Over-the-Air Updates"); title.setFont(QFont("Arial", 18, QFont.Bold)); title.setAlignment(Qt.AlignCenter); title.setStyleSheet("color: #ffffff; font-weight: 600; margin: 10px;"); main_layout.addWidget(title)
-        self.status_log = QTextEdit(); self.status_log.setMaximumHeight(120); self.status_log.setReadOnly(True); self.status_log.setStyleSheet("QTextEdit { background-color: rgba(44,44,46,0.8); color: #ffffff; border-radius: 15px; border: none; padding: 10px; font-size: 11px; }"); main_layout.addWidget(self.status_log)
-        button_row = QHBoxLayout(); button_row.setSpacing(15)
-        self.update_btn = QPushButton("⬇️ Update from GitHub"); self.update_btn.setStyleSheet(SettingsDialog.get_button_style(None)); self.update_btn.clicked.connect(self._start_ota_update); button_row.addWidget(self.update_btn)
-        main_layout.addLayout(button_row)
-        self.progress_bar = QProgressBar(); self.progress_bar.setVisible(False); self.progress_bar.setStyleSheet("QProgressBar { border: 1px solid #555; border-radius: 8px; background-color: rgba(44,44,46,0.8); color: white; text-align: center; } QProgressBar::chunk { background-color: #007AFF; border-radius: 8px; }"); main_layout.addWidget(self.progress_bar)
-        main_layout.addStretch(1); self.setLayout(main_layout)
     
     def _log(self, message): self.status_log.append(f"[Update] {message}")
     
@@ -856,24 +864,19 @@ class UpdateDialog(QDialog):
         else: self._log(f"❌ {message}"); QMessageBox.warning(self, "Update Failed", message)
 
 
-class AIModelSettingsDialog(QDialog):
+class AIModelSettingsDialog(BaseAuraDialog):
     """Dedicated dialog for AI model selection and mode toggle"""
     def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle("AI Model Settings")
-        self.setFixedSize(1080, 1080)
-        if parent:
-            # Use Window flag instead of Dialog to ensure proper z-ordering above parent
-            self.setWindowFlags(Qt.Window | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
-            self.setModal(True)
-        else:
-            self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
-        self.setAttribute(Qt.WA_DeleteOnClose, True)
-        self.setStyleSheet("QDialog { background-color: rgba(28,28,30,1.0); color: white; border: 8px solid white; border-radius: 535px; } QLabel { color: white; }")
-        self.setWindowOpacity(0.0)
+        super().__init__(parent, title="AI Model Settings", size=(1080, 1080), modal=True)
+        # Add additional styles
+        additional_styles = """
+            QLabel { color: white; }
+        """
+        base_stylesheet = self.styleSheet()
+        self.setStyleSheet(base_stylesheet + additional_styles)
         try:
-            self._setup_ui()
-            self._center_dialog()
+            # _setup_ui is called by BaseAuraDialog.__init__
+            pass
         except Exception as e:
             print(f"[AIModelSettings] ❌ Error during initialization: {e}")
             import traceback
@@ -881,30 +884,118 @@ class AIModelSettingsDialog(QDialog):
             # Still show dialog even if setup fails partially
             QMessageBox.warning(None, "Initialization Error", f"AI Model Settings dialog had an error:\n{e}\n\nSome features may not work correctly.")
     
-    def showEvent(self, event):
-        super().showEvent(event)
-        # Ensure dialog is positioned and ready
-        self.raise_()
-        self.activateWindow()
-        QApplication.processEvents()  # Process pending events
+    def _setup_ui(self):
+        """Setup UI - called by BaseAuraDialog"""
+        try:
+            self._setup_ui_original()
+        except Exception as e:
+            print(f"[AIModelSettings] ❌ Error in _setup_ui: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    def _setup_ui_original(self):
+        layout = QVBoxLayout(); layout.setContentsMargins(120, 100, 120, 100); layout.setSpacing(20); layout.addStretch(1)
+        # Top bar with Back
+        top_row = QHBoxLayout()
+        back_btn = QPushButton("◀ Back")
+        back_btn.setStyleSheet(SettingsDialog.get_button_style(None))
+        # Use accept() for modal dialogs to ensure immediate response
+        back_btn.clicked.connect(lambda: self.accept() if self.isModal() else self.close())
+        top_row.addWidget(back_btn)
+        top_row.addStretch()
+        layout.addLayout(top_row)
+        title = QLabel("🧠 AI Model Settings"); title.setFont(QFont("Arial", 18, QFont.Bold)); title.setAlignment(Qt.AlignCenter); title.setStyleSheet("color: #ffffff; font-weight: 600; margin: 10px;"); layout.addWidget(title)
         
-        # For sub-dialogs opened from settings, skip fade animation to avoid rendering issues
-        # Just ensure it's fully visible immediately
-        if self.isModal() and self.parent():
-            self.setWindowOpacity(1.0)
-        else:
-            # Only use fade animation for standalone dialogs
-            self.fade_in = QPropertyAnimation(self, b"windowOpacity")
-            self.fade_in.setDuration(400)
-            self.fade_in.setStartValue(0.0)
-            self.fade_in.setEndValue(1.0)
-            self.fade_in.setEasingCurve(QEasingCurve.OutCubic)
-            self.fade_in.start()
+        # Mode toggle with status label
+        mode_label = QLabel("LLM Mode:")
+        mode_label.setStyleSheet("color: #ffffff; font-weight: bold; font-size: 14px;")
+        layout.addWidget(mode_label)
         
+        mode_row = QHBoxLayout(); mode_row.setSpacing(12)
+        self.mode_generic_btn = QPushButton("💬 Generic"); self.mode_medical_btn = QPushButton("🏥 Medical")
+        for b in (self.mode_generic_btn, self.mode_medical_btn): 
+            b.setCheckable(True)
+            b.setStyleSheet(SettingsDialog.get_button_style(None))
+        mode_row.addWidget(self.mode_generic_btn); mode_row.addWidget(self.mode_medical_btn)
+        
+        # Status label showing current active container
+        self.mode_status_label = QLabel("")
+        self.mode_status_label.setStyleSheet("color: #4D94D9; font-size: 12px; padding: 5px;")
+        mode_row.addWidget(self.mode_status_label, 1)
+        layout.addLayout(mode_row)
+        
+        # Model dropdown + restart
+        self.model_combo = QComboBox()
+        self.model_combo.setStyleSheet("""
+            QComboBox { background-color: rgba(44,44,46,0.8); color: #ffffff; padding: 8px; border: none; border-radius: 10px; min-height: 36px; }
+            QComboBox QAbstractItemView { background-color: #2d2d2d; color: #ffffff; selection-background-color: #4D94D9; }
+        """)
+        self.restart_llm_btn = QPushButton("🔁 Restart LLM"); self.restart_llm_btn.setStyleSheet(SettingsDialog.get_button_style(None))
+        row = QHBoxLayout(); row.setSpacing(10); row.addWidget(self.model_combo, 2); row.addWidget(self.restart_llm_btn, 1); layout.addLayout(row)
+        layout.addStretch(1); self.setLayout(layout)
+        
+        # Load state and populate
+        try:
+            from core.state import get_llm_mode, get_llm_model
+            mode = get_llm_mode()
+            self.mode_generic_btn.setChecked(mode == "generic")
+            self.mode_medical_btn.setChecked(mode == "medical")
+            # Defer status update to avoid blocking during initialization
+            QTimer.singleShot(100, self._update_mode_status)
+        except Exception: 
+            self.mode_medical_btn.setChecked(True)
+            # Defer status update to avoid blocking during initialization
+            QTimer.singleShot(100, self._update_mode_status)
+        self._populate_models()
+        # RAG mode UI (CPU/GPU/OFF)
+        rag_row = QHBoxLayout(); rag_row.setSpacing(12)
+        rag_label = QLabel("RAG Mode:")
+        rag_label.setStyleSheet("color: #ffffff;")
+        self.rag_combo = QComboBox()
+        self.rag_combo.setStyleSheet("""
+            QComboBox { background-color: rgba(44,44,46,0.8); color: #ffffff; padding: 8px; border: none; border-radius: 10px; min-height: 36px; }
+            QComboBox QAbstractItemView { background-color: #2d2d2d; color: #ffffff; selection-background-color: #4D94D9; }
+        """)
+        self.rag_combo.addItems(["CPU", "GPU", "OFF"])
+        rag_row.addWidget(rag_label)
+        rag_row.addWidget(self.rag_combo, 1)
+        layout.addLayout(rag_row)
+        # Initialize rag_combo from settings file
+        try:
+            import json, os
+            settings_path = os.path.expanduser("~/LedgerAI/data/app_settings.json")
+            if os.path.exists(settings_path):
+                with open(settings_path, "r") as f:
+                    data = json.load(f) or {}
+                rag_mode = data.get("rag_mode", "CPU").upper()
+                idx = self.rag_combo.findText(rag_mode)
+                if idx >= 0:
+                    self.rag_combo.setCurrentIndex(idx)
+        except Exception:
+            pass
+        self.rag_combo.currentIndexChanged.connect(self._on_rag_mode_changed)
+        # Connect mode buttons
+        self.mode_generic_btn.clicked.connect(lambda: self._on_mode_changed("generic"))
+        self.mode_medical_btn.clicked.connect(lambda: self._on_mode_changed("medical"))
+        self.restart_llm_btn.clicked.connect(self._restart_llm)
+        self.model_combo.currentTextChanged.connect(self._on_model_changed)
+    
+    def _on_close(self):
+        """Override for cleanup"""
+        # Always ensure transcription is unblocked when dialog closes
+        try:
+            from listener import unblock_transcription
+            unblock_transcription()
+            print("[AIModelSettings] ✅ Transcription unblocked")
+        except Exception:
+            pass
+    
+    def _on_show(self):
+        """Override for additional show logic"""
         # Update mode status after dialog is shown (non-blocking)
         QTimer.singleShot(200, self._update_mode_status)
     
-    def closeEvent(self, event):
+    def closeEvent_OLD(self, event):
         # Always ensure transcription is unblocked when dialog closes
         try:
             from listener import unblock_transcription
@@ -1342,30 +1433,13 @@ class AIModelSettingsDialog(QDialog):
             print(f"[ModelSettings] Error saving rag_mode: {e}")
         # Do not auto-restart; user can press Restart LLM
 
-class SettingsDialog(QDialog):
+class SettingsDialog(BaseAuraDialog):
     def __init__(self, parent=None):
-        super().__init__(parent)
+        super().__init__(parent, title="Settings - AuraVision", size=(1080, 1080), modal=True)
         print("[Settings] 🔧 Initializing settings dialog...")
         
-        self.setWindowTitle("Settings - AuraVision")
-        self.setFixedSize(1080, 1080)
-        
-        if parent:
-            # Use Window flag instead of Dialog to ensure proper z-ordering above parent
-            self.setWindowFlags(Qt.Window | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
-            self.setModal(True)
-        else:
-            self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
-        
-        # (No translucent background to preserve readability)
-        
-        # Base class already sets white border, just add additional styles
+        # Add additional styles to base stylesheet
         additional_styles = """
-            QDialog {
-                background-color: rgba(28, 28, 30, 1.0);
-                color: white;
-                /* White border is set by base class */
-            }
             QLabel {
                 color: white;
                 font-size: 12px;
@@ -1395,15 +1469,12 @@ class SettingsDialog(QDialog):
                 border-radius: 4px;
             }
         """
-        # Combine with base stylesheet (preserving white border from base class)
         base_stylesheet = self.styleSheet()
         self.setStyleSheet(base_stylesheet + additional_styles)
-        
-        # Initialize opacity to 0 for fade-in animation
-        self.setWindowOpacity(0.0)
-        
+    
+    def _setup_ui(self):
+        """Setup UI - called by BaseAuraDialog"""
         self.setup_ui()
-        self.center_dialog()
     
     def showEvent(self, event):
         """Handle dialog show event with smooth fade-in animation"""
@@ -1479,7 +1550,7 @@ class SettingsDialog(QDialog):
         # Prevent immediate close
         event.ignore()
     
-    def center_dialog(self):
+    def center_dialog_OLD(self):
         """Center dialog to align white border with home screen white perimeter"""
         if self.parent():
             # Center dialog within parent window so white borders align

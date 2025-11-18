@@ -14,8 +14,9 @@ parent_dir = os.path.dirname(current_dir)
 sys.path.insert(0, parent_dir)
 
 from wallet.wallet_integration import get_wallet_manager, get_usage_tracker
+from gui.base_dialog import BaseAuraDialog
 
-class PaymentDialog(QDialog):
+class PaymentDialog(BaseAuraDialog):
     """Dialog for sending real DEX-traded tokens back to client wallet
     
     ⚠️ WARNING: This sends REAL tokens with actual market value!
@@ -26,32 +27,13 @@ class PaymentDialog(QDialog):
     CLIENT_WALLET = "0xd3c4d619C8515Bc764921209821Ec7A77FC31Ba4"
     
     def __init__(self, parent=None, user_address=None):
-        super().__init__(parent)
+        super().__init__(parent, title="Send Payment to Client", size=(1080, 1080), modal=True)
         self.wallet_manager = get_wallet_manager()
         self.usage_tracker = get_usage_tracker()
         self.user_address = user_address
         
-        self.setWindowTitle("Send Payment to Client")
-        self.setFixedSize(1080, 1080)
-        
-        # Modal behavior
-        if parent:
-            # Use Window flag instead of Dialog to ensure proper z-ordering above parent
-            self.setWindowFlags(Qt.Window | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
-            self.setModal(True)
-        else:
-            self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
-        
-        # (No translucent background to preserve readability)
-        
-        # Circular dark theme - match other dialogs
-        self.setStyleSheet("""
-            QDialog {
-                background-color: rgba(28, 28, 30, 0.95);
-                color: white;
-                border: 8px solid white;
-                border-radius: 535px;
-            }
+        # Add additional styles to base stylesheet
+        additional_styles = """
             QLabel {
                 color: white;
                 font-size: 12px;
@@ -91,31 +73,11 @@ class PaymentDialog(QDialog):
                 background-color: rgba(142, 142, 147, 0.3);
                 color: rgba(255, 255, 255, 0.5);
             }
-        """)
-        
-        # Initialize opacity to 0 for fade-in animation
-        self.setWindowOpacity(0.0)
-        
-        self.setup_ui()
-        self.center_dialog()
+        """
+        base_stylesheet = self.styleSheet()
+        self.setStyleSheet(base_stylesheet + additional_styles)
     
-    def showEvent(self, event):
-        """Handle dialog show event with smooth fade-in animation"""
-        super().showEvent(event)
-        
-        # Create smooth fade-in animation
-        self.fade_in = QPropertyAnimation(self, b"windowOpacity")
-        self.fade_in.setDuration(300)  # Slightly longer for smoother feel
-        self.fade_in.setStartValue(0.0)
-        self.fade_in.setEndValue(1.0)
-        self.fade_in.setEasingCurve(QEasingCurve.InOutCubic)  # Smooth ease-in/out
-        self.fade_in.start()
-        
-        # Ensure dialog is raised and focused
-        self.raise_()
-        self.activateWindow()
-    
-    def setup_ui(self):
+    def _setup_ui(self):
         """Setup payment dialog UI"""
         layout = QVBoxLayout()
         # Keep all content within white circular border (radius 535px)
@@ -456,81 +418,6 @@ class PaymentDialog(QDialog):
             self.log_message(f"❌ {message}")
             QMessageBox.critical(self, "Error", f"Transaction failed:\n\n{message}")
     
-    def closeEvent(self, event):
-        """Handle dialog close event with smooth fade-out animation"""
-        # Reactivate parent window immediately to prevent freezing
-        if self.parent():
-            try:
-                self.parent().raise_()
-                self.parent().activateWindow()
-                from PyQt5.QtWidgets import QApplication
-                QApplication.processEvents()
-            except Exception:
-                pass
-        
-        # If already animating or not visible, accept immediately
-        if hasattr(self, 'fade_out') and self.fade_out.state() == QPropertyAnimation.Running:
-            event.accept()
-            return
-        
-        # Only animate if we're actually closing (not just hiding)
-        if event.spontaneous() or not self.isVisible():
-            event.accept()
-            return
-        
-        # For modal dialogs opened from home screen, accept immediately to avoid blocking
-        if self.isModal() and self.parent():
-            event.accept()
-            return
-        
-        # Cancel fade-in if still running
-        if hasattr(self, 'fade_in') and self.fade_in.state() == QPropertyAnimation.Running:
-            self.fade_in.stop()
-        
-        # Non-modal: use fade animation
-        self.fade_out = QPropertyAnimation(self, b"windowOpacity")
-        self.fade_out.setDuration(250)  # Slightly longer for smoother feel
-        self.fade_out.setStartValue(self.windowOpacity())
-        self.fade_out.setEndValue(0.0)
-        self.fade_out.setEasingCurve(QEasingCurve.InOutCubic)  # Symmetric easing
-        
-        # Connect finished signal to actually close the dialog
-        def _finalize():
-            event.accept()
-            # Ensure parent is reactivated after close
-            if self.parent():
-                try:
-                    self.parent().raise_()
-                    self.parent().activateWindow()
-                    from PyQt5.QtWidgets import QApplication
-                    QApplication.processEvents()
-                except Exception:
-                    pass
-        
-        self.fade_out.finished.connect(_finalize)
-        self.fade_out.start()
-        
-        # Prevent immediate close
-        event.ignore()
-        print("[PaymentDialog] 🔄 Closing dialog with fade-out animation...")
-    
-    def center_dialog(self):
-        """Center dialog to align white border with home screen white perimeter"""
-        if self.parent():
-            # Center dialog within parent window so white borders align
-            parent_geometry = self.parent().geometry()
-            x = parent_geometry.x() + (parent_geometry.width() - self.width()) // 2
-            y = parent_geometry.y() + (parent_geometry.height() - self.height()) // 2
-            self.move(x, y)
-        else:
-            # No parent: center on screen
-            from PyQt5.QtWidgets import QApplication
-            screen = QApplication.primaryScreen().geometry()
-            x = (screen.width() - self.width()) // 2
-            y = (screen.height() - self.height()) // 2
-            self.move(x, y)
-        self.raise_()
-        self.activateWindow()
 
 
 class TransactionWorker(QThread):

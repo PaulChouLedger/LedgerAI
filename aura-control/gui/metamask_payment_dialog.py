@@ -17,37 +17,21 @@ from wallet.wallet_integration import get_wallet_manager, get_usage_tracker
 import qrcode
 import io
 from PIL import Image
+from gui.base_dialog import BaseAuraDialog
 
-class MetaMaskPaymentDialog(QDialog):
+class MetaMaskPaymentDialog(BaseAuraDialog):
     """Dialog for sending tokens via MetaMask (no private key needed!)"""
     
     CLIENT_WALLET = "0xd3c4d619C8515Bc764921209821Ec7A77FC31Ba4"
     
     def __init__(self, parent=None, user_address=None):
-        super().__init__(parent)
+        super().__init__(parent, title="MetaMask Payment", size=(1080, 1080), modal=True)
         self.wallet_manager = get_wallet_manager()
         self.usage_tracker = get_usage_tracker()
         self.user_address = user_address
         
-        self.setWindowTitle("MetaMask Payment")
-        self.setFixedSize(1080, 1080)
-        
-        if parent:
-            # Use Window flag instead of Dialog to ensure proper z-ordering above parent
-            self.setWindowFlags(Qt.Window | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
-            self.setModal(True)
-        else:
-            self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
-        
-        # (No translucent background to preserve readability)
-        
-        self.setStyleSheet("""
-            QDialog {
-                background-color: rgba(28, 28, 30, 0.95);
-                color: white;
-                border: 8px solid white;
-                border-radius: 535px;
-            }
+        # Add additional styles to base stylesheet
+        additional_styles = """
             QLabel {
                 color: white;
                 font-size: 12px;
@@ -75,31 +59,11 @@ class MetaMaskPaymentDialog(QDialog):
             QPushButton:pressed {
                 background-color: rgba(142, 142, 147, 0.6);
             }
-        """)
-        
-        # Initialize opacity to 0 for fade-in animation
-        self.setWindowOpacity(0.0)
-        
-        self.setup_ui()
-        self.center_dialog()
+        """
+        base_stylesheet = self.styleSheet()
+        self.setStyleSheet(base_stylesheet + additional_styles)
     
-    def showEvent(self, event):
-        """Handle dialog show event with smooth fade-in animation"""
-        super().showEvent(event)
-        
-        # Create smooth fade-in animation
-        self.fade_in = QPropertyAnimation(self, b"windowOpacity")
-        self.fade_in.setDuration(300)  # Slightly longer for smoother feel
-        self.fade_in.setStartValue(0.0)
-        self.fade_in.setEndValue(1.0)
-        self.fade_in.setEasingCurve(QEasingCurve.InOutCubic)  # Smooth ease-in/out
-        self.fade_in.start()
-        
-        # Ensure dialog is raised and focused
-        self.raise_()
-        self.activateWindow()
-    
-    def setup_ui(self):
+    def _setup_ui(self):
         """Setup UI"""
         layout = QVBoxLayout()
         layout.setContentsMargins(120, 100, 120, 100)
@@ -623,7 +587,11 @@ class MetaMaskPaymentDialog(QDialog):
             
             self.accept()
     
-    def closeEvent(self, event):
+    def _on_close(self):
+        """Override for cleanup if needed"""
+        pass
+    
+    def closeEvent_OLD(self, event):
         """Handle dialog close event with smooth fade-out animation"""
         # Reactivate parent window immediately to prevent freezing
         if self.parent():
@@ -681,7 +649,7 @@ class MetaMaskPaymentDialog(QDialog):
         event.ignore()
         print("[MetaMaskPaymentDialog] 🔄 Closing dialog with fade-out animation...")
     
-    def center_dialog(self):
+    def center_dialog_OLD(self):
         """Center dialog to align white border with home screen white perimeter"""
         if self.parent():
             # Center dialog within parent window so white borders align

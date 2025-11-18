@@ -19,6 +19,8 @@ parent_dir = os.path.dirname(current_dir)
 if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
 
+from gui.base_dialog import BaseAuraDialog
+
 class WiFiScanThread(QThread):
     """Thread to scan for WiFi networks without blocking UI"""
     networks_found = pyqtSignal(list)
@@ -90,36 +92,15 @@ class WiFiScanThread(QThread):
         except Exception as e:
             self.scan_error.emit(f"Error scanning WiFi: {str(e)}")
 
-class WelcomeSetupDialog(QDialog):
+class WelcomeSetupDialog(BaseAuraDialog):
     """Welcome setup dialog that appears before main.py fully loads"""
     
     def __init__(self, parent=None):
-        super().__init__(parent)
+        super().__init__(parent, title="Welcome to Aura - WiFi Setup", size=(1080, 1080), modal=True)
         print("[WelcomeSetup] 🔧 Initializing welcome setup dialog...")
         
-        self.setWindowTitle("Welcome to Aura - WiFi Setup")
-        self.setFixedSize(1080, 1080)
-        
-        if parent:
-            # Use Window flag instead of Dialog to ensure proper z-ordering above parent
-            self.setWindowFlags(Qt.Window | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
-            self.setModal(True)
-        else:
-            self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
-        
-        # Ensure resources are freed when closed
-        self.setAttribute(Qt.WA_DeleteOnClose, True)
-        
-        # Initialize opacity to 0 for fade-in
-        self.setWindowOpacity(0.0)
-        
-        self.setStyleSheet("""
-            QDialog {
-                background-color: rgba(28, 28, 30, 1.0);
-                color: white;
-                border: 8px solid white;
-                border-radius: 535px;
-            }
+        # Add additional styles to base stylesheet
+        additional_styles = """
             QLabel {
                 color: white;
                 font-size: 14px;
@@ -160,10 +141,9 @@ class WelcomeSetupDialog(QDialog):
                 background-color: rgba(70, 130, 180, 0.1);
                 color: #666;
             }
-        """)
-        
-        self.setup_ui()
-        self.center_dialog()
+        """
+        base_stylesheet = self.styleSheet()
+        self.setStyleSheet(base_stylesheet + additional_styles)
         
         # Check WiFi connection status
         self.wifi_connected = False
@@ -172,28 +152,18 @@ class WelcomeSetupDialog(QDialog):
         # Auto-scan on startup (kept minimal; also re-triggered post fade-in)
         QTimer.singleShot(300, self.scan_wifi)
     
-    def showEvent(self, event):
-        """Handle dialog show event with smooth fade-in animation"""
-        super().showEvent(event)
-        
-        # Re-center dialog in case window manager moved it
-        self.center_dialog()
-        
-        # Create smooth fade-in animation
-        self.fade_in = QPropertyAnimation(self, b"windowOpacity")
-        self.fade_in.setDuration(300)
-        self.fade_in.setStartValue(0.0)
-        self.fade_in.setEndValue(1.0)
-        self.fade_in.setEasingCurve(QEasingCurve.InOutCubic)
+    def _setup_ui(self):
+        """Setup UI - called by BaseAuraDialog"""
+        self.setup_ui()
+    
+    def _on_show(self):
+        """Override for additional show logic"""
         # Start scanning shortly after fade-in to avoid stutter
         try:
-            self.fade_in.finished.connect(lambda: QTimer.singleShot(100, self.scan_wifi))
+            if hasattr(self, 'fade_in') and self.fade_in:
+                self.fade_in.finished.connect(lambda: QTimer.singleShot(100, self.scan_wifi))
         except Exception:
             pass
-        self.fade_in.start()
-        
-        self.raise_()
-        self.activateWindow()
     
     def closeEvent(self, event):
         """Handle dialog close - prevent closing if WiFi not connected"""
@@ -266,47 +236,6 @@ class WelcomeSetupDialog(QDialog):
         self.fade_out.finished.connect(_finalize)
         self.fade_out.start()
         event.ignore()
-    
-    def center_dialog(self):
-        """Center dialog to align white border with home screen white perimeter"""
-        try:
-            # Ensure dialog size is set before positioning
-            if not self.width() or not self.height():
-                self.setFixedSize(1080, 1080)
-            
-            if self.parent():
-                # Center dialog within parent window so white borders align
-                parent_geometry = self.parent().geometry()
-                x = parent_geometry.x() + (parent_geometry.width() - self.width()) // 2
-                y = parent_geometry.y() + (parent_geometry.height() - self.height()) // 2
-            else:
-                # No parent: center on screen
-                screen = QApplication.primaryScreen().geometry()
-                x = (screen.width() - self.width()) // 2
-                y = (screen.height() - self.height()) // 2
-            
-            # Clamp to ensure not cut off on small bars/margins
-            x = max(0, x)
-            y = max(0, y)
-            
-            self.move(x, y)
-            # Debug output
-            if self.parent():
-                print(f"[WelcomeSetup] 📐 Centered dialog at ({x}, {y}) relative to parent")
-            else:
-                screen = QApplication.primaryScreen().geometry()
-                print(f"[WelcomeSetup] 📐 Centered dialog at ({x}, {y}) on screen {screen.width()}x{screen.height()}")
-        except Exception as e:
-            print(f"[WelcomeSetup] ⚠️ Error centering dialog: {e}")
-            # Fallback - center on screen
-            try:
-                screen = QApplication.primaryScreen().geometry()
-                x = (screen.width() - 1080) // 2
-                y = (screen.height() - 1080) // 2
-                self.move(x, y)
-                print(f"[WelcomeSetup] 📐 Fallback centered at ({x}, {y})")
-            except Exception:
-                self.move(0, 0)
     
     def setup_ui(self):
         """Setup the welcome setup UI"""

@@ -15,7 +15,6 @@ class BaseAuraDialog(QDialog):
     """Base dialog class for all Aura dialogs with consistent behavior"""
     
     def __init__(self, parent=None, title="Aura Dialog", size=(1080, 1080), modal=True):
-        print(f"[BaseAuraDialog] 🚀 __init__ called: title={title}, size={size}, parent={parent}")
         super().__init__(parent)
         
         self.setWindowTitle(title)
@@ -43,7 +42,6 @@ class BaseAuraDialog(QDialog):
                 border-radius: 535px;
             }
         """)
-        print(f"[BaseAuraDialog] ✅ Stylesheet set, size={self.size()}")
         
         # Initialize opacity to 0 for fade-in animation
         self.setWindowOpacity(0.0)
@@ -51,15 +49,7 @@ class BaseAuraDialog(QDialog):
         # Override in subclass to set up UI
         self._setup_ui()
         
-        # Create debug green border overlay to verify alignment
-        print("[BaseAuraDialog] 🔧 About to create debug border...")
-        try:
-            self._create_debug_border()
-            print("[BaseAuraDialog] ✅ Debug border creation completed")
-        except Exception as e:
-            print(f"[BaseAuraDialog] ❌ Error creating debug border: {e}")
-            import traceback
-            traceback.print_exc()
+        # White border overlay is drawn in paintEvent, no separate widget needed
         
         # Center the dialog
         self._center_dialog()
@@ -69,111 +59,26 @@ class BaseAuraDialog(QDialog):
         pass
     
     def paintEvent(self, event):
-        """Override paintEvent to draw green debug border directly on dialog"""
+        """Override paintEvent to draw white border overlay matching home screen white border exactly"""
         super().paintEvent(event)
         
-        # Draw green debug border directly on the dialog
-        try:
-            painter = QPainter(self)
-            if painter.isActive():
-                painter.setRenderHint(QPainter.Antialiasing, True)
-                painter.setBrush(Qt.NoBrush)
-                
-                # Green border at dialog center (540, 540) with radius 535
-                center = 540
-                radius = 535
-                
-                # Bright green border - very thick and fully opaque
-                green_color = QColor(0, 255, 0, 255)  # Fully opaque bright green
-                green_pen = QPen(green_color, 16, Qt.SolidLine)  # Very thick for visibility
-                painter.setPen(green_pen)
-                painter.drawEllipse(center - radius, center - radius, radius * 2, radius * 2)
-                
-                print(f"[BaseAuraDialog] 🟢 ✅ Painted green border in paintEvent: center=({center}, {center}), radius={radius}")
-                painter.end()
-        except Exception as e:
-            print(f"[BaseAuraDialog] ❌ Error painting green border: {e}")
-            import traceback
-            traceback.print_exc()
-    
-    def _create_debug_border(self):
-        """Create a green debug border overlay to verify alignment with white border"""
-        print("[BaseAuraDialog] 🟢 Starting _create_debug_border()...")
+        # Draw white border overlay - EXACT match to BorderOverlayWidget in aura_gui.py
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing, True)
+        painter.setBrush(Qt.NoBrush)
         
-        class DebugBorderWidget(QWidget):
-            """Green border overlay to show dialog center alignment"""
-            def __init__(self, parent):
-                print("[DebugBorder] 🔧 Initializing DebugBorderWidget...")
-                super().__init__(parent)
-                print(f"[DebugBorder] 🔧 Parent: {parent}, parent type: {type(parent)}")
-                
-                self.setAttribute(Qt.WA_TransparentForMouseEvents, True)
-                self.setAttribute(Qt.WA_TranslucentBackground, True)
-                self.setAttribute(Qt.WA_NoSystemBackground, True)
-                self.setStyleSheet("background: transparent;")
-                
-                # Cover entire dialog
-                self.setGeometry(0, 0, 1080, 1080)
-                print(f"[DebugBorder] 🟢 Widget created: geometry={self.geometry()}, visible={self.isVisible()}, parent={self.parent()}")
-            
-            def paintEvent(self, event):
-                """Paint green debug border at dialog center"""
-                print(f"[DebugBorder] 🎨 paintEvent called! rect={event.rect()}")
-                try:
-                    painter = QPainter(self)
-                    if not painter.isActive():
-                        print("[DebugBorder] ❌ Painter not active!")
-                        return
-                    
-                    painter.setRenderHint(QPainter.Antialiasing, True)
-                    painter.setBrush(Qt.NoBrush)
-                    
-                    # Green border at dialog center (540, 540) with radius 535
-                    # This should align with the white border if centering is correct
-                    center = 540
-                    radius = 535
-                    
-                    # Bright green border for visibility - make it thicker and more opaque
-                    green_color = QColor(0, 255, 0, 255)  # Fully opaque bright green
-                    green_pen = QPen(green_color, 12, Qt.SolidLine)  # Thicker for visibility
-                    painter.setPen(green_pen)
-                    painter.drawEllipse(center - radius, center - radius, radius * 2, radius * 2)
-                    
-                    print(f"[DebugBorder] 🟢 ✅ Painted green border: center=({center}, {center}), radius={radius}, pen_width=12")
-                    painter.end()
-                except Exception as e:
-                    print(f"[DebugBorder] ❌ Error in paintEvent: {e}")
-                    import traceback
-                    traceback.print_exc()
-            
-            def showEvent(self, event):
-                """Override showEvent to ensure visibility"""
-                super().showEvent(event)
-                print(f"[DebugBorder] 👁️ showEvent called, visible={self.isVisible()}")
-                self.update()
+        center = 540
+        # Move border to the edge: 540 (screen edge) - 4 (half of 8px pen) - 1 (safety) = 535px
+        radius = 535  # Right at the edge of the circular screen
         
-        # Create and show debug border overlay
-        print("[BaseAuraDialog] 🔧 Creating DebugBorderWidget instance...")
-        try:
-            self.debug_border = DebugBorderWidget(self)
-            print(f"[BaseAuraDialog] ✅ DebugBorderWidget created: {self.debug_border}")
-            
-            # Ensure it's visible
-            self.debug_border.setParent(self)
-            self.debug_border.raise_()  # Ensure it's on top
-            self.debug_border.show()
-            self.debug_border.setVisible(True)
-            self.debug_border.update()  # Force immediate repaint
-            
-            # Force a repaint
-            QApplication.processEvents()
-            self.debug_border.repaint()
-            
-            print(f"[BaseAuraDialog] 🟢 Debug green border created: geometry={self.debug_border.geometry()}, visible={self.debug_border.isVisible()}, parent={self.debug_border.parent()}")
-        except Exception as e:
-            print(f"[BaseAuraDialog] ❌ Error creating debug border widget: {e}")
-            import traceback
-            traceback.print_exc()
+        # White reference circle (always) - 70% transparent (30% opacity)
+        # EXACT match to home screen: QColor(255, 255, 255, 77) where 77/255 = 30% opacity
+        white_color = QColor(255, 255, 255, 77)  # Alpha: 77/255 = 30% opacity
+        white_pen = QPen(white_color, 8, Qt.SolidLine)
+        painter.setPen(white_pen)
+        painter.drawEllipse(center - radius, center - radius, radius * 2, radius * 2)
+        
+        painter.end()
     
     def _center_dialog(self):
         """Center dialog so its center aligns with white border center (540, 540)"""
@@ -222,12 +127,8 @@ class BaseAuraDialog(QDialog):
             dialog_center_x = actual_pos.x() + 540
             dialog_center_y = actual_pos.y() + 540
             
-            print(f"[BaseAuraDialog] 🎯 Centered: white_border=({white_border_center_x}, {white_border_center_y}), dialog_pos=({x}, {y}), dialog_center=({dialog_center_x}, {dialog_center_y}), offset=({dialog_center_x - white_border_center_x}, {dialog_center_y - white_border_center_y})")
-            
-        except Exception as e:
-            print(f"[BaseAuraDialog] ❌ Error centering: {e}")
-            import traceback
-            traceback.print_exc()
+        except Exception:
+            pass  # Silently fail if centering error
     
     def showEvent(self, event):
         """Handle dialog show event with smooth fade-in animation"""
@@ -238,20 +139,12 @@ class BaseAuraDialog(QDialog):
         self.activateWindow()
         QApplication.processEvents()
         
-        # Ensure debug border is visible
-        if hasattr(self, 'debug_border'):
-            self.debug_border.raise_()
-            self.debug_border.show()
-            self.debug_border.update()
-            print(f"[BaseAuraDialog] 🟢 Debug border shown: visible={self.debug_border.isVisible()}, geometry={self.debug_border.geometry()}")
-        
         # Reposition dialog after showing to ensure correct centering
         # This is needed because geometry might not be accurate until after show
         # Use a timer to ensure positioning happens after window is fully shown
         from PyQt5.QtCore import QTimer
-        QTimer.singleShot(10, self._center_dialog)
-        QTimer.singleShot(50, self._center_dialog)  # Double-check after a short delay
-        QTimer.singleShot(100, lambda: self.debug_border.update() if hasattr(self, 'debug_border') else None)  # Force debug border repaint
+        QTimer.singleShot(50, self._center_dialog)  # Center after window is fully shown
+        QTimer.singleShot(50, self.update)  # Force repaint to show white border overlay
         
         # For sub-dialogs opened from parent, skip fade animation to avoid rendering issues
         if self.isModal() and self.parent():
