@@ -265,7 +265,7 @@ class WelcomeSetupDialog(QDialog):
         event.ignore()
     
     def center_dialog(self):
-        """Center dialog on screen/parent using available geometry and clamp to visible area"""
+        """Center dialog on screen/parent using geometry (not availableGeometry to avoid top cutoff)"""
         try:
             if self.parent():
                 # Center relative to parent (within white perimeter)
@@ -273,8 +273,8 @@ class WelcomeSetupDialog(QDialog):
                 x = parent_geometry.x() + (parent_geometry.width() - self.width()) // 2
                 y = parent_geometry.y() + (parent_geometry.height() - self.height()) // 2
             else:
-                # Center on screen
-                screen = QApplication.primaryScreen().availableGeometry()
+                # Center on screen - use geometry() not availableGeometry() to avoid top cutoff
+                screen = QApplication.primaryScreen().geometry()
                 x = (screen.width() - self.width()) // 2
                 y = (screen.height() - self.height()) // 2
             # Clamp to ensure not cut off on small bars/margins
@@ -284,7 +284,7 @@ class WelcomeSetupDialog(QDialog):
         except Exception:
             # Fallback - center on screen
             try:
-                screen = QApplication.primaryScreen().availableGeometry()
+                screen = QApplication.primaryScreen().geometry()
                 x = (screen.width() - self.width()) // 2
                 y = (screen.height() - self.height()) // 2
                 self.move(x, y)
