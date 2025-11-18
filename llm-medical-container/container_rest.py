@@ -1037,6 +1037,24 @@ if __name__ == "__main__":
     print("    • Multi-category support with fuzzy fallback")
     print("    • Uses local CPU FAISS for medical knowledge")
     print("    • Single LLM model (Qwen2.5-1.5B) for all tasks")
+    
+    # Pre-initialize RAG client at container startup (reduces first-query latency)
+    if RAG_MODE in ("CPU", "GPU"):
+        print(f"[LLM] 🔍 Pre-initializing RAG client (RAG_MODE={RAG_MODE})...")
+        try:
+            from rag import get_rag_client
+            rag_client = get_rag_client()
+            print(f"[LLM] ✅ RAG client pre-initialized: {rag_client._mode}")
+            if hasattr(rag_client, '_cpu_chunks') and rag_client._cpu_chunks:
+                print(f"[LLM] 📊 RAG index ready: {len(rag_client._cpu_chunks)} chunks available")
+            elif hasattr(rag_client, '_cpu_index') and rag_client._cpu_index:
+                index_size = rag_client._cpu_index.ntotal if hasattr(rag_client._cpu_index, 'ntotal') else 0
+                print(f"[LLM] 📊 RAG index ready: {index_size} vectors in index")
+        except Exception as e:
+            print(f"[LLM] ⚠️ RAG client pre-initialization failed: {e}")
+            print("[LLM] 💡 RAG will be initialized on first use (may add latency to first query)")
+    else:
+        print(f"[LLM] ⏭️ RAG_MODE={RAG_MODE} - skipping RAG initialization")
 
     app.run(host='0.0.0.0', port=11434, debug=False)
 

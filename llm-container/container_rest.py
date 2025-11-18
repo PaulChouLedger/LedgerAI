@@ -656,6 +656,24 @@ if __name__ == "__main__":
     )
     print(f"[Generic] ✅ Model loaded: {SIMPLE_MODEL_PATH}")
     
+    # Pre-initialize RAG client at container startup (reduces first-query latency)
+    if RAG_MODE in ("CPU", "GPU"):
+        print(f"[Generic] 🔍 Pre-initializing RAG client (RAG_MODE={RAG_MODE})...")
+        try:
+            from rag import get_rag_client
+            rag_client = get_rag_client()
+            print(f"[Generic] ✅ RAG client pre-initialized: {rag_client._mode}")
+            if hasattr(rag_client, '_cpu_chunks') and rag_client._cpu_chunks:
+                print(f"[Generic] 📊 RAG index ready: {len(rag_client._cpu_chunks)} chunks available")
+            elif hasattr(rag_client, '_cpu_index') and rag_client._cpu_index:
+                index_size = rag_client._cpu_index.ntotal if hasattr(rag_client._cpu_index, 'ntotal') else 0
+                print(f"[Generic] 📊 RAG index ready: {index_size} vectors in index")
+        except Exception as e:
+            print(f"[Generic] ⚠️ RAG client pre-initialization failed: {e}")
+            print("[Generic] 💡 RAG will be initialized on first use (may add latency to first query)")
+    else:
+        print(f"[Generic] ⏭️ RAG_MODE={RAG_MODE} - skipping RAG initialization")
+    
     print("[Generic] ✅ LLM Container ready!")
     print("[Generic] 🌐 Starting Flask server on 0.0.0.0:11434...")
     
