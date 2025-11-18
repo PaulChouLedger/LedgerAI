@@ -68,22 +68,33 @@ class PreciseWakeWordDetector:
             threshold: Detection threshold (0.0-1.0, default from state)
         """
         # Load from state module (preferred) or use provided values
-        try:
-            from state import get_wake_word_sensitivity, get_wake_word_model_path
-            sensitivity = threshold if threshold is not None else get_wake_word_sensitivity()
-            if model_path is None:
-                model_path = get_wake_word_model_path()
-            
-            # Precise uses threshold (lower = more sensitive)
-            # Map sensitivity (0.0-1.0) to threshold range
-            if sensitivity is not None:
-                threshold_range = SENSITIVITY_MAX_THRESHOLD - SENSITIVITY_MIN_THRESHOLD
-                self.threshold = SENSITIVITY_MAX_THRESHOLD - (sensitivity * threshold_range)
-            else:
+        # If threshold is explicitly provided, use it directly (bypasses sensitivity mapping)
+        if threshold is not None:
+            self.threshold = threshold
+        else:
+            # Otherwise, try to get from state or use default
+            try:
+                from state import get_wake_word_sensitivity, get_wake_word_model_path
+                sensitivity = get_wake_word_sensitivity()
+                if model_path is None:
+                    model_path = get_wake_word_model_path()
+                
+                # If sensitivity is explicitly set in state, use sensitivity mapping
+                # Otherwise, use DEFAULT_THRESHOLD directly
+                if sensitivity is not None:
+                    threshold_range = SENSITIVITY_MAX_THRESHOLD - SENSITIVITY_MIN_THRESHOLD
+                    self.threshold = SENSITIVITY_MAX_THRESHOLD - (sensitivity * threshold_range)
+                else:
+                    self.threshold = DEFAULT_THRESHOLD
+            except ImportError:
+                # Fallback if state module not available
                 self.threshold = DEFAULT_THRESHOLD
-        except ImportError:
-            # Fallback if state module not available
-            self.threshold = threshold if threshold is not None else DEFAULT_THRESHOLD
+        
+        # For testing: always use DEFAULT_THRESHOLD if it's been set to a very low value
+        # This allows easy testing without needing to clear state
+        if DEFAULT_THRESHOLD < 0.01:
+            self.threshold = DEFAULT_THRESHOLD
+            print(f"[Wake Word] 🔧 Using test threshold: {DEFAULT_THRESHOLD} (bypassing sensitivity mapping)")
         
         self.model_path = model_path
         self.engine: Optional[PreciseEngine] = None
