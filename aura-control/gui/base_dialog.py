@@ -67,9 +67,11 @@ class BaseAuraDialog(QDialog):
                 super().__init__(parent)
                 self.setAttribute(Qt.WA_TransparentForMouseEvents, True)
                 self.setAttribute(Qt.WA_TranslucentBackground, True)
+                self.setAttribute(Qt.WA_NoSystemBackground, True)
                 self.setStyleSheet("background: transparent;")
                 # Cover entire dialog
                 self.setGeometry(0, 0, 1080, 1080)
+                print(f"[DebugBorder] 🟢 Widget created: geometry={self.geometry()}, visible={self.isVisible()}")
             
             def paintEvent(self, event):
                 """Paint green debug border at dialog center"""
@@ -82,19 +84,21 @@ class BaseAuraDialog(QDialog):
                 center = 540
                 radius = 535
                 
-                # Bright green border for visibility
-                green_color = QColor(0, 255, 0, 200)  # Bright green, 78% opacity
-                green_pen = QPen(green_color, 8, Qt.SolidLine)
+                # Bright green border for visibility - make it thicker and more opaque
+                green_color = QColor(0, 255, 0, 255)  # Fully opaque bright green
+                green_pen = QPen(green_color, 12, Qt.SolidLine)  # Thicker for visibility
                 painter.setPen(green_pen)
                 painter.drawEllipse(center - radius, center - radius, radius * 2, radius * 2)
                 
+                print(f"[DebugBorder] 🟢 Painted green border: center=({center}, {center}), radius={radius}")
                 painter.end()
         
         # Create and show debug border overlay
         self.debug_border = DebugBorderWidget(self)
         self.debug_border.raise_()  # Ensure it's on top
         self.debug_border.show()
-        print(f"[BaseAuraDialog] 🟢 Debug green border created at dialog center (540, 540)")
+        self.debug_border.update()  # Force immediate repaint
+        print(f"[BaseAuraDialog] 🟢 Debug green border created: geometry={self.debug_border.geometry()}, visible={self.debug_border.isVisible()}")
     
     def _center_dialog(self):
         """Center dialog so its center aligns with white border center (540, 540)"""
@@ -159,12 +163,20 @@ class BaseAuraDialog(QDialog):
         self.activateWindow()
         QApplication.processEvents()
         
+        # Ensure debug border is visible
+        if hasattr(self, 'debug_border'):
+            self.debug_border.raise_()
+            self.debug_border.show()
+            self.debug_border.update()
+            print(f"[BaseAuraDialog] 🟢 Debug border shown: visible={self.debug_border.isVisible()}, geometry={self.debug_border.geometry()}")
+        
         # Reposition dialog after showing to ensure correct centering
         # This is needed because geometry might not be accurate until after show
         # Use a timer to ensure positioning happens after window is fully shown
         from PyQt5.QtCore import QTimer
         QTimer.singleShot(10, self._center_dialog)
         QTimer.singleShot(50, self._center_dialog)  # Double-check after a short delay
+        QTimer.singleShot(100, lambda: self.debug_border.update() if hasattr(self, 'debug_border') else None)  # Force debug border repaint
         
         # For sub-dialogs opened from parent, skip fade animation to avoid rendering issues
         if self.isModal() and self.parent():
