@@ -813,9 +813,10 @@ def listen():
                                     print(f"\n[Wake Word] ✅ Wake word detected! (confidence: {confidence:.6f})")
                                     listening_active = True
                                     
-                                    # Visual feedback (if GUI available) - trigger LED ring pulsation
+                                    # Visual feedback (if GUI available) - trigger solid red LED (not pulsating yet)
                                     try:
-                                        set_transcribing(True)  # This triggers the red LED ring pulsation
+                                        from gui.aura_gui import set_wake_word_detected
+                                        set_wake_word_detected(True)  # Solid red LED, waiting for speech
                                     except (ImportError, NameError):
                                         pass
                                     
@@ -964,7 +965,13 @@ def listen():
                                 else:
                                     print(f"[Filter] ✅ PASSED: {reason}")
                             
-                            set_transcribing(True)
+                            # Speech detected - switch from solid red to pulsating red
+                            try:
+                                from gui.aura_gui import set_wake_word_detected
+                                set_wake_word_detected(False)  # Clear wake word state
+                            except (ImportError, NameError):
+                                pass
+                            set_transcribing(True)  # Start pulsating red LED
                             buffer.append(audio_block)
                             break
                     
@@ -1060,8 +1067,9 @@ def listen():
                     if wake_word_enabled:
                         listening_active = False
                         try:
-                            from gui.aura_gui import set_wake_word_activated
+                            from gui.aura_gui import set_wake_word_activated, set_wake_word_detected
                             set_wake_word_activated(False)
+                            set_wake_word_detected(False)  # Clear wake word LED state
                         except ImportError:
                             pass
                         print("[Wake Word] 🔄 Waiting for wake word...")

@@ -17,6 +17,7 @@ _window = None
 _gui_ready = False
 _listening_ready = False  # Tracks when system is ready to transcribe
 _transcribing = False  # Tracks when user is speaking (transcription active)
+_wake_word_detected = False  # Tracks when wake word is detected (solid red LED)
 _tts_playing = False  # Tracks when TTS is playing (AI speaking)
 _setup_complete = False  # Tracks when initial setup is complete
 _welcome_played = False  # Tracks when welcome prompt has been played
@@ -520,8 +521,19 @@ class AuraGUI(QMainWindow):
             print(f"      Current opacity: {self.opacity_effect.opacity():.3f}")
         self._last_state = current_state
         
-        # PRIORITY: Check transcription state FIRST to avoid it being hidden by other states
-        if _transcribing:
+        # PRIORITY: Check wake word detected state (solid red, no pulsation)
+        if _wake_word_detected and not _transcribing:
+            # Wake word detected but no speech yet - show solid red LED
+            self.opacity_effect.setOpacity(1.0)
+            # Solid red border (no pulsation)
+            self.red_border_width = 10
+            self.red_border_opacity = 0.8  # Solid, visible red
+            self.show_red_border = True
+            self.border_overlay.raise_()
+            self.border_overlay.update()
+        
+        # PRIORITY: Check transcription state (pulsating red when speech detected)
+        elif _transcribing:
             # Keep aura eye fully visible during transcription
             self.opacity_effect.setOpacity(1.0)
             
@@ -906,6 +918,26 @@ class AuraGUI(QMainWindow):
             self.update()
         print(f"[AuraGUI] 🔴 State: listening_ready={_listening_ready}, transcribing={_transcribing}, tts_playing={_tts_playing}")
     
+    @pyqtSlot(bool)
+    def _update_wake_word_detected_state(self, active):
+        """Thread-safe method to update wake word detected state (must be called from GUI thread)"""
+        global _wake_word_detected
+        _wake_word_detected = active
+        if active:
+            print("[AuraGUI] 🔴 Wake word detected - red edge solid (waiting for speech)")
+            # Show solid red border (no pulsation)
+            self.red_border_width = 10
+            self.red_border_opacity = 0.8
+            self.show_red_border = True
+            self.update()
+        else:
+            print("[AuraGUI] ⚫ Wake word state cleared")
+            # Only clear if not transcribing
+            if not _transcribing:
+                self.show_red_border = False
+            self.update()
+        print(f"[AuraGUI] 🔴 State: wake_word_detected={_wake_word_detected}, transcribing={_transcribing}, tts_playing={_tts_playing}")
+    
     def closeEvent(self, event):
         """Handle application close event"""
         print("[AuraGUI] 🚪 Close event triggered - requesting shutdown")
@@ -999,6 +1031,17 @@ def set_transcribing(active):
                                 Q_ARG(bool, active))
     else:
         print("[AuraGUI] ⚠️ Window not initialized, cannot update transcribing state")
+
+def set_wake_word_detected(active):
+    """Set wake word detected state - solid red edge when wake word detected (thread-safe)"""
+    global _window
+    if _window:
+        # Use Qt's thread-safe mechanism to update GUI from any thread
+        QMetaObject.invokeMethod(_window, "_update_wake_word_detected_state",
+                                Qt.QueuedConnection,
+                                Q_ARG(bool, active))
+    else:
+        print("[AuraGUI] ⚠️ Window not initialized, cannot update wake word detected state")
 
 def set_tts_playing(active):
     """Set TTS state - aura eye pulsation when AI is speaking"""
