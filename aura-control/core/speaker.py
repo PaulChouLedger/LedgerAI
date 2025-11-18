@@ -543,6 +543,7 @@ def speak_llm_response(prompt, context=""):
     
     # Reset batch tracking for new response
     _batch_started = False
+    early_flush_done = False  # Track if we've done early flush for this response
     
     # Track token usage for this query
     try:
@@ -621,6 +622,18 @@ def speak_llm_response(prompt, context=""):
             
             # Count total words in buffer for accurate limit checking
             total_words = sum(len(t.split()) for t in buffer)
+            
+            # AGGRESSIVE EARLY FLUSH: Send first chunk immediately after 2-3 words for ultra-low latency
+            # This starts TTS generation while more text is still streaming
+            if not early_flush_done and total_words >= 2:
+                # Flush immediately with first few words to start TTS ASAP
+                chunk_text = " ".join(buffer).strip()
+                clean_text = re.sub(r'<sentence_start>|<sentence_end>', '', chunk_text).strip()
+                if clean_text:
+                    enqueue_tts_chunk(clean_text)
+                    buffer.clear()  # Clear buffer after flushing
+                    early_flush_done = True  # Mark as done to prevent multiple early flushes
+                    # Continue accumulating for next chunk
             
             # Check for sentence endings, but avoid splitting on abbreviations/initials
             ends = any(token.endswith(p) for p in [".", "!", "?"])
