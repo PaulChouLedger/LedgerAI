@@ -56,29 +56,18 @@ class BaseAuraDialog(QDialog):
         pass
     
     def _center_dialog(self):
-        """Center dialog to align white border with home screen white perimeter"""
-        if self.parent():
-            # Align dialog with parent window position to match white borders exactly
-            # Both are 1080x1080, so they should be at the same position
-            parent_geometry = self.parent().geometry()
-            dialog_width = self.width() if self.width() > 0 else 1080
-            dialog_height = self.height() if self.height() > 0 else 1080
-            
-            # If both are 1080x1080, align exactly (not center)
-            if parent_geometry.width() == 1080 and parent_geometry.height() == 1080 and dialog_width == 1080 and dialog_height == 1080:
-                x = parent_geometry.x()
-                y = parent_geometry.y()
-            else:
-                # Different sizes: center within parent
-                x = parent_geometry.x() + (parent_geometry.width() - dialog_width) // 2
-                y = parent_geometry.y() + (parent_geometry.height() - dialog_height) // 2
-            
-            self.move(x, y)
-            print(f"[BaseAuraDialog] 🎯 Dialog positioned: parent=({parent_geometry.x()},{parent_geometry.y()}) size={parent_geometry.width()}x{parent_geometry.height()}, dialog={dialog_width}x{dialog_height}, position=({x}, {y})")
-        else:
-            # No parent: position at (0, 0) to match main window
-            self.move(0, 0)
-            print(f"[BaseAuraDialog] 🎯 Dialog positioned at (0, 0)")
+        """Center dialog on screen to align white border with home screen white perimeter"""
+        # Always center on screen, regardless of parent
+        # This ensures the white border (drawn at center 540,540) aligns with screen center
+        screen = QApplication.primaryScreen().geometry()
+        dialog_width = self.width() if self.width() > 0 else 1080
+        dialog_height = self.height() if self.height() > 0 else 1080
+        
+        x = (screen.width() - dialog_width) // 2
+        y = (screen.height() - dialog_height) // 2
+        
+        self.move(x, y)
+        print(f"[BaseAuraDialog] 🎯 Dialog centered on screen: screen={screen.width()}x{screen.height()}, dialog={dialog_width}x{dialog_height}, position=({x}, {y})")
     
     def showEvent(self, event):
         """Handle dialog show event with smooth fade-in animation"""
