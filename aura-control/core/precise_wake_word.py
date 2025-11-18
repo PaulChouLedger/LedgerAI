@@ -62,10 +62,10 @@ class PreciseWakeWordDetector:
             if sensitivity is not None:
                 self.threshold = 0.2 - (sensitivity * 0.15)  # Maps 0.0->0.2, 0.5->0.125, 1.0->0.05
             else:
-                self.threshold = 0.1  # Very sensitive default (was 0.3, then 0.5)
+                self.threshold = 0.001245  # Very sensitive default (user-specified)
         except ImportError:
             # Fallback if state module not available
-            self.threshold = threshold if threshold is not None else 0.1
+            self.threshold = threshold if threshold is not None else 0.001245
         
         self.model_path = model_path
         self.engine: Optional[PreciseEngine] = None

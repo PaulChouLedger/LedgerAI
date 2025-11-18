@@ -390,4 +390,8 @@ class CircularKeyboard(QDialog):
         # Ensure dialog is visible and active
         self.raise_()
         self.activateWindow()
+    
+    def get_text(self):
+        """Get the current text (for use after exec_())"""
+        return self.current_text
 

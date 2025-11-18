@@ -511,14 +511,35 @@ class WelcomeSetupDialog(QDialog):
         # Prompt for password if secured
         password = None
         if security and security != "Open" and "Open" not in security:
-            password, ok = QInputDialog.getText(
-                self,
-                "WiFi Password",
-                f"Enter password for {ssid}:",
-                QLineEdit.Password
-            )
-            if not ok:
-                return
+            # Use custom password keyboard for password entry (works on touchscreen)
+            try:
+                from gui.password_keyboard import PasswordKeyboard
+                
+                keyboard = PasswordKeyboard(
+                    parent=self, 
+                    initial_text="",
+                    title=f"WiFi Password - {ssid}"
+                )
+                
+                # Show keyboard and get password
+                if keyboard.exec_() == QDialog.Accepted:
+                    password = keyboard.get_text()
+                    if not password:
+                        QMessageBox.warning(self, "No Password", "Password cannot be empty")
+                        return
+                else:
+                    # User cancelled
+                    return
+            except ImportError:
+                # Fallback to QInputDialog if custom keyboard not available
+                password, ok = QInputDialog.getText(
+                    self,
+                    "WiFi Password",
+                    f"Enter password for {ssid}:",
+                    QLineEdit.Password
+                )
+                if not ok:
+                    return
         
         self.status_label.setText(f"🔗 Connecting to {ssid}...")
         self.status_label.setStyleSheet("color: #ffa500; margin: 10px;")
