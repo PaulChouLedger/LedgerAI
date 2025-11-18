@@ -1314,17 +1314,12 @@ Ask only one question about {field}."""
                 
                 # Check if buffer contains complete words (space or punctuation indicates word boundary)
                 # Yield complete words, keep remaining sub-word pieces in buffer
+                # Optimized: use regex to find first boundary instead of multiple find() calls
                 while token_buffer:
-                    # Find first word boundary (space or punctuation)
-                    word_boundary_chars = [' ', '.', ',', '!', '?', ':', ';', '\n', '-', '(', ')', '[', ']']
-                    boundary_pos = None
-                    for char in word_boundary_chars:
-                        pos = token_buffer.find(char)
-                        if pos is not None and pos >= 0:
-                            if boundary_pos is None or pos < boundary_pos:
-                                boundary_pos = pos
-                    
-                    if boundary_pos is not None:
+                    # Find first word boundary using regex (more efficient than multiple find() calls)
+                    match = re.search(r'[ \.\,\!\?\:\;\n\-\(\)\[\]]', token_buffer)
+                    if match:
+                        boundary_pos = match.start()
                         # Found word boundary - yield complete word(s) up to boundary (inclusive)
                         word = token_buffer[:boundary_pos + 1]
                         token_buffer = token_buffer[boundary_pos + 1:]

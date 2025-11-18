@@ -29,7 +29,7 @@ LLM_NUM_PREDICT_DEFAULT = 300
 SIMPLE_N_CTX = 1024
 SIMPLE_CHAT_FORMAT = "qwen"
 N_THREADS = 8
-N_BATCH = 512
+N_BATCH = 256  # Reduced from 512 for faster generation (smaller batches = lower latency)
 CACHE_PROMPT = True
 
 # RAG Mode toggle: "CPU", "GPU", or "OFF" (resolved from app_settings.json if present)
@@ -183,18 +183,35 @@ def handle_conversation(
     """
     
     # Try RAG first for knowledge queries (CPU or GPU) if enabled
+    # Skip RAG for simple conversational queries to reduce latency
     rag_context = ""
     if RAG_MODE in ("CPU", "GPU"):
-        try:
-            rag_client = get_rag_client()
-            results = rag_client.search(query=prompt, k=3)
-            
-            if results and len(results) > 0:
-                rag_context = "\n".join(
-                    [r.get("text", "") for r in results[:3] if r.get("text")]
-                )
-        except Exception as e:
-            print(f"[Generic] ⚠️ RAG failed, using direct LLM: {e}")
+        # Only use RAG for queries that seem like knowledge/document questions
+        # Simple conversational queries don't need RAG (faster response)
+        # Skip RAG for personal/conversational queries (day, schedule, how are you, etc.)
+        personal_keywords = ['my day', 'my schedule', 'my calendar', 'how are you', 'how am i', 
+                           'what am i', 'when am i', 'where am i', 'tell me about me']
+        is_personal_query = any(keyword in prompt.lower() for keyword in personal_keywords)
+        
+        # Use RAG for knowledge/document queries, but skip for personal/conversational
+        is_knowledge_query = (any(keyword in prompt.lower() for keyword in [
+            'what is', 'what are', 'how does', 'explain', 'tell me about',
+            'document', 'file', 'information about', 'details about'
+        ]) and not is_personal_query)
+        
+        if is_knowledge_query:
+            try:
+                rag_client = get_rag_client()
+                results = rag_client.search(query=prompt, k=3)
+                
+                if results and len(results) > 0:
+                    rag_context = "\n".join(
+                        [r.get("text", "") for r in results[:3] if r.get("text")]
+                    )
+            except Exception as e:
+                print(f"[Generic] ⚠️ RAG failed, using direct LLM: {e}")
+        else:
+            print(f"[Generic] ⏭️ Skipping RAG for conversational query (faster response)")
     
     contextual_sections: List[str] = []
     if rag_context:

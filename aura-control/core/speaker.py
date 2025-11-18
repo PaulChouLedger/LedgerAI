@@ -595,51 +595,41 @@ def speak_llm_response(prompt, context=""):
         if response.status_code != 200:
             raise RuntimeError(f"LLM HTTP {response.status_code} on port {primary_port}")
         # Process streaming tokens - ONLY using sentence tags, NO fallbacks
-        # Continuous streaming: buffer tokens and send them as they accumulate for smooth playback
+        # STRICT: Only send to TTS when <sentence_end> tag is received
+        # Buffer all tokens between <sentence_start> and <sentence_end>
         sentence_buffer = []  # Buffer for current sentence (between sentence_start and sentence_end)
         in_sentence = False  # Track if we're inside a sentence block
-        tts_started = False  # Track if we've started TTS for current sentence
-        last_sent_pos = 0  # Position in sentence_buffer where we last sent to TTS
         
         for line in response.iter_lines(decode_unicode=True):
             token = line.rstrip("\r\n")
             if not token:
                 continue
-            
+
             # Debug: Log all control tags
             if token.startswith('<') and token.endswith('>'):
                 print(f"[Speaker] 🏷️  Control tag received: '{token}'")
 
             # Handle sentence control markers - REQUIRED, no fallback
             if token == '<sentence_start>':
-                # Start of new sentence - reset state
+                # Start of new sentence - reset buffer and wait for tokens
                 sentence_buffer = []
                 in_sentence = True
-                tts_started = False
-                last_sent_pos = 0
-                print(f"[Speaker] 🎬 <sentence_start> detected - ready for continuous streaming")
+                print(f"[Speaker] 🎬 <sentence_start> detected - buffering tokens until <sentence_end>")
                 continue
             elif token == '<sentence_end>':
-                # End of sentence - send any remaining buffered text
+                # ONLY send to TTS when sentence_end tag is received
                 if sentence_buffer:
-                    # Join tokens directly (LLM tokens are already properly formatted)
+                    # Join all buffered tokens into complete sentence
                     chunk_text = "".join(sentence_buffer).strip()
                     clean_text = re.sub(r'<sentence_start>|<sentence_end>', '', chunk_text).strip()
                     if clean_text:
-                        # Send remaining text that hasn't been sent yet
-                        remaining_text = clean_text[last_sent_pos:].strip()
-                        if remaining_text:
-                            print(f"[Speaker] 🎙️ Sending final chunk: '{remaining_text}'")
-                            enqueue_tts_chunk(remaining_text)
-                        elif not tts_started:
-                            # Haven't sent anything yet - send full sentence
-                            print(f"[Speaker] 🎙️ Sending complete sentence: '{clean_text}'")
-                            enqueue_tts_chunk(clean_text)
+                        print(f"[Speaker] 🎙️ <sentence_end> received - sending complete sentence to TTS: '{clean_text}'")
+                        enqueue_tts_chunk(clean_text)
+                else:
+                    print(f"[Speaker] ⚠️ <sentence_end> received but sentence_buffer is empty")
                 # Reset state for next sentence
                 sentence_buffer = []
                 in_sentence = False
-                tts_started = False
-                last_sent_pos = 0
                 continue
 
             # Only process tokens if we're in a sentence block (tags required)
@@ -647,39 +637,9 @@ def speak_llm_response(prompt, context=""):
                 print(f"[Speaker] ⚠️ Token '{token}' received outside sentence block - IGNORING (waiting for <sentence_start>)")
                 continue
 
+            # Accumulate tokens in buffer - DO NOT send to TTS until <sentence_end>
             print(f"[LLM] 🧠 {token}")
             sentence_buffer.append(token)
-            
-            # Continuous streaming: send chunks as they accumulate
-            # Start TTS when we have enough for a natural phrase (2-3 words or comma/pause)
-            current_text = "".join(sentence_buffer).strip()
-            
-            # Check if we should send a chunk:
-            # 1. First chunk: need at least 2-3 words or a comma/pause
-            # 2. Subsequent chunks: send when we accumulate 3-4 more words or hit a comma/pause
-            if not tts_started:
-                # First chunk: wait for 2-3 words or natural pause
-                word_count = len(current_text.split())
-                has_pause = any(char in current_text for char in [',', ';', ':', '—', '–'])
-                
-                if word_count >= 2 or has_pause:
-                    chunk_to_send = current_text
-                    print(f"[Speaker] 🚀 TTS STARTING with '{chunk_to_send}' ({word_count} words, pause={has_pause})")
-                    enqueue_tts_chunk(chunk_to_send)
-                    tts_started = True
-                    last_sent_pos = len(current_text)
-            else:
-                # Already started: send additional chunks when we accumulate enough
-                remaining_text = current_text[last_sent_pos:].strip()
-                if remaining_text:
-                    # Check if we should send now (3+ words accumulated or comma/pause)
-                    remaining_words = len(remaining_text.split())
-                    has_pause = any(char in remaining_text for char in [',', ';', ':', '—', '–'])
-                    
-                    if remaining_words >= 3 or has_pause:
-                        print(f"[Speaker] 📤 Streaming chunk: '{remaining_text}' ({remaining_words} words)")
-                        enqueue_tts_chunk(remaining_text)
-                        last_sent_pos = len(current_text)
         
         # No fallback: if stream ends without sentence_end tag, tokens are lost (tags are required)
     except Exception as e:
