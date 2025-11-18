@@ -118,7 +118,7 @@ class WelcomeSetupDialog(QDialog):
                 background-color: rgba(28, 28, 30, 1.0);
                 color: white;
                 border: 8px solid white;
-                border-radius: 536px;
+                border-radius: 535px;
             }
             QLabel {
                 color: white;
@@ -268,21 +268,22 @@ class WelcomeSetupDialog(QDialog):
         event.ignore()
     
     def center_dialog(self):
-        """Position dialog to align with white perimeter reference circle"""
+        """Center dialog to align white border with home screen white perimeter"""
         try:
             # Ensure dialog size is set before positioning
             if not self.width() or not self.height():
                 self.setFixedSize(1080, 1080)
             
             if self.parent():
-                # Align with parent window position to match white perimeter
+                # Center dialog within parent window so white borders align
                 parent_geometry = self.parent().geometry()
-                x = parent_geometry.x()  # Match parent's x position
-                y = parent_geometry.y()  # Match parent's y position
+                x = parent_geometry.x() + (parent_geometry.width() - self.width()) // 2
+                y = parent_geometry.y() + (parent_geometry.height() - self.height()) // 2
             else:
-                # No parent: position at (0, 0) to match main window position
-                x = 0
-                y = 0
+                # No parent: center on screen
+                screen = QApplication.primaryScreen().geometry()
+                x = (screen.width() - self.width()) // 2
+                y = (screen.height() - self.height()) // 2
             
             # Clamp to ensure not cut off on small bars/margins
             x = max(0, x)

@@ -154,18 +154,20 @@ class FileUploadDialog(BaseAuraDialog):
         super().mousePressEvent(event)
         
     def center_dialog(self):
-        """Position dialog to align with white perimeter reference circle"""
+        """Center dialog to align white border with home screen white perimeter"""
         if self.parent():
-            # Align with parent window position to match white perimeter
+            # Center dialog within parent window so white borders align
             parent_geometry = self.parent().geometry()
-            x = parent_geometry.x()  # Match parent's x position
-            y = parent_geometry.y()  # Match parent's y position
-            print(f"[Upload] 🎯 Dialog aligned with parent: position=({x}, {y})")
+            x = parent_geometry.x() + (parent_geometry.width() - self.width()) // 2
+            y = parent_geometry.y() + (parent_geometry.height() - self.height()) // 2
+            print(f"[Upload] 🎯 Dialog centered on parent: position=({x}, {y})")
         else:
-            # No parent: position at (0, 0) to match main window position
-            x = 0
-            y = 0
-            print(f"[Upload] 🎯 Dialog positioned at (0, 0)")
+            # No parent: center on screen
+            from PyQt5.QtWidgets import QApplication
+            screen = QApplication.primaryScreen().geometry()
+            x = (screen.width() - self.width()) // 2
+            y = (screen.height() - self.height()) // 2
+            print(f"[Upload] 🎯 Dialog centered on screen: position=({x}, {y})")
         
         self.move(x, y)
         self.raise_()
@@ -612,7 +614,7 @@ class FileUploadDialog(BaseAuraDialog):
                         background-color: rgba(28, 28, 30, 1.0);
                         color: white;
                         border: none;
-                        border-radius: 536px;
+                        border-radius: 535px;
                     }
                     QLabel {
                         color: white;
