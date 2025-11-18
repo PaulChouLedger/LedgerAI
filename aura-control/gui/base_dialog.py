@@ -6,8 +6,9 @@
 # - Parent window reactivation
 # - Proper cleanup
 
-from PyQt5.QtWidgets import QDialog, QApplication
+from PyQt5.QtWidgets import QDialog, QApplication, QWidget
 from PyQt5.QtCore import Qt, QPropertyAnimation, QEasingCurve
+from PyQt5.QtGui import QPainter, QColor, QPen
 
 
 class BaseAuraDialog(QDialog):
@@ -48,6 +49,9 @@ class BaseAuraDialog(QDialog):
         # Override in subclass to set up UI
         self._setup_ui()
         
+        # Create debug green border overlay to verify alignment
+        self._create_debug_border()
+        
         # Center the dialog
         self._center_dialog()
     
@@ -55,56 +59,94 @@ class BaseAuraDialog(QDialog):
         """Override in subclass to set up dialog UI"""
         pass
     
-    def _get_white_border_center(self):
-        """Get the absolute screen coordinates of the white border center from parent window"""
-        if self.parent():
-            # White border is drawn at center (540, 540) relative to the 1080x1080 window
-            # Get parent window's position on screen
-            parent_geometry = self.parent().geometry()
-            white_border_center_x = parent_geometry.x() + 540  # 540 is center of 1080px width
-            white_border_center_y = parent_geometry.y() + 540  # 540 is center of 1080px height
-            return (white_border_center_x, white_border_center_y)
-        else:
-            # No parent: assume main window is at (0, 0) or center of screen
-            app = QApplication.instance()
-            if app:
-                screen = app.primaryScreen()
-                if screen:
-                    screen_geometry = screen.geometry()
-                    # If screen is 1080x1080, white border center is at (540, 540)
-                    # If screen is larger, assume main window is centered
-                    if screen_geometry.width() == 1080 and screen_geometry.height() == 1080:
-                        return (540, 540)
-                    else:
-                        # Screen center
-                        return (screen_geometry.width() // 2, screen_geometry.height() // 2)
-            return (540, 540)  # Default fallback
+    def _create_debug_border(self):
+        """Create a green debug border overlay to verify alignment with white border"""
+        class DebugBorderWidget(QWidget):
+            """Green border overlay to show dialog center alignment"""
+            def __init__(self, parent):
+                super().__init__(parent)
+                self.setAttribute(Qt.WA_TransparentForMouseEvents, True)
+                self.setAttribute(Qt.WA_TranslucentBackground, True)
+                self.setStyleSheet("background: transparent;")
+                # Cover entire dialog
+                self.setGeometry(0, 0, 1080, 1080)
+            
+            def paintEvent(self, event):
+                """Paint green debug border at dialog center"""
+                painter = QPainter(self)
+                painter.setRenderHint(QPainter.Antialiasing, True)
+                painter.setBrush(Qt.NoBrush)
+                
+                # Green border at dialog center (540, 540) with radius 535
+                # This should align with the white border if centering is correct
+                center = 540
+                radius = 535
+                
+                # Bright green border for visibility
+                green_color = QColor(0, 255, 0, 200)  # Bright green, 78% opacity
+                green_pen = QPen(green_color, 8, Qt.SolidLine)
+                painter.setPen(green_pen)
+                painter.drawEllipse(center - radius, center - radius, radius * 2, radius * 2)
+                
+                painter.end()
+        
+        # Create and show debug border overlay
+        self.debug_border = DebugBorderWidget(self)
+        self.debug_border.raise_()  # Ensure it's on top
+        self.debug_border.show()
+        print(f"[BaseAuraDialog] 🟢 Debug green border created at dialog center (540, 540)")
     
     def _center_dialog(self):
-        """Center dialog using white border center coordinates as reference"""
+        """Center dialog so its center aligns with white border center (540, 540)"""
         try:
-            # Get white border center coordinates from parent window
-            border_center_x, border_center_y = self._get_white_border_center()
+            # White border is drawn at center (540, 540) relative to parent window
+            # Dialog center should align with this point
             
-            dialog_width = self.width() if self.width() > 0 else 1080
-            dialog_height = self.height() if self.height() > 0 else 1080
+            if self.parent():
+                # Get parent window position
+                parent_geometry = self.parent().geometry()
+                parent_x = parent_geometry.x()
+                parent_y = parent_geometry.y()
+                
+                # White border center in screen coordinates
+                white_border_center_x = parent_x + 540
+                white_border_center_y = parent_y + 540
+            else:
+                # No parent: use screen center or (540, 540) if screen is 1080x1080
+                app = QApplication.instance()
+                if app and app.primaryScreen():
+                    screen = app.primaryScreen().geometry()
+                    if screen.width() == 1080 and screen.height() == 1080:
+                        white_border_center_x = 540
+                        white_border_center_y = 540
+                    else:
+                        white_border_center_x = screen.width() // 2
+                        white_border_center_y = screen.height() // 2
+                else:
+                    white_border_center_x = 540
+                    white_border_center_y = 540
+            
+            # Dialog dimensions
+            dialog_width = 1080  # Always 1080x1080
+            dialog_height = 1080
             
             # Position dialog so its center (540, 540) aligns with white border center
-            x = border_center_x - (dialog_width // 2)
-            y = border_center_y - (dialog_height // 2)
+            x = white_border_center_x - 540
+            y = white_border_center_y - 540
             
+            # Move dialog to calculated position
             self.move(x, y)
-            # Force update to ensure position is applied
             QApplication.processEvents()
             
-            # Verify position
+            # Verify alignment
             actual_pos = self.pos()
-            dialog_center_x = actual_pos.x() + (dialog_width // 2)
-            dialog_center_y = actual_pos.y() + (dialog_height // 2)
+            dialog_center_x = actual_pos.x() + 540
+            dialog_center_y = actual_pos.y() + 540
             
-            print(f"[BaseAuraDialog] 🎯 Dialog centered on white border: border_center=({border_center_x}, {border_center_y}), dialog={dialog_width}x{dialog_height}, position=({x}, {y}), dialog_center=({dialog_center_x}, {dialog_center_y})")
+            print(f"[BaseAuraDialog] 🎯 Centered: white_border=({white_border_center_x}, {white_border_center_y}), dialog_pos=({x}, {y}), dialog_center=({dialog_center_x}, {dialog_center_y}), offset=({dialog_center_x - white_border_center_x}, {dialog_center_y - white_border_center_y})")
+            
         except Exception as e:
-            print(f"[BaseAuraDialog] ❌ Error centering dialog: {e}")
+            print(f"[BaseAuraDialog] ❌ Error centering: {e}")
             import traceback
             traceback.print_exc()
     
