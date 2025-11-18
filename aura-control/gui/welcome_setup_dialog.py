@@ -176,6 +176,9 @@ class WelcomeSetupDialog(QDialog):
         """Handle dialog show event with smooth fade-in animation"""
         super().showEvent(event)
         
+        # Re-center dialog in case window manager moved it
+        self.center_dialog()
+        
         # Create smooth fade-in animation
         self.fade_in = QPropertyAnimation(self, b"windowOpacity")
         self.fade_in.setDuration(300)
@@ -267,6 +270,10 @@ class WelcomeSetupDialog(QDialog):
     def center_dialog(self):
         """Center dialog on screen/parent using geometry (not availableGeometry to avoid top cutoff)"""
         try:
+            # Ensure dialog size is set before centering
+            if not self.width() or not self.height():
+                self.setFixedSize(1080, 1080)
+            
             if self.parent():
                 # Center relative to parent (within white perimeter)
                 parent_geometry = self.parent().geometry()
@@ -277,17 +284,27 @@ class WelcomeSetupDialog(QDialog):
                 screen = QApplication.primaryScreen().geometry()
                 x = (screen.width() - self.width()) // 2
                 y = (screen.height() - self.height()) // 2
+            
             # Clamp to ensure not cut off on small bars/margins
             x = max(0, x)
             y = max(0, y)
+            
             self.move(x, y)
-        except Exception:
+            # Debug output
+            if self.parent():
+                print(f"[WelcomeSetup] 📐 Centered dialog at ({x}, {y}) relative to parent")
+            else:
+                screen = QApplication.primaryScreen().geometry()
+                print(f"[WelcomeSetup] 📐 Centered dialog at ({x}, {y}) on screen {screen.width()}x{screen.height()}")
+        except Exception as e:
+            print(f"[WelcomeSetup] ⚠️ Error centering dialog: {e}")
             # Fallback - center on screen
             try:
                 screen = QApplication.primaryScreen().geometry()
-                x = (screen.width() - self.width()) // 2
-                y = (screen.height() - self.height()) // 2
+                x = (screen.width() - 1080) // 2
+                y = (screen.height() - 1080) // 2
                 self.move(x, y)
+                print(f"[WelcomeSetup] 📐 Fallback centered at ({x}, {y})")
             except Exception:
                 self.move(0, 0)
     

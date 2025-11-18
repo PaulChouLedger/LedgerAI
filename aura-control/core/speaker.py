@@ -87,13 +87,14 @@ playback_lock = threading.Lock()
 # Batching: Accumulate chunks before sending to TTS (reduces API calls)
 TTS_BATCH_ENABLED = os.getenv("TTS_BATCH_ENABLED", "true").lower() == "true"
 TTS_BATCH_MAX_WORDS = int(os.getenv("TTS_BATCH_MAX_WORDS", "50"))  # Max words per batch (very aggressive for low latency)
-TTS_BATCH_MIN_WORDS = int(os.getenv("TTS_BATCH_MIN_WORDS", "12"))  # Lower to start speaking earlier
+TTS_BATCH_MIN_WORDS = int(os.getenv("TTS_BATCH_MIN_WORDS", "3"))  # Very low for immediate first audio (was 12)
 TTS_BATCH_MAX_CHUNKS = int(os.getenv("TTS_BATCH_MAX_CHUNKS", "2"))  # Keep small batches
-TTS_BATCH_TIMEOUT = float(os.getenv("TTS_BATCH_TIMEOUT", "0.05"))  # Cut timeout to reduce gap to first audio
+TTS_BATCH_TIMEOUT = float(os.getenv("TTS_BATCH_TIMEOUT", "0.02"))  # Very short timeout for low latency (was 0.05)
 _batch_buffer = []  # Buffer for batching chunks
 _batch_lock = threading.Lock()
 _batch_timer = None  # Timer for delayed flush
 _batch_started = False  # Track if we've sent the first batch (for low-latency start)
+_llm_request_start_time = None  # Track when LLM request started for accurate latency measurement
 TTS_TOKEN_LIMIT = 200  # Max tokens before forcing sentence split (hardcoded)
 USE_SSML = True
 INSERT_BREAKS = True
@@ -205,10 +206,11 @@ def enqueue_tts_chunk(text):
             total_words = sum(len(chunk.split()) for chunk in _batch_buffer)
             total_chunks = len(_batch_buffer)
             
-            # LOW-LATENCY START: Flush immediately if we have enough for first batch
+            # LOW-LATENCY START: Flush immediately on first chunk (or after very few words)
             # This starts TTS ASAP even if more text is coming
-            if not _batch_started and total_words >= TTS_BATCH_MIN_WORDS:
+            if not _batch_started and (total_words >= TTS_BATCH_MIN_WORDS or total_chunks >= 1):
                 # First batch - flush immediately to start TTS as fast as possible
+                # Even with just 1 chunk, start TTS immediately for lowest latency
                 batched_text = " ".join(_batch_buffer)
                 SENTENCE_QUEUE.put(batched_text)
                 _batch_buffer = []
@@ -237,8 +239,8 @@ def enqueue_tts_chunk(text):
                 _batch_buffer = []
                 print(f"[Speaker] 📦 Batched {total_chunks} chunks ({total_words} words) - flushing immediately (threshold reached)")
             else:
-                # For single chunk with decent length, flush immediately to avoid timeout delay
-                if total_chunks == 1 and total_words >= TTS_BATCH_MIN_WORDS:
+                # For single chunk, flush immediately to avoid timeout delay (even if just 1 word)
+                if total_chunks == 1:
                     batched_text = " ".join(_batch_buffer)
                     SENTENCE_QUEUE.put(batched_text)
                     _batch_buffer = []
@@ -524,10 +526,14 @@ def playback_loop():
             print(f"[Speaker] ⚠️ Skipping filler: \"{sentence}\"")
             continue
         print(f"[Speaker] 🔈 Speaking: \"{sentence}\"")
-        # Use current time as tts_start_time for playback loop
-        tts_start_time = time.time()
+        # Use LLM request start time if available, otherwise use current time
+        global _llm_request_start_time
+        tts_start_time = _llm_request_start_time if _llm_request_start_time is not None else time.time()
+        # Reset after first use to avoid using stale time for subsequent chunks
+        if _llm_request_start_time is not None:
+            _llm_request_start_time = None
         threading.Thread(target=tts_playback_thread, args=(sentence, tts_start_time), daemon=True).start()
-        time.sleep(0.1)
+        # Removed sleep to reduce latency - threads are daemon so they won't block
 
 # === Stream LLM output ===
 def speak_llm_response(prompt, context=""):
@@ -560,7 +566,8 @@ def speak_llm_response(prompt, context=""):
         print(f"[TokenUsage] ⚠️ Failed to track usage: {e}")
     
     # Start TTS latency measurement (measured from LLM request start)
-    tts_start_time = time.time()
+    global _llm_request_start_time
+    _llm_request_start_time = time.time()
     
     # Get the correct LLM port based on global state (default medical)
     # Use a single endpoint to avoid port/fallback warnings.
