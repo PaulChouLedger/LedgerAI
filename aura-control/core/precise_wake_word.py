@@ -20,7 +20,32 @@ import numpy as np
 from typing import Optional, Tuple
 
 # === Wake Word Detection Configuration ===
-# Tune these values for optimal detection performance
+# All settings are shared with main listener for consistency
+# Import shared constants from listener.py to ensure universal settings
+
+# Import shared audio processing constants from listener
+try:
+    import sys
+    import os
+    # Add listener.py to path to import constants
+    listener_path = os.path.join(os.path.dirname(__file__), 'listener.py')
+    if os.path.exists(listener_path):
+        # Import constants directly
+        from listener import (
+            SAMPLE_RATE, FRAME_SIZE, MICROPHONE_CHANNEL,
+            TARGET_RMS_FOR_WHISPER, ENABLE_AUDIO_NORMALIZATION
+        )
+        # Use same sample rate and frame settings as listener
+        WAKE_WORD_SAMPLE_RATE = SAMPLE_RATE
+        WAKE_WORD_FRAME_SIZE = FRAME_SIZE
+    else:
+        # Fallback if listener.py not found
+        WAKE_WORD_SAMPLE_RATE = 16000
+        WAKE_WORD_FRAME_SIZE = 512
+except ImportError:
+    # Fallback if import fails
+    WAKE_WORD_SAMPLE_RATE = 16000
+    WAKE_WORD_FRAME_SIZE = 512
 
 # Default threshold (lower = more sensitive, higher = less sensitive)
 # Typical range: 0.1 (very sensitive) to 0.5 (less sensitive)
@@ -32,11 +57,11 @@ DEFAULT_THRESHOLD = 0.001
 SENSITIVITY_MAX_THRESHOLD = 0.35  # Less sensitive (sensitivity = 0.0)
 SENSITIVITY_MIN_THRESHOLD = 0.15  # More sensitive (sensitivity = 1.0)
 
-# Audio normalization for wake word detection
-# Use same target RMS as main listener for consistent audio levels
-# This ensures wake word sees the same audio levels as transcription
-WAKE_WORD_TARGET_RMS = 0.12  # Same as TARGET_RMS_FOR_WHISPER in listener.py
-WAKE_WORD_MAX_GAIN = 10.0  # Maximum amplification factor to prevent distortion
+# Audio normalization settings (shared with listener.py)
+# Note: Wake word uses raw audio (no normalization) to match main listener VAD processing
+# Normalization only happens for final audio before Whisper, not for wake word detection
+WAKE_WORD_TARGET_RMS = 0.12  # Same as TARGET_RMS_FOR_WHISPER (for reference, not used in wake word)
+WAKE_WORD_MAX_GAIN = 10.0  # Maximum amplification factor (for reference, not used in wake word)
 
 # Try to import Precise
 try:
@@ -331,23 +356,13 @@ class PreciseWakeWordDetector:
                 else:
                     audio_frame = audio_frame[:self.frame_length]
             
-            # Normalize audio using same logic as listener.py and test_transcription.py
-            # This ensures consistent audio processing across all components
-            # Calculate RMS for normalization (same as normalize_audio_for_whisper in listener.py)
-            rms = np.sqrt(np.mean(audio_frame**2))
+            # Use raw audio (no normalization) - same as main listener VAD processing
+            # Main listener doesn't normalize before VAD, only normalizes final audio before Whisper
+            # This ensures wake word sees the same audio levels as VAD
+            # Only apply basic safety clipping if audio is too loud
             peak = np.abs(audio_frame).max()
-            
-            # Normalize to target RMS if audio is too quiet
-            # Same logic as listener.py normalize_audio_for_whisper() function
-            if rms > 0.0001:  # Only normalize if we have some signal (same threshold as listener.py)
-                gain = WAKE_WORD_TARGET_RMS / max(rms, 0.0001)
-                # Limit gain to avoid distortion (same as listener.py)
-                gain = min(gain, WAKE_WORD_MAX_GAIN)
-                audio_frame = audio_frame * gain
-                # Soft clipping to prevent distortion (same as listener.py normalize_audio_for_whisper)
-                audio_frame = np.clip(audio_frame, -0.95, 0.95)
-            elif peak > 1.0:
-                # If audio is too loud, normalize down (safety check)
+            if peak > 1.0:
+                # Safety check: normalize down if audio is too loud (shouldn't happen with hardware DSP)
                 audio_frame = audio_frame / peak
             
             # Convert to int16 for Precise

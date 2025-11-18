@@ -740,29 +740,21 @@ def listen():
                         audio_block, _ = stream.read(FRAME_SIZE)
                         channel_audio = audio_block[:, MICROPHONE_CHANNEL]
                         
-                        # Normalize/amplify audio for wake word detection
-                        # Use same normalization function as Whisper for consistency
+                        # Use exact same audio processing as main listener VAD
+                        # This ensures wake word sees identical audio levels and features
                         if channel_audio.size > 0:
-                            # Calculate RMS before normalization for debug output
-                            rms_before = np.sqrt(np.mean(channel_audio**2))
-                            peak_before = np.abs(channel_audio).max()
-                            
-                            # Use same normalization function as Whisper, but with wake word target RMS and gain limit
-                            # This ensures consistent processing logic across all components
-                            channel_audio = normalize_audio_for_whisper(
-                                channel_audio, 
-                                target_rms=WAKE_WORD_TARGET_RMS,
-                                max_gain=WAKE_WORD_MAX_GAIN
-                            )
+                            # Use same audio feature calculation as main listener
+                            features = calculate_audio_features(channel_audio)
+                            rms = features['rms']
+                            peak = features['peak']
                             
                             # Debug: check audio levels occasionally (every 100 frames or first 5)
+                            # Show same format as main listener VAD output
                             if not hasattr(wake_word_detector, '_audio_level_debug'):
                                 wake_word_detector._audio_level_debug = 0
                             wake_word_detector._audio_level_debug += 1
                             if wake_word_detector._audio_level_debug <= 5 or wake_word_detector._audio_level_debug % 100 == 0:
-                                rms_after = np.sqrt(np.mean(channel_audio**2))
-                                peak_after = np.abs(channel_audio).max()
-                                print(f"[Wake Word] 🔍 DEBUG Audio: RMS={rms_before:.4f}→{rms_after:.4f}, Peak={peak_before:.4f}→{peak_after:.4f} (Frame {wake_word_detector._audio_level_debug})")
+                                print(f"[Wake Word] 🔍 DEBUG Audio: RMS={rms:.4f}, Peak={peak:.4f} (Frame {wake_word_detector._audio_level_debug}) - Same as VAD processing")
                         
                         if channel_audio.size < 512:
                             # Not enough samples, continue to next iteration
