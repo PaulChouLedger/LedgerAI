@@ -1806,6 +1806,7 @@ class SettingsDialog(BaseAuraDialog):
         
         if reply == QMessageBox.Yes:
             self.log_status("Exiting Aura...")
+            print("[Settings] 🚪 Exit to desktop requested")
             
             # Request shutdown via state management
             try:
@@ -1825,22 +1826,37 @@ class SettingsDialog(BaseAuraDialog):
             except Exception as e:
                 print(f"[Settings] ⚠️ Error requesting shutdown: {e}")
             
-            # Close settings dialog first
-            self.close()
+            # Use QTimer to defer exit so dialog can close properly first
+            def perform_exit():
+                try:
+                    # Close main GUI window and exit Qt application
+                    from gui.aura_gui import close_gui
+                    print("[Settings] 🔄 Attempting to close GUI...")
+                    close_gui()
+                    print("[Settings] ✅ GUI closed")
+                except ImportError as e:
+                    print(f"[Settings] ⚠️ Could not import close_gui: {e}")
+                except Exception as e:
+                    print(f"[Settings] ⚠️ Error closing GUI: {e}")
+                    import traceback
+                    traceback.print_exc()
+                finally:
+                    # Ensure application quits
+                    app = QApplication.instance()
+                    if app:
+                        print("[Settings] 🔄 Quitting Qt application...")
+                        app.quit()
+                    else:
+                        # Last resort: force exit
+                        print("[Settings] ⚠️ No QApplication instance, forcing exit...")
+                        import sys
+                        sys.exit(0)
             
-            # Close main GUI window and exit Qt application
-            try:
-                from gui.aura_gui import close_gui
-                close_gui()
-                print("[Settings] ✅ GUI closed")
-            except ImportError:
-                # Fallback: quit Qt application directly
-                QApplication.instance().quit()
-                print("[Settings] ✅ Application quit (fallback)")
-            except Exception as e:
-                print(f"[Settings] ⚠️ Error closing GUI: {e}")
-                # Fallback: quit Qt application directly
-                QApplication.instance().quit()
+            # Accept the dialog to properly close it (important for modal dialogs)
+            self.accept()
+            
+            # Schedule exit after dialog closes (small delay to ensure cleanup)
+            QTimer.singleShot(100, perform_exit)
     
     def scan_wifi(self):
         """Scan for available WiFi networks"""
