@@ -268,10 +268,12 @@ class WelcomeSetupDialog(QDialog):
         """Center dialog on screen/parent using available geometry and clamp to visible area"""
         try:
             if self.parent():
+                # Center relative to parent (within white perimeter)
                 parent_geometry = self.parent().geometry()
                 x = parent_geometry.x() + (parent_geometry.width() - self.width()) // 2
                 y = parent_geometry.y() + (parent_geometry.height() - self.height()) // 2
             else:
+                # Center on screen
                 screen = QApplication.primaryScreen().availableGeometry()
                 x = (screen.width() - self.width()) // 2
                 y = (screen.height() - self.height()) // 2
@@ -280,8 +282,14 @@ class WelcomeSetupDialog(QDialog):
             y = max(0, y)
             self.move(x, y)
         except Exception:
-            # Fallback
-            self.move(0, 0)
+            # Fallback - center on screen
+            try:
+                screen = QApplication.primaryScreen().availableGeometry()
+                x = (screen.width() - self.width()) // 2
+                y = (screen.height() - self.height()) // 2
+                self.move(x, y)
+            except Exception:
+                self.move(0, 0)
     
     def setup_ui(self):
         """Setup the welcome setup UI"""

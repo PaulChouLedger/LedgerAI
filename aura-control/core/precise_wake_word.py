@@ -24,7 +24,8 @@ from typing import Optional, Tuple
 
 # Default threshold (lower = more sensitive, higher = less sensitive)
 # Typical range: 0.1 (very sensitive) to 0.5 (less sensitive)
-DEFAULT_THRESHOLD = 0.25
+# Set to 0.001 for testing (very sensitive - will trigger on most audio activity)
+DEFAULT_THRESHOLD = 0.001
 
 # Sensitivity mapping: Maps sensitivity (0.0-1.0) to threshold range
 # Formula: threshold = MAX_THRESHOLD - (sensitivity * (MAX_THRESHOLD - MIN_THRESHOLD))
