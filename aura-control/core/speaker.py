@@ -33,13 +33,8 @@ PCM_SAMPLE_RATE = 22050
 PCM_FORMAT = "pcm_22050"
 VOLUME_SET = False
 
-# Require TTS volume from .env (no default)
-tts_volume_raw = os.getenv("TTS_VOLUME")
-if tts_volume_raw is None or not tts_volume_raw.strip().isdigit() or not (0 <= int(tts_volume_raw) <= 100):
-    raise RuntimeError(
-        "❌ Missing or invalid TTS_VOLUME. Set it in .env via aura_config.sh → TTS, then restart."
-    )
-TTS_VOLUME = int(tts_volume_raw)  # percent
+# TTS volume (hardcoded, no .env needed)
+TTS_VOLUME = 80  # percent (default: 80%)
 
 # Device identification - auto-detect connected output device
 ALSA_CONTROLS = ["PCM", "Speaker", "Master"]  # try these in order
@@ -85,11 +80,12 @@ else:
 SENTENCE_QUEUE = queue.Queue()
 playback_lock = threading.Lock()
 # Batching: Accumulate chunks before sending to TTS (reduces API calls)
-TTS_BATCH_ENABLED = os.getenv("TTS_BATCH_ENABLED", "true").lower() == "true"
-TTS_BATCH_MAX_WORDS = int(os.getenv("TTS_BATCH_MAX_WORDS", "50"))  # Max words per batch (very aggressive for low latency)
-TTS_BATCH_MIN_WORDS = int(os.getenv("TTS_BATCH_MIN_WORDS", "3"))  # Very low for immediate first audio (was 12)
-TTS_BATCH_MAX_CHUNKS = int(os.getenv("TTS_BATCH_MAX_CHUNKS", "2"))  # Keep small batches
-TTS_BATCH_TIMEOUT = float(os.getenv("TTS_BATCH_TIMEOUT", "0.02"))  # Very short timeout for low latency (was 0.05)
+# All values hardcoded - no .env needed (only API keys use .env)
+TTS_BATCH_ENABLED = True
+TTS_BATCH_MAX_WORDS = 50  # Max words per batch (very aggressive for low latency)
+TTS_BATCH_MIN_WORDS = 3  # Very low for immediate first audio (was 12)
+TTS_BATCH_MAX_CHUNKS = 2  # Keep small batches
+TTS_BATCH_TIMEOUT = 0.02  # Very short timeout for low latency (was 0.05)
 _batch_buffer = []  # Buffer for batching chunks
 _batch_lock = threading.Lock()
 _batch_timer = None  # Timer for delayed flush

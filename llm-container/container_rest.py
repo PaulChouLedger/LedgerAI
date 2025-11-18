@@ -420,21 +420,49 @@ def _word_stream_from_chunks(chunk_iter):
 
 def _sentence_tag_stream(word_stream):
     """
-    Wrap word stream with <sentence_start>/<sentence_end> markers so TTS logic
-    can stay identical across containers.
+    Wrap word stream with <sentence_start>/<sentence_end> markers, splitting on sentence boundaries.
+    Each complete sentence/phrase gets its own tags for natural TTS playback.
     """
-    sentence_text = ""
+    sentence_buffer = ""
     sentence_open = False
+    
     for word in word_stream:
+        word_stripped = word.strip()
+        
+        # Special handling for standalone dashes: they start new sentences for list items
+        if word_stripped == '-':
+            # Close previous sentence if open
+            if sentence_open:
+                yield "<sentence_end>"
+                sentence_buffer = ""
+            # Start new sentence for list item (dash is first word)
+            sentence_open = True
+            yield "<sentence_start>"
+            yield word
+            sentence_buffer = word
+            continue
+        
+        # Normal word processing
         if not sentence_open:
             sentence_open = True
             yield "<sentence_start>"
+        
         yield word
-        sentence_text += word
-        if sentence_text.strip().endswith(SENTENCE_ENDINGS):
+        sentence_buffer += word
+        
+        # Check if we've reached a sentence boundary
+        # 1. Sentence endings: . ! ? (period, exclamation, question mark)
+        if word_stripped and word_stripped[-1] in SENTENCE_ENDINGS:
             yield "<sentence_end>"
-            sentence_text = ""
+            sentence_buffer = ""
             sentence_open = False
+        # 2. Colons: split for list items (e.g., "include:" starts a list)
+        elif word_stripped and word_stripped[-1] == ':':
+            yield "<sentence_end>"
+            sentence_buffer = ""
+            sentence_open = False
+    
+    # Close any remaining sentence
     if sentence_open:
         yield "<sentence_end>"
 

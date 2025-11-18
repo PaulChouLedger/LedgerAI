@@ -541,14 +541,52 @@ def chat_tts():
                 response_dict, token_stream = result
                 print(f"[Container] ✅ Streaming enabled - tokens will be yielded as generated")
                 
-                # Stream tokens as they come from the LLM (immediate TTS start)
+                # Stream tokens with sentence splitting - each sentence gets its own tags
                 # Note: Session storage is handled by the navigator's token_stream generator
-                yield "<sentence_start>\n"
+                # Process token stream and split into sentences for natural TTS playback
+                sentence_buffer = ""
+                sentence_open = False
+                
                 for token in token_stream:
+                    token_stripped = token.strip()
+                    
+                    # Special handling for standalone dashes: they start new sentences for list items
+                    if token_stripped == '-':
+                        # Close previous sentence if open
+                        if sentence_open:
+                            yield "<sentence_end>\n"
+                            sentence_buffer = ""
+                        # Start new sentence for list item (dash is first word)
+                        sentence_open = True
+                        yield "<sentence_start>\n"
+                        yield f"{token}\n"
+                        sentence_buffer = token
+                        continue
+                    
+                    # Normal token processing
+                    if not sentence_open:
+                        sentence_open = True
+                        yield "<sentence_start>\n"
+                    
                     # Ensure newline after each token so HTTP clients using iter_lines() receive tokens promptly
                     yield f"{token}\n"
-                yield "\n"
-                yield "<sentence_end>\n"
+                    sentence_buffer += token
+                    
+                    # Check if we've reached a sentence boundary
+                    # 1. Sentence endings: . ! ? (period, exclamation, question mark)
+                    if token_stripped and token_stripped[-1] in ('.', '!', '?'):
+                        yield "<sentence_end>\n"
+                        sentence_buffer = ""
+                        sentence_open = False
+                    # 2. Colons: split for list items (e.g., "include:" starts a list)
+                    elif token_stripped and token_stripped[-1] == ':':
+                        yield "<sentence_end>\n"
+                        sentence_buffer = ""
+                        sentence_open = False
+                
+                # Close any remaining sentence
+                if sentence_open:
+                    yield "<sentence_end>\n"
                 
                 print(f"[Container] ✅ Streamed response complete (session updated by navigator)")
                 return
@@ -593,22 +631,37 @@ def chat_tts():
                 elif response.get('response'):
                     # Navigator uses 'response' key - split into sentences for better batching
                     response_text = response.get('response', '')
-                    # Split by sentence boundaries for better chunking
-                    sentences = re.split(r'([.!?]+\s+)', response_text)
+                    # Split by sentence boundaries (periods, exclamation, question marks, colons, dashes)
+                    # Split on sentence endings and list markers
+                    sentences = re.split(r'([.!?]+\s+|:\s+|-\s+)', response_text)
                     current_sentence = ""
                     for part in sentences:
                         current_sentence += part
+                        part_stripped = part.strip()
                         # If we have a complete sentence ending, yield it
-                        if part.strip() and part.strip()[-1] in '.!?':
+                        if part_stripped and part_stripped[-1] in '.!?:':
                             yield "<sentence_start>\n"
                             yield f"{current_sentence.strip()}\n"
                             yield "<sentence_end>\n"
+                            current_sentence = ""
+                        # Also split on standalone dashes (list items)
+                        elif part_stripped == '-' or (len(part_stripped) == 1 and part_stripped == '-'):
+                            # Close previous sentence if any
+                            if current_sentence.strip() and not current_sentence.strip().endswith('-'):
+                                prev_sentence = current_sentence.rstrip('-').strip()
+                                if prev_sentence:
+                                    yield "<sentence_start>\n"
+                                    yield f"{prev_sentence}\n"
+                                    yield "<sentence_end>\n"
+                            # Start new sentence with dash
+                            yield "<sentence_start>\n"
+                            yield f"-\n"
                             current_sentence = ""
                     # Yield any remaining text
                     if current_sentence.strip():
                         yield "<sentence_start>\n"
                         yield f"{current_sentence.strip()}\n"
-                    yield "<sentence_end>\n"
+                        yield "<sentence_end>\n"
                 else:
                     # Fallback
                     yield "<sentence_start>\n"
@@ -616,21 +669,36 @@ def chat_tts():
                     yield "<sentence_end>\n"
             elif isinstance(response, str):
                 # Simple text response - split into sentences for better batching
-                sentences = re.split(r'([.!?]+\s+)', response)
+                # Split by sentence boundaries (periods, exclamation, question marks, colons, dashes)
+                sentences = re.split(r'([.!?]+\s+|:\s+|-\s+)', response)
                 current_sentence = ""
                 for part in sentences:
                     current_sentence += part
+                    part_stripped = part.strip()
                     # If we have a complete sentence ending, yield it
-                    if part.strip() and part.strip()[-1] in '.!?':
+                    if part_stripped and part_stripped[-1] in '.!?:':
                         yield "<sentence_start>\n"
                         yield f"{current_sentence.strip()}\n"
                         yield "<sentence_end>\n"
+                        current_sentence = ""
+                    # Also split on standalone dashes (list items)
+                    elif part_stripped == '-' or (len(part_stripped) == 1 and part_stripped == '-'):
+                        # Close previous sentence if any
+                        if current_sentence.strip() and not current_sentence.strip().endswith('-'):
+                            prev_sentence = current_sentence.rstrip('-').strip()
+                            if prev_sentence:
+                                yield "<sentence_start>\n"
+                                yield f"{prev_sentence}\n"
+                                yield "<sentence_end>\n"
+                        # Start new sentence with dash
+                        yield "<sentence_start>\n"
+                        yield f"-\n"
                         current_sentence = ""
                 # Yield any remaining text
                 if current_sentence.strip():
                     yield "<sentence_start>\n"
                     yield f"{current_sentence.strip()}\n"
-                yield "<sentence_end>\n"
+                    yield "<sentence_end>\n"
             else:
                 # Fallback
                 yield "<sentence_start>\n"
