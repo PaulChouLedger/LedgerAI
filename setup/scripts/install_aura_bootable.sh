@@ -492,6 +492,97 @@ fi
 echo ""
 
 # ============================================================================
+# Step 3.5: Install Mycroft Precise for wake word detection
+# ============================================================================
+print_step "3.5. Installing Mycroft Precise for wake word detection..."
+
+# Install precise-runner (Python package)
+print_info "Installing precise-runner..."
+if pip install precise-runner precise-engine 2>&1 | tee /tmp/precise_install.log; then
+    print_info "✅ precise-runner installed successfully"
+else
+    print_warning "⚠️  precise-runner installation had issues (check logs)"
+    print_info "   Wake word detection may not work until this is resolved"
+fi
+
+# Download precise-engine binary for ARM64/Jetson
+print_info "Downloading precise-engine binary for ARM64/Jetson..."
+PRECISE_ENGINE_DIR="$AURA_HOME/.mycroft/precise/precise-engine"
+mkdir -p "$PRECISE_ENGINE_DIR"
+
+# Check if precise-engine already exists
+if [ -f "$PRECISE_ENGINE_DIR/precise-engine" ] && [ -x "$PRECISE_ENGINE_DIR/precise-engine" ]; then
+    print_info "✅ precise-engine already exists at $PRECISE_ENGINE_DIR/precise-engine"
+else
+    cd /tmp
+    if wget -q --show-progress https://github.com/MycroftAI/mycroft-precise/releases/download/v0.3.0/precise-all_0.3.0_aarch64.tar.gz; then
+        print_info "Extracting precise-engine..."
+        tar xzf precise-all_0.3.0_aarch64.tar.gz
+        if [ -d "precise" ] && [ -f "precise/precise-engine" ]; then
+            cp -r precise/* "$PRECISE_ENGINE_DIR/"
+            chmod +x "$PRECISE_ENGINE_DIR/precise-engine"
+            print_info "✅ precise-engine installed to $PRECISE_ENGINE_DIR/precise-engine"
+            rm -rf precise precise-all_0.3.0_aarch64.tar.gz
+        else
+            print_warning "⚠️  precise-engine not found in extracted archive"
+        fi
+    else
+        print_warning "⚠️  Failed to download precise-engine binary"
+        print_info "   You can download manually:"
+        print_info "   cd ~ && wget https://github.com/MycroftAI/mycroft-precise/releases/download/v0.3.0/precise-all_0.3.0_aarch64.tar.gz"
+        print_info "   tar xzf precise-all_0.3.0_aarch64.tar.gz"
+        print_info "   mkdir -p ~/.mycroft/precise/precise-engine"
+        print_info "   cp -r precise/* ~/.mycroft/precise/precise-engine/"
+    fi
+fi
+
+# Download wake word model (hey-mycroft.pb)
+print_info "Downloading wake word model (hey-mycroft.pb)..."
+MODEL_DIR="$AURA_HOME/precise-models"
+mkdir -p "$MODEL_DIR"
+
+if [ -f "$MODEL_DIR/hey-mycroft.pb" ]; then
+    print_info "✅ Wake word model already exists at $MODEL_DIR/hey-mycroft.pb"
+else
+    if wget -q --show-progress -O "$MODEL_DIR/hey-mycroft.pb" https://github.com/MycroftAI/precise-data/raw/models/hey-mycroft.pb; then
+        print_info "✅ Wake word model downloaded to $MODEL_DIR/hey-mycroft.pb"
+    else
+        print_warning "⚠️  Failed to download wake word model"
+        print_info "   You can download manually:"
+        print_info "   mkdir -p ~/precise-models"
+        print_info "   wget -O ~/precise-models/hey-mycroft.pb https://github.com/MycroftAI/precise-data/raw/models/hey-mycroft.pb"
+    fi
+fi
+
+# Also create a symlink in home directory for compatibility
+if [ ! -f "$AURA_HOME/hey-mycroft.pb" ] && [ -f "$MODEL_DIR/hey-mycroft.pb" ]; then
+    ln -s "$MODEL_DIR/hey-mycroft.pb" "$AURA_HOME/hey-mycroft.pb"
+    print_info "✅ Created symlink: $AURA_HOME/hey-mycroft.pb -> $MODEL_DIR/hey-mycroft.pb"
+fi
+
+# Verify installation
+print_info "Verifying Mycroft Precise installation..."
+if python3 -c "from precise_runner import PreciseEngine, PreciseRunner" 2>/dev/null; then
+    print_info "✅ Mycroft Precise Python package is importable"
+else
+    print_warning "⚠️  Mycroft Precise Python package not importable"
+fi
+
+if [ -x "$PRECISE_ENGINE_DIR/precise-engine" ]; then
+    print_info "✅ precise-engine binary is executable"
+else
+    print_warning "⚠️  precise-engine binary not found or not executable"
+fi
+
+if [ -f "$MODEL_DIR/hey-mycroft.pb" ] || [ -f "$AURA_HOME/hey-mycroft.pb" ]; then
+    print_info "✅ Wake word model file found"
+else
+    print_warning "⚠️  Wake word model file not found"
+fi
+
+echo ""
+
+# ============================================================================
 # Step 4: Install jetson-containers
 # ============================================================================
 print_step "4. Installing jetson-containers..."
@@ -1178,6 +1269,12 @@ mkdir -p "$LEDGERAI_DIR/data/parsed" 2>/dev/null || true
 mkdir -p "$LEDGERAI_DIR/data/embeddings" 2>/dev/null || true
 mkdir -p "$LEDGERAI_DIR/shared/input_audio" 2>/dev/null || true
 mkdir -p "$LEDGERAI_DIR/shared/output_audio" 2>/dev/null || true
+
+# Create models directories for LLM containers (Dockerfiles expect models/ in container root)
+print_info "Creating models directories for LLM containers..."
+mkdir -p "$LEDGERAI_DIR/llm-container/models" 2>/dev/null || true
+mkdir -p "$LEDGERAI_DIR/llm-medical-container/models" 2>/dev/null || true
+print_info "✅ Models directories created for LLM containers"
 
 print_info "Data directories ready"
 
