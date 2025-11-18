@@ -1021,19 +1021,6 @@ class AIModelSettingsDialog(BaseAuraDialog):
         self.fade_out.start()
         event.ignore()
     
-    def _center_dialog(self):
-        """Center dialog within parent or screen"""
-        if self.parent():
-            parent_geometry = self.parent().geometry()
-            x = parent_geometry.x() + (parent_geometry.width() - self.width()) // 2
-            y = parent_geometry.y() + (parent_geometry.height() - self.height()) // 2
-            self.move(x, y)
-        else:
-            screen = QApplication.primaryScreen().geometry()
-            x = (screen.width() - self.width()) // 2
-            y = (screen.height() - self.height()) // 2
-            self.move(x, y)
-    
     def _setup_ui(self):
         layout = QVBoxLayout(); layout.setContentsMargins(120, 100, 120, 100); layout.setSpacing(20); layout.addStretch(1)
         # Top bar with Back
@@ -1476,21 +1463,9 @@ class SettingsDialog(BaseAuraDialog):
         """Setup UI - called by BaseAuraDialog"""
         self.setup_ui()
     
-    def showEvent(self, event):
-        """Handle dialog show event with smooth fade-in animation"""
-        super().showEvent(event)
-        
-        # Create smooth fade-in animation
-        self.fade_in = QPropertyAnimation(self, b"windowOpacity")
-        self.fade_in.setDuration(300)  # Slightly longer for smoother feel
-        self.fade_in.setStartValue(0.0)
-        self.fade_in.setEndValue(1.0)
-        self.fade_in.setEasingCurve(QEasingCurve.InOutCubic)  # Smooth ease-in/out
-        self.fade_in.start()
-        
-        # Ensure dialog is raised and focused
-        self.raise_()
-        self.activateWindow()
+    def _on_show(self):
+        """Override for additional show logic - base class handles fade-in and centering"""
+        pass
     
     def closeEvent(self, event):
         """Handle dialog close event with smooth fade-out animation"""

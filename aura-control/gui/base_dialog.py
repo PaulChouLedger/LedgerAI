@@ -32,13 +32,13 @@ class BaseAuraDialog(QDialog):
         # Ensure resources are freed on close
         self.setAttribute(Qt.WA_DeleteOnClose, True)
         
-        # Set base stylesheet with white border to match white perimeter
-        # White border: 8px solid white, radius 535px to match main window's white border radius
+        # Set base stylesheet - NO CSS border (border is painted in paintEvent to match home screen exactly)
+        # Border is drawn in paintEvent with exact same color/transparency as home screen
         self.setStyleSheet("""
             QDialog {
                 background-color: rgba(28, 28, 30, 1.0);
                 color: white;
-                border: 8px solid white;
+                border: none;
                 border-radius: 535px;
             }
         """)
