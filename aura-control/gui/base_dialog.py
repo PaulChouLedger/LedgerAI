@@ -49,7 +49,7 @@ class BaseAuraDialog(QDialog):
         # Override in subclass to set up UI
         self._setup_ui()
         
-        # Create white border overlay widget (like home screen BorderOverlayWidget)
+        # Create white border overlay widget AFTER UI is set up
         # This ensures border is always on top of all child widgets
         self._create_border_overlay()
         
@@ -90,8 +90,18 @@ class BaseAuraDialog(QDialog):
                 painter.end()
         
         self.border_overlay = BorderOverlay(self)
+        # Use stackUnder/raise to ensure it's on top of ALL widgets
+        self.border_overlay.setParent(self)
         self.border_overlay.raise_()  # Always on top
         self.border_overlay.show()
+        # Force it to be on top by lowering all other widgets
+        for child in self.findChildren(QWidget):
+            if child != self.border_overlay:
+                try:
+                    child.lower()
+                except:
+                    pass
+        self.border_overlay.raise_()
     
     def _setup_ui(self):
         """Override in subclass to set up dialog UI"""
@@ -168,8 +178,23 @@ class BaseAuraDialog(QDialog):
         # Use a timer to ensure positioning happens after window is fully shown
         from PyQt5.QtCore import QTimer
         QTimer.singleShot(50, self._center_dialog)  # Center after window is fully shown
-        QTimer.singleShot(50, lambda: self.border_overlay.raise_() if hasattr(self, 'border_overlay') else None)  # Ensure border is on top
-        QTimer.singleShot(50, lambda: self.border_overlay.update() if hasattr(self, 'border_overlay') else None)  # Force border repaint
+        
+        # Ensure border overlay is always on top and visible
+        def ensure_border_on_top():
+            if hasattr(self, 'border_overlay'):
+                # Lower all child widgets except border overlay
+                for child in self.findChildren(QWidget):
+                    if child != self.border_overlay and child.isVisible():
+                        try:
+                            child.lower()
+                        except:
+                            pass
+                # Raise border overlay to top
+                self.border_overlay.raise_()
+                self.border_overlay.update()
+        
+        QTimer.singleShot(50, ensure_border_on_top)  # Ensure border is on top after UI is rendered
+        QTimer.singleShot(100, ensure_border_on_top)  # Double-check after a bit more time
         
         # For sub-dialogs opened from parent, skip fade animation to avoid rendering issues
         if self.isModal() and self.parent():

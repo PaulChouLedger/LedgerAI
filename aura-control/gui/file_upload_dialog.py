@@ -104,10 +104,17 @@ class FileUploadDialog(BaseAuraDialog):
     def _setup_ui(self):
         """Set up dialog UI (called by base class)"""
         self.setup_ui()
+        # Ensure border overlay is on top after UI is set up
+        if hasattr(self, 'border_overlay'):
+            self.border_overlay.raise_()
     
     def _on_show(self):
         """Block transcription when dialog opens"""
         self._block_transcription("File upload dialog open")
+        # Ensure border overlay is on top when dialog is shown
+        if hasattr(self, 'border_overlay'):
+            self.border_overlay.raise_()
+            self.border_overlay.update()
         
     def mousePressEvent(self, event):
         """Capture mouse/touch coordinates for debugging"""
