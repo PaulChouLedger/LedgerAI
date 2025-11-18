@@ -26,7 +26,7 @@ LLM_TOP_P = 0.95
 LLM_TOP_K = 40
 LLM_REPEAT_PENALTY = 1.1
 LLM_NUM_PREDICT_DEFAULT = 150  # Reduced from 300 for faster responses (shorter = faster)
-SIMPLE_N_CTX = 1024
+SIMPLE_N_CTX = 2048
 SIMPLE_CHAT_FORMAT = "qwen"
 N_THREADS = 8
 N_BATCH = 256  # Reduced from 512 for faster generation (smaller batches = lower latency)

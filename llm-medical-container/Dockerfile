@@ -64,7 +64,7 @@ COPY rag/ /app/rag/
 # === Environment defaults (can be overridden by .env or -e) ===
 ENV SIMPLE_MODEL_PATH=/models/Qwen2.5-1.5B-Instruct.Q4_K_M-medical.gguf
 ENV SIMPLE_CHAT_FORMAT=qwen
-ENV SIMPLE_N_CTX=1024
+ENV SIMPLE_N_CTX=2048
 ENV LLM_STOP=<|eot_id|>
 
 

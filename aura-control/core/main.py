@@ -349,12 +349,36 @@ def remove_existing_container(name):
 # === Stream container logs into Aura ===
 def stream_container_logs(name):
     def _logs():
-        process = subprocess.Popen(
-            ["docker", "logs", "-f", name],
-            stdout=sys.stdout,
-            stderr=sys.stderr
-        )
-        process.wait()
+        try:
+            process = subprocess.Popen(
+                ["docker", "logs", "-f", name],
+                stdout=sys.stdout,
+                stderr=sys.stderr,
+                bufsize=1  # Line buffered
+            )
+            process.wait()
+        except Exception as e:
+            # Silently fail if container doesn't exist yet or logs can't be streamed
+            pass
+    threading.Thread(target=_logs, daemon=True).start()
+
+# === Stream container logs using docker compose (more reliable) ===
+def stream_container_logs_compose(setup_dir, services):
+    """Stream logs for multiple services using docker compose"""
+    def _logs():
+        try:
+            # Use docker compose logs -f to follow logs for all services
+            process = subprocess.Popen(
+                ["docker", "compose", "logs", "-f"] + services,
+                cwd=setup_dir,
+                stdout=sys.stdout,
+                stderr=sys.stderr,
+                bufsize=1  # Line buffered
+            )
+            process.wait()
+        except Exception as e:
+            # Silently fail if logs can't be streamed
+            pass
     threading.Thread(target=_logs, daemon=True).start()
 
 # === Health check for container via HTTP ===
@@ -647,6 +671,11 @@ def start_services():
             # Wake word detection uses Mycroft Precise (no container needed)
             
             print("[Aura] ✅ All containers are ready!")
+            
+            # Stream container logs to main.py output (so container debug appears with main.py execution)
+            print("[Aura] 📋 Streaming container logs to console...")
+            stream_container_logs_compose(setup_dir, services_to_start)
+            
             return True
             
         except Exception as e:

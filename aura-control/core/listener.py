@@ -122,15 +122,41 @@ def toggle_transcription():
 WELCOME_AUDIO_PATH = os.path.expanduser("~/LedgerAI/assets/voice_samples/audio1.wav")
 
 # === Find Device ===
-def find_device_index():
+def find_device_index(max_retries=10, initial_delay=1.0, max_delay=5.0):
+    """
+    Find microphone device with retry logic for boot-time initialization.
+    
+    Args:
+        max_retries: Maximum number of retry attempts
+        initial_delay: Initial delay in seconds before first retry
+        max_delay: Maximum delay in seconds between retries
+    """
     global DEVICE_INDEX
-    devices = sd.query_devices()
-    for i, device in enumerate(devices):
-        if DEVICE_NAME.lower() in device["name"].lower():
-            DEVICE_INDEX = i
-            print(f"[Listener] 🎧 Found: {device['name']} (index {i})")
-            return 2  # Device has 2 channels total (2 in, 2 out)
-    raise RuntimeError("Microphone not found")
+    
+    for attempt in range(max_retries):
+        devices = sd.query_devices()
+        for i, device in enumerate(devices):
+            if DEVICE_NAME.lower() in device["name"].lower():
+                DEVICE_INDEX = i
+                print(f"[Listener] 🎧 Found: {device['name']} (index {i})")
+                if attempt > 0:
+                    print(f"[Listener] ✅ Microphone available after {attempt} retry attempt(s)")
+                return 2  # Device has 2 channels total (2 in, 2 out)
+        
+        # Device not found yet
+        if attempt < max_retries - 1:
+            # Exponential backoff: delay increases with each attempt, capped at max_delay
+            delay = min(initial_delay * (2 ** attempt), max_delay)
+            print(f"[Listener] ⏳ Microphone not found (attempt {attempt + 1}/{max_retries}), retrying in {delay:.1f}s...")
+            time.sleep(delay)
+        else:
+            # Last attempt failed
+            print(f"[Listener] ❌ Microphone '{DEVICE_NAME}' not found after {max_retries} attempts")
+            print(f"[Listener] 💡 Available devices:")
+            for i, device in enumerate(devices):
+                if device.get('max_input_channels', 0) > 0:
+                    print(f"[Listener]    - {i}: {device['name']} ({device.get('max_input_channels', 0)} input channels)")
+            raise RuntimeError("Microphone not found")
 
 # === Audio Feature Extraction ===
 def calculate_audio_features(audio_chunk, sample_rate=SAMPLE_RATE):

@@ -77,11 +77,14 @@ class RAGClient:
             from sentence_transformers import SentenceTransformer
             import faiss
             
+            print("[RAG Client] 🔧 Initializing CPU RAG system with auto-ingestion...")
             logger.info("[RAG Client] 🔧 Initializing CPU RAG system with auto-ingestion...")
             
             # Use all-distilroberta-v1 (benchmarked as best performing model)
+            print("[RAG Client] 📥 Loading embedding model: all-distilroberta-v1...")
             self._embedding_model = SentenceTransformer('all-distilroberta-v1')
             self._embedding_dim = 768
+            print("[RAG Client] ✅ Embedding model loaded")
             
             # Initialize FAISS CPU index
             self._cpu_index = None
@@ -89,12 +92,18 @@ class RAGClient:
             self._cpu_metadata = []
             
             # Initialize auto-ingestion system
+            print("[RAG Client] 🔄 Initializing auto-ingestion system...")
             self._initialize_auto_ingestion()
             
             # Try to load pre-existing index
+            print("[RAG Client] 📂 Loading existing embeddings/index...")
             self._load_cpu_index()
             
-            logger.info("[RAG Client] ✅ CPU RAG system initialized with auto-ingestion")
+            # Show summary
+            chunk_count = len(self._cpu_chunks) if self._cpu_chunks else 0
+            index_size = self._cpu_index.ntotal if self._cpu_index and hasattr(self._cpu_index, 'ntotal') else 0
+            print(f"[RAG Client] ✅ CPU RAG system initialized: {chunk_count} chunks, {index_size} vectors in index")
+            logger.info(f"[RAG Client] ✅ CPU RAG system initialized: {chunk_count} chunks, {index_size} vectors in index")
             
         except ImportError as e:
             logger.error(f"[RAG Client] ❌ Failed to import CPU RAG dependencies: {e}")
@@ -106,7 +115,9 @@ class RAGClient:
     
     def _load_cpu_index(self):
         """Load existing FAISS index from disk"""
+        print("[RAG Client] 📂 Attempting to load CPU FAISS index from disk...")
         index_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'embeddings')
+        print(f"[RAG Client] 📂 Index path: {index_path}")
         
         try:
             import faiss
@@ -115,7 +126,11 @@ class RAGClient:
             faiss_index_path = os.path.join(index_path, 'faiss_index.bin')
             metadata_path = os.path.join(index_path, 'metadata.pkl')
             
+            print(f"[RAG Client] 📂 Checking for index: {faiss_index_path}")
+            print(f"[RAG Client] 📂 Checking for metadata: {metadata_path}")
+            
             if os.path.exists(faiss_index_path) and os.path.exists(metadata_path):
+                print("[RAG Client] ✅ Found existing index files, loading...")
                 self._cpu_index = faiss.read_index(faiss_index_path)
                 
                 with open(metadata_path, 'rb') as f:
@@ -123,15 +138,20 @@ class RAGClient:
                     self._cpu_chunks = data.get('chunks', [])
                     self._cpu_metadata = data.get('metadata', [])
                 
+                print(f"[RAG Client] ✅ Loaded {len(self._cpu_chunks)} chunks from CPU index")
                 logger.info(f"[RAG Client] ✅ Loaded {len(self._cpu_chunks)} chunks from CPU index")
             else:
+                print("[RAG Client] ⚠️ No existing CPU index found - creating empty index")
                 logger.warning("[RAG Client] ⚠️ No existing CPU index found")
                 # Create empty index
                 import faiss
                 self._cpu_index = faiss.IndexFlatL2(self._embedding_dim)
                 
         except Exception as e:
+            print(f"[RAG Client] ❌ Failed to load CPU index: {e}")
             logger.error(f"[RAG Client] ❌ Failed to load CPU index: {e}")
+            import traceback
+            traceback.print_exc()
             # Create empty index as fallback
             import faiss
             self._cpu_index = faiss.IndexFlatL2(self._embedding_dim)
@@ -142,17 +162,39 @@ class RAGClient:
             # Import the auto-ingestion system
             from .cpu_faiss_auto_ingest import CPUFAISSAutoIngest
             
+            print("[RAG Client] 🔄 Initializing auto-ingestion system...")
             # Initialize auto-ingestion
             self._auto_ingest = CPUFAISSAutoIngest()
             
             # Load existing embeddings
+            print("[RAG Client] 📂 Loading existing embeddings...")
             if self._auto_ingest.load_existing_embeddings():
+                print("[RAG Client] ✅ Loaded existing embeddings via auto-ingestion")
                 logger.info("[RAG Client] ✅ Loaded existing embeddings via auto-ingestion")
             else:
+                print("[RAG Client] ⚠️ No existing embeddings found, will scan input directory")
                 logger.info("[RAG Client] ⚠️ No existing embeddings found, will process on first scan")
+            
+            # Run initial scan to process any missing files
+            print("[RAG Client] 🔍 Running initial scan for missing files...")
+            scan_result = self._auto_ingest.scan_and_process()
+            if scan_result['processed'] > 0:
+                print(f"[RAG Client] ✅ Initial scan processed {scan_result['processed']} file(s)")
+                # Reload embeddings after processing
+                self._auto_ingest.load_existing_embeddings()
+                # Update our local references
+                self._cpu_chunks = self._auto_ingest.chunks
+                self._cpu_metadata = self._auto_ingest.metadata
+                # Rebuild index if we have chunks
+                if self._cpu_chunks and len(self._cpu_chunks) > 0:
+                    print(f"[RAG Client] 🔧 Rebuilding FAISS index with {len(self._cpu_chunks)} chunks...")
+                    self._rebuild_cpu_index()
+            else:
+                print(f"[RAG Client] ℹ️ Initial scan: {scan_result['processed']} processed, {scan_result['skipped']} skipped")
             
             # Start file watching
             self._auto_ingest.start_watching()
+            print(f"[RAG Client] 👀 Started auto-ingestion file watching: {self._auto_ingest.input_dir}")
             logger.info("[RAG Client] 👀 Started auto-ingestion file watching")
             
         except ImportError as e:
@@ -265,6 +307,30 @@ class RAGClient:
             print(f"[RAG Client] ❌ CPU search error: {e}")
             logger.error(f"[RAG Client] CPU search error: {e}")
             return []
+    
+    def _rebuild_cpu_index(self):
+        """Rebuild FAISS index from current chunks"""
+        try:
+            import faiss
+            if not self._cpu_chunks or len(self._cpu_chunks) == 0:
+                print("[RAG Client] ⚠️ No chunks to rebuild index")
+                return
+            
+            print(f"[RAG Client] 🔧 Generating embeddings for {len(self._cpu_chunks)} chunks...")
+            embeddings = self._embedding_model.encode(self._cpu_chunks)
+            embeddings = np.array(embeddings).astype('float32')
+            
+            print(f"[RAG Client] 🔧 Creating FAISS index...")
+            self._cpu_index = faiss.IndexFlatL2(self._embedding_dim)
+            self._cpu_index.add(embeddings)
+            
+            print(f"[RAG Client] ✅ Rebuilt FAISS index: {self._cpu_index.ntotal} vectors")
+            logger.info(f"[RAG Client] ✅ Rebuilt FAISS index: {self._cpu_index.ntotal} vectors")
+        except Exception as e:
+            print(f"[RAG Client] ❌ Failed to rebuild CPU index: {e}")
+            logger.error(f"[RAG Client] ❌ Failed to rebuild CPU index: {e}")
+            import traceback
+            traceback.print_exc()
     
     def embed(self, texts: List[str]) -> List[List[float]]:
         """
@@ -383,6 +449,9 @@ def get_rag_client(use_gpu: bool = None) -> RAGClient:
     """Get or create RAG client singleton"""
     global _rag_client
     if _rag_client is None:
+        print(f"[RAG Client] 🚀 Initializing RAG client (first call)...")
+        print(f"[RAG Client] 🔧 RAG_MODE={RAG_MODE}, use_gpu={use_gpu}")
         _rag_client = RAGClient(use_gpu=use_gpu)
+        print(f"[RAG Client] ✅ RAG client initialized: {_rag_client._mode}")
     return _rag_client
 
