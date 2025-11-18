@@ -55,27 +55,43 @@ class BaseAuraDialog(QDialog):
         """Override in subclass to set up dialog UI"""
         pass
     
-    def _center_dialog(self):
-        """Center dialog on screen to align white border with home screen white perimeter"""
-        try:
-            # Always center on screen, regardless of parent
-            # This ensures the white border (drawn at center 540,540) aligns with screen center
+    def _get_white_border_center(self):
+        """Get the absolute screen coordinates of the white border center from parent window"""
+        if self.parent():
+            # White border is drawn at center (540, 540) relative to the 1080x1080 window
+            # Get parent window's position on screen
+            parent_geometry = self.parent().geometry()
+            white_border_center_x = parent_geometry.x() + 540  # 540 is center of 1080px width
+            white_border_center_y = parent_geometry.y() + 540  # 540 is center of 1080px height
+            return (white_border_center_x, white_border_center_y)
+        else:
+            # No parent: assume main window is at (0, 0) or center of screen
             app = QApplication.instance()
-            if not app:
-                print("[BaseAuraDialog] ⚠️ No QApplication instance, cannot center")
-                return
+            if app:
+                screen = app.primaryScreen()
+                if screen:
+                    screen_geometry = screen.geometry()
+                    # If screen is 1080x1080, white border center is at (540, 540)
+                    # If screen is larger, assume main window is centered
+                    if screen_geometry.width() == 1080 and screen_geometry.height() == 1080:
+                        return (540, 540)
+                    else:
+                        # Screen center
+                        return (screen_geometry.width() // 2, screen_geometry.height() // 2)
+            return (540, 540)  # Default fallback
+    
+    def _center_dialog(self):
+        """Center dialog using white border center coordinates as reference"""
+        try:
+            # Get white border center coordinates from parent window
+            border_center_x, border_center_y = self._get_white_border_center()
             
-            screen = app.primaryScreen()
-            if not screen:
-                print("[BaseAuraDialog] ⚠️ No primary screen, cannot center")
-                return
-            
-            screen_geometry = screen.geometry()
             dialog_width = self.width() if self.width() > 0 else 1080
             dialog_height = self.height() if self.height() > 0 else 1080
             
-            x = (screen_geometry.width() - dialog_width) // 2
-            y = (screen_geometry.height() - dialog_height) // 2
+            # Position dialog so its center (540, 540) aligns with white border center
+            x = border_center_x - (dialog_width // 2)
+            y = border_center_y - (dialog_height // 2)
             
             self.move(x, y)
             # Force update to ensure position is applied
@@ -83,7 +99,10 @@ class BaseAuraDialog(QDialog):
             
             # Verify position
             actual_pos = self.pos()
-            print(f"[BaseAuraDialog] 🎯 Dialog centered: screen={screen_geometry.width()}x{screen_geometry.height()}, dialog={dialog_width}x{dialog_height}, calculated=({x}, {y}), actual=({actual_pos.x()}, {actual_pos.y()})")
+            dialog_center_x = actual_pos.x() + (dialog_width // 2)
+            dialog_center_y = actual_pos.y() + (dialog_height // 2)
+            
+            print(f"[BaseAuraDialog] 🎯 Dialog centered on white border: border_center=({border_center_x}, {border_center_y}), dialog={dialog_width}x{dialog_height}, position=({x}, {y}), dialog_center=({dialog_center_x}, {dialog_center_y})")
         except Exception as e:
             print(f"[BaseAuraDialog] ❌ Error centering dialog: {e}")
             import traceback
