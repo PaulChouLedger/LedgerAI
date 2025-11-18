@@ -544,6 +544,7 @@ def speak_llm_response(prompt, context=""):
     # Reset batch tracking for new response
     _batch_started = False
     early_flush_done = False  # Track if we've done early flush for this response
+    early_chunk_text = None  # Track what we sent in early flush to avoid duplicates
     
     # Track token usage for this query
     try:
@@ -625,15 +626,17 @@ def speak_llm_response(prompt, context=""):
             
             # AGGRESSIVE EARLY FLUSH: Send first chunk immediately after 2-3 words for ultra-low latency
             # This starts TTS generation while more text is still streaming
+            # IMPORTANT: Don't clear buffer - we'll send the full sentence when it completes
             if not early_flush_done and total_words >= 2:
-                # Flush immediately with first few words to start TTS ASAP
-                chunk_text = " ".join(buffer).strip()
-                clean_text = re.sub(r'<sentence_start>|<sentence_end>', '', chunk_text).strip()
-                if clean_text:
-                    enqueue_tts_chunk(clean_text)
-                    buffer.clear()  # Clear buffer after flushing
+                # Send a copy of first few words immediately to start TTS ASAP
+                # Keep buffer intact so full sentence can be sent later
+                early_chunk = " ".join(buffer[:min(3, len(buffer))]).strip()  # First 2-3 tokens
+                clean_early = re.sub(r'<sentence_start>|<sentence_end>', '', early_chunk).strip()
+                if clean_early:
+                    enqueue_tts_chunk(clean_early)
                     early_flush_done = True  # Mark as done to prevent multiple early flushes
-                    # Continue accumulating for next chunk
+                    early_chunk_text = clean_early  # Store for deduplication later
+                    # Buffer stays intact - continue accumulating for full sentence
             
             # Check for sentence endings, but avoid splitting on abbreviations/initials
             ends = any(token.endswith(p) for p in [".", "!", "?"])
@@ -689,8 +692,20 @@ def speak_llm_response(prompt, context=""):
                 # Remove sentence tags before TTS
                 clean_text = re.sub(r'<sentence_start>|<sentence_end>', '', chunk_text).strip()
                 if clean_text:
-                    enqueue_tts_chunk(clean_text)
+                    # If we sent an early chunk, remove the duplicate prefix from full sentence
+                    if early_chunk_text and clean_text.startswith(early_chunk_text):
+                        # Only send the suffix (the part after the early chunk)
+                        suffix = clean_text[len(early_chunk_text):].strip()
+                        # Remove leading punctuation/whitespace that might be left
+                        suffix = suffix.lstrip(' ,')
+                        if suffix:
+                            enqueue_tts_chunk(suffix)
+                            print(f"[Speaker] 🔗 Sending suffix after early chunk: '{suffix}'")
+                    else:
+                        # No early chunk or doesn't match - send full sentence
+                        enqueue_tts_chunk(clean_text)
                 buffer.clear()
+                early_chunk_text = None  # Reset after sentence is complete
             else:
                 # Check if we have a pending initials and current token is a name
                 if (pending_initials and 
@@ -711,7 +726,14 @@ def speak_llm_response(prompt, context=""):
             chunk_text = " ".join(buffer).strip()
             clean_text = re.sub(r'<sentence_start>|<sentence_end>', '', chunk_text).strip()
             if clean_text:
-                enqueue_tts_chunk(clean_text)
+                # If we sent an early chunk, remove the duplicate prefix from remaining text
+                if early_chunk_text and clean_text.startswith(early_chunk_text):
+                    suffix = clean_text[len(early_chunk_text):].strip().lstrip(' ,')
+                    if suffix:
+                        enqueue_tts_chunk(suffix)
+                        print(f"[Speaker] 🔗 Sending final suffix after early chunk: '{suffix}'")
+                else:
+                    enqueue_tts_chunk(clean_text)
         # Flush any remaining batched chunks when streaming ends
         if TTS_BATCH_ENABLED:
             _flush_batch_if_ready()
