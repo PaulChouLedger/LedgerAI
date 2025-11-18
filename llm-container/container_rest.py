@@ -186,18 +186,22 @@ def handle_conversation(
     # Skip RAG for simple conversational queries to reduce latency
     rag_context = ""
     if RAG_MODE in ("CPU", "GPU"):
+        print(f"[Generic] 🔍 RAG_MODE={RAG_MODE} - checking if query should use RAG...")
+        
         # Only use RAG for queries that seem like knowledge/document questions
         # Simple conversational queries don't need RAG (faster response)
         # Skip RAG for personal/conversational queries (day, schedule, how are you, etc.)
         personal_keywords = ['my day', 'my schedule', 'my calendar', 'how are you', 'how am i', 
-                           'what am i', 'when am i', 'where am i', 'tell me about me']
+                          'what am i', 'when am i', 'where am i', 'tell me about me']
         is_personal_query = any(keyword in prompt.lower() for keyword in personal_keywords)
         
         # Use RAG for knowledge/document queries, but skip for personal/conversational
-        is_knowledge_query = (any(keyword in prompt.lower() for keyword in [
-            'what is', 'what are', 'how does', 'explain', 'tell me about',
-            'document', 'file', 'information about', 'details about'
-        ]) and not is_personal_query)
+        knowledge_keywords = ['what is', 'what are', 'how does', 'explain', 'tell me about',
+                            'document', 'file', 'information about', 'details about']
+        is_knowledge_query = (any(keyword in prompt.lower() for keyword in knowledge_keywords) 
+                            and not is_personal_query)
+        
+        print(f"[Generic] 🔍 Query analysis: is_personal={is_personal_query}, is_knowledge={is_knowledge_query}")
         
         if is_knowledge_query:
             try:
@@ -205,6 +209,16 @@ def handle_conversation(
                 rag_client = get_rag_client()
                 rag_mode = "GPU" if rag_client.use_gpu else "CPU"
                 print(f"[Generic] 🔍 RAG mode: {rag_mode}")
+                
+                # Check if RAG client has any embeddings
+                if hasattr(rag_client, '_cpu_chunks') and rag_client._cpu_chunks:
+                    print(f"[Generic] 📊 RAG index: {len(rag_client._cpu_chunks)} chunks available")
+                elif hasattr(rag_client, '_cpu_index') and rag_client._cpu_index:
+                    index_size = rag_client._cpu_index.ntotal if hasattr(rag_client._cpu_index, 'ntotal') else 0
+                    print(f"[Generic] 📊 RAG index: {index_size} vectors available")
+                else:
+                    print(f"[Generic] ⚠️ RAG index appears empty - no embeddings loaded")
+                
                 results = rag_client.search(query=prompt, k=3)
                 
                 if results and len(results) > 0:
@@ -212,17 +226,30 @@ def handle_conversation(
                     for i, result in enumerate(results[:3], 1):
                         score = result.get('score', 0)
                         text_preview = result.get('text', '')[:50]
-                        print(f"[Generic]   [{i}] Score: {score:.3f}, Preview: '{text_preview}...'")
+                        # Extract file name from metadata
+                        file_name = "unknown"
+                        if isinstance(result.get('metadata'), dict):
+                            file_path = result['metadata'].get('file_path', '')
+                            if file_path:
+                                from pathlib import Path
+                                file_name = Path(file_path).name
+                            else:
+                                file_name = result['metadata'].get('document_name', 'unknown')
+                        print(f"[Generic]   [{i}] Score: {score:.3f}, File: {file_name}, Preview: '{text_preview}...'")
                     rag_context = "\n".join(
                         [r.get("text", "") for r in results[:3] if r.get("text")]
                     )
                     print(f"[Generic] ✅ Using RAG context ({len(rag_context)} chars) for LLM response")
                 else:
-                    print(f"[Generic] ⚠️ RAG search returned no results")
+                    print(f"[Generic] ⚠️ RAG search returned no results (index may be empty or query doesn't match)")
             except Exception as e:
                 print(f"[Generic] ⚠️ RAG failed, using direct LLM: {e}")
+                import traceback
+                traceback.print_exc()
         else:
             print(f"[Generic] ⏭️ Skipping RAG for conversational query (faster response)")
+    else:
+        print(f"[Generic] ⏭️ RAG_MODE={RAG_MODE} - RAG disabled")
     
     contextual_sections: List[str] = []
     if rag_context:
