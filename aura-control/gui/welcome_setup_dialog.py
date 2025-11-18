@@ -268,22 +268,21 @@ class WelcomeSetupDialog(QDialog):
         event.ignore()
     
     def center_dialog(self):
-        """Center dialog on screen/parent using geometry (not availableGeometry to avoid top cutoff)"""
+        """Position dialog to align with white perimeter reference circle"""
         try:
-            # Ensure dialog size is set before centering
+            # Ensure dialog size is set before positioning
             if not self.width() or not self.height():
                 self.setFixedSize(1080, 1080)
             
             if self.parent():
-                # Center relative to parent (within white perimeter)
+                # Align with parent window position to match white perimeter
                 parent_geometry = self.parent().geometry()
-                x = parent_geometry.x() + (parent_geometry.width() - self.width()) // 2
-                y = parent_geometry.y() + (parent_geometry.height() - self.height()) // 2
+                x = parent_geometry.x()  # Match parent's x position
+                y = parent_geometry.y()  # Match parent's y position
             else:
-                # Center on screen - use geometry() not availableGeometry() to avoid top cutoff
-                screen = QApplication.primaryScreen().geometry()
-                x = (screen.width() - self.width()) // 2
-                y = (screen.height() - self.height()) // 2
+                # No parent: position at (0, 0) to match main window position
+                x = 0
+                y = 0
             
             # Clamp to ensure not cut off on small bars/margins
             x = max(0, x)

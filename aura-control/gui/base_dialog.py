@@ -56,17 +56,20 @@ class BaseAuraDialog(QDialog):
         pass
     
     def _center_dialog(self):
-        """Center dialog on screen or parent"""
+        """Position dialog to align with white perimeter reference circle"""
         if self.parent():
+            # Align with parent window position to match white perimeter
+            # Parent window is at (0, 0) with 1080x1080 size
+            # Dialog should be at same position to align borders perfectly
             parent_geometry = self.parent().geometry()
-            x = parent_geometry.x() + (parent_geometry.width() - self.width()) // 2
-            y = parent_geometry.y() + (parent_geometry.height() - self.height()) // 2
+            x = parent_geometry.x()  # Match parent's x position
+            y = parent_geometry.y()  # Match parent's y position
             self.move(x, y)
+            print(f"[BaseAuraDialog] 🎯 Dialog aligned with parent: position=({x}, {y})")
         else:
-            screen = QApplication.primaryScreen().geometry()
-            x = (screen.width() - self.width()) // 2
-            y = (screen.height() - self.height()) // 2
-            self.move(x, y)
+            # No parent: position at (0, 0) to match main window position
+            self.move(0, 0)
+            print(f"[BaseAuraDialog] 🎯 Dialog positioned at (0, 0)")
     
     def showEvent(self, event):
         """Handle dialog show event with smooth fade-in animation"""

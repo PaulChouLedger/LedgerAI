@@ -336,9 +336,14 @@ class CPUFAISSAutoIngest:
                 print("[Auto-Ingest] ⚠️ No embeddings to save")
                 return
             
+            # Normalize embeddings for cosine similarity (required for IndexFlatIP)
+            embeddings = embeddings.astype('float32')
+            faiss.normalize_L2(embeddings)
+            print(f"[Auto-Ingest] ✅ Normalized embeddings for cosine similarity")
+            
             # Create FAISS index
             index = faiss.IndexFlatIP(self.embedding_dimension)  # Inner product for cosine similarity
-            index.add(embeddings.astype('float32'))
+            index.add(embeddings)
             
             # Save CPU FAISS format
             faiss.write_index(index, str(self.cpu_embeddings_dir / "faiss_index.bin"))
@@ -355,10 +360,12 @@ class CPUFAISSAutoIngest:
             with open(self.cpu_embeddings_dir / "metadata.pkl", 'wb') as f:
                 pickle.dump(metadata, f)
             
-            print(f"[Auto-Ingest] ✅ Saved CPU FAISS embeddings: {len(self.chunks)} chunks")
+            print(f"[Auto-Ingest] ✅ Saved CPU FAISS embeddings: {len(self.chunks)} chunks to {self.cpu_embeddings_dir}")
             
         except Exception as e:
             print(f"[Auto-Ingest] ❌ Failed to save CPU embeddings: {e}")
+            import traceback
+            traceback.print_exc()
             raise
     
     def scan_and_process(self) -> Dict[str, Any]:

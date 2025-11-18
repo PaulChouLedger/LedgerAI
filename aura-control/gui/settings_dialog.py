@@ -512,16 +512,16 @@ class WifiSettingsDialog(QDialog):
         event.ignore()
     
     def _center_dialog(self):
+        """Position dialog to align with white perimeter reference circle"""
         if self.parent():
+            # Align with parent window position to match white perimeter
             parent_geometry = self.parent().geometry()
-            x = parent_geometry.x() + (parent_geometry.width() - self.width()) // 2
-            y = parent_geometry.y() + (parent_geometry.height() - self.height()) // 2
+            x = parent_geometry.x()  # Match parent's x position
+            y = parent_geometry.y()  # Match parent's y position
             self.move(x, y)
         else:
-            screen = QApplication.primaryScreen().geometry()
-            x = (screen.width() - self.width()) // 2
-            y = (screen.height() - self.height()) // 2
-            self.move(x, y)
+            # No parent: position at (0, 0) to match main window position
+            self.move(0, 0)
     
     def _setup_ui(self):
         main_layout = QVBoxLayout()
@@ -1477,18 +1477,16 @@ class SettingsDialog(QDialog):
         event.ignore()
     
     def center_dialog(self):
-        """Center dialog on screen"""
+        """Position dialog to align with white perimeter reference circle"""
         if self.parent():
+            # Align with parent window position to match white perimeter
             parent_geometry = self.parent().geometry()
-            x = parent_geometry.x() + (parent_geometry.width() - self.width()) // 2
-            y = parent_geometry.y() + (parent_geometry.height() - self.height()) // 2
+            x = parent_geometry.x()  # Match parent's x position
+            y = parent_geometry.y()  # Match parent's y position
             self.move(x, y)
         else:
-            # Center on primary screen
-            screen = QApplication.primaryScreen().geometry()
-            x = (screen.width() - self.width()) // 2
-            y = (screen.height() - self.height()) // 2
-            self.move(x, y)
+            # No parent: position at (0, 0) to match main window position
+            self.move(0, 0)
     
     def setup_ui(self):
         """Setup simplified settings UI with subsections"""

@@ -107,7 +107,9 @@ class RAGClient:
     def _load_cpu_index(self):
         """Load existing FAISS index from disk"""
         print("[RAG Client] 📂 Attempting to load CPU FAISS index from disk...")
-        index_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'embeddings')
+        # Use absolute path to match auto-ingest system (/app/data/embeddings)
+        # This matches the path used in cpu_faiss_auto_ingest.py
+        index_path = "/app/data/embeddings"
         print(f"[RAG Client] 📂 Index path: {index_path}")
         
         try:
@@ -132,7 +134,8 @@ class RAGClient:
                 print(f"[RAG Client] ✅ Loaded {len(self._cpu_chunks)} chunks from CPU index")
                 logger.info(f"[RAG Client] ✅ Loaded {len(self._cpu_chunks)} chunks from CPU index")
             else:
-                print("[RAG Client] ⚠️ No existing CPU index found - creating empty index")
+                print(f"[RAG Client] ⚠️ No existing CPU index found at {index_path}")
+                print(f"[RAG Client] ⚠️ Index exists: {os.path.exists(faiss_index_path)}, Metadata exists: {os.path.exists(metadata_path)}")
                 logger.warning("[RAG Client] ⚠️ No existing CPU index found")
                 # Create empty index
                 import faiss
@@ -245,6 +248,17 @@ class RAGClient:
         """Search using local CPU FAISS"""
         print(f"[RAG Client] 🔍 CPU search: query='{query[:50]}...', k={k}, threshold={threshold}")
         try:
+            # Try to reload index if it might be empty but files exist
+            if (self._cpu_index is None or len(self._cpu_chunks) == 0) and self._auto_ingest:
+                print("[RAG Client] 🔄 Index appears empty, attempting to reload...")
+                self._load_cpu_index()
+                # Also try reloading from auto-ingest
+                if self._auto_ingest.load_existing_embeddings():
+                    self._cpu_chunks = self._auto_ingest.chunks
+                    self._cpu_metadata = self._auto_ingest.metadata
+                    if self._cpu_chunks and len(self._cpu_chunks) > 0:
+                        self._rebuild_cpu_index()
+            
             if self._cpu_index is None or len(self._cpu_chunks) == 0:
                 print(f"[RAG Client] ⚠️ CPU index is empty (no documents indexed)")
                 logger.warning("[RAG Client] CPU index is empty")
@@ -256,12 +270,31 @@ class RAGClient:
             query_embedding = self._embedding_model.encode([query])[0]
             query_embedding = np.array([query_embedding]).astype('float32')
             
-            # Search FAISS index
-            distances, indices = self._cpu_index.search(query_embedding, k)
+            # Detect index type and handle accordingly
+            # IndexFlatIP returns similarity scores (higher = more similar)
+            # IndexFlatL2 returns distances (lower = more similar)
+            index_type = type(self._cpu_index).__name__
+            is_inner_product = 'IP' in index_type or 'InnerProduct' in index_type
             
-            # Convert distances to similarity scores (L2 distance -> cosine similarity approximation)
-            # Lower distance = higher similarity
-            scores = 1 / (1 + distances[0])
+            if is_inner_product:
+                # For IndexFlatIP: normalize query embedding for cosine similarity
+                import faiss
+                query_embedding = query_embedding.reshape(1, -1)
+                faiss.normalize_L2(query_embedding)
+                query_embedding = query_embedding.flatten()
+            
+            # Search FAISS index
+            search_results, indices = self._cpu_index.search(query_embedding.reshape(1, -1), k)
+            
+            # Convert to similarity scores
+            if is_inner_product:
+                # IndexFlatIP: results are already similarity scores (inner product = cosine similarity when normalized)
+                # Values range from -1 to 1, but typically 0 to 1 for normalized embeddings
+                scores = search_results[0]
+            else:
+                # IndexFlatL2: results are distances, convert to similarity
+                # Lower distance = higher similarity
+                scores = 1 / (1 + search_results[0])
             
             # Filter by threshold and build results
             results = []
@@ -292,6 +325,8 @@ class RAGClient:
         except Exception as e:
             print(f"[RAG Client] ❌ CPU search error: {e}")
             logger.error(f"[RAG Client] ❌ CPU search error: {e}")
+            import traceback
+            traceback.print_exc()
             return []
     
     def _rebuild_cpu_index(self):
@@ -306,8 +341,12 @@ class RAGClient:
             embeddings = self._embedding_model.encode(self._cpu_chunks)
             embeddings = np.array(embeddings).astype('float32')
             
-            print(f"[RAG Client] 🔧 Creating FAISS index...")
-            self._cpu_index = faiss.IndexFlatL2(self._embedding_dim)
+            # Normalize embeddings for cosine similarity (required for IndexFlatIP)
+            faiss.normalize_L2(embeddings)
+            print(f"[RAG Client] ✅ Normalized embeddings for cosine similarity")
+            
+            print(f"[RAG Client] 🔧 Creating FAISS index (IndexFlatIP for cosine similarity)...")
+            self._cpu_index = faiss.IndexFlatIP(self._embedding_dim)
             self._cpu_index.add(embeddings)
             
             print(f"[RAG Client] ✅ Rebuilt FAISS index: {self._cpu_index.ntotal} vectors")

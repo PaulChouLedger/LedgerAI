@@ -154,32 +154,20 @@ class FileUploadDialog(BaseAuraDialog):
         super().mousePressEvent(event)
         
     def center_dialog(self):
-        """Center the dialog properly on the screen"""
-        from PyQt5.QtWidgets import QDesktopWidget
+        """Position dialog to align with white perimeter reference circle"""
+        if self.parent():
+            # Align with parent window position to match white perimeter
+            parent_geometry = self.parent().geometry()
+            x = parent_geometry.x()  # Match parent's x position
+            y = parent_geometry.y()  # Match parent's y position
+            print(f"[Upload] 🎯 Dialog aligned with parent: position=({x}, {y})")
+        else:
+            # No parent: position at (0, 0) to match main window position
+            x = 0
+            y = 0
+            print(f"[Upload] 🎯 Dialog positioned at (0, 0)")
         
-        # Get screen geometry
-        screen = QDesktopWidget().screenGeometry()
-        print(f"[Upload] 🔍 Screen geometry: {screen.width()}x{screen.height()}")
-        
-        # Get dialog size (use fixed size since we set it to 1080x1080)
-        dialog_width = 1080
-        dialog_height = 1080
-        
-        # Calculate center position
-        x = (screen.width() - dialog_width) // 2
-        y = (screen.height() - dialog_height) // 2
-        
-        print(f"[Upload] 📐 Calculated center position: ({x}, {y})")
-        
-        # Move to center
         self.move(x, y)
-        print(f"[Upload] ✅ Dialog centered at ({x}, {y})")
-        
-        # Verify final position
-        final_pos = self.pos()
-        print(f"[Upload] 📐 Final dialog position: ({final_pos.x()}, {final_pos.y()})")
-        
-        # Ensure dialog is visible and active
         self.raise_()
         self.activateWindow()
     

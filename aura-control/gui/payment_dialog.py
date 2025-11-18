@@ -515,14 +515,16 @@ class PaymentDialog(QDialog):
         print("[PaymentDialog] 🔄 Closing dialog with fade-out animation...")
     
     def center_dialog(self):
-        """Center the dialog on screen"""
-        from PyQt5.QtWidgets import QDesktopWidget
-        
-        screen = QDesktopWidget().screenGeometry()
-        x = (screen.width() - 1080) // 2
-        y = (screen.height() - 1080) // 2
-        
-        self.move(x, y)
+        """Position dialog to align with white perimeter reference circle"""
+        if self.parent():
+            # Align with parent window position to match white perimeter
+            parent_geometry = self.parent().geometry()
+            x = parent_geometry.x()  # Match parent's x position
+            y = parent_geometry.y()  # Match parent's y position
+            self.move(x, y)
+        else:
+            # No parent: position at (0, 0) to match main window position
+            self.move(0, 0)
         self.raise_()
         self.activateWindow()
 
