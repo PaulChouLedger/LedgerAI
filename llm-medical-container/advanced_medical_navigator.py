@@ -1298,7 +1298,9 @@ Ask only one question about {field}."""
                 stream=True,  # Enable streaming
             )
             
-            # Yield tokens as they come from the LLM stream
+            # Buffer tokens until we have complete words, then yield words
+            # This prevents awkward sub-word splits like "G all bl adder" → "Gallbladder"
+            token_buffer = ""
             for chunk in stream:
                 if isinstance(chunk, dict):
                     # Extract content from chunk (OpenAI-style format)
@@ -1306,10 +1308,35 @@ Ask only one question about {field}."""
                         delta = chunk['choices'][0].get('delta', {})
                         content = delta.get('content', '')
                         if content:
-                            yield content  # Yield token immediately
+                            token_buffer += content
                 elif isinstance(chunk, str):
-                    yield chunk  # Yield token immediately
-                # Note: We don't accumulate here - tokens are yielded immediately for low latency
+                    token_buffer += chunk
+                
+                # Check if buffer contains complete words (space or punctuation indicates word boundary)
+                # Yield complete words, keep remaining sub-word pieces in buffer
+                while token_buffer:
+                    # Find first word boundary (space or punctuation)
+                    word_boundary_chars = [' ', '.', ',', '!', '?', ':', ';', '\n', '-', '(', ')', '[', ']']
+                    boundary_pos = None
+                    for char in word_boundary_chars:
+                        pos = token_buffer.find(char)
+                        if pos is not None and pos >= 0:
+                            if boundary_pos is None or pos < boundary_pos:
+                                boundary_pos = pos
+                    
+                    if boundary_pos is not None:
+                        # Found word boundary - yield complete word(s) up to boundary (inclusive)
+                        word = token_buffer[:boundary_pos + 1]
+                        token_buffer = token_buffer[boundary_pos + 1:]
+                        if word.strip():  # Only yield non-empty words
+                            yield word
+                    else:
+                        # No word boundary yet - keep buffering
+                        break
+            
+            # After stream ends, yield any remaining buffered content
+            if token_buffer.strip():
+                yield token_buffer
         except Exception as e:
             print(f"[Navigator] ⚠️ Streaming error: {e}")
             import traceback

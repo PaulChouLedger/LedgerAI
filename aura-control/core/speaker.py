@@ -594,32 +594,35 @@ def speak_llm_response(prompt, context=""):
         response = _post_stream(primary_port)
         if response.status_code != 200:
             raise RuntimeError(f"LLM HTTP {response.status_code} on port {primary_port}")
-        # Process streaming tokens
-        buffer = []
+        # Process streaming tokens - ONLY using sentence tags, NO fallbacks
         sentence_buffer = []  # Buffer for current sentence (between sentence_start and sentence_end)
         in_sentence = False  # Track if we're inside a sentence block
         tts_started = False  # Track if we've started TTS for current sentence
         early_chunk_sent = None  # Track early chunk text to avoid duplicates
         
         for line in response.iter_lines(decode_unicode=True):
-            token = line.strip()
+            token = line.rstrip("\r\n")
             if not token:
                 continue
+            
+            # Debug: Log all control tags
+            if token.startswith('<') and token.endswith('>'):
+                print(f"[Speaker] 🏷️  Control tag received: '{token}'")
 
-            # Handle sentence control markers
+            # Handle sentence control markers - REQUIRED, no fallback
             if token == '<sentence_start>':
                 # Start of new sentence - reset state
                 sentence_buffer = []
                 in_sentence = True
                 tts_started = False
                 early_chunk_sent = None
-                print(f"[Speaker] 🎬 Sentence started - beginning accumulation")
+                print(f"[Speaker] 🎬 <sentence_start> detected - ready for immediate TTS start")
                 continue
             elif token == '<sentence_end>':
                 # End of sentence - send complete sentence to TTS
-                # This handles any sentence structure since LLM properly marks complete thoughts
                 if sentence_buffer:
-                    chunk_text = " ".join(sentence_buffer).strip()
+                    # Join tokens directly (LLM tokens are already properly formatted)
+                    chunk_text = "".join(sentence_buffer).strip()
                     clean_text = re.sub(r'<sentence_start>|<sentence_end>', '', chunk_text).strip()
                     if clean_text:
                         # If we sent an early chunk, only send the suffix (remaining part)
@@ -628,15 +631,12 @@ def speak_llm_response(prompt, context=""):
                             if suffix:
                                 print(f"[Speaker] 🎙️ Sending sentence suffix: '{suffix}'")
                                 enqueue_tts_chunk(suffix)
-                            # If no suffix, early chunk was the complete sentence (single token)
+                            # If no suffix, early chunk was the complete sentence
                         elif not tts_started:
                             # Haven't started TTS yet - send full sentence
-                            # This handles edge case where sentence_end arrived before first token
                             print(f"[Speaker] 🎙️ Sending complete sentence: '{clean_text}'")
                             enqueue_tts_chunk(clean_text)
-                        # If tts_started and early_chunk matches full sentence, nothing more to send
                 elif in_sentence:
-                    # Empty sentence buffer but we're in a sentence - edge case handling
                     print(f"[Speaker] ⚠️ Empty sentence buffer on sentence_end")
                 # Reset state for next sentence
                 sentence_buffer = []
@@ -645,110 +645,40 @@ def speak_llm_response(prompt, context=""):
                 early_chunk_sent = None
                 continue
 
-            print(f"[LLM] 🧠 {token}")
-            
-            # If we're in a sentence block, use sentence_buffer; otherwise use regular buffer
-            if in_sentence:
-                sentence_buffer.append(token)
-                
-                # START TTS IMMEDIATELY: As soon as we have the first token after sentence_start
-                # This starts TTS generation immediately, reducing latency
-                if not tts_started and len(sentence_buffer) >= 1:
-                    first_chunk = " ".join(sentence_buffer).strip()
-                    if first_chunk:
-                        print(f"[Speaker] 🚀 Starting TTS immediately with '{first_chunk}' (sentence streaming...)")
-                        enqueue_tts_chunk(first_chunk)
-                        tts_started = True
-                        early_chunk_sent = first_chunk
-                # Continue accumulating in sentence_buffer until sentence_end
+            # Only process tokens if we're in a sentence block (tags required)
+            if not in_sentence:
+                print(f"[Speaker] ⚠️ Token '{token}' received outside sentence block - IGNORING (waiting for <sentence_start>)")
                 continue
-            else:
-                # Not in sentence block - use regular buffer logic
-                buffer.append(token)
+
+            print(f"[LLM] 🧠 {token}")
+            sentence_buffer.append(token)
             
-            # Count total words in buffer for accurate limit checking
-            total_words = sum(len(t.split()) for t in buffer)
-            
-            # Check for sentence endings, but avoid splitting on abbreviations/initials
-            ends = any(token.endswith(p) for p in [".", "!", "?"])
-            # Don't split on single letters followed by period (initials like "K.")
-            is_initial = len(token) == 2 and token.endswith('.') and token[0].isupper()
-            # Don't split on common abbreviations
-            is_abbreviation = token.lower() in ['mr.', 'mrs.', 'dr.', 'prof.', 'st.', 'ave.', 'blvd.', 'inc.', 'ltd.', 'corp.', 'etc.', 'vs.', 'jr.', 'sr.']
-            
-            # Check if this looks like a name continuation (single capitalized word ending with period)
-            # Only match single words, not full sentences
-            is_name_continuation = (token[0].isupper() and token.endswith('.') and 
-                                 len(token) > 2 and len(token.split()) == 1 and 
-                                 not token.lower() in ['the.', 'and.', 'or.', 'but.', 'for.', 'nor.', 'yet.', 'so.'])
-            
-            # Special case: if previous token was an initial (like "J.K.") and current token ends with period,
-            # treat it as a name continuation to prevent splitting
-            prev_token_was_initial = len(buffer) > 0 and len(buffer[-1]) == 2 and buffer[-1].endswith('.') and buffer[-1][0].isupper()
-            is_following_initial = prev_token_was_initial and token.endswith('.') and len(token) > 2
-            
-            # Don't split if current token is an initial/abbreviation OR if it looks like a name continuation
-            # OR if it's following an initial (like "Rowling." after "J.K.")
-            should_split = (ends and not is_initial and not is_abbreviation and not is_name_continuation and not is_following_initial) or total_words >= TTS_TOKEN_LIMIT
-            
-            # Dynamic pattern: detect if current token is a name following initials
-            # Pattern: "A.B." or "A.B.C." followed by "Name."
-            if (len(buffer) > 1 and 
-                token.endswith('.') and 
-                len(token) > 2 and 
-                len(token.split()) == 1 and  # Single word
-                token[0].isupper() and  # Capitalized
-                not token.lower() in ['the.', 'and.', 'or.', 'but.', 'for.', 'nor.', 'yet.', 'so.']):  # Not common words
-                
-                # Check if any previous sentence in buffer ends with initials pattern (A.B. or A.B.C.)
-                
-                # Look for initials pattern in any previous sentence
-                initials_pattern = r'\b[A-Z]\.(?:[A-Z]\.)*\s*$'
-                found_initials = False
-                
-                for i in range(len(buffer) - 1, -1, -1):
-                    if i < len(buffer) - 1:  # Don't check the current token
-                        sentence = buffer[i]
-                        if re.search(initials_pattern, sentence):
-                            # Don't split, let it continue to build the full name
-                            should_split = False
-                            found_initials = True
-                            break
-                
-                if not found_initials:
-                    pass
-            
-            if should_split:
-                chunk_text = " ".join(buffer).strip()
-                # Remove sentence tags before TTS
+            # START TTS when we have at least one token (navigator now sends complete words)
+            # Navigator buffers sub-word pieces and yields complete words, so we can start immediately
+            if not tts_started and len(sentence_buffer) >= 1:
+                # Join tokens directly - navigator sends complete words now
+                first_chunk = "".join(sentence_buffer).strip()
+                if first_chunk:
+                    print(f"[Speaker] 🚀 TTS STARTING with '{first_chunk}' ({len(sentence_buffer)} tokens)")
+                    enqueue_tts_chunk(first_chunk)
+                    tts_started = True
+                    early_chunk_sent = first_chunk
+            # Continue accumulating in sentence_buffer until sentence_end
+        
+        # After streaming ends, check if we're still in a sentence (shouldn't happen if tags are correct)
+        if in_sentence:
+            print(f"[Speaker] ⚠️ Stream ended while in sentence block - sending remaining {len(sentence_buffer)} tokens")
+            if sentence_buffer:
+                # Join tokens directly - navigator sends complete words now
+                chunk_text = "".join(sentence_buffer).strip()
                 clean_text = re.sub(r'<sentence_start>|<sentence_end>', '', chunk_text).strip()
                 if clean_text:
-                    enqueue_tts_chunk(clean_text)
-                buffer.clear()
-            else:
-                # Check if we have a pending initials and current token is a name
-                if (pending_initials and 
-                    token.endswith('.') and 
-                    len(token) > 2 and 
-                    len(token.split()) == 1 and 
-                    token[0].isupper() and 
-                    not token.lower() in ['the.', 'and.', 'or.', 'but.', 'for.', 'nor.', 'yet.', 'so.']):
-                    
-                    # Merge the pending initials with this name
-                    merged_text = pending_initials + " " + token
-                    print(f"[TTS Debug] MERGED: '{pending_initials}' + '{token}' = '{merged_text}'")
-                    pending_initials = None
-                    if merged_text and not re.match(r"^[\s.,!?]+$", merged_text):
-                        SENTENCE_QUEUE.put(merged_text.strip())
-                    buffer.clear()
-        if buffer:
-            chunk_text = " ".join(buffer).strip()
-            clean_text = re.sub(r'<sentence_start>|<sentence_end>', '', chunk_text).strip()
-            if clean_text:
-                enqueue_tts_chunk(clean_text)
-        # Flush any remaining batched chunks when streaming ends
-        if TTS_BATCH_ENABLED:
-            _flush_batch_if_ready()
+                    if early_chunk_sent and clean_text.startswith(early_chunk_sent):
+                        suffix = clean_text[len(early_chunk_sent):].strip().lstrip(' ,')
+                        if suffix:
+                            enqueue_tts_chunk(suffix)
+                    elif not tts_started:
+                        enqueue_tts_chunk(clean_text)
     except Exception as e:
         print(f"[LLM] ❌ Streaming error: {e}")
         # Flush batch even on error to avoid losing buffered chunks

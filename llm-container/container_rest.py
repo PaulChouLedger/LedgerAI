@@ -6,6 +6,8 @@ from llama_cpp import Llama
 import os, threading, atexit
 import requests
 from typing import List, Optional
+from collections import Counter
+import re
 
 # Conversation management for passive listening and keyword activation
 from conversation_manager import ConversationMemoryIndex, ConversationOrchestrator
@@ -306,35 +308,151 @@ def chat_tts():
             
             # Check if result is a generator (streaming)
             if hasattr(result, '__iter__') and not isinstance(result, str):
-                # Stream tokens as they come from the LLM
                 print(f"[Generic] ✅ Streaming enabled - tokens will be yielded as generated")
-                for chunk in result:
-                    if isinstance(chunk, dict):
-                        # Extract content from chunk (OpenAI-style format)
-                        if 'choices' in chunk and len(chunk['choices']) > 0:
-                            delta = chunk['choices'][0].get('delta', {})
-                            content = delta.get('content', '')
-                            if content:
-                                yield content + "\n"  # Add newline to flush to clients using iter_lines()
-                        elif 'content' in chunk:
-                            yield chunk['content'] + "\n"  # Add newline for line-delimited streaming
-                    elif isinstance(chunk, str):
-                        yield chunk + "\n"  # Add newline for line-delimited streaming
-                    else:
-                        # Fallback: convert to string
-                        yield str(chunk) + "\n"
+                normalized_chunks = _normalize_stream_chunks(result)
+                word_stream = _word_stream_from_chunks(normalized_chunks)
+                sentence_stream = _sentence_tag_stream(word_stream)
+                for token in sentence_stream:
+                    yield f"{token}\n"
                 print(f"[Generic] ✅ Streamed response complete")
             else:
                 # Fallback: non-streaming (result is a string)
                 print(f"[Generic] ⚠️ Streaming not available - yielding complete response")
-                yield result if result else "I apologize, I encountered an error."
+                fallback_text = result if isinstance(result, str) and result else "I apologize, I encountered an error."
+                normalized_chunks = _normalize_stream_chunks(iter([fallback_text]))
+                word_stream = _word_stream_from_chunks(normalized_chunks)
+                sentence_stream = _sentence_tag_stream(word_stream)
+                for token in sentence_stream:
+                    yield f"{token}\n"
         except Exception as e:
             print(f"[Generic] ❌ Error: {e}")
             import traceback
             traceback.print_exc()
-            yield "I apologize, I encountered an error."
+            fallback_text = "I apologize, I encountered an error."
+            normalized_chunks = _normalize_stream_chunks(iter([fallback_text]))
+            word_stream = _word_stream_from_chunks(normalized_chunks)
+            sentence_stream = _sentence_tag_stream(word_stream)
+            for token in sentence_stream:
+                yield f"{token}\n"
     
-    return Response(stream_with_context(generate_response()), mimetype="text/plain")
+    return Response(
+        stream_with_context(filter_think_blocks(generate_response())),
+        mimetype="text/plain",
+    )
+
+
+# === Streaming Helpers =======================================================
+
+WORD_BOUNDARY_CHARS = [' ', '.', ',', '!', '?', ':', ';', '-', '(', ')', '[', ']']
+SENTENCE_ENDINGS = ('.', '!', '?')
+
+
+def _normalize_stream_chunks(chunk_iter):
+    """
+    Normalize mixed-type streaming chunks (dicts, strings) to plain strings.
+    """
+    for chunk in chunk_iter:
+        if isinstance(chunk, dict):
+            if 'choices' in chunk and len(chunk['choices']) > 0:
+                delta = chunk['choices'][0].get('delta', {})
+                content = delta.get('content', '')
+                if content:
+                    yield content
+            elif 'content' in chunk:
+                content = chunk.get('content', '')
+                if content:
+                    yield content
+        elif isinstance(chunk, str):
+            if chunk:
+                yield chunk
+        else:
+            yield str(chunk)
+
+
+def _find_word_boundary(buffer: str):
+    """
+    Return the index of the first word boundary character in buffer, or None.
+    """
+    for idx, char in enumerate(buffer):
+        if char in WORD_BOUNDARY_CHARS:
+            return idx
+    return None
+
+
+def _word_stream_from_chunks(chunk_iter):
+    """
+    Buffer raw LLM chunks until we reach a word boundary, then yield the word.
+    Ensures downstream consumers receive complete words (no sub-word splits).
+    """
+    buffer = ""
+    for chunk in chunk_iter:
+        if not chunk:
+            continue
+        buffer += chunk
+        while True:
+            boundary_idx = _find_word_boundary(buffer)
+            if boundary_idx is None:
+                break
+            word = buffer[:boundary_idx + 1]
+            buffer = buffer[boundary_idx + 1:]
+            if word:
+                yield word
+    if buffer:
+        yield buffer
+
+
+def _sentence_tag_stream(word_stream):
+    """
+    Wrap word stream with <sentence_start>/<sentence_end> markers so TTS logic
+    can stay identical across containers.
+    """
+    sentence_text = ""
+    sentence_open = False
+    for word in word_stream:
+        if not sentence_open:
+            sentence_open = True
+            yield "<sentence_start>"
+        yield word
+        sentence_text += word
+        if sentence_text.strip().endswith(SENTENCE_ENDINGS):
+            yield "<sentence_end>"
+            sentence_text = ""
+            sentence_open = False
+    if sentence_open:
+        yield "<sentence_end>"
+
+
+def filter_think_blocks(generator):
+    """
+    Filter streaming output to remove <think> blocks and detect garbage output.
+    Mirrors the medical container behavior for parity.
+    """
+    accumulated_output = []
+    garbage_detected = False
+    
+    for token in generator:
+        if token and token.strip():
+            accumulated_output.append(token)
+            
+            full_output = ''.join(accumulated_output)
+            text_only = re.sub(r'<sentence_start>|<sentence_end>|\n', '', full_output)
+            
+            if len(text_only) > 50 and len(text_only) % 100 < 20:
+                char_counts = Counter(text_only.lower())
+                if char_counts:
+                    most_common_char, most_common_count = char_counts.most_common(1)[0]
+                    repetition_ratio = most_common_count / len(text_only)
+                    
+                    if repetition_ratio > 0.6:
+                        print(f"[Generic] ⚠️ GARBAGE DETECTED: char='{most_common_char}', ratio={repetition_ratio:.2f}, output='{text_only[:100]}'")
+                        garbage_detected = True
+                        break
+        
+        yield token
+    
+    if garbage_detected:
+        print(f"[Generic] 🔄 Using fallback response due to garbage detection")
+        yield "<sentence_start>\nI'm sorry, I had trouble processing that. Could you tell me more about what's going on?\n<sentence_end>\n"
 
 
 @app.route("/voice/transcript", methods=["POST"])
