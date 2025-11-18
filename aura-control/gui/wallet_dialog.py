@@ -415,14 +415,27 @@ class WalletDialog(BaseAuraDialog):
     
     def update_connection_status(self):
         """Update network connection status"""
-        if not self.wallet_manager:
-            return
-        if self.wallet_manager.is_connected():
-            self.status_label.setText("✅ Connected to Ethereum Mainnet")
-            self.status_label.setStyleSheet("color: #34C759; font-weight: bold; margin: 5px;")
-        else:
-            self.status_label.setText("❌ Not connected to Ethereum network")
-            self.status_label.setStyleSheet("color: #FF3B30; font-weight: bold; margin: 5px;")
+        try:
+            # Check if dialog still exists
+            try:
+                _ = self.isVisible()
+            except (RuntimeError, AttributeError):
+                return  # Dialog deleted, skip update
+            
+            if not self.wallet_manager or not hasattr(self, 'status_label'):
+                return
+            
+            try:
+                if self.wallet_manager.is_connected():
+                    self.status_label.setText("✅ Connected to Ethereum Mainnet")
+                    self.status_label.setStyleSheet("color: #34C759; font-weight: bold; margin: 5px;")
+                else:
+                    self.status_label.setText("❌ Not connected to Ethereum network")
+                    self.status_label.setStyleSheet("color: #FF3B30; font-weight: bold; margin: 5px;")
+            except Exception as e:
+                print(f"[WalletDialog] ⚠️ Error updating connection status display: {e}")
+        except Exception as e:
+            print(f"[WalletDialog] ⚠️ Error in update_connection_status: {e}")
     
     def connect_saved_wallet(self, address: str):
         """Connect using the saved wallet address"""
@@ -614,21 +627,65 @@ class WalletDialog(BaseAuraDialog):
     
     def refresh_balance_async(self):
         """Refresh wallet balance in background (non-blocking)"""
-        if not self.wallet_manager:
-            return
-        if not self.wallet_manager.connected_address:
-            # Still update usage stats even if no wallet connected
-            self.update_usage_stats()
-            return
-        
-        # Show loading state
-        self.balance_label.setText("⏳ Loading...")
-        self.balance_label.setStyleSheet("color: #8e8e93;")
-        
-        # Start background fetch
-        self.balance_worker = BalanceFetchWorker(self.wallet_manager)
-        self.balance_worker.balance_ready.connect(self.on_balance_ready)
-        self.balance_worker.start()
+        try:
+            # Check if dialog still exists
+            try:
+                _ = self.isVisible()
+            except (RuntimeError, AttributeError):
+                print("[WalletDialog] ⚠️ Dialog deleted, skipping balance refresh")
+                return
+            
+            if not self.wallet_manager:
+                return
+            if not self.wallet_manager.connected_address:
+                # Still update usage stats even if no wallet connected
+                try:
+                    self.update_usage_stats()
+                except Exception as e:
+                    print(f"[WalletDialog] ⚠️ Error updating usage stats: {e}")
+                return
+            
+            # Show loading state (safely)
+            try:
+                if hasattr(self, 'balance_label'):
+                    self.balance_label.setText("⏳ Loading...")
+                    self.balance_label.setStyleSheet("color: #8e8e93;")
+            except Exception as e:
+                print(f"[WalletDialog] ⚠️ Error setting loading state: {e}")
+            
+            # Clean up previous worker if exists
+            try:
+                if hasattr(self, 'balance_worker') and self.balance_worker:
+                    try:
+                        if self.balance_worker.isRunning():
+                            self.balance_worker.balance_ready.disconnect()
+                            self.balance_worker.quit()
+                            self.balance_worker.wait(100)
+                    except (RuntimeError, AttributeError, TypeError):
+                        pass  # Worker already stopped or deleted
+            except Exception:
+                pass
+            
+            # Start background fetch
+            try:
+                self.balance_worker = BalanceFetchWorker(self.wallet_manager)
+                self.balance_worker.balance_ready.connect(self.on_balance_ready)
+                self.balance_worker.start()
+            except Exception as e:
+                print(f"[WalletDialog] ❌ Error starting balance worker: {e}")
+                import traceback
+                traceback.print_exc()
+                # Show error to user safely
+                try:
+                    if hasattr(self, 'balance_label'):
+                        self.balance_label.setText("❌ Error refreshing balance")
+                        self.balance_label.setStyleSheet("color: #FF3B30;")
+                except Exception:
+                    pass
+        except Exception as e:
+            print(f"[WalletDialog] ❌ Critical error in refresh_balance_async: {e}")
+            import traceback
+            traceback.print_exc()
     
     def on_balance_ready(self, wallet_info):
         """Handle balance data received from background worker"""
@@ -639,55 +696,106 @@ class WalletDialog(BaseAuraDialog):
             print("[WalletDialog] ⚠️ Dialog deleted, ignoring balance update")
             return
         
-        if wallet_info['connected']:
-            # Display token balance
-            token_balance = wallet_info.get('token_balance')
-            if token_balance is not None:
-                token_symbol = wallet_info['token_info'].get('symbol', 'tokens')
+        # Wrap all widget access in try/except to prevent crashes
+        try:
+            if not wallet_info:
+                print("[WalletDialog] ⚠️ Empty wallet info received")
+                return
+            
+            if wallet_info.get('connected'):
+                # Display token balance
+                try:
+                    token_balance = wallet_info.get('token_balance')
+                    if token_balance is not None:
+                        token_info = wallet_info.get('token_info', {})
+                        token_symbol = token_info.get('symbol', 'tokens')
+                        
+                        # Check if balance is actually zero vs query error
+                        if token_balance == 0.0:
+                            if hasattr(self, 'balance_label'):
+                                self.balance_label.setText(f"💰 0.000000 {token_symbol}")
+                                self.balance_label.setStyleSheet("color: #FF9500;")  # Orange for zero balance
+                            if hasattr(self, 'address_display'):
+                                self.address_display.setText("⚠️ No tokens in wallet (ETH balance may exist)")
+                                self.address_display.setStyleSheet("color: #FF9500; font-size: 9pt;")
+                        else:
+                            if hasattr(self, 'balance_label'):
+                                self.balance_label.setText(f"💰 {token_balance:.6f} {token_symbol}")
+                                self.balance_label.setStyleSheet("color: #00ff00;")
+                    else:
+                        # RPC error - suggest upgrading to better provider
+                        if hasattr(self, 'balance_label'):
+                            self.balance_label.setText("⚠️ RPC Error - Click Refresh")
+                            self.balance_label.setStyleSheet("color: #FF9500;")
+                        if hasattr(self, 'address_display'):
+                            self.address_display.setText("💡 Tip: Set INFURA_URL for reliable access")
+                            self.address_display.setStyleSheet("color: #8e8e93; font-size: 9pt;")
+                except Exception as e:
+                    print(f"[WalletDialog] ⚠️ Error updating token balance display: {e}")
                 
-                # Check if balance is actually zero vs query error
-                if token_balance == 0.0:
-                    self.balance_label.setText(f"💰 0.000000 {token_symbol}")
-                    self.balance_label.setStyleSheet("color: #FF9500;")  # Orange for zero balance
-                    self.address_display.setText("⚠️ No tokens in wallet (ETH balance may exist)")
-                    self.address_display.setStyleSheet("color: #FF9500; font-size: 9pt;")
-                else:
-                    self.balance_label.setText(f"💰 {token_balance:.6f} {token_symbol}")
-                    self.balance_label.setStyleSheet("color: #00ff00;")
-            else:
-                # RPC error - suggest upgrading to better provider
-                self.balance_label.setText("⚠️ RPC Error - Click Refresh")
-                self.balance_label.setStyleSheet("color: #FF9500;")
-                self.address_display.setText("💡 Tip: Set INFURA_URL for reliable access")
-                self.address_display.setStyleSheet("color: #8e8e93; font-size: 9pt;")
+                # Display ETH balance
+                try:
+                    eth_balance = wallet_info.get('eth_balance')
+                    if eth_balance is not None and hasattr(self, 'eth_balance_label'):
+                        self.eth_balance_label.setText(f"Ξ {eth_balance:.6f} ETH")
+                except Exception as e:
+                    print(f"[WalletDialog] ⚠️ Error updating ETH balance display: {e}")
+                
+                # Display address
+                try:
+                    if self.wallet_manager and hasattr(self, 'address_display'):
+                        address = wallet_info.get('address')
+                        if address:
+                            short_addr = self.wallet_manager.format_address(address)
+                            self.address_display.setText(f"Address: {short_addr}")
+                except Exception as e:
+                    print(f"[WalletDialog] ⚠️ Error updating address display: {e}")
             
-            # Display ETH balance
-            eth_balance = wallet_info.get('eth_balance')
-            if eth_balance is not None:
-                self.eth_balance_label.setText(f"Ξ {eth_balance:.6f} ETH")
+            # Update usage stats (safe to call even if widgets don't exist)
+            try:
+                self.update_usage_stats()
+            except Exception as e:
+                print(f"[WalletDialog] ⚠️ Error updating usage stats: {e}")
             
-            # Display address
-            if self.wallet_manager:
-                short_addr = self.wallet_manager.format_address(wallet_info['address'])
-                self.address_display.setText(f"Address: {short_addr}")
-        
-        # Update usage stats
-        self.update_usage_stats()
-        
-        # Update connection status
-        self.update_connection_status()
+            # Update connection status (safe to call)
+            try:
+                self.update_connection_status()
+            except Exception as e:
+                print(f"[WalletDialog] ⚠️ Error updating connection status: {e}")
+                
+        except Exception as e:
+            print(f"[WalletDialog] ❌ Critical error in on_balance_ready: {e}")
+            import traceback
+            traceback.print_exc()
+            # Don't crash - just log the error
     
     def update_usage_stats(self):
         """Update usage statistics display (can be called independently)"""
-        if not self.usage_tracker:
-            return
-        session_usage = self.usage_tracker.get_session_usage()
-        total_paid = self.usage_tracker.get_total_paid()
-        balance_owed = self.usage_tracker.get_balance_owed()
-        
-        self.usage_label.setText(f"💳 {session_usage:.6f} tokens")
-        self.paid_label.setText(f"💸 {total_paid:.6f} paid")
-        self.owed_label.setText(f"📊 {balance_owed:.6f} owed")
+        try:
+            # Check if dialog still exists
+            try:
+                _ = self.isVisible()
+            except (RuntimeError, AttributeError):
+                return  # Dialog deleted, skip update
+            
+            if not self.usage_tracker:
+                return
+            
+            try:
+                session_usage = self.usage_tracker.get_session_usage()
+                total_paid = self.usage_tracker.get_total_paid()
+                balance_owed = self.usage_tracker.get_balance_owed()
+                
+                if hasattr(self, 'usage_label'):
+                    self.usage_label.setText(f"💳 {session_usage:.6f} tokens")
+                if hasattr(self, 'paid_label'):
+                    self.paid_label.setText(f"💸 {total_paid:.6f} paid")
+                if hasattr(self, 'owed_label'):
+                    self.owed_label.setText(f"📊 {balance_owed:.6f} owed")
+            except Exception as e:
+                print(f"[WalletDialog] ⚠️ Error updating usage stats display: {e}")
+        except Exception as e:
+            print(f"[WalletDialog] ⚠️ Error in update_usage_stats: {e}")
     
     def refresh_balance(self):
         """Legacy method - redirects to async version"""

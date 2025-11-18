@@ -49,36 +49,60 @@ class BaseAuraDialog(QDialog):
         # Override in subclass to set up UI
         self._setup_ui()
         
-        # White border overlay is drawn in paintEvent, no separate widget needed
+        # Create white border overlay widget (like home screen BorderOverlayWidget)
+        # This ensures border is always on top of all child widgets
+        self._create_border_overlay()
         
         # Center the dialog
         self._center_dialog()
+    
+    def _create_border_overlay(self):
+        """Create transparent overlay widget to draw white border on top of all widgets"""
+        from PyQt5.QtWidgets import QWidget
+        
+        class BorderOverlay(QWidget):
+            """Transparent overlay widget that draws the white border"""
+            def __init__(self, parent_dialog):
+                super().__init__(parent_dialog)
+                self.parent_dialog = parent_dialog
+                self.setAttribute(Qt.WA_TransparentForMouseEvents, True)
+                self.setAttribute(Qt.WA_TranslucentBackground, True)
+                self.setStyleSheet("background: transparent;")
+                self.setGeometry(0, 0, 1080, 1080)
+            
+            def paintEvent(self, event):
+                """Paint white border - EXACT match to BorderOverlayWidget in aura_gui.py"""
+                painter = QPainter(self)
+                painter.setRenderHint(QPainter.Antialiasing, True)
+                painter.setBrush(Qt.NoBrush)
+                
+                center = 540
+                # Move border to the edge: 540 (screen edge) - 4 (half of 8px pen) - 1 (safety) = 535px
+                radius = 535  # Right at the edge of the circular screen
+                
+                # White reference circle (always) - 70% transparent (30% opacity)
+                # EXACT match to home screen: QColor(255, 255, 255, 77) where 77/255 = 30% opacity
+                white_color = QColor(255, 255, 255, 77)  # Alpha: 77/255 = 30% opacity
+                white_pen = QPen(white_color, 8, Qt.SolidLine)
+                painter.setPen(white_pen)
+                painter.drawEllipse(center - radius, center - radius, radius * 2, radius * 2)
+                
+                painter.end()
+        
+        self.border_overlay = BorderOverlay(self)
+        self.border_overlay.raise_()  # Always on top
+        self.border_overlay.show()
     
     def _setup_ui(self):
         """Override in subclass to set up dialog UI"""
         pass
     
     def paintEvent(self, event):
-        """Override paintEvent to draw white border overlay matching home screen white border exactly"""
+        """Base paintEvent - border is drawn in border_overlay widget"""
         super().paintEvent(event)
-        
-        # Draw white border overlay - EXACT match to BorderOverlayWidget in aura_gui.py
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing, True)
-        painter.setBrush(Qt.NoBrush)
-        
-        center = 540
-        # Move border to the edge: 540 (screen edge) - 4 (half of 8px pen) - 1 (safety) = 535px
-        radius = 535  # Right at the edge of the circular screen
-        
-        # White reference circle (always) - 70% transparent (30% opacity)
-        # EXACT match to home screen: QColor(255, 255, 255, 77) where 77/255 = 30% opacity
-        white_color = QColor(255, 255, 255, 77)  # Alpha: 77/255 = 30% opacity
-        white_pen = QPen(white_color, 8, Qt.SolidLine)
-        painter.setPen(white_pen)
-        painter.drawEllipse(center - radius, center - radius, radius * 2, radius * 2)
-        
-        painter.end()
+        # Ensure border overlay is always on top after repaint
+        if hasattr(self, 'border_overlay'):
+            self.border_overlay.raise_()
     
     def _center_dialog(self):
         """Center dialog so its center aligns with white border center (540, 540)"""
@@ -144,7 +168,8 @@ class BaseAuraDialog(QDialog):
         # Use a timer to ensure positioning happens after window is fully shown
         from PyQt5.QtCore import QTimer
         QTimer.singleShot(50, self._center_dialog)  # Center after window is fully shown
-        QTimer.singleShot(50, self.update)  # Force repaint to show white border overlay
+        QTimer.singleShot(50, lambda: self.border_overlay.raise_() if hasattr(self, 'border_overlay') else None)  # Ensure border is on top
+        QTimer.singleShot(50, lambda: self.border_overlay.update() if hasattr(self, 'border_overlay') else None)  # Force border repaint
         
         # For sub-dialogs opened from parent, skip fade animation to avoid rendering issues
         if self.isModal() and self.parent():
