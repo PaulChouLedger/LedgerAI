@@ -132,15 +132,34 @@ class BaseAuraDialog(QDialog):
             else:
                 # No parent: use screen center or (540, 540) if screen is 1080x1080
                 app = QApplication.instance()
-                if app and app.primaryScreen():
-                    screen = app.primaryScreen().geometry()
-                    if screen.width() == 1080 and screen.height() == 1080:
+                if app:
+                    # Try to get the screen that contains the dialog, or use primary screen
+                    screen = None
+                    if hasattr(self, 'screen') and self.screen():
+                        screen = self.screen()
+                    elif app.primaryScreen():
+                        screen = app.primaryScreen()
+                    
+                    if screen:
+                        # Use availableGeometry for more accurate positioning
+                        screen_geom = screen.availableGeometry()
+                        screen_width = screen_geom.width()
+                        screen_height = screen_geom.height()
+                        
+                        if screen_width == 1080 and screen_height == 1080:
+                            # For 1080x1080 screen, center at (540, 540) = position at (0, 0)
+                            white_border_center_x = 540
+                            white_border_center_y = 540
+                        else:
+                            # For other screen sizes, use screen center
+                            white_border_center_x = screen_geom.x() + screen_width // 2
+                            white_border_center_y = screen_geom.y() + screen_height // 2
+                    else:
+                        # Fallback: assume 1080x1080 screen
                         white_border_center_x = 540
                         white_border_center_y = 540
-                    else:
-                        white_border_center_x = screen.width() // 2
-                        white_border_center_y = screen.height() // 2
                 else:
+                    # No app instance: assume 1080x1080 screen
                     white_border_center_x = 540
                     white_border_center_y = 540
             
@@ -152,6 +171,10 @@ class BaseAuraDialog(QDialog):
             x = white_border_center_x - 540
             y = white_border_center_y - 540
             
+            # Ensure position is valid (not negative)
+            x = max(0, x)
+            y = max(0, y)
+            
             # Move dialog to calculated position
             self.move(x, y)
             QApplication.processEvents()
@@ -161,8 +184,15 @@ class BaseAuraDialog(QDialog):
             dialog_center_x = actual_pos.x() + 540
             dialog_center_y = actual_pos.y() + 540
             
-        except Exception:
-            pass  # Silently fail if centering error
+        except Exception as e:
+            # Log error for debugging but don't crash
+            print(f"[BaseAuraDialog] ⚠️ Error centering dialog: {e}")
+            # Fallback: try to center at (0, 0) for 1080x1080 screen
+            try:
+                self.move(0, 0)
+                QApplication.processEvents()
+            except:
+                pass
     
     def showEvent(self, event):
         """Handle dialog show event with smooth fade-in animation"""
@@ -173,11 +203,15 @@ class BaseAuraDialog(QDialog):
         self.activateWindow()
         QApplication.processEvents()
         
+        # Center dialog immediately (may need refinement after window is fully shown)
+        self._center_dialog()
+        
         # Reposition dialog after showing to ensure correct centering
         # This is needed because geometry might not be accurate until after show
         # Use a timer to ensure positioning happens after window is fully shown
         from PyQt5.QtCore import QTimer
         QTimer.singleShot(50, self._center_dialog)  # Center after window is fully shown
+        QTimer.singleShot(100, self._center_dialog)  # Double-check after a bit more time
         
         # Ensure border overlay is always on top and visible
         def ensure_border_on_top():

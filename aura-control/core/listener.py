@@ -719,19 +719,6 @@ def listen():
             
             play_welcome_prompt(stream)
             
-            # Ensure stream is active and buffer is ready
-            if not stream.active:
-                print("[Wake Word] ⚠️  Stream not active after welcome prompt - starting...")
-                stream.start()
-            
-            # Flush initial buffer to ensure fresh audio
-            print("[Wake Word] 🧹 Flushing initial buffer...")
-            for _ in range(10):  # Flush more frames to ensure clean start
-                try:
-                    stream.read(FRAME_SIZE)
-                except:
-                    break
-            
             # Wake word buffer for Mycroft Precise (needs 2048 samples = 128ms at 16kHz)
             wake_word_buffer = []
             listening_active = False  # True after wake word detected
@@ -782,47 +769,12 @@ def listen():
                     
                 if wake_word_enabled and not listening_active and wake_word_detector is not None:
                     try:
-                        # Read audio using exact same method as VAD loop
-                        audio_block, overflowed = stream.read(FRAME_SIZE)
-                        
-                        # Check for stream issues
-                        if audio_block is None or audio_block.size == 0:
-                            print("[Wake Word] ⚠️  Empty audio block - stream may be paused or buffer empty")
-                            time.sleep(0.01)  # Brief pause to let buffer fill
-                            continue
-                        
-                        # Extract channel using exact same method as VAD
+                        audio_block, _ = stream.read(FRAME_SIZE)
                         channel_audio = audio_block[:, MICROPHONE_CHANNEL]
-                        
-                        # Check if channel_audio is valid (not all zeros due to stream issue)
-                        if channel_audio.size == 0:
-                            continue
-                        
-                        # Check if audio is all zeros (stream issue)
-                        audio_sum = np.abs(channel_audio).sum()
-                        if audio_sum == 0.0:
-                            # Audio is all zeros - this is a stream issue
-                            if not hasattr(wake_word_detector, '_zero_audio_warned'):
-                                print(f"[Wake Word] ⚠️  Audio is all zeros - stream may not be active or buffer empty")
-                                print(f"[Wake Word] 🔍 Stream active: {stream.active}, Stream stopped: {stream.stopped}")
-                                wake_word_detector._zero_audio_warned = True
-                            time.sleep(0.01)  # Brief pause
-                            continue
                         
                         # Use exact same audio processing as main listener VAD
                         # This ensures wake word sees identical audio levels and features
                         if channel_audio.size > 0:
-                            # Debug: check raw audio values on first few frames
-                            if not hasattr(wake_word_detector, '_raw_audio_debug'):
-                                wake_word_detector._raw_audio_debug = 0
-                            wake_word_detector._raw_audio_debug += 1
-                            if wake_word_detector._raw_audio_debug <= 3:
-                                raw_min = channel_audio.min()
-                                raw_max = channel_audio.max()
-                                raw_mean = channel_audio.mean()
-                                raw_std = channel_audio.std()
-                                print(f"[Wake Word] 🔍 RAW Audio Debug (Frame {wake_word_detector._raw_audio_debug}): dtype={channel_audio.dtype}, shape={channel_audio.shape}, min={raw_min:.6f}, max={raw_max:.6f}, mean={raw_mean:.6f}, std={raw_std:.6f}")
-                            
                             # Use same audio feature calculation as main listener
                             features = calculate_audio_features(channel_audio)
                             rms = features['rms']
