@@ -559,10 +559,11 @@ def play_welcome_prompt(stream):
             try:
                 audio_block, _ = stream.read(FRAME_SIZE)
                 if audio_block is not None and audio_block.size > 0:
-                    channel_audio = audio_block[:, MICROPHONE_CHANNEL]
-                    audio_sum = np.abs(channel_audio).sum()
+                    # Use EXACT same channel extraction as test_transcription.py
+                    channel_0 = audio_block[:, 0]
+                    audio_sum = np.abs(channel_0).sum()
                     if audio_sum > 0.0001:  # Got real audio (not all zeros)
-                        print(f"[Aura] ✅ Stream primed with real audio (frame {i+1}, RMS={np.sqrt(np.mean(channel_audio**2)):.6f})")
+                        print(f"[Aura] ✅ Stream primed with real audio (frame {i+1}, RMS={np.sqrt(np.mean(channel_0**2)):.6f})")
                         break
             except:
                 pass
@@ -797,18 +798,18 @@ def listen():
                         if audio_block is None or audio_block.size == 0:
                             continue
                         
-                        # Extract channel using EXACT same method as VAD loop (line 1036)
-                        channel_audio = audio_block[:, MICROPHONE_CHANNEL]
+                        # Use EXACT same channel extraction as test_transcription.py and VAD loop
+                        channel_0 = audio_block[:, 0]
                         
                         # VAD loop checks size < 512 and continues - we do the same
-                        if channel_audio.size < 512:
+                        if channel_0.size < 512:
                             continue
                         
                         # Use exact same audio processing as main listener VAD
                         # This ensures wake word sees identical audio levels and features
                         # VAD calculates features AFTER size check, so we do too
-                        # Use same audio feature calculation as main listener
-                        features = calculate_audio_features(channel_audio)
+                        # Use EXACT same feature calculation as test_transcription.py
+                        features = calculate_audio_features(channel_0)
                         rms = features['rms']
                         peak = features['peak']
                         
@@ -848,10 +849,10 @@ def listen():
                         
                         if frame_length:
                             # Precise-style detector: needs external buffering
-                            # Ensure channel_audio is 1D before appending
-                            if channel_audio.ndim > 1:
-                                channel_audio = channel_audio.flatten()
-                            wake_word_buffer.append(channel_audio)
+                            # Ensure channel_0 is 1D before appending (same as test_transcription.py)
+                            if channel_0.ndim > 1:
+                                channel_0 = channel_0.flatten()
+                            wake_word_buffer.append(channel_0)
                             
                             required_samples = frame_length
                             total_samples = sum(len(chunk) for chunk in wake_word_buffer)
@@ -925,13 +926,13 @@ def listen():
                                 continue
                         else:
                             # OpenWakeWord-style detector: handles buffering internally
-                            # Use exact same channel_audio as VAD (no conversion needed - stream already provides float32 normalized to [-1, 1])
-                            # Ensure channel_audio is 1D (same as VAD uses it)
-                            if channel_audio.ndim > 1:
-                                channel_audio = channel_audio.flatten()
+                            # Use exact same channel_0 as VAD (no conversion needed - stream already provides float32 normalized to [-1, 1])
+                            # Ensure channel_0 is 1D (same as VAD uses it)
+                            if channel_0.ndim > 1:
+                                channel_0 = channel_0.flatten()
                             
                             # Call process directly with same audio VAD uses - OpenWakeWord handles buffering internally
-                            wake_detected, confidence = wake_word_detector.process(channel_audio)
+                            wake_detected, confidence = wake_word_detector.process(channel_0)
                             
                             # Debug output (show confidence less frequently to reduce spam)
                             if not hasattr(wake_word_detector, '_debug_counter'):
@@ -958,8 +959,9 @@ def listen():
                                     print(f"[Wake Word] 📊 Features: ZCR={det_features['zcr']:.3f} | SpCentroid={det_features['spectral_centroid']:.0f}Hz | SpFlat={det_features['spectral_flatness']:.3f}")
                                 else:
                                     # Fallback if features not available
-                                    detection_rms = np.sqrt(np.mean(channel_audio**2))
-                                    detection_peak = np.abs(channel_audio).max()
+                                    # Use wake_word_frame which contains the actual audio that triggered detection
+                                    detection_rms = np.sqrt(np.mean(wake_word_frame**2))
+                                    detection_peak = np.abs(wake_word_frame).max()
                                     print(f"\n[Wake Word] ✅ Wake word detected! (confidence: {confidence:.6f})")
                                     print(f"[Wake Word] 📊 Audio at detection: RMS={detection_rms:.4f}, Peak={detection_peak:.4f}")
                                 listening_active = True
@@ -1075,16 +1077,19 @@ def listen():
                             last_vad_reset = time.time()
                             print(f"\n[VAD] 🔄 Periodic state reset (prevents decay)", end="\r")
                         
-                        channel_audio = audio_block[:, MICROPHONE_CHANNEL]
+                        # Use EXACT same channel extraction as test_transcription.py
+                        channel_0 = audio_block[:, 0]
                         
-                        if channel_audio.size < 512:
+                        if channel_0.size < 512:
                             continue
                         
                         # Hardware HPF already applied in ReSpeaker DSP
-                        vad_prob = model_vad(torch.from_numpy(channel_audio), SAMPLE_RATE).item()
+                        # Use EXACT same VAD call as test_transcription.py
+                        vad_prob = model_vad(torch.from_numpy(channel_0), SAMPLE_RATE).item()
                         
                         # Calculate audio features (no pre-gain)
-                        features = calculate_audio_features(channel_audio)
+                        # Use EXACT same feature calculation as test_transcription.py
+                        features = calculate_audio_features(channel_0)
                         
                         if wake_word_enabled:
                             print(f"[Wake Word Active] VAD {vad_prob:.2f} | RMS {features['rms']:.4f} | Peak {features['peak']:.3f}", end="\r")
@@ -1141,15 +1146,17 @@ def listen():
                             set_transcribing(False)
                             break
                         
-                        channel_audio = audio_block[:, MICROPHONE_CHANNEL]
+                        # Use EXACT same channel extraction as test_transcription.py
+                        channel_0 = audio_block[:, 0]
                         
-                        if channel_audio.size < 512:
+                        if channel_0.size < 512:
                             continue
                         
                         buffer.append(audio_block)
                         
                         # Hardware HPF already applied in ReSpeaker DSP
-                        vad_prob = model_vad(torch.from_numpy(channel_audio), SAMPLE_RATE).item()
+                        # Use EXACT same VAD call as test_transcription.py
+                        vad_prob = model_vad(torch.from_numpy(channel_0), SAMPLE_RATE).item()
                         
                         if vad_prob < VAD_SILENCE_THRESHOLD:
                             if silence_start is None:
