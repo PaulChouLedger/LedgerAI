@@ -47,7 +47,8 @@ python3 -c "import scipy; print(f'  scipy: {scipy.__version__}')" 2>/dev/null ||
 
 echo ""
 print_info "Step 1: Uninstalling incompatible packages..."
-pip uninstall -y numpy scipy kmeans1d precise 2>/dev/null || true
+pip uninstall -y numpy kmeans1d precise 2>/dev/null || true
+# Note: scipy may be system-wide and can't be uninstalled - we'll override it
 
 echo ""
 print_info "Step 2: Upgrading pip, setuptools, wheel..."
@@ -56,15 +57,17 @@ pip install --upgrade pip setuptools wheel
 echo ""
 print_info "Step 3: Installing compatible numpy/scipy versions..."
 # Install numpy first, then scipy (scipy depends on numpy)
-if pip install --no-cache-dir numpy; then
+# Use --ignore-installed to override system-wide scipy if present
+if pip install --no-cache-dir --ignore-installed numpy; then
     print_success "✅ numpy installed"
 else
     print_error "❌ numpy installation failed"
     exit 1
 fi
 
-if pip install --no-cache-dir scipy; then
-    print_success "✅ scipy installed"
+# Force install scipy into venv, ignoring system-wide version
+if pip install --no-cache-dir --ignore-installed scipy; then
+    print_success "✅ scipy installed (overriding system package)"
 else
     print_error "❌ scipy installation failed"
     exit 1
@@ -82,16 +85,29 @@ fi
 
 echo ""
 print_info "Step 5: Installing precise (kmeans1d may fail, but precise may still work)..."
-if pip install precise 2>&1 | tee /tmp/precise_install_fix.log; then
+# Try installing precise with --ignore-installed to avoid system package conflicts
+if pip install --ignore-installed precise 2>&1 | tee /tmp/precise_install_fix.log; then
     print_success "✅ precise installed successfully"
 else
     print_warning "⚠️  precise installation had issues"
     if grep -q "kmeans1d" /tmp/precise_install_fix.log; then
         print_info "   kmeans1d failed (this is often due to numpy incompatibility)"
-        print_info "   Trying to install precise without kmeans1d dependency..."
-        # Try installing precise-runner only (doesn't require kmeans1d)
-        if pip install precise-runner; then
-            print_success "✅ precise-runner installed (training may be limited without precise)"
+        print_info "   Trying to install kmeans1d separately with --ignore-installed..."
+        # Try installing kmeans1d separately
+        if pip install --ignore-installed --no-cache-dir kmeans1d 2>&1 | tee -a /tmp/precise_install_fix.log; then
+            print_success "✅ kmeans1d installed separately"
+            # Now try precise again
+            if pip install --ignore-installed precise 2>&1 | tee -a /tmp/precise_install_fix.log; then
+                print_success "✅ precise installed successfully"
+            else
+                print_warning "⚠️  precise still failed, but precise-runner may work"
+            fi
+        else
+            print_info "   kmeans1d failed - trying precise-runner only (doesn't require kmeans1d)..."
+            # Try installing precise-runner only (doesn't require kmeans1d)
+            if pip install precise-runner; then
+                print_success "✅ precise-runner installed (training may be limited without precise)"
+            fi
         fi
     fi
 fi

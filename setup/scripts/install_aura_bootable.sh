@@ -521,8 +521,10 @@ else
 fi
 
 # Fix numpy/scipy compatibility before installing precise (prevents binary incompatibility)
+# Use --ignore-installed to override system-wide packages (common on Ubuntu/Jetson)
 print_info "Ensuring numpy/scipy compatibility (fixing binary incompatibility issues)..."
-if pip install --upgrade --force-reinstall numpy scipy 2>&1 | tee -a /tmp/training_deps_install.log; then
+print_info "   Note: May override system-wide scipy if present (this is safe)"
+if pip install --upgrade --force-reinstall --ignore-installed numpy scipy 2>&1 | tee -a /tmp/training_deps_install.log; then
     print_info "✅ numpy/scipy upgraded and synchronized"
 else
     print_warning "⚠️  numpy/scipy upgrade had issues (may cause problems with precise)"
@@ -537,17 +539,30 @@ else
 fi
 
 # Install precise (kmeans1d may fail due to numpy incompatibility, but precise may still work)
-if pip install precise 2>&1 | tee -a /tmp/training_deps_install.log; then
+# Use --ignore-installed to avoid conflicts with system packages
+if pip install --ignore-installed precise 2>&1 | tee -a /tmp/training_deps_install.log; then
     print_info "✅ precise installed successfully"
     print_info "   You can now train custom wake word models using:"
     print_info "   - collect_wake_word_data.sh (data collection)"
     print_info "   - train_hey_aura.sh (model training)"
 else
     print_warning "⚠️  precise installation had issues (check logs)"
-    print_info "   If kmeans1d failed, you can try:"
-    print_info "   pip install --upgrade --force-reinstall numpy scipy"
-    print_info "   pip install precise"
-    print_info "   Or skip precise and use precise-runner only (training may be limited)"
+    if grep -q "kmeans1d" /tmp/training_deps_install.log 2>/dev/null; then
+        print_info "   kmeans1d failed - trying to install separately..."
+        if pip install --ignore-installed --no-cache-dir kmeans1d 2>&1 | tee -a /tmp/training_deps_install.log; then
+            print_info "   ✅ kmeans1d installed, retrying precise..."
+            if pip install --ignore-installed precise 2>&1 | tee -a /tmp/training_deps_install.log; then
+                print_info "✅ precise installed successfully after kmeans1d fix"
+            fi
+        else
+            print_info "   kmeans1d still failed - precise-runner will work without it"
+        fi
+    else
+        print_info "   If issues persist, try:"
+        print_info "   pip install --upgrade --force-reinstall --ignore-installed numpy scipy"
+        print_info "   pip install --ignore-installed precise"
+        print_info "   Or skip precise and use precise-runner only (training may be limited)"
+    fi
 fi
 
 # Download precise-engine binary for ARM64/Jetson
