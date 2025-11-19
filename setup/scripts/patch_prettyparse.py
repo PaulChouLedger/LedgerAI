@@ -10,19 +10,89 @@ import importlib.util
 
 def find_prettyparse_module():
     """Find where prettyparse is installed"""
+    # Don't import prettyparse directly (might have syntax errors from broken patches)
+    # Instead, search common installation paths
+    import os
+    possible_paths = [
+        os.path.expanduser("~/.local/lib/python3.10/site-packages/prettyparse.py"),
+        os.path.expanduser("~/aura-env/lib/python3.10/site-packages/prettyparse.py"),
+        "/usr/local/lib/python3.10/site-packages/prettyparse.py",
+    ]
+    
+    for path in possible_paths:
+        if os.path.exists(path):
+            return path
+    
+    # Fallback: try importing (might fail if broken)
     try:
         import prettyparse
         return prettyparse.__file__
-    except ImportError:
+    except (ImportError, SyntaxError):
         return None
+
+def fix_broken_file(prettyparse_path):
+    """Fix syntax errors in prettyparse.py by removing broken patches"""
+    try:
+        with open(prettyparse_path, 'r') as f:
+            lines = f.readlines()
+    except Exception as e:
+        print(f"[Patch] ⚠️  Could not read file: {e}")
+        return False
+    
+    # Look for broken string literals or patch markers
+    new_lines = []
+    in_patch = False
+    in_broken_string = False
+    fixed = False
+    
+    for i, line in enumerate(lines):
+        # Check for patch markers
+        if '# === PATCH:' in line or '# === END PATCH ===' in line:
+            in_patch = not in_patch
+            fixed = True
+            continue
+        
+        # Check for unterminated string (line ends with + ' but no closing quote)
+        # Look for patterns like: parser.epilog = ... + '  (without closing quote)
+        if ("parser.epilog" in line and "+ '" in line) or ("parser.epilog" in line and '+ "' in line):
+            # Count quotes to see if string is terminated
+            single_quotes = line.count("'") - line.count("\\'")
+            double_quotes = line.count('"') - line.count('\\"')
+            # If odd number of quotes after the +, it's broken
+            if single_quotes % 2 != 0 or double_quotes % 2 != 0:
+                # This is a broken line, skip it
+                fixed = True
+                continue
+        
+        # If we're in a patch section, skip it
+        if in_patch:
+            continue
+        
+        new_lines.append(line)
+    
+    if fixed:
+        print("[Patch] 🔧 Fixing broken file (removing syntax errors)...")
+        with open(prettyparse_path, 'w') as f:
+            f.writelines(new_lines)
+        print("[Patch] ✅ File fixed")
+        return True
+    
+    return False
 
 def patch_prettyparse(prettyparse_path):
     """Add create_parser to prettyparse if missing"""
     print(f"[Patch] Found prettyparse at: {prettyparse_path}")
     
+    # First, try to fix any broken syntax errors
+    fix_broken_file(prettyparse_path)
+    
     # Read the current file
-    with open(prettyparse_path, 'r') as f:
-        content = f.read()
+    try:
+        with open(prettyparse_path, 'r') as f:
+            content = f.read()
+    except Exception as e:
+        print(f"[Patch] ❌ Could not read file: {e}")
+        return False
     
     # Check what functions already exist
     has_create_parser = 'def create_parser' in content or 'create_parser =' in content
@@ -137,7 +207,11 @@ def add_to_parser(parser, *args, **kwargs):
         usage_text = args[0]
         if hasattr(parser, 'epilog'):
             current = getattr(parser, 'epilog', '') or ''
-            parser.epilog = current + '\n' + usage_text
+            # Safely append usage text
+            if current:
+                parser.epilog = current + '\\n' + usage_text
+            else:
+                parser.epilog = usage_text
         else:
             # Add as description if no description exists
             if not parser.description:
@@ -291,8 +365,27 @@ def add_to_parser(parser, *args, **kwargs):
             print("[Patch] ❌ Could not find __init__.py")
             return False
 
+def check_typing_conflict():
+    """Check for conflicting typing.py package"""
+    import os
+    typing_paths = [
+        os.path.expanduser("~/.local/lib/python3.10/site-packages/typing.py"),
+        os.path.expanduser("~/aura-env/lib/python3.10/site-packages/typing.py"),
+    ]
+    
+    for path in typing_paths:
+        if os.path.exists(path):
+            print(f"[Warning] ⚠️  Found conflicting typing.py at: {path}")
+            print(f"[Warning]    Python 3.10 has typing built-in. This package can cause conflicts.")
+            print(f"[Warning]    To fix: pip uninstall typing")
+            return True
+    return False
+
 def test_import():
     """Test if required functions can be imported"""
+    # Check for typing conflict first
+    check_typing_conflict()
+    
     try:
         # Clear any cached imports
         if 'prettyparse' in sys.modules:
@@ -302,6 +395,10 @@ def test_import():
         print("[Test] ✅ create_parser import successful!")
         print("[Test] ✅ add_to_parser import successful!")
         return True
+    except SyntaxError as e:
+        print(f"[Test] ❌ Syntax error in prettyparse.py: {e}")
+        print(f"[Test] 💡 Try running the patch script again to fix syntax errors")
+        return False
     except ImportError as e:
         print(f"[Test] ❌ Import failed: {e}")
         return False
