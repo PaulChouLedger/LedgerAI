@@ -257,64 +257,96 @@ print_info "Note: precise-train will automatically use wake-word/ and not-wake-w
 # Let's try each format and capture output to see what works
 print_info "Attempting training with different argument formats..."
 TRAINING_SUCCESS=false
-TRAIN_OUTPUT=""
+LAST_ERROR=""
 
 # Try 1: --epochs as separate argument (most standard)
 print_info "Trying: $PRECISE_TRAIN_CMD ${MODEL_NAME}.net --epochs $EPOCHS"
-TRAIN_OUTPUT=$($PRECISE_TRAIN_CMD "${MODEL_NAME}.net" "--epochs" "$EPOCHS" 2>&1) && {
+if TRAIN_OUTPUT=$($PRECISE_TRAIN_CMD "${MODEL_NAME}.net" "--epochs" "$EPOCHS" 2>&1); then
     print_success "Training complete!"
     TRAINING_SUCCESS=true
-}
+else
+    LAST_ERROR="$TRAIN_OUTPUT"
+    print_info "  ❌ Failed: $(echo "$TRAIN_OUTPUT" | head -3 | tr '\n' ' ')"
+fi
 
 # Try 2: -e as separate argument
 if [ "$TRAINING_SUCCESS" = false ]; then
     print_info "Trying: $PRECISE_TRAIN_CMD ${MODEL_NAME}.net -e $EPOCHS"
-    TRAIN_OUTPUT=$($PRECISE_TRAIN_CMD "${MODEL_NAME}.net" "-e" "$EPOCHS" 2>&1) && {
+    if TRAIN_OUTPUT=$($PRECISE_TRAIN_CMD "${MODEL_NAME}.net" "-e" "$EPOCHS" 2>&1); then
         print_success "Training complete!"
         TRAINING_SUCCESS=true
-    }
+    else
+        LAST_ERROR="$TRAIN_OUTPUT"
+        print_info "  ❌ Failed: $(echo "$TRAIN_OUTPUT" | head -3 | tr '\n' ' ')"
+    fi
 fi
 
 # Try 3: --epochs=50 format (equals sign)
 if [ "$TRAINING_SUCCESS" = false ]; then
     print_info "Trying: $PRECISE_TRAIN_CMD ${MODEL_NAME}.net --epochs=$EPOCHS"
-    TRAIN_OUTPUT=$($PRECISE_TRAIN_CMD "${MODEL_NAME}.net" "--epochs=$EPOCHS" 2>&1) && {
+    if TRAIN_OUTPUT=$($PRECISE_TRAIN_CMD "${MODEL_NAME}.net" "--epochs=$EPOCHS" 2>&1); then
         print_success "Training complete!"
         TRAINING_SUCCESS=true
-    }
+    else
+        LAST_ERROR="$TRAIN_OUTPUT"
+        print_info "  ❌ Failed: $(echo "$TRAIN_OUTPUT" | head -3 | tr '\n' ' ')"
+    fi
 fi
 
 # Try 4: -e=50 format (equals sign)
 if [ "$TRAINING_SUCCESS" = false ]; then
     print_info "Trying: $PRECISE_TRAIN_CMD ${MODEL_NAME}.net -e=$EPOCHS"
-    TRAIN_OUTPUT=$($PRECISE_TRAIN_CMD "${MODEL_NAME}.net" "-e=$EPOCHS" 2>&1) && {
+    if TRAIN_OUTPUT=$($PRECISE_TRAIN_CMD "${MODEL_NAME}.net" "-e=$EPOCHS" 2>&1); then
         print_success "Training complete!"
         TRAINING_SUCCESS=true
-    }
+    else
+        LAST_ERROR="$TRAIN_OUTPUT"
+        print_info "  ❌ Failed: $(echo "$TRAIN_OUTPUT" | head -3 | tr '\n' ' ')"
+    fi
 fi
 
 # Try 5: No epochs argument (use default of 10)
 if [ "$TRAINING_SUCCESS" = false ]; then
     print_warning "All epochs formats failed, trying without epochs (will use default: 10)"
     print_info "Trying: $PRECISE_TRAIN_CMD ${MODEL_NAME}.net"
-    TRAIN_OUTPUT=$($PRECISE_TRAIN_CMD "${MODEL_NAME}.net" 2>&1) && {
+    if TRAIN_OUTPUT=$($PRECISE_TRAIN_CMD "${MODEL_NAME}.net" 2>&1); then
         print_success "Training complete (used default epochs: 10)!"
         print_warning "Note: Used default epochs instead of requested $EPOCHS"
         TRAINING_SUCCESS=true
-    }
+    else
+        LAST_ERROR="$TRAIN_OUTPUT"
+        print_info "  ❌ Failed: $(echo "$TRAIN_OUTPUT" | head -5 | tr '\n' ' ')"
+        print_info ""
+        print_info "Last error output:"
+        echo "$LAST_ERROR" | head -10 | while read line; do
+            print_info "  $line"
+        done
+    fi
 fi
 
 if [ "$TRAINING_SUCCESS" = false ]; then
     print_error "Training failed with all argument formats!"
     print_info ""
+    print_info "Full error output from last attempt:"
+    echo "$LAST_ERROR"
+    print_info ""
     print_info "Troubleshooting:"
-    print_info "1. Check precise-train help: $PRECISE_TRAIN_CMD --help"
-    print_info "2. Verify training data exists:"
+    print_info "1. Re-patch prettyparse (may need updated patch):"
+    print_info "   cd ~/LedgerAI/setup/scripts"
+    print_info "   python3 patch_prettyparse.py"
+    print_info ""
+    print_info "2. Check precise-train help: $PRECISE_TRAIN_CMD --help"
+    print_info ""
+    print_info "3. Verify training data exists:"
     print_info "   - ls $TRAINING_DIR/wake-word/*.wav | wc -l"
-    print_info "   - ls $COMBINED_NEGATIVE/*.wav | wc -l"
-    print_info "3. Try running manually:"
+    print_info "   - ls $TRAINING_DIR/not-wake-word/*.wav | wc -l"
+    print_info ""
+    print_info "4. Try running manually to see exact error:"
     print_info "   cd $TRAINING_DIR"
-    print_info "   $PRECISE_TRAIN_CMD --help"
+    print_info "   $PRECISE_TRAIN_CMD ${MODEL_NAME}.net --epochs $EPOCHS"
+    print_info ""
+    print_info "5. Check if prettyparse is correctly patched:"
+    print_info "   python3 -c \"from prettyparse import create_parser, add_to_parser; print('OK')\""
     exit 1
 fi
 
