@@ -9,7 +9,13 @@ from sounddevice import PortAudioError
 import requests
 import subprocess
 import re
-from scipy.fft import rfft, rfftfreq
+# Import rfft and rfftfreq - compatible with both old and new scipy versions
+try:
+    from scipy.fft import rfft, rfftfreq
+except ImportError:
+    # Fallback for older scipy versions (< 1.4.0)
+    from scipy.fftpack import rfft
+    from numpy.fft import rfftfreq
 # Set up proper imports for organized structure
 import os
 import sys
