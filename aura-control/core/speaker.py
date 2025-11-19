@@ -99,10 +99,8 @@ EMPHASIZE_WORDS = ["really", "important", "please", "must", "urgent"]
 DEFAULT_EMOTION = "neutral"
 RATE = "100%"
 
-# Early chunking: Send partial sentences to TTS when natural break points are detected
-EARLY_CHUNKING_ENABLED = True  # Enable early chunking for lower latency
-EARLY_CHUNK_MIN_WORDS = 8  # Minimum words before sending early chunk
-EARLY_CHUNK_MAX_WORDS = 25  # Maximum words per early chunk (to avoid too long chunks)
+# Early chunking disabled - we respect LLM's sentence boundaries only
+EARLY_CHUNKING_ENABLED = False
 PITCH = "100%"
 
 # Note: detect_output_device() is called at module load time above
@@ -298,144 +296,6 @@ def merge_initials_with_names(text):
 
 # Global variable to store pending initials
 pending_initials = None
-
-def detect_natural_break_point(text):
-    """
-    Detect if text ends at a natural break point suitable for early chunking.
-    Returns True if text ends with a break point that makes sense to split on.
-    """
-    if not text or len(text.strip()) < 3:
-        return False
-    
-    text_stripped = text.strip()
-    
-    # Check for natural break points:
-    # 1. Dash followed by space and phrase (list items): "- Getting ready for work or school"
-    # Look for pattern: "- Word Word Word..." at the end
-    dash_phrase_pattern = r'-\s+([A-Z][a-z]+(?:\s+[a-z]+)+)\s*$'
-    dash_match = re.search(dash_phrase_pattern, text_stripped)
-    if dash_match:
-        phrase = dash_match.group(1)
-        words = phrase.split()
-        # If we have at least 3 words after dash, it's a good break point
-        if len(words) >= 3:
-            return True
-    
-    # 2. Comma followed by space and capital letter (new clause/phrase)
-    if re.search(r',\s+[A-Z]', text_stripped[-20:]):
-        return True
-    
-    # 3. Semicolon (definite break point)
-    if text_stripped.endswith(';'):
-        return True
-    
-    # 4. Colon (list introduction or explanation)
-    if text_stripped.endswith(':'):
-        return True
-    
-    # 5. Period followed by space and capital letter (sentence boundary)
-    if re.search(r'\.\s+[A-Z]', text_stripped[-20:]):
-        return True
-    
-    return False
-
-def extract_early_chunk(sentence_buffer):
-    """
-    Extract an early chunk from the sentence buffer if a natural break point is detected.
-    Returns (chunk_text, remaining_buffer) or (None, sentence_buffer) if no chunk should be extracted.
-    """
-    if not sentence_buffer or len(sentence_buffer) < 3:
-        return None, sentence_buffer
-    
-    # Join buffer to check for break points (tokens may include spaces)
-    full_text = "".join(sentence_buffer)
-    
-    # Count words in full text
-    words = full_text.split()
-    if len(words) < EARLY_CHUNK_MIN_WORDS:
-        return None, sentence_buffer
-    
-    # Strategy 1: If text ends at a natural break point and is within size limits
-    if detect_natural_break_point(full_text):
-        word_count = len(words)
-        if EARLY_CHUNK_MIN_WORDS <= word_count <= EARLY_CHUNK_MAX_WORDS:
-            return full_text, []
-    
-    # Strategy 2: Look for dash-separated list items (common pattern in user's example)
-    # Pattern: "- Word Word Word" followed by "-" or end of text
-    # This handles cases like "- Getting ready for work or school- Managing..."
-    dash_pattern = r'(-\s+[A-Z][^-\n]+?)(?=\s*-|$)'
-    matches = list(re.finditer(dash_pattern, full_text))
-    if matches:
-        # Get the last complete dash-separated item
-        last_match = matches[-1]
-        chunk_text = last_match.group(0).strip()
-        chunk_words = chunk_text.split()
-        
-        # Check if this chunk is substantial enough
-        if len(chunk_words) >= EARLY_CHUNK_MIN_WORDS:
-            # Find where this chunk ends in the full text
-            chunk_end_pos = last_match.end()
-            remaining_text = full_text[chunk_end_pos:].strip()
-            
-            # Split the buffer at this point
-            # We need to find the token position that corresponds to chunk_end_pos
-            # Approximate by finding where in the joined buffer we reach chunk_end_pos
-            accumulated_length = 0
-            split_index = len(sentence_buffer)
-            
-            for i, token in enumerate(sentence_buffer):
-                accumulated_length += len(token)
-                if accumulated_length >= chunk_end_pos:
-                    split_index = i + 1
-                    break
-            
-            if split_index < len(sentence_buffer):
-                # We found a split point
-                chunk_buffer = sentence_buffer[:split_index]
-                remaining_buffer = sentence_buffer[split_index:]
-                # Verify the chunk text matches
-                chunk_from_buffer = "".join(chunk_buffer).strip()
-                if chunk_from_buffer and len(chunk_from_buffer.split()) >= EARLY_CHUNK_MIN_WORDS:
-                    return chunk_from_buffer, remaining_buffer
-            elif remaining_text:
-                # Couldn't find exact split, return the matched chunk
-                return chunk_text, [remaining_text] if remaining_text else []
-            else:
-                return chunk_text, []
-    
-    # Strategy 3: If we exceed max words, find the best split point going backwards
-    if len(words) > EARLY_CHUNK_MAX_WORDS:
-        # Look backwards for a break point (comma, semicolon, etc.)
-        for i in range(len(words) - 1, EARLY_CHUNK_MIN_WORDS - 1, -1):
-            # Reconstruct text up to word i
-            partial_words = words[:i]
-            partial_text = " ".join(partial_words)
-            
-            # Check if this partial text ends at a natural break
-            if detect_natural_break_point(partial_text):
-                # Find the split point in the buffer
-                # Approximate by finding where we've accumulated enough words
-                word_count = 0
-                split_index = len(sentence_buffer)
-                accumulated_text = ""
-                
-                for j, token in enumerate(sentence_buffer):
-                    accumulated_text += token
-                    token_words = token.split()
-                    word_count += len(token_words)
-                    if word_count >= i:
-                        split_index = j + 1
-                        break
-                
-                if split_index < len(sentence_buffer):
-                    chunk_buffer = sentence_buffer[:split_index]
-                    remaining_buffer = sentence_buffer[split_index:]
-                    chunk_text = "".join(chunk_buffer).strip()
-                    if chunk_text:
-                        return chunk_text, remaining_buffer
-    
-    return None, sentence_buffer
 
 def check_for_initials_merge(text):
     """Check if this text should be merged with pending initials"""
@@ -776,29 +636,9 @@ def speak_llm_response(prompt, context=""):
                 print(f"[Speaker] ⚠️ Token '{token}' received outside sentence block - IGNORING (waiting for <sentence_start>)")
                 continue
 
-            # Accumulate tokens in buffer
+            # Accumulate tokens in buffer - send to TTS only when <sentence_end> is received
             print(f"[LLM] 🧠 {token}")
             sentence_buffer.append(token)
-            
-            # EARLY CHUNKING: Check if we should send a partial chunk to TTS for lower latency
-            if EARLY_CHUNKING_ENABLED and sentence_buffer:
-                # Join current buffer to check for break points
-                current_text = "".join(sentence_buffer).strip()
-                words = current_text.split()
-                
-                # Only check if we have enough words
-                if len(words) >= EARLY_CHUNK_MIN_WORDS:
-                    # Try to extract an early chunk
-                    early_chunk, remaining_buffer = extract_early_chunk(sentence_buffer)
-                    
-                    if early_chunk:
-                        # Clean the chunk text
-                        clean_chunk = re.sub(r'<sentence_start>|<sentence_end>', '', early_chunk).strip()
-                        if clean_chunk:
-                            print(f"[Speaker] ⚡ Early chunk detected ({len(clean_chunk.split())} words) - sending to TTS now: '{clean_chunk[:100]}...'")
-                            enqueue_tts_chunk(clean_chunk)
-                            # Update buffer with remaining tokens
-                            sentence_buffer = remaining_buffer
         
         # No fallback: if stream ends without sentence_end tag, tokens are lost (tags are required)
     except Exception as e:
