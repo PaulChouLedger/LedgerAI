@@ -774,7 +774,20 @@ def listen():
                     try:
                         # Read audio using EXACT same method as VAD loop (line 1011)
                         # VAD loop wraps this in try/except, so we do too
-                        audio_block, _ = stream.read(FRAME_SIZE)
+                        audio_block, overflowed = stream.read(FRAME_SIZE)
+                        
+                        # Debug: Check if audio_block is valid (first few reads)
+                        if not hasattr(wake_word_detector, '_stream_debug'):
+                            wake_word_detector._stream_debug = 0
+                        wake_word_detector._stream_debug += 1
+                        if wake_word_detector._stream_debug <= 3:
+                            print(f"[Wake Word] 🔍 Stream Debug (read {wake_word_detector._stream_debug}): audio_block shape={audio_block.shape if audio_block is not None else None}, dtype={audio_block.dtype if audio_block is not None else None}, min={audio_block.min() if audio_block is not None else None:.6f}, max={audio_block.max() if audio_block is not None else None:.6f}")
+                            print(f"[Wake Word] 🔍 Stream state: active={stream.active}, stopped={stream.stopped}")
+                        
+                        if audio_block is None or audio_block.size == 0:
+                            if wake_word_detector._stream_debug <= 10:
+                                print(f"[Wake Word] ⚠️  Empty audio_block on read {wake_word_detector._stream_debug}")
+                            continue
                         
                         # Extract channel using EXACT same method as VAD loop (line 1036)
                         channel_audio = audio_block[:, MICROPHONE_CHANNEL]
