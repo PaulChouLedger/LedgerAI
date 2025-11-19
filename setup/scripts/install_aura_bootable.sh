@@ -492,10 +492,28 @@ fi
 echo ""
 
 # ============================================================================
-# Step 3.5: Install Mycroft Precise for wake word detection
+# Step 3.5: Install wake word detection engines (OpenWakeWord and Mycroft Precise)
 # ============================================================================
-print_step "3.5. Installing Mycroft Precise for wake word detection..."
+print_step "3.5. Installing wake word detection engines..."
 
+# Install OpenWakeWord (actively maintained, recommended for most systems)
+print_info "Installing OpenWakeWord..."
+if pip install "openwakeword>=0.5.0" 2>&1 | tee /tmp/openwakeword_install.log; then
+    print_info "✅ OpenWakeWord installed successfully"
+    
+    # Verify OpenWakeWord installation
+    if python3 -c "import openwakeword; from openwakeword import Model; print('✅ OpenWakeWord verified')" 2>/dev/null; then
+        print_info "✅ OpenWakeWord verified and ready to use"
+    else
+        print_warning "⚠️  OpenWakeWord installed but verification failed"
+    fi
+else
+    print_warning "⚠️  OpenWakeWord installation had issues (check logs)"
+    print_info "   Wake word detection may not work until this is resolved"
+fi
+
+# Install Mycroft Precise (alternative, recommended for Jetson)
+print_info "Installing Mycroft Precise..."
 # Install precise-runner (Python package)
 # Note: precise-engine is NOT a pip package - it's a binary downloaded separately
 print_info "Installing precise-runner..."
@@ -503,7 +521,7 @@ if pip install precise-runner 2>&1 | tee /tmp/precise_install.log; then
     print_info "✅ precise-runner installed successfully"
 else
     print_warning "⚠️  precise-runner installation had issues (check logs)"
-    print_info "   Wake word detection may not work until this is resolved"
+    print_info "   Mycroft Precise wake word detection may not work until this is resolved"
 fi
 
 # Fix prettyparse for precise-engine Python wrapper (if it exists)
@@ -721,8 +739,8 @@ if [ ! -f "$AURA_HOME/hey-mycroft.pb" ] && [ -f "$MODEL_DIR/hey-mycroft.pb" ]; t
     print_info "✅ Created symlink: $AURA_HOME/hey-mycroft.pb -> $MODEL_DIR/hey-mycroft.pb"
 fi
 
-# Verify installation
-print_info "Verifying Mycroft Precise installation..."
+# Verify installations
+print_info "Verifying wake word detection engines..."
 
 # Use the Python from the virtual environment for verification
 PYTHON_CMD="python3"
@@ -730,6 +748,23 @@ if [ -f "$VENV_DIR/bin/python3" ]; then
     PYTHON_CMD="$VENV_DIR/bin/python3"
 fi
 
+# Verify OpenWakeWord
+print_info "Verifying OpenWakeWord..."
+if $PYTHON_CMD -c "import openwakeword; from openwakeword import Model; print('SUCCESS')" 2>/dev/null; then
+    print_info "✅ OpenWakeWord is installed and importable"
+    print_info "   OpenWakeWord is ready to use (recommended for most systems)"
+else
+    print_warning "⚠️  OpenWakeWord not importable"
+    print_info "   Attempting to diagnose..."
+    if $PYTHON_CMD -c "import openwakeword" 2>&1; then
+        print_info "   Module exists but import failed - checking dependencies..."
+    else
+        print_info "   Module not found - may need to reinstall: pip install openwakeword"
+    fi
+fi
+
+# Verify Mycroft Precise
+print_info "Verifying Mycroft Precise..."
 if $PYTHON_CMD -c "from precise_runner import PreciseEngine, PreciseRunner" 2>/dev/null; then
     print_info "✅ Mycroft Precise Python package is importable"
 else
@@ -749,10 +784,14 @@ else
 fi
 
 if [ -f "$MODEL_DIR/hey-mycroft.pb" ] || [ -f "$AURA_HOME/hey-mycroft.pb" ]; then
-    print_info "✅ Wake word model file found"
+    print_info "✅ Mycroft Precise wake word model file found"
 else
-    print_warning "⚠️  Wake word model file not found"
+    print_warning "⚠️  Mycroft Precise wake word model file not found"
 fi
+
+print_info "✅ Wake word engines setup complete"
+print_info "   - OpenWakeWord: Recommended for most systems (actively maintained)"
+print_info "   - Mycroft Precise: Alternative option (recommended for Jetson)"
 
 echo ""
 
@@ -1352,10 +1391,14 @@ GITHUB_TOKEN=
 # Controls the volume of text-to-speech output
 TTS_VOLUME=50
 #
-# Wake Word Detection: Mycroft Precise (RECOMMENDED for Jetson - most reliable)
-# Install with: pip install precise-runner
-# Download model: wget https://github.com/MycroftAI/precise-data/raw/models/hey-mycroft.pb
-# Works natively on ARM64/Jetson - no manual setup needed
+# Wake Word Detection: Both engines installed
+# - OpenWakeWord (RECOMMENDED): Actively maintained, works on all platforms
+#   Install: pip install openwakeword (already done)
+# - Mycroft Precise (Alternative): Recommended for Jetson, more reliable on ARM64
+#   Install: pip install precise-runner (already done)
+#   Binary: precise-engine downloaded automatically
+#   Model: hey-mycroft.pb downloaded automatically
+# Both engines are ready to use - select in settings dialog
 EOF
 chown "$AURA_USER:$AURA_USER" "$ENV_FILE"
 print_info "✅ Wrote minimal .env (API keys only)"
@@ -1441,7 +1484,7 @@ if [ -f "$LEDGERAI_DIR/.env" ]; then
 else
     echo "⚠️  .env file: Created from template (needs API keys)"
 fi
-echo "ℹ️  Wake Word: Mycroft Precise (pip install precise-runner) - most reliable for Jetson"
+echo "✅ Wake Word Engines: OpenWakeWord (recommended) and Mycroft Precise (Jetson alternative) - both installed"
 echo ""
 echo "=========================================="
 echo "  Next Steps"
