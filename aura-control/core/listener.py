@@ -552,6 +552,24 @@ def play_welcome_prompt(stream):
         # Small delay to let buffer fill after flush (critical for wake word to get audio)
         time.sleep(0.1)
         
+        # Prime the stream by reading frames until we get real audio
+        # This ensures wake word detection starts with valid audio data
+        print("[Aura] 🔄 Priming audio stream...")
+        for i in range(20):  # Try up to 20 frames (640ms at 16kHz)
+            try:
+                audio_block, _ = stream.read(FRAME_SIZE)
+                if audio_block is not None and audio_block.size > 0:
+                    channel_audio = audio_block[:, MICROPHONE_CHANNEL]
+                    audio_sum = np.abs(channel_audio).sum()
+                    if audio_sum > 0.0001:  # Got real audio (not all zeros)
+                        print(f"[Aura] ✅ Stream primed with real audio (frame {i+1}, RMS={np.sqrt(np.mean(channel_audio**2)):.6f})")
+                        break
+            except:
+                pass
+            time.sleep(0.01)  # Small delay between reads
+        else:
+            print("[Aura] ⚠️  Stream priming completed (may still be zeros)")
+        
         print("[Aura] 🎤 Mic resumed after welcome prompt")
         
         try:
