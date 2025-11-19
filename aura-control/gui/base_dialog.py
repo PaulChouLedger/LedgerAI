@@ -125,12 +125,45 @@ class BaseAuraDialog(QDialog):
             else:
                 # No parent: center on screen
                 app = QApplication.instance()
-                if app and app.primaryScreen():
-                    screen = app.primaryScreen().geometry()
-                    x = (screen.width() - self.width()) // 2
-                    y = (screen.height() - self.height()) // 2
+                if app:
+                    # Try multiple methods to get screen geometry
+                    screen = None
+                    screen_geom = None
+                    
+                    # Method 1: Try to get the screen that contains this widget
+                    if hasattr(self, 'screen') and self.screen():
+                        screen = self.screen()
+                        screen_geom = screen.geometry()
+                    
+                    # Method 2: Try primary screen
+                    if not screen_geom and app.primaryScreen():
+                        screen = app.primaryScreen()
+                        screen_geom = screen.geometry()
+                    
+                    # Method 3: Try desktop widget (fallback)
+                    if not screen_geom:
+                        try:
+                            from PyQt5.QtWidgets import QDesktopWidget
+                            desktop = QDesktopWidget()
+                            screen_geom = desktop.screenGeometry()
+                        except:
+                            pass
+                    
+                    if screen_geom and screen_geom.width() > 0 and screen_geom.height() > 0:
+                        # Calculate center position
+                        x = screen_geom.x() + (screen_geom.width() - self.width()) // 2
+                        y = screen_geom.y() + (screen_geom.height() - self.height()) // 2
+                        
+                        # For 1080x1080 screen with 1080x1080 dialog, this should be (0, 0)
+                        # But ensure we don't go negative
+                        x = max(0, x)
+                        y = max(0, y)
+                    else:
+                        # Fallback: position at (0, 0) for 1080x1080 screen
+                        x = 0
+                        y = 0
                 else:
-                    # Fallback: position at (0, 0) for 1080x1080 screen
+                    # No app instance: position at (0, 0) for 1080x1080 screen
                     x = 0
                     y = 0
             
@@ -138,9 +171,15 @@ class BaseAuraDialog(QDialog):
             self.move(x, y)
             QApplication.processEvents()
             
+            # Debug output for troubleshooting
+            if not self.parent():
+                print(f"[BaseAuraDialog] 🎯 Centered dialog at ({x}, {y}) - size: {self.width()}x{self.height()}")
+            
         except Exception as e:
             # Log error for debugging but don't crash
             print(f"[BaseAuraDialog] ⚠️ Error centering dialog: {e}")
+            import traceback
+            traceback.print_exc()
             # Fallback: try to center at (0, 0) for 1080x1080 screen
             try:
                 self.move(0, 0)
@@ -162,10 +201,11 @@ class BaseAuraDialog(QDialog):
         
         # Reposition dialog after showing to ensure correct centering
         # This is needed because geometry might not be accurate until after show
-        # Use a timer to ensure positioning happens after window is fully shown
+        # Use multiple timers to ensure positioning happens after window is fully shown
         from PyQt5.QtCore import QTimer
         QTimer.singleShot(50, self._center_dialog)  # Center after window is fully shown
         QTimer.singleShot(100, self._center_dialog)  # Double-check after a bit more time
+        QTimer.singleShot(200, self._center_dialog)  # Final check for stubborn cases
         
         # Ensure border overlay is always on top and visible
         def ensure_border_on_top():

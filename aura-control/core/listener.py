@@ -9,13 +9,7 @@ from sounddevice import PortAudioError
 import requests
 import subprocess
 import re
-# Import rfft and rfftfreq - compatible with both old and new scipy versions
-try:
-    from scipy.fft import rfft, rfftfreq
-except ImportError:
-    # Fallback for older scipy versions (< 1.4.0)
-    from scipy.fftpack import rfft
-    from numpy.fft import rfftfreq
+from scipy.fft import rfft, rfftfreq
 # Set up proper imports for organized structure
 import os
 import sys
@@ -27,9 +21,8 @@ sys.path.insert(0, parent_dir)
 
 from speaker import speak_llm_response, is_playing
 from gui.aura_gui import set_transcribing
-# Wake word detection engines (Precise and OpenWakeWord)
+# Use Mycroft Precise for wake word detection (most reliable for Jetson)
 from precise_wake_word import create_precise_wake_word_detector
-from openwakeword_wake_word import create_openwakeword_detector
 
 # === Config ===
 SAMPLE_RATE = 16000
@@ -148,7 +141,7 @@ def find_device_index(max_retries=10, initial_delay=1.0, max_delay=5.0):
                 print(f"[Listener] 🎧 Found: {device['name']} (index {i})")
                 if attempt > 0:
                     print(f"[Listener] ✅ Microphone available after {attempt} retry attempt(s)")
-            return 2  # Device has 2 channels total (2 in, 2 out)
+                return 2  # Device has 2 channels total (2 in, 2 out)
         
         # Device not found yet
         if attempt < max_retries - 1:
@@ -163,7 +156,7 @@ def find_device_index(max_retries=10, initial_delay=1.0, max_delay=5.0):
             for i, device in enumerate(devices):
                 if device.get('max_input_channels', 0) > 0:
                     print(f"[Listener]    - {i}: {device['name']} ({device.get('max_input_channels', 0)} input channels)")
-    raise RuntimeError("Microphone not found")
+            raise RuntimeError("Microphone not found")
 
 # === Audio Feature Extraction ===
 def calculate_audio_features(audio_chunk, sample_rate=SAMPLE_RATE):
@@ -549,28 +542,6 @@ def play_welcome_prompt(stream):
             except:
                 break
         
-        # Small delay to let buffer fill after flush (critical for wake word to get audio)
-        time.sleep(0.1)
-        
-        # Prime the stream by reading frames until we get real audio
-        # This ensures wake word detection starts with valid audio data
-        print("[Aura] 🔄 Priming audio stream...")
-        for i in range(20):  # Try up to 20 frames (640ms at 16kHz)
-            try:
-                audio_block, _ = stream.read(FRAME_SIZE)
-                if audio_block is not None and audio_block.size > 0:
-                    # Use EXACT same channel extraction as test_transcription.py
-                    channel_0 = audio_block[:, 0]
-                    audio_sum = np.abs(channel_0).sum()
-                    if audio_sum > 0.0001:  # Got real audio (not all zeros)
-                        print(f"[Aura] ✅ Stream primed with real audio (frame {i+1}, RMS={np.sqrt(np.mean(channel_0**2)):.6f})")
-                        break
-            except:
-                pass
-            time.sleep(0.01)  # Small delay between reads
-        else:
-            print("[Aura] ⚠️  Stream priming completed (may still be zeros)")
-        
         print("[Aura] 🎤 Mic resumed after welcome prompt")
         
         try:
@@ -611,7 +582,6 @@ def listen():
     import sys
     wake_word_detector = None
     wake_word_enabled = False
-    wake_word_engine_name = "none"
     
     if wake_word_setting_enabled:
         # CRITICAL: Block transcription immediately if wake word is enabled
@@ -619,51 +589,32 @@ def listen():
         print("[Wake Word] 🔒 Blocking transcription until wake word detector is ready...")
         block_transcription("Wake word enabled - waiting for detector initialization")
         
-        # Get selected engine from settings
-        try:
-            from state import get_wake_word_engine
-            selected_engine = get_wake_word_engine()
-        except ImportError:
-            selected_engine = "precise"  # Default to Precise
-        
-        print(f"[Wake Word] 🔄 Initializing wake word engine: {selected_engine}...", flush=True)
+        # Initialize wake word detection - Mycroft Precise only (most reliable for Jetson)
+        print("[Wake Word] 🔄 Initializing Mycroft Precise...", flush=True)
         sys.stdout.flush()
-        
-        # Try to initialize the selected engine
         try:
-            if selected_engine == "openwakeword":
-                wake_word_detector = create_openwakeword_detector()
-                wake_word_engine_name = "OpenWakeWord"
-            else:  # Default to Precise
-                wake_word_detector = create_precise_wake_word_detector()
-                wake_word_engine_name = "Mycroft Precise"
-            
+            wake_word_detector = create_precise_wake_word_detector()
             if wake_word_detector:
-                print(f"[Wake Word] ✅ {wake_word_engine_name} initialized successfully", flush=True)
+                print("[Wake Word] ✅ Mycroft Precise initialized successfully", flush=True)
                 sys.stdout.flush()
                 wake_word_enabled = True
                 # Unblock transcription now that detector is ready (but still require wake word)
                 unblock_transcription()
-                print(f"[Wake Word] ✅ Wake word detector ready ({wake_word_engine_name}) - transcription will require wake word")
+                print("[Wake Word] ✅ Wake word detector ready - transcription will require wake word")
             else:
-                print(f"[Wake Word] ❌ {wake_word_engine_name} initialization returned None", flush=True)
+                print("[Wake Word] ❌ Mycroft Precise initialization returned None", flush=True)
                 sys.stdout.flush()
                 print("[Wake Word] ⚠️  Wake word enabled in settings but detector failed to initialize")
                 print("[Wake Word] 🔒 Transcription will remain BLOCKED until wake word detector is fixed")
                 print("[Wake Word] 💡 Check logs above for initialization errors")
-                if selected_engine == "openwakeword":
-                    print("[Wake Word] 💡 OpenWakeWord setup:")
-                    print("[Wake Word]     1. Install: pip install openwakeword")
-                    print("[Wake Word]     2. Models are downloaded automatically on first use")
-                else:
-                    print("[Wake Word] 💡 Mycroft Precise setup:")
-                    print("[Wake Word]     1. Install: pip install precise-runner")
-                    print("[Wake Word]     2. Download binary: See install_mycroft_precise.sh")
-                    print("[Wake Word]     3. Download model: wget https://github.com/MycroftAI/precise-data/raw/models/hey-mycroft.pb")
-                    print("[Wake Word]     4. Place model in: ~/precise-models/ or ~/")
+                print("[Wake Word] 💡 Mycroft Precise setup:")
+                print("[Wake Word]     1. Install: pip install precise-runner")
+                print("[Wake Word]     2. Download binary: See install_mycroft_precise.sh")
+                print("[Wake Word]     3. Download model: wget https://github.com/MycroftAI/precise-data/raw/models/hey-mycroft.pb")
+                print("[Wake Word]     4. Place model in: ~/precise-models/ or ~/")
                 print("[Wake Word] 💡 Or disable wake word in Settings → AI Model Settings")
         except Exception as e:
-            print(f"[Wake Word] ❌ {wake_word_engine_name} failed: {e}", flush=True)
+            print(f"[Wake Word] ❌ Mycroft Precise failed: {e}", flush=True)
             import traceback
             print(f"[Wake Word] 🔍 Traceback: {traceback.format_exc()}", flush=True)
             sys.stdout.flush()
@@ -671,16 +622,11 @@ def listen():
             print("[Wake Word] ⚠️  Wake word enabled in settings but detector failed to initialize")
             print("[Wake Word] 🔒 Transcription will remain BLOCKED until wake word detector is fixed")
             print("[Wake Word] 💡 Check logs above for initialization errors")
-            if selected_engine == "openwakeword":
-                print("[Wake Word] 💡 OpenWakeWord setup:")
-                print("[Wake Word]     1. Install: pip install openwakeword")
-                print("[Wake Word]     2. Models are downloaded automatically on first use")
-            else:
-                print("[Wake Word] 💡 Mycroft Precise setup:")
-                print("[Wake Word]     1. Install: pip install precise-runner")
-                print("[Wake Word]     2. Download binary: See install_mycroft_precise.sh")
-                print("[Wake Word]     3. Download model: wget https://github.com/MycroftAI/precise-data/raw/models/hey-mycroft.pb")
-                print("[Wake Word]     4. Place model in: ~/precise-models/ or ~/")
+            print("[Wake Word] 💡 Mycroft Precise setup:")
+            print("[Wake Word]     1. Install: pip install precise-runner")
+            print("[Wake Word]     2. Download binary: See install_mycroft_precise.sh")
+            print("[Wake Word]     3. Download model: wget https://github.com/MycroftAI/precise-data/raw/models/hey-mycroft.pb")
+            print("[Wake Word]     4. Place model in: ~/precise-models/ or ~/")
             print("[Wake Word] 💡 Or disable wake word in Settings → AI Model Settings")
     else:
         print("[Wake Word] ℹ️  Wake word detection disabled (toggle in Settings)")
@@ -791,70 +737,43 @@ def listen():
                     
                 if wake_word_enabled and not listening_active and wake_word_detector is not None:
                     try:
-                        # Read audio using EXACT same method as VAD loop (line 1011)
-                        # VAD loop wraps this in try/except, so we do too
-                        audio_block, overflowed = stream.read(FRAME_SIZE)
-                        
-                        if audio_block is None or audio_block.size == 0:
-                            continue
-                        
-                        # Use EXACT same channel extraction as test_transcription.py and VAD loop
-                        channel_0 = audio_block[:, 0]
-                        
-                        # VAD loop checks size < 512 and continues - we do the same
-                        if channel_0.size < 512:
-                            continue
+                        audio_block, _ = stream.read(FRAME_SIZE)
+                        channel_audio = audio_block[:, MICROPHONE_CHANNEL]
                         
                         # Use exact same audio processing as main listener VAD
                         # This ensures wake word sees identical audio levels and features
-                        # VAD calculates features AFTER size check, so we do too
-                        # Use EXACT same feature calculation as test_transcription.py
-                        features = calculate_audio_features(channel_0)
-                        rms = features['rms']
-                        peak = features['peak']
+                        if channel_audio.size > 0:
+                            # Use same audio feature calculation as main listener
+                            features = calculate_audio_features(channel_audio)
+                            rms = features['rms']
+                            peak = features['peak']
+                            
+                            # Store features for use when wake word is detected
+                            if not hasattr(wake_word_detector, '_last_features'):
+                                wake_word_detector._last_features = None
+                            wake_word_detector._last_features = features
+                            
+                            # Debug: check audio levels occasionally (every 100 frames or first 5)
+                            # Show same format as main listener VAD output
+                            if not hasattr(wake_word_detector, '_audio_level_debug'):
+                                wake_word_detector._audio_level_debug = 0
+                            wake_word_detector._audio_level_debug += 1
+                            if wake_word_detector._audio_level_debug <= 5 or wake_word_detector._audio_level_debug % 100 == 0:
+                                print(f"[Wake Word] 🔍 DEBUG Audio: RMS={rms:.4f}, Peak={peak:.4f} (Frame {wake_word_detector._audio_level_debug}) - Same as VAD processing")
                         
-                        # Wait for real audio - skip zero frames silently (like VAD does)
-                        # This ensures we don't process wake word on empty buffer
-                        # VAD naturally skips zeros by only processing when RMS/Peak are above thresholds
-                        if rms < 0.0001 and peak < 0.0001:
-                            # All zeros - stream buffer may not be filled yet or environment is silent
-                            # Continue reading until we get real audio (same as VAD behavior)
-                            # Don't spam logs - just silently skip like VAD does
+                        if channel_audio.size < 512:
+                            # Not enough samples, continue to next iteration
                             continue
                         
-                        # Real audio detected! Log once to confirm stream is working
-                        if not hasattr(wake_word_detector, '_real_audio_detected'):
-                            print(f"[Wake Word] ✅ Real audio detected! RMS={rms:.6f}, Peak={peak:.6f} - Stream is working")
-                            wake_word_detector._real_audio_detected = True
-                        
-                        # Store features for use when wake word is detected
-                        if not hasattr(wake_word_detector, '_last_features'):
-                            wake_word_detector._last_features = None
-                        wake_word_detector._last_features = features
-                        
-                        # Debug: check audio levels occasionally (every 100 frames or first 5)
-                        # Show same format as main listener VAD output
-                        if not hasattr(wake_word_detector, '_audio_level_debug'):
-                            wake_word_detector._audio_level_debug = 0
-                        wake_word_detector._audio_level_debug += 1
-                        if wake_word_detector._audio_level_debug <= 5 or wake_word_detector._audio_level_debug % 100 == 0:
-                            print(f"[Wake Word] 🔍 DEBUG Audio: RMS={rms:.4f}, Peak={peak:.4f} (Frame {wake_word_detector._audio_level_debug}) - Same as VAD processing")
-                        
-                        # Handle different wake word detector types
                         # Mycroft Precise requires 2048 samples (128ms at 16kHz), so we buffer frames
-                        # OpenWakeWord handles buffering internally, so we can call process() directly
+                        # Ensure channel_audio is 1D before appending
+                        if channel_audio.ndim > 1:
+                            channel_audio = channel_audio.flatten()
+                        wake_word_buffer.append(channel_audio)
                         
-                        # Check if detector uses frame_length (Precise) or handles buffering internally (OpenWakeWord)
-                        frame_length = getattr(wake_word_detector, 'frame_length', None)
-                        
-                        if frame_length:
-                            # Precise-style detector: needs external buffering
-                            # Ensure channel_0 is 1D before appending (same as test_transcription.py)
-                            if channel_0.ndim > 1:
-                                channel_0 = channel_0.flatten()
-                            wake_word_buffer.append(channel_0)
-                            
-                            required_samples = frame_length
+                        # Check if we have enough samples for Mycroft Precise frame
+                        if wake_word_detector and wake_word_detector.frame_length:
+                            required_samples = wake_word_detector.frame_length
                             total_samples = sum(len(chunk) for chunk in wake_word_buffer)
                             
                             if total_samples >= required_samples:
@@ -925,64 +844,13 @@ def listen():
                                 # Not enough samples yet, continue buffering - loop back to read more
                                 continue
                         else:
-                            # OpenWakeWord-style detector: handles buffering internally
-                            # Use exact same channel_0 as VAD (no conversion needed - stream already provides float32 normalized to [-1, 1])
-                            # Ensure channel_0 is 1D (same as VAD uses it)
-                            if channel_0.ndim > 1:
-                                channel_0 = channel_0.flatten()
-                            
-                            # Call process directly with same audio VAD uses - OpenWakeWord handles buffering internally
-                            wake_detected, confidence = wake_word_detector.process(channel_0)
-                            
-                            # Debug output (show confidence less frequently to reduce spam)
-                            if not hasattr(wake_word_detector, '_debug_counter'):
-                                wake_word_detector._debug_counter = 0
-                            wake_word_detector._debug_counter += 1
-                            
-                            # Show confidence every 100 frames, or if confidence > threshold/10 (getting close), or if confidence > 0
-                            threshold = getattr(wake_word_detector, 'threshold', 0.5)
-                            show_debug = (wake_word_detector._debug_counter % 100 == 0) or (confidence > threshold / 10) or (confidence > 0.001)
-                            if show_debug:
-                                status = "🔴" if confidence < threshold * 0.5 else "🟡" if confidence < threshold else "🟢"
-                                print(f"[Wake Word] {status} Confidence: {confidence:.6f} (threshold: {threshold:.6f}) - Frame {wake_word_detector._debug_counter}")
-                                
-                            # Heartbeat every 500 frames to confirm we're still listening
-                            if wake_word_detector._debug_counter % 500 == 0:
-                                print(f"[Wake Word] 💓 Still listening for wake word... (Frame {wake_word_detector._debug_counter})")
-                            
-                            if wake_detected:
-                                # Print RMS and audio features at detection time (using same calculation as VAD)
-                                if hasattr(wake_word_detector, '_last_features') and wake_word_detector._last_features:
-                                    det_features = wake_word_detector._last_features
-                                    print(f"\n[Wake Word] ✅ Wake word detected! (confidence: {confidence:.6f})")
-                                    print(f"[Wake Word] 📊 Audio at detection: RMS={det_features['rms']:.4f}, Peak={det_features['peak']:.4f}")
-                                    print(f"[Wake Word] 📊 Features: ZCR={det_features['zcr']:.3f} | SpCentroid={det_features['spectral_centroid']:.0f}Hz | SpFlat={det_features['spectral_flatness']:.3f}")
-                                else:
-                                    # Fallback if features not available
-                                    # Use wake_word_frame which contains the actual audio that triggered detection
-                                    detection_rms = np.sqrt(np.mean(wake_word_frame**2))
-                                    detection_peak = np.abs(wake_word_frame).max()
-                                    print(f"\n[Wake Word] ✅ Wake word detected! (confidence: {confidence:.6f})")
-                                    print(f"[Wake Word] 📊 Audio at detection: RMS={detection_rms:.4f}, Peak={detection_peak:.4f}")
-                                listening_active = True
-                                
-                                # Visual feedback (if GUI available) - trigger solid red LED (not pulsating yet)
-                                try:
-                                    from gui.aura_gui import set_wake_word_detected
-                                    set_wake_word_detected(True)  # Solid red LED, waiting for speech
-                                except (ImportError, NameError):
-                                    pass
-                                
-                                # Clear wake word buffer (for consistency, even though OpenWakeWord doesn't use it)
-                                wake_word_buffer = []
-                                
-                                # Wait a moment before starting VAD (avoid wake word in transcription)
-                                time.sleep(0.3)
-                                
-                                # Reset VAD state for fresh start
-                                model_vad.reset_states()
-                                
-                                print("[Wake Word] 🎤 Listening for speech...")
+                            # Wake word detector not properly initialized
+                            if not hasattr(wake_word_detector, '_warned_init'):
+                                print(f"[Wake Word] ⚠️ Detector not initialized: frame_length={getattr(wake_word_detector, 'frame_length', None)}")
+                                wake_word_detector._warned_init = True
+                            wake_word_buffer = []
+                            # Continue to next iteration to keep trying
+                            continue
                     except KeyboardInterrupt:
                         # Allow clean exit on Ctrl+C
                         raise
@@ -1077,19 +945,16 @@ def listen():
                             last_vad_reset = time.time()
                             print(f"\n[VAD] 🔄 Periodic state reset (prevents decay)", end="\r")
                         
-                        # Use EXACT same channel extraction as test_transcription.py
-                        channel_0 = audio_block[:, 0]
+                        channel_audio = audio_block[:, MICROPHONE_CHANNEL]
                         
-                        if channel_0.size < 512:
+                        if channel_audio.size < 512:
                             continue
                         
                         # Hardware HPF already applied in ReSpeaker DSP
-                        # Use EXACT same VAD call as test_transcription.py
-                        vad_prob = model_vad(torch.from_numpy(channel_0), SAMPLE_RATE).item()
+                        vad_prob = model_vad(torch.from_numpy(channel_audio), SAMPLE_RATE).item()
                         
                         # Calculate audio features (no pre-gain)
-                        # Use EXACT same feature calculation as test_transcription.py
-                        features = calculate_audio_features(channel_0)
+                        features = calculate_audio_features(channel_audio)
                         
                         if wake_word_enabled:
                             print(f"[Wake Word Active] VAD {vad_prob:.2f} | RMS {features['rms']:.4f} | Peak {features['peak']:.3f}", end="\r")
@@ -1146,17 +1011,15 @@ def listen():
                             set_transcribing(False)
                             break
                         
-                        # Use EXACT same channel extraction as test_transcription.py
-                        channel_0 = audio_block[:, 0]
+                        channel_audio = audio_block[:, MICROPHONE_CHANNEL]
                         
-                        if channel_0.size < 512:
+                        if channel_audio.size < 512:
                             continue
                         
                         buffer.append(audio_block)
                         
                         # Hardware HPF already applied in ReSpeaker DSP
-                        # Use EXACT same VAD call as test_transcription.py
-                        vad_prob = model_vad(torch.from_numpy(channel_0), SAMPLE_RATE).item()
+                        vad_prob = model_vad(torch.from_numpy(channel_audio), SAMPLE_RATE).item()
                         
                         if vad_prob < VAD_SILENCE_THRESHOLD:
                             if silence_start is None:
@@ -1208,7 +1071,7 @@ def listen():
                                     print(f"[Wake Word] 🧹 Removed wake word from transcription")
                                     break
                         
-                        speak_llm_response(text)
+                        send_to_llm(text)
                     
                     # Reset listening state for next wake word (if enabled) - ALWAYS reset, even if no text
                     if wake_word_enabled:
@@ -1220,18 +1083,10 @@ def listen():
                         except ImportError:
                             pass
                         print("[Wake Word] 🔄 Waiting for wake word...")
-                    
-                    set_transcribing(False)
     finally:
         # Cleanup wake word detector on exit
         if wake_word_detector:
-            try:
-                wake_word_detector.cleanup()
-            except AttributeError:
-                try:
-                    wake_word_detector.release()
-                except AttributeError:
-                    pass
+            wake_word_detector.release()
             print("[Wake Word] 🧹 Cleaned up wake word detector")
 
 if __name__ == "__main__":
