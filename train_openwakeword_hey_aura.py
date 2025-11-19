@@ -158,9 +158,122 @@ def generate_tts_samples(text: str, num_samples: int = 10, output_dir: Path = No
     return generated_files
 
 
-def record_audio_sample(duration: float = 3.0, sample_rate: int = SAMPLE_RATE) -> np.ndarray:
-    """Record audio from microphone."""
+def detect_preferred_microphone(p):
+    """Auto-detect preferred microphone (reSpeaker, USB audio, etc.)."""
+    preferred_keywords = ["reSpeaker", "respeaker", "USB Audio", "USB", "XVF3800", "UAC"]
+    
+    for i in range(p.get_device_count()):
+        info = p.get_device_info_by_index(i)
+        if info['maxInputChannels'] > 0:
+            name = info['name'].lower()
+            for keyword in preferred_keywords:
+                if keyword.lower() in name:
+                    print(f"   ✅ Auto-detected: [{i}] {info['name']}")
+                    return i
+    
+    return None
+
+
+def select_microphone_device():
+    """Select microphone device once and save preference."""
     import pyaudio
+    
+    config_file = TRAINING_DATA_DIR / "device_config.json"
+    
+    # Try to load saved preference
+    saved_device = None
+    if config_file.exists():
+        try:
+            with open(config_file, 'r') as f:
+                config = json.load(f)
+                saved_device = config.get('device_index')
+                saved_device_name = config.get('device_name', 'Unknown')
+                print(f"📱 Saved device preference: [{saved_device}] {saved_device_name}")
+        except Exception:
+            pass
+    
+    p = pyaudio.PyAudio()
+    
+    try:
+        # List available devices
+        print("\n📱 Available audio input devices:")
+        devices = []
+        for i in range(p.get_device_count()):
+            info = p.get_device_info_by_index(i)
+            if info['maxInputChannels'] > 0:
+                devices.append((i, info))
+                marker = " ⭐" if saved_device == i else ""
+                print(f"   [{i}] {info['name']} ({info['maxInputChannels']} channels){marker}")
+        
+        if not devices:
+            print("   ❌ No input devices found!")
+            return None
+        
+        # Auto-detect preferred device
+        auto_device = detect_preferred_microphone(p)
+        
+        # Use saved device, auto-detected device, or ask user
+        device_index = None
+        if saved_device is not None:
+            # Verify saved device still exists
+            if any(d[0] == saved_device for d in devices):
+                use_saved = input(f"\nUse saved device [{saved_device}]? (y/n, default=y): ").strip().lower()
+                if use_saved != 'n':
+                    device_index = saved_device
+                    device_name = next(d[1]['name'] for d in devices if d[0] == saved_device)
+                    print(f"✅ Using saved device: [{device_index}] {device_name}")
+        
+        if device_index is None and auto_device is not None:
+            use_auto = input(f"\nUse auto-detected device [{auto_device}]? (y/n, default=y): ").strip().lower()
+            if use_auto != 'n':
+                device_index = auto_device
+                device_name = next(d[1]['name'] for d in devices if d[0] == auto_device)
+                print(f"✅ Using auto-detected device: [{device_index}] {device_name}")
+        
+        if device_index is None:
+            # Ask user to select
+            try:
+                device_str = input("\nEnter device index (or press Enter for default): ").strip()
+                if device_str:
+                    device_index = int(device_str)
+                else:
+                    device_index = None
+                    device_name = "Default"
+            except (ValueError, KeyboardInterrupt):
+                device_index = None
+                device_name = "Default"
+        
+        # Save preference
+        if device_index is not None:
+            device_name = next(d[1]['name'] for d in devices if d[0] == device_index)
+            config = {
+                'device_index': device_index,
+                'device_name': device_name,
+                'saved_at': time.strftime("%Y-%m-%d %H:%M:%S")
+            }
+            with open(config_file, 'w') as f:
+                json.dump(config, f, indent=2)
+            print(f"💾 Device preference saved to {config_file}")
+        
+        return device_index
+        
+    finally:
+        p.terminate()
+
+
+# Global variable to store selected device (set once, reused for all recordings)
+_selected_device_index = None
+
+
+def record_audio_sample(duration: float = 3.0, sample_rate: int = SAMPLE_RATE, device_index: int = None) -> np.ndarray:
+    """Record audio from microphone using the selected device."""
+    import pyaudio
+    
+    global _selected_device_index
+    
+    # Use provided device_index, or the globally selected one
+    if device_index is None:
+        device_index = _selected_device_index
     
     chunk = 1024
     format = pyaudio.paInt16
@@ -169,22 +282,6 @@ def record_audio_sample(duration: float = 3.0, sample_rate: int = SAMPLE_RATE) -
     p = pyaudio.PyAudio()
     
     try:
-        # List available devices
-        print("\n📱 Available audio input devices:")
-        for i in range(p.get_device_count()):
-            info = p.get_device_info_by_index(i)
-            if info['maxInputChannels'] > 0:
-                print(f"   [{i}] {info['name']} ({info['maxInputChannels']} channels)")
-        
-        # Get device selection
-        device_index = None
-        try:
-            device_str = input("\nEnter device index (or press Enter for default): ").strip()
-            if device_str:
-                device_index = int(device_str)
-        except (ValueError, KeyboardInterrupt):
-            device_index = None
-        
         stream = p.open(
             format=format,
             channels=channels,
@@ -223,6 +320,8 @@ def record_audio_sample(duration: float = 3.0, sample_rate: int = SAMPLE_RATE) -
 
 def collect_positive_samples(num_samples: int = 20):
     """Collect positive training samples (human speech saying 'hey aura')."""
+    global _selected_device_index
+    
     print(f"\n{'='*60}")
     print(f"📝 COLLECTING POSITIVE SAMPLES")
     print(f"{'='*60}")
@@ -235,6 +334,12 @@ def collect_positive_samples(num_samples: int = 20):
     print("   - Include samples from different distances")
     print("   - Press Ctrl+C to stop early\n")
     
+    # Select device once at the start
+    if _selected_device_index is None:
+        _selected_device_index = select_microphone_device()
+        if _selected_device_index is None:
+            print("⚠️  No device selected, using default")
+    
     collected = 0
     existing_files = list(POSITIVE_DIR.glob("*.wav"))
     start_index = len(existing_files) + 1
@@ -243,8 +348,8 @@ def collect_positive_samples(num_samples: int = 20):
         while collected < num_samples:
             print(f"\n--- Sample {collected + 1}/{num_samples} ---")
             
-            # Record audio
-            audio = record_audio_sample(duration=2.5)
+            # Record audio (device already selected)
+            audio = record_audio_sample(duration=2.5, device_index=_selected_device_index)
             
             # Save sample
             output_file = POSITIVE_DIR / f"positive_{start_index + collected:03d}.wav"
@@ -271,6 +376,8 @@ def collect_positive_samples(num_samples: int = 20):
 
 def collect_negative_samples(num_samples: int = 30):
     """Collect negative training samples (other phrases, background noise)."""
+    global _selected_device_index
+    
     print(f"\n{'='*60}")
     print(f"📝 COLLECTING NEGATIVE SAMPLES")
     print(f"{'='*60}")
@@ -281,6 +388,12 @@ def collect_negative_samples(num_samples: int = 30):
     print("   - Include background noise, silence, music")
     print("   - Include similar-sounding phrases")
     print("   - Press Ctrl+C to stop early\n")
+    
+    # Select device once at the start (if not already selected)
+    if _selected_device_index is None:
+        _selected_device_index = select_microphone_device()
+        if _selected_device_index is None:
+            print("⚠️  No device selected, using default")
     
     negative_phrases = [
         "hey there",
@@ -312,8 +425,8 @@ def collect_negative_samples(num_samples: int = 30):
             else:
                 print("💡 Say any phrase (NOT 'hey aura')")
             
-            # Record audio
-            audio = record_audio_sample(duration=2.5)
+            # Record audio (device already selected)
+            audio = record_audio_sample(duration=2.5, device_index=_selected_device_index)
             
             # Save sample
             output_file = NEGATIVE_DIR / f"negative_{start_index + collected:03d}.wav"

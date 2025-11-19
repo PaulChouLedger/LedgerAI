@@ -34,6 +34,13 @@ cd /path/to/LedgerAI
 python3 train_openwakeword_hey_aura.py --mode collect
 ```
 
+**Device Selection:**
+- The script will ask you to select a microphone device **once** at the start
+- Your selection is saved to `data/wake_word_training/device_config.json`
+- The same device will be reused for all recordings (no need to select each time)
+- The script auto-detects preferred devices (reSpeaker, USB Audio, XVF3800, etc.)
+- On subsequent runs, it will remember your preference
+
 This will:
 1. **Collect positive samples** (20+ recommended)
    - Record yourself saying "hey aura" naturally
