@@ -130,6 +130,19 @@ def add_to_parser(parser, *args, **kwargs):
         # No args provided, just return parser
         return parser
     
+    # Check if first arg is just a string (usage text or help text)
+    # prettyparse allows: add_to_parser(parser, "extra usage text")
+    if len(args) == 1 and isinstance(args[0], str) and not args[0].startswith(':') and not args[0].startswith('-'):
+        # This is usage/help text, add it to the parser's description or epilog
+        usage_text = args[0]
+        if hasattr(parser, 'epilog'):
+            parser.epilog = (parser.epilog or '') + '\n' + usage_text
+        else:
+            # Add as description if no description exists
+            if not parser.description:
+                parser.description = usage_text
+        return parser
+    
     # Check if first arg uses prettyparse format (starts with ':')
     if isinstance(args[0], str) and args[0].startswith(':'):
         # prettyparse format
