@@ -182,26 +182,40 @@ class PreciseWakeWordDetector:
                 '/usr/bin/precise-engine',
             ]
             
+            print(f"[Wake Word] 🔍 Searching for precise-engine binary...")
             exe_file = None
-            for path in possible_paths:
-                if os.path.exists(path) and os.access(path, os.X_OK):
-                    # Check if it's actually a binary (not a Python script)
-                    try:
-                        with open(path, 'rb') as f:
-                            first_bytes = f.read(2)
-                            # ELF binary starts with 0x7f 'ELF'
-                            if first_bytes == b'\x7fELF':
-                                exe_file = path
-                                print(f"[Wake Word] ✅ Found binary executable: {exe_file}")
-                                break
-                            # Also check if it's a shebang script (Python wrapper)
-                            elif first_bytes == b'#!':
-                                # Skip Python wrapper scripts - they have import issues
-                                print(f"[Wake Word] ⚠️  Skipping Python wrapper: {path}")
-                                continue
-                    except Exception:
-                        # If we can't read it, skip it
-                        continue
+            for path_template in possible_paths:
+                # Expand user home directory
+                expanded_path = os.path.expanduser(path_template)
+                print(f"[Wake Word] 🔍 Checking: {expanded_path}")
+                if os.path.exists(expanded_path):
+                    print(f"[Wake Word]   ✅ File exists")
+                    if os.access(expanded_path, os.X_OK):
+                        print(f"[Wake Word]   ✅ File is executable")
+                        # Check if it's actually a binary (not a Python script)
+                        try:
+                            with open(expanded_path, 'rb') as f:
+                                first_bytes = f.read(2)
+                                # ELF binary starts with 0x7f 'ELF'
+                                if first_bytes == b'\x7fELF':
+                                    exe_file = expanded_path
+                                    print(f"[Wake Word] ✅ Found binary executable: {exe_file}")
+                                    break
+                                # Also check if it's a shebang script (Python wrapper)
+                                elif first_bytes == b'#!':
+                                    # Skip Python wrapper scripts - they have import issues
+                                    print(f"[Wake Word] ⚠️  Skipping Python wrapper: {expanded_path}")
+                                    continue
+                                else:
+                                    print(f"[Wake Word]   ⚠️  Unknown file type (first bytes: {first_bytes})")
+                        except Exception as e:
+                            # If we can't read it, skip it
+                            print(f"[Wake Word]   ❌ Error reading file: {e}")
+                            continue
+                    else:
+                        print(f"[Wake Word]   ❌ File exists but not executable")
+                else:
+                    print(f"[Wake Word]   ❌ File does not exist")
             
             # Fallback to shutil.which only if no binary found
             if not exe_file:
