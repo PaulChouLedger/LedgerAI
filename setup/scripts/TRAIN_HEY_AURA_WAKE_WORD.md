@@ -35,7 +35,10 @@ This guide covers training a custom Mycroft Precise wake word model for "Hey Aur
 source ~/aura-env/bin/activate
 
 # Install training dependencies
-pip install precise-runner precise
+# Note: precise-runner provides runtime tools, mycroft-precise provides training tools
+pip install precise-runner  # Runtime tools (PreciseEngine, PreciseRunner)
+pip install mycroft-precise  # Training tools (precise-train command)
+pip install precise  # Additional training utilities (optional)
 
 # On Jetson, you may need additional dependencies:
 # System packages (via apt):
@@ -62,8 +65,11 @@ pip install --extra-index-url https://developer.download.nvidia.com/compute/redi
 # Check precise-train is available
 precise-train --help
 
-# Check precise-test is available
-precise-test --help
+# If precise-train not found, install mycroft-precise:
+# pip install mycroft-precise
+
+# Check precise-test is available (if needed)
+precise-test --help 2>/dev/null || echo "precise-test not available (optional)"
 
 # Verify TensorFlow works (on Jetson)
 python3 -c "import tensorflow as tf; print(f'TensorFlow: {tf.__version__}')"

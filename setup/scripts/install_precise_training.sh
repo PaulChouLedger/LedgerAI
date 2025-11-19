@@ -69,13 +69,19 @@ print_info "Installing precise and precise-runner packages..."
 # precise provides the training library
 # Both may be needed
 
-# First check if precise-runner is installed (provides precise-train command)
-if ! command -v precise-train &> /dev/null && ! python3 -c "import precise_runner" 2>/dev/null; then
-    print_info "Installing precise-runner (provides precise-train command)..."
-    if pip install --ignore-installed precise-runner 2>&1 | tee /tmp/precise_runner_install.log; then
-        print_success "✅ precise-runner installed"
+# Note: precise-runner provides runtime tools, NOT training tools
+# Training tools are in mycroft-precise package
+print_info "Note: precise-runner provides runtime tools (PreciseEngine)"
+print_info "      Training tools are in mycroft-precise package"
+
+# Check if mycroft-precise is installed (provides precise-train command)
+if ! command -v precise-train &> /dev/null; then
+    print_info "Installing mycroft-precise (provides precise-train command)..."
+    if pip install --ignore-installed mycroft-precise 2>&1 | tee /tmp/mycroft_precise_install.log; then
+        print_success "✅ mycroft-precise installed"
     else
-        print_warning "⚠️  precise-runner installation had issues"
+        print_warning "⚠️  mycroft-precise installation had issues"
+        print_info "   Check logs: cat /tmp/mycroft_precise_install.log"
     fi
 fi
 

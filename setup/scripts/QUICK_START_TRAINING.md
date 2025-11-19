@@ -22,7 +22,10 @@ This is a quick reference for training a custom "Hey Aura" wake word model with 
 source ~/aura-env/bin/activate
 
 # Install training tools
-pip install precise-runner precise
+# Note: precise-runner provides runtime tools, mycroft-precise provides training tools
+pip install precise-runner  # Runtime tools (already installed for wake word detection)
+pip install mycroft-precise  # Training tools (precise-train command)
+pip install precise  # Additional training utilities (optional)
 
 # On Jetson, you may need additional dependencies:
 # System packages (via apt):

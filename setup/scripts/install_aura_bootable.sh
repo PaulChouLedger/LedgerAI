@@ -520,49 +520,53 @@ else
     print_info "   Training may not work until these are resolved"
 fi
 
-# Fix numpy/scipy compatibility before installing precise (prevents binary incompatibility)
+# Fix numpy/scipy compatibility before installing training packages (prevents binary incompatibility)
 # Use --ignore-installed to override system-wide packages (common on Ubuntu/Jetson)
 print_info "Ensuring numpy/scipy compatibility (fixing binary incompatibility issues)..."
 print_info "   Note: May override system-wide scipy if present (this is safe)"
 if pip install --upgrade --force-reinstall --ignore-installed numpy scipy 2>&1 | tee -a /tmp/training_deps_install.log; then
     print_info "✅ numpy/scipy upgraded and synchronized"
 else
-    print_warning "⚠️  numpy/scipy upgrade had issues (may cause problems with precise)"
+    print_warning "⚠️  numpy/scipy upgrade had issues (may cause problems with training)"
 fi
 
 print_info "Installing Python packages for training..."
-# Try installing precise, but handle kmeans1d failure gracefully (it's optional)
+# Try installing cython first
 if pip install cython 2>&1 | tee -a /tmp/training_deps_install.log; then
     print_info "✅ cython installed successfully"
 else
     print_warning "⚠️  cython installation had issues"
 fi
 
-# Install precise (kmeans1d may fail due to numpy incompatibility, but precise may still work)
-# Use --ignore-installed to avoid conflicts with system packages
-if pip install --ignore-installed precise 2>&1 | tee -a /tmp/training_deps_install.log; then
-    print_info "✅ precise installed successfully"
-    print_info "   You can now train custom wake word models using:"
-    print_info "   - collect_wake_word_data.sh (data collection)"
-    print_info "   - train_hey_aura.sh (model training)"
-else
-    print_warning "⚠️  precise installation had issues (check logs)"
-    if grep -q "kmeans1d" /tmp/training_deps_install.log 2>/dev/null; then
-        print_info "   kmeans1d failed - trying to install separately..."
-        if pip install --ignore-installed --no-cache-dir kmeans1d 2>&1 | tee -a /tmp/training_deps_install.log; then
-            print_info "   ✅ kmeans1d installed, retrying precise..."
-            if pip install --ignore-installed precise 2>&1 | tee -a /tmp/training_deps_install.log; then
-                print_info "✅ precise installed successfully after kmeans1d fix"
-            fi
-        else
-            print_info "   kmeans1d still failed - precise-runner will work without it"
-        fi
+# Install mycroft-precise (contains precise-train command for training)
+# Note: precise-runner only provides runtime tools, NOT training tools
+print_info "Installing mycroft-precise (contains precise-train command)..."
+if pip install --ignore-installed mycroft-precise 2>&1 | tee -a /tmp/training_deps_install.log; then
+    print_info "✅ mycroft-precise installed successfully"
+    
+    # Verify precise-train is available
+    if command -v precise-train &> /dev/null || [ -f "$VENV_DIR/bin/precise-train" ]; then
+        print_info "✅ precise-train command available"
+        print_info "   You can now train custom wake word models using:"
+        print_info "   - collect_wake_word_data.sh (data collection)"
+        print_info "   - train_hey_aura.sh (model training)"
     else
-        print_info "   If issues persist, try:"
-        print_info "   pip install --upgrade --force-reinstall --ignore-installed numpy scipy"
-        print_info "   pip install --ignore-installed precise"
-        print_info "   Or skip precise and use precise-runner only (training may be limited)"
+        print_warning "⚠️  mycroft-precise installed but precise-train not found"
+        print_info "   Training may still work via Python API"
     fi
+else
+    print_warning "⚠️  mycroft-precise installation had issues (check logs)"
+    print_info "   Training tools may not be available"
+    print_info "   Note: precise-runner (already installed) provides runtime tools only"
+fi
+
+# Also install precise package (may contain additional training utilities)
+print_info "Installing precise package (additional training utilities)..."
+if pip install --ignore-installed precise 2>&1 | tee -a /tmp/training_deps_install.log; then
+    print_info "✅ precise package installed"
+else
+    print_warning "⚠️  precise package installation had issues (kmeans1d may have failed)"
+    print_info "   This is optional - mycroft-precise should provide training tools"
 fi
 
 # Download precise-engine binary for ARM64/Jetson
@@ -1343,8 +1347,9 @@ fi
 echo "ℹ️  Wake Word: Mycroft Precise (pip install precise-runner) - most reliable for Jetson"
 echo "✅ Training dependencies: Installed (for custom wake word model training)"
 echo "   - System packages: python3-scipy, libhdf5-dev, python3-h5py, libopenblas-dev"
-echo "   - Python packages: cython, precise"
+echo "   - Python packages: cython, mycroft-precise (contains precise-train), precise"
 echo "   - Training scripts: collect_wake_word_data.sh, train_hey_aura.sh"
+echo "   - Note: precise-runner provides runtime tools, mycroft-precise provides training tools"
 echo ""
 echo "=========================================="
 echo "  Next Steps"

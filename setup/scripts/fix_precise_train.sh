@@ -77,22 +77,75 @@ else
     # Check entry points
     python3 << 'PYEOF'
 try:
-    from importlib.metadata import entry_points
+    from importlib.metadata import entry_points, version
     scripts = entry_points(group='console_scripts')
-    precise_scripts = [ep for ep in scripts if 'precise' in ep.name]
+    precise_scripts = [ep.name for ep in scripts if 'precise' in ep.name]
+    ver = version('precise-runner')
+    print(f"  precise-runner version: {ver}")
     if precise_scripts:
-        print(f"  Available precise commands: {[ep.name for ep in precise_scripts]}")
+        print(f"  Available precise commands: {precise_scripts}")
+        if 'precise-train' not in precise_scripts:
+            print("  ❌ precise-train not in console_scripts")
+            print("  💡 This version of precise-runner may not include training tools")
     else:
         print("  No precise console scripts found")
-        print("  💡 precise-runner may not include precise-train in this version")
+        print("  💡 precise-runner 0.3.1 may not include precise-train")
 except Exception as e:
     print(f"  Error checking: {e}")
 PYEOF
     
     print_info ""
-    print_info "Alternative: Use Python API directly"
-    print_info "  The training tools may be available via Python API"
-    print_info "  Run: python3 setup/scripts/check_precise_installation.py"
+    print_info "Note: precise-runner 0.3.1 may not include precise-train command"
+    print_info "The training tools might be in the 'precise' package instead"
+    print_info ""
+    print_info "Checking precise package for training tools..."
+    python3 << 'PYEOF' 2>/dev/null || print_info "  Could not check precise package"
+try:
+    import precise
+    import os
+    import inspect
+    print(f"  ✅ precise package found")
+    print(f"  Location: {os.path.dirname(precise.__file__)}")
+    
+    # List all modules in precise package
+    import pkgutil
+    modules = [name for _, name, _ in pkgutil.iter_modules(precise.__path__)]
+    print(f"  Submodules: {modules}")
+    
+    # Check for train module
+    if 'train' in modules:
+        print("  ✅ 'train' module found in precise package")
+    else:
+        print("  ❌ 'train' module not found")
+        
+except Exception as e:
+    print(f"  Error: {e}")
+PYEOF
+    
+    print_info ""
+    print_info "💡 Solution: Install mycroft-precise (contains training tools)"
+    print_info "   precise-runner only provides runtime tools, not training"
+    print_info ""
+    print_info "Installing mycroft-precise (contains precise-train)..."
+    if pip install --ignore-installed mycroft-precise 2>&1 | tee /tmp/mycroft_precise_install.log; then
+        print_success "✅ mycroft-precise installed"
+        
+        # Check if precise-train is now available
+        if command -v precise-train &> /dev/null; then
+            print_success "✅ precise-train command now available!"
+            precise-train --help | head -5
+        elif [ -f "$VIRTUAL_ENV/bin/precise-train" ] && [ -s "$VIRTUAL_ENV/bin/precise-train" ]; then
+            print_success "✅ precise-train found in venv bin"
+            "$VIRTUAL_ENV/bin/precise-train" --help | head -5
+        else
+            print_warning "⚠️  precise-train still not found after mycroft-precise install"
+            print_info "   Check logs: cat /tmp/mycroft_precise_install.log"
+        fi
+    else
+        print_error "❌ mycroft-precise installation failed"
+        print_info "   Alternative: Training may need to be done via Python API"
+        print_info "   Or install from source: pip install git+https://github.com/MycroftAI/mycroft-precise"
+    fi
 fi
 
 echo ""
