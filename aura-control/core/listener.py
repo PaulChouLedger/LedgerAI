@@ -745,29 +745,6 @@ def listen():
             listening_active = False  # True after wake word detected
             stream_valid = True  # Track if stream is still valid
             
-            # Wait for real audio before starting wake word detection
-            # This ensures the stream buffer has filled with actual microphone data
-            if wake_word_enabled and wake_word_detector is not None:
-                print("[Wake Word] ⏳ Waiting for real audio before starting detection...")
-                audio_ready = False
-                for i in range(100):  # Try up to 100 frames (3.2 seconds at 16kHz)
-                    try:
-                        audio_block, _ = stream.read(FRAME_SIZE)
-                        if audio_block is not None and audio_block.size > 0:
-                            channel_audio = audio_block[:, MICROPHONE_CHANNEL]
-                            if channel_audio.size >= 512:
-                                features = calculate_audio_features(channel_audio)
-                                if features['rms'] > 0.0001 or features['peak'] > 0.0001:
-                                    print(f"[Wake Word] ✅ Real audio detected! RMS={features['rms']:.6f}, Peak={features['peak']:.6f} - Starting wake word detection")
-                                    audio_ready = True
-                                    break
-                    except:
-                        pass
-                    time.sleep(0.01)  # Small delay between checks
-                
-                if not audio_ready:
-                    print("[Wake Word] ⚠️  Real audio not detected after 3.2s - starting anyway (may be silent environment)")
-            
             while stream_valid:
                 # Pause during TTS
                 if is_playing():
@@ -837,9 +814,11 @@ def listen():
                         
                         # Wait for real audio - skip zero frames silently (like VAD does)
                         # This ensures we don't process wake word on empty buffer
+                        # VAD naturally skips zeros by only processing when RMS/Peak are above thresholds
                         if rms < 0.0001 and peak < 0.0001:
-                            # All zeros - stream buffer may not be filled yet
+                            # All zeros - stream buffer may not be filled yet or environment is silent
                             # Continue reading until we get real audio (same as VAD behavior)
+                            # Don't spam logs - just silently skip like VAD does
                             continue
                         
                         # Real audio detected! Log once to confirm stream is working
