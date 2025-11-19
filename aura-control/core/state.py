@@ -48,7 +48,8 @@ _llm_mode = "medical"  # 'medical' or 'generic' - default to medical
 _llm_model = ""        # filename or path inside container; empty means default
 _wake_word_enabled = False  # Wake word detection enabled/disabled
 _wake_word_sensitivity = 0.5  # Wake word detection sensitivity (0.0-1.0)
-_wake_word_model_path = None  # Optional path to custom .ppn model file
+_wake_word_model_path = None  # Optional path to custom model file
+_wake_word_engine = "precise"  # Wake word engine: "precise" or "openwakeword"
 
 def _save_settings_to_disk():
     """Save current settings to disk"""
@@ -59,7 +60,8 @@ def _save_settings_to_disk():
             "llm_mode": _llm_mode,
             "llm_model": _llm_model,
             "wake_word_enabled": _wake_word_enabled,
-            "wake_word_sensitivity": _wake_word_sensitivity
+            "wake_word_sensitivity": _wake_word_sensitivity,
+            "wake_word_engine": _wake_word_engine
         }
         if _wake_word_model_path:
             settings_data["wake_word_model_path"] = _wake_word_model_path
@@ -70,7 +72,7 @@ def _save_settings_to_disk():
 
 def _load_settings_from_disk():
     """Load settings from disk, creating default file if it doesn't exist"""
-    global _llm_mode, _llm_model, _wake_word_enabled, _wake_word_sensitivity, _wake_word_model_path
+    global _llm_mode, _llm_model, _wake_word_enabled, _wake_word_sensitivity, _wake_word_model_path, _wake_word_engine
     try:
         import json
         with open(_settings_file, "r") as f:
@@ -80,6 +82,7 @@ def _load_settings_from_disk():
             _wake_word_enabled = data.get("wake_word_enabled", _wake_word_enabled)
             _wake_word_sensitivity = float(data.get("wake_word_sensitivity", _wake_word_sensitivity))
             _wake_word_model_path = data.get("wake_word_model_path", _wake_word_model_path)
+            _wake_word_engine = data.get("wake_word_engine", _wake_word_engine)
     except FileNotFoundError:
         # File doesn't exist - use defaults and create it
         _save_settings_to_disk()
@@ -142,6 +145,17 @@ def set_wake_word_model_path(path: str):
     global _wake_word_model_path
     _wake_word_model_path = path if path else None
     _save_settings_to_disk()
+
+def get_wake_word_engine() -> str:
+    """Return wake word engine: 'precise' or 'openwakeword'."""
+    return _wake_word_engine
+
+def set_wake_word_engine(engine: str):
+    """Set wake word engine: 'precise' or 'openwakeword'."""
+    global _wake_word_engine
+    if engine in ("precise", "openwakeword"):
+        _wake_word_engine = engine
+        _save_settings_to_disk()
 
 
 # === Listener restart trigger ===

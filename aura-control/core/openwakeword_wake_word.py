@@ -1,0 +1,238 @@
+"""
+OpenWakeWord Wake Word Detection Integration
+
+OpenWakeWord is an actively maintained, open-source wake word detection framework
+that works natively on ARM64 (Jetson) devices. It offers good performance and
+supports custom model training.
+
+Installation:
+    pip install openwakeword
+
+GitHub: https://github.com/dscripka/openWakeWord
+"""
+
+import os
+import numpy as np
+from typing import Optional, Tuple
+
+# Import shared audio processing constants from listener
+try:
+    import sys
+    import os
+    listener_path = os.path.join(os.path.dirname(__file__), 'listener.py')
+    if os.path.exists(listener_path):
+        from listener import (
+            SAMPLE_RATE, FRAME_SIZE, MICROPHONE_CHANNEL,
+            TARGET_RMS_FOR_WHISPER, ENABLE_AUDIO_NORMALIZATION
+        )
+        WAKE_WORD_SAMPLE_RATE = SAMPLE_RATE
+        WAKE_WORD_FRAME_SIZE = FRAME_SIZE
+    else:
+        WAKE_WORD_SAMPLE_RATE = 16000
+        WAKE_WORD_FRAME_SIZE = 512
+except ImportError:
+    WAKE_WORD_SAMPLE_RATE = 16000
+    WAKE_WORD_FRAME_SIZE = 512
+
+# Default threshold (0.0-1.0, higher = less sensitive)
+DEFAULT_THRESHOLD = 0.5
+
+# Wake word model name (can be customized)
+DEFAULT_MODEL = "hey_mycroft_v0.1"  # Default model, can be changed to custom model
+
+
+class OpenWakeWordDetector:
+    """
+    OpenWakeWord-based wake word detector.
+    
+    Uses direct Python integration (not Wyoming container) for better reliability.
+    """
+    
+    def __init__(self, model_name: str = None, threshold: float = DEFAULT_THRESHOLD):
+        """
+        Initialize OpenWakeWord detector.
+        
+        Args:
+            model_name: Name of the wake word model (default: "hey_mycroft_v0.1")
+            threshold: Detection threshold (0.0-1.0, default: 0.5)
+        """
+        self.model_name = model_name or DEFAULT_MODEL
+        self.threshold = threshold
+        self.engine = None
+        self.is_active = False
+        self.frame_count = 0
+        
+        # OpenWakeWord expects 1280 samples per frame (80ms at 16kHz)
+        # But we'll use our standard frame size and buffer accordingly
+        self.required_samples = 1280  # OpenWakeWord's expected frame size
+        self.audio_buffer = np.array([], dtype=np.float32)
+        
+        print(f"[OpenWakeWord] 🔄 Initializing OpenWakeWord detector...")
+        print(f"[OpenWakeWord]    Model: {self.model_name}")
+        print(f"[OpenWakeWord]    Threshold: {self.threshold}")
+        
+        try:
+            import openwakeword
+            from openwakeword import Model
+            
+            # Initialize the model
+            # OpenWakeWord can load models by name or path
+            # If no models specified, it loads all available models
+            try:
+                # Try to load specific model
+                self.engine = Model(
+                    wakeword_models=[self.model_name] if self.model_name else None,
+                    inference_framework='onnx'  # Use ONNX for better ARM64 support
+                )
+                print(f"[OpenWakeWord] ✅ Model loaded: {self.model_name or 'all available models'}")
+            except Exception as e:
+                print(f"[OpenWakeWord] ⚠️  Failed to load model '{self.model_name}': {e}")
+                print(f"[OpenWakeWord] 💡 Trying to load all available models...")
+                # Try loading all available models
+                try:
+                    self.engine = Model(inference_framework='onnx')
+                    # Get the first available model name
+                    if hasattr(self.engine, 'models') and len(self.engine.models) > 0:
+                        self.model_name = list(self.engine.models.keys())[0]
+                        print(f"[OpenWakeWord] ✅ Using model: {self.model_name}")
+                    else:
+                        print(f"[OpenWakeWord] ✅ Model loaded (using all available)")
+                except Exception as e2:
+                    print(f"[OpenWakeWord] ❌ Failed to load models: {e2}")
+                    raise
+            
+            self.is_active = True
+            print(f"[OpenWakeWord] ✅ OpenWakeWord initialized successfully")
+            
+        except ImportError:
+            print(f"[OpenWakeWord] ❌ openwakeword package not found")
+            print(f"[OpenWakeWord] 💡 Install with: pip install openwakeword")
+            raise
+        except Exception as e:
+            print(f"[OpenWakeWord] ❌ Initialization failed: {e}")
+            import traceback
+            traceback.print_exc()
+            raise
+    
+    def process(self, audio: np.ndarray) -> Tuple[bool, float]:
+        """
+        Process audio frame and check for wake word.
+        
+        Args:
+            audio: Audio frame (float32, normalized to [-1, 1])
+        
+        Returns:
+            Tuple of (detected: bool, confidence: float)
+        """
+        if not self.is_active or self.engine is None:
+            return False, 0.0
+        
+        try:
+            # OpenWakeWord expects 1280 samples (80ms at 16kHz)
+            # Buffer audio until we have enough samples
+            self.audio_buffer = np.concatenate([self.audio_buffer, audio])
+            
+            # Process when we have enough samples
+            if len(self.audio_buffer) >= self.required_samples:
+                # Take exactly required_samples
+                frame_audio = self.audio_buffer[:self.required_samples].astype(np.float32)
+                self.audio_buffer = self.audio_buffer[self.required_samples:]
+                
+                # OpenWakeWord expects int16 audio in range [-32768, 32767]
+                # Convert from float32 [-1, 1] to int16
+                audio_int16 = (frame_audio * 32767).astype(np.int16)
+                
+                # Get prediction
+                # OpenWakeWord expects numpy array of int16 samples
+                prediction = self.engine.predict(audio_int16)
+                
+                # prediction is a dict with model names as keys
+                # Each value is a dict with 'score' (confidence) or just a float
+                confidence = 0.0
+                if isinstance(prediction, dict):
+                    if self.model_name in prediction:
+                        pred_value = prediction[self.model_name]
+                        # Handle both dict format {'score': 0.5} and direct float
+                        if isinstance(pred_value, dict):
+                            confidence = float(pred_value.get('score', 0.0))
+                        else:
+                            confidence = float(pred_value)
+                    elif len(prediction) > 0:
+                        # Use first model's confidence if our model name doesn't match
+                        first_model = list(prediction.keys())[0]
+                        pred_value = prediction[first_model]
+                        if isinstance(pred_value, dict):
+                            confidence = float(pred_value.get('score', 0.0))
+                        else:
+                            confidence = float(pred_value)
+                elif isinstance(prediction, (float, int)):
+                    # Direct float/int confidence
+                    confidence = float(prediction)
+                
+                detected = confidence >= self.threshold
+                
+                self.frame_count += 1
+                
+                # Debug logging (similar to Precise)
+                if self.frame_count <= 10:
+                    status = "🟢 DETECTED!" if detected else ("⚪ ACTIVITY" if confidence > 0.01 else "🔴 QUIET")
+                    pct = (confidence / self.threshold * 100) if self.threshold > 0 else 0
+                    print(f"[OpenWakeWord] {status} Confidence: {confidence:.6f} (threshold: {self.threshold:.6f}, {pct:.1f}%) - Frame {self.frame_count}")
+                elif self.frame_count % 100 == 0:
+                    status = "🟢 DETECTED!" if detected else ("⚪ ACTIVITY" if confidence > 0.01 else "🔴 QUIET")
+                    pct = (confidence / self.threshold * 100) if self.threshold > 0 else 0
+                    print(f"[OpenWakeWord] {status} Confidence: {confidence:.6f} (threshold: {self.threshold:.6f}, {pct:.1f}%) - Frame {self.frame_count}")
+                elif confidence > self.threshold / 10 or confidence > 0.001:
+                    status = "🟢 DETECTED!" if detected else ("⚪ ACTIVITY" if confidence > 0.01 else "🔴 QUIET")
+                    pct = (confidence / self.threshold * 100) if self.threshold > 0 else 0
+                    print(f"[OpenWakeWord] {status} Confidence: {confidence:.6f} (threshold: {self.threshold:.6f}, {pct:.1f}%) - Frame {self.frame_count}")
+                
+                if detected:
+                    print(f"[OpenWakeWord] 🎤 WAKE WORD DETECTED! Confidence: {confidence:.6f}")
+                
+                return detected, confidence
+            else:
+                # Not enough samples yet, return no detection
+                return False, 0.0
+                
+        except Exception as e:
+            print(f"[OpenWakeWord] ⚠️  Prediction error: {e}")
+            import traceback
+            traceback.print_exc()
+            return False, 0.0
+    
+    def cleanup(self):
+        """Clean up resources"""
+        self.is_active = False
+        self.engine = None
+        print("[OpenWakeWord] 🧹 Cleaned up")
+
+
+def create_openwakeword_detector(model_name: str = None, threshold: float = None) -> Optional[OpenWakeWordDetector]:
+    """
+    Factory function to create an OpenWakeWord detector.
+    
+    Args:
+        model_name: Optional model name (default: "hey_mycroft_v0.1")
+        threshold: Optional threshold (default: from state.py or DEFAULT_THRESHOLD)
+    
+    Returns:
+        OpenWakeWordDetector instance or None if initialization fails
+    """
+    try:
+        # Get threshold from state if not provided
+        if threshold is None:
+            try:
+                from state import get_wake_word_sensitivity
+                # Convert sensitivity (0.0-1.0) to threshold (inverted: higher sensitivity = lower threshold)
+                sensitivity = get_wake_word_sensitivity()
+                threshold = 1.0 - sensitivity  # Invert: sensitivity 1.0 = threshold 0.0
+            except ImportError:
+                threshold = DEFAULT_THRESHOLD
+        
+        detector = OpenWakeWordDetector(model_name=model_name, threshold=threshold)
+        return detector
+    except Exception as e:
+        print(f"[OpenWakeWord] ❌ Failed to create detector: {e}")
+        return None
+

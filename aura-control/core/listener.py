@@ -21,8 +21,9 @@ sys.path.insert(0, parent_dir)
 
 from speaker import speak_llm_response, is_playing
 from gui.aura_gui import set_transcribing
-# Use Mycroft Precise for wake word detection (most reliable for Jetson)
+# Wake word detection engines (Precise and OpenWakeWord)
 from precise_wake_word import create_precise_wake_word_detector
+from openwakeword_wake_word import create_openwakeword_detector
 
 # === Config ===
 SAMPLE_RATE = 16000
@@ -582,6 +583,7 @@ def listen():
     import sys
     wake_word_detector = None
     wake_word_enabled = False
+    wake_word_engine_name = "none"
     
     if wake_word_setting_enabled:
         # CRITICAL: Block transcription immediately if wake word is enabled
@@ -589,32 +591,51 @@ def listen():
         print("[Wake Word] 🔒 Blocking transcription until wake word detector is ready...")
         block_transcription("Wake word enabled - waiting for detector initialization")
         
-        # Initialize wake word detection - Mycroft Precise only (most reliable for Jetson)
-        print("[Wake Word] 🔄 Initializing Mycroft Precise...", flush=True)
-        sys.stdout.flush()
+        # Get selected engine from settings
         try:
-            wake_word_detector = create_precise_wake_word_detector()
+            from state import get_wake_word_engine
+            selected_engine = get_wake_word_engine()
+        except ImportError:
+            selected_engine = "precise"  # Default to Precise
+        
+        print(f"[Wake Word] 🔄 Initializing wake word engine: {selected_engine}...", flush=True)
+        sys.stdout.flush()
+        
+        # Try to initialize the selected engine
+        try:
+            if selected_engine == "openwakeword":
+                wake_word_detector = create_openwakeword_detector()
+                wake_word_engine_name = "OpenWakeWord"
+            else:  # Default to Precise
+                wake_word_detector = create_precise_wake_word_detector()
+                wake_word_engine_name = "Mycroft Precise"
+            
             if wake_word_detector:
-                print("[Wake Word] ✅ Mycroft Precise initialized successfully", flush=True)
+                print(f"[Wake Word] ✅ {wake_word_engine_name} initialized successfully", flush=True)
                 sys.stdout.flush()
                 wake_word_enabled = True
                 # Unblock transcription now that detector is ready (but still require wake word)
                 unblock_transcription()
-                print("[Wake Word] ✅ Wake word detector ready - transcription will require wake word")
+                print(f"[Wake Word] ✅ Wake word detector ready ({wake_word_engine_name}) - transcription will require wake word")
             else:
-                print("[Wake Word] ❌ Mycroft Precise initialization returned None", flush=True)
+                print(f"[Wake Word] ❌ {wake_word_engine_name} initialization returned None", flush=True)
                 sys.stdout.flush()
                 print("[Wake Word] ⚠️  Wake word enabled in settings but detector failed to initialize")
                 print("[Wake Word] 🔒 Transcription will remain BLOCKED until wake word detector is fixed")
                 print("[Wake Word] 💡 Check logs above for initialization errors")
-                print("[Wake Word] 💡 Mycroft Precise setup:")
-                print("[Wake Word]     1. Install: pip install precise-runner")
-                print("[Wake Word]     2. Download binary: See install_mycroft_precise.sh")
-                print("[Wake Word]     3. Download model: wget https://github.com/MycroftAI/precise-data/raw/models/hey-mycroft.pb")
-                print("[Wake Word]     4. Place model in: ~/precise-models/ or ~/")
+                if selected_engine == "openwakeword":
+                    print("[Wake Word] 💡 OpenWakeWord setup:")
+                    print("[Wake Word]     1. Install: pip install openwakeword")
+                    print("[Wake Word]     2. Models are downloaded automatically on first use")
+                else:
+                    print("[Wake Word] 💡 Mycroft Precise setup:")
+                    print("[Wake Word]     1. Install: pip install precise-runner")
+                    print("[Wake Word]     2. Download binary: See install_mycroft_precise.sh")
+                    print("[Wake Word]     3. Download model: wget https://github.com/MycroftAI/precise-data/raw/models/hey-mycroft.pb")
+                    print("[Wake Word]     4. Place model in: ~/precise-models/ or ~/")
                 print("[Wake Word] 💡 Or disable wake word in Settings → AI Model Settings")
         except Exception as e:
-            print(f"[Wake Word] ❌ Mycroft Precise failed: {e}", flush=True)
+            print(f"[Wake Word] ❌ {wake_word_engine_name} failed: {e}", flush=True)
             import traceback
             print(f"[Wake Word] 🔍 Traceback: {traceback.format_exc()}", flush=True)
             sys.stdout.flush()
@@ -622,11 +643,16 @@ def listen():
             print("[Wake Word] ⚠️  Wake word enabled in settings but detector failed to initialize")
             print("[Wake Word] 🔒 Transcription will remain BLOCKED until wake word detector is fixed")
             print("[Wake Word] 💡 Check logs above for initialization errors")
-            print("[Wake Word] 💡 Mycroft Precise setup:")
-            print("[Wake Word]     1. Install: pip install precise-runner")
-            print("[Wake Word]     2. Download binary: See install_mycroft_precise.sh")
-            print("[Wake Word]     3. Download model: wget https://github.com/MycroftAI/precise-data/raw/models/hey-mycroft.pb")
-            print("[Wake Word]     4. Place model in: ~/precise-models/ or ~/")
+            if selected_engine == "openwakeword":
+                print("[Wake Word] 💡 OpenWakeWord setup:")
+                print("[Wake Word]     1. Install: pip install openwakeword")
+                print("[Wake Word]     2. Models are downloaded automatically on first use")
+            else:
+                print("[Wake Word] 💡 Mycroft Precise setup:")
+                print("[Wake Word]     1. Install: pip install precise-runner")
+                print("[Wake Word]     2. Download binary: See install_mycroft_precise.sh")
+                print("[Wake Word]     3. Download model: wget https://github.com/MycroftAI/precise-data/raw/models/hey-mycroft.pb")
+                print("[Wake Word]     4. Place model in: ~/precise-models/ or ~/")
             print("[Wake Word] 💡 Or disable wake word in Settings → AI Model Settings")
     else:
         print("[Wake Word] ℹ️  Wake word detection disabled (toggle in Settings)")

@@ -19,6 +19,11 @@ scipy>=1.10.0
 # Download model: wget https://github.com/MycroftAI/precise-data/raw/models/hey-mycroft.pb
 precise-runner>=0.3.0
 
+# Wake Word Detection: OpenWakeWord (Alternative - actively maintained)
+# Install: pip install openwakeword
+# Models are downloaded automatically on first use
+openwakeword>=0.5.0
+
 # GUI Framework
 PyQt5>=5.15.0
 

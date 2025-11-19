@@ -1112,12 +1112,49 @@ class AIModelSettingsDialog(BaseAuraDialog):
         wake_word_row.addWidget(self.wake_word_toggle, 1)
         layout.addLayout(wake_word_row)
         
+        # Wake word engine selection
+        engine_row = QHBoxLayout(); engine_row.setSpacing(12)
+        engine_label = QLabel("Wake Word Engine:")
+        engine_label.setStyleSheet("color: #ffffff;")
+        self.wake_word_engine_combo = QComboBox()
+        self.wake_word_engine_combo.addItem("Mycroft Precise", "precise")
+        self.wake_word_engine_combo.addItem("OpenWakeWord", "openwakeword")
+        self.wake_word_engine_combo.setStyleSheet("""
+            QComboBox {
+                background-color: #2a2a2a;
+                color: #ffffff;
+                border: 1px solid #444;
+                border-radius: 4px;
+                padding: 4px;
+            }
+            QComboBox:hover {
+                border-color: #666;
+            }
+            QComboBox::drop-down {
+                border: none;
+            }
+            QComboBox QAbstractItemView {
+                background-color: #2a2a2a;
+                color: #ffffff;
+                selection-background-color: #444;
+            }
+        """)
+        engine_row.addWidget(engine_label)
+        engine_row.addWidget(self.wake_word_engine_combo, 1)
+        layout.addLayout(engine_row)
+        
         # Initialize wake word toggle from state
         try:
-            from core.state import get_wake_word_enabled
+            from core.state import get_wake_word_enabled, get_wake_word_engine
             enabled = get_wake_word_enabled()
             self.wake_word_toggle.setChecked(enabled)
             self.wake_word_toggle.setText("ON" if enabled else "OFF")
+            
+            # Initialize engine selection
+            current_engine = get_wake_word_engine()
+            idx = self.wake_word_engine_combo.findData(current_engine)
+            if idx >= 0:
+                self.wake_word_engine_combo.setCurrentIndex(idx)
         except Exception:
             self.wake_word_toggle.setChecked(False)
             self.wake_word_toggle.setText("OFF")
@@ -1129,21 +1166,33 @@ class AIModelSettingsDialog(BaseAuraDialog):
                 set_wake_word_enabled(checked)
                 print(f"[ModelSettings] Wake word detection: {'enabled' if checked else 'disabled'}")
                 
-                # Wake word uses Mycroft Precise (no container needed)
                 if checked:
-                    print("[ModelSettings] ✅ Wake word enabled - using Mycroft Precise")
+                    engine = self.wake_word_engine_combo.currentData()
+                    engine_name = "Mycroft Precise" if engine == "precise" else "OpenWakeWord"
+                    print(f"[ModelSettings] ✅ Wake word enabled - using {engine_name}")
                     from PyQt5.QtWidgets import QMessageBox
                     QMessageBox.information(
                         self,
                         "Wake Word Enabled",
-                        "Wake word detection enabled.\n\n"
-                        "Using Mycroft Precise (no container needed).\n\n"
+                        f"Wake word detection enabled.\n\n"
+                        f"Using {engine_name} (no container needed).\n\n"
                         "You may need to restart Aura for wake word to work."
                     )
             except Exception as e:
                 print(f"[ModelSettings] Error saving wake word setting: {e}")
         
+        def on_engine_changed():
+            try:
+                from core.state import set_wake_word_engine
+                engine = self.wake_word_engine_combo.currentData()
+                set_wake_word_engine(engine)
+                engine_name = "Mycroft Precise" if engine == "precise" else "OpenWakeWord"
+                print(f"[ModelSettings] Wake word engine changed to: {engine_name}")
+            except Exception as e:
+                print(f"[ModelSettings] Error saving wake word engine: {e}")
+        
         self.wake_word_toggle.toggled.connect(on_wake_word_toggled)
+        self.wake_word_engine_combo.currentIndexChanged.connect(on_engine_changed)
         
         def on_mode_clicked():
             sender = self.sender()
