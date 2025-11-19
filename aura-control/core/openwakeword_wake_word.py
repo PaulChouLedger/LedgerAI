@@ -38,7 +38,7 @@ except ImportError:
 DEFAULT_THRESHOLD = 0.5
 
 # Wake word model name (can be customized)
-DEFAULT_MODEL = "hey_mycroft_v0.1"  # Default model, can be changed to custom model
+DEFAULT_MODEL = "hey_orah"  # Default model, can be changed to custom model
 
 
 class OpenWakeWordDetector:
@@ -87,11 +87,33 @@ class OpenWakeWordDetector:
                     print(f"[OpenWakeWord] 📁 Loading model from path: {model_path}")
                 elif self.model_name and not os.path.isabs(self.model_name):
                     # Check if it's a relative path in our models directory
+                    # Priority: Check our custom directory FIRST before built-in models
                     workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-                    custom_model_path = os.path.join(workspace_root, 'data', 'models', 'wake_words', self.model_name)
+                    custom_model_dir = os.path.join(workspace_root, 'data', 'models', 'wake_words')
+                    
+                    # Try with .onnx extension first
+                    custom_model_path = os.path.join(custom_model_dir, f"{self.model_name}.onnx")
                     if os.path.exists(custom_model_path):
                         model_path = custom_model_path
                         print(f"[OpenWakeWord] 📁 Found custom model: {model_path}")
+                    # Try without extension (in case user provided full filename)
+                    elif os.path.exists(os.path.join(custom_model_dir, self.model_name)):
+                        model_path = os.path.join(custom_model_dir, self.model_name)
+                        print(f"[OpenWakeWord] 📁 Found custom model: {model_path}")
+                    else:
+                        # Check if directory exists and list available models
+                        if os.path.exists(custom_model_dir):
+                            available_models = [f for f in os.listdir(custom_model_dir) if f.endswith('.onnx')]
+                            if available_models:
+                                print(f"[OpenWakeWord] 📁 Custom models directory: {custom_model_dir}")
+                                print(f"[OpenWakeWord]    Available models: {', '.join(available_models)}")
+                                print(f"[OpenWakeWord]    Looking for: {self.model_name}.onnx")
+                                print(f"[OpenWakeWord]    ⚠️  Custom model not found, will try built-in models")
+                        else:
+                            print(f"[OpenWakeWord] 📁 Custom models directory does not exist: {custom_model_dir}")
+                            print(f"[OpenWakeWord]    Creating directory...")
+                            os.makedirs(custom_model_dir, exist_ok=True)
+                            print(f"[OpenWakeWord]    💡 Place your .onnx models here: {custom_model_dir}")
                 
                 # Try to load specific model (by name or path)
                 if model_path:

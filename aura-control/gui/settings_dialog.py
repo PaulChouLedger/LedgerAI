@@ -894,7 +894,10 @@ class AIModelSettingsDialog(BaseAuraDialog):
             traceback.print_exc()
     
     def _setup_ui_original(self):
-        layout = QVBoxLayout(); layout.setContentsMargins(120, 100, 120, 100); layout.setSpacing(20)
+        layout = QVBoxLayout(); layout.setContentsMargins(120, 140, 120, 100); layout.setSpacing(15)
+        # Add stretch at top to center content vertically within white perimeter
+        layout.addStretch(1)
+        
         # Top bar with Back
         top_row = QHBoxLayout()
         back_btn = QPushButton("◀ Back")
@@ -904,6 +907,7 @@ class AIModelSettingsDialog(BaseAuraDialog):
         top_row.addWidget(back_btn)
         top_row.addStretch()
         layout.addLayout(top_row)
+        
         title = QLabel("🧠 AI Model Settings"); title.setFont(QFont("Arial", 18, QFont.Bold)); title.setAlignment(Qt.AlignCenter); title.setStyleSheet("color: #ffffff; font-weight: 600; margin: 10px;"); layout.addWidget(title)
         
         # Mode toggle with status label
@@ -933,7 +937,7 @@ class AIModelSettingsDialog(BaseAuraDialog):
         self.restart_llm_btn = QPushButton("🔁 Restart LLM"); self.restart_llm_btn.setStyleSheet(SettingsDialog.get_button_style(None))
         row = QHBoxLayout(); row.setSpacing(10); row.addWidget(self.model_combo, 2); row.addWidget(self.restart_llm_btn, 1); layout.addLayout(row)
         
-        # Wake word toggle (moved higher, closer to model dropdown)
+        # Wake word toggle (moved higher, closer to model dropdown with reduced spacing)
         wake_word_row = QHBoxLayout(); wake_word_row.setSpacing(12)
         wake_word_label = QLabel("Wake Word Detection:")
         wake_word_label.setStyleSheet("color: #ffffff; font-size: 14px;")
@@ -973,8 +977,8 @@ class AIModelSettingsDialog(BaseAuraDialog):
         rag_row.addWidget(self.rag_combo, 1)
         layout.addLayout(rag_row)
         
-        # Add stretch and set layout (after all components are added)
-        layout.addStretch(1)
+        # Add stretch at bottom to center content and ensure nothing gets cut off
+        layout.addStretch(2)
         self.setLayout(layout)
         
         # Load state and populate
