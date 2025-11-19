@@ -113,10 +113,31 @@ To migrate an existing dialog:
 5. Remove manual window flags, opacity, and centering code (handled by base class)
 6. Remove manual transcription blocking/unblocking (handled by base class)
 
+## Standard Pattern
+
+All dialogs should follow this exact pattern:
+
+1. **Inherit from `BaseAuraDialog`**
+2. **Call `super().__init__()` with parent, title, size, and modal parameters**
+3. **Override `_setup_ui()` for UI setup** (required)
+4. **Override `_on_show()` for show-time logic** (optional)
+5. **Override `_on_close()` for cleanup** (optional)
+6. **Only override `closeEvent()` if you need to prevent closing** (then call `super().closeEvent(event)`)
+
+**DO NOT:**
+- Override `showEvent()` - use `_on_show()` instead
+- Override `closeEvent()` unless you need to prevent closing - use `_on_close()` instead
+- Implement custom `center_dialog()` - base class handles this
+- Implement custom fade animations - base class handles this
+- Manually block/unblock transcription - base class handles this
+
 ## Examples
 
-See:
+All dialogs now follow this pattern:
 - `file_upload_dialog.py` - File upload dialog
 - `wallet_dialog.py` - Wallet connection dialog
-- `settings_dialog.py` - Settings dialog (uses pattern but not base class yet)
+- `settings_dialog.py` - Settings dialog
+- `welcome_setup_dialog.py` - Welcome/WiFi setup dialog
+- `payment_dialog.py` - Payment dialog
+- `metamask_payment_dialog.py` - MetaMask payment dialog
 

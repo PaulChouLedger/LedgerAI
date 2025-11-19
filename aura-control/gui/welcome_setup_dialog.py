@@ -167,6 +167,7 @@ class WelcomeSetupDialog(BaseAuraDialog):
     
     def closeEvent(self, event):
         """Handle dialog close - prevent closing if WiFi not connected"""
+        # Check WiFi connection before allowing close
         if not self.wifi_connected:
             reply = QMessageBox.question(
                 self,
@@ -181,6 +182,11 @@ class WelcomeSetupDialog(BaseAuraDialog):
                 event.ignore()
                 return
         
+        # Let base class handle the rest (animation, cleanup via _on_close, etc.)
+        super().closeEvent(event)
+    
+    def _on_close(self):
+        """Cleanup when dialog closes (called by base class)"""
         # Clean up WiFi scan thread to prevent accessing deleted widgets
         if hasattr(self, 'wifi_scan_thread') and self.wifi_scan_thread:
             try:
@@ -197,45 +203,6 @@ class WelcomeSetupDialog(BaseAuraDialog):
             except Exception:
                 pass
             self.wifi_scan_thread = None
-        
-        # Reactivate parent window immediately to prevent freezing
-        if self.parent():
-            try:
-                self.parent().raise_()
-                self.parent().activateWindow()
-                QApplication.processEvents()
-            except Exception:
-                pass
-        
-        # For modal dialogs opened from home screen, accept immediately to avoid blocking
-        if self.isModal() and self.parent():
-            event.accept()
-            return
-        
-        # Non-modal: use fade animation
-        if hasattr(self, 'fade_in') and self.fade_in.state() == QPropertyAnimation.Running:
-            self.fade_in.stop()
-        
-        self.fade_out = QPropertyAnimation(self, b"windowOpacity")
-        self.fade_out.setDuration(250)
-        self.fade_out.setStartValue(self.windowOpacity())
-        self.fade_out.setEndValue(0.0)
-        self.fade_out.setEasingCurve(QEasingCurve.InOutCubic)
-        
-        def _finalize():
-            event.accept()
-            # Ensure parent is reactivated after close
-            if self.parent():
-                try:
-                    self.parent().raise_()
-                    self.parent().activateWindow()
-                    QApplication.processEvents()
-                except Exception:
-                    pass
-        
-        self.fade_out.finished.connect(_finalize)
-        self.fade_out.start()
-        event.ignore()
     
     def setup_ui(self):
         """Setup the welcome setup UI"""

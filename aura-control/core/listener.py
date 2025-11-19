@@ -549,6 +549,9 @@ def play_welcome_prompt(stream):
             except:
                 break
         
+        # Small delay to let buffer fill after flush (critical for wake word to get audio)
+        time.sleep(0.1)
+        
         print("[Aura] 🎤 Mic resumed after welcome prompt")
         
         try:
@@ -769,33 +772,37 @@ def listen():
                     
                 if wake_word_enabled and not listening_active and wake_word_detector is not None:
                     try:
+                        # Read audio using EXACT same method as VAD loop (line 1011)
+                        # VAD loop wraps this in try/except, so we do too
                         audio_block, _ = stream.read(FRAME_SIZE)
+                        
+                        # Extract channel using EXACT same method as VAD loop (line 1036)
                         channel_audio = audio_block[:, MICROPHONE_CHANNEL]
+                        
+                        # VAD loop checks size < 512 and continues - we do the same
+                        if channel_audio.size < 512:
+                            continue
                         
                         # Use exact same audio processing as main listener VAD
                         # This ensures wake word sees identical audio levels and features
-                        if channel_audio.size > 0:
-                            # Use same audio feature calculation as main listener
-                            features = calculate_audio_features(channel_audio)
-                            rms = features['rms']
-                            peak = features['peak']
-                            
-                            # Store features for use when wake word is detected
-                            if not hasattr(wake_word_detector, '_last_features'):
-                                wake_word_detector._last_features = None
-                            wake_word_detector._last_features = features
-                            
-                            # Debug: check audio levels occasionally (every 100 frames or first 5)
-                            # Show same format as main listener VAD output
-                            if not hasattr(wake_word_detector, '_audio_level_debug'):
-                                wake_word_detector._audio_level_debug = 0
-                            wake_word_detector._audio_level_debug += 1
-                            if wake_word_detector._audio_level_debug <= 5 or wake_word_detector._audio_level_debug % 100 == 0:
-                                print(f"[Wake Word] 🔍 DEBUG Audio: RMS={rms:.4f}, Peak={peak:.4f} (Frame {wake_word_detector._audio_level_debug}) - Same as VAD processing")
+                        # VAD calculates features AFTER size check, so we do too
+                        # Use same audio feature calculation as main listener
+                        features = calculate_audio_features(channel_audio)
+                        rms = features['rms']
+                        peak = features['peak']
                         
-                        if channel_audio.size < 512:
-                            # Not enough samples, continue to next iteration
-                            continue
+                        # Store features for use when wake word is detected
+                        if not hasattr(wake_word_detector, '_last_features'):
+                            wake_word_detector._last_features = None
+                        wake_word_detector._last_features = features
+                        
+                        # Debug: check audio levels occasionally (every 100 frames or first 5)
+                        # Show same format as main listener VAD output
+                        if not hasattr(wake_word_detector, '_audio_level_debug'):
+                            wake_word_detector._audio_level_debug = 0
+                        wake_word_detector._audio_level_debug += 1
+                        if wake_word_detector._audio_level_debug <= 5 or wake_word_detector._audio_level_debug % 100 == 0:
+                            print(f"[Wake Word] 🔍 DEBUG Audio: RMS={rms:.4f}, Peak={peak:.4f} (Frame {wake_word_detector._audio_level_debug}) - Same as VAD processing")
                         
                         # Handle different wake word detector types
                         # Mycroft Precise requires 2048 samples (128ms at 16kHz), so we buffer frames

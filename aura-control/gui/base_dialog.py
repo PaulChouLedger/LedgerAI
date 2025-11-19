@@ -115,74 +115,28 @@ class BaseAuraDialog(QDialog):
             self.border_overlay.raise_()
     
     def _center_dialog(self):
-        """Center dialog so its center aligns with white border center (540, 540)"""
+        """Center dialog to align white border with home screen white perimeter"""
         try:
-            # White border is drawn at center (540, 540) relative to parent window
-            # Dialog center should align with this point
-            
             if self.parent():
-                # Get parent window position
+                # Center dialog within parent window so white borders align
                 parent_geometry = self.parent().geometry()
-                parent_x = parent_geometry.x()
-                parent_y = parent_geometry.y()
-                
-                # White border center in screen coordinates
-                white_border_center_x = parent_x + 540
-                white_border_center_y = parent_y + 540
+                x = parent_geometry.x() + (parent_geometry.width() - self.width()) // 2
+                y = parent_geometry.y() + (parent_geometry.height() - self.height()) // 2
             else:
-                # No parent: use screen center or (540, 540) if screen is 1080x1080
+                # No parent: center on screen
                 app = QApplication.instance()
-                if app:
-                    # Try to get the screen that contains the dialog, or use primary screen
-                    screen = None
-                    if hasattr(self, 'screen') and self.screen():
-                        screen = self.screen()
-                    elif app.primaryScreen():
-                        screen = app.primaryScreen()
-                    
-                    if screen:
-                        # Use availableGeometry for more accurate positioning
-                        screen_geom = screen.availableGeometry()
-                        screen_width = screen_geom.width()
-                        screen_height = screen_geom.height()
-                        
-                        if screen_width == 1080 and screen_height == 1080:
-                            # For 1080x1080 screen, center at (540, 540) = position at (0, 0)
-                            white_border_center_x = 540
-                            white_border_center_y = 540
-                        else:
-                            # For other screen sizes, use screen center
-                            white_border_center_x = screen_geom.x() + screen_width // 2
-                            white_border_center_y = screen_geom.y() + screen_height // 2
-                    else:
-                        # Fallback: assume 1080x1080 screen
-                        white_border_center_x = 540
-                        white_border_center_y = 540
+                if app and app.primaryScreen():
+                    screen = app.primaryScreen().geometry()
+                    x = (screen.width() - self.width()) // 2
+                    y = (screen.height() - self.height()) // 2
                 else:
-                    # No app instance: assume 1080x1080 screen
-                    white_border_center_x = 540
-                    white_border_center_y = 540
-            
-            # Dialog dimensions
-            dialog_width = 1080  # Always 1080x1080
-            dialog_height = 1080
-            
-            # Position dialog so its center (540, 540) aligns with white border center
-            x = white_border_center_x - 540
-            y = white_border_center_y - 540
-            
-            # Ensure position is valid (not negative)
-            x = max(0, x)
-            y = max(0, y)
+                    # Fallback: position at (0, 0) for 1080x1080 screen
+                    x = 0
+                    y = 0
             
             # Move dialog to calculated position
             self.move(x, y)
             QApplication.processEvents()
-            
-            # Verify alignment
-            actual_pos = self.pos()
-            dialog_center_x = actual_pos.x() + 540
-            dialog_center_y = actual_pos.y() + 540
             
         except Exception as e:
             # Log error for debugging but don't crash
