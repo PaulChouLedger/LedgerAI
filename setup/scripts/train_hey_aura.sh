@@ -109,12 +109,42 @@ if [ "$combined_count" -eq 0 ]; then
     exit 1
 fi
 
-# Check precise-train is available
-if ! command -v precise-train &> /dev/null; then
-    print_error "precise-train not found. Install with:"
-    print_error "  pip install precise"
+# Check precise-train is available (as command or Python module)
+PRECISE_TRAIN_CMD=""
+if command -v precise-train &> /dev/null; then
+    PRECISE_TRAIN_CMD="precise-train"
+    print_info "Found precise-train command"
+elif python3 -c "import precise.train" 2>/dev/null; then
+    # Try using Python module directly
+    PRECISE_TRAIN_CMD="python3 -m precise.train"
+    print_info "Found precise.train module"
+elif python3 -c "from precise import train" 2>/dev/null; then
+    # Alternative import path
+    PRECISE_TRAIN_CMD="python3 -c 'from precise import train; import sys; train.main()'"
+    print_info "Found precise.train via alternative import"
+else
+    print_error "precise-train not found!"
+    echo ""
+    print_info "Diagnostics:"
+    # Check if precise package is installed
+    if python3 -c "import precise" 2>/dev/null; then
+        print_info "  ✅ precise package is installed"
+        print_info "  ⚠️  But precise-train command not found"
+        print_info "  💡 Try: python3 -m precise.train --help"
+    else
+        print_info "  ❌ precise package is NOT installed"
+        print_info ""
+        print_info "Installation options:"
+        print_info "  1. Try: pip install --ignore-installed precise"
+        print_info "  2. If kmeans1d fails, install without it:"
+        print_info "     pip install --ignore-installed --no-deps precise"
+        print_info "     pip install --ignore-installed kmeans1d  # optional"
+        print_info "  3. Or use fix script: ./fix_numpy_scipy_compatibility.sh"
+    fi
     exit 1
 fi
+
+print_info "Using: $PRECISE_TRAIN_CMD"
 
 # Train model
 echo ""
@@ -124,7 +154,8 @@ echo ""
 
 cd "$TRAINING_DIR"
 
-if precise-train -e "$EPOCHS" "${MODEL_NAME}.net" \
+# Use the detected command (may be "precise-train" or "python3 -m precise.train")
+if $PRECISE_TRAIN_CMD -e "$EPOCHS" "${MODEL_NAME}.net" \
     wake-word \
     "$COMBINED_NEGATIVE"; then
     print_success "Training complete!"
