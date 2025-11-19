@@ -20,26 +20,46 @@ which precise-train 2>/dev/null || echo "  Not in PATH"
 echo ""
 echo "Checking precise-runner installation:"
 source ~/aura-env/bin/activate 2>/dev/null || true
-python3 -c "
-import sys
-import pkg_resources
 
+# Fix platformdirs issue first
+pip install --upgrade --force-reinstall platformdirs 2>/dev/null || true
+
+python3 << 'PYEOF' 2>/dev/null || echo "  ❌ Could not check entry points"
 try:
-    dist = pkg_resources.get_distribution('precise-runner')
-    print(f'  ✅ precise-runner installed: {dist.version}')
-    entry_points = dist.get_entry_map().get('console_scripts', {})
-    if entry_points:
-        print(f'  Console scripts: {list(entry_points.keys())}')
-        if 'precise-train' in entry_points:
-            script_path = entry_points['precise-train'].resolve()
-            print(f'  ✅ precise-train entry point: {script_path}')
+    import sys
+    # Try importlib.metadata first (newer Python)
+    try:
+        from importlib.metadata import entry_points, version
+        dist_version = version('precise-runner')
+        print(f'  ✅ precise-runner installed: {dist_version}')
+        scripts = entry_points(group='console_scripts')
+        precise_scripts = [ep for ep in scripts if 'precise' in ep.name]
+        if precise_scripts:
+            print(f'  Console scripts: {[ep.name for ep in precise_scripts]}')
+            train_ep = [ep for ep in precise_scripts if 'train' in ep.name]
+            if train_ep:
+                print(f'  ✅ precise-train entry point found: {train_ep[0].name}')
+            else:
+                print('  ❌ precise-train not in console_scripts')
         else:
-            print('  ❌ precise-train not in console_scripts')
-    else:
-        print('  ⚠️  No console scripts found')
+            print('  ⚠️  No precise console scripts found')
+    except ImportError:
+        # Fallback to pkg_resources
+        import pkg_resources
+        dist = pkg_resources.get_distribution('precise-runner')
+        print(f'  ✅ precise-runner installed: {dist.version}')
+        entry_points = dist.get_entry_map().get('console_scripts', {})
+        if entry_points:
+            print(f'  Console scripts: {list(entry_points.keys())}')
+            if 'precise-train' in entry_points:
+                print(f'  ✅ precise-train entry point found')
+            else:
+                print('  ❌ precise-train not in console_scripts')
+        else:
+            print('  ⚠️  No console scripts found')
 except Exception as e:
     print(f'  ❌ Error: {e}')
-"
+PYEOF
 
 # Check if it's a Python module
 echo ""
