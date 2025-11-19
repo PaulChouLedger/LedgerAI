@@ -51,13 +51,13 @@ fi
 if grep -q "parser.epilog = (parser.epilog or '') + '$" "$PRETTYPARSE_PATH" 2>/dev/null; then
     echo "[STEP 2] Found broken string literal, fixing..."
     
-    # Read the file
-    python3 << 'PYEOF'
+    # Read the file - pass path as environment variable
+    PRETTYPARSE_PATH_ESC="$PRETTYPARSE_PATH" python3 << PYEOF
 import os
 import sys
 
-prettyparse_path = "$PRETTYPARSE_PATH"
-if not os.path.exists(prettyparse_path):
+prettyparse_path = os.environ.get('PRETTYPARSE_PATH_ESC', '')
+if not prettyparse_path or not os.path.exists(prettyparse_path):
     print(f"File not found: {prettyparse_path}")
     sys.exit(1)
 
@@ -102,7 +102,10 @@ fi
 
 echo ""
 echo "[STEP 3] Applying prettyparse patch..."
-PATCH_SCRIPT="$LEDGERAI_DIR/setup/scripts/patch_prettyparse.py"
+
+# Try to find patch script
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PATCH_SCRIPT="$SCRIPT_DIR/patch_prettyparse.py"
 if [ -f "$PATCH_SCRIPT" ]; then
     if python3 "$PATCH_SCRIPT" 2>&1; then
         echo "✅ prettyparse patched successfully"
@@ -110,12 +113,12 @@ if [ -f "$PATCH_SCRIPT" ]; then
         echo "⚠️  Patch script had issues"
         echo "   Creating minimal patch manually..."
         
-        # Manual patch
-        python3 << 'PYEOF'
+        # Manual patch - pass path as environment variable
+        PRETTYPARSE_PATH_ESC="$PRETTYPARSE_PATH" python3 << PYEOF
 import os
 
-prettyparse_path = "$PRETTYPARSE_PATH"
-if not os.path.exists(prettyparse_path):
+prettyparse_path = os.environ.get('PRETTYPARSE_PATH_ESC', '')
+if not prettyparse_path or not os.path.exists(prettyparse_path):
     print(f"File not found: {prettyparse_path}")
     exit(1)
 

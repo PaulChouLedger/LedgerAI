@@ -775,6 +775,17 @@ def listen():
                         # Use exact same audio processing as main listener VAD
                         # This ensures wake word sees identical audio levels and features
                         if channel_audio.size > 0:
+                            # Debug: check raw audio values on first few frames
+                            if not hasattr(wake_word_detector, '_raw_audio_debug'):
+                                wake_word_detector._raw_audio_debug = 0
+                            wake_word_detector._raw_audio_debug += 1
+                            if wake_word_detector._raw_audio_debug <= 3:
+                                raw_min = channel_audio.min()
+                                raw_max = channel_audio.max()
+                                raw_mean = channel_audio.mean()
+                                raw_std = channel_audio.std()
+                                print(f"[Wake Word] 🔍 RAW Audio Debug (Frame {wake_word_detector._raw_audio_debug}): dtype={channel_audio.dtype}, shape={channel_audio.shape}, min={raw_min:.6f}, max={raw_max:.6f}, mean={raw_mean:.6f}, std={raw_std:.6f}")
+                            
                             # Use same audio feature calculation as main listener
                             features = calculate_audio_features(channel_audio)
                             rms = features['rms']
@@ -883,26 +894,13 @@ def listen():
                                 continue
                         else:
                             # OpenWakeWord-style detector: handles buffering internally
-                            # Convert audio to float32 normalized format if needed
+                            # Use exact same channel_audio as VAD (no conversion needed - stream already provides float32 normalized to [-1, 1])
+                            # Ensure channel_audio is 1D (same as VAD uses it)
                             if channel_audio.ndim > 1:
                                 channel_audio = channel_audio.flatten()
                             
-                            # OpenWakeWord expects float32 normalized to [-1, 1]
-                            # Convert from int16 if needed
-                            if channel_audio.dtype == np.int16:
-                                audio_float = channel_audio.astype(np.float32) / 32768.0
-                            elif channel_audio.dtype != np.float32:
-                                audio_float = channel_audio.astype(np.float32)
-                            else:
-                                audio_float = channel_audio
-                            
-                            # Normalize to [-1, 1] range if not already
-                            if audio_float.max() > 1.0 or audio_float.min() < -1.0:
-                                # Assume int16 range and normalize
-                                audio_float = audio_float / 32768.0
-                            
-                            # Call process directly - OpenWakeWord handles buffering internally
-                            wake_detected, confidence = wake_word_detector.process(audio_float)
+                            # Call process directly with same audio VAD uses - OpenWakeWord handles buffering internally
+                            wake_detected, confidence = wake_word_detector.process(channel_audio)
                             
                             # Debug output (show confidence less frequently to reduce spam)
                             if not hasattr(wake_word_detector, '_debug_counter'):
@@ -921,11 +919,18 @@ def listen():
                                 print(f"[Wake Word] 💓 Still listening for wake word... (Frame {wake_word_detector._debug_counter})")
                             
                             if wake_detected:
-                                # Print RMS and audio features at detection time
-                                detection_rms = np.sqrt(np.mean(audio_float**2))
-                                detection_peak = np.abs(audio_float).max()
-                                print(f"\n[Wake Word] ✅ Wake word detected! (confidence: {confidence:.6f})")
-                                print(f"[Wake Word] 📊 Audio at detection: RMS={detection_rms:.4f}, Peak={detection_peak:.4f}")
+                                # Print RMS and audio features at detection time (using same calculation as VAD)
+                                if hasattr(wake_word_detector, '_last_features') and wake_word_detector._last_features:
+                                    det_features = wake_word_detector._last_features
+                                    print(f"\n[Wake Word] ✅ Wake word detected! (confidence: {confidence:.6f})")
+                                    print(f"[Wake Word] 📊 Audio at detection: RMS={det_features['rms']:.4f}, Peak={det_features['peak']:.4f}")
+                                    print(f"[Wake Word] 📊 Features: ZCR={det_features['zcr']:.3f} | SpCentroid={det_features['spectral_centroid']:.0f}Hz | SpFlat={det_features['spectral_flatness']:.3f}")
+                                else:
+                                    # Fallback if features not available
+                                    detection_rms = np.sqrt(np.mean(channel_audio**2))
+                                    detection_peak = np.abs(channel_audio).max()
+                                    print(f"\n[Wake Word] ✅ Wake word detected! (confidence: {confidence:.6f})")
+                                    print(f"[Wake Word] 📊 Audio at detection: RMS={detection_rms:.4f}, Peak={detection_peak:.4f}")
                                 listening_active = True
                                 
                                 # Visual feedback (if GUI available) - trigger solid red LED (not pulsating yet)
