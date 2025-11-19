@@ -28,15 +28,47 @@ def patch_prettyparse(prettyparse_path):
     has_create_parser = 'def create_parser' in content or 'create_parser =' in content
     has_add_to_parser = 'def add_to_parser' in content or 'add_to_parser =' in content
     
-    if has_create_parser and has_add_to_parser:
-        print("[Patch] ✅ All required functions already exist, no patch needed")
-        return True
+    # Check if there's an old patch that needs updating
+    has_old_patch = '# === PATCH:' in content or '# === END PATCH ===' in content
     
     needs_patch = []
     if not has_create_parser:
         needs_patch.append('create_parser')
     if not has_add_to_parser:
         needs_patch.append('add_to_parser')
+    
+    # If functions exist but there's an old patch, we should update it
+    if has_old_patch and (has_create_parser or has_add_to_parser):
+        print("[Patch] ⚠️  Old patch detected, will update...")
+        # Remove old patch section
+        lines = content.split('\n')
+        new_lines = []
+        in_patch = False
+        for line in lines:
+            if '# === PATCH:' in line or '# === END PATCH ===' in line:
+                in_patch = not in_patch
+                continue
+            if not in_patch:
+                new_lines.append(line)
+        content = '\n'.join(new_lines)
+        # Write back the cleaned content
+        with open(prettyparse_path, 'w') as f:
+            f.write(content)
+        print("[Patch] ✅ Removed old patch")
+        # Re-read content and check what's still needed
+        with open(prettyparse_path, 'r') as f:
+            content = f.read()
+        has_create_parser = 'def create_parser' in content or 'create_parser =' in content
+        has_add_to_parser = 'def add_to_parser' in content or 'add_to_parser =' in content
+        needs_patch = []
+        if not has_create_parser:
+            needs_patch.append('create_parser')
+        if not has_add_to_parser:
+            needs_patch.append('add_to_parser')
+    
+    if not needs_patch:
+        print("[Patch] ✅ All required functions already exist, no patch needed")
+        return True
     
     print(f"[Patch] Missing functions: {', '.join(needs_patch)}")
     
@@ -47,18 +79,34 @@ def patch_prettyparse(prettyparse_path):
         # Build patch code with all needed functions
         patch_functions = []
         
-        if not has_create_parser:
+        if 'create_parser' in needs_patch:
             patch_functions.append('''
-def create_parser(description='', **kwargs):
+def create_parser(usage_or_description='', **kwargs):
     """
     Create a parser compatible with mycroft-precise expectations.
     This is a compatibility wrapper for the prettyparse module.
+    
+    Can be called as:
+    - create_parser(usage_string)  # First positional arg is usage (most common)
+    - create_parser(description=..., usage=...)  # Keyword args
     """
     import argparse
-    parser = argparse.ArgumentParser(description=description, **kwargs)
+    parser_kwargs = kwargs.copy()
+    
+    # If first positional arg is provided, treat it as usage
+    # (This matches the pattern: create_parser(usage) used by mycroft-precise)
+    if usage_or_description:
+        # Check if usage is already in kwargs
+        if 'usage' not in parser_kwargs:
+            parser_kwargs['usage'] = usage_or_description
+        elif 'description' not in parser_kwargs:
+            # If usage is already set, use first arg as description
+            parser_kwargs['description'] = usage_or_description
+    
+    parser = argparse.ArgumentParser(**parser_kwargs)
     return parser''')
         
-        if not has_add_to_parser:
+        if 'add_to_parser' in needs_patch:
             patch_functions.append('''
 def add_to_parser(parser, *args, **kwargs):
     """
