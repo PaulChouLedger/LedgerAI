@@ -115,31 +115,116 @@ def add_to_parser(parser, *args, **kwargs):
     prettyparse uses a special syntax like: add_to_parser(parser, ':-e', '--epochs', 'int', 10)
     Where the format is: ':-e' means both -e and --epochs, 'int' is type, 10 is default
     
+    Also supports: add_to_parser(parser, ':folder', 'str', '.') for positional arguments
+    And: add_to_parser(parser, '--tags-folder', 'str', '{folder}/tags') for keyword arguments
+    
     Usage patterns:
-    - add_to_parser(parser, ':-e', '--epochs', 'int', 10)  # prettyparse format
+    - add_to_parser(parser, ':-e', '--epochs', 'int', 10)  # prettyparse format with flags
+    - add_to_parser(parser, ':folder', 'str', '.')  # positional argument
+    - add_to_parser(parser, '--tags-folder', 'str', '{folder}/tags')  # keyword with default
     - add_to_parser(parser, '--flag', help='...')  # standard argparse format
     """
     import argparse
     
+    if not args:
+        # No args provided, just return parser
+        return parser
+    
     # Check if first arg uses prettyparse format (starts with ':')
-    if args and len(args) > 0 and isinstance(args[0], str) and args[0].startswith(':'):
-        # prettyparse format: ':-e', '--epochs', 'type', default
-        # Example: ':-e', '--epochs', 'int', 10
-        flag_short = args[0][1:] if len(args[0]) > 1 else None  # Remove ':' prefix
-        flag_long = args[1] if len(args) > 1 and isinstance(args[1], str) else None
-        arg_type = args[2] if len(args) > 2 else None
-        default_val = args[3] if len(args) > 3 else None
+    if isinstance(args[0], str) and args[0].startswith(':'):
+        # prettyparse format
+        first_arg = args[0]
         
-        # Build argument list for argparse
-        arg_list = []
-        if flag_short:
-            arg_list.append(flag_short)
-        if flag_long:
-            arg_list.append(flag_long)
+        # Check if it's a flag format (':-e') or positional (':folder')
+        if first_arg.startswith(':-'):
+            # Flag format: ':-e', '--epochs', 'type', default, ...
+            flag_short = first_arg[2:] if len(first_arg) > 2 else None  # Remove ':-' prefix
+            flag_long = args[1] if len(args) > 1 and isinstance(args[1], str) and args[1].startswith('--') else None
+            arg_type = args[2] if len(args) > 2 and isinstance(args[2], str) else None
+            default_val = args[3] if len(args) > 3 else None
+            help_text = None
+            
+            # Find help text (usually a string after default)
+            for i in range(4, len(args)):
+                if isinstance(args[i], str) and not args[i].startswith('-'):
+                    help_text = args[i]
+                    break
+            
+            # Build argument list for argparse
+            arg_list = []
+            if flag_short:
+                arg_list.append('-' + flag_short)
+            if flag_long:
+                arg_list.append(flag_long)
+            
+            # Convert type string to actual type
+            type_obj = None
+            if arg_type:
+                if arg_type == 'int':
+                    type_obj = int
+                elif arg_type == 'float':
+                    type_obj = float
+                elif arg_type == 'str':
+                    type_obj = str
+                elif arg_type == 'bool':
+                    type_obj = bool
+            
+            # Build kwargs for add_argument
+            add_kwargs = kwargs.copy()
+            if type_obj:
+                add_kwargs['type'] = type_obj
+            if default_val is not None:
+                add_kwargs['default'] = default_val
+            if help_text:
+                add_kwargs['help'] = help_text
+            
+            # Add the argument
+            if arg_list:
+                parser.add_argument(*arg_list, **add_kwargs)
+            else:
+                # Fallback
+                parser.add_argument(*args, **kwargs)
+        else:
+            # Positional argument format: ':folder', 'str', '.'
+            arg_name = first_arg[1:] if len(first_arg) > 1 else None  # Remove ':' prefix
+            arg_type = args[1] if len(args) > 1 and isinstance(args[1], str) else None
+            default_val = args[2] if len(args) > 2 else None
+            
+            # Convert type
+            type_obj = None
+            if arg_type:
+                if arg_type == 'int':
+                    type_obj = int
+                elif arg_type == 'float':
+                    type_obj = float
+                elif arg_type == 'str':
+                    type_obj = str
+                elif arg_type == 'bool':
+                    type_obj = bool
+            
+            # Build kwargs
+            add_kwargs = kwargs.copy()
+            if type_obj:
+                add_kwargs['type'] = type_obj
+            if default_val is not None:
+                add_kwargs['default'] = default_val
+                add_kwargs['nargs'] = '?'  # Make it optional if default provided
+            
+            # Add positional argument
+            if arg_name:
+                parser.add_argument(arg_name, **add_kwargs)
+            else:
+                parser.add_argument(*args, **kwargs)
+    elif isinstance(args[0], str) and args[0].startswith('--'):
+        # Standard argparse format: '--flag', type=..., default=...
+        # Or prettyparse format without colon: '--tags-folder', 'str', '{folder}/tags'
+        flag_name = args[0]
+        arg_type = args[1] if len(args) > 1 and isinstance(args[1], str) and not args[1].startswith('-') else None
+        default_val = args[2] if len(args) > 2 else None
         
-        # Convert type string to actual type
+        # Convert type
         type_obj = None
-        if arg_type:
+        if arg_type and arg_type in ['int', 'float', 'str', 'bool']:
             if arg_type == 'int':
                 type_obj = int
             elif arg_type == 'float':
@@ -149,26 +234,15 @@ def add_to_parser(parser, *args, **kwargs):
             elif arg_type == 'bool':
                 type_obj = bool
         
-        # Build kwargs for add_argument
+        # Build kwargs
         add_kwargs = kwargs.copy()
         if type_obj:
             add_kwargs['type'] = type_obj
         if default_val is not None:
             add_kwargs['default'] = default_val
         
-        # Add any remaining args as additional kwargs
-        if len(args) > 4:
-            # Additional positional args might be help text, etc.
-            for i in range(4, len(args)):
-                if isinstance(args[i], str) and 'help' not in add_kwargs:
-                    add_kwargs['help'] = args[i]
-        
         # Add the argument
-        if arg_list:
-            parser.add_argument(*arg_list, **add_kwargs)
-        else:
-            # Fallback to standard argparse
-            parser.add_argument(*args, **kwargs)
+        parser.add_argument(flag_name, *args[3:], **add_kwargs)
     else:
         # Standard argparse format: add_to_parser(parser, '--flag', help='...')
         parser.add_argument(*args, **kwargs)
