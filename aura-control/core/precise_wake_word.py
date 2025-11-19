@@ -226,8 +226,9 @@ class PreciseWakeWordDetector:
                 print("[Wake Word]     cd ~")
                 print("[Wake Word]     wget https://github.com/MycroftAI/mycroft-precise/releases/download/v0.3.0/precise-all_0.3.0_aarch64.tar.gz")
                 print("[Wake Word]     tar xzf precise-all_0.3.0_aarch64.tar.gz")
-                print("[Wake Word]     chmod +x precise/precise-engine")
-                print("[Wake Word]     mv precise ~/.mycroft/precise/")
+                print("[Wake Word]     mkdir -p ~/.mycroft/precise/precise-engine")
+                print("[Wake Word]     cp -r precise/* ~/.mycroft/precise/precise-engine/")
+                print("[Wake Word]     chmod +x ~/.mycroft/precise/precise-engine/precise-engine")
                 print("[Wake Word] 💡 Or run: ~/LedgerAI/setup/scripts/setup_precise_wake_word.sh")
                 return False
             
