@@ -59,11 +59,24 @@ if [ ! -d "$TRAINING_DIR/wake-word" ]; then
     exit 1
 fi
 
-# Count samples
-wake_word_count=$(ls "$TRAINING_DIR/wake-word"/*.wav 2>/dev/null | wc -l)
-not_wake_word_count=$(ls "$TRAINING_DIR/not-wake-word"/*.wav 2>/dev/null | wc -l)
-tts_echo_count=$(ls "$TRAINING_DIR/tts-echo"/*.wav 2>/dev/null | wc -l)
-noise_count=$(ls "$TRAINING_DIR/noise"/*.wav 2>/dev/null | wc -l)
+# Count samples (use find to handle empty directories and hidden files)
+wake_word_count=$(find "$TRAINING_DIR/wake-word" -maxdepth 1 -name "*.wav" -type f 2>/dev/null | wc -l)
+not_wake_word_count=$(find "$TRAINING_DIR/not-wake-word" -maxdepth 1 -name "*.wav" -type f 2>/dev/null | wc -l)
+tts_echo_count=$(find "$TRAINING_DIR/tts-echo" -maxdepth 1 -name "*.wav" -type f 2>/dev/null | wc -l)
+noise_count=$(find "$TRAINING_DIR/noise" -maxdepth 1 -name "*.wav" -type f 2>/dev/null | wc -l)
+
+# Debug: Show actual files found
+print_info "Debug: Checking actual files in directories..."
+if [ "$wake_word_count" -gt 0 ]; then
+    print_info "  Wake word files found:"
+    find "$TRAINING_DIR/wake-word" -maxdepth 1 -name "*.wav" -type f 2>/dev/null | head -5 | while read f; do
+        print_info "    - $(basename "$f")"
+    done
+else
+    print_warning "  No wake word files found in $TRAINING_DIR/wake-word"
+    print_info "  Directory contents:"
+    ls -la "$TRAINING_DIR/wake-word/" 2>/dev/null | head -10 || print_info "    (directory empty or not accessible)"
+fi
 
 print_info "Training data summary:"
 print_info "  Wake word samples: $wake_word_count"
@@ -169,43 +182,74 @@ print_info "Training model with $EPOCHS epochs..."
 print_info "This may take a while (10-30 minutes depending on data size)..."
 echo ""
 
+# Change to training directory - precise-train expects directories in current dir
+print_info "Setting up training environment..."
 cd "$TRAINING_DIR"
+print_info "Working directory: $(pwd)"
 
-# Check the correct syntax for precise-train
-# Mycroft Precise uses: precise-train model.net positive_dir negative_dir [--epochs N]
-print_info "Checking precise-train syntax..."
-HELP_OUTPUT=$($PRECISE_TRAIN_CMD --help 2>&1 || echo "")
+# Verify wake-word directory exists and has files
+if [ ! -d "wake-word" ]; then
+    print_error "Wake word directory missing!"
+    print_info "Expected: $TRAINING_DIR/wake-word"
+    exit 1
+fi
 
-# Determine epochs flag format
-EPOCHS_FLAG=""
-if echo "$HELP_OUTPUT" | grep -qE "\-\-epochs|\-e.*epoch" > /dev/null 2>&1; then
-    # Try --epochs first (more common)
-    if echo "$HELP_OUTPUT" | grep -q "\-\-epochs" > /dev/null 2>&1; then
-        EPOCHS_FLAG="--epochs $EPOCHS"
-    elif echo "$HELP_OUTPUT" | grep -qE "\-e.*epoch" > /dev/null 2>&1; then
-        EPOCHS_FLAG="-e $EPOCHS"
+# Re-count files in current directory (after cd)
+wake_word_count_local=$(find wake-word -maxdepth 1 -name "*.wav" -type f 2>/dev/null | wc -l)
+if [ "$wake_word_count_local" -eq 0 ]; then
+    print_error "Wake word directory is empty!"
+    print_info "Directory: $(pwd)/wake-word"
+    print_info "Contents:"
+    ls -la wake-word/ 2>/dev/null | head -10 || print_info "  (directory empty)"
+    print_info "Please collect wake word samples first:"
+    print_info "  ./collect_wake_word_data.sh wake-word"
+    exit 1
+fi
+
+# Mycroft Precise expects directories named "wake-word" and "not-wake-word" in current dir
+# It does NOT accept directories as command-line arguments
+# Format: precise-train model.net -e N
+# The tool automatically looks for "wake-word" and "not-wake-word" directories
+
+# Prepare not-wake-word directory from combined-negative
+# Mycroft Precise expects "not-wake-word" directory, not "combined-negative"
+print_info "Preparing not-wake-word directory for training..."
+COMBINED_NEGATIVE_FULL="$TRAINING_DIR/combined-negative"
+
+if [ ! -d "$COMBINED_NEGATIVE_FULL" ] || [ "$combined_count" -eq 0 ]; then
+    print_error "Combined negative data missing or empty!"
+    print_info "Expected: $COMBINED_NEGATIVE_FULL with .wav files"
+    exit 1
+fi
+
+# Backup existing not-wake-word if it exists and is different
+if [ -d "not-wake-word" ]; then
+    existing_count=$(find not-wake-word -maxdepth 1 -name "*.wav" -type f 2>/dev/null | wc -l)
+    if [ "$existing_count" -gt 0 ] && [ "$existing_count" -ne "$combined_count" ]; then
+        print_info "Backing up existing not-wake-word ($existing_count files)..."
+        mv not-wake-word "not-wake-word.backup.$(date +%s)"
     fi
 fi
 
-# Build the training command
-# Format: precise-train model.net positive_dir negative_dir [--epochs N]
-# Note: epochs flag typically comes AFTER the directories
-if [ -n "$EPOCHS_FLAG" ]; then
-    print_info "Using epochs flag: $EPOCHS_FLAG"
-    # Epochs flag goes after directories
-    TRAIN_ARGS="${MODEL_NAME}.net wake-word $COMBINED_NEGATIVE $EPOCHS_FLAG"
-else
-    print_warning "Could not determine epochs flag from help output"
-    print_info "Using default epochs (may be 50 or config-dependent)"
-    # Try --epochs as a guess (common format)
-    TRAIN_ARGS="${MODEL_NAME}.net wake-word $COMBINED_NEGATIVE --epochs $EPOCHS"
-    print_info "Attempting with --epochs flag (if this fails, check help output)"
-fi
+# Copy combined-negative to not-wake-word
+print_info "Copying combined-negative to not-wake-word..."
+rm -rf not-wake-word
+cp -r "$COMBINED_NEGATIVE_FULL" not-wake-word
+not_wake_word_count_local=$(find not-wake-word -maxdepth 1 -name "*.wav" -type f 2>/dev/null | wc -l)
+print_info "✅ Copied $not_wake_word_count_local files to not-wake-word/"
 
-# Use the detected command
-# Format: precise-train model.net positive_dir negative_dir [--epochs N]
-print_info "Running training command..."
-print_info "Command: $PRECISE_TRAIN_CMD $TRAIN_ARGS"
+# Verify both directories are ready
+print_info "Training directories ready:"
+print_info "  - wake-word/ ($wake_word_count_local files)"
+print_info "  - not-wake-word/ ($not_wake_word_count_local files)"
+
+# Build the training command
+# Format: precise-train model.net -e N
+# Directories are automatically detected from current directory
+TRAIN_ARGS="${MODEL_NAME}.net -e $EPOCHS"
+print_info "Training command: $PRECISE_TRAIN_CMD $TRAIN_ARGS"
+print_info "Note: precise-train will automatically use wake-word/ and not-wake-word/ directories"
+
 if $PRECISE_TRAIN_CMD $TRAIN_ARGS; then
     print_success "Training complete!"
 else
