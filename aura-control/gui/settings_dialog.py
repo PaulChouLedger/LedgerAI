@@ -932,7 +932,50 @@ class AIModelSettingsDialog(BaseAuraDialog):
         """)
         self.restart_llm_btn = QPushButton("🔁 Restart LLM"); self.restart_llm_btn.setStyleSheet(SettingsDialog.get_button_style(None))
         row = QHBoxLayout(); row.setSpacing(10); row.addWidget(self.model_combo, 2); row.addWidget(self.restart_llm_btn, 1); layout.addLayout(row)
-        layout.addStretch(1); self.setLayout(layout)
+        
+        # Wake word toggle (moved higher, closer to model dropdown)
+        wake_word_row = QHBoxLayout(); wake_word_row.setSpacing(12)
+        wake_word_label = QLabel("Wake Word Detection:")
+        wake_word_label.setStyleSheet("color: #ffffff; font-size: 14px;")
+        self.wake_word_toggle = QPushButton("OFF")
+        self.wake_word_toggle.setCheckable(True)
+        self.wake_word_toggle.setStyleSheet(SettingsDialog.get_button_style(None))
+        wake_word_row.addWidget(wake_word_label)
+        wake_word_row.addWidget(self.wake_word_toggle, 1)
+        layout.addLayout(wake_word_row)
+        
+        # Wake word engine selection
+        engine_row = QHBoxLayout(); engine_row.setSpacing(12)
+        engine_label = QLabel("Wake Word Engine:")
+        engine_label.setStyleSheet("color: #ffffff; font-size: 14px;")
+        self.wake_word_engine_combo = QComboBox()
+        self.wake_word_engine_combo.addItem("Mycroft Precise", "precise")
+        self.wake_word_engine_combo.addItem("OpenWakeWord", "openwakeword")
+        self.wake_word_engine_combo.setStyleSheet("""
+            QComboBox { background-color: rgba(44,44,46,0.8); color: #ffffff; padding: 8px; border: none; border-radius: 10px; min-height: 36px; }
+            QComboBox QAbstractItemView { background-color: #2d2d2d; color: #ffffff; selection-background-color: #4D94D9; }
+        """)
+        engine_row.addWidget(engine_label)
+        engine_row.addWidget(self.wake_word_engine_combo, 1)
+        layout.addLayout(engine_row)
+        
+        # RAG mode UI (CPU/GPU/OFF)
+        rag_row = QHBoxLayout(); rag_row.setSpacing(12)
+        rag_label = QLabel("RAG Mode:")
+        rag_label.setStyleSheet("color: #ffffff; font-size: 14px;")
+        self.rag_combo = QComboBox()
+        self.rag_combo.setStyleSheet("""
+            QComboBox { background-color: rgba(44,44,46,0.8); color: #ffffff; padding: 8px; border: none; border-radius: 10px; min-height: 36px; }
+            QComboBox QAbstractItemView { background-color: #2d2d2d; color: #ffffff; selection-background-color: #4D94D9; }
+        """)
+        self.rag_combo.addItems(["CPU", "GPU", "OFF"])
+        rag_row.addWidget(rag_label)
+        rag_row.addWidget(self.rag_combo, 1)
+        layout.addLayout(rag_row)
+        
+        # Add stretch and set layout (after all components are added)
+        layout.addStretch(1)
+        self.setLayout(layout)
         
         # Load state and populate
         try:
@@ -947,19 +990,7 @@ class AIModelSettingsDialog(BaseAuraDialog):
             # Defer status update to avoid blocking during initialization
             QTimer.singleShot(100, self._update_mode_status)
         self._populate_models()
-        # RAG mode UI (CPU/GPU/OFF)
-        rag_row = QHBoxLayout(); rag_row.setSpacing(12)
-        rag_label = QLabel("RAG Mode:")
-        rag_label.setStyleSheet("color: #ffffff;")
-        self.rag_combo = QComboBox()
-        self.rag_combo.setStyleSheet("""
-            QComboBox { background-color: rgba(44,44,46,0.8); color: #ffffff; padding: 8px; border: none; border-radius: 10px; min-height: 36px; }
-            QComboBox QAbstractItemView { background-color: #2d2d2d; color: #ffffff; selection-background-color: #4D94D9; }
-        """)
-        self.rag_combo.addItems(["CPU", "GPU", "OFF"])
-        rag_row.addWidget(rag_label)
-        rag_row.addWidget(self.rag_combo, 1)
-        layout.addLayout(rag_row)
+        
         # Initialize rag_combo from settings file
         try:
             import json, os
@@ -973,6 +1004,58 @@ class AIModelSettingsDialog(BaseAuraDialog):
                     self.rag_combo.setCurrentIndex(idx)
         except Exception:
             pass
+        
+        # Initialize wake word toggle from state
+        try:
+            from core.state import get_wake_word_enabled, get_wake_word_engine
+            enabled = get_wake_word_enabled()
+            self.wake_word_toggle.setChecked(enabled)
+            self.wake_word_toggle.setText("ON" if enabled else "OFF")
+            
+            # Initialize engine selection
+            current_engine = get_wake_word_engine()
+            idx = self.wake_word_engine_combo.findData(current_engine)
+            if idx >= 0:
+                self.wake_word_engine_combo.setCurrentIndex(idx)
+        except Exception:
+            self.wake_word_toggle.setChecked(False)
+            self.wake_word_toggle.setText("OFF")
+        
+        # Connect signals
+        def on_wake_word_toggled(checked):
+            self.wake_word_toggle.setText("ON" if checked else "OFF")
+            try:
+                from core.state import set_wake_word_enabled
+                set_wake_word_enabled(checked)
+                print(f"[ModelSettings] Wake word detection: {'enabled' if checked else 'disabled'}")
+                
+                if checked:
+                    engine = self.wake_word_engine_combo.currentData()
+                    engine_name = "Mycroft Precise" if engine == "precise" else "OpenWakeWord"
+                    print(f"[ModelSettings] ✅ Wake word enabled - using {engine_name}")
+                    from PyQt5.QtWidgets import QMessageBox
+                    QMessageBox.information(
+                        self,
+                        "Wake Word Enabled",
+                        f"Wake word detection enabled.\n\n"
+                        f"Using {engine_name} (no container needed).\n\n"
+                        "You may need to restart Aura for wake word to work."
+                    )
+            except Exception as e:
+                print(f"[ModelSettings] Error saving wake word setting: {e}")
+        
+        def on_engine_changed():
+            try:
+                from core.state import set_wake_word_engine
+                engine = self.wake_word_engine_combo.currentData()
+                set_wake_word_engine(engine)
+                engine_name = "Mycroft Precise" if engine == "precise" else "OpenWakeWord"
+                print(f"[ModelSettings] Wake word engine changed to: {engine_name}")
+            except Exception as e:
+                print(f"[ModelSettings] Error saving wake word engine: {e}")
+        
+        self.wake_word_toggle.toggled.connect(on_wake_word_toggled)
+        self.wake_word_engine_combo.currentIndexChanged.connect(on_engine_changed)
         self.rag_combo.currentIndexChanged.connect(self._on_rag_mode_changed)
         # Connect mode buttons
         self.mode_generic_btn.clicked.connect(lambda: self._on_mode_changed("generic"))
@@ -1564,9 +1647,9 @@ class SettingsDialog(BaseAuraDialog):
         self.volume_slider.setMaximum(100)
         self.volume_slider.setSingleStep(1)
         self.volume_slider.setStyleSheet("""
-            QSlider::groove:horizontal { height: 8px; background: #444; border-radius: 4px; }
-            QSlider::handle:horizontal { background: #4D94D9; width: 18px; margin: -5px 0; border-radius: 9px; }
-            QSlider::sub-page:horizontal { background: #4D94D9; border-radius: 4px; }
+            QSlider::groove:horizontal { height: 16px; background: #444; border-radius: 8px; }
+            QSlider::handle:horizontal { background: #4D94D9; width: 32px; margin: -8px 0; border-radius: 16px; }
+            QSlider::sub-page:horizontal { background: #4D94D9; border-radius: 8px; }
         """)
         # Initialize slider value from env or speaker
         self._init_volume_slider()

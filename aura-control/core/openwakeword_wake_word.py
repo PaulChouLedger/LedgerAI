@@ -79,12 +79,35 @@ class OpenWakeWordDetector:
             # OpenWakeWord can load models by name or path
             # If no models specified, it loads all available models
             try:
-                # Try to load specific model
-                self.engine = Model(
-                    wakeword_models=[self.model_name] if self.model_name else None,
-                    inference_framework='onnx'  # Use ONNX for better ARM64 support
-                )
-                print(f"[OpenWakeWord] ✅ Model loaded: {self.model_name or 'all available models'}")
+                # Check if model_name is a file path
+                model_path = None
+                if self.model_name and os.path.exists(self.model_name):
+                    # It's a file path
+                    model_path = self.model_name
+                    print(f"[OpenWakeWord] 📁 Loading model from path: {model_path}")
+                elif self.model_name and not os.path.isabs(self.model_name):
+                    # Check if it's a relative path in our models directory
+                    workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+                    custom_model_path = os.path.join(workspace_root, 'data', 'models', 'wake_words', self.model_name)
+                    if os.path.exists(custom_model_path):
+                        model_path = custom_model_path
+                        print(f"[OpenWakeWord] 📁 Found custom model: {model_path}")
+                
+                # Try to load specific model (by name or path)
+                if model_path:
+                    # Load from file path
+                    self.engine = Model(
+                        wakeword_models=[model_path],
+                        inference_framework='onnx'  # Use ONNX for better ARM64 support
+                    )
+                    print(f"[OpenWakeWord] ✅ Custom model loaded: {model_path}")
+                else:
+                    # Load by model name (built-in models)
+                    self.engine = Model(
+                        wakeword_models=[self.model_name] if self.model_name else None,
+                        inference_framework='onnx'  # Use ONNX for better ARM64 support
+                    )
+                    print(f"[OpenWakeWord] ✅ Model loaded: {self.model_name or 'all available models'}")
             except Exception as e:
                 print(f"[OpenWakeWord] ⚠️  Failed to load model '{self.model_name}': {e}")
                 print(f"[OpenWakeWord] 💡 Trying to load all available models...")
