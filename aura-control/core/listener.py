@@ -748,6 +748,11 @@ def listen():
                             rms = features['rms']
                             peak = features['peak']
                             
+                            # Store features for use when wake word is detected
+                            if not hasattr(wake_word_detector, '_last_features'):
+                                wake_word_detector._last_features = None
+                            wake_word_detector._last_features = features
+                            
                             # Debug: check audio levels occasionally (every 100 frames or first 5)
                             # Show same format as main listener VAD output
                             if not hasattr(wake_word_detector, '_audio_level_debug'):
@@ -804,7 +809,18 @@ def listen():
                                     print(f"[Wake Word] 💓 Still listening for wake word... (Frame {wake_word_detector._debug_counter})")
                                 
                                 if wake_detected:
-                                    print(f"\n[Wake Word] ✅ Wake word detected! (confidence: {confidence:.6f})")
+                                    # Print RMS and audio features at detection time (using same calculation as VAD)
+                                    if hasattr(wake_word_detector, '_last_features') and wake_word_detector._last_features:
+                                        det_features = wake_word_detector._last_features
+                                        print(f"\n[Wake Word] ✅ Wake word detected! (confidence: {confidence:.6f})")
+                                        print(f"[Wake Word] 📊 Audio at detection: RMS={det_features['rms']:.4f}, Peak={det_features['peak']:.4f}")
+                                        print(f"[Wake Word] 📊 Features: ZCR={det_features['zcr']:.3f} | SpCentroid={det_features['spectral_centroid']:.0f}Hz | SpFlat={det_features['spectral_flatness']:.3f}")
+                                    else:
+                                        # Fallback if features not available
+                                        detection_rms = np.sqrt(np.mean(wake_word_frame**2))
+                                        detection_peak = np.abs(wake_word_frame).max()
+                                        print(f"\n[Wake Word] ✅ Wake word detected! (confidence: {confidence:.6f})")
+                                        print(f"[Wake Word] 📊 Audio at detection: RMS={detection_rms:.4f}, Peak={detection_peak:.4f}")
                                     listening_active = True
                                     
                                     # Visual feedback (if GUI available) - trigger solid red LED (not pulsating yet)
