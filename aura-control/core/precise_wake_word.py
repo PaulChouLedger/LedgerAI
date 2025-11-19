@@ -168,24 +168,57 @@ class PreciseWakeWordDetector:
             
             # Find precise-engine executable
             # For Jetson, it needs to be downloaded separately as a binary
+            # IMPORTANT: Prefer the actual binary over Python wrapper scripts
             import shutil
             import platform
-            exe_file = shutil.which('precise-engine')
+            
+            # First, try the actual binary locations (preferred)
+            # The Python wrapper at ~/.local/bin/precise-engine has import issues
+            possible_paths = [
+                os.path.expanduser('~/.mycroft/precise/precise-engine/precise-engine'),  # Preferred: actual binary
+                os.path.expanduser('~/precise-engine/precise-engine'),
+                os.path.expanduser('~/precise/precise-engine'),
+                '/usr/local/bin/precise-engine',
+                '/usr/bin/precise-engine',
+            ]
+            
+            exe_file = None
+            for path in possible_paths:
+                if os.path.exists(path) and os.access(path, os.X_OK):
+                    # Check if it's actually a binary (not a Python script)
+                    try:
+                        with open(path, 'rb') as f:
+                            first_bytes = f.read(2)
+                            # ELF binary starts with 0x7f 'ELF'
+                            if first_bytes == b'\x7fELF':
+                                exe_file = path
+                                print(f"[Wake Word] ✅ Found binary executable: {exe_file}")
+                                break
+                            # Also check if it's a shebang script (Python wrapper)
+                            elif first_bytes == b'#!':
+                                # Skip Python wrapper scripts - they have import issues
+                                print(f"[Wake Word] ⚠️  Skipping Python wrapper: {path}")
+                                continue
+                    except Exception:
+                        # If we can't read it, skip it
+                        continue
+            
+            # Fallback to shutil.which only if no binary found
             if not exe_file:
-                # Try common locations including Mycroft's default location
-                machine = platform.machine()
-                possible_paths = [
-                    '/usr/local/bin/precise-engine',
-                    '/usr/bin/precise-engine',
-                    os.path.expanduser('~/.local/bin/precise-engine'),
-                    os.path.expanduser('~/.mycroft/precise/precise-engine/precise-engine'),
-                    os.path.expanduser('~/precise-engine/precise-engine'),
-                    os.path.expanduser('~/precise/precise-engine'),
-                ]
-                for path in possible_paths:
-                    if os.path.exists(path) and os.access(path, os.X_OK):
-                        exe_file = path
-                        break
+                which_exe = shutil.which('precise-engine')
+                if which_exe:
+                    # Check if it's a binary or Python script
+                    try:
+                        with open(which_exe, 'rb') as f:
+                            first_bytes = f.read(2)
+                            if first_bytes == b'\x7fELF':
+                                exe_file = which_exe
+                                print(f"[Wake Word] ✅ Found binary via PATH: {exe_file}")
+                            else:
+                                print(f"[Wake Word] ⚠️  PATH has Python wrapper, not binary: {which_exe}")
+                                print(f"[Wake Word] 💡 Install binary: ~/LedgerAI/setup/scripts/install_aura_bootable.sh")
+                    except Exception:
+                        pass
             
             if not exe_file:
                 print("[Wake Word] ❌ precise-engine executable not found")

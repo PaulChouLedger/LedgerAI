@@ -797,15 +797,21 @@ def listen():
                             # Not enough samples, continue to next iteration
                             continue
                         
+                        # Handle different wake word detector types
                         # Mycroft Precise requires 2048 samples (128ms at 16kHz), so we buffer frames
-                        # Ensure channel_audio is 1D before appending
-                        if channel_audio.ndim > 1:
-                            channel_audio = channel_audio.flatten()
-                        wake_word_buffer.append(channel_audio)
+                        # OpenWakeWord handles buffering internally, so we can call process() directly
                         
-                        # Check if we have enough samples for Mycroft Precise frame
-                        if wake_word_detector and wake_word_detector.frame_length:
-                            required_samples = wake_word_detector.frame_length
+                        # Check if detector uses frame_length (Precise) or handles buffering internally (OpenWakeWord)
+                        frame_length = getattr(wake_word_detector, 'frame_length', None)
+                        
+                        if frame_length:
+                            # Precise-style detector: needs external buffering
+                            # Ensure channel_audio is 1D before appending
+                            if channel_audio.ndim > 1:
+                                channel_audio = channel_audio.flatten()
+                            wake_word_buffer.append(channel_audio)
+                            
+                            required_samples = frame_length
                             total_samples = sum(len(chunk) for chunk in wake_word_buffer)
                             
                             if total_samples >= required_samples:
@@ -876,13 +882,69 @@ def listen():
                                 # Not enough samples yet, continue buffering - loop back to read more
                                 continue
                         else:
-                            # Wake word detector not properly initialized
-                            if not hasattr(wake_word_detector, '_warned_init'):
-                                print(f"[Wake Word] ⚠️ Detector not initialized: frame_length={getattr(wake_word_detector, 'frame_length', None)}")
-                                wake_word_detector._warned_init = True
-                            wake_word_buffer = []
-                            # Continue to next iteration to keep trying
-                            continue
+                            # OpenWakeWord-style detector: handles buffering internally
+                            # Convert audio to float32 normalized format if needed
+                            if channel_audio.ndim > 1:
+                                channel_audio = channel_audio.flatten()
+                            
+                            # OpenWakeWord expects float32 normalized to [-1, 1]
+                            # Convert from int16 if needed
+                            if channel_audio.dtype == np.int16:
+                                audio_float = channel_audio.astype(np.float32) / 32768.0
+                            elif channel_audio.dtype != np.float32:
+                                audio_float = channel_audio.astype(np.float32)
+                            else:
+                                audio_float = channel_audio
+                            
+                            # Normalize to [-1, 1] range if not already
+                            if audio_float.max() > 1.0 or audio_float.min() < -1.0:
+                                # Assume int16 range and normalize
+                                audio_float = audio_float / 32768.0
+                            
+                            # Call process directly - OpenWakeWord handles buffering internally
+                            wake_detected, confidence = wake_word_detector.process(audio_float)
+                            
+                            # Debug output (show confidence less frequently to reduce spam)
+                            if not hasattr(wake_word_detector, '_debug_counter'):
+                                wake_word_detector._debug_counter = 0
+                            wake_word_detector._debug_counter += 1
+                            
+                            # Show confidence every 100 frames, or if confidence > threshold/10 (getting close), or if confidence > 0
+                            threshold = getattr(wake_word_detector, 'threshold', 0.5)
+                            show_debug = (wake_word_detector._debug_counter % 100 == 0) or (confidence > threshold / 10) or (confidence > 0.001)
+                            if show_debug:
+                                status = "🔴" if confidence < threshold * 0.5 else "🟡" if confidence < threshold else "🟢"
+                                print(f"[Wake Word] {status} Confidence: {confidence:.6f} (threshold: {threshold:.6f}) - Frame {wake_word_detector._debug_counter}")
+                                
+                            # Heartbeat every 500 frames to confirm we're still listening
+                            if wake_word_detector._debug_counter % 500 == 0:
+                                print(f"[Wake Word] 💓 Still listening for wake word... (Frame {wake_word_detector._debug_counter})")
+                            
+                            if wake_detected:
+                                # Print RMS and audio features at detection time
+                                detection_rms = np.sqrt(np.mean(audio_float**2))
+                                detection_peak = np.abs(audio_float).max()
+                                print(f"\n[Wake Word] ✅ Wake word detected! (confidence: {confidence:.6f})")
+                                print(f"[Wake Word] 📊 Audio at detection: RMS={detection_rms:.4f}, Peak={detection_peak:.4f}")
+                                listening_active = True
+                                
+                                # Visual feedback (if GUI available) - trigger solid red LED (not pulsating yet)
+                                try:
+                                    from gui.aura_gui import set_wake_word_detected
+                                    set_wake_word_detected(True)  # Solid red LED, waiting for speech
+                                except (ImportError, NameError):
+                                    pass
+                                
+                                # Clear wake word buffer (for consistency, even though OpenWakeWord doesn't use it)
+                                wake_word_buffer = []
+                                
+                                # Wait a moment before starting VAD (avoid wake word in transcription)
+                                time.sleep(0.3)
+                                
+                                # Reset VAD state for fresh start
+                                model_vad.reset_states()
+                                
+                                print("[Wake Word] 🎤 Listening for speech...")
                     except KeyboardInterrupt:
                         # Allow clean exit on Ctrl+C
                         raise

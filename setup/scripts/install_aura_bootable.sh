@@ -506,6 +506,165 @@ else
     print_info "   Wake word detection may not work until this is resolved"
 fi
 
+# Fix prettyparse for precise-engine Python wrapper (if it exists)
+# The wrapper script imports prettyparse which may have syntax errors
+print_info "Fixing prettyparse for precise-engine compatibility..."
+if python3 -c "import prettyparse; from prettyparse import create_parser" 2>/dev/null; then
+    print_info "✅ prettyparse is already working"
+else
+    print_info "Applying prettyparse patch..."
+    PRETTYPARSE_PATH=$(python3 -c "import prettyparse; print(prettyparse.__file__)" 2>/dev/null || echo "")
+    if [ -z "$PRETTYPARSE_PATH" ] || [ ! -f "$PRETTYPARSE_PATH" ]; then
+        # Try common locations
+        if [ -f "$HOME/.local/lib/python3.10/site-packages/prettyparse.py" ]; then
+            PRETTYPARSE_PATH="$HOME/.local/lib/python3.10/site-packages/prettyparse.py"
+        elif [ -f "$VENV_DIR/lib/python3.10/site-packages/prettyparse.py" ]; then
+            PRETTYPARSE_PATH="$VENV_DIR/lib/python3.10/site-packages/prettyparse.py"
+        fi
+    fi
+    
+    if [ -n "$PRETTYPARSE_PATH" ] && [ -f "$PRETTYPARSE_PATH" ]; then
+        # Apply minimal patch
+        python3 << PYEOF
+import os
+import sys
+
+prettyparse_path = "$PRETTYPARSE_PATH"
+if not os.path.exists(prettyparse_path):
+    sys.exit(1)
+
+# Read file
+with open(prettyparse_path, 'r') as f:
+    content = f.read()
+
+# Check if functions already exist
+if 'def create_parser' in content and 'def add_to_parser' in content:
+    sys.exit(0)
+
+# Add functions
+patch_code = '''
+
+# === PATCH: Added functions for mycroft-precise compatibility ===
+def create_parser(usage_or_description='', **kwargs):
+    """Create a parser compatible with mycroft-precise expectations."""
+    import argparse
+    parser_kwargs = kwargs.copy()
+    if usage_or_description:
+        if 'usage' not in parser_kwargs:
+            parser_kwargs['usage'] = usage_or_description
+        elif 'description' not in parser_kwargs:
+            parser_kwargs['description'] = usage_or_description
+    parser = argparse.ArgumentParser(**parser_kwargs)
+    return parser
+
+def add_to_parser(parser, *args, **kwargs):
+    """Add arguments to a parser. Compatible with mycroft-precise expectations."""
+    import argparse
+    
+    if not args:
+        return parser
+    
+    # Handle simple string (usage text)
+    if len(args) == 1 and isinstance(args[0], str) and not args[0].startswith(':') and not args[0].startswith('-'):
+        usage_text = args[0]
+        if hasattr(parser, 'epilog'):
+            current = getattr(parser, 'epilog', '') or ''
+            if current:
+                parser.epilog = current + '\\n' + usage_text
+            else:
+                parser.epilog = usage_text
+        return parser
+    
+    # Handle prettyparse format
+    if isinstance(args[0], str) and args[0].startswith(':'):
+        first_arg = args[0]
+        if first_arg.startswith(':-'):
+            # Flag format: ':-e', '--epochs', 'type', default
+            flag_short = first_arg[2:] if len(first_arg) > 2 else None
+            flag_long = args[1] if len(args) > 1 and isinstance(args[1], str) and args[1].startswith('--') else None
+            arg_type = args[2] if len(args) > 2 and isinstance(args[2], str) else None
+            default_val = args[3] if len(args) > 3 else None
+            
+            arg_list = []
+            if flag_short:
+                arg_list.append('-' + flag_short)
+            if flag_long:
+                arg_list.append(flag_long)
+            
+            type_obj = None
+            if arg_type:
+                if arg_type == 'int':
+                    type_obj = int
+                elif arg_type == 'float':
+                    type_obj = float
+                elif arg_type == 'str':
+                    type_obj = str
+                elif arg_type == 'bool':
+                    type_obj = bool
+            
+            add_kwargs = kwargs.copy()
+            if type_obj:
+                add_kwargs['type'] = type_obj
+            if default_val is not None:
+                add_kwargs['default'] = default_val
+            
+            if arg_list:
+                parser.add_argument(*arg_list, **add_kwargs)
+            else:
+                parser.add_argument(*args, **kwargs)
+        else:
+            # Positional argument
+            arg_name = first_arg[1:] if len(first_arg) > 1 else None
+            arg_type = args[1] if len(args) > 1 and isinstance(args[1], str) else None
+            default_val = args[2] if len(args) > 2 else None
+            
+            type_obj = None
+            if arg_type:
+                if arg_type == 'int':
+                    type_obj = int
+                elif arg_type == 'float':
+                    type_obj = float
+                elif arg_type == 'str':
+                    type_obj = str
+                elif arg_type == 'bool':
+                    type_obj = bool
+            
+            add_kwargs = kwargs.copy()
+            if type_obj:
+                add_kwargs['type'] = type_obj
+            if default_val is not None:
+                add_kwargs['default'] = default_val
+            
+            if arg_name:
+                parser.add_argument(arg_name, **add_kwargs)
+            else:
+                parser.add_argument(*args, **kwargs)
+    elif isinstance(args[0], str) and args[0].startswith('--'):
+        # Standard argparse format
+        parser.add_argument(*args, **kwargs)
+    else:
+        parser.add_argument(*args, **kwargs)
+    
+    return parser
+# === END PATCH ===
+'''
+
+# Append patch
+with open(prettyparse_path, 'a') as f:
+    f.write(patch_code)
+
+PYEOF
+        
+        if python3 -c "import prettyparse; from prettyparse import create_parser, add_to_parser" 2>/dev/null; then
+            print_info "✅ prettyparse patched successfully"
+        else
+            print_warning "⚠️  prettyparse patch may have failed (non-critical if using binary)"
+        fi
+    else
+        print_info "⚠️  prettyparse not found (may not be needed)"
+    fi
+fi
+
 
 # Download precise-engine binary for ARM64/Jetson
 print_info "Downloading precise-engine binary for ARM64/Jetson..."
