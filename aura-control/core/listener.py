@@ -794,17 +794,7 @@ def listen():
                         # VAD loop wraps this in try/except, so we do too
                         audio_block, overflowed = stream.read(FRAME_SIZE)
                         
-                        # Debug: Check if audio_block is valid (first few reads)
-                        if not hasattr(wake_word_detector, '_stream_debug'):
-                            wake_word_detector._stream_debug = 0
-                        wake_word_detector._stream_debug += 1
-                        if wake_word_detector._stream_debug <= 3:
-                            print(f"[Wake Word] 🔍 Stream Debug (read {wake_word_detector._stream_debug}): audio_block shape={audio_block.shape if audio_block is not None else None}, dtype={audio_block.dtype if audio_block is not None else None}, min={audio_block.min() if audio_block is not None else None:.6f}, max={audio_block.max() if audio_block is not None else None:.6f}")
-                            print(f"[Wake Word] 🔍 Stream state: active={stream.active}, stopped={stream.stopped}")
-                        
                         if audio_block is None or audio_block.size == 0:
-                            if wake_word_detector._stream_debug <= 10:
-                                print(f"[Wake Word] ⚠️  Empty audio_block on read {wake_word_detector._stream_debug}")
                             continue
                         
                         # Extract channel using EXACT same method as VAD loop (line 1036)
@@ -821,6 +811,18 @@ def listen():
                         features = calculate_audio_features(channel_audio)
                         rms = features['rms']
                         peak = features['peak']
+                        
+                        # Wait for real audio - skip zero frames silently (like VAD does)
+                        # This ensures we don't process wake word on empty buffer
+                        if rms < 0.0001 and peak < 0.0001:
+                            # All zeros - stream buffer may not be filled yet
+                            # Continue reading until we get real audio (same as VAD behavior)
+                            continue
+                        
+                        # Real audio detected! Log once to confirm stream is working
+                        if not hasattr(wake_word_detector, '_real_audio_detected'):
+                            print(f"[Wake Word] ✅ Real audio detected! RMS={rms:.6f}, Peak={peak:.6f} - Stream is working")
+                            wake_word_detector._real_audio_detected = True
                         
                         # Store features for use when wake word is detected
                         if not hasattr(wake_word_detector, '_last_features'):
