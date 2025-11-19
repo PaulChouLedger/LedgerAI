@@ -17,6 +17,7 @@ import argparse
 import json
 import time
 import subprocess
+import re
 import numpy as np
 from pathlib import Path
 from typing import List, Tuple
@@ -79,12 +80,183 @@ def check_dependencies():
     return True
 
 
-def generate_tts_samples(text: str, num_samples: int = 10, output_dir: Path = None) -> List[Path]:
+def detect_output_device():
+    """Detect audio output device (similar to speaker.py)."""
+    try:
+        output = subprocess.check_output(["aplay", "-l"], text=True)
+        # First, try to find UACDemoV1.0
+        for line in output.splitlines():
+            if "UACDemoV1.0" in line:
+                match = re.search(r"card (\d+):", line)
+                if match:
+                    card_num = int(match.group(1))
+                    return f"plughw:{card_num},0"
+        
+        # Fallback: find any USB audio device with output
+        for line in output.splitlines():
+            if "USB Audio" in line and ("0 in" in line or "out" in line):
+                match = re.search(r"card (\d+):", line)
+                if match:
+                    card_num = int(match.group(1))
+                    return f"plughw:{card_num},0"
+        
+        # No USB device found - use default with plug plugin
+        return "plug:default"
+    except Exception as e:
+        print(f"⚠️ Failed to detect output device: {e}")
+        return "default"
+
+
+def play_and_record_tts(text: str, device_index: int = None, duration_padding: float = 0.5) -> np.ndarray:
     """
-    Generate TTS audio samples using ElevenLabs (same as speaker.py).
-    These will be used as NEGATIVE samples (to teach model NOT to trigger on TTS).
+    Generate TTS, play it through speakers, and record it back through microphone.
+    This captures real echo/reverb that occurs in actual use.
     """
+    import pyaudio
+    import threading
     from elevenlabs.client import ElevenLabs
+    
+    global _selected_device_index
+    
+    if device_index is None:
+        device_index = _selected_device_index
+    
+    ELEVEN_API_KEY = os.getenv("ELEVENLABS_API_KEY") or os.getenv("ELEVEN_API_KEY")
+    ELEVEN_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID") or os.getenv("ELEVEN_VOICE_ID") or "default"
+    
+    if not ELEVEN_API_KEY or ELEVEN_API_KEY == "your_elevenlabs_api_key_here":
+        raise RuntimeError("ElevenLabs API key not configured")
+    
+    client = ElevenLabs(api_key=ELEVEN_API_KEY)
+    PCM_SAMPLE_RATE = 22050
+    PCM_FORMAT = "pcm_22050"
+    
+    # Generate TTS audio
+    stream = client.text_to_speech.convert(
+        text=text,
+        voice_id=ELEVEN_VOICE_ID,
+        output_format=PCM_FORMAT,
+        voice_settings={
+            "stability": 0.5,
+            "similarity_boost": 0.0,
+            "style": 0.0,
+            "use_speaker_boost": False,
+            "optimize_streaming_latency": True
+        }
+    )
+    
+    # Collect all audio chunks
+    audio_chunks = []
+    for chunk in stream:
+        if chunk:
+            audio_chunks.append(chunk)
+    
+    if not audio_chunks:
+        raise RuntimeError("No audio received from TTS")
+    
+    # Convert to numpy array
+    audio_data = np.frombuffer(b''.join(audio_chunks), dtype=np.int16)
+    audio_duration = len(audio_data) / PCM_SAMPLE_RATE
+    
+    # Detect output device
+    output_device = detect_output_device()
+    
+    # Set up recording
+    p = pyaudio.PyAudio()
+    chunk = 1024
+    format = pyaudio.paInt16
+    channels = 1
+    
+    recorded_frames = []
+    recording_active = threading.Event()
+    recording_done = threading.Event()
+    
+    def record_audio():
+        """Record audio in a separate thread."""
+        stream = p.open(
+            format=format,
+            channels=channels,
+            rate=SAMPLE_RATE,
+            input=True,
+            input_device_index=device_index,
+            frames_per_buffer=chunk
+        )
+        
+        recording_active.set()
+        
+        # Record for audio duration + padding
+        num_chunks = int(SAMPLE_RATE / chunk * (audio_duration + duration_padding))
+        
+        for _ in range(num_chunks):
+            if not recording_active.is_set():
+                break
+            data = stream.read(chunk, exception_on_overflow=False)
+            recorded_frames.append(data)
+        
+        stream.stop_stream()
+        stream.close()
+        recording_done.set()
+    
+    # Start recording thread
+    record_thread = threading.Thread(target=record_audio, daemon=True)
+    record_thread.start()
+    
+    # Wait for recording to start
+    recording_active.wait(timeout=1.0)
+    time.sleep(0.1)  # Small delay to ensure recording is active
+    
+    # Play TTS through speakers
+    try:
+        proc = subprocess.Popen(
+            ["aplay", "-D", output_device, "-f", "S16_LE", "-r", str(PCM_SAMPLE_RATE), "-c", "1"],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
+        
+        # Write audio data
+        proc.stdin.write(audio_data.tobytes())
+        proc.stdin.close()
+        
+        # Wait for playback to complete
+        proc.wait()
+    except Exception as e:
+        print(f"   ⚠️  Playback error: {e}")
+        recording_active.clear()
+    
+    # Wait a bit for echo to be captured
+    time.sleep(duration_padding)
+    recording_active.clear()
+    
+    # Wait for recording to finish
+    recording_done.wait(timeout=5.0)
+    
+    p.terminate()
+    
+    if not recorded_frames:
+        raise RuntimeError("No audio recorded")
+    
+    # Convert recorded audio to numpy array
+    recorded_audio = np.frombuffer(b''.join(recorded_frames), dtype=np.int16)
+    recorded_float = recorded_audio.astype(np.float32) / 32768.0
+    
+    return recorded_float
+
+
+def generate_tts_samples(text: str, num_samples: int = 10, output_dir: Path = None, play_through_speakers: bool = True) -> List[Path]:
+    """
+    Generate TTS audio samples using ElevenLabs.
+    
+    If play_through_speakers=True (recommended):
+    - Plays TTS through speakers and records it back through microphone
+    - Captures real echo/reverb that occurs in actual use
+    - These are NEGATIVE samples (to teach model NOT to trigger on TTS)
+    
+    If play_through_speakers=False:
+    - Just generates TTS audio directly (no echo/reverb)
+    - Less realistic but faster
+    """
+    global _selected_device_index
     
     ELEVEN_API_KEY = os.getenv("ELEVENLABS_API_KEY") or os.getenv("ELEVEN_API_KEY")
     ELEVEN_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID") or os.getenv("ELEVEN_VOICE_ID") or "default"
@@ -94,67 +266,96 @@ def generate_tts_samples(text: str, num_samples: int = 10, output_dir: Path = No
         print("   Set ELEVENLABS_API_KEY in .env file")
         return []
     
-    client = ElevenLabs(api_key=ELEVEN_API_KEY)
-    PCM_SAMPLE_RATE = 22050
-    PCM_FORMAT = "pcm_22050"
-    
     output_dir = output_dir or TTS_NEGATIVE_DIR
     output_dir.mkdir(parents=True, exist_ok=True)
     
     generated_files = []
     
-    print(f"🎤 Generating {num_samples} TTS samples of '{text}' (NEGATIVE samples)...")
+    if play_through_speakers:
+        print(f"🔊 Generating {num_samples} TTS samples of '{text}' (NEGATIVE samples)...")
+        print(f"   Playing through speakers and recording echo/reverb")
+        print(f"   Make sure speakers are on and microphone can hear them!")
+        
+        # Ensure microphone device is selected
+        if _selected_device_index is None:
+            _selected_device_index = select_microphone_device()
+            if _selected_device_index is None:
+                print("⚠️  No microphone device selected - cannot record echo")
+                return []
+        
+        print(f"   Using microphone device index: {_selected_device_index}")
+        print(f"   Starting in 2 seconds...")
+        time.sleep(2)
+    else:
+        print(f"🎤 Generating {num_samples} TTS samples of '{text}' (NEGATIVE samples)...")
+        print(f"   Direct generation (no echo/reverb)")
     
     for i in range(num_samples):
         try:
-            # Generate TTS audio
-            stream = client.text_to_speech.convert(
-                text=text,
-                voice_id=ELEVEN_VOICE_ID,
-                output_format=PCM_FORMAT,
-                voice_settings={
-                    "stability": 0.5,
-                    "similarity_boost": 0.0,
-                    "style": 0.0,
-                    "use_speaker_boost": False,
-                    "optimize_streaming_latency": True
-                }
-            )
-            
-            # Collect all audio chunks
-            audio_chunks = []
-            for chunk in stream:
-                if chunk:
-                    audio_chunks.append(chunk)
-            
-            if not audio_chunks:
-                print(f"   ⚠️  No audio received for sample {i+1}")
-                continue
-            
-            # Convert bytes to numpy array (16-bit PCM)
-            audio_data = np.frombuffer(b''.join(audio_chunks), dtype=np.int16)
-            
-            # Convert to float32 and normalize
-            audio_float = audio_data.astype(np.float32) / 32768.0
-            
-            # Resample from 22050 to 16000 Hz (OpenWakeWord requirement)
-            from scipy import signal
-            num_samples_resampled = int(len(audio_float) * SAMPLE_RATE / PCM_SAMPLE_RATE)
-            audio_resampled = signal.resample(audio_float, num_samples_resampled)
-            
-            # Save as WAV file
-            output_file = output_dir / f"tts_echo_{i+1:03d}.wav"
-            sf.write(str(output_file), audio_resampled, SAMPLE_RATE)
-            generated_files.append(output_file)
-            
-            print(f"   ✅ Generated: {output_file.name}")
-            time.sleep(0.5)  # Rate limiting
+            if play_through_speakers:
+                # Play through speakers and record echo
+                print(f"\n   [{i+1}/{num_samples}] Playing and recording...", end="", flush=True)
+                recorded_audio = play_and_record_tts(text, device_index=_selected_device_index)
+                print(" ✅")
+                
+                # Save recorded audio (already at 16kHz from recording)
+                output_file = output_dir / f"tts_echo_{i+1:03d}.wav"
+                sf.write(str(output_file), recorded_audio, SAMPLE_RATE)
+                generated_files.append(output_file)
+                
+                print(f"      ✅ Saved: {output_file.name}")
+                time.sleep(0.5)  # Brief pause between samples
+            else:
+                # Direct generation (old method)
+                from elevenlabs.client import ElevenLabs
+                client = ElevenLabs(api_key=ELEVEN_API_KEY)
+                PCM_SAMPLE_RATE = 22050
+                PCM_FORMAT = "pcm_22050"
+                
+                stream = client.text_to_speech.convert(
+                    text=text,
+                    voice_id=ELEVEN_VOICE_ID,
+                    output_format=PCM_FORMAT,
+                    voice_settings={
+                        "stability": 0.5,
+                        "similarity_boost": 0.0,
+                        "style": 0.0,
+                        "use_speaker_boost": False,
+                        "optimize_streaming_latency": True
+                    }
+                )
+                
+                audio_chunks = []
+                for chunk in stream:
+                    if chunk:
+                        audio_chunks.append(chunk)
+                
+                if not audio_chunks:
+                    print(f"   ⚠️  No audio received for sample {i+1}")
+                    continue
+                
+                audio_data = np.frombuffer(b''.join(audio_chunks), dtype=np.int16)
+                audio_float = audio_data.astype(np.float32) / 32768.0
+                
+                from scipy import signal
+                num_samples_resampled = int(len(audio_float) * SAMPLE_RATE / PCM_SAMPLE_RATE)
+                audio_resampled = signal.resample(audio_float, num_samples_resampled)
+                
+                output_file = output_dir / f"tts_echo_{i+1:03d}.wav"
+                sf.write(str(output_file), audio_resampled, SAMPLE_RATE)
+                generated_files.append(output_file)
+                print(f"   ✅ Generated: {output_file.name}")
+                time.sleep(0.5)
             
         except Exception as e:
             print(f"   ❌ Error generating TTS sample {i+1}: {e}")
+            import traceback
+            traceback.print_exc()
             continue
     
-    print(f"✅ Generated {len(generated_files)} TTS samples")
+    print(f"\n✅ Generated {len(generated_files)} TTS samples")
+    if play_through_speakers:
+        print(f"   These samples include real echo/reverb from your environment")
     return generated_files
 
 
@@ -451,15 +652,27 @@ def collect_negative_samples(num_samples: int = 30):
     print(f"   Total negative samples: {len(list(NEGATIVE_DIR.glob('*.wav')))}")
 
 
-def generate_tts_negative_samples(num_samples: int = 20):
+def generate_tts_negative_samples(num_samples: int = 20, play_through_speakers: bool = True):
     """Generate TTS echo samples (critical for handling TTS echo)."""
     print(f"\n{'='*60}")
     print(f"📝 GENERATING TTS ECHO SAMPLES (NEGATIVE)")
     print(f"{'='*60}")
     print(f"These samples teach the model NOT to trigger on TTS output")
-    print(f"Generating {num_samples} TTS samples of '{WAKE_PHRASE}'...")
     
-    files = generate_tts_samples(WAKE_PHRASE, num_samples, TTS_NEGATIVE_DIR)
+    if play_through_speakers:
+        print(f"\n🔊 Mode: Play through speakers + Record echo (RECOMMENDED)")
+        print(f"   - Plays TTS through your speakers")
+        print(f"   - Records it back through microphone")
+        print(f"   - Captures real echo/reverb from your environment")
+        print(f"   - More realistic for training")
+    else:
+        print(f"\n🎤 Mode: Direct generation (no echo)")
+        print(f"   - Generates TTS audio directly")
+        print(f"   - Faster but less realistic")
+    
+    print(f"\nGenerating {num_samples} TTS samples of '{WAKE_PHRASE}'...")
+    
+    files = generate_tts_samples(WAKE_PHRASE, num_samples, TTS_NEGATIVE_DIR, play_through_speakers=play_through_speakers)
     
     print(f"\n✅ Generated {len(files)} TTS echo samples")
     print(f"   These are NEGATIVE samples - model should NOT trigger on them")
@@ -538,13 +751,10 @@ def train_model():
         return False
     
     try:
-        from openwakeword import Model
-        from openwakeword.utils import generate_clips
-        
         print(f"\n🔄 Preparing training data...")
         
-        # OpenWakeWord training requires specific format
-        # We'll use the training API from openwakeword
+        # OpenWakeWord training is done via Google Colab notebooks
+        # We'll format the data and provide instructions
         
         # Load positive and negative samples
         positive_clips = []
@@ -578,15 +788,6 @@ def train_model():
         
         print(f"\n✅ Loaded {len(positive_clips)} positive and {len(negative_clips)} negative clips")
         
-        # OpenWakeWord uses a training script - we'll create a training script
-        # that uses openwakeword's training utilities
-        print(f"\n🔄 Training model '{MODEL_NAME}'...")
-        print("   This may take several minutes...")
-        
-        # Use openwakeword's training function
-        # Note: OpenWakeWord training is typically done via their Colab notebook
-        # We'll create a simplified training approach using their API
-        
         # Save training data in format expected by openwakeword
         training_data_dir = TRAINING_DATA_DIR / "formatted"
         training_data_dir.mkdir(exist_ok=True)
@@ -597,6 +798,7 @@ def train_model():
         neg_dir.mkdir(exist_ok=True)
         
         # Copy/save clips in correct format
+        print("   Saving formatted training data...")
         for i, clip in enumerate(positive_clips):
             sf.write(pos_dir / f"pos_{i:04d}.wav", clip, SAMPLE_RATE)
         
@@ -604,23 +806,34 @@ def train_model():
             sf.write(neg_dir / f"neg_{i:04d}.wav", clip, SAMPLE_RATE)
         
         print(f"\n✅ Training data formatted and saved to {training_data_dir}")
-        print(f"\n📝 Next steps:")
-        print(f"   1. OpenWakeWord training is typically done via Google Colab")
-        print(f"   2. Upload the training data from: {training_data_dir}")
-        print(f"   3. Use OpenWakeWord's training notebook:")
+        print(f"\n{'='*60}")
+        print(f"📝 TRAINING INSTRUCTIONS")
+        print(f"{'='*60}")
+        print(f"\nOpenWakeWord training is done via Google Colab notebooks.")
+        print(f"The training data has been prepared and formatted for you.\n")
+        print(f"📁 Training data location:")
+        print(f"   {training_data_dir}")
+        print(f"   ├── positive/ ({len(positive_clips)} files)")
+        print(f"   └── negative/ ({len(negative_clips)} files)\n")
+        print(f"🚀 Next steps:")
+        print(f"   1. Open OpenWakeWord's training notebook:")
+        print(f"      https://colab.research.google.com/github/dscripka/openWakeWord/blob/main/notebooks/train_custom_model.ipynb")
+        print(f"      OR")
         print(f"      https://github.com/dscripka/openWakeWord#training-custom-models")
-        print(f"\n   OR use openwakeword's CLI training tool if available")
-        
-        # Try to use openwakeword's training API if available
-        try:
-            # Check if openwakeword has a training function
-            import openwakeword
-            if hasattr(openwakeword, 'train'):
-                print(f"\n🔄 Attempting to train using openwakeword.train()...")
-                # This would be the ideal path, but may not be available
-                pass
-        except Exception as e:
-            pass
+        print(f"\n   2. Upload the training data folder to Colab:")
+        print(f"      - Upload the entire '{training_data_dir.name}' folder")
+        print(f"      - Or upload 'positive' and 'negative' folders separately")
+        print(f"\n   3. Follow the notebook instructions to:")
+        print(f"      - Load your training data")
+        print(f"      - Configure training parameters")
+        print(f"      - Train the model")
+        print(f"      - Export the trained model (.onnx file)")
+        print(f"\n   4. Download the trained model and save it to:")
+        print(f"      {MODEL_OUTPUT_DIR}/hey_aura_v0.1.onnx")
+        print(f"\n   5. Update openwakeword_wake_word.py to use the new model:")
+        print(f"      DEFAULT_MODEL = 'hey_aura_v0.1'")
+        print(f"\n💡 Tip: The notebook will handle data augmentation and model training")
+        print(f"   automatically. Training typically takes 10-30 minutes.\n")
         
         return True
         
@@ -663,6 +876,11 @@ def main():
         default=20,
         help="Number of TTS echo samples to generate (default: 20)"
     )
+    parser.add_argument(
+        "--tts-direct",
+        action="store_true",
+        help="Generate TTS samples directly (no echo/reverb). Default: play through speakers and record echo"
+    )
     
     args = parser.parse_args()
     
@@ -685,7 +903,7 @@ def main():
         collect_negative_samples(args.negative_samples)
         
         # Generate TTS negative samples (critical for echo handling)
-        generate_tts_negative_samples(args.tts_samples)
+        generate_tts_negative_samples(args.tts_samples, play_through_speakers=not args.tts_direct)
         
         # Prepare training data
         if not prepare_training_data():
@@ -693,7 +911,7 @@ def main():
     
     if args.mode == "tts-only":
         # Only generate TTS samples
-        generate_tts_negative_samples(args.tts_samples)
+        generate_tts_negative_samples(args.tts_samples, play_through_speakers=not args.tts_direct)
         prepare_training_data()
     
     if args.mode in ["train", "full"]:

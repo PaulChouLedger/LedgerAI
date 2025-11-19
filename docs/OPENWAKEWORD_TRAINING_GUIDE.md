@@ -53,9 +53,12 @@ This will:
    - Include similar-sounding phrases like "hey there", "hey siri", etc.
 
 3. **Generate TTS echo samples** (20+ recommended)
-   - Automatically generates TTS versions of "hey aura"
+   - **Default mode**: Plays TTS through speakers and records it back through microphone
+   - Captures real echo/reverb from your environment (more realistic)
    - These are **negative samples** - model learns NOT to trigger on TTS
    - Uses your configured ElevenLabs voice
+   - **Make sure speakers are on and microphone can hear them!**
+   - Alternative: Use `--tts-direct` flag for direct generation (no echo, faster but less realistic)
 
 ### Step 2: Review Training Data
 
@@ -162,9 +165,16 @@ DEFAULT_MODEL = "/path/to/data/models/wake_words/hey_aura_v0.1.onnx"
 
 ### TTS Echo Samples
 - **Why critical:** Without these, model will trigger on TTS output
-- **Generation:** Script automatically generates using your ElevenLabs voice
+- **Generation modes:**
+  - **Default (recommended):** Plays TTS through speakers and records echo/reverb
+    - More realistic - captures actual room acoustics
+    - Better training data for echo rejection
+    - Requires speakers to be on and microphone to hear them
+  - **Direct mode:** Generates TTS audio directly (no echo)
+    - Faster but less realistic
+    - Use with `--tts-direct` flag
 - **Quantity:** 20-50 samples recommended
-- **Variation:** Script generates multiple samples with slight variations
+- **Setup:** Ensure speakers are on and positioned so microphone can pick up the audio
 
 ## Troubleshooting
 
