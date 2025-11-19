@@ -109,11 +109,16 @@ if [ "$combined_count" -eq 0 ]; then
     exit 1
 fi
 
-# Check precise-train is available (as command or Python module)
+# Check precise-train is available (as command, Python module, or wrapper)
 PRECISE_TRAIN_CMD=""
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
 if command -v precise-train &> /dev/null; then
     PRECISE_TRAIN_CMD="precise-train"
     print_info "Found precise-train command"
+elif [ -f "$VIRTUAL_ENV/bin/precise-train" ]; then
+    PRECISE_TRAIN_CMD="$VIRTUAL_ENV/bin/precise-train"
+    print_info "Found precise-train in venv bin"
 elif python3 -c "import precise.train" 2>/dev/null; then
     # Try using Python module directly
     PRECISE_TRAIN_CMD="python3 -m precise.train"
@@ -122,6 +127,10 @@ elif python3 -c "from precise import train" 2>/dev/null; then
     # Alternative import path
     PRECISE_TRAIN_CMD="python3 -c 'from precise import train; import sys; train.main()'"
     print_info "Found precise.train via alternative import"
+elif [ -f "$SCRIPT_DIR/precise_train_wrapper.py" ]; then
+    # Use wrapper script as fallback
+    PRECISE_TRAIN_CMD="python3 $SCRIPT_DIR/precise_train_wrapper.py"
+    print_info "Using precise_train_wrapper.py"
 else
     print_error "precise-train not found!"
     echo ""
@@ -130,17 +139,25 @@ else
     if python3 -c "import precise" 2>/dev/null; then
         print_info "  ✅ precise package is installed"
         print_info "  ⚠️  But precise-train command not found"
-        print_info "  💡 Try: python3 -m precise.train --help"
+        print_info "  💡 Try: pip install --upgrade --force-reinstall precise-runner"
     else
         print_info "  ❌ precise package is NOT installed"
-        print_info ""
-        print_info "Installation options:"
-        print_info "  1. Try: pip install --ignore-installed precise"
-        print_info "  2. If kmeans1d fails, install without it:"
-        print_info "     pip install --ignore-installed --no-deps precise"
-        print_info "     pip install --ignore-installed kmeans1d  # optional"
-        print_info "  3. Or use fix script: ./fix_numpy_scipy_compatibility.sh"
     fi
+    
+    if python3 -c "import precise_runner" 2>/dev/null; then
+        print_info "  ✅ precise-runner is installed"
+        print_info "  💡 Try: pip install --upgrade --force-reinstall precise-runner"
+        print_info "  Or check: ls ~/aura-env/bin/ | grep precise"
+    else
+        print_info "  ❌ precise-runner is NOT installed"
+        print_info "  💡 Install: pip install precise-runner"
+    fi
+    
+    print_info ""
+    print_info "Installation options:"
+    print_info "  1. pip install --upgrade --force-reinstall precise-runner"
+    print_info "  2. pip install --ignore-installed precise"
+    print_info "  3. Or use fix script: ./fix_numpy_scipy_compatibility.sh"
     exit 1
 fi
 

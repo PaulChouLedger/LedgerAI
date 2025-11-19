@@ -22,6 +22,10 @@ print_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
+print_warning() {
+    echo -e "${YELLOW}[WARNING]${NC} $1"
+}
+
 echo "=========================================="
 echo "  Installing Precise Training Tools"
 echo "=========================================="
@@ -59,22 +63,47 @@ if python3 -c "import precise" 2>/dev/null; then
 fi
 
 echo ""
-print_info "Installing precise package..."
+print_info "Installing precise and precise-runner packages..."
+
+# Note: precise-runner provides the precise-train command
+# precise provides the training library
+# Both may be needed
+
+# First check if precise-runner is installed (provides precise-train command)
+if ! command -v precise-train &> /dev/null && ! python3 -c "import precise_runner" 2>/dev/null; then
+    print_info "Installing precise-runner (provides precise-train command)..."
+    if pip install --ignore-installed precise-runner 2>&1 | tee /tmp/precise_runner_install.log; then
+        print_success "✅ precise-runner installed"
+    else
+        print_warning "⚠️  precise-runner installation had issues"
+    fi
+fi
 
 # Try installing precise with --ignore-installed to avoid conflicts
+print_info "Installing precise package (training library)..."
 if pip install --ignore-installed precise 2>&1 | tee /tmp/precise_install.log; then
     print_success "✅ precise installed successfully"
     
-    # Verify installation
+    # Verify installation - check precise-train from precise-runner first
     if command -v precise-train &> /dev/null; then
-        print_success "✅ precise-train command available"
+        print_success "✅ precise-train command available (from precise-runner)"
         precise-train --help | head -5
+    elif python3 -c "import precise_runner.runner" 2>/dev/null && python3 -c "from precise_runner.runner import PreciseTrainer" 2>/dev/null; then
+        print_success "✅ PreciseTrainer class available in precise-runner"
+        print_info "   Training may be available via Python API"
     elif python3 -c "import precise.train" 2>/dev/null; then
         print_success "✅ precise.train module available"
         print_info "   Use: python3 -m precise.train"
     else
-        print_warning "⚠️  precise installed but precise-train not found"
-        print_info "   Try: python3 -m precise.train --help"
+        print_warning "⚠️  precise installed but precise-train command not found"
+        print_info "   Checking if precise-runner provides training tools..."
+        if python3 -c "import precise_runner" 2>/dev/null; then
+            print_info "   ✅ precise-runner is installed"
+            print_info "   💡 Try: pip install --upgrade --force-reinstall precise-runner"
+            print_info "   Or check: ls ~/aura-env/bin/ | grep precise"
+        else
+            print_info "   💡 Install precise-runner: pip install precise-runner"
+        fi
     fi
 else
     print_warning "⚠️  precise installation had issues"
@@ -118,10 +147,21 @@ fi
 
 echo ""
 print_success "✅ Installation complete!"
-print_info "You can now use:"
+echo ""
+print_info "Verification:"
 if command -v precise-train &> /dev/null; then
-    print_info "  precise-train --help"
+    print_success "✅ precise-train command available"
+    print_info "   Run: precise-train --help"
+elif [ -f "$VIRTUAL_ENV/bin/precise-train" ]; then
+    print_info "✅ precise-train found in venv bin (may need PATH update)"
+    print_info "   Run: $VIRTUAL_ENV/bin/precise-train --help"
+    print_info "   Or: export PATH=\"$VIRTUAL_ENV/bin:\$PATH\""
+elif python3 -c "import precise_runner.runner" 2>/dev/null; then
+    print_info "✅ precise-runner installed (checking for training tools...)"
+    print_info "   Run diagnostic: python3 setup/scripts/check_precise_installation.py"
 else
-    print_info "  python3 -m precise.train --help"
+    print_warning "⚠️  precise-train command not found"
+    print_info "   Try: pip install --upgrade --force-reinstall precise-runner"
+    print_info "   Or check: python3 setup/scripts/check_precise_installation.py"
 fi
 
