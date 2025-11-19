@@ -171,10 +171,6 @@ class BaseAuraDialog(QDialog):
             self.move(x, y)
             QApplication.processEvents()
             
-            # Debug output for troubleshooting
-            if not self.parent():
-                print(f"[BaseAuraDialog] 🎯 Centered dialog at ({x}, {y}) - size: {self.width()}x{self.height()}")
-            
         except Exception as e:
             # Log error for debugging but don't crash
             print(f"[BaseAuraDialog] ⚠️ Error centering dialog: {e}")
