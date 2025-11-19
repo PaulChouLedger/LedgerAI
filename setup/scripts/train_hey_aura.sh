@@ -244,16 +244,68 @@ print_info "  - wake-word/ ($wake_word_count_local files)"
 print_info "  - not-wake-word/ ($not_wake_word_count_local files)"
 
 # Build the training command
-# Format: precise-train model.net -e N
+# Based on help output, the format shows: :-e --epochs int 10
+# This means both -e and --epochs should work, but let's try --epochs first
+# Format: precise-train model.net --epochs N
 # Directories are automatically detected from current directory
-TRAIN_ARGS="${MODEL_NAME}.net -e $EPOCHS"
+TRAIN_ARGS="${MODEL_NAME}.net --epochs $EPOCHS"
 print_info "Training command: $PRECISE_TRAIN_CMD $TRAIN_ARGS"
 print_info "Note: precise-train will automatically use wake-word/ and not-wake-word/ directories"
 
-if $PRECISE_TRAIN_CMD $TRAIN_ARGS; then
+# Try different argument formats
+# The prettyparse patch might not handle all formats correctly
+# Let's try each format and capture output to see what works
+print_info "Attempting training with different argument formats..."
+TRAINING_SUCCESS=false
+TRAIN_OUTPUT=""
+
+# Try 1: --epochs as separate argument (most standard)
+print_info "Trying: $PRECISE_TRAIN_CMD ${MODEL_NAME}.net --epochs $EPOCHS"
+TRAIN_OUTPUT=$($PRECISE_TRAIN_CMD "${MODEL_NAME}.net" "--epochs" "$EPOCHS" 2>&1) && {
     print_success "Training complete!"
-else
-    print_error "Training failed!"
+    TRAINING_SUCCESS=true
+}
+
+# Try 2: -e as separate argument
+if [ "$TRAINING_SUCCESS" = false ]; then
+    print_info "Trying: $PRECISE_TRAIN_CMD ${MODEL_NAME}.net -e $EPOCHS"
+    TRAIN_OUTPUT=$($PRECISE_TRAIN_CMD "${MODEL_NAME}.net" "-e" "$EPOCHS" 2>&1) && {
+        print_success "Training complete!"
+        TRAINING_SUCCESS=true
+    }
+fi
+
+# Try 3: --epochs=50 format (equals sign)
+if [ "$TRAINING_SUCCESS" = false ]; then
+    print_info "Trying: $PRECISE_TRAIN_CMD ${MODEL_NAME}.net --epochs=$EPOCHS"
+    TRAIN_OUTPUT=$($PRECISE_TRAIN_CMD "${MODEL_NAME}.net" "--epochs=$EPOCHS" 2>&1) && {
+        print_success "Training complete!"
+        TRAINING_SUCCESS=true
+    }
+fi
+
+# Try 4: -e=50 format (equals sign)
+if [ "$TRAINING_SUCCESS" = false ]; then
+    print_info "Trying: $PRECISE_TRAIN_CMD ${MODEL_NAME}.net -e=$EPOCHS"
+    TRAIN_OUTPUT=$($PRECISE_TRAIN_CMD "${MODEL_NAME}.net" "-e=$EPOCHS" 2>&1) && {
+        print_success "Training complete!"
+        TRAINING_SUCCESS=true
+    }
+fi
+
+# Try 5: No epochs argument (use default of 10)
+if [ "$TRAINING_SUCCESS" = false ]; then
+    print_warning "All epochs formats failed, trying without epochs (will use default: 10)"
+    print_info "Trying: $PRECISE_TRAIN_CMD ${MODEL_NAME}.net"
+    TRAIN_OUTPUT=$($PRECISE_TRAIN_CMD "${MODEL_NAME}.net" 2>&1) && {
+        print_success "Training complete (used default epochs: 10)!"
+        print_warning "Note: Used default epochs instead of requested $EPOCHS"
+        TRAINING_SUCCESS=true
+    }
+fi
+
+if [ "$TRAINING_SUCCESS" = false ]; then
+    print_error "Training failed with all argument formats!"
     print_info ""
     print_info "Troubleshooting:"
     print_info "1. Check precise-train help: $PRECISE_TRAIN_CMD --help"

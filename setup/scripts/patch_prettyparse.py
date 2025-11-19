@@ -111,16 +111,69 @@ def create_parser(usage_or_description='', **kwargs):
 def add_to_parser(parser, *args, **kwargs):
     """
     Add arguments to a parser. Compatible with mycroft-precise expectations.
-    Usage: add_to_parser(parser, '--flag', help='...') or add_to_parser(parser, '--flag', type=int, default=0)
+    
+    prettyparse uses a special syntax like: add_to_parser(parser, ':-e', '--epochs', 'int', 10)
+    Where the format is: ':-e' means both -e and --epochs, 'int' is type, 10 is default
+    
+    Usage patterns:
+    - add_to_parser(parser, ':-e', '--epochs', 'int', 10)  # prettyparse format
+    - add_to_parser(parser, '--flag', help='...')  # standard argparse format
     """
-    # Standard usage: add_to_parser(parser, '--flag', help='...', type=int, default=0)
-    # The first arg after parser is the argument name/flag, rest are passed to add_argument
-    if args:
-        # First arg is the name/flag, rest are additional args for add_argument
-        parser.add_argument(*args, **kwargs)
+    import argparse
+    
+    # Check if first arg uses prettyparse format (starts with ':')
+    if args and len(args) > 0 and isinstance(args[0], str) and args[0].startswith(':'):
+        # prettyparse format: ':-e', '--epochs', 'type', default
+        # Example: ':-e', '--epochs', 'int', 10
+        flag_short = args[0][1:] if len(args[0]) > 1 else None  # Remove ':' prefix
+        flag_long = args[1] if len(args) > 1 and isinstance(args[1], str) else None
+        arg_type = args[2] if len(args) > 2 else None
+        default_val = args[3] if len(args) > 3 else None
+        
+        # Build argument list for argparse
+        arg_list = []
+        if flag_short:
+            arg_list.append(flag_short)
+        if flag_long:
+            arg_list.append(flag_long)
+        
+        # Convert type string to actual type
+        type_obj = None
+        if arg_type:
+            if arg_type == 'int':
+                type_obj = int
+            elif arg_type == 'float':
+                type_obj = float
+            elif arg_type == 'str':
+                type_obj = str
+            elif arg_type == 'bool':
+                type_obj = bool
+        
+        # Build kwargs for add_argument
+        add_kwargs = kwargs.copy()
+        if type_obj:
+            add_kwargs['type'] = type_obj
+        if default_val is not None:
+            add_kwargs['default'] = default_val
+        
+        # Add any remaining args as additional kwargs
+        if len(args) > 4:
+            # Additional positional args might be help text, etc.
+            for i in range(4, len(args)):
+                if isinstance(args[i], str) and 'help' not in add_kwargs:
+                    add_kwargs['help'] = args[i]
+        
+        # Add the argument
+        if arg_list:
+            parser.add_argument(*arg_list, **add_kwargs)
+        else:
+            # Fallback to standard argparse
+            parser.add_argument(*args, **kwargs)
     else:
-        # No args provided - this shouldn't happen, but return parser for chaining
-        return parser''')
+        # Standard argparse format: add_to_parser(parser, '--flag', help='...')
+        parser.add_argument(*args, **kwargs)
+    
+    return parser''')
         
         patch_code = '''
 
