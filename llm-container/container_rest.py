@@ -25,7 +25,7 @@ LLM_TEMPERATURE_SIMPLE = 0.7
 LLM_TOP_P = 0.95
 LLM_TOP_K = 40
 LLM_REPEAT_PENALTY = 1.1
-LLM_NUM_PREDICT_DEFAULT = 150  # Reduced from 300 for faster responses (shorter = faster)
+LLM_NUM_PREDICT_DEFAULT = 200  # Increased to prevent mid-sentence breaks (can be overridden via LLM_NUM_PREDICT env var)
 SIMPLE_N_CTX = 2048
 SIMPLE_CHAT_FORMAT = "qwen"
 N_THREADS = 8
@@ -63,6 +63,14 @@ CONVERSATION_MEMORY_PERSIST_EVERY = 10
 CONVERSATION_MEMORY_MAX_ENTRIES = 5000
 CONVERSATION_MEMORY_TOP_K = 3
 CONVERSATION_MEMORY_MIN_SCORE = 0.35
+
+# === Streaming/Text Processing Config ===
+WORD_BOUNDARY_CHARS = [' ', '.', ',', '!', '?', ':', ';', '-', '(', ')', '[', ']']
+SENTENCE_ENDINGS = ('.', '!', '?')
+
+# === Response Generation Config ===
+MAX_TOKENS_RAG_MODE = 150  # Max tokens when using RAG context
+MAX_TOKENS_DIRECT_MODE = 200  # Max tokens for direct conversation (matches LLM_NUM_PREDICT_DEFAULT)
 
 # === Model Path Resolution (app_settings.json or fallback) ===
 def _resolve_model_path():
@@ -284,7 +292,7 @@ def handle_conversation(
                 ),
             }
         ]
-        return llm_chat_simple(messages, max_tokens=150, stream=stream)
+        return llm_chat_simple(messages, max_tokens=MAX_TOKENS_RAG_MODE, stream=stream)
 
     # Fallback to direct LLM conversation without external context
     system_prompt = (
@@ -303,7 +311,8 @@ def handle_conversation(
         },
     ]
 
-    return llm_chat_simple(messages, max_tokens=300, stream=stream)
+    # Use standard max_tokens - matches LLM_NUM_PREDICT_DEFAULT
+    return llm_chat_simple(messages, max_tokens=MAX_TOKENS_DIRECT_MODE, stream=stream)
 
 
 def _embed_texts(texts: List[str]) -> List[List[float]]:
@@ -409,9 +418,6 @@ def chat_tts():
 
 
 # === Streaming Helpers =======================================================
-
-WORD_BOUNDARY_CHARS = [' ', '.', ',', '!', '?', ':', ';', '-', '(', ')', '[', ']']
-SENTENCE_ENDINGS = ('.', '!', '?')
 
 
 def _normalize_stream_chunks(chunk_iter):
