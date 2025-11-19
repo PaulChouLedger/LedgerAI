@@ -171,13 +171,54 @@ echo ""
 
 cd "$TRAINING_DIR"
 
-# Use the detected command (may be "precise-train" or "python3 -m precise.train")
-if $PRECISE_TRAIN_CMD -e "$EPOCHS" "${MODEL_NAME}.net" \
-    wake-word \
-    "$COMBINED_NEGATIVE"; then
+# Check the correct syntax for precise-train
+# Mycroft Precise uses: precise-train model.net positive_dir negative_dir [--epochs N]
+print_info "Checking precise-train syntax..."
+HELP_OUTPUT=$($PRECISE_TRAIN_CMD --help 2>&1 || echo "")
+
+# Determine epochs flag format
+EPOCHS_FLAG=""
+if echo "$HELP_OUTPUT" | grep -qE "\-\-epochs|\-e.*epoch" > /dev/null 2>&1; then
+    # Try --epochs first (more common)
+    if echo "$HELP_OUTPUT" | grep -q "\-\-epochs" > /dev/null 2>&1; then
+        EPOCHS_FLAG="--epochs $EPOCHS"
+    elif echo "$HELP_OUTPUT" | grep -qE "\-e.*epoch" > /dev/null 2>&1; then
+        EPOCHS_FLAG="-e $EPOCHS"
+    fi
+fi
+
+# Build the training command
+# Format: precise-train model.net positive_dir negative_dir [--epochs N]
+# Note: epochs flag typically comes AFTER the directories
+if [ -n "$EPOCHS_FLAG" ]; then
+    print_info "Using epochs flag: $EPOCHS_FLAG"
+    # Epochs flag goes after directories
+    TRAIN_ARGS="${MODEL_NAME}.net wake-word $COMBINED_NEGATIVE $EPOCHS_FLAG"
+else
+    print_warning "Could not determine epochs flag from help output"
+    print_info "Using default epochs (may be 50 or config-dependent)"
+    # Try --epochs as a guess (common format)
+    TRAIN_ARGS="${MODEL_NAME}.net wake-word $COMBINED_NEGATIVE --epochs $EPOCHS"
+    print_info "Attempting with --epochs flag (if this fails, check help output)"
+fi
+
+# Use the detected command
+# Format: precise-train model.net positive_dir negative_dir [--epochs N]
+print_info "Running training command..."
+print_info "Command: $PRECISE_TRAIN_CMD $TRAIN_ARGS"
+if $PRECISE_TRAIN_CMD $TRAIN_ARGS; then
     print_success "Training complete!"
 else
     print_error "Training failed!"
+    print_info ""
+    print_info "Troubleshooting:"
+    print_info "1. Check precise-train help: $PRECISE_TRAIN_CMD --help"
+    print_info "2. Verify training data exists:"
+    print_info "   - ls $TRAINING_DIR/wake-word/*.wav | wc -l"
+    print_info "   - ls $COMBINED_NEGATIVE/*.wav | wc -l"
+    print_info "3. Try running manually:"
+    print_info "   cd $TRAINING_DIR"
+    print_info "   $PRECISE_TRAIN_CMD --help"
     exit 1
 fi
 

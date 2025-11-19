@@ -544,12 +544,36 @@ print_info "Installing mycroft-precise (contains precise-train command)..."
 if pip install --ignore-installed mycroft-precise 2>&1 | tee -a /tmp/training_deps_install.log; then
     print_info "✅ mycroft-precise installed successfully"
     
-    # Verify precise-train is available
+    # Fix prettyparse import errors (required for precise-train to work)
+    print_info "Patching prettyparse to fix import errors (required for precise-train)..."
+    PATCH_SCRIPT="$LEDGERAI_DIR/setup/scripts/patch_prettyparse.py"
+    if [ -f "$PATCH_SCRIPT" ]; then
+        if python3 "$PATCH_SCRIPT" 2>&1 | tee -a /tmp/training_deps_install.log; then
+            print_info "✅ prettyparse patched successfully"
+        else
+            print_warning "⚠️  prettyparse patching had issues (check logs)"
+            print_info "   precise-train may not work until this is fixed"
+            print_info "   Run manually: python3 $PATCH_SCRIPT"
+        fi
+    else
+        print_warning "⚠️  patch_prettyparse.py not found at $PATCH_SCRIPT"
+        print_info "   precise-train may not work until prettyparse is patched"
+    fi
+    
+    # Verify precise-train is available and working
     if command -v precise-train &> /dev/null || [ -f "$VENV_DIR/bin/precise-train" ]; then
         print_info "✅ precise-train command available"
-        print_info "   You can now train custom wake word models using:"
-        print_info "   - collect_wake_word_data.sh (data collection)"
-        print_info "   - train_hey_aura.sh (model training)"
+        # Test that it actually works (not just that the file exists)
+        if precise-train --help &> /dev/null 2>&1 || "$VENV_DIR/bin/precise-train" --help &> /dev/null 2>&1; then
+            print_info "✅ precise-train working correctly"
+            print_info "   You can now train custom wake word models using:"
+            print_info "   - collect_wake_word_data.sh (data collection)"
+            print_info "   - train_hey_aura.sh (model training)"
+        else
+            print_warning "⚠️  precise-train command found but not working"
+            print_info "   This may be due to prettyparse import errors"
+            print_info "   Try running: python3 $PATCH_SCRIPT"
+        fi
     else
         print_warning "⚠️  mycroft-precise installed but precise-train not found"
         print_info "   Training may still work via Python API"
@@ -1350,6 +1374,7 @@ echo "   - System packages: python3-scipy, libhdf5-dev, python3-h5py, libopenbla
 echo "   - Python packages: cython, mycroft-precise (contains precise-train), precise"
 echo "   - Training scripts: collect_wake_word_data.sh, train_hey_aura.sh"
 echo "   - Note: precise-runner provides runtime tools, mycroft-precise provides training tools"
+echo "✅ prettyparse: Patched (fixes import errors for precise-train)"
 echo ""
 echo "=========================================="
 echo "  Next Steps"
