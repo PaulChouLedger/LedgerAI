@@ -520,15 +520,34 @@ else
     print_info "   Training may not work until these are resolved"
 fi
 
+# Fix numpy/scipy compatibility before installing precise (prevents binary incompatibility)
+print_info "Ensuring numpy/scipy compatibility (fixing binary incompatibility issues)..."
+if pip install --upgrade --force-reinstall numpy scipy 2>&1 | tee -a /tmp/training_deps_install.log; then
+    print_info "✅ numpy/scipy upgraded and synchronized"
+else
+    print_warning "⚠️  numpy/scipy upgrade had issues (may cause problems with precise)"
+fi
+
 print_info "Installing Python packages for training..."
-if pip install cython precise 2>&1 | tee -a /tmp/training_deps_install.log; then
-    print_info "✅ Training Python packages installed successfully"
+# Try installing precise, but handle kmeans1d failure gracefully (it's optional)
+if pip install cython 2>&1 | tee -a /tmp/training_deps_install.log; then
+    print_info "✅ cython installed successfully"
+else
+    print_warning "⚠️  cython installation had issues"
+fi
+
+# Install precise (kmeans1d may fail due to numpy incompatibility, but precise may still work)
+if pip install precise 2>&1 | tee -a /tmp/training_deps_install.log; then
+    print_info "✅ precise installed successfully"
     print_info "   You can now train custom wake word models using:"
     print_info "   - collect_wake_word_data.sh (data collection)"
     print_info "   - train_hey_aura.sh (model training)"
 else
-    print_warning "⚠️  Some training Python packages failed to install (check logs)"
-    print_info "   Training may not work until these are resolved"
+    print_warning "⚠️  precise installation had issues (check logs)"
+    print_info "   If kmeans1d failed, you can try:"
+    print_info "   pip install --upgrade --force-reinstall numpy scipy"
+    print_info "   pip install precise"
+    print_info "   Or skip precise and use precise-runner only (training may be limited)"
 fi
 
 # Download precise-engine binary for ARM64/Jetson
