@@ -506,6 +506,31 @@ else
     print_info "   Wake word detection may not work until this is resolved"
 fi
 
+# Install training dependencies (optional - for training custom wake word models)
+print_info "Installing training dependencies (for custom wake word model training)..."
+print_info "Installing system packages for training..."
+if sudo apt-get install -y \
+    python3-scipy \
+    libhdf5-dev \
+    python3-h5py \
+    libopenblas-dev 2>&1 | tee /tmp/training_deps_install.log; then
+    print_info "✅ Training system packages installed successfully"
+else
+    print_warning "⚠️  Some training system packages failed to install (check logs)"
+    print_info "   Training may not work until these are resolved"
+fi
+
+print_info "Installing Python packages for training..."
+if pip install cython precise 2>&1 | tee -a /tmp/training_deps_install.log; then
+    print_info "✅ Training Python packages installed successfully"
+    print_info "   You can now train custom wake word models using:"
+    print_info "   - collect_wake_word_data.sh (data collection)"
+    print_info "   - train_hey_aura.sh (model training)"
+else
+    print_warning "⚠️  Some training Python packages failed to install (check logs)"
+    print_info "   Training may not work until these are resolved"
+fi
+
 # Download precise-engine binary for ARM64/Jetson
 print_info "Downloading precise-engine binary for ARM64/Jetson..."
 PRECISE_ENGINE_DIR="$AURA_HOME/.mycroft/precise/precise-engine"
@@ -1282,6 +1307,10 @@ else
     echo "⚠️  .env file: Created from template (needs API keys)"
 fi
 echo "ℹ️  Wake Word: Mycroft Precise (pip install precise-runner) - most reliable for Jetson"
+echo "✅ Training dependencies: Installed (for custom wake word model training)"
+echo "   - System packages: python3-scipy, libhdf5-dev, python3-h5py, libopenblas-dev"
+echo "   - Python packages: cython, precise"
+echo "   - Training scripts: collect_wake_word_data.sh, train_hey_aura.sh"
 echo ""
 echo "=========================================="
 echo "  Next Steps"
