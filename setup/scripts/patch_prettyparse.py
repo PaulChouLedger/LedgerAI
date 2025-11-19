@@ -136,7 +136,8 @@ def add_to_parser(parser, *args, **kwargs):
         # This is usage/help text, add it to the parser's description or epilog
         usage_text = args[0]
         if hasattr(parser, 'epilog'):
-            parser.epilog = (parser.epilog or '') + '\n' + usage_text
+            current = getattr(parser, 'epilog', '') or ''
+            parser.epilog = current + '\n' + usage_text
         else:
             # Add as description if no description exists
             if not parser.description:
