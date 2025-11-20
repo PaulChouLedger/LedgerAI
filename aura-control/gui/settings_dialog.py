@@ -1819,47 +1819,27 @@ class SettingsDialog(BaseAuraDialog):
             except Exception as e:
                 print(f"[Settings] ⚠️ Error requesting shutdown: {e}")
             
-            # Close the dialog first
+            # Close the dialog
             self.accept()
             
-            # Perform exit using QTimer to ensure it happens after dialog closes
-            # This is necessary because we're in a modal dialog event handler
-            def perform_exit():
-                print("[Settings] 🔄 Closing GUI and exiting...")
-                
-                # Close main GUI window
-                try:
-                    from gui.aura_gui import close_gui
-                    close_gui()
-                    print("[Settings] ✅ GUI close requested")
-                except ImportError as e:
-                    print(f"[Settings] ⚠️ Could not import close_gui: {e}")
-                except Exception as e:
-                    print(f"[Settings] ⚠️ Error closing GUI: {e}")
-                    import traceback
-                    traceback.print_exc()
-                
-                # Quit Qt application - this will cause run_gui_loop() to return
-                # Then main.py will check should_shutdown() and exit
-                app = QApplication.instance()
-                if app:
-                    print("[Settings] 🔄 Quitting Qt application...")
-                    app.quit()  # This should exit the GUI event loop
-                else:
-                    print("[Settings] ⚠️ No QApplication instance found")
-                    # Last resort: force exit
-                    import os
-                    os._exit(0)
+            # Simple direct exit - close GUI and quit app
+            print("[Settings] 🔄 Closing GUI and exiting...")
+            try:
+                from gui.aura_gui import close_gui
+                close_gui()
+                print("[Settings] ✅ GUI closed")
+            except Exception as e:
+                print(f"[Settings] ⚠️ Error closing GUI: {e}")
             
-            # Use QTimer to schedule exit after dialog closes
-            # This ensures the dialog closes first, then we exit
-            QTimer.singleShot(100, perform_exit)
-            
-            # Also process events to ensure the timer can fire
-            # This is important for modal dialogs
+            # Quit Qt application - this exits the GUI loop, then main.py checks shutdown flag
             app = QApplication.instance()
             if app:
-                app.processEvents()
+                print("[Settings] 🔄 Quitting Qt application...")
+                app.quit()
+            else:
+                print("[Settings] ⚠️ No QApplication instance found")
+                import os
+                os._exit(0)
     
     def scan_wifi(self):
         """Scan for available WiFi networks"""
