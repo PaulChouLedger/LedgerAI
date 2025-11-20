@@ -127,15 +127,23 @@ def set_volume():
         sink_name = result.stdout.strip()
         if sink_name:
             # Set volume to TTS_VOLUME%
-            subprocess.run(
+            result = subprocess.run(
                 ["pactl", "set-sink-volume", sink_name, f"{TTS_VOLUME}%"],
-                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True, timeout=2
+                capture_output=True, text=True, check=True, timeout=2
             )
             print(f"[Speaker] 🔊 Volume set to {TTS_VOLUME}% via PulseAudio (sink: {sink_name})")
             VOLUME_SET = True
             return
-    except (subprocess.TimeoutExpired, subprocess.CalledProcessError, FileNotFoundError):
-        pass  # PulseAudio not available, try ALSA
+        else:
+            print(f"[Speaker] ⚠️ PulseAudio default sink name is empty")
+    except FileNotFoundError:
+        print(f"[Speaker] ⚠️ pactl not found - PulseAudio not available")
+    except subprocess.CalledProcessError as e:
+        print(f"[Speaker] ⚠️ PulseAudio command failed: {e.stderr if e.stderr else e}")
+    except subprocess.TimeoutExpired:
+        print(f"[Speaker] ⚠️ PulseAudio command timed out")
+    except Exception as e:
+        print(f"[Speaker] ⚠️ PulseAudio error: {e}")
     
     # Fallback to ALSA
     if OUTPUT_CARD_INDEX is not None:

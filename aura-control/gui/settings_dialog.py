@@ -1543,7 +1543,7 @@ class SettingsDialog(BaseAuraDialog):
             except Exception:
                 pass
         if current is None:
-            current = 70
+            current = 80  # Match default in speaker.py
         current = max(0, min(100, current))
         self.volume_slider.setValue(current)
         self.volume_value_label.setText(f"{current}%")
@@ -1556,6 +1556,7 @@ class SettingsDialog(BaseAuraDialog):
             sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
             from core import speaker as _speaker
             _speaker.TTS_VOLUME = int(value)
+            print(f"[Settings] 🔊 Setting volume to {value}%")
             # Re-apply volume (supports both PulseAudio and ALSA)
             if hasattr(_speaker, "set_volume"):
                 _speaker.set_volume()  # Use set_volume() which can be called multiple times
@@ -1564,8 +1565,12 @@ class SettingsDialog(BaseAuraDialog):
                 if hasattr(_speaker, "VOLUME_SET"):
                     _speaker.VOLUME_SET = False
                 _speaker.set_volume_once()
+            else:
+                print(f"[Settings] ⚠️ set_volume() function not found in speaker module")
         except Exception as e:
             print(f"[Settings] ⚠️ Failed to set volume: {e}")
+            import traceback
+            traceback.print_exc()
         # Persist to .env
         try:
             workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
