@@ -34,7 +34,7 @@ PCM_FORMAT = "pcm_22050"
 VOLUME_SET = False
 
 # TTS volume (hardcoded, no .env needed)
-TTS_VOLUME = 80  # percent (default: 80%)
+TTS_VOLUME = 100  # percent (default: 100%)
 
 # Device identification - auto-detect connected output device
 ALSA_CONTROLS = ["PCM", "Speaker", "Master"]  # try these in order

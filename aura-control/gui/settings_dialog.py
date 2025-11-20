@@ -1543,7 +1543,7 @@ class SettingsDialog(BaseAuraDialog):
             except Exception:
                 pass
         if current is None:
-            current = 80  # Match default in speaker.py
+            current = 100  # Match default in speaker.py
         current = max(0, min(100, current))
         self.volume_slider.setValue(current)
         self.volume_value_label.setText(f"{current}%")
