@@ -812,6 +812,7 @@ def listen():
             
             listening_active = False  # True after wake word detected
             stream_valid = True  # Track if stream is still valid
+            tts_end_time = None  # Track when TTS ended for brief pause before wake word detection
             
             while stream_valid:
                 # Pause during TTS (same logic as VAD)
@@ -831,6 +832,8 @@ def listen():
                             except (PortAudioError, Exception):
                                 break
                         
+                        # Record when TTS ended - wake word will pause briefly to let echo decay
+                        tts_end_time = time.time()
                         print("[Listener] ▶️ Mic resumed after playback (buffer flushed)")
                     except PortAudioError as pa_error:
                         error_code = getattr(pa_error, 'errno', None)
@@ -858,12 +861,27 @@ def listen():
                     
                 if wake_word_enabled and not listening_active and wake_word_detector is not None:
                     # === Wake Word Detection Loop ===
-                    # Mirrors VAD loop exactly - skip processing while TTS is playing
+                    # Mirrors VAD loop - skip processing while TTS is playing
+                    # Also pauses briefly (0.5s) after TTS ends to let echo decay
                     while True:
                         # CRITICAL: Check if TTS is playing BEFORE reading audio (same as VAD)
                         # This prevents wake word from processing TTS echo
                         if is_playing():
                             break  # Exit wake word loop, return to main loop (same as VAD)
+                        
+                        # Brief pause after TTS ends to let echo decay (0.5 seconds)
+                        if tts_end_time is not None:
+                            time_since_tts_end = time.time() - tts_end_time
+                            if time_since_tts_end < 0.5:  # Wait 0.5s after TTS ends
+                                # Skip processing, just read and discard frames to keep buffer clear
+                                try:
+                                    stream.read(FRAME_SIZE)
+                                except:
+                                    pass
+                                continue  # Skip wake word processing during echo decay period
+                            else:
+                                # Pause period expired, clear timer
+                                tts_end_time = None
                         
                         # Use shared audio reading function (same as VAD)
                         # read_audio_frame already checks is_playing() and returns None if TTS is playing
