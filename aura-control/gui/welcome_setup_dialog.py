@@ -479,24 +479,81 @@ class WelcomeSetupDialog(BaseAuraDialog):
             if result.returncode != 0:
                 error_msg = (result.stderr or result.stdout or "").strip()
                 needs_priv = any(term in error_msg.lower() for term in [
-                    "permission denied", "not authorized", "authorization failed", "polkit", "not permitted"
+                    "permission denied", "not authorized", "authorization failed", "polkit", 
+                    "not permitted", "insufficient privileges", "unable to create contextual"
                 ])
 
-                if needs_priv and shutil.which("pkexec"):
-                    # Retry with pkexec to trigger GUI auth prompt
-                    pkexec_cmd = ['pkexec'] + base_cmd
-                    result2 = subprocess.run(pkexec_cmd, capture_output=True, text=True, timeout=60)
-                    if result2.returncode == 0:
-                        result = result2
-                        error_msg = ""
-                    else:
-                        # If pkexec failed, use its error
-                        error_msg = (result2.stderr or result2.stdout or error_msg).strip()
+                if needs_priv:
+                    # Try alternative: Use nmcli connection add (user-space, no polkit needed)
+                    try:
+                        # First, try to add connection in user space (doesn't require polkit)
+                        add_cmd = ['nmcli', 'connection', 'add', 'type', 'wifi', 'con-name', ssid, 'ssid', ssid]
+                        if password:
+                            add_cmd += ['wifi-sec.key-mgmt', 'wpa-psk', 'wifi-sec.psk', password]
+                        else:
+                            add_cmd += ['wifi-sec.key-mgmt', 'none']
+                        
+                        add_result = subprocess.run(add_cmd, capture_output=True, text=True, timeout=30)
+                        
+                        if add_result.returncode == 0:
+                            # Connection profile created, now activate it
+                            activate_cmd = ['nmcli', 'connection', 'up', ssid]
+                            activate_result = subprocess.run(activate_cmd, capture_output=True, text=True, timeout=30)
+                            
+                            if activate_result.returncode == 0:
+                                result = activate_result
+                                error_msg = ""
+                            else:
+                                # Activation failed, try pkexec as last resort
+                                if shutil.which("pkexec"):
+                                    pkexec_cmd = ['pkexec'] + base_cmd
+                                    result2 = subprocess.run(pkexec_cmd, capture_output=True, text=True, timeout=60)
+                                    if result2.returncode == 0:
+                                        result = result2
+                                        error_msg = ""
+                                    else:
+                                        error_msg = (result2.stderr or result2.stdout or activate_result.stderr or error_msg).strip()
+                                else:
+                                    error_msg = (activate_result.stderr or activate_result.stdout or error_msg).strip()
+                        else:
+                            # Connection add failed, try pkexec as fallback
+                            if shutil.which("pkexec"):
+                                pkexec_cmd = ['pkexec'] + base_cmd
+                                result2 = subprocess.run(pkexec_cmd, capture_output=True, text=True, timeout=60)
+                                if result2.returncode == 0:
+                                    result = result2
+                                    error_msg = ""
+                                else:
+                                    error_msg = (result2.stderr or result2.stdout or add_result.stderr or error_msg).strip()
+                            else:
+                                error_msg = (add_result.stderr or add_result.stdout or error_msg).strip()
+                    except Exception as e:
+                        # If alternative method fails, try pkexec
+                        if shutil.which("pkexec"):
+                            try:
+                                pkexec_cmd = ['pkexec'] + base_cmd
+                                result2 = subprocess.run(pkexec_cmd, capture_output=True, text=True, timeout=60)
+                                if result2.returncode == 0:
+                                    result = result2
+                                    error_msg = ""
+                                else:
+                                    error_msg = (result2.stderr or result2.stdout or str(e) or error_msg).strip()
+                            except:
+                                error_msg = (str(e) or error_msg).strip()
+                        else:
+                            error_msg = (str(e) or error_msg).strip()
 
                 if result.returncode != 0:
                     self.status_label.setText("❌ Connection failed")
                     self.status_label.setStyleSheet("color: #FF3B30; margin: 10px;")
-                    QMessageBox.warning(self, "Connection Failed", error_msg or "Unknown error")
+                    
+                    # Provide helpful error message with fix instructions
+                    detailed_error = error_msg or "Unknown error"
+                    if "permission" in detailed_error.lower() or "polkit" in detailed_error.lower() or "not authorized" in detailed_error.lower():
+                        detailed_error += "\n\n💡 Fix: Run this command to fix permissions:\n"
+                        detailed_error += f"   sudo {os.path.expanduser('~/LedgerAI/setup/scripts/fix_wifi_permissions.sh')} {os.getenv('USER', 'ledger')}"
+                    
+                    QMessageBox.warning(self, "Connection Failed", detailed_error)
                     self.check_wifi_connection()
                     return
 
