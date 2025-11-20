@@ -404,7 +404,10 @@ def generate_tts_samples(text: str, num_samples: int = 10, output_dir: Path = No
     
     if play_through_speakers:
         print(f"🔊 Generating {num_samples} TTS samples (NEGATIVE samples)...")
-        print(f"   Phoneme notation: {WAKE_PHRASE_PHONEMES} (matching Colab format: 'hey_orah')")
+        if text.lower().strip() == WAKE_PHRASE.lower() or WAKE_PHRASE_PHONEMES in text:
+            print(f"   Text: '{WAKE_PHRASE}' (phoneme notation: {WAKE_PHRASE_PHONEMES})")
+        else:
+            print(f"   Text: '{text[:50]}{'...' if len(text) > 50 else ''}'")
         print(f"   Playing through speakers and recording echo/reverb")
         print(f"   Volume range: {int(TTS_MIN_VOLUME*100)}% to {int(TTS_MAX_VOLUME*100)}% ({len(volume_levels)} different levels)")
         print(f"   Make sure speakers are on and microphone can hear them!")
@@ -430,10 +433,12 @@ def generate_tts_samples(text: str, num_samples: int = 10, output_dir: Path = No
         try:
             if play_through_speakers:
                 # Play through speakers and record echo
-                # Use phoneme notation for training consistency with Colab ('hey_orah': [HH][EY][AO][ER][AH])
-                # Note: ElevenLabs may interpret phoneme notation directly, or we may need to use 'hey_orah' text
-                # Try phoneme notation first, fallback to phonetic text if needed
-                tts_input = WAKE_PHRASE_PHONEMES  # Use phonemes matching Colab format
+                # Use the text parameter (could be wake phrase or varied phrases)
+                # For wake phrase, use phoneme notation; for other text, use as-is
+                if text.lower().strip() == WAKE_PHRASE.lower() or WAKE_PHRASE_PHONEMES in text:
+                    tts_input = WAKE_PHRASE_PHONEMES  # Use phonemes for wake phrase
+                else:
+                    tts_input = text  # Use varied phrases as-is
                 print(f"\n   [{i+1}/{num_samples}] Playing and recording ({volume_label}, {int(volume*100)}%, vol={volume:.2f})...", end="", flush=True)
                 # Find reSpeaker dynamically for each recording
                 import pyaudio
@@ -769,10 +774,61 @@ def generate_tts_negative_samples(num_samples: int = 100, play_through_speakers:
         print(f"   - Faster but less realistic")
         print(f"   - Not recommended for production models")
     
-    print(f"\nGenerating {num_samples} TTS samples using phoneme notation...")
+    # Generate varied phrases to capture general TTS sound signature
+    # The real issue is TTS leakage from responses to user questions, not TTS saying "hey aura"
+    # Using varied phrases teaches the model to ignore TTS sound signature in general
+    tts_phrases = [
+        "Sure, I can help you with that.",
+        "That's a great question.",
+        "Let me think about that for a moment.",
+        "I understand what you're asking.",
+        "Here's what I found.",
+        "Based on the information available.",
+        "That makes sense.",
+        "I see what you mean.",
+        "Let me explain that.",
+        "Here's how that works.",
+        "That's correct.",
+        "I can help you with that.",
+        "Let me provide some context.",
+        "That's an interesting point.",
+        "Here's what you need to know.",
+        "I'll break that down for you.",
+        "That's a good observation.",
+        "Let me clarify that.",
+        "Here's the answer to your question.",
+        "I can assist with that.",
+        # Also include some "hey aura" samples for direct contrast (20% of samples)
+        WAKE_PHRASE,  # "hey aura" - for direct contrast with positive samples
+    ]
     
-    # Use phoneme notation for consistency with Colab training
-    files = generate_tts_samples(WAKE_PHRASE_PHONEMES, num_samples, TTS_NEGATIVE_DIR, play_through_speakers=play_through_speakers)
+    # Calculate distribution: 80% varied phrases, 20% "hey aura"
+    num_varied = int(num_samples * 0.8)
+    num_wake_phrase = num_samples - num_varied
+    
+    print(f"\nGenerating {num_samples} TTS samples with varied phrases...")
+    print(f"   - {num_varied} samples: Varied phrases (typical LLM responses - captures general TTS signature)")
+    print(f"   - {num_wake_phrase} samples: '{WAKE_PHRASE}' (for direct contrast with positive samples)")
+    print(f"   💡 Using varied phrases is better - teaches model to ignore TTS in general, not just 'hey aura' from TTS")
+    
+    all_files = []
+    
+    # Generate varied phrase samples
+    if num_varied > 0:
+        samples_per_phrase = max(1, num_varied // len(tts_phrases))
+        for phrase in tts_phrases:
+            if len(all_files) >= num_varied:
+                break
+            phrase_samples = min(samples_per_phrase, num_varied - len(all_files))
+            files = generate_tts_samples(phrase, phrase_samples, TTS_NEGATIVE_DIR, play_through_speakers=play_through_speakers)
+            all_files.extend(files)
+    
+    # Generate "hey aura" samples for direct contrast
+    if num_wake_phrase > 0:
+        files = generate_tts_samples(WAKE_PHRASE_PHONEMES, num_wake_phrase, TTS_NEGATIVE_DIR, play_through_speakers=play_through_speakers)
+        all_files.extend(files)
+    
+    files = all_files
     
     print(f"\n✅ Generated {len(files)} TTS echo samples")
     print(f"   These are NEGATIVE samples - model should NOT trigger on them")
