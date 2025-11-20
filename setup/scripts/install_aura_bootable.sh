@@ -890,7 +890,8 @@ if [ -f "$SERVICE_FILE" ]; then
         PRESET_ARG="agc_20_ec"
     fi
     # Replace ExecStart line, preserving preset
-    sed -i "s|^ExecStart=.*|ExecStart=$PYTHON_CMD $LEDGERAI_DIR/setup/scripts/tune_xvf3800.py $PRESET_ARG|g" "$TEMP_SERVICE"
+    # Add -B flag to prevent bytecode caching (ensures latest script is always used)
+    sed -i "s|^ExecStart=.*|ExecStart=$PYTHON_CMD -B $LEDGERAI_DIR/setup/scripts/tune_xvf3800.py $PRESET_ARG|g" "$TEMP_SERVICE"
     
     # Copy to systemd
     sudo cp "$TEMP_SERVICE" "$SYSTEMD_SERVICE"
