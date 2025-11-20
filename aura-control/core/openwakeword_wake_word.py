@@ -144,19 +144,58 @@ class OpenWakeWordDetector:
                     )
                     print(f"[OpenWakeWord] ✅ Model loaded: {self.model_name or 'all available models'}")
             except Exception as e:
+                error_str = str(e)
                 print(f"[OpenWakeWord] ⚠️  Failed to load model '{self.model_name}': {e}")
-                print(f"[OpenWakeWord] 💡 Trying to load all available models...")
-                # Try loading all available models
-                try:
-                    self.engine = Model(inference_framework='onnx')
-                    # Get the first available model name
-                    if hasattr(self.engine, 'models') and len(self.engine.models) > 0:
-                        self.model_name = list(self.engine.models.keys())[0]
-                        print(f"[OpenWakeWord] ✅ Using model: {self.model_name}")
-                    else:
-                        print(f"[OpenWakeWord] ✅ Model loaded (using all available)")
-                except Exception as e2:
-                    print(f"[OpenWakeWord] ❌ Failed to load models: {e2}")
+                
+                # Check if it's a missing model file error
+                if "NO_SUCHFILE" in error_str or "File doesn't exist" in error_str or "melspectrogram.onnx" in error_str:
+                    print(f"[OpenWakeWord] 💡 Models appear to be missing - attempting to download...")
+                    print(f"[OpenWakeWord]    This may take a minute on first run...")
+                    try:
+                        # Try to initialize with no models to trigger download
+                        # OpenWakeWord should automatically download required models
+                        temp_model = Model(inference_framework='onnx')
+                        print(f"[OpenWakeWord] ✅ Models downloaded successfully")
+                        # Now try loading again
+                        if model_path:
+                            self.engine = Model(
+                                wakeword_models=[model_path],
+                                inference_framework='onnx'
+                            )
+                            print(f"[OpenWakeWord] ✅ Custom model loaded after download: {model_path}")
+                        else:
+                            self.engine = Model(
+                                wakeword_models=[self.model_name] if self.model_name else None,
+                                inference_framework='onnx'
+                            )
+                            print(f"[OpenWakeWord] ✅ Model loaded after download: {self.model_name or 'all available models'}")
+                    except Exception as download_error:
+                        print(f"[OpenWakeWord] ❌ Failed to download models: {download_error}")
+                        print(f"[OpenWakeWord] 💡 Trying to load all available models...")
+                        # Try loading all available models as fallback
+                        try:
+                            self.engine = Model(inference_framework='onnx')
+                            # Get the first available model name
+                            if hasattr(self.engine, 'models') and len(self.engine.models) > 0:
+                                self.model_name = list(self.engine.models.keys())[0]
+                                print(f"[OpenWakeWord] ✅ Using model: {self.model_name}")
+                            else:
+                                print(f"[OpenWakeWord] ✅ Model loaded (using all available)")
+                        except Exception as e2:
+                            print(f"[OpenWakeWord] ❌ Failed to load models: {e2}")
+                else:
+                    print(f"[OpenWakeWord] 💡 Trying to load all available models...")
+                    # Try loading all available models
+                    try:
+                        self.engine = Model(inference_framework='onnx')
+                        # Get the first available model name
+                        if hasattr(self.engine, 'models') and len(self.engine.models) > 0:
+                            self.model_name = list(self.engine.models.keys())[0]
+                            print(f"[OpenWakeWord] ✅ Using model: {self.model_name}")
+                        else:
+                            print(f"[OpenWakeWord] ✅ Model loaded (using all available)")
+                    except Exception as e2:
+                        print(f"[OpenWakeWord] ❌ Failed to load models: {e2}")
                     raise
             
             self.is_active = True

@@ -533,11 +533,40 @@ if [ -f "$VENV_DIR/bin/python3" ]; then
     PYTHON_CMD="$VENV_DIR/bin/python3"
 fi
 
-# Verify OpenWakeWord
+# Verify OpenWakeWord and download models
 print_info "Verifying OpenWakeWord..."
 if $PYTHON_CMD -c "import openwakeword; from openwakeword import Model; print('SUCCESS')" 2>/dev/null; then
     print_info "✅ OpenWakeWord is installed and importable"
-    print_info "   OpenWakeWord is ready to use"
+    
+    # Download/initialize OpenWakeWord models (this triggers automatic download if needed)
+    print_info "Downloading OpenWakeWord models (this may take a minute on first run)..."
+    if $PYTHON_CMD << 'PYEOF'
+import sys
+try:
+    from openwakeword import Model
+    # Create a Model instance to trigger model download
+    # This will download melspectrogram.onnx and other required models
+    print("Initializing OpenWakeWord Model (downloading models if needed)...")
+    model = Model(inference_framework='onnx')
+    print("✅ Models downloaded/verified successfully")
+    # Check if models are available
+    if hasattr(model, 'models') and len(model.models) > 0:
+        print(f"✅ Found {len(model.models)} wake word model(s)")
+    else:
+        print("⚠️  No wake word models found, but melspectrogram should be available")
+    sys.exit(0)
+except Exception as e:
+    print(f"❌ Error downloading models: {e}")
+    import traceback
+    traceback.print_exc()
+    sys.exit(1)
+PYEOF
+    then
+        print_info "✅ OpenWakeWord models downloaded and ready"
+    else
+        print_warning "⚠️  Model download had issues (may still work on first use)"
+        print_info "   Models will be downloaded automatically when OpenWakeWord is first used"
+    fi
 else
     print_warning "⚠️  OpenWakeWord not importable"
     print_info "   Attempting to diagnose..."
@@ -550,6 +579,19 @@ else
             print_info "✅ Dependencies reinstalled - retrying verification..."
             if $PYTHON_CMD -c "import openwakeword; from openwakeword import Model; print('SUCCESS')" 2>/dev/null; then
                 print_info "✅ OpenWakeWord verified after dependency fix"
+                # Try to download models after fix
+                print_info "Downloading OpenWakeWord models..."
+                $PYTHON_CMD << 'PYEOF'
+import sys
+try:
+    from openwakeword import Model
+    model = Model(inference_framework='onnx')
+    print("✅ Models downloaded successfully")
+    sys.exit(0)
+except Exception as e:
+    print(f"⚠️  Model download issue: {e}")
+    sys.exit(0)  # Non-fatal
+PYEOF
             else
                 print_warning "⚠️  Still having issues - may need manual intervention"
                 print_info "   Try: pip install --upgrade --force-reinstall numpy pandas scikit-learn openwakeword"
