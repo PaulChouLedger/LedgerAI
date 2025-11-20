@@ -31,12 +31,28 @@ import subprocess
 import time
 from pathlib import Path
 
-# Detect target user's home directory dynamically (works even when run via sudo)
+# Detect target user's home directory dynamically (works even when run via sudo or systemd)
+# Method 1: Check SUDO_USER environment variable (when run via sudo)
 _sudo_user = os.environ.get("SUDO_USER")
 if _sudo_user:
     USER_HOME = os.path.expanduser(f"~{_sudo_user}")
 else:
-    USER_HOME = os.path.expanduser("~")
+    # Method 2: Detect from LedgerAI directory ownership (for systemd services)
+    # Find LedgerAI directory by locating this script
+    SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+    LEDGERAI_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, '..', '..'))
+    
+    # Get owner of LedgerAI directory
+    try:
+        import pwd
+        import stat
+        dir_stat = os.stat(LEDGERAI_DIR)
+        owner_uid = dir_stat.st_uid
+        owner_info = pwd.getpwuid(owner_uid)
+        USER_HOME = owner_info.pw_dir
+    except (ImportError, OSError, KeyError):
+        # Fallback: use current user's home
+        USER_HOME = os.path.expanduser("~")
 
 # State file for listener to read - use target user's home directory  
 CONFIG_STATE_FILE = os.path.join(USER_HOME, 'LedgerAI', 'data', 'xvf3800_config.json')
