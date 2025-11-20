@@ -58,12 +58,12 @@ class WalletDialog(BaseAuraDialog):
             self.wallet_manager = None
             self.usage_tracker = None
         
-        # Initialize base dialog (non-modal to avoid blocking)
+        # Initialize base dialog (modal to match other dialogs)
         super().__init__(
             parent=parent,
             title="Aura Token Wallet",
             size=(1080, 1080),
-            modal=False
+            modal=True
         )
         
         # Apply dark theme styling - preserve white border from base class
@@ -169,15 +169,12 @@ class WalletDialog(BaseAuraDialog):
         except Exception as e:
             print(f"[WalletDialog] ⚠️ Error starting timers: {e}")
         
-        # After fade-in completes, start the initial refresh to avoid jank
+        # For modal dialogs with parent, skip fade animation and refresh immediately
+        # After dialog is shown, start the initial refresh to avoid jank
         if not self._initial_refresh_scheduled:
             self._initial_refresh_scheduled = True
-            # Check if fade animation exists (it will for non-modal dialogs)
-            if hasattr(self, 'fade_in') and self.fade_in:
-                self.fade_in.finished.connect(lambda: QTimer.singleShot(50, self.refresh_balance_async))
-            else:
-                # If no fade animation (modal with parent), refresh immediately
-                QTimer.singleShot(50, self.refresh_balance_async)
+            # Modal dialogs with parent skip fade animation, so refresh immediately
+            QTimer.singleShot(100, self.refresh_balance_async)
     
     def setup_ui(self):
         """Setup the dialog UI"""
@@ -454,10 +451,8 @@ class WalletDialog(BaseAuraDialog):
             QMessageBox.warning(self, "Error", "Wallet manager not available")
             return
         if self.wallet_manager.clear_saved_wallet():
-            # Reload dialog to update UI
-            self.close()
-            new_dialog = WalletDialog(self.parent())
-            new_dialog.show()
+            # Close current dialog - parent will handle reopening if needed
+            self.accept()  # Use accept() for modal dialogs
     
     def show_keyboard(self):
         """Show custom keyboard for address entry"""
@@ -653,18 +648,39 @@ class WalletDialog(BaseAuraDialog):
             except Exception as e:
                 print(f"[WalletDialog] ⚠️ Error setting loading state: {e}")
             
-            # Clean up previous worker if exists
+            # Clean up previous worker if exists (more robust cleanup)
             try:
                 if hasattr(self, 'balance_worker') and self.balance_worker:
                     try:
                         if self.balance_worker.isRunning():
-                            self.balance_worker.balance_ready.disconnect()
+                            # Disconnect signal first to prevent callbacks after cleanup
+                            try:
+                                self.balance_worker.balance_ready.disconnect()
+                            except (RuntimeError, AttributeError, TypeError):
+                                pass  # Signal already disconnected
+                            # Request thread to stop
                             self.balance_worker.quit()
-                            self.balance_worker.wait(100)
+                            # Wait for thread to finish (with timeout to avoid blocking)
+                            if not self.balance_worker.wait(500):
+                                # Thread didn't finish in time, terminate it
+                                print("[WalletDialog] ⚠️ Balance worker didn't finish, terminating")
+                                self.balance_worker.terminate()
+                                self.balance_worker.wait(100)
                     except (RuntimeError, AttributeError, TypeError):
                         pass  # Worker already stopped or deleted
-            except Exception:
-                pass
+                    finally:
+                        # Always clear reference after cleanup attempt
+                        try:
+                            self.balance_worker = None
+                        except Exception:
+                            pass
+            except Exception as e:
+                print(f"[WalletDialog] ⚠️ Error cleaning up balance worker: {e}")
+                # Clear reference even on error
+                try:
+                    self.balance_worker = None
+                except Exception:
+                    pass
             
             # Start background fetch
             try:
@@ -942,7 +958,7 @@ class WalletDialog(BaseAuraDialog):
                         except (RuntimeError, AttributeError, TypeError):
                             pass  # Signal already disconnected or object deleted
                         self.balance_worker.quit()
-                        self.balance_worker.wait(500)  # Reduced timeout
+                        self.balance_worker.wait(500)  # Wait for thread to finish
                 except (RuntimeError, AttributeError):
                     pass  # Worker already deleted
                 try:
@@ -952,17 +968,11 @@ class WalletDialog(BaseAuraDialog):
         except Exception:
             pass
         
-        # Ensure dialog is non-modal during shutdown (but don't access if already deleted)
+        # Reset refresh flag for next open
         try:
-            # Check if dialog still exists before accessing properties
-            _ = self.isVisible()  # This will raise RuntimeError if deleted
-            try:
-                self.setModal(False)
-                self.setWindowModality(Qt.NonModal)
-            except (RuntimeError, AttributeError):
-                pass  # Dialog already deleted
-        except (RuntimeError, AttributeError):
-            pass  # Dialog already deleted, skip cleanup
+            self._initial_refresh_scheduled = False
+        except Exception:
+            pass
         
         print("[WalletDialog] ✅ Cleanup complete")
 

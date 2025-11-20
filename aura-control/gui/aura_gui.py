@@ -357,12 +357,17 @@ class AuraGUI(QMainWindow):
                 
                 self._wallet_dialog.destroyed.connect(on_dialog_destroyed)
                 
-                # Show non-modally to avoid blocking GUI/transcription
+                # Show modal dialog with immediate opacity (skip fade animation for faster response)
+                # This matches the pattern used in settings dialogs
+                self._wallet_dialog.setWindowOpacity(1.0)  # Show immediately without fade
                 self._wallet_dialog.show()
                 self._wallet_dialog.raise_()
                 self._wallet_dialog.activateWindow()
                 QApplication.processEvents()  # Ensure dialog is rendered
-                print("[AuraGUI] ✅ Wallet dialog shown (non-modal)")
+                self._wallet_dialog.exec_()  # Use exec_() for modal dialogs
+                # Clear reference after dialog closes (exec_() returns)
+                self._wallet_dialog = None
+                print("[AuraGUI] ✅ Wallet dialog closed and reference cleared")
             except Exception as e:
                 print(f"[AuraGUI] ❌ Error creating wallet dialog: {e}")
                 import traceback
