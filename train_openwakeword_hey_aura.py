@@ -34,6 +34,7 @@ load_dotenv(dotenv_path)
 
 # Training configuration
 WAKE_PHRASE = "hey aura"
+TTS_PHRASE = "hey_orah"  # Phonetic spelling for TTS to pronounce correctly
 SAMPLE_RATE = 16000  # OpenWakeWord uses 16kHz
 TRAINING_DATA_DIR = workspace_root / "data" / "wake_word_training"
 POSITIVE_DIR = TRAINING_DATA_DIR / "positive"
@@ -107,10 +108,16 @@ def detect_output_device():
         return "default"
 
 
-def play_and_record_tts(text: str, device_index: int = None, duration_padding: float = 0.5) -> np.ndarray:
+def play_and_record_tts(text: str, device_index: int = None, duration_padding: float = 0.5, volume: float = 1.0) -> np.ndarray:
     """
     Generate TTS, play it through speakers, and record it back through microphone.
     This captures real echo/reverb that occurs in actual use.
+    
+    Args:
+        text: Text to generate TTS for
+        device_index: Microphone device index
+        duration_padding: Extra recording time after playback
+        volume: Volume multiplier (0.0-1.0, default: 1.0)
     """
     import pyaudio
     import threading
@@ -156,6 +163,13 @@ def play_and_record_tts(text: str, device_index: int = None, duration_padding: f
     
     # Convert to numpy array
     audio_data = np.frombuffer(b''.join(audio_chunks), dtype=np.int16)
+    
+    # Apply volume scaling
+    if volume != 1.0:
+        audio_data = (audio_data * volume).astype(np.int16)
+        # Clamp to prevent clipping
+        audio_data = np.clip(audio_data, -32768, 32767)
+    
     audio_duration = len(audio_data) / PCM_SAMPLE_RATE
     
     # Detect output device
@@ -271,9 +285,14 @@ def generate_tts_samples(text: str, num_samples: int = 10, output_dir: Path = No
     
     generated_files = []
     
+    # Define volume levels to cycle through (quiet, medium, loud)
+    volume_levels = [0.3, 0.5, 0.7, 0.9, 1.0]  # 30%, 50%, 70%, 90%, 100%
+    volume_labels = ["quiet", "medium-low", "medium", "medium-loud", "loud"]
+    
     if play_through_speakers:
         print(f"🔊 Generating {num_samples} TTS samples of '{text}' (NEGATIVE samples)...")
         print(f"   Playing through speakers and recording echo/reverb")
+        print(f"   Using {len(volume_levels)} different volume levels for variation")
         print(f"   Make sure speakers are on and microphone can hear them!")
         
         # Ensure microphone device is selected
@@ -291,11 +310,15 @@ def generate_tts_samples(text: str, num_samples: int = 10, output_dir: Path = No
         print(f"   Direct generation (no echo/reverb)")
     
     for i in range(num_samples):
+        # Cycle through volume levels
+        volume_idx = i % len(volume_levels)
+        volume = volume_levels[volume_idx]
+        volume_label = volume_labels[volume_idx]
         try:
             if play_through_speakers:
                 # Play through speakers and record echo
-                print(f"\n   [{i+1}/{num_samples}] Playing and recording...", end="", flush=True)
-                recorded_audio = play_and_record_tts(text, device_index=_selected_device_index)
+                print(f"\n   [{i+1}/{num_samples}] Playing and recording ({volume_label}, {int(volume*100)}%)...", end="", flush=True)
+                recorded_audio = play_and_record_tts(text, device_index=_selected_device_index, volume=volume)
                 print(" ✅")
                 
                 # Save recorded audio (already at 16kHz from recording)
@@ -652,30 +675,36 @@ def collect_negative_samples(num_samples: int = 30):
     print(f"   Total negative samples: {len(list(NEGATIVE_DIR.glob('*.wav')))}")
 
 
-def generate_tts_negative_samples(num_samples: int = 20, play_through_speakers: bool = True):
+def generate_tts_negative_samples(num_samples: int = 100, play_through_speakers: bool = True):
     """Generate TTS echo samples (critical for handling TTS echo)."""
     print(f"\n{'='*60}")
     print(f"📝 GENERATING TTS ECHO SAMPLES (NEGATIVE)")
     print(f"{'='*60}")
     print(f"These samples teach the model NOT to trigger on TTS output")
+    print(f"\n⚠️  CRITICAL: TTS echo is the #1 source of false positives!")
+    print(f"   Without these samples, the model will trigger on TTS playback")
     
     if play_through_speakers:
         print(f"\n🔊 Mode: Play through speakers + Record echo (RECOMMENDED)")
-        print(f"   - Plays TTS through your speakers")
+        print(f"   - Plays TTS through your speakers at varying volumes")
         print(f"   - Records it back through microphone")
         print(f"   - Captures real echo/reverb from your environment")
+        print(f"   - Uses 5 different volume levels (30%, 50%, 70%, 90%, 100%)")
         print(f"   - More realistic for training")
     else:
         print(f"\n🎤 Mode: Direct generation (no echo)")
         print(f"   - Generates TTS audio directly")
         print(f"   - Faster but less realistic")
+        print(f"   - Not recommended for production models")
     
-    print(f"\nGenerating {num_samples} TTS samples of '{WAKE_PHRASE}'...")
+    print(f"\nGenerating {num_samples} TTS samples of '{WAKE_PHRASE}' (using '{TTS_PHRASE}' for correct pronunciation)...")
+    print(f"   Volume levels will cycle through: quiet → medium-low → medium → medium-loud → loud")
     
-    files = generate_tts_samples(WAKE_PHRASE, num_samples, TTS_NEGATIVE_DIR, play_through_speakers=play_through_speakers)
+    files = generate_tts_samples(TTS_PHRASE, num_samples, TTS_NEGATIVE_DIR, play_through_speakers=play_through_speakers)
     
     print(f"\n✅ Generated {len(files)} TTS echo samples")
     print(f"   These are NEGATIVE samples - model should NOT trigger on them")
+    print(f"   Samples include various volume levels for robust training")
     return files
 
 
@@ -857,8 +886,8 @@ def main():
     parser.add_argument(
         "--mode",
         choices=["collect", "train", "full", "tts-only"],
-        default="full",
-        help="Operation mode: collect (data only), train (model only), full (both), tts-only (generate TTS samples)"
+        default="tts-only",
+        help="Operation mode: collect (data only), train (model only), full (both), tts-only (generate TTS samples only - DEFAULT)"
     )
     parser.add_argument(
         "--positive-samples",
@@ -875,8 +904,8 @@ def main():
     parser.add_argument(
         "--tts-samples",
         type=int,
-        default=20,
-        help="Number of TTS echo samples to generate (default: 20)"
+        default=100,
+        help="Number of TTS echo samples to generate (default: 100)"
     )
     parser.add_argument(
         "--tts-direct",
@@ -897,7 +926,20 @@ def main():
     
     success = True
     
-    if args.mode in ["collect", "full"]:
+    if args.mode == "tts-only":
+        # Only generate TTS samples (focus mode)
+        print("\n" + "="*60)
+        print("🎯 TTS-ONLY MODE: Generating TTS echo samples only")
+        print("="*60)
+        print("This mode skips positive and negative sample collection.")
+        print("It focuses solely on generating TTS echo samples for training.")
+        print("="*60 + "\n")
+        
+        generate_tts_negative_samples(args.tts_samples, play_through_speakers=not args.tts_direct)
+        # Update manifest with existing samples if any
+        prepare_training_data()
+    
+    elif args.mode in ["collect", "full"]:
         # Collect positive samples
         collect_positive_samples(args.positive_samples)
         
@@ -910,11 +952,6 @@ def main():
         # Prepare training data
         if not prepare_training_data():
             success = False
-    
-    if args.mode == "tts-only":
-        # Only generate TTS samples
-        generate_tts_negative_samples(args.tts_samples, play_through_speakers=not args.tts_direct)
-        prepare_training_data()
     
     if args.mode in ["train", "full"]:
         if success:
