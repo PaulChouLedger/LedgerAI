@@ -189,7 +189,7 @@ def play_and_record_tts(text: str, device_index: int = None, duration_padding: f
         voice_id=ELEVEN_VOICE_ID,
         output_format=PCM_FORMAT,
         voice_settings={
-            "stability": 0.5,
+            "stability": 1.0,  # Maximum consistency - we want consistent TTS signature for negative samples
             "similarity_boost": 0.0,
             "style": 0.0,
             "use_speaker_boost": False,
@@ -460,7 +460,7 @@ def generate_tts_samples(text: str, num_samples: int = 10, output_dir: Path = No
                     voice_id=ELEVEN_VOICE_ID,
                     output_format=PCM_FORMAT,
                     voice_settings={
-                        "stability": 0.5,
+                        "stability": 1.0,  # Maximum consistency - we want consistent TTS signature for negative samples
                         "similarity_boost": 0.0,
                         "style": 0.0,
                         "use_speaker_boost": False,
