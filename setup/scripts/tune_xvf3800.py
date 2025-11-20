@@ -67,13 +67,10 @@ def disable_all_leds():
     """Disable all LEDs on XVF3800 to reduce power draw (useful for USB isolator)"""
     print("[LED] Disabling all LEDs to reduce power consumption...")
     
-    # Try LED control commands (LED_BRIGHTNESS=0 works, try it first)
+    # Use only confirmed working LED control commands
     led_commands = [
         ("LED_BRIGHTNESS", 0),      # Set brightness to 0 (confirmed working)
-        ("LED_COLOR", 0),           # Set color to off (suggested by xvf_host)
-        ("LED_MODE", 0),            # Set mode to off
-        ("LED_ENABLE", 0),          # Disable LEDs
-        ("LED_STATE", 0),           # Set state to off
+        ("LED_COLOR", 0),           # Set color to off (confirmed working)
     ]
     
     success = False
@@ -82,8 +79,7 @@ def disable_all_leds():
         if result is not None:
             print(f"  ✅ LEDs disabled via {cmd}={value}")
             success = True
-            # Continue trying other commands for complete LED shutdown
-            continue
+        # Continue trying other commands for complete LED shutdown
     
     if success:
         print("  💡 All LEDs disabled - power consumption reduced")
