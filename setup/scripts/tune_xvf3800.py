@@ -556,8 +556,36 @@ def show_current_settings():
     print("\n" + "="*80 + "\n")
     return True
 
+def wait_for_usb_device(max_wait=30, wait_interval=1):
+    """Wait for USB device to be available before configuring"""
+    import subprocess
+    print(f"[USB Wait] Waiting for USB device to be ready (up to {max_wait}s)...")
+    for i in range(max_wait):
+        try:
+            result = subprocess.run(
+                ["lsusb"], capture_output=True, text=True, timeout=2
+            )
+            if result.returncode == 0:
+                if "reSpeaker" in result.stdout or "XVF3800" in result.stdout or "UACDemo" in result.stdout:
+                    print(f"[USB Wait] ✅ Device found after {i} seconds")
+                    time.sleep(2)  # Give device time to fully initialize
+                    return True
+        except Exception:
+            pass
+        
+        if i % 5 == 0 and i > 0:
+            print(f"[USB Wait] ⏳ Still waiting... ({i}/{max_wait}s)")
+        
+        time.sleep(wait_interval)
+    
+    print(f"[USB Wait] ⚠️  Device not found after {max_wait} seconds, proceeding anyway...")
+    return False
+
 def main():
     """Main execution"""
+    # Wait for USB device to be ready (important for boot-time execution)
+    wait_for_usb_device()
+    
     # Check if xvf_host exists
     if not os.path.exists(XVF_HOST_PATH):
         print("\n" + "="*80)

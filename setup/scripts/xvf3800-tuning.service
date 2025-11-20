@@ -15,8 +15,9 @@
 #   - show            : Show current settings
 #
 # This service file is FULLY DYNAMIC - no modifications needed!
-# - Paths are resolved dynamically by wrapper script
-# - User is detected automatically from LedgerAI directory ownership
+# - Paths resolved using systemd %h (home directory) and common locations
+# - User detected automatically by Python script (via SUDO_USER or ~)
+# - USB device waiting handled by Python script
 # - Can be updated via git pull without any changes!
 #
 # To install (first time only):
@@ -54,10 +55,9 @@ Wants=network.target
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-# No User= field needed - wrapper script detects user automatically using 'stat' and 'whoami'
-# Wrapper script finds LedgerAI directory and detects owner, switches to that user if needed
-# Tries common locations: %h/LedgerAI, /home/ledger/LedgerAI, /home/aura/LedgerAI
-ExecStart=/bin/bash -c 'for dir in "%h/LedgerAI" "/home/ledger/LedgerAI" "/home/aura/LedgerAI"; do if [ -f "$$dir/setup/scripts/tune_xvf3800_wrapper.sh" ]; then "$$dir/setup/scripts/tune_xvf3800_wrapper.sh" agc_20_ec; exit $$?; fi; done; echo "Error: Could not find LedgerAI directory"; exit 1'
+# User detected automatically: find LedgerAI directory owner, or use current user
+# Python script already handles user detection via SUDO_USER and ~ expansion
+ExecStart=/bin/bash -c 'for dir in "%h/LedgerAI" "/home/ledger/LedgerAI" "/home/aura/LedgerAI"; do if [ -f "$$dir/setup/scripts/tune_xvf3800.py" ]; then cd "$$dir" && python3 -B setup/scripts/tune_xvf3800.py agc_20_ec; exit $$?; fi; done; echo "Error: Could not find LedgerAI directory"; exit 1'
 StandardOutput=journal
 StandardError=journal
 
