@@ -209,11 +209,13 @@ def play_and_record_tts(text: str, device_index: int = None, duration_padding: f
     # Convert to numpy array
     audio_data = np.frombuffer(b''.join(audio_chunks), dtype=np.int16)
     
-    # Apply volume scaling
-    if volume != 1.0:
-        audio_data = (audio_data * volume).astype(np.int16)
-        # Clamp to prevent clipping (always clamp, even if volume > 1.0)
-        audio_data = np.clip(audio_data, -32768, 32767)
+    # Apply volume scaling with proper handling to preserve variation
+    # Convert to float for better precision, scale, then convert back
+    audio_float = audio_data.astype(np.float32)
+    audio_float = audio_float * volume
+    # Clamp to prevent clipping (preserves volume differences even when clipping occurs)
+    audio_float = np.clip(audio_float, -32768.0, 32767.0)
+    audio_data = audio_float.astype(np.int16)
     
     audio_duration = len(audio_data) / PCM_SAMPLE_RATE
     
@@ -376,10 +378,14 @@ def generate_tts_samples(text: str, num_samples: int = 10, output_dir: Path = No
     
     generated_files = []
     
-    # Define volume levels to cycle through (matching Colab training: min 70%, max 250%)
+    # Define volume levels to cycle through (matching Colab training: min 50%, max 150%)
     # Distribute volumes evenly across the range
     num_volume_steps = max(8, num_samples // 5)  # At least 8 different volumes, or 1 per 5 samples
     volume_levels = np.linspace(TTS_MIN_VOLUME, TTS_MAX_VOLUME, num_volume_steps).tolist()
+    
+    # Debug: Print volume levels to verify they're different
+    if play_through_speakers:
+        print(f"   Volume levels: {[f'{v:.2f}' for v in volume_levels]}")
     
     # Create volume labels for logging
     def volume_to_label(vol):
@@ -428,7 +434,7 @@ def generate_tts_samples(text: str, num_samples: int = 10, output_dir: Path = No
                 # Note: ElevenLabs may interpret phoneme notation directly, or we may need to use 'hey_orah' text
                 # Try phoneme notation first, fallback to phonetic text if needed
                 tts_input = WAKE_PHRASE_PHONEMES  # Use phonemes matching Colab format
-                print(f"\n   [{i+1}/{num_samples}] Playing and recording ({volume_label}, {int(volume*100)}%)...", end="", flush=True)
+                print(f"\n   [{i+1}/{num_samples}] Playing and recording ({volume_label}, {int(volume*100)}%, vol={volume:.2f})...", end="", flush=True)
                 # Find reSpeaker dynamically for each recording
                 import pyaudio
                 p = pyaudio.PyAudio()
