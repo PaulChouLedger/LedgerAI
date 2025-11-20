@@ -1062,20 +1062,6 @@ class AIModelSettingsDialog(BaseAuraDialog):
         wake_word_row.addWidget(self.wake_word_toggle, 1)
         layout.addLayout(wake_word_row)
         
-        # Wake word engine selection (OpenWakeWord only)
-        engine_row = QHBoxLayout(); engine_row.setSpacing(12)
-        engine_label = QLabel("Wake Word Engine:")
-        engine_label.setStyleSheet("color: #ffffff; font-size: 14px;")
-        self.wake_word_engine_combo = QComboBox()
-        self.wake_word_engine_combo.addItem("OpenWakeWord", "openwakeword")
-        self.wake_word_engine_combo.setStyleSheet("""
-            QComboBox { background-color: rgba(44,44,46,0.8); color: #ffffff; padding: 8px; border: none; border-radius: 10px; min-height: 36px; }
-            QComboBox QAbstractItemView { background-color: #2d2d2d; color: #ffffff; selection-background-color: #4D94D9; }
-        """)
-        engine_row.addWidget(engine_label)
-        engine_row.addWidget(self.wake_word_engine_combo, 1)
-        layout.addLayout(engine_row)
-        
         # RAG mode UI (CPU/GPU/OFF)
         rag_row = QHBoxLayout(); rag_row.setSpacing(12)
         rag_label = QLabel("RAG Mode:")
@@ -1124,16 +1110,10 @@ class AIModelSettingsDialog(BaseAuraDialog):
         
         # Initialize wake word toggle from state
         try:
-            from core.state import get_wake_word_enabled, get_wake_word_engine
+            from core.state import get_wake_word_enabled
             enabled = get_wake_word_enabled()
             self.wake_word_toggle.setChecked(enabled)
             self.wake_word_toggle.setText("ON" if enabled else "OFF")
-            
-            # Initialize engine selection
-            current_engine = get_wake_word_engine()
-            idx = self.wake_word_engine_combo.findData(current_engine)
-            if idx >= 0:
-                self.wake_word_engine_combo.setCurrentIndex(idx)
         except Exception:
             self.wake_word_toggle.setChecked(False)
             self.wake_word_toggle.setText("OFF")
@@ -1147,7 +1127,6 @@ class AIModelSettingsDialog(BaseAuraDialog):
                 print(f"[ModelSettings] Wake word detection: {'enabled' if checked else 'disabled'}")
                 
                 if checked:
-                    engine = self.wake_word_engine_combo.currentData()
                     engine_name = "OpenWakeWord"
                     print(f"[ModelSettings] ✅ Wake word enabled - using {engine_name}")
                     from PyQt5.QtWidgets import QMessageBox
@@ -1161,18 +1140,7 @@ class AIModelSettingsDialog(BaseAuraDialog):
             except Exception as e:
                 print(f"[ModelSettings] Error saving wake word setting: {e}")
         
-        def on_engine_changed():
-            try:
-                from core.state import set_wake_word_engine
-                engine = self.wake_word_engine_combo.currentData()
-                set_wake_word_engine(engine)
-                engine_name = "OpenWakeWord"
-                print(f"[ModelSettings] Wake word engine changed to: {engine_name}")
-            except Exception as e:
-                print(f"[ModelSettings] Error saving wake word engine: {e}")
-        
         self.wake_word_toggle.toggled.connect(on_wake_word_toggled)
-        self.wake_word_engine_combo.currentIndexChanged.connect(on_engine_changed)
         self.rag_combo.currentIndexChanged.connect(self._on_rag_mode_changed)
         # Connect mode buttons
         self.mode_generic_btn.clicked.connect(lambda: self._on_mode_changed("generic"))
