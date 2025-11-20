@@ -532,8 +532,10 @@ def read_audio_frame(stream, stream_valid, label="Listener"):
         time.sleep(0.1)
         return None, None, None, True  # Continue
     
+    # CRITICAL: Skip audio processing entirely while TTS is playing
+    # This prevents wake word detection from triggering on TTS echo
     if is_playing():
-        return None, None, None, False  # Break
+        return None, None, None, True  # Continue (don't process audio, but keep loop running)
     
     # Ensure stream is still valid
     if not stream_valid:
@@ -774,7 +776,7 @@ def listen():
             stream_valid = True  # Track if stream is still valid
             
             while stream_valid:
-                # Pause during TTS
+                # Pause during TTS (same logic as VAD)
                 if is_playing():
                     print("[Listener] ⏸️ Pausing mic during playback")
                     try:
@@ -819,15 +821,21 @@ def listen():
                 if wake_word_enabled and not listening_active and wake_word_detector is not None:
                     # === Wake Word Detection Loop ===
                     # Keep reading frames until wake word is detected (same structure as VAD loop)
+                    # Uses same logic as VAD: read_audio_frame handles is_playing() check
                     while True:
                         # Use shared audio reading function (same as VAD)
+                        # read_audio_frame already checks is_playing() and returns None if TTS is playing
                         audio_block, channel_audio, features, should_continue = read_audio_frame(stream, stream_valid, "Wake Word")
                         
                         if audio_block is None:
                             if not should_continue:
                                 stream_valid = False
                                 break  # Exit wake word loop and main loop
-                            continue  # Continue wake word loop
+                            continue  # Continue wake word loop (TTS is playing, skip this frame)
+                        
+                        # Check if TTS started playing (same check as VAD loop)
+                        if is_playing():
+                            break  # Exit wake word loop, return to main loop (same as VAD)
                         
                         # Print status (same format as VAD)
                         print(f"[Wake Word] RMS {features['rms']:.4f} | Peak {features['peak']:.3f}", end="\r")
