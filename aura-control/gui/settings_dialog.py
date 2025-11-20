@@ -1556,11 +1556,16 @@ class SettingsDialog(BaseAuraDialog):
             sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
             from core import speaker as _speaker
             _speaker.TTS_VOLUME = int(value)
-            # Re-apply through ALSA
-            if hasattr(_speaker, "set_volume_once"):
+            # Re-apply volume (supports both PulseAudio and ALSA)
+            if hasattr(_speaker, "set_volume"):
+                _speaker.set_volume()  # Use set_volume() which can be called multiple times
+            elif hasattr(_speaker, "set_volume_once"):
+                # Reset VOLUME_SET flag to allow re-setting
+                if hasattr(_speaker, "VOLUME_SET"):
+                    _speaker.VOLUME_SET = False
                 _speaker.set_volume_once()
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"[Settings] ⚠️ Failed to set volume: {e}")
         # Persist to .env
         try:
             workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))

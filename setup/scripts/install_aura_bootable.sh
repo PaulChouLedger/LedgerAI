@@ -1210,9 +1210,9 @@ TELEGRAM_BOT_TOKEN=
 # Optional: GitHub OTA Updates
 GITHUB_TOKEN=
 #
-# Required: TTS Volume (0-100, default: 50)
-# Controls the volume of text-to-speech output
-TTS_VOLUME=50
+# Note: TTS Volume is controlled via Settings Dialog (not in .env)
+# The volume slider in Settings → General Settings controls TTS output volume
+# Default volume is 80% (set in speaker.py)
 #
 # Wake Word Detection: OpenWakeWord installed
 # - OpenWakeWord: Actively maintained, works on all platforms

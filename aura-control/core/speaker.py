@@ -106,27 +106,55 @@ PITCH = "100%"
 # Note: detect_output_device() is called at module load time above
 # These functions use the pre-detected OUTPUT_CARD_INDEX
 
-# === Set playback volume once ===
+# === Set playback volume ===
 def set_volume_once():
+    """Set volume once on startup (for backward compatibility)"""
     global VOLUME_SET
     if not VOLUME_SET:
-        if OUTPUT_CARD_INDEX is not None:
-            for ctrl in ALSA_CONTROLS:
-                try:
-                    subprocess.run(
-                        ["amixer", "-c", str(OUTPUT_CARD_INDEX), "sset", ctrl, f"{TTS_VOLUME}%"],
-                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True
-                    )
-                    print(f"[Speaker] 🔊 Volume set to {TTS_VOLUME}% on card {OUTPUT_CARD_INDEX}:{ctrl}")
-                    VOLUME_SET = True
-                    return
-                except Exception:
-                    continue
-            print("[Speaker] ⚠️ Could not set volume — check ALSA controls")
-        else:
-            # Using default device - volume control may not be available
-            print(f"[Speaker] 🔊 Using default ALSA device (volume: {TTS_VOLUME}%)")
+        set_volume()
+
+def set_volume():
+    """Set TTS volume - supports both ALSA and PulseAudio/PipeWire. Can be called multiple times."""
+    global VOLUME_SET
+    
+    # Try PulseAudio/PipeWire first (modern systems)
+    try:
+        # Get default sink name
+        result = subprocess.run(
+            ["pactl", "get-default-sink"],
+            capture_output=True, text=True, check=True, timeout=2
+        )
+        sink_name = result.stdout.strip()
+        if sink_name:
+            # Set volume to TTS_VOLUME%
+            subprocess.run(
+                ["pactl", "set-sink-volume", sink_name, f"{TTS_VOLUME}%"],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True, timeout=2
+            )
+            print(f"[Speaker] 🔊 Volume set to {TTS_VOLUME}% via PulseAudio (sink: {sink_name})")
             VOLUME_SET = True
+            return
+    except (subprocess.TimeoutExpired, subprocess.CalledProcessError, FileNotFoundError):
+        pass  # PulseAudio not available, try ALSA
+    
+    # Fallback to ALSA
+    if OUTPUT_CARD_INDEX is not None:
+        for ctrl in ALSA_CONTROLS:
+            try:
+                subprocess.run(
+                    ["amixer", "-c", str(OUTPUT_CARD_INDEX), "sset", ctrl, f"{TTS_VOLUME}%"],
+                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True, timeout=2
+                )
+                print(f"[Speaker] 🔊 Volume set to {TTS_VOLUME}% on card {OUTPUT_CARD_INDEX}:{ctrl}")
+                VOLUME_SET = True
+                return
+            except Exception:
+                continue
+        print("[Speaker] ⚠️ Could not set volume — check ALSA controls")
+    else:
+        # Using default device - volume control may not be available
+        print(f"[Speaker] 🔊 Using default ALSA device (volume: {TTS_VOLUME}%)")
+        VOLUME_SET = True
 
 def detect_emotion(text):
     lowered = text.lower()
