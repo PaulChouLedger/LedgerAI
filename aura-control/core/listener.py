@@ -869,10 +869,11 @@ def listen():
                         if is_playing():
                             break  # Exit wake word loop, return to main loop (same as VAD)
                         
-                        # Brief pause after TTS ends to let echo decay (0.5 seconds)
+                        # Brief pause after TTS ends to let echo decay (3.0 seconds - extreme test)
+                        # TODO: Reduce to 0.5s once training is improved
                         if tts_end_time is not None:
                             time_since_tts_end = time.time() - tts_end_time
-                            if time_since_tts_end < 0.5:  # Wait 0.5s after TTS ends
+                            if time_since_tts_end < 3.0:  # Wait 3.0s after TTS ends (extreme test)
                                 # Skip processing, just read and discard frames to keep buffer clear
                                 try:
                                     stream.read(FRAME_SIZE)
