@@ -858,8 +858,13 @@ def listen():
                     
                 if wake_word_enabled and not listening_active and wake_word_detector is not None:
                     # === Wake Word Detection Loop ===
-                    # Mirrors VAD loop exactly - no cooldown, just skip processing while TTS is playing
+                    # Mirrors VAD loop exactly - skip processing while TTS is playing
                     while True:
+                        # CRITICAL: Check if TTS is playing BEFORE reading audio (same as VAD)
+                        # This prevents wake word from processing TTS echo
+                        if is_playing():
+                            break  # Exit wake word loop, return to main loop (same as VAD)
+                        
                         # Use shared audio reading function (same as VAD)
                         # read_audio_frame already checks is_playing() and returns None if TTS is playing
                         audio_block, channel_audio, features, should_continue = read_audio_frame(stream, stream_valid, "Wake Word")
@@ -870,7 +875,7 @@ def listen():
                                 break  # Exit wake word loop and main loop
                             continue  # Continue wake word loop (TTS is playing, skip this frame - same as VAD)
                         
-                        # Check if TTS started playing (same check as VAD loop)
+                        # Double-check TTS didn't start playing (same check as VAD loop)
                         if is_playing():
                             break  # Exit wake word loop, return to main loop (same as VAD)
                         

@@ -315,6 +315,34 @@ def normalize_text(text: str) -> str:
     if not text:
         return ""
     text = text.lower()
+    
+    # Normalize contractions to handle variations like "what's" -> "what is"
+    # This must happen BEFORE punctuation removal to preserve apostrophes
+    contractions_map = {
+        "what's": "what is",
+        "what're": "what are",
+        "who's": "who is",
+        "where's": "where is",
+        "when's": "when is",
+        "why's": "why is",
+        "how's": "how is",
+        "how're": "how are",
+        "how'd": "how did",
+        "how'll": "how will",
+        "that's": "that is",
+        "there's": "there is",
+        "here's": "here is",
+        "it's": "it is",
+        "i'm": "i am",
+        "you're": "you are",
+        "we're": "we are",
+        "they're": "they are",
+        "he's": "he is",
+        "she's": "she is",
+    }
+    for contraction, expansion in contractions_map.items():
+        text = text.replace(contraction, expansion)
+    
     text = text.translate(str.maketrans('', '', string.punctuation))
     text = ' '.join(text.split())
     return text

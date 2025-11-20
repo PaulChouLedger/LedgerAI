@@ -203,17 +203,44 @@ def handle_conversation(
     if RAG_MODE in ("CPU", "GPU"):
         print(f"[Generic] 🔍 RAG_MODE={RAG_MODE} - checking if query should use RAG...")
         
+        # Normalize contractions to handle variations like "what's" -> "what is"
+        contractions_map = {
+            "what's": "what is",
+            "what're": "what are",
+            "who's": "who is",
+            "where's": "where is",
+            "when's": "when is",
+            "why's": "why is",
+            "how's": "how is",
+            "how're": "how are",
+            "how'd": "how did",
+            "how'll": "how will",
+            "that's": "that is",
+            "there's": "there is",
+            "here's": "here is",
+            "it's": "it is",
+            "i'm": "i am",
+            "you're": "you are",
+            "we're": "we are",
+            "they're": "they are",
+            "he's": "he is",
+            "she's": "she is",
+        }
+        normalized_prompt = prompt.lower()
+        for contraction, expansion in contractions_map.items():
+            normalized_prompt = normalized_prompt.replace(contraction, expansion)
+        
         # Only use RAG for queries that seem like knowledge/document questions
         # Simple conversational queries don't need RAG (faster response)
         # Skip RAG for personal/conversational queries (day, schedule, how are you, etc.)
         personal_keywords = ['my day', 'my schedule', 'my calendar', 'how are you', 'how am i', 
                           'what am i', 'when am i', 'where am i', 'tell me about me']
-        is_personal_query = any(keyword in prompt.lower() for keyword in personal_keywords)
+        is_personal_query = any(keyword in normalized_prompt for keyword in personal_keywords)
         
         # Use RAG for knowledge/document queries, but skip for personal/conversational
         knowledge_keywords = ['what is', 'what are', 'how does', 'explain', 'tell me about',
                             'document', 'file', 'information about', 'details about']
-        is_knowledge_query = (any(keyword in prompt.lower() for keyword in knowledge_keywords) 
+        is_knowledge_query = (any(keyword in normalized_prompt for keyword in knowledge_keywords) 
                             and not is_personal_query)
         
         print(f"[Generic] 🔍 Query analysis: is_personal={is_personal_query}, is_knowledge={is_knowledge_query}")
