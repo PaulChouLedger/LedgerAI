@@ -167,7 +167,7 @@ def play_and_record_tts(text: str, device_index: int = None, duration_padding: f
     # Apply volume scaling
     if volume != 1.0:
         audio_data = (audio_data * volume).astype(np.int16)
-        # Clamp to prevent clipping
+        # Clamp to prevent clipping (always clamp, even if volume > 1.0)
         audio_data = np.clip(audio_data, -32768, 32767)
     
     audio_duration = len(audio_data) / PCM_SAMPLE_RATE
@@ -285,9 +285,10 @@ def generate_tts_samples(text: str, num_samples: int = 10, output_dir: Path = No
     
     generated_files = []
     
-    # Define volume levels to cycle through (quiet, medium, loud)
-    volume_levels = [0.3, 0.5, 0.7, 0.9, 1.0]  # 30%, 50%, 70%, 90%, 100%
-    volume_labels = ["quiet", "medium-low", "medium", "medium-loud", "loud"]
+    # Define volume levels to cycle through (quiet to maximum)
+    # Using higher values for maximum volume (with clipping protection)
+    volume_levels = [0.3, 0.5, 0.7, 0.9, 1.0, 1.2, 1.5]  # 30%, 50%, 70%, 90%, 100%, 120%, 150%
+    volume_labels = ["quiet", "medium-low", "medium", "medium-loud", "loud", "very-loud", "maximum"]
     
     if play_through_speakers:
         print(f"🔊 Generating {num_samples} TTS samples of '{text}' (NEGATIVE samples)...")
@@ -689,7 +690,7 @@ def generate_tts_negative_samples(num_samples: int = 100, play_through_speakers:
         print(f"   - Plays TTS through your speakers at varying volumes")
         print(f"   - Records it back through microphone")
         print(f"   - Captures real echo/reverb from your environment")
-        print(f"   - Uses 5 different volume levels (30%, 50%, 70%, 90%, 100%)")
+        print(f"   - Uses 7 different volume levels (30%, 50%, 70%, 90%, 100%, 120%, 150%)")
         print(f"   - More realistic for training")
     else:
         print(f"\n🎤 Mode: Direct generation (no echo)")
@@ -698,7 +699,7 @@ def generate_tts_negative_samples(num_samples: int = 100, play_through_speakers:
         print(f"   - Not recommended for production models")
     
     print(f"\nGenerating {num_samples} TTS samples of '{WAKE_PHRASE}' (using '{TTS_PHRASE}' for correct pronunciation)...")
-    print(f"   Volume levels will cycle through: quiet → medium-low → medium → medium-loud → loud")
+    print(f"   Volume levels will cycle through: quiet → medium-low → medium → medium-loud → loud → very-loud → maximum")
     
     files = generate_tts_samples(TTS_PHRASE, num_samples, TTS_NEGATIVE_DIR, play_through_speakers=play_through_speakers)
     
