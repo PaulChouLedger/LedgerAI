@@ -538,22 +538,27 @@ print_info "Verifying OpenWakeWord..."
 if $PYTHON_CMD -c "import openwakeword; from openwakeword import Model; print('SUCCESS')" 2>/dev/null; then
     print_info "✅ OpenWakeWord is installed and importable"
     
-    # Download/initialize OpenWakeWord models (this triggers automatic download if needed)
+    # Download/initialize OpenWakeWord models explicitly
     print_info "Downloading OpenWakeWord models (this may take a minute on first run)..."
     if $PYTHON_CMD << 'PYEOF'
 import sys
 try:
+    # Use OpenWakeWord's utility function to explicitly download models
+    import openwakeword.utils
+    print("Downloading OpenWakeWord models (melspectrogram and wake word models)...")
+    openwakeword.utils.download_models()
+    print("✅ Models downloaded successfully")
+    
+    # Verify models are available by trying to create a Model instance
     from openwakeword import Model
-    # Create a Model instance to trigger model download
-    # This will download melspectrogram.onnx and other required models
-    print("Initializing OpenWakeWord Model (downloading models if needed)...")
+    print("Verifying models are accessible...")
     model = Model(inference_framework='onnx')
-    print("✅ Models downloaded/verified successfully")
+    print("✅ Models verified and accessible")
     # Check if models are available
     if hasattr(model, 'models') and len(model.models) > 0:
         print(f"✅ Found {len(model.models)} wake word model(s)")
     else:
-        print("⚠️  No wake word models found, but melspectrogram should be available")
+        print("✅ Models downloaded (melspectrogram preprocessing model available)")
     sys.exit(0)
 except Exception as e:
     print(f"❌ Error downloading models: {e}")
@@ -584,8 +589,8 @@ else
                 $PYTHON_CMD << 'PYEOF'
 import sys
 try:
-    from openwakeword import Model
-    model = Model(inference_framework='onnx')
+    import openwakeword.utils
+    openwakeword.utils.download_models()
     print("✅ Models downloaded successfully")
     sys.exit(0)
 except Exception as e:

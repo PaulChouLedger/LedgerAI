@@ -152,9 +152,10 @@ class OpenWakeWordDetector:
                     print(f"[OpenWakeWord] 💡 Models appear to be missing - attempting to download...")
                     print(f"[OpenWakeWord]    This may take a minute on first run...")
                     try:
-                        # Try to initialize with no models to trigger download
-                        # OpenWakeWord should automatically download required models
-                        temp_model = Model(inference_framework='onnx')
+                        # Use OpenWakeWord's utility function to download models
+                        import openwakeword.utils
+                        print(f"[OpenWakeWord]    Downloading required models (melspectrogram and wake word models)...")
+                        openwakeword.utils.download_models()
                         print(f"[OpenWakeWord] ✅ Models downloaded successfully")
                         # Now try loading again
                         if model_path:
@@ -183,6 +184,7 @@ class OpenWakeWordDetector:
                                 print(f"[OpenWakeWord] ✅ Model loaded (using all available)")
                         except Exception as e2:
                             print(f"[OpenWakeWord] ❌ Failed to load models: {e2}")
+                            # If all attempts failed, engine is still None - will be caught below
                 else:
                     print(f"[OpenWakeWord] 💡 Trying to load all available models...")
                     # Try loading all available models
@@ -196,7 +198,11 @@ class OpenWakeWordDetector:
                             print(f"[OpenWakeWord] ✅ Model loaded (using all available)")
                     except Exception as e2:
                         print(f"[OpenWakeWord] ❌ Failed to load models: {e2}")
-                    raise
+                        # If all attempts failed, engine is still None - will be caught below
+            
+            # Verify that engine was successfully initialized
+            if self.engine is None:
+                raise RuntimeError("Failed to initialize OpenWakeWord engine - models could not be loaded. Try running: python3 -c \"import openwakeword.utils; openwakeword.utils.download_models()\"")
             
             self.is_active = True
             print(f"[OpenWakeWord] ✅ OpenWakeWord initialized successfully")
