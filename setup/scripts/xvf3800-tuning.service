@@ -32,7 +32,9 @@ Wants=network.target
 Type=oneshot
 RemainAfterExit=yes
 User=__AURA_USER__
-ExecStart=__PYTHON_CMD__ __LEDGERAI_DIR__/setup/scripts/tune_xvf3800.py agc_20_ec
+# Always uses latest script version (no bytecode caching)
+# -B flag prevents .pyc files, ensuring latest code is always executed
+ExecStart=__PYTHON_CMD__ -B __LEDGERAI_DIR__/setup/scripts/tune_xvf3800.py agc_20_ec
 StandardOutput=journal
 StandardError=journal
 
