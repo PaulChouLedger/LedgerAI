@@ -1,14 +1,12 @@
 #!/usr/bin/env python3
 """
-Train OpenWakeWord model for "hey aura" with TTS echo handling.
+Generate TTS negative samples for OpenWakeWord training.
 
-This script trains a custom openwakeword model that can detect "hey aura"
-while ignoring TTS echo from the speaker output.
+This script generates TTS echo samples to train a custom openwakeword model
+that can detect "hey aura" while ignoring TTS echo from the speaker output.
 
 Usage:
-    python3 train_openwakeword_hey_aura.py --mode collect    # Collect training data
-    python3 train_openwakeword_hey_aura.py --mode train     # Train the model
-    python3 train_openwakeword_hey_aura.py --mode full      # Collect + Train
+    python3 collect_negative_tts_samples.py --tts-samples 300
 """
 
 import os
@@ -41,16 +39,12 @@ SAMPLE_RATE = 16000  # OpenWakeWord uses 16kHz
 TTS_MIN_VOLUME = 0.5  # 50% minimum volume
 TTS_MAX_VOLUME = 1.5  # 150% maximum volume
 TRAINING_DATA_DIR = workspace_root / "data" / "wake_word_training"
-POSITIVE_DIR = TRAINING_DATA_DIR / "positive"
-NEGATIVE_DIR = TRAINING_DATA_DIR / "negative"
 TTS_NEGATIVE_DIR = TRAINING_DATA_DIR / "negative_tts"
 MODEL_OUTPUT_DIR = workspace_root / "data" / "models" / "wake_words"
 MODEL_NAME = "hey_aura_v0.1"
 
 # Create directories
 TRAINING_DATA_DIR.mkdir(parents=True, exist_ok=True)
-POSITIVE_DIR.mkdir(parents=True, exist_ok=True)
-NEGATIVE_DIR.mkdir(parents=True, exist_ok=True)
 TTS_NEGATIVE_DIR.mkdir(parents=True, exist_ok=True)
 MODEL_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -352,7 +346,7 @@ def play_and_record_tts(text: str, device_index: int = None, duration_padding: f
     return recorded_float
 
 
-def generate_tts_samples(text: str, num_samples: int = 10, output_dir: Path = None, play_through_speakers: bool = True) -> List[Path]:
+def generate_tts_samples(text: str, num_samples: int = 10, output_dir: Path = None, play_through_speakers: bool = True, start_index: int = 1) -> List[Path]:
     """
     Generate TTS audio samples using ElevenLabs.
     
@@ -412,13 +406,6 @@ def generate_tts_samples(text: str, num_samples: int = 10, output_dir: Path = No
         print(f"   Volume range: {int(TTS_MIN_VOLUME*100)}% to {int(TTS_MAX_VOLUME*100)}% ({len(volume_levels)} different levels)")
         print(f"   Make sure speakers are on and microphone can hear them!")
         
-        # Find reSpeaker dynamically (no need to save - just find it each time)
-        device_index = select_microphone_device()
-        if device_index is None:
-            print("⚠️  reSpeaker not found - cannot record echo")
-            return []
-        
-        print(f"   Using microphone: [{device_index}] (found dynamically by name: reSpeaker)")
         print(f"   Starting in 2 seconds...")
         time.sleep(2)
     else:
@@ -453,7 +440,9 @@ def generate_tts_samples(text: str, num_samples: int = 10, output_dir: Path = No
                 print(" ✅")
                 
                 # Save recorded audio (already at 16kHz from recording)
-                output_file = output_dir / f"tts_echo_{i+1:03d}.wav"
+                # Use start_index to avoid overwriting files when generating multiple phrase sets
+                file_index = start_index + i
+                output_file = output_dir / f"tts_echo_{file_index:03d}.wav"
                 sf.write(str(output_file), recorded_audio, SAMPLE_RATE)
                 generated_files.append(output_file)
                 
@@ -495,7 +484,9 @@ def generate_tts_samples(text: str, num_samples: int = 10, output_dir: Path = No
                 num_samples_resampled = int(len(audio_float) * SAMPLE_RATE / PCM_SAMPLE_RATE)
                 audio_resampled = signal.resample(audio_float, num_samples_resampled)
                 
-                output_file = output_dir / f"tts_echo_{i+1:03d}.wav"
+                # Use start_index to avoid overwriting files when generating multiple phrase sets
+                file_index = start_index + i
+                output_file = output_dir / f"tts_echo_{file_index:03d}.wav"
                 sf.write(str(output_file), audio_resampled, SAMPLE_RATE)
                 generated_files.append(output_file)
                 print(f"   ✅ Generated: {output_file.name}")
@@ -618,135 +609,6 @@ def record_audio_sample(duration: float = 3.0, sample_rate: int = SAMPLE_RATE, d
         p.terminate()
 
 
-def collect_positive_samples(num_samples: int = 20):
-    """Collect positive training samples (human speech saying 'hey aura')."""
-    print(f"\n{'='*60}")
-    print(f"📝 COLLECTING POSITIVE SAMPLES")
-    print(f"{'='*60}")
-    print(f"Wake phrase: '{WAKE_PHRASE}'")
-    print(f"Target: {num_samples} samples")
-    print(f"Output directory: {POSITIVE_DIR}")
-    print("\n💡 Tips:")
-    print("   - Speak naturally, as you would in real use")
-    print("   - Vary your tone, speed, and volume")
-    print("   - Include samples from different distances")
-    print("   - Press Ctrl+C to stop early\n")
-    
-    # Find reSpeaker dynamically
-    device_index = select_microphone_device()
-    if device_index is None:
-        print("⚠️  reSpeaker not found - cannot record")
-        return
-    
-    collected = 0
-    existing_files = list(POSITIVE_DIR.glob("*.wav"))
-    start_index = len(existing_files) + 1
-    
-    try:
-        while collected < num_samples:
-            print(f"\n--- Sample {collected + 1}/{num_samples} ---")
-            
-            # Record audio (finds reSpeaker dynamically each time)
-            audio = record_audio_sample(duration=2.5, device_index=device_index)
-            
-            # Save sample
-            output_file = POSITIVE_DIR / f"positive_{start_index + collected:03d}.wav"
-            sf.write(str(output_file), audio, SAMPLE_RATE)
-            print(f"✅ Saved: {output_file.name}")
-            
-            collected += 1
-            
-            # Ask if user wants to continue
-            if collected < num_samples:
-                try:
-                    response = input(f"\nContinue? (y/n, default=y): ").strip().lower()
-                    if response == 'n':
-                        break
-                except KeyboardInterrupt:
-                    break
-    
-    except KeyboardInterrupt:
-        print("\n\n⚠️  Collection interrupted by user")
-    
-    print(f"\n✅ Collected {collected} positive samples")
-    print(f"   Total positive samples: {len(list(POSITIVE_DIR.glob('*.wav')))}")
-
-
-def collect_negative_samples(num_samples: int = 30):
-    """Collect negative training samples (other phrases, background noise)."""
-    print(f"\n{'='*60}")
-    print(f"📝 COLLECTING NEGATIVE SAMPLES")
-    print(f"{'='*60}")
-    print(f"Target: {num_samples} samples")
-    print(f"Output directory: {NEGATIVE_DIR}")
-    print("\n💡 Tips:")
-    print("   - Say other phrases (NOT 'hey aura')")
-    print("   - Include background noise, silence, music")
-    print("   - Include similar-sounding phrases")
-    print("   - Press Ctrl+C to stop early\n")
-    
-    # Find reSpeaker dynamically
-    device_index = select_microphone_device()
-    if device_index is None:
-        print("⚠️  reSpeaker not found - cannot record")
-        return
-    
-    negative_phrases = [
-        "hey there",
-        "hey you",
-        "hey siri",
-        "hey google",
-        "hey alexa",
-        "hello",
-        "hi there",
-        "what's up",
-        "good morning",
-        "how are you",
-        "aura",
-        "hey",
-    ]
-    
-    collected = 0
-    existing_files = list(NEGATIVE_DIR.glob("*.wav"))
-    start_index = len(existing_files) + 1
-    
-    try:
-        while collected < num_samples:
-            print(f"\n--- Sample {collected + 1}/{num_samples} ---")
-            
-            # Suggest a phrase
-            if collected < len(negative_phrases):
-                suggested = negative_phrases[collected]
-                print(f"💡 Suggested phrase: '{suggested}' (or say anything else)")
-            else:
-                print("💡 Say any phrase (NOT 'hey aura')")
-            
-            # Record audio (device already selected)
-            audio = record_audio_sample(duration=2.5, device_index=device_index)
-            
-            # Save sample
-            output_file = NEGATIVE_DIR / f"negative_{start_index + collected:03d}.wav"
-            sf.write(str(output_file), audio, SAMPLE_RATE)
-            print(f"✅ Saved: {output_file.name}")
-            
-            collected += 1
-            
-            # Ask if user wants to continue
-            if collected < num_samples:
-                try:
-                    response = input(f"\nContinue? (y/n, default=y): ").strip().lower()
-                    if response == 'n':
-                        break
-                except KeyboardInterrupt:
-                    break
-    
-    except KeyboardInterrupt:
-        print("\n\n⚠️  Collection interrupted by user")
-    
-    print(f"\n✅ Collected {collected} negative samples")
-    print(f"   Total negative samples: {len(list(NEGATIVE_DIR.glob('*.wav')))}")
-
-
 def generate_tts_negative_samples(num_samples: int = 100, play_through_speakers: bool = True):
     """Generate TTS echo samples (critical for handling TTS echo)."""
     print(f"\n{'='*60}")
@@ -812,6 +674,7 @@ def generate_tts_negative_samples(num_samples: int = 100, play_through_speakers:
     print(f"   💡 Using varied phrases is better - teaches model to ignore TTS in general, not just 'hey aura' from TTS")
     
     all_files = []
+    file_counter = 1  # Start file numbering from 1
     
     # Generate varied phrase samples
     if num_varied > 0:
@@ -820,12 +683,13 @@ def generate_tts_negative_samples(num_samples: int = 100, play_through_speakers:
             if len(all_files) >= num_varied:
                 break
             phrase_samples = min(samples_per_phrase, num_varied - len(all_files))
-            files = generate_tts_samples(phrase, phrase_samples, TTS_NEGATIVE_DIR, play_through_speakers=play_through_speakers)
+            files = generate_tts_samples(phrase, phrase_samples, TTS_NEGATIVE_DIR, play_through_speakers=play_through_speakers, start_index=file_counter)
             all_files.extend(files)
+            file_counter += len(files)  # Update counter for next phrase set
     
     # Generate "hey aura" samples for direct contrast
     if num_wake_phrase > 0:
-        files = generate_tts_samples(WAKE_PHRASE_PHONEMES, num_wake_phrase, TTS_NEGATIVE_DIR, play_through_speakers=play_through_speakers)
+        files = generate_tts_samples(WAKE_PHRASE_PHONEMES, num_wake_phrase, TTS_NEGATIVE_DIR, play_through_speakers=play_through_speakers, start_index=file_counter)
         all_files.extend(files)
     
     files = all_files
@@ -837,38 +701,27 @@ def generate_tts_negative_samples(num_samples: int = 100, play_through_speakers:
 
 
 def prepare_training_data():
-    """Prepare training dataset from collected samples."""
+    """Prepare training dataset manifest from TTS negative samples."""
     print(f"\n{'='*60}")
     print(f"📊 PREPARING TRAINING DATA")
     print(f"{'='*60}")
     
-    # Count samples
-    positive_files = list(POSITIVE_DIR.glob("*.wav"))
-    negative_files = list(NEGATIVE_DIR.glob("*.wav"))
+    # Count TTS negative samples
     tts_negative_files = list(TTS_NEGATIVE_DIR.glob("*.wav"))
     
     print(f"\n📁 Sample counts:")
-    print(f"   Positive (human 'hey aura'): {len(positive_files)}")
-    print(f"   Negative (other phrases): {len(negative_files)}")
-    print(f"   TTS Negative (TTS 'hey aura'): {len(tts_negative_files)}")
-    print(f"   Total: {len(positive_files) + len(negative_files) + len(tts_negative_files)}")
+    print(f"   TTS Negative samples: {len(tts_negative_files)}")
     
-    if len(positive_files) < 10:
-        print("\n⚠️  WARNING: Need at least 10 positive samples for training")
-        print("   Run with --mode collect to gather more samples")
-        return False
-    
-    if len(negative_files) + len(tts_negative_files) < 20:
-        print("\n⚠️  WARNING: Need at least 20 negative samples for training")
-        print("   Run with --mode collect to gather more samples")
+    if len(tts_negative_files) < 20:
+        print("\n⚠️  WARNING: Need at least 20 TTS negative samples for training")
+        print("   Run the script again to generate more samples")
         return False
     
     # Create dataset manifest
     manifest = {
         "wake_phrase": WAKE_PHRASE,
         "sample_rate": SAMPLE_RATE,
-        "positive_samples": [str(f) for f in positive_files],
-        "negative_samples": [str(f) for f in negative_files] + [str(f) for f in tts_negative_files],
+        "tts_negative_samples": [str(f) for f in tts_negative_files],
         "created": time.strftime("%Y-%m-%d %H:%M:%S")
     }
     
@@ -880,154 +733,9 @@ def prepare_training_data():
     return True
 
 
-def train_model():
-    """Train the OpenWakeWord model."""
-    print(f"\n{'='*60}")
-    print(f"🚀 TRAINING OPENWAKEWORD MODEL")
-    print(f"{'='*60}")
-    
-    # Check if training data exists
-    manifest_file = TRAINING_DATA_DIR / "dataset_manifest.json"
-    if not manifest_file.exists():
-        print("❌ Dataset manifest not found. Run data collection first:")
-        print("   python3 train_openwakeword_hey_aura.py --mode collect")
-        return False
-    
-    with open(manifest_file, 'r') as f:
-        manifest = json.load(f)
-    
-    positive_files = [Path(f) for f in manifest["positive_samples"]]
-    negative_files = [Path(f) for f in manifest["negative_samples"]]
-    
-    print(f"\n📊 Training dataset:")
-    print(f"   Positive samples: {len(positive_files)}")
-    print(f"   Negative samples: {len(negative_files)}")
-    
-    if len(positive_files) < 10 or len(negative_files) < 20:
-        print("\n❌ Insufficient training data")
-        return False
-    
-    try:
-        print(f"\n🔄 Preparing training data...")
-        
-        # OpenWakeWord training is done via Google Colab notebooks
-        # We'll format the data and provide instructions
-        
-        # Load positive and negative samples
-        positive_clips = []
-        negative_clips = []
-        
-        print("   Loading positive samples...")
-        for f in positive_files:
-            try:
-                audio, sr = sf.read(str(f))
-                if sr != SAMPLE_RATE:
-                    # Resample if needed
-                    from scipy import signal
-                    num_samples = int(len(audio) * SAMPLE_RATE / sr)
-                    audio = signal.resample(audio, num_samples)
-                positive_clips.append(audio)
-            except Exception as e:
-                print(f"   ⚠️  Error loading {f.name}: {e}")
-        
-        print("   Loading negative samples...")
-        for f in negative_files:
-            try:
-                audio, sr = sf.read(str(f))
-                if sr != SAMPLE_RATE:
-                    # Resample if needed
-                    from scipy import signal
-                    num_samples = int(len(audio) * SAMPLE_RATE / sr)
-                    audio = signal.resample(audio, num_samples)
-                negative_clips.append(audio)
-            except Exception as e:
-                print(f"   ⚠️  Error loading {f.name}: {e}")
-        
-        print(f"\n✅ Loaded {len(positive_clips)} positive and {len(negative_clips)} negative clips")
-        
-        # Save training data in format expected by openwakeword
-        training_data_dir = TRAINING_DATA_DIR / "formatted"
-        training_data_dir.mkdir(exist_ok=True)
-        
-        pos_dir = training_data_dir / "positive"
-        neg_dir = training_data_dir / "negative"
-        pos_dir.mkdir(exist_ok=True)
-        neg_dir.mkdir(exist_ok=True)
-        
-        # Copy/save clips in correct format
-        print("   Saving formatted training data...")
-        for i, clip in enumerate(positive_clips):
-            sf.write(pos_dir / f"pos_{i:04d}.wav", clip, SAMPLE_RATE)
-        
-        for i, clip in enumerate(negative_clips):
-            sf.write(neg_dir / f"neg_{i:04d}.wav", clip, SAMPLE_RATE)
-        
-        print(f"\n✅ Training data formatted and saved to {training_data_dir}")
-        print(f"\n{'='*60}")
-        print(f"📝 TRAINING INSTRUCTIONS")
-        print(f"{'='*60}")
-        print(f"\nOpenWakeWord training is done via Google Colab notebooks.")
-        print(f"The training data has been prepared and formatted for you.\n")
-        print(f"📁 Training data location:")
-        print(f"   {training_data_dir}")
-        print(f"   ├── positive/ ({len(positive_clips)} files)")
-        print(f"   └── negative/ ({len(negative_clips)} files)\n")
-        print(f"🚀 Next steps:")
-        print(f"   1. Visit OpenWakeWord's GitHub repository:")
-        print(f"      https://github.com/dscripka/openWakeWord")
-        print(f"      - Check the README for training instructions")
-        print(f"      - Look for notebooks/ folder or training scripts")
-        print(f"      - Follow their training documentation")
-        print(f"      - They may provide Colab links or Python scripts")
-        print(f"\n   2. Upload the training data folder to Colab:")
-        print(f"      - Upload the entire '{training_data_dir.name}' folder")
-        print(f"      - Or upload 'positive' and 'negative' folders separately")
-        print(f"\n   3. Follow the notebook instructions to:")
-        print(f"      - Load your training data")
-        print(f"      - Configure training parameters")
-        print(f"      - Train the model")
-        print(f"      - Export the trained model (.onnx file)")
-        print(f"\n   4. Download the trained model and save it to:")
-        print(f"      {MODEL_OUTPUT_DIR}/hey_aura_v0.1.onnx")
-        print(f"\n   5. Update openwakeword_wake_word.py to use the new model:")
-        print(f"      DEFAULT_MODEL = 'hey_aura_v0.1'")
-        print(f"\n💡 Tip: The notebook will handle data augmentation and model training")
-        print(f"   automatically. Training typically takes 10-30 minutes.\n")
-        
-        return True
-        
-    except ImportError as e:
-        print(f"❌ Error importing openwakeword: {e}")
-        print("   Install with: pip install openwakeword")
-        return False
-    except Exception as e:
-        print(f"❌ Training error: {e}")
-        import traceback
-        traceback.print_exc()
-        return False
-
-
 def main():
     parser = argparse.ArgumentParser(
-        description="Train OpenWakeWord model for 'hey aura' with TTS echo handling"
-    )
-    parser.add_argument(
-        "--mode",
-        choices=["collect", "train", "full", "tts-only"],
-        default="tts-only",
-        help="Operation mode: collect (data only), train (model only), full (both), tts-only (generate TTS samples only - DEFAULT)"
-    )
-    parser.add_argument(
-        "--positive-samples",
-        type=int,
-        default=20,
-        help="Number of positive samples to collect (default: 20)"
-    )
-    parser.add_argument(
-        "--negative-samples",
-        type=int,
-        default=30,
-        help="Number of negative samples to collect (default: 30)"
+        description="Generate TTS negative samples for OpenWakeWord training"
     )
     parser.add_argument(
         "--tts-samples",
@@ -1044,7 +752,7 @@ def main():
     args = parser.parse_args()
     
     print("="*60)
-    print("🎤 OpenWakeWord Training for 'hey aura'")
+    print("🎤 TTS Negative Sample Generation for 'hey aura'")
     print("="*60)
     
     # Check dependencies
@@ -1052,58 +760,25 @@ def main():
         print("\n❌ Please install missing dependencies and try again")
         return 1
     
-    success = True
+    # Generate TTS negative samples
+    generate_tts_negative_samples(args.tts_samples, play_through_speakers=not args.tts_direct)
     
-    if args.mode == "tts-only":
-        # Only generate TTS samples (focus mode)
-        print("\n" + "="*60)
-        print("🎯 TTS-ONLY MODE: Generating TTS echo samples only")
-        print("="*60)
-        print("This mode skips positive and negative sample collection.")
-        print("It focuses solely on generating TTS echo samples for training.")
-        print("="*60 + "\n")
-        
-        generate_tts_negative_samples(args.tts_samples, play_through_speakers=not args.tts_direct)
-        # Update manifest with existing samples if any
-        prepare_training_data()
-    
-    elif args.mode in ["collect", "full"]:
-        # Collect positive samples
-        collect_positive_samples(args.positive_samples)
-        
-        # Collect negative samples
-        collect_negative_samples(args.negative_samples)
-        
-        # Generate TTS negative samples (critical for echo handling)
-        generate_tts_negative_samples(args.tts_samples, play_through_speakers=not args.tts_direct)
-        
-        # Prepare training data
-        if not prepare_training_data():
-            success = False
-    
-    if args.mode in ["train", "full"]:
-        if success:
-            # Train model
-            if not train_model():
-                success = False
-    
-    if success:
-        print(f"\n{'='*60}")
-        print("✅ Training process completed!")
-        print(f"{'='*60}")
-        print(f"\n📁 Training data: {TRAINING_DATA_DIR}")
-        print(f"📁 Model output: {MODEL_OUTPUT_DIR}")
-        print(f"\n💡 Next steps:")
-        print(f"   1. Review training data quality")
-        print(f"   2. Complete model training (may require Colab notebook)")
-        print(f"   3. Test the trained model")
-        print(f"   4. Update openwakeword_wake_word.py to use the new model")
-        return 0
-    else:
-        print(f"\n{'='*60}")
-        print("⚠️  Training process completed with warnings")
-        print(f"{'='*60}")
+    # Update manifest with generated samples
+    if not prepare_training_data():
+        print("\n⚠️  Warning: Not enough samples generated")
         return 1
+    
+    print(f"\n{'='*60}")
+    print("✅ TTS sample generation completed!")
+    print(f"{'='*60}")
+    print(f"\n📁 Training data: {TRAINING_DATA_DIR}")
+    print(f"📁 TTS negative samples: {TTS_NEGATIVE_DIR}")
+    print(f"\n💡 Next steps:")
+    print(f"   1. Review TTS sample quality")
+    print(f"   2. Use these samples with OpenWakeWord training (Colab notebook)")
+    print(f"   3. Test the trained model")
+    print(f"   4. Update openwakeword_wake_word.py to use the new model")
+    return 0
 
 
 if __name__ == "__main__":
