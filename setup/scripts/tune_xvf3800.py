@@ -64,27 +64,48 @@ def run_xvf_command(cmd, *args):
         return None
 
 def disable_all_leds():
-    """Disable all LEDs on XVF3800 to reduce power draw (useful for USB isolator)"""
+    """Disable all LEDs on XVF3800 to reduce power draw (useful for USB isolator)
+    
+    Based on official documentation: https://wiki.seeedstudio.com/respeaker_xvf3800_introduction/
+    LED commands: led_effect, led_color (hex), led_speed, led_brightness (0-255)
+    """
     print("[LED] Disabling all LEDs to reduce power consumption...")
     
-    # Use only confirmed working LED control commands
-    led_commands = [
-        ("LED_BRIGHTNESS", 0),      # Set brightness to 0 (confirmed working)
-        ("LED_COLOR", 0),           # Set color to off (confirmed working)
-    ]
-    
     success = False
-    for cmd, value in led_commands:
-        result = run_xvf_command(cmd, value)
-        if result is not None:
-            print(f"  ✅ LEDs disabled via {cmd}={value}")
-            success = True
-        # Continue trying other commands for complete LED shutdown
+    
+    # Method 1: Set brightness to 0 (0 = off, 255 = max brightness)
+    # This is the primary way to turn off LEDs
+    result = run_xvf_command("LED_BRIGHTNESS", 0)
+    if result is not None:
+        print(f"  ✅ Set LED_BRIGHTNESS=0 (LEDs should be off)")
+        success = True
+    
+    # Method 2: Set color to black (0x000000 = black/off)
+    # Using hex format as per documentation: led_color 0xff8800
+    result = run_xvf_command("LED_COLOR", "0x000000")
+    if result is not None:
+        print(f"  ✅ Set LED_COLOR=0x000000 (black/off)")
+        success = True
+    
+    # Method 3: Set LED effect to 0 (off/disabled)
+    # Try setting effect to 0 to disable LED patterns
+    result = run_xvf_command("LED_EFFECT", 0)
+    if result is not None:
+        print(f"  ✅ Set LED_EFFECT=0 (disabled)")
+        success = True
+    
+    # Method 4: Set LED speed to 0 (no animation)
+    result = run_xvf_command("LED_SPEED", 0)
+    if result is not None:
+        print(f"  ✅ Set LED_SPEED=0 (no animation)")
+        success = True
     
     if success:
-        print("  💡 All LEDs disabled - power consumption reduced")
+        print("  💡 All LED settings applied - LEDs should be off")
+        print("  💡 Power consumption reduced for USB isolator use")
     else:
-        print("  ⚠️  LED control not available - LEDs may still be on")
+        print("  ⚠️  LED control commands not available")
+        print("  ⚠️  Check if xvf_host is properly installed and device is connected")
     
     return success
 
