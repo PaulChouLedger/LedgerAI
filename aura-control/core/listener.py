@@ -828,9 +828,9 @@ def listen():
                         tts_playback_duration = time.time() - tts_start_time
                         print(f"[Listener] 🔊 TTS playback ended after {tts_playback_duration:.2f}s")
                         
-                        # Record when TTS ended - keep mic muted for additional 3.0s to let echo decay
+                        # Record when TTS ended - keep mic muted for additional 0.25s to let echo decay
                         tts_end_time = time.time()
-                        echo_decay_pause = 3.0  # seconds to keep mic muted after TTS ends
+                        echo_decay_pause = 0.25  # seconds to keep mic muted after TTS ends
                         resume_time = tts_end_time + echo_decay_pause
                         print(f"[Listener] 🔇 Keeping mic MUTED for {echo_decay_pause}s to let echo decay")
                         print(f"[Listener] ⏱️  Mic will resume at {time.strftime('%H:%M:%S', time.localtime(resume_time))}")
