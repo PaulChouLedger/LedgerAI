@@ -828,6 +828,21 @@ def listen():
                         tts_playback_duration = time.time() - tts_start_time
                         print(f"[Listener] 🔊 TTS playback ended after {tts_playback_duration:.2f}s")
                         
+                        # Record when TTS ended - keep mic muted for additional 3.0s to let echo decay
+                        tts_end_time = time.time()
+                        echo_decay_pause = 3.0  # seconds to keep mic muted after TTS ends
+                        resume_time = tts_end_time + echo_decay_pause
+                        print(f"[Listener] 🔇 Keeping mic MUTED for {echo_decay_pause}s to let echo decay")
+                        print(f"[Listener] ⏱️  Mic will resume at {time.strftime('%H:%M:%S', time.localtime(resume_time))}")
+                        
+                        # Wait for echo decay period (mic stays muted)
+                        while time.time() < resume_time:
+                            time.sleep(0.1)
+                        
+                        echo_decay_elapsed = time.time() - tts_end_time
+                        print(f"[Listener] ✅ Echo decay period completed ({echo_decay_elapsed:.2f}s)")
+                        
+                        # Now start the stream and flush buffer
                         stream.start()
                         print(f"[Listener] 🔇 Stream STARTED - mic is active again")
                         
@@ -842,12 +857,12 @@ def listen():
                         flush_duration = time.time() - flush_start
                         print(f"[Listener] 🧹 Buffer flush completed in {flush_duration:.3f}s ({i+1} frames)")
                         
-                        # Record when TTS ended - wake word will pause briefly to let echo decay
-                        tts_end_time = time.time()
-                        total_mute_duration = tts_end_time - tts_start_time
-                        print(f"[Listener] ▶️ Mic resumed after playback (buffer flushed)")
-                        print(f"[Listener] ⏱️  Total mute duration: {total_mute_duration:.2f}s (TTS: {tts_playback_duration:.2f}s + flush: {flush_duration:.3f}s)")
-                        print(f"[Listener] ⏱️  Wake word pause: 3.0s starting now (will resume at {time.strftime('%H:%M:%S', time.localtime(tts_end_time + 3.0))})")
+                        total_mute_duration = time.time() - tts_start_time
+                        print(f"[Listener] ▶️ Mic fully resumed (buffer flushed)")
+                        print(f"[Listener] ⏱️  Total mute duration: {total_mute_duration:.2f}s (TTS: {tts_playback_duration:.2f}s + echo decay: {echo_decay_elapsed:.2f}s + flush: {flush_duration:.3f}s)")
+                        
+                        # Clear tts_end_time since we've already waited
+                        tts_end_time = None
                     except PortAudioError as pa_error:
                         error_code = getattr(pa_error, 'errno', None)
                         if error_code in [-9999, -9988]:
@@ -882,26 +897,8 @@ def listen():
                         if is_playing():
                             break  # Exit wake word loop, return to main loop (same as VAD)
                         
-                        # Brief pause after TTS ends to let echo decay (3.0 seconds - extreme test)
-                        # TODO: Reduce to 0.5s once training is improved
-                        if tts_end_time is not None:
-                            time_since_tts_end = time.time() - tts_end_time
-                            if time_since_tts_end < 3.0:  # Wait 3.0s after TTS ends (extreme test)
-                                # Skip processing, just read and discard frames to keep buffer clear
-                                # Log only occasionally to avoid spam
-                                if int(time_since_tts_end * 10) % 10 == 0:  # Every second
-                                    remaining = 3.0 - time_since_tts_end
-                                    print(f"[Wake Word] ⏸️  Echo decay pause: {remaining:.1f}s remaining (mic active but skipping wake word processing)")
-                                try:
-                                    stream.read(FRAME_SIZE)
-                                except:
-                                    pass
-                                continue  # Skip wake word processing during echo decay period
-                            else:
-                                # Pause period expired, clear timer
-                                elapsed = time.time() - tts_end_time
-                                print(f"[Wake Word] ✅ Echo decay pause completed ({elapsed:.2f}s) - resuming wake word detection")
-                                tts_end_time = None
+                        # Note: Echo decay pause is now handled by keeping mic muted (stream stopped)
+                        # No need to check tts_end_time here - mic is already muted during that period
                         
                         # Use shared audio reading function (same as VAD)
                         # read_audio_frame already checks is_playing() and returns None if TTS is playing
