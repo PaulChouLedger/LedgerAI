@@ -860,8 +860,80 @@ class UpdateDialog(BaseAuraDialog):
     
     def _on_update_complete(self, success, message):
         self.progress_bar.setRange(0, 100); self.progress_bar.setValue(100)
-        if success: self._log(f"✅ {message}"); QMessageBox.information(self, "Update Complete", message)
-        else: self._log(f"❌ {message}"); QMessageBox.warning(self, "Update Failed", message)
+        if success: 
+            self._log(f"✅ {message}")
+            # Restart main.py after successful update
+            self._log("🔄 Restarting Aura system...")
+            try:
+                # Check if running as systemd service
+                result = subprocess.run(
+                    ['systemctl', 'is-active', '--quiet', 'aura.service'],
+                    capture_output=True,
+                    timeout=2
+                )
+                is_systemd_service = (result.returncode == 0)
+                
+                if is_systemd_service:
+                    # Restart via systemd
+                    self._log("Restarting via systemd service...")
+                    subprocess.Popen(
+                        ['sudo', 'systemctl', 'restart', 'aura.service'],
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL
+                    )
+                    QMessageBox.information(
+                        self, 
+                        "Update Complete", 
+                        f"{message}\n\nAura system is restarting via systemd service..."
+                    )
+                else:
+                    # Restart main.py directly
+                    self._log("Restarting main.py directly...")
+                    workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+                    main_py_path = os.path.join(workspace_root, 'aura-control', 'core', 'main.py')
+                    
+                    # Use a shell script to restart (allows current process to exit first)
+                    restart_script = f"""#!/bin/bash
+sleep 2
+cd '{workspace_root}'
+python3 '{main_py_path}' &
+"""
+                    # Write temporary restart script
+                    import tempfile
+                    with tempfile.NamedTemporaryFile(mode='w', suffix='.sh', delete=False) as f:
+                        f.write(restart_script)
+                        restart_script_path = f.name
+                    
+                    os.chmod(restart_script_path, 0o755)
+                    
+                    # Execute restart script in background
+                    subprocess.Popen(
+                        ['bash', restart_script_path],
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL
+                    )
+                    
+                    QMessageBox.information(
+                        self, 
+                        "Update Complete", 
+                        f"{message}\n\nAura system will restart in 2 seconds..."
+                    )
+                    
+                    # Close the application to allow restart
+                    import sys
+                    from PyQt5.QtWidgets import QApplication
+                    QApplication.instance().quit()
+                    
+            except Exception as e:
+                self._log(f"⚠️ Restart failed: {e}")
+                QMessageBox.warning(
+                    self, 
+                    "Update Complete", 
+                    f"{message}\n\n⚠️ Please restart Aura manually to apply changes."
+                )
+        else: 
+            self._log(f"❌ {message}")
+            QMessageBox.warning(self, "Update Failed", message)
 
 
 class AIModelSettingsDialog(BaseAuraDialog):
