@@ -14,9 +14,30 @@
 #   - reset           : Factory defaults
 #   - show            : Show current settings
 #
+# This service file is FULLY DYNAMIC - no modifications needed!
+# - Paths are resolved dynamically by wrapper script
+# - User is detected automatically from LedgerAI directory ownership
+# - Can be updated via git pull without any changes!
+#
+# To install (first time only):
+#   Run: setup/scripts/install_aura_bootable.sh
+#   Or manually:
+#   1. sudo ln -s $(pwd)/setup/scripts/xvf3800-tuning.service /etc/systemd/system/
+#   2. sudo systemctl daemon-reload
+#   3. sudo systemctl enable xvf3800-tuning.service
+#
+# To update after git pull (OTA updates):
+#   Just do: git pull
+#   That's it! Service file updates automatically (it's a symlink).
+#   
+#   Changes take effect:
+#   - Automatically on next reboot (systemd loads latest service file)
+#   - Or immediately: sudo systemctl daemon-reload
+#   - Or automatically if git hook is installed (runs daemon-reload after pull)
+#
 # To change preset:
 #   1. sudo nano /etc/systemd/system/xvf3800-tuning.service
-#   2. Change "agc_20" to desired preset in ExecStart line below
+#   2. Change "agc_20_ec" to desired preset in ExecStart line
 #   3. sudo systemctl daemon-reload
 #   4. sudo systemctl restart xvf3800-tuning.service
 #
@@ -33,12 +54,10 @@ Wants=network.target
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-User=__AURA_USER__
-# Use wrapper script that waits for USB device to be ready
-# Wrapper waits up to 30 seconds for device, then runs tuning script
-ExecStart=__LEDGERAI_DIR__/setup/scripts/tune_xvf3800_wrapper.sh agc_20_ec
-Environment="LEDGERAI_DIR=__LEDGERAI_DIR__"
-Environment="PYTHON_CMD=__PYTHON_CMD__"
+# No User= field needed - wrapper script detects user automatically using 'stat' and 'whoami'
+# Wrapper script finds LedgerAI directory and detects owner, switches to that user if needed
+# Tries common locations: %h/LedgerAI, /home/ledger/LedgerAI, /home/aura/LedgerAI
+ExecStart=/bin/bash -c 'for dir in "%h/LedgerAI" "/home/ledger/LedgerAI" "/home/aura/LedgerAI"; do if [ -f "$$dir/setup/scripts/tune_xvf3800_wrapper.sh" ]; then "$$dir/setup/scripts/tune_xvf3800_wrapper.sh" agc_20_ec; exit $$?; fi; done; echo "Error: Could not find LedgerAI directory"; exit 1'
 StandardOutput=journal
 StandardError=journal
 

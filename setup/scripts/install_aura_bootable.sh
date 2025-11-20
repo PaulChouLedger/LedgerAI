@@ -866,36 +866,15 @@ SERVICE_FILE="$LEDGERAI_DIR/setup/scripts/xvf3800-tuning.service"
 SYSTEMD_SERVICE="/etc/systemd/system/xvf3800-tuning.service"
 
 if [ -f "$SERVICE_FILE" ]; then
-    # Create a temporary service file with correct paths
-    TEMP_SERVICE="/tmp/xvf3800-tuning.service"
-    cp "$SERVICE_FILE" "$TEMP_SERVICE"
-    
-    # Replace placeholders with actual values (supports both placeholders and legacy hardcoded values)
-    sed -i "s|__AURA_USER__|$AURA_USER|g" "$TEMP_SERVICE"
-    sed -i "s|__PYTHON_CMD__|$PYTHON_CMD|g" "$TEMP_SERVICE"
-    sed -i "s|__LEDGERAI_DIR__|$LEDGERAI_DIR|g" "$TEMP_SERVICE"
-    
-    # Also handle legacy hardcoded values for backward compatibility
-    sed -i "s|User=aura|User=$AURA_USER|g" "$TEMP_SERVICE"
-    sed -i "s|User=ledger|User=$AURA_USER|g" "$TEMP_SERVICE"
-    sed -i "s|/home/aura|$AURA_HOME|g" "$TEMP_SERVICE"
-    sed -i "s|/home/ledger|$AURA_HOME|g" "$TEMP_SERVICE"
-    sed -i "s|/usr/bin/python3|$PYTHON_CMD|g" "$TEMP_SERVICE" || true
-    
-    # Update the ExecStart line with correct paths, preserving the preset argument
-    # Extract preset from current ExecStart line (default to agc_20_ec if not found)
-    PRESET_ARG=$(grep "^ExecStart=" "$TEMP_SERVICE" | sed -n 's/.*tune_xvf3800.py[[:space:]]*\([^[:space:]]*\).*/\1/p' || echo "agc_20_ec")
-    if [ -z "$PRESET_ARG" ] || [ "$PRESET_ARG" = "$LEDGERAI_DIR/setup/scripts/tune_xvf3800.py" ] || [ "$PRESET_ARG" = "__LEDGERAI_DIR__/setup/scripts/tune_xvf3800.py" ]; then
-        # No preset found or extraction failed, use default
-        PRESET_ARG="agc_20_ec"
+    # Remove existing service file or symlink if it exists
+    if [ -L "$SYSTEMD_SERVICE" ] || [ -f "$SYSTEMD_SERVICE" ]; then
+        sudo rm -f "$SYSTEMD_SERVICE"
     fi
-    # Replace ExecStart line, preserving preset
-    # Add -B flag to prevent bytecode caching (ensures latest script is always used)
-    sed -i "s|^ExecStart=.*|ExecStart=$PYTHON_CMD -B $LEDGERAI_DIR/setup/scripts/tune_xvf3800.py $PRESET_ARG|g" "$TEMP_SERVICE"
     
-    # Copy to systemd
-    sudo cp "$TEMP_SERVICE" "$SYSTEMD_SERVICE"
-    rm -f "$TEMP_SERVICE"
+    # Create symlink to git repository file (allows automatic updates via git pull)
+    # Service file is now fully dynamic - no placeholders needed!
+    # Wrapper script automatically detects user, paths, and Python command
+    sudo ln -s "$SERVICE_FILE" "$SYSTEMD_SERVICE"
     
     # Reload systemd
     sudo systemctl daemon-reload
@@ -904,10 +883,24 @@ if [ -f "$SERVICE_FILE" ]; then
     sudo systemctl enable xvf3800-tuning.service
     
     print_info "XVF3800 tuning service installed and enabled"
-    print_info "Service configured for user: $AURA_USER"
+    print_info "Service file is symlinked to git repository - updates automatically on git pull!"
     print_info "Service will configure microphone on boot"
     print_info "Note: Service will start automatically when microphone is connected"
     print_info "To test manually: sudo systemctl start xvf3800-tuning.service"
+    
+    # Install git post-merge hook to auto-reload systemd after git pull
+    GIT_HOOKS_DIR="$LEDGERAI_DIR/.git/hooks"
+    POST_MERGE_HOOK="$GIT_HOOKS_DIR/post-merge"
+    HOOK_TEMPLATE="$LEDGERAI_DIR/setup/scripts/git-hooks/post-merge"
+    
+    if [ -d "$LEDGERAI_DIR/.git" ] && [ -f "$HOOK_TEMPLATE" ]; then
+        if [ ! -f "$POST_MERGE_HOOK" ] || ! grep -q "XVF3800 service file updated" "$POST_MERGE_HOOK" 2>/dev/null; then
+            # Install or update the hook
+            cp "$HOOK_TEMPLATE" "$POST_MERGE_HOOK"
+            chmod +x "$POST_MERGE_HOOK"
+            print_info "Git post-merge hook installed - systemd will auto-reload after git pull"
+        fi
+    fi
 else
     print_error "XVF3800 service file not found at $SERVICE_FILE"
 fi
