@@ -25,7 +25,7 @@ LLM_TEMPERATURE_SIMPLE = 0.7
 LLM_TOP_P = 0.95
 LLM_TOP_K = 40
 LLM_REPEAT_PENALTY = 1.1
-LLM_NUM_PREDICT_DEFAULT = 200  # Increased to prevent mid-sentence breaks (can be overridden via LLM_NUM_PREDICT env var)
+LLM_NUM_PREDICT_DEFAULT = 500  # Increased to prevent early cutoffs in responses (can be overridden via LLM_NUM_PREDICT env var)
 SIMPLE_N_CTX = 2048
 SIMPLE_CHAT_FORMAT = "qwen"
 N_THREADS = 8
@@ -70,7 +70,7 @@ SENTENCE_ENDINGS = ('.', '!', '?')
 
 # === Response Generation Config ===
 MAX_TOKENS_RAG_MODE = 150  # Max tokens when using RAG context
-MAX_TOKENS_DIRECT_MODE = 200  # Max tokens for direct conversation (matches LLM_NUM_PREDICT_DEFAULT)
+MAX_TOKENS_DIRECT_MODE = 500  # Max tokens for direct conversation (matches LLM_NUM_PREDICT_DEFAULT)
 
 # === Model Path Resolution (app_settings.json or fallback) ===
 def _resolve_model_path():

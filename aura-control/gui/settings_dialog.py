@@ -874,18 +874,60 @@ class UpdateDialog(BaseAuraDialog):
                 is_systemd_service = (result.returncode == 0)
                 
                 if is_systemd_service:
-                    # Restart via systemd
+                    # Restart via systemd - try without sudo first, then with sudo if needed
                     self._log("Restarting via systemd service...")
-                    subprocess.Popen(
-                        ['sudo', 'systemctl', 'restart', 'aura.service'],
-                        stdout=subprocess.DEVNULL,
-                        stderr=subprocess.DEVNULL
-                    )
-                    QMessageBox.information(
-                        self, 
-                        "Update Complete", 
-                        f"{message}\n\nAura system is restarting via systemd service..."
-                    )
+                    restart_success = False
+                    
+                    # Try without sudo first (in case user has permissions)
+                    try:
+                        result = subprocess.run(
+                            ['systemctl', 'restart', 'aura.service'],
+                            capture_output=True,
+                            text=True,
+                            timeout=5
+                        )
+                        if result.returncode == 0:
+                            restart_success = True
+                            self._log("✅ Service restarted successfully (no sudo needed)")
+                        else:
+                            self._log(f"⚠️ Restart without sudo failed: {result.stderr}")
+                    except Exception as e:
+                        self._log(f"⚠️ Restart attempt failed: {e}")
+                    
+                    # If that failed, try with sudo
+                    if not restart_success:
+                        try:
+                            self._log("Trying with sudo...")
+                            result = subprocess.run(
+                                ['sudo', 'systemctl', 'restart', 'aura.service'],
+                                capture_output=True,
+                                text=True,
+                                timeout=10
+                            )
+                            if result.returncode == 0:
+                                restart_success = True
+                                self._log("✅ Service restarted successfully (with sudo)")
+                            else:
+                                self._log(f"❌ Restart with sudo failed: {result.stderr}")
+                        except subprocess.TimeoutExpired:
+                            self._log("⚠️ Restart command timed out (may need password)")
+                            restart_success = False
+                        except Exception as e:
+                            self._log(f"❌ Restart error: {e}")
+                            restart_success = False
+                    
+                    if restart_success:
+                        QMessageBox.information(
+                            self, 
+                            "Update Complete", 
+                            f"{message}\n\n✅ Aura system is restarting via systemd service..."
+                        )
+                    else:
+                        QMessageBox.warning(
+                            self, 
+                            "Update Complete", 
+                            f"{message}\n\n⚠️ Automatic restart failed. Please run manually:\n\nsudo systemctl restart aura.service"
+                        )
                 else:
                     # Restart main.py directly
                     self._log("Restarting main.py directly...")
