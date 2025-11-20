@@ -126,7 +126,7 @@ def reset_usb_device(device_name="reSpeaker"):
         device_name: Name of the device to reset (default: "reSpeaker")
     
     Returns:
-        True if reset was attempted, False otherwise
+        True if reset was successful, False otherwise
     """
     try:
         # Method 1: Use lsusb to find device by name
@@ -142,9 +142,15 @@ def reset_usb_device(device_name="reSpeaker"):
                         bus = match.group(1)
                         device = match.group(2)
                         usb_path = f"/dev/bus/usb/{bus.zfill(3)}/{device.zfill(3)}"
+                        device_id = f"{bus}-{device}"
                         
                         print(f"[USB Reset] 🔄 Attempting USB reset for {device_name}...")
                         print(f"[USB Reset]    Found at: Bus {bus}, Device {device} ({usb_path})")
+                        
+                        # Check if device is actually accessible
+                        if not os.path.exists(usb_path):
+                            print(f"[USB Reset] ⚠️  USB device path does not exist: {usb_path}")
+                            print(f"[USB Reset] 💡 Device may need to be unplugged and replugged")
                         
                         # Try usb_reset command if available
                         try:
@@ -154,14 +160,56 @@ def reset_usb_device(device_name="reSpeaker"):
                             )
                             if result.returncode == 0:
                                 print(f"[USB Reset] ✅ USB reset successful via usb_reset")
+                                time.sleep(1.0)
                                 return True
                         except FileNotFoundError:
                             pass
                         
-                        # Fallback: Try writing to sysfs authorize file
+                        # Try with sudo (if available and passwordless sudo is configured)
                         try:
-                            # Unbind and rebind the device
-                            authorize_path = f"/sys/bus/usb/devices/{bus}-{device}/authorized"
+                            # Check if we can use sudo without password
+                            sudo_check = subprocess.run(
+                                ["sudo", "-n", "true"],
+                                capture_output=True, text=True, timeout=1
+                            )
+                            if sudo_check.returncode == 0:
+                                # Passwordless sudo available - try reset with sudo
+                                print(f"[USB Reset] 🔄 Trying USB reset with sudo...")
+                                
+                                # Try sysfs method with sudo
+                                authorize_path = f"/sys/bus/usb/devices/{device_id}/authorized"
+                                if os.path.exists(authorize_path):
+                                    subprocess.run(
+                                        ["sudo", "sh", "-c", f"echo 0 > {authorize_path}"],
+                                        capture_output=True, text=True, timeout=2
+                                    )
+                                    time.sleep(0.5)
+                                    subprocess.run(
+                                        ["sudo", "sh", "-c", f"echo 1 > {authorize_path}"],
+                                        capture_output=True, text=True, timeout=2
+                                    )
+                                    print(f"[USB Reset] ✅ USB reset successful via sysfs (with sudo)")
+                                    time.sleep(1.0)
+                                    return True
+                                
+                                # Try usbreset with sudo
+                                try:
+                                    result = subprocess.run(
+                                        ["sudo", "usbreset", f"{bus}:{device}"],
+                                        capture_output=True, text=True, timeout=2
+                                    )
+                                    if result.returncode == 0:
+                                        print(f"[USB Reset] ✅ USB reset successful via usbreset (with sudo)")
+                                        time.sleep(1.0)
+                                        return True
+                                except FileNotFoundError:
+                                    pass
+                        except (subprocess.TimeoutExpired, FileNotFoundError):
+                            pass
+                        
+                        # Fallback: Try writing to sysfs authorize file (without sudo)
+                        try:
+                            authorize_path = f"/sys/bus/usb/devices/{device_id}/authorized"
                             if os.path.exists(authorize_path):
                                 # Deauthorize
                                 with open(authorize_path, 'w') as f:
@@ -175,9 +223,8 @@ def reset_usb_device(device_name="reSpeaker"):
                                 return True
                         except (PermissionError, IOError) as e:
                             print(f"[USB Reset] ⚠️  Permission denied for sysfs reset: {e}")
-                            print(f"[USB Reset] 💡 Try running with sudo or add udev rules")
                         
-                        # Try usbreset tool if available
+                        # Try usbreset tool if available (without sudo)
                         try:
                             result = subprocess.run(
                                 ["usbreset", f"{bus}:{device}"],
@@ -190,7 +237,13 @@ def reset_usb_device(device_name="reSpeaker"):
                         except FileNotFoundError:
                             pass
                         
-                        print(f"[USB Reset] ⚠️  Could not reset USB device (may need sudo)")
+                        # If all methods failed, provide helpful instructions
+                        print(f"[USB Reset] ⚠️  Could not reset USB device (requires elevated permissions)")
+                        print(f"[USB Reset] 💡 Solutions:")
+                        print(f"[USB Reset]    1. Run with sudo: sudo python3 ...")
+                        print(f"[USB Reset]    2. Set up udev rules for passwordless USB reset")
+                        print(f"[USB Reset]    3. Manually reset: sudo usbreset {bus}:{device}")
+                        print(f"[USB Reset]    4. Unplug and replug the USB device")
                         return False
         
         print(f"[USB Reset] ⚠️  USB device '{device_name}' not found in lsusb output")
@@ -199,6 +252,50 @@ def reset_usb_device(device_name="reSpeaker"):
     except Exception as e:
         print(f"[USB Reset] ⚠️  Error during USB reset: {e}")
         return False
+
+# === Check Device in System ===
+def check_device_in_system(device_name="reSpeaker"):
+    """
+    Check if device exists in system (via lsusb, ALSA, etc.) even if PortAudio can't see it.
+    
+    Returns:
+        dict with device info if found, None otherwise
+    """
+    device_info = {}
+    
+    # Check lsusb
+    try:
+        result = subprocess.run(
+            ["lsusb"], capture_output=True, text=True, timeout=2
+        )
+        if result.returncode == 0:
+            for line in result.stdout.splitlines():
+                if device_name.lower() in line.lower() or "XVF3800" in line.upper() or "UACDemo" in line:
+                    device_info['lsusb'] = line.strip()
+                    # Extract bus and device
+                    match = re.search(r"Bus (\d+)\s+Device (\d+):\s+ID\s+([0-9a-fA-F:]+)", line)
+                    if match:
+                        device_info['bus'] = match.group(1)
+                        device_info['device'] = match.group(2)
+                        device_info['id'] = match.group(3)
+                    break
+    except Exception as e:
+        pass
+    
+    # Check ALSA devices
+    try:
+        result = subprocess.run(
+            ["arecord", "-l"], capture_output=True, text=True, timeout=2
+        )
+        if result.returncode == 0:
+            for line in result.stdout.splitlines():
+                if device_name.lower() in line.lower() or "ArrayUAC10" in line or "XVF3800" in line:
+                    device_info['alsa'] = line.strip()
+                    break
+    except Exception:
+        pass
+    
+    return device_info if device_info else None
 
 # === Find Device ===
 def find_device_index(max_retries=10, initial_delay=1.0, max_delay=5.0):
@@ -212,6 +309,16 @@ def find_device_index(max_retries=10, initial_delay=1.0, max_delay=5.0):
         max_delay: Maximum delay in seconds between retries
     """
     global DEVICE_INDEX
+    
+    # First, check if device exists in system but PortAudio can't see it
+    system_device = check_device_in_system(DEVICE_NAME)
+    if system_device:
+        print(f"[Listener] 🔍 Device found in system:")
+        if 'lsusb' in system_device:
+            print(f"[Listener]    USB: {system_device['lsusb']}")
+        if 'alsa' in system_device:
+            print(f"[Listener]    ALSA: {system_device['alsa']}")
+        print(f"[Listener]    ⚠️  But PortAudio cannot detect it - may need USB reset or driver reload")
     
     for attempt in range(max_retries):
         devices = sd.query_devices()
@@ -228,8 +335,13 @@ def find_device_index(max_retries=10, initial_delay=1.0, max_delay=5.0):
             # Try USB reset on retry attempts (especially useful for USB isolator issues)
             if attempt > 0 and attempt % 2 == 0:  # Reset every 2 attempts
                 print(f"[Listener] 🔄 Attempting USB reset to recover device...")
-                reset_usb_device(DEVICE_NAME)
-                time.sleep(2.0)  # Give device time to reinitialize after reset
+                reset_success = reset_usb_device(DEVICE_NAME)
+                if reset_success:
+                    # After successful reset, wait longer for PortAudio to refresh
+                    print(f"[Listener] ⏳ Waiting for PortAudio to refresh device list...")
+                    time.sleep(3.0)
+                else:
+                    time.sleep(2.0)
             
             # Exponential backoff: delay increases with each attempt, capped at max_delay
             delay = min(initial_delay * (2 ** attempt), max_delay)
@@ -238,8 +350,11 @@ def find_device_index(max_retries=10, initial_delay=1.0, max_delay=5.0):
         else:
             # Last attempt failed - try one final USB reset
             print(f"[Listener] 🔄 Final attempt: USB reset before giving up...")
-            reset_usb_device(DEVICE_NAME)
-            time.sleep(2.0)
+            reset_success = reset_usb_device(DEVICE_NAME)
+            if reset_success:
+                time.sleep(3.0)  # Longer wait after reset
+            else:
+                time.sleep(2.0)
             
             # One more check after reset
             devices = sd.query_devices()
@@ -249,9 +364,28 @@ def find_device_index(max_retries=10, initial_delay=1.0, max_delay=5.0):
                     print(f"[Listener] 🎧 Found after USB reset: {device['name']} (index {i})")
                     return 2
             
-            # Last attempt failed
+            # Last attempt failed - provide detailed diagnostics
             print(f"[Listener] ❌ Microphone '{DEVICE_NAME}' not found after {max_retries} attempts and USB reset")
-            print(f"[Listener] 💡 Available devices:")
+            
+            # Check if device still exists in system
+            system_device = check_device_in_system(DEVICE_NAME)
+            if system_device:
+                print(f"[Listener] 🔍 Device still present in system:")
+                if 'lsusb' in system_device:
+                    print(f"[Listener]    USB: {system_device['lsusb']}")
+                if 'alsa' in system_device:
+                    print(f"[Listener]    ALSA: {system_device['alsa']}")
+                print(f"[Listener] 💡 Device exists but PortAudio cannot access it")
+                print(f"[Listener] 💡 Try:")
+                if 'bus' in system_device and 'device' in system_device:
+                    print(f"[Listener]    1. Manual reset: sudo usbreset {system_device['bus']}:{system_device['device']}")
+                print(f"[Listener]    2. Unplug and replug USB device")
+                print(f"[Listener]    3. Reload USB driver: sudo modprobe -r snd_usb_audio && sudo modprobe snd_usb_audio")
+                print(f"[Listener]    4. Restart PortAudio: Restart the application")
+            else:
+                print(f"[Listener] 💡 Device not found in system - may need to be plugged in")
+            
+            print(f"[Listener] 💡 Available PortAudio devices:")
             for i, device in enumerate(devices):
                 if device.get('max_input_channels', 0) > 0:
                     print(f"[Listener]    - {i}: {device['name']} ({device.get('max_input_channels', 0)} input channels)")
