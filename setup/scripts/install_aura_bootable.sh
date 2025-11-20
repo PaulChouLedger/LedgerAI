@@ -873,7 +873,7 @@ if [ -f "$SERVICE_FILE" ]; then
     
     # Create symlink to git repository file (allows automatic updates via git pull)
     # Service file is now fully dynamic - no placeholders needed!
-    # Wrapper script automatically detects user, paths, and Python command
+    # Python script automatically detects user, paths, and waits for USB device
     # Use absolute path for symlink target to ensure it works regardless of working directory
     SERVICE_FILE_ABS="$(cd "$(dirname "$SERVICE_FILE")" && pwd)/$(basename "$SERVICE_FILE")"
     sudo ln -s "$SERVICE_FILE_ABS" "$SYSTEMD_SERVICE"
