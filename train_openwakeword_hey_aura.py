@@ -112,6 +112,29 @@ def detect_output_device():
         return "default"
 
 
+def find_device_by_name(p, device_name="reSpeaker"):
+    """
+    Find microphone device by name (like listener.py does).
+    Searches for device name in device names, not by index.
+    
+    Args:
+        p: PyAudio instance
+        device_name: Device name to search for (default: "reSpeaker")
+    
+    Returns:
+        Device index if found, None otherwise
+    """
+    device_name_lower = device_name.lower()
+    
+    for i in range(p.get_device_count()):
+        info = p.get_device_info_by_index(i)
+        if info['maxInputChannels'] > 0:
+            if device_name_lower in info['name'].lower():
+                return i
+    
+    return None
+
+
 def play_and_record_tts(text: str, device_index: int = None, duration_padding: float = 0.5, volume: float = 1.0) -> np.ndarray:
     """
     Generate TTS, play it through speakers, and record it back through microphone.
@@ -127,10 +150,16 @@ def play_and_record_tts(text: str, device_index: int = None, duration_padding: f
     import threading
     from elevenlabs.client import ElevenLabs
     
-    global _selected_device_index
-    
+    # Find reSpeaker dynamically if device_index not provided
     if device_index is None:
-        device_index = _selected_device_index
+        import pyaudio
+        p = pyaudio.PyAudio()
+        try:
+            device_index = find_device_by_name(p, "reSpeaker")
+            if device_index is None:
+                raise RuntimeError("reSpeaker not found")
+        finally:
+            p.terminate()
     
     ELEVEN_API_KEY = os.getenv("ELEVENLABS_API_KEY") or os.getenv("ELEVEN_API_KEY")
     ELEVEN_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID") or os.getenv("ELEVEN_VOICE_ID") or "default"
@@ -197,43 +226,81 @@ def play_and_record_tts(text: str, device_index: int = None, duration_padding: f
     format = pyaudio.paInt16
     channels = 1
     
+    # Validate device - if device_index is provided, verify it's still valid
+    # If invalid, search for reSpeaker by name (like listener.py)
+    DEVICE_NAME = "reSpeaker"
+    try:
+        device_info = p.get_device_info_by_index(device_index)
+        if device_info.get('maxInputChannels', 0) == 0:
+            # Device has no input channels, search for reSpeaker by name
+            print(f"   ⚠️  Device {device_index} has no input channels, searching for reSpeaker by name...")
+            device_index = find_device_by_name(p, DEVICE_NAME)
+            if device_index is None:
+                raise RuntimeError(f"reSpeaker not found and device {device_index} is invalid")
+    except (IndexError, OSError) as e:
+        # Device index invalid, search for reSpeaker by name
+        print(f"   ⚠️  Device {device_index} invalid: {e}, searching for reSpeaker by name...")
+        device_index = find_device_by_name(p, DEVICE_NAME)
+        if device_index is None:
+            raise RuntimeError(f"reSpeaker not found and saved device is invalid")
+    
+    # Verify final device
+    device_info = p.get_device_info_by_index(device_index)
+    if device_info.get('maxInputChannels', 0) == 0:
+        raise RuntimeError(f"Selected device {device_index} ({device_info.get('name', 'Unknown')}) has no input channels")
+    
     recorded_frames = []
     recording_active = threading.Event()
     recording_done = threading.Event()
+    recording_error = [None]  # Use list to allow modification from nested function
     
     def record_audio():
         """Record audio in a separate thread."""
-        stream = p.open(
-            format=format,
-            channels=channels,
-            rate=SAMPLE_RATE,
-            input=True,
-            input_device_index=device_index,
-            frames_per_buffer=chunk
-        )
-        
-        recording_active.set()
-        
-        # Record for audio duration + padding
-        num_chunks = int(SAMPLE_RATE / chunk * (audio_duration + duration_padding))
-        
-        for _ in range(num_chunks):
-            if not recording_active.is_set():
-                break
-            data = stream.read(chunk, exception_on_overflow=False)
-            recorded_frames.append(data)
-        
-        stream.stop_stream()
-        stream.close()
-        recording_done.set()
+        try:
+            stream = p.open(
+                format=format,
+                channels=channels,
+                rate=SAMPLE_RATE,
+                input=True,
+                input_device_index=device_index,
+                frames_per_buffer=chunk
+            )
+            
+            recording_active.set()
+            
+            # Record for audio duration + padding
+            num_chunks = int(SAMPLE_RATE / chunk * (audio_duration + duration_padding))
+            
+            for _ in range(num_chunks):
+                if not recording_active.is_set():
+                    break
+                try:
+                    data = stream.read(chunk, exception_on_overflow=False)
+                    recorded_frames.append(data)
+                except Exception as e:
+                    print(f"   ⚠️  Recording error: {e}")
+                    break
+            
+            stream.stop_stream()
+            stream.close()
+        except Exception as e:
+            recording_error[0] = str(e)
+            print(f"   ⚠️  Recording thread error: {e}")
+        finally:
+            recording_done.set()
     
     # Start recording thread
-    record_thread = threading.Thread(target=record_audio, daemon=True)
+    record_thread = threading.Thread(target=record_audio, daemon=False)  # Changed to non-daemon so we can wait for it
     record_thread.start()
     
     # Wait for recording to start
-    recording_active.wait(timeout=1.0)
-    time.sleep(0.1)  # Small delay to ensure recording is active
+    if not recording_active.wait(timeout=2.0):
+        raise RuntimeError(f"Recording failed to start - device {device_index} may be invalid or busy")
+    
+    if recording_error[0]:
+        raise RuntimeError(f"Recording error: {recording_error[0]}")
+    
+    time.sleep(0.2)  # Small delay to ensure recording is active and capturing
     
     # Play TTS through speakers
     try:
@@ -258,13 +325,23 @@ def play_and_record_tts(text: str, device_index: int = None, duration_padding: f
     time.sleep(duration_padding)
     recording_active.clear()
     
-    # Wait for recording to finish
-    recording_done.wait(timeout=5.0)
+    # Wait for recording to finish (give it more time)
+    if not recording_done.wait(timeout=10.0):
+        print(f"   ⚠️  Recording thread did not finish in time")
     
-    p.terminate()
+    # Wait for thread to actually complete
+    record_thread.join(timeout=2.0)
+    
+    try:
+        p.terminate()
+    except Exception:
+        pass  # Ignore termination errors
+    
+    if recording_error[0]:
+        raise RuntimeError(f"Recording failed: {recording_error[0]}")
     
     if not recorded_frames:
-        raise RuntimeError("No audio recorded")
+        raise RuntimeError(f"No audio recorded - check device {device_index} and ensure microphone is working")
     
     # Convert recorded audio to numpy array
     recorded_audio = np.frombuffer(b''.join(recorded_frames), dtype=np.int16)
@@ -286,8 +363,6 @@ def generate_tts_samples(text: str, num_samples: int = 10, output_dir: Path = No
     - Just generates TTS audio directly (no echo/reverb)
     - Less realistic but faster
     """
-    global _selected_device_index
-    
     ELEVEN_API_KEY = os.getenv("ELEVENLABS_API_KEY") or os.getenv("ELEVEN_API_KEY")
     ELEVEN_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID") or os.getenv("ELEVEN_VOICE_ID") or "default"
     
@@ -328,14 +403,13 @@ def generate_tts_samples(text: str, num_samples: int = 10, output_dir: Path = No
         print(f"   Volume range: {int(TTS_MIN_VOLUME*100)}% to {int(TTS_MAX_VOLUME*100)}% ({len(volume_levels)} different levels)")
         print(f"   Make sure speakers are on and microphone can hear them!")
         
-        # Ensure microphone device is selected
-        if _selected_device_index is None:
-            _selected_device_index = select_microphone_device()
-            if _selected_device_index is None:
-                print("⚠️  No microphone device selected - cannot record echo")
-                return []
+        # Find reSpeaker dynamically (no need to save - just find it each time)
+        device_index = select_microphone_device()
+        if device_index is None:
+            print("⚠️  reSpeaker not found - cannot record echo")
+            return []
         
-        print(f"   Using microphone device index: {_selected_device_index}")
+        print(f"   Using microphone: [{device_index}] (found dynamically by name: reSpeaker)")
         print(f"   Starting in 2 seconds...")
         time.sleep(2)
     else:
@@ -355,7 +429,16 @@ def generate_tts_samples(text: str, num_samples: int = 10, output_dir: Path = No
                 # Try phoneme notation first, fallback to phonetic text if needed
                 tts_input = WAKE_PHRASE_PHONEMES  # Use phonemes matching Colab format
                 print(f"\n   [{i+1}/{num_samples}] Playing and recording ({volume_label}, {int(volume*100)}%)...", end="", flush=True)
-                recorded_audio = play_and_record_tts(tts_input, device_index=_selected_device_index, volume=volume)
+                # Find reSpeaker dynamically for each recording
+                import pyaudio
+                p = pyaudio.PyAudio()
+                try:
+                    current_device_index = find_device_by_name(p, "reSpeaker")
+                    if current_device_index is None:
+                        raise RuntimeError("reSpeaker not found")
+                finally:
+                    p.terminate()
+                recorded_audio = play_and_record_tts(tts_input, device_index=current_device_index, volume=volume)
                 print(" ✅")
                 
                 # Save recorded audio (already at 16kHz from recording)
@@ -419,39 +502,11 @@ def generate_tts_samples(text: str, num_samples: int = 10, output_dir: Path = No
     return generated_files
 
 
-def detect_preferred_microphone(p):
-    """Auto-detect preferred microphone (reSpeaker, USB audio, etc.)."""
-    preferred_keywords = ["reSpeaker", "respeaker", "USB Audio", "USB", "XVF3800", "UAC"]
-    
-    for i in range(p.get_device_count()):
-        info = p.get_device_info_by_index(i)
-        if info['maxInputChannels'] > 0:
-            name = info['name'].lower()
-            for keyword in preferred_keywords:
-                if keyword.lower() in name:
-                    print(f"   ✅ Auto-detected: [{i}] {info['name']}")
-                    return i
-    
-    return None
-
-
 def select_microphone_device():
-    """Select microphone device once and save preference."""
+    """Find reSpeaker device by name dynamically (like listener.py does)."""
     import pyaudio
     
-    config_file = TRAINING_DATA_DIR / "device_config.json"
-    
-    # Try to load saved preference
-    saved_device = None
-    if config_file.exists():
-        try:
-            with open(config_file, 'r') as f:
-                config = json.load(f)
-                saved_device = config.get('device_index')
-                saved_device_name = config.get('device_name', 'Unknown')
-                print(f"📱 Saved device preference: [{saved_device}] {saved_device_name}")
-        except Exception:
-            pass
+    DEVICE_NAME = "reSpeaker"  # Match listener.py
     
     p = pyaudio.PyAudio()
     
@@ -463,78 +518,51 @@ def select_microphone_device():
             info = p.get_device_info_by_index(i)
             if info['maxInputChannels'] > 0:
                 devices.append((i, info))
-                marker = " ⭐" if saved_device == i else ""
+                marker = " ⭐ (reSpeaker - DEFAULT)" if DEVICE_NAME.lower() in info['name'].lower() else ""
                 print(f"   [{i}] {info['name']} ({info['maxInputChannels']} channels){marker}")
         
         if not devices:
             print("   ❌ No input devices found!")
             return None
         
-        # Auto-detect preferred device
-        auto_device = detect_preferred_microphone(p)
+        # Search for reSpeaker by name (like listener.py does)
+        device_index = find_device_by_name(p, DEVICE_NAME)
         
-        # Use saved device, auto-detected device, or ask user
-        device_index = None
-        if saved_device is not None:
-            # Verify saved device still exists
-            if any(d[0] == saved_device for d in devices):
-                use_saved = input(f"\nUse saved device [{saved_device}]? (y/n, default=y): ").strip().lower()
-                if use_saved != 'n':
-                    device_index = saved_device
-                    device_name = next(d[1]['name'] for d in devices if d[0] == saved_device)
-                    print(f"✅ Using saved device: [{device_index}] {device_name}")
-        
-        if device_index is None and auto_device is not None:
-            use_auto = input(f"\nUse auto-detected device [{auto_device}]? (y/n, default=y): ").strip().lower()
-            if use_auto != 'n':
-                device_index = auto_device
-                device_name = next(d[1]['name'] for d in devices if d[0] == auto_device)
-                print(f"✅ Using auto-detected device: [{device_index}] {device_name}")
-        
-        if device_index is None:
-            # Ask user to select
-            try:
-                device_str = input("\nEnter device index (or press Enter for default): ").strip()
-                if device_str:
-                    device_index = int(device_str)
-                else:
-                    device_index = None
-                    device_name = "Default"
-            except (ValueError, KeyboardInterrupt):
-                device_index = None
-                device_name = "Default"
-        
-        # Save preference
         if device_index is not None:
-            device_name = next(d[1]['name'] for d in devices if d[0] == device_index)
-            config = {
-                'device_index': device_index,
-                'device_name': device_name,
-                'saved_at': time.strftime("%Y-%m-%d %H:%M:%S")
-            }
-            with open(config_file, 'w') as f:
-                json.dump(config, f, indent=2)
-            print(f"💾 Device preference saved to {config_file}")
-        
-        return device_index
+            device_name = p.get_device_info_by_index(device_index)['name']
+            print(f"\n✅ Found reSpeaker by name: [{device_index}] {device_name}")
+            print(f"   This is the recommended device for wake word training")
+            return device_index
+        else:
+            # reSpeaker not found - use first available device as fallback
+            if devices:
+                device_index = devices[0][0]
+                device_name = devices[0][1]['name']
+                print(f"\n⚠️  reSpeaker not found, using first available device: [{device_index}] {device_name}")
+                return device_index
+            else:
+                return None
         
     finally:
         p.terminate()
 
 
-# Global variable to store selected device (set once, reused for all recordings)
-_selected_device_index = None
+# No need to store device index - we'll find reSpeaker dynamically each time
 
 
 def record_audio_sample(duration: float = 3.0, sample_rate: int = SAMPLE_RATE, device_index: int = None) -> np.ndarray:
-    """Record audio from microphone using the selected device."""
+    """Record audio from microphone - finds reSpeaker dynamically if device_index not provided."""
     import pyaudio
     
-    global _selected_device_index
-    
-    # Use provided device_index, or the globally selected one
+    # Find reSpeaker dynamically if device_index not provided
     if device_index is None:
-        device_index = _selected_device_index
+        p = pyaudio.PyAudio()
+        try:
+            device_index = find_device_by_name(p, "reSpeaker")
+            if device_index is None:
+                raise RuntimeError("reSpeaker not found")
+        finally:
+            p.terminate()
     
     chunk = 1024
     format = pyaudio.paInt16
@@ -581,8 +609,6 @@ def record_audio_sample(duration: float = 3.0, sample_rate: int = SAMPLE_RATE, d
 
 def collect_positive_samples(num_samples: int = 20):
     """Collect positive training samples (human speech saying 'hey aura')."""
-    global _selected_device_index
-    
     print(f"\n{'='*60}")
     print(f"📝 COLLECTING POSITIVE SAMPLES")
     print(f"{'='*60}")
@@ -595,11 +621,11 @@ def collect_positive_samples(num_samples: int = 20):
     print("   - Include samples from different distances")
     print("   - Press Ctrl+C to stop early\n")
     
-    # Select device once at the start
-    if _selected_device_index is None:
-        _selected_device_index = select_microphone_device()
-        if _selected_device_index is None:
-            print("⚠️  No device selected, using default")
+    # Find reSpeaker dynamically
+    device_index = select_microphone_device()
+    if device_index is None:
+        print("⚠️  reSpeaker not found - cannot record")
+        return
     
     collected = 0
     existing_files = list(POSITIVE_DIR.glob("*.wav"))
@@ -609,8 +635,8 @@ def collect_positive_samples(num_samples: int = 20):
         while collected < num_samples:
             print(f"\n--- Sample {collected + 1}/{num_samples} ---")
             
-            # Record audio (device already selected)
-            audio = record_audio_sample(duration=2.5, device_index=_selected_device_index)
+            # Record audio (finds reSpeaker dynamically each time)
+            audio = record_audio_sample(duration=2.5, device_index=device_index)
             
             # Save sample
             output_file = POSITIVE_DIR / f"positive_{start_index + collected:03d}.wav"
@@ -637,8 +663,6 @@ def collect_positive_samples(num_samples: int = 20):
 
 def collect_negative_samples(num_samples: int = 30):
     """Collect negative training samples (other phrases, background noise)."""
-    global _selected_device_index
-    
     print(f"\n{'='*60}")
     print(f"📝 COLLECTING NEGATIVE SAMPLES")
     print(f"{'='*60}")
@@ -650,11 +674,11 @@ def collect_negative_samples(num_samples: int = 30):
     print("   - Include similar-sounding phrases")
     print("   - Press Ctrl+C to stop early\n")
     
-    # Select device once at the start (if not already selected)
-    if _selected_device_index is None:
-        _selected_device_index = select_microphone_device()
-        if _selected_device_index is None:
-            print("⚠️  No device selected, using default")
+    # Find reSpeaker dynamically
+    device_index = select_microphone_device()
+    if device_index is None:
+        print("⚠️  reSpeaker not found - cannot record")
+        return
     
     negative_phrases = [
         "hey there",
@@ -687,7 +711,7 @@ def collect_negative_samples(num_samples: int = 30):
                 print("💡 Say any phrase (NOT 'hey aura')")
             
             # Record audio (device already selected)
-            audio = record_audio_sample(duration=2.5, device_index=_selected_device_index)
+            audio = record_audio_sample(duration=2.5, device_index=device_index)
             
             # Save sample
             output_file = NEGATIVE_DIR / f"negative_{start_index + collected:03d}.wav"
