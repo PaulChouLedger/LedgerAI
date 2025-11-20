@@ -839,6 +839,13 @@ def listen():
                         while time.time() < resume_time:
                             time.sleep(0.1)
                         
+                        # Clear OpenWakeWord's internal buffer BEFORE echo decay period
+                        # This prevents it from processing any audio that was captured before mute
+                        if wake_word_enabled and wake_word_detector is not None:
+                            if hasattr(wake_word_detector, 'clear_buffer'):
+                                wake_word_detector.clear_buffer()
+                                print(f"[Listener] 🧹 OpenWakeWord buffer cleared (prevents processing stale audio)")
+                        
                         echo_decay_elapsed = time.time() - tts_end_time
                         print(f"[Listener] ✅ Echo decay period completed ({echo_decay_elapsed:.2f}s)")
                         
@@ -846,7 +853,7 @@ def listen():
                         stream.start()
                         print(f"[Listener] 🔇 Stream STARTED - mic is active again")
                         
-                        # Flush buffer
+                        # Flush stream buffer
                         flush_start = time.time()
                         print("[Listener] 🧹 Flushing mic buffer...")
                         for i in range(5):
@@ -856,6 +863,12 @@ def listen():
                                 break
                         flush_duration = time.time() - flush_start
                         print(f"[Listener] 🧹 Buffer flush completed in {flush_duration:.3f}s ({i+1} frames)")
+                        
+                        # Clear OpenWakeWord buffer again after flush to ensure clean state
+                        if wake_word_enabled and wake_word_detector is not None:
+                            if hasattr(wake_word_detector, 'clear_buffer'):
+                                wake_word_detector.clear_buffer()
+                                print(f"[Listener] 🧹 OpenWakeWord buffer cleared again after flush")
                         
                         total_mute_duration = time.time() - tts_start_time
                         print(f"[Listener] ▶️ Mic fully resumed (buffer flushed)")
