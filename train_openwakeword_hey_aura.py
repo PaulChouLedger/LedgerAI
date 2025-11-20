@@ -38,8 +38,8 @@ WAKE_PHRASE_PHONEMES = "[HH][EY][AO][ER][AH]"  # Phoneme notation matching Colab
 SAMPLE_RATE = 16000  # OpenWakeWord uses 16kHz
 
 # TTS volume range (matching Colab training requirements)
-TTS_MIN_VOLUME = 0.70  # 70% minimum volume
-TTS_MAX_VOLUME = 2.50  # 250% maximum volume
+TTS_MIN_VOLUME = 1.0  # 70% minimum volume
+TTS_MAX_VOLUME = 4.0  # 250% maximum volume
 TRAINING_DATA_DIR = workspace_root / "data" / "wake_word_training"
 POSITIVE_DIR = TRAINING_DATA_DIR / "positive"
 NEGATIVE_DIR = TRAINING_DATA_DIR / "negative"
@@ -946,8 +946,8 @@ def main():
     parser.add_argument(
         "--tts-samples",
         type=int,
-        default=100,
-        help="Number of TTS echo samples to generate (default: 100)"
+        default=300,
+        help="Number of TTS echo samples to generate (default: 300)"
     )
     parser.add_argument(
         "--tts-direct",
