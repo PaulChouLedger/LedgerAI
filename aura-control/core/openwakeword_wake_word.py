@@ -35,7 +35,7 @@ except ImportError:
     WAKE_WORD_FRAME_SIZE = 512
 
 # Default threshold (0.0-1.0, higher = less sensitive)
-DEFAULT_THRESHOLD = 0.1
+DEFAULT_THRESHOLD = 0.01
 
 # Wake word model name (can be customized)
 # Will automatically find variations like "hey_orah-2.onnx" when looking for "hey_orah"
