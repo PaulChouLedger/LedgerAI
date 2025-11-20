@@ -1,46 +1,32 @@
 # password_keyboard.py — On-Screen Password Keyboard for Circular Touch Display
 
-from PyQt5.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QGridLayout, 
+from PyQt5.QtWidgets import (QVBoxLayout, QHBoxLayout, QGridLayout, 
                              QPushButton, QLabel, QWidget)
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QFont
+from gui.base_dialog import BaseAuraDialog
 
-class PasswordKeyboard(QDialog):
+class PasswordKeyboard(BaseAuraDialog):
     """Custom on-screen keyboard for password entry with full alphanumeric support"""
     
     # Signal emitted when text is confirmed
     text_confirmed = pyqtSignal(str)
     
     def __init__(self, parent=None, initial_text="", title="Enter Password"):
-        super().__init__(parent)
         self.current_text = initial_text
-        self.setWindowTitle(title)
-        self.setFixedSize(1080, 1080)
+        # Initialize base dialog with proper centering
+        super().__init__(parent, title=title, size=(1080, 1080), modal=True)
         
-        # Modal behavior like other dialogs
-        if parent:
-            self.setWindowFlags(Qt.Window | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
-            self.setModal(True)
-        else:
-            self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
-        
-        # Circular dark theme
-        self.setStyleSheet("""
-            QDialog {
-                background-color: rgba(28, 28, 30, 1.0);
-                color: #ffffff;
-                border: none;
-                border-radius: 536px;
-            }
+        # Add additional styles for keyboard
+        additional_styles = """
             QLabel {
                 color: #ffffff;
             }
-        """)
-        
-        self.setup_ui()
-        self.center_dialog()
+        """
+        base_stylesheet = self.styleSheet()
+        self.setStyleSheet(base_stylesheet + additional_styles)
     
-    def setup_ui(self):
+    def _setup_ui(self):
         """Setup keyboard UI"""
         main_layout = QVBoxLayout()
         main_layout.setContentsMargins(120, 100, 120, 100)
@@ -292,15 +278,4 @@ class PasswordKeyboard(QDialog):
     def get_text(self):
         """Get the current text (for use after exec_())"""
         return self.current_text
-    
-    def center_dialog(self):
-        """Center the dialog properly on the screen"""
-        from PyQt5.QtWidgets import QDesktopWidget
-        
-        screen = QDesktopWidget().screenGeometry()
-        x = (screen.width() - 1080) // 2
-        y = (screen.height() - 1080) // 2
-        self.move(x, y)
-        self.raise_()
-        self.activateWindow()
 

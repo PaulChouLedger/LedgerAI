@@ -1,11 +1,12 @@
 # custom_keyboard.py — On-Screen Keyboard for Circular Touch Display
 
-from PyQt5.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QGridLayout, 
+from PyQt5.QtWidgets import (QVBoxLayout, QHBoxLayout, QGridLayout, 
                              QPushButton, QLabel, QWidget)
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QFont
+from gui.base_dialog import BaseAuraDialog
 
-class CircularKeyboard(QDialog):
+class CircularKeyboard(BaseAuraDialog):
     """Custom on-screen keyboard optimized for circular 1080x1080 touchscreen"""
     
     # Signal emitted when text is confirmed
@@ -15,38 +16,22 @@ class CircularKeyboard(QDialog):
     voice_input_requested = pyqtSignal()
     
     def __init__(self, parent=None, initial_text=""):
-        super().__init__(parent)
         self.current_text = initial_text
-        self.setWindowTitle("Enter Wallet Address")
-        self.setFixedSize(1080, 1080)
+        # Initialize base dialog with proper centering
+        super().__init__(parent, title="Enter Wallet Address", size=(1080, 1080), modal=True)
         
-        # Modal behavior like other dialogs
-        if parent:
-            # Use Window flag instead of Dialog to ensure proper z-ordering above parent
-            self.setWindowFlags(Qt.Window | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
-            self.setModal(True)
-        else:
-            self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
-        
-        # (No translucent background to preserve readability)
-        
-        # Circular dark theme
-        self.setStyleSheet("""
-            QDialog {
-                background-color: rgba(28, 28, 30, 1.0);
-                color: #ffffff;
-                border: none;
-                border-radius: 536px;
-            }
+        # Add additional styles for keyboard
+        additional_styles = """
             QLabel {
                 color: #ffffff;
             }
-        """)
-        
-        self.setup_ui()
-        self.center_dialog()
+        """
+        base_stylesheet = self.styleSheet()
+        self.setStyleSheet(base_stylesheet + additional_styles)
     
-    def setup_ui(self):
+    def _setup_ui(self):
+    
+    def _setup_ui(self):
         """Setup keyboard UI"""
         main_layout = QVBoxLayout()
         # Keep content well inside the circular border (540px radius - margin for safety)
@@ -373,22 +358,6 @@ class CircularKeyboard(QDialog):
             """))
             QTimer.singleShot(2000, self.update_display)
     
-    def center_dialog(self):
-        """Center the dialog properly on the screen"""
-        from PyQt5.QtWidgets import QDesktopWidget
-        
-        # Get screen geometry
-        screen = QDesktopWidget().screenGeometry()
-        
-        # Calculate center position
-        x = (screen.width() - 1080) // 2
-        y = (screen.height() - 1080) // 2
-        
-        # Move to center
-        self.move(x, y)
-        
-        # Ensure dialog is visible and active
-        self.raise_()
         self.activateWindow()
     
     def get_text(self):
