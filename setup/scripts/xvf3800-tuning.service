@@ -26,15 +26,19 @@
 [Unit]
 Description=XVF3800 Hardware DSP Configuration
 After=multi-user.target
+# Wait for USB subsystem to be ready
+After=sys-subsystem-usb-devices.target
 Wants=network.target
 
 [Service]
 Type=oneshot
 RemainAfterExit=yes
 User=__AURA_USER__
-# Always uses latest script version (no bytecode caching)
-# -B flag prevents .pyc files, ensuring latest code is always executed
-ExecStart=__PYTHON_CMD__ -B __LEDGERAI_DIR__/setup/scripts/tune_xvf3800.py agc_20_ec
+# Use wrapper script that waits for USB device to be ready
+# Wrapper waits up to 30 seconds for device, then runs tuning script
+ExecStart=__LEDGERAI_DIR__/setup/scripts/tune_xvf3800_wrapper.sh agc_20_ec
+Environment="LEDGERAI_DIR=__LEDGERAI_DIR__"
+Environment="PYTHON_CMD=__PYTHON_CMD__"
 StandardOutput=journal
 StandardError=journal
 
