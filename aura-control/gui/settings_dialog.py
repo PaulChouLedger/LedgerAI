@@ -948,12 +948,11 @@ class AIModelSettingsDialog(BaseAuraDialog):
         wake_word_row.addWidget(self.wake_word_toggle, 1)
         layout.addLayout(wake_word_row)
         
-        # Wake word engine selection
+        # Wake word engine selection (OpenWakeWord only)
         engine_row = QHBoxLayout(); engine_row.setSpacing(12)
         engine_label = QLabel("Wake Word Engine:")
         engine_label.setStyleSheet("color: #ffffff; font-size: 14px;")
         self.wake_word_engine_combo = QComboBox()
-        self.wake_word_engine_combo.addItem("Mycroft Precise", "precise")
         self.wake_word_engine_combo.addItem("OpenWakeWord", "openwakeword")
         self.wake_word_engine_combo.setStyleSheet("""
             QComboBox { background-color: rgba(44,44,46,0.8); color: #ffffff; padding: 8px; border: none; border-radius: 10px; min-height: 36px; }
@@ -1035,7 +1034,7 @@ class AIModelSettingsDialog(BaseAuraDialog):
                 
                 if checked:
                     engine = self.wake_word_engine_combo.currentData()
-                    engine_name = "Mycroft Precise" if engine == "precise" else "OpenWakeWord"
+                    engine_name = "OpenWakeWord"
                     print(f"[ModelSettings] ✅ Wake word enabled - using {engine_name}")
                     from PyQt5.QtWidgets import QMessageBox
                     QMessageBox.information(
@@ -1053,7 +1052,7 @@ class AIModelSettingsDialog(BaseAuraDialog):
                 from core.state import set_wake_word_engine
                 engine = self.wake_word_engine_combo.currentData()
                 set_wake_word_engine(engine)
-                engine_name = "Mycroft Precise" if engine == "precise" else "OpenWakeWord"
+                engine_name = "OpenWakeWord"
                 print(f"[ModelSettings] Wake word engine changed to: {engine_name}")
             except Exception as e:
                 print(f"[ModelSettings] Error saving wake word engine: {e}")

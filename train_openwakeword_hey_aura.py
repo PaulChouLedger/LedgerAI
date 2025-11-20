@@ -34,8 +34,12 @@ load_dotenv(dotenv_path)
 
 # Training configuration
 WAKE_PHRASE = "hey aura"
-TTS_PHRASE = "hey_orah"  # Phonetic spelling for TTS to pronounce correctly
+WAKE_PHRASE_PHONEMES = "[HH][EY][AO][ER][AH]"  # Phoneme notation matching Colab notebook format
 SAMPLE_RATE = 16000  # OpenWakeWord uses 16kHz
+
+# TTS volume range (matching Colab training requirements)
+TTS_MIN_VOLUME = 0.70  # 70% minimum volume
+TTS_MAX_VOLUME = 2.50  # 250% maximum volume
 TRAINING_DATA_DIR = workspace_root / "data" / "wake_word_training"
 POSITIVE_DIR = TRAINING_DATA_DIR / "positive"
 NEGATIVE_DIR = TRAINING_DATA_DIR / "negative"
@@ -138,9 +142,21 @@ def play_and_record_tts(text: str, device_index: int = None, duration_padding: f
     PCM_SAMPLE_RATE = 22050
     PCM_FORMAT = "pcm_22050"
     
-    # Generate TTS audio
+    # Generate TTS audio using phonetic text matching Colab format
+    # Phonemes [HH][EY][AO][ER][AH] map to "hey_orah" pronunciation
+    # Use "hey_orah" as text input (matches phonemes) since ElevenLabs uses text input
+    if text.startswith("[") and "]" in text:
+        # Text is in phoneme format: [HH][EY][AO][ER][AH] -> use "hey_orah" 
+        tts_text = "hey_orah"  # Phonetic text matching the phoneme notation
+    elif text.lower().strip() == WAKE_PHRASE.lower() or WAKE_PHRASE_PHONEMES in text:
+        # Use phonetic text for consistency with Colab training
+        tts_text = "hey_orah"  # Matches phonemes [HH][EY][AO][ER][AH]
+    else:
+        # Use text as-is for other cases
+        tts_text = text
+    
     stream = client.text_to_speech.convert(
-        text=text,
+        text=tts_text,
         voice_id=ELEVEN_VOICE_ID,
         output_format=PCM_FORMAT,
         voice_settings={
@@ -285,15 +301,31 @@ def generate_tts_samples(text: str, num_samples: int = 10, output_dir: Path = No
     
     generated_files = []
     
-    # Define volume levels to cycle through (quiet to maximum)
-    # Using higher values for maximum volume (with clipping protection)
-    volume_levels = [0.3, 0.5, 0.7, 0.9, 1.0, 1.2, 1.5]  # 30%, 50%, 70%, 90%, 100%, 120%, 150%
-    volume_labels = ["quiet", "medium-low", "medium", "medium-loud", "loud", "very-loud", "maximum"]
+    # Define volume levels to cycle through (matching Colab training: min 70%, max 250%)
+    # Distribute volumes evenly across the range
+    num_volume_steps = max(8, num_samples // 5)  # At least 8 different volumes, or 1 per 5 samples
+    volume_levels = np.linspace(TTS_MIN_VOLUME, TTS_MAX_VOLUME, num_volume_steps).tolist()
+    
+    # Create volume labels for logging
+    def volume_to_label(vol):
+        if vol < 0.8:
+            return "quiet"
+        elif vol < 1.0:
+            return "normal"
+        elif vol < 1.5:
+            return "loud"
+        elif vol < 2.0:
+            return "very-loud"
+        else:
+            return "maximum"
+    
+    volume_labels = [volume_to_label(v) for v in volume_levels]
     
     if play_through_speakers:
-        print(f"🔊 Generating {num_samples} TTS samples of '{text}' (NEGATIVE samples)...")
+        print(f"🔊 Generating {num_samples} TTS samples (NEGATIVE samples)...")
+        print(f"   Phoneme notation: {WAKE_PHRASE_PHONEMES} (matching Colab format: 'hey_orah')")
         print(f"   Playing through speakers and recording echo/reverb")
-        print(f"   Using {len(volume_levels)} different volume levels for variation")
+        print(f"   Volume range: {int(TTS_MIN_VOLUME*100)}% to {int(TTS_MAX_VOLUME*100)}% ({len(volume_levels)} different levels)")
         print(f"   Make sure speakers are on and microphone can hear them!")
         
         # Ensure microphone device is selected
@@ -318,8 +350,12 @@ def generate_tts_samples(text: str, num_samples: int = 10, output_dir: Path = No
         try:
             if play_through_speakers:
                 # Play through speakers and record echo
+                # Use phoneme notation for training consistency with Colab ('hey_orah': [HH][EY][AO][ER][AH])
+                # Note: ElevenLabs may interpret phoneme notation directly, or we may need to use 'hey_orah' text
+                # Try phoneme notation first, fallback to phonetic text if needed
+                tts_input = WAKE_PHRASE_PHONEMES  # Use phonemes matching Colab format
                 print(f"\n   [{i+1}/{num_samples}] Playing and recording ({volume_label}, {int(volume*100)}%)...", end="", flush=True)
-                recorded_audio = play_and_record_tts(text, device_index=_selected_device_index, volume=volume)
+                recorded_audio = play_and_record_tts(tts_input, device_index=_selected_device_index, volume=volume)
                 print(" ✅")
                 
                 # Save recorded audio (already at 16kHz from recording)
@@ -685,12 +721,17 @@ def generate_tts_negative_samples(num_samples: int = 50, play_through_speakers: 
     print(f"\n⚠️  CRITICAL: TTS echo is the #1 source of false positives!")
     print(f"   Without these samples, the model will trigger on TTS playback")
     
+    print(f"\n📋 Configuration:")
+    print(f"   Wake phrase: '{WAKE_PHRASE}'")
+    print(f"   Phonemes: {WAKE_PHRASE_PHONEMES} (matching Colab format: 'hey_orah')")
+    print(f"   Volume range: {int(TTS_MIN_VOLUME*100)}% - {int(TTS_MAX_VOLUME*100)}%")
+    
     if play_through_speakers:
         print(f"\n🔊 Mode: Play through speakers + Record echo (RECOMMENDED)")
         print(f"   - Plays TTS through your speakers at varying volumes")
         print(f"   - Records it back through microphone")
         print(f"   - Captures real echo/reverb from your environment")
-        print(f"   - Uses 7 different volume levels (30%, 50%, 70%, 90%, 100%, 120%, 150%)")
+        print(f"   - Volume range: {int(TTS_MIN_VOLUME*100)}% to {int(TTS_MAX_VOLUME*100)}% (distributed across samples)")
         print(f"   - More realistic for training")
     else:
         print(f"\n🎤 Mode: Direct generation (no echo)")
@@ -698,10 +739,10 @@ def generate_tts_negative_samples(num_samples: int = 50, play_through_speakers: 
         print(f"   - Faster but less realistic")
         print(f"   - Not recommended for production models")
     
-    print(f"\nGenerating {num_samples} TTS samples of '{WAKE_PHRASE}' (using '{TTS_PHRASE}' for correct pronunciation)...")
-    print(f"   Volume levels will cycle through: quiet → medium-low → medium → medium-loud → loud → very-loud → maximum")
+    print(f"\nGenerating {num_samples} TTS samples using phoneme notation...")
     
-    files = generate_tts_samples(TTS_PHRASE, num_samples, TTS_NEGATIVE_DIR, play_through_speakers=play_through_speakers)
+    # Use phoneme notation for consistency with Colab training
+    files = generate_tts_samples(WAKE_PHRASE_PHONEMES, num_samples, TTS_NEGATIVE_DIR, play_through_speakers=play_through_speakers)
     
     print(f"\n✅ Generated {len(files)} TTS echo samples")
     print(f"   These are NEGATIVE samples - model should NOT trigger on them")

@@ -49,7 +49,7 @@ _llm_model = ""        # filename or path inside container; empty means default
 _wake_word_enabled = False  # Wake word detection enabled/disabled
 _wake_word_sensitivity = 0.5  # Wake word detection sensitivity (0.0-1.0)
 _wake_word_model_path = None  # Optional path to custom model file
-_wake_word_engine = "precise"  # Wake word engine: "precise" or "openwakeword"
+_wake_word_engine = "openwakeword"  # Wake word engine: "openwakeword"
 
 def _save_settings_to_disk():
     """Save current settings to disk"""
@@ -147,13 +147,13 @@ def set_wake_word_model_path(path: str):
     _save_settings_to_disk()
 
 def get_wake_word_engine() -> str:
-    """Return wake word engine: 'precise' or 'openwakeword'."""
+    """Return wake word engine: 'openwakeword'."""
     return _wake_word_engine
 
 def set_wake_word_engine(engine: str):
-    """Set wake word engine: 'precise' or 'openwakeword'."""
+    """Set wake word engine: 'openwakeword'."""
     global _wake_word_engine
-    if engine in ("precise", "openwakeword"):
+    if engine == "openwakeword":
         _wake_word_engine = engine
         _save_settings_to_disk()
 
