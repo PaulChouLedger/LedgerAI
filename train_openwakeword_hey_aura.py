@@ -712,7 +712,7 @@ def collect_negative_samples(num_samples: int = 30):
     print(f"   Total negative samples: {len(list(NEGATIVE_DIR.glob('*.wav')))}")
 
 
-def generate_tts_negative_samples(num_samples: int = 50, play_through_speakers: bool = True):
+def generate_tts_negative_samples(num_samples: int = 100, play_through_speakers: bool = True):
     """Generate TTS echo samples (critical for handling TTS echo)."""
     print(f"\n{'='*60}")
     print(f"📝 GENERATING TTS ECHO SAMPLES (NEGATIVE)")
@@ -946,8 +946,8 @@ def main():
     parser.add_argument(
         "--tts-samples",
         type=int,
-        default=50,
-        help="Number of TTS echo samples to generate (default: 50)"
+        default=100,
+        help="Number of TTS echo samples to generate (default: 100)"
     )
     parser.add_argument(
         "--tts-direct",

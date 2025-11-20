@@ -496,6 +496,16 @@ echo ""
 # ============================================================================
 print_step "3.5. Installing wake word detection engine..."
 
+# Install OpenWakeWord dependencies first to avoid numpy/pandas binary incompatibility
+# This ensures all packages come from pip (not system packages) and are compatible
+print_info "Installing OpenWakeWord dependencies (numpy, pandas, scikit-learn)..."
+if pip install --upgrade "numpy>=1.24.0" "pandas>=2.0.0" "scikit-learn>=1.3.0" 2>&1 | tee /tmp/openwakeword_deps_install.log; then
+    print_info "✅ OpenWakeWord dependencies installed successfully"
+else
+    print_warning "⚠️  Some OpenWakeWord dependencies had issues (check logs)"
+    print_info "   Continuing with OpenWakeWord installation anyway..."
+fi
+
 # Install OpenWakeWord (actively maintained, recommended for all systems)
 print_info "Installing OpenWakeWord..."
 if pip install "openwakeword>=0.5.0" 2>&1 | tee /tmp/openwakeword_install.log; then
@@ -506,6 +516,8 @@ if pip install "openwakeword>=0.5.0" 2>&1 | tee /tmp/openwakeword_install.log; t
         print_info "✅ OpenWakeWord verified and ready to use"
     else
         print_warning "⚠️  OpenWakeWord installed but verification failed"
+        print_info "   This may be due to numpy/pandas compatibility issues"
+        print_info "   Try: pip install --upgrade --force-reinstall numpy pandas scikit-learn"
     fi
 else
     print_warning "⚠️  OpenWakeWord installation had issues (check logs)"
@@ -529,8 +541,26 @@ if $PYTHON_CMD -c "import openwakeword; from openwakeword import Model; print('S
 else
     print_warning "⚠️  OpenWakeWord not importable"
     print_info "   Attempting to diagnose..."
-    if $PYTHON_CMD -c "import openwakeword" 2>&1; then
+    ERROR_OUTPUT=$($PYTHON_CMD -c "import openwakeword" 2>&1)
+    if echo "$ERROR_OUTPUT" | grep -q "numpy.dtype size changed\|binary incompatibility"; then
+        print_warning "⚠️  Numpy/pandas binary incompatibility detected"
+        print_info "   This usually means system packages conflict with pip packages"
+        print_info "   Attempting to fix by reinstalling numpy, pandas, scikit-learn..."
+        if pip install --upgrade --force-reinstall "numpy>=1.24.0" "pandas>=2.0.0" "scikit-learn>=1.3.0" 2>&1 | tee /tmp/fix_numpy_pandas.log; then
+            print_info "✅ Dependencies reinstalled - retrying verification..."
+            if $PYTHON_CMD -c "import openwakeword; from openwakeword import Model; print('SUCCESS')" 2>/dev/null; then
+                print_info "✅ OpenWakeWord verified after dependency fix"
+            else
+                print_warning "⚠️  Still having issues - may need manual intervention"
+                print_info "   Try: pip install --upgrade --force-reinstall numpy pandas scikit-learn openwakeword"
+            fi
+        else
+            print_warning "⚠️  Failed to fix dependency issues"
+            print_info "   Manual fix may be required"
+        fi
+    elif echo "$ERROR_OUTPUT" | grep -q "ModuleNotFoundError\|ImportError"; then
         print_info "   Module exists but import failed - checking dependencies..."
+        print_info "   Error: $ERROR_OUTPUT"
     else
         print_info "   Module not found - may need to reinstall: pip install openwakeword"
     fi
