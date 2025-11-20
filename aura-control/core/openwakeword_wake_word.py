@@ -341,15 +341,9 @@ def create_openwakeword_detector(model_name: str = None, threshold: float = None
         OpenWakeWordDetector instance or None if initialization fails
     """
     try:
-        # Get threshold from state if not provided
+        # Use DEFAULT_THRESHOLD if not explicitly provided
         if threshold is None:
-            try:
-                from state import get_wake_word_sensitivity
-                # Convert sensitivity (0.0-1.0) to threshold (inverted: higher sensitivity = lower threshold)
-                sensitivity = get_wake_word_sensitivity()
-                threshold = 1.0 - sensitivity  # Invert: sensitivity 1.0 = threshold 0.0
-            except ImportError:
-                threshold = DEFAULT_THRESHOLD
+            threshold = DEFAULT_THRESHOLD
         
         detector = OpenWakeWordDetector(model_name=model_name, threshold=threshold)
         return detector

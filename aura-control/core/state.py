@@ -47,7 +47,7 @@ _settings_file = os.path.expanduser("~/LedgerAI/data/app_settings.json")
 _llm_mode = "medical"  # 'medical' or 'generic' - default to medical
 _llm_model = ""        # filename or path inside container; empty means default
 _wake_word_enabled = False  # Wake word detection enabled/disabled
-_wake_word_sensitivity = 0.5  # Wake word detection sensitivity (0.0-1.0)
+_wake_word_sensitivity = 0.9  # Wake word detection sensitivity (0.0-1.0) - higher = more sensitive (lower threshold)
 _wake_word_model_path = None  # Optional path to custom model file
 _wake_word_engine = "openwakeword"  # Wake word engine: "openwakeword"
 
