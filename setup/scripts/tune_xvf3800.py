@@ -5,6 +5,9 @@ XVF3800 USB 4 Mic Array Tuner
 Configures the hardware DSP on the XVF3800 for optimal
 speech recognition (ASR).
 
+All presets automatically disable LEDs to reduce power consumption
+(useful when using USB isolator with limited power budget).
+
 Usage:
     python3 tune_xvf3800.py [preset]
     
@@ -60,6 +63,45 @@ def run_xvf_command(cmd, *args):
         print(f"  ⚠️  Error running {cmd}: {e}")
         return None
 
+def disable_all_leds():
+    """Disable all LEDs on XVF3800 to reduce power draw (useful for USB isolator)"""
+    print("[LED] Disabling all LEDs to reduce power consumption...")
+    
+    # Try common LED control commands
+    led_commands = [
+        ("LED_ONOFF", 0),           # Most common - turn LEDs off
+        ("LED_BRIGHTNESS", 0),      # Set brightness to 0
+        ("LED_MODE", 0),            # Set mode to off
+        ("LED_ENABLE", 0),          # Disable LEDs
+        ("LED_STATE", 0),           # Set state to off
+    ]
+    
+    success = False
+    for cmd, value in led_commands:
+        result = run_xvf_command(cmd, value)
+        if result is not None:
+            print(f"  ✅ LEDs disabled via {cmd}={value}")
+            success = True
+            break
+    
+    if not success:
+        # Try reading available commands to find LED control
+        print("  ⚠️  Could not find LED control command - trying alternative methods...")
+        # Try with different variations
+        for cmd_name in ["LED", "LEDS", "LED_CONTROL"]:
+            result = run_xvf_command(cmd_name, 0)
+            if result is not None:
+                print(f"  ✅ LEDs disabled via {cmd_name}=0")
+                success = True
+                break
+    
+    if success:
+        print("  💡 All LEDs disabled - power consumption reduced")
+    else:
+        print("  ⚠️  LED control not available - LEDs may still be on")
+    
+    return success
+
 def save_config_state(preset, config_dict):
     """Save current configuration to a file for listener to read"""
     try:
@@ -80,6 +122,10 @@ def configure_balanced_beam():
     print("\n" + "="*80)
     print("  ⚖️  BALANCED BEAM - Recommended Configuration")
     print("="*80 + "\n")
+    
+    # Disable LEDs to reduce power draw
+    disable_all_leds()
+    print()
     
     print("[1/6] High-Pass Filter: 70 Hz (removes low-frequency rumble)")
     run_xvf_command("AEC_HPFONOFF", 1)
@@ -122,6 +168,10 @@ def configure_ultra_sensitive():
     print("  🔥 ULTRA SENSITIVE - Maximum Far-Field Detection")
     print("="*80 + "\n")
     
+    # Disable LEDs to reduce power draw
+    disable_all_leds()
+    print()
+    
     print("[1/6] High-Pass Filter: 70 Hz")
     run_xvf_command("AEC_HPFONOFF", 1)
     
@@ -160,6 +210,10 @@ def configure_far_field():
     print("  🎯 FAR-FIELD CONFIGURATION")
     print("="*80 + "\n")
     
+    # Disable LEDs to reduce power draw
+    disable_all_leds()
+    print()
+    
     print("[1/6] High-Pass Filter: 70 Hz")
     run_xvf_command("AEC_HPFONOFF", 1)
     
@@ -195,6 +249,10 @@ def configure_near_field():
     print("\n" + "="*80)
     print("  🎯 NEAR-FIELD CONFIGURATION")
     print("="*80 + "\n")
+    
+    # Disable LEDs to reduce power draw
+    disable_all_leds()
+    print()
     
     print("[1/6] High-Pass Filter: 70 Hz")
     run_xvf_command("AEC_HPFONOFF", 1)
@@ -232,6 +290,10 @@ def configure_hpf_only():
     print("  🎚️  HIGH-PASS FILTER ONLY - 70Hz")
     print("="*80 + "\n")
     
+    # Disable LEDs to reduce power draw
+    disable_all_leds()
+    print()
+    
     print("[1/3] High-Pass Filter: 70 Hz (removes low-frequency rumble)")
     print("      ⚠️  Note: 70Hz is the MINIMUM available on XVF3800")
     print("      This blocks fan noise at 15-20Hz, but not as selectively as a 20Hz filter")
@@ -263,6 +325,10 @@ def configure_agc_only():
     print("\n" + "="*80)
     print("  🔧 AGC ONLY")
     print("="*80 + "\n")
+    
+    # Disable LEDs to reduce power draw
+    disable_all_leds()
+    print()
     
     print("[1/5] High-Pass Filter: OFF")
     run_xvf_command("AEC_HPFONOFF", 0)
@@ -300,6 +366,10 @@ def configure_agc_10():
     print("\n" + "="*80)
     print("  🔊 AGC 10% INCREASE")
     print("="*80 + "\n")
+    
+    # Disable LEDs to reduce power draw
+    disable_all_leds()
+    print()
     
     print("[1/6] High-Pass Filter: 70 Hz (removes low-frequency rumble)")
     run_xvf_command("AEC_HPFONOFF", 1)
@@ -341,6 +411,10 @@ def configure_agc_20():
     print("  🔊 AGC 20% INCREASE")
     print("="*80 + "\n")
     
+    # Disable LEDs to reduce power draw
+    disable_all_leds()
+    print()
+    
     print("[1/6] High-Pass Filter: 70 Hz (removes low-frequency rumble)")
     run_xvf_command("AEC_HPFONOFF", 1)
     
@@ -380,6 +454,10 @@ def configure_agc_20_ec():
     print("\n" + "="*80)
     print("  🔊 AGC 20% INCREASE + ECHO CANCELLATION")
     print("="*80 + "\n")
+    
+    # Disable LEDs to reduce power draw
+    disable_all_leds()
+    print()
     
     print("[1/7] High-Pass Filter: 70 Hz (removes low-frequency rumble)")
     run_xvf_command("AEC_HPFONOFF", 1)
@@ -423,6 +501,10 @@ def reset_defaults():
     print("\n" + "="*80)
     print("  🔄 RESETTING TO FACTORY DEFAULTS")
     print("="*80 + "\n")
+    
+    # Disable LEDs to reduce power draw
+    disable_all_leds()
+    print()
     
     print("[1/3] High-Pass Filter: OFF")
     run_xvf_command("AEC_HPFONOFF", 0)
