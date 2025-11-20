@@ -38,6 +38,7 @@ except ImportError:
 DEFAULT_THRESHOLD = 0.5
 
 # Wake word model name (can be customized)
+# Will automatically find variations like "hey_orah-2.onnx" when looking for "hey_orah"
 DEFAULT_MODEL = "hey_orah"  # Default model, can be changed to custom model
 
 
@@ -101,14 +102,26 @@ class OpenWakeWordDetector:
                         model_path = os.path.join(custom_model_dir, self.model_name)
                         print(f"[OpenWakeWord] 📁 Found custom model: {model_path}")
                     else:
-                        # Check if directory exists and list available models
+                        # Try to find model variations (e.g., "hey_orah-2.onnx" when looking for "hey_orah")
                         if os.path.exists(custom_model_dir):
                             available_models = [f for f in os.listdir(custom_model_dir) if f.endswith('.onnx')]
                             if available_models:
                                 print(f"[OpenWakeWord] 📁 Custom models directory: {custom_model_dir}")
                                 print(f"[OpenWakeWord]    Available models: {', '.join(available_models)}")
-                                print(f"[OpenWakeWord]    Looking for: {self.model_name}.onnx")
-                                print(f"[OpenWakeWord]    ⚠️  Custom model not found, will try built-in models")
+                                
+                                # Look for models that start with the model name (handles variations like "hey_orah-2.onnx")
+                                matching_models = [m for m in available_models if m.startswith(self.model_name)]
+                                if matching_models:
+                                    # Use the first matching model (prefer exact match, then any variation)
+                                    exact_match = f"{self.model_name}.onnx"
+                                    if exact_match in matching_models:
+                                        model_path = os.path.join(custom_model_dir, exact_match)
+                                    else:
+                                        model_path = os.path.join(custom_model_dir, matching_models[0])
+                                    print(f"[OpenWakeWord] 📁 Found matching model: {os.path.basename(model_path)}")
+                                else:
+                                    print(f"[OpenWakeWord]    Looking for: {self.model_name}.onnx")
+                                    print(f"[OpenWakeWord]    ⚠️  Custom model not found, will try built-in models")
                         else:
                             print(f"[OpenWakeWord] 📁 Custom models directory does not exist: {custom_model_dir}")
                             print(f"[OpenWakeWord]    Creating directory...")
