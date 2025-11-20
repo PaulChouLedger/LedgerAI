@@ -817,24 +817,37 @@ def listen():
             while stream_valid:
                 # Pause during TTS (same logic as VAD)
                 if is_playing():
+                    tts_start_time = time.time()
                     print("[Listener] ⏸️ Pausing mic during playback")
+                    print(f"[Listener] 🔇 Mic MUTED at {time.strftime('%H:%M:%S')}")
                     try:
                         stream.stop()
+                        print(f"[Listener] 🔇 Stream STOPPED - mic is muted")
                         while is_playing():
                             time.sleep(0.1)
+                        tts_playback_duration = time.time() - tts_start_time
+                        print(f"[Listener] 🔊 TTS playback ended after {tts_playback_duration:.2f}s")
+                        
                         stream.start()
+                        print(f"[Listener] 🔇 Stream STARTED - mic is active again")
                         
                         # Flush buffer
+                        flush_start = time.time()
                         print("[Listener] 🧹 Flushing mic buffer...")
-                        for _ in range(5):
+                        for i in range(5):
                             try:
                                 stream.read(FRAME_SIZE)
                             except (PortAudioError, Exception):
                                 break
+                        flush_duration = time.time() - flush_start
+                        print(f"[Listener] 🧹 Buffer flush completed in {flush_duration:.3f}s ({i+1} frames)")
                         
                         # Record when TTS ended - wake word will pause briefly to let echo decay
                         tts_end_time = time.time()
-                        print("[Listener] ▶️ Mic resumed after playback (buffer flushed)")
+                        total_mute_duration = tts_end_time - tts_start_time
+                        print(f"[Listener] ▶️ Mic resumed after playback (buffer flushed)")
+                        print(f"[Listener] ⏱️  Total mute duration: {total_mute_duration:.2f}s (TTS: {tts_playback_duration:.2f}s + flush: {flush_duration:.3f}s)")
+                        print(f"[Listener] ⏱️  Wake word pause: 3.0s starting now (will resume at {time.strftime('%H:%M:%S', time.localtime(tts_end_time + 3.0))})")
                     except PortAudioError as pa_error:
                         error_code = getattr(pa_error, 'errno', None)
                         if error_code in [-9999, -9988]:
@@ -875,6 +888,10 @@ def listen():
                             time_since_tts_end = time.time() - tts_end_time
                             if time_since_tts_end < 3.0:  # Wait 3.0s after TTS ends (extreme test)
                                 # Skip processing, just read and discard frames to keep buffer clear
+                                # Log only occasionally to avoid spam
+                                if int(time_since_tts_end * 10) % 10 == 0:  # Every second
+                                    remaining = 3.0 - time_since_tts_end
+                                    print(f"[Wake Word] ⏸️  Echo decay pause: {remaining:.1f}s remaining (mic active but skipping wake word processing)")
                                 try:
                                     stream.read(FRAME_SIZE)
                                 except:
@@ -882,6 +899,8 @@ def listen():
                                 continue  # Skip wake word processing during echo decay period
                             else:
                                 # Pause period expired, clear timer
+                                elapsed = time.time() - tts_end_time
+                                print(f"[Wake Word] ✅ Echo decay pause completed ({elapsed:.2f}s) - resuming wake word detection")
                                 tts_end_time = None
                         
                         # Use shared audio reading function (same as VAD)
