@@ -1789,6 +1789,7 @@ class SettingsDialog(BaseAuraDialog):
     
     def _on_shutdown_pressed(self):
         """Handle shutdown button press - start 3 second countdown"""
+        print("[Settings] 🔴 Shutdown button pressed - starting 3s countdown")
         self.shutdown_hold_time = 0
         self.shutdown_btn.setText("⏻ Hold to Shutdown (3s)")
         self.shutdown_btn.setStyleSheet("""
@@ -1810,6 +1811,7 @@ class SettingsDialog(BaseAuraDialog):
     
     def _on_shutdown_released(self):
         """Handle shutdown button release - cancel shutdown"""
+        print(f"[Settings] 🟢 Shutdown button released - cancelled (held for {self.shutdown_hold_time:.1f}s)")
         self.shutdown_hold_timer.stop()
         self.shutdown_timer.stop()
         self.shutdown_hold_time = 0
@@ -1840,35 +1842,105 @@ class SettingsDialog(BaseAuraDialog):
     
     def _execute_shutdown(self):
         """Execute system shutdown"""
+        print("[Settings] ⏻ Executing shutdown...")
         self.shutdown_hold_timer.stop()
         self.shutdown_btn.setText("⏻ Shutting down...")
         self.shutdown_btn.setEnabled(False)
         
+        error_msg = None
+        
+        # Try multiple methods in order of preference
         try:
-            # Use systemctl poweroff (works with polkit, no password needed if rule is set)
-            # This is more modern than 'shutdown now' and works better with polkit
+            # Method 1: Use dbus-send (most reliable for GUI apps, works with polkit)
+            print("[Settings] Trying dbus-send method...")
+            result = subprocess.run(
+                ['dbus-send', '--system', '--print-reply', '--dest=org.freedesktop.login1',
+                 '/org/freedesktop/login1', 'org.freedesktop.login1.Manager.PowerOff', 'boolean:false'],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            if result.returncode == 0:
+                print("[Settings] ✅ Shutdown command sent via dbus-send")
+                return
+            else:
+                error_msg = f"dbus-send failed: {result.stderr or result.stdout}"
+                print(f"[Settings] ⚠️ {error_msg}")
+        except FileNotFoundError:
+            error_msg = "dbus-send not found"
+            print(f"[Settings] ⚠️ {error_msg}")
+        except Exception as e:
+            error_msg = f"dbus-send error: {str(e)}"
+            print(f"[Settings] ⚠️ {error_msg}")
+        
+        try:
+            # Method 2: Use systemctl poweroff (works with polkit)
+            print("[Settings] Trying systemctl poweroff method...")
             result = subprocess.run(
                 ['systemctl', 'poweroff'],
                 capture_output=True,
                 text=True,
                 timeout=5
             )
-            
-            if result.returncode != 0:
-                # If systemctl fails, try with pkexec as fallback
-                if shutil.which("pkexec"):
-                    subprocess.run(['pkexec', 'systemctl', 'poweroff'], timeout=5)
-                else:
-                    # Last resort: try shutdown command
-                    subprocess.run(['shutdown', 'now'], timeout=5)
+            if result.returncode == 0:
+                print("[Settings] ✅ Shutdown command sent via systemctl")
+                return
+            else:
+                error_msg = f"systemctl failed: {result.stderr or result.stdout}"
+                print(f"[Settings] ⚠️ {error_msg}")
         except Exception as e:
-            QMessageBox.warning(
-                self,
-                "Shutdown Failed",
-                f"Could not shutdown system:\n{str(e)}\n\n"
-                "You may need to run:\n"
-                "sudo ~/LedgerAI/setup/scripts/fix_shutdown_permissions.sh"
+            error_msg = f"systemctl error: {str(e)}"
+            print(f"[Settings] ⚠️ {error_msg}")
+        
+        try:
+            # Method 3: Try with pkexec (will prompt for password if polkit not configured)
+            if shutil.which("pkexec"):
+                print("[Settings] Trying pkexec systemctl poweroff method...")
+                result = subprocess.run(
+                    ['pkexec', 'systemctl', 'poweroff'],
+                    capture_output=True,
+                    text=True,
+                    timeout=10
+                )
+                if result.returncode == 0:
+                    print("[Settings] ✅ Shutdown command sent via pkexec")
+                    return
+                else:
+                    error_msg = f"pkexec failed: {result.stderr or result.stdout}"
+                    print(f"[Settings] ⚠️ {error_msg}")
+        except Exception as e:
+            error_msg = f"pkexec error: {str(e)}"
+            print(f"[Settings] ⚠️ {error_msg}")
+        
+        try:
+            # Method 4: Last resort - try shutdown command
+            print("[Settings] Trying shutdown now method...")
+            result = subprocess.run(
+                ['shutdown', 'now'],
+                capture_output=True,
+                text=True,
+                timeout=5
             )
+            if result.returncode == 0:
+                print("[Settings] ✅ Shutdown command sent via shutdown")
+                return
+        except Exception as e:
+            error_msg = f"shutdown command error: {str(e)}"
+            print(f"[Settings] ⚠️ {error_msg}")
+        
+        # All methods failed - show error
+        print(f"[Settings] ❌ All shutdown methods failed")
+        self.shutdown_btn.setEnabled(True)
+        QMessageBox.warning(
+            self,
+            "Shutdown Failed",
+            f"Could not shutdown system.\n\n"
+            f"Error: {error_msg or 'Unknown error'}\n\n"
+            "To enable passwordless shutdown, run:\n"
+            "sudo ~/LedgerAI/setup/scripts/fix_shutdown_permissions.sh <username>\n\n"
+            "Or shutdown manually:\n"
+            "sudo shutdown now"
+        )
     
     def exit_to_desktop(self):
         """Exit Aura and return to desktop"""
