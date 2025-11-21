@@ -5,6 +5,7 @@ import sys
 import subprocess
 import json
 import re
+import shutil
 from PyQt5.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel, 
                              QPushButton, QTextEdit, QProgressBar,
                              QMessageBox, QListWidget, QListWidgetItem, QInputDialog,
@@ -1575,6 +1576,37 @@ class SettingsDialog(BaseAuraDialog):
         exit_button_layout.addStretch()
         main_layout.addLayout(exit_button_layout)
         
+        # Shutdown button (requires 3 second hold)
+        shutdown_button_layout = QHBoxLayout()
+        shutdown_button_layout.setSpacing(15)
+        shutdown_button_layout.addStretch()
+        self.shutdown_btn = QPushButton("⏻ Shutdown")
+        self.shutdown_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #8E8E93;
+                color: white;
+                font-size: 16px;
+                font-weight: 600;
+                padding: 15px 30px;
+                border-radius: 20px;
+                border: none;
+                min-width: 200px;
+            }
+            QPushButton:hover { background-color: #6E6E73; }
+            QPushButton:pressed { background-color: #4E4E53; }
+        """)
+        self.shutdown_btn.pressed.connect(self._on_shutdown_pressed)
+        self.shutdown_btn.released.connect(self._on_shutdown_released)
+        self.shutdown_timer = QTimer()
+        self.shutdown_timer.setSingleShot(True)
+        self.shutdown_timer.timeout.connect(self._execute_shutdown)
+        self.shutdown_hold_time = 0
+        self.shutdown_hold_timer = QTimer()
+        self.shutdown_hold_timer.timeout.connect(self._update_shutdown_hold)
+        shutdown_button_layout.addWidget(self.shutdown_btn)
+        shutdown_button_layout.addStretch()
+        main_layout.addLayout(shutdown_button_layout)
+        
         close_layout = QHBoxLayout()
         close_layout.addStretch()
         self.close_btn = QPushButton("Close")
@@ -1754,6 +1786,89 @@ class SettingsDialog(BaseAuraDialog):
         """Add message to status log"""
         self.status_log.append(f"[Settings] {message}")
         print(f"[Settings] {message}")
+    
+    def _on_shutdown_pressed(self):
+        """Handle shutdown button press - start 3 second countdown"""
+        self.shutdown_hold_time = 0
+        self.shutdown_btn.setText("⏻ Hold to Shutdown (3s)")
+        self.shutdown_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #FF3B30;
+                color: white;
+                font-size: 16px;
+                font-weight: 600;
+                padding: 15px 30px;
+                border-radius: 20px;
+                border: none;
+                min-width: 200px;
+            }
+        """)
+        # Update every 100ms to show countdown
+        self.shutdown_hold_timer.start(100)
+        # Execute shutdown after 3 seconds
+        self.shutdown_timer.start(3000)
+    
+    def _on_shutdown_released(self):
+        """Handle shutdown button release - cancel shutdown"""
+        self.shutdown_hold_timer.stop()
+        self.shutdown_timer.stop()
+        self.shutdown_hold_time = 0
+        self.shutdown_btn.setText("⏻ Shutdown")
+        self.shutdown_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #8E8E93;
+                color: white;
+                font-size: 16px;
+                font-weight: 600;
+                padding: 15px 30px;
+                border-radius: 20px;
+                border: none;
+                min-width: 200px;
+            }
+            QPushButton:hover { background-color: #6E6E73; }
+            QPushButton:pressed { background-color: #4E4E53; }
+        """)
+    
+    def _update_shutdown_hold(self):
+        """Update countdown display"""
+        self.shutdown_hold_time += 0.1
+        remaining = max(0, 3.0 - self.shutdown_hold_time)
+        if remaining > 0:
+            self.shutdown_btn.setText(f"⏻ Shutting down... ({remaining:.1f}s)")
+        else:
+            self.shutdown_btn.setText("⏻ Shutting down...")
+    
+    def _execute_shutdown(self):
+        """Execute system shutdown"""
+        self.shutdown_hold_timer.stop()
+        self.shutdown_btn.setText("⏻ Shutting down...")
+        self.shutdown_btn.setEnabled(False)
+        
+        try:
+            # Use systemctl poweroff (works with polkit, no password needed if rule is set)
+            # This is more modern than 'shutdown now' and works better with polkit
+            result = subprocess.run(
+                ['systemctl', 'poweroff'],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            
+            if result.returncode != 0:
+                # If systemctl fails, try with pkexec as fallback
+                if shutil.which("pkexec"):
+                    subprocess.run(['pkexec', 'systemctl', 'poweroff'], timeout=5)
+                else:
+                    # Last resort: try shutdown command
+                    subprocess.run(['shutdown', 'now'], timeout=5)
+        except Exception as e:
+            QMessageBox.warning(
+                self,
+                "Shutdown Failed",
+                f"Could not shutdown system:\n{str(e)}\n\n"
+                "You may need to run:\n"
+                "sudo ~/LedgerAI/setup/scripts/fix_shutdown_permissions.sh"
+            )
     
     def exit_to_desktop(self):
         """Exit Aura and return to desktop"""
