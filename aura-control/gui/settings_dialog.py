@@ -1553,29 +1553,6 @@ class SettingsDialog(BaseAuraDialog):
         row2.addWidget(model_btn)
         main_layout.addLayout(row2)
         
-        exit_button_layout = QHBoxLayout()
-        exit_button_layout.setSpacing(15)
-        exit_button_layout.addStretch()
-        self.exit_btn = QPushButton("🚪 Exit to Desktop")
-        self.exit_btn.clicked.connect(self.exit_to_desktop)
-        self.exit_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #FF9500;
-                color: white;
-                font-size: 16px;
-                font-weight: 600;
-                padding: 15px 30px;
-                border-radius: 20px;
-                border: none;
-                min-width: 200px;
-            }
-            QPushButton:hover { background-color: #E58500; }
-            QPushButton:pressed { background-color: #CC7500; }
-        """)
-        exit_button_layout.addWidget(self.exit_btn)
-        exit_button_layout.addStretch()
-        main_layout.addLayout(exit_button_layout)
-        
         # Shutdown button (requires 3 second hold)
         shutdown_button_layout = QHBoxLayout()
         shutdown_button_layout.setSpacing(15)
@@ -2102,60 +2079,6 @@ class SettingsDialog(BaseAuraDialog):
             "Or restart manually:\n"
             "sudo reboot"
         )
-    
-    def exit_to_desktop(self):
-        """Exit Aura and return to desktop"""
-        reply = QMessageBox.question(
-            self,
-            "Exit to Desktop",
-            "Exit Aura and return to the desktop environment?\n\nThis will stop all Aura services.",
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No
-        )
-        
-        if reply == QMessageBox.Yes:
-            self.log_status("Exiting Aura...")
-            print("[Settings] 🚪 Exit to desktop requested")
-            
-            # Request shutdown via state management
-            try:
-                import sys
-                import os
-                # Add parent directory to path to import state module
-                current_dir = os.path.dirname(os.path.abspath(__file__))
-                parent_dir = os.path.dirname(current_dir)
-                if parent_dir not in sys.path:
-                    sys.path.insert(0, parent_dir)
-                
-                from core.state import request_shutdown
-                request_shutdown()
-                print("[Settings] ✅ Shutdown requested")
-            except ImportError as e:
-                print(f"[Settings] ⚠️ Could not import request_shutdown: {e}")
-            except Exception as e:
-                print(f"[Settings] ⚠️ Error requesting shutdown: {e}")
-            
-            # Close the dialog
-            self.accept()
-            
-            # Simple direct exit - close GUI and quit app
-            print("[Settings] 🔄 Closing GUI and exiting...")
-            try:
-                from gui.aura_gui import close_gui
-                close_gui()
-                print("[Settings] ✅ GUI closed")
-            except Exception as e:
-                print(f"[Settings] ⚠️ Error closing GUI: {e}")
-            
-            # Quit Qt application - this exits the GUI loop, then main.py checks shutdown flag
-            app = QApplication.instance()
-            if app:
-                print("[Settings] 🔄 Quitting Qt application...")
-                app.quit()
-            else:
-                print("[Settings] ⚠️ No QApplication instance found")
-                import os
-                os._exit(0)
     
     def scan_wifi(self):
         """Scan for available WiFi networks"""
