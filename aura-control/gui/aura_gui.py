@@ -167,16 +167,18 @@ class AuraGUI(QMainWindow):
         self.timer.timeout.connect(self.animate_pulse)
         self.timer.start(50)  # Faster updates for smoother animation
         
-        # RAG status indicator
+        # RAG status indicator (create after border overlay so it can be raised above it)
         self.rag_indicator = None
         self.rag_chunks_count = 0
-        self._create_rag_indicator()
         
         # Timer to periodically check RAG status
         self.rag_status_timer = QTimer()
         self.rag_status_timer.timeout.connect(self._update_rag_status)
         self.rag_status_timer.start(5000)  # Check every 5 seconds
-        self._update_rag_status()  # Initial check
+        
+        # Create indicator after border overlay is created
+        QTimer.singleShot(100, self._create_rag_indicator)  # Delay to ensure border overlay is created first
+        QTimer.singleShot(500, self._update_rag_status)  # Initial check after a short delay
         
         # Enable keyboard focus for shortcuts
         self.setFocusPolicy(Qt.StrongFocus)
@@ -981,30 +983,41 @@ class AuraGUI(QMainWindow):
         # Create a small badge in the top-right corner
         self.rag_indicator = QLabel(self)
         self.rag_indicator.setFixedSize(80, 80)
-        self.rag_indicator.move(1000, 20)  # Top-right corner
+        self.rag_indicator.move(980, 20)  # Top-right corner (adjusted for 1080px width)
         self.rag_indicator.setAlignment(Qt.AlignCenter)
         self.rag_indicator.setStyleSheet("""
             QLabel {
-                background-color: rgba(0, 122, 255, 0.8);
+                background-color: rgba(0, 122, 255, 0.9);
                 color: white;
                 border-radius: 40px;
-                font-size: 24px;
+                font-size: 20px;
                 font-weight: bold;
-                border: 2px solid rgba(255, 255, 255, 0.5);
+                border: 3px solid rgba(255, 255, 255, 0.8);
             }
         """)
-        self.rag_indicator.setText("📄")
-        self.rag_indicator.hide()  # Hidden by default
+        self.rag_indicator.setText("📄\n?")
+        # Temporarily show for 2 seconds to verify visibility, then hide
+        self.rag_indicator.show()
         self.rag_indicator.setAttribute(Qt.WA_TransparentForMouseEvents, True)
-        print("[AuraGUI] 📄 RAG indicator created")
+        # Ensure it's on top of everything (including border overlay)
+        self.rag_indicator.setParent(self)
+        self.rag_indicator.raise_()
+        # Hide after 2 seconds (will be shown again if files are found)
+        QTimer.singleShot(2000, lambda: self.rag_indicator.hide() if self.rag_chunks_count == 0 else None)
+        print("[AuraGUI] 📄 RAG indicator created at (980, 20) - will show briefly for testing")
     
     def _update_rag_status(self):
         """Check RAG status and update indicator"""
+        if not hasattr(self, 'rag_indicator') or not self.rag_indicator:
+            return
+        
         try:
             import requests
             import os
             
             RAG_MODE = os.environ.get('RAG_MODE', 'CPU').upper()
+            chunks = 0
+            found_files = False
             
             if RAG_MODE == 'GPU':
                 # Check GPU RAG container
@@ -1013,17 +1026,10 @@ class AuraGUI(QMainWindow):
                     if response.status_code == 200:
                         stats = response.json()
                         chunks = stats.get('chunks_loaded', 0)
-                        self.rag_chunks_count = chunks
-                        if chunks > 0:
-                            self.rag_indicator.setText(f"📄\n{chunks}")
-                            self.rag_indicator.show()
-                        else:
-                            self.rag_indicator.hide()
-                    else:
-                        self.rag_indicator.hide()
-                except Exception:
-                    # RAG container not available
-                    self.rag_indicator.hide()
+                        found_files = chunks > 0
+                        print(f"[AuraGUI] 📄 RAG GPU mode: {chunks} chunks found")
+                except Exception as e:
+                    print(f"[AuraGUI] 📄 RAG GPU check failed: {e}")
             else:
                 # Check CPU RAG (in LLM container)
                 try:
@@ -1032,60 +1038,64 @@ class AuraGUI(QMainWindow):
                     if response.status_code == 200:
                         stats = response.json()
                         chunks = stats.get('chunks_loaded', 0)
-                        self.rag_chunks_count = chunks
-                        if chunks > 0:
-                            self.rag_indicator.setText(f"📄\n{chunks}")
-                            self.rag_indicator.show()
-                        else:
-                            self.rag_indicator.hide()
-                    else:
-                        self.rag_indicator.hide()
-                except Exception:
+                        found_files = chunks > 0
+                        print(f"[AuraGUI] 📄 RAG CPU mode (API): {chunks} chunks found")
+                except Exception as e:
+                    print(f"[AuraGUI] 📄 RAG CPU API check failed: {e}, trying local files...")
                     # Try checking local embeddings directory as fallback
                     embeddings_dir = os.path.join(os.path.dirname(__file__), "../../data/embeddings")
                     if os.path.exists(embeddings_dir):
                         # Check if there are any index files
-                        index_files = [f for f in os.listdir(embeddings_dir) if f.endswith('.bin') or f.endswith('.pkl')]
-                        if index_files:
-                            # Estimate chunks from file size or metadata
-                            metadata_file = os.path.join(embeddings_dir, "metadata.pkl")
-                            if os.path.exists(metadata_file):
-                                try:
-                                    import pickle
-                                    with open(metadata_file, 'rb') as f:
-                                        metadata = pickle.load(f)
-                                        if isinstance(metadata, list):
-                                            chunks = len(metadata)
-                                        elif isinstance(metadata, dict) and 'chunks' in metadata:
-                                            chunks = len(metadata['chunks'])
-                                        else:
-                                            chunks = 1  # At least one file exists
-                                    self.rag_chunks_count = chunks
-                                    if chunks > 0:
-                                        self.rag_indicator.setText(f"📄\n{chunks}")
-                                        self.rag_indicator.show()
-                                    else:
-                                        self.rag_indicator.hide()
-                                except Exception:
-                                    # If we can't read metadata, just show indicator if files exist
-                                    if index_files:
-                                        self.rag_indicator.setText("📄")
-                                        self.rag_indicator.show()
-                                    else:
-                                        self.rag_indicator.hide()
-                            else:
-                                # No metadata, but index files exist
-                                if index_files:
-                                    self.rag_indicator.setText("📄")
-                                    self.rag_indicator.show()
+                        try:
+                            index_files = [f for f in os.listdir(embeddings_dir) if f.endswith('.bin') or f.endswith('.pkl')]
+                            if index_files:
+                                found_files = True
+                                # Estimate chunks from file size or metadata
+                                metadata_file = os.path.join(embeddings_dir, "metadata.pkl")
+                                if os.path.exists(metadata_file):
+                                    try:
+                                        import pickle
+                                        with open(metadata_file, 'rb') as f:
+                                            metadata = pickle.load(f)
+                                            if isinstance(metadata, list):
+                                                chunks = len(metadata)
+                                            elif isinstance(metadata, dict) and 'chunks' in metadata:
+                                                chunks = len(metadata['chunks'])
+                                            else:
+                                                chunks = 1  # At least one file exists
+                                        print(f"[AuraGUI] 📄 RAG CPU mode (local): {chunks} chunks from metadata")
+                                    except Exception as e2:
+                                        print(f"[AuraGUI] 📄 Could not read metadata: {e2}")
+                                        chunks = len(index_files)  # Use file count as estimate
                                 else:
-                                    self.rag_indicator.hide()
-                        else:
-                            self.rag_indicator.hide()
-                    else:
-                        self.rag_indicator.hide()
+                                    # No metadata, but index files exist
+                                    chunks = len(index_files)
+                                    print(f"[AuraGUI] 📄 RAG CPU mode (local): {len(index_files)} index files found")
+                        except Exception as e2:
+                            print(f"[AuraGUI] 📄 Could not list embeddings directory: {e2}")
+            
+            # Update indicator
+            if found_files and chunks > 0:
+                self.rag_chunks_count = chunks
+                if chunks > 99:
+                    self.rag_indicator.setText(f"📄\n99+")
+                else:
+                    self.rag_indicator.setText(f"📄\n{chunks}")
+                self.rag_indicator.show()
+                # Ensure it's on top of everything including border overlay
+                self.rag_indicator.raise_()
+                # Force update to ensure visibility
+                self.rag_indicator.update()
+                self.rag_indicator.repaint()
+                print(f"[AuraGUI] 📄 RAG indicator shown with {chunks} chunks at position ({self.rag_indicator.x()}, {self.rag_indicator.y()})")
+            else:
+                self.rag_indicator.hide()
+                print(f"[AuraGUI] 📄 RAG indicator hidden (no files)")
         except Exception as e:
-            # Silently fail - don't show indicator if we can't check
+            # Log error but don't crash
+            print(f"[AuraGUI] 📄 RAG status check error: {e}")
+            import traceback
+            traceback.print_exc()
             if self.rag_indicator:
                 self.rag_indicator.hide()
 
