@@ -33,8 +33,10 @@ PCM_SAMPLE_RATE = 22050
 PCM_FORMAT = "pcm_22050"
 VOLUME_SET = False
 
-# TTS volume (hardcoded, no .env needed)
-TTS_VOLUME = 100  # percent (default: 100%)
+# TTS volume - load from .env if available, otherwise default to 100
+TTS_VOLUME = int(os.getenv("TTS_VOLUME", "100"))  # percent (default: 100%)
+# Ensure volume is in valid range
+TTS_VOLUME = max(0, min(100, TTS_VOLUME))
 
 # Device identification - auto-detect connected output device
 ALSA_CONTROLS = ["PCM", "Speaker", "Master"]  # try these in order
