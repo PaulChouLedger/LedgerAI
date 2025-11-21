@@ -183,10 +183,115 @@ class WiFiScanThread(QThread):
         except Exception as e:
             self.scan_error.emit(f"Scan error: {str(e)}")
 
+class OTACheckThread(QThread):
+    """Thread to check for available updates without blocking UI"""
+    check_complete = pyqtSignal(bool, int)  # has_updates, commits_behind
+    
+    def __init__(self, repo_path, github_token):
+        super().__init__()
+        self.repo_path = repo_path
+        self.github_token = github_token
+    
+    def run(self):
+        """Check if updates are available"""
+        try:
+            # Check if we're in a git repository
+            result = subprocess.run(
+                ['git', 'rev-parse', '--git-dir'],
+                cwd=self.repo_path,
+                capture_output=True,
+                text=True
+            )
+            
+            if result.returncode != 0:
+                self.check_complete.emit(False, 0)
+                return
+            
+            # Get current branch
+            result = subprocess.run(
+                ['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
+                cwd=self.repo_path,
+                capture_output=True,
+                text=True
+            )
+            current_branch = result.stdout.strip()
+            
+            # Configure git to use token for authentication if provided
+            if self.github_token:
+                result = subprocess.run(
+                    ['git', 'remote', 'get-url', 'origin'],
+                    cwd=self.repo_path,
+                    capture_output=True,
+                    text=True
+                )
+                
+                if result.returncode == 0:
+                    original_url = result.stdout.strip()
+                    remote_url = original_url
+                    
+                    # Convert SSH to HTTPS if needed
+                    if remote_url.startswith('git@'):
+                        remote_url = remote_url.replace('git@github.com:', 'https://github.com/')
+                    
+                    # Clean the URL - remove existing credentials
+                    import re
+                    remote_url = re.sub(r'ghp_[A-Za-z0-9]{36,}@', '', remote_url)
+                    remote_url = re.sub(r'https://[^@]+@github\.com', 'https://github.com', remote_url)
+                    
+                    if '@' in remote_url and 'github.com' in remote_url:
+                        parts = remote_url.split('@')
+                        if len(parts) > 1:
+                            host_path = parts[-1]
+                            if not host_path.startswith('https://'):
+                                if host_path.startswith('http://'):
+                                    host_path = host_path.replace('http://', 'https://')
+                                elif host_path.startswith('github.com'):
+                                    host_path = f"https://{host_path}"
+                                else:
+                                    host_path = f"https://{host_path}"
+                            remote_url = host_path
+                    
+                    if remote_url.startswith('https://github.com') and self.github_token not in remote_url:
+                        url_parts = remote_url.split('://', 1)
+                        if len(url_parts) == 2:
+                            remote_url = f"{url_parts[0]}://{self.github_token}@{url_parts[1]}"
+                            
+                            subprocess.run(
+                                ['git', 'remote', 'set-url', 'origin', remote_url],
+                                cwd=self.repo_path,
+                                capture_output=True
+                            )
+            
+            # Fetch latest changes (quiet mode)
+            subprocess.run(
+                ['git', 'fetch', 'origin'],
+                cwd=self.repo_path,
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+            
+            # Check if there are updates
+            result = subprocess.run(
+                ['git', 'rev-list', '--count', f'HEAD..origin/{current_branch}'],
+                cwd=self.repo_path,
+                capture_output=True,
+                text=True
+            )
+            
+            commits_behind = int(result.stdout.strip()) if result.stdout.strip().isdigit() else 0
+            has_updates = commits_behind > 0
+            
+            self.check_complete.emit(has_updates, commits_behind)
+            
+        except Exception as e:
+            print(f"[OTA Check] ⚠️ Error checking for updates: {e}")
+            self.check_complete.emit(False, 0)
+
 class OTAUpdateThread(QThread):
     """Thread to perform OTA update without blocking UI"""
     update_progress = pyqtSignal(str)
-    update_complete = pyqtSignal(bool, str)
+    update_complete = pyqtSignal(bool, str, bool)  # success, message, was_updated
     
     def __init__(self, repo_path, github_token):
         super().__init__()
@@ -207,7 +312,7 @@ class OTAUpdateThread(QThread):
             )
             
             if result.returncode != 0:
-                self.update_complete.emit(False, "Not a git repository")
+                self.update_complete.emit(False, "Not a git repository", False)
                 return
             
             # Get current branch
@@ -320,7 +425,7 @@ class OTAUpdateThread(QThread):
             if result.returncode != 0:
                 # Mask token in error messages
                 error_msg = self._mask_token(result.stderr, self.github_token)
-                self.update_complete.emit(False, f"Fetch failed: {error_msg}")
+                self.update_complete.emit(False, f"Fetch failed: {error_msg}", False)
                 return
             
             self.update_progress.emit("Checking for updates...")
@@ -335,7 +440,7 @@ class OTAUpdateThread(QThread):
             commits_behind = int(result.stdout.strip()) if result.stdout.strip().isdigit() else 0
             
             if commits_behind == 0:
-                self.update_complete.emit(True, "Already up to date")
+                self.update_complete.emit(True, "Already up to date", False)  # success=True, but was_updated=False
                 return
             
             self.update_progress.emit(f"Found {commits_behind} new commits. Updating...")
@@ -352,18 +457,18 @@ class OTAUpdateThread(QThread):
             if result.returncode != 0:
                 # Mask token in error messages
                 error_msg = self._mask_token(result.stderr, self.github_token)
-                self.update_complete.emit(False, f"Pull failed: {error_msg}")
+                self.update_complete.emit(False, f"Pull failed: {error_msg}", False)
                 return
             
             self.update_progress.emit("Update complete!")
-            self.update_complete.emit(True, f"Successfully updated {commits_behind} commits")
+            self.update_complete.emit(True, f"Successfully updated {commits_behind} commits", True)  # success=True, was_updated=True
             
         except subprocess.TimeoutExpired:
-            self.update_complete.emit(False, "Update timed out")
+            self.update_complete.emit(False, "Update timed out", False)
         except Exception as e:
             # Mask token in exception messages
             error_msg = self._mask_token(str(e), self.github_token)
-            self.update_complete.emit(False, f"Update error: {error_msg}")
+            self.update_complete.emit(False, f"Update error: {error_msg}", False)
     
     def _mask_token(self, text, token=None):
         """Mask GitHub token in text to prevent exposure in error messages"""
@@ -727,6 +832,9 @@ class UpdateDialog(BaseAuraDialog):
         main_layout.addLayout(button_row)
         self.progress_bar = QProgressBar(); self.progress_bar.setVisible(False); self.progress_bar.setStyleSheet("QProgressBar { border: 1px solid #555; border-radius: 8px; background-color: rgba(44,44,46,0.8); color: white; text-align: center; } QProgressBar::chunk { background-color: #007AFF; border-radius: 8px; }"); main_layout.addWidget(self.progress_bar)
         main_layout.addStretch(1); self.setLayout(main_layout)
+        
+        # Check for updates when dialog opens
+        self.check_update_available()
     
     def _on_close(self):
         """Override for cleanup"""
@@ -738,7 +846,20 @@ class UpdateDialog(BaseAuraDialog):
         except Exception:
             pass
         
-        # Clean up threads
+        # Clean up check thread
+        try:
+            if hasattr(self, "ota_check_thread") and self.ota_check_thread:
+                if self.ota_check_thread.isRunning():
+                    try:
+                        self.ota_check_thread.terminate()
+                        self.ota_check_thread.wait(500)
+                    except Exception:
+                        pass
+                self.ota_check_thread = None
+        except Exception:
+            pass
+        
+        # Clean up update thread
         try:
             if hasattr(self, "ota_update_thread") and self.ota_update_thread:
                 try:
@@ -859,10 +980,72 @@ class UpdateDialog(BaseAuraDialog):
         self.ota_update_thread.finished.connect(lambda: (self.update_btn.setEnabled(True), self.progress_bar.setVisible(False)))
         self.ota_update_thread.start()
     
-    def _on_update_complete(self, success, message):
+    def check_update_available(self):
+        """Check if updates are available and update button text"""
+        try:
+            workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+            dotenv_path = os.path.join(workspace_root, '.env')
+            github_token = None
+            try:
+                from dotenv import dotenv_values
+                env_vars = dotenv_values(dotenv_path)
+                github_token = env_vars.get('GITHUB_TOKEN', '')
+                if not github_token or github_token == 'your_github_token_here':
+                    github_token = None
+            except Exception:
+                pass
+            
+            repo_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+            self.ota_check_thread = OTACheckThread(repo_path, github_token or '')
+            self.ota_check_thread.check_complete.connect(self._on_check_complete)
+            self.ota_check_thread.start()
+        except Exception as e:
+            print(f"[UpdateDialog] ⚠️ Error starting update check: {e}")
+    
+    def _on_check_complete(self, has_updates, commits_behind):
+        """Update button text based on update availability"""
+        if has_updates:
+            self.update_btn.setText(f"🔄 Update Available ({commits_behind} commits) - Update Now")
+            self.update_btn.setStyleSheet("""
+                QPushButton {
+                    background-color: #FF9500;
+                    color: white;
+                    font-size: 14px;
+                    font-weight: 600;
+                    padding: 12px 24px;
+                    border-radius: 20px;
+                    border: none;
+                    min-width: 200px;
+                }
+                QPushButton:hover {
+                    background-color: #E58500;
+                }
+                QPushButton:pressed {
+                    background-color: #CC7500;
+                }
+            """)
+            self._log(f"ℹ️ {commits_behind} update(s) available")
+        else:
+            self.update_btn.setText("⬇️ Update from GitHub")
+            self.update_btn.setStyleSheet(SettingsDialog.get_button_style(None))
+            self._log("ℹ️ System is up to date")
+    
+    def _on_update_complete(self, success, message, was_updated):
         self.progress_bar.setRange(0, 100); self.progress_bar.setValue(100)
         if success: 
             self._log(f"✅ {message}")
+            # Only restart if an actual update was performed
+            if not was_updated:
+                self._log("ℹ️ No updates available - skipping restart")
+                QMessageBox.information(
+                    self, 
+                    "Update Check", 
+                    message
+                )
+                # Re-check for updates after showing message
+                self.check_update_available()
+                return
+            
             # Restart main.py after successful update
             self._log("🔄 Restarting Aura system...")
             try:
