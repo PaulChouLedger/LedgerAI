@@ -1158,7 +1158,7 @@ ExecStartPre=/bin/bash -c 'SOCKET=\$(ls /tmp/.X11-unix/ 2>/dev/null | grep "^X" 
 # Set default audio output (UACDemoV1.0) on every boot - ALSA and PulseAudio
 ExecStartPre=$LEDGERAI_DIR/setup/scripts/set_default_audio_on_boot.sh
 ExecStartPre=/bin/sleep 5
-ExecStart=$VENV_DIR/bin/python3 $LEDGERAI_DIR/aura-control/core/main.py
+ExecStart=$VENV_DIR/bin/python3 -u $LEDGERAI_DIR/aura-control/core/main.py
 Restart=always
 RestartSec=10
 StandardOutput=journal

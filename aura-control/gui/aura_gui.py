@@ -167,6 +167,17 @@ class AuraGUI(QMainWindow):
         self.timer.timeout.connect(self.animate_pulse)
         self.timer.start(50)  # Faster updates for smoother animation
         
+        # RAG status indicator
+        self.rag_indicator = None
+        self.rag_chunks_count = 0
+        self._create_rag_indicator()
+        
+        # Timer to periodically check RAG status
+        self.rag_status_timer = QTimer()
+        self.rag_status_timer.timeout.connect(self._update_rag_status)
+        self.rag_status_timer.start(5000)  # Check every 5 seconds
+        self._update_rag_status()  # Initial check
+        
         # Enable keyboard focus for shortcuts
         self.setFocusPolicy(Qt.StrongFocus)
     
@@ -276,6 +287,10 @@ class AuraGUI(QMainWindow):
             unblock_transcription()
         except:
             pass
+        
+        # Update RAG indicator after upload (files may have been added)
+        if hasattr(self, '_update_rag_status'):
+            self._update_rag_status()
         
         print("[AuraGUI] ✅ Upload dialog closed")
     
@@ -960,6 +975,119 @@ class AuraGUI(QMainWindow):
             self.close()
         else:
             super().keyPressEvent(event)
+    
+    def _create_rag_indicator(self):
+        """Create a visual indicator showing RAG file status"""
+        # Create a small badge in the top-right corner
+        self.rag_indicator = QLabel(self)
+        self.rag_indicator.setFixedSize(80, 80)
+        self.rag_indicator.move(1000, 20)  # Top-right corner
+        self.rag_indicator.setAlignment(Qt.AlignCenter)
+        self.rag_indicator.setStyleSheet("""
+            QLabel {
+                background-color: rgba(0, 122, 255, 0.8);
+                color: white;
+                border-radius: 40px;
+                font-size: 24px;
+                font-weight: bold;
+                border: 2px solid rgba(255, 255, 255, 0.5);
+            }
+        """)
+        self.rag_indicator.setText("📄")
+        self.rag_indicator.hide()  # Hidden by default
+        self.rag_indicator.setAttribute(Qt.WA_TransparentForMouseEvents, True)
+        print("[AuraGUI] 📄 RAG indicator created")
+    
+    def _update_rag_status(self):
+        """Check RAG status and update indicator"""
+        try:
+            import requests
+            import os
+            
+            RAG_MODE = os.environ.get('RAG_MODE', 'CPU').upper()
+            
+            if RAG_MODE == 'GPU':
+                # Check GPU RAG container
+                try:
+                    response = requests.get("http://localhost:11435/rag/stats", timeout=2)
+                    if response.status_code == 200:
+                        stats = response.json()
+                        chunks = stats.get('chunks_loaded', 0)
+                        self.rag_chunks_count = chunks
+                        if chunks > 0:
+                            self.rag_indicator.setText(f"📄\n{chunks}")
+                            self.rag_indicator.show()
+                        else:
+                            self.rag_indicator.hide()
+                    else:
+                        self.rag_indicator.hide()
+                except Exception:
+                    # RAG container not available
+                    self.rag_indicator.hide()
+            else:
+                # Check CPU RAG (in LLM container)
+                try:
+                    # Try to get stats from LLM container
+                    response = requests.get("http://localhost:11434/rag/stats", timeout=2)
+                    if response.status_code == 200:
+                        stats = response.json()
+                        chunks = stats.get('chunks_loaded', 0)
+                        self.rag_chunks_count = chunks
+                        if chunks > 0:
+                            self.rag_indicator.setText(f"📄\n{chunks}")
+                            self.rag_indicator.show()
+                        else:
+                            self.rag_indicator.hide()
+                    else:
+                        self.rag_indicator.hide()
+                except Exception:
+                    # Try checking local embeddings directory as fallback
+                    embeddings_dir = os.path.join(os.path.dirname(__file__), "../../data/embeddings")
+                    if os.path.exists(embeddings_dir):
+                        # Check if there are any index files
+                        index_files = [f for f in os.listdir(embeddings_dir) if f.endswith('.bin') or f.endswith('.pkl')]
+                        if index_files:
+                            # Estimate chunks from file size or metadata
+                            metadata_file = os.path.join(embeddings_dir, "metadata.pkl")
+                            if os.path.exists(metadata_file):
+                                try:
+                                    import pickle
+                                    with open(metadata_file, 'rb') as f:
+                                        metadata = pickle.load(f)
+                                        if isinstance(metadata, list):
+                                            chunks = len(metadata)
+                                        elif isinstance(metadata, dict) and 'chunks' in metadata:
+                                            chunks = len(metadata['chunks'])
+                                        else:
+                                            chunks = 1  # At least one file exists
+                                    self.rag_chunks_count = chunks
+                                    if chunks > 0:
+                                        self.rag_indicator.setText(f"📄\n{chunks}")
+                                        self.rag_indicator.show()
+                                    else:
+                                        self.rag_indicator.hide()
+                                except Exception:
+                                    # If we can't read metadata, just show indicator if files exist
+                                    if index_files:
+                                        self.rag_indicator.setText("📄")
+                                        self.rag_indicator.show()
+                                    else:
+                                        self.rag_indicator.hide()
+                            else:
+                                # No metadata, but index files exist
+                                if index_files:
+                                    self.rag_indicator.setText("📄")
+                                    self.rag_indicator.show()
+                                else:
+                                    self.rag_indicator.hide()
+                        else:
+                            self.rag_indicator.hide()
+                    else:
+                        self.rag_indicator.hide()
+        except Exception as e:
+            # Silently fail - don't show indicator if we can't check
+            if self.rag_indicator:
+                self.rag_indicator.hide()
 
 # === GUI Control ===
 def launch_gui():
