@@ -18,6 +18,284 @@ import webbrowser
 # Import base dialog template
 from gui.base_dialog import BaseAuraDialog
 
+class RAGFileSelectionDialog(BaseAuraDialog):
+    """Dialog to select files from available RAG files"""
+    
+    def __init__(self, parent=None):
+        super().__init__(parent, title="📁 Select Files for RAG", size=(1080, 1080), modal=True)
+        self.selected_files = []
+    
+    def _setup_ui(self):
+        """Setup UI - called by BaseAuraDialog"""
+        layout = QVBoxLayout()
+        layout.setContentsMargins(120, 100, 120, 100)
+        layout.setSpacing(20)
+        
+        # Title
+        title = QLabel("📁 Available Files for RAG")
+        title.setFont(QFont("Arial", 18, QFont.Bold))
+        title.setAlignment(Qt.AlignCenter)
+        title.setStyleSheet("color: #ffffff; font-weight: 600; margin: 15px; font-size: 18px;")
+        layout.addWidget(title)
+        
+        # Description
+        desc = QLabel("Select files from your system to add to RAG")
+        desc.setAlignment(Qt.AlignCenter)
+        desc.setStyleSheet("color: #8e8e93; font-size: 14px; margin: 10px;")
+        layout.addWidget(desc)
+        
+        # File list (multi-select with checkboxes)
+        self.file_list = QListWidget()
+        self.file_list.setStyleSheet("""
+            QListWidget {
+                background-color: rgba(44, 44, 46, 0.8);
+                border: 1px solid #555;
+                border-radius: 15px;
+                color: white;
+                font-size: 14px;
+                padding: 10px;
+            }
+            QListWidget::item {
+                padding: 12px;
+                border-radius: 8px;
+                margin: 2px;
+            }
+            QListWidget::item:selected {
+                background-color: rgba(0, 122, 255, 0.3);
+            }
+            QListWidget::item:hover {
+                background-color: rgba(142, 142, 147, 0.2);
+            }
+        """)
+        layout.addWidget(self.file_list, 1)  # Stretch factor
+        
+        # Load available files
+        self._load_available_files()
+        
+        # Buttons
+        button_layout = QHBoxLayout()
+        button_layout.setSpacing(15)
+        
+        # Select All button
+        select_all_btn = QPushButton("✓ Select All")
+        select_all_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #34C759;
+                color: white;
+                font-size: 14px;
+                font-weight: 600;
+                padding: 12px 24px;
+                border-radius: 20px;
+                border: none;
+                min-width: 120px;
+            }
+            QPushButton:hover {
+                background-color: #30B350;
+            }
+        """)
+        select_all_btn.clicked.connect(self._select_all)
+        button_layout.addWidget(select_all_btn)
+        
+        # Deselect All button
+        deselect_all_btn = QPushButton("✗ Deselect All")
+        deselect_all_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #8e8e93;
+                color: white;
+                font-size: 14px;
+                font-weight: 600;
+                padding: 12px 24px;
+                border-radius: 20px;
+                border: none;
+                min-width: 120px;
+            }
+            QPushButton:hover {
+                background-color: #6e6e73;
+            }
+        """)
+        deselect_all_btn.clicked.connect(self._deselect_all)
+        button_layout.addWidget(deselect_all_btn)
+        
+        button_layout.addStretch()
+        
+        # Cancel button
+        cancel_btn = QPushButton("❌ Cancel")
+        cancel_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #FF3B30;
+                color: white;
+                font-size: 14px;
+                font-weight: 600;
+                padding: 12px 24px;
+                border-radius: 20px;
+                border: none;
+                min-width: 120px;
+            }
+            QPushButton:hover {
+                background-color: #D70015;
+            }
+        """)
+        cancel_btn.clicked.connect(self.reject)
+        button_layout.addWidget(cancel_btn)
+        
+        # OK button
+        ok_btn = QPushButton("✅ Select")
+        ok_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #007AFF;
+                color: white;
+                font-size: 14px;
+                font-weight: 600;
+                padding: 12px 24px;
+                border-radius: 20px;
+                border: none;
+                min-width: 120px;
+            }
+            QPushButton:hover {
+                background-color: #0056CC;
+            }
+        """)
+        ok_btn.clicked.connect(self._accept_selection)
+        button_layout.addWidget(ok_btn)
+        
+        layout.addLayout(button_layout)
+        self.setLayout(layout)
+    
+    def _load_available_files(self):
+        """Load available files for RAG - shows files already in RAG and allows selecting new ones"""
+        # Get workspace root
+        workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+        input_dir = os.path.join(workspace_root, 'data', 'input')
+        embeddings_dir = os.path.join(workspace_root, 'data', 'embeddings')
+        
+        # Supported file extensions
+        supported_extensions = ['.pdf', '.txt', '.docx', '.md', '.xlsx', '.xls']
+        
+        files_found = []
+        processed_files = set()
+        
+        # Check data/input directory for files already uploaded (available for RAG)
+        if os.path.exists(input_dir):
+            for filename in os.listdir(input_dir):
+                file_path = os.path.join(input_dir, filename)
+                if os.path.isfile(file_path):
+                    file_ext = os.path.splitext(filename)[1].lower()
+                    if file_ext in supported_extensions:
+                        # Check if file is already processed (has embeddings)
+                        is_processed = False
+                        if os.path.exists(embeddings_dir):
+                            # Check metadata for this file
+                            metadata_file = os.path.join(embeddings_dir, "metadata.pkl")
+                            if os.path.exists(metadata_file):
+                                try:
+                                    import pickle
+                                    with open(metadata_file, 'rb') as f:
+                                        metadata = pickle.load(f)
+                                        if isinstance(metadata, list):
+                                            for chunk_meta in metadata:
+                                                if isinstance(chunk_meta, dict) and chunk_meta.get('source') == filename:
+                                                    is_processed = True
+                                                    break
+                                except:
+                                    pass
+                        
+                        status = "✅ In RAG" if is_processed else "📁 Uploaded (pending)"
+                        files_found.append((file_path, status))
+                        processed_files.add(filename)
+        
+        # Also allow selecting files from common locations (new files to add)
+        import glob
+        home_dir = os.path.expanduser("~")
+        common_dirs = [
+            os.path.join(home_dir, "Documents"),
+            os.path.join(home_dir, "Downloads"),
+            os.path.join(home_dir, "Desktop"),
+        ]
+        
+        for common_dir in common_dirs:
+            if os.path.exists(common_dir):
+                for ext in supported_extensions:
+                    pattern = os.path.join(common_dir, f"*{ext}")
+                    for file_path in glob.glob(pattern):
+                        filename = os.path.basename(file_path)
+                        if filename not in processed_files and file_path not in [f[0] for f in files_found]:
+                            files_found.append((file_path, "💾 New (to add)"))
+        
+        # Add files to list
+        if files_found:
+            for file_path, source in files_found:
+                filename = os.path.basename(file_path)
+                file_ext = os.path.splitext(filename)[1].lower()
+                
+                # Choose icon based on file type
+                if file_ext in ['.xlsx', '.xls']:
+                    icon = "📊"
+                elif file_ext == '.pdf':
+                    icon = "📕"
+                elif file_ext in ['.docx', '.doc']:
+                    icon = "📘"
+                elif file_ext in ['.md']:
+                    icon = "📝"
+                else:
+                    icon = "📄"
+                
+                # Get file size
+                try:
+                    size_bytes = os.path.getsize(file_path)
+                    if size_bytes < 1024:
+                        size_str = f"{size_bytes}B"
+                    elif size_bytes < 1024 * 1024:
+                        size_str = f"{size_bytes / 1024:.1f}KB"
+                    else:
+                        size_str = f"{size_bytes / (1024 * 1024):.1f}MB"
+                except:
+                    size_str = "?"
+                
+                item_text = f"{icon} {filename} ({size_str}) - {source}"
+                item = QListWidgetItem(item_text)
+                item.setData(Qt.UserRole, file_path)
+                item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+                item.setCheckState(Qt.Unchecked)
+                self.file_list.addItem(item)
+        else:
+            # No files found
+            no_files_item = QListWidgetItem("📭 No files found. Upload files first or check Documents/Downloads/Desktop")
+            no_files_item.setFlags(Qt.NoItemFlags)  # Not selectable
+            self.file_list.addItem(no_files_item)
+    
+    def _select_all(self):
+        """Select all files in the list"""
+        for i in range(self.file_list.count()):
+            item = self.file_list.item(i)
+            if item.flags() & Qt.ItemIsEnabled:
+                item.setCheckState(Qt.Checked)
+    
+    def _deselect_all(self):
+        """Deselect all files in the list"""
+        for i in range(self.file_list.count()):
+            item = self.file_list.item(i)
+            if item.flags() & Qt.ItemIsEnabled:
+                item.setCheckState(Qt.Unchecked)
+    
+    def _accept_selection(self):
+        """Accept selection and return selected files"""
+        self.selected_files = []
+        for i in range(self.file_list.count()):
+            item = self.file_list.item(i)
+            if item.checkState() == Qt.Checked:
+                file_path = item.data(Qt.UserRole)
+                if file_path:
+                    self.selected_files.append(file_path)
+        
+        if self.selected_files:
+            self.accept()
+        else:
+            QMessageBox.warning(self, "No Selection", "Please select at least one file.")
+    
+    def get_selected_files(self):
+        """Get list of selected file paths"""
+        return self.selected_files
+
 def get_local_ip():
     """Get the local IP address"""
     try:
@@ -409,37 +687,34 @@ class FileUploadDialog(BaseAuraDialog):
         # Edge buttons removed - separate GUI functions will have their own scripts
     
     def select_files(self):
-        """Open file dialog to select multiple files"""
-        files, _ = QFileDialog.getOpenFileNames(
-            self,
-            "Select Documents to Upload",
-            "",
-            "All Supported (*.pdf *.txt *.docx *.md *.xlsx *.xls);;PDF Files (*.pdf);;Text Files (*.txt);;Word Documents (*.docx);;Markdown (*.md);;Excel Files (*.xlsx *.xls)"
-        )
-        
-        if files:
-            for file_path in files:
-                if file_path not in self.uploaded_files:
-                    self.uploaded_files.append(file_path)
-                    filename = os.path.basename(file_path)
-                    # Choose icon based on file type
-                    file_ext = os.path.splitext(filename)[1].lower()
-                    if file_ext in ['.xlsx', '.xls']:
-                        icon = "📊"
-                    elif file_ext == '.pdf':
-                        icon = "📕"
-                    elif file_ext in ['.docx', '.doc']:
-                        icon = "📘"
-                    elif file_ext in ['.md']:
-                        icon = "📝"
-                    else:
-                        icon = "📄"
-                    item = QListWidgetItem(f"{icon} {filename}")
-                    item.setData(Qt.UserRole, file_path)
-                    self.file_list.addItem(item)
-            
-            self.upload_btn.setEnabled(len(self.uploaded_files) > 0)
-            self.log_status(f"Selected {len(files)} file(s)")
+        """Open custom file selection dialog showing available RAG files"""
+        # Show file selection dialog
+        dialog = RAGFileSelectionDialog(self)
+        if dialog.exec_() == QDialog.Accepted:
+            selected_files = dialog.get_selected_files()
+            if selected_files:
+                for file_path in selected_files:
+                    if file_path not in self.uploaded_files:
+                        self.uploaded_files.append(file_path)
+                        filename = os.path.basename(file_path)
+                        # Choose icon based on file type
+                        file_ext = os.path.splitext(filename)[1].lower()
+                        if file_ext in ['.xlsx', '.xls']:
+                            icon = "📊"
+                        elif file_ext == '.pdf':
+                            icon = "📕"
+                        elif file_ext in ['.docx', '.doc']:
+                            icon = "📘"
+                        elif file_ext in ['.md']:
+                            icon = "📝"
+                        else:
+                            icon = "📄"
+                        item = QListWidgetItem(f"{icon} {filename}")
+                        item.setData(Qt.UserRole, file_path)
+                        self.file_list.addItem(item)
+                
+                self.upload_btn.setEnabled(len(self.uploaded_files) > 0)
+                self.log_status(f"Selected {len(selected_files)} file(s)")
     
     def clear_files(self):
         """Clear all files from the upload list"""
