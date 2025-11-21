@@ -568,99 +568,109 @@ class FileUploadDialog(BaseAuraDialog):
                     return
                 
                 # Create QR code dialog using BaseAuraDialog for proper centering
-                class QRCodeDialog(BaseAuraDialog):
-                    def __init__(self, parent, qr_pixmap, upload_url):
-                        super().__init__(parent, title="📱 Mobile Upload QR Code", size=(1080, 1080), modal=True)
-                        self.qr_pixmap = qr_pixmap
-                        self.upload_url = upload_url
+                try:
+                    class QRCodeDialog(BaseAuraDialog):
+                        def __init__(self, parent, qr_pixmap, upload_url):
+                            super().__init__(parent, title="📱 Mobile Upload QR Code", size=(1080, 1080), modal=True)
+                            self.qr_pixmap = qr_pixmap
+                            self.upload_url = upload_url
+                        
+                        def _setup_ui(self):
+                            """Setup UI - called by BaseAuraDialog"""
+                            layout = QVBoxLayout()
+                            layout.setContentsMargins(120, 100, 120, 100)
+                            layout.setSpacing(15)
+                            layout.addStretch(1)
+                            
+                            # Title
+                            title = QLabel("📱 Mobile Upload")
+                            title.setFont(QFont("Arial", 16, QFont.Bold))
+                            title.setAlignment(Qt.AlignCenter)
+                            title.setStyleSheet("color: #ffffff; font-weight: 600; margin: 15px; font-size: 16px;")
+                            layout.addWidget(title)
+                            
+                            # Instructions
+                            instructions = QLabel("Scan QR code with your phone:")
+                            instructions.setAlignment(Qt.AlignCenter)
+                            instructions.setStyleSheet("color: #8e8e93; font-size: 13px; margin: 8px;")
+                            layout.addWidget(instructions)
+                            
+                            # QR Code
+                            qr_label = QLabel()
+                            qr_label.setAlignment(Qt.AlignCenter)
+                            qr_label.setStyleSheet("""
+                                QLabel {
+                                    background-color: rgba(44, 44, 46, 0.8);
+                                    border-radius: 15px;
+                                    border: none;
+                                    padding: 20px;
+                                }
+                            """)
+                            qr_label.setPixmap(self.qr_pixmap.scaled(300, 300, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+                            layout.addWidget(qr_label)
+                            
+                            # URL
+                            url_label = QLabel(f"🌐 {self.upload_url}")
+                            url_label.setAlignment(Qt.AlignCenter)
+                            url_label.setStyleSheet("color: #007AFF; font-size: 14px; font-weight: 500; margin: 10px;")
+                            layout.addWidget(url_label)
+                            
+                            # Buttons
+                            button_layout = QHBoxLayout()
+                            
+                            open_btn = QPushButton("🌐 Open in Browser")
+                            open_btn.clicked.connect(lambda: webbrowser.open(self.upload_url))
+                            open_btn.setStyleSheet("""
+                                QPushButton {
+                                    background-color: #007AFF;
+                                    color: white;
+                                    font-size: 12px;
+                                    font-weight: 600;
+                                    padding: 8px 16px;
+                                    border-radius: 15px;
+                                    border: none;
+                                    min-width: 60px;
+                                }
+                                QPushButton:hover {
+                                    background-color: #0056CC;
+                                }
+                            """)
+                            button_layout.addWidget(open_btn)
+                            
+                            close_btn = QPushButton("❌ Close")
+                            close_btn.clicked.connect(self.accept)
+                            close_btn.setStyleSheet("""
+                                QPushButton {
+                                    background-color: #FF3B30;
+                                    color: white;
+                                    font-size: 12px;
+                                    font-weight: 600;
+                                    padding: 8px 16px;
+                                    border-radius: 15px;
+                                    border: none;
+                                    min-width: 60px;
+                                }
+                                QPushButton:hover {
+                                    background-color: #D70015;
+                                }
+                            """)
+                            button_layout.addWidget(close_btn)
+                            
+                            layout.addLayout(button_layout)
+                            layout.addStretch(1)
+                            self.setLayout(layout)
                     
-                    def _setup_ui(self):
-                        """Setup UI - called by BaseAuraDialog"""
-                        layout = QVBoxLayout()
-                        layout.setContentsMargins(120, 100, 120, 100)
-                        layout.setSpacing(15)
-                        layout.addStretch(1)
-                        
-                        # Title
-                        title = QLabel("📱 Mobile Upload")
-                        title.setFont(QFont("Arial", 16, QFont.Bold))
-                        title.setAlignment(Qt.AlignCenter)
-                        title.setStyleSheet("color: #ffffff; font-weight: 600; margin: 15px; font-size: 16px;")
-                        layout.addWidget(title)
-                        
-                        # Instructions
-                        instructions = QLabel("Scan QR code with your phone:")
-                        instructions.setAlignment(Qt.AlignCenter)
-                        instructions.setStyleSheet("color: #8e8e93; font-size: 13px; margin: 8px;")
-                        layout.addWidget(instructions)
-                        
-                        # QR Code
-                        qr_label = QLabel()
-                        qr_label.setAlignment(Qt.AlignCenter)
-                        qr_label.setStyleSheet("""
-                            QLabel {
-                                background-color: rgba(44, 44, 46, 0.8);
-                                border-radius: 15px;
-                                border: none;
-                                padding: 20px;
-                            }
-                        """)
-                        qr_label.setPixmap(self.qr_pixmap.scaled(300, 300, Qt.KeepAspectRatio, Qt.SmoothTransformation))
-                        layout.addWidget(qr_label)
-                        
-                        # URL
-                        url_label = QLabel(f"🌐 {self.upload_url}")
-                        url_label.setAlignment(Qt.AlignCenter)
-                        url_label.setStyleSheet("color: #007AFF; font-size: 14px; font-weight: 500; margin: 10px;")
-                        layout.addWidget(url_label)
-                        
-                        # Buttons
-                        button_layout = QHBoxLayout()
-                        
-                        open_btn = QPushButton("🌐 Open in Browser")
-                        open_btn.clicked.connect(lambda: webbrowser.open(self.upload_url))
-                        open_btn.setStyleSheet("""
-                            QPushButton {
-                                background-color: #007AFF;
-                                color: white;
-                                font-size: 12px;
-                                font-weight: 600;
-                                padding: 8px 16px;
-                                border-radius: 15px;
-                                border: none;
-                                min-width: 60px;
-                            }
-                            QPushButton:hover {
-                                background-color: #0056CC;
-                            }
-                        """)
-                        button_layout.addWidget(open_btn)
-                        
-                        close_btn = QPushButton("❌ Close")
-                        close_btn.clicked.connect(self.accept)
-                        close_btn.setStyleSheet("""
-                            QPushButton {
-                                background-color: #FF3B30;
-                                color: white;
-                                font-size: 12px;
-                                font-weight: 600;
-                                padding: 8px 16px;
-                                border-radius: 15px;
-                                border: none;
-                                min-width: 60px;
-                            }
-                            QPushButton:hover {
-                                background-color: #D70015;
-                            }
-                        """)
-                        button_layout.addWidget(close_btn)
-                        
-                        layout.addLayout(button_layout)
-                        layout.addStretch(1)
-                        self.setLayout(layout)
-                
-                qr_dialog = QRCodeDialog(self, qr_pixmap, upload_url)
-                qr_dialog.exec_()
+                    qr_dialog = QRCodeDialog(self, qr_pixmap, upload_url)
+                    print(f"[Upload] 📱 Showing QR code dialog for {upload_url}")
+                    qr_dialog.show()  # Explicitly show before exec_()
+                    qr_dialog.raise_()
+                    qr_dialog.activateWindow()
+                    qr_dialog.exec_()
+                except Exception as e:
+                    print(f"[Upload] ❌ Error showing QR code dialog: {e}")
+                    import traceback
+                    traceback.print_exc()
+                    QMessageBox.warning(self, "QR Code Error", f"Failed to show QR code dialog: {e}")
                 
             else:
                 QMessageBox.warning(self, "Upload Server", "Upload server is not responding properly.")
