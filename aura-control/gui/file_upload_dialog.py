@@ -571,9 +571,11 @@ class FileUploadDialog(BaseAuraDialog):
                 try:
                     class QRCodeDialog(BaseAuraDialog):
                         def __init__(self, parent, qr_pixmap, upload_url):
-                            super().__init__(parent, title="📱 Mobile Upload QR Code", size=(1080, 1080), modal=True)
+                            # Set attributes BEFORE calling super().__init__() because
+                            # BaseAuraDialog.__init__() calls _setup_ui() which needs these
                             self.qr_pixmap = qr_pixmap
                             self.upload_url = upload_url
+                            super().__init__(parent, title="📱 Mobile Upload QR Code", size=(1080, 1080), modal=True)
                         
                         def _setup_ui(self):
                             """Setup UI - called by BaseAuraDialog"""
