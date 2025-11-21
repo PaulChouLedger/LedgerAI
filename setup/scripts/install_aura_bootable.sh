@@ -855,6 +855,160 @@ fi
 
 print_warning "If nmcli still prompts for authorization, logout/login (or reboot) to apply group membership."
 
+# Also create user-specific WiFi permissions rules (more reliable than group-based)
+print_info "Creating user-specific WiFi permissions rules..."
+PKLA_DIR="/etc/polkit-1/localauthority/50-local.d"
+WIFI_POLKIT_RULE="$POLKIT_DIR/50-allow-nmcli-wifi.rules"
+if [ ! -f "$WIFI_POLKIT_RULE" ]; then
+    sudo tee "$WIFI_POLKIT_RULE" >/dev/null <<EORULE
+// Allow NetworkManager WiFi operations for $AURA_USER
+// This rule allows WiFi scanning, connecting, and disconnecting without password prompts
+
+polkit.addRule(function(action, subject) {
+  // Allow all NetworkManager actions for the specific user
+  if (action.id.indexOf("org.freedesktop.NetworkManager") === 0) {
+    // Allow for the specific user
+    if (subject.user == "$AURA_USER") {
+      return polkit.Result.YES;
+    }
+    // Also allow for users in the nm-authed group (if it exists)
+    if (subject.isInGroup("nm-authed")) {
+      return polkit.Result.YES;
+    }
+  }
+  
+  // Specifically allow WiFi operations
+  if (action.id == "org.freedesktop.NetworkManager.wifi.scan" ||
+      action.id == "org.freedesktop.NetworkManager.settings.modify.system" ||
+      action.id == "org.freedesktop.NetworkManager.settings.modify.own" ||
+      action.id == "org.freedesktop.NetworkManager.network-control") {
+    if (subject.user == "$AURA_USER") {
+      return polkit.Result.YES;
+    }
+  }
+});
+EORULE
+    sudo chmod 0644 "$WIFI_POLKIT_RULE" 2>/dev/null || true
+    print_info "✅ WiFi user-specific polkit rule created"
+    
+    # Also create .pkla fallback
+    sudo mkdir -p "$PKLA_DIR" 2>/dev/null || true
+    WIFI_PKLA_FILE="$PKLA_DIR/50-allow-nmcli-wifi.pkla"
+    sudo tee "$WIFI_PKLA_FILE" >/dev/null <<EOPKLA
+[Allow NetworkManager WiFi for $AURA_USER]
+Identity=unix-user:$AURA_USER
+Action=org.freedesktop.NetworkManager.*
+ResultAny=yes
+ResultInactive=yes
+ResultActive=yes
+
+[Allow NetworkManager WiFi for nm-authed group]
+Identity=unix-group:nm-authed
+Action=org.freedesktop.NetworkManager.*
+ResultAny=yes
+ResultInactive=yes
+ResultActive=yes
+EOPKLA
+    sudo chmod 0644 "$WIFI_PKLA_FILE" 2>/dev/null || true
+    print_info "✅ WiFi fallback .pkla rule created"
+else
+    print_info "WiFi user-specific polkit rule already exists"
+fi
+
+echo ""
+
+# ============================================================================
+# Step 6.9: Configure shutdown permissions (passwordless shutdown/restart)
+# ============================================================================
+print_step "6.9. Configuring shutdown/restart permissions (Polkit rule for passwordless power management)..."
+
+# Create shutdown/restart polkit rules
+SHUTDOWN_POLKIT_RULE="$POLKIT_DIR/50-allow-shutdown.rules"
+if [ ! -f "$SHUTDOWN_POLKIT_RULE" ]; then
+    print_info "Creating shutdown/restart polkit rule..."
+    sudo tee "$SHUTDOWN_POLKIT_RULE" >/dev/null <<EORULE
+// Allow system shutdown/reboot for $AURA_USER
+// This rule allows passwordless shutdown and reboot operations
+
+polkit.addRule(function(action, subject) {
+  // Allow system power management actions for the specific user
+  if (action.id == "org.freedesktop.login1.power-off" ||
+      action.id == "org.freedesktop.login1.power-off-multiple-sessions" ||
+      action.id == "org.freedesktop.login1.reboot" ||
+      action.id == "org.freedesktop.login1.reboot-multiple-sessions" ||
+      action.id == "org.freedesktop.login1.hibernate" ||
+      action.id == "org.freedesktop.login1.suspend" ||
+      action.id == "org.freedesktop.login1.set-wall-message") {
+    if (subject.user == "$AURA_USER") {
+      polkit.log("action=" + action.id + " subject=" + subject.user);
+      return polkit.Result.YES;
+    }
+  }
+  
+  // Also allow systemctl poweroff/reboot commands
+  if (action.id.indexOf("org.freedesktop.systemd1") === 0) {
+    if (subject.user == "$AURA_USER") {
+      polkit.log("action=" + action.id + " subject=" + subject.user);
+      return polkit.Result.YES;
+    }
+  }
+  
+  // Allow polkit exec for systemctl commands
+  if (action.id == "org.freedesktop.policykit.exec") {
+    if (subject.user == "$AURA_USER") {
+      // Check if it's a systemctl poweroff/reboot command
+      if (action.lookup("command") && 
+          (action.lookup("command").indexOf("systemctl") >= 0 && 
+           (action.lookup("command").indexOf("poweroff") >= 0 || 
+            action.lookup("command").indexOf("reboot") >= 0))) {
+        polkit.log("action=" + action.id + " subject=" + subject.user);
+        return polkit.Result.YES;
+      }
+    }
+  }
+});
+EORULE
+    sudo chmod 0644 "$SHUTDOWN_POLKIT_RULE" 2>/dev/null || true
+    print_info "✅ Shutdown/restart polkit rule created"
+    
+    # Also create .pkla fallback
+    SHUTDOWN_PKLA_FILE="$PKLA_DIR/50-allow-shutdown.pkla"
+    sudo mkdir -p "$PKLA_DIR" 2>/dev/null || true
+    sudo tee "$SHUTDOWN_PKLA_FILE" >/dev/null <<EOPKLA
+[Allow Shutdown for $AURA_USER]
+Identity=unix-user:$AURA_USER
+Action=org.freedesktop.login1.power-off;org.freedesktop.login1.power-off-multiple-sessions;org.freedesktop.login1.reboot;org.freedesktop.login1.reboot-multiple-sessions;org.freedesktop.login1.hibernate;org.freedesktop.login1.suspend;org.freedesktop.login1.set-wall-message
+ResultAny=yes
+ResultInactive=yes
+ResultActive=yes
+
+[Allow systemctl for $AURA_USER]
+Identity=unix-user:$AURA_USER
+Action=org.freedesktop.systemd1.*
+ResultAny=yes
+ResultInactive=yes
+ResultActive=yes
+
+[Allow polkit exec for $AURA_USER]
+Identity=unix-user:$AURA_USER
+Action=org.freedesktop.policykit.exec
+ResultAny=yes
+ResultInactive=yes
+ResultActive=yes
+EOPKLA
+    sudo chmod 0644 "$SHUTDOWN_PKLA_FILE" 2>/dev/null || true
+    print_info "✅ Shutdown/restart fallback .pkla rule created"
+    print_info "   Shutdown and restart buttons in Settings will work without password prompts"
+else
+    print_info "Shutdown/restart polkit rule already exists"
+fi
+
+# Restart polkit to apply all new rules
+if systemctl list-unit-files | grep -q "polkit"; then
+    print_info "Restarting polkit service to apply all permission rules..."
+    sudo systemctl restart polkit 2>/dev/null || sudo systemctl restart polkit.service 2>/dev/null || true
+fi
+
 echo ""
 
 # ============================================================================

@@ -1607,6 +1607,37 @@ class SettingsDialog(BaseAuraDialog):
         shutdown_button_layout.addStretch()
         main_layout.addLayout(shutdown_button_layout)
         
+        # Restart button (requires 3 second hold)
+        restart_button_layout = QHBoxLayout()
+        restart_button_layout.setSpacing(15)
+        restart_button_layout.addStretch()
+        self.restart_btn = QPushButton("🔄 Restart")
+        self.restart_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #8E8E93;
+                color: white;
+                font-size: 16px;
+                font-weight: 600;
+                padding: 15px 30px;
+                border-radius: 20px;
+                border: none;
+                min-width: 200px;
+            }
+            QPushButton:hover { background-color: #6E6E73; }
+            QPushButton:pressed { background-color: #4E4E53; }
+        """)
+        self.restart_btn.pressed.connect(self._on_restart_pressed)
+        self.restart_btn.released.connect(self._on_restart_released)
+        self.restart_timer = QTimer()
+        self.restart_timer.setSingleShot(True)
+        self.restart_timer.timeout.connect(self._execute_restart)
+        self.restart_hold_time = 0
+        self.restart_hold_timer = QTimer()
+        self.restart_hold_timer.timeout.connect(self._update_restart_hold)
+        restart_button_layout.addWidget(self.restart_btn)
+        restart_button_layout.addStretch()
+        main_layout.addLayout(restart_button_layout)
+        
         close_layout = QHBoxLayout()
         close_layout.addStretch()
         self.close_btn = QPushButton("Close")
@@ -1929,6 +1960,147 @@ class SettingsDialog(BaseAuraDialog):
             "sudo ~/LedgerAI/setup/scripts/fix_shutdown_permissions.sh <username>\n\n"
             "Or shutdown manually:\n"
             "sudo shutdown now"
+        )
+    
+    def _on_restart_pressed(self):
+        """Handle restart button press - start 3 second countdown"""
+        print("[Settings] 🔴 Restart button pressed - starting 3s countdown")
+        self.restart_hold_time = 0
+        self.restart_btn.setText("🔄 Hold to Restart (3s)")
+        self.restart_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #FF3B30;
+                color: white;
+                font-size: 16px;
+                font-weight: 600;
+                padding: 15px 30px;
+                border-radius: 20px;
+                border: none;
+                min-width: 200px;
+            }
+        """)
+        # Update every 100ms to show countdown
+        self.restart_hold_timer.start(100)
+        # Execute restart after 3 seconds
+        self.restart_timer.start(3000)
+    
+    def _on_restart_released(self):
+        """Handle restart button release - cancel restart"""
+        print(f"[Settings] 🟢 Restart button released - cancelled (held for {self.restart_hold_time:.1f}s)")
+        self.restart_hold_timer.stop()
+        self.restart_timer.stop()
+        self.restart_hold_time = 0
+        self.restart_btn.setText("🔄 Restart")
+        self.restart_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #8E8E93;
+                color: white;
+                font-size: 16px;
+                font-weight: 600;
+                padding: 15px 30px;
+                border-radius: 20px;
+                border: none;
+                min-width: 200px;
+            }
+            QPushButton:hover { background-color: #6E6E73; }
+            QPushButton:pressed { background-color: #4E4E53; }
+        """)
+    
+    def _update_restart_hold(self):
+        """Update countdown display"""
+        self.restart_hold_time += 0.1
+        remaining = max(0, 3.0 - self.restart_hold_time)
+        if remaining > 0:
+            self.restart_btn.setText(f"🔄 Restarting... ({remaining:.1f}s)")
+        else:
+            self.restart_btn.setText("🔄 Restarting...")
+    
+    def _execute_restart(self):
+        """Execute system restart"""
+        print("[Settings] 🔄 Executing restart...")
+        self.restart_hold_timer.stop()
+        self.restart_btn.setText("🔄 Restarting...")
+        self.restart_btn.setEnabled(False)
+        
+        error_msg = None
+        
+        # Try multiple methods in order of preference
+        try:
+            # Method 1: Use dbus-send (most reliable for GUI apps, works with polkit)
+            print("[Settings] Trying dbus-send method...")
+            result = subprocess.run(
+                ['dbus-send', '--system', '--print-reply', '--dest=org.freedesktop.login1',
+                 '/org/freedesktop/login1', 'org.freedesktop.login1.Manager.Reboot', 'boolean:false'],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            if result.returncode == 0:
+                print("[Settings] ✅ Restart command sent via dbus-send")
+                return
+            else:
+                error_msg = f"dbus-send failed: {result.stderr or result.stdout}"
+                print(f"[Settings] ⚠️ {error_msg}")
+        except FileNotFoundError:
+            error_msg = "dbus-send not found"
+            print(f"[Settings] ⚠️ {error_msg}")
+        except Exception as e:
+            error_msg = f"dbus-send error: {str(e)}"
+            print(f"[Settings] ⚠️ {error_msg}")
+        
+        try:
+            # Method 2: Use systemctl reboot (works with polkit)
+            print("[Settings] Trying systemctl reboot method...")
+            # Use --no-block to avoid waiting for authentication
+            result = subprocess.run(
+                ['systemctl', '--no-block', 'reboot'],
+                capture_output=True,
+                text=True,
+                timeout=2
+            )
+            # systemctl --no-block returns immediately, so check if it started
+            if result.returncode == 0 or "reboot" in str(result.stdout).lower():
+                print("[Settings] ✅ Restart command sent via systemctl")
+                return
+            else:
+                error_msg = f"systemctl failed: {result.stderr or result.stdout}"
+                print(f"[Settings] ⚠️ {error_msg}")
+        except subprocess.TimeoutExpired:
+            # Timeout is OK - restart command was sent
+            print("[Settings] ✅ Restart command sent (timeout expected)")
+            return
+        except Exception as e:
+            error_msg = f"systemctl error: {str(e)}"
+            print(f"[Settings] ⚠️ {error_msg}")
+        
+        try:
+            # Method 3: Last resort - try reboot command
+            print("[Settings] Trying reboot command...")
+            result = subprocess.run(
+                ['reboot'],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            if result.returncode == 0:
+                print("[Settings] ✅ Restart command sent via reboot")
+                return
+        except Exception as e:
+            error_msg = f"reboot command error: {str(e)}"
+            print(f"[Settings] ⚠️ {error_msg}")
+        
+        # All methods failed - show error
+        print(f"[Settings] ❌ All restart methods failed")
+        self.restart_btn.setEnabled(True)
+        QMessageBox.warning(
+            self,
+            "Restart Failed",
+            f"Could not restart system.\n\n"
+            f"Error: {error_msg or 'Unknown error'}\n\n"
+            "To enable passwordless restart, run:\n"
+            "sudo ~/LedgerAI/setup/scripts/fix_shutdown_permissions.sh <username>\n\n"
+            "Or restart manually:\n"
+            "sudo reboot"
         )
     
     def exit_to_desktop(self):
