@@ -9,7 +9,7 @@ from PyQt5.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel,
                              QMessageBox, QListWidget, QListWidgetItem, QInputDialog,
                              QLineEdit, QWidget, QApplication, QGridLayout)
 from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer, QPropertyAnimation, QEasingCurve
-from PyQt5.QtGui import QFont
+from PyQt5.QtGui import QFont, QColor
 import requests
 import json
 import socket
@@ -18,12 +18,11 @@ import webbrowser
 # Import base dialog template
 from gui.base_dialog import BaseAuraDialog
 
-class RAGFileSelectionDialog(BaseAuraDialog):
-    """Dialog to select files from available RAG files"""
+class RAGFilesDialog(BaseAuraDialog):
+    """Dialog showing files actively being used by RAG"""
     
     def __init__(self, parent=None):
-        super().__init__(parent, title="📁 Select Files for RAG", size=(1080, 1080), modal=True)
-        self.selected_files = []
+        super().__init__(parent, title="📚 RAG Files Status", size=(1080, 1080), modal=True)
     
     def _setup_ui(self):
         """Setup UI - called by BaseAuraDialog"""
@@ -32,20 +31,21 @@ class RAGFileSelectionDialog(BaseAuraDialog):
         layout.setSpacing(20)
         
         # Title
-        title = QLabel("📁 Available Files for RAG")
+        title = QLabel("📚 Files in RAG System")
         title.setFont(QFont("Arial", 18, QFont.Bold))
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet("color: #ffffff; font-weight: 600; margin: 15px; font-size: 18px;")
         layout.addWidget(title)
         
         # Description
-        desc = QLabel("Select files from your system to add to RAG")
+        desc = QLabel("Files currently being used by RAG for document retrieval")
         desc.setAlignment(Qt.AlignCenter)
         desc.setStyleSheet("color: #8e8e93; font-size: 14px; margin: 10px;")
         layout.addWidget(desc)
         
-        # File list (multi-select with checkboxes)
+        # File list (read-only, no selection)
         self.file_list = QListWidget()
+        self.file_list.setSelectionMode(QListWidget.NoSelection)
         self.file_list.setStyleSheet("""
             QListWidget {
                 background-color: rgba(44, 44, 46, 0.8);
@@ -60,67 +60,18 @@ class RAGFileSelectionDialog(BaseAuraDialog):
                 border-radius: 8px;
                 margin: 2px;
             }
-            QListWidget::item:selected {
-                background-color: rgba(0, 122, 255, 0.3);
-            }
-            QListWidget::item:hover {
-                background-color: rgba(142, 142, 147, 0.2);
-            }
         """)
         layout.addWidget(self.file_list, 1)  # Stretch factor
         
-        # Load available files
-        self._load_available_files()
+        # Load RAG files
+        self._load_rag_files()
         
-        # Buttons
+        # Close button
         button_layout = QHBoxLayout()
-        button_layout.setSpacing(15)
-        
-        # Select All button
-        select_all_btn = QPushButton("✓ Select All")
-        select_all_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #34C759;
-                color: white;
-                font-size: 14px;
-                font-weight: 600;
-                padding: 12px 24px;
-                border-radius: 20px;
-                border: none;
-                min-width: 120px;
-            }
-            QPushButton:hover {
-                background-color: #30B350;
-            }
-        """)
-        select_all_btn.clicked.connect(self._select_all)
-        button_layout.addWidget(select_all_btn)
-        
-        # Deselect All button
-        deselect_all_btn = QPushButton("✗ Deselect All")
-        deselect_all_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #8e8e93;
-                color: white;
-                font-size: 14px;
-                font-weight: 600;
-                padding: 12px 24px;
-                border-radius: 20px;
-                border: none;
-                min-width: 120px;
-            }
-            QPushButton:hover {
-                background-color: #6e6e73;
-            }
-        """)
-        deselect_all_btn.clicked.connect(self._deselect_all)
-        button_layout.addWidget(deselect_all_btn)
-        
         button_layout.addStretch()
         
-        # Cancel button
-        cancel_btn = QPushButton("❌ Cancel")
-        cancel_btn.setStyleSheet("""
+        close_btn = QPushButton("❌ Close")
+        close_btn.setStyleSheet("""
             QPushButton {
                 background-color: #FF3B30;
                 color: white;
@@ -135,96 +86,98 @@ class RAGFileSelectionDialog(BaseAuraDialog):
                 background-color: #D70015;
             }
         """)
-        cancel_btn.clicked.connect(self.reject)
-        button_layout.addWidget(cancel_btn)
-        
-        # OK button
-        ok_btn = QPushButton("✅ Select")
-        ok_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #007AFF;
-                color: white;
-                font-size: 14px;
-                font-weight: 600;
-                padding: 12px 24px;
-                border-radius: 20px;
-                border: none;
-                min-width: 120px;
-            }
-            QPushButton:hover {
-                background-color: #0056CC;
-            }
-        """)
-        ok_btn.clicked.connect(self._accept_selection)
-        button_layout.addWidget(ok_btn)
+        close_btn.clicked.connect(self.accept)
+        button_layout.addWidget(close_btn)
         
         layout.addLayout(button_layout)
         self.setLayout(layout)
     
-    def _load_available_files(self):
-        """Load available files for RAG - shows files already in RAG and allows selecting new ones"""
-        # Get workspace root
+    def _load_rag_files(self):
+        """Load files that are actively being used by RAG"""
         workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-        input_dir = os.path.join(workspace_root, 'data', 'input')
         embeddings_dir = os.path.join(workspace_root, 'data', 'embeddings')
+        input_dir = os.path.join(workspace_root, 'data', 'input')
         
-        # Supported file extensions
-        supported_extensions = ['.pdf', '.txt', '.docx', '.md', '.xlsx', '.xls']
+        files_in_rag = {}
+        total_chunks = 0
         
-        files_found = []
-        processed_files = set()
+        # Get RAG_MODE from settings file first, then fall back to environment variable
+        RAG_MODE = None
+        try:
+            settings_path = os.path.expanduser("~/LedgerAI/data/app_settings.json")
+            if os.path.exists(settings_path):
+                import json
+                with open(settings_path, 'r') as f:
+                    settings = json.load(f)
+                    RAG_MODE = settings.get('rag_mode', '').upper()
+        except:
+            pass
         
-        # Check data/input directory for files already uploaded (available for RAG)
-        if os.path.exists(input_dir):
-            for filename in os.listdir(input_dir):
-                file_path = os.path.join(input_dir, filename)
-                if os.path.isfile(file_path):
-                    file_ext = os.path.splitext(filename)[1].lower()
-                    if file_ext in supported_extensions:
-                        # Check if file is already processed (has embeddings)
-                        is_processed = False
-                        if os.path.exists(embeddings_dir):
-                            # Check metadata for this file
-                            metadata_file = os.path.join(embeddings_dir, "metadata.pkl")
-                            if os.path.exists(metadata_file):
-                                try:
-                                    import pickle
-                                    with open(metadata_file, 'rb') as f:
-                                        metadata = pickle.load(f)
-                                        if isinstance(metadata, list):
-                                            for chunk_meta in metadata:
-                                                if isinstance(chunk_meta, dict) and chunk_meta.get('source') == filename:
-                                                    is_processed = True
-                                                    break
-                                except:
-                                    pass
-                        
-                        status = "✅ In RAG" if is_processed else "📁 Uploaded (pending)"
-                        files_found.append((file_path, status))
-                        processed_files.add(filename)
+        # Fall back to environment variable if not in settings
+        if not RAG_MODE:
+            RAG_MODE = os.environ.get('RAG_MODE', 'CPU').upper()
         
-        # Also allow selecting files from common locations (new files to add)
-        import glob
-        home_dir = os.path.expanduser("~")
-        common_dirs = [
-            os.path.join(home_dir, "Documents"),
-            os.path.join(home_dir, "Downloads"),
-            os.path.join(home_dir, "Desktop"),
-        ]
+        # Try to get RAG stats from API first
+        try:
+            import requests
+            
+            if RAG_MODE == 'GPU':
+                try:
+                    response = requests.get("http://localhost:11435/rag/stats", timeout=2)
+                    if response.status_code == 200:
+                        stats = response.json()
+                        total_chunks = stats.get('chunks_loaded', 0)
+                        # Try to get file list from metadata
+                        if 'files' in stats:
+                            for file_info in stats['files']:
+                                filename = file_info.get('name', 'Unknown')
+                                chunks = file_info.get('chunks', 0)
+                                files_in_rag[filename] = chunks
+                except:
+                    pass
+            else:
+                # CPU mode - try LLM container
+                try:
+                    response = requests.get("http://localhost:11434/rag/stats", timeout=2)
+                    if response.status_code == 200:
+                        stats = response.json()
+                        total_chunks = stats.get('chunks_loaded', 0)
+                        if 'files' in stats:
+                            for file_info in stats['files']:
+                                filename = file_info.get('name', 'Unknown')
+                                chunks = file_info.get('chunks', 0)
+                                files_in_rag[filename] = chunks
+                except:
+                    pass
+        except:
+            pass
         
-        for common_dir in common_dirs:
-            if os.path.exists(common_dir):
-                for ext in supported_extensions:
-                    pattern = os.path.join(common_dir, f"*{ext}")
-                    for file_path in glob.glob(pattern):
-                        filename = os.path.basename(file_path)
-                        if filename not in processed_files and file_path not in [f[0] for f in files_found]:
-                            files_found.append((file_path, "💾 New (to add)"))
+        # Fallback: Check local metadata files
+        if not files_in_rag:
+            metadata_file = os.path.join(embeddings_dir, "metadata.pkl")
+            if os.path.exists(metadata_file):
+                try:
+                    import pickle
+                    with open(metadata_file, 'rb') as f:
+                        metadata = pickle.load(f)
+                        if isinstance(metadata, list):
+                            for chunk_meta in metadata:
+                                if isinstance(chunk_meta, dict):
+                                    source = chunk_meta.get('source') or chunk_meta.get('file_path') or chunk_meta.get('document_name', 'Unknown')
+                                    filename = os.path.basename(source) if source != 'Unknown' else 'Unknown'
+                                    if filename not in files_in_rag:
+                                        files_in_rag[filename] = 0
+                                    files_in_rag[filename] += 1
+                                    total_chunks += 1
+                except Exception as e:
+                    print(f"[RAGFilesDialog] ⚠️ Error reading metadata: {e}")
         
-        # Add files to list
-        if files_found:
-            for file_path, source in files_found:
-                filename = os.path.basename(file_path)
+        # Display files
+        if files_in_rag:
+            # Sort by chunk count (descending)
+            sorted_files = sorted(files_in_rag.items(), key=lambda x: x[1], reverse=True)
+            
+            for filename, chunks in sorted_files:
                 file_ext = os.path.splitext(filename)[1].lower()
                 
                 # Choose icon based on file type
@@ -239,62 +192,41 @@ class RAGFileSelectionDialog(BaseAuraDialog):
                 else:
                     icon = "📄"
                 
-                # Get file size
-                try:
-                    size_bytes = os.path.getsize(file_path)
-                    if size_bytes < 1024:
-                        size_str = f"{size_bytes}B"
-                    elif size_bytes < 1024 * 1024:
-                        size_str = f"{size_bytes / 1024:.1f}KB"
-                    else:
-                        size_str = f"{size_bytes / (1024 * 1024):.1f}MB"
-                except:
-                    size_str = "?"
+                # Get file size if file exists
+                file_path = os.path.join(input_dir, filename)
+                size_str = ""
+                if os.path.exists(file_path):
+                    try:
+                        size_bytes = os.path.getsize(file_path)
+                        if size_bytes < 1024:
+                            size_str = f" ({size_bytes}B)"
+                        elif size_bytes < 1024 * 1024:
+                            size_str = f" ({size_bytes / 1024:.1f}KB)"
+                        else:
+                            size_str = f" ({size_bytes / (1024 * 1024):.1f}MB)"
+                    except:
+                        pass
                 
-                item_text = f"{icon} {filename} ({size_str}) - {source}"
+                item_text = f"{icon} {filename}{size_str} - {chunks} chunk(s)"
                 item = QListWidgetItem(item_text)
-                item.setData(Qt.UserRole, file_path)
-                item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
-                item.setCheckState(Qt.Unchecked)
+                item.setFlags(Qt.NoItemFlags)  # Read-only
                 self.file_list.addItem(item)
+            
+            # Add summary
+            summary_item = QListWidgetItem(f"\n📊 Total: {len(files_in_rag)} file(s), {total_chunks} chunk(s)")
+            summary_item.setFlags(Qt.NoItemFlags)
+            summary_item.setForeground(QColor(142, 142, 147))  # Gray color
+            self.file_list.addItem(summary_item)
         else:
-            # No files found
-            no_files_item = QListWidgetItem("📭 No files found. Upload files first or check Documents/Downloads/Desktop")
-            no_files_item.setFlags(Qt.NoItemFlags)  # Not selectable
+            # No files in RAG
+            no_files_item = QListWidgetItem("📭 No files currently in RAG system")
+            no_files_item.setFlags(Qt.NoItemFlags)
             self.file_list.addItem(no_files_item)
-    
-    def _select_all(self):
-        """Select all files in the list"""
-        for i in range(self.file_list.count()):
-            item = self.file_list.item(i)
-            if item.flags() & Qt.ItemIsEnabled:
-                item.setCheckState(Qt.Checked)
-    
-    def _deselect_all(self):
-        """Deselect all files in the list"""
-        for i in range(self.file_list.count()):
-            item = self.file_list.item(i)
-            if item.flags() & Qt.ItemIsEnabled:
-                item.setCheckState(Qt.Unchecked)
-    
-    def _accept_selection(self):
-        """Accept selection and return selected files"""
-        self.selected_files = []
-        for i in range(self.file_list.count()):
-            item = self.file_list.item(i)
-            if item.checkState() == Qt.Checked:
-                file_path = item.data(Qt.UserRole)
-                if file_path:
-                    self.selected_files.append(file_path)
-        
-        if self.selected_files:
-            self.accept()
-        else:
-            QMessageBox.warning(self, "No Selection", "Please select at least one file.")
-    
-    def get_selected_files(self):
-        """Get list of selected file paths"""
-        return self.selected_files
+            
+            info_item = QListWidgetItem("Upload files via Google Drive or QR code to add them to RAG")
+            info_item.setFlags(Qt.NoItemFlags)
+            info_item.setForeground(QColor(142, 142, 147))
+            self.file_list.addItem(info_item)
 
 def get_local_ip():
     """Get the local IP address"""
@@ -540,10 +472,10 @@ class FileUploadDialog(BaseAuraDialog):
         button_layout = QVBoxLayout()
         button_layout.setSpacing(20)  # More spacing for larger buttons
         
-        # Keep 4 main options (removed URL option)
-        self.select_files_btn = QPushButton("📁 Select Files")
-        self.select_files_btn.clicked.connect(self.select_files)
-        button_layout.addWidget(self.select_files_btn)
+        # Keep 3 main options (removed file selection, files uploaded via Google Drive or QR code)
+        self.rag_files_btn = QPushButton("📚 RAG Files")
+        self.rag_files_btn.clicked.connect(self.show_rag_files)
+        button_layout.addWidget(self.rag_files_btn)
         
         self.gdrive_btn = QPushButton("☁️ Google Drive")
         self.gdrive_btn.clicked.connect(self.add_google_drive)
@@ -577,7 +509,7 @@ class FileUploadDialog(BaseAuraDialog):
             }
         """
         
-        for button in [self.select_files_btn, self.gdrive_btn, self.qr_btn, self.clear_btn]:
+        for button in [self.rag_files_btn, self.gdrive_btn, self.qr_btn, self.clear_btn]:
             button.setStyleSheet(action_button_style)
         
         file_layout.addLayout(button_layout)
@@ -686,35 +618,10 @@ class FileUploadDialog(BaseAuraDialog):
         
         # Edge buttons removed - separate GUI functions will have their own scripts
     
-    def select_files(self):
-        """Open custom file selection dialog showing available RAG files"""
-        # Show file selection dialog
-        dialog = RAGFileSelectionDialog(self)
-        if dialog.exec_() == QDialog.Accepted:
-            selected_files = dialog.get_selected_files()
-            if selected_files:
-                for file_path in selected_files:
-                    if file_path not in self.uploaded_files:
-                        self.uploaded_files.append(file_path)
-                        filename = os.path.basename(file_path)
-                        # Choose icon based on file type
-                        file_ext = os.path.splitext(filename)[1].lower()
-                        if file_ext in ['.xlsx', '.xls']:
-                            icon = "📊"
-                        elif file_ext == '.pdf':
-                            icon = "📕"
-                        elif file_ext in ['.docx', '.doc']:
-                            icon = "📘"
-                        elif file_ext in ['.md']:
-                            icon = "📝"
-                        else:
-                            icon = "📄"
-                        item = QListWidgetItem(f"{icon} {filename}")
-                        item.setData(Qt.UserRole, file_path)
-                        self.file_list.addItem(item)
-                
-                self.upload_btn.setEnabled(len(self.uploaded_files) > 0)
-                self.log_status(f"Selected {len(selected_files)} file(s)")
+    def show_rag_files(self):
+        """Show dialog with files actively being used by RAG"""
+        dialog = RAGFilesDialog(self)
+        dialog.exec_()
     
     def clear_files(self):
         """Clear all files from the upload list"""
