@@ -48,8 +48,10 @@ polkit.addRule(function(action, subject) {
       action.id == "org.freedesktop.login1.reboot" ||
       action.id == "org.freedesktop.login1.reboot-multiple-sessions" ||
       action.id == "org.freedesktop.login1.hibernate" ||
-      action.id == "org.freedesktop.login1.suspend") {
+      action.id == "org.freedesktop.login1.suspend" ||
+      action.id == "org.freedesktop.login1.set-wall-message") {
     if (subject.user == "$AURA_USER") {
+      polkit.log("action=" + action.id + " subject=" + subject.user);
       return polkit.Result.YES;
     }
   }
@@ -57,7 +59,22 @@ polkit.addRule(function(action, subject) {
   // Also allow systemctl poweroff/reboot commands
   if (action.id.indexOf("org.freedesktop.systemd1") === 0) {
     if (subject.user == "$AURA_USER") {
+      polkit.log("action=" + action.id + " subject=" + subject.user);
       return polkit.Result.YES;
+    }
+  }
+  
+  // Allow polkit exec for systemctl commands
+  if (action.id == "org.freedesktop.policykit.exec") {
+    if (subject.user == "$AURA_USER") {
+      // Check if it's a systemctl poweroff/reboot command
+      if (action.lookup("command") && 
+          (action.lookup("command").indexOf("systemctl") >= 0 && 
+           (action.lookup("command").indexOf("poweroff") >= 0 || 
+            action.lookup("command").indexOf("reboot") >= 0))) {
+        polkit.log("action=" + action.id + " subject=" + subject.user);
+        return polkit.Result.YES;
+      }
     }
   }
 });
@@ -77,7 +94,7 @@ echo "📝 Creating fallback .pkla rule at $PKLA_FILE..."
 sudo tee "$PKLA_FILE" >/dev/null <<EOPKLA
 [Allow Shutdown for $AURA_USER]
 Identity=unix-user:$AURA_USER
-Action=org.freedesktop.login1.power-off;org.freedesktop.login1.power-off-multiple-sessions;org.freedesktop.login1.reboot;org.freedesktop.login1.reboot-multiple-sessions;org.freedesktop.login1.hibernate;org.freedesktop.login1.suspend
+Action=org.freedesktop.login1.power-off;org.freedesktop.login1.power-off-multiple-sessions;org.freedesktop.login1.reboot;org.freedesktop.login1.reboot-multiple-sessions;org.freedesktop.login1.hibernate;org.freedesktop.login1.suspend;org.freedesktop.login1.set-wall-message
 ResultAny=yes
 ResultInactive=yes
 ResultActive=yes
@@ -85,6 +102,13 @@ ResultActive=yes
 [Allow systemctl for $AURA_USER]
 Identity=unix-user:$AURA_USER
 Action=org.freedesktop.systemd1.*
+ResultAny=yes
+ResultInactive=yes
+ResultActive=yes
+
+[Allow polkit exec for $AURA_USER]
+Identity=unix-user:$AURA_USER
+Action=org.freedesktop.policykit.exec
 ResultAny=yes
 ResultInactive=yes
 ResultActive=yes

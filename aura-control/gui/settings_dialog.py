@@ -1876,41 +1876,30 @@ class SettingsDialog(BaseAuraDialog):
         try:
             # Method 2: Use systemctl poweroff (works with polkit)
             print("[Settings] Trying systemctl poweroff method...")
+            # Use --no-block to avoid waiting for authentication
             result = subprocess.run(
-                ['systemctl', 'poweroff'],
+                ['systemctl', '--no-block', 'poweroff'],
                 capture_output=True,
                 text=True,
-                timeout=5
+                timeout=2
             )
-            if result.returncode == 0:
+            # systemctl --no-block returns immediately, so check if it started
+            if result.returncode == 0 or "poweroff" in str(result.stdout).lower():
                 print("[Settings] ✅ Shutdown command sent via systemctl")
                 return
             else:
                 error_msg = f"systemctl failed: {result.stderr or result.stdout}"
                 print(f"[Settings] ⚠️ {error_msg}")
+        except subprocess.TimeoutExpired:
+            # Timeout is OK - shutdown command was sent
+            print("[Settings] ✅ Shutdown command sent (timeout expected)")
+            return
         except Exception as e:
             error_msg = f"systemctl error: {str(e)}"
             print(f"[Settings] ⚠️ {error_msg}")
         
-        try:
-            # Method 3: Try with pkexec (will prompt for password if polkit not configured)
-            if shutil.which("pkexec"):
-                print("[Settings] Trying pkexec systemctl poweroff method...")
-                result = subprocess.run(
-                    ['pkexec', 'systemctl', 'poweroff'],
-                    capture_output=True,
-                    text=True,
-                    timeout=10
-                )
-                if result.returncode == 0:
-                    print("[Settings] ✅ Shutdown command sent via pkexec")
-                    return
-                else:
-                    error_msg = f"pkexec failed: {result.stderr or result.stdout}"
-                    print(f"[Settings] ⚠️ {error_msg}")
-        except Exception as e:
-            error_msg = f"pkexec error: {str(e)}"
-            print(f"[Settings] ⚠️ {error_msg}")
+        # Skip pkexec - it requires password and we want passwordless shutdown
+        # If we get here, polkit rules need to be set up
         
         try:
             # Method 4: Last resort - try shutdown command
