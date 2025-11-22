@@ -31,7 +31,7 @@ LLM_TOP_P = 0.95
 LLM_TOP_K = 40
 LLM_REPEAT_PENALTY = 1.1
 LLM_NUM_PREDICT_DEFAULT = 500  # Increased to prevent early cutoffs in responses (can be overridden via LLM_NUM_PREDICT env var)
-SIMPLE_N_CTX = 2048
+SIMPLE_N_CTX = 8192  # Increased from 2048 to support RAG context (Qwen2.5-1.5B supports up to 32768)
 SIMPLE_CHAT_FORMAT = "qwen"
 N_THREADS = 8
 N_BATCH = 256  # Reduced from 512 for faster generation (smaller batches = lower latency)
@@ -293,10 +293,12 @@ def handle_conversation(
                             else:
                                 file_name = result['metadata'].get('document_name', 'unknown')
                         print(f"[Generic]   [{i}] Score: {score:.3f}, File: {file_name}, Preview: '{text_preview}...'")
+                    
+                    # Build RAG context (no truncation needed with larger context window)
                     rag_context = "\n".join(
                         [r.get("text", "") for r in results[:3] if r.get("text")]
                     )
-                    print(f"[Generic] ✅ Using RAG context ({len(rag_context)} chars) for LLM response")
+                    print(f"[Generic] ✅ Using RAG context ({len(rag_context)} chars, ~{len(rag_context)//4} tokens) for LLM response")
                 else:
                     print(f"[Generic] ⚠️ RAG search returned no results (index may be empty or query doesn't match)")
             except Exception as e:

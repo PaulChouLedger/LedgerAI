@@ -242,7 +242,7 @@ LLM_REPEAT_PENALTY = 1.1
 LLM_PRESENCE_PENALTY = 0.0
 LLM_FREQUENCY_PENALTY = 0.0
 LLM_NUM_PREDICT_DEFAULT = 500  # Increased to prevent early cutoffs in responses
-SIMPLE_N_CTX = 2048
+SIMPLE_N_CTX = 8192  # Increased from 2048 to support RAG context (Qwen2.5-1.5B supports up to 32768)
 SIMPLE_CHAT_FORMAT = "qwen"
 N_THREADS = 8
 N_BATCH = 256  # Reduced from 512 for faster generation (smaller batches = lower latency)
