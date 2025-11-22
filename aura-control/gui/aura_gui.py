@@ -996,15 +996,14 @@ class AuraGUI(QMainWindow):
             }
         """)
         self.rag_indicator.setText("📄\n?")
-        # Temporarily show for 2 seconds to verify visibility, then hide
-        self.rag_indicator.show()
         self.rag_indicator.setAttribute(Qt.WA_TransparentForMouseEvents, True)
         # Ensure it's on top of everything (including border overlay)
         self.rag_indicator.setParent(self)
         self.rag_indicator.raise_()
-        # Hide after 2 seconds (will be shown again if files are found)
-        QTimer.singleShot(2000, lambda: self.rag_indicator.hide() if self.rag_chunks_count == 0 else None)
-        print("[AuraGUI] 📄 RAG indicator created at (980, 20) - will show briefly for testing")
+        # Start hidden - will be shown when RAG is active
+        self.rag_indicator.hide()
+        self.rag_indicator.setVisible(False)
+        print("[AuraGUI] 📄 RAG indicator created at (980, 20) - will show when RAG is active")
     
     def _update_rag_status(self):
         """Check RAG status and update indicator"""
@@ -1031,8 +1030,17 @@ class AuraGUI(QMainWindow):
             if not RAG_MODE:
                 RAG_MODE = os.environ.get('RAG_MODE', 'CPU').upper()
             
+            # Only show indicator if RAG is enabled (not OFF)
+            if RAG_MODE == 'OFF':
+                self.rag_indicator.hide()
+                if hasattr(self, '_rag_indicator_shown') and self._rag_indicator_shown:
+                    print(f"[AuraGUI] 📄 RAG indicator hidden (RAG_MODE=OFF)")
+                    self._rag_indicator_shown = False
+                return
+            
             chunks = 0
             found_files = False
+            rag_ready = False  # Track if RAG is actually ready and usable
             
             if RAG_MODE == 'GPU':
                 # Check GPU RAG container
@@ -1042,6 +1050,7 @@ class AuraGUI(QMainWindow):
                         stats = response.json()
                         chunks = stats.get('chunks_loaded', 0)
                         found_files = chunks > 0
+                        rag_ready = chunks > 0  # RAG is ready if chunks are loaded
                         # Only print if status changed (not every 5 seconds)
                         if not hasattr(self, '_last_rag_chunks') or self._last_rag_chunks != chunks:
                             print(f"[AuraGUI] 📄 RAG GPU mode: {chunks} chunks found")
@@ -1061,12 +1070,14 @@ class AuraGUI(QMainWindow):
                     if response.status_code == 200:
                         stats = response.json()
                         total_chunks = stats.get('total_chunks', 0)
+                        watching = stats.get('watching', False)
                         if total_chunks > 0:
                             chunks = total_chunks
                             found_files = True
+                            rag_ready = True  # RAG is ready if chunks exist and watcher is active
                             # Only print if status changed (not every 5 seconds)
                             if not hasattr(self, '_last_rag_chunks') or self._last_rag_chunks != chunks:
-                                print(f"[AuraGUI] 📄 RAG CPU mode: {chunks} chunks found")
+                                print(f"[AuraGUI] 📄 RAG CPU mode: {chunks} chunks found, watching={watching}")
                                 self._last_rag_chunks = chunks
                 except requests.exceptions.ConnectionError:
                     # Container not ready yet - fall back to local files
@@ -1097,6 +1108,7 @@ class AuraGUI(QMainWindow):
                                                 chunks = len(metadata['chunks'])
                                             else:
                                                 chunks = 1  # At least one file exists
+                                        rag_ready = chunks > 0  # RAG is ready if we can read chunks from metadata
                                         # Only print if status changed (not every 5 seconds)
                                         if not hasattr(self, '_last_rag_chunks') or self._last_rag_chunks != chunks:
                                             print(f"[AuraGUI] 📄 RAG CPU mode (local): {chunks} chunks from metadata")
@@ -1104,9 +1116,11 @@ class AuraGUI(QMainWindow):
                                     except Exception as e2:
                                         print(f"[AuraGUI] 📄 Could not read metadata: {e2}")
                                         chunks = len(index_files)  # Use file count as estimate
+                                        rag_ready = chunks > 0  # Assume ready if index files exist
                                 else:
                                     # No metadata, but index files exist
                                     chunks = len(index_files)
+                                    rag_ready = chunks > 0  # Assume ready if index files exist
                                     # Only print if status changed (not every 5 seconds)
                                     if not hasattr(self, '_last_rag_chunks') or self._last_rag_chunks != chunks:
                                         print(f"[AuraGUI] 📄 RAG CPU mode (local): {len(index_files)} index files found")
@@ -1114,28 +1128,36 @@ class AuraGUI(QMainWindow):
                         except Exception as e2:
                             print(f"[AuraGUI] 📄 Could not list embeddings directory: {e2}")
             
-            # Update indicator
-            if found_files and chunks > 0:
+            # Update indicator - only show if RAG is enabled, has files, and is ready
+            if RAG_MODE != 'OFF' and found_files and chunks > 0 and rag_ready:
                 self.rag_chunks_count = chunks
                 if chunks > 99:
                     self.rag_indicator.setText(f"📄\n99+")
                 else:
                     self.rag_indicator.setText(f"📄\n{chunks}")
-                self.rag_indicator.show()
-                # Ensure it's on top of everything including border overlay
+                
+                # Ensure visibility - set parent, raise, and show
+                if self.rag_indicator.parent() != self:
+                    self.rag_indicator.setParent(self)
                 self.rag_indicator.raise_()
+                self.rag_indicator.show()
+                self.rag_indicator.setVisible(True)
+                
                 # Force update to ensure visibility
                 self.rag_indicator.update()
                 self.rag_indicator.repaint()
-                # Only print position on first show or when position changes
+                
+                # Only print position on first show or when status changes
                 if not hasattr(self, '_rag_indicator_shown') or not self._rag_indicator_shown:
-                    print(f"[AuraGUI] 📄 RAG indicator shown with {chunks} chunks")
+                    print(f"[AuraGUI] 📄 RAG indicator shown with {chunks} chunks (RAG active)")
                     self._rag_indicator_shown = True
             else:
                 self.rag_indicator.hide()
+                self.rag_indicator.setVisible(False)
                 # Only print when hiding after being shown
                 if hasattr(self, '_rag_indicator_shown') and self._rag_indicator_shown:
-                    print(f"[AuraGUI] 📄 RAG indicator hidden (no files)")
+                    reason = "RAG_MODE=OFF" if RAG_MODE == 'OFF' else "no files or not ready"
+                    print(f"[AuraGUI] 📄 RAG indicator hidden ({reason})")
                     self._rag_indicator_shown = False
         except Exception as e:
             # Log error but don't crash
