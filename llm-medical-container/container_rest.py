@@ -241,7 +241,7 @@ LLM_TOP_K = 40
 LLM_REPEAT_PENALTY = 1.1
 LLM_PRESENCE_PENALTY = 0.0
 LLM_FREQUENCY_PENALTY = 0.0
-LLM_NUM_PREDICT_DEFAULT = 500  # Increased to prevent early cutoffs in responses
+LLM_NUM_PREDICT_DEFAULT = 400  # Reduced for faster responses while maintaining quality
 SIMPLE_N_CTX = 8192  # Increased from 2048 to support RAG context (Qwen2.5-1.5B supports up to 32768)
 SIMPLE_CHAT_FORMAT = "qwen"
 N_THREADS = 8
@@ -395,14 +395,14 @@ def extract_llm_response_content(response) -> str:
     return str(response)
 
 
-def stream_llm_response(messages, max_tokens=2000):
+def stream_llm_response(messages, max_tokens=1000):
     """
     Global streaming wrapper for LLM responses
     Yields text chunks as they're generated, reducing initial latency
     
     Args:
         messages: Chat messages for LLM
-        max_tokens: Maximum tokens to generate (default: 2000 to prevent cutoffs)
+        max_tokens: Maximum tokens to generate (default: 1000 for faster responses)
         
     Yields:
         Text chunks from LLM as they're generated

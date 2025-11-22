@@ -75,8 +75,8 @@ WORD_BOUNDARY_CHARS = [' ', '.', ',', '!', '?', ':', ';', '-', '(', ')', '[', ']
 SENTENCE_ENDINGS = ('.', '!', '?')
 
 # === Response Generation Config ===
-MAX_TOKENS_RAG_MODE = 2000  # Max tokens when using RAG context (increased to prevent cutoffs)
-MAX_TOKENS_DIRECT_MODE = 2000  # Max tokens for direct conversation (increased to prevent cutoffs)
+MAX_TOKENS_RAG_MODE = 1000  # Max tokens when using RAG context (reduced for faster responses, RAG context already provides info)
+MAX_TOKENS_DIRECT_MODE = 800  # Max tokens for direct conversation (reduced for faster responses)
 
 # === Model Path Resolution (app_settings.json or fallback) ===
 def _resolve_model_path():

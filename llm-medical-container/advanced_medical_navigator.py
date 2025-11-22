@@ -687,7 +687,7 @@ class AdvancedMedicalNavigator:
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt},
                 ],
-                max_tokens=500,  # Increased for evaluating all conditions
+                max_tokens=400,  # Reduced for faster responses while maintaining condition evaluation quality
                 temperature=0.0,  # Deterministic for scoring
             )
             
@@ -991,7 +991,7 @@ class AdvancedMedicalNavigator:
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt},
                 ],
-                max_tokens=500,  # More tokens for longer condition lists
+                max_tokens=400,  # Reduced for faster responses while handling longer condition lists
                 temperature=0.0,
             )
             
