@@ -270,7 +270,7 @@ class RAGClient:
             # If we found at least one single-term match, use RAG (better than nothing)
             return matches_found > 0
     
-    def search(self, query: str, k: int = 5, threshold: float = 0.3) -> List[Dict]:
+    def search(self, query: str, k: int = 3, threshold: float = 0.45) -> List[Dict]:
         """
         Search for relevant medical information
         

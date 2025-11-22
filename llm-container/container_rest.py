@@ -277,11 +277,12 @@ def handle_conversation(
                 else:
                     print(f"[Generic] ⚠️ RAG index appears empty - no embeddings loaded")
                 
-                results = rag_client.search(query=prompt, k=5)
+                # Search for relevant results (defaults: k=3, threshold=0.45 for high relevance)
+                results = rag_client.search(query=prompt)
                 
                 if results and len(results) > 0:
-                    print(f"[Generic] ✅ RAG found {len(results)} results")
-                    for i, result in enumerate(results[:5], 1):
+                    print(f"[Generic] ✅ RAG found {len(results)} relevant results (threshold=0.45)")
+                    for i, result in enumerate(results, 1):
                         score = result.get('score', 0)
                         text_preview = result.get('text', '')[:50]
                         # Extract file name from metadata
@@ -295,11 +296,10 @@ def handle_conversation(
                                 file_name = result['metadata'].get('document_name', 'unknown')
                         print(f"[Generic]   [{i}] Score: {score:.3f}, File: {file_name}, Preview: '{text_preview}...'")
                     
-                    # Build RAG context using all 5 results, but limit each result to 800 chars
-                    # to prevent context from becoming too large and causing timeouts
+                    # Build RAG context, limit each result to 800 chars
                     MAX_CHARS_PER_RESULT = 800
                     rag_chunks = []
-                    for r in results[:5]:
+                    for r in results:
                         text = r.get("text", "")
                         if text:
                             # Truncate if too long, but try to break at word boundary
@@ -344,12 +344,15 @@ def handle_conversation(
             {
                 "role": "system",
                 "content": (
-                    "You are a helpful assistant. Use the provided knowledge context "
-                    "and conversation memory to answer the user's question.\n\n"
+                    "You are a helpful, friendly assistant. Answer the user's question naturally and conversationally.\n\n"
                     f"{combined_context}\n\n"
-                    f"User question: {prompt}\n\n"
-                    "If the provided context does not contain the answer, acknowledge "
-                    "that and answer based on your general knowledge."
+                    "IMPORTANT INSTRUCTIONS:\n"
+                    "- Answer the user's question based on your general knowledge first\n"
+                    "- Only reference the knowledge context above if it contains directly relevant information that improves your answer\n"
+                    "- Do NOT force irrelevant information from the context into your response\n"
+                    "- If the context is not relevant to the question, ignore it and answer normally\n"
+                    "- Keep your response concise, natural, and focused on what the user actually asked\n\n"
+                    f"User question: {prompt}"
                 ),
             }
         ]

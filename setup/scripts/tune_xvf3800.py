@@ -52,7 +52,7 @@ else:
         USER_HOME = owner_info.pw_dir
     except (ImportError, OSError, KeyError):
         # Fallback: use current user's home
-    USER_HOME = os.path.expanduser("~")
+        USER_HOME = os.path.expanduser("~")
 
 # State file for listener to read - use target user's home directory  
 CONFIG_STATE_FILE = os.path.join(USER_HOME, 'LedgerAI', 'data', 'xvf3800_config.json')
