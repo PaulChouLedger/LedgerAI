@@ -17,9 +17,28 @@ parent_dir = os.path.dirname(current_dir)
 sys.path.insert(0, parent_dir)
 
 # Configuration
-DEFAULT_LLM_PORT = os.getenv("LLM_PORT", "11436")  # Generic LLM container port
+# Both medical and generic containers use port 11434
+DEFAULT_LLM_PORT = os.getenv("LLM_PORT", "11434")
 CHAT_SERVER_PORT = int(os.getenv("CHAT_SERVER_PORT", "5001"))
-CHAT_URL = f"http://localhost:{DEFAULT_LLM_PORT}/chat-tg"
+
+def detect_llm_port():
+    """Detect which LLM container is running by checking health endpoints"""
+    # Try port 11434 first (both containers use this port)
+    for port in [11434, 11436]:
+        try:
+            response = requests.get(f"http://localhost:{port}/health", timeout=2)
+            if response.status_code == 200:
+                print(f"[WebChat] ✅ Detected LLM container on port {port}")
+                return port
+        except:
+            continue
+    
+    # Default to 11434 if detection fails
+    print(f"[WebChat] ⚠️ Could not detect LLM container, defaulting to port {DEFAULT_LLM_PORT}")
+    return DEFAULT_LLM_PORT
+
+LLM_PORT = detect_llm_port()
+CHAT_URL = f"http://localhost:{LLM_PORT}/chat-tg"
 
 app = Flask(__name__)
 
@@ -367,6 +386,16 @@ def chat():
     
     def generate():
         try:
+            # Check if LLM container is available
+            try:
+                health_check = requests.get(f"http://localhost:{LLM_PORT}/health", timeout=2)
+                if health_check.status_code != 200:
+                    yield f"data: {json.dumps({'response': 'LLM container is not responding. Please ensure the LLM container is running.', 'done': True})}\\n\\n"
+                    return
+            except requests.exceptions.ConnectionError:
+                yield f"data: {json.dumps({'response': f'Cannot connect to LLM container on port {LLM_PORT}. Please ensure the LLM container is running.', 'done': True})}\\n\\n"
+                return
+            
             # Forward to LLM container with streaming enabled
             response = requests.post(
                 CHAT_URL,
@@ -380,7 +409,7 @@ def chat():
             )
             
             if response.status_code != 200:
-                yield f"data: {json.dumps({'response': 'Error: ' + str(response.status_code), 'done': True})}\\n\\n"
+                yield f"data: {json.dumps({'response': f'Error from LLM container: HTTP {response.status_code}', 'done': True})}\\n\\n"
                 return
             
             # Stream the SSE response from LLM container
@@ -409,10 +438,20 @@ def chat():
 @app.route('/health', methods=['GET'])
 def health():
     """Health check endpoint"""
+    # Check LLM container health
+    llm_healthy = False
+    try:
+        health_check = requests.get(f"http://localhost:{LLM_PORT}/health", timeout=2)
+        llm_healthy = health_check.status_code == 200
+    except:
+        pass
+    
     return jsonify({
-        'status': 'ok',
+        'status': 'ok' if llm_healthy else 'degraded',
         'service': 'web-chat-interface',
-        'llm_url': CHAT_URL
+        'llm_url': CHAT_URL,
+        'llm_port': LLM_PORT,
+        'llm_connected': llm_healthy
     })
 
 def main():
@@ -421,7 +460,23 @@ def main():
     print("  💬 Aura Web Chat Interface - Streaming Test")
     print("=" * 80)
     print(f"🌐 Server starting on http://localhost:{CHAT_SERVER_PORT}")
-    print(f"🔗 LLM endpoint: {CHAT_URL}")
+    print(f"🔗 LLM endpoint: {CHAT_URL} (port {LLM_PORT})")
+    
+    # Verify LLM container is accessible
+    try:
+        health_check = requests.get(f"http://localhost:{LLM_PORT}/health", timeout=2)
+        if health_check.status_code == 200:
+            print(f"✅ LLM container is accessible on port {LLM_PORT}")
+        else:
+            print(f"⚠️  LLM container returned status {health_check.status_code}")
+    except requests.exceptions.ConnectionError:
+        print(f"⚠️  WARNING: Cannot connect to LLM container on port {LLM_PORT}")
+        print(f"   Please ensure the LLM container is running:")
+        print(f"   - Medical mode: docker-compose up llm-medical")
+        print(f"   - Generic mode: docker-compose up llm-generic")
+    except Exception as e:
+        print(f"⚠️  Error checking LLM container: {e}")
+    
     print(f"📝 Open your browser and navigate to: http://localhost:{CHAT_SERVER_PORT}")
     print("=" * 80)
     
