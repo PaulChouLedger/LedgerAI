@@ -198,6 +198,72 @@ class RAGClient:
             logger.error(f"[RAG Client] ❌ Failed to initialize auto-ingestion: {e}")
             self._auto_ingest = None
     
+    def quick_content_match(self, query: str) -> bool:
+        """
+        Quick substring match to check if query terms appear in RAG content.
+        Much faster than full semantic search - used to decide if RAG should be used.
+        
+        Args:
+            query: Search query
+        
+        Returns:
+            True if query terms match any RAG content, False otherwise
+        """
+        if not query or not query.strip():
+            return False
+        
+        # Extract key terms from query (remove common stop words)
+        stop_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'i', 'you', 'he', 'she', 'it', 'we', 'they', 'is', 'are', 'was', 'were', 'do', 'does', 'did', 'how', 'what', 'when', 'where', 'why', 'can', 'could', 'should', 'would', 'may', 'might', 'must'}
+        query_lower = query.lower()
+        # Extract words (2+ characters) that aren't stop words
+        import re
+        words = re.findall(r'\b\w{2,}\b', query_lower)
+        key_terms = [w for w in words if w not in stop_words]
+        
+        if not key_terms:
+            return False
+        
+        # Quick substring match against RAG chunks
+        if self.use_gpu:
+            # For GPU mode, we'd need to check via API, but that's slow
+            # Instead, assume GPU has content if service is available
+            try:
+                response = requests.get(f"{RAG_SERVICE_URL}/rag/stats", timeout=1)
+                if response.status_code == 200:
+                    stats = response.json()
+                    return stats.get('chunks_loaded', 0) > 0
+            except:
+                pass
+            return False
+        else:
+            # CPU mode: quick substring match against chunk text
+            if not self._cpu_chunks or len(self._cpu_chunks) == 0:
+                # Try to reload if empty
+                if self._auto_ingest:
+                    if self._auto_ingest.load_existing_embeddings():
+                        self._cpu_chunks = self._auto_ingest.chunks
+                        self._cpu_metadata = self._auto_ingest.metadata
+            
+            if not self._cpu_chunks or len(self._cpu_chunks) == 0:
+                return False
+            
+            # Check if any key term appears in any chunk text
+            # For medical/technical queries, check more chunks (up to 500) to catch relevant content
+            # This is still fast (substring match) compared to full semantic search
+            chunks_to_check = min(500, len(self._cpu_chunks))
+            matches_found = 0
+            for i in range(chunks_to_check):
+                chunk_text = self._cpu_chunks[i].get('text', '').lower()
+                # Check if multiple key terms match (more confident match)
+                matching_terms = sum(1 for term in key_terms if term in chunk_text)
+                if matching_terms >= 2:  # At least 2 key terms match
+                    return True
+                elif matching_terms == 1 and matches_found == 0:  # First single match
+                    matches_found = 1
+            
+            # If we found at least one single-term match, use RAG (better than nothing)
+            return matches_found > 0
+    
     def search(self, query: str, k: int = 5, threshold: float = 0.3) -> List[Dict]:
         """
         Search for relevant medical information

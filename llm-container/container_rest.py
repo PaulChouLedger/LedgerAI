@@ -8,6 +8,7 @@ import requests
 from typing import List, Optional
 from collections import Counter
 import re
+import logging
 
 # Conversation management for passive listening and keyword activation
 from conversation_manager import ConversationMemoryIndex, ConversationOrchestrator
@@ -16,6 +17,10 @@ from conversation_manager import ConversationMemoryIndex, ConversationOrchestrat
 from rag import get_rag_client
 
 app = Flask(__name__)
+
+# Suppress verbose logging for status/health endpoints
+werkzeug_logger = logging.getLogger('werkzeug')
+werkzeug_logger.setLevel(logging.WARNING)  # Only log warnings and errors, not info requests
 
 # === Thread Safety ===
 llm_lock = threading.Lock()
@@ -230,25 +235,35 @@ def handle_conversation(
         for contraction, expansion in contractions_map.items():
             normalized_prompt = normalized_prompt.replace(contraction, expansion)
         
-        # Only use RAG for queries that seem like knowledge/document questions
-        # Simple conversational queries don't need RAG (faster response)
         # Skip RAG for personal/conversational queries (day, schedule, how are you, etc.)
         personal_keywords = ['my day', 'my schedule', 'my calendar', 'how are you', 'how am i', 
                           'what am i', 'when am i', 'where am i', 'tell me about me']
         is_personal_query = any(keyword in normalized_prompt for keyword in personal_keywords)
         
-        # Use RAG for knowledge/document queries, but skip for personal/conversational
-        knowledge_keywords = ['what is', 'what are', 'how does', 'explain', 'tell me about',
-                            'document', 'file', 'information about', 'details about']
-        is_knowledge_query = (any(keyword in normalized_prompt for keyword in knowledge_keywords) 
-                            and not is_personal_query)
-        
-        print(f"[Generic] 🔍 Query analysis: is_personal={is_personal_query}, is_knowledge={is_knowledge_query}")
-        
-        if is_knowledge_query:
+        # Use quick content match to determine if RAG should be used
+        # This checks if query terms actually appear in RAG content (more accurate than keyword matching)
+        should_use_rag = False
+        rag_client = None
+        if not is_personal_query:
             try:
-                print(f"[Generic] 🔍 RAG search triggered for knowledge query: '{prompt[:50]}...'")
                 rag_client = get_rag_client()
+                if rag_client:
+                    should_use_rag = rag_client.quick_content_match(prompt)
+                    if should_use_rag:
+                        print(f"[Generic] 🔍 Query matches RAG content - will use RAG")
+                    else:
+                        print(f"[Generic] 🔍 Query doesn't match RAG content - skipping RAG (faster response)")
+                else:
+                    print(f"[Generic] ⚠️ RAG client not available")
+            except Exception as e:
+                print(f"[Generic] ⚠️ Quick RAG content check failed: {e}")
+                rag_client = None
+        
+        print(f"[Generic] 🔍 Query analysis: is_personal={is_personal_query}, should_use_rag={should_use_rag}")
+        
+        if should_use_rag and rag_client:
+            try:
+                print(f"[Generic] 🔍 RAG search triggered: '{prompt[:50]}...'")
                 rag_mode = "GPU" if rag_client.use_gpu else "CPU"
                 print(f"[Generic] 🔍 RAG mode: {rag_mode}")
                 
@@ -651,7 +666,7 @@ def cpu_faiss_ingest():
 
 @app.route('/cpu-faiss/status', methods=['GET'])
 def cpu_faiss_status():
-    """Get CPU FAISS status"""
+    """Get CPU FAISS status (called by GUI every 15 seconds)"""
     try:
         # Get RAG client instance
         from rag import get_rag_client

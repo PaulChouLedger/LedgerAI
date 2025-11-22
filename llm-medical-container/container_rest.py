@@ -14,6 +14,7 @@ from datetime import datetime, timedelta
 from glob import glob
 import requests
 from typing import Dict, Callable
+import logging
 
 # Import modular RAG client (supports both GPU and CPU modes)
 from rag import get_rag_client
@@ -53,6 +54,10 @@ def _ensure_medical_navigator_import():
         return False
 
 app = Flask(__name__)
+
+# Suppress verbose logging for status/health endpoints
+werkzeug_logger = logging.getLogger('werkzeug')
+werkzeug_logger.setLevel(logging.WARNING)  # Only log warnings and errors, not info requests
 
 # === Singleton Instances (Expensive to Create, Reused Across Sessions) ===
 _global_medical_rule_engine = None

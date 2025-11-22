@@ -174,7 +174,7 @@ class AuraGUI(QMainWindow):
         # Timer to periodically check RAG status
         self.rag_status_timer = QTimer()
         self.rag_status_timer.timeout.connect(self._update_rag_status)
-        self.rag_status_timer.start(5000)  # Check every 5 seconds
+        self.rag_status_timer.start(15000)  # Check every 15 seconds (reduced verbosity)
         
         # Create indicator after border overlay is created
         QTimer.singleShot(100, self._create_rag_indicator)  # Delay to ensure border overlay is created first
