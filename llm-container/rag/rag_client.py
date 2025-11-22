@@ -369,16 +369,35 @@ class RAGClient:
                 scores = 1 / (1 + search_results[0])
             
             # Filter by threshold and build results
-            results = []
+            # First, collect ALL matches (including below threshold) for debugging
+            all_matches = []
             for idx, score in zip(indices[0], scores):
-                if idx < len(self._cpu_chunks) and score >= threshold:
-                    results.append({
+                if idx < len(self._cpu_chunks):
+                    all_matches.append({
                         'text': self._cpu_chunks[idx],
                         'score': float(score),
                         'metadata': self._cpu_metadata[idx] if idx < len(self._cpu_metadata) else {}
                     })
             
-            print(f"[RAG Client] ✅ CPU search found {len(results)} results (threshold={threshold})")
+            # Show all matches for debugging (even below threshold)
+            print(f"[RAG Client] 🔍 DEBUG: All {len(all_matches)} matches (showing top {min(5, len(all_matches))}):")
+            for i, match in enumerate(all_matches[:5], 1):
+                # Extract file name from metadata
+                file_name = "unknown"
+                if isinstance(match.get('metadata'), dict):
+                    file_path = match['metadata'].get('file_path', '')
+                    if file_path:
+                        from pathlib import Path
+                        file_name = Path(file_path).name
+                    else:
+                        file_name = match['metadata'].get('document_name', 'unknown')
+                threshold_status = "✅" if match['score'] >= threshold else "❌"
+                print(f"[RAG Client]   [{i}] {threshold_status} Score: {match['score']:.3f} (threshold: {threshold:.3f}), File: {file_name}, Preview: '{match['text'][:50]}...'")
+            
+            # Filter by threshold
+            results = [match for match in all_matches if match['score'] >= threshold]
+            
+            print(f"[RAG Client] ✅ CPU search found {len(results)} results above threshold={threshold} (out of {len(all_matches)} total matches)")
             if results:
                 for i, result in enumerate(results, 1):
                     # Extract file name from metadata
