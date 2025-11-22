@@ -253,7 +253,13 @@ class RAGClient:
             chunks_to_check = min(500, len(self._cpu_chunks))
             matches_found = 0
             for i in range(chunks_to_check):
-                chunk_text = self._cpu_chunks[i].get('text', '').lower()
+                # Chunks are strings, not dictionaries
+                chunk = self._cpu_chunks[i]
+                if isinstance(chunk, dict):
+                    chunk_text = chunk.get('text', '').lower()
+                else:
+                    chunk_text = str(chunk).lower()
+                
                 # Check if multiple key terms match (more confident match)
                 matching_terms = sum(1 for term in key_terms if term in chunk_text)
                 if matching_terms >= 2:  # At least 2 key terms match
