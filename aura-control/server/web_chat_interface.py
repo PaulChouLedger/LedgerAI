@@ -305,73 +305,77 @@ CHAT_TEMPLATE = """
             }
         });
         
-        function formatMessage(text) {
+        function formatMessage(text, isStreaming = false) {
             if (!text) return '';
             
-            let formatted = text;
+            // Always apply basic formatting (bold text) even during streaming
+            let formatted = text
+                // Bold text **text** -> <strong>text</strong> (works on partial text)
+                .replace(/\\*\\*(.*?)\\*\\*/g, '<strong style="color: #667eea; font-weight: 600;">$1</strong>');
             
-            // Split text into sections (before numbered list, numbered list, after)
-            // Detect numbered list pattern: lines starting with "1. ", "2. ", etc.
-            const lines = formatted.split('\\n');
-            const sections = [];
-            let currentSection = { type: 'text', content: [] };
-            
-            for (let i = 0; i < lines.length; i++) {
-                const line = lines[i];
-                const listMatch = line.match(/^(\\d+)\\.\\s+(.+)$/);
+            // Only do complex formatting (lists, paragraphs) when not streaming or when complete
+            if (!isStreaming) {
+                // Split text into sections (before numbered list, numbered list, after)
+                const lines = formatted.split('\\n');
+                const sections = [];
+                let currentSection = { type: 'text', content: [] };
                 
-                if (listMatch) {
-                    // If we were in text mode, save it
-                    if (currentSection.type === 'text' && currentSection.content.length > 0) {
-                        sections.push(currentSection);
-                        currentSection = { type: 'list', items: [] };
+                for (let i = 0; i < lines.length; i++) {
+                    const line = lines[i];
+                    const listMatch = line.match(/^(\\d+)\\.\\s+(.+)$/);
+                    
+                    if (listMatch) {
+                        // If we were in text mode, save it
+                        if (currentSection.type === 'text' && currentSection.content.length > 0) {
+                            sections.push(currentSection);
+                            currentSection = { type: 'list', items: [] };
+                        }
+                        // Ensure we're in list mode
+                        if (currentSection.type !== 'list') {
+                            currentSection = { type: 'list', items: [] };
+                        }
+                        currentSection.items.push(listMatch[2]);
+                    } else {
+                        // If we were in list mode, save it
+                        if (currentSection.type === 'list' && currentSection.items.length > 0) {
+                            sections.push(currentSection);
+                            currentSection = { type: 'text', content: [] };
+                        }
+                        currentSection.content.push(line);
                     }
-                    // Ensure we're in list mode
-                    if (currentSection.type !== 'list') {
-                        currentSection = { type: 'list', items: [] };
-                    }
-                    currentSection.items.push(listMatch[2]);
-                } else {
-                    // If we were in list mode, save it
-                    if (currentSection.type === 'list' && currentSection.items.length > 0) {
-                        sections.push(currentSection);
-                        currentSection = { type: 'text', content: [] };
-                    }
-                    currentSection.content.push(line);
                 }
-            }
-            // Add final section
-            if ((currentSection.type === 'text' && currentSection.content.length > 0) ||
-                (currentSection.type === 'list' && currentSection.items.length > 0)) {
-                sections.push(currentSection);
-            }
-            
-            // Build HTML from sections
-            let html = '';
-            for (const section of sections) {
-                if (section.type === 'list') {
-                    html += '<ol>';
-                    for (const item of section.items) {
-                        // Process bold text in list items
-                        const itemFormatted = item.replace(/\\*\\*(.*?)\\*\\*/g, '<strong>$1</strong>');
-                        html += '<li>' + itemFormatted + '</li>';
-                    }
-                    html += '</ol>';
-                } else {
-                    const textContent = section.content.join('\\n').trim();
-                    if (textContent) {
-                        // Process bold text
-                        const textFormatted = textContent.replace(/\\*\\*(.*?)\\*\\*/g, '<strong>$1</strong>');
-                        // Split by double line breaks for paragraphs
-                        const paragraphs = textFormatted.split('\\n\\n+').filter(p => p.trim());
-                        for (const para of paragraphs) {
-                            html += '<p>' + para.replace(/\\n/g, '<br>') + '</p>';
+                // Add final section
+                if ((currentSection.type === 'text' && currentSection.content.length > 0) ||
+                    (currentSection.type === 'list' && currentSection.items.length > 0)) {
+                    sections.push(currentSection);
+                }
+                
+                // Build HTML from sections
+                let html = '';
+                for (const section of sections) {
+                    if (section.type === 'list') {
+                        html += '<ol>';
+                        for (const item of section.items) {
+                            html += '<li>' + item + '</li>';
+                        }
+                        html += '</ol>';
+                    } else {
+                        const textContent = section.content.join('\\n').trim();
+                        if (textContent) {
+                            // Split by double line breaks for paragraphs
+                            const paragraphs = textContent.split(/\\n\\n+/).filter(p => p.trim());
+                            for (const para of paragraphs) {
+                                html += '<p>' + para.replace(/\\n/g, '<br>') + '</p>';
+                            }
                         }
                     }
                 }
+                
+                return html || formatted.replace(/\\n/g, '<br>');
             }
             
-            return html || formatted.replace(/\\*\\*(.*?)\\*\\*/g, '<strong>$1</strong>').replace(/\\n/g, '<br>');
+            // During streaming: just apply bold formatting and line breaks
+            return formatted.replace(/\\n/g, '<br>');
         }
         
         function addMessage(role, text, isStreaming = false) {
@@ -489,11 +493,15 @@ CHAT_TEMPLATE = """
                 // Update or create bubbles
                 for (let i = 0; i < bubbleTexts.length; i++) {
                     if (i < bubbles.length) {
-                        // Update existing bubble
-                        bubbles[i].textContent = bubbleTexts[i];
+                        // Update existing bubble with formatted HTML (real-time formatting during streaming)
+                        bubbles[i].innerHTML = formatMessage(bubbleTexts[i], true); // true = isStreaming
+                        bubbles[i].classList.add('streaming'); // Keep streaming style
                     } else {
-                        // Create new bubble
-                        const newBubble = addMessage('assistant', bubbleTexts[i], true);
+                        // Create new bubble with formatted HTML
+                        const newBubble = document.createElement('div');
+                        newBubble.className = 'message assistant streaming';
+                        newBubble.innerHTML = formatMessage(bubbleTexts[i], true); // true = isStreaming
+                        chatMessages.appendChild(newBubble);
                         bubbles.push(newBubble);
                     }
                 }
@@ -540,11 +548,11 @@ CHAT_TEMPLATE = """
                                 updateBubbles(accumulated);
                                 
                                 if (data.done) {
-                                    // Format final bubbles with HTML
+                                    // Format final bubbles with full HTML (lists, paragraphs)
                                     const finalBubbleTexts = splitIntoBubbles(accumulated);
                                     for (let i = 0; i < bubbles.length; i++) {
                                         if (i < finalBubbleTexts.length) {
-                                            bubbles[i].innerHTML = formatMessage(finalBubbleTexts[i]);
+                                            bubbles[i].innerHTML = formatMessage(finalBubbleTexts[i], false); // false = not streaming, apply full formatting
                                         }
                                         bubbles[i].classList.remove('streaming');
                                     }
@@ -569,10 +577,10 @@ CHAT_TEMPLATE = """
                             accumulated = data.response || accumulated;
                             const finalBubbleTexts = splitIntoBubbles(accumulated);
                             
-                            // Format final bubbles
+                            // Format final bubbles with full HTML (lists, paragraphs)
                             for (let i = 0; i < bubbles.length; i++) {
                                 if (i < finalBubbleTexts.length) {
-                                    bubbles[i].innerHTML = formatMessage(finalBubbleTexts[i]);
+                                    bubbles[i].innerHTML = formatMessage(finalBubbleTexts[i], false); // false = not streaming, apply full formatting
                                 }
                                 bubbles[i].classList.remove('streaming');
                             }
