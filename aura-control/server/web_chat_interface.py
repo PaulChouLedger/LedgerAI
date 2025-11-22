@@ -99,11 +99,15 @@ CHAT_TEMPLATE = """
         }
         
         .message {
-            max-width: 70%;
-            padding: 12px 16px;
-            border-radius: 18px;
+            max-width: 75%;
+            padding: 14px 18px;
+            border-radius: 20px;
             word-wrap: break-word;
+            word-break: break-word;
+            line-height: 1.5;
             animation: fadeIn 0.3s ease-in;
+            margin-bottom: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         }
         
         @keyframes fadeIn {
@@ -112,21 +116,67 @@ CHAT_TEMPLATE = """
         }
         
         .message.user {
-            background: linear-gradient(45deg, #667eea, #764ba2);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             align-self: flex-end;
-            border-bottom-right-radius: 4px;
+            border-bottom-right-radius: 6px;
+            margin-left: auto;
+            box-shadow: 0 2px 12px rgba(102, 126, 234, 0.3);
         }
         
         .message.assistant {
-            background: #f0f0f0;
-            color: #333;
+            background: #ffffff;
+            color: #2c3e50;
             align-self: flex-start;
-            border-bottom-left-radius: 4px;
+            border-bottom-left-radius: 6px;
+            border: 1px solid #e0e0e0;
+            margin-right: auto;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            font-size: 15px;
         }
         
         .message.streaming {
-            border-left: 3px solid #667eea;
+            border-left: 4px solid #667eea;
+            background: #f8f9fa;
+        }
+        
+        .message.assistant p {
+            margin: 0.6em 0;
+            line-height: 1.6;
+        }
+        
+        .message.assistant p:first-child {
+            margin-top: 0;
+        }
+        
+        .message.assistant p:last-child {
+            margin-bottom: 0;
+        }
+        
+        .message.assistant strong {
+            color: #667eea;
+            font-weight: 600;
+        }
+        
+        .message.assistant ol,
+        .message.assistant ul {
+            margin: 0.8em 0;
+            padding-left: 1.8em;
+            line-height: 1.7;
+        }
+        
+        .message.assistant ol li,
+        .message.assistant ul li {
+            margin: 0.5em 0;
+            padding-left: 0.3em;
+        }
+        
+        .message.assistant ol {
+            list-style-type: decimal;
+        }
+        
+        .message.assistant ul {
+            list-style-type: disc;
         }
         
         .chat-input-container {
@@ -255,10 +305,87 @@ CHAT_TEMPLATE = """
             }
         });
         
+        function formatMessage(text) {
+            if (!text) return '';
+            
+            let formatted = text;
+            
+            // Split text into sections (before numbered list, numbered list, after)
+            // Detect numbered list pattern: lines starting with "1. ", "2. ", etc.
+            const lines = formatted.split('\\n');
+            const sections = [];
+            let currentSection = { type: 'text', content: [] };
+            
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                const listMatch = line.match(/^(\\d+)\\.\\s+(.+)$/);
+                
+                if (listMatch) {
+                    // If we were in text mode, save it
+                    if (currentSection.type === 'text' && currentSection.content.length > 0) {
+                        sections.push(currentSection);
+                        currentSection = { type: 'list', items: [] };
+                    }
+                    // Ensure we're in list mode
+                    if (currentSection.type !== 'list') {
+                        currentSection = { type: 'list', items: [] };
+                    }
+                    currentSection.items.push(listMatch[2]);
+                } else {
+                    // If we were in list mode, save it
+                    if (currentSection.type === 'list' && currentSection.items.length > 0) {
+                        sections.push(currentSection);
+                        currentSection = { type: 'text', content: [] };
+                    }
+                    currentSection.content.push(line);
+                }
+            }
+            // Add final section
+            if ((currentSection.type === 'text' && currentSection.content.length > 0) ||
+                (currentSection.type === 'list' && currentSection.items.length > 0)) {
+                sections.push(currentSection);
+            }
+            
+            // Build HTML from sections
+            let html = '';
+            for (const section of sections) {
+                if (section.type === 'list') {
+                    html += '<ol>';
+                    for (const item of section.items) {
+                        // Process bold text in list items
+                        const itemFormatted = item.replace(/\\*\\*(.*?)\\*\\*/g, '<strong>$1</strong>');
+                        html += '<li>' + itemFormatted + '</li>';
+                    }
+                    html += '</ol>';
+                } else {
+                    const textContent = section.content.join('\\n').trim();
+                    if (textContent) {
+                        // Process bold text
+                        const textFormatted = textContent.replace(/\\*\\*(.*?)\\*\\*/g, '<strong>$1</strong>');
+                        // Split by double line breaks for paragraphs
+                        const paragraphs = textFormatted.split('\\n\\n+').filter(p => p.trim());
+                        for (const para of paragraphs) {
+                            html += '<p>' + para.replace(/\\n/g, '<br>') + '</p>';
+                        }
+                    }
+                }
+            }
+            
+            return html || formatted.replace(/\\*\\*(.*?)\\*\\*/g, '<strong>$1</strong>').replace(/\\n/g, '<br>');
+        }
+        
         function addMessage(role, text, isStreaming = false) {
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${role}${isStreaming ? ' streaming' : ''}`;
-            messageDiv.textContent = text;
+            
+            if (role === 'assistant' && !isStreaming) {
+                // Format assistant messages with HTML
+                messageDiv.innerHTML = formatMessage(text);
+            } else {
+                // User messages and streaming messages use plain text
+                messageDiv.textContent = text;
+            }
+            
             chatMessages.appendChild(messageDiv);
             chatMessages.scrollTop = chatMessages.scrollHeight;
             return messageDiv;
@@ -318,10 +445,14 @@ CHAT_TEMPLATE = """
                             try {
                                 const data = JSON.parse(line.substring(6));
                                 accumulated = data.response || accumulated;
+                                
+                                // Update text content while streaming (plain text)
                                 responseDiv.textContent = accumulated;
                                 chatMessages.scrollTop = chatMessages.scrollHeight;
                                 
                                 if (data.done) {
+                                    // Format final message with HTML
+                                    responseDiv.innerHTML = formatMessage(accumulated);
                                     responseDiv.classList.remove('streaming');
                                     updateStatus('Ready');
                                     sendButton.disabled = false;
