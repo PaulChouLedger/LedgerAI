@@ -277,11 +277,11 @@ def handle_conversation(
                 else:
                     print(f"[Generic] ⚠️ RAG index appears empty - no embeddings loaded")
                 
-                results = rag_client.search(query=prompt, k=3)
+                results = rag_client.search(query=prompt, k=5)
                 
                 if results and len(results) > 0:
                     print(f"[Generic] ✅ RAG found {len(results)} results")
-                    for i, result in enumerate(results[:3], 1):
+                    for i, result in enumerate(results[:5], 1):
                         score = result.get('score', 0)
                         text_preview = result.get('text', '')[:50]
                         # Extract file name from metadata
@@ -295,9 +295,9 @@ def handle_conversation(
                                 file_name = result['metadata'].get('document_name', 'unknown')
                         print(f"[Generic]   [{i}] Score: {score:.3f}, File: {file_name}, Preview: '{text_preview}...'")
                     
-                    # Build RAG context (no truncation needed with larger context window)
+                    # Build RAG context using all 5 results (no truncation needed with larger context window)
                     rag_context = "\n".join(
-                        [r.get("text", "") for r in results[:3] if r.get("text")]
+                        [r.get("text", "") for r in results[:5] if r.get("text")]
                     )
                     print(f"[Generic] ✅ Using RAG context ({len(rag_context)} chars, ~{len(rag_context)//4} tokens) for LLM response")
                 else:
@@ -587,11 +587,17 @@ def _sentence_tag_stream(word_stream):
     """
     Wrap word stream with <sentence_start>/<sentence_end> markers, splitting on sentence boundaries.
     Each complete sentence/phrase gets its own tags for natural TTS playback.
+    Handles abbreviations like "e.g.", "i.e.", "etc." to avoid splitting incorrectly.
     """
+    # Convert to list to enable lookahead for abbreviation detection
+    words = list(word_stream)
     sentence_buffer = ""
     sentence_open = False
     
-    for word in word_stream:
+    # Common abbreviations that end with periods (for detection)
+    common_abbrevs = {'e.g.', 'i.e.', 'etc.', 'vs.', 'dr.', 'mr.', 'mrs.', 'ms.', 'prof.', 'sr.', 'jr.'}
+    
+    for i, word in enumerate(words):
         word_stripped = word.strip()
         
         # Special handling for standalone dashes: they start new sentences for list items
@@ -618,9 +624,31 @@ def _sentence_tag_stream(word_stream):
         # Check if we've reached a sentence boundary
         # 1. Sentence endings: . ! ? (period, exclamation, question mark)
         if word_stripped and word_stripped[-1] in SENTENCE_ENDINGS:
-            yield "<sentence_end>"
-            sentence_buffer = ""
-            sentence_open = False
+            # Check if this might be part of an abbreviation
+            is_abbreviation = False
+            
+            # Check if word is a known abbreviation
+            word_lower = word_stripped.lower()
+            if word_lower in common_abbrevs:
+                is_abbreviation = True
+            # Check if it's a single letter followed by period (like "e." or "i." or "(e.")
+            # Remove leading punctuation for detection
+            word_clean = word_stripped.lstrip('(').lstrip('[').lstrip('{')
+            if len(word_clean) == 2 and word_clean[0].isalpha() and word_clean[-1] == '.':
+                # Look ahead to see if next word is also short (likely part of abbreviation like "e.g.")
+                if i + 1 < len(words):
+                    next_word = words[i + 1].strip()
+                    # Remove trailing punctuation from next word for comparison
+                    next_word_clean = next_word.rstrip(')').rstrip(']').rstrip('}').rstrip(',')
+                    # If next word is also short (1-2 chars) and ends with period or comma, it's likely an abbreviation
+                    if len(next_word_clean) <= 3 and (next_word_clean.endswith('.') or next_word.endswith(',')):
+                        is_abbreviation = True
+            
+            # Only end sentence if it's not an abbreviation
+            if not is_abbreviation:
+                yield "<sentence_end>"
+                sentence_buffer = ""
+                sentence_open = False
         # 2. Colons: split for list items (e.g., "include:" starts a list)
         elif word_stripped and word_stripped[-1] == ':':
             yield "<sentence_end>"
