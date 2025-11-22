@@ -624,7 +624,7 @@ def speak_llm_response(prompt, context=""):
             f"http://localhost:{port}/chat-tts",
             json={"prompt": prompt, "context": context, "chat_id": "voice_session"},
             stream=True,
-            timeout=20
+            timeout=60  # Increased from 20 to 60 to handle larger RAG contexts (5 results)
         )
 
     try:

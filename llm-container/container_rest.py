@@ -295,10 +295,26 @@ def handle_conversation(
                                 file_name = result['metadata'].get('document_name', 'unknown')
                         print(f"[Generic]   [{i}] Score: {score:.3f}, File: {file_name}, Preview: '{text_preview}...'")
                     
-                    # Build RAG context using all 5 results (no truncation needed with larger context window)
-                    rag_context = "\n".join(
-                        [r.get("text", "") for r in results[:5] if r.get("text")]
-                    )
+                    # Build RAG context using all 5 results, but limit each result to 800 chars
+                    # to prevent context from becoming too large and causing timeouts
+                    MAX_CHARS_PER_RESULT = 800
+                    rag_chunks = []
+                    for r in results[:5]:
+                        text = r.get("text", "")
+                        if text:
+                            # Truncate if too long, but try to break at word boundary
+                            if len(text) > MAX_CHARS_PER_RESULT:
+                                truncated = text[:MAX_CHARS_PER_RESULT]
+                                # Try to break at last space to avoid cutting words
+                                last_space = truncated.rfind(' ')
+                                if last_space > MAX_CHARS_PER_RESULT * 0.8:  # Only if we're not losing too much
+                                    truncated = truncated[:last_space] + "..."
+                                else:
+                                    truncated = truncated + "..."
+                                rag_chunks.append(truncated)
+                            else:
+                                rag_chunks.append(text)
+                    rag_context = "\n".join(rag_chunks)
                     print(f"[Generic] ✅ Using RAG context ({len(rag_context)} chars, ~{len(rag_context)//4} tokens) for LLM response")
                 else:
                     print(f"[Generic] ⚠️ RAG search returned no results (index may be empty or query doesn't match)")
