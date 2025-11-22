@@ -155,8 +155,6 @@ class RAGFilesDialog(BaseAuraDialog):
                             files_in_rag[filename] = chunks
             except:
                 pass
-        except:
-            pass
         
         # Check local metadata files (for CPU mode, this is the primary source)
         # For GPU mode, only use this if API didn't return file list
