@@ -616,20 +616,42 @@ def _sentence_tag_stream(word_stream):
     """
     Wrap word stream with <sentence_start>/<sentence_end> markers, splitting on sentence boundaries.
     Each complete sentence/phrase gets its own tags for natural TTS playback.
-    Handles abbreviations like "e.g.", "i.e.", "etc." to avoid splitting incorrectly.
+    Expands abbreviations like "e.g." → "for example", "i.e." → "that is", "etc." → "etcetera".
     
-    IMPORTANT: This processes words incrementally without buffering the entire stream,
+    IMPORTANT: This processes words incrementally with minimal buffering (1 token lookahead),
     allowing tokens to be sent to TTS as they're generated.
     """
     sentence_buffer = ""
     sentence_open = False
-    prev_word = None  # For lookahead detection (simplified - no full buffering)
+    prev_word = None
+    buffered_word = None  # One-token lookahead buffer for multi-token abbreviations
     
-    # Common abbreviations that end with periods (for detection)
-    common_abbrevs = {'e.g.', 'i.e.', 'etc.', 'vs.', 'dr.', 'mr.', 'mrs.', 'ms.', 'prof.', 'sr.', 'jr.'}
+    # Abbreviation expansions (abbrev -> full text)
+    abbrev_expansions = {
+        'e.g.': 'for example',
+        'i.e.': 'that is',
+        'etc.': 'etcetera',
+        'vs.': 'versus',
+        'dr.': 'doctor',
+        'mr.': 'mister',
+        'mrs.': 'missus',
+        'ms.': 'miss',
+        'prof.': 'professor',
+        'sr.': 'senior',
+        'jr.': 'junior',
+    }
     
-    for word in word_stream:
-        word_stripped = word.strip()
+    # Multi-token abbreviation patterns (first part -> (second part, expansion))
+    multi_token_abbrevs = {
+        'e.': ('g.', 'for example'),  # e.g.
+        'i.': ('e.', 'that is'),  # i.e.
+    }
+    
+    def yield_word(word_to_yield):
+        """Helper to yield a word, expanding abbreviations if needed"""
+        nonlocal sentence_buffer, sentence_open
+        
+        word_stripped = word_to_yield.strip()
         
         # Special handling for standalone dashes: they start new sentences for list items
         if word_stripped == '-':
@@ -640,18 +662,32 @@ def _sentence_tag_stream(word_stream):
             # Start new sentence for list item (dash is first word)
             sentence_open = True
             yield "<sentence_start>"
-            yield word
-            sentence_buffer = word
-            prev_word = word
-            continue
+            yield word_to_yield
+            sentence_buffer = word_to_yield
+            return
         
         # Normal word processing
         if not sentence_open:
             sentence_open = True
             yield "<sentence_start>"
         
-        yield word
-        sentence_buffer += word
+        # Check if this is a single-token abbreviation that should be expanded
+        word_lower = word_stripped.lower().rstrip(',').rstrip(')').rstrip(']').rstrip('}')
+        if word_lower in abbrev_expansions:
+            # Replace with expansion, preserving trailing punctuation
+            trailing_punct = ""
+            for char in reversed(word_stripped):
+                if not char.isalnum() and char != '.':
+                    trailing_punct = char + trailing_punct
+                else:
+                    break
+            expansion_text = abbrev_expansions[word_lower] + trailing_punct
+            yield expansion_text
+            sentence_buffer += expansion_text
+        else:
+            # Normal word - yield as-is
+            yield word_to_yield
+            sentence_buffer += word_to_yield
         
         # Check if we've reached a sentence boundary
         # 1. Sentence endings: . ! ? (period, exclamation, question mark)
@@ -659,18 +695,20 @@ def _sentence_tag_stream(word_stream):
             # Check if this might be part of an abbreviation
             is_abbreviation = False
             
-            # Check if word is a known abbreviation
-            word_lower = word_stripped.lower()
-            if word_lower in common_abbrevs:
+            # Check if word is a known single-token abbreviation
+            word_lower = word_stripped.lower().rstrip(',').rstrip(')').rstrip(']').rstrip('}')
+            if word_lower in abbrev_expansions:
                 is_abbreviation = True
             # Check if it's a single letter followed by period (like "e." or "i.")
             # Remove leading punctuation for detection
-            word_clean = word_stripped.lstrip('(').lstrip('[').lstrip('{')
+            word_clean = word_stripped.lstrip('(').lstrip('[').lstrip('{').lower()
             if len(word_clean) == 2 and word_clean[0].isalpha() and word_clean[-1] == '.':
-                # Simple heuristic: if previous word was also short, likely abbreviation
-                # (We can't do full lookahead without buffering, so this is a compromise)
-                if prev_word and len(prev_word.strip()) <= 3:
-                        is_abbreviation = True
+                # Check if this could be the first part of a multi-token abbreviation
+                if word_clean in multi_token_abbrevs:
+                    is_abbreviation = True  # Don't end sentence yet, wait for next token
+                # Also check if previous word was also short, likely abbreviation
+                elif prev_word and len(prev_word.strip()) <= 3:
+                    is_abbreviation = True
             
             # Only end sentence if it's not an abbreviation
             if not is_abbreviation:
@@ -682,8 +720,67 @@ def _sentence_tag_stream(word_stream):
             yield "<sentence_end>"
             sentence_buffer = ""
             sentence_open = False
+    
+    # Process the word stream
+    for word in word_stream:
+        word_stripped = word.strip()
         
+        # If we have a buffered word, check if current word completes a multi-token abbreviation
+        if buffered_word:
+            buffered_stripped = buffered_word.strip()
+            buffered_clean = buffered_stripped.lstrip('(').lstrip('[').lstrip('{').lower()
+            
+            # Check if buffered word could be first part of multi-token abbreviation
+            if buffered_clean in multi_token_abbrevs:
+                expected_part, expansion = multi_token_abbrevs[buffered_clean]
+                word_clean = word_stripped.lstrip(',').lstrip(' ').lower()
+                
+                if word_clean == expected_part:
+                    # Complete multi-token abbreviation detected - expand it
+                    # Preserve trailing punctuation from current word
+                    trailing_punct = ""
+                    for char in reversed(word_stripped):
+                        if not char.isalnum() and char != '.':
+                            trailing_punct = char + trailing_punct
+                        else:
+                            break
+                    
+                    expansion_text = expansion + trailing_punct
+                    # Yield the expansion
+                    for item in yield_word(expansion_text):
+                        yield item
+                    buffered_word = None
+                    prev_word = word
+                    continue
+                else:
+                    # Not the expected continuation - yield buffered word normally
+                    for item in yield_word(buffered_word):
+                        yield item
+                    buffered_word = None
+            else:
+                # Buffered word wasn't part of abbreviation - yield it normally
+                for item in yield_word(buffered_word):
+                    yield item
+                buffered_word = None
+        
+        # Check if current word could be first part of multi-token abbreviation
+        word_clean = word_stripped.lstrip('(').lstrip('[').lstrip('{').lower()
+        if len(word_clean) == 2 and word_clean[0].isalpha() and word_clean[-1] == '.':
+            if word_clean in multi_token_abbrevs:
+                # Buffer this word to check next token
+                buffered_word = word
+                prev_word = word
+                continue
+        
+        # Normal processing - not part of multi-token abbreviation
+        for item in yield_word(word):
+            yield item
         prev_word = word
+    
+    # Process any remaining buffered word
+    if buffered_word:
+        for item in yield_word(buffered_word):
+            yield item
     
     # Close any remaining sentence
     if sentence_open:
