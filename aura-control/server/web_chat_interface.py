@@ -407,8 +407,99 @@ CHAT_TEMPLATE = """
             isStreaming = true;
             updateStatus('Streaming response...', true);
             
-            // Create assistant message element for streaming
-            const responseDiv = addMessage('assistant', '', true);
+            // Array to hold multiple chat bubbles
+            const bubbles = [];
+            let accumulated = '';
+            
+            function splitIntoBubbles(text) {
+                if (!text || !text.trim()) return [];
+                
+                const bubbleTexts = [];
+                
+                // Split by numbered list items (1. 2. 3. etc.)
+                const numberedPattern = /(\\d+\\.\\s+[^\\d]+?)(?=\\d+\\.|$)/g;
+                const listItems = [];
+                let match;
+                let lastIndex = 0;
+                
+                while ((match = numberedPattern.exec(text)) !== null) {
+                    // Add text before this list item
+                    if (match.index > lastIndex) {
+                        const beforeText = text.substring(lastIndex, match.index).trim();
+                        if (beforeText) {
+                            bubbleTexts.push(beforeText);
+                        }
+                    }
+                    // Add the list item
+                    listItems.push({
+                        index: match.index,
+                        text: match[0].trim()
+                    });
+                    lastIndex = match.index + match[0].length;
+                }
+                
+                // Add text after last list item
+                if (lastIndex < text.length) {
+                    const afterText = text.substring(lastIndex).trim();
+                    if (afterText) {
+                        bubbleTexts.push(afterText);
+                    }
+                }
+                
+                // If we found list items, insert them between bubble texts
+                if (listItems.length > 0) {
+                    const result = [];
+                    // Add intro if exists
+                    if (bubbleTexts.length > 0 && listItems[0].index > 0) {
+                        result.push(bubbleTexts[0]);
+                    }
+                    // Add each list item as separate bubble
+                    for (const item of listItems) {
+                        result.push(item.text);
+                    }
+                    // Add conclusion if exists
+                    if (bubbleTexts.length > 1) {
+                        result.push(bubbleTexts[bubbleTexts.length - 1]);
+                    } else if (bubbleTexts.length === 1 && listItems[0].index === 0) {
+                        // Only conclusion, no intro
+                        result.push(bubbleTexts[0]);
+                    }
+                    return result;
+                }
+                
+                // No numbered lists - split by double line breaks
+                const paragraphs = text.split(/\\n\\n+/).filter(p => p.trim());
+                if (paragraphs.length > 1) {
+                    return paragraphs;
+                }
+                
+                // Single paragraph - return as is
+                return [text];
+            }
+            
+            function updateBubbles(accumulatedText) {
+                const bubbleTexts = splitIntoBubbles(accumulatedText);
+                
+                // Remove excess bubbles
+                while (bubbles.length > bubbleTexts.length && bubbles.length > 0) {
+                    const oldBubble = bubbles.pop();
+                    oldBubble.remove();
+                }
+                
+                // Update or create bubbles
+                for (let i = 0; i < bubbleTexts.length; i++) {
+                    if (i < bubbles.length) {
+                        // Update existing bubble
+                        bubbles[i].textContent = bubbleTexts[i];
+                    } else {
+                        // Create new bubble
+                        const newBubble = addMessage('assistant', bubbleTexts[i], true);
+                        bubbles.push(newBubble);
+                    }
+                }
+                
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
             
             try {
                 // Use fetch with streaming
@@ -428,7 +519,6 @@ CHAT_TEMPLATE = """
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder();
                 let buffer = '';
-                let accumulated = '';
                 
                 while (true) {
                     const { done, value } = await reader.read();
@@ -446,14 +536,18 @@ CHAT_TEMPLATE = """
                                 const data = JSON.parse(line.substring(6));
                                 accumulated = data.response || accumulated;
                                 
-                                // Update text content while streaming (plain text)
-                                responseDiv.textContent = accumulated;
-                                chatMessages.scrollTop = chatMessages.scrollHeight;
+                                // Update bubbles while streaming
+                                updateBubbles(accumulated);
                                 
                                 if (data.done) {
-                                    // Format final message with HTML
-                                    responseDiv.innerHTML = formatMessage(accumulated);
-                                    responseDiv.classList.remove('streaming');
+                                    // Format final bubbles with HTML
+                                    const finalBubbleTexts = splitIntoBubbles(accumulated);
+                                    for (let i = 0; i < bubbles.length; i++) {
+                                        if (i < finalBubbleTexts.length) {
+                                            bubbles[i].innerHTML = formatMessage(finalBubbleTexts[i]);
+                                        }
+                                        bubbles[i].classList.remove('streaming');
+                                    }
                                     updateStatus('Ready');
                                     sendButton.disabled = false;
                                     isStreaming = false;
@@ -473,14 +567,20 @@ CHAT_TEMPLATE = """
                         try {
                             const data = JSON.parse(buffer.substring(6));
                             accumulated = data.response || accumulated;
-                            responseDiv.textContent = accumulated;
-                            if (data.done) {
-                                responseDiv.classList.remove('streaming');
-                                updateStatus('Ready');
-                                sendButton.disabled = false;
-                                isStreaming = false;
-                                userInput.focus();
+                            const finalBubbleTexts = splitIntoBubbles(accumulated);
+                            
+                            // Format final bubbles
+                            for (let i = 0; i < bubbles.length; i++) {
+                                if (i < finalBubbleTexts.length) {
+                                    bubbles[i].innerHTML = formatMessage(finalBubbleTexts[i]);
+                                }
+                                bubbles[i].classList.remove('streaming');
                             }
+                            
+                            updateStatus('Ready');
+                            sendButton.disabled = false;
+                            isStreaming = false;
+                            userInput.focus();
                         } catch (e) {
                             console.error('Error parsing final SSE data:', e);
                         }
@@ -488,8 +588,8 @@ CHAT_TEMPLATE = """
                 }
             } catch (error) {
                 console.error('Error:', error);
-                responseDiv.textContent = 'Sorry, I encountered an error: ' + error.message;
-                responseDiv.classList.remove('streaming');
+                const errorBubble = addMessage('assistant', 'Sorry, I encountered an error: ' + error.message, false);
+                errorBubble.classList.remove('streaming');
                 updateStatus('Error occurred');
                 sendButton.disabled = false;
                 isStreaming = false;
