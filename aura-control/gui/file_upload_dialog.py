@@ -279,7 +279,23 @@ class RAGFilesDialog(BaseAuraDialog):
             self.file_list.scrollToTop()
             
             # Trigger ingestion based on RAG_MODE
-            if RAG_MODE == 'GPU':
+            if RAG_MODE == 'CPU':
+                # CPU mode: Use CPU FAISS in LLM container (both medical and generic use port 11434)
+                response = requests.post("http://localhost:11434/cpu-faiss/ingest", timeout=30)
+                if response.status_code == 200:
+                    result = response.json()
+                    processed = result.get('processed', 0)
+                    skipped = result.get('skipped', 0)
+                    self.file_list.takeItem(0)  # Remove processing message
+                    self._load_rag_files()  # Reload the file list
+                    QMessageBox.information(self, "Processing Complete", 
+                        f"✅ Processed {processed} file(s), skipped {skipped} file(s)\n"
+                        f"Files are being processed in the background.")
+                else:
+                    self.file_list.takeItem(0)  # Remove processing message
+                    QMessageBox.warning(self, "Processing Failed", 
+                        f"Failed to trigger ingestion: HTTP {response.status_code}")
+            else:
                 # GPU mode: Use RAG container
                 response = requests.post("http://localhost:11435/rag/ingest", timeout=30)
                 if response.status_code == 200:
@@ -316,22 +332,6 @@ class RAGFilesDialog(BaseAuraDialog):
                 else:
                     QMessageBox.warning(self, "Processing Failed", 
                         f"Failed to trigger ingestion: HTTP {response.status_code}")
-                else:
-                    # CPU mode: Use CPU FAISS in LLM container (both medical and generic use port 11434)
-                    response = requests.post("http://localhost:11434/cpu-faiss/ingest", timeout=30)
-                    if response.status_code == 200:
-                        result = response.json()
-                        processed = result.get('processed', 0)
-                        skipped = result.get('skipped', 0)
-                        self.file_list.takeItem(0)  # Remove processing message
-                        self._load_rag_files()  # Reload the file list
-                        QMessageBox.information(self, "Processing Complete", 
-                            f"✅ Processed {processed} file(s), skipped {skipped} file(s)\n"
-                            f"Files are being processed in the background.")
-                    else:
-                        self.file_list.takeItem(0)  # Remove processing message
-                        QMessageBox.warning(self, "Processing Failed", 
-                            f"Failed to trigger ingestion: HTTP {response.status_code}")
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to trigger ingestion: {e}")
             import traceback

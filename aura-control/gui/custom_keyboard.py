@@ -28,7 +28,7 @@ class CircularKeyboard(BaseAuraDialog):
         """
         base_stylesheet = self.styleSheet()
         self.setStyleSheet(base_stylesheet + additional_styles)
-    
+        
     def _setup_ui(self):
     
     def _setup_ui(self):
