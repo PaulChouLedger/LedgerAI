@@ -70,19 +70,18 @@ class RAGFilesDialog(BaseAuraDialog):
         button_layout = QHBoxLayout()
         button_layout.setSpacing(10)  # Reduced spacing between buttons
         
-        # Process Files button - matching standard dialog button style with rounded corners
+        # Process Files button - matching settings dialog button style (scaled down)
         process_btn = QPushButton("🔄 Process")
         process_btn.setStyleSheet("""
             QPushButton {
                 background-color: #007AFF;
                 color: white;
-                font-size: 12px;
+                font-size: 14px;
                 font-weight: 600;
-                padding: 10px 20px;
-                border-radius: 25px;
+                padding: 12px 24px;
+                border-radius: 20px;
                 border: none;
-                min-width: 100px;
-                min-height: 40px;
+                min-width: 120px;
             }
             QPushButton:hover {
                 background-color: #0056CC;
@@ -96,19 +95,18 @@ class RAGFilesDialog(BaseAuraDialog):
         
         button_layout.addStretch()
         
-        # Close button - matching standard dialog button style with rounded corners
+        # Close button - matching settings dialog close button style
         close_btn = QPushButton("❌ Close")
         close_btn.setStyleSheet("""
             QPushButton {
                 background-color: #FF3B30;
                 color: white;
-                font-size: 12px;
+                font-size: 14px;
                 font-weight: 600;
-                padding: 10px 20px;
-                border-radius: 25px;
+                padding: 12px 24px;
+                border-radius: 20px;
                 border: none;
-                min-width: 100px;
-                min-height: 40px;
+                min-width: 120px;
             }
             QPushButton:hover {
                 background-color: #D70015;
