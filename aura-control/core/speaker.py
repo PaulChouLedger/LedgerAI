@@ -642,10 +642,17 @@ def speak_llm_response(prompt, context=""):
         
         def _is_empty_sentence(text):
             """Check if sentence is empty or just whitespace/punctuation"""
+            if not text:
+                return True
+            # Remove all whitespace first
+            text_no_ws = re.sub(r'\s+', '', text)
+            if not text_no_ws:
+                return True
             # Remove markdown formatting and check if anything meaningful remains
-            text_clean = re.sub(r'\*\*|\*|_|`|#', '', text).strip()
-            # Remove punctuation-only content
-            text_clean = re.sub(r'^[\s\-:;,.!?()\[\]{}]+$', '', text_clean)
+            text_clean = re.sub(r'\*\*|\*|_|`|#', '', text_no_ws)
+            # Remove punctuation-only content (including dashes, colons, etc.)
+            text_clean = re.sub(r'^[\-:;,.!?()\[\]{}]+$', '', text_clean)
+            # Check if anything meaningful remains
             return not text_clean or len(text_clean.strip()) == 0
         
         def _is_short_sentence(text):

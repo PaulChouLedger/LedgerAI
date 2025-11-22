@@ -241,89 +241,94 @@ def handle_conversation(
                           'what am i', 'when am i', 'where am i', 'tell me about me']
         is_personal_query = any(keyword in normalized_prompt for keyword in personal_keywords)
         
-        # Use quick content match to determine if RAG should be used
-        # This checks if query terms actually appear in RAG content (more accurate than keyword matching)
-        should_use_rag = False
+        # Only use RAG if search actually returns results (require actual relevance, not just substring match)
+        # This ensures RAG is only used when there's actually relevant content to inject
         rag_client = None
+        rag_context = ""
+        rag_results = []
+        
         if not is_personal_query:
             try:
                 rag_client = get_rag_client()
                 if rag_client:
-                    should_use_rag = rag_client.quick_content_match(prompt)
-                    if should_use_rag:
-                        print(f"[Generic] 🔍 Query matches RAG content - will use RAG")
+                    # Quick check: does RAG have content at all?
+                    has_content = rag_client.quick_content_match(prompt)
+                    if has_content:
+                        print(f"[Generic] 🔍 Query may match RAG content - performing search...")
+                        
+                        # Check if RAG client has any embeddings
+                        if hasattr(rag_client, '_cpu_chunks') and rag_client._cpu_chunks:
+                            print(f"[Generic] 📊 RAG index: {len(rag_client._cpu_chunks)} chunks available")
+                        elif hasattr(rag_client, '_cpu_index') and rag_client._cpu_index:
+                            index_size = rag_client._cpu_index.ntotal if hasattr(rag_client._cpu_index, 'ntotal') else 0
+                            print(f"[Generic] 📊 RAG index: {index_size} vectors available")
+                        else:
+                            print(f"[Generic] ⚠️ RAG index appears empty - no embeddings loaded")
+                        
+                        # Search for relevant results (defaults: k=3, threshold=0.45 for high relevance)
+                        rag_results = rag_client.search(query=prompt)
+                        
+                        # Only use RAG if search actually returns results above threshold
+                        if rag_results and len(rag_results) > 0:
+                            print(f"[Generic] ✅ RAG found {len(rag_results)} relevant results (threshold=0.45) - will inject context")
+                        else:
+                            print(f"[Generic] 🔍 RAG search returned no results above threshold - skipping RAG injection")
                     else:
                         print(f"[Generic] 🔍 Query doesn't match RAG content - skipping RAG (faster response)")
                 else:
                     print(f"[Generic] ⚠️ RAG client not available")
             except Exception as e:
-                print(f"[Generic] ⚠️ Quick RAG content check failed: {e}")
+                print(f"[Generic] ⚠️ RAG check failed: {e}")
                 rag_client = None
         
+        should_use_rag = (rag_results and len(rag_results) > 0)
         print(f"[Generic] 🔍 Query analysis: is_personal={is_personal_query}, should_use_rag={should_use_rag}")
         
-        if should_use_rag and rag_client:
+        if should_use_rag and rag_results:
             try:
-                print(f"[Generic] 🔍 RAG search triggered: '{prompt[:50]}...'")
+                print(f"[Generic] 🔍 RAG injection triggered: '{prompt[:50]}...'")
                 rag_mode = "GPU" if rag_client.use_gpu else "CPU"
                 print(f"[Generic] 🔍 RAG mode: {rag_mode}")
                 
-                # Check if RAG client has any embeddings
-                if hasattr(rag_client, '_cpu_chunks') and rag_client._cpu_chunks:
-                    print(f"[Generic] 📊 RAG index: {len(rag_client._cpu_chunks)} chunks available")
-                elif hasattr(rag_client, '_cpu_index') and rag_client._cpu_index:
-                    index_size = rag_client._cpu_index.ntotal if hasattr(rag_client._cpu_index, 'ntotal') else 0
-                    print(f"[Generic] 📊 RAG index: {index_size} vectors available")
-                else:
-                    print(f"[Generic] ⚠️ RAG index appears empty - no embeddings loaded")
+                for i, result in enumerate(rag_results, 1):
+                    score = result.get('score', 0)
+                    text_preview = result.get('text', '')[:50]
+                    # Extract file name from metadata
+                    file_name = "unknown"
+                    if isinstance(result.get('metadata'), dict):
+                        file_path = result['metadata'].get('file_path', '')
+                        if file_path:
+                            from pathlib import Path
+                            file_name = Path(file_path).name
+                        else:
+                            file_name = result['metadata'].get('document_name', 'unknown')
+                    print(f"[Generic]   [{i}] Score: {score:.3f}, File: {file_name}, Preview: '{text_preview}...'")
                 
-                # Search for relevant results (defaults: k=3, threshold=0.45 for high relevance)
-                results = rag_client.search(query=prompt)
-                
-                if results and len(results) > 0:
-                    print(f"[Generic] ✅ RAG found {len(results)} relevant results (threshold=0.45)")
-                    for i, result in enumerate(results, 1):
-                        score = result.get('score', 0)
-                        text_preview = result.get('text', '')[:50]
-                        # Extract file name from metadata
-                        file_name = "unknown"
-                        if isinstance(result.get('metadata'), dict):
-                            file_path = result['metadata'].get('file_path', '')
-                            if file_path:
-                                from pathlib import Path
-                                file_name = Path(file_path).name
+                # Build RAG context, limit each result to 800 chars
+                MAX_CHARS_PER_RESULT = 800
+                rag_chunks = []
+                for r in rag_results:
+                    text = r.get("text", "")
+                    if text:
+                        # Truncate if too long, but try to break at word boundary
+                        if len(text) > MAX_CHARS_PER_RESULT:
+                            truncated = text[:MAX_CHARS_PER_RESULT]
+                            # Try to break at last space to avoid cutting words
+                            last_space = truncated.rfind(' ')
+                            if last_space > MAX_CHARS_PER_RESULT * 0.8:  # Only if we're not losing too much
+                                truncated = truncated[:last_space] + "..."
                             else:
-                                file_name = result['metadata'].get('document_name', 'unknown')
-                        print(f"[Generic]   [{i}] Score: {score:.3f}, File: {file_name}, Preview: '{text_preview}...'")
-                    
-                    # Build RAG context, limit each result to 800 chars
-                    MAX_CHARS_PER_RESULT = 800
-                    rag_chunks = []
-                    for r in results:
-                        text = r.get("text", "")
-                        if text:
-                            # Truncate if too long, but try to break at word boundary
-                            if len(text) > MAX_CHARS_PER_RESULT:
-                                truncated = text[:MAX_CHARS_PER_RESULT]
-                                # Try to break at last space to avoid cutting words
-                                last_space = truncated.rfind(' ')
-                                if last_space > MAX_CHARS_PER_RESULT * 0.8:  # Only if we're not losing too much
-                                    truncated = truncated[:last_space] + "..."
-                                else:
-                                    truncated = truncated + "..."
-                                rag_chunks.append(truncated)
-                            else:
-                                rag_chunks.append(text)
-                    rag_context = "\n".join(rag_chunks)
-                    print(f"[Generic] ✅ Using RAG context ({len(rag_context)} chars, ~{len(rag_context)//4} tokens) for LLM response")
-                else:
-                    print(f"[Generic] ⚠️ RAG search returned no results (index may be empty or query doesn't match)")
+                                truncated = truncated + "..."
+                            rag_chunks.append(truncated)
+                        else:
+                            rag_chunks.append(text)
+                rag_context = "\n".join(rag_chunks)
+                print(f"[Generic] ✅ Using RAG context ({len(rag_context)} chars, ~{len(rag_context)//4} tokens) for LLM response")
             except Exception as e:
                 print(f"[Generic] ⚠️ RAG failed, using direct LLM: {e}")
                 import traceback
                 traceback.print_exc()
-        else:
-            print(f"[Generic] ⏭️ Skipping RAG for conversational query (faster response)")
+                rag_context = ""  # Clear context on error
     else:
         print(f"[Generic] ⏭️ RAG_MODE={RAG_MODE} - RAG disabled")
     
