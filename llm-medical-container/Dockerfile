@@ -33,9 +33,8 @@ RUN python3 -c "from sentence_transformers import SentenceTransformer; SentenceT
 COPY models/Qwen2.5-1.5B-Instruct.Q4_K_M-medical.gguf /models/Qwen2.5-1.5B-Instruct.Q4_K_M-medical.gguf
 
 # Copy static files (cached - these change less frequently than Python code)
-COPY ml/ /app/ml/
+# Note: ml/ and config/ directories are optional - code handles missing imports gracefully
 COPY medical/guidelines/ /app/medical/guidelines/
-COPY config/ /app/config/
 # ML files (location_ml_model.pkl, location_ml_data.csv) - kept for future ML training but not actively used
 # oldcarts_keywords.json - kept for compatibility
 
