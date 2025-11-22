@@ -1044,17 +1044,34 @@ if [ -f "$SERVICE_FILE" ]; then
     print_info "Note: Service will start automatically when microphone is connected"
     print_info "To test manually: sudo systemctl start xvf3800-tuning.service"
     
-    # Install git post-merge hook to auto-reload systemd after git pull
+    # Install git hooks
     GIT_HOOKS_DIR="$LEDGERAI_DIR/.git/hooks"
-    POST_MERGE_HOOK="$GIT_HOOKS_DIR/post-merge"
-    HOOK_TEMPLATE="$LEDGERAI_DIR/setup/scripts/git-hooks/post-merge"
     
-    if [ -d "$LEDGERAI_DIR/.git" ] && [ -f "$HOOK_TEMPLATE" ]; then
-        if [ ! -f "$POST_MERGE_HOOK" ] || ! grep -q "XVF3800 service file updated" "$POST_MERGE_HOOK" 2>/dev/null; then
-            # Install or update the hook
-            cp "$HOOK_TEMPLATE" "$POST_MERGE_HOOK"
-            chmod +x "$POST_MERGE_HOOK"
-            print_info "Git post-merge hook installed - systemd will auto-reload after git pull"
+    # Install post-merge hook to auto-reload systemd after git pull
+    POST_MERGE_HOOK="$GIT_HOOKS_DIR/post-merge"
+    POST_MERGE_TEMPLATE="$LEDGERAI_DIR/setup/scripts/git-hooks/post-merge"
+    
+    # Install pre-commit hook to sync llm-container changes to llm-medical-container
+    PRE_COMMIT_HOOK="$GIT_HOOKS_DIR/pre-commit"
+    PRE_COMMIT_TEMPLATE="$LEDGERAI_DIR/setup/scripts/git-hooks/pre-commit"
+    
+    if [ -d "$LEDGERAI_DIR/.git" ]; then
+        # Install post-merge hook
+        if [ -f "$POST_MERGE_TEMPLATE" ]; then
+            if [ ! -f "$POST_MERGE_HOOK" ] || ! grep -q "XVF3800 service file updated" "$POST_MERGE_HOOK" 2>/dev/null; then
+                cp "$POST_MERGE_TEMPLATE" "$POST_MERGE_HOOK"
+                chmod +x "$POST_MERGE_HOOK"
+                print_info "Git post-merge hook installed - systemd will auto-reload after git pull"
+            fi
+        fi
+        
+        # Install pre-commit hook
+        if [ -f "$PRE_COMMIT_TEMPLATE" ]; then
+            if [ ! -f "$PRE_COMMIT_HOOK" ] || ! grep -q "llm-container" "$PRE_COMMIT_HOOK" 2>/dev/null; then
+                cp "$PRE_COMMIT_TEMPLATE" "$PRE_COMMIT_HOOK"
+                chmod +x "$PRE_COMMIT_HOOK"
+                print_info "Git pre-commit hook installed - llm-container changes will sync to llm-medical-container"
+            fi
         fi
     fi
 else

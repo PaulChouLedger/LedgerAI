@@ -655,7 +655,7 @@ class WalletDialog(BaseAuraDialog):
                         if self.balance_worker.isRunning():
                             # Disconnect signal first to prevent callbacks after cleanup
                             try:
-                                self.balance_worker.balance_ready.disconnect()
+                            self.balance_worker.balance_ready.disconnect()
                             except (RuntimeError, AttributeError, TypeError):
                                 pass  # Signal already disconnected
                             # Request thread to stop
@@ -665,7 +665,7 @@ class WalletDialog(BaseAuraDialog):
                                 # Thread didn't finish in time, terminate it
                                 print("[WalletDialog] ⚠️ Balance worker didn't finish, terminating")
                                 self.balance_worker.terminate()
-                                self.balance_worker.wait(100)
+                            self.balance_worker.wait(100)
                     except (RuntimeError, AttributeError, TypeError):
                         pass  # Worker already stopped or deleted
                     finally:
@@ -679,8 +679,8 @@ class WalletDialog(BaseAuraDialog):
                 # Clear reference even on error
                 try:
                     self.balance_worker = None
-                except Exception:
-                    pass
+            except Exception:
+                pass
             
             # Start background fetch
             try:

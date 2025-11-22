@@ -961,7 +961,7 @@ class AuraGUI(QMainWindow):
             self.close()
         else:
             super().keyPressEvent(event)
-    
+
 # === GUI Control ===
 def launch_gui():
     global _app, _window

@@ -542,6 +542,11 @@ def chat_tts():
     return Response(
         stream_with_context(filter_think_blocks(generate_response())),
         mimetype="text/plain",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",  # Disable nginx/proxy buffering
+            "Connection": "keep-alive"  # Keep connection open for streaming
+        }
     )
 
 
@@ -607,16 +612,18 @@ def _sentence_tag_stream(word_stream):
     Wrap word stream with <sentence_start>/<sentence_end> markers, splitting on sentence boundaries.
     Each complete sentence/phrase gets its own tags for natural TTS playback.
     Handles abbreviations like "e.g.", "i.e.", "etc." to avoid splitting incorrectly.
+    
+    IMPORTANT: This processes words incrementally without buffering the entire stream,
+    allowing tokens to be sent to TTS as they're generated.
     """
-    # Convert to list to enable lookahead for abbreviation detection
-    words = list(word_stream)
     sentence_buffer = ""
     sentence_open = False
+    prev_word = None  # For lookahead detection (simplified - no full buffering)
     
     # Common abbreviations that end with periods (for detection)
     common_abbrevs = {'e.g.', 'i.e.', 'etc.', 'vs.', 'dr.', 'mr.', 'mrs.', 'ms.', 'prof.', 'sr.', 'jr.'}
     
-    for i, word in enumerate(words):
+    for word in word_stream:
         word_stripped = word.strip()
         
         # Special handling for standalone dashes: they start new sentences for list items
@@ -630,6 +637,7 @@ def _sentence_tag_stream(word_stream):
             yield "<sentence_start>"
             yield word
             sentence_buffer = word
+            prev_word = word
             continue
         
         # Normal word processing
@@ -650,17 +658,13 @@ def _sentence_tag_stream(word_stream):
             word_lower = word_stripped.lower()
             if word_lower in common_abbrevs:
                 is_abbreviation = True
-            # Check if it's a single letter followed by period (like "e." or "i." or "(e.")
+            # Check if it's a single letter followed by period (like "e." or "i.")
             # Remove leading punctuation for detection
             word_clean = word_stripped.lstrip('(').lstrip('[').lstrip('{')
             if len(word_clean) == 2 and word_clean[0].isalpha() and word_clean[-1] == '.':
-                # Look ahead to see if next word is also short (likely part of abbreviation like "e.g.")
-                if i + 1 < len(words):
-                    next_word = words[i + 1].strip()
-                    # Remove trailing punctuation from next word for comparison
-                    next_word_clean = next_word.rstrip(')').rstrip(']').rstrip('}').rstrip(',')
-                    # If next word is also short (1-2 chars) and ends with period or comma, it's likely an abbreviation
-                    if len(next_word_clean) <= 3 and (next_word_clean.endswith('.') or next_word.endswith(',')):
+                # Simple heuristic: if previous word was also short, likely abbreviation
+                # (We can't do full lookahead without buffering, so this is a compromise)
+                if prev_word and len(prev_word.strip()) <= 3:
                         is_abbreviation = True
             
             # Only end sentence if it's not an abbreviation
@@ -673,6 +677,8 @@ def _sentence_tag_stream(word_stream):
             yield "<sentence_end>"
             sentence_buffer = ""
             sentence_open = False
+        
+        prev_word = word
     
     # Close any remaining sentence
     if sentence_open:

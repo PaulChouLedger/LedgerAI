@@ -703,7 +703,7 @@ def speak_llm_response(prompt, context=""):
                             enqueue_tts_chunk(clean_text)
                     else:
                         # Empty or whitespace-only sentence - skip it
-                        if clean_text:
+                    if clean_text:
                             print(f"[Speaker] ⏭️  Skipping empty/whitespace sentence: '{clean_text[:50]}'")
                 else:
                     print(f"[Speaker] ⚠️ <sentence_end> received but sentence_buffer is empty")

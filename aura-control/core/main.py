@@ -894,11 +894,8 @@ def rebuild_containers(setup_dir, use_medical_mode, rag_mode):
         print("[Aura] 🔨 Rebuilding containers (this may take a few minutes)...")
         
         # Determine which services to build
-        services_to_build = ["whisper"]
-        if use_medical_mode:
-            services_to_build.append("llm-medical")
-        else:
-            services_to_build.append("llm-generic")
+        # Always build both LLM containers in parallel to keep them in sync
+        services_to_build = ["whisper", "llm-medical", "llm-generic"]
         
         if rag_mode == 'GPU':
             services_to_build.append("rag")
