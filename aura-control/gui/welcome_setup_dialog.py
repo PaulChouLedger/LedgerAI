@@ -531,12 +531,12 @@ class WelcomeSetupDialog(BaseAuraDialog):
                         # If alternative method fails, try pkexec
                         if shutil.which("pkexec"):
                             try:
-                    pkexec_cmd = ['pkexec'] + base_cmd
-                    result2 = subprocess.run(pkexec_cmd, capture_output=True, text=True, timeout=60)
-                    if result2.returncode == 0:
-                        result = result2
-                        error_msg = ""
-                    else:
+                                pkexec_cmd = ['pkexec'] + base_cmd
+                                result2 = subprocess.run(pkexec_cmd, capture_output=True, text=True, timeout=60)
+                                if result2.returncode == 0:
+                                    result = result2
+                                    error_msg = ""
+                                else:
                                     error_msg = (result2.stderr or result2.stdout or str(e) or error_msg).strip()
                             except:
                                 error_msg = (str(e) or error_msg).strip()
