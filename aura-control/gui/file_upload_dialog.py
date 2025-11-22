@@ -27,8 +27,8 @@ class RAGFilesDialog(BaseAuraDialog):
     def _setup_ui(self):
         """Setup UI - called by BaseAuraDialog"""
         layout = QVBoxLayout()
-        layout.setContentsMargins(140, 120, 140, 120)  # Increased margins to fit within white perimeter
-        layout.setSpacing(15)  # Reduced spacing
+        layout.setContentsMargins(140, 100, 140, 140)  # Increased bottom margin to prevent button cutoff
+        layout.setSpacing(12)  # Reduced spacing
         
         # Title
         title = QLabel("📚 Files in RAG System")
@@ -139,49 +139,44 @@ class RAGFilesDialog(BaseAuraDialog):
         if not RAG_MODE:
             RAG_MODE = os.environ.get('RAG_MODE', 'CPU').upper()
         
-        # Try to get RAG stats from API first
-        try:
-            import requests
-            
-            if RAG_MODE == 'GPU':
-                try:
-                    response = requests.get("http://localhost:11435/rag/stats", timeout=2)
-                    if response.status_code == 200:
-                        stats = response.json()
-                        total_chunks = stats.get('chunks_loaded', 0)
-                        # Try to get file list from metadata
-                        if 'files' in stats:
-                            for file_info in stats['files']:
-                                filename = file_info.get('name', 'Unknown')
-                                chunks = file_info.get('chunks', 0)
-                                files_in_rag[filename] = chunks
-                except:
-                    pass
-            else:
-                # CPU mode - use /cpu-faiss/status endpoint
-                try:
-                    response = requests.get("http://localhost:11434/cpu-faiss/status", timeout=2)
-                    if response.status_code == 200:
-                        stats = response.json()
-                        total_chunks = stats.get('total_chunks', 0)
-                        # Note: /cpu-faiss/status doesn't return file list, need to read from metadata.pkl
-                except:
-                    pass
+        # Try to get RAG stats from API first (for GPU mode only, CPU mode reads from metadata)
+        if RAG_MODE == 'GPU':
+            try:
+                import requests
+                response = requests.get("http://localhost:11435/rag/stats", timeout=2)
+                if response.status_code == 200:
+                    stats = response.json()
+                    total_chunks = stats.get('chunks_loaded', 0)
+                    # Try to get file list from metadata
+                    if 'files' in stats:
+                        for file_info in stats['files']:
+                            filename = file_info.get('name', 'Unknown')
+                            chunks = file_info.get('chunks', 0)
+                            files_in_rag[filename] = chunks
+            except:
+                pass
         except:
             pass
         
-        # Fallback: Check local metadata files (for CPU mode, this is the primary source)
+        # Check local metadata files (for CPU mode, this is the primary source)
+        # For GPU mode, only use this if API didn't return file list
         metadata_file = os.path.join(embeddings_dir, "metadata.pkl")
-        if os.path.exists(metadata_file):
+        if os.path.exists(metadata_file) and (RAG_MODE == 'CPU' or not files_in_rag):
             try:
                 import pickle
                 with open(metadata_file, 'rb') as f:
                     metadata = pickle.load(f)
                     
+                    # Reset counters to avoid double-counting
+                    if RAG_MODE == 'CPU':
+                        files_in_rag = {}
+                        total_chunks = 0
+                    
                     # CPU FAISS stores metadata as a dict with 'chunks' and 'metadata' keys
                     if isinstance(metadata, dict):
                         chunk_metadata = metadata.get('metadata', [])
                         if chunk_metadata:
+                            # Count chunks per file correctly
                             for chunk_meta in chunk_metadata:
                                 if isinstance(chunk_meta, dict):
                                     # Try different possible keys for file path/name
@@ -195,12 +190,20 @@ class RAGFilesDialog(BaseAuraDialog):
                                     else:
                                         continue
                                     
+                                    # Count chunks per file
                                     if filename not in files_in_rag:
                                         files_in_rag[filename] = 0
                                     files_in_rag[filename] += 1
-                                    total_chunks += 1
+                            
+                            # Total chunks is the length of chunk_metadata (each entry is one chunk)
+                            total_chunks = len(chunk_metadata)
                     # Legacy format: metadata is a list
                     elif isinstance(metadata, list):
+                        # Reset if CPU mode
+                        if RAG_MODE == 'CPU':
+                            files_in_rag = {}
+                            total_chunks = 0
+                        
                         for chunk_meta in metadata:
                             if isinstance(chunk_meta, dict):
                                 source = chunk_meta.get('source') or chunk_meta.get('file_path') or chunk_meta.get('document_name', 'Unknown')
@@ -209,7 +212,9 @@ class RAGFilesDialog(BaseAuraDialog):
                                     if filename not in files_in_rag:
                                         files_in_rag[filename] = 0
                                     files_in_rag[filename] += 1
-                                    total_chunks += 1
+                        
+                        # Total chunks is the length of the metadata list
+                        total_chunks = len(metadata)
             except Exception as e:
                 print(f"[RAGFilesDialog] ⚠️ Error reading metadata: {e}")
                 import traceback
