@@ -1042,7 +1042,10 @@ class AuraGUI(QMainWindow):
                         stats = response.json()
                         chunks = stats.get('chunks_loaded', 0)
                         found_files = chunks > 0
-                        print(f"[AuraGUI] 📄 RAG GPU mode: {chunks} chunks found")
+                        # Only print if status changed (not every 5 seconds)
+                        if not hasattr(self, '_last_rag_chunks') or self._last_rag_chunks != chunks:
+                            print(f"[AuraGUI] 📄 RAG GPU mode: {chunks} chunks found")
+                            self._last_rag_chunks = chunks
                 except requests.exceptions.ConnectionError:
                     # Container not ready yet - this is normal during startup, don't log as error
                     pass
@@ -1061,7 +1064,10 @@ class AuraGUI(QMainWindow):
                         if total_chunks > 0:
                             chunks = total_chunks
                             found_files = True
-                            print(f"[AuraGUI] 📄 RAG CPU mode: {chunks} chunks found")
+                            # Only print if status changed (not every 5 seconds)
+                            if not hasattr(self, '_last_rag_chunks') or self._last_rag_chunks != chunks:
+                                print(f"[AuraGUI] 📄 RAG CPU mode: {chunks} chunks found")
+                                self._last_rag_chunks = chunks
                 except requests.exceptions.ConnectionError:
                     # Container not ready yet - fall back to local files
                     pass
@@ -1091,14 +1097,20 @@ class AuraGUI(QMainWindow):
                                                 chunks = len(metadata['chunks'])
                                             else:
                                                 chunks = 1  # At least one file exists
-                                        print(f"[AuraGUI] 📄 RAG CPU mode (local): {chunks} chunks from metadata")
+                                        # Only print if status changed (not every 5 seconds)
+                                        if not hasattr(self, '_last_rag_chunks') or self._last_rag_chunks != chunks:
+                                            print(f"[AuraGUI] 📄 RAG CPU mode (local): {chunks} chunks from metadata")
+                                            self._last_rag_chunks = chunks
                                     except Exception as e2:
                                         print(f"[AuraGUI] 📄 Could not read metadata: {e2}")
                                         chunks = len(index_files)  # Use file count as estimate
                                 else:
                                     # No metadata, but index files exist
                                     chunks = len(index_files)
-                                    print(f"[AuraGUI] 📄 RAG CPU mode (local): {len(index_files)} index files found")
+                                    # Only print if status changed (not every 5 seconds)
+                                    if not hasattr(self, '_last_rag_chunks') or self._last_rag_chunks != chunks:
+                                        print(f"[AuraGUI] 📄 RAG CPU mode (local): {len(index_files)} index files found")
+                                        self._last_rag_chunks = chunks
                         except Exception as e2:
                             print(f"[AuraGUI] 📄 Could not list embeddings directory: {e2}")
             
@@ -1115,10 +1127,16 @@ class AuraGUI(QMainWindow):
                 # Force update to ensure visibility
                 self.rag_indicator.update()
                 self.rag_indicator.repaint()
-                print(f"[AuraGUI] 📄 RAG indicator shown with {chunks} chunks at position ({self.rag_indicator.x()}, {self.rag_indicator.y()})")
+                # Only print position on first show or when position changes
+                if not hasattr(self, '_rag_indicator_shown') or not self._rag_indicator_shown:
+                    print(f"[AuraGUI] 📄 RAG indicator shown with {chunks} chunks")
+                    self._rag_indicator_shown = True
             else:
                 self.rag_indicator.hide()
-                print(f"[AuraGUI] 📄 RAG indicator hidden (no files)")
+                # Only print when hiding after being shown
+                if hasattr(self, '_rag_indicator_shown') and self._rag_indicator_shown:
+                    print(f"[AuraGUI] 📄 RAG indicator hidden (no files)")
+                    self._rag_indicator_shown = False
         except Exception as e:
             # Log error but don't crash
             print(f"[AuraGUI] 📄 RAG status check error: {e}")

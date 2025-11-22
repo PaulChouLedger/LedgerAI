@@ -27,20 +27,20 @@ class RAGFilesDialog(BaseAuraDialog):
     def _setup_ui(self):
         """Setup UI - called by BaseAuraDialog"""
         layout = QVBoxLayout()
-        layout.setContentsMargins(140, 100, 140, 140)  # Increased bottom margin to prevent button cutoff
-        layout.setSpacing(12)  # Reduced spacing
+        layout.setContentsMargins(160, 120, 160, 160)  # Increased margins to ensure fit within white perimeter
+        layout.setSpacing(10)  # Reduced spacing
         
         # Title
         title = QLabel("📚 Files in RAG System")
-        title.setFont(QFont("Arial", 16, QFont.Bold))  # Reduced font size
+        title.setFont(QFont("Arial", 15, QFont.Bold))  # Further reduced font size
         title.setAlignment(Qt.AlignCenter)
-        title.setStyleSheet("color: #ffffff; font-weight: 600; margin: 8px; font-size: 16px;")  # Reduced margins
+        title.setStyleSheet("color: #ffffff; font-weight: 600; margin: 5px; font-size: 15px;")  # Reduced margins
         layout.addWidget(title)
         
         # Description
-        desc = QLabel("Files currently being used by RAG for document retrieval")
+        desc = QLabel("Files currently being used by RAG")
         desc.setAlignment(Qt.AlignCenter)
-        desc.setStyleSheet("color: #8e8e93; font-size: 12px; margin: 5px;")  # Reduced font size and margins
+        desc.setStyleSheet("color: #8e8e93; font-size: 11px; margin: 3px;")  # Shorter text, smaller font
         layout.addWidget(desc)
         
         # File list (read-only, no selection)
@@ -50,14 +50,14 @@ class RAGFilesDialog(BaseAuraDialog):
             QListWidget {
                 background-color: rgba(44, 44, 46, 0.8);
                 border: 1px solid #555;
-                border-radius: 12px;
+                border-radius: 10px;
                 color: white;
-                font-size: 13px;
-                padding: 8px;
+                font-size: 12px;
+                padding: 6px;
             }
             QListWidget::item {
-                padding: 8px;
-                border-radius: 6px;
+                padding: 6px;
+                border-radius: 5px;
                 margin: 1px;
             }
         """)
@@ -66,21 +66,22 @@ class RAGFilesDialog(BaseAuraDialog):
         # Load RAG files
         self._load_rag_files()
         
-        # Buttons
+        # Buttons - compact layout
         button_layout = QHBoxLayout()
+        button_layout.setSpacing(10)  # Reduced spacing between buttons
         
         # Process Files button
-        process_btn = QPushButton("🔄 Process Files")
+        process_btn = QPushButton("🔄 Process")
         process_btn.setStyleSheet("""
             QPushButton {
                 background-color: #007AFF;
                 color: white;
-                font-size: 13px;
+                font-size: 12px;
                 font-weight: 600;
-                padding: 10px 20px;
-                border-radius: 18px;
+                padding: 8px 16px;
+                border-radius: 16px;
                 border: none;
-                min-width: 110px;
+                min-width: 100px;
             }
             QPushButton:hover {
                 background-color: #0056CC;
@@ -97,12 +98,12 @@ class RAGFilesDialog(BaseAuraDialog):
             QPushButton {
                 background-color: #FF3B30;
                 color: white;
-                font-size: 13px;
+                font-size: 12px;
                 font-weight: 600;
-                padding: 10px 20px;
-                border-radius: 18px;
+                padding: 8px 16px;
+                border-radius: 16px;
                 border: none;
-                min-width: 110px;
+                min-width: 100px;
             }
             QPushButton:hover {
                 background-color: #D70015;
@@ -254,16 +255,17 @@ class RAGFilesDialog(BaseAuraDialog):
                         pass
                 
                 # Truncate long filenames to fit within dialog
-                max_filename_len = 40
+                max_filename_len = 30  # Reduced for better fit
                 display_filename = filename if len(filename) <= max_filename_len else filename[:max_filename_len-3] + "..."
-                item_text = f"{icon} {display_filename}{size_str} - {chunks} chunk(s)"
+                # Compact item text
+                item_text = f"{icon} {display_filename}{size_str} - {chunks}"
                 item = QListWidgetItem(item_text)
                 item.setFlags(Qt.NoItemFlags)  # Read-only
                 item.setToolTip(filename)  # Show full filename on hover
                 self.file_list.addItem(item)
             
-            # Add summary
-            summary_item = QListWidgetItem(f"\n📊 Total: {len(files_in_rag)} file(s), {total_chunks} chunk(s)")
+            # Add summary - compact format
+            summary_item = QListWidgetItem(f"\n📊 {len(files_in_rag)} file(s), {total_chunks} chunk(s)")
             summary_item.setFlags(Qt.NoItemFlags)
             summary_item.setForeground(QColor(142, 142, 147))  # Gray color
             self.file_list.addItem(summary_item)
