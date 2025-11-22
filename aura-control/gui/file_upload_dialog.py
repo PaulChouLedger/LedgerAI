@@ -27,7 +27,7 @@ class RAGFilesDialog(BaseAuraDialog):
     def _setup_ui(self):
         """Setup UI - called by BaseAuraDialog"""
         layout = QVBoxLayout()
-        layout.setContentsMargins(160, 120, 160, 160)  # Increased margins to ensure fit within white perimeter
+        layout.setContentsMargins(160, 120, 160, 180)  # Increased bottom margin significantly to prevent button truncation
         layout.setSpacing(10)  # Reduced spacing
         
         # Title
@@ -78,13 +78,16 @@ class RAGFilesDialog(BaseAuraDialog):
                 color: white;
                 font-size: 12px;
                 font-weight: 600;
-                padding: 8px 16px;
-                border-radius: 16px;
+                padding: 10px 20px;
+                border-radius: 20px;
                 border: none;
                 min-width: 100px;
             }
             QPushButton:hover {
                 background-color: #0056CC;
+            }
+            QPushButton:pressed {
+                background-color: #004499;
             }
         """)
         process_btn.clicked.connect(self._trigger_ingestion)
@@ -100,13 +103,16 @@ class RAGFilesDialog(BaseAuraDialog):
                 color: white;
                 font-size: 12px;
                 font-weight: 600;
-                padding: 8px 16px;
-                border-radius: 16px;
+                padding: 10px 20px;
+                border-radius: 20px;
                 border: none;
                 min-width: 100px;
             }
             QPushButton:hover {
                 background-color: #D70015;
+            }
+            QPushButton:pressed {
+                background-color: #B00012;
             }
         """)
         close_btn.clicked.connect(self.accept)
