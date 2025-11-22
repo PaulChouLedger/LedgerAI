@@ -395,14 +395,14 @@ def extract_llm_response_content(response) -> str:
     return str(response)
 
 
-def stream_llm_response(messages, max_tokens=100):
+def stream_llm_response(messages, max_tokens=2000):
     """
     Global streaming wrapper for LLM responses
     Yields text chunks as they're generated, reducing initial latency
     
     Args:
         messages: Chat messages for LLM
-        max_tokens: Maximum tokens to generate
+        max_tokens: Maximum tokens to generate (default: 2000 to prevent cutoffs)
         
     Yields:
         Text chunks from LLM as they're generated
