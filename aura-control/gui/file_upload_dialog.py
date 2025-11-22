@@ -27,20 +27,20 @@ class RAGFilesDialog(BaseAuraDialog):
     def _setup_ui(self):
         """Setup UI - called by BaseAuraDialog"""
         layout = QVBoxLayout()
-        layout.setContentsMargins(120, 100, 120, 100)
-        layout.setSpacing(20)
+        layout.setContentsMargins(140, 120, 140, 120)  # Increased margins to fit within white perimeter
+        layout.setSpacing(15)  # Reduced spacing
         
         # Title
         title = QLabel("📚 Files in RAG System")
-        title.setFont(QFont("Arial", 18, QFont.Bold))
+        title.setFont(QFont("Arial", 16, QFont.Bold))  # Reduced font size
         title.setAlignment(Qt.AlignCenter)
-        title.setStyleSheet("color: #ffffff; font-weight: 600; margin: 15px; font-size: 18px;")
+        title.setStyleSheet("color: #ffffff; font-weight: 600; margin: 8px; font-size: 16px;")  # Reduced margins
         layout.addWidget(title)
         
         # Description
         desc = QLabel("Files currently being used by RAG for document retrieval")
         desc.setAlignment(Qt.AlignCenter)
-        desc.setStyleSheet("color: #8e8e93; font-size: 14px; margin: 10px;")
+        desc.setStyleSheet("color: #8e8e93; font-size: 12px; margin: 5px;")  # Reduced font size and margins
         layout.addWidget(desc)
         
         # File list (read-only, no selection)
@@ -50,15 +50,15 @@ class RAGFilesDialog(BaseAuraDialog):
             QListWidget {
                 background-color: rgba(44, 44, 46, 0.8);
                 border: 1px solid #555;
-                border-radius: 15px;
+                border-radius: 12px;
                 color: white;
-                font-size: 14px;
-                padding: 10px;
+                font-size: 13px;
+                padding: 8px;
             }
             QListWidget::item {
-                padding: 12px;
-                border-radius: 8px;
-                margin: 2px;
+                padding: 8px;
+                border-radius: 6px;
+                margin: 1px;
             }
         """)
         layout.addWidget(self.file_list, 1)  # Stretch factor
@@ -75,12 +75,12 @@ class RAGFilesDialog(BaseAuraDialog):
             QPushButton {
                 background-color: #007AFF;
                 color: white;
-                font-size: 14px;
+                font-size: 13px;
                 font-weight: 600;
-                padding: 12px 24px;
-                border-radius: 20px;
+                padding: 10px 20px;
+                border-radius: 18px;
                 border: none;
-                min-width: 120px;
+                min-width: 110px;
             }
             QPushButton:hover {
                 background-color: #0056CC;
@@ -97,12 +97,12 @@ class RAGFilesDialog(BaseAuraDialog):
             QPushButton {
                 background-color: #FF3B30;
                 color: white;
-                font-size: 14px;
+                font-size: 13px;
                 font-weight: 600;
-                padding: 12px 24px;
-                border-radius: 20px;
+                padding: 10px 20px;
+                border-radius: 18px;
                 border: none;
-                min-width: 120px;
+                min-width: 110px;
             }
             QPushButton:hover {
                 background-color: #D70015;
@@ -158,41 +158,62 @@ class RAGFilesDialog(BaseAuraDialog):
                 except:
                     pass
             else:
-                # CPU mode - try LLM container
+                # CPU mode - use /cpu-faiss/status endpoint
                 try:
-                    response = requests.get("http://localhost:11434/rag/stats", timeout=2)
+                    response = requests.get("http://localhost:11434/cpu-faiss/status", timeout=2)
                     if response.status_code == 200:
                         stats = response.json()
-                        total_chunks = stats.get('chunks_loaded', 0)
-                        if 'files' in stats:
-                            for file_info in stats['files']:
-                                filename = file_info.get('name', 'Unknown')
-                                chunks = file_info.get('chunks', 0)
-                                files_in_rag[filename] = chunks
+                        total_chunks = stats.get('total_chunks', 0)
+                        # Note: /cpu-faiss/status doesn't return file list, need to read from metadata.pkl
                 except:
                     pass
         except:
             pass
         
-        # Fallback: Check local metadata files
-        if not files_in_rag:
-            metadata_file = os.path.join(embeddings_dir, "metadata.pkl")
-            if os.path.exists(metadata_file):
-                try:
-                    import pickle
-                    with open(metadata_file, 'rb') as f:
-                        metadata = pickle.load(f)
-                        if isinstance(metadata, list):
-                            for chunk_meta in metadata:
+        # Fallback: Check local metadata files (for CPU mode, this is the primary source)
+        metadata_file = os.path.join(embeddings_dir, "metadata.pkl")
+        if os.path.exists(metadata_file):
+            try:
+                import pickle
+                with open(metadata_file, 'rb') as f:
+                    metadata = pickle.load(f)
+                    
+                    # CPU FAISS stores metadata as a dict with 'chunks' and 'metadata' keys
+                    if isinstance(metadata, dict):
+                        chunk_metadata = metadata.get('metadata', [])
+                        if chunk_metadata:
+                            for chunk_meta in chunk_metadata:
                                 if isinstance(chunk_meta, dict):
-                                    source = chunk_meta.get('source') or chunk_meta.get('file_path') or chunk_meta.get('document_name', 'Unknown')
-                                    filename = os.path.basename(source) if source != 'Unknown' else 'Unknown'
+                                    # Try different possible keys for file path/name
+                                    file_path = chunk_meta.get('file_path', '')
+                                    doc_name = chunk_meta.get('document_name', '') or chunk_meta.get('guideline_name', '')
+                                    
+                                    if file_path:
+                                        filename = os.path.basename(file_path)
+                                    elif doc_name:
+                                        filename = doc_name
+                                    else:
+                                        continue
+                                    
                                     if filename not in files_in_rag:
                                         files_in_rag[filename] = 0
                                     files_in_rag[filename] += 1
                                     total_chunks += 1
-                except Exception as e:
-                    print(f"[RAGFilesDialog] ⚠️ Error reading metadata: {e}")
+                    # Legacy format: metadata is a list
+                    elif isinstance(metadata, list):
+                        for chunk_meta in metadata:
+                            if isinstance(chunk_meta, dict):
+                                source = chunk_meta.get('source') or chunk_meta.get('file_path') or chunk_meta.get('document_name', 'Unknown')
+                                filename = os.path.basename(source) if source != 'Unknown' else 'Unknown'
+                                if filename != 'Unknown':
+                                    if filename not in files_in_rag:
+                                        files_in_rag[filename] = 0
+                                    files_in_rag[filename] += 1
+                                    total_chunks += 1
+            except Exception as e:
+                print(f"[RAGFilesDialog] ⚠️ Error reading metadata: {e}")
+                import traceback
+                traceback.print_exc()
         
         # Display files
         if files_in_rag:
@@ -229,9 +250,13 @@ class RAGFilesDialog(BaseAuraDialog):
                     except:
                         pass
                 
-                item_text = f"{icon} {filename}{size_str} - {chunks} chunk(s)"
+                # Truncate long filenames to fit within dialog
+                max_filename_len = 40
+                display_filename = filename if len(filename) <= max_filename_len else filename[:max_filename_len-3] + "..."
+                item_text = f"{icon} {display_filename}{size_str} - {chunks} chunk(s)"
                 item = QListWidgetItem(item_text)
                 item.setFlags(Qt.NoItemFlags)  # Read-only
+                item.setToolTip(filename)  # Show full filename on hover
                 self.file_list.addItem(item)
             
             # Add summary
