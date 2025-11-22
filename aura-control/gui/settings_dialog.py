@@ -2085,14 +2085,14 @@ class SettingsDialog(BaseAuraDialog):
             # Timeout is OK - shutdown command was sent
             print("[Settings] ✅ Shutdown command sent (timeout expected)")
             return
-            except Exception as e:
+        except Exception as e:
             error_msg = f"systemctl error: {str(e)}"
             print(f"[Settings] ⚠️ {error_msg}")
             
         # Skip pkexec - it requires password and we want passwordless shutdown
         # If we get here, polkit rules need to be set up
         
-                try:
+        try:
             # Method 4: Last resort - try shutdown command
             print("[Settings] Trying shutdown now method...")
             result = subprocess.run(
@@ -2104,7 +2104,7 @@ class SettingsDialog(BaseAuraDialog):
             if result.returncode == 0:
                 print("[Settings] ✅ Shutdown command sent via shutdown")
                 return
-                except Exception as e:
+        except Exception as e:
             error_msg = f"shutdown command error: {str(e)}"
             print(f"[Settings] ⚠️ {error_msg}")
         
@@ -2172,7 +2172,7 @@ class SettingsDialog(BaseAuraDialog):
         remaining = max(0, 3.0 - self.restart_hold_time)
         if remaining > 0:
             self.restart_btn.setText(f"🔄 Restarting... ({remaining:.1f}s)")
-                    else:
+        else:
             self.restart_btn.setText("🔄 Restarting...")
     
     def _execute_restart(self):
