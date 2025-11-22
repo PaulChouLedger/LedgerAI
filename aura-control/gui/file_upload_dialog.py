@@ -66,10 +66,32 @@ class RAGFilesDialog(BaseAuraDialog):
         # Load RAG files
         self._load_rag_files()
         
-        # Close button
+        # Buttons
         button_layout = QHBoxLayout()
+        
+        # Process Files button
+        process_btn = QPushButton("🔄 Process Files")
+        process_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #007AFF;
+                color: white;
+                font-size: 14px;
+                font-weight: 600;
+                padding: 12px 24px;
+                border-radius: 20px;
+                border: none;
+                min-width: 120px;
+            }
+            QPushButton:hover {
+                background-color: #0056CC;
+            }
+        """)
+        process_btn.clicked.connect(self._trigger_ingestion)
+        button_layout.addWidget(process_btn)
+        
         button_layout.addStretch()
         
+        # Close button
         close_btn = QPushButton("❌ Close")
         close_btn.setStyleSheet("""
             QPushButton {
@@ -227,6 +249,101 @@ class RAGFilesDialog(BaseAuraDialog):
             info_item.setFlags(Qt.NoItemFlags)
             info_item.setForeground(QColor(142, 142, 147))
             self.file_list.addItem(info_item)
+    
+    def _trigger_ingestion(self):
+        """Manually trigger RAG ingestion for files in data/input"""
+        try:
+            import requests
+            
+            # Get RAG_MODE from settings file first, then fall back to environment variable
+            RAG_MODE = None
+            try:
+                settings_path = os.path.expanduser("~/LedgerAI/data/app_settings.json")
+                if os.path.exists(settings_path):
+                    import json
+                    with open(settings_path, 'r') as f:
+                        settings = json.load(f)
+                        RAG_MODE = settings.get('rag_mode', '').upper()
+            except:
+                pass
+            
+            # Fall back to environment variable if not in settings
+            if not RAG_MODE:
+                RAG_MODE = os.environ.get('RAG_MODE', 'CPU').upper()
+            
+            # Show processing message
+            processing_item = QListWidgetItem("🔄 Processing files...")
+            processing_item.setFlags(Qt.NoItemFlags)
+            processing_item.setForeground(QColor(255, 193, 7))  # Yellow
+            self.file_list.insertItem(0, processing_item)
+            self.file_list.scrollToTop()
+            
+            # Trigger ingestion based on RAG_MODE
+            if RAG_MODE == 'GPU':
+                # GPU mode: Use RAG container
+                response = requests.post("http://localhost:11435/rag/ingest", timeout=30)
+                if response.status_code == 200:
+                    result = response.json()
+                    processed = result.get('processed', 0)
+                    skipped = result.get('skipped', 0)
+                    
+                    # Rebuild embeddings on host
+                    workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+                    host_script = os.path.join(workspace_root, 'setup', 'scripts', 'rebuild_embeddings_host.py')
+                    import subprocess
+                    rebuild_result = subprocess.run(
+                        ["python3", host_script],
+                        capture_output=True,
+                        text=True,
+                        timeout=120,
+                        cwd=workspace_root
+                    )
+                    if rebuild_result.returncode == 0:
+                        # Reload RAG
+                        reload_response = requests.post("http://localhost:11435/rag/reload", timeout=10)
+                        if reload_response.status_code == 200:
+                            self.file_list.takeItem(0)  # Remove processing message
+                            self._load_rag_files()  # Reload the file list
+                            QMessageBox.information(self, "Processing Complete", 
+                                f"✅ Processed {processed} file(s), skipped {skipped} file(s)\n"
+                                f"Embeddings built and RAG reloaded.")
+                        else:
+                            QMessageBox.warning(self, "Processing Incomplete", 
+                                f"Files processed but RAG reload failed.")
+                    else:
+                        QMessageBox.warning(self, "Processing Incomplete", 
+                            f"Files processed but embedding build failed.")
+                else:
+                    QMessageBox.warning(self, "Processing Failed", 
+                        f"Failed to trigger ingestion: HTTP {response.status_code}")
+            else:
+                # CPU mode: Use CPU FAISS in LLM containers
+                USE_MEDICAL_MODE = os.environ.get('USE_MEDICAL_MODE', 'true').lower() == 'true'
+                success_count = 0
+                
+                if USE_MEDICAL_MODE:
+                    response = requests.post("http://localhost:11434/cpu-faiss/ingest", timeout=30)
+                    if response.status_code == 200:
+                        success_count += 1
+                
+                response = requests.post("http://localhost:11436/cpu-faiss/ingest", timeout=30)
+                if response.status_code == 200:
+                    success_count += 1
+                
+                self.file_list.takeItem(0)  # Remove processing message
+                self._load_rag_files()  # Reload the file list
+                
+                if success_count > 0:
+                    QMessageBox.information(self, "Processing Complete", 
+                        f"✅ Triggered ingestion for {success_count} container(s)\n"
+                        f"Files are being processed in the background.")
+                else:
+                    QMessageBox.warning(self, "Processing Failed", 
+                        "Failed to trigger ingestion in CPU FAISS containers.")
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Failed to trigger ingestion: {e}")
+            import traceback
+            traceback.print_exc()
 
 def get_local_ip():
     """Get the local IP address"""
@@ -916,8 +1033,9 @@ class FileUploadDialog(BaseAuraDialog):
             QMessageBox.information(
                 self, 
                 "Upload Complete", 
-                f"Successfully uploaded {success_count} file(s).\n"
-                f"Documents are being processed and will be available in the RAG system shortly."
+                f"Successfully uploaded {success_count} file(s).\n\n"
+                f"Auto-ingest is processing files automatically.\n"
+                f"Files will be available in RAG shortly."
             )
         
         # Clear files after successful upload
@@ -986,8 +1104,11 @@ class UploadWorker(QThread):
             
             self.progress.emit(i + 1)
         
-        # Auto-ingest will handle the processing automatically
-        self.status.emit("✅ Files uploaded to data/input - auto-ingest will process them automatically")
+        # Auto-ingest will automatically process files via file watcher
+        if success_count > 0:
+            self.status.emit(f"✅ Files uploaded to data/input - auto-ingest will process them automatically")
+        else:
+            self.status.emit("✅ Files uploaded to data/input")
         
         self.finished.emit(success_count, error_count)
 
