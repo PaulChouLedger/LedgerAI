@@ -316,30 +316,22 @@ class RAGFilesDialog(BaseAuraDialog):
                 else:
                     QMessageBox.warning(self, "Processing Failed", 
                         f"Failed to trigger ingestion: HTTP {response.status_code}")
-            else:
-                # CPU mode: Use CPU FAISS in LLM containers
-                USE_MEDICAL_MODE = os.environ.get('USE_MEDICAL_MODE', 'true').lower() == 'true'
-                success_count = 0
-                
-                if USE_MEDICAL_MODE:
+                else:
+                    # CPU mode: Use CPU FAISS in LLM container (both medical and generic use port 11434)
                     response = requests.post("http://localhost:11434/cpu-faiss/ingest", timeout=30)
                     if response.status_code == 200:
-                        success_count += 1
-                
-                response = requests.post("http://localhost:11436/cpu-faiss/ingest", timeout=30)
-                if response.status_code == 200:
-                    success_count += 1
-                
-                self.file_list.takeItem(0)  # Remove processing message
-                self._load_rag_files()  # Reload the file list
-                
-                if success_count > 0:
-                    QMessageBox.information(self, "Processing Complete", 
-                        f"✅ Triggered ingestion for {success_count} container(s)\n"
-                        f"Files are being processed in the background.")
-                else:
-                    QMessageBox.warning(self, "Processing Failed", 
-                        "Failed to trigger ingestion in CPU FAISS containers.")
+                        result = response.json()
+                        processed = result.get('processed', 0)
+                        skipped = result.get('skipped', 0)
+                        self.file_list.takeItem(0)  # Remove processing message
+                        self._load_rag_files()  # Reload the file list
+                        QMessageBox.information(self, "Processing Complete", 
+                            f"✅ Processed {processed} file(s), skipped {skipped} file(s)\n"
+                            f"Files are being processed in the background.")
+                    else:
+                        self.file_list.takeItem(0)  # Remove processing message
+                        QMessageBox.warning(self, "Processing Failed", 
+                            f"Failed to trigger ingestion: HTTP {response.status_code}")
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to trigger ingestion: {e}")
             import traceback

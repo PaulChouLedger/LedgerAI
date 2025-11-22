@@ -1015,7 +1015,22 @@ class AuraGUI(QMainWindow):
             import requests
             import os
             
-            RAG_MODE = os.environ.get('RAG_MODE', 'CPU').upper()
+            # Get RAG_MODE from settings file first, then fall back to environment variable
+            RAG_MODE = None
+            try:
+                settings_path = os.path.expanduser("~/LedgerAI/data/app_settings.json")
+                if os.path.exists(settings_path):
+                    import json
+                    with open(settings_path, 'r') as f:
+                        settings = json.load(f)
+                        RAG_MODE = settings.get('rag_mode', '').upper()
+            except:
+                pass
+            
+            # Fall back to environment variable if not in settings
+            if not RAG_MODE:
+                RAG_MODE = os.environ.get('RAG_MODE', 'CPU').upper()
+            
             chunks = 0
             found_files = False
             
@@ -1028,21 +1043,34 @@ class AuraGUI(QMainWindow):
                         chunks = stats.get('chunks_loaded', 0)
                         found_files = chunks > 0
                         print(f"[AuraGUI] 📄 RAG GPU mode: {chunks} chunks found")
+                except requests.exceptions.ConnectionError:
+                    # Container not ready yet - this is normal during startup, don't log as error
+                    pass
                 except Exception as e:
-                    print(f"[AuraGUI] 📄 RAG GPU check failed: {e}")
+                    # Only log non-connection errors
+                    if "Connection" not in str(e):
+                        print(f"[AuraGUI] 📄 RAG GPU check failed: {e}")
             else:
-                # Check CPU RAG (in LLM container)
+                # Check CPU RAG (in LLM container) - use /cpu-faiss/status endpoint
+                # Both medical and generic containers use port 11434
                 try:
-                    # Try to get stats from LLM container
-                    response = requests.get("http://localhost:11434/rag/stats", timeout=2)
+                    response = requests.get("http://localhost:11434/cpu-faiss/status", timeout=2)
                     if response.status_code == 200:
                         stats = response.json()
-                        chunks = stats.get('chunks_loaded', 0)
-                        found_files = chunks > 0
-                        print(f"[AuraGUI] 📄 RAG CPU mode (API): {chunks} chunks found")
+                        total_chunks = stats.get('total_chunks', 0)
+                        if total_chunks > 0:
+                            chunks = total_chunks
+                            found_files = True
+                            print(f"[AuraGUI] 📄 RAG CPU mode: {chunks} chunks found")
+                except requests.exceptions.ConnectionError:
+                    # Container not ready yet - fall back to local files
+                    pass
                 except Exception as e:
-                    print(f"[AuraGUI] 📄 RAG CPU API check failed: {e}, trying local files...")
-                    # Try checking local embeddings directory as fallback
+                    if "Connection" not in str(e):
+                        print(f"[AuraGUI] 📄 RAG CPU check failed: {e}")
+                
+                # Fallback: Check local embeddings directory if API not available
+                if not found_files:
                     embeddings_dir = os.path.join(os.path.dirname(__file__), "../../data/embeddings")
                     if os.path.exists(embeddings_dir):
                         # Check if there are any index files
