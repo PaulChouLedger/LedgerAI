@@ -9,6 +9,7 @@ from typing import List, Optional
 from collections import Counter
 import re
 import logging
+import json
 
 # Conversation management for passive listening and keyword activation
 from conversation_manager import ConversationMemoryIndex, ConversationOrchestrator
@@ -392,22 +393,86 @@ atexit.register(conversation_orchestrator.flush_memory)
 # === Chat Endpoints ===
 @app.route("/chat-tg", methods=["POST"])
 def chat_tg():
-    """Non-streaming chat endpoint for Telegram"""
+    """Streaming chat endpoint - streams tokens as they're generated for faster response"""
     data = request.get_json()
     prompt = (data.get("prompt") or "").strip()
     session_id = (data.get("chat_id") or data.get("session_id") or "default").strip()
     
+    # Auto-detect streaming capability:
+    # 1. Explicit stream parameter takes precedence
+    # 2. Check Accept header for SSE support
+    # 3. Default to True for better UX (clients that can't handle it should explicitly set stream=false)
+    explicit_stream = data.get("stream")
+    if explicit_stream is not None:
+        stream = explicit_stream
+    else:
+        # Check if client supports SSE (text/event-stream)
+        accept_header = request.headers.get("Accept", "")
+        supports_sse = "text/event-stream" in accept_header or "text/event-stream" in accept_header.lower()
+        # Default to streaming for better UX - clients that can't handle it should set stream=false
+        stream = True  # Default to streaming for better perceived performance
+        if not supports_sse:
+            # If no explicit preference and client doesn't advertise SSE support, 
+            # we could default to False, but let's be optimistic and default to True
+            # Clients that break can explicitly set stream=false
+            pass
+    
     if not prompt:
         return jsonify({"response": "Please provide a message."})
     
-    print(f"[Generic] 💬 Session: {session_id}, Prompt: '{prompt[:50]}...'")
+    print(f"[Generic] 💬 Session: {session_id}, Prompt: '{prompt[:50]}...', Stream: {stream}")
     
-    try:
-        response = handle_conversation(prompt, session_id)
-        return jsonify({"response": response})
-    except Exception as e:
-        print(f"[Generic] ❌ Error: {e}")
-        return jsonify({"response": "I apologize, I encountered an error processing your request."})
+    if stream:
+        # Streaming mode: return Server-Sent Events (SSE) format
+        def generate_streaming_response():
+            try:
+                # Use streaming mode to get tokens as they're generated
+                result = handle_conversation(prompt, session_id, stream=True)
+                
+                # Check if result is a generator (streaming)
+                if hasattr(result, '__iter__') and not isinstance(result, str):
+                    print(f"[Generic] ✅ Streaming enabled - tokens will be yielded as generated")
+                    normalized_chunks = _normalize_stream_chunks(result)
+                    word_stream = _word_stream_from_chunks(normalized_chunks)
+                    
+                    # Stream words as JSON chunks for incremental display
+                    accumulated = ""
+                    for word in word_stream:
+                        accumulated += word
+                        # Send incremental JSON updates
+                        yield f"data: {json.dumps({'response': accumulated, 'done': False})}\n\n"
+                    
+                    # Send final message
+                    yield f"data: {json.dumps({'response': accumulated, 'done': True})}\n\n"
+                    print(f"[Generic] ✅ Streamed response complete")
+                else:
+                    # Fallback: non-streaming (result is a string)
+                    print(f"[Generic] ⚠️ Streaming not available - sending complete response")
+                    fallback_text = result if isinstance(result, str) and result else "I apologize, I encountered an error."
+                    yield f"data: {json.dumps({'response': fallback_text, 'done': True})}\n\n"
+            except Exception as e:
+                print(f"[Generic] ❌ Error: {e}")
+                import traceback
+                traceback.print_exc()
+                error_msg = "I apologize, I encountered an error processing your request."
+                yield f"data: {json.dumps({'response': error_msg, 'done': True})}\n\n"
+        
+        return Response(
+            stream_with_context(generate_streaming_response()),
+            mimetype="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "X-Accel-Buffering": "no"  # Disable nginx buffering
+            }
+        )
+    else:
+        # Non-streaming mode: return complete response (backward compatibility)
+        try:
+            response = handle_conversation(prompt, session_id, stream=False)
+            return jsonify({"response": response})
+        except Exception as e:
+            print(f"[Generic] ❌ Error: {e}")
+            return jsonify({"response": "I apologize, I encountered an error processing your request."})
 
 @app.route("/chat-tts", methods=["POST"])
 def chat_tts():

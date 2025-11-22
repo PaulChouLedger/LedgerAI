@@ -129,13 +129,16 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     sessions[chat_id]["history"].append(user_message)
 
     try:
-        # Forward to Aura's /chat-tg endpoint (returns JSON, not streaming)
+        # Forward to Aura's /chat-tg endpoint
+        # Note: Explicitly set stream=false since Telegram bot uses requests.post().json()
+        # which cannot parse Server-Sent Events (SSE) format used by streaming
         print(f"[Telegram] 🔍 Sending to LLM container: '{user_message[:50]}{'...' if len(user_message) > 50 else ''}'")
         resp = requests.post(
             AURA_CHAT_URL,
             json={
                 "prompt": user_message,
-                "chat_id": str(chat_id)  # Backend uses this for session management
+                "chat_id": str(chat_id),  # Backend uses this for session management
+                "stream": False  # Explicitly disable streaming - Telegram bot expects JSON, not SSE
             },
             timeout=30
         )
