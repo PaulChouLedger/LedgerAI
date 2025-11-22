@@ -632,10 +632,39 @@ def speak_llm_response(prompt, context=""):
         if response.status_code != 200:
             raise RuntimeError(f"LLM HTTP {response.status_code} on port {primary_port}")
         # Process streaming tokens - ONLY using sentence tags, NO fallbacks
-        # IMPROVED: Send early chunks when natural break points are detected for lower latency
-        # Still send complete sentence when <sentence_end> tag is received
+        # IMPROVED: Batch short sentences together to reduce latency from too many small TTS calls
         sentence_buffer = []  # Buffer for current sentence (between sentence_start and sentence_end)
         in_sentence = False  # Track if we're inside a sentence block
+        short_sentence_batch = []  # Buffer for batching short sentences together
+        MIN_SENTENCE_WORDS = 5  # Sentences with fewer words will be batched
+        MIN_SENTENCE_CHARS = 20  # Sentences with fewer chars will be batched
+        MAX_BATCH_SIZE = 3  # Maximum number of short sentences to batch before sending
+        
+        def _is_empty_sentence(text):
+            """Check if sentence is empty or just whitespace/punctuation"""
+            # Remove markdown formatting and check if anything meaningful remains
+            text_clean = re.sub(r'\*\*|\*|_|`|#', '', text).strip()
+            # Remove punctuation-only content
+            text_clean = re.sub(r'^[\s\-:;,.!?()\[\]{}]+$', '', text_clean)
+            return not text_clean or len(text_clean.strip()) == 0
+        
+        def _is_short_sentence(text):
+            """Check if sentence is short enough to batch"""
+            # Don't batch if it's empty
+            if _is_empty_sentence(text):
+                return False
+            word_count = len(text.split())
+            char_count = len(text)
+            return word_count < MIN_SENTENCE_WORDS and char_count < MIN_SENTENCE_CHARS
+        
+        def _flush_short_batch():
+            """Send batched short sentences as one chunk"""
+            if short_sentence_batch:
+                combined = " ".join(short_sentence_batch).strip()
+                if combined and not _is_empty_sentence(combined):
+                    print(f"[Speaker] 📦 Batching {len(short_sentence_batch)} short sentences: '{combined}'")
+                    enqueue_tts_chunk(combined)
+                short_sentence_batch.clear()
         
         for line in response.iter_lines(decode_unicode=True):
             token = line.rstrip("\r\n")
@@ -659,9 +688,23 @@ def speak_llm_response(prompt, context=""):
                     # Join all buffered tokens into complete sentence
                     chunk_text = "".join(sentence_buffer).strip()
                     clean_text = re.sub(r'<sentence_start>|<sentence_end>', '', chunk_text).strip()
-                    if clean_text:
-                        print(f"[Speaker] 🎙️ <sentence_end> received - sending remaining sentence to TTS: '{clean_text}'")
-                        enqueue_tts_chunk(clean_text)
+                    if clean_text and not _is_empty_sentence(clean_text):
+                        # Check if this is a short sentence that should be batched
+                        if _is_short_sentence(clean_text):
+                            short_sentence_batch.append(clean_text)
+                            print(f"[Speaker] 📝 Short sentence buffered ({len(clean_text)} chars): '{clean_text}'")
+                            # Flush batch if we've accumulated enough short sentences
+                            if len(short_sentence_batch) >= MAX_BATCH_SIZE:
+                                _flush_short_batch()
+                        else:
+                            # Long sentence - flush any pending short batch first, then send this
+                            _flush_short_batch()
+                            print(f"[Speaker] 🎙️ <sentence_end> received - sending sentence to TTS: '{clean_text}'")
+                            enqueue_tts_chunk(clean_text)
+                    else:
+                        # Empty or whitespace-only sentence - skip it
+                        if clean_text:
+                            print(f"[Speaker] ⏭️  Skipping empty/whitespace sentence: '{clean_text[:50]}'")
                 else:
                     print(f"[Speaker] ⚠️ <sentence_end> received but sentence_buffer is empty")
                 # Reset state for next sentence
@@ -677,6 +720,9 @@ def speak_llm_response(prompt, context=""):
             # Accumulate tokens in buffer - send to TTS only when <sentence_end> is received
             print(f"[LLM] 🧠 {token}")
             sentence_buffer.append(token)
+        
+        # Flush any remaining short sentences at end of stream
+        _flush_short_batch()
         
         # No fallback: if stream ends without sentence_end tag, tokens are lost (tags are required)
     except Exception as e:
