@@ -37,12 +37,17 @@ services:
           devices:
             - driver: nvidia
               count: 1
-              capabilities: [gpu, nvdla] # Explicitly request DLA capability
+              capabilities: [gpu]
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
+    command:
+      - /bin/bash
+      - -c
+      - |
+        tail -f /dev/null
 
   # Language Model Service
   llm:
@@ -81,7 +86,7 @@ services:
           devices:
             - driver: nvidia
               count: 1
-              capabilities: [gpu, nvdla]
+              capabilities: [gpu]
     logging:
       driver: "json-file"
       options:
@@ -170,7 +175,7 @@ services:
           devices:
             - driver: nvidia
               count: 1
-              capabilities: [gpu, nvdla]
+              capabilities: [gpu]
     logging:
       driver: "json-file"
       options:

@@ -35,4 +35,4 @@ ENV LD_LIBRARY_PATH=/usr/lib/aarch64-linux-gnu/nvidia:/usr/lib/aarch64-linux-gnu
 RUN uv pip install --no-build-isolation .
 
 EXPOSE 5000
-CMD ["uv", "run", "/app/src/aura_whisper/container_rest.py"]
+CMD ["python3", "/app/src/aura_whisper/container_rest.py"]
