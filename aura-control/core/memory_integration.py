@@ -12,7 +12,37 @@ logger = logging.getLogger(__name__)
 
 # Memory container configuration
 MEMORY_CONTAINER_URL = os.environ.get("MEMORY_CONTAINER_URL", "http://localhost:11438")
-MEMORY_ENABLED = os.environ.get("MEMORY_ENABLED", "true").lower() == "true"
+
+def _load_memory_enabled():
+    """Load memory enabled setting from app_settings.json or environment variable"""
+    # First check environment variable (highest priority)
+    env_value = os.environ.get("MEMORY_ENABLED")
+    if env_value is not None:
+        return env_value.lower() == "true"
+    
+    # Then check app_settings.json
+    try:
+        settings_path = os.path.expanduser("~/LedgerAI/data/app_settings.json")
+        if os.path.exists(settings_path):
+            import json
+            with open(settings_path, "r") as f:
+                data = json.load(f) or {}
+            memory_enabled = data.get("memory_enabled")
+            if memory_enabled is not None:
+                return bool(memory_enabled)
+    except Exception as e:
+        logger.debug(f"[Memory] Could not load memory_enabled from settings: {e}")
+    
+    # Default to True if not set
+    return True
+
+MEMORY_ENABLED = _load_memory_enabled()
+
+def reload_memory_enabled():
+    """Reload memory enabled setting (called when setting changes)"""
+    global MEMORY_ENABLED
+    MEMORY_ENABLED = _load_memory_enabled()
+    logger.info(f"[Memory] Memory enabled setting reloaded: {MEMORY_ENABLED}")
 
 def forward_to_memory(text: str, source: str = "wake_word", metadata: dict = None):
     """
@@ -57,8 +87,9 @@ def forward_to_memory(text: str, source: str = "wake_word", metadata: dict = Non
     except requests.exceptions.Timeout:
         logger.warning(f"[Memory] ⏱️ Memory container request timeout (>2s)")
     except requests.exceptions.RequestException as e:
-        # Silently fail - memory container might not be running
-        logger.debug(f"[Memory] Memory container unavailable: {e}")
+        # Log warning instead of debug - make it more visible
+        logger.warning(f"[Memory] ⚠️ Memory container unavailable: {e}")
+        logger.warning(f"[Memory] 💡 Check if memory container is running: curl http://localhost:11438/health")
     except Exception as e:
         logger.warning(f"[Memory] Failed to forward to memory container: {e}")
 

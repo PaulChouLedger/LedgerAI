@@ -1260,6 +1260,17 @@ class AIModelSettingsDialog(BaseAuraDialog):
         rag_row.addWidget(self.rag_combo, 1)
         layout.addLayout(rag_row)
         
+        # Memory Container toggle
+        memory_row = QHBoxLayout(); memory_row.setSpacing(12)
+        memory_label = QLabel("Memory Container:")
+        memory_label.setStyleSheet("color: #ffffff; font-size: 14px;")
+        self.memory_toggle = QPushButton("OFF")
+        self.memory_toggle.setCheckable(True)
+        self.memory_toggle.setStyleSheet(SettingsDialog.get_button_style(None))
+        memory_row.addWidget(memory_label)
+        memory_row.addWidget(self.memory_toggle, 1)
+        layout.addLayout(memory_row)
+        
         # Add stretch at bottom to center content and ensure nothing gets cut off
         layout.addStretch(2)
         self.setLayout(layout)
@@ -1302,6 +1313,24 @@ class AIModelSettingsDialog(BaseAuraDialog):
             self.wake_word_toggle.setChecked(False)
             self.wake_word_toggle.setText("OFF")
         
+        # Initialize memory container toggle from settings
+        try:
+            settings_path = os.path.expanduser("~/LedgerAI/data/app_settings.json")
+            if os.path.exists(settings_path):
+                with open(settings_path, "r") as f:
+                    data = json.load(f) or {}
+                memory_enabled = data.get("memory_enabled", True)  # Default to True
+                self.memory_toggle.setChecked(memory_enabled)
+                self.memory_toggle.setText("ON" if memory_enabled else "OFF")
+            else:
+                # Default to enabled if settings file doesn't exist
+                self.memory_toggle.setChecked(True)
+                self.memory_toggle.setText("ON")
+        except Exception as e:
+            print(f"[ModelSettings] Error loading memory_enabled: {e}")
+            self.memory_toggle.setChecked(True)
+            self.memory_toggle.setText("ON")
+        
         # Connect signals
         def on_wake_word_toggled(checked):
             self.wake_word_toggle.setText("ON" if checked else "OFF")
@@ -1326,6 +1355,41 @@ class AIModelSettingsDialog(BaseAuraDialog):
         
         self.wake_word_toggle.toggled.connect(on_wake_word_toggled)
         self.rag_combo.currentIndexChanged.connect(self._on_rag_mode_changed)
+        
+        # Connect memory container toggle
+        def on_memory_toggled(checked):
+            self.memory_toggle.setText("ON" if checked else "OFF")
+            try:
+                settings_path = os.path.expanduser("~/LedgerAI/data/app_settings.json")
+                os.makedirs(os.path.dirname(settings_path), exist_ok=True)
+                data = {}
+                if os.path.exists(settings_path):
+                    with open(settings_path, "r") as f:
+                        data = json.load(f) or {}
+                data["memory_enabled"] = checked
+                with open(settings_path, "w") as f:
+                    json.dump(data, f, indent=2)
+                print(f"[ModelSettings] Memory container: {'enabled' if checked else 'disabled'}")
+                
+                # Reload the setting in memory_integration module
+                try:
+                    from core.memory_integration import reload_memory_enabled
+                    reload_memory_enabled()
+                    print(f"[ModelSettings] ✅ Memory container setting updated (enabled={checked})")
+                except Exception as e:
+                    print(f"[ModelSettings] ⚠️ Could not reload memory integration: {e}")
+                    # Setting is saved, will take effect on next restart
+                    QMessageBox.information(
+                        self,
+                        "Setting Saved",
+                        f"Memory container setting changed.\n\n"
+                        f"Setting saved to app_settings.json.\n"
+                        f"Change will take effect immediately for new conversations."
+                    )
+            except Exception as e:
+                print(f"[ModelSettings] Error saving memory_enabled: {e}")
+        
+        self.memory_toggle.toggled.connect(on_memory_toggled)
         # Connect mode buttons
         self.mode_generic_btn.clicked.connect(lambda: self._on_mode_changed("generic"))
         self.mode_medical_btn.clicked.connect(lambda: self._on_mode_changed("medical"))

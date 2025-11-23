@@ -541,8 +541,10 @@ def warmup_whisper():
 try:
     from memory_integration import forward_to_memory
     MEMORY_AVAILABLE = True
-except ImportError:
+    print("[Listener] ✅ Memory container integration loaded")
+except ImportError as e:
     MEMORY_AVAILABLE = False
+    print(f"[Listener] ⚠️ Memory container integration not available: {e}")
     def forward_to_memory(*args, **kwargs):
         pass
 
