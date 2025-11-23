@@ -16,6 +16,10 @@ RAG_MODE = os.environ.get('RAG_MODE', 'CPU').upper()  # GPU = RAG container, CPU
 RAG_SERVICE_URL = os.environ.get('RAG_SERVICE_URL', 'http://localhost:11435')
 RAG_TIMEOUT = int(os.environ.get('RAG_TIMEOUT', '10'))
 
+# RAG Search Configuration
+RAG_SEARCH_THRESHOLD = float(os.environ.get('RAG_SEARCH_THRESHOLD', '0.35'))  # Similarity threshold (0-1), lower = more results
+RAG_SEARCH_K = int(os.environ.get('RAG_SEARCH_K', '3'))  # Number of results to return
+
 class RAGClient:
     """
     Unified RAG client that supports both GPU (external container) and CPU (local) modes
@@ -270,18 +274,24 @@ class RAGClient:
             # If we found at least one single-term match, use RAG (better than nothing)
             return matches_found > 0
     
-    def search(self, query: str, k: int = 3, threshold: float = 0.35) -> List[Dict]:
+    def search(self, query: str, k: int = None, threshold: float = None) -> List[Dict]:
         """
         Search for relevant medical information
         
         Args:
             query: Search query
-            k: Number of results to return
-            threshold: Similarity threshold (0-1)
+            k: Number of results to return (default: RAG_SEARCH_K)
+            threshold: Similarity threshold 0-1 (default: RAG_SEARCH_THRESHOLD)
         
         Returns:
             List of search results with text, score, and metadata
         """
+        # Use configuration defaults if not provided
+        if k is None:
+            k = RAG_SEARCH_K
+        if threshold is None:
+            threshold = RAG_SEARCH_THRESHOLD
+        
         if self.use_gpu:
             return self._search_gpu(query, k, threshold)
         else:
