@@ -71,16 +71,26 @@ class BackgroundListener:
             logger.warning("[BackgroundListener] Already running")
             return
         
+        logger.info(f"[BackgroundListener] 🔧 Starting background listener (device: {self.device_name})...")
+        
         # Find device
         self.device_index = self._find_device()
         if self.device_index is None:
-            logger.error(f"[BackgroundListener] Device '{self.device_name}' not found")
+            logger.error(f"[BackgroundListener] ❌ Device '{self.device_name}' not found - cannot start listening")
+            logger.error(f"[BackgroundListener] 💡 Available devices:")
+            try:
+                devices = sd.query_devices()
+                for i, device in enumerate(devices):
+                    if device["max_input_channels"] > 0:
+                        logger.error(f"[BackgroundListener]    [{i}] {device['name']}")
+            except Exception as e:
+                logger.error(f"[BackgroundListener]    Error listing devices: {e}")
             return
         
         self.running = True
         self.thread = threading.Thread(target=self._listen_loop, daemon=True)
         self.thread.start()
-        logger.info("[BackgroundListener] ✅ Started background listening")
+        logger.info("[BackgroundListener] ✅ Started background listening - continuously transcribing all audio")
     
     def stop(self):
         """Stop background listening"""
@@ -121,12 +131,20 @@ class BackgroundListener:
             )
             
             self.stream.start()
-            logger.info("[BackgroundListener] Audio stream started")
+            logger.info("[BackgroundListener] ✅ Audio stream started - listening continuously")
+            
+            # Log heartbeat every 30 seconds to confirm it's running
+            last_heartbeat = time.time()
             
             # Process buffer periodically
             while self.running:
                 time.sleep(0.1)  # Check every 100ms
                 self._process_buffer()
+                
+                # Heartbeat log every 30 seconds
+                if time.time() - last_heartbeat > 30.0:
+                    logger.info("[BackgroundListener] 💓 Background listener active - continuously listening and transcribing")
+                    last_heartbeat = time.time()
                 
         except Exception as e:
             logger.error(f"[BackgroundListener] Error in listen loop: {e}")
@@ -153,6 +171,10 @@ class BackgroundListener:
                 self.audio_buffer.append(audio_data)
                 self.speech_frames += 1
                 self.silence_frames = 0
+                # Log speech detection periodically (every 50 frames to avoid spam)
+                if not hasattr(self, '_last_speech_log') or self.speech_frames % 50 == 0:
+                    logger.debug(f"[BackgroundListener] 🎤 Speech detected (RMS: {rms:.4f}, threshold: {self.vad_threshold:.4f}, frames: {self.speech_frames})")
+                    self._last_speech_log = self.speech_frames
             else:
                 # Silence
                 self.silence_frames += 1
@@ -165,20 +187,31 @@ class BackgroundListener:
         with self.buffer_lock:
             # Check if we should transcribe
             should_transcribe = False
+            # Log periodic status (every 5 seconds of processing)
+            if hasattr(self, '_last_status_log'):
+                if time.time() - self._last_status_log > 5.0:
+                    logger.debug(f"[BackgroundListener] 📊 Status: buffer={len(self.audio_buffer)} chunks, speech_frames={self.speech_frames}, silence_frames={self.silence_frames}")
+                    self._last_status_log = time.time()
+            else:
+                self._last_status_log = time.time()
             
             if len(self.audio_buffer) > 0:
                 # If we have enough speech and hit silence threshold, transcribe
                 if self.speech_frames >= self.min_speech_frames and self.silence_frames >= self.max_silence_frames:
                     should_transcribe = True
+                    buffer_duration = len(self.audio_buffer) * self.frame_size / self.sample_rate
+                    logger.info(f"[BackgroundListener] 🎙️ Ready to transcribe: {buffer_duration:.2f}s audio ({self.speech_frames} speech frames, {self.silence_frames} silence frames)")
                 # Or if buffer is getting very large (max 10 seconds)
                 elif len(self.audio_buffer) * self.frame_size >= 10 * self.sample_rate:
                     should_transcribe = True
+                    logger.info(f"[BackgroundListener] 🎙️ Buffer full, transcribing: {len(self.audio_buffer)} chunks")
             
             if not should_transcribe:
                 return
             
             # Extract audio for transcription
             audio_data = np.concatenate(self.audio_buffer)
+            buffer_duration = len(audio_data) / self.sample_rate
             
             # Clear buffer
             self.audio_buffer = []
@@ -186,6 +219,7 @@ class BackgroundListener:
             self.silence_frames = 0
         
         # Transcribe in separate thread to avoid blocking
+        logger.info(f"[BackgroundListener] 🎤 Sending {buffer_duration:.2f}s of audio to Whisper for transcription...")
         threading.Thread(target=self._transcribe_audio, args=(audio_data,), daemon=True).start()
     
     def _transcribe_audio(self, audio_data: np.ndarray):
@@ -224,18 +258,20 @@ class BackgroundListener:
                     text = text.get("text", "").strip()
                 
                 if text and len(text) > 3:  # Minimum meaningful text
+                    logger.info(f"[BackgroundListener] ✅ Transcribed: '{text[:80]}...'")
                     # Store in memory
                     self.memory_manager.store_conversation(
                         text=text,
                         source="background",
                         metadata={"duration": len(audio_data) / self.sample_rate}
                     )
+                    logger.info(f"[BackgroundListener] 💾 Stored in memory (source: background)")
                     
                     # Call callback if provided
                     if self.on_transcription:
                         self.on_transcription(text)
-                    
-                    logger.info(f"[BackgroundListener] Transcribed: '{text[:50]}...'")
+                else:
+                    logger.debug(f"[BackgroundListener] ⚠️ Transcription too short or empty: '{text}'")
             else:
                 logger.warning(f"[BackgroundListener] Whisper returned status {response.status_code}")
                 

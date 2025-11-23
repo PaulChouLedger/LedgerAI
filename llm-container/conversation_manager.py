@@ -473,9 +473,15 @@ class ConversationOrchestrator:
             return
         try:
             embeddings = self.embed_fn([text])
-            if not embeddings or len(embeddings) == 0:
+            # Check if embeddings is valid and not empty
+            if not embeddings:
                 return
-            # Validate that embeddings[0] exists and is a list
+            # Handle case where embeddings might be a tuple or other structure
+            if isinstance(embeddings, tuple):
+                embeddings = list(embeddings)
+            if not isinstance(embeddings, list) or len(embeddings) == 0:
+                return
+            # Validate that embeddings[0] exists and is a list/tuple
             if not isinstance(embeddings[0], (list, tuple)):
                 print(f"[ConversationMemory] ⚠️ Invalid embedding format: {type(embeddings[0])}")
                 return
