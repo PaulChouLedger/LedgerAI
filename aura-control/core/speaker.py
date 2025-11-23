@@ -671,13 +671,14 @@ def speak_llm_response(prompt, context=""):
         if response.status_code != 200:
             raise RuntimeError(f"LLM HTTP {response.status_code} on port {primary_port}")
         # Process streaming tokens - ONLY using sentence tags, NO fallbacks
-        # IMPROVED: Batch short sentences together to reduce latency from too many small TTS calls
+        # IMPROVED: Intelligently batch sentences based on semantic relationships and structure
         sentence_buffer = []  # Buffer for current sentence (between sentence_start and sentence_end)
         in_sentence = False  # Track if we're inside a sentence block
-        short_sentence_batch = []  # Buffer for batching short sentences together
+        sentence_batch = []  # Buffer for batching related sentences together
         MIN_SENTENCE_WORDS = 5  # Sentences with fewer words will be batched
         MIN_SENTENCE_CHARS = 20  # Sentences with fewer chars will be batched
-        MAX_BATCH_SIZE = 3  # Maximum number of short sentences to batch before sending
+        MAX_BATCH_SIZE = 5  # Increased from 3 for better grouping of related content
+        MAX_BATCH_WORDS = 40  # Maximum words in a batch before forcing flush
         
         def _is_empty_sentence(text):
             """Check if sentence is empty or just whitespace/punctuation"""
@@ -694,6 +695,93 @@ def speak_llm_response(prompt, context=""):
             # Check if anything meaningful remains
             return not text_clean or len(text_clean.strip()) == 0
         
+        def _is_incomplete_sentence(text):
+            """Detect if sentence appears incomplete and should be grouped with next sentence"""
+            if not text:
+                return False
+            text_stripped = text.strip()
+            # Ends with opening parenthesis (likely continuation, e.g., "Piperacillin-Tazobactam (3.")
+            if text_stripped.endswith('('):
+                return True
+            # Ends with colon (likely introducing a list or continuation)
+            if text_stripped.endswith(':'):
+                return True
+            # Ends with a number followed by period (likely part of a dosage, e.g., "3." or "(3.")
+            # This catches patterns like "-Piperacillin-Tazobactam (3."
+            if re.search(r'\(?\d+\.\s*$', text_stripped):
+                return True
+            # Ends with incomplete dosage pattern without closing paren
+            # Check for dosage units at the end that suggest continuation (but not complete sentences)
+            if not text_stripped.endswith(('.', '!', '?', ')')):
+                # Pattern: ends with dosage unit but no period before it (incomplete)
+                if re.search(r'\b(mg|g|kg|ml|IV|PO|Q\d+|q\d+)\s*$', text_stripped, re.IGNORECASE):
+                    # Exclude if it's a complete sentence (has period before the unit)
+                    if not re.search(r'\.\s+(mg|g|kg|ml|IV|PO)', text_stripped, re.IGNORECASE):
+                        return True
+            # Very short sentences that look like fragments (less than 15 chars, no proper ending)
+            if len(text_stripped) < 15 and not text_stripped.endswith(('.', '!', '?', ')')):
+                return True
+            return False
+        
+        def _is_list_item(text):
+            """Detect if sentence is a list item (bullet, numbered, or dash-prefixed)"""
+            if not text:
+                return False
+            text_stripped = text.strip()
+            # Starts with bullet, dash, or number pattern
+            if re.match(r'^[-•*]\s+', text_stripped):
+                return True
+            if re.match(r'^\d+[.)]\s+', text_stripped):
+                return True
+            # Starts with medication/dosage pattern (common in medical lists)
+            if re.match(r'^[A-Z][a-z]+(-[A-Z][a-z]+)*\s+', text_stripped):
+                # Check if it contains dosage info
+                if re.search(r'\d+\s*(mg|g|kg|ml|IV|PO)', text_stripped, re.IGNORECASE):
+                    return True
+            return False
+        
+        def _should_batch_with_previous(prev_text, current_text):
+            """Determine if current sentence should be batched with previous based on semantic relationship"""
+            if not prev_text or not current_text:
+                return False
+            
+            prev_stripped = prev_text.strip()
+            current_stripped = current_text.strip()
+            
+            # If previous sentence is incomplete, definitely batch
+            if _is_incomplete_sentence(prev_text):
+                return True
+            
+            # Medical dosage continuation patterns
+            # Previous ends with number and period (e.g., "3."), current starts with number (e.g., "375 mg")
+            # This catches cases like "-Piperacillin-Tazobactam (3." followed by "375 mg Q6H IV)"
+            if re.search(r'\d+\.\s*$', prev_stripped):
+                if re.match(r'\d+', current_stripped):
+                    return True
+            
+            # Previous ends with opening paren, current continues (e.g., "(" followed by "375 mg")
+            if prev_stripped.endswith('('):
+                return True
+            
+            # If both are list items, batch them
+            if _is_list_item(prev_text) and _is_list_item(current_text):
+                return True
+            
+            # If previous ends with colon and current is a list item, batch
+            if prev_stripped.endswith(':') and _is_list_item(current_text):
+                return True
+            
+            # Medical dosage continuation: Previous ends with medication name, current starts with dosage
+            if re.search(r'[A-Z][a-z]+(-[A-Z][a-z]+)*\s*$', prev_stripped):
+                if re.match(r'\(?\d+', current_stripped):
+                    return True
+            
+            # Both are very short (likely related fragments)
+            if len(prev_stripped) < 15 and len(current_stripped) < 15:
+                return True
+            
+            return False
+        
         def _is_short_sentence(text):
             """Check if sentence is short enough to batch"""
             # Don't batch if it's empty
@@ -703,14 +791,34 @@ def speak_llm_response(prompt, context=""):
             char_count = len(text)
             return word_count < MIN_SENTENCE_WORDS and char_count < MIN_SENTENCE_CHARS
         
-        def _flush_short_batch():
-            """Send batched short sentences as one chunk"""
-            if short_sentence_batch:
-                combined = " ".join(short_sentence_batch).strip()
+        def _should_flush_batch(current_text=None):
+            """Determine if current batch should be flushed"""
+            if not sentence_batch:
+                return False
+            
+            # Count total words in batch
+            total_words = sum(len(s.split()) for s in sentence_batch)
+            if current_text:
+                total_words += len(current_text.split())
+            
+            # Flush if batch is getting too large
+            if total_words >= MAX_BATCH_WORDS:
+                return True
+            
+            # Flush if we have too many sentences
+            if len(sentence_batch) >= MAX_BATCH_SIZE:
+                return True
+            
+            return False
+        
+        def _flush_sentence_batch():
+            """Send batched sentences as one chunk"""
+            if sentence_batch:
+                combined = " ".join(sentence_batch).strip()
                 if combined and not _is_empty_sentence(combined):
-                    print(f"[Speaker] 📦 Batching {len(short_sentence_batch)} short sentences: '{combined}'")
+                    print(f"[Speaker] 📦 Batching {len(sentence_batch)} related sentences: '{combined[:80]}...'")
                     enqueue_tts_chunk(combined)
-                short_sentence_batch.clear()
+                sentence_batch.clear()
         
         for line in response.iter_lines(decode_unicode=True):
             token = line.rstrip("\r\n")
@@ -739,17 +847,39 @@ def speak_llm_response(prompt, context=""):
                     # Normalize whitespace (collapse multiple spaces to single space)
                     clean_text = re.sub(r'\s+', ' ', clean_text).strip()
                     if clean_text and not _is_empty_sentence(clean_text):
-                        # Check if this is a short sentence that should be batched
-                        if _is_short_sentence(clean_text):
-                            short_sentence_batch.append(clean_text)
-                            print(f"[Speaker] 📝 Short sentence buffered ({len(clean_text)} chars): '{clean_text}'")
-                            # Flush batch if we've accumulated enough short sentences
-                            if len(short_sentence_batch) >= MAX_BATCH_SIZE:
-                                _flush_short_batch()
+                        # Intelligent batching logic
+                        should_batch = False
+                        
+                        # Check if we should batch with previous sentence
+                        if sentence_batch:
+                            prev_text = sentence_batch[-1]
+                            if _should_batch_with_previous(prev_text, clean_text):
+                                should_batch = True
+                        
+                        # Also batch if current sentence is incomplete (needs continuation)
+                        if _is_incomplete_sentence(clean_text):
+                            should_batch = True
+                        
+                        # Batch short sentences or list items
+                        if not should_batch and (_is_short_sentence(clean_text) or _is_list_item(clean_text)):
+                            should_batch = True
+                        
+                        # Check if we need to flush before adding this sentence
+                        if _should_flush_batch(clean_text):
+                            _flush_sentence_batch()
+                            should_batch = False  # After flush, this becomes a new batch
+                        
+                        if should_batch:
+                            sentence_batch.append(clean_text)
+                            print(f"[Speaker] 📝 Sentence buffered for grouping ({len(clean_text)} chars): '{clean_text[:60]}...'")
+                            # Flush if batch is full or too large
+                            if _should_flush_batch():
+                                _flush_sentence_batch()
                         else:
-                            # Long sentence - flush any pending short batch first, then send this
-                            _flush_short_batch()
-                            print(f"[Speaker] 🎙️ <sentence_end> received - sending sentence to TTS: '{clean_text}'")
+                            # Flush any pending batch first
+                            _flush_sentence_batch()
+                            # Send this sentence immediately (it's a complete, standalone sentence)
+                            print(f"[Speaker] 🎙️ <sentence_end> received - sending sentence to TTS: '{clean_text[:60]}...'")
                             enqueue_tts_chunk(clean_text)
                     else:
                         # Empty or whitespace-only sentence - skip it
@@ -771,8 +901,8 @@ def speak_llm_response(prompt, context=""):
             print(f"[LLM] 🧠 {token}")
             sentence_buffer.append(token)
         
-        # Flush any remaining short sentences at end of stream
-        _flush_short_batch()
+        # Flush any remaining batched sentences at end of stream
+        _flush_sentence_batch()
         
         # No fallback: if stream ends without sentence_end tag, tokens are lost (tags are required)
     except Exception as e:

@@ -3,7 +3,7 @@
 
 from flask import Flask, request, jsonify, stream_with_context, Response
 from llama_cpp import Llama
-import os, threading, atexit
+import os, threading, atexit, time
 import requests
 from typing import List, Optional
 from collections import Counter
@@ -311,26 +311,60 @@ def handle_conversation(
                             file_name = result['metadata'].get('document_name', 'unknown')
                     print(f"[Generic]   [{i}] Score: {score:.3f}, File: {file_name}, Preview: '{text_preview}...'")
                 
-                # Build RAG context, limit each result to 1200 chars (increased to capture more detail)
+                # Build RAG context with improved formatting and relevance ordering
                 MAX_CHARS_PER_RESULT = 1200
                 rag_chunks = []
-                for r in rag_results:
+                
+                # Sort results by score (highest first) for better context ordering
+                sorted_results = sorted(rag_results, key=lambda x: x.get('score', 0), reverse=True)
+                
+                for i, r in enumerate(sorted_results, 1):
                     text = r.get("text", "")
+                    score = r.get("score", 0)
+                    metadata = r.get("metadata", {})
+                    
                     if text:
-                        # Truncate if too long, but try to break at word boundary
+                        # Extract source information
+                        source_name = "unknown"
+                        if isinstance(metadata, dict):
+                            file_path = metadata.get('file_path', '')
+                            if file_path:
+                                from pathlib import Path
+                                source_name = Path(file_path).name
+                            else:
+                                source_name = metadata.get('document_name', 'unknown')
+                        
+                        # Truncate if too long, but try to break at sentence boundary
                         if len(text) > MAX_CHARS_PER_RESULT:
                             truncated = text[:MAX_CHARS_PER_RESULT]
-                            # Try to break at last space to avoid cutting words
-                            last_space = truncated.rfind(' ')
-                            if last_space > MAX_CHARS_PER_RESULT * 0.8:  # Only if we're not losing too much
-                                truncated = truncated[:last_space] + "..."
+                            # Try to break at last sentence boundary
+                            last_period = max(
+                                truncated.rfind('. '),
+                                truncated.rfind('! '),
+                                truncated.rfind('? ')
+                            )
+                            if last_period > MAX_CHARS_PER_RESULT * 0.7:  # Only if we're not losing too much
+                                truncated = truncated[:last_period + 1] + "..."
                             else:
-                                truncated = truncated + "..."
-                            rag_chunks.append(truncated)
+                                # Fall back to word boundary
+                                last_space = truncated.rfind(' ')
+                                if last_space > MAX_CHARS_PER_RESULT * 0.8:
+                                    truncated = truncated[:last_space] + "..."
+                                else:
+                                    truncated = truncated + "..."
+                            text = truncated
+                        
+                        # Format chunk (minimal metadata, let LLM focus on content)
+                        # Only include source if available, relevance score is implicit in ordering
+                        if source_name != "unknown":
+                            formatted_chunk = f"{text}\n[Source: {source_name}]"
                         else:
-                            rag_chunks.append(text)
-                rag_context = "\n".join(rag_chunks)
-                print(f"[Generic] ✅ Using RAG context ({len(rag_context)} chars, ~{len(rag_context)//4} tokens) for LLM response")
+                            formatted_chunk = text
+                        rag_chunks.append(formatted_chunk)
+                
+                # Join with clear separators
+                rag_context = "\n\n---\n\n".join(rag_chunks)
+                print(f"[Generic] ✅ Using RAG context ({len(rag_context)} chars, ~{len(rag_context)//4} tokens) from {len(rag_chunks)} chunks for LLM response")
             except Exception as e:
                 print(f"[Generic] ⚠️ RAG failed, using direct LLM: {e}")
                 import traceback
@@ -355,40 +389,23 @@ def handle_conversation(
         # Check if RAG context is present (more authoritative than general knowledge)
         has_rag_context = "Knowledge context:" in combined_context
         if has_rag_context:
+            # Dynamic prompt construction - no hardcoded domain-specific text
             system_content = (
-                "You are a helpful, knowledgeable assistant. Provide comprehensive, well-structured responses that thoroughly address the user's question.\n\n"
                 f"{combined_context}\n\n"
-                "IMPORTANT: The 'Knowledge context' section above contains authoritative, verified information from uploaded documents.\n"
-                "You should prioritize and use information from the Knowledge context over your general training data when they conflict.\n"
-                "If the Knowledge context contains specific details, facts, or recommendations, use those as provided.\n\n"
-                "RESPONSE GUIDELINES:\n"
-                "- Provide thorough, comprehensive answers that cover the topic in depth\n"
-                "- Structure your response with clear sections and subsections when appropriate\n"
-                "- Explain the 'why' behind recommendations, not just the 'what'\n"
-                "- Cover different scenarios, types, or variations when relevant\n"
-                "- Include important context, disclaimers, or safety information when appropriate\n"
-                "- Use formatting like **bold text** for emphasis and clear section breaks\n"
-                "- Prioritize information from the Knowledge context when it's relevant to the question\n"
-                "- When Knowledge context provides specific information, use that information as stated\n"
-                "- Do NOT substitute your general knowledge when the Knowledge context has specific, relevant information\n"
-                "- Be conversational and natural, but prioritize accuracy and completeness from the Knowledge context\n\n"
-                f"User question: {prompt}"
+                f"Based on the context provided above, answer the following question: {prompt}\n\n"
+                "Guidelines:\n"
+                "- Synthesize information from the context sections naturally\n"
+                "- Integrate information from multiple sections when relevant\n"
+                "- Rephrase and explain in your own words rather than copying text\n"
+                "- If the context doesn't fully address the question, supplement appropriately\n"
+                "- Structure your response clearly and comprehensively"
             )
         else:
             # No RAG context, use standard prompt
             system_content = (
-                "You are a helpful, knowledgeable assistant. Provide comprehensive, well-structured responses that thoroughly address the user's question.\n\n"
                 f"{combined_context}\n\n"
-                "RESPONSE GUIDELINES:\n"
-                "- Provide thorough, comprehensive answers that cover the topic in depth\n"
-                "- Structure your response with clear sections and subsections when appropriate\n"
-                "- Explain the 'why' behind recommendations, not just the 'what'\n"
-                "- Cover different scenarios, types, or variations when relevant\n"
-                "- Include important context, disclaimers, or safety information when appropriate\n"
-                "- Use formatting like **bold text** for emphasis and clear section breaks\n"
-                "- Reference the conversation memory above if it contains relevant information\n"
-                "- Be conversational and natural, but prioritize completeness and helpfulness\n\n"
-                f"User question: {prompt}"
+                f"Answer the following question: {prompt}\n\n"
+                "Provide a comprehensive, well-structured response that addresses the question thoroughly."
             )
         
         messages = [
@@ -400,17 +417,7 @@ def handle_conversation(
         return llm_chat_simple(messages, max_tokens=MAX_TOKENS_RAG_MODE, stream=stream)
 
     # Fallback to direct LLM conversation without external context
-    system_prompt = (
-        "You are a helpful, knowledgeable assistant. Provide comprehensive, well-structured responses that thoroughly address the user's question.\n\n"
-        "RESPONSE GUIDELINES:\n"
-        "- Provide thorough, comprehensive answers that cover the topic in depth\n"
-        "- Structure your response with clear sections and subsections when appropriate\n"
-        "- Explain the 'why' behind recommendations, not just the 'what'\n"
-        "- Cover different scenarios, types, or variations when relevant\n"
-        "- Include important context, disclaimers, or safety information when appropriate\n"
-        "- Use formatting like **bold text** for emphasis and clear section breaks\n"
-        "- Be conversational and natural, but prioritize completeness and helpfulness"
-    )
+    system_prompt = "Provide a comprehensive, well-structured response to the user's question."
     if memory_context:
         system_prompt += f"\n\nConversation memory you can reference:\n{memory_context}"
     messages = [
@@ -556,12 +563,38 @@ def chat_tts():
     if not prompt:
         return jsonify({"error": "Missing prompt"}), 400
     
+    session_id = session_id or "default"
     print(f"[Generic] 💬 Streaming Session: {session_id}, Prompt: '{prompt[:50]}...'")
     
+    # Build conversation memory context for this prompt (with fallback)
+    memory_context = None
+    try:
+        memory_context = conversation_orchestrator._build_memory_context(prompt)
+        if memory_context:
+            print(f"[Generic] 📝 Retrieved conversation memory context for session {session_id}")
+    except Exception as e:
+        print(f"[Generic] ⚠️ Failed to retrieve conversation memory (continuing without it): {e}")
+        memory_context = None  # Fallback: continue without memory context
+    
+    # Store user's prompt in conversation memory for future reference (with fallback)
+    try:
+        conversation_orchestrator._store_in_memory(
+            prompt,
+            {
+                "session_id": session_id,
+                "timestamp": time.time(),
+                "type": "user_message",
+            },
+        )
+    except Exception as e:
+        print(f"[Generic] ⚠️ Failed to store user message in memory (continuing): {e}")
+        # Fallback: continue without storing (non-critical operation)
+    
     def generate_response():
+        full_response_text = ""  # Accumulate full response for memory storage
         try:
-            # Use streaming mode to get tokens as they're generated
-            result = handle_conversation(prompt, session_id or "default", stream=True)
+            # Use streaming mode to get tokens as they're generated, with memory context
+            result = handle_conversation(prompt, session_id, memory_context=memory_context, stream=True)
             
             # Check if result is a generator (streaming)
             if hasattr(result, '__iter__') and not isinstance(result, str):
@@ -570,17 +603,53 @@ def chat_tts():
                 word_stream = _word_stream_from_chunks(normalized_chunks)
                 sentence_stream = _sentence_tag_stream(word_stream)
                 for token in sentence_stream:
+                    # Accumulate tokens for memory storage (skip control tags)
+                    if not (token.startswith('<') and token.endswith('>')):
+                        full_response_text += token
                     yield f"{token}\n"
                 print(f"[Generic] ✅ Streamed response complete")
+                
+                # Store assistant's response in conversation memory after streaming completes (with fallback)
+                if full_response_text.strip():
+                    try:
+                        conversation_orchestrator._store_in_memory(
+                            full_response_text.strip(),
+                            {
+                                "session_id": session_id,
+                                "timestamp": time.time(),
+                                "type": "assistant_response",
+                            },
+                        )
+                        print(f"[Generic] 💾 Stored assistant response in conversation memory")
+                    except Exception as e:
+                        print(f"[Generic] ⚠️ Failed to store assistant response in memory (continuing): {e}")
+                        # Fallback: continue without storing (non-critical operation)
             else:
                 # Fallback: non-streaming (result is a string)
                 print(f"[Generic] ⚠️ Streaming not available - yielding complete response")
                 fallback_text = result if isinstance(result, str) and result else "I apologize, I encountered an error."
+                full_response_text = fallback_text  # Store for memory
                 normalized_chunks = _normalize_stream_chunks(iter([fallback_text]))
                 word_stream = _word_stream_from_chunks(normalized_chunks)
                 sentence_stream = _sentence_tag_stream(word_stream)
                 for token in sentence_stream:
                     yield f"{token}\n"
+                
+                # Store assistant's response in conversation memory (with fallback)
+                if full_response_text.strip():
+                    try:
+                        conversation_orchestrator._store_in_memory(
+                            full_response_text.strip(),
+                            {
+                                "session_id": session_id,
+                                "timestamp": time.time(),
+                                "type": "assistant_response",
+                            },
+                        )
+                        print(f"[Generic] 💾 Stored assistant response in conversation memory")
+                    except Exception as e:
+                        print(f"[Generic] ⚠️ Failed to store assistant response in memory (continuing): {e}")
+                        # Fallback: continue without storing (non-critical operation)
         except Exception as e:
             print(f"[Generic] ❌ Error: {e}")
             import traceback

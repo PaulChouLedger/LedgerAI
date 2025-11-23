@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
 Sync common code from llm-container to llm-medical-container
-Keeps container_rest.py and RAG files in sync between generic and medical containers
+Keeps RAG files in sync between generic and medical containers
+Note: container_rest.py is no longer synced - medical container has its own minimal version
 """
 
 import os
@@ -71,79 +72,6 @@ def sync_rag_directory(source_dir, dest_dir):
     
     return synced_count > 0
 
-def sync_container_rest_sections(source_file, dest_file):
-    """
-    Sync container_rest.py from generic to medical, preserving medical-specific imports and code
-    """
-    source_path = Path(source_file)
-    dest_path = Path(dest_file)
-    
-    if not source_path.exists():
-        print(f"⚠️  Source container_rest.py not found: {source_path}")
-        return False
-    
-    if not dest_path.exists():
-        print(f"⚠️  Destination container_rest.py not found: {dest_path}")
-        return False
-    
-    # Read both files
-    source_content = source_path.read_text()
-    dest_content = dest_path.read_text()
-    
-    # Check if files are already identical (excluding medical-specific parts)
-    # For now, we'll do a direct sync since the user wants changes applied in parallel
-    # Medical-specific code should be in separate files (advanced_medical_navigator.py)
-    
-    # Simple approach: sync the file directly
-    # The medical container should import medical-specific functionality from other files
-    try:
-        # Create backup
-        backup_path = dest_path.with_suffix('.py.backup')
-        if dest_path.exists():
-            shutil.copy2(dest_path, backup_path)
-            print(f"   Created backup: {backup_path.name}")
-        
-        # Copy source to destination
-        shutil.copy2(source_path, dest_path)
-        
-        # Check if there are medical-specific imports that need to be preserved
-        # Look for medical-specific imports in the backup
-        if backup_path.exists():
-            backup_content = backup_path.read_text()
-            medical_imports = []
-            for line in backup_content.split('\n'):
-                if 'advanced_medical_navigator' in line or 'fuzzy_medical_matcher' in line:
-                    medical_imports.append(line)
-            
-            # If medical imports exist, add them back
-            if medical_imports:
-                dest_content = dest_path.read_text()
-                # Find where to insert medical imports (after standard imports)
-                lines = dest_content.split('\n')
-                insert_idx = 0
-                for i, line in enumerate(lines):
-                    if line.startswith('from rag import') or line.startswith('import rag'):
-                        insert_idx = i + 1
-                        break
-                
-                # Insert medical imports
-                for import_line in medical_imports:
-                    if import_line not in dest_content:
-                        lines.insert(insert_idx, import_line)
-                        insert_idx += 1
-                
-                dest_path.write_text('\n'.join(lines))
-                print(f"   Preserved medical-specific imports")
-        
-        print(f"✅ Synced container_rest.py")
-        return True
-    except Exception as e:
-        print(f"❌ Failed to sync container_rest.py: {e}")
-        # Restore backup if sync failed
-        if backup_path.exists():
-            shutil.copy2(backup_path, dest_path)
-            print(f"   Restored from backup")
-        return False
 
 def main():
     """Main sync function"""
@@ -170,13 +98,6 @@ def main():
     sync_rag_directory(generic_rag, medical_rag)
     print()
     
-    # Sync container_rest.py
-    print("📄 Syncing container_rest.py...")
-    generic_container_rest = generic_dir / "container_rest.py"
-    medical_container_rest = medical_dir / "container_rest.py"
-    sync_container_rest_sections(generic_container_rest, medical_container_rest)
-    print()
-    
     # Sync other common files if they exist
     common_files = [
         ("requirements.txt", "requirements.txt"),
@@ -192,8 +113,8 @@ def main():
     
     print("✅ Sync complete!")
     print()
-    print("💡 Tip: Medical-specific code should be in advanced_medical_navigator.py")
-    print("   container_rest.py should contain common functionality only.")
+    print("💡 Note: container_rest.py is no longer synced")
+    print("   Medical container has its own minimal container_rest.py that delegates to AdvancedMedicalNavigator")
 
 if __name__ == "__main__":
     main()

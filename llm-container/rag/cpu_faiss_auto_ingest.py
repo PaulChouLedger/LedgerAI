@@ -114,14 +114,126 @@ class CPUFAISSAutoIngest:
             return ""
     
     def chunk_text(self, text: str, chunk_size: int = 500, overlap: int = 50) -> List[str]:
-        """Chunk text into overlapping segments"""
-        words = text.split()
-        chunks = []
+        """
+        Improved semantic-aware chunking that respects document structure
         
-        for i in range(0, len(words), chunk_size - overlap):
-            chunk = " ".join(words[i:i + chunk_size])
-            if chunk.strip():
-                chunks.append(chunk.strip())
+        Strategy:
+        1. Split by paragraphs first (double newlines)
+        2. Within paragraphs, respect sentence boundaries
+        3. Maintain overlap between chunks for context preservation
+        4. Ensure chunks are semantically coherent
+        """
+        import re
+        
+        # First, split by paragraphs (double newlines or section breaks)
+        paragraphs = re.split(r'\n\s*\n+', text.strip())
+        
+        chunks = []
+        current_chunk = []
+        current_length = 0
+        
+        for para in paragraphs:
+            para = para.strip()
+            if not para:
+                continue
+            
+            para_words = para.split()
+            para_length = len(para_words)
+            
+            # If paragraph fits in current chunk, add it
+            if current_length + para_length <= chunk_size:
+                current_chunk.extend(para_words)
+                current_length += para_length
+            else:
+                # Save current chunk if it has content
+                if current_chunk:
+                    chunk_text = " ".join(current_chunk)
+                    if chunk_text.strip():
+                        chunks.append(chunk_text.strip())
+                
+                # Start new chunk with overlap
+                # Take last 'overlap' words from previous chunk for context
+                if chunks and overlap > 0:
+                    prev_words = chunks[-1].split() if chunks else []
+                    overlap_words = prev_words[-overlap:] if len(prev_words) >= overlap else prev_words
+                    current_chunk = overlap_words + para_words
+                    current_length = len(current_chunk)
+                else:
+                    current_chunk = para_words
+                    current_length = para_length
+            
+            # If current chunk exceeds size, split it at sentence boundaries
+            while current_length > chunk_size:
+                # Try to split at sentence boundary within current chunk
+                chunk_text = " ".join(current_chunk)
+                sentences = re.split(r'([.!?]+\s+)', chunk_text)
+                
+                # Reconstruct sentences properly
+                proper_sentences = []
+                for i in range(0, len(sentences) - 1, 2):
+                    if i + 1 < len(sentences):
+                        proper_sentences.append(sentences[i] + sentences[i + 1])
+                    else:
+                        proper_sentences.append(sentences[i])
+                
+                # Find split point
+                split_idx = 0
+                accumulated_length = 0
+                for sent in proper_sentences:
+                    sent_words = sent.split()
+                    if accumulated_length + len(sent_words) > chunk_size and split_idx > 0:
+                        break
+                    accumulated_length += len(sent_words)
+                    split_idx += 1
+                
+                if split_idx > 0:
+                    # Split at sentence boundary
+                    first_part = " ".join(proper_sentences[:split_idx])
+                    remaining = " ".join(proper_sentences[split_idx:])
+                    
+                    if first_part.strip():
+                        chunks.append(first_part.strip())
+                    
+                    # Start new chunk with overlap
+                    remaining_words = remaining.split()
+                    if overlap > 0 and chunks:
+                        prev_words = chunks[-1].split()
+                        overlap_words = prev_words[-overlap:] if len(prev_words) >= overlap else prev_words
+                        current_chunk = overlap_words + remaining_words
+                    else:
+                        current_chunk = remaining_words
+                    current_length = len(current_chunk)
+                else:
+                    # No good sentence boundary, force split at word boundary
+                    words_to_keep = chunk_size - overlap
+                    if words_to_keep > 0:
+                        first_part = " ".join(current_chunk[:words_to_keep])
+                        if first_part.strip():
+                            chunks.append(first_part.strip())
+                        
+                        # Overlap for next chunk
+                        if overlap > 0:
+                            current_chunk = current_chunk[words_to_keep - overlap:words_to_keep] + current_chunk[words_to_keep:]
+                        else:
+                            current_chunk = current_chunk[words_to_keep:]
+                        current_length = len(current_chunk)
+                    else:
+                        # Chunk is too small to split, just save it
+                        chunk_text = " ".join(current_chunk)
+                        if chunk_text.strip():
+                            chunks.append(chunk_text.strip())
+                        current_chunk = []
+                        current_length = 0
+                    break
+        
+        # Add final chunk
+        if current_chunk:
+            chunk_text = " ".join(current_chunk)
+            if chunk_text.strip():
+                chunks.append(chunk_text.strip())
+        
+        # Filter out very short chunks (likely artifacts)
+        chunks = [c for c in chunks if len(c.split()) >= 10]  # At least 10 words
         
         return chunks
     

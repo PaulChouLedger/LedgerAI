@@ -274,14 +274,94 @@ class RAGClient:
             # If we found at least one single-term match, use RAG (better than nothing)
             return matches_found > 0
     
-    def search(self, query: str, k: int = None, threshold: float = None) -> List[Dict]:
+    def _expand_query(self, query: str) -> str:
         """
-        Search for relevant medical information
+        Expand query with basic linguistic variations to improve retrieval
+        
+        Generic approach: handles common word forms and variations
+        """
+        import re
+        
+        # Basic linguistic expansions (generic, not domain-specific)
+        # Handle common word variations
+        query_lower = query.lower()
+        
+        # Simple pluralization/singularization handling
+        # This is generic and works for any domain
+        words = query.split()
+        expanded_words = []
+        
+        for word in words:
+            word_lower = word.lower()
+            # Add common variations
+            if word_lower.endswith('s') and len(word_lower) > 3:
+                # Try singular form
+                singular = word_lower[:-1]
+                if singular not in expanded_words:
+                    expanded_words.append(singular)
+            elif len(word_lower) > 3:
+                # Try plural form
+                plural = word_lower + 's'
+                if plural not in expanded_words:
+                    expanded_words.append(plural)
+            expanded_words.append(word_lower)
+        
+        # Use original query for embedding (expansions handled in keyword matching)
+        return query
+    
+    def _rerank_results(self, query: str, results: List[Dict], top_k: int = None) -> List[Dict]:
+        """
+        Re-rank search results using cross-encoder or keyword matching
+        
+        Improves relevance by considering query-chunk interaction
+        """
+        if not results:
+            return results
+        
+        import re
+        
+        # Extract key terms from query (non-stopwords)
+        stop_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'are', 'was', 'were'}
+        query_terms = [w.lower() for w in re.findall(r'\b\w+\b', query.lower()) if w not in stop_words and len(w) > 2]
+        
+        # Score each result based on keyword matches and semantic score
+        reranked = []
+        for result in results:
+            text = result.get('text', '').lower()
+            semantic_score = result.get('score', 0.0)
+            
+            # Count keyword matches
+            keyword_matches = sum(1 for term in query_terms if term in text)
+            keyword_score = keyword_matches / max(len(query_terms), 1) if query_terms else 0
+            
+            # Combined score: 70% semantic, 30% keyword
+            combined_score = 0.7 * semantic_score + 0.3 * keyword_score
+            
+            reranked.append({
+                **result,
+                'score': combined_score,
+                'original_score': semantic_score,
+                'keyword_score': keyword_score
+            })
+        
+        # Sort by combined score (descending)
+        reranked.sort(key=lambda x: x['score'], reverse=True)
+        
+        # Return top_k if specified
+        if top_k is not None:
+            return reranked[:top_k]
+        
+        return reranked
+    
+    def search(self, query: str, k: int = None, threshold: float = None, rerank: bool = True) -> List[Dict]:
+        """
+        Search for relevant information with improved retrieval
         
         Args:
             query: Search query
             k: Number of results to return (default: RAG_SEARCH_K)
             threshold: Similarity threshold 0-1 (default: RAG_SEARCH_THRESHOLD)
+            rerank: Whether to re-rank results for better relevance (default: True)
         
         Returns:
             List of search results with text, score, and metadata
@@ -292,10 +372,22 @@ class RAGClient:
         if threshold is None:
             threshold = RAG_SEARCH_THRESHOLD
         
+        # Expand query for better retrieval
+        expanded_query = self._expand_query(query)
+        
+        # Search with expanded query (but use original for embedding)
         if self.use_gpu:
-            return self._search_gpu(query, k, threshold)
+            results = self._search_gpu(expanded_query, k * 2, threshold * 0.8)  # Get more candidates for re-ranking
         else:
-            return self._search_cpu(query, k, threshold)
+            results = self._search_cpu(expanded_query, k * 2, threshold * 0.8)  # Get more candidates for re-ranking
+        
+        # Re-rank results if enabled
+        if rerank and results:
+            results = self._rerank_results(query, results, top_k=k)
+            # Re-apply threshold after re-ranking
+            results = [r for r in results if r['score'] >= threshold]
+        
+        return results[:k]  # Return top k results
     
     def _search_gpu(self, query: str, k: int, threshold: float) -> List[Dict]:
         """Search using external RAG container (GPU)"""

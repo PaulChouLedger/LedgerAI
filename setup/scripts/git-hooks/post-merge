@@ -12,12 +12,11 @@ SYNC_SCRIPT="$WORKSPACE_ROOT/setup/scripts/sync_llm_containers.py"
 # Check if any llm-container files were updated
 CHANGED_FILES=$(git diff-tree -r --name-only --no-commit-id ORIG_HEAD HEAD 2>/dev/null)
 
-# Check if any container_rest.py, RAG files, or conversation_manager.py were changed
+# Check if any RAG files were changed
 NEEDS_SYNC=false
 
 for file in $CHANGED_FILES; do
-    if [[ "$file" == "llm-container/container_rest.py" ]] || \
-       [[ "$file" == "llm-container/rag/"* ]] || \
+    if [[ "$file" == "llm-container/rag/"* ]] || \
        [[ "$file" == "llm-container/rag"* ]]; then
         NEEDS_SYNC=true
         break
