@@ -7,7 +7,7 @@ RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 
 # Install uv package manager
 RUN pip3 install --no-cache-dir uv --ignore-installed --index-url https://pypi.org/simple
-ENV UV_SYSTEM_PYTHON=1  # This ensures uv uses the system Python interpreter
+ENV UV_SYSTEM_PYTHON=1
 
 # Install minimal build dependencies (TensorRT/torch2trt should already be in base image)
 # Install setuptools, whisper, and psutil first (required for whisper-trt build)
