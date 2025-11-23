@@ -8,13 +8,6 @@ RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 # Install uv package manager
 RUN pip3 install --no-cache-dir uv --ignore-installed --index-url https://pypi.org/simple
 
-# Install minimal build dependencies (TensorRT/torch2trt should already be in base image)
-# Install setuptools, whisper, and psutil first (required for whisper-trt build)
-# Using uv pip install --system ensures they're available for --no-build-isolation
-RUN uv pip install --system setuptools && \
-    uv pip install --system psutil && \
-    uv pip install --system "openai-whisper @ git+https://github.com/openai/whisper.git"
-
 # Copy package files
 COPY pyproject.toml /app/
 COPY src/ /app/src/
@@ -26,9 +19,7 @@ RUN rm -f /root/.cache/whisper_trt && mkdir -p /root/.cache/whisper_trt && \
     rm -f /root/.cache/whisper && mkdir -p /root/.cache/whisper && \
     sed -i 's/os.makedirs(_CACHE_DIR)/os.makedirs(_CACHE_DIR, exist_ok=True)/' /opt/whisper_trt/whisper_trt/cache.py
 
-# Install the package using uv with no build isolation
-# This allows whisper-trt build to use TensorRT/torch2trt from base image
-RUN uv sync --no-build-isolation
+RUN pip install -e .
 
 EXPOSE 5000
-CMD ["uv", "run", "/app/src/aura_whisper/container_rest.py"]
+CMD ["python", "src/aura_whisper/container_rest.py"]
