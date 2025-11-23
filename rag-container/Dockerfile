@@ -4,11 +4,10 @@ FROM rapidsai/rapidsai:23.08a-cuda11.8.0-py3.10
 WORKDIR /app
 
 # Install system dependencies
-RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y curl
 
 # Install uv package manager
-RUN pip install --upgrade pip --break-system-packages && \
-    pip install --break-system-packages uv --extra-index-url=https://pypi.nvidia.com
+RUN pip3 install --no-cache-dir uv --ignore-installed --index-url https://pypi.org/simple
 
 # Copy package files
 COPY pyproject.toml /app/
