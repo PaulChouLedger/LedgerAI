@@ -537,6 +537,15 @@ def warmup_whisper():
     except Exception as e:
         print(f"[Whisper] ⚠️ Warmup failed: {e}")
 
+# === Memory Container Integration ===
+try:
+    from memory_integration import forward_to_memory
+    MEMORY_AVAILABLE = True
+except ImportError:
+    MEMORY_AVAILABLE = False
+    def forward_to_memory(*args, **kwargs):
+        pass
+
 # === Send to LLM ===
 def send_to_llm(text):
     global prompt_history
@@ -548,7 +557,19 @@ def send_to_llm(text):
     if len(prompt_history) > CONTEXT_DEPTH:
         prompt_history.pop(0)
     
+    # Forward to memory container for storage and analysis (non-blocking)
+    # This happens in parallel with LLM processing to avoid delaying TTS response
+    if MEMORY_AVAILABLE:
+        # Use threading to avoid blocking the main pipeline
+        import threading
+        threading.Thread(
+            target=forward_to_memory,
+            args=(text, "wake_word"),
+            daemon=True
+        ).start()
+    
     # speaker.speak_llm_response() handles the LLM request itself
+    # This is the main pipeline: LLM -> TTS (must not be blocked)
     speak_llm_response(text)
 
 # === Welcome Prompt ===

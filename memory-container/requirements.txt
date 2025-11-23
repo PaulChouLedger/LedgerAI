@@ -1,0 +1,28 @@
+# Web framework
+flask
+flask-cors
+
+# Core dependencies
+numpy
+requests
+
+# Embeddings (for vectorizing conversations)
+sentence-transformers
+
+# Semantic search (for finding similar conversations)
+faiss-cpu
+
+# Audio capture (for background listener)
+sounddevice  # Requires portaudio19-dev system package
+soundfile    # Requires libsndfile1 system package
+
+# Optional utilities
+watchdog     # For file watching (if needed)
+python-dotenv
+pydub        # Audio processing (if needed)
+
+# Note: 
+# - Does NOT include faster-whisper (calls Whisper container via HTTP)
+# - Does NOT include torch/cuda (Whisper runs in separate container)
+# - Uses CPU FAISS (sufficient for conversation volumes)
+

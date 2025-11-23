@@ -37,6 +37,24 @@ services:
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
 
+  memory:
+    build: ../memory-container
+    network_mode: host
+    volumes:
+      - ../shared:/shared
+      - ../data:/app/data
+      - ../.env:/app/.env
+    working_dir: /app
+    env_file: ../.env
+    environment:
+      - WHISPER_SERVICE_URL=http://localhost:5000
+      - LLM_SERVICE_URL=http://localhost:11434
+      - MEMORY_DIR=/app/data/memory
+      - AUDIO_DEVICE_NAME=reSpeaker
+      - PORT=11438
+    # Note: Audio device access may require additional permissions
+    # If audio conflicts occur, disable background listener and use API-based transcription forwarding
+
   # rag:
   #   build: ../rag-container
   #   network_mode: host
