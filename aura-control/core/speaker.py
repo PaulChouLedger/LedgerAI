@@ -695,6 +695,8 @@ def speak_llm_response(prompt, context=""):
                     # Join all buffered tokens into complete sentence
                     chunk_text = "".join(sentence_buffer).strip()
                     clean_text = re.sub(r'<sentence_start>|<sentence_end>', '', chunk_text).strip()
+                    # Normalize whitespace (collapse multiple spaces to single space) - same as chatbot
+                    clean_text = re.sub(r'\s+', ' ', clean_text).strip()
                     if clean_text and not _is_empty_sentence(clean_text):
                         # Check if this is a short sentence that should be batched
                         if _is_short_sentence(clean_text):

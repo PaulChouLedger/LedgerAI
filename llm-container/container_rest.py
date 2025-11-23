@@ -594,6 +594,7 @@ def _word_stream_from_chunks(chunk_iter):
     """
     Buffer raw LLM chunks until we reach a word boundary, then yield the word.
     Ensures downstream consumers receive complete words (no sub-word splits).
+    Filters out whitespace-only tokens.
     """
     buffer = ""
     for chunk in chunk_iter:
@@ -606,9 +607,11 @@ def _word_stream_from_chunks(chunk_iter):
                 break
             word = buffer[:boundary_idx + 1]
             buffer = buffer[boundary_idx + 1:]
-            if word:
+            # Only yield non-empty words (filter out whitespace-only tokens)
+            if word and word.strip():
                 yield word
-    if buffer:
+    # Only yield remaining buffer if it's not just whitespace
+    if buffer and buffer.strip():
         yield buffer
 
 
@@ -723,6 +726,10 @@ def _sentence_tag_stream(word_stream):
     
     # Process the word stream
     for word in word_stream:
+        # Skip whitespace-only tokens (shouldn't happen after _word_stream_from_chunks fix, but double-check)
+        if not word or not word.strip():
+            continue
+        
         word_stripped = word.strip()
         
         # If we have a buffered word, check if current word completes a multi-token abbreviation

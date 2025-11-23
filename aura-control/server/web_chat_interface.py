@@ -548,11 +548,11 @@ CHAT_TEMPLATE = """
                                 updateBubbles(accumulated);
                                 
                                 if (data.done) {
-                                    // Format final bubbles with full HTML (lists, paragraphs)
+                                    // Keep formatting as it appears during streaming (don't re-format)
                                     const finalBubbleTexts = splitIntoBubbles(accumulated);
                                     for (let i = 0; i < bubbles.length; i++) {
                                         if (i < finalBubbleTexts.length) {
-                                            bubbles[i].innerHTML = formatMessage(finalBubbleTexts[i], false); // false = not streaming, apply full formatting
+                                            bubbles[i].innerHTML = formatMessage(finalBubbleTexts[i], true); // true = keep streaming formatting
                                         }
                                         bubbles[i].classList.remove('streaming');
                                     }
@@ -577,10 +577,10 @@ CHAT_TEMPLATE = """
                             accumulated = data.response || accumulated;
                             const finalBubbleTexts = splitIntoBubbles(accumulated);
                             
-                            // Format final bubbles with full HTML (lists, paragraphs)
+                            // Keep formatting as it appears during streaming (don't re-format)
                             for (let i = 0; i < bubbles.length; i++) {
                                 if (i < finalBubbleTexts.length) {
-                                    bubbles[i].innerHTML = formatMessage(finalBubbleTexts[i], false); // false = not streaming, apply full formatting
+                                    bubbles[i].innerHTML = formatMessage(finalBubbleTexts[i], true); // true = keep streaming formatting
                                 }
                                 bubbles[i].classList.remove('streaming');
                             }
