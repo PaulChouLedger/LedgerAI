@@ -1658,6 +1658,36 @@ class AIModelSettingsDialog(BaseAuraDialog):
         except Exception:
             return False
     
+    def _on_mode_changed(self, mode: str):
+        """Handle mode change (generic/medical)"""
+        try:
+            self._save_mode_locally(mode)
+            print(f"[ModelSettings] Mode changed to: {mode}")
+            # Update status
+            QTimer.singleShot(100, self._update_mode_status)
+        except Exception as e:
+            print(f"[ModelSettings] Error changing mode: {e}")
+    
+    def _on_model_changed(self, model_name: str):
+        """Handle model selection change"""
+        try:
+            self._save_model_locally(model_name)
+            print(f"[ModelSettings] Model changed to: {model_name}")
+            # Prompt user to restart if needed
+            mode_now = "medical" if self.mode_medical_btn.isChecked() else "generic"
+            service = "llm-medical" if mode_now == "medical" else "llm-generic"
+            reply = QMessageBox.question(
+                self, 
+                "Restart Required", 
+                f"Model changed to {model_name}.\n\nRestart the {service} container now to apply the new model?",
+                QMessageBox.Yes | QMessageBox.No, 
+                QMessageBox.Yes
+            )
+            if reply == QMessageBox.Yes:
+                self._prompt_restart()
+        except Exception as e:
+            print(f"[ModelSettings] Error changing model: {e}")
+    
     def _on_rag_mode_changed(self, index: int):
         # Save rag_mode to app_settings.json and inform user to restart
         try:

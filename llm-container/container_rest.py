@@ -504,18 +504,16 @@ def chat_tg():
                     word_stream = _word_stream_from_chunks(normalized_chunks)
                     
                     # Stream words as JSON chunks for incremental display
+                    # DO NOT clean here - cleaning happens in web interface right before displaying
+                    # This preserves raw text structure for bubble detection (numbered items, etc.)
                     accumulated = ""
                     for word in word_stream:
                         accumulated += word
-                        # Normalize spacing for cleaner display (clean during streaming for real-time formatting)
-                        cleaned = _clean_text_formatting(accumulated)
-                        # Send incremental JSON updates
-                        yield f"data: {json.dumps({'response': cleaned, 'done': False})}\n\n"
+                        # Send raw accumulated text during streaming (no cleaning)
+                        yield f"data: {json.dumps({'response': accumulated, 'done': False})}\n\n"
                     
-                    # Clean final accumulated text
-                    final_cleaned = _clean_text_formatting(accumulated)
-                    # Send final message
-                    yield f"data: {json.dumps({'response': final_cleaned, 'done': True})}\n\n"
+                    # Send final message with raw text (cleaning happens in web interface)
+                    yield f"data: {json.dumps({'response': accumulated, 'done': True})}\n\n"
                     print(f"[Generic] ✅ Streamed response complete")
                 else:
                     # Fallback: non-streaming (result is a string)

@@ -622,6 +622,18 @@ def start_services():
             except ImportError:
                 wake_word_enabled = False
             
+            # Check if memory container is enabled
+            memory_enabled = True  # Default to enabled
+            try:
+                import json
+                settings_path = os.path.expanduser("~/LedgerAI/data/app_settings.json")
+                if os.path.exists(settings_path):
+                    with open(settings_path, "r") as f:
+                        settings_data = json.load(f) or {}
+                    memory_enabled = settings_data.get("memory_enabled", True)
+            except Exception:
+                pass  # Use default
+            
             # Determine which services to start
             services_to_start = ["whisper", llm_service]
             if RAG_MODE == 'GPU':
@@ -630,10 +642,17 @@ def start_services():
             else:
                 print("[Aura] ⏭️  RAG_MODE=CPU - starting Whisper and LLM only (CPU FAISS in LLM containers)")
             
-            # Wake word detection uses Mycroft Precise (no container needed)
+            # Add memory container if enabled
+            if memory_enabled:
+                services_to_start.append("memory")
+                print("[Aura] 🧠 Memory container enabled - starting memory container")
+            else:
+                print("[Aura] ⏭️  Memory container disabled in settings")
+            
+            # Wake word detection uses OpenWakeWord (no container needed)
             
             # Start selected services with Docker Compose (different ports for each LLM)
-            cmd = ["docker", "compose", "up", "-d"] + services_to_start
+            cmd = ["docker", "compose", "up", "-d", "--build"] + services_to_start
             
             result = subprocess.run(
                 cmd,
@@ -668,7 +687,16 @@ def start_services():
                 if not rag_ready:
                     return False
             
-            # Wake word detection uses Mycroft Precise (no container needed)
+            # Check Memory container if enabled
+            if memory_enabled:
+                memory_ready = wait_for_container("http://localhost:11438/health", "Memory Container", timeout=30)
+                if not memory_ready:
+                    print("[Aura] ⚠️ Memory container not ready, but continuing...")
+                    print("[Aura] 💡 Memory features may not work until container is ready")
+                else:
+                    print("[Aura] ✅ Memory container is ready!")
+            
+            # Wake word detection uses OpenWakeWord (no container needed)
             
             print("[Aura] ✅ All containers are ready!")
             
@@ -895,7 +923,7 @@ def rebuild_containers(setup_dir, use_medical_mode, rag_mode):
         
         # Determine which services to build
         # Always build both LLM containers in parallel to keep them in sync
-        services_to_build = ["whisper", "llm-medical", "llm-generic"]
+        services_to_build = ["whisper", "llm-medical", "llm-generic", "memory"]
         
         if rag_mode == 'GPU':
             services_to_build.append("rag")

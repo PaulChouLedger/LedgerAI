@@ -305,12 +305,46 @@ CHAT_TEMPLATE = """
             }
         });
         
+        function cleanTextForDisplay(text) {
+            // Clean text right before displaying in bubble
+            // This matches the Python clean_text_formatting function
+            if (!text) return text;
+            
+            // Remove markdown headers (hashtags at start of line)
+            text = text.replace(/^#{1,6}\s+/gm, '');
+            // Remove standalone hashtags
+            text = text.replace(/#{1,6}(?=\s|$)/g, '');
+            
+            // Remove markdown bold/italic (asterisks) - but preserve content
+            text = text.replace(/\*\*([^*]+)\*\*/g, '$1');  // **text** -> text
+            text = text.replace(/\*([^*\n]+)\*/g, '$1');  // *text* -> text
+            // Remove standalone asterisks (markdown formatting artifacts)
+            text = text.replace(/\*\*+/g, '');  // Remove multiple asterisks
+            // JavaScript doesn't support lookbehind in all browsers, use alternative
+            text = text.replace(/(^|[^a-zA-Z0-9])\*([^a-zA-Z0-9]|$)/g, '$1$2');  // Remove single asterisks not part of words
+            
+            // Fix missing spaces after punctuation
+            text = text.replace(/([a-zA-Z0-9])([.!?])([a-zA-Z-])/g, '$1$2 $3');  // word.word -> word. word
+            text = text.replace(/([,.!?:;])([a-zA-Z])/g, '$1 $2');  // word,word -> word, word
+            text = text.replace(/([a-zA-Z0-9])(\()/g, '$1 $2');  // word(word -> word (word
+            text = text.replace(/(\))([a-zA-Z0-9])/g, '$1 $2');  // word)word -> word) word
+            
+            // Normalize multiple spaces
+            text = text.replace(/ {2,}/g, ' ');
+            
+            return text.trim();
+        }
+        
         function formatMessage(text, isStreaming = false) {
             if (!text) return '';
+            
+            // Clean text right before displaying (after bubble detection uses raw text)
+            text = cleanTextForDisplay(text);
             
             // Always apply basic formatting (bold text) even during streaming
             let formatted = text
                 // Bold text **text** -> <strong>text</strong> (works on partial text)
+                // Note: Since we cleaned above, this won't match, but keep for any remaining cases
                 .replace(/\\*\\*(.*?)\\*\\*/g, '<strong style="color: #667eea; font-weight: 600;">$1</strong>');
             
             // Only do complex formatting (lists, paragraphs) when not streaming or when complete
@@ -493,26 +527,60 @@ CHAT_TEMPLATE = """
             function updateBubbles(accumulatedText) {
                 const bubbleTexts = splitIntoBubbles(accumulatedText);
                 
-                // Remove excess bubbles
-                while (bubbles.length > bubbleTexts.length && bubbles.length > 0) {
-                    const oldBubble = bubbles.pop();
-                    oldBubble.remove();
+                // Maintain a map of bubbles by their number (for numbered items) or by text (for non-numbered)
+                // This allows us to update existing bubbles and insert new ones in correct order
+                const bubbleMap = new Map(); // key: number (for numbered) or text hash (for non-numbered), value: {element, text, num}
+                const numberedBubbles = []; // Array of {num, element, text} sorted by num
+                const nonNumberedBubbles = []; // Array of {element, text, originalIndex}
+                
+                // First pass: identify all bubbles and their types
+                for (let i = 0; i < bubbleTexts.length; i++) {
+                    const text = bubbleTexts[i];
+                    const numMatch = text.match(/^(\\d+)\\./);
+                    
+                    if (numMatch) {
+                        const num = parseInt(numMatch[1]);
+                        numberedBubbles.push({ num, text, index: i });
+                    } else {
+                        nonNumberedBubbles.push({ text, originalIndex: i });
+                    }
+                }
+                
+                // Sort numbered bubbles by their number
+                numberedBubbles.sort((a, b) => a.num - b.num);
+                
+                // Build final ordered list: non-numbered items in original order, then numbered items in sorted order
+                const orderedTexts = [];
+                // Add non-numbered items first (in their original order)
+                for (const item of nonNumberedBubbles) {
+                    orderedTexts.push(item.text);
+                }
+                // Add numbered items in sorted order
+                for (const item of numberedBubbles) {
+                    orderedTexts.push(item.text);
                 }
                 
                 // Update or create bubbles
-                for (let i = 0; i < bubbleTexts.length; i++) {
+                for (let i = 0; i < orderedTexts.length; i++) {
+                    const text = orderedTexts[i];
                     if (i < bubbles.length) {
-                        // Update existing bubble with formatted HTML (real-time formatting during streaming)
-                        bubbles[i].innerHTML = formatMessage(bubbleTexts[i], true); // true = isStreaming
-                        bubbles[i].classList.add('streaming'); // Keep streaming style
+                        // Update existing bubble
+                        bubbles[i].innerHTML = formatMessage(text, true);
+                        bubbles[i].classList.add('streaming');
                     } else {
-                        // Create new bubble with formatted HTML
+                        // Create new bubble
                         const newBubble = document.createElement('div');
                         newBubble.className = 'message assistant streaming';
-                        newBubble.innerHTML = formatMessage(bubbleTexts[i], true); // true = isStreaming
+                        newBubble.innerHTML = formatMessage(text, true);
                         chatMessages.appendChild(newBubble);
                         bubbles.push(newBubble);
                     }
+                }
+                
+                // Remove excess bubbles if any
+                while (bubbles.length > orderedTexts.length) {
+                    const oldBubble = bubbles.pop();
+                    oldBubble.remove();
                 }
                 
                 chatMessages.scrollTop = chatMessages.scrollHeight;
@@ -553,18 +621,14 @@ CHAT_TEMPLATE = """
                                 const data = JSON.parse(line.substring(6));
                                 accumulated = data.response || accumulated;
                                 
-                                // Update bubbles while streaming
+                                // Update bubbles while streaming (bubbles appear as generated, sorted by number)
                                 updateBubbles(accumulated);
                                 
                                 if (data.done) {
-                                    // Keep formatting as it appears during streaming (don't re-format)
-                                    const finalBubbleTexts = splitIntoBubbles(accumulated);
-                                    for (let i = 0; i < bubbles.length; i++) {
-                                        if (i < finalBubbleTexts.length) {
-                                            bubbles[i].innerHTML = formatMessage(finalBubbleTexts[i], true); // true = keep streaming formatting
-                                        }
-                                        bubbles[i].classList.remove('streaming');
-                                    }
+                                    // Final update with cleaned text (from LLM)
+                                    // The LLM sends cleaned text in the final 'done: True' message
+                                    updateBubbles(accumulated);
+                                    bubbles.forEach(bubble => bubble.classList.remove('streaming'));
                                     updateStatus('Ready');
                                     sendButton.disabled = false;
                                     isStreaming = false;
@@ -584,15 +648,10 @@ CHAT_TEMPLATE = """
                         try {
                             const data = JSON.parse(buffer.substring(6));
                             accumulated = data.response || accumulated;
-                            const finalBubbleTexts = splitIntoBubbles(accumulated);
                             
-                            // Keep formatting as it appears during streaming (don't re-format)
-                            for (let i = 0; i < bubbles.length; i++) {
-                                if (i < finalBubbleTexts.length) {
-                                    bubbles[i].innerHTML = formatMessage(finalBubbleTexts[i], true); // true = keep streaming formatting
-                                }
-                                bubbles[i].classList.remove('streaming');
-                            }
+                            // Final update
+                            updateBubbles(accumulated);
+                            bubbles.forEach(bubble => bubble.classList.remove('streaming'));
                             
                             updateStatus('Ready');
                             sendButton.disabled = false;
