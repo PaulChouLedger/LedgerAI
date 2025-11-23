@@ -31,8 +31,8 @@ LLM_TEMPERATURE_SIMPLE = 0.7
 LLM_TOP_P = 0.95
 LLM_TOP_K = 40
 LLM_REPEAT_PENALTY = 1.1
-LLM_NUM_PREDICT_DEFAULT = 500  # Increased to prevent early cutoffs in responses (can be overridden via LLM_NUM_PREDICT env var)
-SIMPLE_N_CTX = 8192  # Increased from 2048 to support RAG context (Qwen2.5-1.5B supports up to 32768)
+LLM_NUM_PREDICT_DEFAULT = 800  # Increased to allow comprehensive responses (can be overridden via LLM_NUM_PREDICT env var)
+SIMPLE_N_CTX = 4096  # Reduced from 8192 to decrease latency (sufficient for RAG context + responses up to 1500 tokens)
 SIMPLE_CHAT_FORMAT = "qwen"
 N_THREADS = 8
 N_BATCH = 256  # Reduced from 512 for faster generation (smaller batches = lower latency)
@@ -75,8 +75,8 @@ WORD_BOUNDARY_CHARS = [' ', '.', ',', '!', '?', ':', ';', '-', '(', ')', '[', ']
 SENTENCE_ENDINGS = ('.', '!', '?')
 
 # === Response Generation Config ===
-MAX_TOKENS_RAG_MODE = 1000  # Max tokens when using RAG context (reduced for faster responses, RAG context already provides info)
-MAX_TOKENS_DIRECT_MODE = 800  # Max tokens for direct conversation (reduced for faster responses)
+MAX_TOKENS_RAG_MODE = 1500  # Max tokens when using RAG context (increased for comprehensive responses)
+MAX_TOKENS_DIRECT_MODE = 1200  # Max tokens for direct conversation (increased for comprehensive responses)
 
 # === Model Path Resolution (app_settings.json or fallback) ===
 def _resolve_model_path():
@@ -349,14 +349,19 @@ def handle_conversation(
             {
                 "role": "system",
                 "content": (
-                    "You are a helpful, friendly assistant. Answer the user's question naturally and conversationally.\n\n"
+                    "You are a helpful, knowledgeable assistant. Provide comprehensive, well-structured responses that thoroughly address the user's question.\n\n"
                     f"{combined_context}\n\n"
-                    "IMPORTANT INSTRUCTIONS:\n"
-                    "- Answer the user's question based on your general knowledge first\n"
-                    "- Only reference the knowledge context above if it contains directly relevant information that improves your answer\n"
+                    "RESPONSE GUIDELINES:\n"
+                    "- Provide thorough, comprehensive answers that cover the topic in depth\n"
+                    "- Structure your response with clear sections and subsections when appropriate\n"
+                    "- Explain the 'why' behind recommendations, not just the 'what'\n"
+                    "- Cover different scenarios, types, or variations when relevant\n"
+                    "- Include important context, disclaimers, or safety information when appropriate\n"
+                    "- Use formatting like **bold text** for emphasis and clear section breaks\n"
+                    "- Reference the knowledge context above if it contains relevant information that improves your answer\n"
                     "- Do NOT force irrelevant information from the context into your response\n"
-                    "- If the context is not relevant to the question, ignore it and answer normally\n"
-                    "- Keep your response concise, natural, and focused on what the user actually asked\n\n"
+                    "- If the context is not relevant to the question, ignore it and answer using your general knowledge\n"
+                    "- Be conversational and natural, but prioritize completeness and helpfulness\n\n"
                     f"User question: {prompt}"
                 ),
             }
@@ -365,7 +370,15 @@ def handle_conversation(
 
     # Fallback to direct LLM conversation without external context
     system_prompt = (
-        "You are a helpful, friendly assistant. Keep responses concise and conversational."
+        "You are a helpful, knowledgeable assistant. Provide comprehensive, well-structured responses that thoroughly address the user's question.\n\n"
+        "RESPONSE GUIDELINES:\n"
+        "- Provide thorough, comprehensive answers that cover the topic in depth\n"
+        "- Structure your response with clear sections and subsections when appropriate\n"
+        "- Explain the 'why' behind recommendations, not just the 'what'\n"
+        "- Cover different scenarios, types, or variations when relevant\n"
+        "- Include important context, disclaimers, or safety information when appropriate\n"
+        "- Use formatting like **bold text** for emphasis and clear section breaks\n"
+        "- Be conversational and natural, but prioritize completeness and helpfulness"
     )
     if memory_context:
         system_prompt += f"\n\nConversation memory you can reference:\n{memory_context}"
