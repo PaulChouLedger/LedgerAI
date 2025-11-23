@@ -18,7 +18,7 @@ RAG_TIMEOUT = int(os.environ.get('RAG_TIMEOUT', '10'))
 
 # RAG Search Configuration
 RAG_SEARCH_THRESHOLD = float(os.environ.get('RAG_SEARCH_THRESHOLD', '0.30'))  # Similarity threshold (0-1), lower = more results (lowered to 0.30 for better recall)
-RAG_SEARCH_K = int(os.environ.get('RAG_SEARCH_K', '5'))  # Number of results to return (increased to 5 for better coverage)
+RAG_SEARCH_K = int(os.environ.get('RAG_SEARCH_K', '3'))  # Number of results to return (default: 3, retrieves 6 candidates for re-ranking)
 
 class RAGClient:
     """
@@ -588,10 +588,33 @@ class RAGClient:
     def _embed_cpu(self, texts: List[str]) -> List[List[float]]:
         """Generate embeddings using local CPU model"""
         try:
+            if not self._embedding_model:
+                logger.error("[RAG Client] CPU embedding model not initialized")
+                return []
+            if not texts:
+                return []
             embeddings = self._embedding_model.encode(texts)
-            return embeddings.tolist()
+            if embeddings is None:
+                return []
+            # Handle both numpy arrays and lists
+            if hasattr(embeddings, 'tolist'):
+                result = embeddings.tolist()
+            elif isinstance(embeddings, list):
+                result = embeddings
+            else:
+                # Convert to list if it's a tuple or other iterable
+                result = list(embeddings)
+            # Ensure result is a list of lists
+            if result and len(result) > 0:
+                # If result is a single list (1D), wrap it
+                if isinstance(result[0], (int, float)):
+                    return [result]
+                return result
+            return []
         except Exception as e:
             logger.error(f"[RAG Client] CPU embedding error: {e}")
+            import traceback
+            traceback.print_exc()
             return []
     
     def get_guideline(self, guideline_name: str) -> Dict:

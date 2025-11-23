@@ -471,10 +471,27 @@ class ConversationOrchestrator:
         text = text.strip()
         if not text:
             return
-        embeddings = self.embed_fn([text])
-        if not embeddings:
-            return
-        self.memory_index.add_entry(text, embeddings[0], metadata)
+        try:
+            embeddings = self.embed_fn([text])
+            if not embeddings or len(embeddings) == 0:
+                return
+            # Validate that embeddings[0] exists and is a list
+            if not isinstance(embeddings[0], (list, tuple)):
+                print(f"[ConversationMemory] ⚠️ Invalid embedding format: {type(embeddings[0])}")
+                return
+            # Convert tuple to list if needed
+            embedding = list(embeddings[0]) if isinstance(embeddings[0], tuple) else embeddings[0]
+            if not embedding or len(embedding) == 0:
+                return
+            self.memory_index.add_entry(text, embedding, metadata)
+        except (IndexError, TypeError, AttributeError) as e:
+            print(f"[ConversationMemory] ⚠️ Failed to store in memory: {e}")
+            import traceback
+            traceback.print_exc()
+        except Exception as e:
+            print(f"[ConversationMemory] ⚠️ Unexpected error storing in memory: {e}")
+            import traceback
+            traceback.print_exc()
 
     # ------------------------------------------------------------------ #
     # Maintenance helpers
