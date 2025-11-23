@@ -27,7 +27,11 @@ dev = [
 ]
 
 [tool.uv.extra-build-dependencies]
-whisper-trt = ["openai-whisper @ git+https://github.com/openai/whisper.git", "psutil"]
+whisper-trt = [
+    "openai-whisper @ git+https://github.com/openai/whisper.git",
+    "psutil",
+    "torch2trt"
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/aura_whisper"]

@@ -19,9 +19,6 @@ RUN rm -f /root/.cache/whisper_trt && mkdir -p /root/.cache/whisper_trt && \
     rm -f /root/.cache/whisper && mkdir -p /root/.cache/whisper && \
     sed -i 's/os.makedirs(_CACHE_DIR)/os.makedirs(_CACHE_DIR, exist_ok=True)/' /opt/whisper_trt/whisper_trt/cache.py
 
-# # Install whisper first (required for whisper-trt build)
-# RUN uv pip install "openai-whisper @ git+https://github.com/openai/whisper.git"
-
 # Install the package using uv with no build isolation (whisper already installed)
 RUN uv sync
 
