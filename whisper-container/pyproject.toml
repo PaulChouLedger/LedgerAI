@@ -26,5 +26,10 @@ dev = [
     "flake8>=4.0.0",
 ]
 
+[tool.uv.extra-build-dependencies]
+whisper-trt = [
+    "setuptools",
+]
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/aura_whisper"]
