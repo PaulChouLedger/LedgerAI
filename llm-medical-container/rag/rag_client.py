@@ -77,14 +77,11 @@ class RAGClient:
             from sentence_transformers import SentenceTransformer
             import faiss
             
-            print("[RAG Client] 🔧 Initializing CPU RAG system with auto-ingestion...")
             logger.info("[RAG Client] 🔧 Initializing CPU RAG system with auto-ingestion...")
             
             # Use all-distilroberta-v1 (benchmarked as best performing model)
-            print("[RAG Client] 📥 Loading embedding model: all-distilroberta-v1...")
             self._embedding_model = SentenceTransformer('all-distilroberta-v1')
             self._embedding_dim = 768
-            print("[RAG Client] ✅ Embedding model loaded")
             
             # Initialize FAISS CPU index
             self._cpu_index = None
@@ -92,18 +89,12 @@ class RAGClient:
             self._cpu_metadata = []
             
             # Initialize auto-ingestion system
-            print("[RAG Client] 🔄 Initializing auto-ingestion system...")
             self._initialize_auto_ingestion()
             
             # Try to load pre-existing index
-            print("[RAG Client] 📂 Loading existing embeddings/index...")
             self._load_cpu_index()
             
-            # Show summary
-            chunk_count = len(self._cpu_chunks) if self._cpu_chunks else 0
-            index_size = self._cpu_index.ntotal if self._cpu_index and hasattr(self._cpu_index, 'ntotal') else 0
-            print(f"[RAG Client] ✅ CPU RAG system initialized: {chunk_count} chunks, {index_size} vectors in index")
-            logger.info(f"[RAG Client] ✅ CPU RAG system initialized: {chunk_count} chunks, {index_size} vectors in index")
+            logger.info("[RAG Client] ✅ CPU RAG system initialized with auto-ingestion")
             
         except ImportError as e:
             logger.error(f"[RAG Client] ❌ Failed to import CPU RAG dependencies: {e}")
@@ -116,7 +107,9 @@ class RAGClient:
     def _load_cpu_index(self):
         """Load existing FAISS index from disk"""
         print("[RAG Client] 📂 Attempting to load CPU FAISS index from disk...")
-        index_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'embeddings')
+        # Use absolute path to match auto-ingest system (/app/data/embeddings)
+        # This matches the path used in cpu_faiss_auto_ingest.py
+        index_path = "/app/data/embeddings"
         print(f"[RAG Client] 📂 Index path: {index_path}")
         
         try:
@@ -141,7 +134,8 @@ class RAGClient:
                 print(f"[RAG Client] ✅ Loaded {len(self._cpu_chunks)} chunks from CPU index")
                 logger.info(f"[RAG Client] ✅ Loaded {len(self._cpu_chunks)} chunks from CPU index")
             else:
-                print("[RAG Client] ⚠️ No existing CPU index found - creating empty index")
+                print(f"[RAG Client] ⚠️ No existing CPU index found at {index_path}")
+                print(f"[RAG Client] ⚠️ Index exists: {os.path.exists(faiss_index_path)}, Metadata exists: {os.path.exists(metadata_path)}")
                 logger.warning("[RAG Client] ⚠️ No existing CPU index found")
                 # Create empty index
                 import faiss
@@ -307,11 +301,6 @@ class RAGClient:
                 data = response.json()
                 results = data.get('results', [])
                 print(f"[RAG Client] ✅ GPU search returned {len(results)} results")
-                if results:
-                    for i, result in enumerate(results, 1):
-                        score = result.get('score', 0)
-                        text_preview = result.get('text', '')[:50]
-                        print(f"[RAG Client]   [{i}] Score: {score:.3f}, Preview: '{text_preview}...'")
                 return results
             else:
                 print(f"[RAG Client] ❌ GPU search failed: HTTP {response.status_code}")
@@ -331,6 +320,17 @@ class RAGClient:
         """Search using local CPU FAISS"""
         print(f"[RAG Client] 🔍 CPU search: query='{query[:50]}...', k={k}, threshold={threshold}")
         try:
+            # Try to reload index if it might be empty but files exist
+            if (self._cpu_index is None or len(self._cpu_chunks) == 0) and self._auto_ingest:
+                print("[RAG Client] 🔄 Index appears empty, attempting to reload...")
+                self._load_cpu_index()
+                # Also try reloading from auto-ingest
+                if self._auto_ingest.load_existing_embeddings():
+                    self._cpu_chunks = self._auto_ingest.chunks
+                    self._cpu_metadata = self._auto_ingest.metadata
+                    if self._cpu_chunks and len(self._cpu_chunks) > 0:
+                        self._rebuild_cpu_index()
+            
             if self._cpu_index is None or len(self._cpu_chunks) == 0:
                 print(f"[RAG Client] ⚠️ CPU index is empty (no documents indexed)")
                 logger.warning("[RAG Client] CPU index is empty")
@@ -342,24 +342,62 @@ class RAGClient:
             query_embedding = self._embedding_model.encode([query])[0]
             query_embedding = np.array([query_embedding]).astype('float32')
             
-            # Search FAISS index
-            distances, indices = self._cpu_index.search(query_embedding, k)
+            # Detect index type and handle accordingly
+            # IndexFlatIP returns similarity scores (higher = more similar)
+            # IndexFlatL2 returns distances (lower = more similar)
+            index_type = type(self._cpu_index).__name__
+            is_inner_product = 'IP' in index_type or 'InnerProduct' in index_type
             
-            # Convert distances to similarity scores (L2 distance -> cosine similarity approximation)
-            # Lower distance = higher similarity
-            scores = 1 / (1 + distances[0])
+            if is_inner_product:
+                # For IndexFlatIP: normalize query embedding for cosine similarity
+                import faiss
+                query_embedding = query_embedding.reshape(1, -1)
+                faiss.normalize_L2(query_embedding)
+                query_embedding = query_embedding.flatten()
+            
+            # Search FAISS index
+            search_results, indices = self._cpu_index.search(query_embedding.reshape(1, -1), k)
+            
+            # Convert to similarity scores
+            if is_inner_product:
+                # IndexFlatIP: results are already similarity scores (inner product = cosine similarity when normalized)
+                # Values range from -1 to 1, but typically 0 to 1 for normalized embeddings
+                scores = search_results[0]
+            else:
+                # IndexFlatL2: results are distances, convert to similarity
+                # Lower distance = higher similarity
+                scores = 1 / (1 + search_results[0])
             
             # Filter by threshold and build results
-            results = []
+            # First, collect ALL matches (including below threshold) for debugging
+            all_matches = []
             for idx, score in zip(indices[0], scores):
-                if idx < len(self._cpu_chunks) and score >= threshold:
-                    results.append({
+                if idx < len(self._cpu_chunks):
+                    all_matches.append({
                         'text': self._cpu_chunks[idx],
                         'score': float(score),
                         'metadata': self._cpu_metadata[idx] if idx < len(self._cpu_metadata) else {}
                     })
             
-            print(f"[RAG Client] ✅ CPU search found {len(results)} results (threshold={threshold})")
+            # Show all matches for debugging (even below threshold)
+            print(f"[RAG Client] 🔍 DEBUG: All {len(all_matches)} matches (showing top {min(5, len(all_matches))}):")
+            for i, match in enumerate(all_matches[:5], 1):
+                # Extract file name from metadata
+                file_name = "unknown"
+                if isinstance(match.get('metadata'), dict):
+                    file_path = match['metadata'].get('file_path', '')
+                    if file_path:
+                        from pathlib import Path
+                        file_name = Path(file_path).name
+                    else:
+                        file_name = match['metadata'].get('document_name', 'unknown')
+                threshold_status = "✅" if match['score'] >= threshold else "❌"
+                print(f"[RAG Client]   [{i}] {threshold_status} Score: {match['score']:.3f} (threshold: {threshold:.3f}), File: {file_name}, Preview: '{match['text'][:50]}...'")
+            
+            # Filter by threshold
+            results = [match for match in all_matches if match['score'] >= threshold]
+            
+            print(f"[RAG Client] ✅ CPU search found {len(results)} results above threshold={threshold} (out of {len(all_matches)} total matches)")
             if results:
                 for i, result in enumerate(results, 1):
                     # Extract file name from metadata
@@ -370,14 +408,16 @@ class RAGClient:
                             from pathlib import Path
                             file_name = Path(file_path).name
                         else:
-                            file_name = result['metadata'].get('document_name') or result['metadata'].get('guideline_name', 'unknown')
+                            file_name = result['metadata'].get('document_name', 'unknown')
                     print(f"[RAG Client]   [{i}] Score: {result['score']:.3f}, File: {file_name}, Preview: '{result['text'][:50]}...'")
             logger.info(f"[RAG Client] CPU search found {len(results)} results (threshold={threshold})")
             return results
             
         except Exception as e:
             print(f"[RAG Client] ❌ CPU search error: {e}")
-            logger.error(f"[RAG Client] CPU search error: {e}")
+            logger.error(f"[RAG Client] ❌ CPU search error: {e}")
+            import traceback
+            traceback.print_exc()
             return []
     
     def _rebuild_cpu_index(self):
@@ -392,8 +432,12 @@ class RAGClient:
             embeddings = self._embedding_model.encode(self._cpu_chunks)
             embeddings = np.array(embeddings).astype('float32')
             
-            print(f"[RAG Client] 🔧 Creating FAISS index...")
-            self._cpu_index = faiss.IndexFlatL2(self._embedding_dim)
+            # Normalize embeddings for cosine similarity (required for IndexFlatIP)
+            faiss.normalize_L2(embeddings)
+            print(f"[RAG Client] ✅ Normalized embeddings for cosine similarity")
+            
+            print(f"[RAG Client] 🔧 Creating FAISS index (IndexFlatIP for cosine similarity)...")
+            self._cpu_index = faiss.IndexFlatIP(self._embedding_dim)
             self._cpu_index.add(embeddings)
             
             print(f"[RAG Client] ✅ Rebuilt FAISS index: {self._cpu_index.ntotal} vectors")
@@ -414,8 +458,6 @@ class RAGClient:
         Returns:
             List of embedding vectors
         """
-        if len(texts) > 0:
-            print(f"[RAG Client] 🔤 Generating embeddings: {len(texts)} text(s), mode={'GPU' if self.use_gpu else 'CPU'}")
         if self.use_gpu:
             return self._embed_gpu(texts)
         else:

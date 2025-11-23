@@ -1,10 +1,53 @@
 #!/bin/bash
 # Git post-merge hook - runs automatically after 'git pull'
 # Attempts to reload systemd if service file changed
+# Syncs llm-container changes to llm-medical-container
 # This hook is installed automatically by install_aura_bootable.sh
 
+# Get the workspace root
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+WORKSPACE_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+SYNC_SCRIPT="$WORKSPACE_ROOT/setup/scripts/sync_llm_containers.py"
+
+# Check if any llm-container files were updated
+CHANGED_FILES=$(git diff-tree -r --name-only --no-commit-id ORIG_HEAD HEAD 2>/dev/null)
+
+# Check if any container_rest.py, RAG files, or conversation_manager.py were changed
+NEEDS_SYNC=false
+
+for file in $CHANGED_FILES; do
+    if [[ "$file" == "llm-container/container_rest.py" ]] || \
+       [[ "$file" == "llm-container/rag/"* ]] || \
+       [[ "$file" == "llm-container/rag"* ]]; then
+        NEEDS_SYNC=true
+        break
+    fi
+done
+
+if [ "$NEEDS_SYNC" = true ]; then
+    echo ""
+    echo "🔄 Changes detected in llm-container - syncing to llm-medical-container..."
+    
+    # Run sync script
+    if [ -f "$SYNC_SCRIPT" ]; then
+        python3 "$SYNC_SCRIPT"
+        
+        # Check if sync created any changes
+        if [ -n "$(git diff --name-only llm-medical-container/ 2>/dev/null)" ]; then
+            echo ""
+            echo "⚠️  Sync created changes in llm-medical-container/"
+            echo "   Review and commit these changes if needed:"
+            git diff --name-only llm-medical-container/
+            echo ""
+            echo "   To commit synced changes: git add llm-medical-container/ && git commit -m 'Sync from llm-container'"
+        fi
+    else
+        echo "⚠️  Sync script not found: $SYNC_SCRIPT"
+    fi
+fi
+
 # Check if xvf3800 service file was updated
-if git diff-tree -r --name-only --no-commit-id ORIG_HEAD HEAD 2>/dev/null | grep -q "setup/scripts/xvf3800-tuning.service"; then
+if echo "$CHANGED_FILES" | grep -q "setup/scripts/xvf3800-tuning.service"; then
     echo ""
     echo "🔄 XVF3800 service file updated - reloading systemd..."
     

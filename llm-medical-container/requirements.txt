@@ -7,15 +7,5 @@ sentence-transformers  # For embeddings (both GPU and CPU modes)
 faiss-cpu  # For local FAISS operations when RAG container is disabled (CPU mode)
 watchdog  # For auto-ingestion file watching (CPU mode)
 
-# Machine Learning dependencies (optional - for ML-enhanced semantic matching)
-torch  # PyTorch for neural networks (optional, ML features work without it)
-torchvision  # Additional PyTorch utilities (optional)
-
-# File format support
-PyPDF2  # For PDF extraction
-python-docx  # For DOCX extraction
-openpyxl  # For Excel (.xlsx, .xls) extraction
-
 # Note: When RAG_ENABLED=true, uses external RAG container with FAISS GPU
 # When RAG_ENABLED=false, uses local faiss-cpu for in-process operations
-# Note: ML learning is optional - set ENABLE_ML_LEARNING=true to enable neural network enhancements

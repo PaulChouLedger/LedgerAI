@@ -44,32 +44,6 @@ except ImportError:
     DOCX_SUPPORT = False
     print("[Auto-Ingest] ⚠️ DOCX support not available. Install python-docx")
 
-# File extraction dependencies
-try:
-    import PyPDF2
-    PDF_SUPPORT = True
-except ImportError:
-    PDF_SUPPORT = False
-    print("[Auto-Ingest] ⚠️ PDF support not available. Install PyPDF2: pip install PyPDF2")
-
-try:
-    import docx
-    DOCX_SUPPORT = True
-except ImportError:
-    DOCX_SUPPORT = False
-    print("[Auto-Ingest] ⚠️ DOCX support not available. Install python-docx: pip install python-docx")
-
-try:
-    import openpyxl
-    EXCEL_SUPPORT = True
-except ImportError:
-    try:
-        import pandas as pd
-        EXCEL_SUPPORT = True
-    except ImportError:
-        EXCEL_SUPPORT = False
-        print("[Auto-Ingest] ⚠️ Excel support not available. Install openpyxl: pip install openpyxl")
-
 class CPUFAISSAutoIngest:
     """Auto-ingestion system for CPU FAISS"""
     
@@ -78,6 +52,7 @@ class CPUFAISSAutoIngest:
         # Data is mounted at /app/data in docker-compose.yml
         base_dir = Path("/app/data")
         self.input_dir = base_dir / "input"
+        self.parsed_dir = base_dir / "parsed"  # For future use if needed
         self.cpu_embeddings_dir = base_dir / "embeddings"
         self.model_name = "all-distilroberta-v1"
         self.embedding_dimension = 768
@@ -92,6 +67,7 @@ class CPUFAISSAutoIngest:
         
         # Ensure directories exist
         self.input_dir.mkdir(parents=True, exist_ok=True)
+        self.parsed_dir.mkdir(parents=True, exist_ok=True)
         self.cpu_embeddings_dir.mkdir(parents=True, exist_ok=True)
         
         # Initialize model
@@ -149,8 +125,93 @@ class CPUFAISSAutoIngest:
         
         return chunks
     
+    def _extract_text_from_file(self, file_path: Path) -> str:
+        """Extract text from various file formats"""
+        suffix = file_path.suffix.lower()
+        
+        if suffix == '.txt' or suffix == '.md':
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    return f.read().strip()
+            except Exception as e:
+                print(f"[Auto-Ingest] ❌ Error reading {file_path.name}: {e}")
+                return ""
+        
+        elif suffix == '.pdf':
+            if not PDF_SUPPORT:
+                print(f"[Auto-Ingest] ⚠️ PDF support not available for {file_path.name}")
+                return ""
+            try:
+                text = ""
+                with open(file_path, 'rb') as file:
+                    pdf_reader = PyPDF2.PdfReader(file)
+                    for page in pdf_reader.pages:
+                        text += page.extract_text() + "\n"
+                return text.strip()
+            except Exception as e:
+                print(f"[Auto-Ingest] ❌ PDF error {file_path.name}: {e}")
+                return ""
+        
+        elif suffix == '.docx':
+            if not DOCX_SUPPORT:
+                print(f"[Auto-Ingest] ⚠️ DOCX support not available for {file_path.name}")
+                return ""
+            try:
+                doc = docx.Document(file_path)
+                text = "\n".join([p.text for p in doc.paragraphs])
+                return text.strip()
+            except Exception as e:
+                print(f"[Auto-Ingest] ❌ DOCX error {file_path.name}: {e}")
+                return ""
+        
+        elif suffix in ['.xlsx', '.xls']:
+            if not EXCEL_SUPPORT:
+                print(f"[Auto-Ingest] ⚠️ Excel support not available for {file_path.name}")
+                return ""
+            try:
+                text_parts = []
+                # Try using openpyxl first (for .xlsx)
+                try:
+                    import openpyxl
+                    wb = openpyxl.load_workbook(file_path, data_only=True)
+                    for sheet_name in wb.sheetnames:
+                        sheet = wb[sheet_name]
+                        text_parts.append(f"\n=== Sheet: {sheet_name} ===\n")
+                        for row in sheet.iter_rows(values_only=True):
+                            row_text = []
+                            for cell in row:
+                                if cell is not None:
+                                    cell_str = str(cell).strip()
+                                    if cell_str:
+                                        row_text.append(cell_str)
+                            if row_text:
+                                text_parts.append(" | ".join(row_text))
+                            text_parts.append("\n")
+                    return "\n".join(text_parts).strip()
+                except Exception as e1:
+                    # Fallback to pandas if openpyxl fails
+                    try:
+                        import pandas as pd
+                        excel_file = pd.ExcelFile(file_path)
+                        for sheet_name in excel_file.sheet_names:
+                            df = pd.read_excel(excel_file, sheet_name=sheet_name)
+                            text_parts.append(f"\n=== Sheet: {sheet_name} ===\n")
+                            text_parts.append(df.to_string(index=False))
+                            text_parts.append("\n")
+                        return "\n".join(text_parts).strip()
+                    except Exception as e2:
+                        print(f"[Auto-Ingest] ❌ Excel error {file_path.name}: {e1}, {e2}")
+                        return ""
+            except Exception as e:
+                print(f"[Auto-Ingest] ❌ Excel error {file_path.name}: {e}")
+                return ""
+        
+        else:
+            print(f"[Auto-Ingest] ⚠️ Unsupported format: {suffix}")
+            return ""
+    
     def _process_file(self, file_path: Path, force: bool = False) -> bool:
-        """Process a single guideline file
+        """Process a single file - extracts text directly from input files
         
         Args:
             file_path: Path to file to process
@@ -168,7 +229,7 @@ class CPUFAISSAutoIngest:
                         if meta_file_path and Path(meta_file_path).name == original_name:
                             file_in_embeddings = True
                             break
-                        doc_name = meta.get("document_name", "") or meta.get("guideline_name", "")
+                        doc_name = meta.get("document_name", "")
                         if doc_name == original_name or doc_name == file_path.stem:
                             file_in_embeddings = True
                             break
@@ -198,27 +259,29 @@ class CPUFAISSAutoIngest:
             # Get file hash for state tracking
             file_hash = self._get_file_hash(file_path)
             
-            # Extract text based on file type
-            content = self._extract_text(file_path)
-            if not content:
-                print(f"[Auto-Ingest] ⚠️ No content extracted from {file_path.name}")
+            # Extract text directly from file
+            content = self._extract_text_from_file(file_path)
+            
+            if not content.strip():
+                print(f"[Auto-Ingest] ⚠️ Empty content extracted from {file_path.name}")
                 return False
             
-            # Extract guideline name from filename
-            guideline_name = file_path.stem.replace("GUIDELINE_", "")
+            # Extract document name from filename
+            doc_name = file_path.stem
             
             # Chunk the content
             chunks = self.chunk_text(content)
             
-            # Generate embeddings
-            embeddings = self.model.encode(chunks)
+            if not chunks:
+                print(f"[Auto-Ingest] ⚠️ No chunks created from {file_path.name}")
+                return False
             
             # Create metadata for each chunk
             chunk_metadata = []
             for i, chunk in enumerate(chunks):
                 chunk_metadata.append({
-                    "chunk_id": f"{guideline_name}_{i}",
-                    "guideline_name": guideline_name,
+                    "chunk_id": f"{doc_name}_{i}",
+                    "document_name": doc_name,
                     "chunk_index": i,
                     "text": chunk,
                     "file_path": str(file_path)
@@ -234,7 +297,7 @@ class CPUFAISSAutoIngest:
             self.metadata.extend(chunk_metadata)
             
             # Update state
-            self.state["processed_files"][file_path.name] = {
+            self.state["processed_files"][original_name] = {
                 "hash": file_hash,
                 "processed_at": time.time(),
                 "chunks": len(chunks)
@@ -245,97 +308,9 @@ class CPUFAISSAutoIngest:
             
         except Exception as e:
             print(f"[Auto-Ingest] ❌ Error processing {file_path.name}: {e}")
+            import traceback
+            traceback.print_exc()
             return False
-    
-    def _extract_text_from_pdf(self, pdf_path: Path) -> str:
-        """Extract text from PDF"""
-        if not PDF_SUPPORT:
-            return ""
-        try:
-            text = ""
-            with open(pdf_path, 'rb') as file:
-                pdf_reader = PyPDF2.PdfReader(file)
-                for page in pdf_reader.pages:
-                    text += page.extract_text() + "\n"
-            return text.strip()
-        except Exception as e:
-            print(f"[Auto-Ingest] ❌ PDF error {pdf_path.name}: {e}")
-            return ""
-    
-    def _extract_text_from_docx(self, docx_path: Path) -> str:
-        """Extract text from DOCX"""
-        if not DOCX_SUPPORT:
-            return ""
-        try:
-            doc = docx.Document(docx_path)
-            text = "\n".join([p.text for p in doc.paragraphs])
-            return text.strip()
-        except Exception as e:
-            print(f"[Auto-Ingest] ❌ DOCX error {docx_path.name}: {e}")
-            return ""
-    
-    def _extract_text_from_excel(self, excel_path: Path) -> str:
-        """Extract text from Excel files (.xlsx, .xls)"""
-        if not EXCEL_SUPPORT:
-            return ""
-        try:
-            text_parts = []
-            # Try using openpyxl first (for .xlsx)
-            try:
-                import openpyxl
-                wb = openpyxl.load_workbook(excel_path, data_only=True)
-                for sheet_name in wb.sheetnames:
-                    sheet = wb[sheet_name]
-                    text_parts.append(f"\n=== Sheet: {sheet_name} ===\n")
-                    for row in sheet.iter_rows(values_only=True):
-                        row_text = []
-                        for cell in row:
-                            if cell is not None:
-                                cell_str = str(cell).strip()
-                                if cell_str:
-                                    row_text.append(cell_str)
-                        if row_text:
-                            text_parts.append(" | ".join(row_text))
-                        text_parts.append("\n")
-                return "\n".join(text_parts).strip()
-            except Exception as e1:
-                # Fallback to pandas if openpyxl fails
-                try:
-                    import pandas as pd
-                    excel_file = pd.ExcelFile(excel_path)
-                    for sheet_name in excel_file.sheet_names:
-                        df = pd.read_excel(excel_file, sheet_name=sheet_name)
-                        text_parts.append(f"\n=== Sheet: {sheet_name} ===\n")
-                        text_parts.append(df.to_string(index=False))
-                        text_parts.append("\n")
-                    return "\n".join(text_parts).strip()
-                except Exception as e2:
-                    print(f"[Auto-Ingest] ❌ Excel error {excel_path.name}: {e1}, {e2}")
-                    return ""
-        except Exception as e:
-            print(f"[Auto-Ingest] ❌ Excel error {excel_path.name}: {e}")
-            return ""
-    
-    def _extract_text(self, file_path: Path) -> str:
-        """Extract text based on file extension"""
-        suffix = file_path.suffix.lower()
-        if suffix == '.pdf':
-            return self._extract_text_from_pdf(file_path)
-        elif suffix == '.docx':
-            return self._extract_text_from_docx(file_path)
-        elif suffix in ['.xlsx', '.xls']:
-            return self._extract_text_from_excel(file_path)
-        elif suffix in ['.txt', '.md']:
-            # Read plain text files
-            try:
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    return f.read().strip()
-            except Exception as e:
-                print(f"[Auto-Ingest] ❌ TXT error {file_path.name}: {e}")
-                return ""
-        else:
-            print(f"[Auto-Ingest] ⚠️ Unsupported format: {suffix}")
-            return ""
     
     def _generate_embeddings(self) -> np.ndarray:
         """Generate embeddings for all chunks"""
@@ -361,9 +336,14 @@ class CPUFAISSAutoIngest:
                 print("[Auto-Ingest] ⚠️ No embeddings to save")
                 return
             
+            # Normalize embeddings for cosine similarity (required for IndexFlatIP)
+            embeddings = embeddings.astype('float32')
+            faiss.normalize_L2(embeddings)
+            print(f"[Auto-Ingest] ✅ Normalized embeddings for cosine similarity")
+            
             # Create FAISS index
             index = faiss.IndexFlatIP(self.embedding_dimension)  # Inner product for cosine similarity
-            index.add(embeddings.astype('float32'))
+            index.add(embeddings)
             
             # Save CPU FAISS format
             faiss.write_index(index, str(self.cpu_embeddings_dir / "faiss_index.bin"))
@@ -380,10 +360,12 @@ class CPUFAISSAutoIngest:
             with open(self.cpu_embeddings_dir / "metadata.pkl", 'wb') as f:
                 pickle.dump(metadata, f)
             
-            print(f"[Auto-Ingest] ✅ Saved CPU FAISS embeddings: {len(self.chunks)} chunks")
+            print(f"[Auto-Ingest] ✅ Saved CPU FAISS embeddings: {len(self.chunks)} chunks to {self.cpu_embeddings_dir}")
             
         except Exception as e:
             print(f"[Auto-Ingest] ❌ Failed to save CPU embeddings: {e}")
+            import traceback
+            traceback.print_exc()
             raise
     
     def scan_and_process(self) -> Dict[str, Any]:
@@ -406,7 +388,7 @@ class CPUFAISSAutoIngest:
                     if file_path:
                         files_in_embeddings.add(Path(file_path).name)
                     else:
-                        doc_name = meta.get("document_name", "") or meta.get("guideline_name", "")
+                        doc_name = meta.get("document_name", "")
                         if doc_name:
                             # Try to match by document name (might need file extension)
                             files_in_embeddings.add(doc_name)
@@ -497,7 +479,7 @@ class CPUFAISSAutoIngest:
                     if file_path:
                         unique_files.add(Path(file_path).name)
                     else:
-                        doc_name = meta.get("document_name", "") or meta.get("guideline_name", "")
+                        doc_name = meta.get("document_name", "")
                         if doc_name:
                             unique_files.add(doc_name)
             
@@ -507,9 +489,7 @@ class CPUFAISSAutoIngest:
                 for file_name in sorted(unique_files):
                     # Count chunks per file
                     file_chunks = sum(1 for meta in self.metadata if isinstance(meta, dict) and 
-                                    (meta.get("file_path", "").endswith(file_name) or 
-                                     meta.get("document_name") == file_name or 
-                                     meta.get("guideline_name") == file_name))
+                                    (meta.get("file_path", "").endswith(file_name) or meta.get("document_name") == file_name))
                     print(f"[Auto-Ingest]   - {file_name} ({file_chunks} chunks)")
             return True
             
@@ -524,7 +504,6 @@ class CPUFAISSAutoIngest:
             return
         
         print(f"[Auto-Ingest] 👀 Starting file watcher for: {self.input_dir}")
-        
         try:
             from watchdog.observers import Observer
             from watchdog.events import FileSystemEventHandler

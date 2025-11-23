@@ -9,7 +9,7 @@ SYNC_SCRIPT="$WORKSPACE_ROOT/setup/scripts/sync_llm_containers.py"
 # Check if any llm-container files were modified
 CHANGED_FILES=$(git diff --cached --name-only --diff-filter=ACM)
 
-# Check if any container_rest.py or RAG files were changed
+# Check if any container_rest.py, RAG files, or conversation_manager.py were changed
 NEEDS_SYNC=false
 
 for file in $CHANGED_FILES; do

@@ -1,57 +1,23 @@
-# === container_rest.py — Aura Medical Container (Direct Routing Architecture)
-# Simplified architecture using Advanced Medical Navigator:
-# - Advanced Medical Navigator (default, only option) - hybrid LLM/RAG/FAISS
-#
-# Architecture:
-# container_rest.py → advanced_medical_navigator.py
-#
-# No intermediate layers - cleaner, simpler, easier to debug.
+# === container_rest.py — Aura Generic Conversational Container ===
+# Provides general conversation with RAG-powered knowledge
 
 from flask import Flask, request, jsonify, stream_with_context, Response
 from llama_cpp import Llama
-import os, re, json, string, threading, time
-from datetime import datetime, timedelta
-from glob import glob
+import os, threading, atexit
 import requests
-from typing import Dict, Callable
+from typing import List, Optional
+from collections import Counter
+import re
 import logging
+import json
+
+# Conversation management for passive listening and keyword activation
+from conversation_manager import ConversationMemoryIndex, ConversationOrchestrator
 
 # Import modular RAG client (supports both GPU and CPU modes)
 from rag import get_rag_client
-import numpy as np
-
-# RAG Embedding API wrapper
-class RAGEmbeddingAPI:
-    """Wrapper for RAG client's embedding service"""
-    def __init__(self):
-        self.rag_client = get_rag_client()
-    
-    def encode(self, texts: list) -> list:
-        """Encode texts to embeddings"""
-        embeddings = self.rag_client.embed(texts)
-        if embeddings:
-            return [np.array(emb, dtype=np.float32) for emb in embeddings]
-        else:
-            raise RuntimeError("RAG embedding failed")
-
-AdvancedMedicalNavigator = None
-MEDICAL_NAVIGATOR_AVAILABLE = False
-
-
-def _ensure_medical_navigator_import():
-    global AdvancedMedicalNavigator, MEDICAL_NAVIGATOR_AVAILABLE
-    if MEDICAL_NAVIGATOR_AVAILABLE:
-        return True
-    try:
+# container_rest.py → advanced_medical_navigator.py
         from advanced_medical_navigator import AdvancedMedicalNavigator as ImportedNavigator
-        AdvancedMedicalNavigator = ImportedNavigator
-        MEDICAL_NAVIGATOR_AVAILABLE = True
-        print("[Container] ✅ Advanced Medical Navigator imported")
-        return True
-    except ImportError as e:
-        MEDICAL_NAVIGATOR_AVAILABLE = False
-        print(f"[Container] ⚠️ Medical Navigator not available: {e}")
-        return False
 
 app = Flask(__name__)
 
@@ -59,112 +25,113 @@ app = Flask(__name__)
 werkzeug_logger = logging.getLogger('werkzeug')
 werkzeug_logger.setLevel(logging.WARNING)  # Only log warnings and errors, not info requests
 
-# === Singleton Instances (Expensive to Create, Reused Across Sessions) ===
-_global_medical_rule_engine = None
-_global_medical_navigator = None
-
-def get_medical_rule_engine(embedding_api):
-    """Get or create singleton medical rule engine (expensive FAISS indexing, reuse!)"""
-    global _global_medical_rule_engine
-    
-    if _global_medical_rule_engine is None:
-        print("[Container] 🔧 Initializing Medical Rule Engine (one-time FAISS indexing)...")
-        try:
-            from ml.medical_rule_engine import MedicalRuleEngine
-            _global_medical_rule_engine = MedicalRuleEngine(embedding_model=embedding_api)
-            print(f"[Container] ✅ Medical Rule Engine initialized (FAISS indexes built once)")
-        except Exception as e:
-            print(f"[Container] ❌ Failed to initialize Medical Rule Engine: {e}")
-            return None
-    else:
-        print(f"[Container] ♻️  Reusing Medical Rule Engine (FAISS already built)")
-    
-    return _global_medical_rule_engine
-
-def get_medical_navigator(llm_chat_fn, embedding_model=None):
-    """Get or create singleton medical navigator (FAISS + LLM decision)"""
-    global _global_medical_navigator
-    if not _ensure_medical_navigator_import():
-        raise RuntimeError("Advanced Medical Navigator not available")
-
-    if _global_medical_navigator is None:
-        print("[Container] 🔧 Initializing Advanced Medical Navigator (FAISS + LLM, one-time setup)...")
-        _global_medical_navigator = AdvancedMedicalNavigator(
-            llm_chat_fn=llm_chat_fn,
-            embedding_model=embedding_model
-        )
-        print(f"[Container] ✅ Advanced Medical Navigator initialized (FAISS + LLM)")
-    
-    return _global_medical_navigator
-
-# === Session Management (Per-User State) ===
-active_sessions: Dict[str, Dict] = {}
-
-def get_or_create_session(session_id: str) -> Dict:
-    """Get or create session for specific user"""
-    global active_sessions
-    
-    if session_id not in active_sessions:
-        print(f"[Container] 🔧 Creating new session: {session_id}")
-        active_sessions[session_id] = {
-            'created_at': datetime.now(),
-            'last_activity': datetime.now()
-        }
-    else:
-        print(f"[Container] 🔄 Reusing session: {session_id}")
-        active_sessions[session_id]['last_activity'] = datetime.now()
-    
-    return active_sessions[session_id]
-
-def reset_session(session_id: str):
-    """Reset session state"""
-    global _global_medical_navigator
-    
-    print(f"[Container] 🔄 Resetting session: {session_id}")
-    
-    if _global_medical_navigator and session_id in _global_medical_navigator.sessions:
-        del _global_medical_navigator.sessions[session_id]
-        print(f"[Container] ✅ Medical navigator session deleted")
-    
-    # Clear session from active_sessions
-    if session_id in active_sessions:
-        del active_sessions[session_id]
-
-def cleanup_inactive_sessions():
-    """Clean up old inactive sessions (>2 hours)"""
-    global active_sessions
-    cutoff_time = datetime.now() - timedelta(hours=2)
-    sessions_to_remove = []
-    
-    for session_id, session in active_sessions.items():
-        if session.get('last_activity', datetime.now()) < cutoff_time:
-            sessions_to_remove.append(session_id)
-    
-    for session_id in sessions_to_remove:
-        del active_sessions[session_id]
-        if _global_medical_navigator and session_id in _global_medical_navigator.sessions:
-            del _global_medical_navigator.sessions[session_id]
-    
-    if sessions_to_remove:
-        print(f"[Container] 🗑️  Cleaned up {len(sessions_to_remove)} inactive sessions")
-
 # === Thread Safety ===
 llm_lock = threading.Lock()
 
-# === Global instances (initialized at startup) ===
-rag_api = None
+# === Model/LLM Config (hardcoded for easy tuning) ===
+LLM_TEMPERATURE_SIMPLE = 0.7
+LLM_TOP_P = 0.95
+LLM_TOP_K = 40
+LLM_REPEAT_PENALTY = 1.1
+LLM_NUM_PREDICT_DEFAULT = 800  # Increased to allow comprehensive responses (can be overridden via LLM_NUM_PREDICT env var)
+SIMPLE_N_CTX = 4096  # Reduced from 8192 to decrease latency (sufficient for RAG context + responses up to 1500 tokens)
+SIMPLE_CHAT_FORMAT = "qwen"
+N_THREADS = 8
+N_BATCH = 256  # Reduced from 512 for faster generation (smaller batches = lower latency)
+CACHE_PROMPT = True
 
+# RAG Mode toggle: "CPU", "GPU", or "OFF" (resolved from app_settings.json if present)
+def _resolve_rag_mode():
+    try:
+        import json
+        settings_path = "/app/data/app_settings.json"
+        if os.path.isfile(settings_path):
+            with open(settings_path, "r") as f:
+                data = json.load(f)
+                mode = (data.get("rag_mode") or "").strip().upper()
+                if mode in ("CPU", "GPU", "OFF"):
+                    print(f"[Generic] 🎛️ RAG_MODE from settings: {mode}")
+                    return mode
+                elif mode:
+                    print(f"[Generic] ⚠️ Invalid rag_mode '{mode}' in settings; using default")
+    except Exception as e:
+        print(f"[Generic] ⚠️ Failed reading rag_mode from settings: {e}")
+    default_mode = "CPU"
+    print(f"[Generic] 🛟 Using default RAG_MODE: {default_mode}")
+    return default_mode
+
+RAG_MODE = _resolve_rag_mode()
+
+# Conversation/activation config (no env)
+ACTIVATION_KEYWORDS = ["hey aura"]
+ACTIVATION_WINDOW_SECONDS = 15.0
+ACTIVATION_COOLDOWN_SECONDS = 3.0
+CONVERSATION_MEMORY_DIR = "data/learning/conversation_memory"
+CONVERSATION_MEMORY_PERSIST_EVERY = 10
+CONVERSATION_MEMORY_MAX_ENTRIES = 5000
+CONVERSATION_MEMORY_TOP_K = 3
+CONVERSATION_MEMORY_MIN_SCORE = 0.35
+
+# === Streaming/Text Processing Config ===
+WORD_BOUNDARY_CHARS = [' ', '.', ',', '!', '?', ':', ';', '-', '(', ')', '[', ']']
+SENTENCE_ENDINGS = ('.', '!', '?')
+
+# === Response Generation Config ===
+MAX_TOKENS_RAG_MODE = 1500  # Max tokens when using RAG context (increased for comprehensive responses)
+MAX_TOKENS_DIRECT_MODE = 1200  # Max tokens for direct conversation (increased for comprehensive responses)
+
+# === Model Path Resolution (app_settings.json or fallback) ===
+def _resolve_model_path():
+    """
+    Determine model path priority:
+    1) app_settings.json llm_model (filename) -> /models/<filename> if exists
+    2) SIMPLE_MODEL_PATH from env (set by Dockerfile)
+    3) Default fallback (matches Dockerfile)
+    """
+    # 1) App settings override (mounted at /app/data/app_settings.json)
+    try:
+        import json
+        settings_path = "/app/data/app_settings.json"
+        if os.path.isfile(settings_path):
+            with open(settings_path, "r") as f:
+                data = json.load(f)
+                name = (data.get("llm_model") or "").strip()
+                if name:
+                    candidate = f"/models/{name}" if not name.startswith("/") else name
+                    if os.path.isfile(candidate):
+                        print(f"[Generic] 🎯 Using model from settings: {candidate}")
+                        return candidate
+                    else:
+                        print(f"[Generic] ⚠️ Model from settings not found: {candidate}")
+    except Exception as e:
+        print(f"[Generic] ⚠️ Failed reading app settings: {e}")
+    
+    # 2) Use environment variable (set by Dockerfile) as fallback
+    env_path = os.getenv("SIMPLE_MODEL_PATH", "")
+    if env_path and os.path.isfile(env_path):
+        print(f"[Generic] 🛟 Using model from environment: {env_path}")
+        return env_path
+    
+    # 3) Final fallback (matches Dockerfile default)
+    fallback = "/models/Qwen2.5-1.5B-Instruct.Q4_K_M.gguf"
+    print(f"[Generic] 🛟 Using default model: {fallback}")
+    return fallback
+
+SIMPLE_MODEL_PATH = _resolve_model_path()
+
+llm_simple = None
+
+# === Conversation Memory / Activation Config ===
 # === Health Check Endpoint ===
 @app.route("/health", methods=["GET"])
 def health_check():
     """Health check endpoint to verify models are loaded"""
     try:
-        # Check if model is loaded
         simple_loaded = llm_simple is not None
         
         return jsonify({
             "status": "ok",
-            "service": "aura-llm",
+            "service": "aura-llm-generic",
             "models": {
                 "simple_loaded": simple_loaded,
                 "simple_path": SIMPLE_MODEL_PATH
@@ -173,9 +140,743 @@ def health_check():
     except Exception as e:
         return jsonify({
             "status": "error",
-            "service": "aura-llm",
+            "service": "aura-llm-generic",
             "error": str(e)
         }), 500
+
+def extract_llm_response_content(response) -> str:
+    """Extract text content from LLM response"""
+    if isinstance(response, dict):
+        if 'choices' in response and len(response['choices']) > 0:
+            return response['choices'][0]['message']['content']
+        elif 'content' in response:
+            return response['content']
+    return str(response)
+
+def llm_chat_simple(messages, max_tokens=None, temperature=None, stream=False, **kwargs):
+    """Wrapper for LLM chat completion"""
+    if temperature is None:
+        temperature = float(LLM_TEMPERATURE_SIMPLE)
+    
+    # Handle max_tokens: use LLM_NUM_PREDICT as default if not provided
+    if max_tokens is None:
+        max_tokens = int(LLM_NUM_PREDICT_DEFAULT)
+    
+    generation_params = {
+        "messages": messages,
+        "max_tokens": max_tokens,
+        "temperature": temperature,
+        "top_p": kwargs.pop("top_p", float(LLM_TOP_P)),
+        "top_k": kwargs.pop("top_k", int(LLM_TOP_K)),
+        "repeat_penalty": kwargs.pop("repeat_penalty", float(LLM_REPEAT_PENALTY)),
+        "stream": stream,
+        **kwargs
+    }
+    
+    generation_params["stop"] = []
+    
+    with llm_lock:
+        try:
+            response = llm_simple.create_chat_completion(**generation_params)
+            if stream:
+                return response
+            return extract_llm_response_content(response)
+        except Exception as e:
+            print(f"[LLM] ❌ Error in llm_chat_simple: {e}")
+            if stream:
+                return iter([])
+            return ""
+
+# === Conversational Logic ===
+def handle_conversation(
+    prompt: str, session_id: str, memory_context: Optional[str] = None, stream: bool = False
+):
+    """
+    Handle general conversation with optional RAG
+    
+    Args:
+        prompt: User's message
+        session_id: Session identifier
+        memory_context: Optional conversation memory context
+        stream: If True, returns a generator that yields tokens. If False, returns complete response string.
+    
+    Returns:
+        If stream=False: Complete response string
+        If stream=True: Generator that yields tokens as they're generated
+    """
+    
+    # Try RAG first for knowledge queries (CPU or GPU) if enabled
+    # Skip RAG for simple conversational queries to reduce latency
+    rag_context = ""
+    if RAG_MODE in ("CPU", "GPU"):
+        print(f"[Generic] 🔍 RAG_MODE={RAG_MODE} - checking if query should use RAG...")
+        
+        # Normalize contractions to handle variations like "what's" -> "what is"
+        contractions_map = {
+            "what's": "what is",
+            "what're": "what are",
+            "who's": "who is",
+            "where's": "where is",
+            "when's": "when is",
+            "why's": "why is",
+            "how's": "how is",
+            "how're": "how are",
+            "how'd": "how did",
+            "how'll": "how will",
+            "that's": "that is",
+            "there's": "there is",
+            "here's": "here is",
+            "it's": "it is",
+            "i'm": "i am",
+            "you're": "you are",
+            "we're": "we are",
+            "they're": "they are",
+            "he's": "he is",
+            "she's": "she is",
+        }
+        normalized_prompt = prompt.lower()
+        for contraction, expansion in contractions_map.items():
+            normalized_prompt = normalized_prompt.replace(contraction, expansion)
+        
+        # Skip RAG for personal/conversational queries (day, schedule, how are you, etc.)
+        personal_keywords = ['my day', 'my schedule', 'my calendar', 'how are you', 'how am i', 
+                          'what am i', 'when am i', 'where am i', 'tell me about me']
+        is_personal_query = any(keyword in normalized_prompt for keyword in personal_keywords)
+        
+        # Only use RAG if search actually returns results (require actual relevance, not just substring match)
+        # This ensures RAG is only used when there's actually relevant content to inject
+        rag_client = None
+        rag_context = ""
+        rag_results = []
+        
+        if not is_personal_query:
+            try:
+                rag_client = get_rag_client()
+                if rag_client:
+                    # Quick check: does RAG have content at all?
+                    has_content = rag_client.quick_content_match(prompt)
+                    if has_content:
+                        print(f"[Generic] 🔍 Query may match RAG content - performing search...")
+                        
+                        # Check if RAG client has any embeddings
+                        if hasattr(rag_client, '_cpu_chunks') and rag_client._cpu_chunks:
+                            print(f"[Generic] 📊 RAG index: {len(rag_client._cpu_chunks)} chunks available")
+                        elif hasattr(rag_client, '_cpu_index') and rag_client._cpu_index:
+                            index_size = rag_client._cpu_index.ntotal if hasattr(rag_client._cpu_index, 'ntotal') else 0
+                            print(f"[Generic] 📊 RAG index: {index_size} vectors available")
+                        else:
+                            print(f"[Generic] ⚠️ RAG index appears empty - no embeddings loaded")
+                        
+                        # Search for relevant results (defaults: k=3, threshold=0.45 for high relevance)
+                        rag_results = rag_client.search(query=prompt)
+                        
+                        # Only use RAG if search actually returns results above threshold
+                        if rag_results and len(rag_results) > 0:
+                            print(f"[Generic] ✅ RAG found {len(rag_results)} relevant results (threshold=0.45) - will inject context")
+                        else:
+                            print(f"[Generic] 🔍 RAG search returned no results above threshold - skipping RAG injection")
+                    else:
+                        print(f"[Generic] 🔍 Query doesn't match RAG content - skipping RAG (faster response)")
+                else:
+                    print(f"[Generic] ⚠️ RAG client not available")
+            except Exception as e:
+                print(f"[Generic] ⚠️ RAG check failed: {e}")
+                rag_client = None
+        
+        should_use_rag = (rag_results and len(rag_results) > 0)
+        print(f"[Generic] 🔍 Query analysis: is_personal={is_personal_query}, should_use_rag={should_use_rag}")
+        
+        if should_use_rag and rag_results:
+            try:
+                print(f"[Generic] 🔍 RAG injection triggered: '{prompt[:50]}...'")
+                rag_mode = "GPU" if rag_client.use_gpu else "CPU"
+                print(f"[Generic] 🔍 RAG mode: {rag_mode}")
+                
+                for i, result in enumerate(rag_results, 1):
+                    score = result.get('score', 0)
+                    text_preview = result.get('text', '')[:50]
+                    # Extract file name from metadata
+                    file_name = "unknown"
+                    if isinstance(result.get('metadata'), dict):
+                        file_path = result['metadata'].get('file_path', '')
+                        if file_path:
+                            from pathlib import Path
+                            file_name = Path(file_path).name
+                        else:
+                            file_name = result['metadata'].get('document_name', 'unknown')
+                    print(f"[Generic]   [{i}] Score: {score:.3f}, File: {file_name}, Preview: '{text_preview}...'")
+                
+                # Build RAG context, limit each result to 800 chars
+                MAX_CHARS_PER_RESULT = 800
+                rag_chunks = []
+                for r in rag_results:
+                    text = r.get("text", "")
+                    if text:
+                        # Truncate if too long, but try to break at word boundary
+                        if len(text) > MAX_CHARS_PER_RESULT:
+                            truncated = text[:MAX_CHARS_PER_RESULT]
+                            # Try to break at last space to avoid cutting words
+                            last_space = truncated.rfind(' ')
+                            if last_space > MAX_CHARS_PER_RESULT * 0.8:  # Only if we're not losing too much
+                                truncated = truncated[:last_space] + "..."
+                            else:
+                                truncated = truncated + "..."
+                            rag_chunks.append(truncated)
+                        else:
+                            rag_chunks.append(text)
+                rag_context = "\n".join(rag_chunks)
+                print(f"[Generic] ✅ Using RAG context ({len(rag_context)} chars, ~{len(rag_context)//4} tokens) for LLM response")
+            except Exception as e:
+                print(f"[Generic] ⚠️ RAG failed, using direct LLM: {e}")
+                import traceback
+                traceback.print_exc()
+                rag_context = ""  # Clear context on error
+    else:
+        print(f"[Generic] ⏭️ RAG_MODE={RAG_MODE} - RAG disabled")
+    
+    contextual_sections: List[str] = []
+    if rag_context:
+        contextual_sections.append(f"Knowledge context:\n{rag_context}")
+        print(f"[Generic] 📝 LLM prompt includes RAG context")
+    if memory_context:
+        contextual_sections.append(f"Conversation memory:\n{memory_context}")
+        print(f"[Generic] 📝 LLM prompt includes conversation memory")
+    combined_context = "\n\n".join(contextual_sections).strip()
+    
+    if not combined_context:
+        print(f"[Generic] 📝 LLM prompt: direct conversation (no RAG, no memory)")
+
+    if combined_context:
+        messages = [
+            {
+                "role": "system",
+                "content": (
+                    "You are a helpful, knowledgeable assistant. Provide comprehensive, well-structured responses that thoroughly address the user's question.\n\n"
+                    f"{combined_context}\n\n"
+                    "RESPONSE GUIDELINES:\n"
+                    "- Provide thorough, comprehensive answers that cover the topic in depth\n"
+                    "- Structure your response with clear sections and subsections when appropriate\n"
+                    "- Explain the 'why' behind recommendations, not just the 'what'\n"
+                    "- Cover different scenarios, types, or variations when relevant\n"
+                    "- Include important context, disclaimers, or safety information when appropriate\n"
+                    "- Use formatting like **bold text** for emphasis and clear section breaks\n"
+                    "- Reference the knowledge context above if it contains relevant information that improves your answer\n"
+                    "- Do NOT force irrelevant information from the context into your response\n"
+                    "- If the context is not relevant to the question, ignore it and answer using your general knowledge\n"
+                    "- Be conversational and natural, but prioritize completeness and helpfulness\n\n"
+                    f"User question: {prompt}"
+                ),
+            }
+        ]
+        return llm_chat_simple(messages, max_tokens=MAX_TOKENS_RAG_MODE, stream=stream)
+
+    # Fallback to direct LLM conversation without external context
+    system_prompt = (
+        "You are a helpful, knowledgeable assistant. Provide comprehensive, well-structured responses that thoroughly address the user's question.\n\n"
+        "RESPONSE GUIDELINES:\n"
+        "- Provide thorough, comprehensive answers that cover the topic in depth\n"
+        "- Structure your response with clear sections and subsections when appropriate\n"
+        "- Explain the 'why' behind recommendations, not just the 'what'\n"
+        "- Cover different scenarios, types, or variations when relevant\n"
+        "- Include important context, disclaimers, or safety information when appropriate\n"
+        "- Use formatting like **bold text** for emphasis and clear section breaks\n"
+        "- Be conversational and natural, but prioritize completeness and helpfulness"
+    )
+    if memory_context:
+        system_prompt += f"\n\nConversation memory you can reference:\n{memory_context}"
+    messages = [
+        {
+            "role": "system",
+            "content": system_prompt,
+        },
+        {
+            "role": "user",
+            "content": prompt,
+        },
+    ]
+
+    # Use standard max_tokens - matches LLM_NUM_PREDICT_DEFAULT
+    return llm_chat_simple(messages, max_tokens=MAX_TOKENS_DIRECT_MODE, stream=stream)
+
+
+def _embed_texts(texts: List[str]) -> List[List[float]]:
+    if not texts:
+        return []
+    try:
+        rag_client = get_rag_client()
+        return rag_client.embed(texts)
+    except Exception as exc:
+        print(f"[Memory] ⚠️ Failed to generate embeddings: {exc}")
+        return []
+
+
+conversation_memory = ConversationMemoryIndex(
+    storage_dir=CONVERSATION_MEMORY_DIR,
+    persist_every=CONVERSATION_MEMORY_PERSIST_EVERY,
+    max_entries=CONVERSATION_MEMORY_MAX_ENTRIES,
+)
+
+conversation_orchestrator = ConversationOrchestrator(
+    memory_index=conversation_memory,
+    embed_fn=_embed_texts,
+    conversation_handler=handle_conversation,
+    activation_keywords=ACTIVATION_KEYWORDS,
+    activation_window=ACTIVATION_WINDOW_SECONDS,
+    activation_cooldown=ACTIVATION_COOLDOWN_SECONDS,
+    memory_top_k=CONVERSATION_MEMORY_TOP_K,
+    memory_min_score=CONVERSATION_MEMORY_MIN_SCORE,
+)
+
+atexit.register(conversation_orchestrator.flush_memory)
+
+# === Chat Endpoints ===
+@app.route("/chat-tg", methods=["POST"])
+def chat_tg():
+    """Streaming chat endpoint - streams tokens as they're generated for faster response"""
+    data = request.get_json()
+    prompt = (data.get("prompt") or "").strip()
+    session_id = (data.get("chat_id") or data.get("session_id") or "default").strip()
+    
+    # Auto-detect streaming capability:
+    # 1. Explicit stream parameter takes precedence
+    # 2. Check Accept header for SSE support
+    # 3. Default to True for better UX (clients that can't handle it should explicitly set stream=false)
+    explicit_stream = data.get("stream")
+    if explicit_stream is not None:
+        stream = explicit_stream
+    else:
+        # Check if client supports SSE (text/event-stream)
+        accept_header = request.headers.get("Accept", "")
+        supports_sse = "text/event-stream" in accept_header or "text/event-stream" in accept_header.lower()
+        # Default to streaming for better UX - clients that can't handle it should set stream=false
+        stream = True  # Default to streaming for better perceived performance
+        if not supports_sse:
+            # If no explicit preference and client doesn't advertise SSE support, 
+            # we could default to False, but let's be optimistic and default to True
+            # Clients that break can explicitly set stream=false
+            pass
+    
+    if not prompt:
+        return jsonify({"response": "Please provide a message."})
+    
+    print(f"[Generic] 💬 Session: {session_id}, Prompt: '{prompt[:50]}...', Stream: {stream}")
+    
+    if stream:
+        # Streaming mode: return Server-Sent Events (SSE) format
+        def generate_streaming_response():
+            try:
+                # Use streaming mode to get tokens as they're generated
+                result = handle_conversation(prompt, session_id, stream=True)
+                
+                # Check if result is a generator (streaming)
+                if hasattr(result, '__iter__') and not isinstance(result, str):
+                    print(f"[Generic] ✅ Streaming enabled - tokens will be yielded as generated")
+                    normalized_chunks = _normalize_stream_chunks(result)
+                    word_stream = _word_stream_from_chunks(normalized_chunks)
+                    
+                    # Stream words as JSON chunks for incremental display
+                    accumulated = ""
+                    for word in word_stream:
+                        accumulated += word
+                        # Send incremental JSON updates
+                        yield f"data: {json.dumps({'response': accumulated, 'done': False})}\n\n"
+                    
+                    # Send final message
+                    yield f"data: {json.dumps({'response': accumulated, 'done': True})}\n\n"
+                    print(f"[Generic] ✅ Streamed response complete")
+                else:
+                    # Fallback: non-streaming (result is a string)
+                    print(f"[Generic] ⚠️ Streaming not available - sending complete response")
+                    fallback_text = result if isinstance(result, str) and result else "I apologize, I encountered an error."
+                    yield f"data: {json.dumps({'response': fallback_text, 'done': True})}\n\n"
+            except Exception as e:
+                print(f"[Generic] ❌ Error: {e}")
+                import traceback
+                traceback.print_exc()
+                error_msg = "I apologize, I encountered an error processing your request."
+                yield f"data: {json.dumps({'response': error_msg, 'done': True})}\n\n"
+        
+        return Response(
+            stream_with_context(generate_streaming_response()),
+            mimetype="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "X-Accel-Buffering": "no"  # Disable nginx buffering
+            }
+        )
+    else:
+        # Non-streaming mode: return complete response (backward compatibility)
+        try:
+            response = handle_conversation(prompt, session_id, stream=False)
+            return jsonify({"response": response})
+        except Exception as e:
+            print(f"[Generic] ❌ Error: {e}")
+            return jsonify({"response": "I apologize, I encountered an error processing your request."})
+
+@app.route("/chat-tts", methods=["POST"])
+def chat_tts():
+    """Streaming chat endpoint for TTS/Voice - streams tokens as they're generated"""
+    data = request.get_json()
+    prompt = (data.get("prompt") or "").strip()
+    session_id = (data.get("chat_id") or data.get("session_id") or None)
+    
+    if not prompt:
+        return jsonify({"error": "Missing prompt"}), 400
+    
+    print(f"[Generic] 💬 Streaming Session: {session_id}, Prompt: '{prompt[:50]}...'")
+    
+    def generate_response():
+        try:
+            # Use streaming mode to get tokens as they're generated
+            result = handle_conversation(prompt, session_id or "default", stream=True)
+            
+            # Check if result is a generator (streaming)
+            if hasattr(result, '__iter__') and not isinstance(result, str):
+                print(f"[Generic] ✅ Streaming enabled - tokens will be yielded as generated")
+                normalized_chunks = _normalize_stream_chunks(result)
+                word_stream = _word_stream_from_chunks(normalized_chunks)
+                sentence_stream = _sentence_tag_stream(word_stream)
+                for token in sentence_stream:
+                    yield f"{token}\n"
+                print(f"[Generic] ✅ Streamed response complete")
+            else:
+                # Fallback: non-streaming (result is a string)
+                print(f"[Generic] ⚠️ Streaming not available - yielding complete response")
+                fallback_text = result if isinstance(result, str) and result else "I apologize, I encountered an error."
+                normalized_chunks = _normalize_stream_chunks(iter([fallback_text]))
+                word_stream = _word_stream_from_chunks(normalized_chunks)
+                sentence_stream = _sentence_tag_stream(word_stream)
+                for token in sentence_stream:
+                    yield f"{token}\n"
+        except Exception as e:
+            print(f"[Generic] ❌ Error: {e}")
+            import traceback
+            traceback.print_exc()
+            fallback_text = "I apologize, I encountered an error."
+            normalized_chunks = _normalize_stream_chunks(iter([fallback_text]))
+            word_stream = _word_stream_from_chunks(normalized_chunks)
+            sentence_stream = _sentence_tag_stream(word_stream)
+            for token in sentence_stream:
+                yield f"{token}\n"
+    
+    return Response(
+        stream_with_context(filter_think_blocks(generate_response())),
+        mimetype="text/plain",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",  # Disable nginx/proxy buffering
+            "Connection": "keep-alive"  # Keep connection open for streaming
+        }
+    )
+
+
+# === Streaming Helpers =======================================================
+
+
+def _normalize_stream_chunks(chunk_iter):
+    """
+    Normalize mixed-type streaming chunks (dicts, strings) to plain strings.
+    """
+    for chunk in chunk_iter:
+        if isinstance(chunk, dict):
+            if 'choices' in chunk and len(chunk['choices']) > 0:
+                delta = chunk['choices'][0].get('delta', {})
+                content = delta.get('content', '')
+                if content:
+                    yield content
+            elif 'content' in chunk:
+                content = chunk.get('content', '')
+                if content:
+                    yield content
+        elif isinstance(chunk, str):
+            if chunk:
+                yield chunk
+        else:
+            yield str(chunk)
+
+
+def _find_word_boundary(buffer: str):
+    """
+    Return the index of the first word boundary character in buffer, or None.
+    """
+    for idx, char in enumerate(buffer):
+        if char in WORD_BOUNDARY_CHARS:
+            return idx
+    return None
+
+
+def _word_stream_from_chunks(chunk_iter):
+    """
+    Buffer raw LLM chunks until we reach a word boundary, then yield the word.
+    Ensures downstream consumers receive complete words (no sub-word splits).
+    Filters out whitespace-only tokens.
+    """
+    buffer = ""
+    for chunk in chunk_iter:
+        if not chunk:
+            continue
+        buffer += chunk
+        while True:
+            boundary_idx = _find_word_boundary(buffer)
+            if boundary_idx is None:
+                break
+            word = buffer[:boundary_idx + 1]
+            buffer = buffer[boundary_idx + 1:]
+            # Only yield non-empty words (filter out whitespace-only tokens)
+            if word and word.strip():
+                yield word
+    # Only yield remaining buffer if it's not just whitespace
+    if buffer and buffer.strip():
+        yield buffer
+
+
+def _sentence_tag_stream(word_stream):
+    """
+    Wrap word stream with <sentence_start>/<sentence_end> markers, splitting on sentence boundaries.
+    Each complete sentence/phrase gets its own tags for natural TTS playback.
+    Expands abbreviations like "e.g." → "for example", "i.e." → "that is", "etc." → "etcetera".
+    
+    IMPORTANT: This processes words incrementally with minimal buffering (1 token lookahead),
+    allowing tokens to be sent to TTS as they're generated.
+    """
+    sentence_buffer = ""
+    sentence_open = False
+    prev_word = None
+    buffered_word = None  # One-token lookahead buffer for multi-token abbreviations
+    
+    # Abbreviation expansions (abbrev -> full text)
+    abbrev_expansions = {
+        'e.g.': 'for example',
+        'i.e.': 'that is',
+        'etc.': 'etcetera',
+        'vs.': 'versus',
+        'dr.': 'doctor',
+        'mr.': 'mister',
+        'mrs.': 'missus',
+        'ms.': 'miss',
+        'prof.': 'professor',
+        'sr.': 'senior',
+        'jr.': 'junior',
+    }
+    
+    # Multi-token abbreviation patterns (first part -> (second part, expansion))
+    multi_token_abbrevs = {
+        'e.': ('g.', 'for example'),  # e.g.
+        'i.': ('e.', 'that is'),  # i.e.
+    }
+    
+    def yield_word(word_to_yield):
+        """Helper to yield a word, expanding abbreviations if needed"""
+        nonlocal sentence_buffer, sentence_open
+        
+        word_stripped = word_to_yield.strip()
+        
+        # Special handling for standalone dashes: they start new sentences for list items
+        if word_stripped == '-':
+            # Close previous sentence if open
+            if sentence_open:
+                yield "<sentence_end>"
+                sentence_buffer = ""
+            # Start new sentence for list item (dash is first word)
+            sentence_open = True
+            yield "<sentence_start>"
+            yield word_to_yield
+            sentence_buffer = word_to_yield
+            return
+        
+        # Normal word processing
+        if not sentence_open:
+            sentence_open = True
+            yield "<sentence_start>"
+        
+        # Check if this is a single-token abbreviation that should be expanded
+        word_lower = word_stripped.lower().rstrip(',').rstrip(')').rstrip(']').rstrip('}')
+        if word_lower in abbrev_expansions:
+            # Replace with expansion, preserving trailing punctuation
+            trailing_punct = ""
+            for char in reversed(word_stripped):
+                if not char.isalnum() and char != '.':
+                    trailing_punct = char + trailing_punct
+                else:
+                    break
+            expansion_text = abbrev_expansions[word_lower] + trailing_punct
+            yield expansion_text
+            sentence_buffer += expansion_text
+        else:
+            # Normal word - yield as-is
+            yield word_to_yield
+            sentence_buffer += word_to_yield
+        
+        # Check if we've reached a sentence boundary
+        # 1. Sentence endings: . ! ? (period, exclamation, question mark)
+        if word_stripped and word_stripped[-1] in SENTENCE_ENDINGS:
+            # Check if this might be part of an abbreviation
+            is_abbreviation = False
+            
+            # Check if word is a known single-token abbreviation
+            word_lower = word_stripped.lower().rstrip(',').rstrip(')').rstrip(']').rstrip('}')
+            if word_lower in abbrev_expansions:
+                is_abbreviation = True
+            # Check if it's a single letter followed by period (like "e." or "i.")
+            # Remove leading punctuation for detection
+            word_clean = word_stripped.lstrip('(').lstrip('[').lstrip('{').lower()
+            if len(word_clean) == 2 and word_clean[0].isalpha() and word_clean[-1] == '.':
+                # Check if this could be the first part of a multi-token abbreviation
+                if word_clean in multi_token_abbrevs:
+                    is_abbreviation = True  # Don't end sentence yet, wait for next token
+                # Also check if previous word was also short, likely abbreviation
+                elif prev_word and len(prev_word.strip()) <= 3:
+                    is_abbreviation = True
+            
+            # Only end sentence if it's not an abbreviation
+            if not is_abbreviation:
+                yield "<sentence_end>"
+                sentence_buffer = ""
+                sentence_open = False
+        # 2. Colons: split for list items (e.g., "include:" starts a list)
+        elif word_stripped and word_stripped[-1] == ':':
+            yield "<sentence_end>"
+            sentence_buffer = ""
+            sentence_open = False
+    
+    # Process the word stream
+    for word in word_stream:
+        # Skip whitespace-only tokens (shouldn't happen after _word_stream_from_chunks fix, but double-check)
+        if not word or not word.strip():
+            continue
+        
+        word_stripped = word.strip()
+        
+        # If we have a buffered word, check if current word completes a multi-token abbreviation
+        if buffered_word:
+            buffered_stripped = buffered_word.strip()
+            buffered_clean = buffered_stripped.lstrip('(').lstrip('[').lstrip('{').lower()
+            
+            # Check if buffered word could be first part of multi-token abbreviation
+            if buffered_clean in multi_token_abbrevs:
+                expected_part, expansion = multi_token_abbrevs[buffered_clean]
+                word_clean = word_stripped.lstrip(',').lstrip(' ').lower()
+                
+                if word_clean == expected_part:
+                    # Complete multi-token abbreviation detected - expand it
+                    # Preserve trailing punctuation from current word
+                    trailing_punct = ""
+                    for char in reversed(word_stripped):
+                        if not char.isalnum() and char != '.':
+                            trailing_punct = char + trailing_punct
+                        else:
+                            break
+                    
+                    expansion_text = expansion + trailing_punct
+                    # Yield the expansion
+                    for item in yield_word(expansion_text):
+                        yield item
+                    buffered_word = None
+                    prev_word = word
+                    continue
+                else:
+                    # Not the expected continuation - yield buffered word normally
+                    for item in yield_word(buffered_word):
+                        yield item
+                    buffered_word = None
+            else:
+                # Buffered word wasn't part of abbreviation - yield it normally
+                for item in yield_word(buffered_word):
+                    yield item
+                buffered_word = None
+        
+        # Check if current word could be first part of multi-token abbreviation
+        word_clean = word_stripped.lstrip('(').lstrip('[').lstrip('{').lower()
+        if len(word_clean) == 2 and word_clean[0].isalpha() and word_clean[-1] == '.':
+            if word_clean in multi_token_abbrevs:
+                # Buffer this word to check next token
+                buffered_word = word
+                prev_word = word
+                continue
+        
+        # Normal processing - not part of multi-token abbreviation
+        for item in yield_word(word):
+            yield item
+        prev_word = word
+    
+    # Process any remaining buffered word
+    if buffered_word:
+        for item in yield_word(buffered_word):
+            yield item
+    
+    # Close any remaining sentence
+    if sentence_open:
+        yield "<sentence_end>"
+
+
+def filter_think_blocks(generator):
+    """
+    Filter streaming output to remove <think> blocks and detect garbage output.
+    Mirrors the medical container behavior for parity.
+    """
+    accumulated_output = []
+    garbage_detected = False
+    
+    for token in generator:
+        if token and token.strip():
+            accumulated_output.append(token)
+            
+            full_output = ''.join(accumulated_output)
+            text_only = re.sub(r'<sentence_start>|<sentence_end>|\n', '', full_output)
+            
+            if len(text_only) > 50 and len(text_only) % 100 < 20:
+                char_counts = Counter(text_only.lower())
+                if char_counts:
+                    most_common_char, most_common_count = char_counts.most_common(1)[0]
+                    repetition_ratio = most_common_count / len(text_only)
+                    
+                    if repetition_ratio > 0.6:
+                        print(f"[Generic] ⚠️ GARBAGE DETECTED: char='{most_common_char}', ratio={repetition_ratio:.2f}, output='{text_only[:100]}'")
+                        garbage_detected = True
+                        break
+        
+        yield token
+    
+    if garbage_detected:
+        print(f"[Generic] 🔄 Using fallback response due to garbage detection")
+        yield "<sentence_start>\nI'm sorry, I had trouble processing that. Could you tell me more about what's going on?\n<sentence_end>\n"
+
+
+@app.route("/voice/transcript", methods=["POST"])
+def voice_transcript():
+    """
+    Passive transcript ingestion endpoint.
+    
+    Accepts continuous text from the SST pipeline, indexes it for long-term memory,
+    and returns an LLM response only when an activation keyword window is open.
+    """
+    data = request.get_json(silent=True) or {}
+    text = (data.get("text") or "").strip()
+    session_id = str(
+        data.get("session_id") or data.get("chat_id") or data.get("conversation_id") or "default"
+    )
+    is_final = bool(data.get("is_final", True))
+    timestamp = data.get("timestamp")
+    metadata = data.get("metadata") or {}
+
+    if not text:
+        return jsonify({"error": "Missing text"}), 400
+
+    result = conversation_orchestrator.process_chunk(
+        session_id=session_id,
+        text=text,
+        is_final=is_final,
+        timestamp=timestamp,
+        metadata=metadata,
+    )
+
+    return jsonify(
+        {
+            "status": "ok",
+            "session_id": session_id,
+            **result,
+        }
+    )
 
 # === CPU FAISS Auto-Ingestion Endpoints ===
 @app.route('/cpu-faiss/ingest', methods=['POST'])
@@ -202,14 +903,14 @@ def cpu_faiss_ingest():
         })
         
     except Exception as e:
-        logger.error(f"Error in CPU FAISS auto-ingestion: {e}")
+        print(f"[Generic] ❌ Error in CPU FAISS auto-ingestion: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
 @app.route('/cpu-faiss/status', methods=['GET'])
 def cpu_faiss_status():
-    """Get CPU FAISS status"""
+    """Get CPU FAISS status (called by GUI every 15 seconds)"""
     try:
         # Get RAG client instance
         from rag import get_rag_client
@@ -224,878 +925,55 @@ def cpu_faiss_status():
             'status': 'active',
             'watching': auto_ingest.watching,
             'total_chunks': len(auto_ingest.chunks),
-            'processed_files': len(auto_ingest.state.get('processed_files', {})),
-            'input_directory': str(auto_ingest.input_dir),
-            'cpu_embeddings_directory': str(auto_ingest.cpu_embeddings_dir),
-            'model_name': auto_ingest.model_name
+            'processed_files': len(auto_ingest.state.get('processed_files', {}))
         })
         
     except Exception as e:
-        logger.error(f"Error getting CPU FAISS status: {e}")
+        print(f"[Generic] ❌ Error getting CPU FAISS status: {e}")
         return jsonify({'error': str(e)}), 500
 
-# === Model/LLM Config (hardcoded for easy tuning) ===
-LLM_TEMPERATURE_SIMPLE = 0.4
-LLM_TOP_P = 0.95
-LLM_TOP_K = 40
-LLM_REPEAT_PENALTY = 1.1
-LLM_PRESENCE_PENALTY = 0.0
-LLM_FREQUENCY_PENALTY = 0.0
-LLM_NUM_PREDICT_DEFAULT = 400  # Reduced for faster responses while maintaining quality
-SIMPLE_N_CTX = 8192  # Increased from 2048 to support RAG context (Qwen2.5-1.5B supports up to 32768)
-SIMPLE_CHAT_FORMAT = "qwen"
-N_THREADS = 8
-N_BATCH = 256  # Reduced from 512 for faster generation (smaller batches = lower latency)
-CACHE_PROMPT = True
-
-# RAG Mode toggle: "CPU", "GPU", or "OFF" (resolved from app_settings.json if present)
-def _resolve_rag_mode():
-    try:
-        settings_path = "/app/data/app_settings.json"
-        if os.path.isfile(settings_path):
-            with open(settings_path, "r") as f:
-                data = json.load(f)
-                mode = (data.get("rag_mode") or "").strip().upper()
-                if mode in ("CPU", "GPU", "OFF"):
-                    print(f"[LLM] 🎛️ RAG_MODE from settings: {mode}")
-                    return mode
-                elif mode:
-                    print(f"[LLM] ⚠️ Invalid rag_mode '{mode}' in settings; using default")
-    except Exception as e:
-        print(f"[LLM] ⚠️ Failed reading rag_mode from settings: {e}")
-    default_mode = "CPU"
-    print(f"[LLM] 🛟 Using default RAG_MODE: {default_mode}")
-    return default_mode
-
-RAG_MODE = _resolve_rag_mode()
-
-# === Model Config (auto-resolve from app settings for model path only) ===
-def _resolve_model_path():
-    """
-    Determine model path priority:
-    1) app_settings.json llm_model (filename) -> /models/<filename> if exists
-    2) SIMPLE_MODEL_PATH from env (set by Dockerfile)
-    3) Default fallback (matches Dockerfile)
-    """
-    try:
-        settings_path = "/app/data/app_settings.json"
-        if os.path.isfile(settings_path):
-            with open(settings_path, "r") as f:
-                data = json.load(f)
-                name = (data.get("llm_model") or "").strip()
-                if name:
-                    candidate = f"/models/{name}" if not name.startswith("/") else name
-                    if os.path.isfile(candidate):
-                        print(f"[LLM] 🎯 Using model from settings: {candidate}")
-                        return candidate
-                    else:
-                        print(f"[LLM] ⚠️ Model from settings not found: {candidate}")
-    except Exception as e:
-        print(f"[LLM] ⚠️ Failed reading app settings: {e}")
-    
-    # Use environment variable (set by Dockerfile) as fallback
-    env_path = os.getenv("SIMPLE_MODEL_PATH", "")
-    if env_path and os.path.isfile(env_path):
-        print(f"[LLM] 🛟 Using model from environment: {env_path}")
-        return env_path
-    
-    # Final fallback (matches Dockerfile default)
-    fallback = "/models/Qwen2.5-1.5B-Instruct.Q4_K_M-medical.gguf"
-    print(f"[LLM] 🛟 Using default model: {fallback}")
-    return fallback
-
-SIMPLE_MODEL_PATH = _resolve_model_path()
-
-# Models will be loaded in __main__ block to prevent double loading
-import os
-import time
-
-llm_simple = None
-
-# Note: TRIAGE_DEFS is loaded automatically by triage.py when imported
-
-# === Normalize text helper (used by router) ===
-def normalize_text(text: str) -> str:
-    """Normalize text for comparison"""
-    if not text:
-        return ""
-    text = text.lower()
-    
-    # Normalize contractions to handle variations like "what's" -> "what is"
-    # This must happen BEFORE punctuation removal to preserve apostrophes
-    contractions_map = {
-        "what's": "what is",
-        "what're": "what are",
-        "who's": "who is",
-        "where's": "where is",
-        "when's": "when is",
-        "why's": "why is",
-        "how's": "how is",
-        "how're": "how are",
-        "how'd": "how did",
-        "how'll": "how will",
-        "that's": "that is",
-        "there's": "there is",
-        "here's": "here is",
-        "it's": "it is",
-        "i'm": "i am",
-        "you're": "you are",
-        "we're": "we are",
-        "they're": "they are",
-        "he's": "he is",
-        "she's": "she is",
-    }
-    for contraction, expansion in contractions_map.items():
-        text = text.replace(contraction, expansion)
-    
-    text = text.translate(str.maketrans('', '', string.punctuation))
-    text = ' '.join(text.split())
-    return text
-
-def clear_session_state(session_id: str):
-    """Clear session state from storage"""
-    try:
-        # Create data/sessions directory if it doesn't exist
-        sessions_dir = os.path.join("data", "sessions")
-        os.makedirs(sessions_dir, exist_ok=True)
-        
-        session_file = f"session_{session_id}.json"
-        session_path = os.path.join(sessions_dir, session_file)
-        
-        if os.path.exists(session_path):
-            os.remove(session_path)
-            print(f"[Container] 🗑️ Cleared session file: {session_path}")
-        else:
-            print(f"[Container] ℹ️ No session file to clear: {session_path}")
-    except Exception as e:
-        print(f"[Container] ⚠️ Error clearing session state: {e}")
-
-
-def extract_llm_response_content(response) -> str:
-    """
-    Centralized extraction of text content from LLM response
-    Handles both dict (JSON) and string formats from llama.cpp
-    
-    Args:
-        response: LLM response (dict or string)
-        
-    Returns:
-        Extracted text content
-    """
-    # If response is a dict (JSON response from LLM)
-    if isinstance(response, dict):
-        # Standard OpenAI-style response format
-        if 'choices' in response and len(response['choices']) > 0:
-            return response['choices'][0]['message']['content']
-        # Alternative content format
-        elif 'content' in response:
-            return response['content']
-    
-    # If response is already a string, return it directly
-    return str(response)
-
-
-def stream_llm_response(messages, max_tokens=1000):
-    """
-    Global streaming wrapper for LLM responses
-    Yields text chunks as they're generated, reducing initial latency
-    
-    Args:
-        messages: Chat messages for LLM
-        max_tokens: Maximum tokens to generate (default: 1000 for faster responses)
-        
-    Yields:
-        Text chunks from LLM as they're generated
-    """
-    try:
-        stream = llm_chat(messages, max_tokens=max_tokens, stream=True)
-        
-        for chunk in stream:
-            # Extract content from streaming chunk
-            if isinstance(chunk, dict):
-                if 'choices' in chunk and len(chunk['choices']) > 0:
-                    delta = chunk['choices'][0].get('delta', {})
-                    content = delta.get('content', '')
-                    if content:
-                        yield content
-    except Exception as e:
-        print(f"[Container] ❌ Streaming error: {e}")
-        yield ""
-
-
-# === Non-streaming chat endpoint for Telegram ===
-@app.route("/chat-tg", methods=["POST"])
-def chat_tg():
-    """
-    Non-streaming chat endpoint for Telegram bot
-    Uses SAME routing and logic as /chat, just returns single response instead of streaming
-    """
-    data = request.get_json()
-    prompt = (data.get("prompt") or "").strip()
-    session_id = (data.get("chat_id") or data.get("session_id") or "telegram_session").strip()
-    do_reset = bool(data.get("reset"))
-    
-    if not prompt:
-        return jsonify({"response": "Please describe your symptoms."})
-    
-    # Handle reset commands (same as /chat)
-    prompt_norm = normalize_text(prompt)
-    RESET_KEYWORDS = {"reset", "restart", "new session"}
-    if any(k in prompt_norm for k in RESET_KEYWORDS):
-        do_reset = True
-    
-    print(f"[Telegram] 💬 Session: {session_id}, Prompt: '{prompt[:50]}{'...' if len(prompt) > 50 else ''}', Reset: {do_reset}")
-    
-    # Handle session reset
-    if do_reset:
-        print(f"[Telegram] 🔄 Resetting session: {session_id}")
-        reset_session(session_id)
-        return jsonify({"response": "Session reset. Start again with your symptoms."})
-    
-    try:
-        # Get or create session
-        get_or_create_session(session_id)
-        
-        # Cleanup inactive sessions periodically (10% chance)
-        import random
-        if random.randint(1, 10) == 1:
-            cleanup_inactive_sessions()
-        
-        # Advanced Medical Navigator is the default and only option
-        if not _ensure_medical_navigator_import():
-            raise RuntimeError("Advanced Medical Navigator not available")
-        
-        print(f"[Container] 🔍 Telegram request: '{prompt[:50]}{'...' if len(prompt) > 50 else ''}'")
-        print(f"[Telegram] 🔀 Using Advanced Medical Navigator")
-        
-        # Initialize singleton (FAISS + LLM decision)
-        navigator = get_medical_navigator(llm_chat, embedding_model=rag_api)
-        
-        # Process message through navigator
-        response = navigator.process_message(session_id=session_id, user_message=prompt)
-        print(f"[Container] ✅ Navigator response processed")
-        
-        # Format response for Telegram
-        print(f"[Container] 🔍 Response type: {type(response)}")
-        
-        if isinstance(response, dict):
-            print(f"[Container] 🔍 Response keys: {list(response.keys())}")
-            if 'debug' in response and response['debug']:
-                debug = response['debug']
-                engine_debug = debug.get('engine') if isinstance(debug, dict) else None
-                if engine_debug:
-                    print(engine_debug)
-                internal_debug = debug.get('internal') if isinstance(debug, dict) else None
-                if internal_debug:
-                    for line in internal_debug:
-                        print(line)
-            
-            # Extract response text from dict
-            response_text = response.get('response', '')  # Navigator uses 'response'
-            if not response_text:
-                response_text = response.get('message', '')  # Fallback for 'message' key
-            if not response_text:
-                response_text = response.get('question', '')  # Or 'question'
-            
-            # Handle message + question format
-            if response.get('message') and response.get('question'):
-                response_text = response['message']
-                if response.get('has_pause'):
-                    response_text += "\n\n"
-                else:
-                    response_text += "\n"
-                response_text += response['question']
-            
-            telegram_response = {
-                "response": response_text,
-                "debug": response.get('debug') or response.get('metadata')
-            }
-            return jsonify(telegram_response)
-        else:
-            # Simple text response
-            return jsonify({"response": str(response)})
-            
-    except Exception as e:
-        print(f"[Container] ❌ Error processing request: {e}")
-        print(f"[Container] 📋 Error type: {type(e).__name__}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
-
-
-# === Streaming chat endpoint for TTS/Voice ===
-@app.route("/chat-tts", methods=["POST"])
-def chat_tts():
-    """
-    Main chat endpoint using modular architecture
-
-    Routes requests to CLINICIAN mode for all interactions:
-    - Casual greetings and general conversation
-    - Medical knowledge queries with GPU-accelerated RAG
-    - Symptom assessment with medical navigator
-    - OLDCARTS-based questioning with guideline matching
-    """
-    data = request.get_json()
-    prompt = (data.get("prompt") or "").strip()
-    session_id = (data.get("chat_id") or data.get("session_id") or "").strip() or None
-    do_reset = bool(data.get("reset"))
-
-    # Handle reset commands
-    prompt_norm = normalize_text(prompt)
-    RESET_KEYWORDS = {"reset", "restart", "new session"}
-    if any(k in prompt_norm for k in RESET_KEYWORDS):
-        do_reset = True
-
-    if not prompt:
-        return jsonify({"error": "Missing prompt"}), 400
-
-    print(f"[Aura-LLM] 💬 Session: {session_id}, Prompt: '{prompt[:50]}{'...' if len(prompt) > 50 else ''}', Reset: {do_reset}")
-
-    # Handle session reset
-    if do_reset:
-        reset_session(session_id)
-        def generate_reset():
-            yield "<sentence_start>\n🔄 Session reset. Start again with your symptoms.\n<sentence_end>\n"
-        return Response(stream_with_context(filter_think_blocks(generate_reset())), mimetype="text/plain")
-
-    # Get or create session
-    get_or_create_session(session_id)
-    
-    # Advanced Medical Navigator is the default and only option
-    if not _ensure_medical_navigator_import():
-        raise RuntimeError("Advanced Medical Navigator not available")
-
-    # Dispatch to medical engine with streaming
-    def generate_medical_response():
-        try:
-            # rag_api is module-level global (initialized at startup)
-            print(f"[TTS] 🔀 Using Advanced Medical Navigator (streaming)")
-                
-                # Initialize singleton (LLM-only, no medical_rule_engine or embedding_model needed)
-            navigator = get_medical_navigator(llm_chat, embedding_model=rag_api)
-                
-            # STREAMING: Use streaming mode to get tokens as they're generated
-            result = navigator.process_message(session_id=session_id, user_message=prompt, stream=True)
-            
-            # Check if streaming is supported (returns tuple of (response_dict, token_stream))
-            if isinstance(result, tuple) and len(result) == 2:
-                response_dict, token_stream = result
-                print(f"[Container] ✅ Streaming enabled - tokens will be yielded as generated")
-                
-                # Stream tokens with sentence splitting - each sentence gets its own tags
-                # Note: Session storage is handled by the navigator's token_stream generator
-                # Process token stream and split into sentences for natural TTS playback
-                sentence_buffer = ""
-                sentence_open = False
-                
-                for token in token_stream:
-                    token_stripped = token.strip()
-                    
-                    # Special handling for standalone dashes: they start new sentences for list items
-                    if token_stripped == '-':
-                        # Close previous sentence if open
-                        if sentence_open:
-                            yield "<sentence_end>\n"
-                            sentence_buffer = ""
-                        # Start new sentence for list item (dash is first word)
-                        sentence_open = True
-                        yield "<sentence_start>\n"
-                        yield f"{token}\n"
-                        sentence_buffer = token
-                        continue
-                    
-                    # Normal token processing
-                    if not sentence_open:
-                        sentence_open = True
-                        yield "<sentence_start>\n"
-                    
-                    # Ensure newline after each token so HTTP clients using iter_lines() receive tokens promptly
-                    yield f"{token}\n"
-                    sentence_buffer += token
-                    
-                    # Check if we've reached a sentence boundary
-                    # 1. Sentence endings: . ! ? (period, exclamation, question mark)
-                    if token_stripped and token_stripped[-1] in ('.', '!', '?'):
-                        yield "<sentence_end>\n"
-                        sentence_buffer = ""
-                        sentence_open = False
-                    # 2. Colons: split for list items (e.g., "include:" starts a list)
-                    elif token_stripped and token_stripped[-1] == ':':
-                        yield "<sentence_end>\n"
-                        sentence_buffer = ""
-                        sentence_open = False
-                
-                # Close any remaining sentence
-                if sentence_open:
-                    yield "<sentence_end>\n"
-                
-                print(f"[Container] ✅ Streamed response complete (session updated by navigator)")
-                return
-            
-            # Fallback: Non-streaming mode (original behavior)
-            print(f"[Container] ⚠️ Streaming not available - using blocking mode")
-            response = navigator.process_message(session_id=session_id, user_message=prompt, stream=False)
-            
-            print(f"[Container] ✅ Got response from medical engine")
-            
-            # Stream response to TTS - send as chunks for batching
-            if isinstance(response, dict):
-                # Handle empathetic statement + question (with pause)
-                if response.get('message') and response.get('question'):
-                    # Stream empathetic statement first (as single chunk for batching)
-                    message_text = response.get('message', '')
-                    yield "<sentence_start>\n"
-                    yield f"{message_text}\n"
-                    yield "<sentence_end>\n"
-                    
-                    # Add pause if indicated
-                    if response.get('has_pause'):
-                        yield "<pause>\n"  # Pause marker for TTS
-                    
-                    # Then stream question (as single chunk for batching)
-                    question_text = response.get('question', '')
-                    yield "<sentence_start>\n"
-                    yield f"{question_text}\n"
-                    yield "<sentence_end>\n"
-                elif response.get('question'):
-                    # Just question
-                    question_text = response.get('question', '')
-                    yield "<sentence_start>\n"
-                    yield f"{question_text}\n"
-                    yield "<sentence_end>\n"
-                elif response.get('message'):
-                    # Just message
-                    message_text = response.get('message', '')
-                    yield "<sentence_start>\n"
-                    yield f"{message_text}\n"
-                    yield "<sentence_end>\n"
-                elif response.get('response'):
-                    # Navigator uses 'response' key - split into sentences for better batching
-                    response_text = response.get('response', '')
-                    # Split by sentence boundaries (periods, exclamation, question marks, colons, dashes)
-                    # Split on sentence endings and list markers
-                    sentences = re.split(r'([.!?]+\s+|:\s+|-\s+)', response_text)
-                    current_sentence = ""
-                    for part in sentences:
-                        current_sentence += part
-                        part_stripped = part.strip()
-                        # If we have a complete sentence ending, yield it
-                        if part_stripped and part_stripped[-1] in '.!?:':
-                            yield "<sentence_start>\n"
-                            yield f"{current_sentence.strip()}\n"
-                            yield "<sentence_end>\n"
-                            current_sentence = ""
-                        # Also split on standalone dashes (list items)
-                        elif part_stripped == '-' or (len(part_stripped) == 1 and part_stripped == '-'):
-                            # Close previous sentence if any
-                            if current_sentence.strip() and not current_sentence.strip().endswith('-'):
-                                prev_sentence = current_sentence.rstrip('-').strip()
-                                if prev_sentence:
-                                    yield "<sentence_start>\n"
-                                    yield f"{prev_sentence}\n"
-                                    yield "<sentence_end>\n"
-                            # Start new sentence with dash
-                            yield "<sentence_start>\n"
-                            yield f"-\n"
-                            current_sentence = ""
-                    # Yield any remaining text
-                    if current_sentence.strip():
-                        yield "<sentence_start>\n"
-                        yield f"{current_sentence.strip()}\n"
-                        yield "<sentence_end>\n"
-                else:
-                    # Fallback
-                    yield "<sentence_start>\n"
-                    yield "I'm processing your response...\n"
-                    yield "<sentence_end>\n"
-            elif isinstance(response, str):
-                # Simple text response - split into sentences for better batching
-                # Split by sentence boundaries (periods, exclamation, question marks, colons, dashes)
-                sentences = re.split(r'([.!?]+\s+|:\s+|-\s+)', response)
-                current_sentence = ""
-                for part in sentences:
-                    current_sentence += part
-                    part_stripped = part.strip()
-                    # If we have a complete sentence ending, yield it
-                    if part_stripped and part_stripped[-1] in '.!?:':
-                        yield "<sentence_start>\n"
-                        yield f"{current_sentence.strip()}\n"
-                        yield "<sentence_end>\n"
-                        current_sentence = ""
-                    # Also split on standalone dashes (list items)
-                    elif part_stripped == '-' or (len(part_stripped) == 1 and part_stripped == '-'):
-                        # Close previous sentence if any
-                        if current_sentence.strip() and not current_sentence.strip().endswith('-'):
-                            prev_sentence = current_sentence.rstrip('-').strip()
-                            if prev_sentence:
-                                yield "<sentence_start>\n"
-                                yield f"{prev_sentence}\n"
-                                yield "<sentence_end>\n"
-                        # Start new sentence with dash
-                        yield "<sentence_start>\n"
-                        yield f"-\n"
-                        current_sentence = ""
-                # Yield any remaining text
-                if current_sentence.strip():
-                    yield "<sentence_start>\n"
-                    yield f"{current_sentence.strip()}\n"
-                    yield "<sentence_end>\n"
-            else:
-                # Fallback
-                yield "<sentence_start>\n"
-                yield "I'm processing your response...\n"
-                yield "<sentence_end>\n"
-        except Exception as e:
-            print(f"[Container] ❌ Error in medical engine: {e}")
-            import traceback
-            traceback.print_exc()
-            raise e
-
-    # Filter think blocks at container level
-    return Response(stream_with_context(filter_think_blocks(generate_medical_response())), mimetype="text/plain")
-
-
-
-
-
-# === Stream Filtering with Garbage Detection ===
-def filter_think_blocks(generator):
-    """
-    Filter and validate streaming output from all modes
-    
-    - Filters <think> tags (if model uses them)
-    - Detects repetitive garbage output (e.g., "333333...")
-    - Provides fallback response if garbage detected
-    """
-    from collections import Counter
-    
-    accumulated_output = []
-    garbage_detected = False
-    
-    for token in generator:
-        if token and token.strip():
-            accumulated_output.append(token)
-            
-            # Early garbage detection - check every 100 chars
-            full_output = ''.join(accumulated_output)
-            
-            # Extract just the text content (without sentence tags)
-            import re
-            text_only = re.sub(r'<sentence_start>|<sentence_end>|\n', '', full_output)
-            
-            if len(text_only) > 50 and len(text_only) % 100 < 20:  # Check periodically
-                char_counts = Counter(text_only.lower())
-                if char_counts:
-                    most_common_char, most_common_count = char_counts.most_common(1)[0]
-                    repetition_ratio = most_common_count / len(text_only)
-                    
-                    if repetition_ratio > 0.6:  # 60%+ same character = garbage
-                        print(f"[Container] ⚠️ GARBAGE DETECTED: char='{most_common_char}', ratio={repetition_ratio:.2f}, output='{text_only[:100]}'")
-                        garbage_detected = True
-                        break  # Stop consuming stream
-            
-            yield token
-    
-    # If garbage was detected, provide fallback response
-    if garbage_detected:
-        print(f"[Container] 🔄 Using fallback response due to garbage detection")
-        # Clear any previous output and send fallback
-        yield "<sentence_start>\nI'm sorry, I had trouble processing that. Could you tell me more about what's going on?\n<sentence_end>\n"
-
-
-
-# === Helper Functions ===
-
-def load_state(session_id: str) -> dict:
-    """Load session state from file"""
-    import json
-    import os
-    
-    if not session_id:
-        return {}
-    
-    state_file = f"/app/data/sessions/{session_id}.json"
-    
-    try:
-        if os.path.exists(state_file):
-            with open(state_file, 'r') as f:
-                return json.load(f)
-    except Exception as e:
-        print(f"[State] ❌ Error loading state for {session_id}: {e}")
-    
-    return {}
-
-def save_state(state: dict, session_id: str) -> None:
-    """Save session state to file"""
-    import json
-    import os
-    
-    if not session_id:
-        return
-    
-    # Ensure directory exists
-    os.makedirs("/app/data/sessions", exist_ok=True)
-    
-    state_file = f"/app/data/sessions/{session_id}.json"
-    
-    try:
-        with open(state_file, 'w') as f:
-            json.dump(state, f, indent=2)
-    except Exception as e:
-        print(f"[State] ❌ Error saving state for {session_id}: {e}")
-
-def reset_session_state(session_id: str) -> dict:
-    """Reset session state while preserving user name"""
-    state = load_state(session_id)
-    user_name = state.get("user_name")
-
-    reset_state = {
-        "condition": None, "step_index": 0, "answers": [], "flags": {},
-        "last_key": None, "user_name": user_name,
-        "active_pathway": None, "entered_pathway": False,
-        "updated_at": None, "phrasing_history": [], "detailed_symptoms": [],
-        "original_complaint": None, "expanded_prompt": None, "mode": None
-    }
-
-    save_state(reset_state, session_id)
-    print(f"[Aura-LLM] 🔄 Session reset for session_id: {session_id}")
-    return reset_state
-
-
-def llm_chat(messages, max_tokens=None, temperature=None, stream=False, **kwargs):
-    """
-    Wrapper for LLM chat completion with thread safety and speed optimizations
-    
-    Args:
-        messages: Chat messages
-        max_tokens: Max tokens to generate (default: 100)
-        temperature: Sampling temperature (default: use model config)
-        stream: Enable streaming (default: False)
-        **kwargs: Additional LLM parameters
-    """
-    # Apply centralized speed optimizations
-    if temperature is None:
-        temperature = float(LLM_TEMPERATURE_SIMPLE)
-    
-    # Handle max_tokens: use LLM_NUM_PREDICT as default if not provided
-    if max_tokens is None:
-        max_tokens = int(LLM_NUM_PREDICT_DEFAULT)
-    
-    generation_params = {
-        "messages": messages,
-        "max_tokens": max_tokens,
-        "temperature": temperature,
-        "top_p": kwargs.pop("top_p", float(LLM_TOP_P)),
-        "top_k": kwargs.pop("top_k", int(LLM_TOP_K)),
-        "repeat_penalty": kwargs.pop("repeat_penalty", float(LLM_REPEAT_PENALTY)),
-        "presence_penalty": kwargs.pop("presence_penalty", float(LLM_PRESENCE_PENALTY)),
-        "frequency_penalty": kwargs.pop("frequency_penalty", float(LLM_FREQUENCY_PENALTY)),
-        "stream": stream,
-        **kwargs
-    }
-    # Optional stop sequences from environment
-    stop_sequences = []
-    
-    # Add reasoning-specific stop sequences to prevent internal reasoning
-    # These are patterns that indicate reasoning/explanation, not the actual question
-    reasoning_stop_sequences = [
-        "\n\nHere's a",
-        "\n\nHere is a",
-        "\n\nAlternatively:",
-        "\n\nThis question uses",
-        "\n\nIt also",
-        "\n\nwhich are",
-        "\n\nThis uses",
-        "\n\nAlternatively,",
-        "\nAlternatively:",
-        "\nHere's a",
-        "\nHere is a",
-    ]
-    
-    # Combine environment stop sequences with reasoning stop sequences
-    generation_params["stop"] = stop_sequences + reasoning_stop_sequences
-    
-    with llm_lock:
-        try:
-            if llm_simple is None:
-                raise RuntimeError("No LLM model available (simple model not loaded)")
-            
-            response = llm_simple.create_chat_completion(**generation_params)
-            # If streaming, return the generator directly
-            if stream:
-                return response
-            # For non-streaming, extract and return just the text content
-            # This makes llm_chat() easier to use (returns strings, not dicts)
-            return extract_llm_response_content(response)
-        except Exception as e:
-            print(f"[LLM] ❌ Error in llm_chat: {e}")
-            if stream:
-                # Return empty generator for streaming
-                return iter([])
-            return ""  # Return empty string on error
-
-
-def llm_chat_simple(messages, max_tokens=None, temperature=None, stream=False, **kwargs):
-    """
-    Wrapper for SIMPLE LLM (Llama-1B) chat completion - for templates and validation
-    
-    Args:
-        messages: Chat messages
-        max_tokens: Max tokens to generate (default from LLM_NUM_PREDICT)
-        temperature: Sampling temperature (default: use model config)
-        stream: Enable streaming (default: False)
-        **kwargs: Additional LLM parameters
-    """
-    if temperature is None:
-        temperature = float(LLM_TEMPERATURE_SIMPLE)
-    
-    # Handle max_tokens: use LLM_NUM_PREDICT as default if not provided
-    if max_tokens is None:
-        max_tokens = int(LLM_NUM_PREDICT_DEFAULT)
-    
-    generation_params = {
-        "messages": messages,
-        "max_tokens": max_tokens,
-        "temperature": temperature,
-        "top_p": kwargs.pop("top_p", float(LLM_TOP_P)),
-        "top_k": kwargs.pop("top_k", int(LLM_TOP_K)),
-        "repeat_penalty": kwargs.pop("repeat_penalty", float(LLM_REPEAT_PENALTY)),
-        "presence_penalty": kwargs.pop("presence_penalty", float(LLM_PRESENCE_PENALTY)),
-        "frequency_penalty": kwargs.pop("frequency_penalty", float(LLM_FREQUENCY_PENALTY)),
-        "stream": stream,
-        **kwargs
-    }
-    # Optional stop sequences from environment
-    stop_sequences = []
-    
-    # Add reasoning-specific stop sequences to prevent internal reasoning
-    reasoning_stop_sequences = [
-        "\n\nHere's a",
-        "\n\nHere is a",
-        "\n\nAlternatively:",
-        "\n\nThis question uses",
-        "\n\nIt also",
-        "\n\nwhich are",
-        "\n\nThis uses",
-        "\n\nAlternatively,",
-        "\nAlternatively:",
-        "\nHere's a",
-        "\nHere is a",
-    ]
-    
-    # Combine environment stop sequences with reasoning stop sequences
-    generation_params["stop"] = stop_sequences + reasoning_stop_sequences
-    
-    with llm_lock:  # Shared lock for both models
-        try:
-            response = llm_simple.create_chat_completion(**generation_params)
-            if stream:
-                return response
-            return extract_llm_response_content(response)
-        except Exception as e:
-            print(f"[LLM-Simple] ❌ Error in llm_chat_simple: {e}")
-            if stream:
-                return iter([])
-            return ""
-
-
-def llm_chat_once(messages, **kwargs):
-    """Single LLM call for NLG rewriting (used by triage)"""
-    return llm_chat(messages, **kwargs)
-
-
-# === Server Startup ===
-
 if __name__ == "__main__":
-    # Initialize RAG embedding API (module-level variable, no global needed in __main__ block)
-    if RAG_MODE in ("CPU", "GPU"):
-        print(f"[Container] 🔧 Initializing RAG embedding API (mode: {RAG_MODE})...")
-        try:
-            rag_api = RAGEmbeddingAPI()
-            test_embedding = rag_api.encode(["test"])
-            rag_client = get_rag_client()
-            rag_mode_display = "GPU" if rag_client.use_gpu else "CPU"
-            print(f"[Container] ✅ RAG embedding API initialized ({rag_mode_display} mode)")
-            if not rag_client.use_gpu:
-                # Show CPU index status
-                if hasattr(rag_client, '_cpu_chunks'):
-                    chunk_count = len(rag_client._cpu_chunks) if rag_client._cpu_chunks else 0
-                    print(f"[Container] 📊 RAG CPU index: {chunk_count} chunks available")
-        except Exception as e:
-            print(f"[Container] ⚠️ RAG API not available: {e}")
-            rag_api = None
-    else:
-        print("[Container] ℹ️ RAG_MODE=OFF — skipping RAG embedding API initialization")
-        rag_api = None
+    print("[Generic] 🚀 Starting Aura Generic LLM Container...")
     
-    # Load model ONLY when running as main script (prevents double loading on import)
-    print(f"[LLM] 🚀 Loading model: {SIMPLE_MODEL_PATH}")
-    print(f"[LLM] ⚙️  Config: n_ctx={SIMPLE_N_CTX}, format={SIMPLE_CHAT_FORMAT}")
-    
-    # Check if model file exists and get file info
-    if not os.path.exists(SIMPLE_MODEL_PATH):
-        print(f"[LLM] ❌ Model file not found: {SIMPLE_MODEL_PATH}")
-        exit(1)
-    else:
-        # Get file size and modification time
-        file_stat = os.stat(SIMPLE_MODEL_PATH)
-        file_size_mb = file_stat.st_size / (1024 * 1024)
-        mod_time = time.ctime(file_stat.st_mtime)
-        print(f"[LLM] 📁 Model file found locally: {file_size_mb:.1f}MB, modified: {mod_time}")
-        print(f"[LLM] 🔍 File path: {SIMPLE_MODEL_PATH}")
-    
-    print(f"[LLM] 🧠 Initializing Llama model (this may take a while for large models)...")
-    start_time = time.time()
+    # Load model with GPU acceleration
+    print(f"[Generic] 📦 Loading model: {SIMPLE_MODEL_PATH}")
+    # Offload all layers to GPU for maximum acceleration (set to 0 to disable GPU)
+    # For Jetson, offloading all layers typically provides best performance
+    n_gpu_layers = -1  # -1 = offload all layers to GPU, 0 = CPU only
+    print(f"[Generic] 🚀 GPU acceleration: {n_gpu_layers} layers offloaded to GPU")
     llm_simple = Llama(
         model_path=SIMPLE_MODEL_PATH,
         n_ctx=SIMPLE_N_CTX,
-        n_gpu_layers=-1,  # -1 = offload all layers to GPU for maximum acceleration
         n_threads=N_THREADS,
         n_batch=N_BATCH,
+        n_gpu_layers=n_gpu_layers,  # Enable GPU acceleration
         cache_prompt=CACHE_PROMPT,
         chat_format=SIMPLE_CHAT_FORMAT,
         use_mlock=True,
         use_mmap=True,
-        verbose=False,
-        temperature=float(LLM_TEMPERATURE_SIMPLE),
-        top_p=float(LLM_TOP_P),
-        top_k=int(LLM_TOP_K),
-        repeat_penalty=float(LLM_REPEAT_PENALTY)
+        verbose=False
     )
-    load_time = time.time() - start_time
-    print(f"[LLM] ✅ Simple model loaded: {SIMPLE_MODEL_PATH} (took {load_time:.1f}s)")
-    
-    print("[Aura-LLM] 🚀 Starting Aura LLM Container (Direct Routing Architecture)")
-    print("[Aura-LLM] 📋 Configuration:")
-    
-    # Advanced Medical Navigator is the default and only option
-    _ensure_medical_navigator_import()
-    print("  - MODE: Advanced Medical Navigator (Hybrid LLM/RAG/FAISS)")
-    print("    • Natural conversation flow with guideline-based assessment")
-    print("    • Dynamic condition ranking and smart question selection")
-    print("    • On-demand guideline loading for low latency")
-    print("    • FAISS semantic matching and anatomical filtering")
-    print("    • Multi-category support with fuzzy fallback")
-    print("    • Uses local CPU FAISS for medical knowledge")
-    print("    • Single LLM model (Qwen2.5-1.5B) for all tasks")
+    print(f"[Generic] ✅ Model loaded: {SIMPLE_MODEL_PATH}")
     
     # Pre-initialize RAG client at container startup (reduces first-query latency)
     if RAG_MODE in ("CPU", "GPU"):
-        print(f"[LLM] 🔍 Pre-initializing RAG client (RAG_MODE={RAG_MODE})...")
+        print(f"[Generic] 🔍 Pre-initializing RAG client (RAG_MODE={RAG_MODE})...")
         try:
             from rag import get_rag_client
             rag_client = get_rag_client()
-            print(f"[LLM] ✅ RAG client pre-initialized: {rag_client._mode}")
+            print(f"[Generic] ✅ RAG client pre-initialized: {rag_client._mode}")
             if hasattr(rag_client, '_cpu_chunks') and rag_client._cpu_chunks:
-                print(f"[LLM] 📊 RAG index ready: {len(rag_client._cpu_chunks)} chunks available")
+                print(f"[Generic] 📊 RAG index ready: {len(rag_client._cpu_chunks)} chunks available")
             elif hasattr(rag_client, '_cpu_index') and rag_client._cpu_index:
                 index_size = rag_client._cpu_index.ntotal if hasattr(rag_client._cpu_index, 'ntotal') else 0
-                print(f"[LLM] 📊 RAG index ready: {index_size} vectors in index")
+                print(f"[Generic] 📊 RAG index ready: {index_size} vectors in index")
         except Exception as e:
-            print(f"[LLM] ⚠️ RAG client pre-initialization failed: {e}")
-            print("[LLM] 💡 RAG will be initialized on first use (may add latency to first query)")
+            print(f"[Generic] ⚠️ RAG client pre-initialization failed: {e}")
+            print("[Generic] 💡 RAG will be initialized on first use (may add latency to first query)")
     else:
-        print(f"[LLM] ⏭️ RAG_MODE={RAG_MODE} - skipping RAG initialization")
-
-    app.run(host='0.0.0.0', port=11434, debug=False)
-
+        print(f"[Generic] ⏭️ RAG_MODE={RAG_MODE} - skipping RAG initialization")
+    
+    print("[Generic] ✅ LLM Container ready!")
+    print("[Generic] 🌐 Starting Flask server on 0.0.0.0:11434...")
+    
+    app.run(host="0.0.0.0", port=11434, threaded=True, debug=False)
