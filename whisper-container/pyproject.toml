@@ -28,7 +28,7 @@ dev = [
 
 [tool.uv.extra-build-dependencies]
 whisper-trt = [
-    "setuptools",
+    "psutil",
 ]
 
 [tool.hatch.build.targets.wheel]

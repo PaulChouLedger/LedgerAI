@@ -10,8 +10,8 @@ RUN pip3 install --no-cache-dir uv --ignore-installed --index-url https://pypi.o
 
 # Install minimal build dependencies (TensorRT/torch2trt should already be in base image)
 # Install whisper and psutil first (required for whisper-trt build)
-RUN uv pip install --system "openai-whisper @ git+https://github.com/openai/whisper.git" && \
-    uv pip install --system psutil setuptools
+RUN uv pip install --system setuptools, psutil
+RUN uv pip install --system "openai-whisper @ git+https://github.com/openai/whisper.git"
 
 # Copy package files
 COPY pyproject.toml /app/
