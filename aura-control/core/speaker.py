@@ -194,9 +194,48 @@ def ssml_wrap(text):
         f"</voice></speak>"
     )
 
+# Import shared text cleaning utility
+try:
+    from utils.text_cleaning import clean_text_formatting
+    _clean_text_for_tts = clean_text_formatting  # Alias for backwards compatibility
+except ImportError:
+    # Fallback if utils module not available
+    def _clean_text_for_tts(text):
+        """
+        Clean and normalize text for TTS playback.
+        Removes markdown formatting, fixes spacing, removes hashtags and asterisks.
+        """
+        if not text:
+            return text
+        
+        # Remove markdown headers (hashtags at start of line)
+        text = re.sub(r'^#{1,6}\s+', '', text, flags=re.MULTILINE)
+        # Remove standalone hashtags
+        text = re.sub(r'#{1,6}(?=\s|$)', '', text)
+        
+        # Remove markdown bold/italic (asterisks)
+        text = re.sub(r'\*\*([^*]+)\*\*', r'\1', text)  # **text** -> text
+        text = re.sub(r'\*([^*\n]+)\*', r'\1', text)  # *text* -> text
+        # Remove standalone asterisks (markdown formatting artifacts)
+        text = re.sub(r'\*\*+', '', text)  # Remove multiple asterisks
+        text = re.sub(r'(?<!\w)\*(?!\w)', '', text)  # Remove single asterisks not part of words
+        
+        # Fix missing spaces after punctuation
+        text = re.sub(r'([a-zA-Z0-9])([.!?])([a-zA-Z-])', r'\1\2 \3', text)  # word.word -> word. word
+        text = re.sub(r'([,.!?:;])([a-zA-Z])', r'\1 \2', text)  # word,word -> word, word
+        text = re.sub(r'([a-zA-Z0-9])(\()', r'\1 \2', text)  # word(word -> word (word
+        text = re.sub(r'(\))([a-zA-Z0-9])', r'\1 \2', text)  # word)word -> word) word
+        
+        # Normalize multiple spaces
+        text = re.sub(r' {2,}', ' ', text)
+        
+        return text.strip()
+
 def preprocess_for_tts(text):
     # Remove control tags for clean TTS output
     text = re.sub(r"<sentence_start>|<sentence_end>|<pause>", "", text)
+    # Apply text cleaning to remove markdown and fix spacing
+    text = _clean_text_for_tts(text)
     return text.strip()
 
 def enqueue_tts_chunk(text):
@@ -695,7 +734,9 @@ def speak_llm_response(prompt, context=""):
                     # Join all buffered tokens into complete sentence
                     chunk_text = "".join(sentence_buffer).strip()
                     clean_text = re.sub(r'<sentence_start>|<sentence_end>', '', chunk_text).strip()
-                    # Normalize whitespace (collapse multiple spaces to single space) - same as chatbot
+                    # Apply text cleaning to remove markdown and fix spacing
+                    clean_text = _clean_text_for_tts(clean_text)
+                    # Normalize whitespace (collapse multiple spaces to single space)
                     clean_text = re.sub(r'\s+', ' ', clean_text).strip()
                     if clean_text and not _is_empty_sentence(clean_text):
                         # Check if this is a short sentence that should be batched

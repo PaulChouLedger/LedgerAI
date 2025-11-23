@@ -583,61 +583,41 @@ def chat_tts():
 
 # === Streaming Helpers =======================================================
 
+# Import shared text cleaning utility (if available)
+# Note: In container environment, we define it locally for simplicity
+# The function is identical to aura-control/utils/text_cleaning.py for consistency
 def _clean_text_formatting(text: str) -> str:
     """
     Clean and normalize text formatting for better readability.
-    Fixes spacing issues: missing spaces after punctuation, proper spacing around punctuation.
-    Removes markdown headers (hashtags) and asterisks for cleaner formatting.
-    Preserves paragraph breaks and list formatting.
+    Matches TTS cleaning logic for consistency between chat and voice output.
+    Removes markdown formatting, fixes spacing, removes hashtags and asterisks.
+    
+    This function is identical to aura-control/utils/text_cleaning.py::clean_text_formatting()
+    to ensure chat and TTS use the same formatting.
     """
     if not text:
         return text
     
-    import re
-    
-    # Remove markdown headers (lines starting with #)
-    # "### Important Considerations" -> "Important Considerations"
+    # Remove markdown headers (hashtags at start of line)
     text = re.sub(r'^#{1,6}\s+', '', text, flags=re.MULTILINE)
+    # Remove standalone hashtags
+    text = re.sub(r'#{1,6}(?=\s|$)', '', text)
     
-    # Remove markdown bold formatting (double asterisks)
-    # "**text**" -> "text"
-    text = re.sub(r'\*\*([^*]+)\*\*', r'\1', text)
+    # Remove markdown bold/italic (asterisks)
+    text = re.sub(r'\*\*([^*]+)\*\*', r'\1', text)  # **text** -> text
+    text = re.sub(r'\*([^*\n]+)\*', r'\1', text)  # *text* -> text
+    # Remove standalone asterisks (markdown formatting artifacts)
+    text = re.sub(r'\*\*+', '', text)  # Remove multiple asterisks
+    text = re.sub(r'(?<!\w)\*(?!\w)', '', text)  # Remove single asterisks not part of words
     
-    # Remove single asterisks used for emphasis/italics
-    # "*text*" -> "text"
-    text = re.sub(r'\*([^*\n]+)\*', r'\1', text)
+    # Fix missing spaces after punctuation
+    text = re.sub(r'([a-zA-Z0-9])([.!?])([a-zA-Z-])', r'\1\2 \3', text)  # word.word -> word. word
+    text = re.sub(r'([,.!?:;])([a-zA-Z])', r'\1 \2', text)  # word,word -> word, word
+    text = re.sub(r'([a-zA-Z0-9])(\()', r'\1 \2', text)  # word(word -> word (word
+    text = re.sub(r'(\))([a-zA-Z0-9])', r'\1 \2', text)  # word)word -> word) word
     
-    # Fix missing spaces after periods/question marks/exclamation marks
-    # "word.word" -> "word. word"
-    # "breathing.-Health" -> "breathing. -Health" (period before dash)
-    text = re.sub(r'([a-zA-Z0-9])([.!?])([a-zA-Z-])', r'\1\2 \3', text)
-    
-    # Fix missing spaces after commas, colons, semicolons
-    # "word,word" -> "word, word"
-    # "Symptoms:Look" -> "Symptoms: Look"
-    text = re.sub(r'([,;])([a-zA-Z])', r'\1 \2', text)
-    
-    # Fix missing spaces after colons (but preserve time like "1:30")
-    # "Symptoms:Look" -> "Symptoms: Look"
-    text = re.sub(r'([a-zA-Z])(:)([a-zA-Z])', r'\1\2 \3', text)
-    
-    # Fix missing spaces around parentheses
-    # "word(word" -> "word (word" and "word)word" -> "word) word"
-    text = re.sub(r'([a-zA-Z0-9])(\()', r'\1 \2', text)
-    text = re.sub(r'(\))([a-zA-Z0-9])', r'\1 \2', text)
-    
-    # Normalize multiple spaces to single space (but preserve intentional spacing)
+    # Normalize multiple spaces
     text = re.sub(r' {2,}', ' ', text)
-    
-    # Ensure list items have proper line breaks
-    # Fix cases where list items run together without breaks
-    # "-Item1-Item2" -> "-Item1\n-Item2" (but this is rare, usually already separated)
-    
-    # Normalize multiple newlines to double newline (paragraph breaks)
-    text = re.sub(r'\n{3,}', '\n\n', text)
-    
-    # Clean up any trailing spaces on lines
-    text = re.sub(r' +$', '', text, flags=re.MULTILINE)
     
     return text.strip()
 
@@ -802,11 +782,10 @@ def _sentence_tag_stream(word_stream):
                 yield "<sentence_end>"
                 sentence_buffer = ""
                 sentence_open = False
-        # 2. Colons: split for list items (e.g., "include:" starts a list)
-        elif word_stripped and word_stripped[-1] == ':':
-            yield "<sentence_end>"
-            sentence_buffer = ""
-            sentence_open = False
+        # 2. Colons: Don't split on colons - they're usually part of list headers that should stay with content
+        # This prevents awkward splits like "**Symptoms:" being a separate sentence
+        # Colons will naturally be part of the sentence and cleaned up in post-processing
+        # (Removed colon-based splitting to prevent awkward chunking)
     
     # Process the word stream
     for word in word_stream:

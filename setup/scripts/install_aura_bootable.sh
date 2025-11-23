@@ -1058,10 +1058,10 @@ if [ -f "$SERVICE_FILE" ]; then
     if [ -d "$LEDGERAI_DIR/.git" ]; then
         # Install post-merge hook
         if [ -f "$POST_MERGE_TEMPLATE" ]; then
-            if [ ! -f "$POST_MERGE_HOOK" ] || ! grep -q "XVF3800 service file updated" "$POST_MERGE_HOOK" 2>/dev/null; then
+        if [ ! -f "$POST_MERGE_HOOK" ] || ! grep -q "XVF3800 service file updated" "$POST_MERGE_HOOK" 2>/dev/null; then
                 cp "$POST_MERGE_TEMPLATE" "$POST_MERGE_HOOK"
-                chmod +x "$POST_MERGE_HOOK"
-                print_info "Git post-merge hook installed - systemd will auto-reload after git pull"
+            chmod +x "$POST_MERGE_HOOK"
+            print_info "Git post-merge hook installed - systemd will auto-reload after git pull"
             fi
         fi
         
