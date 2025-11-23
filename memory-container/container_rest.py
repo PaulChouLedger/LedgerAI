@@ -20,11 +20,19 @@ from proactive_analyzer import ProactiveAnalyzer
 from background_listener import BackgroundListener
 
 # Configure logging
+LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO").upper()
 logging.basicConfig(
-    level=logging.INFO,
-    format='[%(asctime)s] [%(name)s] [%(levelname)s] %(message)s'
+    level=getattr(logging, LOG_LEVEL, logging.INFO),
+    format='[%(asctime)s] [%(name)s] [%(levelname)s] %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
 )
 logger = logging.getLogger(__name__)
+
+# Enable debug logging for memory components
+if LOG_LEVEL == "DEBUG":
+    logging.getLogger("memory_manager").setLevel(logging.DEBUG)
+    logging.getLogger("proactive_analyzer").setLevel(logging.DEBUG)
+    logging.getLogger("background_listener").setLevel(logging.DEBUG)
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -94,14 +102,18 @@ def _on_transcription_callback(text: str):
     global last_conversation_text
     
     last_conversation_text = text
+    logger.info(f"[{SERVICE_NAME}] 📝 Received transcription: '{text[:80]}...'")
     
     # Analyze and generate suggestion
     if analyzer:
+        logger.debug(f"[{SERVICE_NAME}] 🔍 Analyzing conversation for suggestions...")
         suggestion = analyzer.analyze_and_suggest(text)
         if suggestion:
             logger.info(f"[{SERVICE_NAME}] 💡 Generated suggestion: '{suggestion[:100]}...'")
             # Send suggestion to TTS
             _speak_suggestion(suggestion)
+        else:
+            logger.debug(f"[{SERVICE_NAME}] ℹ️ No suggestion generated (cooldown or no insights)")
 
 def _speak_suggestion(suggestion: str):
     """Send suggestion to TTS system"""
@@ -210,20 +222,30 @@ def store_conversation():
         source = data.get("source", "manual")
         metadata = data.get("metadata", {})
         
+        logger.info(f"[{SERVICE_NAME}] 📥 Received conversation to store (source: {source})")
+        logger.debug(f"[{SERVICE_NAME}] 📝 Text: '{text[:100]}...'")
+        
         if not text:
+            logger.warning(f"[{SERVICE_NAME}] ⚠️ Empty text received, skipping")
             return jsonify({"error": "Text is required"}), 400
         
+        logger.debug(f"[{SERVICE_NAME}] 💾 Storing conversation in memory manager...")
         conv_id = memory_manager.store_conversation(
             text=text,
             source=source,
             metadata=metadata
         )
+        logger.info(f"[{SERVICE_NAME}] ✅ Conversation stored (ID: {conv_id})")
         
         # Analyze for suggestions
         if analyzer:
+            logger.debug(f"[{SERVICE_NAME}] 🔍 Analyzing stored conversation for suggestions...")
             suggestion = analyzer.analyze_and_suggest(text)
             if suggestion:
+                logger.info(f"[{SERVICE_NAME}] 💡 Suggestion generated: '{suggestion[:80]}...'")
                 _speak_suggestion(suggestion)
+            else:
+                logger.debug(f"[{SERVICE_NAME}] ℹ️ No suggestion generated")
         
         return jsonify({
             "status": "stored",
@@ -231,7 +253,9 @@ def store_conversation():
         })
         
     except Exception as e:
-        logger.error(f"[{SERVICE_NAME}] Failed to store conversation: {e}")
+        logger.error(f"[{SERVICE_NAME}] ❌ Failed to store conversation: {e}")
+        import traceback
+        logger.debug(traceback.format_exc())
         return jsonify({"error": str(e)}), 500
 
 @app.route('/search', methods=['POST'])

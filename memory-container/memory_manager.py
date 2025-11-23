@@ -18,6 +18,14 @@ import threading
 import logging
 
 logger = logging.getLogger(__name__)
+# Set up logger for this module
+if not logger.handlers:
+    handler = logging.StreamHandler()
+    formatter = logging.Formatter('[%(asctime)s] [MemoryManager] [%(levelname)s] %(message)s', 
+                                datefmt='%Y-%m-%d %H:%M:%S')
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    logger.setLevel(logging.INFO)
 
 class MemoryManager:
     """
@@ -43,9 +51,9 @@ class MemoryManager:
         # Initialize embedding model
         self.model_name = "all-distilroberta-v1"
         self.embedding_dim = 768
-        print(f"[Memory] 🔧 Loading embedding model: {self.model_name}")
+        logger.info(f"🔧 Loading embedding model: {self.model_name}")
         self.embedding_model = SentenceTransformer(self.model_name)
-        print(f"[Memory] ✅ Embedding model loaded")
+        logger.info(f"✅ Embedding model loaded")
         
         # Memory storage
         self.conversations: List[Dict] = []
@@ -64,18 +72,19 @@ class MemoryManager:
     
     def _load_memory(self):
         """Load existing conversations and embeddings from disk"""
-        print(f"[Memory] 📂 Loading existing memory from {self.memory_dir}")
+        logger.info(f"📂 Loading existing memory from {self.memory_dir}")
         
         # Load conversations
         if self.conversations_file.exists():
             try:
                 with open(self.conversations_file, 'r') as f:
                     self.conversations = [json.loads(line) for line in f if line.strip()]
-                print(f"[Memory] ✅ Loaded {len(self.conversations)} conversations")
+                logger.info(f"✅ Loaded {len(self.conversations)} conversations from disk")
             except Exception as e:
-                print(f"[Memory] ⚠️ Failed to load conversations: {e}")
+                logger.warning(f"⚠️ Failed to load conversations: {e}")
                 self.conversations = []
         else:
+            logger.debug("📂 No existing conversations file found")
             self.conversations = []
         
         # Load embeddings and metadata
@@ -84,12 +93,13 @@ class MemoryManager:
                 self.embeddings = np.load(self.embeddings_file)
                 with open(self.metadata_file, 'rb') as f:
                     self.metadata = pickle.load(f)
-                print(f"[Memory] ✅ Loaded {len(self.metadata)} embeddings")
+                logger.info(f"✅ Loaded {len(self.metadata)} embeddings from disk")
             except Exception as e:
-                print(f"[Memory] ⚠️ Failed to load embeddings: {e}")
+                logger.warning(f"⚠️ Failed to load embeddings: {e}")
                 self.embeddings = None
                 self.metadata = []
         else:
+            logger.debug("📂 No existing embeddings found")
             self.embeddings = None
             self.metadata = []
     
@@ -143,7 +153,10 @@ class MemoryManager:
             Conversation ID
         """
         if not text or not text.strip():
+            logger.warning("⚠️ Empty text provided, skipping storage")
             return None
+        
+        logger.debug(f"📝 Storing conversation (source: {source}, length: {len(text)} chars)")
         
         with self.lock:
             timestamp = timestamp or time.time()
@@ -161,23 +174,29 @@ class MemoryManager:
             
             # Store conversation
             self.conversations.append(conversation)
+            logger.debug(f"📚 Added to conversations list (total: {len(self.conversations)})")
             
             # Append to file
             try:
                 with open(self.conversations_file, 'a') as f:
                     f.write(json.dumps(conversation) + '\n')
+                logger.debug(f"💾 Saved conversation to disk")
             except Exception as e:
-                logger.error(f"[Memory] Failed to save conversation: {e}")
+                logger.error(f"❌ Failed to save conversation to file: {e}")
             
             # Generate embedding
+            logger.debug(f"🔢 Generating embedding for conversation...")
             embedding = self.embedding_model.encode([text])[0]
             embedding = np.array([embedding]).astype('float32')
+            logger.debug(f"✅ Embedding generated (shape: {embedding.shape})")
             
             # Update embeddings
             if self.embeddings is None:
                 self.embeddings = embedding
+                logger.debug("📊 Created new embeddings array")
             else:
                 self.embeddings = np.vstack([self.embeddings, embedding])
+                logger.debug(f"📊 Added to embeddings array (total: {len(self.embeddings)})")
             
             # Update metadata
             self.metadata.append({
@@ -193,6 +212,7 @@ class MemoryManager:
             
             # Rebuild index periodically (every 10 new conversations)
             if len(self.conversations) % 10 == 0:
+                logger.info(f"🔧 Rebuilding index (reached {len(self.conversations)} conversations)")
                 self._rebuild_index()
             else:
                 # Add to existing index
@@ -202,8 +222,9 @@ class MemoryManager:
                     self.index.add(embedding_normalized)
                     # Save updated index
                     faiss.write_index(self.index, str(self.index_file))
+                    logger.debug(f"✅ Added embedding to FAISS index (total vectors: {self.index.ntotal})")
             
-            print(f"[Memory] 💾 Stored conversation: '{text[:50]}...' (ID: {conv_id})")
+            logger.info(f"✅ Stored conversation: '{text[:50]}...' (ID: {conv_id}, source: {source})")
             return conv_id
     
     def _save_embeddings(self):
@@ -228,23 +249,30 @@ class MemoryManager:
         Returns:
             List of similar conversations with scores
         """
+        logger.debug(f"🔍 Searching for similar conversations (query: '{query[:50]}...', k={k}, threshold={threshold})")
+        
         if self.index is None or self.index.ntotal == 0:
+            logger.warning("⚠️ FAISS index is empty, cannot search")
             return []
         
         with self.lock:
             # Generate query embedding
+            logger.debug("🔢 Generating query embedding...")
             query_embedding = self.embedding_model.encode([query])[0]
             query_embedding = np.array([query_embedding]).astype('float32').reshape(1, -1)
             
             # Normalize for cosine similarity
             faiss.normalize_L2(query_embedding)
+            logger.debug("✅ Query embedding normalized")
             
             # Search
+            logger.debug(f"🔎 Searching FAISS index ({self.index.ntotal} vectors)...")
             scores, indices = self.index.search(query_embedding, k)
+            logger.debug(f"📊 Search returned {len(scores[0])} candidates")
             
             # Build results
             results = []
-            for score, idx in zip(scores[0], indices[0]):
+            for i, (score, idx) in enumerate(zip(scores[0], indices[0])):
                 if idx < len(self.conversations) and score >= threshold:
                     conv = self.conversations[idx]
                     results.append({
@@ -252,7 +280,11 @@ class MemoryManager:
                         "score": float(score),
                         "metadata": self.metadata[idx] if idx < len(self.metadata) else {}
                     })
+                    logger.debug(f"  [{i+1}] Score: {score:.3f} >= {threshold} ✅ - '{conv.get('text', '')[:50]}...'")
+                elif idx < len(self.conversations):
+                    logger.debug(f"  [{i+1}] Score: {score:.3f} < {threshold} ❌ - Skipped")
             
+            logger.info(f"✅ Found {len(results)} similar conversations (threshold: {threshold})")
             return results
     
     def search_recent(self, hours: int = 24, limit: int = 50) -> List[Dict]:

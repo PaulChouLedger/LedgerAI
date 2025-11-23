@@ -311,8 +311,8 @@ def handle_conversation(
                             file_name = result['metadata'].get('document_name', 'unknown')
                     print(f"[Generic]   [{i}] Score: {score:.3f}, File: {file_name}, Preview: '{text_preview}...'")
                 
-                # Build RAG context, limit each result to 800 chars
-                MAX_CHARS_PER_RESULT = 800
+                # Build RAG context, limit each result to 1200 chars (increased to capture more detail)
+                MAX_CHARS_PER_RESULT = 1200
                 rag_chunks = []
                 for r in rag_results:
                     text = r.get("text", "")
@@ -352,25 +352,49 @@ def handle_conversation(
         print(f"[Generic] 📝 LLM prompt: direct conversation (no RAG, no memory)")
 
     if combined_context:
+        # Check if RAG context is present (more authoritative than general knowledge)
+        has_rag_context = "Knowledge context:" in combined_context
+        if has_rag_context:
+            system_content = (
+                "You are a helpful, knowledgeable assistant. Provide comprehensive, well-structured responses that thoroughly address the user's question.\n\n"
+                f"{combined_context}\n\n"
+                "IMPORTANT: The 'Knowledge context' section above contains authoritative, verified information from uploaded documents.\n"
+                "You should prioritize and use information from the Knowledge context over your general training data when they conflict.\n"
+                "If the Knowledge context contains specific details, facts, or recommendations, use those as provided.\n\n"
+                "RESPONSE GUIDELINES:\n"
+                "- Provide thorough, comprehensive answers that cover the topic in depth\n"
+                "- Structure your response with clear sections and subsections when appropriate\n"
+                "- Explain the 'why' behind recommendations, not just the 'what'\n"
+                "- Cover different scenarios, types, or variations when relevant\n"
+                "- Include important context, disclaimers, or safety information when appropriate\n"
+                "- Use formatting like **bold text** for emphasis and clear section breaks\n"
+                "- Prioritize information from the Knowledge context when it's relevant to the question\n"
+                "- When Knowledge context provides specific information, use that information as stated\n"
+                "- Do NOT substitute your general knowledge when the Knowledge context has specific, relevant information\n"
+                "- Be conversational and natural, but prioritize accuracy and completeness from the Knowledge context\n\n"
+                f"User question: {prompt}"
+            )
+        else:
+            # No RAG context, use standard prompt
+            system_content = (
+                "You are a helpful, knowledgeable assistant. Provide comprehensive, well-structured responses that thoroughly address the user's question.\n\n"
+                f"{combined_context}\n\n"
+                "RESPONSE GUIDELINES:\n"
+                "- Provide thorough, comprehensive answers that cover the topic in depth\n"
+                "- Structure your response with clear sections and subsections when appropriate\n"
+                "- Explain the 'why' behind recommendations, not just the 'what'\n"
+                "- Cover different scenarios, types, or variations when relevant\n"
+                "- Include important context, disclaimers, or safety information when appropriate\n"
+                "- Use formatting like **bold text** for emphasis and clear section breaks\n"
+                "- Reference the conversation memory above if it contains relevant information\n"
+                "- Be conversational and natural, but prioritize completeness and helpfulness\n\n"
+                f"User question: {prompt}"
+            )
+        
         messages = [
             {
                 "role": "system",
-                "content": (
-                    "You are a helpful, knowledgeable assistant. Provide comprehensive, well-structured responses that thoroughly address the user's question.\n\n"
-                    f"{combined_context}\n\n"
-                    "RESPONSE GUIDELINES:\n"
-                    "- Provide thorough, comprehensive answers that cover the topic in depth\n"
-                    "- Structure your response with clear sections and subsections when appropriate\n"
-                    "- Explain the 'why' behind recommendations, not just the 'what'\n"
-                    "- Cover different scenarios, types, or variations when relevant\n"
-                    "- Include important context, disclaimers, or safety information when appropriate\n"
-                    "- Use formatting like **bold text** for emphasis and clear section breaks\n"
-                    "- Reference the knowledge context above if it contains relevant information that improves your answer\n"
-                    "- Do NOT force irrelevant information from the context into your response\n"
-                    "- If the context is not relevant to the question, ignore it and answer using your general knowledge\n"
-                    "- Be conversational and natural, but prioritize completeness and helpfulness\n\n"
-                    f"User question: {prompt}"
-                ),
+                "content": system_content,
             }
         ]
         return llm_chat_simple(messages, max_tokens=MAX_TOKENS_RAG_MODE, stream=stream)
