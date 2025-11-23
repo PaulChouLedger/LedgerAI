@@ -1396,6 +1396,10 @@ class AIModelSettingsDialog(BaseAuraDialog):
         self.restart_llm_btn.clicked.connect(self._restart_llm)
         self.model_combo.currentTextChanged.connect(self._on_model_changed)
     
+    def _restart_llm(self):
+        """Restart LLM container - prompts user for confirmation"""
+        self._prompt_restart()
+    
     def _on_close(self):
         """Override for cleanup"""
         # Always ensure transcription is unblocked when dialog closes

@@ -452,19 +452,28 @@ CHAT_TEMPLATE = """
                 
                 // If we found list items, insert them between bubble texts
                 if (listItems.length > 0) {
+                    // Sort list items by their number to ensure correct order (1, 2, 3...)
+                    // Extract number from text (e.g., "1. Text" -> 1)
+                    listItems.sort((a, b) => {
+                        const numA = parseInt(a.text.match(/^(\\d+)\\./)?.[1] || '0');
+                        const numB = parseInt(b.text.match(/^(\\d+)\\./)?.[1] || '0');
+                        return numA - numB;
+                    });
+                    
                     const result = [];
-                    // Add intro if exists
-                    if (bubbleTexts.length > 0 && listItems[0].index > 0) {
+                    // Add intro if exists (check original position, not sorted)
+                    const firstItemOriginalIndex = Math.min(...listItems.map(item => item.index));
+                    if (bubbleTexts.length > 0 && firstItemOriginalIndex > 0) {
                         result.push(bubbleTexts[0]);
                     }
-                    // Add each list item as separate bubble
+                    // Add each list item as separate bubble (now in numerical order)
                     for (const item of listItems) {
                         result.push(item.text);
                     }
                     // Add conclusion if exists
                     if (bubbleTexts.length > 1) {
                         result.push(bubbleTexts[bubbleTexts.length - 1]);
-                    } else if (bubbleTexts.length === 1 && listItems[0].index === 0) {
+                    } else if (bubbleTexts.length === 1 && firstItemOriginalIndex === 0) {
                         // Only conclusion, no intro
                         result.push(bubbleTexts[0]);
                     }

@@ -507,7 +507,7 @@ def chat_tg():
                     accumulated = ""
                     for word in word_stream:
                         accumulated += word
-                        # Normalize spacing for cleaner display
+                        # Normalize spacing for cleaner display (clean during streaming for real-time formatting)
                         cleaned = _clean_text_formatting(accumulated)
                         # Send incremental JSON updates
                         yield f"data: {json.dumps({'response': cleaned, 'done': False})}\n\n"
