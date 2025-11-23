@@ -592,6 +592,14 @@ def _clean_text_formatting(text: str) -> str:
     # "### Important Considerations" -> "Important Considerations"
     text = re.sub(r'^#{1,6}\s+', '', text, flags=re.MULTILINE)
     
+    # Remove markdown bold formatting (double asterisks)
+    # "**text**" -> "text"
+    text = re.sub(r'\*\*([^*]+)\*\*', r'\1', text)
+    
+    # Remove single asterisks used for emphasis/italics
+    # "*text*" -> "text"
+    text = re.sub(r'\*([^*\n]+)\*', r'\1', text)
+    
     # Fix missing spaces after punctuation marks
     # "word,word" -> "word, word"
     text = re.sub(r'([,.!?:;])([a-zA-Z])', r'\1 \2', text)
