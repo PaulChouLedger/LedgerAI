@@ -170,9 +170,11 @@ class ConversationMemoryIndex:
             self._embedding_dim = self._embedding_dim or vector.shape[0]
             self._ensure_index(self._embedding_dim)
 
-            faiss.normalize_L2(vector)
+            # Reshape to 2D before normalization (faiss.normalize_L2 expects 2D array)
+            vector_2d = vector.reshape(1, -1) if vector.ndim == 1 else vector
+            faiss.normalize_L2(vector_2d)
             if self._index is not None:
-                self._index.add(vector.reshape(1, -1))
+                self._index.add(vector_2d)
 
             self._vectors.append(vector)
             entry_metadata = metadata.copy() if metadata else {}

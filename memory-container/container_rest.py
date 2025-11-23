@@ -93,8 +93,14 @@ def initialize_service():
         try:
             listener.start()
             global listener_enabled
-            listener_enabled = True
-            logger.info(f"[{SERVICE_NAME}] ✅ Background listener started - continuously transcribing all conversations")
+            # Check if listener actually started (device might not be found)
+            if listener.running:
+                listener_enabled = True
+                logger.info(f"[{SERVICE_NAME}] ✅ Background listener started - continuously transcribing all conversations")
+            else:
+                listener_enabled = False
+                logger.warning(f"[{SERVICE_NAME}] ⚠️ Background listener failed to start (audio device not found)")
+                logger.warning(f"[{SERVICE_NAME}] 💡 Memory container will still receive transcriptions via /store API (wake word forwarding)")
         except Exception as e:
             logger.warning(f"[{SERVICE_NAME}] ⚠️ Failed to start background listener: {e}")
             logger.warning(f"[{SERVICE_NAME}] 💡 Memory container will still receive transcriptions via /store API (wake word forwarding)")

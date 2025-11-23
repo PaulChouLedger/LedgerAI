@@ -77,14 +77,20 @@ class BackgroundListener:
         self.device_index = self._find_device()
         if self.device_index is None:
             logger.error(f"[BackgroundListener] ❌ Device '{self.device_name}' not found - cannot start listening")
-            logger.error(f"[BackgroundListener] 💡 Available devices:")
+            logger.error(f"[BackgroundListener] 💡 Available input devices:")
             try:
                 devices = sd.query_devices()
+                found_any = False
                 for i, device in enumerate(devices):
                     if device["max_input_channels"] > 0:
-                        logger.error(f"[BackgroundListener]    [{i}] {device['name']}")
+                        logger.error(f"[BackgroundListener]    [{i}] {device['name']} (inputs: {device['max_input_channels']})")
+                        found_any = True
+                if not found_any:
+                    logger.error(f"[BackgroundListener]    No input devices found!")
             except Exception as e:
                 logger.error(f"[BackgroundListener]    Error listing devices: {e}")
+                import traceback
+                logger.error(traceback.format_exc())
             return
         
         self.running = True
