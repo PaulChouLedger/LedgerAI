@@ -476,17 +476,22 @@ def chat_tg():
                     accumulated = ""
                     for word in word_stream:
                         accumulated += word
+                        # Normalize spacing for cleaner display
+                        cleaned = _clean_text_formatting(accumulated)
                         # Send incremental JSON updates
-                        yield f"data: {json.dumps({'response': accumulated, 'done': False})}\n\n"
+                        yield f"data: {json.dumps({'response': cleaned, 'done': False})}\n\n"
                     
+                    # Clean final accumulated text
+                    final_cleaned = _clean_text_formatting(accumulated)
                     # Send final message
-                    yield f"data: {json.dumps({'response': accumulated, 'done': True})}\n\n"
+                    yield f"data: {json.dumps({'response': final_cleaned, 'done': True})}\n\n"
                     print(f"[Generic] ✅ Streamed response complete")
                 else:
                     # Fallback: non-streaming (result is a string)
                     print(f"[Generic] ⚠️ Streaming not available - sending complete response")
                     fallback_text = result if isinstance(result, str) and result else "I apologize, I encountered an error."
-                    yield f"data: {json.dumps({'response': fallback_text, 'done': True})}\n\n"
+                    cleaned_fallback = _clean_text_formatting(fallback_text)
+                    yield f"data: {json.dumps({'response': cleaned_fallback, 'done': True})}\n\n"
             except Exception as e:
                 print(f"[Generic] ❌ Error: {e}")
                 import traceback
@@ -506,7 +511,8 @@ def chat_tg():
         # Non-streaming mode: return complete response (backward compatibility)
         try:
             response = handle_conversation(prompt, session_id, stream=False)
-            return jsonify({"response": response})
+            cleaned_response = _clean_text_formatting(response)
+            return jsonify({"response": cleaned_response})
         except Exception as e:
             print(f"[Generic] ❌ Error: {e}")
             return jsonify({"response": "I apologize, I encountered an error processing your request."})
@@ -569,6 +575,47 @@ def chat_tts():
 
 
 # === Streaming Helpers =======================================================
+
+def _clean_text_formatting(text: str) -> str:
+    """
+    Clean and normalize text formatting for better readability.
+    Fixes spacing issues: missing spaces after punctuation, proper spacing around punctuation.
+    Removes markdown headers (hashtags) for cleaner formatting.
+    Preserves paragraph breaks.
+    """
+    if not text:
+        return text
+    
+    import re
+    
+    # Remove markdown headers (lines starting with #)
+    # "### Important Considerations" -> "Important Considerations"
+    text = re.sub(r'^#{1,6}\s+', '', text, flags=re.MULTILINE)
+    
+    # Fix missing spaces after punctuation marks
+    # "word,word" -> "word, word"
+    text = re.sub(r'([,.!?:;])([a-zA-Z])', r'\1 \2', text)
+    
+    # Fix missing spaces after periods/question marks/exclamation marks
+    # "word.word" -> "word. word"
+    text = re.sub(r'([a-zA-Z0-9])([.!?])([a-zA-Z])', r'\1\2 \3', text)
+    
+    # Fix missing spaces around parentheses
+    # "word(word" -> "word (word" and "word)word" -> "word) word"
+    text = re.sub(r'([a-zA-Z0-9])(\()', r'\1 \2', text)
+    text = re.sub(r'(\))([a-zA-Z0-9])', r'\1 \2', text)
+    
+    # Fix missing spaces around colons (but preserve time formats like "1:30")
+    # Only fix if both sides are letters (not numbers)
+    text = re.sub(r'([a-zA-Z])(:)([a-zA-Z])', r'\1\2 \3', text)
+    
+    # Normalize multiple spaces to single space
+    text = re.sub(r' {2,}', ' ', text)
+    
+    # Normalize multiple newlines to double newline (paragraph breaks)
+    text = re.sub(r'\n{3,}', '\n\n', text)
+    
+    return text.strip()
 
 
 def _normalize_stream_chunks(chunk_iter):
