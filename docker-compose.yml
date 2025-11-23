@@ -25,6 +25,7 @@ services:
       timeout: 10s
       retries: 3
       start_period: 60s
+    runtime: nvidia
     deploy:
       resources:
         limits:
@@ -33,6 +34,10 @@ services:
         reservations:
           memory: 2G
           cpus: '1.0'
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu, nvdla] # Explicitly request DLA capability
     logging:
       driver: "json-file"
       options:
