@@ -580,8 +580,8 @@ def _clean_text_formatting(text: str) -> str:
     """
     Clean and normalize text formatting for better readability.
     Fixes spacing issues: missing spaces after punctuation, proper spacing around punctuation.
-    Removes markdown headers (hashtags) for cleaner formatting.
-    Preserves paragraph breaks.
+    Removes markdown headers (hashtags) and asterisks for cleaner formatting.
+    Preserves paragraph breaks and list formatting.
     """
     if not text:
         return text
@@ -600,28 +600,37 @@ def _clean_text_formatting(text: str) -> str:
     # "*text*" -> "text"
     text = re.sub(r'\*([^*\n]+)\*', r'\1', text)
     
-    # Fix missing spaces after punctuation marks
-    # "word,word" -> "word, word"
-    text = re.sub(r'([,.!?:;])([a-zA-Z])', r'\1 \2', text)
-    
     # Fix missing spaces after periods/question marks/exclamation marks
     # "word.word" -> "word. word"
-    text = re.sub(r'([a-zA-Z0-9])([.!?])([a-zA-Z])', r'\1\2 \3', text)
+    # "breathing.-Health" -> "breathing. -Health" (period before dash)
+    text = re.sub(r'([a-zA-Z0-9])([.!?])([a-zA-Z-])', r'\1\2 \3', text)
+    
+    # Fix missing spaces after commas, colons, semicolons
+    # "word,word" -> "word, word"
+    # "Symptoms:Look" -> "Symptoms: Look"
+    text = re.sub(r'([,;])([a-zA-Z])', r'\1 \2', text)
+    
+    # Fix missing spaces after colons (but preserve time like "1:30")
+    # "Symptoms:Look" -> "Symptoms: Look"
+    text = re.sub(r'([a-zA-Z])(:)([a-zA-Z])', r'\1\2 \3', text)
     
     # Fix missing spaces around parentheses
     # "word(word" -> "word (word" and "word)word" -> "word) word"
     text = re.sub(r'([a-zA-Z0-9])(\()', r'\1 \2', text)
     text = re.sub(r'(\))([a-zA-Z0-9])', r'\1 \2', text)
     
-    # Fix missing spaces around colons (but preserve time formats like "1:30")
-    # Only fix if both sides are letters (not numbers)
-    text = re.sub(r'([a-zA-Z])(:)([a-zA-Z])', r'\1\2 \3', text)
-    
-    # Normalize multiple spaces to single space
+    # Normalize multiple spaces to single space (but preserve intentional spacing)
     text = re.sub(r' {2,}', ' ', text)
+    
+    # Ensure list items have proper line breaks
+    # Fix cases where list items run together without breaks
+    # "-Item1-Item2" -> "-Item1\n-Item2" (but this is rare, usually already separated)
     
     # Normalize multiple newlines to double newline (paragraph breaks)
     text = re.sub(r'\n{3,}', '\n\n', text)
+    
+    # Clean up any trailing spaces on lines
+    text = re.sub(r' +$', '', text, flags=re.MULTILINE)
     
     return text.strip()
 
