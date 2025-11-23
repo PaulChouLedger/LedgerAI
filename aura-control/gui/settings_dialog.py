@@ -1191,6 +1191,10 @@ class AIModelSettingsDialog(BaseAuraDialog):
             import traceback
             traceback.print_exc()
     
+    def _restart_llm(self):
+        """Restart LLM container - prompts user for confirmation"""
+        self._prompt_restart()
+    
     def _setup_ui_original(self):
         layout = QVBoxLayout(); layout.setContentsMargins(120, 140, 120, 100); layout.setSpacing(15)
         # Add stretch at top to center content vertically within white perimeter
@@ -1395,10 +1399,6 @@ class AIModelSettingsDialog(BaseAuraDialog):
         self.mode_medical_btn.clicked.connect(lambda: self._on_mode_changed("medical"))
         self.restart_llm_btn.clicked.connect(self._restart_llm)
         self.model_combo.currentTextChanged.connect(self._on_model_changed)
-    
-    def _restart_llm(self):
-        """Restart LLM container - prompts user for confirmation"""
-        self._prompt_restart()
     
     def _on_close(self):
         """Override for cleanup"""
