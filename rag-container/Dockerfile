@@ -1,5 +1,5 @@
 # Modern RAG container with cuDF, cuVS, and LlamaIndex
-FROM rapidsai/rapidsai:24.02-cuda12.0-runtime-ubuntu22.04
+FROM rapidsai/rapidsai:23.08a-cuda11.8.0-py3.10
 
 WORKDIR /app
 

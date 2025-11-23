@@ -12,8 +12,6 @@ RUN pip3 install --no-cache-dir uv --ignore-installed --index-url https://pypi.o
 # Copy package files
 COPY pyproject.toml /app/
 COPY src/ /app/src/
-# Copy .env into container
-COPY .env /app/.env
 # Ensure model + config are in the correct path inside the image
 COPY models /models
 
