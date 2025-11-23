@@ -69,6 +69,7 @@ services:
       timeout: 15s
       retries: 3
       start_period: 120s
+    runtime: nvidia
     deploy:
       resources:
         limits:
@@ -77,6 +78,10 @@ services:
         reservations:
           memory: 4G
           cpus: '2.0'
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu, nvdla]
     logging:
       driver: "json-file"
       options:
@@ -153,6 +158,7 @@ services:
       timeout: 10s
       retries: 3
       start_period: 60s
+    runtime: nvidia
     deploy:
       resources:
         limits:
@@ -161,6 +167,10 @@ services:
         reservations:
           memory: 3G
           cpus: '1.5'
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu, nvdla]
     logging:
       driver: "json-file"
       options:
