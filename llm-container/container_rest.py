@@ -265,12 +265,12 @@ def handle_conversation(
                         else:
                             print(f"[Generic] ⚠️ RAG index appears empty - no embeddings loaded")
                         
-                        # Search for relevant results (defaults: k=3, threshold=0.45 for high relevance)
+                        # Search for relevant results (defaults: k=3, threshold=0.35 for balanced relevance)
                         rag_results = rag_client.search(query=prompt)
                         
                         # Only use RAG if search actually returns results above threshold
                         if rag_results and len(rag_results) > 0:
-                            print(f"[Generic] ✅ RAG found {len(rag_results)} relevant results (threshold=0.45) - will inject context")
+                            print(f"[Generic] ✅ RAG found {len(rag_results)} relevant results (threshold=0.35) - will inject context")
                         else:
                             print(f"[Generic] 🔍 RAG search returned no results above threshold - skipping RAG injection")
                     else:
