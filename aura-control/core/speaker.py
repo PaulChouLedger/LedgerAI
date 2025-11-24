@@ -82,7 +82,8 @@ def _get_chatterbox_tts():
         except ImportError:
             raise RuntimeError(
                 "❌ ChatterboxTTS not installed!\n"
-                "   Install with: pip install chatterbox-tts"
+                "   Install with: pip install setuptools && pip install chatterbox-tts\n"
+                "   If pkuseg build fails, see: docs/CHATTERBOX_INSTALLATION_FIX.md"
             )
         except Exception as e:
             raise RuntimeError(f"❌ Failed to initialize ChatterboxTTS: {e}")

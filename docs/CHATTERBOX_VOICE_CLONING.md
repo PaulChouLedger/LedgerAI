@@ -38,8 +38,14 @@ ChatterboxTTS supports **zero-shot voice cloning** using a reference audio sampl
 
 2. **ChatterboxTTS Installation:**
    ```bash
+   # Install setuptools first (fixes distutils compatibility)
+   pip install setuptools
+   
+   # Then install chatterbox-tts
    pip install chatterbox-tts
    ```
+   
+   **If installation fails:** See [CHATTERBOX_INSTALLATION_FIX.md](CHATTERBOX_INSTALLATION_FIX.md) for troubleshooting.
 
 ## Method 1: Using ElevenLabs Samples
 
