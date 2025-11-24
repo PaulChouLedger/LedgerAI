@@ -43,11 +43,6 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-    command:
-      - /bin/bash
-      - -c
-      - |
-        tail -f /dev/null
 
   # Language Model Service
   llm:
