@@ -23,8 +23,11 @@ RUN ln -s /usr/bin/python3.10 /usr/bin/python
 RUN pip3 install --upgrade pip setuptools wheel
 
 # Install PyTorch with CUDA support first (required by Chatterbox)
-# Using CUDA 12.1 compatible version
-RUN pip3 install torch==2.6.0 torchaudio==2.6.0 --index-url https://download.pytorch.org/whl/cu121
+# PyTorch 2.6.0 doesn't exist yet - using latest available CUDA 12.1 version
+# CRITICAL: This will FAIL if CUDA PyTorch cannot be installed (NO CPU FALLBACK)
+RUN pip3 install torch torchaudio --index-url https://download.pytorch.org/whl/cu121 && \
+    python3 -c "import torch; assert torch.cuda.is_available(), 'ERROR: CUDA PyTorch required but not available - build failed'; print(f'✅ PyTorch {torch.__version__} with CUDA {torch.version.cuda} installed')" || \
+    (echo "❌ FATAL: Failed to install CUDA-enabled PyTorch. CPU fallback not allowed." && exit 1)
 
 # Install Chatterbox dependencies before cloning
 RUN pip3 install \

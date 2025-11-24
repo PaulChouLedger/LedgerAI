@@ -930,13 +930,13 @@ def chat():
 def api_chat():
     """API endpoint for chat with streaming support"""
     try:
-    data = request.get_json()
-    prompt = data.get('prompt', '').strip()
+        data = request.get_json()
+        prompt = data.get('prompt', '').strip()
         session_id = data.get('session_id', 'default')
         stream = data.get('stream', True)
-    
-    if not prompt:
-        return jsonify({'error': 'No prompt provided'}), 400
+        
+        if not prompt:
+            return jsonify({'error': 'No prompt provided'}), 400
     
         # Initialize session if needed
         if session_id not in sessions:
