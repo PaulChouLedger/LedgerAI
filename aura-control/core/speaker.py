@@ -230,10 +230,9 @@ RATE = "100%"
 EARLY_CHUNKING_ENABLED = False
 PITCH = "100%"
 
-# Continuous streaming TTS: Send chunks to TTS as they accumulate, creating seamless playback
-CONTINUOUS_TTS_ENABLED = True  # Enable continuous streaming TTS
-CONTINUOUS_TTS_CHUNK_WORDS = 1  # Send chunk to TTS every N words (1 = send each word immediately)
-CONTINUOUS_TTS_MIN_WORDS = 1  # Minimum words before sending first chunk (1 = send immediately)
+# Sentence-based TTS: Use LLM sentence tags to control TTS boundaries
+# This ensures sentences are spoken as complete units, preserving meaning
+SENTENCE_BASED_TTS_ENABLED = True  # Enable sentence-based TTS (respects LLM sentence boundaries)
 
 # Note: detect_output_device() is called at module load time above
 # These functions use the pre-detected OUTPUT_CARD_INDEX
@@ -951,7 +950,6 @@ def speak_llm_response(prompt, context=""):
         sentence_buffer = []  # Buffer for current sentence (between sentence_start and sentence_end)
         in_sentence = False  # Track if we're inside a sentence block
         sentence_batch = []  # Buffer for batching related sentences together
-        continuous_tts_last_sent_index = 0  # Track how many tokens we've already sent in continuous mode
         MIN_SENTENCE_WORDS = 5  # Sentences with fewer words will be batched
         MIN_SENTENCE_CHARS = 20  # Sentences with fewer chars will be batched
         MAX_BATCH_SIZE = 5  # Increased from 3 for better grouping of related content
@@ -1111,8 +1109,7 @@ def speak_llm_response(prompt, context=""):
                 # Start of new sentence - reset buffer and wait for tokens
                 sentence_buffer = []
                 in_sentence = True
-                continuous_tts_last_sent_index = 0  # Reset sent index for new sentence
-                print(f"[Speaker] 🎬 <sentence_start> detected - streaming tokens to TTS continuously")
+                print(f"[Speaker] 🎬 <sentence_start> detected - buffering tokens until <sentence_end>")
                 continue
             elif token == '<sentence_end>':
                 # Send remaining buffer to TTS when sentence_end tag is received
@@ -1124,22 +1121,6 @@ def speak_llm_response(prompt, context=""):
                     clean_text = _clean_text_for_tts(clean_text)
                     # Normalize whitespace (collapse multiple spaces to single space)
                     clean_text = re.sub(r'\s+', ' ', clean_text).strip()
-                    
-                    # If we're in continuous mode and already sent chunks, send any remaining text
-                    if CONTINUOUS_TTS_ENABLED and continuous_tts_last_sent_index > 0:
-                        # Extract remaining text that hasn't been sent yet
-                        all_words = clean_text.split()
-                        if len(all_words) > continuous_tts_last_sent_index:
-                            remaining_words = all_words[continuous_tts_last_sent_index:]
-                            if remaining_words:
-                                remaining_text = " ".join(remaining_words)
-                                print(f"[Speaker] 🔄 <sentence_end> - sending final chunk: '{remaining_text[:60]}...'")
-                                enqueue_tts_chunk(remaining_text, bypass_batching=True)  # Bypass batching for immediate playback
-                        # Reset for next sentence
-                        continuous_tts_last_sent_index = 0
-                        sentence_buffer = []
-                        in_sentence = False
-                        continue
                     
                     if clean_text and not _is_empty_sentence(clean_text):
                         # Intelligent batching logic
@@ -1192,45 +1173,10 @@ def speak_llm_response(prompt, context=""):
                 print(f"[Speaker] ⚠️ Token '{token}' received outside sentence block - IGNORING (waiting for <sentence_start>)")
                 continue
 
-            # Accumulate tokens in buffer
+            # Accumulate tokens in buffer - send to TTS only when <sentence_end> is received
+            # This ensures sentences are spoken as complete units, preserving meaning
             print(f"[LLM] 🧠 {token}")
             sentence_buffer.append(token)
-            
-            # CONTINUOUS STREAMING TTS: Send chunks to TTS as tokens arrive
-            # This creates seamless playback where audio starts immediately and continues as text arrives
-            if CONTINUOUS_TTS_ENABLED and in_sentence:
-                # Build current text from buffer (all tokens accumulated so far)
-                current_text = "".join(sentence_buffer).strip()
-                current_text = re.sub(r'<sentence_start>|<sentence_end>', '', current_text).strip()
-                current_text = _clean_text_for_tts(current_text)
-                current_text = re.sub(r'\s+', ' ', current_text).strip()
-                
-                if current_text:
-                    # Count words in current accumulated text
-                    all_words = current_text.split()
-                    word_count = len(all_words)
-                    
-                    # Send immediately if we have at least MIN_WORDS and have new content
-                    if word_count >= CONTINUOUS_TTS_MIN_WORDS:
-                        # Calculate how many new words we have since last send
-                        new_words_count = word_count - continuous_tts_last_sent_index
-                        
-                        # Send chunk if we have enough new words (or if this is the first chunk)
-                        if new_words_count >= CONTINUOUS_TTS_CHUNK_WORDS or continuous_tts_last_sent_index == 0:
-                            # Send the new chunk (only the new words since last send)
-                            if continuous_tts_last_sent_index > 0:
-                                # Send only new words (from last sent index to end)
-                                words_to_send = all_words[continuous_tts_last_sent_index:]
-                                chunk_text = " ".join(words_to_send)
-                            else:
-                                # First chunk - send everything accumulated so far
-                                chunk_text = current_text
-                            
-                            # Only send if chunk has meaningful content (not just whitespace/punctuation)
-                            if chunk_text.strip() and len(chunk_text.strip()) > 1:
-                                print(f"[Speaker] ⚡ Streaming chunk ({len(chunk_text.split())} words) - sending to TTS: '{chunk_text[:60]}...'")
-                                enqueue_tts_chunk(chunk_text, bypass_batching=True)  # Bypass batching for immediate playback
-                                continuous_tts_last_sent_index = word_count  # Update sent index
         
         # Flush any remaining batched sentences at end of stream
         _flush_sentence_batch()
