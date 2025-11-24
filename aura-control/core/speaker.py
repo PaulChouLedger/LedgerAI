@@ -232,8 +232,8 @@ PITCH = "100%"
 
 # Continuous streaming TTS: Send chunks to TTS as they accumulate, creating seamless playback
 CONTINUOUS_TTS_ENABLED = True  # Enable continuous streaming TTS
-CONTINUOUS_TTS_CHUNK_WORDS = 3  # Send chunk to TTS every N words (lower = more responsive, more API calls)
-CONTINUOUS_TTS_MIN_WORDS = 3  # Minimum words before sending first chunk
+CONTINUOUS_TTS_CHUNK_WORDS = 1  # Send chunk to TTS every N words (1 = send each word immediately)
+CONTINUOUS_TTS_MIN_WORDS = 1  # Minimum words before sending first chunk (1 = send immediately)
 
 # Note: detect_output_device() is called at module load time above
 # These functions use the pre-detected OUTPUT_CARD_INDEX
@@ -1196,32 +1196,41 @@ def speak_llm_response(prompt, context=""):
             print(f"[LLM] 🧠 {token}")
             sentence_buffer.append(token)
             
-            # CONTINUOUS STREAMING TTS: Send chunks to TTS as they accumulate
+            # CONTINUOUS STREAMING TTS: Send chunks to TTS as tokens arrive
             # This creates seamless playback where audio starts immediately and continues as text arrives
             if CONTINUOUS_TTS_ENABLED and in_sentence:
-                # Build current text from buffer
+                # Build current text from buffer (all tokens accumulated so far)
                 current_text = "".join(sentence_buffer).strip()
                 current_text = re.sub(r'<sentence_start>|<sentence_end>', '', current_text).strip()
                 current_text = _clean_text_for_tts(current_text)
                 current_text = re.sub(r'\s+', ' ', current_text).strip()
                 
                 if current_text:
+                    # Count words in current accumulated text
                     all_words = current_text.split()
                     word_count = len(all_words)
                     
-                    # Check if we have enough words to send a chunk
+                    # Send immediately if we have at least MIN_WORDS and have new content
                     if word_count >= CONTINUOUS_TTS_MIN_WORDS:
-                        # Check if we have enough NEW words since last send to warrant a new chunk
+                        # Calculate how many new words we have since last send
                         new_words_count = word_count - continuous_tts_last_sent_index
                         
-                        if new_words_count >= CONTINUOUS_TTS_CHUNK_WORDS:
+                        # Send chunk if we have enough new words (or if this is the first chunk)
+                        if new_words_count >= CONTINUOUS_TTS_CHUNK_WORDS or continuous_tts_last_sent_index == 0:
                             # Send the new chunk (only the new words since last send)
-                            words_to_send = all_words[continuous_tts_last_sent_index:]
-                            chunk_text = " ".join(words_to_send)
+                            if continuous_tts_last_sent_index > 0:
+                                # Send only new words (from last sent index to end)
+                                words_to_send = all_words[continuous_tts_last_sent_index:]
+                                chunk_text = " ".join(words_to_send)
+                            else:
+                                # First chunk - send everything accumulated so far
+                                chunk_text = current_text
                             
-                            print(f"[Speaker] ⚡ Streaming chunk ({len(words_to_send)} words) - sending to TTS: '{chunk_text[:60]}...'")
-                            enqueue_tts_chunk(chunk_text, bypass_batching=True)  # Bypass batching for immediate playback
-                            continuous_tts_last_sent_index = word_count  # Update sent index
+                            # Only send if chunk has meaningful content (not just whitespace/punctuation)
+                            if chunk_text.strip() and len(chunk_text.strip()) > 1:
+                                print(f"[Speaker] ⚡ Streaming chunk ({len(chunk_text.split())} words) - sending to TTS: '{chunk_text[:60]}...'")
+                                enqueue_tts_chunk(chunk_text, bypass_batching=True)  # Bypass batching for immediate playback
+                                continuous_tts_last_sent_index = word_count  # Update sent index
         
         # Flush any remaining batched sentences at end of stream
         _flush_sentence_batch()
