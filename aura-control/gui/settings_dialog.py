@@ -1833,6 +1833,27 @@ class SettingsDialog(BaseAuraDialog):
         tts_row.addWidget(self.tts_status_label)
         main_layout.addLayout(tts_row)
         
+        # Voice Cloning toggle (only visible when ChatterboxTTS is enabled)
+        self.voice_cloning_row = QHBoxLayout()
+        self.voice_cloning_row.setSpacing(12)
+        voice_cloning_label = QLabel("🎭 Voice Cloning")
+        voice_cloning_label.setStyleSheet("color: #ffffff; font-size: 14px;")
+        self.voice_cloning_status_label = QLabel("")
+        self.voice_cloning_status_label.setStyleSheet("color: #aaaaaa; font-size: 12px;")
+        self.voice_cloning_toggle = QPushButton("OFF")
+        self.voice_cloning_toggle.setCheckable(True)
+        self.voice_cloning_toggle.setStyleSheet(self.get_button_style(None))
+        self.voice_cloning_toggle.setMinimumWidth(120)
+        # Initialize toggle from state
+        self._init_voice_cloning_toggle()
+        self.voice_cloning_toggle.toggled.connect(self._on_voice_cloning_toggled)
+        # Update visibility when TTS engine changes
+        self.tts_engine_toggle.toggled.connect(self._update_voice_cloning_visibility)
+        self.voice_cloning_row.addWidget(voice_cloning_label)
+        self.voice_cloning_row.addWidget(self.voice_cloning_toggle, 1)
+        self.voice_cloning_row.addWidget(self.voice_cloning_status_label)
+        main_layout.addLayout(self.voice_cloning_row)
+        
         row1 = QHBoxLayout()
         row1.setSpacing(15)
         wifi_btn = QPushButton("📶 WiFi Settings")
@@ -2007,6 +2028,9 @@ class SettingsDialog(BaseAuraDialog):
                 self.tts_status_label.setText(status_text)
             print(f"[Settings] ✅ TTS engine set to: {new_engine}")
             
+            # Update voice cloning visibility
+            self._update_voice_cloning_visibility(checked)
+            
             # Show message to user
             engine_name = "ChatterboxTTS (Local)" if checked else "ElevenLabs (Cloud)"
             QMessageBox.information(
@@ -2023,6 +2047,64 @@ class SettingsDialog(BaseAuraDialog):
                 self,
                 "Error",
                 f"Failed to change TTS engine: {e}"
+            )
+    
+    def _init_voice_cloning_toggle(self):
+        """Initialize voice cloning toggle from state"""
+        try:
+            from core.state import get_chatterbox_voice_cloning_enabled
+            enabled = get_chatterbox_voice_cloning_enabled()
+            self.voice_cloning_toggle.setChecked(enabled)
+            self.voice_cloning_toggle.setText("ON" if enabled else "OFF")
+            # Update status label
+            status_text = "Enabled (+50-100ms)" if enabled else "Disabled (lower latency)"
+            if hasattr(self, 'voice_cloning_status_label'):
+                self.voice_cloning_status_label.setText(status_text)
+            # Update visibility based on TTS engine
+            from core.state import get_tts_engine
+            use_chatterbox = (get_tts_engine() == "chatterbox")
+            self._update_voice_cloning_visibility(use_chatterbox)
+        except Exception as e:
+            print(f"[Settings] ⚠️ Failed to initialize voice cloning toggle: {e}")
+            self.voice_cloning_toggle.setChecked(False)
+            self.voice_cloning_toggle.setText("OFF")
+    
+    def _update_voice_cloning_visibility(self, chatterbox_enabled):
+        """Show/hide voice cloning controls based on TTS engine"""
+        if hasattr(self, 'voice_cloning_row'):
+            for i in range(self.voice_cloning_row.count()):
+                item = self.voice_cloning_row.itemAt(i)
+                if item and item.widget():
+                    item.widget().setVisible(chatterbox_enabled)
+    
+    def _on_voice_cloning_toggled(self, checked):
+        """Handle voice cloning toggle change"""
+        try:
+            from core.state import set_chatterbox_voice_cloning_enabled
+            set_chatterbox_voice_cloning_enabled(checked)
+            self.voice_cloning_toggle.setText("ON" if checked else "OFF")
+            # Update status label
+            status_text = "Enabled (+50-100ms)" if checked else "Disabled (lower latency)"
+            if hasattr(self, 'voice_cloning_status_label'):
+                self.voice_cloning_status_label.setText(status_text)
+            print(f"[Settings] ✅ Voice cloning {'enabled' if checked else 'disabled'}")
+            
+            # Show message to user
+            QMessageBox.information(
+                self,
+                "Voice Cloning Changed",
+                f"Voice cloning {'enabled' if checked else 'disabled'}.\n"
+                f"{'Adds ~50-100ms latency but uses your voice sample.' if checked else 'Uses default voice for lower latency.'}\n"
+                "The change will take effect on the next TTS request."
+            )
+        except Exception as e:
+            print(f"[Settings] ❌ Failed to set voice cloning: {e}")
+            import traceback
+            traceback.print_exc()
+            QMessageBox.warning(
+                self,
+                "Error",
+                f"Failed to change voice cloning: {e}"
             )
     
     def _on_volume_changed(self, value: int):

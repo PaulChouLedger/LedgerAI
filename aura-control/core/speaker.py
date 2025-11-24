@@ -4,8 +4,9 @@ import time
 import queue
 import threading
 import subprocess
+import inspect
 from dotenv import load_dotenv
-from state import set_playing, is_playing, get_tts_engine
+from state import set_playing, is_playing, get_tts_engine, get_chatterbox_voice_cloning_enabled
 import numpy as np
 
 # === Load API credentials ===
@@ -18,9 +19,29 @@ load_dotenv(dotenv_path)
 ELEVEN_API_KEY = os.getenv("ELEVENLABS_API_KEY") or os.getenv("ELEVEN_API_KEY")
 ELEVEN_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID") or os.getenv("ELEVEN_VOICE_ID") or "default"
 
+# ChatterboxTTS voice cloning - path to reference audio file (optional)
+# If set, ChatterboxTTS will clone the voice from this audio sample
+# Should be a WAV file with at least 5 seconds of clear speech
+CHATTERBOX_VOICE_SAMPLE = os.getenv("CHATTERBOX_VOICE_SAMPLE", "")
+# Default location: assets/voice_samples/ (relative to workspace root)
+if not CHATTERBOX_VOICE_SAMPLE:
+    default_voice_sample = os.path.join(workspace_root, "assets", "voice_samples", "sample.wav")
+    if os.path.exists(default_voice_sample):
+        CHATTERBOX_VOICE_SAMPLE = default_voice_sample
+
+# Voice embedding cache path (for faster synthesis)
+VOICE_EMBEDDING_CACHE_DIR = os.path.join(workspace_root, "data", "voice_cache")
+os.makedirs(VOICE_EMBEDDING_CACHE_DIR, exist_ok=True)
+
 # Initialize TTS engines (lazy loading)
 _elevenlabs_client = None
 _chatterbox_tts = None
+_chatterbox_voice_embedding = None  # Cached voice embedding for faster synthesis
+
+# Voice embedding cache path (for faster synthesis)
+VOICE_EMBEDDING_CACHE_DIR = os.path.join(workspace_root, "data", "voice_cache")
+os.makedirs(VOICE_EMBEDDING_CACHE_DIR, exist_ok=True)
+_chatterbox_voice_embedding = None  # Cached voice embedding for faster synthesis
 
 def _get_elevenlabs_client():
     """Lazy load ElevenLabs client (only when needed)"""
@@ -42,9 +63,22 @@ def _get_chatterbox_tts():
     global _chatterbox_tts
     if _chatterbox_tts is None:
         try:
-            from chatterbox import ChatterboxTTS
-            _chatterbox_tts = ChatterboxTTS()
-            print("[Speaker] ✅ ChatterboxTTS initialized successfully")
+            # Try different import paths for ChatterboxTTS
+            try:
+                from chatterbox.tts import ChatterboxTTS
+            except ImportError:
+                from chatterbox import ChatterboxTTS
+            
+            # Try from_pretrained first (recommended method)
+            try:
+                import torch
+                device = "cuda" if torch.cuda.is_available() else "cpu"
+                _chatterbox_tts = ChatterboxTTS.from_pretrained(device=device)
+                print(f"[Speaker] ✅ ChatterboxTTS initialized successfully (device: {device})")
+            except (AttributeError, TypeError):
+                # Fallback to simple constructor
+                _chatterbox_tts = ChatterboxTTS()
+                print("[Speaker] ✅ ChatterboxTTS initialized successfully")
         except ImportError:
             raise RuntimeError(
                 "❌ ChatterboxTTS not installed!\n"
@@ -53,6 +87,70 @@ def _get_chatterbox_tts():
         except Exception as e:
             raise RuntimeError(f"❌ Failed to initialize ChatterboxTTS: {e}")
     return _chatterbox_tts
+
+def _get_or_create_voice_embedding(chatterbox, voice_sample_path):
+    """
+    Get or create cached voice embedding for faster synthesis.
+    This pre-processes the voice sample once and caches it, eliminating
+    real-time processing overhead on subsequent TTS calls.
+    
+    Returns:
+        Voice embedding object or None if caching not supported
+    """
+    global _chatterbox_voice_embedding, VOICE_EMBEDDING_CACHE_DIR
+    
+    # Check if we already have a cached embedding in memory
+    if _chatterbox_voice_embedding is not None:
+        return _chatterbox_voice_embedding
+    
+    # Try to load from disk cache
+    import hashlib
+    import pickle
+    
+    # Create cache key from file path and modification time
+    sample_stat = os.stat(voice_sample_path)
+    cache_key = hashlib.md5(
+        f"{voice_sample_path}:{sample_stat.st_mtime}:{sample_stat.st_size}".encode()
+    ).hexdigest()
+    cache_path = os.path.join(VOICE_EMBEDDING_CACHE_DIR, f"voice_embedding_{cache_key}.pkl")
+    
+    # Try loading from cache
+    if os.path.exists(cache_path):
+        try:
+            with open(cache_path, 'rb') as f:
+                _chatterbox_voice_embedding = pickle.load(f)
+            print(f"[Speaker] ✅ Loaded cached voice embedding from: {cache_path}")
+            return _chatterbox_voice_embedding
+        except Exception as e:
+            print(f"[Speaker] ⚠️ Failed to load cached embedding: {e}")
+            # Continue to create new embedding
+    
+    # Try to extract and cache voice embedding
+    # Note: This depends on ChatterboxTTS API - may not be available in all versions
+    try:
+        # Method 1: Try to get voice embedding directly (if API supports it)
+        if hasattr(chatterbox, 'extract_voice_embedding') or hasattr(chatterbox, 'get_voice_embedding'):
+            extract_method = getattr(chatterbox, 'extract_voice_embedding', None) or \
+                           getattr(chatterbox, 'get_voice_embedding', None)
+            if extract_method:
+                print(f"[Speaker] 🔧 Extracting voice embedding from sample...")
+                _chatterbox_voice_embedding = extract_method(voice_sample_path)
+                
+                # Cache to disk
+                try:
+                    with open(cache_path, 'wb') as f:
+                        pickle.dump(_chatterbox_voice_embedding, f)
+                    print(f"[Speaker] ✅ Cached voice embedding to: {cache_path}")
+                except Exception as e:
+                    print(f"[Speaker] ⚠️ Failed to cache embedding: {e}")
+                
+                return _chatterbox_voice_embedding
+    except Exception as e:
+        print(f"[Speaker] ⚠️ Voice embedding extraction not available: {e}")
+    
+    # If embedding extraction not available, return None
+    # The system will fall back to real-time cloning (with audio_prompt_path)
+    return None
 
 # === Audio settings ===
 PCM_SAMPLE_RATE = 22050
@@ -504,7 +602,76 @@ def _generate_tts_audio(text):
             clean_text = normalize_units(text)
             # Remove any SSML tags that might have been added
             clean_text = re.sub(r'<[^>]+>', '', clean_text)
-            audio = chatterbox.synthesize(clean_text)
+            
+            # Use voice cloning if enabled and a reference sample is configured
+            voice_cloning_enabled = get_chatterbox_voice_cloning_enabled()
+            global CHATTERBOX_VOICE_SAMPLE, _chatterbox_voice_embedding
+            if voice_cloning_enabled and CHATTERBOX_VOICE_SAMPLE and os.path.exists(CHATTERBOX_VOICE_SAMPLE):
+                # Try to use cached voice embedding first (fastest - no real-time processing)
+                voice_embedding = _get_or_create_voice_embedding(chatterbox, CHATTERBOX_VOICE_SAMPLE)
+                
+                try:
+                    # Method 1: Use cached embedding if available (lowest latency)
+                    if voice_embedding is not None:
+                        print(f"[Speaker] 🎭 Using cached voice embedding (low latency, ~100-150ms)")
+                        # Try to use embedding directly (if API supports it)
+                        if hasattr(chatterbox, 'generate'):
+                            sig = inspect.signature(chatterbox.generate)
+                            params = list(sig.parameters.keys())
+                            if 'voice_embedding' in params or 'embedding' in params:
+                                param_name = 'voice_embedding' if 'voice_embedding' in params else 'embedding'
+                                audio = chatterbox.generate(clean_text, **{param_name: voice_embedding, 'exaggeration': 0.6})
+                            else:
+                                # Embedding parameter not available, fall through to audio_prompt_path
+                                voice_embedding = None
+                        elif hasattr(chatterbox, 'synthesize'):
+                            sig = inspect.signature(chatterbox.synthesize)
+                            params = list(sig.parameters.keys())
+                            if 'voice_embedding' in params or 'embedding' in params:
+                                param_name = 'voice_embedding' if 'voice_embedding' in params else 'embedding'
+                                audio = chatterbox.synthesize(clean_text, **{param_name: voice_embedding})
+                            else:
+                                # Embedding parameter not available, fall through to audio_prompt_path
+                                voice_embedding = None
+                        else:
+                            voice_embedding = None
+                    
+                    # Method 2: Use audio_prompt_path (real-time cloning, adds latency)
+                    if voice_embedding is None:
+                        print(f"[Speaker] 🎭 Using voice cloning from: {CHATTERBOX_VOICE_SAMPLE} (adds ~50-100ms latency)")
+                        if hasattr(chatterbox, 'generate'):
+                            audio = chatterbox.generate(
+                                clean_text,
+                                audio_prompt_path=CHATTERBOX_VOICE_SAMPLE,
+                                exaggeration=0.6  # Emotion intensity (0.3-0.7)
+                            )
+                        elif hasattr(chatterbox, 'synthesize'):
+                            sig = inspect.signature(chatterbox.synthesize)
+                            if 'audio_prompt_path' in sig.parameters:
+                                audio = chatterbox.synthesize(
+                                    clean_text,
+                                    audio_prompt_path=CHATTERBOX_VOICE_SAMPLE
+                                )
+                            else:
+                                # synthesize doesn't support voice cloning
+                                print(f"[Speaker] ⚠️ Voice cloning not supported by this API, using default voice")
+                                audio = chatterbox.synthesize(clean_text)
+                        else:
+                            # No known synthesis method
+                            raise AttributeError("No synthesis method found")
+                except Exception as e:
+                    # If voice cloning fails, fall back to default voice
+                    print(f"[Speaker] ⚠️ Voice cloning failed ({e}), using default voice")
+                    if hasattr(chatterbox, 'generate'):
+                        audio = chatterbox.generate(clean_text)
+                    else:
+                        audio = chatterbox.synthesize(clean_text)
+            else:
+                # No voice cloning - use default voice
+                if hasattr(chatterbox, 'generate'):
+                    audio = chatterbox.generate(clean_text)
+                else:
+                    audio = chatterbox.synthesize(clean_text)
             
             # Convert to bytes if needed (Chatterbox may return numpy array)
             if isinstance(audio, np.ndarray):

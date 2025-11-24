@@ -51,6 +51,7 @@ _wake_word_sensitivity = 0.9  # Wake word detection sensitivity (0.0-1.0) - high
 _wake_word_model_path = None  # Optional path to custom model file
 _wake_word_engine = "openwakeword"  # Wake word engine: "openwakeword"
 _tts_engine = "elevenlabs"  # TTS engine: "chatterbox" or "elevenlabs"
+_chatterbox_voice_cloning_enabled = True  # Enable voice cloning for ChatterboxTTS (adds ~50-100ms latency)
 
 def _save_settings_to_disk():
     """Save current settings to disk"""
@@ -63,7 +64,8 @@ def _save_settings_to_disk():
             "wake_word_enabled": _wake_word_enabled,
             "wake_word_sensitivity": _wake_word_sensitivity,
             "wake_word_engine": _wake_word_engine,
-            "tts_engine": _tts_engine
+            "tts_engine": _tts_engine,
+            "chatterbox_voice_cloning_enabled": _chatterbox_voice_cloning_enabled
         }
         if _wake_word_model_path:
             settings_data["wake_word_model_path"] = _wake_word_model_path
@@ -74,7 +76,7 @@ def _save_settings_to_disk():
 
 def _load_settings_from_disk():
     """Load settings from disk, creating default file if it doesn't exist"""
-    global _llm_mode, _llm_model, _wake_word_enabled, _wake_word_sensitivity, _wake_word_model_path, _wake_word_engine, _tts_engine
+    global _llm_mode, _llm_model, _wake_word_enabled, _wake_word_sensitivity, _wake_word_model_path, _wake_word_engine, _tts_engine, _chatterbox_voice_cloning_enabled
     try:
         import json
         with open(_settings_file, "r") as f:
@@ -86,6 +88,7 @@ def _load_settings_from_disk():
             _wake_word_model_path = data.get("wake_word_model_path", _wake_word_model_path)
             _wake_word_engine = data.get("wake_word_engine", _wake_word_engine)
             _tts_engine = data.get("tts_engine", _tts_engine)
+            _chatterbox_voice_cloning_enabled = data.get("chatterbox_voice_cloning_enabled", _chatterbox_voice_cloning_enabled)
     except FileNotFoundError:
         # File doesn't exist - use defaults and create it
         _save_settings_to_disk()
@@ -171,6 +174,17 @@ def set_tts_engine(engine: str):
     if engine in ("chatterbox", "elevenlabs"):
         _tts_engine = engine
         _save_settings_to_disk()
+
+# === ChatterboxTTS Voice Cloning Settings ===
+def get_chatterbox_voice_cloning_enabled() -> bool:
+    """Return whether voice cloning is enabled for ChatterboxTTS."""
+    return _chatterbox_voice_cloning_enabled
+
+def set_chatterbox_voice_cloning_enabled(enabled: bool):
+    """Enable or disable voice cloning for ChatterboxTTS (adds ~50-100ms latency)."""
+    global _chatterbox_voice_cloning_enabled
+    _chatterbox_voice_cloning_enabled = bool(enabled)
+    _save_settings_to_disk()
 
 
 # === Listener restart trigger ===
