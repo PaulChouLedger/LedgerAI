@@ -246,6 +246,20 @@ def extract_voice_embedding():
 if __name__ == '__main__':
     print("[Chatterbox] 🚀 Starting Chatterbox-TTS Container...")
     print("[Chatterbox] 📦 Chatterbox installed from source (github.com/resemble-ai/chatterbox)")
+    
+    # CRITICAL: Verify CUDA is available at runtime (NO CPU FALLBACK)
+    import torch
+    if not torch.cuda.is_available():
+        print("❌ FATAL ERROR: CUDA is not available at runtime!")
+        print("   This container requires GPU support. CPU fallback is not allowed.")
+        print("   Ensure:")
+        print("   1. Container is run with --runtime=nvidia")
+        print("   2. NVIDIA Docker runtime is installed")
+        print("   3. GPU is accessible to the container")
+        exit(1)
+    
+    print(f"[Chatterbox] ✅ CUDA available: {torch.cuda.get_device_name(0)}")
+    print(f"[Chatterbox] ✅ PyTorch {torch.__version__} with CUDA {torch.version.cuda}")
     print("[Chatterbox] 🌐 Starting Flask server on 0.0.0.0:11437...")
     
     app.run(host="0.0.0.0", port=11437, threaded=True, debug=False)
