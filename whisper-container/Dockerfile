@@ -12,7 +12,7 @@ ENV UV_SYSTEM_PYTHON=1
 # Install minimal build dependencies (TensorRT/torch2trt should already be in base image)
 # Install setuptools, whisper, and psutil first (required for whisper-trt build)
 # Using uv pip install --system ensures they're available for --no-build-isolation
-RUN uv pip install --system "openai-whisper @ git+https://github.com/openai/whisper.git==20240927"
+RUN uv pip install --system "openai-whisper==20240927"
 
 # Copy package files
 COPY pyproject.toml /app/
