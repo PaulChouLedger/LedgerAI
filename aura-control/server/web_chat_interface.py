@@ -771,7 +771,7 @@ WEBUI_TEMPLATE = """
                         inList = true;
                     }
                     html += '<li>' + listMatch[2] + '</li>';
-                } else {
+                    } else {
                     if (inList) {
                         html += '</ol>';
                         inList = false;
@@ -806,7 +806,7 @@ WEBUI_TEMPLATE = """
             content.className = 'message-content';
             if (role === 'assistant' && !streaming) {
                 content.innerHTML = formatMessage(text);
-            } else {
+                    } else {
                 content.textContent = text;
             }
             
@@ -921,18 +921,23 @@ def index():
         llm_port=LLM_PORT
     )
 
+@app.route('/chat', methods=['POST'])
+def chat():
+    """Legacy /chat endpoint - redirects to /api/chat"""
+    return api_chat()
+
 @app.route('/api/chat', methods=['POST'])
 def api_chat():
     """API endpoint for chat with streaming support"""
     try:
-        data = request.get_json()
-        prompt = data.get('prompt', '').strip()
+    data = request.get_json()
+    prompt = data.get('prompt', '').strip()
         session_id = data.get('session_id', 'default')
         stream = data.get('stream', True)
-        
-        if not prompt:
-            return jsonify({'error': 'No prompt provided'}), 400
-        
+    
+    if not prompt:
+        return jsonify({'error': 'No prompt provided'}), 400
+    
         # Initialize session if needed
         if session_id not in sessions:
             sessions[session_id] = {
@@ -990,30 +995,30 @@ def generate_stream(prompt: str, session_id: str):
     """Generate streaming response"""
     try:
         # Check LLM health
-        try:
-            health_check = requests.get(f"http://localhost:{LLM_PORT}/health", timeout=2)
-            if health_check.status_code != 200:
+            try:
+                health_check = requests.get(f"http://localhost:{LLM_PORT}/health", timeout=2)
+                if health_check.status_code != 200:
                 yield f"data: {json.dumps({'response': 'LLM container not responding', 'done': True})}\\n\\n"
-                return
-        except requests.exceptions.ConnectionError:
+                    return
+            except requests.exceptions.ConnectionError:
             yield f"data: {json.dumps({'response': f'Cannot connect to LLM on port {LLM_PORT}', 'done': True})}\\n\\n"
-            return
-        
+                return
+            
         # Forward to LLM container
-        response = requests.post(
-            CHAT_URL,
+            response = requests.post(
+                CHAT_URL,
             json={'prompt': prompt, 'chat_id': session_id, 'stream': True},
-            stream=True,
-            timeout=60
-        )
-        
-        if response.status_code != 200:
+                stream=True,
+                timeout=60
+            )
+            
+            if response.status_code != 200:
             yield f"data: {json.dumps({'response': f'LLM error: {response.status_code}', 'done': True})}\\n\\n"
-            return
-        
+                return
+            
         accumulated = ''
-        for line in response.iter_lines():
-            if line:
+            for line in response.iter_lines():
+                if line:
                 decoded = line.decode('utf-8')
                 if decoded.strip():
                     # Forward SSE format
@@ -1037,11 +1042,11 @@ def generate_stream(prompt: str, session_id: str):
         })
         
         yield f"data: {json.dumps({'response': accumulated, 'done': True})}\\n\\n"
-        
-    except Exception as e:
+                    
+        except Exception as e:
         print(f"[Aura WebUI] ❌ Stream error: {e}")
-        import traceback
-        traceback.print_exc()
+            import traceback
+            traceback.print_exc()
         yield f"data: {json.dumps({'response': f'Error: {str(e)}', 'done': True})}\\n\\n"
 
 @app.route('/api/sessions', methods=['GET'])

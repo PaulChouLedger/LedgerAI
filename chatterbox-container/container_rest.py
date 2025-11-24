@@ -1,0 +1,252 @@
+#!/usr/bin/env python3
+"""
+Chatterbox-TTS Container REST API
+Provides TTS synthesis via Chatterbox with voice cloning support
+"""
+
+from flask import Flask, request, jsonify, send_file, Response
+import os
+import io
+import json
+import tempfile
+import inspect
+import numpy as np
+import soundfile as sf
+from dotenv import load_dotenv
+import logging
+
+# Suppress verbose logging
+logging.getLogger('werkzeug').setLevel(logging.WARNING)
+
+app = Flask(__name__)
+
+# Load environment variables
+load_dotenv('/app/.env') if os.path.exists('/app/.env') else None
+
+# Initialize Chatterbox TTS (lazy loading)
+_chatterbox_tts = None
+_chatterbox_voice_embedding = None
+VOICE_CACHE_DIR = "/app/voice_cache"
+VOICE_SAMPLES_DIR = "/app/voice_samples"
+
+os.makedirs(VOICE_CACHE_DIR, exist_ok=True)
+os.makedirs(VOICE_SAMPLES_DIR, exist_ok=True)
+
+def get_chatterbox_tts():
+    """Lazy load Chatterbox TTS"""
+    global _chatterbox_tts
+    if _chatterbox_tts is None:
+        try:
+            # Try different import paths
+            try:
+                from chatterbox.tts import ChatterboxTTS
+            except ImportError:
+                from chatterbox import ChatterboxTTS
+            
+            # Detect device
+            import torch
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+            print(f"[Chatterbox] 🚀 Initializing ChatterboxTTS on {device}...")
+            
+            try:
+                _chatterbox_tts = ChatterboxTTS.from_pretrained(device=device)
+            except:
+                _chatterbox_tts = ChatterboxTTS()
+            
+            print(f"[Chatterbox] ✅ ChatterboxTTS initialized successfully")
+        except Exception as e:
+            print(f"[Chatterbox] ❌ Failed to initialize ChatterboxTTS: {e}")
+            import traceback
+            traceback.print_exc()
+            raise
+    return _chatterbox_tts
+
+def get_voice_embedding(voice_sample_path):
+    """Get or create voice embedding from sample"""
+    global _chatterbox_voice_embedding
+    
+    if not os.path.exists(voice_sample_path):
+        return None
+    
+    # Check cache
+    cache_key = os.path.basename(voice_sample_path).replace('.wav', '.pkl')
+    cache_path = os.path.join(VOICE_CACHE_DIR, cache_key)
+    
+    if os.path.exists(cache_path):
+        import pickle
+        with open(cache_path, 'rb') as f:
+            return pickle.load(f)
+    
+    # Extract embedding
+    try:
+        chatterbox = get_chatterbox_tts()
+        
+        # Try different methods to extract voice embedding
+        if hasattr(chatterbox, 'extract_voice_embedding'):
+            embedding = chatterbox.extract_voice_embedding(voice_sample_path)
+        elif hasattr(chatterbox, 'get_voice_embedding'):
+            embedding = chatterbox.get_voice_embedding(voice_sample_path)
+        else:
+            # Use audio file directly
+            embedding = voice_sample_path
+        
+        # Cache embedding
+        if embedding is not None and not isinstance(embedding, str):
+            import pickle
+            with open(cache_path, 'wb') as f:
+                pickle.dump(embedding, f)
+        
+        return embedding
+    except Exception as e:
+        print(f"[Chatterbox] ⚠️ Failed to extract voice embedding: {e}")
+        return None
+
+@app.route('/health', methods=['GET'])
+def health():
+    """Health check endpoint"""
+    try:
+        chatterbox_loaded = _chatterbox_tts is not None
+        return jsonify({
+            "status": "ok",
+            "service": "chatterbox-tts",
+            "chatterbox_loaded": chatterbox_loaded,
+            "device": "cuda" if _chatterbox_tts else "unknown"
+        })
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "service": "chatterbox-tts",
+            "error": str(e)
+        }), 500
+
+@app.route('/synthesize', methods=['POST'])
+def synthesize():
+    """Synthesize text to speech"""
+    try:
+        data = request.get_json()
+        text = data.get('text', '').strip()
+        voice_sample = data.get('voice_sample', None)  # Path to voice sample file
+        exaggeration = float(data.get('exaggeration', 0.6))
+        
+        if not text:
+            return jsonify({'error': 'No text provided'}), 400
+        
+        print(f"[Chatterbox] 💬 Synthesizing: '{text[:50]}...'")
+        
+        # Get Chatterbox instance
+        chatterbox = get_chatterbox_tts()
+        
+        # Handle voice cloning if voice sample provided
+        voice_embedding = None
+        if voice_sample:
+            if os.path.exists(voice_sample):
+                voice_embedding = get_voice_embedding(voice_sample)
+                print(f"[Chatterbox] 🎭 Using voice cloning from: {voice_sample}")
+            else:
+                # Try in voice_samples directory
+                sample_path = os.path.join(VOICE_SAMPLES_DIR, voice_sample)
+                if os.path.exists(sample_path):
+                    voice_embedding = get_voice_embedding(sample_path)
+                    print(f"[Chatterbox] 🎭 Using voice cloning from: {sample_path}")
+        
+        # Generate audio
+        try:
+            if hasattr(chatterbox, 'generate'):
+                sig = inspect.signature(chatterbox.generate)
+                params = sig.parameters
+                
+                if voice_embedding:
+                    # Try different parameter names
+                    if 'voice_embedding' in params:
+                        audio = chatterbox.generate(text, voice_embedding=voice_embedding, exaggeration=exaggeration)
+                    elif 'audio_prompt' in params:
+                        audio = chatterbox.generate(text, audio_prompt=voice_embedding, exaggeration=exaggeration)
+                    else:
+                        audio = chatterbox.generate(text, exaggeration=exaggeration)
+                else:
+                    audio = chatterbox.generate(text, exaggeration=exaggeration)
+                    
+            elif hasattr(chatterbox, 'synthesize'):
+                sig = inspect.signature(chatterbox.synthesize)
+                params = sig.parameters
+                
+                if voice_embedding:
+                    if 'voice_embedding' in params:
+                        audio = chatterbox.synthesize(text, voice_embedding=voice_embedding)
+                    elif 'audio_prompt_path' in params:
+                        audio = chatterbox.synthesize(text, audio_prompt_path=voice_sample if os.path.exists(voice_sample) else sample_path)
+                    else:
+                        audio = chatterbox.synthesize(text)
+                else:
+                    audio = chatterbox.synthesize(text)
+            else:
+                return jsonify({'error': 'ChatterboxTTS has no generate or synthesize method'}), 500
+                
+        except Exception as e:
+            print(f"[Chatterbox] ❌ Synthesis error: {e}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({'error': f'Synthesis failed: {str(e)}'}), 500
+        
+        # Convert audio to WAV format
+        if isinstance(audio, np.ndarray):
+            # Normalize audio
+            if audio.dtype != np.float32:
+                audio = audio.astype(np.float32)
+            if np.max(np.abs(audio)) > 1.0:
+                audio = audio / np.max(np.abs(audio))
+            
+            # Save to temporary file
+            temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.wav')
+            sf.write(temp_file.name, audio, 22050)  # Chatterbox uses 22.05kHz
+            
+            return send_file(
+                temp_file.name,
+                mimetype='audio/wav',
+                as_attachment=True,
+                download_name='output.wav'
+            )
+        else:
+            return jsonify({'error': 'Unexpected audio format'}), 500
+            
+    except Exception as e:
+        print(f"[Chatterbox] ❌ Error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/voice/embedding', methods=['POST'])
+def extract_voice_embedding():
+    """Extract voice embedding from audio sample"""
+    try:
+        data = request.get_json()
+        voice_sample_path = data.get('voice_sample_path', '')
+        
+        if not voice_sample_path or not os.path.exists(voice_sample_path):
+            return jsonify({'error': 'Voice sample file not found'}), 400
+        
+        embedding = get_voice_embedding(voice_sample_path)
+        
+        if embedding is None:
+            return jsonify({'error': 'Failed to extract voice embedding'}), 500
+        
+        # Return embedding info (not the actual embedding data for security)
+        return jsonify({
+            'success': True,
+            'voice_sample': voice_sample_path,
+            'embedding_cached': os.path.exists(
+                os.path.join(VOICE_CACHE_DIR, os.path.basename(voice_sample_path).replace('.wav', '.pkl'))
+            )
+        })
+        
+    except Exception as e:
+        print(f"[Chatterbox] ❌ Error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+if __name__ == '__main__':
+    print("[Chatterbox] 🚀 Starting Chatterbox-TTS Container...")
+    print("[Chatterbox] 📦 Chatterbox installed from source (github.com/resemble-ai/chatterbox)")
+    print("[Chatterbox] 🌐 Starting Flask server on 0.0.0.0:11437...")
+    
+    app.run(host="0.0.0.0", port=11437, threaded=True, debug=False)
+
