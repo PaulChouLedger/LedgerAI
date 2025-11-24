@@ -180,7 +180,7 @@ def find_device_index(max_retries=10, initial_delay=1.0, max_delay=5.0):
             print(f"[Listener]    USB: {system_device['lsusb']}")
         if 'alsa' in system_device:
             print(f"[Listener]    ALSA: {system_device['alsa']}")
-        print(f"[Listener]    ⚠️  But PortAudio cannot detect it - may need driver reload or device replug")
+        print(f"[Listener]    ⚠️  PortAudio cannot detect it yet - will retry (device may need initialization time)")
     
     for attempt in range(max_retries):
         devices = sd.query_devices()
@@ -211,10 +211,12 @@ def find_device_index(max_retries=10, initial_delay=1.0, max_delay=5.0):
                 if 'alsa' in system_device:
                     print(f"[Listener]    ALSA: {system_device['alsa']}")
                 print(f"[Listener] 💡 Device exists but PortAudio cannot access it")
-                print(f"[Listener] 💡 Try:")
-                print(f"[Listener]    1. Unplug and replug USB device")
-                print(f"[Listener]    2. Reload USB driver: sudo modprobe -r snd_usb_audio && sudo modprobe snd_usb_audio")
-                print(f"[Listener]    3. Restart the application")
+                print(f"[Listener] 💡 Troubleshooting steps:")
+                print(f"[Listener]    1. Wait a few seconds - device may still be initializing")
+                print(f"[Listener]    2. Unplug and replug USB device")
+                print(f"[Listener]    3. Reload USB driver: sudo modprobe -r snd_usb_audio && sudo modprobe snd_usb_audio")
+                print(f"[Listener]    4. Check permissions: ls -l /dev/snd/*")
+                print(f"[Listener]    5. Restart the application")
             else:
                 print(f"[Listener] 💡 Device not found in system - may need to be plugged in")
             
@@ -222,7 +224,11 @@ def find_device_index(max_retries=10, initial_delay=1.0, max_delay=5.0):
             for i, device in enumerate(devices):
                 if device.get('max_input_channels', 0) > 0:
                     print(f"[Listener]    - {i}: {device['name']} ({device.get('max_input_channels', 0)} input channels)")
-            raise RuntimeError("Microphone not found")
+            
+            # Don't raise error immediately - allow system to continue and retry later
+            # This is common during boot when devices are still initializing
+            print(f"[Listener] ⚠️  Continuing without microphone - will retry on next audio operation")
+            return 0  # Return 0 channels to indicate no device found, but don't crash
 
 # === Audio Feature Extraction ===
 def calculate_audio_features(audio_chunk, sample_rate=SAMPLE_RATE):
@@ -711,6 +717,13 @@ def listen():
     global vad_zero_count
     
     channels = find_device_index()
+    
+    # Check if device was found
+    if channels == 0:
+        print("[Listener] ⚠️  No microphone device found - audio input disabled")
+        print("[Listener] 💡 The device may still be initializing. Audio will be enabled when device is detected.")
+        # Don't exit - allow the system to continue, device may become available later
+        return
     
     # Display current hardware configuration
     config = load_xvf3800_config()

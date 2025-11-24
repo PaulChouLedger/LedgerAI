@@ -7,12 +7,7 @@ import os
 import signal
 import sys
 import requests
-import concurrent.futures
 from dotenv import dotenv_values   # 👈 load host .env
-
-# Set up proper imports for organized structure
-import os
-import sys
 
 # Add the parent directories to Python path for imports
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -62,8 +57,6 @@ print(f"[Aura] 📋 Loading config from: {dotenv_path}")
 
 # === Whisper Container Configuration ===
 # Using faster-whisper with distil-small.en model
-WHISPER_IMAGE = "aura-whisper:latest"
-WHISPER_NAME = "aura-whisper"
 WHISPER_DESCRIPTION = "faster-whisper with distil-small.en"
 
 print(f"[Aura] 🎤 Whisper container: {WHISPER_DESCRIPTION}")
@@ -336,32 +329,6 @@ def setup_display():
     
     print("[Aura] ✅ Display configured: screen awake, no sleep for 5 min")
 
-# === Utility: Stop and remove container if it exists ===
-def remove_existing_container(name):
-    """Remove container if it exists"""
-    try:
-        subprocess.run(["docker", "rm", "-f", name],
-                       check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        print(f"[Aura] 🗑️ Removed existing container: {name}")
-    except subprocess.CalledProcessError:
-        pass  # Container doesn't exist, that's fine
-
-# === Stream container logs into Aura ===
-def stream_container_logs(name):
-    def _logs():
-        try:
-            process = subprocess.Popen(
-                ["docker", "logs", "-f", name],
-                stdout=sys.stdout,
-                stderr=sys.stderr,
-                bufsize=1  # Line buffered
-            )
-            process.wait()
-        except Exception as e:
-            # Silently fail if container doesn't exist yet or logs can't be streamed
-            pass
-    threading.Thread(target=_logs, daemon=True).start()
-
 # === Stream container logs using docker compose (more reliable) ===
 def stream_container_logs_compose(setup_dir, services):
     """Stream logs for multiple services using docker compose"""
@@ -406,8 +373,6 @@ def wait_for_container(url, name, timeout=15):
     
     print(f"[Aura] ❌ Timeout waiting for {name} after {timeout}s.")
     return False
-
-# === Old run_container function removed - now using Docker Compose ===
 
 # === ElevenLabs warm-up ===
 def warm_up_tts():
@@ -557,14 +522,70 @@ def initialize_rag_delayed():
     except Exception as e:
         print(f"[Aura] ⚠️ Delayed RAG initialization failed: {e}")
 
-def warm_up_rag():
-    """Legacy function - now calls delayed initialization"""
-    initialize_rag_delayed()
+# === Ensure XVF3800 tuning service is running ===
+def ensure_xvf3800_service():
+    """
+    Check if xvf3800-tuning.service is active and restart it if needed.
+    This ensures the hardware DSP is properly configured after boot.
+    """
+    service_name = "xvf3800-tuning.service"
+    
+    try:
+        # Check if service is active
+        result = subprocess.run(
+            ["systemctl", "is-active", "--quiet", service_name],
+            capture_output=True,
+            timeout=5
+        )
+        
+        if result.returncode == 0:
+            # Service is active - verify it's actually working
+            print(f"[Aura] ✅ {service_name} is active")
+            return True
+        else:
+            # Service is not active - restart it
+            print(f"[Aura] ⚠️  {service_name} is not active - restarting...")
+            restart_result = subprocess.run(
+                ["sudo", "systemctl", "restart", service_name],
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            
+            if restart_result.returncode == 0:
+                # Wait a moment for service to start
+                time.sleep(1)
+                
+                # Verify it's now active
+                verify_result = subprocess.run(
+                    ["systemctl", "is-active", "--quiet", service_name],
+                    capture_output=True,
+                    timeout=5
+                )
+                
+                if verify_result.returncode == 0:
+                    print(f"[Aura] ✅ {service_name} restarted and active")
+                    return True
+                else:
+                    print(f"[Aura] ⚠️  {service_name} restart completed but service may not be active yet")
+                    return False
+            else:
+                print(f"[Aura] ⚠️  Failed to restart {service_name}: {restart_result.stderr}")
+                print(f"[Aura] 💡 You may need to run manually: sudo systemctl restart {service_name}")
+                return False
+                
+    except subprocess.TimeoutExpired:
+        print(f"[Aura] ⚠️  Timeout checking {service_name}")
+        return False
+    except FileNotFoundError:
+        print(f"[Aura] ⚠️  systemctl not found - cannot check {service_name}")
+        return False
+    except Exception as e:
+        print(f"[Aura] ⚠️  Error checking {service_name}: {e}")
+        return False
 
 # === Start services after GUI is ready ===
 def start_services():
-    TIMEOUT = 10  # Reduced timeout for faster startup
-    
     # Check RAG mode (GPU = RAG container, CPU = CPU FAISS in LLM containers)
     RAG_MODE = os.environ.get('RAG_MODE', 'CPU').upper()
     
@@ -1014,7 +1035,7 @@ def convert_and_ingest_all():
     
     # STAGE 1: Convert medical guidelines (if any new ones exist)
     # This can run immediately - no container dependencies
-    guidelines_converted = convert_medical_guidelines()
+    convert_medical_guidelines()
     
     # STAGE 2: Ingest ALL files from data/input/ (guidelines + any other files)
     # This waits for RAG container to be ready, then processes ALL file types
@@ -1302,6 +1323,11 @@ def main():
         print("[Aura] ✅ GUI ready - showing welcome setup")
     else:
         print("[Aura] ⚠️  GUI ready timeout - continuing anyway")
+
+    # === Ensure XVF3800 tuning service is running ===
+    # This ensures hardware DSP is properly configured after boot
+    print("[Aura] 🎛️  Checking XVF3800 tuning service...")
+    ensure_xvf3800_service()
 
     # === Welcome Setup Dialog (WiFi Connection) ===
     # This must happen before TTS initialization (TTS requires WiFi for ElevenLabs API)
