@@ -20,7 +20,7 @@ services:
       - CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0}
       - WHISPER_MODEL=${WHISPER_MODEL:-base.en}
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000/health", "||", "exit", "1"]
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -64,7 +64,7 @@ services:
       - TRIAGE_STATE_DIR=${TRIAGE_STATE_DIR:-/app/state}
       - TRIAGE_DEFINITIONS_DIR=${TRIAGE_DEFINITIONS_DIR:-/app/triage_defs}
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:11434/health", "||", "exit", "1"]
+      test: ["CMD", "curl", "-f", "http://localhost:11434/health"]
       interval: 30s
       timeout: 15s
       retries: 3
@@ -108,7 +108,7 @@ services:
     env_file:
       - .env
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5002/health", "||", "exit", "1"]
+      test: ["CMD", "curl", "-f", "http://localhost:5002/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -153,7 +153,7 @@ services:
       - INDEX_PATH=${INDEX_PATH:-/shared/vector_index}
       - DEBUG=${DEBUG:-false}
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5003/health", "||", "exit", "1"]
+      test: ["CMD", "curl", "-f", "http://localhost:5003/health"]
       interval: 30s
       timeout: 10s
       retries: 3
