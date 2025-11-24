@@ -38,7 +38,9 @@ def detect_llm_port():
     return DEFAULT_LLM_PORT
 
 LLM_PORT = detect_llm_port()
-CHAT_URL = f"http://localhost:{LLM_PORT}/chat-tg"
+# Use /chat-tts for streaming (designed for TTS/voice, supports streaming)
+# /chat-tg is for non-streaming Telegram bot
+CHAT_URL = f"http://localhost:{LLM_PORT}/chat-tts"
 
 app = Flask(__name__)
 
@@ -286,7 +288,7 @@ CHAT_TEMPLATE = """
                 placeholder="Type your message here..."
                 autocomplete="off"
             >
-            <button class="send-button" id="sendButton" onclick="sendMessage()">Send</button>
+            <button class="send-button" id="sendButton" onclick="sendMessage()" type="button">Send</button>
         </div>
     </div>
     
@@ -436,7 +438,12 @@ CHAT_TEMPLATE = """
         
         async function sendMessage() {
             const message = userInput.value.trim();
-            if (!message || isStreaming) return;
+            console.log('[WebChat] sendMessage called, message:', message, 'isStreaming:', isStreaming);
+            
+            if (!message || isStreaming) {
+                console.log('[WebChat] Skipping - empty message or already streaming');
+                return;
+            }
             
             // Add user message to chat
             addMessage('user', message);
@@ -444,6 +451,8 @@ CHAT_TEMPLATE = """
             sendButton.disabled = true;
             isStreaming = true;
             updateStatus('Streaming response...', true);
+            
+            console.log('[WebChat] Starting request to /chat');
             
             // Array to hold multiple chat bubbles
             const bubbles = [];
@@ -588,6 +597,7 @@ CHAT_TEMPLATE = """
             
             try {
                 // Use fetch with streaming
+                console.log('[WebChat] Sending POST to /chat with:', { prompt: message });
                 const response = await fetch('/chat', {
                     method: 'POST',
                     headers: {
@@ -596,8 +606,12 @@ CHAT_TEMPLATE = """
                     body: JSON.stringify({ prompt: message })
                 });
                 
+                console.log('[WebChat] Response received:', response.status, response.statusText);
+                
                 if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
+                    const errorText = await response.text();
+                    console.error('[WebChat] Response error:', errorText);
+                    throw new Error(`HTTP ${response.status}: ${errorText}`);
                 }
                 
                 // Read streaming response using EventSource-like parsing
@@ -663,10 +677,11 @@ CHAT_TEMPLATE = """
                     }
                 }
             } catch (error) {
-                console.error('Error:', error);
+                console.error('[WebChat] Error in sendMessage:', error);
+                console.error('[WebChat] Error stack:', error.stack);
                 const errorBubble = addMessage('assistant', 'Sorry, I encountered an error: ' + error.message, false);
                 errorBubble.classList.remove('streaming');
-                updateStatus('Error occurred');
+                updateStatus('Error occurred: ' + error.message);
                 sendButton.disabled = false;
                 isStreaming = false;
             }
@@ -684,26 +699,45 @@ def index():
 @app.route('/chat', methods=['POST'])
 def chat():
     """Proxy chat requests to LLM container with streaming"""
-    data = request.get_json()
-    prompt = data.get('prompt', '').strip()
-    session_id = data.get('session_id', 'web_chat')
-    
-    if not prompt:
-        return jsonify({'error': 'No prompt provided'}), 400
+    print(f"[WebChat] /chat endpoint called")
+    try:
+        data = request.get_json()
+        print(f"[WebChat] Request data: {data}")
+        prompt = data.get('prompt', '').strip()
+        session_id = data.get('session_id', 'web_chat')
+        
+        if not prompt:
+            print(f"[WebChat] ❌ No prompt provided")
+            return jsonify({'error': 'No prompt provided'}), 400
+    except Exception as e:
+        print(f"[WebChat] ❌ Error parsing request: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': f'Invalid request: {str(e)}'}), 400
     
     def generate():
         try:
+            print(f"[WebChat] generate() started for prompt: '{prompt[:50]}...'")
             # Check if LLM container is available
             try:
-                health_check = requests.get(f"http://localhost:{LLM_PORT}/health", timeout=2)
+                health_url = f"http://localhost:{LLM_PORT}/health"
+                print(f"[WebChat] Checking LLM health at: {health_url}")
+                health_check = requests.get(health_url, timeout=2)
+                print(f"[WebChat] Health check response: {health_check.status_code}")
                 if health_check.status_code != 200:
-                    yield f"data: {json.dumps({'response': 'LLM container is not responding. Please ensure the LLM container is running.', 'done': True})}\\n\\n"
+                    error_msg = 'LLM container is not responding. Please ensure the LLM container is running.'
+                    print(f"[WebChat] ❌ {error_msg}")
+                    yield f"data: {json.dumps({'response': error_msg, 'done': True})}\\n\\n"
                     return
-            except requests.exceptions.ConnectionError:
-                yield f"data: {json.dumps({'response': f'Cannot connect to LLM container on port {LLM_PORT}. Please ensure the LLM container is running.', 'done': True})}\\n\\n"
+            except requests.exceptions.ConnectionError as e:
+                error_msg = f'Cannot connect to LLM container on port {LLM_PORT}. Please ensure the LLM container is running.'
+                print(f"[WebChat] ❌ {error_msg}: {e}")
+                yield f"data: {json.dumps({'response': error_msg, 'done': True})}\\n\\n"
                 return
             
             # Forward to LLM container with streaming enabled
+            print(f"[WebChat] Sending request to LLM: {CHAT_URL}")
+            print(f"[WebChat] Request payload: prompt='{prompt[:50]}...', chat_id={session_id}, stream=True")
             response = requests.post(
                 CHAT_URL,
                 json={
@@ -715,8 +749,12 @@ def chat():
                 timeout=60
             )
             
+            print(f"[WebChat] LLM response status: {response.status_code}")
             if response.status_code != 200:
-                yield f"data: {json.dumps({'response': f'Error from LLM container: HTTP {response.status_code}', 'done': True})}\\n\\n"
+                error_text = response.text[:200] if hasattr(response, 'text') else 'No error details'
+                error_msg = f'Error from LLM container: HTTP {response.status_code} - {error_text}'
+                print(f"[WebChat] ❌ {error_msg}")
+                yield f"data: {json.dumps({'response': error_msg, 'done': True})}\\n\\n"
                 return
             
             # Stream the SSE response from LLM container
