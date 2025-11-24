@@ -12,7 +12,7 @@ authors = [
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-    "PyQt5>=5.15.0",
+    "PyQt5>=5.15.0; platform_machine != 'aarch64'",  # PyQt5 wheels not available for aarch64 - install via: apt-get install python3-pyqt5
     "torch>=2.0.0",
     "numpy>=1.26.0",
     "soundfile>=0.12.0",
