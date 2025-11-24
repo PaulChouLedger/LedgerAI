@@ -18,7 +18,7 @@ RAG_TIMEOUT = int(os.environ.get('RAG_TIMEOUT', '10'))
 
 # RAG Search Configuration
 RAG_SEARCH_THRESHOLD = float(os.environ.get('RAG_SEARCH_THRESHOLD', '0.30'))  # Similarity threshold (0-1), lower = more results (lowered to 0.30 for better recall)
-RAG_SEARCH_K = int(os.environ.get('RAG_SEARCH_K', '5'))  # Number of results to return (increased to 5 for better coverage)
+RAG_SEARCH_K = int(os.environ.get('RAG_SEARCH_K', '3'))  # Number of results to return (default: 3)
 
 class RAGClient:
     """
@@ -482,8 +482,8 @@ class RAGClient:
                     })
             
             # Show all matches for debugging (even below threshold)
-            print(f"[RAG Client] 🔍 DEBUG: All {len(all_matches)} matches (showing top {min(5, len(all_matches))}):")
-            for i, match in enumerate(all_matches[:5], 1):
+            print(f"[RAG Client] 🔍 DEBUG: All {len(all_matches)} matches (showing top {min(k, len(all_matches))}):")
+            for i, match in enumerate(all_matches[:k], 1):
                 # Extract file name from metadata
                 file_name = "unknown"
                 if isinstance(match.get('metadata'), dict):

@@ -649,6 +649,86 @@ fi
 echo ""
 
 # ============================================================================
+# Step 4.5: Configure Jetson MAXN Power Mode
+# ============================================================================
+print_step "4.5. Configuring Jetson MAXN Power Mode..."
+
+# Check if running on Jetson device
+if [ -f /etc/nv_tegra_release ] || [ -f /proc/device-tree/model ] && grep -q "Jetson\|NVIDIA" /proc/device-tree/model 2>/dev/null; then
+    print_info "Jetson device detected - configuring MAXN power mode..."
+    
+    # Check if nvpmodel command exists
+    if command -v nvpmodel >/dev/null 2>&1; then
+        # Check if the specific config file exists
+        if [ -f "/etc/nvpmodel/nvpmodel_p3767_0000_super.conf" ]; then
+            print_info "Setting MAXN power mode (mode 0) with p3767_0000_super config..."
+            if sudo nvpmodel -f /etc/nvpmodel/nvpmodel_p3767_0000_super.conf -m 0; then
+                print_info "✅ MAXN power mode configured successfully"
+            else
+                print_warning "⚠️  Failed to set nvpmodel - continuing anyway"
+            fi
+        else
+            print_info "p3767_0000_super config not found, trying default MAXN mode..."
+            if sudo nvpmodel -m 0; then
+                print_info "✅ MAXN power mode configured successfully (default config)"
+            else
+                print_warning "⚠️  Failed to set nvpmodel - continuing anyway"
+            fi
+        fi
+        
+        # Verify current power mode
+        CURRENT_MODE=$(sudo nvpmodel -q 2>/dev/null | grep -oP "NV Power Mode: \K[0-9]+" || echo "unknown")
+        print_info "Current power mode: $CURRENT_MODE (0 = MAXN)"
+    else
+        print_warning "⚠️  nvpmodel command not found - power mode configuration skipped"
+    fi
+    
+    # Set max clocks with jetson_clocks
+    if command -v jetson_clocks >/dev/null 2>&1; then
+        print_info "Setting maximum clock speeds..."
+        if sudo jetson_clocks; then
+            print_info "✅ Maximum clock speeds configured"
+        else
+            print_warning "⚠️  Failed to set jetson_clocks - continuing anyway"
+        fi
+    else
+        print_warning "⚠️  jetson_clocks command not found - clock configuration skipped"
+    fi
+    
+    # Make power mode persistent across reboots
+    print_info "Making power mode persistent across reboots..."
+    
+    # Create a systemd service to set power mode on boot
+    JETSON_POWER_SERVICE="/etc/systemd/system/jetson-maxn-power.service"
+    if [ ! -f "$JETSON_POWER_SERVICE" ]; then
+        sudo tee "$JETSON_POWER_SERVICE" >/dev/null << 'EOFPOWER'
+[Unit]
+Description=Set Jetson to MAXN Power Mode
+After=multi-user.target
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash -c 'if [ -f /etc/nvpmodel/nvpmodel_p3767_0000_super.conf ]; then /usr/bin/nvpmodel -f /etc/nvpmodel/nvpmodel_p3767_0000_super.conf -m 0; else /usr/bin/nvpmodel -m 0; fi'
+ExecStart=/usr/bin/jetson_clocks
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+EOFPOWER
+        sudo systemctl daemon-reload
+        sudo systemctl enable jetson-maxn-power.service
+        print_info "✅ Created systemd service for persistent MAXN power mode"
+        print_info "   Power mode will be set to MAXN on every boot"
+    else
+        print_info "Jetson power service already exists"
+    fi
+else
+    print_info "Not running on Jetson device - skipping power mode configuration"
+fi
+
+echo ""
+
+# ============================================================================
 # Step 5: Install XVF3800 USB 4-Mic Array support
 # ============================================================================
 print_step "5. Installing XVF3800 USB 4-Mic Array support..."
@@ -1455,6 +1535,11 @@ else
     echo "❌ PyQt5: Not available (GUI will NOT work)"
 fi
 echo "✅ jetson-containers: $JETSON_CONTAINERS_DIR"
+if [ -f /etc/nv_tegra_release ] || [ -f /proc/device-tree/model ] && grep -q "Jetson\|NVIDIA" /proc/device-tree/model 2>/dev/null; then
+    echo "✅ Jetson MAXN Power Mode: Configured (persistent on boot)"
+else
+    echo "ℹ️  Jetson Power Mode: Skipped (not a Jetson device)"
+fi
 echo "✅ XVF3800 support: $XVF3800_REPO_DIR"
 echo "✅ XVF3800 tuning service: Enabled (runs on boot)"
 echo "✅ Aura service: Enabled (will start on boot)"
