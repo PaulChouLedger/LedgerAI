@@ -6,7 +6,7 @@ import numpy as np
 from typing import List, Union
 from transformers import AutoTokenizer, AutoModel
 
-from .config import AuraRAGConfig
+from aura_rag.config import AuraRAGConfig
 
 
 class EmbeddingEngine:

@@ -8,7 +8,7 @@ import pandas as pd
 from typing import List, Dict, Any
 from bs4 import BeautifulSoup
 
-from .config import AuraRAGConfig
+from aura_rag.config import AuraRAGConfig
 
 
 class DocumentProcessor:

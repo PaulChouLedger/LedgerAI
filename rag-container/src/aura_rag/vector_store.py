@@ -8,7 +8,7 @@ import cudf
 from typing import List, Dict, Any, Tuple
 from cuvs.neighbors import NearestNeighbors
 
-from .config import AuraRAGConfig
+from aura_rag.config import AuraRAGConfig
 
 
 class VectorStore:

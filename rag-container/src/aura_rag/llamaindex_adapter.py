@@ -13,7 +13,7 @@ from llama_index.core.vector_stores.types import (
 from llama_index.core.schema import TextNode, BaseNode
 import numpy as np
 
-from .vector_store import VectorStore as CuVSVectorStore
+from aura_rag.vector_store import VectorStore as CuVSVectorStore
 
 
 class CuVSVectorStoreAdapter(VectorStore):

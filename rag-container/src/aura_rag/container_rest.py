@@ -7,8 +7,8 @@ import os
 import traceback
 from typing import Dict, Any
 
-from .rag_engine import RAGEngine
-from .config import AuraRAGConfig
+from aura_rag.rag_engine import RAGEngine
+from aura_rag.config import AuraRAGConfig
 
 # === Flask App ===
 app = Flask(__name__)

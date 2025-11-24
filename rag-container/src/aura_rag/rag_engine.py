@@ -8,11 +8,11 @@ from llama_index.core import VectorStoreIndex, ServiceContext
 from llama_index.core.llms import LLM
 from llama_index.core.embeddings import BaseEmbedding
 
-from .config import AuraRAGConfig
-from .document_processor import DocumentProcessor
-from .embedding_engine import EmbeddingEngine
-from .vector_store import VectorStore
-from .llamaindex_adapter import CuVSVectorStoreAdapter
+from aura_rag.config import AuraRAGConfig
+from aura_rag.document_processor import DocumentProcessor
+from aura_rag.embedding_engine import EmbeddingEngine
+from aura_rag.vector_store import VectorStore
+from aura_rag.llamaindex_adapter import CuVSVectorStoreAdapter
 
 
 class SimpleLLM(LLM):
