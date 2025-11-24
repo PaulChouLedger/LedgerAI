@@ -105,6 +105,10 @@ RATE = "100%"
 EARLY_CHUNKING_ENABLED = False
 PITCH = "100%"
 
+# Early TTS start: Start TTS as soon as we have enough words, even before sentence_end
+EARLY_TTS_ENABLED = True  # Enable early TTS to reduce latency
+EARLY_TTS_MIN_WORDS = 5  # Minimum words before starting TTS early (reduces latency)
+
 # Note: detect_output_device() is called at module load time above
 # These functions use the pre-detected OUTPUT_CARD_INDEX
 
@@ -675,6 +679,8 @@ def speak_llm_response(prompt, context=""):
         sentence_buffer = []  # Buffer for current sentence (between sentence_start and sentence_end)
         in_sentence = False  # Track if we're inside a sentence block
         sentence_batch = []  # Buffer for batching related sentences together
+        early_tts_sent = False  # Track if we've already sent early TTS for current sentence
+        early_tts_sent_text = ""  # Track the exact text we've already sent to TTS
         MIN_SENTENCE_WORDS = 5  # Sentences with fewer words will be batched
         MIN_SENTENCE_CHARS = 20  # Sentences with fewer chars will be batched
         MAX_BATCH_SIZE = 5  # Increased from 3 for better grouping of related content
@@ -834,6 +840,8 @@ def speak_llm_response(prompt, context=""):
                 # Start of new sentence - reset buffer and wait for tokens
                 sentence_buffer = []
                 in_sentence = True
+                early_tts_sent = False  # Reset early TTS flag for new sentence
+                early_tts_sent_text = ""  # Reset sent text
                 print(f"[Speaker] 🎬 <sentence_start> detected - buffering tokens until <sentence_end>")
                 continue
             elif token == '<sentence_end>':
@@ -846,6 +854,30 @@ def speak_llm_response(prompt, context=""):
                     clean_text = _clean_text_for_tts(clean_text)
                     # Normalize whitespace (collapse multiple spaces to single space)
                     clean_text = re.sub(r'\s+', ' ', clean_text).strip()
+                    
+                    # If we already sent early TTS, only send the remaining text
+                    if early_tts_sent and early_tts_sent_text:
+                        # Check if there's additional text beyond what we already sent
+                        if clean_text.startswith(early_tts_sent_text):
+                            # Extract remaining text (everything after what we sent)
+                            remaining_text = clean_text[len(early_tts_sent_text):].strip()
+                            if remaining_text:
+                                print(f"[Speaker] 🔄 <sentence_end> received - sending continuation to TTS: '{remaining_text[:60]}...'")
+                                enqueue_tts_chunk(remaining_text)
+                        else:
+                            # Text doesn't match (shouldn't happen, but handle gracefully)
+                            # This could happen if text cleaning changed the text significantly
+                            # In this case, send the full text (will result in slight duplication, but better than missing text)
+                            print(f"[Speaker] ⚠️ Early TTS text mismatch - sending full sentence to ensure completeness")
+                            if clean_text and not _is_empty_sentence(clean_text):
+                                enqueue_tts_chunk(clean_text)
+                        # Reset flags
+                        early_tts_sent = False
+                        early_tts_sent_text = ""
+                        sentence_buffer = []
+                        in_sentence = False
+                        continue
+                    
                     if clean_text and not _is_empty_sentence(clean_text):
                         # Intelligent batching logic
                         should_batch = False
@@ -897,9 +929,28 @@ def speak_llm_response(prompt, context=""):
                 print(f"[Speaker] ⚠️ Token '{token}' received outside sentence block - IGNORING (waiting for <sentence_start>)")
                 continue
 
-            # Accumulate tokens in buffer - send to TTS only when <sentence_end> is received
+            # Accumulate tokens in buffer
             print(f"[LLM] 🧠 {token}")
             sentence_buffer.append(token)
+            
+            # EARLY TTS: Start TTS as soon as we have enough words (before sentence_end)
+            # This dramatically reduces latency by starting audio playback immediately
+            if EARLY_TTS_ENABLED and in_sentence and not early_tts_sent:
+                # Check if we have enough words to start TTS early
+                current_text = "".join(sentence_buffer).strip()
+                current_text = re.sub(r'<sentence_start>|<sentence_end>', '', current_text).strip()
+                current_text = _clean_text_for_tts(current_text)
+                current_text = re.sub(r'\s+', ' ', current_text).strip()
+                
+                if current_text:
+                    word_count = len(current_text.split())
+                    # Start TTS early if we have enough words
+                    if word_count >= EARLY_TTS_MIN_WORDS:
+                        # Send first chunk to TTS immediately
+                        print(f"[Speaker] ⚡ Early TTS start ({word_count} words) - sending to TTS: '{current_text[:60]}...'")
+                        enqueue_tts_chunk(current_text)
+                        early_tts_sent = True
+                        early_tts_sent_text = current_text  # Track the exact text we sent
         
         # Flush any remaining batched sentences at end of stream
         _flush_sentence_batch()
