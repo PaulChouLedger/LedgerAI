@@ -5,8 +5,7 @@ import queue
 import threading
 import subprocess
 from dotenv import load_dotenv
-from elevenlabs.client import ElevenLabs
-from state import set_playing, is_playing
+from state import set_playing, is_playing, get_tts_engine
 import numpy as np
 
 # === Load API credentials ===
@@ -19,14 +18,41 @@ load_dotenv(dotenv_path)
 ELEVEN_API_KEY = os.getenv("ELEVENLABS_API_KEY") or os.getenv("ELEVEN_API_KEY")
 ELEVEN_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID") or os.getenv("ELEVEN_VOICE_ID") or "default"
 
-if not ELEVEN_API_KEY or ELEVEN_API_KEY == "your_elevenlabs_api_key_here":
-    raise RuntimeError(
-        "❌ Missing ElevenLabs API key!\n"
-        "   Run: ./aura_config.sh\n"
-        "   Choose option 5 to configure TTS\n"
-        "   Or edit .env and set: ELEVENLABS_API_KEY=your_key_here"
-    )
-client = ElevenLabs(api_key=ELEVEN_API_KEY)
+# Initialize TTS engines (lazy loading)
+_elevenlabs_client = None
+_chatterbox_tts = None
+
+def _get_elevenlabs_client():
+    """Lazy load ElevenLabs client (only when needed)"""
+    global _elevenlabs_client
+    if _elevenlabs_client is None:
+        if not ELEVEN_API_KEY or ELEVEN_API_KEY == "your_elevenlabs_api_key_here":
+            raise RuntimeError(
+                "❌ Missing ElevenLabs API key!\n"
+                "   Run: ./aura_config.sh\n"
+                "   Choose option 5 to configure TTS\n"
+                "   Or edit .env and set: ELEVENLABS_API_KEY=your_key_here"
+            )
+        from elevenlabs.client import ElevenLabs
+        _elevenlabs_client = ElevenLabs(api_key=ELEVEN_API_KEY)
+    return _elevenlabs_client
+
+def _get_chatterbox_tts():
+    """Lazy load ChatterboxTTS (only when needed)"""
+    global _chatterbox_tts
+    if _chatterbox_tts is None:
+        try:
+            from chatterbox import ChatterboxTTS
+            _chatterbox_tts = ChatterboxTTS()
+            print("[Speaker] ✅ ChatterboxTTS initialized successfully")
+        except ImportError:
+            raise RuntimeError(
+                "❌ ChatterboxTTS not installed!\n"
+                "   Install with: pip install chatterbox-tts"
+            )
+        except Exception as e:
+            raise RuntimeError(f"❌ Failed to initialize ChatterboxTTS: {e}")
+    return _chatterbox_tts
 
 # === Audio settings ===
 PCM_SAMPLE_RATE = 22050
@@ -105,9 +131,10 @@ RATE = "100%"
 EARLY_CHUNKING_ENABLED = False
 PITCH = "100%"
 
-# Early TTS start: Start TTS as soon as we have enough words, even before sentence_end
-EARLY_TTS_ENABLED = True  # Enable early TTS to reduce latency
-EARLY_TTS_MIN_WORDS = 5  # Minimum words before starting TTS early (reduces latency)
+# Continuous streaming TTS: Send chunks to TTS as they accumulate, creating seamless playback
+CONTINUOUS_TTS_ENABLED = True  # Enable continuous streaming TTS
+CONTINUOUS_TTS_CHUNK_WORDS = 3  # Send chunk to TTS every N words (lower = more responsive, more API calls)
+CONTINUOUS_TTS_MIN_WORDS = 3  # Minimum words before sending first chunk
 
 # Note: detect_output_device() is called at module load time above
 # These functions use the pre-detected OUTPUT_CARD_INDEX
@@ -242,10 +269,14 @@ def preprocess_for_tts(text):
     text = _clean_text_for_tts(text)
     return text.strip()
 
-def enqueue_tts_chunk(text):
+def enqueue_tts_chunk(text, bypass_batching=False):
     """
     Enqueue TTS chunk with optional batching to reduce API calls.
     If batching is enabled, accumulates chunks until threshold or timeout.
+    
+    Args:
+        text: Text to send to TTS
+        bypass_batching: If True, send immediately without batching (for continuous streaming)
     """
     global pending_initials, _batch_buffer
     
@@ -277,6 +308,11 @@ def enqueue_tts_chunk(text):
         return
     
     text = text.strip()
+    
+    # Bypass batching for continuous streaming chunks (they should play immediately)
+    if bypass_batching:
+        SENTENCE_QUEUE.put(text)
+        return
     
     # Batching: Accumulate chunks to reduce API calls (with low-latency start)
     if TTS_BATCH_ENABLED:
@@ -449,6 +485,86 @@ def update_gui_frequency(frequency_speed):
     except ImportError:
         pass  # GUI not available
 
+# === TTS audio generation (supports both engines) ===
+def _generate_tts_audio(text):
+    """
+    Generate TTS audio using the selected engine with fallback.
+    Returns a generator that yields audio chunks (bytes).
+    """
+    tts_engine = get_tts_engine()
+    use_chatterbox = (tts_engine == "chatterbox")
+    
+    # Try primary engine first
+    if use_chatterbox:
+        try:
+            chatterbox = _get_chatterbox_tts()
+            print(f"[Speaker] 🎙️ Using ChatterboxTTS")
+            # ChatterboxTTS may not support SSML, so use plain normalized text
+            # Remove SSML tags if present and use clean text
+            clean_text = normalize_units(text)
+            # Remove any SSML tags that might have been added
+            clean_text = re.sub(r'<[^>]+>', '', clean_text)
+            audio = chatterbox.synthesize(clean_text)
+            
+            # Convert to bytes if needed (Chatterbox may return numpy array)
+            if isinstance(audio, np.ndarray):
+                # Handle different dtypes
+                if audio.dtype == np.float32 or audio.dtype == np.float64:
+                    # Normalize float audio to int16 range (-1.0 to 1.0 -> -32768 to 32767)
+                    # Clamp to prevent clipping
+                    audio = np.clip(audio, -1.0, 1.0)
+                    audio = (audio * 32767).astype(np.int16)
+                elif audio.dtype != np.int16:
+                    # Convert other integer types to int16
+                    audio = audio.astype(np.int16)
+                
+                # Check if resampling is needed (Chatterbox might use different sample rate)
+                # For now, assume Chatterbox uses 22050 Hz (same as ElevenLabs PCM format)
+                # If different, we'd need to resample here
+                audio_bytes = audio.tobytes()
+            elif isinstance(audio, bytes):
+                audio_bytes = audio
+            else:
+                # Try to convert to bytes
+                audio_bytes = bytes(audio)
+            
+            # Yield audio in chunks (simulate streaming for compatibility)
+            chunk_size = 4096  # 4KB chunks
+            for i in range(0, len(audio_bytes), chunk_size):
+                yield audio_bytes[i:i + chunk_size]
+            return
+        except Exception as e:
+            print(f"[Speaker] ⚠️ ChatterboxTTS failed: {e}")
+            import traceback
+            traceback.print_exc()
+            print(f"[Speaker] 🔄 Falling back to ElevenLabs...")
+            # Fall through to ElevenLabs
+    
+    # Use ElevenLabs (either as primary or fallback)
+    try:
+        client = _get_elevenlabs_client()
+        print(f"[Speaker] 🎙️ Using ElevenLabs")
+        stream = client.text_to_speech.convert(
+            text=ssml_wrap(normalize_units(text)),
+            voice_id=ELEVEN_VOICE_ID,
+            output_format=PCM_FORMAT,
+            voice_settings={
+                "stability": 0.5,
+                "similarity_boost": 0.0,
+                "style": 0.0,
+                "use_speaker_boost": False,
+                "optimize_streaming_latency": True
+            }
+        )
+        for chunk in stream:
+            if chunk:
+                yield chunk
+    except Exception as e:
+        print(f"[Speaker] ❌ ElevenLabs TTS failed: {e}")
+        import traceback
+        traceback.print_exc()
+        raise RuntimeError(f"Both TTS engines failed. Chatterbox: {use_chatterbox}, ElevenLabs: {e}")
+
 # === TTS playback using aplay ===
 def tts_playback_thread(text, tts_start_time):
     with playback_lock:
@@ -466,25 +582,13 @@ def tts_playback_thread(text, tts_start_time):
             print(f"[TokenUsage] ⚠️ Failed to track TTS usage: {e}")
         
         try:
-            stream = client.text_to_speech.convert(
-                text=ssml_wrap(normalize_units(text)),
-                voice_id=ELEVEN_VOICE_ID,
-                output_format=PCM_FORMAT,
-                voice_settings={
-                    "stability": 0.5,
-                    "similarity_boost": 0.0,
-                    "style": 0.0,
-                    "use_speaker_boost": False,
-                    "optimize_streaming_latency": True
-                }
-            )
-
+            stream = _generate_tts_audio(text)
             first_chunk = next(stream, None)
             if not first_chunk:
                 raise RuntimeError("No audio received")
 
             # Use ALSA 'plug' plugin for automatic format conversion (handles sample rate and channels)
-            # This ensures proper conversion from ElevenLabs mono 22050 Hz to device's native format
+            # This ensures proper conversion from TTS mono 22050 Hz to device's native format
             proc = None
             if OUTPUT_CARD_INDEX is not None:
                 # Use plughw: instead of hw: to enable automatic format conversion
@@ -679,8 +783,7 @@ def speak_llm_response(prompt, context=""):
         sentence_buffer = []  # Buffer for current sentence (between sentence_start and sentence_end)
         in_sentence = False  # Track if we're inside a sentence block
         sentence_batch = []  # Buffer for batching related sentences together
-        early_tts_sent = False  # Track if we've already sent early TTS for current sentence
-        early_tts_sent_text = ""  # Track the exact text we've already sent to TTS
+        continuous_tts_last_sent_index = 0  # Track how many tokens we've already sent in continuous mode
         MIN_SENTENCE_WORDS = 5  # Sentences with fewer words will be batched
         MIN_SENTENCE_CHARS = 20  # Sentences with fewer chars will be batched
         MAX_BATCH_SIZE = 5  # Increased from 3 for better grouping of related content
@@ -840,9 +943,8 @@ def speak_llm_response(prompt, context=""):
                 # Start of new sentence - reset buffer and wait for tokens
                 sentence_buffer = []
                 in_sentence = True
-                early_tts_sent = False  # Reset early TTS flag for new sentence
-                early_tts_sent_text = ""  # Reset sent text
-                print(f"[Speaker] 🎬 <sentence_start> detected - buffering tokens until <sentence_end>")
+                continuous_tts_last_sent_index = 0  # Reset sent index for new sentence
+                print(f"[Speaker] 🎬 <sentence_start> detected - streaming tokens to TTS continuously")
                 continue
             elif token == '<sentence_end>':
                 # Send remaining buffer to TTS when sentence_end tag is received
@@ -855,25 +957,18 @@ def speak_llm_response(prompt, context=""):
                     # Normalize whitespace (collapse multiple spaces to single space)
                     clean_text = re.sub(r'\s+', ' ', clean_text).strip()
                     
-                    # If we already sent early TTS, only send the remaining text
-                    if early_tts_sent and early_tts_sent_text:
-                        # Check if there's additional text beyond what we already sent
-                        if clean_text.startswith(early_tts_sent_text):
-                            # Extract remaining text (everything after what we sent)
-                            remaining_text = clean_text[len(early_tts_sent_text):].strip()
-                            if remaining_text:
-                                print(f"[Speaker] 🔄 <sentence_end> received - sending continuation to TTS: '{remaining_text[:60]}...'")
-                                enqueue_tts_chunk(remaining_text)
-                        else:
-                            # Text doesn't match (shouldn't happen, but handle gracefully)
-                            # This could happen if text cleaning changed the text significantly
-                            # In this case, send the full text (will result in slight duplication, but better than missing text)
-                            print(f"[Speaker] ⚠️ Early TTS text mismatch - sending full sentence to ensure completeness")
-                            if clean_text and not _is_empty_sentence(clean_text):
-                                enqueue_tts_chunk(clean_text)
-                        # Reset flags
-                        early_tts_sent = False
-                        early_tts_sent_text = ""
+                    # If we're in continuous mode and already sent chunks, send any remaining text
+                    if CONTINUOUS_TTS_ENABLED and continuous_tts_last_sent_index > 0:
+                        # Extract remaining text that hasn't been sent yet
+                        all_words = clean_text.split()
+                        if len(all_words) > continuous_tts_last_sent_index:
+                            remaining_words = all_words[continuous_tts_last_sent_index:]
+                            if remaining_words:
+                                remaining_text = " ".join(remaining_words)
+                                print(f"[Speaker] 🔄 <sentence_end> - sending final chunk: '{remaining_text[:60]}...'")
+                                enqueue_tts_chunk(remaining_text, bypass_batching=True)  # Bypass batching for immediate playback
+                        # Reset for next sentence
+                        continuous_tts_last_sent_index = 0
                         sentence_buffer = []
                         in_sentence = False
                         continue
@@ -933,24 +1028,32 @@ def speak_llm_response(prompt, context=""):
             print(f"[LLM] 🧠 {token}")
             sentence_buffer.append(token)
             
-            # EARLY TTS: Start TTS as soon as we have enough words (before sentence_end)
-            # This dramatically reduces latency by starting audio playback immediately
-            if EARLY_TTS_ENABLED and in_sentence and not early_tts_sent:
-                # Check if we have enough words to start TTS early
+            # CONTINUOUS STREAMING TTS: Send chunks to TTS as they accumulate
+            # This creates seamless playback where audio starts immediately and continues as text arrives
+            if CONTINUOUS_TTS_ENABLED and in_sentence:
+                # Build current text from buffer
                 current_text = "".join(sentence_buffer).strip()
                 current_text = re.sub(r'<sentence_start>|<sentence_end>', '', current_text).strip()
                 current_text = _clean_text_for_tts(current_text)
                 current_text = re.sub(r'\s+', ' ', current_text).strip()
                 
                 if current_text:
-                    word_count = len(current_text.split())
-                    # Start TTS early if we have enough words
-                    if word_count >= EARLY_TTS_MIN_WORDS:
-                        # Send first chunk to TTS immediately
-                        print(f"[Speaker] ⚡ Early TTS start ({word_count} words) - sending to TTS: '{current_text[:60]}...'")
-                        enqueue_tts_chunk(current_text)
-                        early_tts_sent = True
-                        early_tts_sent_text = current_text  # Track the exact text we sent
+                    all_words = current_text.split()
+                    word_count = len(all_words)
+                    
+                    # Check if we have enough words to send a chunk
+                    if word_count >= CONTINUOUS_TTS_MIN_WORDS:
+                        # Check if we have enough NEW words since last send to warrant a new chunk
+                        new_words_count = word_count - continuous_tts_last_sent_index
+                        
+                        if new_words_count >= CONTINUOUS_TTS_CHUNK_WORDS:
+                            # Send the new chunk (only the new words since last send)
+                            words_to_send = all_words[continuous_tts_last_sent_index:]
+                            chunk_text = " ".join(words_to_send)
+                            
+                            print(f"[Speaker] ⚡ Streaming chunk ({len(words_to_send)} words) - sending to TTS: '{chunk_text[:60]}...'")
+                            enqueue_tts_chunk(chunk_text, bypass_batching=True)  # Bypass batching for immediate playback
+                            continuous_tts_last_sent_index = word_count  # Update sent index
         
         # Flush any remaining batched sentences at end of stream
         _flush_sentence_batch()

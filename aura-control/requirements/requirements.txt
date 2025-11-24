@@ -34,6 +34,7 @@ python-dotenv>=1.0.0
 
 # Text-to-Speech
 elevenlabs>=0.2.0
+chatterbox-tts>=0.1.0
 
 # USB Device Access (for ReSpeaker)
 pyusb>=1.2.1

@@ -1814,6 +1814,25 @@ class SettingsDialog(BaseAuraDialog):
         vol_row.addWidget(self.volume_value_label)
         main_layout.addLayout(vol_row)
         
+        # TTS Engine toggle
+        tts_row = QHBoxLayout()
+        tts_row.setSpacing(12)
+        tts_label = QLabel("🎙️ TTS Engine")
+        tts_label.setStyleSheet("color: #ffffff; font-size: 14px;")
+        self.tts_status_label = QLabel("")
+        self.tts_status_label.setStyleSheet("color: #aaaaaa; font-size: 12px;")
+        self.tts_engine_toggle = QPushButton("OFF")
+        self.tts_engine_toggle.setCheckable(True)
+        self.tts_engine_toggle.setStyleSheet(self.get_button_style(None))
+        self.tts_engine_toggle.setMinimumWidth(120)
+        # Initialize toggle from state
+        self._init_tts_engine_toggle()
+        self.tts_engine_toggle.toggled.connect(self._on_tts_engine_toggled)
+        tts_row.addWidget(tts_label)
+        tts_row.addWidget(self.tts_engine_toggle, 1)
+        tts_row.addWidget(self.tts_status_label)
+        main_layout.addLayout(tts_row)
+        
         row1 = QHBoxLayout()
         row1.setSpacing(15)
         wifi_btn = QPushButton("📶 WiFi Settings")
@@ -1950,6 +1969,61 @@ class SettingsDialog(BaseAuraDialog):
         current = max(0, min(100, current))
         self.volume_slider.setValue(current)
         self.volume_value_label.setText(f"{current}%")
+    
+    def _init_tts_engine_toggle(self):
+        """Initialize TTS engine toggle from state"""
+        try:
+            from core.state import get_tts_engine
+            current_engine = get_tts_engine()
+            # Toggle is ON for ChatterboxTTS, OFF for ElevenLabs
+            use_chatterbox = (current_engine == "chatterbox")
+            self.tts_engine_toggle.setChecked(use_chatterbox)
+            self.tts_engine_toggle.setText("Chatterbox" if use_chatterbox else "ElevenLabs")
+            # Update status label
+            status_text = "Local (Chatterbox)" if use_chatterbox else "Cloud (ElevenLabs)"
+            if hasattr(self, 'tts_status_label'):
+                self.tts_status_label.setText(status_text)
+        except Exception as e:
+            print(f"[Settings] ⚠️ Failed to initialize TTS engine toggle: {e}")
+            import traceback
+            traceback.print_exc()
+            # Default to ElevenLabs
+            self.tts_engine_toggle.setChecked(False)
+            self.tts_engine_toggle.setText("ElevenLabs")
+            if hasattr(self, 'tts_status_label'):
+                self.tts_status_label.setText("Cloud (ElevenLabs)")
+    
+    def _on_tts_engine_toggled(self, checked):
+        """Handle TTS engine toggle change"""
+        try:
+            from core.state import set_tts_engine
+            # checked=True means ChatterboxTTS, checked=False means ElevenLabs
+            new_engine = "chatterbox" if checked else "elevenlabs"
+            set_tts_engine(new_engine)
+            self.tts_engine_toggle.setText("Chatterbox" if checked else "ElevenLabs")
+            # Update status label
+            status_text = "Local (Chatterbox)" if checked else "Cloud (ElevenLabs)"
+            if hasattr(self, 'tts_status_label'):
+                self.tts_status_label.setText(status_text)
+            print(f"[Settings] ✅ TTS engine set to: {new_engine}")
+            
+            # Show message to user
+            engine_name = "ChatterboxTTS (Local)" if checked else "ElevenLabs (Cloud)"
+            QMessageBox.information(
+                self,
+                "TTS Engine Changed",
+                f"TTS engine changed to {engine_name}.\n"
+                "The change will take effect on the next TTS request."
+            )
+        except Exception as e:
+            print(f"[Settings] ❌ Failed to set TTS engine: {e}")
+            import traceback
+            traceback.print_exc()
+            QMessageBox.warning(
+                self,
+                "Error",
+                f"Failed to change TTS engine: {e}"
+            )
     
     def _on_volume_changed(self, value: int):
         # Update label
