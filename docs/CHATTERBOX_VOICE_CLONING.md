@@ -43,6 +43,8 @@ ChatterboxTTS supports **zero-shot voice cloning** using a reference audio sampl
 
 ## Method 1: Using ElevenLabs Samples
 
+> **Quick start:** See [USING_ELEVENLABS_SAMPLES.md](USING_ELEVENLABS_SAMPLES.md) for the recommended approach using the generation script.
+
 ### Step 1: Generate Voice Sample from ElevenLabs
 
 1. **Using ElevenLabs API:**

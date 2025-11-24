@@ -54,12 +54,16 @@ def generate_voice_sample():
         print(f"❌ Failed to connect to ElevenLabs: {e}")
         return False
     
-    # Text for voice sample (at least 5 seconds, preferably 10-20 seconds)
+    # Text for voice sample (10-20 seconds for optimal voice cloning)
+    # Longer samples work MUCH better than short 5-second samples
     sample_text = (
         "Hello, this is a voice sample for ChatterboxTTS voice cloning. "
         "This sample contains natural speech with varied intonation and emotion. "
         "The voice should sound clear and expressive, suitable for text to speech synthesis. "
-        "This sample is designed to capture the unique characteristics of this voice."
+        "This sample is designed to capture the unique characteristics of this voice. "
+        "Longer samples provide better voice cloning quality, allowing the system to learn "
+        "the subtle nuances of pronunciation, rhythm, and tone. "
+        "This extended sample ensures optimal voice replication for conversational applications."
     )
     
     print(f"\n📝 Generating voice sample...")
@@ -118,9 +122,12 @@ def generate_voice_sample():
             
             if duration < 5:
                 print(f"\n⚠️  Warning: Sample is less than 5 seconds ({duration:.1f}s)")
-                print(f"   ChatterboxTTS works better with samples 10-20 seconds long")
+                print(f"   ChatterboxTTS requires at least 5 seconds, but 10-20 seconds is optimal")
+            elif duration < 10:
+                print(f"\n✅ Sample duration is acceptable ({duration:.1f}s)")
+                print(f"   💡 Tip: Samples 10-20 seconds long provide better voice cloning quality")
             else:
-                print(f"\n✅ Sample duration is good for voice cloning!")
+                print(f"\n✅ Sample duration is optimal for voice cloning ({duration:.1f}s)!")
             
             print(f"\n📋 Next steps:")
             print(f"   1. Enable ChatterboxTTS in Settings → TTS Engine")
