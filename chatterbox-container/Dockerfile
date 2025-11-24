@@ -1,7 +1,7 @@
 # Chatterbox-TTS Container
 # Installs Chatterbox from source to avoid dependency conflicts
-# Using devel image to ensure CUDA headers/libraries are available for PyTorch
-FROM nvidia/cuda:12.1.0-devel-ubuntu22.04
+# Using CUDA 12.6 devel image - PyTorch 2.6 supports CUDA 12.6
+FROM nvidia/cuda:12.6.0-devel-ubuntu22.04
 
 # Set working directory
 WORKDIR /app
@@ -23,13 +23,13 @@ RUN ln -s /usr/bin/python3.10 /usr/bin/python
 # Upgrade pip
 RUN pip3 install --upgrade pip setuptools wheel
 
-# Install PyTorch with CUDA support first (required by Chatterbox)
-# PyTorch 2.6.0 doesn't exist yet - using latest available CUDA 12.1 version
+# Install PyTorch 2.6 with CUDA 12.6 support (required by Chatterbox)
 # CRITICAL: This will FAIL if CUDA PyTorch cannot be installed (NO CPU FALLBACK)
 # Note: We check for CUDA support in PyTorch (torch.version.cuda), not runtime availability
 # Runtime CUDA availability is checked when container runs (requires GPU)
-RUN echo "Installing PyTorch with CUDA 12.1 support..." && \
-    pip3 install --no-cache-dir torch torchaudio --index-url https://download.pytorch.org/whl/cu121 && \
+RUN set -e && \
+    echo "Installing PyTorch 2.6.0 with CUDA 12.6 support..." && \
+    pip3 install --no-cache-dir torch==2.6.0 torchaudio==2.6.0 --index-url https://download.pytorch.org/whl/cu126 && \
     echo "Checking installed PyTorch package..." && \
     pip3 show torch | grep -E "Name|Version|Location" && \
     echo "Verifying CUDA support in PyTorch..." && \
@@ -71,7 +71,10 @@ if not has_cuda_build and 'cpu' in torch.__version__.lower():
 
 print(f"✅ PyTorch {torch.__version__} with CUDA {cuda_version} support installed")
 PYEOF
-    || (echo "❌ FATAL: Failed to install CUDA-enabled PyTorch. CPU fallback not allowed." && exit 1)
+    if [ $? -ne 0 ]; then \
+        echo "❌ FATAL: Failed to install CUDA-enabled PyTorch. CPU fallback not allowed."; \
+        exit 1; \
+    fi
 
 # Install Chatterbox dependencies before cloning
 RUN pip3 install \
