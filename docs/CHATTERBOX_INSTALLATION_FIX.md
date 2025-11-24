@@ -122,19 +122,26 @@ pip3 install pkuseg --no-build-isolation
 pip3 install chatterbox-tts
 ```
 
-### Fix 3: Skip pkuseg (if English-only TTS)
+### Fix 3: Install Without pkuseg (Recommended if pkuseg Fails)
 
-If you only need English TTS and don't need Chinese text processing:
+If pkuseg continues to fail, install chatterbox-tts without it:
 
 ```bash
-# Install core dependencies
-pip3 install torch torchaudio
+# Install core dependencies first
+pip3 install torch torchaudio numpy librosa transformers diffusers safetensors conformer resemble-perth s3tokenizer pykakasi jaconv gradio
 
 # Install chatterbox-tts without pkuseg dependency
 pip3 install chatterbox-tts --no-deps
 
 # Test if it works
 python3 -c "from chatterbox import ChatterboxTTS; print('✅ ChatterboxTTS installed')"
+```
+
+**Note:** This works for English TTS. Chinese text processing won't be available, but voice cloning will work fine.
+
+**Or use the helper script:**
+```bash
+bash setup/scripts/install_chatterbox_without_pkuseg.sh
 ```
 
 **Note:** This may work if pkuseg is only needed for Chinese text processing.

@@ -33,15 +33,24 @@ def test_chatterbox_import():
             try:
                 from chatterbox import ChatterboxTTS
                 print("   ✅ Imported from chatterbox")
-            except ImportError:
-                print("   ❌ Failed to import ChatterboxTTS")
+            except ImportError as e:
+                print(f"   ❌ Failed to import ChatterboxTTS: {e}")
                 print("   💡 Install with: pip install setuptools && pip install chatterbox-tts")
                 return False
+        
+        # Check for optional dependencies
+        try:
+            import pkuseg
+            print("   ✅ pkuseg available (Chinese text processing enabled)")
+        except ImportError:
+            print("   ⚠️  pkuseg not available (English-only TTS)")
         
         print("   ✅ ChatterboxTTS import successful!")
         return True
     except Exception as e:
         print(f"   ❌ Import error: {e}")
+        import traceback
+        traceback.print_exc()
         return False
 
 def test_chatterbox_initialization():
