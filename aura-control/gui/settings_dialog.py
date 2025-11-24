@@ -2202,8 +2202,13 @@ class SettingsDialog(BaseAuraDialog):
         # Deprecated: inline LLM controls replaced by AIModelSettingsDialog
         pass
     
-    def get_button_style(self):
-        """Get consistent button styling"""
+    def get_button_style(self, state=None):
+        """
+        Get consistent button styling
+        
+        Args:
+            state: Optional state parameter (ignored, kept for backward compatibility)
+        """
         return """
             QPushButton {
                 background-color: rgba(70, 130, 180, 0.25);

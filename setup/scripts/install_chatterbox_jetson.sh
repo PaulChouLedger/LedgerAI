@@ -60,8 +60,18 @@ echo "Step 3: Installing chatterbox-tts..."
 if [ "$PKUSEG_INSTALLED" = false ]; then
     echo "   pkuseg not available, installing chatterbox-tts without pkuseg dependency..."
     
-    # Install core dependencies first
-    pip3 install torch torchaudio numpy librosa transformers diffusers safetensors conformer resemble-perth s3tokenizer pykakasi jaconv gradio 2>&1 | tee /tmp/chatterbox_install.log
+    # Install exact versions required by chatterbox-tts 0.1.4
+    echo "   Installing PyTorch 2.6.0..."
+    pip3 install torch==2.6.0 torchaudio==2.6.0 2>&1 | tee /tmp/chatterbox_install.log
+    
+    echo "   Installing numpy (compatible version)..."
+    pip3 install "numpy>=1.24.0,<1.26.0" 2>&1 | tee -a /tmp/chatterbox_install.log
+    
+    echo "   Installing other core dependencies..."
+    pip3 install librosa==0.11.0 transformers==4.46.3 diffusers==0.29.0 safetensors==0.5.3 2>&1 | tee -a /tmp/chatterbox_install.log
+    
+    echo "   Installing chatterbox-tts specific dependencies..."
+    pip3 install conformer==0.3.2 resemble-perth==1.0.1 s3tokenizer pykakasi==2.3.0 jaconv gradio==5.44.1 2>&1 | tee -a /tmp/chatterbox_install.log
     
     # Try installing chatterbox-tts without pkuseg
     if pip3 install chatterbox-tts --no-deps 2>&1 | tee -a /tmp/chatterbox_install.log; then
