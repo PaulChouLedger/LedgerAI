@@ -170,6 +170,22 @@ def test_voice_cloning(model):
 
 def main():
     """Run all tests"""
+    import platform
+    python_version = sys.version_info
+    
+    print(f"🖥️  Environment: {platform.system()} {platform.release()}")
+    print(f"🐍 Python: {python_version.major}.{python_version.minor}.{python_version.micro}")
+    
+    # Check Python version compatibility
+    if python_version.major == 3 and python_version.minor >= 13:
+        print("⚠️  Warning: Python 3.13+ may have compatibility issues with pkuseg")
+        print("   💡 Install on Jetson (Python 3.8-3.10) instead")
+        print()
+    elif python_version.major == 3 and python_version.minor >= 12:
+        print("⚠️  Warning: Python 3.12+ may have compatibility issues")
+        print("   💡 Install setuptools first: pip install setuptools")
+        print()
+    
     print()
     
     # Test 1: Import
@@ -177,7 +193,11 @@ def main():
         print("\n" + "=" * 70)
         print("❌ Installation test FAILED at import stage")
         print("=" * 70)
-        print("\n💡 Fix: pip install setuptools && pip install chatterbox-tts")
+        if python_version.major == 3 and python_version.minor >= 12:
+            print("\n💡 Python version compatibility issue detected")
+            print("   Install on Jetson (Python 3.8-3.10) or use Python 3.9 locally")
+        else:
+            print("\n💡 Fix: pip install setuptools && pip install chatterbox-tts")
         sys.exit(1)
     
     # Test 2: Initialization
