@@ -170,11 +170,9 @@ class ConversationMemoryIndex:
             self._embedding_dim = self._embedding_dim or vector.shape[0]
             self._ensure_index(self._embedding_dim)
 
-            # Reshape to 2D before normalization (faiss.normalize_L2 expects 2D array)
-            vector_2d = vector.reshape(1, -1) if vector.ndim == 1 else vector
-            faiss.normalize_L2(vector_2d)
+            faiss.normalize_L2(vector)
             if self._index is not None:
-                self._index.add(vector_2d)
+                self._index.add(vector.reshape(1, -1))
 
             self._vectors.append(vector)
             entry_metadata = metadata.copy() if metadata else {}
@@ -473,33 +471,10 @@ class ConversationOrchestrator:
         text = text.strip()
         if not text:
             return
-        try:
-            embeddings = self.embed_fn([text])
-            # Check if embeddings is valid and not empty
-            if not embeddings:
-                return
-            # Handle case where embeddings might be a tuple or other structure
-            if isinstance(embeddings, tuple):
-                embeddings = list(embeddings)
-            if not isinstance(embeddings, list) or len(embeddings) == 0:
-                return
-            # Validate that embeddings[0] exists and is a list/tuple
-            if not isinstance(embeddings[0], (list, tuple)):
-                print(f"[ConversationMemory] ⚠️ Invalid embedding format: {type(embeddings[0])}")
-                return
-            # Convert tuple to list if needed
-            embedding = list(embeddings[0]) if isinstance(embeddings[0], tuple) else embeddings[0]
-            if not embedding or len(embedding) == 0:
-                return
-            self.memory_index.add_entry(text, embedding, metadata)
-        except (IndexError, TypeError, AttributeError) as e:
-            print(f"[ConversationMemory] ⚠️ Failed to store in memory: {e}")
-            import traceback
-            traceback.print_exc()
-        except Exception as e:
-            print(f"[ConversationMemory] ⚠️ Unexpected error storing in memory: {e}")
-            import traceback
-            traceback.print_exc()
+        embeddings = self.embed_fn([text])
+        if not embeddings:
+            return
+        self.memory_index.add_entry(text, embeddings[0], metadata)
 
     # ------------------------------------------------------------------ #
     # Maintenance helpers

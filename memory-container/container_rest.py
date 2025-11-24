@@ -48,7 +48,6 @@ SPEAKER_ENDPOINT = os.environ.get("SPEAKER_ENDPOINT", None)  # Custom endpoint f
 # Memory configuration
 MEMORY_DIR = os.environ.get("MEMORY_DIR", "/app/data/memory")
 DEVICE_NAME = os.environ.get("AUDIO_DEVICE_NAME", "reSpeaker")
-ENABLE_BACKGROUND_LISTENER = os.environ.get("ENABLE_BACKGROUND_LISTENER", "false").lower() == "true"
 
 # Global instances
 memory_manager: Optional[MemoryManager] = None
@@ -79,7 +78,7 @@ def initialize_service():
         )
         logger.info(f"[{SERVICE_NAME}] ✅ ProactiveAnalyzer initialized")
         
-        # Initialize background listener
+        # Initialize background listener (but don't start yet)
         logger.info(f"[{SERVICE_NAME}] 🔧 Initializing BackgroundListener...")
         listener = BackgroundListener(
             memory_manager=memory_manager,
@@ -88,31 +87,6 @@ def initialize_service():
             on_transcription=_on_transcription_callback
         )
         logger.info(f"[{SERVICE_NAME}] ✅ BackgroundListener initialized")
-        
-        # Start background listener (optional - conflicts with main listener if both use same device)
-        if ENABLE_BACKGROUND_LISTENER:
-            logger.info(f"[{SERVICE_NAME}] 🎙️ Starting background listener (ENABLE_BACKGROUND_LISTENER=true)...")
-            logger.warning(f"[{SERVICE_NAME}] ⚠️ WARNING: Background listener may conflict with main listener if both use the same audio device")
-            try:
-                listener.start()
-                global listener_enabled
-                # Check if listener actually started (device might not be found)
-                if listener.running:
-                    listener_enabled = True
-                    logger.info(f"[{SERVICE_NAME}] ✅ Background listener started - continuously transcribing all conversations")
-                else:
-                    listener_enabled = False
-                    logger.warning(f"[{SERVICE_NAME}] ⚠️ Background listener failed to start (audio device not found or in use)")
-                    logger.warning(f"[{SERVICE_NAME}] 💡 Memory container will still receive transcriptions via /store API (wake word forwarding)")
-            except Exception as e:
-                logger.warning(f"[{SERVICE_NAME}] ⚠️ Failed to start background listener: {e}")
-                logger.warning(f"[{SERVICE_NAME}] 💡 Memory container will still receive transcriptions via /store API (wake word forwarding)")
-                listener_enabled = False
-        else:
-            logger.info(f"[{SERVICE_NAME}] ⏭️  Background listener disabled (ENABLE_BACKGROUND_LISTENER=false)")
-            logger.info(f"[{SERVICE_NAME}] 💡 Memory container will receive transcriptions via /store API (wake word forwarding)")
-            logger.info(f"[{SERVICE_NAME}] 💡 This avoids audio device conflicts with main listener")
-            listener_enabled = False
         
         logger.info(f"[{SERVICE_NAME}] ✅ Memory Container initialized successfully")
         return True
@@ -124,31 +98,19 @@ def initialize_service():
         return False
 
 def _on_transcription_callback(text: str):
-    """Callback when transcription is received from background listener"""
+    """Callback when transcription is received"""
     global last_conversation_text
     
     last_conversation_text = text
-    logger.info(f"[{SERVICE_NAME}] 📝 Received transcription from background listener: '{text[:80]}...'")
+    logger.info(f"[{SERVICE_NAME}] 📝 Received transcription: '{text[:80]}...'")
     
-    # Store the conversation (background listener transcriptions are always stored)
-    if memory_manager:
-        try:
-            conv_id = memory_manager.store_conversation(
-                text=text,
-                source="background",
-                metadata={"from_background_listener": True}
-            )
-            logger.info(f"[{SERVICE_NAME}] ✅ Stored background conversation (ID: {conv_id})")
-        except Exception as e:
-            logger.error(f"[{SERVICE_NAME}] ❌ Failed to store background conversation: {e}")
-    
-    # Analyze and generate suggestion (proactive suggestions are separate from wake word TTS)
+    # Analyze and generate suggestion
     if analyzer:
-        logger.debug(f"[{SERVICE_NAME}] 🔍 Analyzing conversation for proactive suggestions...")
+        logger.debug(f"[{SERVICE_NAME}] 🔍 Analyzing conversation for suggestions...")
         suggestion = analyzer.analyze_and_suggest(text)
         if suggestion:
-            logger.info(f"[{SERVICE_NAME}] 💡 Generated proactive suggestion: '{suggestion[:100]}...'")
-            # Send suggestion to TTS (this is separate from wake word TTS responses)
+            logger.info(f"[{SERVICE_NAME}] 💡 Generated suggestion: '{suggestion[:100]}...'")
+            # Send suggestion to TTS
             _speak_suggestion(suggestion)
         else:
             logger.debug(f"[{SERVICE_NAME}] ℹ️ No suggestion generated (cooldown or no insights)")

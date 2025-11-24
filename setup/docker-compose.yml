@@ -52,8 +52,7 @@ services:
       - MEMORY_DIR=/app/data/memory
       - AUDIO_DEVICE_NAME=reSpeaker
       - PORT=11438
-      - LOG_LEVEL=${LOG_LEVEL:-INFO}  # Set to DEBUG for detailed logging: LOG_LEVEL=DEBUG docker-compose up memory
-      - ENABLE_BACKGROUND_LISTENER=${ENABLE_BACKGROUND_LISTENER:-false}  # Set to true to enable (may conflict with main listener)
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}  # Set to DEBUG for detailed logging
     # Note: Audio device access may require additional permissions
     # If audio conflicts occur, disable background listener and use API-based transcription forwarding
     # To enable debug logging: LOG_LEVEL=DEBUG docker-compose up memory

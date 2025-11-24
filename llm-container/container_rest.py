@@ -10,7 +10,6 @@ from collections import Counter
 import re
 import logging
 import json
-import numpy as np
 
 # Conversation management for passive listening and keyword activation
 from conversation_manager import ConversationMemoryIndex, ConversationOrchestrator
@@ -441,31 +440,9 @@ def _embed_texts(texts: List[str]) -> List[List[float]]:
         return []
     try:
         rag_client = get_rag_client()
-        if not rag_client:
-            print(f"[Memory] ⚠️ RAG client not available for embeddings")
-            return []
-        embeddings = rag_client.embed(texts)
-        # Validate embeddings structure
-        if not embeddings:
-            return []
-        # Ensure all embeddings are lists (not tuples or numpy arrays)
-        validated = []
-        for emb in embeddings:
-            if emb is None:
-                continue
-            # Convert to list if needed
-            if isinstance(emb, (tuple, np.ndarray)):
-                emb = list(emb)
-            elif not isinstance(emb, list):
-                print(f"[Memory] ⚠️ Invalid embedding type: {type(emb)}")
-                continue
-            if len(emb) > 0:
-                validated.append(emb)
-        return validated
+        return rag_client.embed(texts)
     except Exception as exc:
         print(f"[Memory] ⚠️ Failed to generate embeddings: {exc}")
-        import traceback
-        traceback.print_exc()
         return []
 
 
@@ -487,43 +464,6 @@ conversation_orchestrator = ConversationOrchestrator(
 )
 
 atexit.register(conversation_orchestrator.flush_memory)
-
-# === Generate Endpoint (for proactive analyzer) ===
-@app.route("/generate", methods=["POST"])
-def generate():
-    """Simple generation endpoint for proactive analyzer and other services"""
-    data = request.get_json()
-    prompt = (data.get("prompt") or "").strip()
-    max_tokens = data.get("max_tokens", 200)
-    temperature = data.get("temperature", 0.7)
-    stop = data.get("stop", [])
-    
-    if not prompt:
-        return jsonify({"error": "Missing prompt"}), 400
-    
-    try:
-        # Simple generation without RAG or memory context
-        messages = [
-            {
-                "role": "user",
-                "content": prompt,
-            }
-        ]
-        
-        response = llm_chat_simple(
-            messages,
-            max_tokens=max_tokens,
-            temperature=temperature,
-            stop=stop if stop else [],
-            stream=False
-        )
-        
-        return jsonify({"response": response})
-    except Exception as e:
-        print(f"[Generic] ❌ Error in /generate: {e}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
 
 # === Chat Endpoints ===
 @app.route("/chat-tg", methods=["POST"])
