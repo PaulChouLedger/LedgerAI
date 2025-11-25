@@ -669,10 +669,19 @@ WEBUI_TEMPLATE = """
         let currentMessageDiv = null;
         let theme = localStorage.getItem('theme') || '{{ theme }}';
         
-        // Initialize
-        document.documentElement.setAttribute('data-theme', theme);
-        updateThemeUI();
-        updateSendButton();
+        // Wait for DOM to be ready
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize
+            document.documentElement.setAttribute('data-theme', theme);
+            updateThemeUI();
+            updateSendButton();
+            
+            // Set up event listener for input
+            const input = document.getElementById('userInput');
+            if (input) {
+                input.addEventListener('input', updateSendButton);
+            }
+        });
         
         // Auto-resize textarea
         function autoResize(textarea) {
@@ -692,10 +701,10 @@ WEBUI_TEMPLATE = """
         function updateSendButton() {
             const input = document.getElementById('userInput');
             const button = document.getElementById('sendButton');
-            button.disabled = !input.value.trim() || isStreaming;
+            if (input && button) {
+                button.disabled = !input.value.trim() || isStreaming;
+            }
         }
-        
-        document.getElementById('userInput').addEventListener('input', updateSendButton);
         
         // Theme toggle
         function toggleTheme() {
@@ -757,13 +766,13 @@ WEBUI_TEMPLATE = """
             text = text.replace(/\*([^*\n]+)\*/g, '<em>$1</em>');
             
             // Format lists
-            const lines = text.split('\\n');
+            const lines = text.split('\n');
             let html = '';
             let inList = false;
             
             for (let i = 0; i < lines.length; i++) {
                 const line = lines[i];
-                const listMatch = line.match(/^(\\d+)\\.\\s+(.+)$/);
+                const listMatch = line.match(/^(\d+)\.\s+(.+)$/);
                 
                 if (listMatch) {
                     if (!inList) {
@@ -771,7 +780,7 @@ WEBUI_TEMPLATE = """
                         inList = true;
                     }
                     html += '<li>' + listMatch[2] + '</li>';
-                    } else {
+                } else {
                     if (inList) {
                         html += '</ol>';
                         inList = false;
@@ -784,7 +793,7 @@ WEBUI_TEMPLATE = """
             
             if (inList) html += '</ol>';
             
-            return html || text.replace(/\\n/g, '<br>');
+            return html || text.replace(/\n/g, '<br>');
         }
         
         // Add message
@@ -869,7 +878,7 @@ WEBUI_TEMPLATE = """
                     if (done) break;
                     
                     buffer += decoder.decode(value, { stream: true });
-                    const lines = buffer.split('\\n');
+                    const lines = buffer.split('\n');
                     buffer = lines.pop() || '';
                     
                     for (const line of lines) {
