@@ -1,7 +1,7 @@
 # Chatterbox-TTS Container
 # Installs Chatterbox from source to avoid dependency conflicts
 # Using Jetson-compatible base image with PyTorch pre-installed
-FROM dustynv/pytorch:r36.4.0-pth2.6-py3
+FROM dustynv/pytorch:2.6-r36.4.0-cu128-24.04
 
 # Set working directory
 WORKDIR /app
