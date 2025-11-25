@@ -47,11 +47,14 @@ RUN pip3 install \
 
 # Clone and install Chatterbox from source (skip dependencies to avoid conflicts)
 # Note: russian-text-stresser may not be available on PyPI - skipping (optional for Russian support)
-RUN pip3 install spacy==3.6.1 || true && \
-    git clone https://github.com/resemble-ai/chatterbox.git /tmp/chatterbox && \
-    cd /tmp/chatterbox && \
+# Install spacy first (Chatterbox dependency)
+RUN pip3 install spacy==3.6.1 || true
+
+# Clone Chatterbox and install (keep source for editable install)
+RUN git clone https://github.com/resemble-ai/chatterbox.git /app/chatterbox && \
+    cd /app/chatterbox && \
     pip3 install -e . --no-deps && \
-    rm -rf /tmp/chatterbox
+    python3 -c "from chatterbox import ChatterboxTTS; print('✅ Chatterbox installed successfully')"
 
 # Install Flask for REST API
 RUN pip3 install flask requests python-dotenv

@@ -998,10 +998,10 @@ def generate_stream(prompt: str, session_id: str):
         try:
             health_check = requests.get(f"http://localhost:{LLM_PORT}/health", timeout=2)
             if health_check.status_code != 200:
-                yield f"data: {json.dumps({'response': 'LLM container not responding', 'done': True})}\\n\\n"
+                yield f"data: {json.dumps({'response': 'LLM container not responding', 'done': True})}\n\n"
                 return
         except requests.exceptions.ConnectionError:
-            yield f"data: {json.dumps({'response': f'Cannot connect to LLM on port {LLM_PORT}', 'done': True})}\\n\\n"
+            yield f"data: {json.dumps({'response': f'Cannot connect to LLM on port {LLM_PORT}', 'done': True})}\n\n"
             return
         
         # Forward to LLM container
@@ -1013,7 +1013,7 @@ def generate_stream(prompt: str, session_id: str):
         )
         
         if response.status_code != 200:
-            yield f"data: {json.dumps({'response': f'LLM error: {response.status_code}', 'done': True})}\\n\\n"
+            yield f"data: {json.dumps({'response': f'LLM error: {response.status_code}', 'done': True})}\n\n"
             return
         
         accumulated = ''
@@ -1032,7 +1032,7 @@ def generate_stream(prompt: str, session_id: str):
                     else:
                         # Plain text line - convert to SSE
                         accumulated += decoded + '\n'
-                        yield f"data: {json.dumps({'response': accumulated})}\\n"
+                        yield f"data: {json.dumps({'response': accumulated})}\n"
         
         # Final message
         sessions[session_id]['messages'].append({
@@ -1041,13 +1041,13 @@ def generate_stream(prompt: str, session_id: str):
             'timestamp': datetime.now().isoformat()
         })
         
-        yield f"data: {json.dumps({'response': accumulated, 'done': True})}\\n\\n"
+        yield f"data: {json.dumps({'response': accumulated, 'done': True})}\n\n"
                     
     except Exception as e:
         print(f"[Aura WebUI] ❌ Stream error: {e}")
         import traceback
         traceback.print_exc()
-        yield f"data: {json.dumps({'response': f'Error: {str(e)}', 'done': True})}\\n\\n"
+        yield f"data: {json.dumps({'response': f'Error: {str(e)}', 'done': True})}\n\n"
 
 @app.route('/api/sessions', methods=['GET'])
 def get_sessions():
