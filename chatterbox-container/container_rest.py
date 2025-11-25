@@ -37,11 +37,23 @@ def get_chatterbox_tts():
     global _chatterbox_tts
     if _chatterbox_tts is None:
         try:
+            print("[Chatterbox] 🔄 Attempting to import ChatterboxTTS...")
             # Try different import paths
+            ChatterboxTTS = None
             try:
                 from chatterbox.tts import ChatterboxTTS
-            except ImportError:
-                from chatterbox import ChatterboxTTS
+                print("[Chatterbox] ✅ Imported from chatterbox.tts")
+            except ImportError as e1:
+                print(f"[Chatterbox] ⚠️ Import from chatterbox.tts failed: {e1}")
+                try:
+                    from chatterbox import ChatterboxTTS
+                    print("[Chatterbox] ✅ Imported from chatterbox")
+                except ImportError as e2:
+                    print(f"[Chatterbox] ❌ Import from chatterbox failed: {e2}")
+                    raise ImportError(f"Could not import ChatterboxTTS: {e1}, {e2}")
+            
+            if ChatterboxTTS is None:
+                raise ImportError("ChatterboxTTS class not found")
             
             # Detect device
             import torch
@@ -50,8 +62,11 @@ def get_chatterbox_tts():
             
             try:
                 _chatterbox_tts = ChatterboxTTS.from_pretrained(device=device)
-            except:
+                print("[Chatterbox] ✅ Initialized using from_pretrained()")
+            except Exception as e:
+                print(f"[Chatterbox] ⚠️ from_pretrained() failed: {e}, trying default constructor...")
                 _chatterbox_tts = ChatterboxTTS()
+                print("[Chatterbox] ✅ Initialized using default constructor")
             
             print(f"[Chatterbox] ✅ ChatterboxTTS initialized successfully")
         except Exception as e:
@@ -105,12 +120,40 @@ def get_voice_embedding(voice_sample_path):
 def health():
     """Health check endpoint"""
     try:
+        import sys
+        import os
+        
+        # Check if chatterbox module can be imported
+        can_import = False
+        import_error = None
+        try:
+            try:
+                from chatterbox.tts import ChatterboxTTS
+                can_import = True
+            except ImportError:
+                from chatterbox import ChatterboxTTS
+                can_import = True
+        except ImportError as e:
+            import_error = str(e)
+        
         chatterbox_loaded = _chatterbox_tts is not None
+        
+        # Check if source directory exists
+        source_exists = os.path.exists("/app/chatterbox")
+        
+        device = "unknown"
+        if _chatterbox_tts:
+            import torch
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+        
         return jsonify({
             "status": "ok",
             "service": "chatterbox-tts",
             "chatterbox_loaded": chatterbox_loaded,
-            "device": "cuda" if _chatterbox_tts else "unknown"
+            "can_import_chatterbox": can_import,
+            "import_error": import_error,
+            "source_directory_exists": source_exists,
+            "device": device
         })
     except Exception as e:
         return jsonify({
@@ -260,6 +303,16 @@ if __name__ == '__main__':
     
     print(f"[Chatterbox] ✅ CUDA available: {torch.cuda.get_device_name(0)}")
     print(f"[Chatterbox] ✅ PyTorch {torch.__version__} with CUDA {torch.version.cuda}")
+    
+    # Try to import Chatterbox at startup to catch errors early
+    print("[Chatterbox] 🔍 Pre-loading ChatterboxTTS...")
+    try:
+        get_chatterbox_tts()
+        print("[Chatterbox] ✅ ChatterboxTTS pre-loaded successfully")
+    except Exception as e:
+        print(f"[Chatterbox] ⚠️ Pre-loading failed (will retry on first request): {e}")
+        print("[Chatterbox] 💡 Container will start but synthesis may fail until Chatterbox loads")
+    
     print("[Chatterbox] 🌐 Starting Flask server on 0.0.0.0:11437...")
     
     app.run(host="0.0.0.0", port=11437, threaded=True, debug=False)
