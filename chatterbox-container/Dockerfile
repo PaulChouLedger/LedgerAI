@@ -1,32 +1,23 @@
 # Chatterbox-TTS Container
 # Installs Chatterbox from source to avoid dependency conflicts
-# Using CUDA 12.6 devel image - PyTorch 2.6 supports CUDA 12.6
-FROM nvidia/cuda:12.6.0-devel-ubuntu22.04
+# Using Jetson-compatible base image with PyTorch pre-installed
+FROM dustynv/pytorch:r36.4.0-pth2.6-py3
 
 # Set working directory
 WORKDIR /app
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
-    python3.10 \
-    python3.10-dev \
-    python3-pip \
     git \
-    build-essential \
     libsndfile1 \
     ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
-# Create symlink for python
-RUN ln -s /usr/bin/python3.10 /usr/bin/python
-
 # Upgrade pip
 RUN pip3 install --upgrade pip setuptools wheel
 
-# Install PyTorch 2.6 with CUDA 12.6 support (required by Chatterbox)
-# CRITICAL: This will FAIL if CUDA PyTorch cannot be installed (NO CPU FALLBACK)
-RUN pip3 install --no-cache-dir torch==2.6.0 torchaudio==2.6.0 --index-url https://download.pytorch.org/whl/cu126 && \
-    python3 -c "import torch; assert hasattr(torch.version, 'cuda') and torch.version.cuda is not None, 'CUDA PyTorch required'"
+# Verify PyTorch is installed and CUDA-enabled
+RUN python3 -c "import torch; assert hasattr(torch.version, 'cuda') and torch.version.cuda is not None, 'CUDA PyTorch required'; print(f'✅ PyTorch {torch.__version__} with CUDA {torch.version.cuda}')"
 
 # Install Chatterbox dependencies before cloning
 # Note: Install compatible versions to avoid conflicts

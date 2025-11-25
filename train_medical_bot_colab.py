@@ -60,17 +60,39 @@ from transformers import TrainingArguments
 MODEL_NAME = "unsloth/Qwen2.5-1.5B-Instruct-bnb-4bit"  # Qwen 2.5 1.5B - better instruction following and reasoning
 
 # Dataset Priority (highest to lowest):
-# 1. medical_sft_dataset_enhanced.json - LATEST & MOST ADVANCED (includes negative examples, better OLD CARTS formats)
-# 2. medical_sft_dataset_high_quality.json - Includes clinical reasoning
-# 3. medical_sft_dataset_differential_reasoning.json - Includes differential reasoning
-# 4. medical_sft_dataset_with_reasoning.json - Includes basic reasoning
-# 5. medical_sft_dataset_complete.json - Complete conversations
-# 6. medical_sft_dataset_enriched.json - Enriched version
-# 7. medical_sft_dataset.json - Original fallback
+# 1. medical_sft_dataset_enhanced_smart_intelligent.json - LATEST & MOST ADVANCED
+#    - Smart OLD CARTS question selection (skip irrelevant elements)
+#    - British slang variations for UK market
+#    - Intelligent follow-up questions based on diagnosis
+#    - Clinical reasoning and skip tags
+# 2. medical_sft_dataset_enhanced_smart.json - Enhanced with smart features
+#    - Smart OLD CARTS question selection
+#    - British slang variations
+# 3. medical_sft_dataset_enhanced.json - Enhanced (includes negative examples, better OLD CARTS formats)
+# 4. medical_sft_dataset_high_quality.json - Includes clinical reasoning
+# 5. medical_sft_dataset_differential_reasoning.json - Includes differential reasoning
+# 6. medical_sft_dataset_with_reasoning.json - Includes basic reasoning
+# 7. medical_sft_dataset_complete.json - Complete conversations
+# 8. medical_sft_dataset_enriched.json - Enriched version
+# 9. medical_sft_dataset.json - Original fallback
 
-if os.path.exists("medical_sft_dataset_enhanced.json"):
+if os.path.exists("medical_sft_dataset_enhanced_smart_intelligent.json"):
+    DATASET_PATH = "medical_sft_dataset_enhanced_smart_intelligent.json"
+    print("✅ Using ENHANCED SMART INTELLIGENT dataset (latest, most advanced)")
+    print("   📚 Features:")
+    print("      - Smart OLD CARTS question selection (skip irrelevant elements)")
+    print("      - British slang variations for UK market")
+    print("      - Intelligent follow-up questions based on diagnosis")
+    print("      - Clinical reasoning and skip tags")
+elif os.path.exists("medical_sft_dataset_enhanced_smart.json"):
+    DATASET_PATH = "medical_sft_dataset_enhanced_smart.json"
+    print("✅ Using ENHANCED SMART dataset")
+    print("   📚 Features:")
+    print("      - Smart OLD CARTS question selection")
+    print("      - British slang variations")
+elif os.path.exists("medical_sft_dataset_enhanced.json"):
     DATASET_PATH = "medical_sft_dataset_enhanced.json"
-    print("✅ Using ENHANCED dataset (latest, most advanced)")
+    print("✅ Using ENHANCED dataset (includes negative examples, better OLD CARTS formats)")
 elif os.path.exists("medical_sft_dataset_high_quality.json"):
     DATASET_PATH = "medical_sft_dataset_high_quality.json"
 elif os.path.exists("medical_sft_dataset_differential_reasoning.json"):
@@ -190,31 +212,57 @@ with open(DATASET_PATH, 'r', encoding='utf-8') as f:
     data = json.load(f)
 
 print(f"✅ Loaded {len(data)} conversations from {DATASET_PATH}")
-if "enhanced" in DATASET_PATH.lower():
-    print("   📚 This is the ENHANCED dataset with:")
-    print("      - Negative examples (what NOT to ask)")
-    print("      - Improved OLD CARTS question formats")
-    print("      - Better instruction following examples")
+
+# Check for smart features
+sample_conv = data[0] if data else {}
+has_smart_features = sample_conv.get("smart_features", False)
+has_intelligent_followups = sample_conv.get("has_intelligent_followups", False)
+has_relevant_oldcarts = "relevant_oldcarts" in sample_conv
+
+# Check for variants (British/American)
+has_variants = any(conv.get("variant") in ["american", "british"] for conv in data[:10])
 
 # Check if dataset includes clinical reasoning
-sample_conv = data[0] if data else {}
 sample_messages = sample_conv.get("messages", [])
 has_reasoning = any("CLINICAL REASONING" in msg.get("content", "") or 
                     "more concerning" in msg.get("content", "").lower() or
                     "probability" in msg.get("content", "").lower()
                     for msg in sample_messages)
 
+# Check for skip tags
+has_skip_tags = any(msg.get("metadata", {}).get("skip") for conv in data[:10] 
+                    for msg in conv.get("messages", []))
+
+# Print dataset features
+print()
+if has_smart_features:
+    print("📚 Smart Features Detected:")
+    print("   ✅ Smart OLD CARTS question selection")
+    if has_relevant_oldcarts:
+        print("   ✅ Relevance metadata for each conversation")
+    if has_skip_tags:
+        print("   ✅ Skip tags for irrelevant questions")
+    if has_variants:
+        american_count = sum(1 for c in data if c.get("variant") == "american")
+        british_count = sum(1 for c in data if c.get("variant") == "british")
+        print(f"   ✅ British slang variations ({british_count} British, {american_count} American variants)")
+    if has_intelligent_followups:
+        followup_count = sum(1 for c in data if c.get("has_intelligent_followups"))
+        print(f"   ✅ Intelligent follow-up questions ({followup_count} conversations)")
+        print("      - Diagnosis-specific questions")
+        print("      - Medication, risk factor, and lifestyle questions")
+        print("      - Clinical reasoning for follow-ups")
+    print()
+
 if has_reasoning:
-    print("ℹ️  Dataset includes clinical reasoning:")
+    print("ℹ️  Clinical Reasoning Features:")
     print("   - Clinical reasoning after each OLD CARTS answer")
     print("   - Comparative thinking (more concerning for X than Y)")
     print("   - Rule-in/rule-out logic with probability rankings")
     print("   - Progressive narrowing of differential diagnosis")
     print("   - Associated symptoms with reasoning")
     print("   - Final diagnostic reasoning with ranked differential")
-else:
-    print("ℹ️  Dataset format detected (may not include clinical reasoning)")
-print()
+    print()
 
 # Prepare message structures (without formatting yet)
 prepared_messages = []
@@ -490,6 +538,13 @@ print("  ✅ Use comparative thinking (more concerning for X than Y)")
 print("  ✅ Build ranked differential diagnoses with probability updates")
 print("  ✅ Progressively narrow differential as more information is gathered")
 print("  ✅ Include associated symptoms with reasoning")
+if "smart" in DATASET_PATH.lower():
+    print("  ✅ Skip irrelevant OLD CARTS questions (smart question selection)")
+    if "intelligent" in DATASET_PATH.lower():
+        print("  ✅ Ask intelligent follow-up questions based on diagnosis")
+        print("  ✅ Leverage medical knowledge (medications, risk factors, etc.)")
+    if any(conv.get("variant") in ["american", "british"] for conv in data[:10]):
+        print("  ✅ Handle both American and British English")
 print()
 
 # For Colab: Download the GGUF file

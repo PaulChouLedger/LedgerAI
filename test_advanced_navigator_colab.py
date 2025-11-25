@@ -207,6 +207,9 @@ class SimpleMedicalNavigator:
         self.active_conditions = []  # Top 5 conditions
         self.reserve_conditions = []  # Conditions ranked 6+
         self.previous_active = set()  # Track promotions/demotions
+        # Smart features
+        self.skipped_elements = set()  # OLD CARTS elements to skip
+        self.followups_asked = False  # Track if follow-ups have been asked
     
     def llm_chat(self, messages: List[Dict], max_tokens: int = 512, temperature: float = 0.0) -> str:
         """Wrapper for LLM chat function."""
@@ -1034,6 +1037,122 @@ class SimpleMedicalNavigator:
         print(f"[Rankings]    Active: {len(self.active_conditions)}, Reserve: {len(self.reserve_conditions)}")
 
 # ============================================================================
+# Skip Tag and Follow-up Support
+# ============================================================================
+
+def should_skip_oldcarts_element(navigator, element: str) -> bool:
+    """Check if an OLD CARTS element should be skipped based on chief complaint."""
+    chief_complaint = navigator.conversation_context['pre_hpi'].get('chief_complaint', '').lower()
+    
+    # Heuristics for common non-physical/non-localized complaints
+    # These match the patterns learned from the dataset skip tags
+    if "blood pressure" in chief_complaint or "hypertension" in chief_complaint or "high blood pressure" in chief_complaint:
+        if element in ["location", "character", "radiation"]:
+            return True
+    if "palpitations" in chief_complaint or "heart racing" in chief_complaint:
+        if element in ["location", "radiation"]:
+            return True
+    if "fatigue" in chief_complaint or "tired" in chief_complaint:
+        if element in ["location", "character", "radiation"]:
+            return True
+    if "diarrhea" in chief_complaint or "constipation" in chief_complaint:
+        if element in ["location", "character", "radiation"]:
+            return True
+    if "urinary frequency" in chief_complaint or "urgency" in chief_complaint or "incontinence" in chief_complaint:
+        if element in ["location", "character", "radiation"]:
+            return True
+    if "coffee ground" in chief_complaint or "vomit" in chief_complaint:
+        if element in ["location", "character"]:
+            return True
+    
+    # Note: The fine-tuned model should naturally learn to skip irrelevant questions
+    # from the skip tags in the training data. If the model generates a skip tag
+    # in its response, we'll detect it and skip the question.
+    # These heuristics are just a fallback.
+    
+    return False
+
+def element_name_to_key(element_name: str) -> str:
+    """Convert element name to key format."""
+    mapping = {
+        'o': 'onset', 'onset': 'onset',
+        'l': 'location', 'location': 'location',
+        'd': 'duration', 'duration': 'duration',
+        'c': 'character', 'character': 'character',
+        'a': 'aggravating', 'aggravating': 'aggravating',
+        'a_alleviating': 'relieving', 'alleviating': 'relieving',
+        'r': 'radiation', 'radiation': 'radiation',
+        't': 'timing', 'timing': 'timing',
+        's': 'severity', 'severity': 'severity',
+    }
+    return mapping.get(element_name.lower(), element_name.lower())
+
+def ask_intelligent_followups(navigator, messages: List[Dict]):
+    """Ask intelligent follow-up questions based on probable diagnosis."""
+    if not navigator.condition_rankings:
+        return
+    
+    # Get top diagnosis
+    top_condition = navigator.condition_rankings[0][0] if navigator.condition_rankings else None
+    if not top_condition:
+        return
+    
+    chief_complaint = navigator.conversation_context['pre_hpi'].get('chief_complaint', '')
+    
+    print(f"\n📋 Asking intelligent follow-up questions based on probable diagnosis: {top_condition}")
+    print("=" * 80)
+    
+    # Ask the model to generate relevant follow-up questions
+    system_prompt = (
+        "You are a medical professional. Based on the probable diagnosis, ask 1-2 intelligent follow-up questions "
+        "that go beyond OLD CARTS. These should be diagnosis-specific, such as:\n"
+        "- Medications relevant to the condition\n"
+        "- Risk factors (family history, lifestyle)\n"
+        "- Associated symptoms or red flags\n"
+        "- Medical history relevant to the condition\n\n"
+        "Ask only the question(s), one at a time. Be natural and conversational."
+    )
+    
+    user_prompt = (
+        f"Chief complaint: '{chief_complaint}'\n"
+        f"Probable diagnosis: {top_condition}\n"
+        f"Current condition rankings: {', '.join([f'{c} ({s:.1%})' for c, s in navigator.condition_rankings[:3]])}\n\n"
+        f"Ask 1-2 intelligent follow-up questions that would help refine the diagnosis or assess risk factors. "
+        f"Focus on medications, risk factors, associated symptoms, or medical history relevant to {top_condition}."
+    )
+    
+    try:
+        followup_response = navigator.llm_chat(
+            [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            max_tokens=200,
+            temperature=0.4,
+        )
+        
+        if followup_response and followup_response.strip():
+            # Split into individual questions if multiple
+            questions = [q.strip() for q in followup_response.split('?') if q.strip()]
+            if questions:
+                # Add question mark if missing
+                first_question = questions[0]
+                if not first_question.endswith('?'):
+                    first_question += '?'
+                
+                print(f"🤖 Assistant: {first_question}")
+                messages.append({"role": "assistant", "content": first_question})
+                
+                # Wait for user response
+                user_followup = input("👤 You: ").strip()
+                if user_followup and user_followup.lower() not in ['quit', 'reset', 'rankings']:
+                    messages.append({"role": "user", "content": user_followup})
+                    print(f"\n[Follow-up] Received answer for {top_condition} follow-up question")
+                    # Could update scores based on follow-up answer if needed
+    except Exception as e:
+        print(f"[Follow-up] ⚠️  Error asking follow-ups: {e}")
+
+# ============================================================================
 # Interactive Test
 # ============================================================================
 
@@ -1089,6 +1208,8 @@ def run_interactive_test(model, tokenizer, model_type):
             stage = "chief_complaint"
             last_question_type = None
             last_question_element = None
+            navigator.skipped_elements = set()
+            navigator.followups_asked = False
             print("👤 Start by describing your symptoms\n")
             continue
         
@@ -1329,12 +1450,24 @@ def run_interactive_test(model, tokenizer, model_type):
             hpi = navigator.conversation_context['hpi']
             # Only include elements that are actually answered (not confused responses)
             answered_elements = {k: v for k, v in hpi.items() if v and v.strip()}
-            remaining_elements = [e for e in oldcarts_elements if e not in answered_elements]
+            
+            # Check for skip tags - elements that should be skipped based on chief complaint
+            skipped_elements = getattr(navigator, 'skipped_elements', set())
+            remaining_elements = [e for e in oldcarts_elements 
+                                if e not in answered_elements and e not in skipped_elements]
             
             if not remaining_elements:
-                # All OLD CARTS collected
-                print("\n✅ All OLD CARTS elements collected!")
+                # All relevant OLD CARTS collected (some may have been skipped)
+                print("\n✅ All relevant OLD CARTS elements collected!")
+                if skipped_elements:
+                    print(f"   (Skipped irrelevant elements: {', '.join(skipped_elements)})")
                 navigator._print_rankings()
+                
+                # Check if we should ask intelligent follow-up questions
+                if not getattr(navigator, 'followups_asked', False):
+                    ask_intelligent_followups(navigator, messages)
+                    navigator.followups_asked = True
+                
                 print("\n👋 Conversation complete. Type 'reset' to start over or 'quit' to exit.")
                 continue
             
@@ -1342,6 +1475,15 @@ def run_interactive_test(model, tokenizer, model_type):
             next_element = remaining_elements[0]
             last_question_element = next_element  # Track which element we're asking about
             print(f"[Debug] Asking about element: {next_element}, tracking as last_question_element")
+            
+            # Check if this element should be skipped (model learned from skip tags)
+            # The fine-tuned model should naturally skip irrelevant questions, but we can help with heuristics
+            if should_skip_oldcarts_element(navigator, next_element):
+                print(f"[Skip] {next_element} is not relevant for this chief complaint - skipping")
+                skipped_elements.add(next_element)
+                navigator.skipped_elements = skipped_elements
+                # Don't ask the question, continue to next element
+                continue
             
             # Build context and specific guidance
             context_summary = navigator._build_conversation_context()
@@ -1398,6 +1540,26 @@ def run_interactive_test(model, tokenizer, model_type):
                 
                 # Clean up response - remove any weird phrasing
                 response = response.strip()
+                
+                # Check if model returned a skip tag (learned from training data)
+                # The fine-tuned model may naturally output skip tags for irrelevant questions
+                if "[SKIP:" in response:
+                    skip_match = re.search(r"\[SKIP:([^\]]+)\]", response)
+                    if skip_match:
+                        skipped_element_abbr = skip_match.group(1).upper()
+                        # Map abbreviation to full element name
+                        abbr_to_element = {
+                            'O': 'onset', 'L': 'location', 'D': 'duration', 'C': 'character',
+                            'A': 'aggravating', 'R': 'radiation', 'T': 'timing', 'S': 'severity'
+                        }
+                        skipped_element = abbr_to_element.get(skipped_element_abbr, skipped_element_abbr.lower())
+                        if skipped_element == next_element:
+                            print(f"[Skip] Model returned skip tag [SKIP:{skipped_element_abbr}] for {next_element} - skipping this element")
+                            skipped_elements = getattr(navigator, 'skipped_elements', set())
+                            skipped_elements.add(next_element)
+                            navigator.skipped_elements = skipped_elements
+                            continue  # Skip this element and move to next
+                
                 # If response seems wrong or doesn't match expected format, use base question directly
                 if 'age' in response.lower() and 'old' in response.lower() and next_element != 'age':
                     print(f"[Warning] LLM generated wrong question, using base question instead")

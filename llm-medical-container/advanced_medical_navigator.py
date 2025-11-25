@@ -442,6 +442,10 @@ class AdvancedMedicalNavigator:
         element = None
         answered = {key for key, value in session.context['hpi'].items() if value and value.strip()}
         
+        # Check if we have relevance information from training data
+        # This would be set if we're using a fine-tuned model that learned skip patterns
+        chief_complaint = session.context['pre_hpi'].get('chief_complaint', '').lower()
+        
         while session.oldcarts_remaining:
             candidate = session.oldcarts_remaining.pop(0)
             if candidate in answered:
@@ -449,6 +453,12 @@ class AdvancedMedicalNavigator:
                 continue
             if self._is_redundant_question(session, candidate):
                 continue
+            
+            # Check if this element should be skipped based on chief complaint
+            if self._should_skip_oldcarts_element(session, candidate, chief_complaint):
+                self._capture_debug(f"[HPI] ⏭️ Skipping {candidate} - not relevant for this complaint")
+                continue
+            
             element = candidate
             break
         
@@ -485,6 +495,48 @@ class AdvancedMedicalNavigator:
             'field': element,
             'prompt': prompt,
         }
+    
+    def _should_skip_oldcarts_element(self, session: "MedicalSession", element: str, chief_complaint: str) -> bool:
+        """
+        Determine if an OLD CARTS element should be skipped based on chief complaint.
+        Uses heuristics based on training data patterns.
+        
+        The fine-tuned model should learn these patterns from the dataset,
+        but we provide heuristics as a fallback.
+        """
+        chief_lower = chief_complaint.lower()
+        
+        # Location (L) - skip for systemic conditions
+        if element == 'location':
+            systemic_keywords = [
+                'hypertension', 'high blood pressure', 'hyperlipidemia', 'elevated cholesterol',
+                'diabetes', 'polyuria', 'polydipsia', 'polyphagia', 'fatigue', 'dizziness',
+                'depression', 'anxiety', 'insomnia', 'difficulty falling asleep'
+            ]
+            if any(keyword in chief_lower for keyword in systemic_keywords):
+                return True
+        
+        # Character (C) - skip for non-sensory symptoms
+        if element == 'character':
+            non_sensory_keywords = [
+                'hypertension', 'high blood pressure', 'hyperlipidemia', 'elevated cholesterol',
+                'polyuria', 'polydipsia', 'polyphagia', 'constipation', 'urinary incontinence',
+                'insomnia', 'difficulty falling asleep', 'difficulty maintaining sleep'
+            ]
+            if any(keyword in chief_lower for keyword in non_sensory_keywords):
+                return True
+        
+        # Radiation (R) - skip for non-radiating symptoms
+        if element == 'radiation':
+            non_radiating_keywords = [
+                'hypertension', 'high blood pressure', 'hyperlipidemia', 'elevated cholesterol',
+                'diabetes', 'fatigue', 'polyuria', 'polydipsia', 'constipation',
+                'urinary incontinence', 'insomnia', 'depression', 'anxiety', 'dizziness'
+            ]
+            if any(keyword in chief_lower for keyword in non_radiating_keywords):
+                return True
+        
+        return False
 
     # ----------- Answer persistence & scoring --------------------------------
 
