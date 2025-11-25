@@ -252,8 +252,12 @@ def transcribe():
         
         try:
             # Clear GPU cache before transcription to prevent OOM
-            import torch
-            torch.cuda.empty_cache()
+            try:
+                import torch
+                torch.cuda.empty_cache()
+            except ImportError:
+                # torch not available - skip cache clearing (faster-whisper handles memory internally)
+                pass
             
             # Using configurable transcription parameters
             print(f"[Whisper] 🧠 Starting transcription...")
@@ -278,13 +282,18 @@ def transcribe():
             # Handle out-of-memory errors - only reduce quality as last resort
             if "out of memory" in error_str.lower():
                 print(f"[Whisper] 🔍 CUDA out of memory - attempting aggressive memory cleanup...")
-                import torch
-                torch.cuda.empty_cache()
-                torch.cuda.synchronize()
-                # Force garbage collection
-                import gc
-                gc.collect()
-                torch.cuda.empty_cache()
+                try:
+                    import torch
+                    torch.cuda.empty_cache()
+                    torch.cuda.synchronize()
+                    # Force garbage collection
+                    import gc
+                    gc.collect()
+                    torch.cuda.empty_cache()
+                except ImportError:
+                    # torch not available - use gc only
+                    import gc
+                    gc.collect()
                 
                 # First retry: same settings but with fresh memory
                 print(f"[Whisper] 🔄 Retrying with same settings after memory cleanup...")
@@ -326,9 +335,12 @@ def transcribe():
             elif "cuDNN" in error_str or "CUDNN_STATUS" in error_str:
                 print(f"[Whisper] 🔍 cuDNN error - GPU/CUDA initialization issue")
                 # Try to clear GPU memory and retry once
-                import torch
-                torch.cuda.empty_cache()
-                print(f"[Whisper] 🔄 Cleared GPU memory, retrying...")
+                try:
+                    import torch
+                    torch.cuda.empty_cache()
+                    print(f"[Whisper] 🔄 Cleared GPU memory, retrying...")
+                except ImportError:
+                    print(f"[Whisper] 🔄 Retrying without torch cache clearing...")
                 try:
                     segments, info = model.transcribe(
                         audio, 

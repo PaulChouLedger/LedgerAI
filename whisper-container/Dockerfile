@@ -9,6 +9,7 @@ COPY container_rest.py /app/container_rest.py
 # Note: medical_terms.json is mounted at /shared/medical_terms.json (see docker-compose.yml)
 
 # Install REST API dependencies
+# Note: Base image should have torch, but ensure it's accessible for GPU memory management
 RUN pip3 install --ignore-installed --index-url https://pypi.org/simple flask soundfile scipy
 
 # === Baked-in Models ===
