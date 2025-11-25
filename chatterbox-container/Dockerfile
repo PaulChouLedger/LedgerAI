@@ -29,8 +29,9 @@ RUN pip3 install --no-cache-dir torch==2.6.0 torchaudio==2.6.0 --index-url https
     python3 -c "import torch; assert hasattr(torch.version, 'cuda') and torch.version.cuda is not None, 'CUDA PyTorch required'"
 
 # Install Chatterbox dependencies before cloning
+# Note: Quote version constraints with commas to prevent shell redirection issues
 RUN pip3 install \
-    numpy>=1.24.0,<1.26.0 \
+    "numpy>=1.24.0,<1.26.0" \
     librosa==0.11.0 \
     transformers==4.46.3 \
     diffusers==0.29.0 \
