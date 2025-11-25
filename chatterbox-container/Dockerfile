@@ -29,7 +29,7 @@ RUN pip3 install --no-cache-dir torch==2.6.0 torchaudio==2.6.0 --index-url https
     python3 -c "import torch; assert hasattr(torch.version, 'cuda') and torch.version.cuda is not None, 'CUDA PyTorch required'"
 
 # Install Chatterbox dependencies before cloning
-# Note: Quote version constraints with commas to prevent shell redirection issues
+# Note: Install compatible versions to avoid conflicts
 RUN pip3 install \
     "numpy>=1.24.0,<1.26.0" \
     librosa==0.11.0 \
@@ -41,14 +41,19 @@ RUN pip3 install \
     s3tokenizer \
     pykakasi==2.3.0 \
     jaconv \
-    gradio==5.44.1 \
     soundfile \
-    scipy
+    scipy \
+    typer==0.9.0
 
-# Clone and install Chatterbox from source
-RUN git clone https://github.com/resemble-ai/chatterbox.git /tmp/chatterbox && \
+# Clone and install Chatterbox from source (skip dependencies to avoid conflicts)
+# Install additional Chatterbox dependencies that don't conflict
+RUN pip3 install \
+    spacy==3.6.1 \
+    russian-text-stresser \
+    && \
+    git clone https://github.com/resemble-ai/chatterbox.git /tmp/chatterbox && \
     cd /tmp/chatterbox && \
-    pip3 install -e . && \
+    pip3 install -e . --no-deps && \
     rm -rf /tmp/chatterbox
 
 # Install Flask for REST API
