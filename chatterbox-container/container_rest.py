@@ -60,13 +60,68 @@ def get_chatterbox_tts():
             device = "cuda" if torch.cuda.is_available() else "cpu"
             print(f"[Chatterbox] 🚀 Initializing ChatterboxTTS on {device}...")
             
-            try:
-                _chatterbox_tts = ChatterboxTTS.from_pretrained(device=device)
-                print("[Chatterbox] ✅ Initialized using from_pretrained()")
-            except Exception as e:
-                print(f"[Chatterbox] ⚠️ from_pretrained() failed: {e}, trying default constructor...")
-                _chatterbox_tts = ChatterboxTTS()
-                print("[Chatterbox] ✅ Initialized using default constructor")
+            # Try different initialization methods
+            _chatterbox_tts = None
+            
+            # Method 1: Try from_pretrained (recommended)
+            if hasattr(ChatterboxTTS, 'from_pretrained'):
+                try:
+                    print("[Chatterbox] 🔧 Trying from_pretrained(device={device})...")
+                    # Check if from_pretrained accepts device parameter
+                    import inspect
+                    if hasattr(ChatterboxTTS, 'from_pretrained'):
+                        sig = inspect.signature(ChatterboxTTS.from_pretrained)
+                        params = list(sig.parameters.keys())
+                        print(f"[Chatterbox] 📋 from_pretrained signature: {params}")
+                        
+                        if 'device' in params:
+                            _chatterbox_tts = ChatterboxTTS.from_pretrained(device=device)
+                        else:
+                            _chatterbox_tts = ChatterboxTTS.from_pretrained()
+                    else:
+                        _chatterbox_tts = ChatterboxTTS.from_pretrained(device=device)
+                    print("[Chatterbox] ✅ Initialized using from_pretrained()")
+                except Exception as e:
+                    print(f"[Chatterbox] ⚠️ from_pretrained() failed: {e}")
+                    import traceback
+                    traceback.print_exc()
+            
+            # Method 2: Try with device parameter
+            if _chatterbox_tts is None:
+                try:
+                    print("[Chatterbox] 🔧 Trying ChatterboxTTS(device=...)...")
+                    _chatterbox_tts = ChatterboxTTS(device=device)
+                    print("[Chatterbox] ✅ Initialized using device parameter")
+                except Exception as e:
+                    print(f"[Chatterbox] ⚠️ Constructor with device failed: {e}")
+            
+            # Method 3: Inspect constructor signature to see what's needed
+            if _chatterbox_tts is None:
+                try:
+                    import inspect
+                    sig = inspect.signature(ChatterboxTTS.__init__)
+                    params = list(sig.parameters.keys())
+                    print(f"[Chatterbox] 🔍 Constructor signature: {params}")
+                    
+                    # If it only needs device, try that
+                    if len(params) == 2 and 'device' in params:  # self + device
+                        print("[Chatterbox] 🔧 Trying ChatterboxTTS(device=...)...")
+                        _chatterbox_tts = ChatterboxTTS(device=device)
+                        print("[Chatterbox] ✅ Initialized using device parameter")
+                    else:
+                        # Try default constructor
+                        print("[Chatterbox] 🔧 Trying default constructor...")
+                        _chatterbox_tts = ChatterboxTTS()
+                        print("[Chatterbox] ✅ Initialized using default constructor")
+                except Exception as e:
+                    print(f"[Chatterbox] ❌ Initialization failed: {e}")
+                    import traceback
+                    traceback.print_exc()
+                    raise RuntimeError(
+                        f"Could not initialize ChatterboxTTS. "
+                        f"Error: {e}. "
+                        f"Please check ChatterboxTTS documentation for correct initialization."
+                    )
             
             print(f"[Chatterbox] ✅ ChatterboxTTS initialized successfully")
         except Exception as e:
