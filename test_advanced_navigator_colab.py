@@ -8,11 +8,22 @@ This script mirrors the logic of advanced_medical_navigator.py for testing in Co
 It implements:
 - Balanced initial seeding (all conditions at 0.5)
 - LLM evaluates ALL conditions based on answers
-- Condition rankings update after each answer
+- Condition rankings update after each answer (progressive scoring)
 - Uses fine-tuned model's trained knowledge
+- Clarification questions for ambiguous answers
+- Context-aware OLD CARTS questions with examples from top 3 conditions
+- Associated symptom questions based on top 3 conditions (after OLD CARTS)
+
+Optimized for medical_sft_dataset_complex.json:
+- Complex cross-organ system differentiation
+- Progressive scoring with rolling differential diagnosis
+- Clarification questions for ambiguous location/other OLD CARTS elements
+- Associated symptom questions to differentiate top conditions
+- Context-aware questions with examples from top 3 conditions
+- Generalizable methodology for any medical condition
 
 To use in Colab:
-1. Upload this script and your fine-tuned model
+1. Upload this script and your fine-tuned model (trained on medical_sft_dataset_complex.json)
 2. Run: !pip install unsloth transformers accelerate
 3. Run this script
 """
@@ -210,73 +221,91 @@ class SimpleMedicalNavigator:
         # Smart features
         self.skipped_elements = set()  # OLD CARTS elements to skip
         self.followups_asked = False  # Track if follow-ups have been asked
+        # Dynamic pending clarifications for any OLD CARTS element (set via setattr)
     
-    def is_ambiguous_location(self, location_answer: str) -> bool:
-        """Check if location answer is ambiguous and needs clarification."""
-        answer_lower = location_answer.lower().strip()
+    def needs_clarification(self, element: str, answer: str, chief_complaint: str) -> bool:
+        """Use LLM to determine if any OLD CARTS answer needs clarification based on trained knowledge."""
+        system_prompt = (
+            "You are a medical expert. Determine if a patient's answer to an OLD CARTS question is specific enough "
+            "for clinical reasoning, or if it needs clarification. Use your medical knowledge to assess if the answer "
+            "provides sufficient detail for accurate diagnosis. Return ONLY 'yes' if clarification is needed, or 'no' if it's specific enough."
+        )
+        user_prompt = (
+            f"Chief complaint: {chief_complaint}\n"
+            f"OLD CARTS element: {element}\n"
+            f"Patient's answer: '{answer}'\n\n"
+            "Is this answer specific enough for clinical reasoning, or does it need clarification? "
+            "Return ONLY 'yes' if clarification is needed, or 'no' if it's specific enough. No explanations."
+        )
         
-        # Ambiguous patterns that need clarification
-        ambiguous_patterns = [
-            'right side', 'left side', 'on the right', 'on the left',
-            'right', 'left', 'my side', 'one side', 'either side',
-            'right area', 'left area', 'right part', 'left part'
-        ]
-        
-        # Specific patterns that are clear (don't need clarification)
-        clear_patterns = [
-            'right upper', 'right lower', 'left upper', 'left lower',
-            'ruq', 'rlq', 'luq', 'llq', 'upper right', 'lower right',
-            'upper left', 'lower left', 'epigastric', 'periumbilical',
-            'suprapubic', 'flank', 'back', 'chest', 'head', 'neck'
-        ]
-        
-        # Check if it's clearly specific
-        if any(clear in answer_lower for clear in clear_patterns):
-            return False
-        
-        # Check if it's ambiguous
-        return any(ambiguous in answer_lower for ambiguous in ambiguous_patterns)
+        try:
+            response = self.llm_chat(
+                [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                max_tokens=10,
+                temperature=0.0,
+            )
+            return "yes" in response.lower() if response else False
+        except Exception:
+            return False  # Default to not needing clarification if LLM fails
     
-    def ask_location_clarification(self, ambiguous_answer: str, messages: List[Dict]) -> str:
-        """Ask for clarification of ambiguous location answer."""
-        answer_lower = ambiguous_answer.lower()
-        
-        # Determine which clarification to ask
-        if 'right' in answer_lower:
-            return "Is the pain in your right upper abdomen (near your ribs/liver area) or right lower abdomen (near your hip/appendix area)?"
-        elif 'left' in answer_lower:
-            return "Is the pain in your left upper abdomen (near your ribs/spleen area) or left lower abdomen (near your hip area)?"
-        else:
-            return "Can you be more specific about the location? For example, is it in the upper or lower part of your abdomen, and on which side?"
+    def needs_location_clarification(self, location_answer: str, chief_complaint: str) -> bool:
+        """Use LLM to determine if location answer needs clarification based on trained knowledge."""
+        return self.needs_clarification("location", location_answer, chief_complaint)
     
-    def is_valid_condition_name(self, condition_name: str) -> bool:
-        """Check if a condition name is valid (not a location descriptor or symptom)."""
-        name_lower = condition_name.lower()
+    def ask_clarification(self, element: str, answer: str, chief_complaint: str, messages: List[Dict]) -> str:
+        """Use LLM to generate appropriate clarification question for any OLD CARTS element based on trained knowledge."""
+        element_labels = {
+            "location": "anatomical location",
+            "character": "quality or description of the symptom",
+            "duration": "how long the symptom has been present",
+            "timing": "whether it's constant or intermittent",
+            "aggravating": "what makes it worse",
+            "relieving": "what makes it better",
+            "radiation": "where the symptom spreads",
+            "severity": "how severe the symptom is",
+            "onset": "when the symptom started"
+        }
         
-        # Invalid patterns - these are location descriptors, not conditions
-        invalid_patterns = [
-            'upper right side pain', 'lower right side pain', 'upper left side pain', 'lower left side pain',
-            'right upper quadrant pain', 'right lower quadrant pain', 'left upper quadrant pain', 'left lower quadrant pain',
-            'right side pain', 'left side pain', 'upper side pain', 'lower side pain',
-            'abdominal pain location unclear', 'location unclear', 'pain location',
-            'upper right', 'lower right', 'upper left', 'lower left',
-            'ruq pain', 'rlq pain', 'luq pain', 'llq pain',
-            'unilateral', 'bilateral', 'generalized', 'localized'
-        ]
+        element_label = element_labels.get(element, element)
         
-        # Check if it matches invalid patterns
-        if any(invalid in name_lower for invalid in invalid_patterns):
-            return False
+        system_prompt = (
+            "You are a medical professional conducting a medical history. "
+            "When a patient gives an incomplete or ambiguous answer, you need to ask a clarifying question "
+            "to get the specific information needed for accurate clinical reasoning. "
+            "Use your medical knowledge to ask appropriate clarification questions. "
+            "Be natural, conversational, and medically accurate. Ask only the clarification question, no other text."
+        )
+        user_prompt = (
+            f"Chief complaint: {chief_complaint}\n"
+            f"OLD CARTS element: {element} ({element_label})\n"
+            f"Patient's incomplete/ambiguous answer: '{answer}'\n\n"
+            f"Ask a clarifying question to get the specific {element_label} information needed for accurate diagnosis."
+        )
         
-        # Valid conditions should not be just location descriptors
-        # They should be actual medical conditions
-        if 'pain' in name_lower and len(name_lower.split()) <= 4:
-            # Short phrases with "pain" are likely descriptors, not conditions
-            # But allow longer condition names that include "pain" (e.g., "Chronic Pain Syndrome")
-            if len(name_lower.split()) <= 4:
-                return False
-        
-        return True
+        try:
+            clarification = self.llm_chat(
+                [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                max_tokens=120,
+                temperature=0.4,
+            )
+            clarification = clarification.strip() if clarification else ""
+            # Minimal fallback if LLM doesn't generate a good question
+            if not clarification or len(clarification) < 20:
+                return f"Can you be more specific about the {element_label}?"
+            return clarification
+        except Exception:
+            # Minimal fallback on error
+            return f"Can you be more specific about the {element_label}?"
+    
+    def ask_location_clarification(self, location_answer: str, chief_complaint: str, messages: List[Dict]) -> str:
+        """Use LLM to generate appropriate location clarification question based on trained knowledge."""
+        return self.ask_clarification("location", location_answer, chief_complaint, messages)
     
     def llm_chat(self, messages: List[Dict], max_tokens: int = 512, temperature: float = 0.0) -> str:
         """Wrapper for LLM chat function."""
@@ -385,71 +414,71 @@ class SimpleMedicalNavigator:
                             break
                 if end_idx > start_idx:
                     single_json = cleaned[start_idx:end_idx]
-                    try:
+            try:
                         parsed = json.loads(single_json)
-                        if isinstance(parsed, dict) and 'categories' in parsed:
-                            parsed_categories = parsed['categories']
-                            if isinstance(parsed_categories, list):
-                                valid_cats = [cat for cat in parsed_categories if cat in available_categories]
-                                if valid_cats:
-                                    # If likely multi-system complaint but too few categories, ask LLM to expand
-                                    cc_lower = chief_complaint.lower()
-                                    multi_system_complaints = ['chest pain', 'abdominal pain', 'shortness of breath', 'sob']
-                                    needs_multi = any(ms in cc_lower for ms in multi_system_complaints)
-                                    if needs_multi and len(valid_cats) < 2:
-                                        expand_prompt = (
-                                            f"Chief complaint: '{chief_complaint}'\n\n"
-                                            "Your previous answer included too few categories for this complaint, which often spans multiple organ systems.\n"
-                                            "Reconsider and return JSON with ALL plausible categories from the provided list."
-                                        )
-                                        try:
-                                            retry = self.llm_chat(
-                                                [
-                                                    {"role": "system", "content": system_prompt},
-                                                    {"role": "user", "content": expand_prompt},
-                                                ],
-                                                max_tokens=200,
-                                                temperature=0.0,
-                                            )
-                                            cleaned_retry = retry.strip() if retry else ""
-                                            if cleaned_retry.startswith('```'):
-                                                first_newline = cleaned_retry.find('\n')
-                                                if first_newline != -1:
-                                                    cleaned_retry = cleaned_retry[first_newline+1:]
-                                                    if cleaned_retry.endswith('```'):
-                                                        cleaned_retry = cleaned_retry[:-3].strip()
-                                                    elif '```' in cleaned_retry:
-                                                        last_idx = cleaned_retry.rfind('```')
-                                                        cleaned_retry = cleaned_retry[:last_idx].strip()
-                                            start_idx = cleaned_retry.find('{')
-                                            if start_idx != -1:
-                                                brace_count = 0
-                                                end_idx = start_idx
-                                                for i in range(start_idx, len(cleaned_retry)):
-                                                    if cleaned_retry[i] == '{':
-                                                        brace_count += 1
-                                                    elif cleaned_retry[i] == '}':
-                                                        brace_count -= 1
-                                                        if brace_count == 0:
-                                                            end_idx = i + 1
-                                                            break
-                                                if end_idx > start_idx:
-                                                    cleaned_retry = cleaned_retry[start_idx:end_idx]
-                                                try:
-                                                    parsed_retry = json.loads(cleaned_retry)
-                                                    if isinstance(parsed_retry, dict) and 'categories' in parsed_retry:
-                                                        retry_categories = parsed_retry['categories']
-                                                        if isinstance(retry_categories, list):
-                                                            valid_retry = [cat for cat in retry_categories if cat in available_categories]
-                                                            if valid_retry:
-                                                                print(f"[Category] LLM expanded categories to: {valid_retry}")
-                                                                return valid_retry
-                                                except json.JSONDecodeError:
-                                                    pass
-                                        except Exception:
-                                            pass
-                                    print(f"[Category] LLM matched '{chief_complaint}' to categories: {valid_cats}")
-                                    return valid_cats
+                if isinstance(parsed, dict) and 'categories' in parsed:
+                    parsed_categories = parsed['categories']
+                    if isinstance(parsed_categories, list):
+                        valid_cats = [cat for cat in parsed_categories if cat in available_categories]
+                        if valid_cats:
+                            # If likely multi-system complaint but too few categories, ask LLM to expand
+                            cc_lower = chief_complaint.lower()
+                            multi_system_complaints = ['chest pain', 'abdominal pain', 'shortness of breath', 'sob']
+                            needs_multi = any(ms in cc_lower for ms in multi_system_complaints)
+                            if needs_multi and len(valid_cats) < 2:
+                                expand_prompt = (
+                                    f"Chief complaint: '{chief_complaint}'\n\n"
+                                    "Your previous answer included too few categories for this complaint, which often spans multiple organ systems.\n"
+                                    "Reconsider and return JSON with ALL plausible categories from the provided list."
+                                )
+                                try:
+                                    retry = self.llm_chat(
+                                        [
+                                            {"role": "system", "content": system_prompt},
+                                            {"role": "user", "content": expand_prompt},
+                                        ],
+                                        max_tokens=200,
+                                        temperature=0.0,
+                                    )
+                                    cleaned_retry = retry.strip() if retry else ""
+                                    if cleaned_retry.startswith('```'):
+                                        first_newline = cleaned_retry.find('\n')
+                                        if first_newline != -1:
+                                            cleaned_retry = cleaned_retry[first_newline+1:]
+                                            if cleaned_retry.endswith('```'):
+                                                cleaned_retry = cleaned_retry[:-3].strip()
+                                            elif '```' in cleaned_retry:
+                                                last_idx = cleaned_retry.rfind('```')
+                                                cleaned_retry = cleaned_retry[:last_idx].strip()
+                                    start_idx = cleaned_retry.find('{')
+                                    if start_idx != -1:
+                                        brace_count = 0
+                                        end_idx = start_idx
+                                        for i in range(start_idx, len(cleaned_retry)):
+                                            if cleaned_retry[i] == '{':
+                                                brace_count += 1
+                                            elif cleaned_retry[i] == '}':
+                                                brace_count -= 1
+                                                if brace_count == 0:
+                                                    end_idx = i + 1
+                                                    break
+                                        if end_idx > start_idx:
+                                            cleaned_retry = cleaned_retry[start_idx:end_idx]
+                                    try:
+                                        parsed_retry = json.loads(cleaned_retry)
+                                        if isinstance(parsed_retry, dict) and 'categories' in parsed_retry:
+                                            retry_categories = parsed_retry['categories']
+                                            if isinstance(retry_categories, list):
+                                                valid_retry = [cat for cat in retry_categories if cat in available_categories]
+                                                if valid_retry:
+                                                    print(f"[Category] LLM expanded categories to: {valid_retry}")
+                                                    return valid_retry
+                                    except json.JSONDecodeError:
+                                        pass
+                                except Exception:
+                                    pass
+                            print(f"[Category] LLM matched '{chief_complaint}' to categories: {valid_cats}")
+                            return valid_cats
                         # Alternative format: {"category_name": [conditions]} - extract category names
                         elif isinstance(parsed, dict):
                             # Model returned category-specific format - extract category names
@@ -719,35 +748,35 @@ class SimpleMedicalNavigator:
                 if all_conditions_from_multiple:
                     suggested_conditions = list(dict.fromkeys(all_conditions_from_multiple))  # Remove duplicates
                     # Check if we need more conditions
-                    cc_lower = (chief_complaint or '').lower()
-                    target_min = 10 if ('chest' in cc_lower and 'pain' in cc_lower) else 6
-                    if len(suggested_conditions) < target_min:
-                        expand_user = (
-                            f"Chief complaint: '{chief_complaint}'\n"
-                            f"Medical categories: {', '.join(categories)}\n\n"
-                            f"Your previous list had only {len(suggested_conditions)} items. "
-                            f"Re-evaluate and return JSON with at least {target_min} conditions covering common and can't-miss diagnoses across ALL categories."
-                        )
-                        try:
-                            retry_resp = self.llm_chat(
-                                [
-                                    {"role": "system", "content": system_prompt},
-                                    {"role": "user", "content": expand_user},
-                                ],
-                                max_tokens=600,
-                                temperature=0.0,
-                            )
-                            if retry_resp:
-                                retry_clean = retry_resp.strip()
-                                if retry_clean.startswith('```'):
-                                    first_newline = retry_clean.find('\n')
-                                    if first_newline != -1:
-                                        retry_clean = retry_clean[first_newline+1:]
-                                        if retry_clean.endswith('```'):
-                                            retry_clean = retry_clean[:-3].strip()
-                                        elif '```' in retry_clean:
-                                            last_idx = retry_clean.rfind('```')
-                                            retry_clean = retry_clean[:last_idx].strip()
+                                    cc_lower = (chief_complaint or '').lower()
+                                    target_min = 10 if ('chest' in cc_lower and 'pain' in cc_lower) else 6
+                                    if len(suggested_conditions) < target_min:
+                                        expand_user = (
+                                            f"Chief complaint: '{chief_complaint}'\n"
+                                            f"Medical categories: {', '.join(categories)}\n\n"
+                                            f"Your previous list had only {len(suggested_conditions)} items. "
+                                            f"Re-evaluate and return JSON with at least {target_min} conditions covering common and can't-miss diagnoses across ALL categories."
+                                        )
+                                        try:
+                                            retry_resp = self.llm_chat(
+                                                [
+                                                    {"role": "system", "content": system_prompt},
+                                                    {"role": "user", "content": expand_user},
+                                                ],
+                                                max_tokens=600,
+                                                temperature=0.0,
+                                            )
+                                            if retry_resp:
+                                                retry_clean = retry_resp.strip()
+                                                if retry_clean.startswith('```'):
+                                                    first_newline = retry_clean.find('\n')
+                                                    if first_newline != -1:
+                                                        retry_clean = retry_clean[first_newline+1:]
+                                                        if retry_clean.endswith('```'):
+                                                            retry_clean = retry_clean[:-3].strip()
+                                                        elif '```' in retry_clean:
+                                                            last_idx = retry_clean.rfind('```')
+                                                            retry_clean = retry_clean[:last_idx].strip()
                                 # Parse retry response - handle category format
                                 retry_lines = retry_clean.split('\n')
                                 retry_conditions = []
@@ -755,17 +784,17 @@ class SimpleMedicalNavigator:
                                     retry_line = retry_line.strip()
                                     if '{' in retry_line:
                                         rs = retry_line.find('{')
-                                        bc = 0
-                                        re = rs
+                                                    bc = 0
+                                                    re = rs
                                         for i in range(rs, len(retry_line)):
                                             if retry_line[i] == '{':
-                                                bc += 1
+                                                            bc += 1
                                             elif retry_line[i] == '}':
-                                                bc -= 1
-                                                if bc == 0:
-                                                    re = i + 1
-                                                    break
-                                        if re > rs:
+                                                            bc -= 1
+                                                            if bc == 0:
+                                                                re = i + 1
+                                                                break
+                                                    if re > rs:
                                             try:
                                                 parsed_retry = json.loads(retry_line[rs:re])
                                                 if isinstance(parsed_retry, dict):
@@ -776,24 +805,24 @@ class SimpleMedicalNavigator:
                                                         for key, value in parsed_retry.items():
                                                             if isinstance(value, list):
                                                                 retry_conditions.extend(value)
-                                            except json.JSONDecodeError:
-                                                pass
+                                                        except json.JSONDecodeError:
+                                                            pass
                                 if retry_conditions:
                                     suggested_conditions = list(dict.fromkeys(retry_conditions))
                                     print(f"[Condition Init] 🔁 Expanded conditions to {len(suggested_conditions)} via LLM retry")
-                        except Exception:
-                            pass
-                    # Start ALL suggested conditions at balanced baseline (0.5)
-                    all_conditions = list(dict.fromkeys(suggested_conditions))
-                    self.condition_scores = {cond: 0.5 for cond in all_conditions}
+                                        except Exception:
+                                            pass
+                                    # Start ALL suggested conditions at balanced baseline (0.5)
+                                    all_conditions = list(dict.fromkeys(suggested_conditions))
+                                    self.condition_scores = {cond: 0.5 for cond in all_conditions}
                     print(f"\n📋 LLM suggested {len(self.condition_scores)} conditions at balanced baseline 50.0% (from multiple category JSON)")
-                    print(f"   Categories: {', '.join(categories)}")
-                    print(f"   Conditions: {', '.join(list(self.condition_scores.keys())[:5])}{'...' if len(self.condition_scores) > 5 else ''}")
-                    print(f"   LLM will narrow down based on answers")
-                    print(f"   Additional conditions can be added dynamically during scoring\n")
-                    self._update_rankings()
-                    self._update_condition_pools()
-                    return
+                                    print(f"   Categories: {', '.join(categories)}")
+                                    print(f"   Conditions: {', '.join(list(self.condition_scores.keys())[:5])}{'...' if len(self.condition_scores) > 5 else ''}")
+                                    print(f"   LLM will narrow down based on answers")
+                                    print(f"   Additional conditions can be added dynamically during scoring\n")
+                                    self._update_rankings()
+                                    self._update_condition_pools()
+                                    return
                 
                 # Alternative: Handle multiple JSON objects on separate lines
                 # Format: {"Condition 1"}\n{"Condition 2"}\n...
@@ -1050,23 +1079,15 @@ class SimpleMedicalNavigator:
                     if isinstance(parsed, dict) and 'additional_conditions' in parsed:
                         additional = parsed['additional_conditions']
                         if isinstance(additional, list) and additional:
-                            # Add new conditions at baseline (filter out invalid condition names)
+                            # Add new conditions at baseline - trust LLM's medical knowledge
                             added_count = 0
-                            skipped_count = 0
                             for cond in additional:
                                 if cond not in self.condition_scores:
-                                    # Validate it's a real condition, not a location descriptor
-                                    if not self.is_valid_condition_name(cond):
-                                        skipped_count += 1
-                                        print(f"[Pool] ⚠️  Skipping invalid condition name (location descriptor): {cond}")
-                                        continue
                                     self.condition_scores[cond] = 0.5
                                     added_count += 1
                                     print(f"[Pool] 🆕 LLM suggested additional condition: {cond}")
                             if added_count > 0:
                                 print(f"[Pool] ✅ Added {added_count} new condition(s) to evaluation pool")
-                                if skipped_count > 0:
-                                    print(f"[Pool] ⚠️  Skipped {skipped_count} invalid condition name(s)")
                                 self._update_rankings()
                 except json.JSONDecodeError:
                     pass
@@ -1108,20 +1129,27 @@ class SimpleMedicalNavigator:
             "- Each condition must be a key in the JSON object with its score change as the value\n"
             "- Scores must be between -0.3 and +0.3 (numeric values only)\n"
             "- Do NOT use any other format - only JSON object with condition names as keys and numeric values\n\n"
-            "CRITICAL: Only include ACTUAL MEDICAL CONDITIONS in your response. Do NOT include:\n"
-            "- Location descriptors (e.g., 'Upper Right Side Pain', 'Right Lower Quadrant Pain')\n"
-            "- Symptom descriptions (e.g., 'Abdominal Pain Location Unclear')\n"
-            "- Only include real medical diagnoses (e.g., 'Acute Appendicitis', 'Acute Cholecystitis')\n\n"
+            "CRITICAL: Only include ACTUAL MEDICAL CONDITIONS in your response. Use your medical knowledge to distinguish "
+            "between real diagnoses and location/symptom descriptors. Only include real medical diagnoses.\n\n"
             "Based on the patient's answer, evaluate how it affects the likelihood of EACH condition. "
             "Use your trained medical knowledge. Consider: classic presentations, anatomical locations, symptom patterns. "
             "Positive values (+0.2 to +0.3) = condition MORE likely. Negative values (-0.2 to -0.3) = condition LESS likely. "
             "Neutral = small changes (-0.1 to +0.1)."
         )
         
+        # Build context including any previous location information for combined answers
+        location_context = ""
+        if element == 'location' and 'location' in self.conversation_context.get('hpi', {}):
+            # If this is a location answer that was combined from clarification
+            prev_location = self.conversation_context['hpi'].get('location', '')
+            if prev_location and ',' in answer:
+                # This is a combined answer (original + clarification)
+                location_context = f"\nNote: This location answer combines the original answer with clarification."
+        
         user_prompt = (
             f"Chief complaint: {chief_complaint}\n"
             f"OLD CARTS element: {element}\n"
-            f"Patient's answer: '{answer}'\n\n"
+            f"Patient's answer: '{answer}'{location_context}\n\n"
             f"All conditions to evaluate ({len(all_conditions)} total):\n"
             f"{', '.join(all_conditions)}\n\n"
             f"Return ONLY valid JSON with ALL {len(all_conditions)} conditions as keys and their score changes as values.\n"
@@ -1209,11 +1237,7 @@ class SimpleMedicalNavigator:
                                     )
                                     print(f"[Scoring]   📈 {condition}: {current_score:.3f} → {new_score:.3f} ({change_value:+.3f})")
                             else:
-                                # LLM suggested a new condition - validate it's a real condition, not a location descriptor
-                                if not self.is_valid_condition_name(condition):
-                                    print(f"[Scoring] ⚠️  Skipping invalid condition name (location descriptor): {condition}")
-                                    continue
-                                
+                                # LLM suggested a new condition - trust LLM's medical knowledge
                                 # Add it at baseline and apply change
                                 change_value = max(-0.3, min(0.3, float(change)))
                                 new_score = max(0.0, min(1.0, 0.5 + change_value))
@@ -1358,38 +1382,102 @@ def element_name_to_key(element_name: str) -> str:
     }
     return mapping.get(element_name.lower(), element_name.lower())
 
+def generate_context_aware_question(navigator, element: str, symptom: str, top_conditions: List[str], chief_complaint: str) -> str:
+    """Generate OLD CARTS question with examples from top 3 conditions."""
+    # Use LLM to generate question with examples based on top conditions
+    if not top_conditions:
+        # Fallback to generic question
+        questions = {
+            'onset': f"When did {symptom} start? For example, suddenly, gradually, or after eating?",
+            'location': f"Where exactly is {symptom} located? For example, upper abdomen, lower abdomen, or one side?",
+            'duration': f"How long has {symptom} been present? For example, hours, days, or weeks?",
+            'character': f"What does {symptom} feel like? For example, is it sharp, dull, burning, or pressure?",
+            'aggravating': f"What makes {symptom} worse? For example, movement, eating, or breathing?",
+            'relieving': f"What makes {symptom} better? For example, rest, medication, or position changes?",
+            'radiation': f"Does {symptom} spread anywhere else? For example, to your arm, jaw, or back?",
+            'timing': f"Is {symptom} constant or does it come and go? For example, constant or intermittent?",
+            'severity': f"On a scale of 1 to 10, with 10 being the worst imaginable, how severe is {symptom}? For example, mild (1-3), moderate (4-6), or severe (7-10)?",
+        }
+        return questions.get(element, f"Can you tell me more about {symptom}?")
+    
+    # Use LLM to generate question with context-aware examples
+    system_prompt = (
+        "You are a medical professional. Generate an OLD CARTS question with 1-2 example answers "
+        "based on the top 3 conditions in the differential diagnosis.\n\n"
+        "The examples should guide the user toward answers that help differentiate between these conditions.\n\n"
+        "Format: [Question text]? For example, [example1], [example2]?\n\n"
+        "Return ONLY the question with examples. No explanations."
+    )
+    
+    user_prompt = (
+        f"Chief complaint: '{chief_complaint}'\n"
+        f"OLD CARTS element: {element}\n"
+        f"Top 3 conditions in differential: {', '.join(top_conditions)}\n\n"
+        f"Generate a question about {element} with 1-2 example answers that would help differentiate between these conditions."
+    )
+    
+    try:
+        response = navigator.llm_chat(
+            [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            max_tokens=120,
+            temperature=0.4,
+        )
+        if response and response.strip():
+            return response.strip()
+    except Exception:
+        pass
+    
+    # Fallback to generic
+    questions = {
+        'onset': f"When did {symptom} start? For example, suddenly, gradually, or after eating?",
+        'location': f"Where exactly is {symptom} located? For example, upper abdomen, lower abdomen, or one side?",
+        'duration': f"How long has {symptom} been present? For example, hours, days, or weeks?",
+        'character': f"What does {symptom} feel like? For example, is it sharp, dull, burning, or pressure?",
+        'aggravating': f"What makes {symptom} worse? For example, movement, eating, or breathing?",
+        'relieving': f"What makes {symptom} better? For example, rest, medication, or position changes?",
+        'radiation': f"Does {symptom} spread anywhere else? For example, to your arm, jaw, or back?",
+        'timing': f"Is {symptom} constant or does it come and go? For example, constant or intermittent?",
+        'severity': f"On a scale of 1 to 10, with 10 being the worst imaginable, how severe is {symptom}? For example, mild (1-3), moderate (4-6), or severe (7-10)?",
+    }
+    return questions.get(element, f"Can you tell me more about {symptom}?")
+
 def ask_intelligent_followups(navigator, messages: List[Dict]):
-    """Ask intelligent follow-up questions based on probable diagnosis."""
+    """Ask associated symptom questions based on top 3 conditions (matches training data format)."""
     if not navigator.condition_rankings:
         return
     
-    # Get top diagnosis
-    top_condition = navigator.condition_rankings[0][0] if navigator.condition_rankings else None
-    if not top_condition:
+    # Get top 3 conditions for associated symptom questions
+    top_3 = [cond for cond, _ in navigator.condition_rankings[:3]]
+    if not top_3:
         return
     
     chief_complaint = navigator.conversation_context['pre_hpi'].get('chief_complaint', '')
     
-    print(f"\n📋 Asking intelligent follow-up questions based on probable diagnosis: {top_condition}")
+    print(f"\n📋 Asking associated symptom questions to differentiate between top conditions:")
+    for i, (cond, score) in enumerate(navigator.condition_rankings[:3], 1):
+        print(f"   {i}. {cond}: {score:.1%}")
     print("=" * 80)
     
-    # Ask the model to generate relevant follow-up questions
+    # Ask the model to generate associated symptom questions based on top 3 conditions
     system_prompt = (
-        "You are a medical professional. Based on the probable diagnosis, ask 1-2 intelligent follow-up questions "
-        "that go beyond OLD CARTS. These should be diagnosis-specific, such as:\n"
-        "- Medications relevant to the condition\n"
-        "- Risk factors (family history, lifestyle)\n"
-        "- Associated symptoms or red flags\n"
-        "- Medical history relevant to the condition\n\n"
+        "You are a medical professional. Based on the top 3 conditions in the differential diagnosis, "
+        "ask 1-3 associated symptom questions that help differentiate between them.\n\n"
+        "These questions should be specific to the top conditions and help rule in or rule out diagnoses. "
+        "Examples:\n"
+        "- For cardiac conditions: sweating, nausea, shortness of breath\n"
+        "- For GERD: sour taste, regurgitation\n"
+        "- For cholecystitis: nausea, vomiting, fever\n\n"
         "Ask only the question(s), one at a time. Be natural and conversational."
     )
     
     user_prompt = (
         f"Chief complaint: '{chief_complaint}'\n"
-        f"Probable diagnosis: {top_condition}\n"
-        f"Current condition rankings: {', '.join([f'{c} ({s:.1%})' for c, s in navigator.condition_rankings[:3]])}\n\n"
-        f"Ask 1-2 intelligent follow-up questions that would help refine the diagnosis or assess risk factors. "
-        f"Focus on medications, risk factors, associated symptoms, or medical history relevant to {top_condition}."
+        f"Top 3 conditions: {', '.join(top_3)}\n\n"
+        f"Ask 1-3 associated symptom questions that would help differentiate between these top 3 conditions. "
+        f"Focus on symptoms that are characteristic of some conditions but not others."
     )
     
     try:
@@ -1418,10 +1506,14 @@ def ask_intelligent_followups(navigator, messages: List[Dict]):
                 user_followup = input("👤 You: ").strip()
                 if user_followup and user_followup.lower() not in ['quit', 'reset', 'rankings']:
                     messages.append({"role": "user", "content": user_followup})
-                    print(f"\n[Follow-up] Received answer for {top_condition} follow-up question")
-                    # Could update scores based on follow-up answer if needed
+                    print(f"\n[Associated Symptom] Received answer - considering impact on differential")
+                    # Update scores based on associated symptom answer
+                    navigator.update_condition_scores_from_answer("associated_symptom", user_followup)
+                    navigator._update_rankings()
+                    navigator._update_condition_pools()
+                    navigator._print_rankings()
     except Exception as e:
-        print(f"[Follow-up] ⚠️  Error asking follow-ups: {e}")
+        print(f"[Associated Symptom] ⚠️  Error asking associated symptoms: {e}")
 
 # ============================================================================
 # Interactive Test
@@ -1435,7 +1527,10 @@ def run_interactive_test(model, tokenizer, model_type):
     print("\nThis test mirrors advanced_medical_navigator.py logic:")
     print("  - Balanced initial seeding (all conditions at 0.5)")
     print("  - LLM evaluates ALL conditions based on answers")
-    print("  - Condition rankings update after each answer")
+    print("  - Condition rankings update after each answer (progressive scoring)")
+    print("  - Clarification questions for ambiguous answers")
+    print("  - Context-aware OLD CARTS questions with examples from top 3 conditions")
+    print("  - Associated symptom questions to differentiate top conditions")
     print("\n" + "=" * 80 + "\n")
     
     navigator = SimpleMedicalNavigator(model, tokenizer, model_type)
@@ -1483,6 +1578,9 @@ def run_interactive_test(model, tokenizer, model_type):
             navigator.followups_asked = False
             print("👤 Start by describing your symptoms\n")
             continue
+        
+        # Debug: Print current state
+        print(f"[Debug] Before processing answer: last_question_type={last_question_type}, stage={stage}, pre_hpi={navigator.conversation_context['pre_hpi']}")
         
         if user_input.lower() == 'rankings':
             navigator._print_rankings()
@@ -1580,17 +1678,32 @@ def run_interactive_test(model, tokenizer, model_type):
         # Only score OLD CARTS elements, not demographics
         pre_hpi = navigator.conversation_context['pre_hpi']
         
+        # Track if we just processed a demographic answer (so we skip to next question immediately)
+        demographic_answered = False
+        
+        # Debug: Check what question was asked
+        if last_question_type:
+            print(f"[Debug] Processing answer for question type: {last_question_type}")
+        
         if last_question_type == "chronicity":
             pre_hpi['chronicity'] = user_input
             stage = "age"
+            demographic_answered = True
+            last_question_type = None  # Reset so we ask age question next
             # Don't score chronicity - it's demographic, not OLD CARTS
         elif last_question_type == "age":
             pre_hpi['age'] = user_input
             stage = "sex"
+            demographic_answered = True
+            print(f"[Debug] Stored age: {user_input}, set stage to: {stage}, demographic_answered: {demographic_answered}")
+            # Reset last_question_type AFTER we ask the next question
             # Don't score age - it's demographic, not OLD CARTS
         elif last_question_type == "sex":
             pre_hpi['sex'] = user_input
             stage = "hpi"
+            demographic_answered = True
+            print(f"[Debug] Stored sex: {user_input}, set stage to: {stage}, demographic_answered: {demographic_answered}")
+            # Don't reset last_question_type here - let it be reset when we ask HPI questions
             # Don't score sex - it's demographic, not OLD CARTS
         elif last_question_type == "hpi":
             # HPI answers - use tracked element or detect from question
@@ -1657,20 +1770,39 @@ def run_interactive_test(model, tokenizer, model_type):
                     if element in hpi:
                         del hpi[element]  # Remove if it was incorrectly stored
                     # Keep last_question_element so we can re-ask
-                elif element == 'location' and navigator.is_ambiguous_location(user_input):
-                    # Location answer is ambiguous - ask for clarification
-                    print(f"[Info] Location answer is ambiguous, asking for clarification")
-                    if element in hpi:
-                        del hpi[element]  # Remove ambiguous answer
-                    # Ask clarifying question
-                    clarification = navigator.ask_location_clarification(user_input, messages)
+                # Check if this is a clarification answer for any pending element
+                pending_key = f"pending_{element}_clarification"
+                if hasattr(navigator, pending_key) and getattr(navigator, pending_key):
+                    # This is the clarification answer - combine with original
+                    original_answer = getattr(navigator, pending_key)
+                    combined_answer = f"{original_answer}, {user_input}"
+                    print(f"[Info] Combined {element}: '{combined_answer}' (original: '{original_answer}' + clarification: '{user_input}')")
+                    hpi[element] = combined_answer
+                    setattr(navigator, pending_key, None)  # Clear pending
+                    # Score with combined answer
+                    navigator.update_condition_scores_from_answer(element, combined_answer)
+                    last_question_element = None
+                    continue  # Skip to next iteration to ask next question
+                
+                # Use LLM to determine if clarification is needed for any OLD CARTS element
+                chief_complaint = navigator.conversation_context['pre_hpi'].get('chief_complaint', '')
+                if navigator.needs_clarification(element, user_input, chief_complaint):
+                    # Answer is incomplete/ambiguous - ask for clarification
+                    print(f"[Info] {element} answer is incomplete/ambiguous, asking for clarification")
+                    # Store original answer temporarily
+                    setattr(navigator, pending_key, user_input)
+                    # Ask clarifying question using LLM
+                    clarification = navigator.ask_clarification(element, user_input, chief_complaint, messages)
                     print(f"🤖 Assistant: {clarification}")
                     messages.append({"role": "assistant", "content": clarification})
                     # Don't reset last_question_element - we'll use it when we get the clarified answer
                     continue  # Skip to next iteration to wait for clarified answer
                 else:
+                    # Answer is specific enough, store it and score
+                    hpi[element] = user_input
                     navigator.update_condition_scores_from_answer(element, user_input)
-                    last_question_element = None  # Reset after processing
+                    last_question_element = None
+                    continue  # Skip to next iteration to ask next question
             else:
                 # If we couldn't detect the element, but we asked a question, try to use tracked element
                 if last_question_element and last_question_element not in hpi:
@@ -1683,7 +1815,52 @@ def run_interactive_test(model, tokenizer, model_type):
         # Generate next question based on what's missing
         # Check what we still need to collect
         # IMPORTANT: Check stage first to avoid asking questions that were just answered
-        if stage == "chronicity" or 'chronicity' not in pre_hpi:
+        # If we just answered a demographic question, skip directly to asking the next one
+        if demographic_answered:
+            # We just stored a demographic answer, so skip to the next question based on stage
+            if stage == "age":
+                # Just answered chronicity, now ask age
+                if stage != "age":
+                    stage = "age"
+                age_system = "You are a medical assistant. Generate ONLY a question asking the patient their age. Do NOT repeat or echo any previous answers. Do NOT acknowledge previous responses. Ask ONLY the age question in second person format."
+                age_prompt = "Ask the patient their age using second person (e.g., 'How old are you?' or 'What is your age?'). Ask only the question, no acknowledgment or reasoning. Do NOT use third person like 'the patient's age'. IMPORTANT: Do NOT repeat or echo any previous user answers."
+                response = navigator.llm_chat(
+                    [{"role": "system", "content": age_system}] + messages[-3:] + [{"role": "user", "content": age_prompt}],
+                    max_tokens=60,
+                    temperature=0.4
+                )
+                response = response.strip()
+                if response.isdigit() or (len(response) <= 3 and any(char.isdigit() for char in response)):
+                    response = "How old are you?"
+                elif 'patient' in response.lower() and ('age' in response.lower() or 'old' in response.lower()):
+                    response = "How old are you?"
+                last_question_type = "age"
+            elif stage == "sex":
+                # Just answered age, now ask sex
+                if stage != "sex":
+                    stage = "sex"
+                sex_system = "You are a medical assistant. Generate ONLY a question asking the patient their biological sex. Do NOT repeat or echo any previous answers. Do NOT acknowledge previous responses. Ask ONLY the sex question in second person format."
+                sex_prompt = "Ask the patient their biological sex using second person (e.g., 'What is your biological sex?' or 'Are you male or female?'). Ask only the question, no acknowledgment or reasoning. Do NOT use third person like 'the patient' or 'is the patient male'. IMPORTANT: Do NOT repeat or echo any previous user answers."
+                response = navigator.llm_chat(
+                    [{"role": "system", "content": sex_system}] + messages[-3:] + [{"role": "user", "content": sex_prompt}],
+                    max_tokens=60,
+                    temperature=0.4
+                )
+                response = response.strip()
+                if response.isdigit() or response.lower() in ['male', 'female', 'm', 'f']:
+                    response = "What is your biological sex?"
+                elif 'patient' in response.lower() and ('male' in response.lower() or 'sex' in response.lower() or 'female' in response.lower()):
+                    response = "What is your biological sex?"
+                last_question_type = "sex"
+                # Reset the previous question type now that we've asked the next question
+                if 'age' in pre_hpi:
+                    print(f"[Debug] Asked sex question, set last_question_type to: {last_question_type}")
+                # We asked a demographic question, print it and continue
+                print(f"🤖 Assistant: {response}")
+                messages.append({"role": "assistant", "content": response})
+                continue  # Skip to next iteration to wait for answer
+            # If stage is "hpi", continue to HPI questions below (handled in else block)
+        elif stage == "chronicity" or 'chronicity' not in pre_hpi:
             # Ask chronicity question
             if stage != "chronicity":
                 stage = "chronicity"  # Set stage if not already set
@@ -1694,35 +1871,49 @@ def run_interactive_test(model, tokenizer, model_type):
                 temperature=0.4
             )
             last_question_type = "chronicity"
-        elif stage == "age" or 'age' not in pre_hpi:
+        elif (stage == "age" or 'age' not in pre_hpi) and not demographic_answered and last_question_type != "age":
             # Ask age question - use second person format matching training data
+            # Only ask if we didn't just answer a demographic question AND we haven't already asked the age question
             if stage != "age":
                 stage = "age"  # Set stage if not already set
-            age_prompt = "Ask the patient their age using second person (e.g., 'How old are you?' or 'What is your age?'). Ask only the question, no acknowledgment or reasoning. Do NOT use third person like 'the patient's age'."
+            # Use explicit system prompt to prevent echoing user answers
+            age_system = "You are a medical assistant. Generate ONLY a question asking the patient their age. Do NOT repeat or echo any previous answers. Do NOT acknowledge previous responses. Ask ONLY the age question in second person format."
+            age_prompt = "Ask the patient their age using second person (e.g., 'How old are you?' or 'What is your age?'). Ask only the question, no acknowledgment or reasoning. Do NOT use third person like 'the patient's age'. IMPORTANT: Do NOT repeat or echo any previous user answers."
             response = navigator.llm_chat(
-                messages + [{"role": "user", "content": age_prompt}],
+                [{"role": "system", "content": age_system}] + messages[-3:] + [{"role": "user", "content": age_prompt}],
                 max_tokens=60,
                 temperature=0.4
             )
-            # Fallback to correct format if LLM generates wrong format
+            # Fallback to correct format if LLM generates wrong format or echoes answer
             response = response.strip()
-            if 'patient' in response.lower() and ('age' in response.lower() or 'old' in response.lower()):
+            # Check if response is just echoing a number (age answer)
+            if response.isdigit() or (len(response) <= 3 and any(char.isdigit() for char in response)):
+                # LLM echoed the age answer, use fallback
+                response = "How old are you?"
+            elif 'patient' in response.lower() and ('age' in response.lower() or 'old' in response.lower()):
                 # LLM used third person, use correct second person format
                 response = "How old are you?"
             last_question_type = "age"
-        elif stage == "sex" or 'sex' not in pre_hpi:
+        elif (stage == "sex" or 'sex' not in pre_hpi) and not demographic_answered and last_question_type != "sex":
             # Ask sex question - use second person format matching training data
+            # Only ask if we didn't just answer a demographic question AND we haven't already asked
             if stage != "sex":
                 stage = "sex"  # Set stage if not already set
-            sex_prompt = "Ask the patient their biological sex using second person (e.g., 'What is your biological sex?' or 'Are you male or female?'). Ask only the question, no acknowledgment or reasoning. Do NOT use third person like 'the patient' or 'is the patient male'."
+            # Use explicit system prompt to prevent echoing user answers
+            sex_system = "You are a medical assistant. Generate ONLY a question asking the patient their biological sex. Do NOT repeat or echo any previous answers. Do NOT acknowledge previous responses. Ask ONLY the sex question in second person format."
+            sex_prompt = "Ask the patient their biological sex using second person (e.g., 'What is your biological sex?' or 'Are you male or female?'). Ask only the question, no acknowledgment or reasoning. Do NOT use third person like 'the patient' or 'is the patient male'. IMPORTANT: Do NOT repeat or echo any previous user answers."
             response = navigator.llm_chat(
-                messages + [{"role": "user", "content": sex_prompt}],
+                [{"role": "system", "content": sex_system}] + messages[-3:] + [{"role": "user", "content": sex_prompt}],
                 max_tokens=60,
                 temperature=0.4
             )
             # Fallback to correct format if LLM generates wrong format
             response = response.strip()
-            if 'patient' in response.lower() and ('male' in response.lower() or 'sex' in response.lower() or 'female' in response.lower()):
+            # Check if response is just echoing the age or other answer
+            if response.isdigit() or response.lower() in ['male', 'female', 'm', 'f']:
+                # LLM echoed an answer, use fallback
+                response = "What is your biological sex?"
+            elif 'patient' in response.lower() and ('male' in response.lower() or 'sex' in response.lower() or 'female' in response.lower()):
                 # LLM used third person, use correct second person format
                 response = "What is your biological sex?"
             last_question_type = "sex"
@@ -1782,20 +1973,13 @@ def run_interactive_test(model, tokenizer, model_type):
             if not chief_complaint:
                 chief_complaint = "symptoms"
             
-            # Element-specific guidance with normalized complaint
-            element_guidance = {
-                'onset': f"When did the {chief_complaint} start?",
-                'location': f"Where exactly is the {chief_complaint} located?",
-                'duration': f"How long has the {chief_complaint} been present?",
-                'character': f"What does the {chief_complaint} feel like? For example, is it sharp, heavy, burning, or pressure?",
-                'aggravating': f"What makes the {chief_complaint} worse?",
-                'relieving': f"What makes the {chief_complaint} better?",
-                'radiation': f"Does the {chief_complaint} spread to other areas?",
-                'timing': f"Is the {chief_complaint} constant or does it come and go?",
-                'severity': f"On a scale from 1 to 10, how severe is the {chief_complaint}?",
-            }
+            # Get top 3 conditions for context-aware question examples
+            top_3_conditions = [cond for cond, _ in navigator.condition_rankings[:3]] if navigator.condition_rankings else []
             
-            base_question = element_guidance.get(next_element, f"Tell me about the {next_element} of {chief_complaint}.")
+            # Generate context-aware questions with examples from top 3 conditions
+            base_question = generate_context_aware_question(
+                navigator, next_element, chief_complaint, top_3_conditions, raw_cc
+            )
             
             # Check if we're re-asking due to confusion
             is_reasking = last_question_element == next_element and next_element in hpi
