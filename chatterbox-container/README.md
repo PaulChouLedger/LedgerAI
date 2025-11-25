@@ -77,7 +77,39 @@ Content-Type: application/json
 }
 ```
 
-## Usage from Python
+## Testing the Container
+
+### Quick Test Script
+
+Run the included test script:
+
+```bash
+# Start the container first
+cd setup
+docker compose up -d chatterbox-tts
+
+# Run the test script
+cd ../chatterbox-container
+python3 test_container.py
+```
+
+Or test manually:
+
+```bash
+# Health check
+curl http://localhost:11437/health
+
+# Synthesize text
+curl -X POST http://localhost:11437/synthesize \
+  -H "Content-Type: application/json" \
+  -d '{"text": "Hello, this is a test"}' \
+  --output output.wav
+
+# Play the audio (if available)
+aplay output.wav
+```
+
+### Usage from Python
 
 ```python
 import requests
@@ -95,6 +127,23 @@ response = requests.post(
 # Save audio
 with open('output.wav', 'wb') as f:
     f.write(response.content)
+```
+
+### Testing Voice Cloning
+
+If you have a voice sample:
+
+```bash
+# Extract voice embedding
+curl -X POST http://localhost:11437/voice/embedding \
+  -H "Content-Type: application/json" \
+  -d '{"voice_sample_path": "/app/voice_samples/sample.wav"}'
+
+# Synthesize with voice cloning
+curl -X POST http://localhost:11437/synthesize \
+  -H "Content-Type: application/json" \
+  -d '{"text": "Hello with voice cloning", "voice_sample": "sample.wav"}' \
+  --output output_cloned.wav
 ```
 
 ## Benefits of Source Installation
