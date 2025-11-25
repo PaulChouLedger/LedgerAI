@@ -754,44 +754,12 @@ def tts_playback_thread(text, tts_start_time):
             if not first_chunk:
                 raise RuntimeError("No audio received")
 
-            # Use ALSA 'plug' plugin for automatic format conversion (handles sample rate and channels)
+            # Use ALSA default device with plug plugin for automatic format conversion
             # This ensures proper conversion from TTS mono 22050 Hz to device's native format
-            proc = None
-            if OUTPUT_CARD_INDEX is not None:
-                # Use plughw: instead of hw: to enable automatic format conversion
-                device_spec = f"plughw:{OUTPUT_CARD_INDEX},0"
-                try:
-                    # Let plug plugin handle conversion - specify input format (mono 22050)
-                    # Output will be automatically converted to device's native format
-                    proc = subprocess.Popen(
-                        ["aplay", "-D", device_spec, "-f", "S16_LE", "-r", str(PCM_SAMPLE_RATE), "-c", "1"],
-                        stdin=subprocess.PIPE,
-                        stdout=subprocess.DEVNULL,
-                        stderr=subprocess.PIPE
-                    )
-                    # Wait a moment to see if process starts successfully
-                    time.sleep(0.1)
-                    if proc.poll() is not None:
-                        # Process died immediately - try default device
-                        try:
-                            if proc.stderr:
-                                stderr_output = proc.stderr.read().decode().strip()
-                                if stderr_output:
-                                    print(f"[Speaker] ⚠️ Device {device_spec} failed: {stderr_output}")
-                        except Exception:
-                            pass
-                        print(f"[Speaker] 🔄 Falling back to default ALSA device...")
-                        proc = None  # Will be set to default below
-                except Exception as e:
-                    print(f"[Speaker] ⚠️ Failed to start aplay with device {device_spec}: {e}")
-                    print(f"[Speaker] 🔄 Falling back to default ALSA device...")
-                    proc = None  # Will be set to default below
-            
-            # Use default ALSA device with plug plugin (either no device detected or explicit device failed)
-            if proc is None:
-                # Use default device with plug plugin for automatic conversion
-                proc = subprocess.Popen(
-                    ["aplay", "-D", "plug:default", "-f", "S16_LE", "-r", str(PCM_SAMPLE_RATE), "-c", "1"],
+            # Using default avoids "Device or resource busy" errors from direct hardware access
+            # The plug plugin handles all format conversions automatically
+            proc = subprocess.Popen(
+                ["aplay", "-D", "plug:default", "-f", "S16_LE", "-r", str(PCM_SAMPLE_RATE), "-c", "1"],
                 stdin=subprocess.PIPE,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL
