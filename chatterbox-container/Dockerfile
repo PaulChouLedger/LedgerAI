@@ -46,11 +46,8 @@ RUN pip3 install \
     typer==0.9.0
 
 # Clone and install Chatterbox from source (skip dependencies to avoid conflicts)
-# Install additional Chatterbox dependencies that don't conflict
-RUN pip3 install \
-    spacy==3.6.1 \
-    russian-text-stresser \
-    && \
+# Note: russian-text-stresser may not be available on PyPI - skipping (optional for Russian support)
+RUN pip3 install spacy==3.6.1 || true && \
     git clone https://github.com/resemble-ai/chatterbox.git /tmp/chatterbox && \
     cd /tmp/chatterbox && \
     pip3 install -e . --no-deps && \
