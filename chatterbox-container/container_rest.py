@@ -116,6 +116,15 @@ def get_voice_embedding(voice_sample_path):
         print(f"[Chatterbox] ⚠️ Failed to extract voice embedding: {e}")
         return None
 
+@app.route('/', methods=['GET'])
+def root():
+    """Root endpoint"""
+    return jsonify({
+        "service": "chatterbox-tts",
+        "status": "running",
+        "message": "Chatterbox-TTS Container API"
+    })
+
 @app.route('/health', methods=['GET'])
 def health():
     """Health check endpoint"""
@@ -287,33 +296,61 @@ def extract_voice_embedding():
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
-    print("[Chatterbox] 🚀 Starting Chatterbox-TTS Container...")
-    print("[Chatterbox] 📦 Chatterbox installed from source (github.com/resemble-ai/chatterbox)")
+    import sys
+    import traceback
     
-    # CRITICAL: Verify CUDA is available at runtime (NO CPU FALLBACK)
-    import torch
-    if not torch.cuda.is_available():
-        print("❌ FATAL ERROR: CUDA is not available at runtime!")
-        print("   This container requires GPU support. CPU fallback is not allowed.")
-        print("   Ensure:")
-        print("   1. Container is run with --runtime=nvidia")
-        print("   2. NVIDIA Docker runtime is installed")
-        print("   3. GPU is accessible to the container")
-        exit(1)
-    
-    print(f"[Chatterbox] ✅ CUDA available: {torch.cuda.get_device_name(0)}")
-    print(f"[Chatterbox] ✅ PyTorch {torch.__version__} with CUDA {torch.version.cuda}")
-    
-    # Try to import Chatterbox at startup to catch errors early
-    print("[Chatterbox] 🔍 Pre-loading ChatterboxTTS...")
     try:
-        get_chatterbox_tts()
-        print("[Chatterbox] ✅ ChatterboxTTS pre-loaded successfully")
+        print("[Chatterbox] 🚀 Starting Chatterbox-TTS Container...", flush=True)
+        print("[Chatterbox] 📦 Chatterbox installed from source (github.com/resemble-ai/chatterbox)", flush=True)
+        
+        # CRITICAL: Verify CUDA is available at runtime (NO CPU FALLBACK)
+        print("[Chatterbox] 🔍 Checking CUDA availability...", flush=True)
+        try:
+            import torch
+            print(f"[Chatterbox] PyTorch version: {torch.__version__}", flush=True)
+            
+            if not torch.cuda.is_available():
+                print("❌ FATAL ERROR: CUDA is not available at runtime!", flush=True)
+                print("   This container requires GPU support. CPU fallback is not allowed.", flush=True)
+                print("   Ensure:", flush=True)
+                print("   1. Container is run with --runtime=nvidia", flush=True)
+                print("   2. NVIDIA Docker runtime is installed", flush=True)
+                print("   3. GPU is accessible to the container", flush=True)
+                sys.exit(1)
+            
+            print(f"[Chatterbox] ✅ CUDA available: {torch.cuda.get_device_name(0)}", flush=True)
+            print(f"[Chatterbox] ✅ PyTorch {torch.__version__} with CUDA {torch.version.cuda}", flush=True)
+        except Exception as e:
+            print(f"❌ FATAL ERROR during CUDA check: {e}", flush=True)
+            traceback.print_exc()
+            sys.exit(1)
+        
+        # Try to import Chatterbox at startup (non-blocking - Flask will start anyway)
+        print("[Chatterbox] 🔍 Pre-loading ChatterboxTTS (non-blocking)...", flush=True)
+        try:
+            # Don't block on this - just try it
+            get_chatterbox_tts()
+            print("[Chatterbox] ✅ ChatterboxTTS pre-loaded successfully", flush=True)
+        except Exception as e:
+            print(f"[Chatterbox] ⚠️ Pre-loading failed (will retry on first request): {e}", flush=True)
+            print("[Chatterbox] 💡 Container will start but synthesis may fail until Chatterbox loads", flush=True)
+            # Don't exit - let Flask start anyway
+        
+        print("[Chatterbox] 🌐 Starting Flask server on 0.0.0.0:11437...", flush=True)
+        print("[Chatterbox] ✅ Flask server is running - ready for requests", flush=True)
+        
+        # Ensure Flask output is not buffered
+        import sys
+        sys.stdout.flush()
+        sys.stderr.flush()
+        
+        app.run(host="0.0.0.0", port=11437, threaded=True, debug=False, use_reloader=False)
+        
+    except KeyboardInterrupt:
+        print("\n[Chatterbox] 👋 Shutting down...", flush=True)
+        sys.exit(0)
     except Exception as e:
-        print(f"[Chatterbox] ⚠️ Pre-loading failed (will retry on first request): {e}")
-        print("[Chatterbox] 💡 Container will start but synthesis may fail until Chatterbox loads")
-    
-    print("[Chatterbox] 🌐 Starting Flask server on 0.0.0.0:11437...")
-    
-    app.run(host="0.0.0.0", port=11437, threaded=True, debug=False)
+        print(f"❌ FATAL ERROR during startup: {e}", flush=True)
+        traceback.print_exc()
+        sys.exit(1)
 
