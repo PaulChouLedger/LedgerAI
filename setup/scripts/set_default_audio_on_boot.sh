@@ -31,8 +31,37 @@ EOF
         # Ensure proper ownership
         chmod 644 "$AURA_HOME/.asoundrc" 2>/dev/null || true
         
-        # Set PulseAudio default sink (if available) - uses dynamic name matching
-        if command -v pactl >/dev/null 2>&1; then
+        # Set PipeWire/PulseAudio default sink (if available) - uses dynamic name matching
+        # Try wpctl first (PipeWire native), then fallback to pactl (pipewire-pulse compatibility)
+        if command -v wpctl >/dev/null 2>&1; then
+            # Use PipeWire native wpctl command
+            # Wait for PipeWire to be ready
+            for i in {1..10}; do
+                if wpctl status 2>/dev/null | grep -q .; then
+                    break
+                fi
+                sleep 1
+            done
+            
+            # Find sink using wpctl
+            # wpctl status shows sinks with format: " *   42. Sink Name"
+            SINK_LINE=$(wpctl status 2>/dev/null | grep -i "Jieli_Technology_UACDemoV1.0\|UACDemoV1.0\|UACDemo" | grep -i "sink" | head -1)
+            SINK_ID=$(echo "$SINK_LINE" | sed -n 's/.*[^0-9]\([0-9][0-9]*\)\. .*/\1/p')
+            
+            if [ -n "$SINK_ID" ]; then
+                echo "[Audio] Setting PipeWire default sink to ID: $SINK_ID" >&2
+                # wpctl set-default sets default sink by ID
+                if wpctl set-default "$SINK_ID" 2>/dev/null; then
+                    echo "[Audio] ✅ Default sink set successfully (using wpctl)" >&2
+                else
+                    echo "[Audio] ⚠️  Failed to set default sink with wpctl, trying alternative method" >&2
+                    # Alternative: use pw-cli or check if pipewire-pulse provides pactl
+                fi
+            else
+                echo "[Audio] ⚠️  UACDemoV1.0 sink not found with wpctl" >&2
+                wpctl status 2>/dev/null | grep -i "sink" | head -5 >&2 || true
+            fi
+        elif command -v pactl >/dev/null 2>&1; then
             # Wait longer for PulseAudio to be ready (USB devices can take time)
             for i in {1..10}; do
                 if pactl list short sinks 2>/dev/null | grep -q .; then

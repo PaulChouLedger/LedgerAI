@@ -45,14 +45,31 @@ sudo apt install -y \
     pipewire-pulse \
     wireplumber \
     libspa-0.2-bluetooth \
-    libspa-0.2-jack || {
+    libspa-0.2-jack \
+    pipewire-audio-client-libraries || {
     echo -e "${RED}ERROR:${NC} Failed to install PipeWire packages"
     exit 1
 }
 
-# Step 3: Remove PulseAudio
-echo -e "${YELLOW}[STEP 4]${NC} Removing PulseAudio packages..."
-sudo apt remove -y pulseaudio pulseaudio-utils 2>/dev/null || true
+# Ensure pactl is available (pipewire-pulse provides it, but may need symlink)
+if ! command -v pactl >/dev/null 2>&1; then
+    echo -e "${YELLOW}[INFO]${NC} pactl not found, checking if pipewire-pulse provides it..."
+    if [ -f "/usr/bin/pw-cli" ]; then
+        echo -e "${YELLOW}[INFO]${NC} Using PipeWire native commands (wpctl/pw-cli) instead of pactl"
+    fi
+fi
+
+# Step 3: Remove PulseAudio (but keep pulseaudio-utils for pactl command)
+echo -e "${YELLOW}[STEP 4]${NC} Removing PulseAudio server (keeping pulseaudio-utils for pactl)..."
+# Remove PulseAudio server but keep pulseaudio-utils (contains pactl command)
+sudo apt remove -y pulseaudio 2>/dev/null || true
+# Check if pulseaudio-utils is installed, if not install it (needed for pactl)
+if ! command -v pactl >/dev/null 2>&1; then
+    echo -e "${YELLOW}[INFO]${NC} Installing pulseaudio-utils for pactl command (client tools only)..."
+    sudo apt install -y pulseaudio-utils 2>/dev/null || {
+        echo -e "${YELLOW}[INFO]${NC} pulseaudio-utils not available - will use wpctl instead"
+    }
+fi
 sudo apt autoremove -y 2>/dev/null || true
 
 # Step 4: Configure PipeWire to start on boot
@@ -61,18 +78,56 @@ systemctl --user enable pipewire.service 2>/dev/null || true
 systemctl --user enable pipewire-pulse.service 2>/dev/null || true
 systemctl --user enable wireplumber.service 2>/dev/null || true
 
-# Step 5: Start PipeWire
+# Step 5: Start PipeWire services in correct order
 echo -e "${YELLOW}[STEP 6]${NC} Starting PipeWire services..."
+echo "  Starting pipewire.service..."
 systemctl --user start pipewire.service 2>/dev/null || true
-systemctl --user start pipewire-pulse.service 2>/dev/null || true
-systemctl --user start wireplumber.service 2>/dev/null || true
+sleep 1
 
-# Wait for PipeWire to initialize
-echo -e "${YELLOW}[STEP 7]${NC} Waiting for PipeWire to initialize..."
+echo "  Starting wireplumber.service..."
+systemctl --user start wireplumber.service 2>/dev/null || true
+sleep 1
+
+echo "  Starting pipewire-pulse.service..."
+systemctl --user start pipewire-pulse.service 2>/dev/null || true
+sleep 2
+
+# Verify pipewire-pulse is running (provides pactl compatibility)
+echo -e "${YELLOW}[STEP 7]${NC} Verifying pipewire-pulse is running..."
+if systemctl --user is-active --quiet pipewire-pulse.service; then
+    echo -e "${GREEN}✅${NC} pipewire-pulse.service is active"
+else
+    echo -e "${RED}⚠️${NC} pipewire-pulse.service is not active - starting..."
+    systemctl --user start pipewire-pulse.service
+    sleep 2
+    if systemctl --user is-active --quiet pipewire-pulse.service; then
+        echo -e "${GREEN}✅${NC} pipewire-pulse.service started successfully"
+    else
+        echo -e "${RED}⚠️${NC} Failed to start pipewire-pulse.service"
+        echo -e "${YELLOW}[INFO]${NC} Check logs: journalctl --user -u pipewire-pulse.service"
+    fi
+fi
+
+# Wait for PipeWire to fully initialize
+echo -e "${YELLOW}[STEP 8]${NC} Waiting for PipeWire to initialize..."
 sleep 3
 
+# Verify pactl is available (provided by pipewire-pulse)
+if command -v pactl >/dev/null 2>&1; then
+    echo -e "${GREEN}✅${NC} pactl is available (pipewire-pulse compatibility)"
+    # Test if pactl can connect to pipewire-pulse
+    if pactl info 2>/dev/null | grep -q "pipewire\|PipeWire"; then
+        echo -e "${GREEN}✅${NC} pactl is connected to PipeWire"
+    else
+        echo -e "${YELLOW}⚠️${NC} pactl found but may not be connected to PipeWire"
+    fi
+else
+    echo -e "${YELLOW}⚠️${NC} pactl not found - wpctl will be used instead"
+    echo -e "${YELLOW}[INFO]${NC} This is OK - wpctl is the native PipeWire command"
+fi
+
 # Step 6: Configure Wireplumber to prevent USB audio suspension
-echo -e "${YELLOW}[STEP 8]${NC} Configuring Wireplumber to prevent USB audio suspension..."
+echo -e "${YELLOW}[STEP 9]${NC} Configuring Wireplumber to prevent USB audio suspension..."
 WIREPLUMBER_CONFIG_DIR="$AURA_HOME/.config/wireplumber"
 mkdir -p "$WIREPLUMBER_CONFIG_DIR/main.lua.d"
 
@@ -114,43 +169,47 @@ chmod 644 "$WIREPLUMBER_CONFIG_DIR/main.lua.d/99-usb-audio-no-suspend.lua"
 echo -e "${GREEN}✅${NC} Wireplumber configuration created"
 
 # Step 7: Restart PipeWire and Wireplumber to apply configuration
-echo -e "${YELLOW}[STEP 9]${NC} Restarting PipeWire and Wireplumber to apply configuration..."
+echo -e "${YELLOW}[STEP 10]${NC} Restarting PipeWire and Wireplumber to apply configuration..."
 systemctl --user restart wireplumber.service 2>/dev/null || true
 systemctl --user restart pipewire.service 2>/dev/null || true
 systemctl --user restart pipewire-pulse.service 2>/dev/null || true
 sleep 3
 
 # Step 8: Verify PipeWire is working
-echo -e "${YELLOW}[STEP 10]${NC} Verifying PipeWire installation..."
+echo -e "${YELLOW}[STEP 11]${NC} Verifying PipeWire installation..."
 if systemctl --user is-active --quiet pipewire.service; then
     echo -e "${GREEN}✅${NC} PipeWire service is active"
 else
     echo -e "${RED}⚠️${NC} PipeWire service not active - may need manual start"
 fi
 
-if command -v pactl >/dev/null 2>&1; then
-    if pactl info 2>/dev/null | grep -q "pipewire"; then
-        echo -e "${GREEN}✅${NC} PipeWire is active (pactl shows pipewire)"
-    else
-        echo -e "${YELLOW}⚠️${NC} PipeWire may not be fully initialized"
-    fi
-    
+# Note: pipewire-pulse should provide pactl, but wpctl is the native PipeWire command
+if ! command -v pactl >/dev/null 2>&1; then
+    echo -e "${YELLOW}[INFO]${NC} pactl not available - using wpctl (PipeWire native) instead"
+    echo -e "${YELLOW}[INFO]${NC} This is normal - wpctl is the recommended PipeWire command"
+fi
+
+# Use wpctl (PipeWire native) for verification
+if command -v wpctl >/dev/null 2>&1; then
     echo ""
-    echo "Available audio sources (pactl):"
+    echo "PipeWire status (wpctl):"
+    wpctl status 2>/dev/null | head -20 || echo "  (wpctl not working)"
+    echo ""
+    echo "XVF3800 devices:"
+    wpctl status 2>/dev/null | grep -i "XVF3800\|reSpeaker" || echo "  (none found)"
+fi
+
+# Also check pactl if available (pipewire-pulse compatibility)
+if command -v pactl >/dev/null 2>&1; then
+    echo ""
+    echo "PipeWire sources (pactl - pipewire-pulse compatibility):"
     pactl list short sources 2>/dev/null | head -5 || echo "  (none found)"
     echo ""
-    echo "Available audio sinks (pactl):"
+    echo "PipeWire sinks (pactl):"
     pactl list short sinks 2>/dev/null | head -5 || echo "  (none found)"
     echo ""
-    echo "XVF3800 sources:"
+    echo "XVF3800 sources (pactl):"
     pactl list short sources 2>/dev/null | grep -i "XVF3800\|reSpeaker" || echo "  (none found)"
-    echo ""
-    echo "Using wpctl (PipeWire native):"
-    if command -v wpctl >/dev/null 2>&1; then
-        wpctl status 2>/dev/null | grep -i "XVF3800\|reSpeaker" || echo "  (none found)"
-    else
-        echo "  wpctl not available"
-    fi
 fi
 
 echo ""
@@ -162,9 +221,14 @@ echo "PipeWire has replaced PulseAudio."
 echo "USB audio devices should now stay IDLE instead of SUSPENDED."
 echo ""
 echo "To verify:"
-echo "  pactl list short sources | grep XVF3800"
 echo "  wpctl status | grep XVF3800"
-echo "  (Should show IDLE/RUNNING instead of SUSPENDED)"
+if command -v pactl >/dev/null 2>&1; then
+    echo "  pactl list short sources | grep XVF3800"
+fi
+echo "  (Should show device as available, not suspended)"
+echo ""
+echo "Note: wpctl is the native PipeWire command"
+echo "      pactl is provided by pipewire-pulse for compatibility"
 echo ""
 echo "If you need to restart PipeWire:"
 echo "  systemctl --user restart wireplumber.service"
