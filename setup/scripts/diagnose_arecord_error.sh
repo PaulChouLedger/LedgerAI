@@ -131,30 +131,103 @@ echo -e "${GREEN}[STEP 7.1]${NC} Checking device states (suspended/idle/active).
 echo "----------------------------------------"
 if command -v pw-cli >/dev/null 2>&1; then
     echo "XVF3800 device states:"
-    # List all nodes and find XVF3800 ones
-    pw-cli list-objects Node 2>/dev/null | while IFS= read -r line; do
-        if echo "$line" | grep -q "XVF3800\|reSpeaker"; then
-            echo "$line"
-            # Get the node ID from the line
-            NODE_ID=$(echo "$line" | grep -oP '"id":\s*\K[0-9]+' | head -1)
-            if [ -n "$NODE_ID" ]; then
-                echo "  Node ID: $NODE_ID"
-                # Get state information for this node
-                pw-cli info "$NODE_ID" 2>/dev/null | grep -E "state|suspend|media\.class|device\.suspend-on-idle|node\.name" | head -5 | sed 's/^/    /'
-            fi
-        fi
-    done | head -30 || echo "  (none found or pw-cli failed)"
     echo ""
     
-    # Alternative: Use pw-dump for JSON output (more reliable)
+    # Extract node IDs for XVF3800 devices (look for "id 42" pattern)
+    NODE_IDS=$(pw-cli list-objects Node 2>/dev/null | grep -B 5 "XVF3800\|reSpeaker" | grep "^[[:space:]]*id [0-9]" | awk '{print $2}' | sort -u)
+    
+    if [ -n "$NODE_IDS" ]; then
+        for NODE_ID in $NODE_IDS; do
+            # Get full node info
+            NODE_INFO=$(pw-cli info "$NODE_ID" 2>/dev/null)
+            
+            if [ -z "$NODE_INFO" ]; then
+                continue
+            fi
+            
+            # Extract node properties
+            NODE_NAME=$(echo "$NODE_INFO" | grep "node.name" | head -1 | sed 's/.*= "\(.*\)"/\1/')
+            NODE_DESC=$(echo "$NODE_INFO" | grep "node.description" | head -1 | sed 's/.*= "\(.*\)"/\1/')
+            MEDIA_CLASS=$(echo "$NODE_INFO" | grep "media.class" | head -1 | sed 's/.*= "\(.*\)"/\1/')
+            
+            # Check suspend-on-idle setting
+            SUSPEND_ON_IDLE=$(echo "$NODE_INFO" | grep "device.suspend-on-idle" | head -1 | sed 's/.*= "\(.*\)"/\1/' || echo "not set")
+            
+            # Check port information (input/output ports)
+            INPUT_PORTS=$(echo "$NODE_INFO" | grep "input ports:" | head -1 | sed 's/.*input ports: \([0-9]*\)\/\([0-9]*\).*/\1\/\2/' || echo "0/0")
+            OUTPUT_PORTS=$(echo "$NODE_INFO" | grep "output ports:" | head -1 | sed 's/.*output ports: \([0-9]*\)\/\([0-9]*\).*/\1\/\2/' || echo "0/0")
+            
+            echo "Node ID $NODE_ID:"
+            [ -n "$NODE_DESC" ] && echo "  Description: $NODE_DESC"
+            [ -n "$NODE_NAME" ] && echo "  Name: $NODE_NAME"
+            [ -n "$MEDIA_CLASS" ] && echo "  Type: $MEDIA_CLASS"
+            echo "  Input ports: $INPUT_PORTS"
+            echo "  Output ports: $OUTPUT_PORTS"
+            echo "  Suspend-on-idle: $SUSPEND_ON_IDLE"
+            
+            # Determine status based on port counts and media class
+            # Note: In PipeWire, Audio/Source (microphone) OUTPUTS audio, so it has OUTPUT ports
+            #       Audio/Sink (speaker) RECEIVES audio, so it has INPUT ports
+            if echo "$MEDIA_CLASS" | grep -q "Source\|Input"; then
+                # For Audio/Source (microphone): 
+                # - Input ports: 0/0 is NORMAL (it doesn't receive audio)
+                # - Output ports: >0 means it's OUTPUTTING audio (capturing)
+                OUTPUT_COUNT=$(echo "$OUTPUT_PORTS" | cut -d'/' -f1)
+                OUTPUT_TOTAL=$(echo "$OUTPUT_PORTS" | cut -d'/' -f2)
+                if [ "$OUTPUT_COUNT" -gt 0 ]; then
+                    echo "  Status: ✅ ACTIVE (has $OUTPUT_COUNT/$OUTPUT_TOTAL output port(s) - capturing audio)"
+                    echo "  Note: Input ports 0/0 is normal for Audio/Source (microphones don't receive audio)"
+                else
+                    echo "  Status: ⚠️  IDLE/SUSPENDED (no output ports - not capturing)"
+                    echo "  Note: Input ports 0/0 is normal, but 0 output ports means not active"
+                fi
+            elif echo "$MEDIA_CLASS" | grep -q "Sink\|Output"; then
+                # For Audio/Sink (speaker):
+                # - Output ports: 0/0 is NORMAL (it doesn't output audio)
+                # - Input ports: >0 means it's RECEIVING audio (playing)
+                INPUT_COUNT=$(echo "$INPUT_PORTS" | cut -d'/' -f1)
+                INPUT_TOTAL=$(echo "$INPUT_PORTS" | cut -d'/' -f2)
+                if [ "$INPUT_COUNT" -gt 0 ]; then
+                    echo "  Status: ✅ ACTIVE (has $INPUT_COUNT/$INPUT_TOTAL input port(s) - playing audio)"
+                    echo "  Note: Output ports 0/0 is normal for Audio/Sink (speakers don't output audio)"
+                else
+                    echo "  Status: ⚠️  IDLE/SUSPENDED (no input ports - not playing)"
+                    echo "  Note: Output ports 0/0 is normal, but 0 input ports means not active"
+                fi
+            else
+                echo "  Status: ℹ️  Unknown media class"
+            fi
+            
+            # For input nodes specifically, check if they can capture
+            if echo "$MEDIA_CLASS" | grep -q "Source\|Input"; then
+                echo "  (Input/Source node)"
+                # Check if device is actually accessible via ALSA
+                ALSA_NAME=$(echo "$NODE_NAME" | sed 's/alsa_\(input\|output\)\.//' | sed 's/\..*//')
+                if [ -n "$ALSA_NAME" ]; then
+                    echo "  ALSA device: $ALSA_NAME"
+                    # Check if ALSA can see this device
+                    if arecord -l 2>/dev/null | grep -q "$ALSA_NAME\|XVF3800"; then
+                        echo "  ALSA status: ✅ Device visible to ALSA"
+                    else
+                        echo "  ALSA status: ⚠️  Device not visible to ALSA"
+                    fi
+                fi
+            fi
+            echo ""
+        done
+    else
+        echo "  (no XVF3800 nodes found)"
+    fi
+    
+    # Alternative: Use pw-dump for more detailed JSON output
     if command -v pw-dump >/dev/null 2>&1; then
-        echo "Device states (from pw-dump):"
-        pw-dump 2>/dev/null | grep -A 50 "XVF3800\|reSpeaker" | grep -E '"id"|"name"|"state"|"suspend"|"media\.class"|"device\.suspend-on-idle"' | head -20 | sed 's/^/  /' || echo "  (could not get state)"
+        echo "Device states (from pw-dump - more detailed):"
+        pw-dump 2>/dev/null | jq -r '.[] | select(.info.props."node.name" | contains("XVF3800") or contains("reSpeaker")) | "\(.id): \(.info.props."node.name") - State: \(.info.state // "unknown")"' 2>/dev/null || {
+            # Fallback if jq not available
+            pw-dump 2>/dev/null | grep -A 30 "XVF3800\|reSpeaker" | grep -E '"id"|"name"|"state"' | head -20 | sed 's/^/  /' || echo "  (could not get state)"
+        }
     fi
     echo ""
-    
-    echo "Quick state check (all audio input nodes):"
-    pw-cli list-objects Node 2>/dev/null | grep -B 3 -A 10 "media.class.*Audio/Source\|media.class.*Audio/Input" | grep -E '"id"|"name"|"state"' | head -15 | sed 's/^/  /' || echo "  (could not list input nodes)"
 else
     echo "pw-cli not found - cannot check detailed device states"
     echo "Install: sudo apt install pipewire-cli"
