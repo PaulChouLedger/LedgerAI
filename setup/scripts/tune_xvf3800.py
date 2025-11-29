@@ -124,6 +124,62 @@ def disable_all_leds():
     
     return success
 
+def initialize_gpio_pins():
+    """Initialize GPIO pins for microphone and amplifier
+    
+    Critical GPIO pins:
+    - X0D30: Microphone mute circuit control (LOW = unmuted, HIGH = muted)
+    - X0D31: Audio amplifier enable (LOW = enabled, HIGH = disabled)
+    
+    These must be set correctly for audio capture to work!
+    """
+    print("[GPIO] Initializing GPIO pins for audio capture...")
+    
+    success_count = 0
+    
+    # X0D30: Set microphone mute circuit to LOW (unmuted)
+    # This is critical - if HIGH, microphone is muted and won't capture audio
+    result = run_xvf_command("GPO_WRITE_VALUE", 30, 0)
+    if result is not None:
+        print("  ✅ Set X0D30 (mic mute) = LOW (microphones unmuted)")
+        success_count += 1
+    else:
+        print("  ⚠️  Failed to set X0D30 (mic mute) - microphone may be muted!")
+    
+    # X0D31: Set audio amplifier enable to LOW (enabled)
+    # This is critical - if HIGH, amplifier is disabled
+    result = run_xvf_command("GPO_WRITE_VALUE", 31, 0)
+    if result is not None:
+        print("  ✅ Set X0D31 (amp enable) = LOW (amplifier enabled)")
+        success_count += 1
+    else:
+        print("  ⚠️  Failed to set X0D31 (amp enable) - amplifier may be disabled!")
+    
+    # Verify GPIO state
+    result = run_xvf_command("GPO_READ_VALUES")
+    if result:
+        # Parse output: "GPO_READ_VALUES 0 0 0 1 0"
+        # Values are: X0D11, X0D30, X0D31, X0D33, X0D39
+        values = result.split()
+        if len(values) >= 4:
+            x0d30 = values[1] if len(values) > 1 else "?"
+            x0d31 = values[2] if len(values) > 2 else "?"
+            print(f"  📊 Current GPIO state: X0D30={x0d30} (mic mute), X0D31={x0d31} (amp enable)")
+            
+            if x0d30 == "0" and x0d31 == "0":
+                print("  ✅ GPIO pins correctly configured for audio capture")
+                success_count += 1
+            else:
+                print(f"  ⚠️  GPIO pins may not be correct: X0D30={x0d30}, X0D31={x0d31}")
+    
+    if success_count >= 2:
+        print("  💡 GPIO initialization complete - audio capture should work")
+    else:
+        print("  ⚠️  GPIO initialization may have failed - audio capture may not work")
+        print("  💡 Check if xvf_host is properly installed and device is connected")
+    
+    return success_count >= 2
+
 def save_config_state(preset, config_dict):
     """Save current configuration to a file for listener to read"""
     try:
@@ -144,6 +200,10 @@ def configure_balanced_beam():
     print("\n" + "="*80)
     print("  ⚖️  BALANCED BEAM - Recommended Configuration")
     print("="*80 + "\n")
+    
+    # Initialize GPIO pins FIRST (critical for audio capture)
+    initialize_gpio_pins()
+    print()
     
     # Disable LEDs to reduce power draw
     disable_all_leds()
@@ -190,6 +250,10 @@ def configure_ultra_sensitive():
     print("  🔥 ULTRA SENSITIVE - Maximum Far-Field Detection")
     print("="*80 + "\n")
     
+    # Initialize GPIO pins FIRST (critical for audio capture)
+    initialize_gpio_pins()
+    print()
+    
     # Disable LEDs to reduce power draw
     disable_all_leds()
     print()
@@ -232,6 +296,10 @@ def configure_far_field():
     print("  🎯 FAR-FIELD CONFIGURATION")
     print("="*80 + "\n")
     
+    # Initialize GPIO pins FIRST (critical for audio capture)
+    initialize_gpio_pins()
+    print()
+    
     # Disable LEDs to reduce power draw
     disable_all_leds()
     print()
@@ -271,6 +339,10 @@ def configure_near_field():
     print("\n" + "="*80)
     print("  🎯 NEAR-FIELD CONFIGURATION")
     print("="*80 + "\n")
+    
+    # Initialize GPIO pins FIRST (critical for audio capture)
+    initialize_gpio_pins()
+    print()
     
     # Disable LEDs to reduce power draw
     disable_all_leds()
@@ -312,6 +384,10 @@ def configure_hpf_only():
     print("  🎚️  HIGH-PASS FILTER ONLY - 70Hz")
     print("="*80 + "\n")
     
+    # Initialize GPIO pins FIRST (critical for audio capture)
+    initialize_gpio_pins()
+    print()
+    
     # Disable LEDs to reduce power draw
     disable_all_leds()
     print()
@@ -347,6 +423,10 @@ def configure_agc_only():
     print("\n" + "="*80)
     print("  🔧 AGC ONLY")
     print("="*80 + "\n")
+    
+    # Initialize GPIO pins FIRST (critical for audio capture)
+    initialize_gpio_pins()
+    print()
     
     # Disable LEDs to reduce power draw
     disable_all_leds()
@@ -388,6 +468,10 @@ def configure_agc_10():
     print("\n" + "="*80)
     print("  🔊 AGC 10% INCREASE")
     print("="*80 + "\n")
+    
+    # Initialize GPIO pins FIRST (critical for audio capture)
+    initialize_gpio_pins()
+    print()
     
     # Disable LEDs to reduce power draw
     disable_all_leds()
@@ -433,6 +517,10 @@ def configure_agc_20():
     print("  🔊 AGC 20% INCREASE")
     print("="*80 + "\n")
     
+    # Initialize GPIO pins FIRST (critical for audio capture)
+    initialize_gpio_pins()
+    print()
+    
     # Disable LEDs to reduce power draw
     disable_all_leds()
     print()
@@ -476,6 +564,10 @@ def configure_agc_20_ec():
     print("\n" + "="*80)
     print("  🔊 AGC 20% INCREASE + ECHO CANCELLATION")
     print("="*80 + "\n")
+    
+    # Initialize GPIO pins FIRST (critical for audio capture)
+    initialize_gpio_pins()
+    print()
     
     # Disable LEDs to reduce power draw
     disable_all_leds()

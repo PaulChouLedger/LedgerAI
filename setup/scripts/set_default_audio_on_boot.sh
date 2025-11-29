@@ -1,8 +1,7 @@
 #!/bin/bash
 # Set default audio output to UACDemoV1.0 on boot
 # This script is called by the aura.service systemd unit
-# It configures both ALSA and PipeWire to use UACDemoV1.0 as default
-# Uses PipeWire native commands (wpctl) - no PulseAudio compatibility layer
+# It configures both ALSA and PulseAudio to use UACDemoV1.0 as default
 
 # Get user home directory (script runs as the service user)
 AURA_HOME="${HOME:-/home/ledger}"
@@ -32,38 +31,91 @@ EOF
         # Ensure proper ownership
         chmod 644 "$AURA_HOME/.asoundrc" 2>/dev/null || true
         
-        # Set PipeWire default sink (using wpctl - PipeWire native command)
-        if command -v wpctl >/dev/null 2>&1; then
-            # Use PipeWire native wpctl command
-            # Wait for PipeWire to be ready
+        # Set PulseAudio default sink (if available) - uses dynamic name matching
+        if command -v pactl >/dev/null 2>&1; then
+            # Wait longer for PulseAudio to be ready (USB devices can take time)
             for i in {1..10}; do
-                if wpctl status 2>/dev/null | grep -q .; then
+                if pactl list short sinks 2>/dev/null | grep -q .; then
                     break
                 fi
                 sleep 1
             done
             
-            # Find sink using wpctl
-            # wpctl status shows sinks with format: " *   42. Sink Name" or "      42. Sink Name"
-            SINK_LINE=$(wpctl status 2>/dev/null | grep -i "Jieli_Technology_UACDemoV1.0\|UACDemoV1.0\|UACDemo" | grep -i "sink" | head -1)
-            SINK_ID=$(echo "$SINK_LINE" | sed -n 's/.*[^0-9]\([0-9][0-9]*\)\. .*/\1/p')
+            # Try multiple methods to find the sink
+            # Priority: Match constant pattern "Jieli_Technology_UACDemoV1.0" (works across all device IDs)
+            # Method 1: Look for "Jieli_Technology_UACDemoV1.0" pattern (constant part, ignores device ID)
+            SINK_NAME=$(pactl list short sinks 2>/dev/null | grep -i "Jieli_Technology_UACDemoV1.0" | awk '{print $2}' | head -1)
             
-            if [ -n "$SINK_ID" ]; then
-                echo "[Audio] Setting PipeWire default sink to ID: $SINK_ID" >&2
-                # wpctl set-default sets default sink by ID
-                if wpctl set-default "$SINK_ID" 2>/dev/null; then
-                    echo "[Audio] ✅ Default sink set successfully (using wpctl)" >&2
+            # Method 2: Look for "Jieli.*Technology.*UACDemoV1.0" (more flexible pattern matching)
+            if [ -z "$SINK_NAME" ]; then
+                SINK_NAME=$(pactl list short sinks 2>/dev/null | grep -iE "Jieli.*Technology.*UACDemoV1\.0|Jieli_Technology_UACDemoV1\.0" | awk '{print $2}' | head -1)
+            fi
+            
+            # Method 3: Look for UACDemoV1.0 anywhere (fallback if Jieli pattern doesn't match)
+            if [ -z "$SINK_NAME" ]; then
+                SINK_NAME=$(pactl list short sinks 2>/dev/null | grep -i "UACDemoV1.0" | awk '{print $2}' | head -1)
+            fi
+            
+            # Method 4: Look for Jieli Technology with UACDemo (without version)
+            if [ -z "$SINK_NAME" ]; then
+                SINK_NAME=$(pactl list short sinks 2>/dev/null | grep -i "Jieli.*Technology.*UACDemo\|Jieli.*UACDemo" | awk '{print $2}' | head -1)
+            fi
+            
+            # Method 5: Look for UACDemo anywhere (broader fallback)
+            if [ -z "$SINK_NAME" ]; then
+                SINK_NAME=$(pactl list short sinks 2>/dev/null | grep -i "UACDemo" | awk '{print $2}' | head -1)
+            fi
+            
+            # Method 6: Look for USB audio devices with "analog-stereo" (last resort fallback)
+            if [ -z "$SINK_NAME" ]; then
+                SINK_NAME=$(pactl list short sinks 2>/dev/null | grep -i "usb.*analog-stereo" | awk '{print $2}' | head -1)
+            fi
+            
+            if [ -n "$SINK_NAME" ]; then
+                echo "[Audio] Setting PulseAudio default sink to: $SINK_NAME" >&2
+                
+                # Try to set default sink
+                SET_SUCCESS=false
+                
+                # Method 1: Try directly
+                if pactl set-default-sink "$SINK_NAME" 2>/dev/null; then
+                    echo "[Audio] ✅ Default sink set successfully" >&2
+                    SET_SUCCESS=true
                 else
-                    echo "[Audio] ⚠️  Failed to set default sink with wpctl" >&2
-                    echo "[Audio] 💡 Try manually: wpctl set-default $SINK_ID" >&2
+                    # Method 2: Try with XDG_RUNTIME_DIR if available
+                    if [ -n "$XDG_RUNTIME_DIR" ] && [ -S "$XDG_RUNTIME_DIR/pulse/native" ]; then
+                        export PULSE_RUNTIME_PATH="$XDG_RUNTIME_DIR/pulse"
+                        if pactl set-default-sink "$SINK_NAME" 2>/dev/null; then
+                            echo "[Audio] ✅ Default sink set successfully (using XDG_RUNTIME_DIR)" >&2
+                            SET_SUCCESS=true
+                        fi
+                    fi
+                    
+                    # Method 3: Try finding PulseAudio socket in common locations
+                    if [ "$SET_SUCCESS" = false ]; then
+                        for runtime_dir in /run/user/*; do
+                            if [ -S "$runtime_dir/pulse/native" ]; then
+                                export PULSE_RUNTIME_PATH="$runtime_dir/pulse"
+                                if pactl set-default-sink "$SINK_NAME" 2>/dev/null; then
+                                    echo "[Audio] ✅ Default sink set successfully (found socket in $runtime_dir)" >&2
+                                    SET_SUCCESS=true
+                                    break
+                                fi
+                            fi
+                        done
+                    fi
+                    
+                    if [ "$SET_SUCCESS" = false ]; then
+                        echo "[Audio] ⚠️  Failed to set default sink" >&2
+                        echo "[Audio] 💡 You may need to run manually:" >&2
+                        echo "[Audio]    pactl set-default-sink \"$SINK_NAME\"" >&2
+                    fi
                 fi
             else
-                echo "[Audio] ⚠️  UACDemoV1.0 sink not found with wpctl" >&2
+                echo "[Audio] ⚠️  UACDemoV1.0 sink not found in PulseAudio" >&2
                 echo "[Audio] Available sinks:" >&2
-                wpctl status 2>/dev/null | grep -i "sink" | head -5 >&2 || true
+                pactl list short sinks 2>/dev/null | awk '{print "  " $2}' >&2 || true
             fi
-        else
-            echo "[Audio] ⚠️  wpctl not found - PipeWire may not be installed" >&2
         fi
     fi
 else

@@ -104,8 +104,7 @@ sudo apt install -y \
     x11-xserver-utils \
     alsa-utils \
     libasound2-dev \
-    pipewire \
-    wireplumber \
+    pulseaudio \
     qtbase5-dev \
     qttools5-dev \
     qttools5-dev-tools \
@@ -1428,7 +1427,7 @@ ExecStartPre=/bin/bash -c 'SOCKET=\$(ls /tmp/.X11-unix/ 2>/dev/null | grep "^X" 
 ExecStartPre=/bin/bash -c 'SOCKET=\$(ls /tmp/.X11-unix/ 2>/dev/null | grep "^X" | head -1); if [ -n "\$SOCKET" ]; then NUM=\$(echo "\$SOCKET" | sed "s/X//"); export DISPLAY=:\$NUM; else export DISPLAY=:0; fi; gsettings set org.gnome.desktop.screensaver lock-enabled false 2>/dev/null || true'
 ExecStartPre=/bin/bash -c 'SOCKET=\$(ls /tmp/.X11-unix/ 2>/dev/null | grep "^X" | head -1); if [ -n "\$SOCKET" ]; then NUM=\$(echo "\$SOCKET" | sed "s/X//"); export DISPLAY=:\$NUM; else export DISPLAY=:0; fi; gsettings set org.gnome.desktop.lockdown disable-lock-screen true 2>/dev/null || true'
 ExecStartPre=/bin/bash -c 'SOCKET=\$(ls /tmp/.X11-unix/ 2>/dev/null | grep "^X" | head -1); if [ -n "\$SOCKET" ]; then NUM=\$(echo "\$SOCKET" | sed "s/X//"); export DISPLAY=:\$NUM; else export DISPLAY=:0; fi; gsettings set org.gnome.desktop.screensaver idle-activation-enabled false 2>/dev/null || true'
-# Set default audio output (UACDemoV1.0) on every boot - ALSA and PipeWire
+# Set default audio output (UACDemoV1.0) on every boot - ALSA and PulseAudio
 ExecStartPre=$LEDGERAI_DIR/setup/scripts/set_default_audio_on_boot.sh
 ExecStartPre=/bin/sleep 5
 ExecStart=$VENV_DIR/bin/python3 -u $LEDGERAI_DIR/aura-control/core/main.py
@@ -1536,140 +1535,6 @@ print_info "Docker configured"
 
 echo ""
 
-# ============================================================================
-# Step 12.5: Replace PulseAudio with PipeWire
-# ============================================================================
-print_step "12.5. Replacing PulseAudio with PipeWire..."
-
-# Stop and disable PulseAudio if running
-if systemctl is-active --quiet pulseaudio 2>/dev/null || systemctl is-active --quiet pulseaudio.socket 2>/dev/null; then
-    print_info "Stopping PulseAudio..."
-    systemctl --user stop pulseaudio 2>/dev/null || true
-    systemctl --user stop pulseaudio.socket 2>/dev/null || true
-    systemctl --user disable pulseaudio 2>/dev/null || true
-    systemctl --user disable pulseaudio.socket 2>/dev/null || true
-    sudo systemctl stop pulseaudio 2>/dev/null || true
-    sudo systemctl disable pulseaudio 2>/dev/null || true
-fi
-
-# Kill any running PulseAudio processes
-print_info "Killing PulseAudio processes..."
-pkill -9 pulseaudio 2>/dev/null || true
-
-# Install PipeWire and related packages (standalone, no PulseAudio compatibility)
-print_info "Installing PipeWire (standalone)..."
-sudo apt install -y \
-    pipewire \
-    wireplumber \
-    libspa-0.2-bluetooth \
-    libspa-0.2-jack || {
-    print_error "Failed to install PipeWire packages"
-    exit 1
-}
-print_info "✅ PipeWire installed (standalone mode - no PulseAudio compatibility)"
-
-# Remove PulseAudio completely (including pipewire-pulse)
-print_info "Removing PulseAudio and pipewire-pulse completely..."
-sudo apt remove -y pulseaudio pulseaudio-utils pipewire-pulse 2>/dev/null || true
-sudo apt autoremove -y 2>/dev/null || true
-print_info "✅ PulseAudio and pipewire-pulse removed - using PipeWire standalone"
-
-# Configure PipeWire to start on boot
-print_info "Configuring PipeWire to start on boot..."
-
-# Enable user services
-systemctl --user enable pipewire.service 2>/dev/null || true
-systemctl --user enable pipewire-pulse.service 2>/dev/null || true
-systemctl --user enable wireplumber.service 2>/dev/null || true
-
-# Start PipeWire services in correct order
-print_info "Starting PipeWire services..."
-print_info "  Starting pipewire.service..."
-systemctl --user start pipewire.service 2>/dev/null || true
-sleep 1
-
-print_info "  Starting wireplumber.service..."
-systemctl --user start wireplumber.service 2>/dev/null || true
-sleep 1
-
-# Verify PipeWire services are running
-if systemctl --user is-active --quiet pipewire.service; then
-    print_info "✅ pipewire.service is running"
-else
-    print_warning "⚠️  pipewire.service not active - may need manual start"
-fi
-
-if systemctl --user is-active --quiet wireplumber.service; then
-    print_info "✅ wireplumber.service is running"
-else
-    print_warning "⚠️  wireplumber.service not active - may need manual start"
-fi
-
-# Verify wpctl is available (PipeWire native command)
-if command -v wpctl >/dev/null 2>&1; then
-    print_info "✅ wpctl is available (PipeWire native command)"
-else
-    print_warning "⚠️  wpctl not found - may need to install wireplumber"
-fi
-
-# Configure Wireplumber to prevent USB audio device suspension
-print_info "Configuring Wireplumber to prevent USB audio suspension..."
-WIREPLUMBER_CONFIG_DIR="$AURA_HOME/.config/wireplumber"
-mkdir -p "$WIREPLUMBER_CONFIG_DIR/main.lua.d"
-
-# Create Wireplumber policy to prevent USB audio device suspension
-cat > "$WIREPLUMBER_CONFIG_DIR/main.lua.d/99-usb-audio-no-suspend.lua" << 'EOFWIREPLUMBER'
--- Prevent USB audio devices from auto-suspending
--- This ensures USB microphones stay IDLE instead of SUSPENDED
-
-alsa_monitor.rules = {
-  {
-    matches = {
-      {
-        { "device.name", "matches", "alsa.*" },
-      },
-    },
-    apply_properties = {
-      ["device.suspend-on-idle"] = false,
-    },
-  },
-  {
-    matches = {
-      {
-        { "node.name", "matches", "alsa.*" },
-      },
-    },
-    apply_properties = {
-      ["node.suspend-on-idle"] = false,
-    },
-  },
-}
-EOFWIREPLUMBER
-
-chown "$AURA_USER:$AURA_USER" "$WIREPLUMBER_CONFIG_DIR/main.lua.d/99-usb-audio-no-suspend.lua" 2>/dev/null || true
-print_info "✅ Wireplumber configuration created"
-
-# Restart Wireplumber and PipeWire to apply configuration
-print_info "Restarting Wireplumber and PipeWire to apply configuration..."
-systemctl --user restart wireplumber.service 2>/dev/null || true
-systemctl --user restart pipewire.service 2>/dev/null || true
-sleep 3
-
-# Verify PipeWire can see audio devices
-if command -v pactl >/dev/null 2>&1; then
-    print_info "Verifying PipeWire audio devices..."
-    if pactl info 2>/dev/null | grep -q "pipewire"; then
-        print_info "✅ PipeWire is active (pactl shows pipewire)"
-    else
-        print_warning "⚠️  PipeWire may not be fully initialized"
-    fi
-fi
-
-print_info "✅ PipeWire installation and configuration complete"
-print_info "   PulseAudio has been replaced with PipeWire"
-print_info "   USB audio devices will stay IDLE instead of SUSPENDED"
-
-echo ""
 
 # ============================================================================
 # Step 13: Set permissions for audio devices
