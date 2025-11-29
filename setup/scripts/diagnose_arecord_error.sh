@@ -126,6 +126,48 @@ else
 fi
 echo ""
 
+# 7.1. Check device states (suspended/idle/active) using pw-cli
+echo -e "${GREEN}[STEP 7.1]${NC} Checking device states (suspended/idle/active)..."
+echo "----------------------------------------"
+if command -v pw-cli >/dev/null 2>&1; then
+    echo "XVF3800 device states:"
+    # List all nodes and find XVF3800 ones
+    pw-cli list-objects Node 2>/dev/null | while IFS= read -r line; do
+        if echo "$line" | grep -q "XVF3800\|reSpeaker"; then
+            echo "$line"
+            # Get the node ID from the line
+            NODE_ID=$(echo "$line" | grep -oP '"id":\s*\K[0-9]+' | head -1)
+            if [ -n "$NODE_ID" ]; then
+                echo "  Node ID: $NODE_ID"
+                # Get state information for this node
+                pw-cli info "$NODE_ID" 2>/dev/null | grep -E "state|suspend|media\.class|device\.suspend-on-idle|node\.name" | head -5 | sed 's/^/    /'
+            fi
+        fi
+    done | head -30 || echo "  (none found or pw-cli failed)"
+    echo ""
+    
+    # Alternative: Use pw-dump for JSON output (more reliable)
+    if command -v pw-dump >/dev/null 2>&1; then
+        echo "Device states (from pw-dump):"
+        pw-dump 2>/dev/null | grep -A 50 "XVF3800\|reSpeaker" | grep -E '"id"|"name"|"state"|"suspend"|"media\.class"|"device\.suspend-on-idle"' | head -20 | sed 's/^/  /' || echo "  (could not get state)"
+    fi
+    echo ""
+    
+    echo "Quick state check (all audio input nodes):"
+    pw-cli list-objects Node 2>/dev/null | grep -B 3 -A 10 "media.class.*Audio/Source\|media.class.*Audio/Input" | grep -E '"id"|"name"|"state"' | head -15 | sed 's/^/  /' || echo "  (could not list input nodes)"
+else
+    echo "pw-cli not found - cannot check detailed device states"
+    echo "Install: sudo apt install pipewire-cli"
+    echo ""
+    echo "Alternative: Check using pw-dump:"
+    if command -v pw-dump >/dev/null 2>&1; then
+        pw-dump 2>/dev/null | grep -A 20 "XVF3800\|reSpeaker" | grep -E '"state"|"suspend"' | head -10 || echo "  (could not get state)"
+    else
+        echo "  pw-dump also not found"
+    fi
+fi
+echo ""
+
 # 7.5. Check PipeWire services
 echo -e "${GREEN}[STEP 7.5]${NC} Checking PipeWire services..."
 echo "----------------------------------------"
@@ -144,12 +186,30 @@ else
 fi
 echo ""
 
-# 7.6. Check PipeWire nodes (detailed)
+# 7.6. Check PipeWire nodes (detailed with state)
 if command -v pw-cli >/dev/null 2>&1; then
-    echo -e "${GREEN}[STEP 7.6]${NC} Checking PipeWire nodes (detailed)..."
+    echo -e "${GREEN}[STEP 7.6]${NC} Checking PipeWire nodes (detailed with state)..."
     echo "----------------------------------------"
-    echo "Audio input nodes:"
-    pw-cli list-objects Node 2>/dev/null | grep -A 10 "XVF3800\|reSpeaker" | head -20 || echo "  (none found)"
+    echo "XVF3800 node details (showing state):"
+    # Get node IDs for XVF3800 devices
+    NODE_IDS=$(pw-cli list-objects Node 2>/dev/null | grep -B 5 "XVF3800\|reSpeaker" | grep '"id"' | head -5 | sed 's/.*"id": \([0-9]*\).*/\1/')
+    
+    if [ -n "$NODE_IDS" ]; then
+        for NODE_ID in $NODE_IDS; do
+            echo ""
+            echo "Node ID $NODE_ID:"
+            pw-cli info "$NODE_ID" 2>/dev/null | grep -E "id|name|state|suspend|media\.class|device\.suspend-on-idle" | head -15 || echo "  (could not get info for node $NODE_ID)"
+        done
+    else
+        echo "  (no XVF3800 nodes found)"
+    fi
+    echo ""
+    
+    # Alternative: use pw-dump if available
+    if command -v pw-dump >/dev/null 2>&1; then
+        echo "Using pw-dump for detailed state:"
+        pw-dump 2>/dev/null | grep -A 30 "XVF3800\|reSpeaker" | grep -E "id|name|state|suspend|media\.class" | head -20 || echo "  (could not dump state)"
+    fi
     echo ""
 fi
 
