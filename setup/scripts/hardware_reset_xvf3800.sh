@@ -143,6 +143,50 @@ else
 fi
 echo ""
 
+# Check ALSA mixer settings
+echo -e "${YELLOW}[8]${NC} Checking ALSA mixer settings..."
+CARD=$(arecord -l 2>/dev/null | grep -i "XVF3800\|reSpeaker" | sed -n 's/.*card \([0-9]*\):.*/\1/p' | head -1)
+if [ -n "$CARD" ]; then
+    echo "  Card: $CARD"
+    # Check for muted capture controls
+    MUTED=$(amixer -c $CARD 2>/dev/null | grep -i "capture\|mic\|input" | grep -i "\[off\]\|\[mute\]")
+    if [ -n "$MUTED" ]; then
+        echo -e "  ${RED}❌ Some capture controls are MUTED:${NC}"
+        echo "$MUTED" | sed 's/^/    /'
+        echo "  Attempting to unmute..."
+        amixer -c $CARD 2>/dev/null | grep -i "capture\|mic\|input" | grep -o "'[^']*'" | tr -d "'" | while read control; do
+            if [ -n "$control" ]; then
+                amixer -c $CARD set "$control" unmute 80% 2>/dev/null || true
+            fi
+        done
+        echo -e "  ✅ Attempted to unmute capture controls"
+    else
+        echo -e "  ✅ No muted capture controls found"
+    fi
+    # Show current settings
+    echo "  Current mixer settings:"
+    amixer -c $CARD 2>/dev/null | grep -E "Card|Simple mixer|Cap|Mic|Input" | head -5 | sed 's/^/    /'
+else
+    echo -e "  ⚠️  Could not find ALSA card"
+fi
+echo ""
+
+# Wake up device by opening audio stream
+echo -e "${YELLOW}[9]${NC} Opening audio stream to initialize device..."
+if [ -n "$CARD" ]; then
+    echo "  Performing test capture (2 seconds)..."
+    timeout 2 arecord -D hw:$CARD,0 -f S16_LE -r 16000 -c 2 /dev/null 2>&1 | head -3
+    if [ ${PIPESTATUS[0]} -eq 0 ] || [ ${PIPESTATUS[0]} -eq 124 ]; then
+        echo -e "  ✅ Audio stream opened successfully"
+    else
+        echo -e "  ⚠️  Audio stream may have issues"
+    fi
+    sleep 1
+else
+    echo -e "  ⚠️  Skipping (ALSA card not found)"
+fi
+echo ""
+
 echo -e "${GREEN}==========================================${NC}"
 echo -e "${GREEN}  Hardware Reset Complete${NC}"
 echo -e "${GREEN}==========================================${NC}"
