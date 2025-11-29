@@ -79,10 +79,39 @@ echo ""
 if [ -z "$POWER_CYCLE_SUCCESS" ]; then
     echo -e "${YELLOW}[3]${NC} Attempting sysfs power control..."
     
-    # Find device in sysfs
-    SYSFS_DEVICE=$(find /sys/bus/usb/devices -name "idVendor" -exec grep -l "$(echo $VID_PID | cut -d: -f1)" {} \; 2>/dev/null | head -1)
-    if [ -n "$SYSFS_DEVICE" ]; then
-        SYSFS_PATH=$(dirname "$SYSFS_DEVICE")
+    # Find device in sysfs - try multiple methods
+    SYSFS_DEVICE=""
+    
+    # Method 1: Find by VID
+    VID=$(echo "$VID_PID" | cut -d: -f1)
+    PID=$(echo "$VID_PID" | cut -d: -f2)
+    
+    for dev_file in /sys/bus/usb/devices/*/idVendor; do
+        if [ -f "$dev_file" ] && [ "$(cat "$dev_file" 2>/dev/null)" = "$VID" ]; then
+            DEV_DIR=$(dirname "$dev_file")
+            if [ -f "$DEV_DIR/idProduct" ] && [ "$(cat "$DEV_DIR/idProduct" 2>/dev/null)" = "$PID" ]; then
+                SYSFS_PATH="$DEV_DIR"
+                SYSFS_DEVICE="$dev_file"
+                break
+            fi
+        fi
+    done
+    
+    # Method 2: Find by bus and device number (format: bus-device)
+    if [ -z "$SYSFS_PATH" ]; then
+        # USB devices in sysfs use format like 1-1.4, not 001-004
+        # Try to find by bus number
+        for dev_dir in /sys/bus/usb/devices/$BUS-*; do
+            if [ -d "$dev_dir" ] && [ -f "$dev_dir/idVendor" ]; then
+                if [ "$(cat "$dev_dir/idVendor" 2>/dev/null)" = "$VID" ] && [ "$(cat "$dev_dir/idProduct" 2>/dev/null)" = "$PID" ]; then
+                    SYSFS_PATH="$dev_dir"
+                    break
+                fi
+            fi
+        done
+    fi
+    
+    if [ -n "$SYSFS_PATH" ] && [ -d "$SYSFS_PATH" ]; then
         echo "  Found sysfs path: $SYSFS_PATH"
         
         # Try power/control
@@ -117,13 +146,27 @@ if [ -z "$POWER_CYCLE_SUCCESS" ]; then
             if ! lsusb | grep -q "$VID_PID"; then
                 echo "  ✅ Device removed"
                 sleep 2
-                # Trigger rescan
-                for parent in $(dirname "$SYSFS_PATH"); do
-                    if [ -f "$parent/rescan" ]; then
-                        echo 1 | sudo tee "$parent/rescan" >/dev/null 2>&1
+                # Find parent hub and trigger rescan
+                PARENT_PATH=$(dirname "$SYSFS_PATH")
+                while [ "$PARENT_PATH" != "/sys/bus/usb/devices" ] && [ -n "$PARENT_PATH" ]; do
+                    if [ -f "$PARENT_PATH/rescan" ]; then
+                        echo 1 | sudo tee "$PARENT_PATH/rescan" >/dev/null 2>&1
+                        echo "  Triggered rescan on $PARENT_PATH"
                         break
                     fi
+                    PARENT_PATH=$(dirname "$PARENT_PATH")
                 done
+                # Also try to unbind/bind the USB driver
+                if [ -L "$SYSFS_PATH/driver" ]; then
+                    DRIVER_PATH=$(readlink "$SYSFS_PATH/driver")
+                    DRIVER_NAME=$(basename "$DRIVER_PATH")
+                    if [ -f "$DRIVER_PATH/unbind" ]; then
+                        echo "$DEVICE_ID" | sudo tee "$DRIVER_PATH/unbind" >/dev/null 2>&1
+                        sleep 1
+                        echo "$DEVICE_ID" | sudo tee "$DRIVER_PATH/bind" >/dev/null 2>&1
+                        echo "  Attempted driver rebind"
+                    fi
+                fi
                 sleep 3
                 if lsusb | grep -q "$VID_PID"; then
                     echo "  ✅ Device re-added"
@@ -137,6 +180,39 @@ if [ -z "$POWER_CYCLE_SUCCESS" ]; then
         fi
     else
         echo "  ⚠️  Could not find device in sysfs"
+        echo "  Trying alternative method: listing all USB devices..."
+        # List all USB devices and try to find ours
+        for dev_dir in /sys/bus/usb/devices/*; do
+            if [ -d "$dev_dir" ] && [ -f "$dev_dir/idVendor" ] && [ -f "$dev_dir/idProduct" ]; then
+                dev_vid=$(cat "$dev_dir/idVendor" 2>/dev/null)
+                dev_pid=$(cat "$dev_dir/idProduct" 2>/dev/null)
+                if [ "$dev_vid" = "$VID" ] && [ "$dev_pid" = "$PID" ]; then
+                    SYSFS_PATH="$dev_dir"
+                    echo "  Found device at: $SYSFS_PATH"
+                    # Try remove/add
+                    if [ -f "$SYSFS_PATH/remove" ]; then
+                        DEVICE_ID=$(basename "$SYSFS_PATH")
+                        echo "  Removing device..."
+                        echo "$DEVICE_ID" | sudo tee "$SYSFS_PATH/remove" >/dev/null 2>&1
+                        sleep 2
+                        if ! lsusb | grep -q "$VID_PID"; then
+                            echo "  ✅ Device removed"
+                            sleep 2
+                            # Find USB bus and trigger rescan
+                            if [ -f "/sys/bus/usb/devices/usb$BUS/rescan" ]; then
+                                echo 1 | sudo tee "/sys/bus/usb/devices/usb$BUS/rescan" >/dev/null 2>&1
+                            fi
+                            sleep 3
+                            if lsusb | grep -q "$VID_PID"; then
+                                echo "  ✅ Device re-added"
+                                POWER_CYCLE_SUCCESS=true
+                            fi
+                        fi
+                    fi
+                    break
+                fi
+            fi
+        done
     fi
     echo ""
 fi
