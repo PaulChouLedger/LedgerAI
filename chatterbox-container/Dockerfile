@@ -21,8 +21,8 @@ RUN python3 -c "import torch; assert hasattr(torch.version, 'cuda') and torch.ve
 
 # Install Chatterbox dependencies before cloning
 # Note: Install compatible versions to avoid conflicts
-# Use PyPI as primary to avoid Jetson index timeouts
-RUN pip3 install --index-url https://pypi.org/simple --extra-index-url https://pypi.jetson-ai-lab.dev/jp6/cu128 \
+# Use PyPI only - these are standard packages, not Jetson-specific
+RUN pip3 install --index-url https://pypi.org/simple \
     "numpy>=1.24.0,<1.26.0" \
     librosa==0.11.0 \
     transformers==4.46.3 \
@@ -40,16 +40,16 @@ RUN pip3 install --index-url https://pypi.org/simple --extra-index-url https://p
 # Clone and install Chatterbox from source (skip dependencies to avoid conflicts)
 # Note: russian-text-stresser may not be available on PyPI - skipping (optional for Russian support)
 # Install spacy first (Chatterbox dependency)
-RUN pip3 install --index-url https://pypi.org/simple --extra-index-url https://pypi.jetson-ai-lab.dev/jp6/cu128 spacy==3.6.1 || true
+RUN pip3 install --index-url https://pypi.org/simple spacy==3.6.1 || true
 
 # Clone Chatterbox and install (keep source for editable install)
 RUN git clone https://github.com/resemble-ai/chatterbox.git /app/chatterbox && \
     cd /app/chatterbox && \
-    pip3 install --index-url https://pypi.org/simple --extra-index-url https://pypi.jetson-ai-lab.dev/jp6/cu128 -e . --no-deps && \
+    pip3 install --index-url https://pypi.org/simple -e . --no-deps && \
     python3 -c "from chatterbox import ChatterboxTTS; print('✅ Chatterbox installed successfully')"
 
 # Install Flask for REST API
-RUN pip3 install --index-url https://pypi.org/simple --extra-index-url https://pypi.jetson-ai-lab.dev/jp6/cu128 flask requests python-dotenv
+RUN pip3 install --index-url https://pypi.org/simple flask requests python-dotenv
 
 # Copy application files
 COPY container_rest.py /app/container_rest.py
