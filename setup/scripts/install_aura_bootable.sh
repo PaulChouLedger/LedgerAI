@@ -1,6 +1,6 @@
 #!/bin/bash
 # Aura Bootable Installation Script
-# Installs Aura with virtual environment, jetson-containers, and XVF3800 mic support
+# Installs Aura with virtual environment and jetson-containers
 # Usage: bash install_aura_bootable.sh
 
 set -e  # Exit on error
@@ -821,16 +821,16 @@ fi
 echo ""
 
 # ============================================================================
-# Step 5: Install XVF3800 USB 4-Mic Array support
+# Step 5: Install ReSpeaker XVF3800 repository and build xvf_host
 # ============================================================================
-print_step "5. Installing XVF3800 USB 4-Mic Array support..."
+print_step "5. Installing ReSpeaker XVF3800 repository and building xvf_host..."
 
 if [ -d "$XVF3800_REPO_DIR" ]; then
-    print_info "XVF3800 repository already exists, updating..."
+    print_info "ReSpeaker XVF3800 repository already exists, updating..."
     cd "$XVF3800_REPO_DIR"
     git pull || print_info "Git pull failed, continuing with existing code..."
 else
-    print_info "Cloning XVF3800 repository..."
+    print_info "Cloning ReSpeaker XVF3800 repository..."
     cd "$AURA_HOME"
     git clone https://github.com/respeaker/reSpeaker_XVF3800_USB_4MIC_ARRAY.git
     cd "$XVF3800_REPO_DIR"
@@ -852,7 +852,6 @@ if [ -d "$XVF3800_REPO_DIR/host_control/jetson" ]; then
         if make; then
             if [ -f "xvf_host" ]; then
                 print_info "xvf_host built successfully"
-                # Make it executable
                 chmod +x xvf_host
             else
                 print_error "Build completed but xvf_host not found"
@@ -865,8 +864,38 @@ if [ -d "$XVF3800_REPO_DIR/host_control/jetson" ]; then
     fi
 else
     print_error "Jetson build directory not found!"
-    print_info "The repository structure may have changed"
     print_info "Expected path: $XVF3800_REPO_DIR/host_control/jetson"
+fi
+
+echo ""
+
+# ============================================================================
+# Step 5.5: Install XVF3800 tuning service
+# ============================================================================
+print_step "5.5. Installing XVF3800 tuning service..."
+
+SERVICE_FILE="$LEDGERAI_DIR/setup/scripts/xvf3800-tuning.service"
+SYSTEMD_SERVICE="/etc/systemd/system/xvf3800-tuning.service"
+
+if [ -f "$SERVICE_FILE" ]; then
+    # Remove existing service file or symlink if it exists
+    if [ -L "$SYSTEMD_SERVICE" ] || [ -f "$SYSTEMD_SERVICE" ]; then
+        sudo rm -f "$SYSTEMD_SERVICE"
+    fi
+    
+    # Create symlink to git repository file
+    SERVICE_FILE_ABS="$(cd "$(dirname "$SERVICE_FILE")" && pwd)/$(basename "$SERVICE_FILE")"
+    sudo ln -s "$SERVICE_FILE_ABS" "$SYSTEMD_SERVICE"
+    
+    # Reload systemd
+    sudo systemctl daemon-reload
+    
+    # Enable service
+    sudo systemctl enable xvf3800-tuning.service
+    
+    print_info "XVF3800 tuning service installed and enabled"
+else
+    print_warning "XVF3800 tuning service file not found: $SERVICE_FILE"
 fi
 
 echo ""
@@ -1186,7 +1215,6 @@ echo ""
 # ============================================================================
 # Step 7: Install git hooks
 # ============================================================================
-# Note: XVF3800 tuning service removed - can be added back later if needed
 print_step "7. Installing git hooks..."
 
 GIT_HOOKS_DIR="$LEDGERAI_DIR/.git/hooks"
@@ -1202,7 +1230,7 @@ PRE_COMMIT_TEMPLATE="$LEDGERAI_DIR/setup/scripts/git-hooks/pre-commit"
 if [ -d "$LEDGERAI_DIR/.git" ]; then
     # Install post-merge hook
     if [ -f "$POST_MERGE_TEMPLATE" ]; then
-        if [ ! -f "$POST_MERGE_HOOK" ] || ! grep -q "XVF3800 service file updated" "$POST_MERGE_HOOK" 2>/dev/null; then
+        if [ ! -f "$POST_MERGE_HOOK" ]; then
             cp "$POST_MERGE_TEMPLATE" "$POST_MERGE_HOOK"
             chmod +x "$POST_MERGE_HOOK"
             print_info "Git post-merge hook installed - systemd will auto-reload after git pull"
@@ -1231,7 +1259,7 @@ fi
     if [ -d "$LEDGERAI_DIR/.git" ]; then
         # Install post-merge hook
         if [ -f "$POST_MERGE_TEMPLATE" ]; then
-        if [ ! -f "$POST_MERGE_HOOK" ] || ! grep -q "XVF3800 service file updated" "$POST_MERGE_HOOK" 2>/dev/null; then
+        if [ ! -f "$POST_MERGE_HOOK" ]; then
                 cp "$POST_MERGE_TEMPLATE" "$POST_MERGE_HOOK"
             chmod +x "$POST_MERGE_HOOK"
             print_info "Git post-merge hook installed - systemd will auto-reload after git pull"
@@ -1251,9 +1279,9 @@ fi
 echo ""
 
 # ============================================================================
-# Step 8: Configure X11 authentication for GUI access
+# Step 9: Configure X11 authentication for GUI access
 # ============================================================================
-print_step "8. Configuring X11 authentication for GUI access..."
+print_step "9. Configuring X11 authentication for GUI access..."
 
 # Allow user to access X11 display
 print_info "Setting up X11 authentication..."
@@ -1292,9 +1320,9 @@ print_info "X11 setup script created at $X11_SETUP_SCRIPT"
 echo ""
 
 # ============================================================================
-# Step 9: Create Aura systemd service for boot
+# Step 10: Create Aura systemd service for boot
 # ============================================================================
-print_step "9. Creating Aura systemd service for boot startup..."
+print_step "10. Creating Aura systemd service for boot startup..."
 
 AURA_SERVICE_FILE="/tmp/aura.service"
 AURA_UID=$(id -u "$AURA_USER")
@@ -1321,8 +1349,8 @@ fi
 cat > "$AURA_SERVICE_FILE" << EOF
 [Unit]
 Description=Aura Voice Assistant
-After=network.target docker.service display-manager.service
-Wants=docker.service display-manager.service
+After=network.target docker.service xvf3800-tuning.service display-manager.service
+Wants=docker.service xvf3800-tuning.service display-manager.service
 Requires=docker.service
 
 [Service]
@@ -1372,7 +1400,7 @@ print_info "To view logs: journalctl -u aura.service -f"
 echo ""
 
 # ============================================================================
-# Step 10: Install keyboard monitor service
+# Step 11: Install keyboard monitor service
 # ============================================================================
 print_step "10. Installing keyboard monitor service..."
 
@@ -1414,7 +1442,7 @@ fi
 echo ""
 
 # ============================================================================
-# Step 11: Set up Docker (if not already configured)
+# Step 12: Set up Docker (if not already configured)
 # ============================================================================
 print_step "11. Configuring Docker..."
 
@@ -1451,7 +1479,7 @@ print_info "Docker configured"
 echo ""
 
 # ============================================================================
-# Step 12: Set permissions for audio devices
+# Step 13: Set permissions for audio devices
 # ============================================================================
 print_step "12. Configuring audio device permissions..."
 
@@ -1463,18 +1491,6 @@ else
     print_info "User already in audio group"
 fi
 
-# Create udev rules for XVF3800 (if needed)
-UDEV_RULES="/etc/udev/rules.d/99-xvf3800.rules"
-if [ ! -f "$UDEV_RULES" ]; then
-    print_info "Creating udev rules for XVF3800..."
-    sudo tee "$UDEV_RULES" > /dev/null << 'EOF'
-# XVF3800 USB 4-Mic Array
-SUBSYSTEM=="usb", ATTRS{idVendor}=="20b1", ATTRS{idProduct}=="0011", MODE="0666", GROUP="audio"
-EOF
-    sudo udevadm control --reload-rules
-    sudo udevadm trigger
-    print_info "Udev rules created"
-fi
 
 # Make audio setup script executable
 if [ -f "$LEDGERAI_DIR/setup/scripts/set_default_audio_on_boot.sh" ]; then
@@ -1519,7 +1535,7 @@ fi
 echo ""
 
 # ============================================================================
-# Step 13: Create minimal .env with only API keys (deployment-friendly)
+# Step 14: Create minimal .env with only API keys (deployment-friendly)
 # ============================================================================
 print_step "13. Setting up .env configuration file (API keys only)..."
 
@@ -1563,7 +1579,7 @@ print_warning "⚠️  Edit .env to add API keys before running Aura: nano $ENV_
 echo ""
 
 # ============================================================================
-# Step 14: Create data directories if needed
+# Step 15: Create data directories if needed
 # ============================================================================
 print_step "14. Creating data directories..."
 
@@ -1631,7 +1647,7 @@ if [ -f /etc/nv_tegra_release ] || [ -f /proc/device-tree/model ] && grep -q "Je
 else
     echo "ℹ️  Jetson Power Mode: Skipped (not a Jetson device)"
 fi
-echo "✅ XVF3800 support: $XVF3800_REPO_DIR"
+echo "✅ XVF3800 tuning service: Enabled (runs on boot)"
 echo "✅ Aura service: Enabled (will start on boot)"
 echo "✅ Keyboard monitor service: Enabled (disables Ubuntu keyboard while Aura runs)"
 echo "✅ Docker: Configured"
@@ -1700,10 +1716,12 @@ echo "   sudo reboot"
 echo ""
 echo "5. Check service status after boot:"
 echo "   sudo systemctl status aura.service"
+echo "   sudo systemctl status xvf3800-tuning.service"
 echo "   sudo systemctl status disable-keyboard-monitor.service"
 echo ""
 echo "6. View logs:"
 echo "   journalctl -u aura.service -f"
+echo "   journalctl -u xvf3800-tuning.service -n 50"
 echo "   journalctl -u disable-keyboard-monitor.service -f"
 echo ""
 echo "7. If PortAudio/audio doesn't work:"
