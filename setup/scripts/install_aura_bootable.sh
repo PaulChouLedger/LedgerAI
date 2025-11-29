@@ -872,30 +872,87 @@ echo ""
 # ============================================================================
 # Step 5.5: Install XVF3800 tuning service
 # ============================================================================
-print_step "5.5. Installing XVF3800 tuning service..."
+# DISABLED: Temporarily disabled for debugging microphone capture issues on boot
+# print_step "5.5. Installing XVF3800 tuning service..."
+# 
+# SERVICE_FILE="$LEDGERAI_DIR/setup/scripts/xvf3800-tuning.service"
+# SYSTEMD_SERVICE="/etc/systemd/system/xvf3800-tuning.service"
+# 
+# if [ -f "$SERVICE_FILE" ]; then
+#     # Remove existing service file or symlink if it exists
+#     if [ -L "$SYSTEMD_SERVICE" ] || [ -f "$SYSTEMD_SERVICE" ]; then
+#         sudo rm -f "$SYSTEMD_SERVICE"
+#     fi
+#     
+#     # Create symlink to git repository file
+#     SERVICE_FILE_ABS="$(cd "$(dirname "$SERVICE_FILE")" && pwd)/$(basename "$SERVICE_FILE")"
+#     sudo ln -s "$SERVICE_FILE_ABS" "$SYSTEMD_SERVICE"
+#     
+#     # Reload systemd
+#     sudo systemctl daemon-reload
+#     
+#     # Enable service
+#     sudo systemctl enable xvf3800-tuning.service
+#     
+#     print_info "XVF3800 tuning service installed and enabled"
+# else
+#     print_warning "XVF3800 tuning service file not found: $SERVICE_FILE"
+# fi
+# 
+# echo ""
+print_info "Step 5.5 skipped: XVF3800 tuning service installation disabled for debugging"
 
-SERVICE_FILE="$LEDGERAI_DIR/setup/scripts/xvf3800-tuning.service"
-SYSTEMD_SERVICE="/etc/systemd/system/xvf3800-tuning.service"
+echo ""
 
-if [ -f "$SERVICE_FILE" ]; then
-    # Remove existing service file or symlink if it exists
-    if [ -L "$SYSTEMD_SERVICE" ] || [ -f "$SYSTEMD_SERVICE" ]; then
-        sudo rm -f "$SYSTEMD_SERVICE"
-    fi
-    
-    # Create symlink to git repository file
-    SERVICE_FILE_ABS="$(cd "$(dirname "$SERVICE_FILE")" && pwd)/$(basename "$SERVICE_FILE")"
-    sudo ln -s "$SERVICE_FILE_ABS" "$SYSTEMD_SERVICE"
-    
-    # Reload systemd
-    sudo systemctl daemon-reload
-    
-    # Enable service
-    sudo systemctl enable xvf3800-tuning.service
-    
-    print_info "XVF3800 tuning service installed and enabled"
+# ============================================================================
+# Step 5.6: Install XVF3800 firmware
+# ============================================================================
+print_step "5.6. Installing XVF3800 firmware..."
+
+# Install dfu-util (required for firmware flashing)
+print_info "Installing dfu-util..."
+if sudo apt install -y dfu-util; then
+    print_info "✅ dfu-util installed successfully"
 else
-    print_warning "XVF3800 tuning service file not found: $SERVICE_FILE"
+    print_error "Failed to install dfu-util"
+    print_info "Firmware installation will be skipped"
+fi
+
+# Check if firmware file exists
+FIRMWARE_FILE="$XVF3800_REPO_DIR/xmos_firmwares/usb/respeaker_xvf3800_usb_dfu_firmware_v2.0.6.bin"
+if [ -f "$FIRMWARE_FILE" ]; then
+    print_info "Firmware file found: $FIRMWARE_FILE"
+    print_info "Attempting to flash firmware to XVF3800 device..."
+    print_info "⚠️  Make sure the XVF3800 device is connected and in DFU mode"
+    print_info "   If the device is not detected, you may need to:"
+    print_info "   1. Disconnect and reconnect the USB device"
+    print_info "   2. Put the device in DFU mode (check device documentation)"
+    print_info "   3. Run manually: sudo dfu-util -R -e -a 1 -D \"$FIRMWARE_FILE\""
+    
+    # Try to flash firmware (non-blocking - device may not be connected)
+    if sudo dfu-util -R -e -a 1 -D "$FIRMWARE_FILE" 2>&1 | tee /tmp/xvf3800_firmware_flash.log; then
+        print_info "✅ Firmware flashed successfully"
+    else
+        FLASH_ERROR=$(cat /tmp/xvf3800_firmware_flash.log 2>/dev/null || echo "Unknown error")
+        if echo "$FLASH_ERROR" | grep -q "No DFU capable USB device available\|Cannot open DFU device"; then
+            print_warning "⚠️  XVF3800 device not detected in DFU mode"
+            print_info "   This is normal if the device is not connected or not in DFU mode"
+            print_info "   You can flash the firmware later when the device is connected:"
+            print_info "   sudo dfu-util -R -e -a 1 -D \"$FIRMWARE_FILE\""
+        else
+            print_error "⚠️  Firmware flash failed: $FLASH_ERROR"
+            print_info "   Check logs: /tmp/xvf3800_firmware_flash.log"
+            print_info "   You can try flashing manually later:"
+            print_info "   sudo dfu-util -R -e -a 1 -D \"$FIRMWARE_FILE\""
+        fi
+    fi
+    rm -f /tmp/xvf3800_firmware_flash.log 2>/dev/null || true
+else
+    print_warning "⚠️  Firmware file not found: $FIRMWARE_FILE"
+    print_info "   Expected location: $FIRMWARE_FILE"
+    print_info "   Make sure the ReSpeaker XVF3800 repository was cloned correctly"
+    print_info "   You can flash firmware manually later if needed:"
+    print_info "   sudo dfu-util -R -e -a 1 -D <path_to_firmware.bin>"
 fi
 
 echo ""
@@ -1349,8 +1406,8 @@ fi
 cat > "$AURA_SERVICE_FILE" << EOF
 [Unit]
 Description=Aura Voice Assistant
-After=network.target docker.service xvf3800-tuning.service display-manager.service
-Wants=docker.service xvf3800-tuning.service display-manager.service
+After=network.target docker.service display-manager.service
+Wants=docker.service display-manager.service
 Requires=docker.service
 
 [Service]
@@ -1647,7 +1704,7 @@ if [ -f /etc/nv_tegra_release ] || [ -f /proc/device-tree/model ] && grep -q "Je
 else
     echo "ℹ️  Jetson Power Mode: Skipped (not a Jetson device)"
 fi
-echo "✅ XVF3800 tuning service: Enabled (runs on boot)"
+echo "⚠️  XVF3800 tuning service: Disabled (temporarily disabled for debugging microphone issues)"
 echo "✅ Aura service: Enabled (will start on boot)"
 echo "✅ Keyboard monitor service: Enabled (disables Ubuntu keyboard while Aura runs)"
 echo "✅ Docker: Configured"
@@ -1716,13 +1773,13 @@ echo "   sudo reboot"
 echo ""
 echo "5. Check service status after boot:"
 echo "   sudo systemctl status aura.service"
-echo "   sudo systemctl status xvf3800-tuning.service"
 echo "   sudo systemctl status disable-keyboard-monitor.service"
 echo ""
 echo "6. View logs:"
 echo "   journalctl -u aura.service -f"
-echo "   journalctl -u xvf3800-tuning.service -n 50"
 echo "   journalctl -u disable-keyboard-monitor.service -f"
+echo ""
+echo "   Note: XVF3800 tuning service is disabled for debugging microphone issues"
 echo ""
 echo "7. If PortAudio/audio doesn't work:"
 if [ "$PORT_AUDIO_AVAILABLE" = false ]; then
