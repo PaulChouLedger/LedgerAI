@@ -93,20 +93,30 @@ fi
 
 echo ""
 
-# Create temporary virtual environment
-VENV_DIR="/tmp/rms_test_venv_$$"
-echo -e "${YELLOW}[STEP]${NC} Creating fresh virtual environment..."
+# Create persistent virtual environment (survives reboot)
+VENV_DIR="$HOME/rms_test_venv"
+echo -e "${YELLOW}[STEP]${NC} Setting up virtual environment..."
 echo "  Location: $VENV_DIR"
 echo ""
 
-# Remove if exists
+# Check if venv already exists
 if [ -d "$VENV_DIR" ]; then
-    rm -rf "$VENV_DIR"
+    echo -e "${YELLOW}[INFO]${NC} Virtual environment already exists"
+    echo -e "${YELLOW}[INFO]${NC} Reusing existing environment (will reinstall packages if needed)"
+    read -p "Recreate from scratch? (yes/no): " RECREATE
+    if [ "$RECREATE" = "yes" ]; then
+        echo "Removing existing virtual environment..."
+        rm -rf "$VENV_DIR"
+        $PYTHON_CMD -m venv "$VENV_DIR"
+        echo -e "${GREEN}✅${NC} Virtual environment recreated"
+    else
+        echo -e "${GREEN}✅${NC} Using existing virtual environment"
+    fi
+else
+    # Create venv
+    $PYTHON_CMD -m venv "$VENV_DIR"
+    echo -e "${GREEN}✅${NC} Virtual environment created"
 fi
-
-# Create venv
-$PYTHON_CMD -m venv "$VENV_DIR"
-echo -e "${GREEN}✅${NC} Virtual environment created"
 echo ""
 
 # Activate virtual environment
@@ -164,11 +174,13 @@ echo -e "${GREEN}  Test Complete${NC}"
 echo -e "${GREEN}========================================${NC}"
 echo ""
 
-# Cleanup
-echo -e "${YELLOW}[STEP]${NC} Cleaning up virtual environment..."
+# Note: Virtual environment is preserved for reboot testing
+echo -e "${YELLOW}[INFO]${NC} Virtual environment preserved at: $VENV_DIR"
+echo -e "${YELLOW}[INFO]${NC} To use after reboot:"
+echo -e "${YELLOW}[INFO]${NC}   source $VENV_DIR/bin/activate"
+echo -e "${YELLOW}[INFO]${NC}   python3 $TEST_SCRIPT"
+echo ""
 deactivate 2>/dev/null || true
-rm -rf "$VENV_DIR"
-echo -e "${GREEN}✅${NC} Cleanup complete"
 echo ""
 
 # Exit with test result
