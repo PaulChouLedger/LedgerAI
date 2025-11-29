@@ -105,7 +105,6 @@ sudo apt install -y \
     alsa-utils \
     libasound2-dev \
     pipewire \
-    pipewire-pulse \
     wireplumber \
     qtbase5-dev \
     qttools5-dev \
@@ -1557,29 +1556,23 @@ fi
 print_info "Killing PulseAudio processes..."
 pkill -9 pulseaudio 2>/dev/null || true
 
-# Install PipeWire and related packages
-print_info "Installing PipeWire..."
+# Install PipeWire and related packages (standalone, no PulseAudio compatibility)
+print_info "Installing PipeWire (standalone)..."
 sudo apt install -y \
     pipewire \
-    pipewire-pulse \
     wireplumber \
     libspa-0.2-bluetooth \
     libspa-0.2-jack || {
     print_error "Failed to install PipeWire packages"
     exit 1
 }
+print_info "✅ PipeWire installed (standalone mode - no PulseAudio compatibility)"
 
-# Remove PulseAudio server (but keep pulseaudio-utils for pactl command)
-print_info "Removing PulseAudio server (keeping pulseaudio-utils for pactl compatibility)..."
-sudo apt remove -y pulseaudio 2>/dev/null || true
-# Ensure pulseaudio-utils is installed (provides pactl command, works with pipewire-pulse)
-if ! command -v pactl >/dev/null 2>&1; then
-    print_info "Installing pulseaudio-utils for pactl command (client tools only)..."
-    sudo apt install -y pulseaudio-utils 2>/dev/null || {
-        print_warning "pulseaudio-utils not available - will use wpctl instead"
-    }
-fi
+# Remove PulseAudio completely (including pipewire-pulse)
+print_info "Removing PulseAudio and pipewire-pulse completely..."
+sudo apt remove -y pulseaudio pulseaudio-utils pipewire-pulse 2>/dev/null || true
 sudo apt autoremove -y 2>/dev/null || true
+print_info "✅ PulseAudio and pipewire-pulse removed - using PipeWire standalone"
 
 # Configure PipeWire to start on boot
 print_info "Configuring PipeWire to start on boot..."
@@ -1599,10 +1592,6 @@ print_info "  Starting wireplumber.service..."
 systemctl --user start wireplumber.service 2>/dev/null || true
 sleep 1
 
-print_info "  Starting pipewire-pulse.service..."
-systemctl --user start pipewire-pulse.service 2>/dev/null || true
-sleep 2
-
 # Verify PipeWire services are running
 if systemctl --user is-active --quiet pipewire.service; then
     print_info "✅ pipewire.service is running"
@@ -1610,30 +1599,17 @@ else
     print_warning "⚠️  pipewire.service not active - may need manual start"
 fi
 
-if systemctl --user is-active --quiet pipewire-pulse.service; then
-    print_info "✅ pipewire-pulse.service is running (provides pactl compatibility)"
+if systemctl --user is-active --quiet wireplumber.service; then
+    print_info "✅ wireplumber.service is running"
 else
-    print_warning "⚠️  pipewire-pulse.service not active - attempting to start..."
-    systemctl --user start pipewire-pulse.service 2>/dev/null || true
-    sleep 2
-    if systemctl --user is-active --quiet pipewire-pulse.service; then
-        print_info "✅ pipewire-pulse.service started successfully"
-    else
-        print_warning "⚠️  Failed to start pipewire-pulse.service"
-        print_info "   Check logs: journalctl --user -u pipewire-pulse.service"
-    fi
+    print_warning "⚠️  wireplumber.service not active - may need manual start"
 fi
 
-# Verify pactl is available (provided by pipewire-pulse)
-if command -v pactl >/dev/null 2>&1; then
-    print_info "✅ pactl is available (pipewire-pulse compatibility)"
-    if pactl info 2>/dev/null | grep -q "pipewire\|PipeWire"; then
-        print_info "✅ pactl is connected to PipeWire"
-    else
-        print_warning "⚠️  pactl found but may not be connected to PipeWire"
-    fi
+# Verify wpctl is available (PipeWire native command)
+if command -v wpctl >/dev/null 2>&1; then
+    print_info "✅ wpctl is available (PipeWire native command)"
 else
-    print_info "⚠️  pactl not found - wpctl will be used instead (this is OK)"
+    print_warning "⚠️  wpctl not found - may need to install wireplumber"
 fi
 
 # Configure Wireplumber to prevent USB audio device suspension
@@ -1678,7 +1654,6 @@ print_info "✅ Wireplumber configuration created"
 print_info "Restarting Wireplumber and PipeWire to apply configuration..."
 systemctl --user restart wireplumber.service 2>/dev/null || true
 systemctl --user restart pipewire.service 2>/dev/null || true
-systemctl --user restart pipewire-pulse.service 2>/dev/null || true
 sleep 3
 
 # Verify PipeWire can see audio devices

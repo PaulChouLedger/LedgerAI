@@ -109,19 +109,49 @@ else
 fi
 echo ""
 
-# 7. Check for PulseAudio
-echo -e "${GREEN}[STEP 7]${NC} Checking PulseAudio status..."
+# 7. Check for PipeWire
+echo -e "${GREEN}[STEP 7]${NC} Checking PipeWire status..."
 echo "----------------------------------------"
-if command -v pactl >/dev/null 2>&1; then
-    echo "PulseAudio sinks:"
-    pactl list short sinks 2>/dev/null | head -5 || echo "Could not list sinks"
+if command -v wpctl >/dev/null 2>&1; then
+    echo "PipeWire status (wpctl):"
+    wpctl status 2>/dev/null | head -30 || echo "Could not get PipeWire status"
     echo ""
-    echo "PulseAudio sources:"
-    pactl list short sources 2>/dev/null | head -5 || echo "Could not list sources"
+    echo "PipeWire sources (XVF3800/reSpeaker):"
+    wpctl status 2>/dev/null | grep -i "XVF3800\|reSpeaker" || echo "  (none found)"
+    echo ""
+    echo "PipeWire sinks (UACDemoV1.0):"
+    wpctl status 2>/dev/null | grep -i "UACDemo\|Jieli" || echo "  (none found)"
 else
-    echo "PulseAudio not found"
+    echo "wpctl not found - PipeWire may not be installed"
 fi
 echo ""
+
+# 7.5. Check PipeWire services
+echo -e "${GREEN}[STEP 7.5]${NC} Checking PipeWire services..."
+echo "----------------------------------------"
+if systemctl --user is-active --quiet pipewire.service 2>/dev/null; then
+    echo -e "${GREEN}✅${NC} pipewire.service is active"
+else
+    echo -e "${RED}❌${NC} pipewire.service is not active"
+    echo "   Start: systemctl --user start pipewire.service"
+fi
+
+if systemctl --user is-active --quiet wireplumber.service 2>/dev/null; then
+    echo -e "${GREEN}✅${NC} wireplumber.service is active"
+else
+    echo -e "${RED}❌${NC} wireplumber.service is not active"
+    echo "   Start: systemctl --user start wireplumber.service"
+fi
+echo ""
+
+# 7.6. Check PipeWire nodes (detailed)
+if command -v pw-cli >/dev/null 2>&1; then
+    echo -e "${GREEN}[STEP 7.6]${NC} Checking PipeWire nodes (detailed)..."
+    echo "----------------------------------------"
+    echo "Audio input nodes:"
+    pw-cli list-objects Node 2>/dev/null | grep -A 10 "XVF3800\|reSpeaker" | head -20 || echo "  (none found)"
+    echo ""
+fi
 
 # 8. Recommendations
 echo -e "${BLUE}========================================${NC}"
@@ -134,17 +164,30 @@ echo ""
 echo "2. Try using 'default' device:"
 echo "   arecord -D default -f S16_LE -r 16000 -c 1 test.wav"
 echo ""
-echo "3. Check if another process is using the device:"
-echo "   sudo fuser -v /dev/snd/*"
+echo "3. Check PipeWire device status:"
+echo "   wpctl status | grep -i 'XVF3800\|reSpeaker'"
+echo "   wpctl status | grep -i 'sink\|source'"
 echo ""
-echo "4. Kill processes using audio (if safe):"
+echo "4. Restart PipeWire services if needed:"
+echo "   systemctl --user restart pipewire.service"
+echo "   systemctl --user restart wireplumber.service"
+echo ""
+echo "5. Check if another process is using the device:"
+echo "   sudo fuser -v /dev/snd/*"
+echo "   lsof | grep snd"
+echo ""
+echo "6. Kill processes using audio (if safe):"
 echo "   sudo fuser -k /dev/snd/*"
 echo ""
-echo "5. Try with sudo (to test permissions):"
+echo "7. Try with sudo (to test permissions):"
 echo "   sudo arecord -D $DEVICE -f S16_LE -r 16000 -c 1 test.wav"
 echo ""
-echo "6. Check USB device connection:"
+echo "8. Check USB device connection:"
 echo "   lsusb | grep -i audio"
 echo "   dmesg | tail -20 | grep -i audio"
+echo ""
+echo "9. Check PipeWire logs if issues persist:"
+echo "   journalctl --user -u pipewire.service -n 50"
+echo "   journalctl --user -u wireplumber.service -n 50"
 echo ""
 
