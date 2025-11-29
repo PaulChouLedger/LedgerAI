@@ -1495,6 +1495,7 @@ print_step "14. Creating data directories..."
 mkdir -p "$LEDGERAI_DIR/data/input" 2>/dev/null || true
 mkdir -p "$LEDGERAI_DIR/data/parsed" 2>/dev/null || true
 mkdir -p "$LEDGERAI_DIR/data/embeddings" 2>/dev/null || true
+mkdir -p "$LEDGERAI_DIR/data/models/wake_words" 2>/dev/null || true
 mkdir -p "$LEDGERAI_DIR/shared/input_audio" 2>/dev/null || true
 mkdir -p "$LEDGERAI_DIR/shared/output_audio" 2>/dev/null || true
 
