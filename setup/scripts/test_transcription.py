@@ -101,18 +101,19 @@ ENABLE_ADVANCED_FILTER = True  # Toggle this to test
 # Thresholds based on your ACTUAL speech patterns:
 # Updated after comparing real speech vs noise bursts
 SPEECH_ZCR_MAX = 0.40           # Reject if ZCR > this
-SPEECH_FLATNESS_MAX = 0.60      # More tolerant of flatness for far-field/quiet speech
+SPEECH_FLATNESS_MAX = 0.35      # Tighter - reject flat/noisy signals (was 0.60)
 SPEECH_CENTROID_MIN = 300       # Hz - reject if too low (rumble/fan)
 SPEECH_CENTROID_MAX = 3000      # Hz - reject if too high (hiss)
-SPEECH_BAND_MIN = 0.30          # Reject if insufficient energy in speech band
+SPEECH_BAND_MIN = 0.50          # Tighter - require more energy in speech band (was 0.30)
 SPEECH_DURATION_MIN = 0.4       # Seconds - reject if too short (noise bursts)
+SPEECH_HIGH_FREQ_MAX = 0.08     # Allow a bit more high-frequency content
+SPEECH_LOW_FREQ_MAX = 0.05      # Reject if too much low-frequency energy (rumble/fan noise)
 
 # CRITICAL: Energy thresholds (most reliable for your noise pattern)
 # Updated after firmware tweaks - speech now has lower RMS/Peak values
 SPEECH_RMS_MIN = 0.0012         # Align with listener.py
 SPEECH_RMS_MAX = 0.40
 SPEECH_PEAK_MIN = 0.0025
-SPEECH_HIGH_FREQ_MAX = 0.08
 
 # === Audio Normalization (for optimal Whisper transcription) ===
 ENABLE_AUDIO_NORMALIZATION = True  # Normalize audio to optimal RMS for Whisper
@@ -353,6 +354,10 @@ def is_likely_speech(features, duration=None):
     if features['high_freq_ratio'] > SPEECH_HIGH_FREQ_MAX:
         reasons.append(f"High freq noise ({features['high_freq_ratio']:.3f} > {SPEECH_HIGH_FREQ_MAX})")
     
+    # Check Low Frequency Ratio (rumble/fan noise indicator)
+    if 'low_freq_ratio' in features and features['low_freq_ratio'] > SPEECH_LOW_FREQ_MAX:
+        reasons.append(f"Low freq rumble ({features['low_freq_ratio']:.3f} > {SPEECH_LOW_FREQ_MAX})")
+    
     is_speech = len(reasons) == 0
     reason = " | ".join(reasons) if reasons else "All checks passed"
     
@@ -554,7 +559,7 @@ def listen():
         print(f"[Filter]    Duration > {SPEECH_DURATION_MIN}s | ZCR < {SPEECH_ZCR_MAX} | Flatness < {SPEECH_FLATNESS_MAX}")
         print(f"[Filter]    RMS: {SPEECH_RMS_MIN} - {SPEECH_RMS_MAX} | Peak > {SPEECH_PEAK_MIN}")
         print(f"[Filter]    SpCent: {SPEECH_CENTROID_MIN}-{SPEECH_CENTROID_MAX}Hz | SpBand > {SPEECH_BAND_MIN}")
-        print(f"[Filter]    High Freq < {SPEECH_HIGH_FREQ_MAX} (rejects hiss/noise)")
+        print(f"[Filter]    High Freq < {SPEECH_HIGH_FREQ_MAX} | Low Freq < {SPEECH_LOW_FREQ_MAX} (rejects hiss/rumble)")
     else:
         print("\n[Filter] 💤 Advanced filter: DISABLED (VAD only)")
         print("[Filter]    Set ENABLE_ADVANCED_FILTER = True to enable multi-feature filtering")
