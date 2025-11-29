@@ -19,10 +19,9 @@ RUN pip3 install --upgrade --index-url https://pypi.org/simple pip setuptools wh
 # Verify PyTorch is installed and CUDA-enabled
 RUN python3 -c "import torch; assert hasattr(torch.version, 'cuda') and torch.version.cuda is not None, 'CUDA PyTorch required'; print(f'✅ PyTorch {torch.__version__} with CUDA {torch.version.cuda}')"
 
-# Install numpy first with Jetson index (has pre-built ARM64 wheels, avoids Python 3.12 build issues)
-RUN pip3 install --index-url https://pypi.jetson-ai-lab.dev/jp6/cu128 --extra-index-url https://pypi.org/simple \
-    "numpy>=1.24.0,<1.26.0" || \
-    pip3 install --index-url https://pypi.org/simple --only-binary numpy "numpy>=1.24.0,<1.26.0"
+# Install numpy first - try PyPI with wheels only (fast), fallback to Jetson index if needed
+RUN pip3 install --index-url https://pypi.org/simple --only-binary numpy "numpy>=1.24.0,<1.26.0" || \
+    pip3 install --index-url https://pypi.jetson-ai-lab.dev/jp6/cu128 --extra-index-url https://pypi.org/simple "numpy>=1.24.0,<1.26.0"
 
 # Install remaining Chatterbox dependencies (standard PyPI packages)
 RUN pip3 install --index-url https://pypi.org/simple \
