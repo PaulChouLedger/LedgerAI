@@ -305,14 +305,30 @@ if [ -f "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" ]; then
     
     # PyTorch and CTranslate2 are pre-installed with JetPack - no need to install them
     
+    # CRITICAL: Install onnxruntime-gpu FIRST before installing requirements.txt
+    # This prevents OpenWakeWord from pulling in onnxruntime (CPU) 1.23.2
+    # OpenWakeWord will use the already-installed onnxruntime-gpu if it's present
+    print_info "Installing onnxruntime-gpu==1.23.0 FIRST (before requirements.txt)..."
+    pip uninstall -y onnxruntime-gpu onnxruntime 2>/dev/null || true
+    if ! pip install --extra-index-url https://pypi.jetson-ai-lab.io/jp6/cu126 "onnxruntime-gpu==1.23.0" 2>&1 | tee /tmp/onnxruntime_early_install.log; then
+        print_warning "⚠️  Failed to install onnxruntime-gpu early - will try again later"
+    else
+        INSTALLED_VERSION=$(pip show onnxruntime-gpu 2>/dev/null | grep "^Version:" | awk '{print $2}' || echo "")
+        if [ "$INSTALLED_VERSION" = "1.23.0" ]; then
+            print_info "✅ onnxruntime-gpu==1.23.0 installed successfully (before requirements.txt)"
+            # Ensure onnxruntime (CPU) is not installed
+            pip uninstall -y onnxruntime 2>/dev/null || true
+        fi
+    fi
+    
     # Install PyQt5 separately with better error handling
     # Check if we should use system PyQt5 or install from pip
     if [ "$SYSTEM_PYQT5_AVAILABLE" = true ]; then
         print_info "Using system PyQt5 (pre-installed on system)"
         print_info "Installing requirements without PyQt5..."
         TEMP_REQUIREMENTS="/tmp/requirements_no_pyqt5.txt"
-        grep -v "^PyQt5" "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" > "$TEMP_REQUIREMENTS" || true
-        
+        # Exclude PyQt5 and openwakeword (openwakeword will be installed separately after onnxruntime-gpu)
+        grep -v "^PyQt5\|^openwakeword" "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" > "$TEMP_REQUIREMENTS" || true
         
         if pip install -r "$TEMP_REQUIREMENTS"; then
             print_info "✅ All requirements installed successfully (using system PyQt5)"
@@ -340,11 +356,16 @@ if [ -f "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" ]; then
         print_info "Installing all requirements (including PyQt5 from pip)..."
         
         PIP_ERROR=""
-                if pip install -r "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" 2>&1 | tee /tmp/pip_install.log; then
+                # Exclude openwakeword (will be installed separately after onnxruntime-gpu)
+                TEMP_REQUIREMENTS_NO_OPENWAKEWORD="/tmp/requirements_no_openwakeword.txt"
+                grep -v "^openwakeword" "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" > "$TEMP_REQUIREMENTS_NO_OPENWAKEWORD" || true
+                if pip install -r "$TEMP_REQUIREMENTS_NO_OPENWAKEWORD" 2>&1 | tee /tmp/pip_install.log; then
+                    rm -f "$TEMP_REQUIREMENTS_NO_OPENWAKEWORD"
                     print_info "✅ All requirements installed successfully"
                 else
                     PIP_ERROR=$(cat /tmp/pip_install.log)
-        fi
+                    rm -f "$TEMP_REQUIREMENTS_NO_OPENWAKEWORD"
+                fi
         
         if [ -n "$PIP_ERROR" ]; then
             PIP_ERROR=$(cat /tmp/pip_install.log)
@@ -360,7 +381,8 @@ if [ -f "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" ]; then
                     print_info "System PyQt5 now available. Recreating venv with system-site-packages..."
                     # We can't recreate venv here easily, so just install other packages
                     TEMP_REQUIREMENTS="/tmp/requirements_no_pyqt5.txt"
-                    grep -v "^PyQt5" "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" > "$TEMP_REQUIREMENTS" || true
+                    # Exclude PyQt5 and openwakeword (openwakeword will be installed separately after onnxruntime-gpu)
+                    grep -v "^PyQt5\|^openwakeword" "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" > "$TEMP_REQUIREMENTS" || true
                     if pip install -r "$TEMP_REQUIREMENTS"; then
                         print_info "✅ All other requirements installed"
                     else
@@ -404,7 +426,8 @@ if [ -f "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" ]; then
                             print_error "PyQt5 installation failed"
                             print_info "Installing remaining packages without PyQt5..."
                             TEMP_REQUIREMENTS="/tmp/requirements_no_pyqt5.txt"
-                            grep -v "^PyQt5" "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" > "$TEMP_REQUIREMENTS" || true
+                            # Exclude PyQt5 and openwakeword (openwakeword will be installed separately after onnxruntime-gpu)
+                            grep -v "^PyQt5\|^openwakeword" "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" > "$TEMP_REQUIREMENTS" || true
                             if pip install -r "$TEMP_REQUIREMENTS"; then
                                 print_info "✅ All other requirements installed successfully"
                             else
@@ -418,7 +441,8 @@ if [ -f "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" ]; then
                         print_error "qmake not found. PyQt5 cannot be built."
                         print_info "Installing remaining packages without PyQt5..."
                         TEMP_REQUIREMENTS="/tmp/requirements_no_pyqt5.txt"
-                        grep -v "^PyQt5" "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" > "$TEMP_REQUIREMENTS" || true
+                        # Exclude PyQt5 and openwakeword (openwakeword will be installed separately after onnxruntime-gpu)
+                        grep -v "^PyQt5\|^openwakeword" "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" > "$TEMP_REQUIREMENTS" || true
                         if pip install -r "$TEMP_REQUIREMENTS"; then
                             print_info "✅ All other requirements installed successfully"
                         else
