@@ -44,9 +44,6 @@
 # To disable auto-tune:
 #   sudo systemctl disable xvf3800-tuning.service
 
-[Unit]
-Description=XVF3800 Hardware DSP Configuration
-
 [Service]
 Type=oneshot
 RemainAfterExit=yes
