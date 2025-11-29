@@ -43,8 +43,6 @@ sudo apt update
 sudo apt install -y \
     pipewire \
     pipewire-pulse \
-    pipewire-alsa \
-    pipewire-jack \
     wireplumber \
     libspa-0.2-bluetooth \
     libspa-0.2-jack || {

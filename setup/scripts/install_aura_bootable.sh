@@ -106,7 +106,6 @@ sudo apt install -y \
     libasound2-dev \
     pipewire \
     pipewire-pulse \
-    pipewire-alsa \
     wireplumber \
     qtbase5-dev \
     qttools5-dev \
@@ -1563,8 +1562,6 @@ print_info "Installing PipeWire..."
 sudo apt install -y \
     pipewire \
     pipewire-pulse \
-    pipewire-alsa \
-    pipewire-jack \
     wireplumber \
     libspa-0.2-bluetooth \
     libspa-0.2-jack || {
