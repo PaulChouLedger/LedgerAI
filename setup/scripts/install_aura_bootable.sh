@@ -1429,6 +1429,8 @@ ExecStartPre=/bin/bash -c 'SOCKET=\$(ls /tmp/.X11-unix/ 2>/dev/null | grep "^X" 
 ExecStartPre=/bin/bash -c 'SOCKET=\$(ls /tmp/.X11-unix/ 2>/dev/null | grep "^X" | head -1); if [ -n "\$SOCKET" ]; then NUM=\$(echo "\$SOCKET" | sed "s/X//"); export DISPLAY=:\$NUM; else export DISPLAY=:0; fi; gsettings set org.gnome.desktop.screensaver idle-activation-enabled false 2>/dev/null || true'
 # Set default audio output (UACDemoV1.0) on every boot - ALSA and PulseAudio
 ExecStartPre=$LEDGERAI_DIR/setup/scripts/set_default_audio_on_boot.sh
+# Set default audio input (ReSpeaker XVF3800) on every boot - PulseAudio
+ExecStartPre=$LEDGERAI_DIR/setup/scripts/set_default_audio_input_on_boot.sh
 ExecStartPre=/bin/sleep 5
 ExecStart=$VENV_DIR/bin/python3 -u $LEDGERAI_DIR/aura-control/core/main.py
 Restart=always
@@ -1549,10 +1551,10 @@ else
 fi
 
 
-# Make audio setup script executable
+# Make audio setup scripts executable
 if [ -f "$LEDGERAI_DIR/setup/scripts/set_default_audio_on_boot.sh" ]; then
     chmod +x "$LEDGERAI_DIR/setup/scripts/set_default_audio_on_boot.sh"
-    print_info "✅ Audio setup script made executable"
+    print_info "✅ Audio output setup script made executable"
     
     # Run the script during installation to set defaults immediately
     print_info "Configuring default audio output (UACDemoV1.0)..."
@@ -1564,7 +1566,25 @@ if [ -f "$LEDGERAI_DIR/setup/scripts/set_default_audio_on_boot.sh" ]; then
         su - "$AURA_USER" -c "bash $LEDGERAI_DIR/setup/scripts/set_default_audio_on_boot.sh" 2>&1 | grep -E "\[Audio\]|✅|⚠️" || true
     fi
 else
-    print_warning "Audio setup script not found - skipping audio configuration"
+    print_warning "Audio output setup script not found - skipping audio output configuration"
+fi
+
+# Make audio input setup script executable
+if [ -f "$LEDGERAI_DIR/setup/scripts/set_default_audio_input_on_boot.sh" ]; then
+    chmod +x "$LEDGERAI_DIR/setup/scripts/set_default_audio_input_on_boot.sh"
+    print_info "✅ Audio input setup script made executable"
+    
+    # Run the script during installation to set defaults immediately
+    print_info "Configuring default audio input (ReSpeaker XVF3800)..."
+    if [ "$(whoami)" = "$AURA_USER" ]; then
+        # Running as the user - run directly
+        bash "$LEDGERAI_DIR/setup/scripts/set_default_audio_input_on_boot.sh" 2>&1 | grep -E "\[Audio\]|✅|⚠️" || true
+    else
+        # Running as root/sudo - run as the user
+        su - "$AURA_USER" -c "bash $LEDGERAI_DIR/setup/scripts/set_default_audio_input_on_boot.sh" 2>&1 | grep -E "\[Audio\]|✅|⚠️" || true
+    fi
+else
+    print_warning "Audio input setup script not found - skipping audio input configuration"
 fi
 
 echo ""
