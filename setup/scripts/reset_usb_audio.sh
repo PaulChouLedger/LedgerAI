@@ -15,52 +15,94 @@ echo -e "${GREEN}  USB Audio Device Reset${NC}"
 echo -e "${GREEN}==========================================${NC}"
 echo ""
 
-# Find XVF3800 USB device
+# Find XVF3800 USB device - try multiple methods
+USB_DEVICE=""
+
+# Method 1: Try VID:PID 2886:0018 (standard)
 USB_DEVICE=$(lsusb | grep "2886:0018" | head -1)
+
+# Method 2: Try by name (Seeed Studio or reSpeaker)
 if [ -z "$USB_DEVICE" ]; then
-    echo -e "${RED}❌ XVF3800 USB device not found${NC}"
-    exit 1
+    USB_DEVICE=$(lsusb | grep -i "seeed\|reSpeaker\|XVF3800" | head -1)
 fi
 
-# Extract bus and device numbers
-BUS=$(echo "$USB_DEVICE" | awk '{print $2}')
-DEV=$(echo "$USB_DEVICE" | awk '{print $4}' | sed 's/://')
+# Method 3: Try alternative VID:PID (some devices use different PIDs)
+if [ -z "$USB_DEVICE" ]; then
+    USB_DEVICE=$(lsusb | grep "2886:" | head -1)
+fi
+
+if [ -z "$USB_DEVICE" ]; then
+    echo -e "${RED}❌ XVF3800 USB device not found in lsusb${NC}"
+    echo "  Available USB devices:"
+    lsusb | sed 's/^/    /'
+    echo ""
+    echo "  But ALSA shows the device exists. Trying to find via ALSA..."
+    
+    # Try to find via ALSA device path
+    ALSA_DEVICE=$(arecord -l 2>/dev/null | grep -i "XVF3800\|reSpeaker" | head -1)
+    if [ -n "$ALSA_DEVICE" ]; then
+        echo -e "  ${YELLOW}⚠️  Found in ALSA but not in lsusb - device may be in use${NC}"
+        echo -e "  ${YELLOW}   This is OK - we can still reset GPIO and run tuning${NC}"
+        USB_DEVICE="ALSA_ONLY"
+    else
+        echo -e "  ${RED}❌ Not found in ALSA either${NC}"
+        exit 1
+    fi
+fi
+
+# Extract bus and device numbers (if USB device found)
+if [ "$USB_DEVICE" != "ALSA_ONLY" ]; then
+    BUS=$(echo "$USB_DEVICE" | awk '{print $2}')
+    DEV=$(echo "$USB_DEVICE" | awk '{print $4}' | sed 's/://')
+    echo -e "${YELLOW}[1]${NC} Found XVF3800 at USB $BUS:$DEV"
+    echo "  Device: $USB_DEVICE"
+else
+    BUS=""
+    DEV=""
+    echo -e "${YELLOW}[1]${NC} Found XVF3800 in ALSA (USB device info unavailable)"
+fi
 
 echo -e "${YELLOW}[1]${NC} Found XVF3800 at USB $BUS:$DEV"
 echo ""
 
 # Method 1: Reset USB device via sysfs (requires root)
-echo -e "${YELLOW}[2]${NC} Attempting USB device reset..."
-USB_RESET_PATH="/sys/bus/usb/devices/$BUS-$DEV/authorized"
-
-if [ -f "$USB_RESET_PATH" ]; then
-    echo "  Resetting USB device..."
-    echo 0 | sudo tee "$USB_RESET_PATH" >/dev/null 2>&1
-    sleep 1
-    echo 1 | sudo tee "$USB_RESET_PATH" >/dev/null 2>&1
-    sleep 2
-    echo -e "  ✅ USB device reset attempted"
+if [ -n "$BUS" ] && [ -n "$DEV" ]; then
+    echo -e "${YELLOW}[2]${NC} Attempting USB device reset..."
+    USB_RESET_PATH="/sys/bus/usb/devices/$BUS-$DEV/authorized"
+    
+    if [ -f "$USB_RESET_PATH" ]; then
+        echo "  Resetting USB device..."
+        echo 0 | sudo tee "$USB_RESET_PATH" >/dev/null 2>&1
+        sleep 1
+        echo 1 | sudo tee "$USB_RESET_PATH" >/dev/null 2>&1
+        sleep 2
+        echo -e "  ✅ USB device reset attempted"
+    else
+        echo -e "  ⚠️  USB reset path not found: $USB_RESET_PATH"
+    fi
+    echo ""
+    
+    # Method 2: Unbind/rebind USB driver (more aggressive)
+    echo -e "${YELLOW}[3]${NC} Attempting USB driver unbind/rebind..."
+    USB_DRIVER_PATH="/sys/bus/usb/drivers/usb/$BUS-$DEV"
+    
+    if [ -d "$USB_DRIVER_PATH" ]; then
+        echo "  Unbinding USB driver..."
+        echo "$BUS-$DEV" | sudo tee /sys/bus/usb/drivers/usb/unbind >/dev/null 2>&1
+        sleep 1
+        echo "  Rebinding USB driver..."
+        echo "$BUS-$DEV" | sudo tee /sys/bus/usb/drivers/usb/bind >/dev/null 2>&1
+        sleep 2
+        echo -e "  ✅ USB driver rebind attempted"
+    else
+        echo -e "  ⚠️  USB driver path not found: $USB_DRIVER_PATH"
+    fi
+    echo ""
 else
-    echo -e "  ⚠️  USB reset path not found: $USB_RESET_PATH"
+    echo -e "${YELLOW}[2-3]${NC} Skipping USB reset (device info unavailable, but ALSA shows device exists)"
+    echo "  This is OK - we can still configure GPIO and DSP"
+    echo ""
 fi
-echo ""
-
-# Method 2: Unbind/rebind USB driver (more aggressive)
-echo -e "${YELLOW}[3]${NC} Attempting USB driver unbind/rebind..."
-USB_DRIVER_PATH="/sys/bus/usb/drivers/usb/$BUS-$DEV"
-
-if [ -d "$USB_DRIVER_PATH" ]; then
-    echo "  Unbinding USB driver..."
-    echo "$BUS-$DEV" | sudo tee /sys/bus/usb/drivers/usb/unbind >/dev/null 2>&1
-    sleep 1
-    echo "  Rebinding USB driver..."
-    echo "$BUS-$DEV" | sudo tee /sys/bus/usb/drivers/usb/bind >/dev/null 2>&1
-    sleep 2
-    echo -e "  ✅ USB driver rebind attempted"
-else
-    echo -e "  ⚠️  USB driver path not found: $USB_DRIVER_PATH"
-fi
-echo ""
 
 # Method 3: Reinitialize GPIO pins after reset
 echo -e "${YELLOW}[4]${NC} Reinitializing GPIO pins..."
