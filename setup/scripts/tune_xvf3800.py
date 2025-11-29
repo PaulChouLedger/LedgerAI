@@ -84,49 +84,51 @@ def disable_all_leds():
     
     success = False
     
-    # Try multiple times to ensure LEDs are fully off
-    for attempt in range(2):
+    # Critical order: Disable effect first, then brightness, repeat multiple times
+    # This ensures LEDs are completely off, not just dim
+    for attempt in range(3):
         if attempt > 0:
-            time.sleep(0.5)
+            time.sleep(0.3)
         
-        # Method 1: Set brightness to 0 (0 = off, 255 = max brightness)
-        # This is the primary way to turn off LEDs
-        result = run_xvf_command("LED_BRIGHTNESS", 0)
+        # Step 1: Disable LED effect FIRST (stops any patterns/animations)
+        result = run_xvf_command("LED_EFFECT", 0)
         if result is not None:
-            print(f"  ✅ Set LED_BRIGHTNESS=0 (LEDs should be off)")
+            print(f"  ✅ Set LED_EFFECT=0 (disabled patterns)")
             success = True
         
-        # Method 2: Set color to black (0x000000 = black/off)
-        # Using hex format as per documentation: led_color 0xff8800
+        # Step 2: Set brightness to 0 (primary way to turn off LEDs)
+        result = run_xvf_command("LED_BRIGHTNESS", 0)
+        if result is not None:
+            print(f"  ✅ Set LED_BRIGHTNESS=0 (LEDs off)")
+            success = True
+        
+        # Step 3: Set color to black (ensures no color bleeding)
         result = run_xvf_command("LED_COLOR", "0x000000")
         if result is not None:
             print(f"  ✅ Set LED_COLOR=0x000000 (black/off)")
             success = True
         
-        # Method 3: Set LED effect to 0 (off/disabled)
-        # Try setting effect to 0 to disable LED patterns
-        result = run_xvf_command("LED_EFFECT", 0)
-        if result is not None:
-            print(f"  ✅ Set LED_EFFECT=0 (disabled)")
-            success = True
-        
-        # Method 4: Set LED speed to minimum (1 = slowest)
-        # Note: LED_SPEED cannot be 0 (range is 1-10)
+        # Step 4: Set speed to minimum (though brightness=0 should override)
         result = run_xvf_command("LED_SPEED", 1)
         if result is not None:
-            print(f"  ✅ Set LED_SPEED=1 (slowest)")
+            print(f"  ✅ Set LED_SPEED=1 (minimum)")
             success = True
         
-        # Method 5: Try setting brightness again after other commands
-        # Sometimes need to set brightness last to ensure it sticks
+        # Step 5: Set brightness to 0 AGAIN (ensure it sticks)
         result = run_xvf_command("LED_BRIGHTNESS", 0)
         if result is not None:
             success = True
     
+    # Final verification: Set brightness one more time after a short delay
+    time.sleep(0.2)
+    result = run_xvf_command("LED_BRIGHTNESS", 0)
+    if result is not None:
+        print(f"  ✅ Final LED_BRIGHTNESS=0 (verification)")
+        success = True
+    
     if success:
-        print("  💡 All LED settings applied - LEDs should be off")
+        print("  💡 All LED settings applied - LEDs should be completely off")
         print("  💡 Power consumption reduced")
-        print("  ⚠️  If a dim LED remains, it may be a status LED that cannot be disabled")
     else:
         print("  ⚠️  LED control commands not available")
         print("  ⚠️  Check if xvf_host is properly installed and device is connected")
