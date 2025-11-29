@@ -60,10 +60,14 @@ CONFIG_STATE_FILE = os.path.join(USER_HOME, 'LedgerAI', 'data', 'xvf3800_config.
 XVF_HOST_PATH = os.path.join(USER_HOME, 'reSpeaker_XVF3800_USB_4MIC_ARRAY', 'host_control', 'jetson', 'xvf_host')
 
 def run_xvf_command(cmd, *args):
-    """Run xvf_host command and return result"""
+    """Run xvf_host command and return result
+    
+    Increased timeout to 5 seconds for boot-time scenarios where device
+    may take longer to respond during initialization.
+    """
     try:
         full_cmd = [XVF_HOST_PATH, cmd] + list(str(arg) for arg in args)
-        result = subprocess.run(full_cmd, capture_output=True, text=True, timeout=2)
+        result = subprocess.run(full_cmd, capture_output=True, text=True, timeout=5)
         if result.returncode == 0:
             return result.stdout.strip()
         else:
@@ -72,7 +76,7 @@ def run_xvf_command(cmd, *args):
             print(f"  ⚠️  Warning: {cmd} returned {result.returncode}{stderr_msg}")
             return None
     except subprocess.TimeoutExpired:
-        print(f"  ⚠️  Warning: {cmd} timed out")
+        print(f"  ⚠️  Warning: {cmd} timed out (device may not be ready)")
         return None
     except Exception as e:
         print(f"  ⚠️  Error running {cmd}: {e}")
@@ -132,28 +136,44 @@ def initialize_gpio_pins():
     - X0D31: Audio amplifier enable (LOW = enabled, HIGH = disabled)
     
     These must be set correctly for audio capture to work!
+    
+    Retries up to 5 times with delays to handle boot-time device initialization.
     """
     print("[GPIO] Initializing GPIO pins for audio capture...")
     
     success_count = 0
+    max_retries = 5
+    retry_delay = 1.0  # seconds
     
     # X0D30: Set microphone mute circuit to LOW (unmuted)
     # This is critical - if HIGH, microphone is muted and won't capture audio
-    result = run_xvf_command("GPO_WRITE_VALUE", 30, 0)
-    if result is not None:
-        print("  ✅ Set X0D30 (mic mute) = LOW (microphones unmuted)")
-        success_count += 1
-    else:
-        print("  ⚠️  Failed to set X0D30 (mic mute) - microphone may be muted!")
+    # Retry logic for boot-time scenarios where device may not be ready immediately
+    for attempt in range(max_retries):
+        result = run_xvf_command("GPO_WRITE_VALUE", 30, 0)
+        if result is not None:
+            print("  ✅ Set X0D30 (mic mute) = LOW (microphones unmuted)")
+            success_count += 1
+            break
+        elif attempt < max_retries - 1:
+            print(f"  ⚠️  Attempt {attempt + 1}/{max_retries} failed, retrying in {retry_delay}s...")
+            time.sleep(retry_delay)
+        else:
+            print("  ⚠️  Failed to set X0D30 (mic mute) after retries - microphone may be muted!")
     
     # X0D31: Set audio amplifier enable to LOW (enabled)
     # This is critical - if HIGH, amplifier is disabled
-    result = run_xvf_command("GPO_WRITE_VALUE", 31, 0)
-    if result is not None:
-        print("  ✅ Set X0D31 (amp enable) = LOW (amplifier enabled)")
-        success_count += 1
-    else:
-        print("  ⚠️  Failed to set X0D31 (amp enable) - amplifier may be disabled!")
+    # Retry logic for boot-time scenarios where device may not be ready immediately
+    for attempt in range(max_retries):
+        result = run_xvf_command("GPO_WRITE_VALUE", 31, 0)
+        if result is not None:
+            print("  ✅ Set X0D31 (amp enable) = LOW (amplifier enabled)")
+            success_count += 1
+            break
+        elif attempt < max_retries - 1:
+            print(f"  ⚠️  Attempt {attempt + 1}/{max_retries} failed, retrying in {retry_delay}s...")
+            time.sleep(retry_delay)
+        else:
+            print("  ⚠️  Failed to set X0D31 (amp enable) after retries - amplifier may be disabled!")
     
     # Verify GPIO state
     result = run_xvf_command("GPO_READ_VALUES")

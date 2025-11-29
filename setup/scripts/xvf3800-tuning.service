@@ -44,12 +44,18 @@
 # To disable auto-tune:
 #   sudo systemctl disable xvf3800-tuning.service
 
+[Unit]
+# Wait for USB subsystem and ALSA to be ready
+After=sys-subsystem-usb-devices.target sound.target
+Wants=sys-subsystem-usb-devices.target
+
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-# Find LedgerAI directory and run tuning script
+# Wait for device to be ready, then find LedgerAI directory and run tuning script
 # Python script handles user detection
-ExecStart=/bin/bash -c 'for dir in "%h/LedgerAI" "/home/ledger/LedgerAI" "/home/aura/LedgerAI"; do if [ -f "$$dir/setup/scripts/tune_xvf3800.py" ]; then cd "$$dir" && python3 -B setup/scripts/tune_xvf3800.py agc_20_ec; exit $$?; fi; done; echo "Error: Could not find LedgerAI directory"; exit 1'
+# Retry logic: wait up to 30 seconds for device to be available
+ExecStart=/bin/bash -c 'for i in {1..30}; do if lsusb | grep -q "2886:0018"; then break; fi; sleep 1; done; sleep 2; for dir in "%h/LedgerAI" "/home/ledger/LedgerAI" "/home/aura/LedgerAI"; do if [ -f "$$dir/setup/scripts/tune_xvf3800.py" ]; then cd "$$dir" && python3 -B setup/scripts/tune_xvf3800.py agc_20_ec; exit $$?; fi; done; echo "Error: Could not find LedgerAI directory"; exit 1'
 StandardOutput=journal
 StandardError=journal
 
