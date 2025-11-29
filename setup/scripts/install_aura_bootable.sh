@@ -105,6 +105,7 @@ sudo apt install -y \
     alsa-utils \
     libasound2-dev \
     pulseaudio \
+    pulseaudio-utils \
     qtbase5-dev \
     qttools5-dev \
     qttools5-dev-tools \
@@ -1617,10 +1618,70 @@ print_step "13. Configuring audio device permissions..."
 if ! groups "$AURA_USER" | grep -q audio; then
     sudo usermod -aG audio "$AURA_USER"
     print_info "User added to audio group"
+    print_warning "⚠️  You must logout/login (or reboot) for audio group changes to take effect"
 else
     print_info "User already in audio group"
 fi
 
+# Configure PulseAudio to not block direct ALSA access
+# This allows PortAudio/sounddevice to access microphones directly via ALSA
+print_info "Configuring PulseAudio to allow direct ALSA access..."
+PULSE_CONFIG="/etc/pulse/default.pa"
+PULSE_CONFIG_BACKUP="/etc/pulse/default.pa.bak.$(date +%s)"
+
+if [ -f "$PULSE_CONFIG" ]; then
+    # Backup original config
+    if [ ! -f "$PULSE_CONFIG_BACKUP" ]; then
+        sudo cp "$PULSE_CONFIG" "$PULSE_CONFIG_BACKUP"
+        print_info "Backed up PulseAudio config to $PULSE_CONFIG_BACKUP"
+    fi
+    
+    # Check if we've already configured it
+    if ! grep -q "# Modified by install_aura_bootable.sh" "$PULSE_CONFIG"; then
+        # Configure PulseAudio to not suspend USB audio devices
+        # This prevents microphones from being suspended on boot
+        if grep -q "load-module module-suspend-on-idle" "$PULSE_CONFIG"; then
+            # Update timeout to 0 (never suspend) to prevent USB devices from being suspended
+            sudo sed -i 's/load-module module-suspend-on-idle.*timeout=[0-9]*/load-module module-suspend-on-idle timeout=0/' "$PULSE_CONFIG" || \
+            sudo sed -i 's/^load-module module-suspend-on-idle$/load-module module-suspend-on-idle timeout=0/' "$PULSE_CONFIG" || true
+        fi
+        
+        # Add configuration to prevent PulseAudio from taking exclusive control
+        # This allows ALSA applications (like PortAudio) to access devices directly
+        if ! grep -q "tsched=0" "$PULSE_CONFIG"; then
+            # Add tsched=0 to load-module module-udev-detect to disable timer-based scheduling
+            # This allows better compatibility with direct ALSA access
+            sudo sed -i 's/load-module module-udev-detect/load-module module-udev-detect tsched=0/' "$PULSE_CONFIG" || true
+        fi
+        
+        # Add marker comment
+        sudo sed -i '1i# Modified by install_aura_bootable.sh - Allow direct ALSA access for PortAudio/sounddevice' "$PULSE_CONFIG"
+        
+        print_info "✅ PulseAudio configured to allow direct ALSA access"
+        print_info "   Restarting PulseAudio to apply changes..."
+        
+        # Restart PulseAudio if running (as current user)
+        if pgrep -x pulseaudio > /dev/null; then
+            # Try to kill as current user first
+            pulseaudio --kill 2>/dev/null || true
+            sleep 1
+            # If still running, try as root
+            if pgrep -x pulseaudio > /dev/null; then
+                sudo killall pulseaudio 2>/dev/null || true
+                sleep 1
+            fi
+        fi
+        
+        # PulseAudio will auto-start on next access
+        print_info "   PulseAudio will restart automatically when needed"
+        print_warning "⚠️  If microphone still doesn't work, try: pulseaudio --kill && pulseaudio --start"
+    else
+        print_info "PulseAudio already configured for direct ALSA access"
+    fi
+else
+    print_warning "⚠️  PulseAudio config not found at $PULSE_CONFIG"
+    print_info "   PulseAudio may block direct ALSA access"
+fi
 
 # Make audio setup scripts executable
 if [ -f "$LEDGERAI_DIR/setup/scripts/set_default_audio_on_boot.sh" ]; then
