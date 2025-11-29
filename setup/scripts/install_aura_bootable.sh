@@ -1184,39 +1184,40 @@ fi
 echo ""
 
 # ============================================================================
-# Step 7: Install XVF3800 tuning service
+# Step 7: Install git hooks
 # ============================================================================
-print_step "7. Installing XVF3800 tuning service..."
+# Note: XVF3800 tuning service removed - can be added back later if needed
+print_step "7. Installing git hooks..."
 
-SERVICE_FILE="$LEDGERAI_DIR/setup/scripts/xvf3800-tuning.service"
-SYSTEMD_SERVICE="/etc/systemd/system/xvf3800-tuning.service"
+GIT_HOOKS_DIR="$LEDGERAI_DIR/.git/hooks"
 
-if [ -f "$SERVICE_FILE" ]; then
-    # Remove existing service file or symlink if it exists
-    if [ -L "$SYSTEMD_SERVICE" ] || [ -f "$SYSTEMD_SERVICE" ]; then
-        sudo rm -f "$SYSTEMD_SERVICE"
+# Install post-merge hook to auto-reload systemd after git pull
+POST_MERGE_HOOK="$GIT_HOOKS_DIR/post-merge"
+POST_MERGE_TEMPLATE="$LEDGERAI_DIR/setup/scripts/git-hooks/post-merge"
+
+# Install pre-commit hook to sync llm-container changes to llm-medical-container
+PRE_COMMIT_HOOK="$GIT_HOOKS_DIR/pre-commit"
+PRE_COMMIT_TEMPLATE="$LEDGERAI_DIR/setup/scripts/git-hooks/pre-commit"
+
+if [ -d "$LEDGERAI_DIR/.git" ]; then
+    # Install post-merge hook
+    if [ -f "$POST_MERGE_TEMPLATE" ]; then
+        if [ ! -f "$POST_MERGE_HOOK" ] || ! grep -q "XVF3800 service file updated" "$POST_MERGE_HOOK" 2>/dev/null; then
+            cp "$POST_MERGE_TEMPLATE" "$POST_MERGE_HOOK"
+            chmod +x "$POST_MERGE_HOOK"
+            print_info "Git post-merge hook installed - systemd will auto-reload after git pull"
+        fi
     fi
     
-    # Create symlink to git repository file (allows automatic updates via git pull)
-    # Service file is now fully dynamic - no placeholders needed!
-    # Python script automatically detects user, paths, and waits for USB device
-    # Use absolute path for symlink target to ensure it works regardless of working directory
-    SERVICE_FILE_ABS="$(cd "$(dirname "$SERVICE_FILE")" && pwd)/$(basename "$SERVICE_FILE")"
-    sudo ln -s "$SERVICE_FILE_ABS" "$SYSTEMD_SERVICE"
-    
-    # Reload systemd
-    sudo systemctl daemon-reload
-    
-    # Enable service (but don't start - microphone may not be connected yet)
-    sudo systemctl enable xvf3800-tuning.service
-    
-    print_info "XVF3800 tuning service installed and enabled"
-    print_info "Service file is symlinked to git repository - updates automatically on git pull!"
-    print_info "Service will configure microphone on boot"
-    print_info "Note: Service will start automatically when microphone is connected"
-    print_info "To test manually: sudo systemctl start xvf3800-tuning.service"
-    
-    # Install git hooks
+    # Install pre-commit hook
+    if [ -f "$PRE_COMMIT_TEMPLATE" ]; then
+        if [ ! -f "$PRE_COMMIT_HOOK" ] || ! grep -q "llm-container" "$PRE_COMMIT_HOOK" 2>/dev/null; then
+            cp "$PRE_COMMIT_TEMPLATE" "$PRE_COMMIT_HOOK"
+            chmod +x "$PRE_COMMIT_HOOK"
+            print_info "Git pre-commit hook installed - llm-container changes will sync to llm-medical-container"
+        fi
+    fi
+fi
     GIT_HOOKS_DIR="$LEDGERAI_DIR/.git/hooks"
     
     # Install post-merge hook to auto-reload systemd after git pull
@@ -1243,11 +1244,8 @@ if [ -f "$SERVICE_FILE" ]; then
                 cp "$PRE_COMMIT_TEMPLATE" "$PRE_COMMIT_HOOK"
                 chmod +x "$PRE_COMMIT_HOOK"
                 print_info "Git pre-commit hook installed - llm-container changes will sync to llm-medical-container"
-            fi
         fi
     fi
-else
-    print_error "XVF3800 service file not found at $SERVICE_FILE"
 fi
 
 echo ""
@@ -1323,8 +1321,8 @@ fi
 cat > "$AURA_SERVICE_FILE" << EOF
 [Unit]
 Description=Aura Voice Assistant
-After=network.target docker.service xvf3800-tuning.service display-manager.service
-Wants=docker.service xvf3800-tuning.service display-manager.service
+After=network.target docker.service display-manager.service
+Wants=docker.service display-manager.service
 Requires=docker.service
 
 [Service]
@@ -1634,7 +1632,6 @@ else
     echo "ℹ️  Jetson Power Mode: Skipped (not a Jetson device)"
 fi
 echo "✅ XVF3800 support: $XVF3800_REPO_DIR"
-echo "✅ XVF3800 tuning service: Enabled (runs on boot)"
 echo "✅ Aura service: Enabled (will start on boot)"
 echo "✅ Keyboard monitor service: Enabled (disables Ubuntu keyboard while Aura runs)"
 echo "✅ Docker: Configured"
@@ -1703,12 +1700,10 @@ echo "   sudo reboot"
 echo ""
 echo "5. Check service status after boot:"
 echo "   sudo systemctl status aura.service"
-echo "   sudo systemctl status xvf3800-tuning.service"
 echo "   sudo systemctl status disable-keyboard-monitor.service"
 echo ""
 echo "6. View logs:"
 echo "   journalctl -u aura.service -f"
-echo "   journalctl -u xvf3800-tuning.service -n 50"
 echo "   journalctl -u disable-keyboard-monitor.service -f"
 echo ""
 echo "7. If PortAudio/audio doesn't work:"
