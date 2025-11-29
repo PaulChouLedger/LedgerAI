@@ -89,7 +89,7 @@ from scipy.fft import rfft, rfftfreq
 SAMPLE_RATE = 16000
 FRAME_SIZE = int(SAMPLE_RATE * 0.032)
 SILENCE_TIMEOUT = 0.2  # 200ms of silence before stopping (align with listener.py)
-VAD_START_THRESHOLD = 0.35  # Increased to reduce false positives
+VAD_START_THRESHOLD = 0.25  # Restored to previous working value
 VAD_SILENCE_THRESHOLD = 0.15  # Lower = more conservative about ending
 MIN_AUDIO_SAMPLES = 2000
 
