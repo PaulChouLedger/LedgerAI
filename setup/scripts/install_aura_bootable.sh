@@ -1598,57 +1598,50 @@ else
     print_warning "⚠️  PipeWire service not active - may need manual start"
 fi
 
-# Configure PipeWire to prevent USB audio device suspension
-print_info "Configuring PipeWire to prevent USB audio suspension..."
-PIPEWIRE_CONFIG_DIR="$AURA_HOME/.config/pipewire"
-mkdir -p "$PIPEWIRE_CONFIG_DIR/pipewire-pulse.d"
+# Configure Wireplumber to prevent USB audio device suspension
+print_info "Configuring Wireplumber to prevent USB audio suspension..."
+WIREPLUMBER_CONFIG_DIR="$AURA_HOME/.config/wireplumber"
+mkdir -p "$WIREPLUMBER_CONFIG_DIR/main.lua.d"
 
-# Create custom config to prevent USB device suspension
-cat > "$PIPEWIRE_CONFIG_DIR/pipewire-pulse.d/99-usb-audio-no-suspend.conf" << 'EOFPIPEWIRE'
-# Prevent USB audio devices from auto-suspending
-# This ensures USB microphones stay IDLE instead of SUSPENDED
-context.properties = {
-    default.clock.rate = 48000
-    default.clock.quantum = 1024
-    default.clock.min-quantum = 32
-    default.clock.max-quantum = 8192
+# Create Wireplumber policy to prevent USB audio device suspension
+cat > "$WIREPLUMBER_CONFIG_DIR/main.lua.d/99-usb-audio-no-suspend.lua" << 'EOFWIREPLUMBER'
+-- Prevent USB audio devices from auto-suspending
+-- This ensures USB microphones stay IDLE instead of SUSPENDED
+
+alsa_monitor.rules = {
+  {
+    matches = {
+      {
+        { "device.name", "matches", "alsa.*usb*" },
+      },
+    },
+    apply_properties = {
+      ["device.suspend-on-idle"] = false,
+      ["device.session.suspend-timeout-seconds"] = 0,
+    },
+  },
+  {
+    matches = {
+      {
+        { "device.name", "matches", "alsa.*" },
+      },
+    },
+    apply_properties = {
+      ["device.suspend-on-idle"] = false,
+    },
+  },
 }
+EOFWIREPLUMBER
 
-# Disable suspend-on-idle for USB audio devices
-pulse.properties = {
-    server.address = [
-        "unix:native"
-        "unix:/tmp/pulse-socket"
-    ]
-    server.dont-migrate = true
-    server.allow-pulseaudio-override = false
-}
+chown "$AURA_USER:$AURA_USER" "$WIREPLUMBER_CONFIG_DIR/main.lua.d/99-usb-audio-no-suspend.lua" 2>/dev/null || true
+print_info "✅ Wireplumber configuration created"
 
-# Module configuration
-pulse.rules = [
-    {
-        matches = [
-            {
-                device.name = "~alsa.*"
-            }
-        ]
-        actions = {
-            update-props = {
-                device.suspend-on-idle = false
-            }
-        }
-    }
-]
-EOFPIPEWIRE
-
-chown "$AURA_USER:$AURA_USER" "$PIPEWIRE_CONFIG_DIR/pipewire-pulse.d/99-usb-audio-no-suspend.conf" 2>/dev/null || true
-print_info "✅ PipeWire configuration created"
-
-# Restart PipeWire to apply configuration
-print_info "Restarting PipeWire to apply configuration..."
+# Restart Wireplumber and PipeWire to apply configuration
+print_info "Restarting Wireplumber and PipeWire to apply configuration..."
+systemctl --user restart wireplumber.service 2>/dev/null || true
 systemctl --user restart pipewire.service 2>/dev/null || true
 systemctl --user restart pipewire-pulse.service 2>/dev/null || true
-sleep 2
+sleep 3
 
 # Verify PipeWire can see audio devices
 if command -v pactl >/dev/null 2>&1; then

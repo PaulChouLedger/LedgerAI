@@ -71,57 +71,54 @@ systemctl --user start wireplumber.service 2>/dev/null || true
 echo -e "${YELLOW}[STEP 7]${NC} Waiting for PipeWire to initialize..."
 sleep 3
 
-# Step 6: Configure PipeWire to prevent USB audio suspension
-echo -e "${YELLOW}[STEP 8]${NC} Configuring PipeWire to prevent USB audio suspension..."
-PIPEWIRE_CONFIG_DIR="$AURA_HOME/.config/pipewire"
-mkdir -p "$PIPEWIRE_CONFIG_DIR/pipewire-pulse.d"
+# Step 6: Configure Wireplumber to prevent USB audio suspension
+echo -e "${YELLOW}[STEP 8]${NC} Configuring Wireplumber to prevent USB audio suspension..."
+WIREPLUMBER_CONFIG_DIR="$AURA_HOME/.config/wireplumber"
+mkdir -p "$WIREPLUMBER_CONFIG_DIR/main.lua.d"
 
-# Create custom config to prevent USB device suspension
-cat > "$PIPEWIRE_CONFIG_DIR/pipewire-pulse.d/99-usb-audio-no-suspend.conf" << 'EOFPIPEWIRE'
-# Prevent USB audio devices from auto-suspending
-# This ensures USB microphones stay IDLE instead of SUSPENDED
-context.properties = {
-    default.clock.rate = 48000
-    default.clock.quantum = 1024
-    default.clock.min-quantum = 32
-    default.clock.max-quantum = 8192
+# Create Wireplumber policy to prevent USB audio device suspension
+cat > "$WIREPLUMBER_CONFIG_DIR/main.lua.d/99-usb-audio-no-suspend.lua" << 'EOFWIREPLUMBER'
+-- Prevent USB audio devices from auto-suspending
+-- This ensures USB microphones stay IDLE instead of SUSPENDED
+
+alsa_monitor.rules = {
+  {
+    matches = {
+      {
+        { "device.name", "matches", "alsa.*" },
+      },
+    },
+    apply_properties = {
+      ["device.suspend-on-idle"] = false,
+    },
+  },
 }
 
-# Disable suspend-on-idle for USB audio devices
-pulse.properties = {
-    server.address = [
-        "unix:native"
-        "unix:/tmp/pulse-socket"
-    ]
-    server.dont-migrate = true
-    server.allow-pulseaudio-override = false
+-- Also prevent suspension for USB audio devices specifically
+alsa_monitor.rules = {
+  {
+    matches = {
+      {
+        { "device.name", "matches", "alsa.*usb*" },
+      },
+    },
+    apply_properties = {
+      ["device.suspend-on-idle"] = false,
+      ["device.session.suspend-timeout-seconds"] = 0,
+    },
+  },
 }
+EOFWIREPLUMBER
 
-# Module configuration
-pulse.rules = [
-    {
-        matches = [
-            {
-                device.name = "~alsa.*"
-            }
-        ]
-        actions = {
-            update-props = {
-                device.suspend-on-idle = false
-            }
-        }
-    }
-]
-EOFPIPEWIRE
+chmod 644 "$WIREPLUMBER_CONFIG_DIR/main.lua.d/99-usb-audio-no-suspend.lua"
+echo -e "${GREEN}✅${NC} Wireplumber configuration created"
 
-chmod 644 "$PIPEWIRE_CONFIG_DIR/pipewire-pulse.d/99-usb-audio-no-suspend.conf"
-echo -e "${GREEN}✅${NC} PipeWire configuration created"
-
-# Step 7: Restart PipeWire to apply configuration
-echo -e "${YELLOW}[STEP 9]${NC} Restarting PipeWire to apply configuration..."
+# Step 7: Restart PipeWire and Wireplumber to apply configuration
+echo -e "${YELLOW}[STEP 9]${NC} Restarting PipeWire and Wireplumber to apply configuration..."
+systemctl --user restart wireplumber.service 2>/dev/null || true
 systemctl --user restart pipewire.service 2>/dev/null || true
 systemctl --user restart pipewire-pulse.service 2>/dev/null || true
-sleep 2
+sleep 3
 
 # Step 8: Verify PipeWire is working
 echo -e "${YELLOW}[STEP 10]${NC} Verifying PipeWire installation..."
@@ -139,11 +136,21 @@ if command -v pactl >/dev/null 2>&1; then
     fi
     
     echo ""
-    echo "Available audio sources:"
+    echo "Available audio sources (pactl):"
     pactl list short sources 2>/dev/null | head -5 || echo "  (none found)"
     echo ""
-    echo "Available audio sinks:"
+    echo "Available audio sinks (pactl):"
     pactl list short sinks 2>/dev/null | head -5 || echo "  (none found)"
+    echo ""
+    echo "XVF3800 sources:"
+    pactl list short sources 2>/dev/null | grep -i "XVF3800\|reSpeaker" || echo "  (none found)"
+    echo ""
+    echo "Using wpctl (PipeWire native):"
+    if command -v wpctl >/dev/null 2>&1; then
+        wpctl status 2>/dev/null | grep -i "XVF3800\|reSpeaker" || echo "  (none found)"
+    else
+        echo "  wpctl not available"
+    fi
 fi
 
 echo ""
@@ -156,9 +163,11 @@ echo "USB audio devices should now stay IDLE instead of SUSPENDED."
 echo ""
 echo "To verify:"
 echo "  pactl list short sources | grep XVF3800"
-echo "  (Should show IDLE instead of SUSPENDED)"
+echo "  wpctl status | grep XVF3800"
+echo "  (Should show IDLE/RUNNING instead of SUSPENDED)"
 echo ""
 echo "If you need to restart PipeWire:"
+echo "  systemctl --user restart wireplumber.service"
 echo "  systemctl --user restart pipewire.service"
 echo "  systemctl --user restart pipewire-pulse.service"
 echo ""
