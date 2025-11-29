@@ -5,22 +5,14 @@ XVF3800 4 Mic Array Tuner
 Configures the hardware DSP on the XVF3800 for optimal
 speech recognition (ASR).
 
-All presets automatically disable LEDs to reduce power consumption.
+Automatically reboots device, configures GPIO/DSP, and disables LEDs.
 
 Usage:
     python3 tune_xvf3800.py [preset]
     
 PRESETS:
-    - balanced_beam (bb)   : HPF 70Hz + AGC (0.08, 30dB) - DEFAULT ⭐ RECOMMENDED
-    - ultra_sensitive       : AGC (0.10, 45dB) - Far-field optimized
-    - far_field            : Optimized for 8-16 feet
-    - near_field           : Optimized for 1-6 feet
-    - hpf_only             : HPF 70Hz only (minimal processing)
-    - agc_only             : AGC only (0.08, 30dB) - no HPF
-    - agc_10               : HPF 70Hz + AGC with 10% increase (0.088)
-    - agc_20               : HPF 70Hz + AGC with 20% increase (0.096)
-    - reset                : Factory defaults
-    - show                 : Show current settings
+    - agc_20_ec            : AGC 20% + Echo Cancellation ON (PP_ECHOONOFF=1) - DEFAULT ⭐ RECOMMENDED
+    - reset                : Factory defaults (reboot to factory state)
 """
 
 import sys
@@ -92,36 +84,49 @@ def disable_all_leds():
     
     success = False
     
-    # Method 1: Set brightness to 0 (0 = off, 255 = max brightness)
-    # This is the primary way to turn off LEDs
-    result = run_xvf_command("LED_BRIGHTNESS", 0)
-    if result is not None:
-        print(f"  ✅ Set LED_BRIGHTNESS=0 (LEDs should be off)")
-        success = True
-    
-    # Method 2: Set color to black (0x000000 = black/off)
-    # Using hex format as per documentation: led_color 0xff8800
-    result = run_xvf_command("LED_COLOR", "0x000000")
-    if result is not None:
-        print(f"  ✅ Set LED_COLOR=0x000000 (black/off)")
-        success = True
-    
-    # Method 3: Set LED effect to 0 (off/disabled)
-    # Try setting effect to 0 to disable LED patterns
-    result = run_xvf_command("LED_EFFECT", 0)
-    if result is not None:
-        print(f"  ✅ Set LED_EFFECT=0 (disabled)")
-        success = True
-    
-    # Method 4: Set LED speed to 0 (no animation)
-    result = run_xvf_command("LED_SPEED", 0)
-    if result is not None:
-        print(f"  ✅ Set LED_SPEED=0 (no animation)")
-        success = True
+    # Try multiple times to ensure LEDs are fully off
+    for attempt in range(2):
+        if attempt > 0:
+            time.sleep(0.5)
+        
+        # Method 1: Set brightness to 0 (0 = off, 255 = max brightness)
+        # This is the primary way to turn off LEDs
+        result = run_xvf_command("LED_BRIGHTNESS", 0)
+        if result is not None:
+            print(f"  ✅ Set LED_BRIGHTNESS=0 (LEDs should be off)")
+            success = True
+        
+        # Method 2: Set color to black (0x000000 = black/off)
+        # Using hex format as per documentation: led_color 0xff8800
+        result = run_xvf_command("LED_COLOR", "0x000000")
+        if result is not None:
+            print(f"  ✅ Set LED_COLOR=0x000000 (black/off)")
+            success = True
+        
+        # Method 3: Set LED effect to 0 (off/disabled)
+        # Try setting effect to 0 to disable LED patterns
+        result = run_xvf_command("LED_EFFECT", 0)
+        if result is not None:
+            print(f"  ✅ Set LED_EFFECT=0 (disabled)")
+            success = True
+        
+        # Method 4: Set LED speed to minimum (1 = slowest)
+        # Note: LED_SPEED cannot be 0 (range is 1-10)
+        result = run_xvf_command("LED_SPEED", 1)
+        if result is not None:
+            print(f"  ✅ Set LED_SPEED=1 (slowest)")
+            success = True
+        
+        # Method 5: Try setting brightness again after other commands
+        # Sometimes need to set brightness last to ensure it sticks
+        result = run_xvf_command("LED_BRIGHTNESS", 0)
+        if result is not None:
+            success = True
     
     if success:
         print("  💡 All LED settings applied - LEDs should be off")
         print("  💡 Power consumption reduced")
+        print("  ⚠️  If a dim LED remains, it may be a status LED that cannot be disabled")
     else:
         print("  ⚠️  LED control commands not available")
         print("  ⚠️  Check if xvf_host is properly installed and device is connected")
@@ -237,410 +242,51 @@ def save_config_state(preset, config_dict):
     except Exception as e:
         print(f"\n  ⚠️  Could not save config state: {e}")
 
-def configure_balanced_beam():
-    """Balanced Beam - HPF 70Hz + AGC (0.08, 30dB) - Recommended for fan noise"""
-    print("\n" + "="*80)
-    print("  ⚖️  BALANCED BEAM - Recommended Configuration")
-    print("="*80 + "\n")
-    
-    # Initialize GPIO pins FIRST (critical for audio capture)
-    initialize_gpio_pins()
-    print()
-    
-    # Disable LEDs to reduce power draw
-    disable_all_leds()
-    print()
-    
-    print("[1/6] High-Pass Filter: 70 Hz (removes low-frequency rumble)")
-    run_xvf_command("AEC_HPFONOFF", 1)
-    
-    print("[2/6] AGC: ENABLED")
-    run_xvf_command("PP_AGCONOFF", 1)
-    
-    print("[3/6] AGC Target Level: 0.08 RMS")
-    run_xvf_command("PP_AGCDESIREDLEVEL", 0.08)
-    
-    print("[4/6] AGC Max Gain: 30 dB (1000 linear)")
-    run_xvf_command("PP_AGCMAXGAIN", 1000)
-    
-    print("[5/6] AGC Attack Time: 0.5 seconds")
-    run_xvf_command("PP_AGCTIME", 0.5)
-    
-    print("[6/6] Echo Cancellation: OFF")
-    run_xvf_command("PP_ECHOONOFF", 0)
-    
-    print("\n  ✅ Balanced Beam Profile Complete")
-    print("\n  🎯 RECOMMENDED FOR FAN NOISE:")
-    print("     1️⃣  HPF removes low-frequency rumble")
-    print("     2️⃣  AGC maintains optimal speech levels")
-    print("     3️⃣  Beamforming spatial rejection")
-    print("\n  This is the recommended profile for Jetson NX with fan noise!\n")
-    
-    save_config_state('balanced_beam', {
-        'AEC_HPFONOFF': 1,
-        'PP_AGCONOFF': 1,
-        'PP_AGCDESIREDLEVEL': 0.08,
-        'PP_AGCMAXGAIN': 1000,
-        'PP_AGCTIME': 0.5,
-        'PP_ECHOONOFF': 0
-    })
-    return True
-
-def configure_ultra_sensitive():
-    """Ultra Sensitive - Maximum far-field detection"""
-    print("\n" + "="*80)
-    print("  🔥 ULTRA SENSITIVE - Maximum Far-Field Detection")
-    print("="*80 + "\n")
-    
-    # Initialize GPIO pins FIRST (critical for audio capture)
-    initialize_gpio_pins()
-    print()
-    
-    # Disable LEDs to reduce power draw
-    disable_all_leds()
-    print()
-    
-    print("[1/6] High-Pass Filter: 70 Hz")
-    run_xvf_command("AEC_HPFONOFF", 1)
-    
-    print("[2/6] AGC: ENABLED (Aggressive)")
-    run_xvf_command("PP_AGCONOFF", 1)
-    
-    print("[3/6] AGC Target Level: 0.10 RMS (higher = more sensitive)")
-    run_xvf_command("PP_AGCDESIREDLEVEL", 0.10)
-    
-    print("[4/6] AGC Max Gain: 45 dB (31623 linear)")
-    run_xvf_command("PP_AGCMAXGAIN", 31623)
-    
-    print("[5/6] AGC Attack Time: 0.5 seconds")
-    run_xvf_command("PP_AGCTIME", 0.5)
-    
-    print("[6/6] Echo Cancellation: OFF")
-    run_xvf_command("PP_ECHOONOFF", 0)
-    
-    print("\n  ✅ Ultra Sensitive Profile Complete")
-    print("\n  🎯 OPTIMIZED FOR FAR-FIELD (8-16 feet):")
-    print("     ⚠️  WARNING: May amplify fan noise if too close\n")
-    
-    save_config_state('ultra_sensitive', {
-        'AEC_HPFONOFF': 1,
-        'PP_AGCONOFF': 1,
-        'PP_AGCDESIREDLEVEL': 0.10,
-        'PP_AGCMAXGAIN': 31623,
-        'PP_AGCTIME': 0.5,
-        'PP_ECHOONOFF': 0
-    })
-    return True
-
-def configure_far_field():
-    """Far-field configuration"""
-    print("\n" + "="*80)
-    print("  🎯 FAR-FIELD CONFIGURATION")
-    print("="*80 + "\n")
-    
-    # Initialize GPIO pins FIRST (critical for audio capture)
-    initialize_gpio_pins()
-    print()
-    
-    # Disable LEDs to reduce power draw
-    disable_all_leds()
-    print()
-    
-    print("[1/6] High-Pass Filter: 70 Hz")
-    run_xvf_command("AEC_HPFONOFF", 1)
-    
-    print("[2/6] AGC: ENABLED")
-    run_xvf_command("PP_AGCONOFF", 1)
-    
-    print("[3/6] AGC Target Level: 0.08 RMS")
-    run_xvf_command("PP_AGCDESIREDLEVEL", 0.08)
-    
-    print("[4/6] AGC Max Gain: 40 dB (10000 linear)")
-    run_xvf_command("PP_AGCMAXGAIN", 10000)
-    
-    print("[5/6] AGC Attack Time: 0.5 seconds")
-    run_xvf_command("PP_AGCTIME", 0.5)
-    
-    print("[6/6] Echo Cancellation: OFF")
-    run_xvf_command("PP_ECHOONOFF", 0)
-    
-    print("\n  ✅ Far-Field Profile Complete\n")
-    
-    save_config_state('far_field', {
-        'AEC_HPFONOFF': 1,
-        'PP_AGCONOFF': 1,
-        'PP_AGCDESIREDLEVEL': 0.08,
-        'PP_AGCMAXGAIN': 10000,
-        'PP_AGCTIME': 0.5,
-        'PP_ECHOONOFF': 0
-    })
-    return True
-
-def configure_near_field():
-    """Near-field configuration"""
-    print("\n" + "="*80)
-    print("  🎯 NEAR-FIELD CONFIGURATION")
-    print("="*80 + "\n")
-    
-    # Initialize GPIO pins FIRST (critical for audio capture)
-    initialize_gpio_pins()
-    print()
-    
-    # Disable LEDs to reduce power draw
-    disable_all_leds()
-    print()
-    
-    print("[1/6] High-Pass Filter: 70 Hz")
-    run_xvf_command("AEC_HPFONOFF", 1)
-    
-    print("[2/6] AGC: ENABLED")
-    run_xvf_command("PP_AGCONOFF", 1)
-    
-    print("[3/6] AGC Target Level: 0.05 RMS (lower for near-field)")
-    run_xvf_command("PP_AGCDESIREDLEVEL", 0.05)
-    
-    print("[4/6] AGC Max Gain: 20 dB (100 linear)")
-    run_xvf_command("PP_AGCMAXGAIN", 100)
-    
-    print("[5/6] AGC Attack Time: 0.5 seconds")
-    run_xvf_command("PP_AGCTIME", 0.5)
-    
-    print("[6/6] Echo Cancellation: OFF")
-    run_xvf_command("PP_ECHOONOFF", 0)
-    
-    print("\n  ✅ Near-Field Profile Complete\n")
-    
-    save_config_state('near_field', {
-        'AEC_HPFONOFF': 1,
-        'PP_AGCONOFF': 1,
-        'PP_AGCDESIREDLEVEL': 0.05,
-        'PP_AGCMAXGAIN': 100,
-        'PP_AGCTIME': 0.5,
-        'PP_ECHOONOFF': 0
-    })
-    return True
-
-def configure_hpf_only():
-    """High-Pass Filter Only - HPF 70Hz (removes low-frequency rumble)"""
-    print("\n" + "="*80)
-    print("  🎚️  HIGH-PASS FILTER ONLY - 70Hz")
-    print("="*80 + "\n")
-    
-    # Initialize GPIO pins FIRST (critical for audio capture)
-    initialize_gpio_pins()
-    print()
-    
-    # Disable LEDs to reduce power draw
-    disable_all_leds()
-    print()
-    
-    print("[1/3] High-Pass Filter: 70 Hz (removes low-frequency rumble)")
-    print("      ⚠️  Note: 70Hz is the MINIMUM available on XVF3800")
-    print("      This blocks fan noise at 15-20Hz, but not as selectively as a 20Hz filter")
-    run_xvf_command("AEC_HPFONOFF", 1)
-    
-    print("[2/3] AGC: OFF")
-    run_xvf_command("PP_AGCONOFF", 0)
-    
-    print("[3/3] Echo Cancellation: OFF")
-    run_xvf_command("PP_ECHOONOFF", 0)
-    
-    print("\n  ✅ HPF Only Profile Complete")
-    print("\n  🎯 MINIMAL PROCESSING:")
-    print("     1️⃣  HPF 70Hz removes low-frequency rumble and fan noise (15-20Hz)")
-    print("     2️⃣  No automatic gain control")
-    print("     3️⃣  Best for clean environments with minimal noise")
-    print("\n  ⚠️  LIMITATION: XVF3800 hardware supports HPF at 70Hz, 125Hz, 150Hz, 180Hz only")
-    print("      Custom 20Hz cutoff would require external analog/digital filter\n")
-    
-    save_config_state('hpf_only', {
-        'AEC_HPFONOFF': 1,
-        'PP_AGCONOFF': 0,
-        'PP_ECHOONOFF': 0
-    })
-    return True
-
-def configure_agc_only():
-    """AGC Only - AGC (0.08, 30dB) with no HPF"""
-    print("\n" + "="*80)
-    print("  🔧 AGC ONLY")
-    print("="*80 + "\n")
-    
-    # Initialize GPIO pins FIRST (critical for audio capture)
-    initialize_gpio_pins()
-    print()
-    
-    # Disable LEDs to reduce power draw
-    disable_all_leds()
-    print()
-    
-    print("[1/5] High-Pass Filter: OFF")
-    run_xvf_command("AEC_HPFONOFF", 0)
-    
-    print("[2/5] AGC: ENABLED")
-    run_xvf_command("PP_AGCONOFF", 1)
-    
-    print("[3/5] AGC Target Level: 0.08 RMS")
-    run_xvf_command("PP_AGCDESIREDLEVEL", 0.08)
-    
-    print("[4/5] AGC Max Gain: 30 dB (1000 linear)")
-    run_xvf_command("PP_AGCMAXGAIN", 1000)
-    
-    print("[5/5] AGC Attack Time: 0.5 seconds")
-    run_xvf_command("PP_AGCTIME", 0.5)
-    
-    print("\n  ✅ AGC Only Profile Complete")
-    print("\n  🎯 TESTING AGC INDEPENDENTLY:")
-    print("     1️⃣  No high-pass filter")
-    print("     2️⃣  AGC only for automatic gain control")
-    print("     3️⃣  Good for testing AGC alone\n")
-    
-    save_config_state('agc_only', {
-        'AEC_HPFONOFF': 0,
-        'PP_AGCONOFF': 1,
-        'PP_AGCDESIREDLEVEL': 0.08,
-        'PP_AGCMAXGAIN': 1000,
-        'PP_AGCTIME': 0.5,
-        'PP_ECHOONOFF': 0
-    })
-    return True
-
-def configure_agc_10():
-    """AGC 10% Increase - HPF 70Hz + AGC with 10% higher target"""
-    print("\n" + "="*80)
-    print("  🔊 AGC 10% INCREASE")
-    print("="*80 + "\n")
-    
-    # Initialize GPIO pins FIRST (critical for audio capture)
-    initialize_gpio_pins()
-    print()
-    
-    # Disable LEDs to reduce power draw
-    disable_all_leds()
-    print()
-    
-    print("[1/6] High-Pass Filter: 70 Hz (removes low-frequency rumble)")
-    run_xvf_command("AEC_HPFONOFF", 1)
-    
-    print("[2/6] AGC: ENABLED")
-    run_xvf_command("PP_AGCONOFF", 1)
-    
-    print("[3/6] AGC Target Level: 0.088 RMS (10% increase from 0.08)")
-    run_xvf_command("PP_AGCDESIREDLEVEL", 0.088)
-    
-    print("[4/6] AGC Max Gain: 30 dB (1000 linear)")
-    run_xvf_command("PP_AGCMAXGAIN", 1000)
-    
-    print("[5/6] AGC Attack Time: 0.5 seconds")
-    run_xvf_command("PP_AGCTIME", 0.5)
-    
-    print("[6/6] Echo Cancellation: OFF")
-    run_xvf_command("PP_ECHOONOFF", 0)
-    
-    print("\n  ✅ AGC 10% Increase Profile Complete")
-    print("\n  🎯 MODERATE PROCESSING + 10% BOOST:")
-    print("     1️⃣  HPF removes low-frequency rumble")
-    print("     2️⃣  AGC target 10% higher for more amplification")
-    print("     3️⃣  Good for testing moderate gain boost\n")
-    
-    save_config_state('agc_10', {
-        'AEC_HPFONOFF': 1,
-        'PP_AGCONOFF': 1,
-        'PP_AGCDESIREDLEVEL': 0.088,
-        'PP_AGCMAXGAIN': 1000,
-        'PP_AGCTIME': 0.5,
-        'PP_ECHOONOFF': 0
-    })
-    return True
-
-def configure_agc_20():
-    """AGC 20% Increase - HPF 70Hz + AGC with 20% higher target"""
-    print("\n" + "="*80)
-    print("  🔊 AGC 20% INCREASE")
-    print("="*80 + "\n")
-    
-    # Initialize GPIO pins FIRST (critical for audio capture)
-    initialize_gpio_pins()
-    print()
-    
-    # Disable LEDs to reduce power draw
-    disable_all_leds()
-    print()
-    
-    print("[1/6] High-Pass Filter: 70 Hz (removes low-frequency rumble)")
-    run_xvf_command("AEC_HPFONOFF", 1)
-    
-    print("[2/6] AGC: ENABLED")
-    run_xvf_command("PP_AGCONOFF", 1)
-    
-    print("[3/6] AGC Target Level: 0.096 RMS (20% increase from 0.08)")
-    run_xvf_command("PP_AGCDESIREDLEVEL", 0.096)
-    
-    print("[4/6] AGC Max Gain: 30 dB (1000 linear)")
-    run_xvf_command("PP_AGCMAXGAIN", 1000)
-    
-    print("[5/6] AGC Attack Time: 0.5 seconds")
-    run_xvf_command("PP_AGCTIME", 0.5)
-    
-    print("[6/6] Echo Cancellation: OFF")
-    run_xvf_command("PP_ECHOONOFF", 0)
-    
-    print("\n  ✅ AGC 20% Increase Profile Complete")
-    print("\n  🎯 MODERATE PROCESSING + 20% BOOST:")
-    print("     1️⃣  HPF removes low-frequency rumble")
-    print("     2️⃣  AGC target 20% higher for more amplification")
-    print("     3️⃣  Good for testing higher gain boost\n")
-    
-    save_config_state('agc_20', {
-        'AEC_HPFONOFF': 1,
-        'PP_AGCONOFF': 1,
-        'PP_AGCDESIREDLEVEL': 0.096,
-        'PP_AGCMAXGAIN': 1000,
-        'PP_AGCTIME': 0.5,
-        'PP_ECHOONOFF': 0
-    })
-    return True
+# Removed unused presets - keeping only agc_20_ec and reset
 
 def configure_agc_20_ec():
-    """AGC 20% Increase + Echo Cancellation ON"""
+    """Simplified: Reboot, configure DSP, disable LEDs"""
     print("\n" + "="*80)
-    print("  🔊 AGC 20% INCREASE + ECHO CANCELLATION")
+    print("  🔊 XVF3800 Configuration: Reboot → DSP → LEDs")
     print("="*80 + "\n")
     
-    # Initialize GPIO pins FIRST (critical for audio capture)
+    # Step 1: Reboot device (software reset to factory defaults)
+    print("[1/3] Rebooting device (software reset)...")
+    result = run_xvf_command("REBOOT", 1)
+    if result is not None:
+        print("  ✅ REBOOT command sent")
+        time.sleep(3)  # Wait for device to reboot
+    else:
+        print("  ⚠️  REBOOT command failed (device may already be reset)")
+    print()
+    
+    # Step 2: Initialize GPIO pins (critical for audio capture)
+    print("[2/3] Configuring GPIO pins for audio capture...")
     initialize_gpio_pins()
     print()
     
-    # Disable LEDs to reduce power draw
+    # Step 3: Configure DSP settings
+    print("[3/3] Configuring DSP settings...")
+    print("  - High-Pass Filter: 70 Hz")
+    run_xvf_command("AEC_HPFONOFF", 1)
+    
+    print("  - AGC: ENABLED (target: 0.096 RMS, max gain: 30 dB)")
+    run_xvf_command("PP_AGCONOFF", 1)
+    run_xvf_command("PP_AGCDESIREDLEVEL", 0.096)
+    run_xvf_command("PP_AGCMAXGAIN", 1000)
+    run_xvf_command("PP_AGCTIME", 0.5)
+    
+    print("  - Echo Cancellation: ON")
+    run_xvf_command("PP_ECHOONOFF", 1)
+    print()
+    
+    # Step 4: Disable LEDs
+    print("[4/4] Disabling LEDs...")
     disable_all_leds()
     print()
     
-    print("[1/7] High-Pass Filter: 70 Hz (removes low-frequency rumble)")
-    run_xvf_command("AEC_HPFONOFF", 1)
-    
-    print("[2/7] AGC: ENABLED")
-    run_xvf_command("PP_AGCONOFF", 1)
-    
-    print("[3/7] AGC Target Level: 0.096 RMS (20% increase from 0.08)")
-    run_xvf_command("PP_AGCDESIREDLEVEL", 0.096)
-    
-    print("[4/7] AGC Max Gain: 30 dB (1000 linear)")
-    run_xvf_command("PP_AGCMAXGAIN", 1000)
-    
-    print("[5/7] AGC Attack Time: 0.5 seconds")
-    run_xvf_command("PP_AGCTIME", 0.5)
-    
-    print("[6/7] Echo Cancellation: ON")
-    run_xvf_command("PP_ECHOONOFF", 1)
-    
-    print("[7/7] Verify settings written (best effort)")
-    # (optional readbacks could be added here)
-    
-    print("\n  ✅ AGC 20% + Echo Cancellation Profile Complete")
-    print("\n  🎯 REDUCED FEEDBACK FROM SPEAKERS:")
-    print("     1️⃣  HPF removes low-frequency rumble")
-    print("     2️⃣  AGC target 20% higher for more amplification")
-    print("     3️⃣  Echo cancellation minimizes TTS leakage into mic\n")
+    print("\n  ✅ Configuration Complete")
+    print("  🎯 Device rebooted, DSP configured, LEDs disabled\n")
     
     save_config_state('agc_20_ec', {
         'AEC_HPFONOFF': 1,
@@ -716,9 +362,7 @@ def main():
         print("\n  Please ensure XVF3800 SDK is installed and path is correct.\n")
         return 1
     
-    preset = sys.argv[1] if len(sys.argv) > 1 else "balanced_beam"
-    extra_args = [a.strip().lower() for a in sys.argv[2:]] if len(sys.argv) > 2 else []
-    force_echo_on = "echo_on" in extra_args
+    preset = sys.argv[1] if len(sys.argv) > 1 else "agc_20_ec"
     
     print("\n" + "="*80)
     print("  🎙️  XVF3800 4 MIC ARRAY TUNER")
@@ -729,61 +373,18 @@ def main():
         success = False
         
         # Presets
-        if preset == "balanced_beam" or preset == "bb":
-            success = configure_balanced_beam()
-        elif preset == "ultra_sensitive" or preset == "ultra":
-            success = configure_ultra_sensitive()
-        elif preset == "far_field":
-            success = configure_far_field()
-        elif preset == "near_field":
-            success = configure_near_field()
-        elif preset == "hpf_only":
-            success = configure_hpf_only()
-        elif preset == "agc_only":
-            success = configure_agc_only()
-        elif preset == "agc_10":
-            success = configure_agc_10()
-        elif preset == "agc_20":
-            success = configure_agc_20()
-        elif preset == "agc_20_ec":
+        if preset == "agc_20_ec":
             success = configure_agc_20_ec()
         elif preset == "reset":
             success = reset_defaults()
-        elif preset == "show":
-            success = show_current_settings()
         else:
             print(f"\n  ❌ Unknown preset: {preset}")
             print("\n  Available presets:")
-            print("    - balanced_beam (bb)   : Recommended")
-            print("    - ultra_sensitive      : Far-field optimized")
-            print("    - far_field            : 8-16 feet")
-            print("    - near_field           : 1-6 feet")
-            print("    - hpf_only             : HPF 70Hz only")
-            print("    - agc_only             : AGC only (0.08, 30dB)")
-            print("    - agc_10               : HPF + AGC with 10% increase")
-            print("    - agc_20               : HPF + AGC with 20% increase")
+            print("    - agc_20_ec            : AGC 20% + Echo Cancellation ON (DEFAULT ⭐ RECOMMENDED)")
             print("    - reset                : Factory defaults")
-            print("    - show                 : Current settings")
             return 1
         
         if success:
-            # Optional post-preset modifiers
-            if force_echo_on:
-                print("\n  🔁 Enabling Echo Cancellation (PP_ECHOONOFF=1) per 'echo_on' flag...")
-                run_xvf_command("PP_ECHOONOFF", 1)
-                # Update saved config state to reflect echo ON
-                try:
-                    if os.path.exists(CONFIG_STATE_FILE):
-                        with open(CONFIG_STATE_FILE, "r") as f:
-                            state = json.load(f)
-                        cfg = state.get("config", {}) or {}
-                        cfg["PP_ECHOONOFF"] = 1
-                        state["config"] = cfg
-                        with open(CONFIG_STATE_FILE, "w") as f:
-                            json.dump(state, f, indent=2)
-                        print(f"  ✅ Saved echo-on to state: {CONFIG_STATE_FILE}")
-                except Exception as e:
-                    print(f"  ⚠️  Could not update state file for echo_on: {e}")
             return 0
         else:
             return 1

@@ -26,8 +26,23 @@ fi
 chmod +x "$XVF_HOST_PATH" 2>/dev/null || true
 
 # Check if device is present
-if ! lsusb | grep -q "2886:" && ! lsusb | grep -qi "seeed\|reSpeaker\|XVF3800"; then
+USB_FOUND=false
+if lsusb | grep -q "2886:"; then
+    USB_FOUND=true
+elif lsusb | grep -qi "seeed\|reSpeaker\|XVF3800"; then
+    USB_FOUND=true
+fi
+
+if [ "$USB_FOUND" = "false" ]; then
     echo -e "${RED}❌ XVF3800 USB device not found${NC}"
+    echo ""
+    echo "Please:"
+    echo "  1. Physically unplug the microphone"
+    echo "  2. Wait 2 seconds"
+    echo "  3. Plug it back in"
+    echo "  4. Wait 5 seconds"
+    echo "  5. Run this script again"
+    echo ""
     exit 1
 fi
 
