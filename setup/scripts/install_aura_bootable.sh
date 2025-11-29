@@ -1553,40 +1553,18 @@ fi
 if [ -f "$LEDGERAI_DIR/setup/scripts/set_default_audio_on_boot.sh" ]; then
     chmod +x "$LEDGERAI_DIR/setup/scripts/set_default_audio_on_boot.sh"
     print_info "✅ Audio setup script made executable"
-fi
-
-# Set default ALSA device to UACDemoV1.0 (if present)
-print_info "Configuring default audio output..."
-if aplay -l 2>/dev/null | grep -q "UACDemoV1.0"; then
-    CARD_NUM=$(aplay -l 2>/dev/null | grep "UACDemoV1.0" | sed -n 's/.*card \([0-9]*\):.*/\1/p' | head -1)
-    if [ -n "$CARD_NUM" ]; then
-        # Create/update .asoundrc for ALSA
-        cat > "$AURA_HOME/.asoundrc" << EOF
-pcm.!default {
-    type hw
-    card $CARD_NUM
-    device 0
-}
-
-ctl.!default {
-    type hw
-    card $CARD_NUM
-}
-EOF
-        chown "$AURA_USER:$AURA_USER" "$AURA_HOME/.asoundrc"
-        print_info "✅ ALSA default set to card $CARD_NUM (UACDemoV1.0)"
-        
-        # Set PulseAudio default sink (if available) - uses dynamic name matching
-        if command -v pactl >/dev/null 2>&1; then
-            SINK_NAME=$(pactl list short sinks 2>/dev/null | grep -i "UACDemoV1.0\|UACDemo" | cut -f2 | head -1)
-            if [ -n "$SINK_NAME" ]; then
-                su - "$AURA_USER" -c "pactl set-default-sink \"$SINK_NAME\" 2>/dev/null" || true
-                print_info "✅ PulseAudio default sink set to: $SINK_NAME"
-            fi
-        fi
+    
+    # Run the script during installation to set defaults immediately
+    print_info "Configuring default audio output (UACDemoV1.0)..."
+    if [ "$(whoami)" = "$AURA_USER" ]; then
+        # Running as the user - run directly
+        bash "$LEDGERAI_DIR/setup/scripts/set_default_audio_on_boot.sh" 2>&1 | grep -E "\[Audio\]|✅|⚠️" || true
+    else
+        # Running as root/sudo - run as the user
+        su - "$AURA_USER" -c "bash $LEDGERAI_DIR/setup/scripts/set_default_audio_on_boot.sh" 2>&1 | grep -E "\[Audio\]|✅|⚠️" || true
     fi
 else
-    print_info "UACDemoV1.0 not found - skipping audio default setup"
+    print_warning "Audio setup script not found - skipping audio configuration"
 fi
 
 echo ""
