@@ -1502,6 +1502,8 @@ ExecStartPre=/bin/bash -c 'SOCKET=\$(ls /tmp/.X11-unix/ 2>/dev/null | grep "^X" 
 ExecStartPre=/bin/bash -c 'SOCKET=\$(ls /tmp/.X11-unix/ 2>/dev/null | grep "^X" | head -1); if [ -n "\$SOCKET" ]; then NUM=\$(echo "\$SOCKET" | sed "s/X//"); export DISPLAY=:\$NUM; else export DISPLAY=:0; fi; gsettings set org.gnome.desktop.screensaver idle-activation-enabled false 2>/dev/null || true'
 # Set default audio output (UACDemoV1.0) on every boot - ALSA and PulseAudio
 ExecStartPre=$LEDGERAI_DIR/setup/scripts/set_default_audio_on_boot.sh
+# Resume XVF3800 microphone source (fixes SUSPENDED state that prevents capture)
+ExecStartPre=$LEDGERAI_DIR/setup/scripts/resume_xvf3800_source.sh
 ExecStartPre=/bin/sleep 5
 ExecStart=$VENV_DIR/bin/python3 -u $LEDGERAI_DIR/aura-control/core/main.py
 Restart=always
@@ -1636,14 +1638,22 @@ if [ -f "$PULSE_CONFIG" ]; then
         print_info "Backed up PulseAudio config to $PULSE_CONFIG_BACKUP"
     fi
     
-    # Check if we've already configured it
+        # Check if we've already configured it
     if ! grep -q "# Modified by install_aura_bootable.sh" "$PULSE_CONFIG"; then
+        # CRITICAL: Comment out module-alsa-source which takes exclusive control of ALSA devices
+        # This prevents PortAudio/sounddevice from accessing microphones directly
+        if grep -q "^load-module module-alsa-source" "$PULSE_CONFIG"; then
+            sudo sed -i 's/^load-module module-alsa-source/# Modified by install_aura_bootable.sh - Allow direct ALSA access\n# load-module module-alsa-source/' "$PULSE_CONFIG"
+            print_info "   Commented out module-alsa-source (prevents exclusive ALSA control)"
+        fi
+        
         # Configure PulseAudio to not suspend USB audio devices
         # This prevents microphones from being suspended on boot
         if grep -q "load-module module-suspend-on-idle" "$PULSE_CONFIG"; then
             # Update timeout to 0 (never suspend) to prevent USB devices from being suspended
             sudo sed -i 's/load-module module-suspend-on-idle.*timeout=[0-9]*/load-module module-suspend-on-idle timeout=0/' "$PULSE_CONFIG" || \
             sudo sed -i 's/^load-module module-suspend-on-idle$/load-module module-suspend-on-idle timeout=0/' "$PULSE_CONFIG" || true
+            print_info "   Configured suspend-on-idle timeout=0 (prevents USB device suspension)"
         fi
         
         # Add configuration to prevent PulseAudio from taking exclusive control
@@ -1652,9 +1662,10 @@ if [ -f "$PULSE_CONFIG" ]; then
             # Add tsched=0 to load-module module-udev-detect to disable timer-based scheduling
             # This allows better compatibility with direct ALSA access
             sudo sed -i 's/load-module module-udev-detect/load-module module-udev-detect tsched=0/' "$PULSE_CONFIG" || true
+            print_info "   Configured udev-detect with tsched=0 (allows direct ALSA access)"
         fi
         
-        # Add marker comment
+        # Add marker comment at the top
         sudo sed -i '1i# Modified by install_aura_bootable.sh - Allow direct ALSA access for PortAudio/sounddevice' "$PULSE_CONFIG"
         
         print_info "✅ PulseAudio configured to allow direct ALSA access"
