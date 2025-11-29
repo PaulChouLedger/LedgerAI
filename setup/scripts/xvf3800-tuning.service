@@ -52,11 +52,12 @@ Wants=sys-subsystem-usb-devices.target
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-# Wait for device to be ready, then wait for ALSA detection, then run tuning script
+# Wait for device to be ready, reboot device (software reset), wait for reinitialization, then run tuning script
 # Python script handles user detection
-# Retry logic: wait up to 30 seconds for USB device, then wait for ALSA detection
-# The tuning script configures GPIO pins and DSP settings (this is what enables audio capture)
-ExecStart=/bin/bash -c 'for i in {1..30}; do if lsusb | grep -q "2886:" || lsusb | grep -qi "seeed\|reSpeaker\|XVF3800"; then break; fi; sleep 1; done; sleep 3; for i in {1..10}; do if arecord -l 2>/dev/null | grep -q -i "XVF3800\|reSpeaker"; then break; fi; sleep 1; done; for dir in "%h/LedgerAI" "/home/ledger/LedgerAI" "/home/aura/LedgerAI"; do if [ -f "$$dir/setup/scripts/tune_xvf3800.py" ]; then cd "$$dir" && python3 -B setup/scripts/tune_xvf3800.py agc_20_ec; exit $$?; fi; done; echo "Error: Could not find LedgerAI directory"; exit 1'
+# Retry logic: wait up to 30 seconds for USB device, reboot device, wait for reinitialization, then run tuning
+# The REBOOT command resets device to factory defaults (like physical reset button)
+# The tuning script then configures GPIO pins and DSP settings (this is what enables audio capture)
+ExecStart=/bin/bash -c 'for i in {1..30}; do if lsusb | grep -q "2886:" || lsusb | grep -qi "seeed\|reSpeaker\|XVF3800"; then break; fi; sleep 1; done; sleep 2; for dir in "%h/LedgerAI" "/home/ledger/LedgerAI" "/home/aura/LedgerAI"; do XVF_HOST="$$dir/../reSpeaker_XVF3800_USB_4MIC_ARRAY/host_control/jetson/xvf_host"; if [ -f "$$XVF_HOST" ]; then chmod +x "$$XVF_HOST" 2>/dev/null; "$$XVF_HOST" REBOOT 1 >/dev/null 2>&1; sleep 3; break; fi; done; for i in {1..15}; do if lsusb | grep -q "2886:" || lsusb | grep -qi "seeed\|reSpeaker\|XVF3800"; then break; fi; sleep 1; done; sleep 2; for i in {1..10}; do if arecord -l 2>/dev/null | grep -q -i "XVF3800\|reSpeaker"; then break; fi; sleep 1; done; for dir in "%h/LedgerAI" "/home/ledger/LedgerAI" "/home/aura/LedgerAI"; do if [ -f "$$dir/setup/scripts/tune_xvf3800.py" ]; then cd "$$dir" && python3 -B setup/scripts/tune_xvf3800.py agc_20_ec; exit $$?; fi; done; echo "Error: Could not find LedgerAI directory"; exit 1'
 StandardOutput=journal
 StandardError=journal
 

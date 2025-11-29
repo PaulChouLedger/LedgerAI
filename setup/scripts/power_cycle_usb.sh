@@ -141,38 +141,75 @@ if [ -z "$POWER_CYCLE_SUCCESS" ]; then
         if [ -z "$POWER_CYCLE_SUCCESS" ] && [ -f "$SYSFS_PATH/remove" ]; then
             echo "  Attempting device remove/add..."
             DEVICE_ID=$(basename "$SYSFS_PATH")
+            
+            # Find parent hub before removal
+            PARENT_HUB=""
+            CURRENT_PATH="$SYSFS_PATH"
+            while [ "$CURRENT_PATH" != "/sys/bus/usb/devices" ] && [ -n "$CURRENT_PATH" ]; do
+                if [ -f "$CURRENT_PATH/rescan" ]; then
+                    PARENT_HUB="$CURRENT_PATH"
+                    break
+                fi
+                CURRENT_PATH=$(dirname "$CURRENT_PATH")
+            done
+            
+            # Also find the USB bus (usb1, usb2, etc.)
+            USB_BUS=""
+            for usb_bus in /sys/bus/usb/devices/usb*; do
+                if [ -f "$usb_bus/rescan" ]; then
+                    USB_BUS="$usb_bus"
+                    break
+                fi
+            done
+            
             echo "$DEVICE_ID" | sudo tee "$SYSFS_PATH/remove" >/dev/null 2>&1
             sleep 2
             if ! lsusb | grep -q "$VID_PID"; then
                 echo "  ✅ Device removed"
                 sleep 2
-                # Find parent hub and trigger rescan
-                PARENT_PATH=$(dirname "$SYSFS_PATH")
-                while [ "$PARENT_PATH" != "/sys/bus/usb/devices" ] && [ -n "$PARENT_PATH" ]; do
-                    if [ -f "$PARENT_PATH/rescan" ]; then
-                        echo 1 | sudo tee "$PARENT_PATH/rescan" >/dev/null 2>&1
-                        echo "  Triggered rescan on $PARENT_PATH"
-                        break
-                    fi
-                    PARENT_PATH=$(dirname "$PARENT_PATH")
-                done
-                # Also try to unbind/bind the USB driver
-                if [ -L "$SYSFS_PATH/driver" ]; then
-                    DRIVER_PATH=$(readlink "$SYSFS_PATH/driver")
-                    DRIVER_NAME=$(basename "$DRIVER_PATH")
-                    if [ -f "$DRIVER_PATH/unbind" ]; then
-                        echo "$DEVICE_ID" | sudo tee "$DRIVER_PATH/unbind" >/dev/null 2>&1
-                        sleep 1
-                        echo "$DEVICE_ID" | sudo tee "$DRIVER_PATH/bind" >/dev/null 2>&1
-                        echo "  Attempted driver rebind"
+                
+                # Try multiple methods to restore device
+                echo "  Attempting to restore device..."
+                
+                # Method 1: Rescan parent hub
+                if [ -n "$PARENT_HUB" ]; then
+                    echo "  Triggering rescan on parent hub: $PARENT_HUB"
+                    echo 1 | sudo tee "$PARENT_HUB/rescan" >/dev/null 2>&1
+                    sleep 2
+                fi
+                
+                # Method 2: Rescan USB bus
+                if [ -n "$USB_BUS" ] && ! lsusb | grep -q "$VID_PID"; then
+                    echo "  Triggering rescan on USB bus: $USB_BUS"
+                    echo 1 | sudo tee "$USB_BUS/rescan" >/dev/null 2>&1
+                    sleep 2
+                fi
+                
+                # Method 3: Try to trigger USB hotplug event
+                if ! lsusb | grep -q "$VID_PID"; then
+                    echo "  Triggering USB hotplug event..."
+                    # Try to unbind and rebind the parent hub's driver
+                    if [ -n "$PARENT_HUB" ] && [ -L "$PARENT_HUB/driver" ]; then
+                        HUB_DRIVER=$(readlink "$PARENT_HUB/driver")
+                        HUB_DRIVER_NAME=$(basename "$HUB_DRIVER")
+                        HUB_ID=$(basename "$PARENT_HUB")
+                        if [ -f "$HUB_DRIVER/unbind" ] && [ -f "$HUB_DRIVER/bind" ]; then
+                            echo "$HUB_ID" | sudo tee "$HUB_DRIVER/unbind" >/dev/null 2>&1
+                            sleep 1
+                            echo "$HUB_ID" | sudo tee "$HUB_DRIVER/bind" >/dev/null 2>&1
+                            sleep 2
+                        fi
                     fi
                 fi
-                sleep 3
+                
+                # Wait and check
+                sleep 2
                 if lsusb | grep -q "$VID_PID"; then
                     echo "  ✅ Device re-added"
                     POWER_CYCLE_SUCCESS=true
                 else
-                    echo "  ⚠️  Device may need physical unplug/replug"
+                    echo "  ⚠️  Device not restored - may need physical unplug/replug"
+                    echo "  💡 Try: Physically unplug and replug the device"
                 fi
             else
                 echo "  ⚠️  Device remove may not have worked"
@@ -192,20 +229,48 @@ if [ -z "$POWER_CYCLE_SUCCESS" ]; then
                     # Try remove/add
                     if [ -f "$SYSFS_PATH/remove" ]; then
                         DEVICE_ID=$(basename "$SYSFS_PATH")
+                        
+                        # Find parent hub before removal
+                        PARENT_HUB=""
+                        CURRENT_PATH="$SYSFS_PATH"
+                        while [ "$CURRENT_PATH" != "/sys/bus/usb/devices" ] && [ -n "$CURRENT_PATH" ]; do
+                            if [ -f "$CURRENT_PATH/rescan" ]; then
+                                PARENT_HUB="$CURRENT_PATH"
+                                break
+                            fi
+                            CURRENT_PATH=$(dirname "$CURRENT_PATH")
+                        done
+                        
                         echo "  Removing device..."
                         echo "$DEVICE_ID" | sudo tee "$SYSFS_PATH/remove" >/dev/null 2>&1
                         sleep 2
                         if ! lsusb | grep -q "$VID_PID"; then
                             echo "  ✅ Device removed"
                             sleep 2
-                            # Find USB bus and trigger rescan
-                            if [ -f "/sys/bus/usb/devices/usb$BUS/rescan" ]; then
-                                echo 1 | sudo tee "/sys/bus/usb/devices/usb$BUS/rescan" >/dev/null 2>&1
+                            
+                            # Try multiple rescan methods
+                            if [ -n "$PARENT_HUB" ]; then
+                                echo "  Triggering rescan on parent hub..."
+                                echo 1 | sudo tee "$PARENT_HUB/rescan" >/dev/null 2>&1
+                                sleep 2
                             fi
-                            sleep 3
+                            
+                            # Try USB bus rescan
+                            for usb_bus in /sys/bus/usb/devices/usb*; do
+                                if [ -f "$usb_bus/rescan" ]; then
+                                    echo "  Triggering rescan on USB bus..."
+                                    echo 1 | sudo tee "$usb_bus/rescan" >/dev/null 2>&1
+                                    sleep 2
+                                    break
+                                fi
+                            done
+                            
+                            sleep 2
                             if lsusb | grep -q "$VID_PID"; then
                                 echo "  ✅ Device re-added"
                                 POWER_CYCLE_SUCCESS=true
+                            else
+                                echo "  ⚠️  Device not restored - may need physical unplug/replug"
                             fi
                         fi
                     fi
