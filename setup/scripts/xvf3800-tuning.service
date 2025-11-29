@@ -17,7 +17,6 @@
 # This service file is FULLY DYNAMIC - no modifications needed!
 # - Paths resolved using systemd %h (home directory) and common locations
 # - User detected automatically by Python script (via SUDO_USER or ~)
-# - USB device waiting handled by Python script
 # - Can be updated via git pull without any changes!
 #
 # To install (first time only):
@@ -47,19 +46,15 @@
 
 [Unit]
 Description=XVF3800 Hardware DSP Configuration
-# Wait for system to be fully booted and USB devices to be ready
+# Wait for system to be fully booted
 After=multi-user.target
-After=sys-subsystem-usb-devices.target
 
 [Service]
 Type=oneshot
 RemainAfterExit=yes
 # Find LedgerAI directory and run tuning script
-# Python script handles user detection and USB device waiting
+# Python script handles user detection
 ExecStart=/bin/bash -c 'for dir in "%h/LedgerAI" "/home/ledger/LedgerAI" "/home/aura/LedgerAI"; do if [ -f "$$dir/setup/scripts/tune_xvf3800.py" ]; then cd "$$dir" && python3 -B setup/scripts/tune_xvf3800.py agc_20_ec; exit $$?; fi; done; echo "Error: Could not find LedgerAI directory"; exit 1'
-# Activate USB audio streaming interface after DSP configuration
-# USB audio interfaces don't start streaming until PCM device is opened and read from
-ExecStartPost=/bin/bash -c 'CARD_NUM=$$(arecord -l 2>/dev/null | grep -i "Array\|reSpeaker" | head -1 | sed -n "s/.*card \([0-9]*\):.*/\1/p"); if [ -n "$$CARD_NUM" ]; then arecord -D "hw:$$CARD_NUM,0" -f S16_LE -r 16000 -c 2 -d 2 -t raw /dev/null >/dev/null 2>&1; fi'
 StandardOutput=journal
 StandardError=journal
 

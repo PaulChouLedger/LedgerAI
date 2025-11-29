@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
 """
-XVF3800 USB 4 Mic Array Tuner
+XVF3800 4 Mic Array Tuner
 
 Configures the hardware DSP on the XVF3800 for optimal
 speech recognition (ASR).
 
-All presets automatically disable LEDs to reduce power consumption
-(useful when using USB isolator with limited power budget).
+All presets automatically disable LEDs to reduce power consumption.
 
 Usage:
     python3 tune_xvf3800.py [preset]
@@ -80,7 +79,7 @@ def run_xvf_command(cmd, *args):
         return None
 
 def disable_all_leds():
-    """Disable all LEDs on XVF3800 to reduce power draw (useful for USB isolator)
+    """Disable all LEDs on XVF3800 to reduce power draw
     
     Based on official documentation: https://wiki.seeedstudio.com/respeaker_xvf3800_introduction/
     LED commands: led_effect, led_color (hex), led_speed, led_brightness (0-255)
@@ -118,7 +117,7 @@ def disable_all_leds():
     
     if success:
         print("  💡 All LED settings applied - LEDs should be off")
-        print("  💡 Power consumption reduced for USB isolator use")
+        print("  💡 Power consumption reduced")
     else:
         print("  ⚠️  LED control commands not available")
         print("  ⚠️  Check if xvf_host is properly installed and device is connected")
@@ -572,36 +571,8 @@ def show_current_settings():
     print("\n" + "="*80 + "\n")
     return True
 
-def wait_for_usb_device(max_wait=30, wait_interval=1):
-    """Wait for USB device to be available before configuring"""
-    import subprocess
-    print(f"[USB Wait] Waiting for USB device to be ready (up to {max_wait}s)...")
-    for i in range(max_wait):
-        try:
-            result = subprocess.run(
-                ["lsusb"], capture_output=True, text=True, timeout=2
-            )
-            if result.returncode == 0:
-                if "reSpeaker" in result.stdout or "XVF3800" in result.stdout or "UACDemo" in result.stdout:
-                    print(f"[USB Wait] ✅ Device found after {i} seconds")
-                    time.sleep(2)  # Give device time to fully initialize
-                    return True
-        except Exception:
-            pass
-        
-        if i % 5 == 0 and i > 0:
-            print(f"[USB Wait] ⏳ Still waiting... ({i}/{max_wait}s)")
-        
-        time.sleep(wait_interval)
-    
-    print(f"[USB Wait] ⚠️  Device not found after {max_wait} seconds, proceeding anyway...")
-    return False
-
 def main():
     """Main execution"""
-    # Wait for USB device to be ready (important for boot-time execution)
-    wait_for_usb_device()
-    
     # Check if xvf_host exists
     if not os.path.exists(XVF_HOST_PATH):
         print("\n" + "="*80)
@@ -616,7 +587,7 @@ def main():
     force_echo_on = "echo_on" in extra_args
     
     print("\n" + "="*80)
-    print("  🎙️  XVF3800 USB 4 MIC ARRAY TUNER")
+    print("  🎙️  XVF3800 4 MIC ARRAY TUNER")
     print("  Hardware DSP Configuration for Speech Recognition")
     print("="*80)
     
