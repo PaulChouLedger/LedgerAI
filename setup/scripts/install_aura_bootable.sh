@@ -510,45 +510,48 @@ print_step "3.5. Installing wake word detection engine..."
 # This ensures all packages come from pip (not system packages) and are compatible
 # CRITICAL: Install Jetson-optimized onnxruntime-gpu FIRST from Jetson AI Lab PyPI
 # This is specifically built for Jetson devices and avoids ARM CPU detection issues
-# Pin to specific wheel: onnxruntime_gpu-1.23.0-cp310-cp310-linux_aarch64.whl
-# This version works reliably on Jetson (1.23.2 has CPU detection assertion failures)
+# Pin to version 1.23.0 (1.23.2 has CPU detection assertion failures)
+# Pip will automatically select the correct wheel: onnxruntime_gpu-1.23.0-cp310-cp310-linux_aarch64.whl
 # OpenWakeWord is compatible with onnxruntime-gpu-1.23.0 and will use it if installed first
 print_info "Uninstalling any existing onnxruntime packages to ensure clean install..."
 pip uninstall -y onnxruntime-gpu onnxruntime 2>/dev/null || true
 
-# Install the specific wheel file directly from Jetson PyPI
-# This ensures we get the exact linux_aarch64 build that works on Jetson
-ONNXRUNTIME_WHEEL_URL="https://pypi.jetson-ai-lab.io/jp6/cu126/onnxruntime-gpu/1.23.0/onnxruntime_gpu-1.23.0-cp310-cp310-linux_aarch64.whl"
-print_info "Installing onnxruntime-gpu==1.23.0 (wheel: onnxruntime_gpu-1.23.0-cp310-cp310-linux_aarch64.whl) from Jetson AI Lab PyPI..."
-
-# Try installing from the specific wheel URL first
-if pip install "$ONNXRUNTIME_WHEEL_URL" 2>&1 | tee /tmp/onnxruntime_install.log; then
-    print_info "✅ Installed from specific wheel URL"
-else
-    # Fallback: Try installing via package name (pip will select the correct wheel)
-    print_info "Falling back to package name installation..."
-    if ! pip install --extra-index-url https://pypi.jetson-ai-lab.io/jp6/cu126 "onnxruntime-gpu==1.23.0" 2>&1 | tee -a /tmp/onnxruntime_install.log; then
-        print_error "❌ Failed to install onnxruntime-gpu from Jetson PyPI"
-        print_error "   Check logs: /tmp/onnxruntime_install.log"
-        print_error "   OpenWakeWord requires onnxruntime-gpu to function"
-        exit 1
-    fi
+# Install onnxruntime-gpu==1.23.0 from Jetson PyPI
+# Pip will automatically select the linux_aarch64 wheel for Jetson
+print_info "Installing onnxruntime-gpu==1.23.0 from Jetson AI Lab PyPI (will use linux_aarch64 wheel)..."
+if ! pip install --extra-index-url https://pypi.jetson-ai-lab.io/jp6/cu126 "onnxruntime-gpu==1.23.0" 2>&1 | tee /tmp/onnxruntime_install.log; then
+    print_error "❌ Failed to install onnxruntime-gpu from Jetson PyPI"
+    print_error "   Check logs: /tmp/onnxruntime_install.log"
+    print_error "   OpenWakeWord requires onnxruntime-gpu to function"
+    exit 1
 fi
 
 # Verify the correct version was installed
 INSTALLED_VERSION=$(pip show onnxruntime-gpu 2>/dev/null | grep "^Version:" | awk '{print $2}' || echo "")
+INSTALLED_LOCATION=$(pip show onnxruntime-gpu 2>/dev/null | grep "^Location:" | awk '{print $2}' || echo "")
 if [ "$INSTALLED_VERSION" = "1.23.0" ]; then
-    print_info "✅ onnxruntime-gpu==1.23.0 (linux_aarch64 wheel) installed successfully"
-    print_info "   Wheel: onnxruntime_gpu-1.23.0-cp310-cp310-linux_aarch64.whl"
+    print_info "✅ onnxruntime-gpu==1.23.0 installed successfully"
+    print_info "   Location: $INSTALLED_LOCATION"
+    print_info "   Wheel: onnxruntime_gpu-1.23.0-cp310-cp310-linux_aarch64.whl (auto-selected by pip)"
 else
-    print_warning "⚠️  Installed version: $INSTALLED_VERSION (expected 1.23.0)"
-    print_info "   Continuing anyway, but this may cause issues..."
+    print_error "❌ Wrong version installed: $INSTALLED_VERSION (expected 1.23.0)"
+    print_error "   Installation may have failed - check logs"
+    exit 1
 fi
 
-# CRITICAL: Prevent OpenWakeWord from installing onnxruntime (CPU) as a dependency
-# We already have onnxruntime-gpu installed, so we need to exclude onnxruntime
+# CRITICAL: Ensure onnxruntime (CPU) is not installed - it conflicts with onnxruntime-gpu
+# OpenWakeWord may try to install it as a dependency, but we need to prevent that
 print_info "Ensuring onnxruntime (CPU) is not installed (we use onnxruntime-gpu)..."
 pip uninstall -y onnxruntime 2>/dev/null || true
+
+# Verify onnxruntime module is available (onnxruntime-gpu provides it)
+print_info "Verifying onnxruntime module is importable..."
+if ! python3 -c "import onnxruntime; print('✅ onnxruntime module available')" 2>/dev/null; then
+    print_error "❌ onnxruntime module not importable after installing onnxruntime-gpu"
+    print_error "   This is unexpected - onnxruntime-gpu should provide the onnxruntime module"
+    exit 1
+fi
+print_info "✅ onnxruntime module verified (provided by onnxruntime-gpu)"
 
 print_info "Installing OpenWakeWord dependencies (numpy, pandas, scikit-learn)..."
 if ! pip install --upgrade "numpy>=1.24.0" "pandas>=2.0.0" "scikit-learn>=1.3.0" 2>&1 | tee /tmp/openwakeword_deps_install.log; then
