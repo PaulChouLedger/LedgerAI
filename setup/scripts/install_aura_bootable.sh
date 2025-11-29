@@ -104,6 +104,7 @@ sudo apt install -y \
     x11-xserver-utils \
     alsa-utils \
     libasound2-dev \
+    pulseaudio \
     qtbase5-dev \
     qttools5-dev \
     qttools5-dev-tools \
@@ -1498,7 +1499,7 @@ ExecStartPre=/bin/bash -c 'SOCKET=\$(ls /tmp/.X11-unix/ 2>/dev/null | grep "^X" 
 ExecStartPre=/bin/bash -c 'SOCKET=\$(ls /tmp/.X11-unix/ 2>/dev/null | grep "^X" | head -1); if [ -n "\$SOCKET" ]; then NUM=\$(echo "\$SOCKET" | sed "s/X//"); export DISPLAY=:\$NUM; else export DISPLAY=:0; fi; gsettings set org.gnome.desktop.screensaver lock-enabled false 2>/dev/null || true'
 ExecStartPre=/bin/bash -c 'SOCKET=\$(ls /tmp/.X11-unix/ 2>/dev/null | grep "^X" | head -1); if [ -n "\$SOCKET" ]; then NUM=\$(echo "\$SOCKET" | sed "s/X//"); export DISPLAY=:\$NUM; else export DISPLAY=:0; fi; gsettings set org.gnome.desktop.lockdown disable-lock-screen true 2>/dev/null || true'
 ExecStartPre=/bin/bash -c 'SOCKET=\$(ls /tmp/.X11-unix/ 2>/dev/null | grep "^X" | head -1); if [ -n "\$SOCKET" ]; then NUM=\$(echo "\$SOCKET" | sed "s/X//"); export DISPLAY=:\$NUM; else export DISPLAY=:0; fi; gsettings set org.gnome.desktop.screensaver idle-activation-enabled false 2>/dev/null || true'
-# Set default audio output (UACDemoV1.0) on every boot - ALSA only
+# Set default audio output (UACDemoV1.0) on every boot - ALSA and PulseAudio
 ExecStartPre=$LEDGERAI_DIR/setup/scripts/set_default_audio_on_boot.sh
 ExecStartPre=/bin/sleep 5
 ExecStart=$VENV_DIR/bin/python3 -u $LEDGERAI_DIR/aura-control/core/main.py
@@ -1616,17 +1617,10 @@ print_step "13. Configuring audio device permissions..."
 if ! groups "$AURA_USER" | grep -q audio; then
     sudo usermod -aG audio "$AURA_USER"
     print_info "User added to audio group"
-    print_warning "⚠️  You must logout/login (or reboot) for audio group changes to take effect"
 else
     print_info "User already in audio group"
 fi
 
-# NOTE: Audio uses direct ALSA access (no sound server needed)
-# On clean installs, microphone capture works fine with direct ALSA
-# speaker.py uses ALSA directly for volume control
-print_info "Using direct ALSA access for audio (no sound server needed)"
-print_info "   Microphone uses direct ALSA access via PortAudio/sounddevice"
-print_info "   Speaker volume control uses ALSA directly"
 
 # Make audio setup scripts executable
 if [ -f "$LEDGERAI_DIR/setup/scripts/set_default_audio_on_boot.sh" ]; then
