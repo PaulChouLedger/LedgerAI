@@ -159,18 +159,40 @@ def initialize_gpio_pins():
     result = run_xvf_command("GPO_READ_VALUES")
     if result:
         # Parse output: "GPO_READ_VALUES 0 0 0 1 0"
+        # Or with debug: "Device (USB)::device_init() -- Found device VID: 10374 PID: 26 interface: 3\nGPO_READ_VALUES 0 0 0 1 0"
         # Values are: X0D11, X0D30, X0D31, X0D33, X0D39
-        values = result.split()
-        if len(values) >= 4:
-            x0d30 = values[1] if len(values) > 1 else "?"
-            x0d31 = values[2] if len(values) > 2 else "?"
-            print(f"  📊 Current GPIO state: X0D30={x0d30} (mic mute), X0D31={x0d31} (amp enable)")
-            
-            if x0d30 == "0" and x0d31 == "0":
-                print("  ✅ GPIO pins correctly configured for audio capture")
-                success_count += 1
-            else:
-                print(f"  ⚠️  GPIO pins may not be correct: X0D30={x0d30}, X0D31={x0d31}")
+        # Find the line with GPO_READ_VALUES
+        lines = result.strip().split('\n')
+        gpo_line = None
+        for line in lines:
+            if 'GPO_READ_VALUES' in line:
+                gpo_line = line
+                break
+        
+        if gpo_line:
+            # Extract just the numeric values
+            values = gpo_line.split()
+            # Find GPO_READ_VALUES in the list and get values after it
+            try:
+                idx = values.index('GPO_READ_VALUES')
+                if len(values) > idx + 4:
+                    x0d11 = values[idx + 1]  # X0D11
+                    x0d30 = values[idx + 2]  # X0D30 (mic mute)
+                    x0d31 = values[idx + 3]  # X0D31 (amp enable)
+                    x0d33 = values[idx + 4]  # X0D33 (LED power)
+                    print(f"  📊 Current GPIO state: X0D30={x0d30} (mic mute), X0D31={x0d31} (amp enable)")
+                    
+                    if x0d30 == "0" and x0d31 == "0":
+                        print("  ✅ GPIO pins correctly configured for audio capture")
+                        success_count += 1
+                    else:
+                        print(f"  ⚠️  GPIO pins may not be correct: X0D30={x0d30}, X0D31={x0d31}")
+                else:
+                    print("  ⚠️  Could not parse GPIO values from output")
+            except (ValueError, IndexError):
+                print("  ⚠️  Could not parse GPIO read values")
+        else:
+            print("  ⚠️  GPO_READ_VALUES output not found in response")
     
     if success_count >= 2:
         print("  💡 GPIO initialization complete - audio capture should work")
