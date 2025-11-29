@@ -303,6 +303,16 @@ if [ -f "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" ]; then
         print_info "   Continuing with installation, but audio input/output will fail"
     fi
     
+    # Check if PyTorch is installed (typically pre-installed with JetPack)
+    print_info "Checking for PyTorch installation..."
+    if python3 -c "import torch; print('✅ PyTorch found:', torch.__version__)" 2>/dev/null; then
+        print_info "✅ PyTorch is already installed"
+        TORCH_AVAILABLE=true
+    else
+        print_info "⚠️  PyTorch not found - will install from Jetson AI Lab PyPI index"
+        TORCH_AVAILABLE=false
+    fi
+    
     # Install PyQt5 separately with better error handling
     # Check if we should use system PyQt5 or install from pip
     if [ "$SYSTEM_PYQT5_AVAILABLE" = true ]; then
@@ -310,6 +320,19 @@ if [ -f "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" ]; then
         print_info "Installing requirements without PyQt5..."
         TEMP_REQUIREMENTS="/tmp/requirements_no_pyqt5.txt"
         grep -v "^PyQt5" "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" > "$TEMP_REQUIREMENTS" || true
+        
+        # Install PyTorch from Jetson PyPI if missing
+        if [ "$TORCH_AVAILABLE" = false ]; then
+            print_info "Installing PyTorch from Jetson AI Lab PyPI index..."
+            if pip install --extra-index-url https://pypi.jetson-ai-lab.io/jp6/cu126 torch torchvision torchaudio; then
+                print_info "✅ PyTorch installed successfully from Jetson PyPI"
+                # Remove PyTorch from requirements file since we just installed it
+                grep -v "^torch" "$TEMP_REQUIREMENTS" > "$TEMP_REQUIREMENTS.tmp" && mv "$TEMP_REQUIREMENTS.tmp" "$TEMP_REQUIREMENTS" || true
+            else
+                print_warning "⚠️  Failed to install PyTorch from Jetson PyPI - will try from standard requirements"
+            fi
+        fi
+        
         if pip install -r "$TEMP_REQUIREMENTS"; then
             print_info "✅ All requirements installed successfully (using system PyQt5)"
         else
@@ -334,9 +357,40 @@ if [ -f "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" ]; then
     else
         # Try to install PyQt5 from pip
         print_info "Installing all requirements (including PyQt5 from pip)..."
-        if pip install -r "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" 2>&1 | tee /tmp/pip_install.log; then
-            print_info "✅ All requirements installed successfully"
+        
+        PIP_ERROR=""
+        # Install PyTorch from Jetson PyPI if missing
+        if [ "$TORCH_AVAILABLE" = false ]; then
+            print_info "Installing PyTorch from Jetson AI Lab PyPI index..."
+            if pip install --extra-index-url https://pypi.jetson-ai-lab.io/jp6/cu126 torch torchvision torchaudio; then
+                print_info "✅ PyTorch installed successfully from Jetson PyPI"
+                # Create temp requirements without PyTorch since we just installed it
+                TEMP_REQUIREMENTS="/tmp/requirements_no_torch.txt"
+                grep -v "^torch" "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" > "$TEMP_REQUIREMENTS" || true
+                if pip install -r "$TEMP_REQUIREMENTS" 2>&1 | tee /tmp/pip_install.log; then
+                    print_info "✅ All requirements installed successfully"
+                    rm -f "$TEMP_REQUIREMENTS"
+                else
+                    PIP_ERROR=$(cat /tmp/pip_install.log)
+                    rm -f "$TEMP_REQUIREMENTS"
+                fi
+            else
+                print_warning "⚠️  Failed to install PyTorch from Jetson PyPI - will try from standard requirements"
+                if pip install -r "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" 2>&1 | tee /tmp/pip_install.log; then
+                    print_info "✅ All requirements installed successfully"
+                else
+                    PIP_ERROR=$(cat /tmp/pip_install.log)
+                fi
+            fi
         else
+            if pip install -r "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" 2>&1 | tee /tmp/pip_install.log; then
+                print_info "✅ All requirements installed successfully"
+            else
+                PIP_ERROR=$(cat /tmp/pip_install.log)
+            fi
+        fi
+        
+        if [ -n "$PIP_ERROR" ]; then
             PIP_ERROR=$(cat /tmp/pip_install.log)
             if echo "$PIP_ERROR" | grep -q "PyQt5\|pyqt5"; then
                 print_info "⚠️  PyQt5 installation failed, trying alternative approach..."
@@ -498,34 +552,34 @@ print_step "3.5. Installing wake word detection engine..."
 
 # Install OpenWakeWord dependencies first to avoid numpy/pandas binary incompatibility
 # This ensures all packages come from pip (not system packages) and are compatible
-print_info "Installing OpenWakeWord dependencies (numpy, pandas, scikit-learn)..."
-if pip install --upgrade "numpy>=1.24.0" "pandas>=2.0.0" "scikit-learn>=1.3.0" 2>&1 | tee /tmp/openwakeword_deps_install.log; then
-    print_info "✅ OpenWakeWord dependencies installed successfully"
-else
-    print_warning "⚠️  Some OpenWakeWord dependencies had issues (check logs)"
-    print_info "   Continuing with OpenWakeWord installation anyway..."
+# CRITICAL: Install Jetson-optimized onnxruntime-gpu FIRST from Jetson AI Lab PyPI
+# This is specifically built for Jetson devices and avoids ARM CPU detection issues
+# OpenWakeWord is compatible with onnxruntime-gpu-1.23.0 and will use it if installed first
+print_info "Installing onnxruntime-gpu from Jetson AI Lab PyPI (Jetson-optimized)..."
+if ! pip install --extra-index-url https://pypi.jetson-ai-lab.io/jp6/cu126 "onnxruntime-gpu>=1.23.0" 2>&1 | tee /tmp/onnxruntime_install.log; then
+    print_error "❌ Failed to install onnxruntime-gpu from Jetson PyPI"
+    print_error "   Check logs: /tmp/onnxruntime_install.log"
+    print_error "   OpenWakeWord requires onnxruntime-gpu to function"
+    exit 1
 fi
+print_info "✅ onnxruntime-gpu installed successfully from Jetson PyPI"
 
-# Install OpenWakeWord (actively maintained, recommended for all systems)
-# NOTE: OpenWakeWord installation failure is non-fatal - installation will continue
-print_info "Installing OpenWakeWord..."
-if pip install "openwakeword>=0.5.0" 2>&1 | tee /tmp/openwakeword_install.log; then
-    print_info "✅ OpenWakeWord installed successfully"
-    
-    # Verify OpenWakeWord installation (non-fatal if it fails)
-    if python3 -c "import openwakeword; from openwakeword import Model; print('✅ OpenWakeWord verified')" 2>/dev/null; then
-        print_info "✅ OpenWakeWord verified and ready to use"
-    else
-        print_warning "⚠️  OpenWakeWord installed but verification failed"
-        print_info "   This may be due to numpy/pandas compatibility issues or onnxruntime version"
-        print_info "   Installation will continue - wake word detection may not work until fixed"
-        print_info "   Try: pip install --upgrade --force-reinstall numpy pandas scikit-learn"
-    fi
-else
-    print_warning "⚠️  OpenWakeWord installation failed (check logs)"
-    print_info "   Installation will continue - wake word detection will not work until fixed"
-    print_info "   You can fix this later by running: pip install openwakeword"
+print_info "Installing OpenWakeWord dependencies (numpy, pandas, scikit-learn)..."
+if ! pip install --upgrade "numpy>=1.24.0" "pandas>=2.0.0" "scikit-learn>=1.3.0" 2>&1 | tee /tmp/openwakeword_deps_install.log; then
+    print_error "❌ Failed to install OpenWakeWord dependencies"
+    print_error "   Check logs: /tmp/openwakeword_deps_install.log"
+    exit 1
 fi
+print_info "✅ OpenWakeWord dependencies installed successfully"
+
+# Install OpenWakeWord (required for wake word detection)
+print_info "Installing OpenWakeWord..."
+if ! pip install "openwakeword>=0.5.0" 2>&1 | tee /tmp/openwakeword_install.log; then
+    print_error "❌ Failed to install OpenWakeWord"
+    print_error "   Check logs: /tmp/openwakeword_install.log"
+    exit 1
+fi
+print_info "✅ OpenWakeWord installed successfully"
 
 # Verify installation
 print_info "Verifying wake word detection engine..."
@@ -536,18 +590,21 @@ if [ -f "$VENV_DIR/bin/python3" ]; then
     PYTHON_CMD="$VENV_DIR/bin/python3"
 fi
 
-# Verify OpenWakeWord and download models (non-fatal - continue even if it fails)
-print_info "Verifying OpenWakeWord..."
-if $PYTHON_CMD -c "import openwakeword; from openwakeword import Model; print('SUCCESS')" 2>/dev/null; then
-    print_info "✅ OpenWakeWord is installed and importable"
-    
-    # Download/initialize OpenWakeWord models explicitly
-    # NOTE: This may crash due to onnxruntime issues - make it non-fatal
-    print_info "Downloading OpenWakeWord models (this may take a minute on first run)..."
-    if $PYTHON_CMD << 'PYEOF' 2>&1 || true
+# Verify OpenWakeWord can be imported
+print_info "Verifying OpenWakeWord import..."
+if ! $PYTHON_CMD -c "import openwakeword; from openwakeword import Model; print('SUCCESS')" 2>&1 | grep -q "SUCCESS"; then
+    print_error "❌ OpenWakeWord import failed"
+    ERROR_OUTPUT=$($PYTHON_CMD -c "import openwakeword" 2>&1 || echo "Import failed")
+    print_error "   Error: $ERROR_OUTPUT"
+    exit 1
+fi
+print_info "✅ OpenWakeWord is installed and importable"
+
+# Download/initialize OpenWakeWord models
+print_info "Downloading OpenWakeWord models (this may take a minute on first run)..."
+if ! $PYTHON_CMD << 'PYEOF' 2>&1
 import sys
 try:
-    # Use OpenWakeWord's utility function to explicitly download models
     import openwakeword.utils
     print("Downloading OpenWakeWord models (melspectrogram and wake word models)...")
     openwakeword.utils.download_models()
@@ -565,70 +622,17 @@ try:
         print("✅ Models downloaded (melspectrogram preprocessing model available)")
     sys.exit(0)
 except Exception as e:
-    print(f"❌ Error downloading models: {e}")
+    print(f"❌ Error downloading/verifying models: {e}")
     import traceback
     traceback.print_exc()
-    sys.exit(0)  # Non-fatal - don't fail installation
+    sys.exit(1)
 PYEOF
-    then
-        print_info "✅ OpenWakeWord models downloaded and ready"
-    else
-        print_warning "⚠️  Model download had issues (may still work on first use)"
-        print_info "   Models will be downloaded automatically when OpenWakeWord is first used"
-        print_info "   Installation will continue..."
-    fi
-else
-    print_warning "⚠️  OpenWakeWord not importable (non-fatal - installation will continue)"
-    print_info "   Attempting to diagnose..."
-    # Capture error output (may crash due to onnxruntime - make it non-fatal)
-    ERROR_OUTPUT=$($PYTHON_CMD -c "import openwakeword" 2>&1 || echo "Import failed (may have crashed)")
-    if echo "$ERROR_OUTPUT" | grep -q "numpy.dtype size changed\|binary incompatibility"; then
-        print_warning "⚠️  Numpy/pandas binary incompatibility detected"
-        print_info "   This usually means system packages conflict with pip packages"
-        print_info "   Attempting to fix by reinstalling numpy, pandas, scikit-learn..."
-        if pip install --upgrade --force-reinstall "numpy>=1.24.0" "pandas>=2.0.0" "scikit-learn>=1.3.0" 2>&1 | tee /tmp/fix_numpy_pandas.log; then
-            print_info "✅ Dependencies reinstalled - retrying verification..."
-            # Retry verification (may still crash - make it non-fatal)
-            if $PYTHON_CMD -c "import openwakeword; from openwakeword import Model; print('SUCCESS')" 2>&1 | grep -q "SUCCESS" || true; then
-                print_info "✅ OpenWakeWord verified after dependency fix"
-                # Try to download models after fix (may crash - make it non-fatal)
-                print_info "Downloading OpenWakeWord models..."
-                $PYTHON_CMD << 'PYEOF' 2>&1 || true
-import sys
-try:
-    import openwakeword.utils
-    openwakeword.utils.download_models()
-    print("✅ Models downloaded successfully")
-    sys.exit(0)
-except Exception as e:
-    print(f"⚠️  Model download issue: {e}")
-    sys.exit(0)  # Non-fatal
-PYEOF
-            else
-                print_warning "⚠️  Still having issues - may need manual intervention"
-                print_info "   Try: pip install --upgrade --force-reinstall numpy pandas scikit-learn openwakeword"
-            fi
-        else
-            print_warning "⚠️  Failed to fix dependency issues"
-            print_info "   Manual fix may be required"
-        fi
-    elif echo "$ERROR_OUTPUT" | grep -q "ModuleNotFoundError\|ImportError"; then
-        print_info "   Module exists but import failed - checking dependencies..."
-        print_info "   Error: $ERROR_OUTPUT"
-    else
-        print_info "   Module not found - may need to reinstall: pip install openwakeword"
-    fi
+then
+    print_error "❌ Failed to download/verify OpenWakeWord models"
+    exit 1
 fi
-
-# Wake word setup complete (even if OpenWakeWord failed, installation continues)
-if $PYTHON_CMD -c "import openwakeword" 2>/dev/null; then
-    print_info "✅ Wake word engine setup complete"
-    print_info "   - OpenWakeWord: Installed and ready"
-else
-    print_warning "⚠️  Wake word engine setup incomplete (OpenWakeWord not working)"
-    print_info "   - Installation will continue - you can fix OpenWakeWord later"
-    print_info "   - Wake word detection will not work until OpenWakeWord is fixed"
-fi
+print_info "✅ OpenWakeWord models downloaded and ready"
+print_info "✅ Wake word engine setup complete"
 
 echo ""
 

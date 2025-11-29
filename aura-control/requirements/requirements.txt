@@ -1,6 +1,13 @@
 # Core Python Dependencies for LedgerAI Aura Control
 # Install with: pip install -r requirements.txt
 
+# PyTorch (Jetson)
+# PyTorch is typically pre-installed with JetPack. If missing, install from Jetson AI Lab PyPI:
+#   pip install --extra-index-url https://pypi.jetson-ai-lab.io/jp6/cu126 torch torchvision torchaudio
+torch>=2.0.0
+torchvision>=0.15.0
+torchaudio>=2.0.0
+
 # Audio Processing
 sounddevice>=0.4.6
 soundfile>=0.12.1
@@ -11,6 +18,10 @@ scipy>=1.10.0
 # Install: pip install openwakeword
 # Models are downloaded automatically on first use
 # Note: Requires numpy, pandas, and scikit-learn (must be pip-installed, not system packages)
+# IMPORTANT: Use Jetson-optimized onnxruntime-gpu from Jetson AI Lab PyPI
+# The install script will install onnxruntime-gpu from https://pypi.jetson-ai-lab.io/jp6/cu126
+# This is specifically built for Jetson devices and avoids ARM CPU detection issues
+# OpenWakeWord is compatible with onnxruntime-gpu-1.23.0 and will use it if installed first
 openwakeword>=0.5.0
 scikit-learn>=1.3.0
 pandas>=2.0.0
