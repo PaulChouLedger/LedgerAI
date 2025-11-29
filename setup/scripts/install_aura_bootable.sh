@@ -329,7 +329,8 @@ if [ -f "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" ]; then
         print_info "Using system PyQt5 (pre-installed on system)"
         print_info "Installing requirements without PyQt5..."
         TEMP_REQUIREMENTS="/tmp/requirements_no_pyqt5.txt"
-        grep -v "^PyQt5" "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" > "$TEMP_REQUIREMENTS" || true
+        # Exclude PyQt5 (use system) and openwakeword (install separately after onnxruntime-gpu in Step 3.5)
+        grep -v "^PyQt5\|^openwakeword" "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" > "$TEMP_REQUIREMENTS" || true
         
         # Install PyTorch from Jetson PyPI if missing
         if [ "$TORCH_AVAILABLE" = false ]; then
@@ -433,10 +434,15 @@ if [ -f "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" ]; then
                 fi
             else
                 print_warning "⚠️  Failed to install PyTorch from Jetson PyPI - will try from standard requirements"
-                if pip install -r "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" 2>&1 | tee /tmp/pip_install.log; then
+                # Exclude openwakeword (install separately after onnxruntime-gpu in Step 3.5)
+                TEMP_REQUIREMENTS_NO_OPENWAKEWORD="/tmp/requirements_no_openwakeword.txt"
+                grep -v "^openwakeword" "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" > "$TEMP_REQUIREMENTS_NO_OPENWAKEWORD" || true
+                if pip install -r "$TEMP_REQUIREMENTS_NO_OPENWAKEWORD" 2>&1 | tee /tmp/pip_install.log; then
                     print_info "✅ All requirements installed successfully"
+                    rm -f "$TEMP_REQUIREMENTS_NO_OPENWAKEWORD"
                 else
                     PIP_ERROR=$(cat /tmp/pip_install.log)
+                    rm -f "$TEMP_REQUIREMENTS_NO_OPENWAKEWORD"
                 fi
             fi
         else
@@ -456,10 +462,15 @@ if [ -f "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" ]; then
                 fi
             else
                 print_warning "⚠️  Failed to install CTranslate2 from Jetson PyPI - will try from standard requirements"
-                if pip install -r "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" 2>&1 | tee /tmp/pip_install.log; then
+                # Exclude openwakeword (install separately after onnxruntime-gpu in Step 3.5)
+                TEMP_REQUIREMENTS_NO_OPENWAKEWORD="/tmp/requirements_no_openwakeword.txt"
+                grep -v "^openwakeword" "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" > "$TEMP_REQUIREMENTS_NO_OPENWAKEWORD" || true
+                if pip install -r "$TEMP_REQUIREMENTS_NO_OPENWAKEWORD" 2>&1 | tee /tmp/pip_install.log; then
                     print_info "✅ All requirements installed successfully"
+                    rm -f "$TEMP_REQUIREMENTS_NO_OPENWAKEWORD"
                 else
                     PIP_ERROR=$(cat /tmp/pip_install.log)
+                    rm -f "$TEMP_REQUIREMENTS_NO_OPENWAKEWORD"
                 fi
             fi
         fi
@@ -478,7 +489,8 @@ if [ -f "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" ]; then
                     print_info "System PyQt5 now available. Recreating venv with system-site-packages..."
                     # We can't recreate venv here easily, so just install other packages
                     TEMP_REQUIREMENTS="/tmp/requirements_no_pyqt5.txt"
-                    grep -v "^PyQt5" "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" > "$TEMP_REQUIREMENTS" || true
+                    # Exclude PyQt5 (use system) and openwakeword (install separately after onnxruntime-gpu in Step 3.5)
+                    grep -v "^PyQt5\|^openwakeword" "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" > "$TEMP_REQUIREMENTS" || true
                     if pip install -r "$TEMP_REQUIREMENTS"; then
                         print_info "✅ All other requirements installed"
                     else
@@ -522,7 +534,8 @@ if [ -f "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" ]; then
                             print_error "PyQt5 installation failed"
                             print_info "Installing remaining packages without PyQt5..."
                             TEMP_REQUIREMENTS="/tmp/requirements_no_pyqt5.txt"
-                            grep -v "^PyQt5" "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" > "$TEMP_REQUIREMENTS" || true
+                            # Exclude PyQt5 (use system) and openwakeword (install separately after onnxruntime-gpu in Step 3.5)
+                            grep -v "^PyQt5\|^openwakeword" "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" > "$TEMP_REQUIREMENTS" || true
                             if pip install -r "$TEMP_REQUIREMENTS"; then
                                 print_info "✅ All other requirements installed successfully"
                             else
@@ -536,7 +549,8 @@ if [ -f "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" ]; then
                         print_error "qmake not found. PyQt5 cannot be built."
                         print_info "Installing remaining packages without PyQt5..."
                         TEMP_REQUIREMENTS="/tmp/requirements_no_pyqt5.txt"
-                        grep -v "^PyQt5" "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" > "$TEMP_REQUIREMENTS" || true
+                        # Exclude PyQt5 (use system) and openwakeword (install separately after onnxruntime-gpu in Step 3.5)
+                        grep -v "^PyQt5\|^openwakeword" "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" > "$TEMP_REQUIREMENTS" || true
                         if pip install -r "$TEMP_REQUIREMENTS"; then
                             print_info "✅ All other requirements installed successfully"
                         else
@@ -624,6 +638,15 @@ echo ""
 # ============================================================================
 print_step "3.5. Installing wake word detection engine..."
 
+# CRITICAL: Uninstall any onnxruntime packages that may have been installed by requirements.txt
+# openwakeword in requirements.txt will install onnxruntime (CPU) if it's not present
+# We need to remove it and install onnxruntime-gpu instead
+# Also check for system-wide packages (accessible via --system-site-packages)
+print_info "Removing any existing onnxruntime packages (venv and system-wide)..."
+pip uninstall -y onnxruntime onnxruntime-gpu 2>/dev/null || true
+# Also try system-wide uninstall (in case packages were installed with --user or sudo)
+python3 -m pip uninstall -y onnxruntime onnxruntime-gpu 2>/dev/null || true
+
 # Install OpenWakeWord dependencies first to avoid numpy/pandas binary incompatibility
 # This ensures all packages come from pip (not system packages) and are compatible
 # CRITICAL: Install Jetson-optimized onnxruntime-gpu FIRST from Jetson AI Lab PyPI
@@ -638,8 +661,27 @@ if ! pip install --extra-index-url https://pypi.jetson-ai-lab.io/jp6/cu126 "onnx
 fi
 print_info "✅ onnxruntime-gpu installed successfully from Jetson PyPI"
 
-print_info "Installing OpenWakeWord dependencies (numpy, pandas, scikit-learn)..."
-if ! pip install --upgrade "numpy>=1.24.0" "pandas>=2.0.0" "scikit-learn>=1.3.0" 2>&1 | tee /tmp/openwakeword_deps_install.log; then
+# IMPORTANT: onnxruntime-gpu==1.23.0 was compiled with NumPy 1.x and is incompatible with NumPy 2.x
+# Check NumPy version and downgrade if needed
+print_info "Checking NumPy version for onnxruntime-gpu compatibility..."
+NUMPY_VERSION=$(pip show numpy 2>/dev/null | grep "^Version:" | awk '{print $2}' || echo "")
+if [ -n "$NUMPY_VERSION" ]; then
+    NUMPY_MAJOR=$(echo "$NUMPY_VERSION" | cut -d. -f1)
+    if [ "$NUMPY_MAJOR" -ge 2 ]; then
+        print_info "   NumPy $NUMPY_VERSION detected - downgrading to <2.0 for onnxruntime-gpu compatibility..."
+        pip install "numpy<2.0,>=1.24.0" 2>&1 | tee /tmp/numpy_downgrade.log || {
+            print_error "❌ Failed to downgrade NumPy"
+            print_error "   Check logs: /tmp/numpy_downgrade.log"
+            exit 1
+        }
+        print_info "✅ NumPy downgraded to <2.0"
+    else
+        print_info "✅ NumPy version $NUMPY_VERSION is compatible"
+    fi
+fi
+
+print_info "Installing OpenWakeWord dependencies (numpy<2.0, pandas, scikit-learn)..."
+if ! pip install --upgrade "numpy<2.0,>=1.24.0" "pandas>=2.0.0" "scikit-learn>=1.3.0" 2>&1 | tee /tmp/openwakeword_deps_install.log; then
     print_error "❌ Failed to install OpenWakeWord dependencies"
     print_error "   Check logs: /tmp/openwakeword_deps_install.log"
     exit 1
@@ -647,13 +689,21 @@ fi
 print_info "✅ OpenWakeWord dependencies installed successfully"
 
 # Install OpenWakeWord (required for wake word detection)
-print_info "Installing OpenWakeWord..."
-if ! pip install "openwakeword>=0.5.0" 2>&1 | tee /tmp/openwakeword_install.log; then
+# Use --no-deps to prevent it from installing onnxruntime (CPU) as a dependency
+# We already have onnxruntime-gpu installed
+print_info "Installing OpenWakeWord (without onnxruntime dependency, using onnxruntime-gpu)..."
+if ! pip install --no-deps "openwakeword>=0.5.0" 2>&1 | tee /tmp/openwakeword_install.log; then
     print_error "❌ Failed to install OpenWakeWord"
     print_error "   Check logs: /tmp/openwakeword_install.log"
     exit 1
 fi
+# Install OpenWakeWord's other dependencies (excluding onnxruntime)
+print_info "Installing OpenWakeWord dependencies (excluding onnxruntime)..."
+pip install "tqdm<5.0,>=4.0" "requests<3,>=2.0" "tflite-runtime<3,>=2.8.0" 2>&1 | tee -a /tmp/openwakeword_install.log || true
 print_info "✅ OpenWakeWord installed successfully"
+
+# Final check: ensure onnxruntime (CPU) wasn't installed as a dependency
+pip uninstall -y onnxruntime 2>/dev/null || true
 
 # Verify installation
 print_info "Verifying wake word detection engine..."
