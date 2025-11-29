@@ -513,7 +513,7 @@ print_step "3.5. Installing wake word detection engine..."
 # Pin to specific wheel: onnxruntime_gpu-1.23.0-cp310-cp310-linux_aarch64.whl
 # This version works reliably on Jetson (1.23.2 has CPU detection assertion failures)
 # OpenWakeWord is compatible with onnxruntime-gpu-1.23.0 and will use it if installed first
-print_info "Uninstalling any existing onnxruntime-gpu to ensure clean install..."
+print_info "Uninstalling any existing onnxruntime packages to ensure clean install..."
 pip uninstall -y onnxruntime-gpu onnxruntime 2>/dev/null || true
 
 # Install the specific wheel file directly from Jetson PyPI
@@ -545,6 +545,11 @@ else
     print_info "   Continuing anyway, but this may cause issues..."
 fi
 
+# CRITICAL: Prevent OpenWakeWord from installing onnxruntime (CPU) as a dependency
+# We already have onnxruntime-gpu installed, so we need to exclude onnxruntime
+print_info "Ensuring onnxruntime (CPU) is not installed (we use onnxruntime-gpu)..."
+pip uninstall -y onnxruntime 2>/dev/null || true
+
 print_info "Installing OpenWakeWord dependencies (numpy, pandas, scikit-learn)..."
 if ! pip install --upgrade "numpy>=1.24.0" "pandas>=2.0.0" "scikit-learn>=1.3.0" 2>&1 | tee /tmp/openwakeword_deps_install.log; then
     print_error "❌ Failed to install OpenWakeWord dependencies"
@@ -554,13 +559,23 @@ fi
 print_info "✅ OpenWakeWord dependencies installed successfully"
 
 # Install OpenWakeWord (required for wake word detection)
-print_info "Installing OpenWakeWord..."
-if ! pip install "openwakeword>=0.5.0" 2>&1 | tee /tmp/openwakeword_install.log; then
+# IMPORTANT: Use --no-deps and install dependencies manually to prevent onnxruntime (CPU) from being installed
+# OpenWakeWord will use the already-installed onnxruntime-gpu
+print_info "Installing OpenWakeWord (without onnxruntime dependency, using onnxruntime-gpu)..."
+if ! pip install "openwakeword>=0.5.0" --no-deps 2>&1 | tee /tmp/openwakeword_install.log; then
     print_error "❌ Failed to install OpenWakeWord"
     print_error "   Check logs: /tmp/openwakeword_install.log"
     exit 1
 fi
-print_info "✅ OpenWakeWord installed successfully"
+
+# Install OpenWakeWord's other dependencies (excluding onnxruntime)
+print_info "Installing OpenWakeWord dependencies (excluding onnxruntime)..."
+pip install "tqdm<5.0,>=4.0" "requests<3,>=2.0" "tflite-runtime<3,>=2.8.0" 2>&1 | tee -a /tmp/openwakeword_install.log || true
+
+# Ensure onnxruntime (CPU) is not installed - we use onnxruntime-gpu
+pip uninstall -y onnxruntime 2>/dev/null || true
+
+print_info "✅ OpenWakeWord installed successfully (using onnxruntime-gpu)"
 
 # Verify installation
 print_info "Verifying wake word detection engine..."
