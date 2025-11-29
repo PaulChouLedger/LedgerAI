@@ -46,8 +46,6 @@
 
 [Unit]
 Description=XVF3800 Hardware DSP Configuration
-# Wait for system to be fully booted
-After=multi-user.target
 
 [Service]
 Type=oneshot
