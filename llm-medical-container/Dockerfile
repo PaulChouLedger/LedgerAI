@@ -30,7 +30,7 @@ RUN python3 -c "from sentence_transformers import SentenceTransformer; SentenceT
     echo "✅ all-distilroberta-v1 model pre-downloaded into image cache"
 
 # Copy models (cached - these are large and rarely change)
-COPY models/Qwen2.5-1.5B-Instruct.Q4_K_M-medical.gguf /models/Qwen2.5-1.5B-Instruct.Q4_K_M-medical.gguf
+COPY models/Qwen2.5-1.5B-Instruct.Q4_K_M-medical-2.gguf /models/Qwen2.5-1.5B-Instruct.Q4_K_M-medical-2.gguf
 
 # Copy static files (cached - these change less frequently than Python code)
 # Note: ml/ and config/ directories are optional - code handles missing imports gracefully
@@ -61,7 +61,7 @@ COPY rag/ /app/rag/
 # Models already copied above (cached layer)
 
 # === Environment defaults (can be overridden by .env or -e) ===
-ENV SIMPLE_MODEL_PATH=/models/Qwen2.5-1.5B-Instruct.Q4_K_M-medical.gguf
+ENV SIMPLE_MODEL_PATH=/models/Qwen2.5-1.5B-Instruct.Q4_K_M-medical-2.gguf
 ENV SIMPLE_CHAT_FORMAT=qwen
 ENV SIMPLE_N_CTX=2048
 ENV LLM_STOP=<|eot_id|>
