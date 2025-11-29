@@ -13,17 +13,19 @@ RUN apt-get update && apt-get install -y \
     ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
-# Upgrade pip using standard PyPI (pip/setuptools/wheel are standard packages)
+# Upgrade pip, setuptools, and wheel (fixes Python 3.12 compatibility issues)
 RUN pip3 install --upgrade --index-url https://pypi.org/simple pip setuptools wheel
 
 # Verify PyTorch is installed and CUDA-enabled
 RUN python3 -c "import torch; assert hasattr(torch.version, 'cuda') and torch.version.cuda is not None, 'CUDA PyTorch required'; print(f'✅ PyTorch {torch.__version__} with CUDA {torch.version.cuda}')"
 
-# Install Chatterbox dependencies before cloning
-# Note: Install compatible versions to avoid conflicts
-# Use PyPI only - these are standard packages, not Jetson-specific
+# Install numpy first with Jetson index (has pre-built ARM64 wheels, avoids Python 3.12 build issues)
+RUN pip3 install --index-url https://pypi.jetson-ai-lab.dev/jp6/cu128 --extra-index-url https://pypi.org/simple \
+    "numpy>=1.24.0,<1.26.0" || \
+    pip3 install --index-url https://pypi.org/simple --only-binary numpy "numpy>=1.24.0,<1.26.0"
+
+# Install remaining Chatterbox dependencies (standard PyPI packages)
 RUN pip3 install --index-url https://pypi.org/simple \
-    "numpy>=1.24.0,<1.26.0" \
     librosa==0.11.0 \
     transformers==4.46.3 \
     diffusers==0.29.0 \
