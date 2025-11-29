@@ -340,10 +340,10 @@ if [ -f "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" ]; then
         print_info "Installing all requirements (including PyQt5 from pip)..."
         
         PIP_ERROR=""
-        if pip install -r "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" 2>&1 | tee /tmp/pip_install.log; then
-            print_info "✅ All requirements installed successfully"
-        else
-            PIP_ERROR=$(cat /tmp/pip_install.log)
+                if pip install -r "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" 2>&1 | tee /tmp/pip_install.log; then
+                    print_info "✅ All requirements installed successfully"
+                else
+                    PIP_ERROR=$(cat /tmp/pip_install.log)
         fi
         
         if [ -n "$PIP_ERROR" ]; then
@@ -510,15 +510,40 @@ print_step "3.5. Installing wake word detection engine..."
 # This ensures all packages come from pip (not system packages) and are compatible
 # CRITICAL: Install Jetson-optimized onnxruntime-gpu FIRST from Jetson AI Lab PyPI
 # This is specifically built for Jetson devices and avoids ARM CPU detection issues
+# Pin to specific wheel: onnxruntime_gpu-1.23.0-cp310-cp310-linux_aarch64.whl
+# This version works reliably on Jetson (1.23.2 has CPU detection assertion failures)
 # OpenWakeWord is compatible with onnxruntime-gpu-1.23.0 and will use it if installed first
-print_info "Installing onnxruntime-gpu from Jetson AI Lab PyPI (Jetson-optimized)..."
-if ! pip install --extra-index-url https://pypi.jetson-ai-lab.io/jp6/cu126 "onnxruntime-gpu>=1.23.0" 2>&1 | tee /tmp/onnxruntime_install.log; then
-    print_error "❌ Failed to install onnxruntime-gpu from Jetson PyPI"
-    print_error "   Check logs: /tmp/onnxruntime_install.log"
-    print_error "   OpenWakeWord requires onnxruntime-gpu to function"
-    exit 1
+print_info "Uninstalling any existing onnxruntime-gpu to ensure clean install..."
+pip uninstall -y onnxruntime-gpu onnxruntime 2>/dev/null || true
+
+# Install the specific wheel file directly from Jetson PyPI
+# This ensures we get the exact linux_aarch64 build that works on Jetson
+ONNXRUNTIME_WHEEL_URL="https://pypi.jetson-ai-lab.io/jp6/cu126/onnxruntime-gpu/1.23.0/onnxruntime_gpu-1.23.0-cp310-cp310-linux_aarch64.whl"
+print_info "Installing onnxruntime-gpu==1.23.0 (wheel: onnxruntime_gpu-1.23.0-cp310-cp310-linux_aarch64.whl) from Jetson AI Lab PyPI..."
+
+# Try installing from the specific wheel URL first
+if pip install "$ONNXRUNTIME_WHEEL_URL" 2>&1 | tee /tmp/onnxruntime_install.log; then
+    print_info "✅ Installed from specific wheel URL"
+else
+    # Fallback: Try installing via package name (pip will select the correct wheel)
+    print_info "Falling back to package name installation..."
+    if ! pip install --extra-index-url https://pypi.jetson-ai-lab.io/jp6/cu126 "onnxruntime-gpu==1.23.0" 2>&1 | tee -a /tmp/onnxruntime_install.log; then
+        print_error "❌ Failed to install onnxruntime-gpu from Jetson PyPI"
+        print_error "   Check logs: /tmp/onnxruntime_install.log"
+        print_error "   OpenWakeWord requires onnxruntime-gpu to function"
+        exit 1
+    fi
 fi
-print_info "✅ onnxruntime-gpu installed successfully from Jetson PyPI"
+
+# Verify the correct version was installed
+INSTALLED_VERSION=$(pip show onnxruntime-gpu 2>/dev/null | grep "^Version:" | awk '{print $2}' || echo "")
+if [ "$INSTALLED_VERSION" = "1.23.0" ]; then
+    print_info "✅ onnxruntime-gpu==1.23.0 (linux_aarch64 wheel) installed successfully"
+    print_info "   Wheel: onnxruntime_gpu-1.23.0-cp310-cp310-linux_aarch64.whl"
+else
+    print_warning "⚠️  Installed version: $INSTALLED_VERSION (expected 1.23.0)"
+    print_info "   Continuing anyway, but this may cause issues..."
+fi
 
 print_info "Installing OpenWakeWord dependencies (numpy, pandas, scikit-learn)..."
 if ! pip install --upgrade "numpy>=1.24.0" "pandas>=2.0.0" "scikit-learn>=1.3.0" 2>&1 | tee /tmp/openwakeword_deps_install.log; then
@@ -547,19 +572,27 @@ if [ -f "$VENV_DIR/bin/python3" ]; then
 fi
 
 # Verify OpenWakeWord can be imported
+# Set environment variables to disable onnxruntime CPU detection (prevents assertion failures)
 print_info "Verifying OpenWakeWord import..."
-if ! $PYTHON_CMD -c "import openwakeword; from openwakeword import Model; print('SUCCESS')" 2>&1 | grep -q "SUCCESS"; then
+export ORT_DISABLE_CPUINFO=1
+export ORT_LOG_LEVEL=3
+if ! env ORT_DISABLE_CPUINFO=1 ORT_LOG_LEVEL=3 $PYTHON_CMD -c "import os; os.environ['ORT_DISABLE_CPUINFO']='1'; os.environ['ORT_LOG_LEVEL']='3'; import openwakeword; from openwakeword import Model; print('SUCCESS')" 2>&1 | grep -q "SUCCESS"; then
     print_error "❌ OpenWakeWord import failed"
-    ERROR_OUTPUT=$($PYTHON_CMD -c "import openwakeword" 2>&1 || echo "Import failed")
+    ERROR_OUTPUT=$(env ORT_DISABLE_CPUINFO=1 ORT_LOG_LEVEL=3 $PYTHON_CMD -c "import os; os.environ['ORT_DISABLE_CPUINFO']='1'; import openwakeword" 2>&1 || echo "Import failed")
     print_error "   Error: $ERROR_OUTPUT"
     exit 1
 fi
 print_info "✅ OpenWakeWord is installed and importable"
 
 # Download/initialize OpenWakeWord models
+# Set environment variables to disable onnxruntime CPU detection (prevents assertion failures)
 print_info "Downloading OpenWakeWord models (this may take a minute on first run)..."
-if ! $PYTHON_CMD << 'PYEOF' 2>&1
+if ! env ORT_DISABLE_CPUINFO=1 ORT_LOG_LEVEL=3 $PYTHON_CMD << 'PYEOF' 2>&1
+import os
 import sys
+# Set environment variables BEFORE importing onnxruntime
+os.environ['ORT_DISABLE_CPUINFO'] = '1'
+os.environ['ORT_LOG_LEVEL'] = '3'
 try:
     import openwakeword.utils
     print("Downloading OpenWakeWord models (melspectrogram and wake word models)...")
@@ -1155,35 +1188,35 @@ echo ""
 # ============================================================================
 print_step "7. Installing git hooks..."
 
-GIT_HOOKS_DIR="$LEDGERAI_DIR/.git/hooks"
-
-# Install post-merge hook to auto-reload systemd after git pull
-POST_MERGE_HOOK="$GIT_HOOKS_DIR/post-merge"
-POST_MERGE_TEMPLATE="$LEDGERAI_DIR/setup/scripts/git-hooks/post-merge"
-
-# Install pre-commit hook to sync llm-container changes to llm-medical-container
-PRE_COMMIT_HOOK="$GIT_HOOKS_DIR/pre-commit"
-PRE_COMMIT_TEMPLATE="$LEDGERAI_DIR/setup/scripts/git-hooks/pre-commit"
-
-if [ -d "$LEDGERAI_DIR/.git" ]; then
-    # Install post-merge hook
-    if [ -f "$POST_MERGE_TEMPLATE" ]; then
+    GIT_HOOKS_DIR="$LEDGERAI_DIR/.git/hooks"
+    
+    # Install post-merge hook to auto-reload systemd after git pull
+    POST_MERGE_HOOK="$GIT_HOOKS_DIR/post-merge"
+    POST_MERGE_TEMPLATE="$LEDGERAI_DIR/setup/scripts/git-hooks/post-merge"
+    
+    # Install pre-commit hook to sync llm-container changes to llm-medical-container
+    PRE_COMMIT_HOOK="$GIT_HOOKS_DIR/pre-commit"
+    PRE_COMMIT_TEMPLATE="$LEDGERAI_DIR/setup/scripts/git-hooks/pre-commit"
+    
+    if [ -d "$LEDGERAI_DIR/.git" ]; then
+        # Install post-merge hook
+        if [ -f "$POST_MERGE_TEMPLATE" ]; then
         if [ ! -f "$POST_MERGE_HOOK" ]; then
-            cp "$POST_MERGE_TEMPLATE" "$POST_MERGE_HOOK"
+                cp "$POST_MERGE_TEMPLATE" "$POST_MERGE_HOOK"
             chmod +x "$POST_MERGE_HOOK"
             print_info "Git post-merge hook installed - systemd will auto-reload after git pull"
+            fi
+        fi
+        
+        # Install pre-commit hook
+        if [ -f "$PRE_COMMIT_TEMPLATE" ]; then
+            if [ ! -f "$PRE_COMMIT_HOOK" ] || ! grep -q "llm-container" "$PRE_COMMIT_HOOK" 2>/dev/null; then
+                cp "$PRE_COMMIT_TEMPLATE" "$PRE_COMMIT_HOOK"
+                chmod +x "$PRE_COMMIT_HOOK"
+                print_info "Git pre-commit hook installed - llm-container changes will sync to llm-medical-container"
         fi
     fi
-    
-    # Install pre-commit hook
-    if [ -f "$PRE_COMMIT_TEMPLATE" ]; then
-        if [ ! -f "$PRE_COMMIT_HOOK" ] || ! grep -q "llm-container" "$PRE_COMMIT_HOOK" 2>/dev/null; then
-            cp "$PRE_COMMIT_TEMPLATE" "$PRE_COMMIT_HOOK"
-            chmod +x "$PRE_COMMIT_HOOK"
-            print_info "Git pre-commit hook installed - llm-container changes will sync to llm-medical-container"
-        fi
-    fi
-    fi
+fi
 
 echo ""
 
@@ -1406,7 +1439,7 @@ fi
 if [ -f "$LEDGERAI_DIR/setup/scripts/set_default_audio_on_boot.sh" ]; then
     chmod +x "$LEDGERAI_DIR/setup/scripts/set_default_audio_on_boot.sh"
     print_info "✅ Audio output setup script made executable"
-    
+
     # Run the script during installation to set defaults immediately
     print_info "Configuring default audio output (UACDemoV1.0)..."
     if [ "$(whoami)" = "$AURA_USER" ]; then
