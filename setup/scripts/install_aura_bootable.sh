@@ -313,6 +313,16 @@ if [ -f "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" ]; then
         TORCH_AVAILABLE=false
     fi
     
+    # Check if torchaudio is installed (required for Silero VAD)
+    print_info "Checking for torchaudio installation..."
+    if python3 -c "import torchaudio; print('✅ torchaudio found:', torchaudio.__version__)" 2>/dev/null; then
+        print_info "✅ torchaudio is already installed"
+        TORCHAUDIO_AVAILABLE=true
+    else
+        print_info "⚠️  torchaudio not found - will install from Jetson AI Lab PyPI index"
+        TORCHAUDIO_AVAILABLE=false
+    fi
+    
     # Install PyQt5 separately with better error handling
     # Check if we should use system PyQt5 or install from pip
     if [ "$SYSTEM_PYQT5_AVAILABLE" = true ]; then
@@ -328,9 +338,44 @@ if [ -f "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" ]; then
                 print_info "✅ PyTorch installed successfully from Jetson PyPI"
                 # Remove PyTorch from requirements file since we just installed it
                 grep -v "^torch" "$TEMP_REQUIREMENTS" > "$TEMP_REQUIREMENTS.tmp" && mv "$TEMP_REQUIREMENTS.tmp" "$TEMP_REQUIREMENTS" || true
+                TORCHAUDIO_AVAILABLE=true  # torchaudio installed with torch
             else
                 print_warning "⚠️  Failed to install PyTorch from Jetson PyPI - will try from standard requirements"
             fi
+        fi
+        
+        # Install torchaudio separately if PyTorch was pre-installed but torchaudio is missing
+        if [ "$TORCH_AVAILABLE" = true ] && [ "$TORCHAUDIO_AVAILABLE" = false ]; then
+            print_info "Installing torchaudio from Jetson AI Lab PyPI index..."
+            if pip install --extra-index-url https://pypi.jetson-ai-lab.io/jp6/cu126 torchaudio; then
+                print_info "✅ torchaudio installed successfully from Jetson PyPI"
+                # Remove torchaudio from requirements file since we just installed it
+                grep -v "^torchaudio" "$TEMP_REQUIREMENTS" > "$TEMP_REQUIREMENTS.tmp" && mv "$TEMP_REQUIREMENTS.tmp" "$TEMP_REQUIREMENTS" || true
+            else
+                print_warning "⚠️  Failed to install torchaudio from Jetson PyPI - will try from standard requirements"
+            fi
+        fi
+        
+        # Install torchaudio separately if PyTorch was pre-installed but torchaudio is missing
+        if [ "$TORCH_AVAILABLE" = true ] && [ "$TORCHAUDIO_AVAILABLE" = false ]; then
+            print_info "Installing torchaudio from Jetson AI Lab PyPI index..."
+            if pip install --extra-index-url https://pypi.jetson-ai-lab.io/jp6/cu126 torchaudio; then
+                print_info "✅ torchaudio installed successfully from Jetson PyPI"
+                # Remove torchaudio from requirements file since we just installed it
+                grep -v "^torchaudio" "$TEMP_REQUIREMENTS" > "$TEMP_REQUIREMENTS.tmp" && mv "$TEMP_REQUIREMENTS.tmp" "$TEMP_REQUIREMENTS" || true
+            else
+                print_warning "⚠️  Failed to install torchaudio from Jetson PyPI - will try from standard requirements"
+            fi
+        fi
+        
+        # Install CTranslate2 from Jetson PyPI (cu129) for CUDA support
+        print_info "Installing CTranslate2 from Jetson AI Lab PyPI index (cu129)..."
+        if pip install --extra-index-url https://pypi.jetson-ai-lab.io/jp6/cu129 ctranslate2; then
+            print_info "✅ CTranslate2 installed successfully from Jetson PyPI"
+            # Remove CTranslate2 from requirements file since we just installed it
+            grep -v "^ctranslate2" "$TEMP_REQUIREMENTS" > "$TEMP_REQUIREMENTS.tmp" && mv "$TEMP_REQUIREMENTS.tmp" "$TEMP_REQUIREMENTS" || true
+        else
+            print_warning "⚠️  Failed to install CTranslate2 from Jetson PyPI - will try from standard requirements"
         fi
         
         if pip install -r "$TEMP_REQUIREMENTS"; then
@@ -367,6 +412,18 @@ if [ -f "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" ]; then
                 # Create temp requirements without PyTorch since we just installed it
                 TEMP_REQUIREMENTS="/tmp/requirements_no_torch.txt"
                 grep -v "^torch" "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" > "$TEMP_REQUIREMENTS" || true
+                TORCHAUDIO_AVAILABLE=true  # torchaudio installed with torch
+                
+                # Install CTranslate2 from Jetson PyPI (cu129) for CUDA support
+                print_info "Installing CTranslate2 from Jetson AI Lab PyPI index (cu129)..."
+                if pip install --extra-index-url https://pypi.jetson-ai-lab.io/jp6/cu129 ctranslate2; then
+                    print_info "✅ CTranslate2 installed successfully from Jetson PyPI"
+                    # Remove CTranslate2 from requirements file since we just installed it
+                    grep -v "^ctranslate2" "$TEMP_REQUIREMENTS" > "$TEMP_REQUIREMENTS.tmp" && mv "$TEMP_REQUIREMENTS.tmp" "$TEMP_REQUIREMENTS" || true
+                else
+                    print_warning "⚠️  Failed to install CTranslate2 from Jetson PyPI - will try from standard requirements"
+                fi
+                
                 if pip install -r "$TEMP_REQUIREMENTS" 2>&1 | tee /tmp/pip_install.log; then
                     print_info "✅ All requirements installed successfully"
                     rm -f "$TEMP_REQUIREMENTS"
@@ -383,10 +440,27 @@ if [ -f "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" ]; then
                 fi
             fi
         else
-            if pip install -r "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" 2>&1 | tee /tmp/pip_install.log; then
-                print_info "✅ All requirements installed successfully"
+            # Install CTranslate2 from Jetson PyPI (cu129) for CUDA support
+            print_info "Installing CTranslate2 from Jetson AI Lab PyPI index (cu129)..."
+            if pip install --extra-index-url https://pypi.jetson-ai-lab.io/jp6/cu129 ctranslate2; then
+                print_info "✅ CTranslate2 installed successfully from Jetson PyPI"
+                # Create temp requirements without CTranslate2 since we just installed it
+                TEMP_REQUIREMENTS="/tmp/requirements_no_ctranslate2.txt"
+                grep -v "^ctranslate2" "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" > "$TEMP_REQUIREMENTS" || true
+                if pip install -r "$TEMP_REQUIREMENTS" 2>&1 | tee /tmp/pip_install.log; then
+                    print_info "✅ All requirements installed successfully"
+                    rm -f "$TEMP_REQUIREMENTS"
+                else
+                    PIP_ERROR=$(cat /tmp/pip_install.log)
+                    rm -f "$TEMP_REQUIREMENTS"
+                fi
             else
-                PIP_ERROR=$(cat /tmp/pip_install.log)
+                print_warning "⚠️  Failed to install CTranslate2 from Jetson PyPI - will try from standard requirements"
+                if pip install -r "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" 2>&1 | tee /tmp/pip_install.log; then
+                    print_info "✅ All requirements installed successfully"
+                else
+                    PIP_ERROR=$(cat /tmp/pip_install.log)
+                fi
             fi
         fi
         

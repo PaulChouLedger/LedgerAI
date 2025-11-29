@@ -8,6 +8,12 @@ torch>=2.0.0
 torchvision>=0.15.0
 torchaudio>=2.0.0
 
+# CTranslate2 (Jetson-optimized for CUDA)
+# Install from Jetson AI Lab PyPI (cu129) for CUDA support:
+#   pip install --extra-index-url https://pypi.jetson-ai-lab.io/jp6/cu129 ctranslate2
+# The install script will install ctranslate2 from Jetson PyPI
+ctranslate2>=4.6.0
+
 # Audio Processing
 sounddevice>=0.4.6
 soundfile>=0.12.1
