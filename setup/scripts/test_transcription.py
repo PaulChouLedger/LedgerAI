@@ -101,7 +101,7 @@ ENABLE_ADVANCED_FILTER = True  # Toggle this to test
 # Thresholds based on your ACTUAL speech patterns:
 # Updated after comparing real speech vs noise bursts
 SPEECH_ZCR_MAX = 0.40           # Reject if ZCR > this
-SPEECH_FLATNESS_MAX = 0.27      # Tighter - reject flat/noisy signals (was 0.30, catches 0.274)
+SPEECH_FLATNESS_MAX = 0.25      # Tighter - reject flat/noisy signals (was 0.27, catches 0.2092)
 SPEECH_CENTROID_MIN = 300       # Hz - reject if too low (rumble/fan)
 SPEECH_CENTROID_MAX = 3000      # Hz - reject if too high (hiss)
 SPEECH_BAND_MIN = 0.55          # Tighter - require more energy in speech band (was 0.30, catches 0.465)
@@ -452,6 +452,21 @@ def transcribe(audio):
     print(f"[Audio] High Freq Ratio:    {features['high_freq_ratio']:.3f} (4000+ Hz, noise if high)")
     print(f"[Audio] Low Freq Ratio:     {features['low_freq_ratio']:.3f} (0-100 Hz, rumble if high)")
     
+    # Post-normalization filter check on full segment (catches noise that passed trigger frame)
+    # This is a second-pass filter that checks the full audio segment after normalization
+    if ENABLE_ADVANCED_FILTER:
+        is_speech_result, reason = is_likely_speech(features, duration)
+        if not is_speech_result:
+            print(f"[Filter] ❌ POST-NORMALIZATION REJECTED: {reason}")
+            print("[Filter] 🔄 Skipping transcription (not speech)\n")
+            # Still show analysis for debugging
+            classification = "⚠️  POSSIBLE NOISE"
+            print(f"[Analysis] Classification: {classification}")
+            print(f"[Analysis] Rejection reason: {reason}")
+            print(f"[Analysis] Advanced filter: ENABLED")
+            print(f"{'='*70}")
+            return ""  # Return empty string, don't transcribe - saves Whisper API call
+    
     wav_io = io.BytesIO()
     sf.write(wav_io, audio, SAMPLE_RATE, format="WAV")
     wav_io.seek(0)
@@ -474,25 +489,18 @@ def transcribe(audio):
         print(f"[Whisper] ⏱️  Transcription time: {transcribe_time:.3f}s")
         print(f"[Whisper] 📝 Text: '{text}'")
         
-        # Post-normalization filter check on full segment (catches noise that passed trigger frame)
+        # Analysis (filter already checked before transcription)
         if ENABLE_ADVANCED_FILTER:
             is_speech_result, reason = is_likely_speech(features, duration)
-            if not is_speech_result:
-                print(f"[Filter] ❌ POST-NORMALIZATION REJECTED: {reason}")
-                print("[Filter] 🔄 This would be skipped in production (not speech)\n")
-                classification = "⚠️  POSSIBLE NOISE"
-            else:
-                classification = "✅ SPEECH"
+            classification = "✅ SPEECH" if is_speech_result else "⚠️  POSSIBLE NOISE"
             print(f"[Analysis] Classification: {classification}")
             if not is_speech_result:
                 print(f"[Analysis] Rejection reason: {reason}")
+            print(f"[Analysis] Advanced filter: ENABLED")
         else:
             classification = "✅ SPEECH (filter disabled)"
             print(f"[Analysis] Classification: {classification}")
-        
-        # Show filter status
-        filter_status = "ENABLED" if ENABLE_ADVANCED_FILTER else "DISABLED"
-        print(f"[Analysis] Advanced filter: {filter_status}")
+            print(f"[Analysis] Advanced filter: DISABLED")
         
         print(f"[Stats] 🔢 Transcriptions: {transcription_count} | Total audio: {total_audio_duration:.1f}s")
         print(f"{'='*70}")

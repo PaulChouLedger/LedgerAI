@@ -46,7 +46,7 @@ ENABLE_ADVANCED_FILTER = True
 
 # Thresholds tuned from empirical testing
 SPEECH_ZCR_MAX = 0.40           # Reject if ZCR > this
-SPEECH_FLATNESS_MAX = 0.27      # Tighter - reject flat/noisy signals (was 0.30, catches 0.274)
+SPEECH_FLATNESS_MAX = 0.25      # Tighter - reject flat/noisy signals (was 0.27, catches 0.2092)
 SPEECH_CENTROID_MIN = 300       # Hz - reject if too low (rumble/fan)
 SPEECH_CENTROID_MAX = 3000      # Hz - reject if too high (hiss)
 SPEECH_BAND_MIN = 0.55          # Tighter - require more energy in speech band (was 0.50, catches 0.465)
