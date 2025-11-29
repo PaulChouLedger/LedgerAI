@@ -118,6 +118,10 @@ for i in {1..10}; do
     fi
     sleep 1
 done
+
+# Wait longer for device to fully initialize (USB reset may need more time)
+echo "  Waiting additional 3 seconds for full device initialization..."
+sleep 3
 echo ""
 
 # Wait for ALSA to detect
@@ -171,15 +175,38 @@ else
 fi
 echo ""
 
+# Check what's using the device
+echo -e "${YELLOW}[9]${NC} Checking for processes using audio device..."
+if [ -n "$CARD" ]; then
+    # Check for processes using ALSA
+    LSOF_OUTPUT=$(lsof /dev/snd/* 2>/dev/null | grep -i "card$CARD" || true)
+    if [ -n "$LSOF_OUTPUT" ]; then
+        echo -e "  ${YELLOW}⚠️  Processes using audio device:${NC}"
+        echo "$LSOF_OUTPUT" | sed 's/^/    /'
+        echo "  Attempting to stop PulseAudio (if running)..."
+        pulseaudio --kill 2>/dev/null || true
+        sleep 1
+    else
+        echo -e "  ✅ No processes found using audio device"
+    fi
+else
+    echo -e "  ⚠️  Skipping (ALSA card not found)"
+fi
+echo ""
+
 # Wake up device by opening audio stream
-echo -e "${YELLOW}[9]${NC} Opening audio stream to initialize device..."
+echo -e "${YELLOW}[10]${NC} Opening audio stream to initialize device..."
 if [ -n "$CARD" ]; then
     echo "  Performing test capture (2 seconds)..."
+    # Try with plughw instead of hw to avoid format issues
+    timeout 2 arecord -D plughw:$CARD,0 -f S16_LE -r 16000 -c 2 /dev/null 2>&1 | head -3 || \
     timeout 2 arecord -D hw:$CARD,0 -f S16_LE -r 16000 -c 2 /dev/null 2>&1 | head -3
-    if [ ${PIPESTATUS[0]} -eq 0 ] || [ ${PIPESTATUS[0]} -eq 124 ]; then
+    CAPTURE_EXIT=${PIPESTATUS[0]}
+    if [ $CAPTURE_EXIT -eq 0 ] || [ $CAPTURE_EXIT -eq 124 ]; then
         echo -e "  ✅ Audio stream opened successfully"
     else
-        echo -e "  ⚠️  Audio stream may have issues"
+        echo -e "  ⚠️  Audio stream error (exit code: $CAPTURE_EXIT)"
+        echo "  This may be OK - device might still be initializing"
     fi
     sleep 1
 else
