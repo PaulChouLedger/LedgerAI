@@ -44,14 +44,15 @@ MICROPHONE_CHANNEL = 0  # Channel to use for audio processing (0 or 1, device ha
 # Enabled - Filters out low-energy noise bursts that trigger VAD
 ENABLE_ADVANCED_FILTER = True
 
-# Thresholds tuned from empirical testing
+# Thresholds tuned from empirical testing - tightened to reduce false positives
 SPEECH_ZCR_MAX = 0.40           # Reject if ZCR > this
-SPEECH_FLATNESS_MAX = 0.60      # More tolerant of flatness for far-field/quiet speech
+SPEECH_FLATNESS_MAX = 0.35      # Tighter - reject flat/noisy signals (was 0.60)
 SPEECH_CENTROID_MIN = 300       # Hz - reject if too low (rumble/fan)
 SPEECH_CENTROID_MAX = 3000      # Hz - reject if too high (hiss)
-SPEECH_BAND_MIN = 0.30          # Reject if insufficient energy in speech band
+SPEECH_BAND_MIN = 0.50          # Tighter - require more energy in speech band (was 0.30)
 SPEECH_DURATION_MIN = 0.4       # Seconds - reject if too short (noise bursts)
 SPEECH_HIGH_FREQ_MAX = 0.08     # Allow a bit more high-frequency content
+SPEECH_LOW_FREQ_MAX = 0.05      # Reject if too much low-frequency energy (rumble/fan noise)
 
 # CRITICAL: Energy thresholds (most reliable discriminators)
 # Updated after firmware tweaks - speech now has lower RMS/Peak values
@@ -422,6 +423,10 @@ def is_likely_speech(features, duration=None):
     # Check High Frequency Ratio (noise/hiss indicator)
     if features['high_freq_ratio'] > SPEECH_HIGH_FREQ_MAX:
         reasons.append(f"High freq noise ({features['high_freq_ratio']:.3f} > {SPEECH_HIGH_FREQ_MAX})")
+    
+    # Check Low Frequency Ratio (rumble/fan noise indicator)
+    if 'low_freq_ratio' in features and features['low_freq_ratio'] > SPEECH_LOW_FREQ_MAX:
+        reasons.append(f"Low freq rumble ({features['low_freq_ratio']:.3f} > {SPEECH_LOW_FREQ_MAX})")
     
     is_speech = len(reasons) == 0
     reason = " | ".join(reasons) if reasons else "All checks passed"
