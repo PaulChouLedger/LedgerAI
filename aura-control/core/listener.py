@@ -46,18 +46,18 @@ ENABLE_ADVANCED_FILTER = True
 
 # Thresholds tuned from empirical testing - tightened to reduce false positives
 SPEECH_ZCR_MAX = 0.40           # Reject if ZCR > this
-SPEECH_FLATNESS_MAX = 0.35      # Tighter - reject flat/noisy signals (was 0.60)
+SPEECH_FLATNESS_MAX = 0.30      # Tighter - reject flat/noisy signals (was 0.35, originally 0.60)
 SPEECH_CENTROID_MIN = 300       # Hz - reject if too low (rumble/fan)
 SPEECH_CENTROID_MAX = 3000      # Hz - reject if too high (hiss)
-SPEECH_BAND_MIN = 0.50          # Tighter - require more energy in speech band (was 0.30)
+SPEECH_BAND_MIN = 0.60          # Tighter - require more energy in speech band (was 0.50, originally 0.30)
 SPEECH_DURATION_MIN = 0.4       # Seconds - reject if too short (noise bursts)
 SPEECH_HIGH_FREQ_MAX = 0.08     # Allow a bit more high-frequency content
-SPEECH_LOW_FREQ_MAX = 0.05      # Reject if too much low-frequency energy (rumble/fan noise)
+SPEECH_LOW_FREQ_MAX = 0.03      # Tighter - reject if too much low-frequency energy (was 0.05)
 
 # CRITICAL: Energy thresholds (most reliable discriminators)
 # Updated after firmware tweaks - speech now has lower RMS/Peak values
 SPEECH_RMS_MIN = 0.0011         # Lower RMS threshold to accept quieter speech
-SPEECH_RMS_MAX = 0.40           # Reject if RMS > this (abnormally loud = likely noise/artifact)
+SPEECH_RMS_MAX = 0.25           # Tighter - reject if RMS > this (was 0.40, loud noise often >0.25)
 SPEECH_PEAK_MIN = 0.0023        # Lower peak threshold to accept softer speech
 
 # BARE-BONES: Hardware DSP → Channel 0 → VAD → Advanced Filter → Whisper
@@ -1089,19 +1089,21 @@ def listen():
                         else:
                             print(f"[VAD] {vad_prob:.2f} | RMS {features['rms']:.4f} | Peak {features['peak']:.3f}", end="\r")
                         
-                        if vad_prob > VAD_START_THRESHOLD:
-                            print(f"\n[VAD] 🔊 Speech detected (VAD={vad_prob:.2f}, RMS={features['rms']:.4f}, Peak={features['peak']:.3f})")
-                            print(f"[Features] ZCR={features['zcr']:.3f} | SpCentroid={features['spectral_centroid']:.0f}Hz | SpFlat={features['spectral_flatness']:.3f}")
-                            
-                            # Apply advanced filter if enabled
-                            if ENABLE_ADVANCED_FILTER:
-                                is_speech_result, reason = is_likely_speech(features)
-                                if not is_speech_result:
-                                    print(f"[Filter] ❌ REJECTED: {reason}")
-                                    print("[Filter] 🔄 Returning to listening (not speech)\n")
-                                    continue  # Back to waiting for speech
-                                else:
-                                    print(f"[Filter] ✅ PASSED: {reason}")
+                if vad_prob > VAD_START_THRESHOLD:
+                    print(f"\n[VAD] 🔊 Speech detected (VAD={vad_prob:.2f}, RMS={features['rms']:.4f}, Peak={features['peak']:.3f})")
+                    print(f"[Features] ZCR={features['zcr']:.3f} | SpCentroid={features['spectral_centroid']:.0f}Hz | SpFlat={features['spectral_flatness']:.3f}")
+                    
+                    # Apply advanced filter if enabled
+                    if ENABLE_ADVANCED_FILTER:
+                        is_speech_result, reason = is_likely_speech(features)
+                        if not is_speech_result:
+                            print(f"[Filter] ❌ REJECTED: {reason}")
+                            print("[Filter] 🔄 Returning to listening (not speech)\n")
+                            # Reset VAD state before next utterance
+                            model_vad.reset_states()
+                            continue  # Back to waiting for speech
+                        else:
+                            print(f"[Filter] ✅ PASSED: {reason}")
                             
                             # Speech detected - switch from solid red to pulsating red
                             try:

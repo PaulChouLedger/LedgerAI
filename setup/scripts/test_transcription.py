@@ -101,18 +101,18 @@ ENABLE_ADVANCED_FILTER = True  # Toggle this to test
 # Thresholds based on your ACTUAL speech patterns:
 # Updated after comparing real speech vs noise bursts
 SPEECH_ZCR_MAX = 0.40           # Reject if ZCR > this
-SPEECH_FLATNESS_MAX = 0.35      # Tighter - reject flat/noisy signals (was 0.60)
+SPEECH_FLATNESS_MAX = 0.30      # Tighter - reject flat/noisy signals (was 0.35, originally 0.60)
 SPEECH_CENTROID_MIN = 300       # Hz - reject if too low (rumble/fan)
 SPEECH_CENTROID_MAX = 3000      # Hz - reject if too high (hiss)
-SPEECH_BAND_MIN = 0.50          # Tighter - require more energy in speech band (was 0.30)
+SPEECH_BAND_MIN = 0.60          # Tighter - require more energy in speech band (was 0.50, originally 0.30)
 SPEECH_DURATION_MIN = 0.4       # Seconds - reject if too short (noise bursts)
 SPEECH_HIGH_FREQ_MAX = 0.08     # Allow a bit more high-frequency content
-SPEECH_LOW_FREQ_MAX = 0.05      # Reject if too much low-frequency energy (rumble/fan noise)
+SPEECH_LOW_FREQ_MAX = 0.03      # Tighter - reject if too much low-frequency energy (was 0.05)
 
 # CRITICAL: Energy thresholds (most reliable for your noise pattern)
 # Updated after firmware tweaks - speech now has lower RMS/Peak values
 SPEECH_RMS_MIN = 0.0012         # Align with listener.py
-SPEECH_RMS_MAX = 0.40
+SPEECH_RMS_MAX = 0.25           # Tighter - reject if RMS > this (was 0.40, loud noise often >0.25)
 SPEECH_PEAK_MIN = 0.0025
 
 # === Audio Normalization (for optimal Whisper transcription) ===
@@ -652,6 +652,8 @@ def listen():
                         if not is_speech_result:
                             print(f"[Filter] ❌ REJECTED: {reason}")
                             print("[Filter] 🔄 Returning to listening (not speech)\n")
+                            # Reset VAD state before next utterance
+                            model_vad.reset_states()
                             continue  # Back to waiting for speech
                         else:
                             print(f"[Filter] ✅ PASSED: {reason}")
