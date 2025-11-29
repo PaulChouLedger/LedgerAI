@@ -872,35 +872,34 @@ echo ""
 # ============================================================================
 # Step 5.5: Install XVF3800 tuning service
 # ============================================================================
-# DISABLED: Temporarily disabled for debugging microphone capture issues on boot
-# print_step "5.5. Installing XVF3800 tuning service..."
-# 
-# SERVICE_FILE="$LEDGERAI_DIR/setup/scripts/xvf3800-tuning.service"
-# SYSTEMD_SERVICE="/etc/systemd/system/xvf3800-tuning.service"
-# 
-# if [ -f "$SERVICE_FILE" ]; then
-#     # Remove existing service file or symlink if it exists
-#     if [ -L "$SYSTEMD_SERVICE" ] || [ -f "$SYSTEMD_SERVICE" ]; then
-#         sudo rm -f "$SYSTEMD_SERVICE"
-#     fi
-#     
-#     # Create symlink to git repository file
-#     SERVICE_FILE_ABS="$(cd "$(dirname "$SERVICE_FILE")" && pwd)/$(basename "$SERVICE_FILE")"
-#     sudo ln -s "$SERVICE_FILE_ABS" "$SYSTEMD_SERVICE"
-#     
-#     # Reload systemd
-#     sudo systemctl daemon-reload
-#     
-#     # Enable service
-#     sudo systemctl enable xvf3800-tuning.service
-#     
-#     print_info "XVF3800 tuning service installed and enabled"
-# else
-#     print_warning "XVF3800 tuning service file not found: $SERVICE_FILE"
-# fi
-# 
-# echo ""
-print_info "Step 5.5 skipped: XVF3800 tuning service installation disabled for debugging"
+print_step "5.5. Installing XVF3800 tuning service..."
+
+SERVICE_FILE="$LEDGERAI_DIR/setup/scripts/xvf3800-tuning.service"
+SYSTEMD_SERVICE="/etc/systemd/system/xvf3800-tuning.service"
+
+if [ -f "$SERVICE_FILE" ]; then
+    # Remove existing service file or symlink if it exists
+    if [ -L "$SYSTEMD_SERVICE" ] || [ -f "$SYSTEMD_SERVICE" ]; then
+        sudo rm -f "$SYSTEMD_SERVICE"
+    fi
+    
+    # Create symlink to git repository file
+    SERVICE_FILE_ABS="$(cd "$(dirname "$SERVICE_FILE")" && pwd)/$(basename "$SERVICE_FILE")"
+    sudo ln -s "$SERVICE_FILE_ABS" "$SYSTEMD_SERVICE"
+    
+    # Reload systemd
+    sudo systemctl daemon-reload
+    
+    # Enable service
+    sudo systemctl enable xvf3800-tuning.service
+    
+    print_info "✅ XVF3800 tuning service installed and enabled"
+    print_info "   Service will initialize GPIO pins and configure DSP on boot"
+else
+    print_warning "XVF3800 tuning service file not found: $SERVICE_FILE"
+fi
+
+echo ""
 
 echo ""
 
@@ -1406,8 +1405,8 @@ fi
 cat > "$AURA_SERVICE_FILE" << EOF
 [Unit]
 Description=Aura Voice Assistant
-After=network.target docker.service display-manager.service
-Wants=docker.service display-manager.service
+After=network.target docker.service display-manager.service xvf3800-tuning.service
+Wants=docker.service display-manager.service xvf3800-tuning.service
 Requires=docker.service
 
 [Service]
@@ -1685,7 +1684,7 @@ if [ -f /etc/nv_tegra_release ] || [ -f /proc/device-tree/model ] && grep -q "Je
 else
     echo "ℹ️  Jetson Power Mode: Skipped (not a Jetson device)"
 fi
-echo "⚠️  XVF3800 tuning service: Disabled (temporarily disabled for debugging microphone issues)"
+echo "✅ XVF3800 tuning service: Enabled (initializes GPIO pins and configures DSP on boot)"
 echo "✅ Aura service: Enabled (will start on boot)"
 echo "✅ Keyboard monitor service: Enabled (disables Ubuntu keyboard while Aura runs)"
 echo "✅ Docker: Configured"
@@ -1759,8 +1758,9 @@ echo ""
 echo "6. View logs:"
 echo "   journalctl -u aura.service -f"
 echo "   journalctl -u disable-keyboard-monitor.service -f"
+echo "   journalctl -u xvf3800-tuning.service -f"
 echo ""
-echo "   Note: XVF3800 tuning service is disabled for debugging microphone issues"
+echo "   Note: XVF3800 tuning service initializes GPIO pins (unmutes mic, enables amp) on boot"
 echo ""
 echo "7. If PortAudio/audio doesn't work:"
 if [ "$PORT_AUDIO_AVAILABLE" = false ]; then
