@@ -28,7 +28,7 @@ from openwakeword_wake_word import create_openwakeword_detector
 SAMPLE_RATE = 16000
 FRAME_SIZE = int(SAMPLE_RATE * 0.032)
 SILENCE_TIMEOUT = 0.2  # 500ms of silence before stopping
-VAD_START_THRESHOLD = 0.30  # Increased to reduce false positives
+VAD_START_THRESHOLD = 0.35  # Increased to reduce false positives
 VAD_SILENCE_THRESHOLD = 0.15  # Lower = more conservative about ending
 MIN_AUDIO_SAMPLES = 2000
 
@@ -46,7 +46,7 @@ ENABLE_ADVANCED_FILTER = True
 
 # Thresholds tuned from empirical testing
 SPEECH_ZCR_MAX = 0.40           # Reject if ZCR > this
-SPEECH_FLATNESS_MAX = 0.30      # Tighter - reject flat/noisy signals (was 0.35)
+SPEECH_FLATNESS_MAX = 0.27      # Tighter - reject flat/noisy signals (was 0.30, catches 0.274)
 SPEECH_CENTROID_MIN = 300       # Hz - reject if too low (rumble/fan)
 SPEECH_CENTROID_MAX = 3000      # Hz - reject if too high (hiss)
 SPEECH_BAND_MIN = 0.55          # Tighter - require more energy in speech band (was 0.50, catches 0.465)
@@ -508,7 +508,18 @@ def transcribe(audio):
     
     rms = normalized_rms
     peak = limited_peak
-    print(f"[Audio] RMS={rms:.6f}, Peak={peak:.4f}, Duration={len(audio)/SAMPLE_RATE:.2f}s")
+    duration = len(audio) / SAMPLE_RATE
+    print(f"[Audio] RMS={rms:.6f}, Peak={peak:.4f}, Duration={duration:.2f}s")
+    
+    # Post-normalization filter check on full segment (catches noise that passed trigger frame)
+    # This is a second-pass filter that checks the full audio segment after normalization
+    if ENABLE_ADVANCED_FILTER:
+        full_segment_features = calculate_audio_features(audio)
+        is_speech_result, reason = is_likely_speech(full_segment_features, duration)
+        if not is_speech_result:
+            print(f"[Filter] ❌ POST-NORMALIZATION REJECTED: {reason}")
+            print("[Filter] 🔄 Skipping transcription (not speech)\n")
+            return ""  # Return empty string, don't transcribe - saves Whisper API call
     
     wav_io = io.BytesIO()
     sf.write(wav_io, audio, SAMPLE_RATE, format="WAV")

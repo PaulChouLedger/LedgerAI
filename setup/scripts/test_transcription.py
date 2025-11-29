@@ -89,7 +89,7 @@ from scipy.fft import rfft, rfftfreq
 SAMPLE_RATE = 16000
 FRAME_SIZE = int(SAMPLE_RATE * 0.032)
 SILENCE_TIMEOUT = 0.2  # 200ms of silence before stopping (align with listener.py)
-VAD_START_THRESHOLD = 0.30  # Increased to reduce false positives
+VAD_START_THRESHOLD = 0.35  # Increased to reduce false positives
 VAD_SILENCE_THRESHOLD = 0.15  # Lower = more conservative about ending
 MIN_AUDIO_SAMPLES = 2000
 
@@ -101,7 +101,7 @@ ENABLE_ADVANCED_FILTER = True  # Toggle this to test
 # Thresholds based on your ACTUAL speech patterns:
 # Updated after comparing real speech vs noise bursts
 SPEECH_ZCR_MAX = 0.40           # Reject if ZCR > this
-SPEECH_FLATNESS_MAX = 0.30      # Tighter - reject flat/noisy signals (was 0.60)
+SPEECH_FLATNESS_MAX = 0.27      # Tighter - reject flat/noisy signals (was 0.30, catches 0.274)
 SPEECH_CENTROID_MIN = 300       # Hz - reject if too low (rumble/fan)
 SPEECH_CENTROID_MAX = 3000      # Hz - reject if too high (hiss)
 SPEECH_BAND_MIN = 0.55          # Tighter - require more energy in speech band (was 0.30, catches 0.465)
@@ -474,12 +474,21 @@ def transcribe(audio):
         print(f"[Whisper] ⏱️  Transcription time: {transcribe_time:.3f}s")
         print(f"[Whisper] 📝 Text: '{text}'")
         
-        # Apply advanced filter analysis with duration (even if not actively filtering)
-        is_speech_result, reason = is_likely_speech(features, duration)
-        classification = "✅ SPEECH" if is_speech_result else "⚠️  POSSIBLE NOISE"
-        print(f"[Analysis] Classification: {classification}")
-        if not is_speech_result:
-            print(f"[Analysis] Rejection reason: {reason}")
+        # Post-normalization filter check on full segment (catches noise that passed trigger frame)
+        if ENABLE_ADVANCED_FILTER:
+            is_speech_result, reason = is_likely_speech(features, duration)
+            if not is_speech_result:
+                print(f"[Filter] ❌ POST-NORMALIZATION REJECTED: {reason}")
+                print("[Filter] 🔄 This would be skipped in production (not speech)\n")
+                classification = "⚠️  POSSIBLE NOISE"
+            else:
+                classification = "✅ SPEECH"
+            print(f"[Analysis] Classification: {classification}")
+            if not is_speech_result:
+                print(f"[Analysis] Rejection reason: {reason}")
+        else:
+            classification = "✅ SPEECH (filter disabled)"
+            print(f"[Analysis] Classification: {classification}")
         
         # Show filter status
         filter_status = "ENABLED" if ENABLE_ADVANCED_FILTER else "DISABLED"
