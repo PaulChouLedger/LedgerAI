@@ -303,22 +303,24 @@ if [ -f "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" ]; then
         print_info "   Continuing with installation, but audio input/output will fail"
     fi
     
-    # PyTorch and CTranslate2 are pre-installed with JetPack - no need to install them
-    
-    # CRITICAL: Install onnxruntime-gpu FIRST before installing requirements.txt
-    # This prevents OpenWakeWord from pulling in onnxruntime (CPU) 1.23.2
-    # OpenWakeWord will use the already-installed onnxruntime-gpu if it's present
-    print_info "Installing onnxruntime-gpu==1.23.0 FIRST (before requirements.txt)..."
-    pip uninstall -y onnxruntime-gpu onnxruntime 2>/dev/null || true
-    if ! pip install --extra-index-url https://pypi.jetson-ai-lab.io/jp6/cu126 "onnxruntime-gpu==1.23.0" 2>&1 | tee /tmp/onnxruntime_early_install.log; then
-        print_warning "⚠️  Failed to install onnxruntime-gpu early - will try again later"
+    # Check if PyTorch is installed (typically pre-installed with JetPack)
+    print_info "Checking for PyTorch installation..."
+    if python3 -c "import torch; print('✅ PyTorch found:', torch.__version__)" 2>/dev/null; then
+        print_info "✅ PyTorch is already installed"
+        TORCH_AVAILABLE=true
     else
-        INSTALLED_VERSION=$(pip show onnxruntime-gpu 2>/dev/null | grep "^Version:" | awk '{print $2}' || echo "")
-        if [ "$INSTALLED_VERSION" = "1.23.0" ]; then
-            print_info "✅ onnxruntime-gpu==1.23.0 installed successfully (before requirements.txt)"
-            # Ensure onnxruntime (CPU) is not installed
-            pip uninstall -y onnxruntime 2>/dev/null || true
-        fi
+        print_info "⚠️  PyTorch not found - will install from Jetson AI Lab PyPI index"
+        TORCH_AVAILABLE=false
+    fi
+    
+    # Check if torchaudio is installed (required for Silero VAD)
+    print_info "Checking for torchaudio installation..."
+    if python3 -c "import torchaudio; print('✅ torchaudio found:', torchaudio.__version__)" 2>/dev/null; then
+        print_info "✅ torchaudio is already installed"
+        TORCHAUDIO_AVAILABLE=true
+    else
+        print_info "⚠️  torchaudio not found - will install from Jetson AI Lab PyPI index"
+        TORCHAUDIO_AVAILABLE=false
     fi
     
     # Install PyQt5 separately with better error handling
@@ -327,8 +329,54 @@ if [ -f "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" ]; then
         print_info "Using system PyQt5 (pre-installed on system)"
         print_info "Installing requirements without PyQt5..."
         TEMP_REQUIREMENTS="/tmp/requirements_no_pyqt5.txt"
-        # Exclude PyQt5 and openwakeword (openwakeword will be installed separately after onnxruntime-gpu)
-        grep -v "^PyQt5\|^openwakeword" "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" > "$TEMP_REQUIREMENTS" || true
+        grep -v "^PyQt5" "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" > "$TEMP_REQUIREMENTS" || true
+        
+        # Install PyTorch from Jetson PyPI if missing
+        if [ "$TORCH_AVAILABLE" = false ]; then
+            print_info "Installing PyTorch from Jetson AI Lab PyPI index..."
+            if pip install --extra-index-url https://pypi.jetson-ai-lab.io/jp6/cu126 torch torchvision torchaudio; then
+                print_info "✅ PyTorch installed successfully from Jetson PyPI"
+                # Remove PyTorch from requirements file since we just installed it
+                grep -v "^torch" "$TEMP_REQUIREMENTS" > "$TEMP_REQUIREMENTS.tmp" && mv "$TEMP_REQUIREMENTS.tmp" "$TEMP_REQUIREMENTS" || true
+                TORCHAUDIO_AVAILABLE=true  # torchaudio installed with torch
+            else
+                print_warning "⚠️  Failed to install PyTorch from Jetson PyPI - will try from standard requirements"
+            fi
+        fi
+        
+        # Install torchaudio separately if PyTorch was pre-installed but torchaudio is missing
+        if [ "$TORCH_AVAILABLE" = true ] && [ "$TORCHAUDIO_AVAILABLE" = false ]; then
+            print_info "Installing torchaudio from Jetson AI Lab PyPI index..."
+            if pip install --extra-index-url https://pypi.jetson-ai-lab.io/jp6/cu126 torchaudio; then
+                print_info "✅ torchaudio installed successfully from Jetson PyPI"
+                # Remove torchaudio from requirements file since we just installed it
+                grep -v "^torchaudio" "$TEMP_REQUIREMENTS" > "$TEMP_REQUIREMENTS.tmp" && mv "$TEMP_REQUIREMENTS.tmp" "$TEMP_REQUIREMENTS" || true
+            else
+                print_warning "⚠️  Failed to install torchaudio from Jetson PyPI - will try from standard requirements"
+            fi
+        fi
+        
+        # Install torchaudio separately if PyTorch was pre-installed but torchaudio is missing
+        if [ "$TORCH_AVAILABLE" = true ] && [ "$TORCHAUDIO_AVAILABLE" = false ]; then
+            print_info "Installing torchaudio from Jetson AI Lab PyPI index..."
+            if pip install --extra-index-url https://pypi.jetson-ai-lab.io/jp6/cu126 torchaudio; then
+                print_info "✅ torchaudio installed successfully from Jetson PyPI"
+                # Remove torchaudio from requirements file since we just installed it
+                grep -v "^torchaudio" "$TEMP_REQUIREMENTS" > "$TEMP_REQUIREMENTS.tmp" && mv "$TEMP_REQUIREMENTS.tmp" "$TEMP_REQUIREMENTS" || true
+            else
+                print_warning "⚠️  Failed to install torchaudio from Jetson PyPI - will try from standard requirements"
+            fi
+        fi
+        
+        # Install CTranslate2 from Jetson PyPI (cu129) for CUDA support
+        print_info "Installing CTranslate2 from Jetson AI Lab PyPI index (cu129)..."
+        if pip install --extra-index-url https://pypi.jetson-ai-lab.io/jp6/cu129 ctranslate2; then
+            print_info "✅ CTranslate2 installed successfully from Jetson PyPI"
+            # Remove CTranslate2 from requirements file since we just installed it
+            grep -v "^ctranslate2" "$TEMP_REQUIREMENTS" > "$TEMP_REQUIREMENTS.tmp" && mv "$TEMP_REQUIREMENTS.tmp" "$TEMP_REQUIREMENTS" || true
+        else
+            print_warning "⚠️  Failed to install CTranslate2 from Jetson PyPI - will try from standard requirements"
+        fi
         
         if pip install -r "$TEMP_REQUIREMENTS"; then
             print_info "✅ All requirements installed successfully (using system PyQt5)"
@@ -356,16 +404,65 @@ if [ -f "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" ]; then
         print_info "Installing all requirements (including PyQt5 from pip)..."
         
         PIP_ERROR=""
-                # Exclude openwakeword (will be installed separately after onnxruntime-gpu)
-                TEMP_REQUIREMENTS_NO_OPENWAKEWORD="/tmp/requirements_no_openwakeword.txt"
-                grep -v "^openwakeword" "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" > "$TEMP_REQUIREMENTS_NO_OPENWAKEWORD" || true
-                if pip install -r "$TEMP_REQUIREMENTS_NO_OPENWAKEWORD" 2>&1 | tee /tmp/pip_install.log; then
-                    rm -f "$TEMP_REQUIREMENTS_NO_OPENWAKEWORD"
+        # Install PyTorch from Jetson PyPI if missing
+        if [ "$TORCH_AVAILABLE" = false ]; then
+            print_info "Installing PyTorch from Jetson AI Lab PyPI index..."
+            if pip install --extra-index-url https://pypi.jetson-ai-lab.io/jp6/cu126 torch torchvision torchaudio; then
+                print_info "✅ PyTorch installed successfully from Jetson PyPI"
+                # Create temp requirements without PyTorch since we just installed it
+                TEMP_REQUIREMENTS="/tmp/requirements_no_torch.txt"
+                grep -v "^torch" "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" > "$TEMP_REQUIREMENTS" || true
+                TORCHAUDIO_AVAILABLE=true  # torchaudio installed with torch
+                
+                # Install CTranslate2 from Jetson PyPI (cu129) for CUDA support
+                print_info "Installing CTranslate2 from Jetson AI Lab PyPI index (cu129)..."
+                if pip install --extra-index-url https://pypi.jetson-ai-lab.io/jp6/cu129 ctranslate2; then
+                    print_info "✅ CTranslate2 installed successfully from Jetson PyPI"
+                    # Remove CTranslate2 from requirements file since we just installed it
+                    grep -v "^ctranslate2" "$TEMP_REQUIREMENTS" > "$TEMP_REQUIREMENTS.tmp" && mv "$TEMP_REQUIREMENTS.tmp" "$TEMP_REQUIREMENTS" || true
+                else
+                    print_warning "⚠️  Failed to install CTranslate2 from Jetson PyPI - will try from standard requirements"
+                fi
+                
+                if pip install -r "$TEMP_REQUIREMENTS" 2>&1 | tee /tmp/pip_install.log; then
+                    print_info "✅ All requirements installed successfully"
+                    rm -f "$TEMP_REQUIREMENTS"
+                else
+                    PIP_ERROR=$(cat /tmp/pip_install.log)
+                    rm -f "$TEMP_REQUIREMENTS"
+                fi
+            else
+                print_warning "⚠️  Failed to install PyTorch from Jetson PyPI - will try from standard requirements"
+                if pip install -r "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" 2>&1 | tee /tmp/pip_install.log; then
                     print_info "✅ All requirements installed successfully"
                 else
                     PIP_ERROR=$(cat /tmp/pip_install.log)
-                    rm -f "$TEMP_REQUIREMENTS_NO_OPENWAKEWORD"
                 fi
+            fi
+        else
+            # Install CTranslate2 from Jetson PyPI (cu129) for CUDA support
+            print_info "Installing CTranslate2 from Jetson AI Lab PyPI index (cu129)..."
+            if pip install --extra-index-url https://pypi.jetson-ai-lab.io/jp6/cu129 ctranslate2; then
+                print_info "✅ CTranslate2 installed successfully from Jetson PyPI"
+                # Create temp requirements without CTranslate2 since we just installed it
+                TEMP_REQUIREMENTS="/tmp/requirements_no_ctranslate2.txt"
+                grep -v "^ctranslate2" "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" > "$TEMP_REQUIREMENTS" || true
+                if pip install -r "$TEMP_REQUIREMENTS" 2>&1 | tee /tmp/pip_install.log; then
+                    print_info "✅ All requirements installed successfully"
+                    rm -f "$TEMP_REQUIREMENTS"
+                else
+                    PIP_ERROR=$(cat /tmp/pip_install.log)
+                    rm -f "$TEMP_REQUIREMENTS"
+                fi
+            else
+                print_warning "⚠️  Failed to install CTranslate2 from Jetson PyPI - will try from standard requirements"
+                if pip install -r "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" 2>&1 | tee /tmp/pip_install.log; then
+                    print_info "✅ All requirements installed successfully"
+                else
+                    PIP_ERROR=$(cat /tmp/pip_install.log)
+                fi
+            fi
+        fi
         
         if [ -n "$PIP_ERROR" ]; then
             PIP_ERROR=$(cat /tmp/pip_install.log)
@@ -381,8 +478,7 @@ if [ -f "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" ]; then
                     print_info "System PyQt5 now available. Recreating venv with system-site-packages..."
                     # We can't recreate venv here easily, so just install other packages
                     TEMP_REQUIREMENTS="/tmp/requirements_no_pyqt5.txt"
-                    # Exclude PyQt5 and openwakeword (openwakeword will be installed separately after onnxruntime-gpu)
-                    grep -v "^PyQt5\|^openwakeword" "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" > "$TEMP_REQUIREMENTS" || true
+                    grep -v "^PyQt5" "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" > "$TEMP_REQUIREMENTS" || true
                     if pip install -r "$TEMP_REQUIREMENTS"; then
                         print_info "✅ All other requirements installed"
                     else
@@ -426,8 +522,7 @@ if [ -f "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" ]; then
                             print_error "PyQt5 installation failed"
                             print_info "Installing remaining packages without PyQt5..."
                             TEMP_REQUIREMENTS="/tmp/requirements_no_pyqt5.txt"
-                            # Exclude PyQt5 and openwakeword (openwakeword will be installed separately after onnxruntime-gpu)
-                            grep -v "^PyQt5\|^openwakeword" "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" > "$TEMP_REQUIREMENTS" || true
+                            grep -v "^PyQt5" "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" > "$TEMP_REQUIREMENTS" || true
                             if pip install -r "$TEMP_REQUIREMENTS"; then
                                 print_info "✅ All other requirements installed successfully"
                             else
@@ -441,8 +536,7 @@ if [ -f "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" ]; then
                         print_error "qmake not found. PyQt5 cannot be built."
                         print_info "Installing remaining packages without PyQt5..."
                         TEMP_REQUIREMENTS="/tmp/requirements_no_pyqt5.txt"
-                        # Exclude PyQt5 and openwakeword (openwakeword will be installed separately after onnxruntime-gpu)
-                        grep -v "^PyQt5\|^openwakeword" "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" > "$TEMP_REQUIREMENTS" || true
+                        grep -v "^PyQt5" "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" > "$TEMP_REQUIREMENTS" || true
                         if pip install -r "$TEMP_REQUIREMENTS"; then
                             print_info "✅ All other requirements installed successfully"
                         else
@@ -534,57 +628,15 @@ print_step "3.5. Installing wake word detection engine..."
 # This ensures all packages come from pip (not system packages) and are compatible
 # CRITICAL: Install Jetson-optimized onnxruntime-gpu FIRST from Jetson AI Lab PyPI
 # This is specifically built for Jetson devices and avoids ARM CPU detection issues
-# Pin to version 1.23.0 (1.23.2 has CPU detection assertion failures)
-# Pip will automatically select the correct wheel: onnxruntime_gpu-1.23.0-cp310-cp310-linux_aarch64.whl
 # OpenWakeWord is compatible with onnxruntime-gpu-1.23.0 and will use it if installed first
-print_info "Uninstalling any existing onnxruntime packages to ensure clean install..."
-pip uninstall -y onnxruntime-gpu onnxruntime 2>/dev/null || true
-
-# Install onnxruntime-gpu==1.23.0 from Jetson PyPI
-# Pip will automatically select the linux_aarch64 wheel for Jetson
-print_info "Installing onnxruntime-gpu==1.23.0 from Jetson AI Lab PyPI (will use linux_aarch64 wheel)..."
-if ! pip install --extra-index-url https://pypi.jetson-ai-lab.io/jp6/cu126 "onnxruntime-gpu==1.23.0" 2>&1 | tee /tmp/onnxruntime_install.log; then
+print_info "Installing onnxruntime-gpu from Jetson AI Lab PyPI (Jetson-optimized)..."
+if ! pip install --extra-index-url https://pypi.jetson-ai-lab.io/jp6/cu126 "onnxruntime-gpu>=1.23.0" 2>&1 | tee /tmp/onnxruntime_install.log; then
     print_error "❌ Failed to install onnxruntime-gpu from Jetson PyPI"
     print_error "   Check logs: /tmp/onnxruntime_install.log"
     print_error "   OpenWakeWord requires onnxruntime-gpu to function"
     exit 1
 fi
-
-# Verify the correct version was installed
-INSTALLED_VERSION=$(pip show onnxruntime-gpu 2>/dev/null | grep "^Version:" | awk '{print $2}' || echo "")
-INSTALLED_LOCATION=$(pip show onnxruntime-gpu 2>/dev/null | grep "^Location:" | awk '{print $2}' || echo "")
-if [ "$INSTALLED_VERSION" = "1.23.0" ]; then
-    print_info "✅ onnxruntime-gpu==1.23.0 installed successfully"
-    print_info "   Location: $INSTALLED_LOCATION"
-    print_info "   Wheel: onnxruntime_gpu-1.23.0-cp310-cp310-linux_aarch64.whl (auto-selected by pip)"
-else
-    print_error "❌ Wrong version installed: $INSTALLED_VERSION (expected 1.23.0)"
-    print_error "   Installation may have failed - check logs"
-    exit 1
-fi
-
-# CRITICAL: Ensure onnxruntime (CPU) is not installed - it conflicts with onnxruntime-gpu
-# OpenWakeWord may try to install it as a dependency, but we need to prevent that
-print_info "Ensuring onnxruntime (CPU) is not installed (we use onnxruntime-gpu)..."
-pip uninstall -y onnxruntime 2>/dev/null || true
-
-# Verify onnxruntime module is available (onnxruntime-gpu provides it)
-# Note: Direct import may fail with CPU detection assertion on some Jetson systems
-# This is OK - OpenWakeWord will set environment variables when it imports
-print_info "Verifying onnxruntime-gpu installation..."
-if pip show onnxruntime-gpu >/dev/null 2>&1; then
-    INSTALLED_VERSION=$(pip show onnxruntime-gpu | grep "^Version:" | awk '{print $2}' || echo "")
-    if [ "$INSTALLED_VERSION" = "1.23.0" ]; then
-        print_info "✅ onnxruntime-gpu==1.23.0 is installed"
-        print_info "   Note: Direct import test skipped (known CPU detection issue on Jetson)"
-        print_info "   OpenWakeWord will handle import with proper environment variables"
-    else
-        print_warning "⚠️  Installed version: $INSTALLED_VERSION (expected 1.23.0)"
-    fi
-else
-    print_error "❌ onnxruntime-gpu not found after installation"
-    exit 1
-fi
+print_info "✅ onnxruntime-gpu installed successfully from Jetson PyPI"
 
 print_info "Installing OpenWakeWord dependencies (numpy, pandas, scikit-learn)..."
 if ! pip install --upgrade "numpy>=1.24.0" "pandas>=2.0.0" "scikit-learn>=1.3.0" 2>&1 | tee /tmp/openwakeword_deps_install.log; then
@@ -594,38 +646,14 @@ if ! pip install --upgrade "numpy>=1.24.0" "pandas>=2.0.0" "scikit-learn>=1.3.0"
 fi
 print_info "✅ OpenWakeWord dependencies installed successfully"
 
-# CRITICAL: Uninstall onnxruntime (CPU) BEFORE installing OpenWakeWord
-# If onnxruntime (CPU) is present, OpenWakeWord will use it instead of onnxruntime-gpu
-print_info "Ensuring onnxruntime (CPU) is not installed (we use onnxruntime-gpu)..."
-pip uninstall -y onnxruntime 2>/dev/null || true
-
-# Verify onnxruntime-gpu is still installed
-if ! pip show onnxruntime-gpu >/dev/null 2>&1; then
-    print_error "❌ onnxruntime-gpu was uninstalled - reinstalling..."
-    pip install --extra-index-url https://pypi.jetson-ai-lab.io/jp6/cu126 "onnxruntime-gpu==1.23.0" || exit 1
-fi
-
 # Install OpenWakeWord (required for wake word detection)
-# IMPORTANT: Use --no-deps and install dependencies manually to prevent onnxruntime (CPU) from being installed
-# OpenWakeWord will use the already-installed onnxruntime-gpu
-print_info "Installing OpenWakeWord (without onnxruntime dependency, using onnxruntime-gpu)..."
-if ! pip install "openwakeword>=0.5.0" --no-deps 2>&1 | tee /tmp/openwakeword_install.log; then
+print_info "Installing OpenWakeWord..."
+if ! pip install "openwakeword>=0.5.0" 2>&1 | tee /tmp/openwakeword_install.log; then
     print_error "❌ Failed to install OpenWakeWord"
     print_error "   Check logs: /tmp/openwakeword_install.log"
     exit 1
 fi
-
-# Install OpenWakeWord's other dependencies (excluding onnxruntime)
-print_info "Installing OpenWakeWord dependencies (excluding onnxruntime)..."
-pip install "tqdm<5.0,>=4.0" "requests<3,>=2.0" "tflite-runtime<3,>=2.8.0" 2>&1 | tee -a /tmp/openwakeword_install.log || true
-
-# Final check: ensure onnxruntime (CPU) is still not installed
-if pip show onnxruntime >/dev/null 2>&1; then
-    print_warning "⚠️  onnxruntime (CPU) was reinstalled - removing it again..."
-    pip uninstall -y onnxruntime 2>/dev/null || true
-fi
-
-print_info "✅ OpenWakeWord installed successfully (using onnxruntime-gpu)"
+print_info "✅ OpenWakeWord installed successfully"
 
 # Verify installation
 print_info "Verifying wake word detection engine..."
@@ -637,27 +665,19 @@ if [ -f "$VENV_DIR/bin/python3" ]; then
 fi
 
 # Verify OpenWakeWord can be imported
-# Set environment variables to disable onnxruntime CPU detection (prevents assertion failures)
 print_info "Verifying OpenWakeWord import..."
-export ORT_DISABLE_CPUINFO=1
-export ORT_LOG_LEVEL=3
-if ! env ORT_DISABLE_CPUINFO=1 ORT_LOG_LEVEL=3 $PYTHON_CMD -c "import os; os.environ['ORT_DISABLE_CPUINFO']='1'; os.environ['ORT_LOG_LEVEL']='3'; import openwakeword; from openwakeword import Model; print('SUCCESS')" 2>&1 | grep -q "SUCCESS"; then
+if ! $PYTHON_CMD -c "import openwakeword; from openwakeword import Model; print('SUCCESS')" 2>&1 | grep -q "SUCCESS"; then
     print_error "❌ OpenWakeWord import failed"
-    ERROR_OUTPUT=$(env ORT_DISABLE_CPUINFO=1 ORT_LOG_LEVEL=3 $PYTHON_CMD -c "import os; os.environ['ORT_DISABLE_CPUINFO']='1'; import openwakeword" 2>&1 || echo "Import failed")
+    ERROR_OUTPUT=$($PYTHON_CMD -c "import openwakeword" 2>&1 || echo "Import failed")
     print_error "   Error: $ERROR_OUTPUT"
     exit 1
 fi
 print_info "✅ OpenWakeWord is installed and importable"
 
 # Download/initialize OpenWakeWord models
-# Set environment variables to disable onnxruntime CPU detection (prevents assertion failures)
 print_info "Downloading OpenWakeWord models (this may take a minute on first run)..."
-if ! env ORT_DISABLE_CPUINFO=1 ORT_LOG_LEVEL=3 $PYTHON_CMD << 'PYEOF' 2>&1
-import os
+if ! $PYTHON_CMD << 'PYEOF' 2>&1
 import sys
-# Set environment variables BEFORE importing onnxruntime
-os.environ['ORT_DISABLE_CPUINFO'] = '1'
-os.environ['ORT_LOG_LEVEL'] = '3'
 try:
     import openwakeword.utils
     print("Downloading OpenWakeWord models (melspectrogram and wake word models)...")
@@ -1253,6 +1273,35 @@ echo ""
 # ============================================================================
 print_step "7. Installing git hooks..."
 
+GIT_HOOKS_DIR="$LEDGERAI_DIR/.git/hooks"
+
+# Install post-merge hook to auto-reload systemd after git pull
+POST_MERGE_HOOK="$GIT_HOOKS_DIR/post-merge"
+POST_MERGE_TEMPLATE="$LEDGERAI_DIR/setup/scripts/git-hooks/post-merge"
+
+# Install pre-commit hook to sync llm-container changes to llm-medical-container
+PRE_COMMIT_HOOK="$GIT_HOOKS_DIR/pre-commit"
+PRE_COMMIT_TEMPLATE="$LEDGERAI_DIR/setup/scripts/git-hooks/pre-commit"
+
+if [ -d "$LEDGERAI_DIR/.git" ]; then
+    # Install post-merge hook
+    if [ -f "$POST_MERGE_TEMPLATE" ]; then
+        if [ ! -f "$POST_MERGE_HOOK" ]; then
+            cp "$POST_MERGE_TEMPLATE" "$POST_MERGE_HOOK"
+            chmod +x "$POST_MERGE_HOOK"
+            print_info "Git post-merge hook installed - systemd will auto-reload after git pull"
+        fi
+    fi
+    
+    # Install pre-commit hook
+    if [ -f "$PRE_COMMIT_TEMPLATE" ]; then
+        if [ ! -f "$PRE_COMMIT_HOOK" ] || ! grep -q "llm-container" "$PRE_COMMIT_HOOK" 2>/dev/null; then
+            cp "$PRE_COMMIT_TEMPLATE" "$PRE_COMMIT_HOOK"
+            chmod +x "$PRE_COMMIT_HOOK"
+            print_info "Git pre-commit hook installed - llm-container changes will sync to llm-medical-container"
+        fi
+    fi
+fi
     GIT_HOOKS_DIR="$LEDGERAI_DIR/.git/hooks"
     
     # Install post-merge hook to auto-reload systemd after git pull
@@ -1286,9 +1335,9 @@ fi
 echo ""
 
 # ============================================================================
-# Step 8: Configure X11 authentication for GUI access
+# Step 9: Configure X11 authentication for GUI access
 # ============================================================================
-print_step "8. Configuring X11 authentication for GUI access..."
+print_step "9. Configuring X11 authentication for GUI access..."
 
 # Allow user to access X11 display
 print_info "Setting up X11 authentication..."
@@ -1327,9 +1376,9 @@ print_info "X11 setup script created at $X11_SETUP_SCRIPT"
 echo ""
 
 # ============================================================================
-# Step 9: Create Aura systemd service for boot
+# Step 10: Create Aura systemd service for boot
 # ============================================================================
-print_step "9. Creating Aura systemd service for boot startup..."
+print_step "10. Creating Aura systemd service for boot startup..."
 
 AURA_SERVICE_FILE="/tmp/aura.service"
 AURA_UID=$(id -u "$AURA_USER")
@@ -1407,7 +1456,7 @@ print_info "To view logs: journalctl -u aura.service -f"
 echo ""
 
 # ============================================================================
-# Step 10: Install keyboard monitor service
+# Step 11: Install keyboard monitor service
 # ============================================================================
 print_step "10. Installing keyboard monitor service..."
 
@@ -1449,7 +1498,7 @@ fi
 echo ""
 
 # ============================================================================
-# Step 11: Set up Docker (if not already configured)
+# Step 12: Set up Docker (if not already configured)
 # ============================================================================
 print_step "11. Configuring Docker..."
 
@@ -1487,9 +1536,9 @@ echo ""
 
 
 # ============================================================================
-# Step 12: Set permissions for audio devices
+# Step 13: Set permissions for audio devices
 # ============================================================================
-print_step "12. Configuring audio device permissions..."
+print_step "13. Configuring audio device permissions..."
 
 # Add user to audio group
 if ! groups "$AURA_USER" | grep -q audio; then
@@ -1504,7 +1553,7 @@ fi
 if [ -f "$LEDGERAI_DIR/setup/scripts/set_default_audio_on_boot.sh" ]; then
     chmod +x "$LEDGERAI_DIR/setup/scripts/set_default_audio_on_boot.sh"
     print_info "✅ Audio output setup script made executable"
-
+    
     # Run the script during installation to set defaults immediately
     print_info "Configuring default audio output (UACDemoV1.0)..."
     if [ "$(whoami)" = "$AURA_USER" ]; then
@@ -1523,7 +1572,7 @@ fi
 echo ""
 
 # ============================================================================
-# Step 13: Create minimal .env with only API keys (deployment-friendly)
+# Step 14: Create minimal .env with only API keys (deployment-friendly)
 # ============================================================================
 print_step "13. Setting up .env configuration file (API keys only)..."
 
@@ -1567,7 +1616,7 @@ print_warning "⚠️  Edit .env to add API keys before running Aura: nano $ENV_
 echo ""
 
 # ============================================================================
-# Step 14: Create data directories if needed
+# Step 15: Create data directories if needed
 # ============================================================================
 print_step "14. Creating data directories..."
 
