@@ -585,6 +585,17 @@ if ! pip install --upgrade "numpy>=1.24.0" "pandas>=2.0.0" "scikit-learn>=1.3.0"
 fi
 print_info "✅ OpenWakeWord dependencies installed successfully"
 
+# CRITICAL: Uninstall onnxruntime (CPU) BEFORE installing OpenWakeWord
+# If onnxruntime (CPU) is present, OpenWakeWord will use it instead of onnxruntime-gpu
+print_info "Ensuring onnxruntime (CPU) is not installed (we use onnxruntime-gpu)..."
+pip uninstall -y onnxruntime 2>/dev/null || true
+
+# Verify onnxruntime-gpu is still installed
+if ! pip show onnxruntime-gpu >/dev/null 2>&1; then
+    print_error "❌ onnxruntime-gpu was uninstalled - reinstalling..."
+    pip install --extra-index-url https://pypi.jetson-ai-lab.io/jp6/cu126 "onnxruntime-gpu==1.23.0" || exit 1
+fi
+
 # Install OpenWakeWord (required for wake word detection)
 # IMPORTANT: Use --no-deps and install dependencies manually to prevent onnxruntime (CPU) from being installed
 # OpenWakeWord will use the already-installed onnxruntime-gpu
@@ -599,8 +610,11 @@ fi
 print_info "Installing OpenWakeWord dependencies (excluding onnxruntime)..."
 pip install "tqdm<5.0,>=4.0" "requests<3,>=2.0" "tflite-runtime<3,>=2.8.0" 2>&1 | tee -a /tmp/openwakeword_install.log || true
 
-# Ensure onnxruntime (CPU) is not installed - we use onnxruntime-gpu
-pip uninstall -y onnxruntime 2>/dev/null || true
+# Final check: ensure onnxruntime (CPU) is still not installed
+if pip show onnxruntime >/dev/null 2>&1; then
+    print_warning "⚠️  onnxruntime (CPU) was reinstalled - removing it again..."
+    pip uninstall -y onnxruntime 2>/dev/null || true
+fi
 
 print_info "✅ OpenWakeWord installed successfully (using onnxruntime-gpu)"
 
