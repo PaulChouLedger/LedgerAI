@@ -1626,22 +1626,21 @@ alsa_monitor.rules = {
   {
     matches = {
       {
-        { "device.name", "matches", "alsa.*usb*" },
-      },
-    },
-    apply_properties = {
-      ["device.suspend-on-idle"] = false,
-      ["device.session.suspend-timeout-seconds"] = 0,
-    },
-  },
-  {
-    matches = {
-      {
         { "device.name", "matches", "alsa.*" },
       },
     },
     apply_properties = {
       ["device.suspend-on-idle"] = false,
+    },
+  },
+  {
+    matches = {
+      {
+        { "node.name", "matches", "alsa.*" },
+      },
+    },
+    apply_properties = {
+      ["node.suspend-on-idle"] = false,
     },
   },
 }
@@ -1703,6 +1702,7 @@ if [ -f "$LEDGERAI_DIR/setup/scripts/set_default_audio_on_boot.sh" ]; then
 else
     print_warning "Audio output setup script not found - skipping audio output configuration"
 fi
+
 
 
 echo ""

@@ -130,12 +130,21 @@ alsa_monitor.rules = {
   {
     matches = {
       {
-        { "device.name", "matches", "alsa.*usb*" },
+        { "device.name", "matches", "alsa.*" },
       },
     },
     apply_properties = {
       ["device.suspend-on-idle"] = false,
-      ["device.session.suspend-timeout-seconds"] = 0,
+    },
+  },
+  {
+    matches = {
+      {
+        { "node.name", "matches", "alsa.*" },
+      },
+    },
+    apply_properties = {
+      ["node.suspend-on-idle"] = false,
     },
   },
 }
