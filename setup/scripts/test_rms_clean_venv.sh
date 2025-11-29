@@ -35,6 +35,64 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LEDGERAI_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 TEST_SCRIPT="$SCRIPT_DIR/test_rms_fresh_install.py"
 
+# Check if PortAudio is installed system-wide (required for sounddevice)
+echo -e "${YELLOW}[STEP]${NC} Checking PortAudio installation..."
+PORTAUDIO_AVAILABLE=false
+
+# Check if PortAudio library exists
+if ldconfig -p 2>/dev/null | grep -q libportaudio || [ -f "/usr/local/lib/libportaudio.so" ] || [ -f "/usr/lib/libportaudio.so" ]; then
+    echo -e "${GREEN}✅${NC} PortAudio library found system-wide"
+    PORTAUDIO_AVAILABLE=true
+else
+    echo -e "${RED}❌${NC} PortAudio library not found"
+    echo -e "${YELLOW}[INFO]${NC} PortAudio must be installed system-wide for sounddevice to work"
+    echo -e "${YELLOW}[INFO]${NC} Attempting to install PortAudio..."
+    
+    # Try to install via apt first
+    if sudo apt install -y libportaudio2 libportaudio-dev 2>/dev/null; then
+        sudo ldconfig
+        if ldconfig -p 2>/dev/null | grep -q libportaudio; then
+            echo -e "${GREEN}✅${NC} PortAudio installed via apt"
+            PORTAUDIO_AVAILABLE=true
+        fi
+    fi
+    
+    # If apt install failed, try building from source
+    if [ "$PORTAUDIO_AVAILABLE" = false ]; then
+        echo -e "${YELLOW}[INFO]${NC} Building PortAudio from source..."
+        cd /tmp
+        rm -rf portaudio portaudio.tgz
+        
+        if wget -q "http://files.portaudio.com/archives/pa_stable_v190700_20210406.tgz" -O portaudio.tgz; then
+            tar -xzf portaudio.tgz
+            cd portaudio
+            
+            if ./configure && make -j$(nproc); then
+                sudo make install
+                sudo ldconfig
+                
+                if ldconfig -p 2>/dev/null | grep -q libportaudio; then
+                    echo -e "${GREEN}✅${NC} PortAudio built and installed from source"
+                    PORTAUDIO_AVAILABLE=true
+                fi
+            fi
+            
+            cd /tmp
+            rm -rf portaudio portaudio.tgz
+        fi
+    fi
+fi
+
+if [ "$PORTAUDIO_AVAILABLE" = false ]; then
+    echo -e "${RED}❌ ERROR:${NC} PortAudio is required but could not be installed"
+    echo -e "${YELLOW}[INFO]${NC} Please install PortAudio manually:"
+    echo -e "${YELLOW}[INFO]${NC}   sudo apt install -y libportaudio2 libportaudio-dev"
+    echo -e "${YELLOW}[INFO]${NC}   Or build from source: bash $LEDGERAI_DIR/setup/scripts/build_portaudio.sh"
+    exit 1
+fi
+
+echo ""
+
 # Create temporary virtual environment
 VENV_DIR="/tmp/rms_test_venv_$$"
 echo -e "${YELLOW}[STEP]${NC} Creating fresh virtual environment..."

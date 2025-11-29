@@ -1,7 +1,8 @@
 #!/bin/bash
-# Set default audio output to UACDemoV1.0 on boot
+# Set default audio output to UACDemoV1.0 on boot (optional PulseAudio only)
 # This script is called by the aura.service systemd unit
-# It configures both ALSA and PulseAudio to use UACDemoV1.0 as default
+# Note: PulseAudio is optional - speaker.py uses ALSA as fallback
+# Note: No .asoundrc is created - PortAudio handles audio directly
 
 # Get user home directory (script runs as the service user)
 AURA_HOME="${HOME:-/home/ledger}"
@@ -15,23 +16,12 @@ if aplay -l 2>/dev/null | grep -q "UACDemoV1.0" 2>/dev/null; then
     CARD_NUM=$(aplay -l 2>/dev/null | grep "UACDemoV1.0" | sed -n 's/.*card \([0-9]*\):.*/\1/p' | head -1)
     
     if [ -n "$CARD_NUM" ]; then
-        # Create/update .asoundrc for ALSA
-        cat > "$AURA_HOME/.asoundrc" << EOF
-pcm.!default {
-    type hw
-    card $CARD_NUM
-    device 0
-}
-
-ctl.!default {
-    type hw
-    card $CARD_NUM
-}
-EOF
-        # Ensure proper ownership
-        chmod 644 "$AURA_HOME/.asoundrc" 2>/dev/null || true
+        # Don't create .asoundrc - let PortAudio handle audio directly
+        # .asoundrc can interfere with microphone capture
+        # Volume control is handled via ALSA amixer commands in speaker.py
         
         # Set PulseAudio default sink (if available) - uses dynamic name matching
+        # Note: PulseAudio is optional - speaker.py falls back to ALSA if not available
         if command -v pactl >/dev/null 2>&1; then
             # Wait longer for PulseAudio to be ready (USB devices can take time)
             for i in {1..10}; do
