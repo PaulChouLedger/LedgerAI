@@ -303,25 +303,7 @@ if [ -f "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" ]; then
         print_info "   Continuing with installation, but audio input/output will fail"
     fi
     
-    # Check if PyTorch is installed (typically pre-installed with JetPack)
-    print_info "Checking for PyTorch installation..."
-    if python3 -c "import torch; print('✅ PyTorch found:', torch.__version__)" 2>/dev/null; then
-        print_info "✅ PyTorch is already installed"
-        TORCH_AVAILABLE=true
-    else
-        print_info "⚠️  PyTorch not found - will install from Jetson AI Lab PyPI index"
-        TORCH_AVAILABLE=false
-    fi
-    
-    # Check if torchaudio is installed (required for Silero VAD)
-    print_info "Checking for torchaudio installation..."
-    if python3 -c "import torchaudio; print('✅ torchaudio found:', torchaudio.__version__)" 2>/dev/null; then
-        print_info "✅ torchaudio is already installed"
-        TORCHAUDIO_AVAILABLE=true
-    else
-        print_info "⚠️  torchaudio not found - will install from Jetson AI Lab PyPI index"
-        TORCHAUDIO_AVAILABLE=false
-    fi
+    # PyTorch and CTranslate2 are pre-installed with JetPack - no need to install them
     
     # Install PyQt5 separately with better error handling
     # Check if we should use system PyQt5 or install from pip
@@ -331,52 +313,6 @@ if [ -f "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" ]; then
         TEMP_REQUIREMENTS="/tmp/requirements_no_pyqt5.txt"
         grep -v "^PyQt5" "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" > "$TEMP_REQUIREMENTS" || true
         
-        # Install PyTorch from Jetson PyPI if missing
-        if [ "$TORCH_AVAILABLE" = false ]; then
-            print_info "Installing PyTorch from Jetson AI Lab PyPI index..."
-            if pip install --extra-index-url https://pypi.jetson-ai-lab.io/jp6/cu126 torch torchvision torchaudio; then
-                print_info "✅ PyTorch installed successfully from Jetson PyPI"
-                # Remove PyTorch from requirements file since we just installed it
-                grep -v "^torch" "$TEMP_REQUIREMENTS" > "$TEMP_REQUIREMENTS.tmp" && mv "$TEMP_REQUIREMENTS.tmp" "$TEMP_REQUIREMENTS" || true
-                TORCHAUDIO_AVAILABLE=true  # torchaudio installed with torch
-            else
-                print_warning "⚠️  Failed to install PyTorch from Jetson PyPI - will try from standard requirements"
-            fi
-        fi
-        
-        # Install torchaudio separately if PyTorch was pre-installed but torchaudio is missing
-        if [ "$TORCH_AVAILABLE" = true ] && [ "$TORCHAUDIO_AVAILABLE" = false ]; then
-            print_info "Installing torchaudio from Jetson AI Lab PyPI index..."
-            if pip install --extra-index-url https://pypi.jetson-ai-lab.io/jp6/cu126 torchaudio; then
-                print_info "✅ torchaudio installed successfully from Jetson PyPI"
-                # Remove torchaudio from requirements file since we just installed it
-                grep -v "^torchaudio" "$TEMP_REQUIREMENTS" > "$TEMP_REQUIREMENTS.tmp" && mv "$TEMP_REQUIREMENTS.tmp" "$TEMP_REQUIREMENTS" || true
-            else
-                print_warning "⚠️  Failed to install torchaudio from Jetson PyPI - will try from standard requirements"
-            fi
-        fi
-        
-        # Install torchaudio separately if PyTorch was pre-installed but torchaudio is missing
-        if [ "$TORCH_AVAILABLE" = true ] && [ "$TORCHAUDIO_AVAILABLE" = false ]; then
-            print_info "Installing torchaudio from Jetson AI Lab PyPI index..."
-            if pip install --extra-index-url https://pypi.jetson-ai-lab.io/jp6/cu126 torchaudio; then
-                print_info "✅ torchaudio installed successfully from Jetson PyPI"
-                # Remove torchaudio from requirements file since we just installed it
-                grep -v "^torchaudio" "$TEMP_REQUIREMENTS" > "$TEMP_REQUIREMENTS.tmp" && mv "$TEMP_REQUIREMENTS.tmp" "$TEMP_REQUIREMENTS" || true
-            else
-                print_warning "⚠️  Failed to install torchaudio from Jetson PyPI - will try from standard requirements"
-            fi
-        fi
-        
-        # Install CTranslate2 from Jetson PyPI (cu129) for CUDA support
-        print_info "Installing CTranslate2 from Jetson AI Lab PyPI index (cu129)..."
-        if pip install --extra-index-url https://pypi.jetson-ai-lab.io/jp6/cu129 ctranslate2; then
-            print_info "✅ CTranslate2 installed successfully from Jetson PyPI"
-            # Remove CTranslate2 from requirements file since we just installed it
-            grep -v "^ctranslate2" "$TEMP_REQUIREMENTS" > "$TEMP_REQUIREMENTS.tmp" && mv "$TEMP_REQUIREMENTS.tmp" "$TEMP_REQUIREMENTS" || true
-        else
-            print_warning "⚠️  Failed to install CTranslate2 from Jetson PyPI - will try from standard requirements"
-        fi
         
         if pip install -r "$TEMP_REQUIREMENTS"; then
             print_info "✅ All requirements installed successfully (using system PyQt5)"
@@ -404,64 +340,10 @@ if [ -f "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" ]; then
         print_info "Installing all requirements (including PyQt5 from pip)..."
         
         PIP_ERROR=""
-        # Install PyTorch from Jetson PyPI if missing
-        if [ "$TORCH_AVAILABLE" = false ]; then
-            print_info "Installing PyTorch from Jetson AI Lab PyPI index..."
-            if pip install --extra-index-url https://pypi.jetson-ai-lab.io/jp6/cu126 torch torchvision torchaudio; then
-                print_info "✅ PyTorch installed successfully from Jetson PyPI"
-                # Create temp requirements without PyTorch since we just installed it
-                TEMP_REQUIREMENTS="/tmp/requirements_no_torch.txt"
-                grep -v "^torch" "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" > "$TEMP_REQUIREMENTS" || true
-                TORCHAUDIO_AVAILABLE=true  # torchaudio installed with torch
-                
-                # Install CTranslate2 from Jetson PyPI (cu129) for CUDA support
-                print_info "Installing CTranslate2 from Jetson AI Lab PyPI index (cu129)..."
-                if pip install --extra-index-url https://pypi.jetson-ai-lab.io/jp6/cu129 ctranslate2; then
-                    print_info "✅ CTranslate2 installed successfully from Jetson PyPI"
-                    # Remove CTranslate2 from requirements file since we just installed it
-                    grep -v "^ctranslate2" "$TEMP_REQUIREMENTS" > "$TEMP_REQUIREMENTS.tmp" && mv "$TEMP_REQUIREMENTS.tmp" "$TEMP_REQUIREMENTS" || true
-                else
-                    print_warning "⚠️  Failed to install CTranslate2 from Jetson PyPI - will try from standard requirements"
-                fi
-                
-                if pip install -r "$TEMP_REQUIREMENTS" 2>&1 | tee /tmp/pip_install.log; then
-                    print_info "✅ All requirements installed successfully"
-                    rm -f "$TEMP_REQUIREMENTS"
-                else
-                    PIP_ERROR=$(cat /tmp/pip_install.log)
-                    rm -f "$TEMP_REQUIREMENTS"
-                fi
-            else
-                print_warning "⚠️  Failed to install PyTorch from Jetson PyPI - will try from standard requirements"
-                if pip install -r "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" 2>&1 | tee /tmp/pip_install.log; then
-                    print_info "✅ All requirements installed successfully"
-                else
-                    PIP_ERROR=$(cat /tmp/pip_install.log)
-                fi
-            fi
+        if pip install -r "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" 2>&1 | tee /tmp/pip_install.log; then
+            print_info "✅ All requirements installed successfully"
         else
-            # Install CTranslate2 from Jetson PyPI (cu129) for CUDA support
-            print_info "Installing CTranslate2 from Jetson AI Lab PyPI index (cu129)..."
-            if pip install --extra-index-url https://pypi.jetson-ai-lab.io/jp6/cu129 ctranslate2; then
-                print_info "✅ CTranslate2 installed successfully from Jetson PyPI"
-                # Create temp requirements without CTranslate2 since we just installed it
-                TEMP_REQUIREMENTS="/tmp/requirements_no_ctranslate2.txt"
-                grep -v "^ctranslate2" "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" > "$TEMP_REQUIREMENTS" || true
-                if pip install -r "$TEMP_REQUIREMENTS" 2>&1 | tee /tmp/pip_install.log; then
-                    print_info "✅ All requirements installed successfully"
-                    rm -f "$TEMP_REQUIREMENTS"
-                else
-                    PIP_ERROR=$(cat /tmp/pip_install.log)
-                    rm -f "$TEMP_REQUIREMENTS"
-                fi
-            else
-                print_warning "⚠️  Failed to install CTranslate2 from Jetson PyPI - will try from standard requirements"
-                if pip install -r "$LEDGERAI_DIR/aura-control/requirements/requirements.txt" 2>&1 | tee /tmp/pip_install.log; then
-                    print_info "✅ All requirements installed successfully"
-                else
-                    PIP_ERROR=$(cat /tmp/pip_install.log)
-                fi
-            fi
+            PIP_ERROR=$(cat /tmp/pip_install.log)
         fi
         
         if [ -n "$PIP_ERROR" ]; then
@@ -1301,43 +1183,14 @@ if [ -d "$LEDGERAI_DIR/.git" ]; then
             print_info "Git pre-commit hook installed - llm-container changes will sync to llm-medical-container"
         fi
     fi
-fi
-    GIT_HOOKS_DIR="$LEDGERAI_DIR/.git/hooks"
-    
-    # Install post-merge hook to auto-reload systemd after git pull
-    POST_MERGE_HOOK="$GIT_HOOKS_DIR/post-merge"
-    POST_MERGE_TEMPLATE="$LEDGERAI_DIR/setup/scripts/git-hooks/post-merge"
-    
-    # Install pre-commit hook to sync llm-container changes to llm-medical-container
-    PRE_COMMIT_HOOK="$GIT_HOOKS_DIR/pre-commit"
-    PRE_COMMIT_TEMPLATE="$LEDGERAI_DIR/setup/scripts/git-hooks/pre-commit"
-    
-    if [ -d "$LEDGERAI_DIR/.git" ]; then
-        # Install post-merge hook
-        if [ -f "$POST_MERGE_TEMPLATE" ]; then
-        if [ ! -f "$POST_MERGE_HOOK" ]; then
-                cp "$POST_MERGE_TEMPLATE" "$POST_MERGE_HOOK"
-            chmod +x "$POST_MERGE_HOOK"
-            print_info "Git post-merge hook installed - systemd will auto-reload after git pull"
-            fi
-        fi
-        
-        # Install pre-commit hook
-        if [ -f "$PRE_COMMIT_TEMPLATE" ]; then
-            if [ ! -f "$PRE_COMMIT_HOOK" ] || ! grep -q "llm-container" "$PRE_COMMIT_HOOK" 2>/dev/null; then
-                cp "$PRE_COMMIT_TEMPLATE" "$PRE_COMMIT_HOOK"
-                chmod +x "$PRE_COMMIT_HOOK"
-                print_info "Git pre-commit hook installed - llm-container changes will sync to llm-medical-container"
-        fi
     fi
-fi
 
 echo ""
 
 # ============================================================================
-# Step 9: Configure X11 authentication for GUI access
+# Step 8: Configure X11 authentication for GUI access
 # ============================================================================
-print_step "9. Configuring X11 authentication for GUI access..."
+print_step "8. Configuring X11 authentication for GUI access..."
 
 # Allow user to access X11 display
 print_info "Setting up X11 authentication..."
@@ -1376,9 +1229,9 @@ print_info "X11 setup script created at $X11_SETUP_SCRIPT"
 echo ""
 
 # ============================================================================
-# Step 10: Create Aura systemd service for boot
+# Step 9: Create Aura systemd service for boot
 # ============================================================================
-print_step "10. Creating Aura systemd service for boot startup..."
+print_step "9. Creating Aura systemd service for boot startup..."
 
 AURA_SERVICE_FILE="/tmp/aura.service"
 AURA_UID=$(id -u "$AURA_USER")
@@ -1456,7 +1309,7 @@ print_info "To view logs: journalctl -u aura.service -f"
 echo ""
 
 # ============================================================================
-# Step 11: Install keyboard monitor service
+# Step 10: Install keyboard monitor service
 # ============================================================================
 print_step "10. Installing keyboard monitor service..."
 
@@ -1498,7 +1351,7 @@ fi
 echo ""
 
 # ============================================================================
-# Step 12: Set up Docker (if not already configured)
+# Step 11: Set up Docker (if not already configured)
 # ============================================================================
 print_step "11. Configuring Docker..."
 
@@ -1536,9 +1389,9 @@ echo ""
 
 
 # ============================================================================
-# Step 13: Set permissions for audio devices
+# Step 12: Set permissions for audio devices
 # ============================================================================
-print_step "13. Configuring audio device permissions..."
+print_step "12. Configuring audio device permissions..."
 
 # Add user to audio group
 if ! groups "$AURA_USER" | grep -q audio; then
@@ -1572,7 +1425,7 @@ fi
 echo ""
 
 # ============================================================================
-# Step 14: Create minimal .env with only API keys (deployment-friendly)
+# Step 13: Create minimal .env with only API keys (deployment-friendly)
 # ============================================================================
 print_step "13. Setting up .env configuration file (API keys only)..."
 
@@ -1616,7 +1469,7 @@ print_warning "⚠️  Edit .env to add API keys before running Aura: nano $ENV_
 echo ""
 
 # ============================================================================
-# Step 15: Create data directories if needed
+# Step 14: Create data directories if needed
 # ============================================================================
 print_step "14. Creating data directories..."
 
