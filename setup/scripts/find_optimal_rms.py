@@ -215,7 +215,12 @@ def test_rms_levels(original_audio, test_levels):
         actual_rms = np.sqrt(np.mean(normalized ** 2))
         actual_peak = np.max(np.abs(normalized))
         
-        print(f"    Actual: RMS={actual_rms:.4f}, Peak={actual_peak:.4f}")
+        # Warn if clipping (peak > 1.0)
+        clip_warning = ""
+        if actual_peak > 1.0:
+            clip_warning = " ⚠️ CLIPPING"
+        
+        print(f"    Actual: RMS={actual_rms:.4f}, Peak={actual_peak:.4f}{clip_warning}")
         print(f"    Transcribing...", end=" ")
         
         # Transcribe
@@ -264,14 +269,39 @@ def print_summary(results):
     successful = [r for r in results if r['success']]
     
     if successful:
-        min_rms = min(successful, key=lambda x: x['target_rms'])
-        print(f"  ✅ Minimum working RMS: {min_rms['target_rms']:.2f}")
-        print(f"     Use this as AGC_TARGET_RMS for minimal amplification")
-        print(f"     Good for near-field speech (reduces over-amplification)")
+        # Find best RMS (full transcription, no clipping)
+        best_rms = None
+        for r in successful:
+            # Prefer full transcriptions without clipping
+            if r['peak'] <= 1.0 and len(r['text']) > 20:  # Full transcription
+                if best_rms is None or r['target_rms'] < best_rms['target_rms']:
+                    best_rms = r
+        
+        if best_rms:
+            print(f"  ✅ Recommended RMS: {best_rms['target_rms']:.2f}")
+            print(f"     Peak: {best_rms['peak']:.4f} (no clipping)")
+            print(f"     Transcription: '{best_rms['text'][:50]}...'")
+        else:
+            # Fallback to minimum
+            min_rms = min(successful, key=lambda x: x['target_rms'])
+            print(f"  ✅ Minimum working RMS: {min_rms['target_rms']:.2f}")
+            print(f"     Peak: {min_rms['peak']:.4f}")
+        
+        # Check for clipping issues
+        clipped = [r for r in results if r.get('peak', 0) > 1.0]
+        if clipped:
+            print(f"\n  ⚠️  Clipping detected at RMS levels: {[r['target_rms']:.2f for r in clipped]}")
+            print(f"     Peaks exceed 1.0 - these levels will cause distortion in production")
+        
+        # Check for cutoffs
+        cutoffs = [r for r in successful if len(r['text']) < 20 and r.get('peak', 0) <= 1.0]
+        if cutoffs:
+            print(f"\n  ⚠️  Partial transcriptions at RMS levels: {[r['target_rms']:.2f for r in cutoffs]}")
+            print(f"     These levels may cause Whisper to cut off speech")
         
         if min_rms['target_rms'] < 0.10:
             print(f"\n  ⚠️  Very low minimum ({min_rms['target_rms']:.2f}) - may be too quiet for consistency")
-            print(f"     Recommend using 0.10-0.12 for reliability")
+            print(f"     Recommend using 0.08-0.15 for reliability")
     else:
         print(f"  ❌ No successful transcriptions!")
         print(f"     Try recording louder or checking microphone setup")
