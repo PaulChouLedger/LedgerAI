@@ -34,7 +34,7 @@ DEVICE_NAME = "XVF3800 4-Mic Array"
 # === VAD Configuration ===
 VAD_START_THRESHOLD = 0.25  # Match test_transcription.py and listener.py
 VAD_SILENCE_THRESHOLD = 0.10  # Match test_transcription.py and listener.py
-SILENCE_TIMEOUT = 0.2  # 200ms of silence before stopping
+SILENCE_TIMEOUT = 0.5  # 200ms of silence before stopping
 MIN_AUDIO_SAMPLES = 2000  # Minimum samples to consider valid
 
 # Test RMS levels
