@@ -240,9 +240,11 @@ def main():
             agc_target = config.get('config', {}).get('PP_AGCDESIREDLEVEL', 0.0)
             agc_gain = config.get('config', {}).get('PP_AGCMAXGAIN', 0.0)
             hpf_status = "✅ ON" if config.get('config', {}).get('AEC_HPFONOFF', 0) == 1 else "❌ OFF"
+            ec_status = "✅ ON" if config.get('config', {}).get('PP_ECHOONOFF', 0) == 1 else "❌ OFF"
             
             print(f"  Hardware AGC:           {agc_status} (target={agc_target:.2f}, max={agc_gain:.0f} linear)")
             print(f"  High-Pass Filter:       {hpf_status}")
+            print(f"  Echo Cancellation:      {ec_status}")
             print(f"\n  ℹ️  This test uses whatever hardware settings are currently active.")
             print(f"  ℹ️  Results only valid for THESE settings!")
         else:
