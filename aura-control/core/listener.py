@@ -1100,21 +1100,21 @@ def listen():
                         else:
                             print(f"[VAD] {vad_prob:.2f} | RMS {features['rms']:.4f} | Peak {features['peak']:.3f}", end="\r")
                         
-                if vad_prob > VAD_START_THRESHOLD:
-                    print(f"\n[VAD] 🔊 Speech detected (VAD={vad_prob:.2f}, RMS={features['rms']:.4f}, Peak={features['peak']:.3f})")
-                    print(f"[Features] ZCR={features['zcr']:.3f} | SpCentroid={features['spectral_centroid']:.0f}Hz | SpFlat={features['spectral_flatness']:.3f}")
-                    
-                    # Apply advanced filter if enabled
-                    if ENABLE_ADVANCED_FILTER:
-                        is_speech_result, reason = is_likely_speech(features)
-                        if not is_speech_result:
-                            print(f"[Filter] ❌ REJECTED: {reason}")
-                            print("[Filter] 🔄 Returning to listening (not speech)\n")
-                            # Reset VAD state before next utterance
-                            model_vad.reset_states()
-                            continue  # Back to waiting for speech
-                        else:
-                            print(f"[Filter] ✅ PASSED: {reason}")
+                        if vad_prob > VAD_START_THRESHOLD:
+                            print(f"\n[VAD] 🔊 Speech detected (VAD={vad_prob:.2f}, RMS={features['rms']:.4f}, Peak={features['peak']:.3f})")
+                            print(f"[Features] ZCR={features['zcr']:.3f} | SpCentroid={features['spectral_centroid']:.0f}Hz | SpFlat={features['spectral_flatness']:.3f}")
+                            
+                            # Apply advanced filter if enabled
+                            if ENABLE_ADVANCED_FILTER:
+                                is_speech_result, reason = is_likely_speech(features)
+                                if not is_speech_result:
+                                    print(f"[Filter] ❌ REJECTED: {reason}")
+                                    print("[Filter] 🔄 Returning to listening (not speech)\n")
+                                    # Reset VAD state before next utterance
+                                    model_vad.reset_states()
+                                    continue  # Back to waiting for speech
+                                else:
+                                    print(f"[Filter] ✅ PASSED: {reason}")
                             
                             # Speech detected - switch from solid red to pulsating red
                             try:
