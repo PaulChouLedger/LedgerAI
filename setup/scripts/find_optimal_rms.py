@@ -161,10 +161,9 @@ def record_test_audio(device_index, max_duration, model_vad):
 
 def normalize_audio(audio, target_rms):
     """
-    Normalize audio to target RMS level
-    This matches the listener.py pipeline:
-    - Simple gain multiplication
-    - Soft clip to ±0.95 to prevent distortion
+    Normalize audio to target RMS level (raw, no limiting)
+    This gives us true test data - if peaks exceed 1.0, that's useful information
+    It tells us which RMS levels cause clipping in real scenarios
     """
     current_rms = np.sqrt(np.mean(audio ** 2))
     
@@ -173,8 +172,10 @@ def normalize_audio(audio, target_rms):
     
     gain = target_rms / current_rms
     normalized = audio * gain
-    # Soft clip (matches listener.py)
-    normalized = np.clip(normalized, -0.95, 0.95)
+    
+    # No limiting - raw audio for accurate testing
+    # If peaks exceed 1.0, that's data we need to know
+    # This tells us which RMS levels are achievable without clipping
     
     return normalized
 
