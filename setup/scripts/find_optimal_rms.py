@@ -102,6 +102,8 @@ def record_test_audio(device_index, max_duration, model_vad):
                     print(".", end="", flush=True)
             
             # === Stage 2: Record speech until silence ===
+            vad_history = []  # Track VAD levels for analysis
+            frame_count = 0
             while samples_recorded < max_samples:
                 audio_block, _ = stream.read(FRAME_SIZE)
                 channel_0 = audio_block[:, 0]
@@ -111,20 +113,38 @@ def record_test_audio(device_index, max_duration, model_vad):
                 
                 buffer.append(audio_block)
                 samples_recorded += FRAME_SIZE
+                frame_count += 1
                 
                 # Check for silence
                 vad_prob = model_vad(torch.from_numpy(channel_0), SAMPLE_RATE).item()
+                vad_history.append(vad_prob)
                 
                 if vad_prob < VAD_SILENCE_THRESHOLD:
                     if silence_start is None:
                         silence_start = time.time()
                     elif time.time() - silence_start > SILENCE_TIMEOUT:
-                        print(f"\n  ⏹️  Speech ended (silence detected)")
+                        print(f"\n  ⏹️  Speech ended (silence detected, VAD={vad_prob:.2f} < {VAD_SILENCE_THRESHOLD})")
                         break
                 else:
                     silence_start = None
                 
-                print(".", end="", flush=True)
+                # Show VAD level every 10 frames to track trends
+                if frame_count % 10 == 0:
+                    print(f" VAD:{vad_prob:.2f}", end="", flush=True)
+                else:
+                    print(".", end="", flush=True)
+            
+            # Show VAD statistics
+            if vad_history:
+                min_vad = min(vad_history)
+                max_vad = max(vad_history)
+                avg_vad = sum(vad_history) / len(vad_history)
+                print(f"\n  📊 VAD Statistics: min={min_vad:.2f}, max={max_vad:.2f}, avg={avg_vad:.2f}")
+                # Show if VAD dropped below threshold during speech
+                low_vad_frames = [v for v in vad_history if v < VAD_SILENCE_THRESHOLD]
+                if low_vad_frames:
+                    print(f"  ⚠️  VAD dropped below {VAD_SILENCE_THRESHOLD} in {len(low_vad_frames)}/{len(vad_history)} frames")
+                    print(f"      This may cause early cutoff if silence timeout is too short")
             
             if samples_recorded >= max_samples:
                 print(f"\n  ⏹️  Maximum duration reached ({max_duration}s)")
