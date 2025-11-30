@@ -27,9 +27,9 @@ from openwakeword_wake_word import create_openwakeword_detector
 # === Config ===
 SAMPLE_RATE = 16000
 FRAME_SIZE = int(SAMPLE_RATE * 0.032)
-SILENCE_TIMEOUT = 0.2  # 500ms of silence before stopping
+SILENCE_TIMEOUT = 0.2  # 200ms of silence before stopping
 VAD_START_THRESHOLD = 0.25  # Lowered - beamforming provides good noise rejection
-VAD_SILENCE_THRESHOLD = 0.15  # Lower = more conservative about ending
+VAD_SILENCE_THRESHOLD = 0.10  # Lower = more conservative about ending (reduced to tolerate brief pauses)
 MIN_AUDIO_SAMPLES = 2000
 
 # === Wake Word Configuration ===
@@ -65,7 +65,7 @@ SPEECH_PEAK_MIN = 0.0023        # Lower peak threshold to accept softer speech
 # (Pre-gain removed)
 
 # === Audio Normalization (for optimal Whisper transcription) ===
-ENABLE_AUDIO_NORMALIZATION = True  # Normalize audio to optimal RMS for Whisper
+ENABLE_AUDIO_NORMALIZATION = False  # Disabled - using hardware AGC only (target: 0.12 RMS)
 TARGET_RMS_FOR_WHISPER = 0.12      # Optimal RMS level for Whisper (found via find_optimal_rms.py)
 
 # === Wake Word Audio Normalization ===
