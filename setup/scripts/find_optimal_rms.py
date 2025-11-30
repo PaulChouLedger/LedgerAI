@@ -18,6 +18,7 @@ import sys
 import os
 import time
 import numpy as np
+import torch
 import sounddevice as sd
 import soundfile as sf
 import requests
@@ -27,8 +28,14 @@ import io
 SAMPLE_RATE = 16000
 FRAME_DURATION = 0.032
 FRAME_SIZE = int(SAMPLE_RATE * FRAME_DURATION)
-RECORDING_DURATION = 4.0  # 3 seconds for test phrase
+RECORDING_DURATION = 4.0  # Maximum recording duration (fallback)
 DEVICE_NAME = "XVF3800 4-Mic Array"
+
+# === VAD Configuration ===
+VAD_START_THRESHOLD = 0.25  # Match test_transcription.py and listener.py
+VAD_SILENCE_THRESHOLD = 0.10  # Match test_transcription.py and listener.py
+SILENCE_TIMEOUT = 0.2  # 200ms of silence before stopping
+MIN_AUDIO_SAMPLES = 2000  # Minimum samples to consider valid
 
 # Test RMS levels
 TEST_RMS_LEVELS = [0.05, 0.08, 0.10, 0.12, 0.15, 0.18, 0.20]
@@ -42,14 +49,17 @@ def find_device_index():
             return i
     raise RuntimeError(f"Microphone '{DEVICE_NAME}' not found.")
 
-def record_test_audio(device_index, duration):
-    """Record a test audio sample"""
+def record_test_audio(device_index, max_duration, model_vad):
+    """Record a test audio sample using VAD (matches production pipeline)"""
     print(f"\n{'='*80}")
-    print(f"  🎤 RECORDING TEST AUDIO")
+    print(f"  🎤 RECORDING TEST AUDIO (VAD-Controlled)")
     print(f"{'='*80}")
     print(f"\n  Please speak a clear test phrase when recording starts.")
     print(f"  Suggested: 'My name is Raphael and I'm testing the microphone.'")
-    print(f"\n  Recording duration: {duration} seconds")
+    print(f"\n  Recording will:")
+    print(f"    1. Wait for speech (VAD > {VAD_START_THRESHOLD})")
+    print(f"    2. Record until silence ({SILENCE_TIMEOUT*1000:.0f}ms of silence)")
+    print(f"    3. Maximum duration: {max_duration} seconds")
     print(f"{'='*80}\n")
     
     input("Press ENTER when ready to record...")
@@ -60,32 +70,83 @@ def record_test_audio(device_index, duration):
     time.sleep(1)
     print("  Starting in 1...")
     time.sleep(1)
-    print("\n  🔴 RECORDING... (speak now!)\n")
+    print("\n  🎤 Listening for speech...\n")
     
-    samples_needed = int(SAMPLE_RATE * duration)
-    recording = []
+    buffer = []
+    silence_start = None
+    max_samples = int(SAMPLE_RATE * max_duration)
+    samples_recorded = 0
     
     try:
         with sd.InputStream(device=device_index, channels=2, samplerate=SAMPLE_RATE,
                             blocksize=FRAME_SIZE, dtype="float32") as stream:
-            samples_recorded = 0
-            while samples_recorded < samples_needed:
+            
+            # === Stage 1: Wait for speech ===
+            print("  Waiting for speech...", end="", flush=True)
+            while samples_recorded < max_samples:
                 audio_block, _ = stream.read(FRAME_SIZE)
-                recording.append(audio_block[:, 0])  # Channel 0
+                channel_0 = audio_block[:, 0]
+                
+                if channel_0.size < 512:
+                    continue
+                
+                # Check VAD
+                vad_prob = model_vad(torch.from_numpy(channel_0), SAMPLE_RATE).item()
+                
+                if vad_prob > VAD_START_THRESHOLD:
+                    print(f"\n  🔊 Speech detected (VAD={vad_prob:.2f}) - recording...")
+                    buffer.append(audio_block)
+                    samples_recorded += FRAME_SIZE
+                    break
+                else:
+                    print(".", end="", flush=True)
+            
+            # === Stage 2: Record speech until silence ===
+            while samples_recorded < max_samples:
+                audio_block, _ = stream.read(FRAME_SIZE)
+                channel_0 = audio_block[:, 0]
+                
+                if channel_0.size < 512:
+                    continue
+                
+                buffer.append(audio_block)
                 samples_recorded += FRAME_SIZE
                 
-                # Progress indicator
-                progress = (samples_recorded / samples_needed) * 100
-                print(f"  Recording... {progress:.0f}%", end="\r")
+                # Check for silence
+                vad_prob = model_vad(torch.from_numpy(channel_0), SAMPLE_RATE).item()
+                
+                if vad_prob < VAD_SILENCE_THRESHOLD:
+                    if silence_start is None:
+                        silence_start = time.time()
+                    elif time.time() - silence_start > SILENCE_TIMEOUT:
+                        print(f"\n  ⏹️  Speech ended (silence detected)")
+                        break
+                else:
+                    silence_start = None
+                
+                print(".", end="", flush=True)
+            
+            if samples_recorded >= max_samples:
+                print(f"\n  ⏹️  Maximum duration reached ({max_duration}s)")
         
-        print(f"\n\n  ✅ Recording complete!")
+        print(f"\n  ✅ Recording complete!")
         
     except KeyboardInterrupt:
         print(f"\n\n  ⚠️  Recording cancelled")
         return None
     
     # Concatenate all frames
-    audio = np.concatenate(recording)[:samples_needed]
+    if not buffer:
+        print(f"\n  ⚠️  No audio recorded!")
+        return None
+    
+    audio = np.concatenate(buffer)
+    audio = audio[:, 0]  # Channel 0 only
+    
+    # Check minimum length
+    if len(audio) < MIN_AUDIO_SAMPLES:
+        print(f"\n  ⚠️  Audio too short ({len(audio)/SAMPLE_RATE:.2f}s < {MIN_AUDIO_SAMPLES/SAMPLE_RATE:.2f}s)")
+        return None
     
     # Show statistics
     rms = np.sqrt(np.mean(audio ** 2))
@@ -219,9 +280,19 @@ def print_summary(results):
 def main():
     """Main execution"""
     print("\n" + "="*80)
-    print("  🧪 WHISPER RMS OPTIMIZER")
+    print("  🧪 WHISPER RMS OPTIMIZER (VAD-Controlled)")
     print("  Find the minimum RMS level for accurate transcription")
     print("="*80)
+    
+    # Load VAD model
+    print("\n[VAD] 🔄 Loading Silero VAD model...")
+    try:
+        model_vad, utils = torch.hub.load("snakers4/silero-vad", "silero_vad", onnx=False)
+        print("[VAD] ✅ VAD model loaded")
+    except Exception as e:
+        print(f"[VAD] ❌ Failed to load VAD model: {e}")
+        print("[VAD] 💡 Falling back to fixed-duration recording (no VAD)")
+        model_vad = None
     
     # Show current hardware configuration
     print("\n" + "="*70)
@@ -247,6 +318,8 @@ def main():
             print(f"  Echo Cancellation:      {ec_status}")
             print(f"\n  ℹ️  This test uses whatever hardware settings are currently active.")
             print(f"  ℹ️  Results only valid for THESE settings!")
+            if model_vad:
+                print(f"  ℹ️  Using VAD-controlled recording (matches production pipeline)")
         else:
             print(f"  ⚠️  No saved config found - using current hardware state")
     except Exception as e:
@@ -258,8 +331,13 @@ def main():
         print(f"[Audio] 🔍 Searching for microphone...")
         device_index = find_device_index()
         
-        # Record test audio
-        audio = record_test_audio(device_index, RECORDING_DURATION)
+        # Record test audio (VAD required)
+        if not model_vad:
+            print("\n  ❌ VAD model failed to load - cannot proceed")
+            print("  💡 Please ensure PyTorch and Silero VAD are installed")
+            return 1
+        
+        audio = record_test_audio(device_index, RECORDING_DURATION, model_vad)
         
         if audio is None:
             return 1
