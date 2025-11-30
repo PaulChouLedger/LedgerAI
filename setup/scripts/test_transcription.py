@@ -101,7 +101,7 @@ ENABLE_ADVANCED_FILTER = True  # Toggle this to test
 # Thresholds based on your ACTUAL speech patterns:
 # Updated after comparing real speech vs noise bursts
 SPEECH_ZCR_MAX = 0.40           # Reject if ZCR > this
-SPEECH_FLATNESS_MAX = 0.25      # Tighter - reject flat/noisy signals (was 0.27, catches 0.2092)
+SPEECH_FLATNESS_MAX = 0.65      # Increased to allow real speech (observed up to 0.649 in actual speech)
 SPEECH_CENTROID_MIN = 300       # Hz - reject if too low (rumble/fan)
 SPEECH_CENTROID_MAX = 3000      # Hz - reject if too high (hiss)
 SPEECH_BAND_MIN = 0.55          # Tighter - require more energy in speech band (was 0.30, catches 0.465)
@@ -111,7 +111,7 @@ SPEECH_HIGH_FREQ_MAX = 0.08
 # CRITICAL: Energy thresholds (most reliable for your noise pattern)
 # Updated after firmware tweaks - speech now has lower RMS/Peak values
 SPEECH_RMS_MIN = 0.0012         # Align with listener.py
-SPEECH_RMS_MAX = 0.40
+SPEECH_RMS_MAX = 0.60           # Increased to allow real speech (observed up to 0.55 in actual speech)
 SPEECH_PEAK_MIN = 0.0025
 
 # === Audio Normalization (for optimal Whisper transcription) ===
