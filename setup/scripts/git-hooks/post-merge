@@ -45,17 +45,50 @@ if [ "$NEEDS_SYNC" = true ]; then
     fi
 fi
 
-# Check if xvf3800 service file was updated
+# Check if xvf3800 service file or tuning script was updated
+SERVICE_UPDATED=false
+TUNING_SCRIPT_UPDATED=false
+
 if echo "$CHANGED_FILES" | grep -q "setup/scripts/xvf3800-tuning.service"; then
+    SERVICE_UPDATED=true
+fi
+
+if echo "$CHANGED_FILES" | grep -q "setup/scripts/tune_xvf3800.py"; then
+    TUNING_SCRIPT_UPDATED=true
+fi
+
+if [ "$SERVICE_UPDATED" = true ] || [ "$TUNING_SCRIPT_UPDATED" = true ]; then
     echo ""
-    echo "🔄 XVF3800 service file updated - reloading systemd..."
+    if [ "$SERVICE_UPDATED" = true ]; then
+        echo "🔄 XVF3800 service file updated - reloading systemd..."
+    fi
+    if [ "$TUNING_SCRIPT_UPDATED" = true ]; then
+        echo "🔄 XVF3800 tuning script (tune_xvf3800.py) updated - restarting service..."
+    fi
     
     # Try to reload systemd (may require sudo, but attempt anyway)
     if sudo -n systemctl daemon-reload 2>/dev/null; then
-        echo "✅ Systemd reloaded successfully - service changes are active"
+        if [ "$SERVICE_UPDATED" = true ]; then
+            echo "✅ Systemd reloaded successfully - service changes are active"
+        fi
+        
+        # Restart service if tuning script changed (to apply new settings)
+        if [ "$TUNING_SCRIPT_UPDATED" = true ]; then
+            if sudo -n systemctl restart xvf3800-tuning.service 2>/dev/null; then
+                echo "✅ XVF3800 tuning service restarted - new script settings are active"
+                echo "📋 Service output:"
+                sudo -n systemctl status xvf3800-tuning.service --no-pager -n 20 2>/dev/null || true
+            else
+                echo "⚠️  Could not restart service automatically (needs sudo password)"
+                echo "💡 Run manually: sudo systemctl restart xvf3800-tuning.service"
+            fi
+        fi
     else
         echo "⚠️  Could not reload systemd automatically (needs sudo password)"
         echo "💡 Run manually: sudo systemctl daemon-reload"
+        if [ "$TUNING_SCRIPT_UPDATED" = true ]; then
+            echo "💡 Then restart service: sudo systemctl restart xvf3800-tuning.service"
+        fi
         echo "💡 Or reboot - changes will take effect automatically on next boot"
     fi
 fi
