@@ -290,13 +290,15 @@ def print_summary(results):
         # Check for clipping issues
         clipped = [r for r in results if r.get('peak', 0) > 1.0]
         if clipped:
-            print(f"\n  ⚠️  Clipping detected at RMS levels: {[r['target_rms']:.2f for r in clipped]}")
+            clipped_levels = [f"{r['target_rms']:.2f}" for r in clipped]
+            print(f"\n  ⚠️  Clipping detected at RMS levels: {', '.join(clipped_levels)}")
             print(f"     Peaks exceed 1.0 - these levels will cause distortion in production")
         
         # Check for cutoffs
         cutoffs = [r for r in successful if len(r['text']) < 20 and r.get('peak', 0) <= 1.0]
         if cutoffs:
-            print(f"\n  ⚠️  Partial transcriptions at RMS levels: {[r['target_rms']:.2f for r in cutoffs]}")
+            cutoff_levels = [f"{r['target_rms']:.2f}" for r in cutoffs]
+            print(f"\n  ⚠️  Partial transcriptions at RMS levels: {', '.join(cutoff_levels)}")
             print(f"     These levels may cause Whisper to cut off speech")
         
         if min_rms['target_rms'] < 0.10:
