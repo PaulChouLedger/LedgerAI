@@ -246,8 +246,10 @@ def handle_conversation(
         rag_client = None
         rag_context = ""
         rag_results = []
+        memory_rag_results = []  # Results from memory container
         
         if not is_personal_query:
+            # Check document RAG (files/documents)
             try:
                 rag_client = get_rag_client()
                 if rag_client:
@@ -287,9 +289,53 @@ def handle_conversation(
             except Exception as e:
                 print(f"[Generic] ⚠️ RAG check failed: {e}")
                 rag_client = None
+            
+            # Check memory container RAG (stored conversations)
+            try:
+                memory_container_url = os.environ.get('MEMORY_CONTAINER_URL', 'http://localhost:11438')
+                # Quick check: does memory container have relevant conversations?
+                quick_match_response = requests.post(
+                    f"{memory_container_url}/rag/quick-match",
+                    json={"query": prompt},
+                    timeout=2
+                )
+                if quick_match_response.status_code == 200:
+                    quick_match_data = quick_match_response.json()
+                    if quick_match_data.get('has_match', False):
+                        print(f"[Generic] 🔍 Query may match stored conversations - performing memory RAG search...")
+                        # Search memory container for relevant conversations
+                        memory_rag_response = requests.post(
+                            f"{memory_container_url}/rag/search",
+                            json={
+                                "query": prompt,
+                                "k": 3,  # Get top 3 relevant conversations
+                                "threshold": 0.35
+                            },
+                            timeout=5
+                        )
+                        if memory_rag_response.status_code == 200:
+                            memory_rag_data = memory_rag_response.json()
+                            memory_rag_results = memory_rag_data.get('results', [])
+                            if memory_rag_results and len(memory_rag_results) > 0:
+                                print(f"[Generic] ✅ Memory RAG found {len(memory_rag_results)} relevant conversations - will inject context")
+                            else:
+                                print(f"[Generic] 🔍 Memory RAG search returned no results above threshold")
+                        else:
+                            print(f"[Generic] ⚠️ Memory RAG search failed: HTTP {memory_rag_response.status_code}")
+                    else:
+                        print(f"[Generic] 🔍 Query doesn't match stored conversations - skipping memory RAG")
+                else:
+                    # Memory container not available or error - continue without it
+                    pass
+            except requests.exceptions.RequestException as e:
+                # Memory container not available - this is OK, continue without it
+                pass
+            except Exception as e:
+                print(f"[Generic] ⚠️ Memory RAG check failed: {e}")
         
-        should_use_rag = (rag_results and len(rag_results) > 0)
-        print(f"[Generic] 🔍 Query analysis: is_personal={is_personal_query}, should_use_rag={should_use_rag}")
+        should_use_rag = (rag_results and len(rag_results) > 0) or (memory_rag_results and len(memory_rag_results) > 0)
+        should_use_memory_rag = (memory_rag_results and len(memory_rag_results) > 0)
+        print(f"[Generic] 🔍 Query analysis: is_personal={is_personal_query}, should_use_rag={should_use_rag}, should_use_memory_rag={should_use_memory_rag}")
         
         if should_use_rag and rag_results:
             try:
@@ -364,7 +410,72 @@ def handle_conversation(
                 
                 # Join with clear separators
                 rag_context = "\n\n---\n\n".join(rag_chunks)
-                print(f"[Generic] ✅ Using RAG context ({len(rag_context)} chars, ~{len(rag_context)//4} tokens) from {len(rag_chunks)} chunks for LLM response")
+                print(f"[Generic] ✅ Using document RAG context ({len(rag_context)} chars, ~{len(rag_context)//4} tokens) from {len(rag_chunks)} chunks for LLM response")
+            except Exception as e:
+                print(f"[Generic] ⚠️ RAG failed, using direct LLM: {e}")
+                import traceback
+                traceback.print_exc()
+                rag_context = ""  # Clear context on error
+        
+        # Add memory RAG results (stored conversations) to context (works independently)
+        if memory_rag_results and len(memory_rag_results) > 0:
+            try:
+                print(f"[Generic] 🔍 Memory RAG injection: '{prompt[:50]}...'")
+                memory_chunks = []
+                MAX_CHARS_PER_RESULT = 1200  # Same as document RAG
+                
+                # Sort memory results by score (highest first)
+                sorted_memory_results = sorted(memory_rag_results, key=lambda x: x.get('score', 0), reverse=True)
+                
+                for i, result in enumerate(sorted_memory_results, 1):
+                    text = result.get('text', '')
+                    score = result.get('score', 0)
+                    metadata = result.get('metadata', {})
+                    
+                    if text:
+                        # Extract conversation info
+                        conv_id = metadata.get('conversation_id', 'unknown')
+                        timestamp = metadata.get('datetime', metadata.get('timestamp', ''))
+                        source = metadata.get('source', 'unknown')
+                        
+                        # Format memory chunk
+                        if timestamp:
+                            memory_chunk = f"[Previous conversation ({timestamp})]: {text}"
+                        else:
+                            memory_chunk = f"[Previous conversation]: {text}"
+                        
+                        # Truncate if too long
+                        if len(memory_chunk) > MAX_CHARS_PER_RESULT:
+                            truncated = memory_chunk[:MAX_CHARS_PER_RESULT]
+                            last_period = max(
+                                truncated.rfind('. '),
+                                truncated.rfind('! '),
+                                truncated.rfind('? ')
+                            )
+                            if last_period > MAX_CHARS_PER_RESULT * 0.8:
+                                truncated = truncated[:last_period + 1] + "..."
+                            else:
+                                truncated = truncated + "..."
+                            memory_chunk = truncated
+                        
+                        memory_chunks.append(memory_chunk)
+                        print(f"[Generic]   [Memory {i}] Score: {score:.3f}, Source: {source}, Preview: '{text[:50]}...'")
+                
+                if memory_chunks:
+                    memory_context = "\n\n---\n\n".join(memory_chunks)
+                    # Combine with document RAG context if it exists
+                    if rag_context:
+                        rag_context = f"{rag_context}\n\n---\n\n[Stored Conversations]\n{memory_context}"
+                    else:
+                        rag_context = f"[Stored Conversations]\n{memory_context}"
+                    print(f"[Generic] ✅ Added memory RAG context ({len(memory_context)} chars) from {len(memory_chunks)} conversations")
+            except Exception as e:
+                print(f"[Generic] ⚠️ Memory RAG context building failed: {e}")
+                import traceback
+                traceback.print_exc()
+        
+        if rag_context:
+            print(f"[Generic] ✅ Using combined RAG context ({len(rag_context)} chars, ~{len(rag_context)//4} tokens) for LLM response")
             except Exception as e:
                 print(f"[Generic] ⚠️ RAG failed, using direct LLM: {e}")
                 import traceback
