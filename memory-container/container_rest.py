@@ -19,6 +19,9 @@ from memory_manager import MemoryManager
 from proactive_analyzer import ProactiveAnalyzer
 from background_listener import BackgroundListener
 
+# Import RAG client for conversation search
+from rag import get_memory_rag_client
+
 # Configure logging
 LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO").upper()
 logging.basicConfig(
@@ -77,6 +80,14 @@ def initialize_service():
             llm_service_url=LLM_SERVICE_URL
         )
         logger.info(f"[{SERVICE_NAME}] ✅ ProactiveAnalyzer initialized")
+        
+        # Initialize Memory RAG client for conversation search
+        logger.info(f"[{SERVICE_NAME}] 🔧 Initializing Memory RAG client...")
+        rag_client = get_memory_rag_client(memory_manager)
+        if rag_client:
+            logger.info(f"[{SERVICE_NAME}] ✅ Memory RAG client initialized")
+        else:
+            logger.warning(f"[{SERVICE_NAME}] ⚠️ Memory RAG client initialization failed")
         
         # Initialize background listener (but don't start yet)
         logger.info(f"[{SERVICE_NAME}] 🔧 Initializing BackgroundListener...")
@@ -289,6 +300,70 @@ def search_conversations():
         
     except Exception as e:
         logger.error(f"[{SERVICE_NAME}] Failed to search: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/rag/search', methods=['POST'])
+def rag_search():
+    """
+    RAG search endpoint for LLM containers to search stored conversations.
+    Returns results in RAG format for injection into LLM responses.
+    """
+    rag_client = get_memory_rag_client(memory_manager)
+    if not rag_client:
+        return jsonify({"error": "Memory RAG client not initialized"}), 500
+    
+    try:
+        data = request.get_json()
+        query = data.get("query", "").strip()
+        k = data.get("k", 3)
+        threshold = data.get("threshold", 0.35)
+        
+        if not query:
+            return jsonify({"error": "Query is required"}), 400
+        
+        logger.info(f"[{SERVICE_NAME}] 🔍 RAG search request: query='{query[:50]}...', k={k}, threshold={threshold}")
+        
+        # Search using Memory RAG client
+        results = rag_client.search(query, k=k, threshold=threshold)
+        
+        logger.info(f"[{SERVICE_NAME}] ✅ RAG search returned {len(results)} results")
+        
+        return jsonify({
+            "results": results
+        })
+        
+    except Exception as e:
+        logger.error(f"[{SERVICE_NAME}] ❌ RAG search failed: {e}")
+        import traceback
+        logger.debug(traceback.format_exc())
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/rag/quick-match', methods=['POST'])
+def rag_quick_match():
+    """
+    Quick content match endpoint to check if query might match stored conversations.
+    Faster than full search - used to decide if RAG should be used.
+    """
+    rag_client = get_memory_rag_client(memory_manager)
+    if not rag_client:
+        return jsonify({"error": "Memory RAG client not initialized"}), 500
+    
+    try:
+        data = request.get_json()
+        query = data.get("query", "").strip()
+        
+        if not query:
+            return jsonify({"error": "Query is required"}), 400
+        
+        # Quick match check
+        has_match = rag_client.quick_content_match(query)
+        
+        return jsonify({
+            "has_match": has_match
+        })
+        
+    except Exception as e:
+        logger.error(f"[{SERVICE_NAME}] ❌ Quick match failed: {e}")
         return jsonify({"error": str(e)}), 500
 
 @app.route('/recent', methods=['GET'])

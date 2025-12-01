@@ -34,6 +34,9 @@ COPY proactive_analyzer.py .
 COPY background_listener.py .
 COPY __init__.py .
 
+# Copy RAG module
+COPY rag/ /app/rag/
+
 # Create memory directory
 RUN mkdir -p /app/data/memory
 
