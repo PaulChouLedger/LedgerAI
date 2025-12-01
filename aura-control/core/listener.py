@@ -434,9 +434,15 @@ def is_likely_speech(features, duration=None):
         # Very low RMS + short duration = likely noise burst
         if features['rms'] < 0.020 and duration is not None and duration < 0.6:
             reasons.append(f"Borderline noise (flatness={features['spectral_flatness']:.3f}, very low RMS={features['rms']:.4f}, short={duration:.2f}s)")
-        # Moderate flatness + very low RMS = likely noise
-        elif features['spectral_flatness'] > 0.30 and features['rms'] < 0.030:
+        # Moderate-high flatness (0.26-0.30) + low RMS = likely noise
+        elif features['spectral_flatness'] > 0.26 and features['rms'] < 0.030:
             reasons.append(f"Borderline noise (flatness={features['spectral_flatness']:.3f}, low RMS={features['rms']:.4f})")
+        # High flatness (>0.30) + low RMS = likely noise
+        elif features['spectral_flatness'] > 0.30 and features['rms'] < 0.040:
+            reasons.append(f"Borderline noise (flatness={features['spectral_flatness']:.3f}, low RMS={features['rms']:.4f})")
+        # High flatness + high low-freq ratio (rumble) = likely noise
+        elif features['spectral_flatness'] > 0.28 and 'low_freq_ratio' in features and features['low_freq_ratio'] > SPEECH_LOW_FREQ_MAX:
+            reasons.append(f"Borderline noise (flatness={features['spectral_flatness']:.3f}, high low-freq={features['low_freq_ratio']:.3f})")
     
     is_speech = len(reasons) == 0
     reason = " | ".join(reasons) if reasons else "All checks passed"
