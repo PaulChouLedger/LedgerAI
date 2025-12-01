@@ -12,8 +12,8 @@ dotenv_path = os.path.join(workspace_root, '.env')
 load_dotenv(dotenv_path)
 
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-# Determine which LLM container to use based on USE_MEDICAL_MODE
-USE_MEDICAL_MODE = os.getenv("USE_MEDICAL_MODE", "true").lower() == "true"
+# Determine which LLM container to use based on USE_MEDICAL_MODE (default to generic mode)
+USE_MEDICAL_MODE = os.getenv("USE_MEDICAL_MODE", "false").lower() == "true"
 # Use port 11434 for medical mode, 11436 for generic mode
 DEFAULT_PORT = "11434" if USE_MEDICAL_MODE else "11436"
 AURA_CHAT_URL = os.getenv("AURA_CHAT_URL", f"http://127.0.0.1:{DEFAULT_PORT}/chat-tg")

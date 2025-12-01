@@ -346,7 +346,7 @@ def upload_files():
             
             # Check RAG_MODE from environment (GPU = RAG container, CPU = CPU FAISS)
             RAG_MODE = os.environ.get('RAG_MODE', 'CPU').upper()
-            USE_MEDICAL_MODE = os.environ.get('USE_MEDICAL_MODE', 'true').lower() == 'true'
+            USE_MEDICAL_MODE = os.environ.get('USE_MEDICAL_MODE', 'false').lower() == 'true'
             
             def trigger_cpu_rag_medical():
                 try:

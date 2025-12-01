@@ -244,18 +244,120 @@ def set_volume_once():
     if not VOLUME_SET:
         set_volume()
 
+def find_pulseaudio_sink_for_device(device_name="UACDemoV1.0"):
+    """Find PulseAudio sink that matches the specified device name (output device, not input)"""
+    try:
+        # Get detailed sink information
+        result = subprocess.run(
+            ["pactl", "list", "sinks"],
+            capture_output=True, text=True, check=True, timeout=2
+        )
+        
+        current_sink = None
+        sink_info_lines = []
+        in_sink_block = False
+        
+        # Parse sink information - look for device name in sink description or properties
+        for line in result.stdout.splitlines():
+            line_stripped = line.strip()
+            
+            # Start of a new sink block
+            if line_stripped.startswith("Sink #"):
+                # Process previous sink block if we have one
+                if in_sink_block and current_sink and sink_info_lines:
+                    # Check if this sink matches our device (and is not the microphone)
+                    sink_info_text = " ".join(sink_info_lines)
+                    # Look for device name but exclude microphone/input devices
+                    if device_name in sink_info_text and "XVF3800" not in sink_info_text:
+                        return current_sink
+                    # Also check for "UACDemo" (partial match) and exclude microphone
+                    if "UACDemo" in sink_info_text and "XVF3800" not in sink_info_text:
+                        return current_sink
+                
+                # Start new sink block
+                in_sink_block = True
+                current_sink = None
+                sink_info_lines = []
+            elif line_stripped.startswith("Name:"):
+                current_sink = line_stripped.split(":", 1)[1].strip()
+                sink_info_lines.append(line_stripped)
+            elif in_sink_block and current_sink:
+                sink_info_lines.append(line_stripped)
+        
+        # Process last sink block
+        if in_sink_block and current_sink and sink_info_lines:
+            sink_info_text = " ".join(sink_info_lines)
+            if device_name in sink_info_text and "XVF3800" not in sink_info_text:
+                return current_sink
+            if "UACDemo" in sink_info_text and "XVF3800" not in sink_info_text:
+                return current_sink
+        
+        # If not found by device name, try to find by ALSA card number (but exclude microphone)
+        if OUTPUT_CARD_INDEX is not None:
+            result = subprocess.run(
+                ["pactl", "list", "sinks"],
+                capture_output=True, text=True, check=True, timeout=2
+            )
+            
+            current_sink = None
+            sink_info_lines = []
+            in_sink_block = False
+            
+            for line in result.stdout.splitlines():
+                line_stripped = line.strip()
+                
+                if line_stripped.startswith("Sink #"):
+                    if in_sink_block and current_sink and sink_info_lines:
+                        sink_info_text = " ".join(sink_info_lines)
+                        # Look for card number but exclude microphone
+                        if (f"card {OUTPUT_CARD_INDEX}" in sink_info_text.lower() or 
+                            f"card{OUTPUT_CARD_INDEX}" in sink_info_text.lower()) and "XVF3800" not in sink_info_text:
+                            return current_sink
+                    
+                    in_sink_block = True
+                    current_sink = None
+                    sink_info_lines = []
+                elif line_stripped.startswith("Name:"):
+                    current_sink = line_stripped.split(":", 1)[1].strip()
+                    sink_info_lines.append(line_stripped)
+                elif in_sink_block and current_sink:
+                    sink_info_lines.append(line_stripped)
+            
+            # Process last sink
+            if in_sink_block and current_sink and sink_info_lines:
+                sink_info_text = " ".join(sink_info_lines)
+                if (f"card {OUTPUT_CARD_INDEX}" in sink_info_text.lower() or 
+                    f"card{OUTPUT_CARD_INDEX}" in sink_info_text.lower()) and "XVF3800" not in sink_info_text:
+                    return current_sink
+        
+        return None
+    except Exception as e:
+        print(f"[Speaker] ⚠️ Error finding PulseAudio sink: {e}")
+        return None
+
 def set_volume():
     """Set TTS volume - supports both ALSA and PulseAudio/PipeWire. Can be called multiple times."""
     global VOLUME_SET
     
     # Try PulseAudio/PipeWire first (modern systems)
     try:
-        # Get default sink name
-        result = subprocess.run(
-            ["pactl", "get-default-sink"],
-            capture_output=True, text=True, check=True, timeout=2
-        )
-        sink_name = result.stdout.strip()
+        # Find the correct sink for UACDemoV1.0 (output device), not the default sink
+        sink_name = find_pulseaudio_sink_for_device("UACDemoV1.0")
+        
+        if not sink_name:
+            # Fallback: try to find any sink with UACDemo in the name
+            sink_name = find_pulseaudio_sink_for_device("UACDemo")
+        
+        if not sink_name:
+            # Last resort: use default sink (may be wrong device, but better than nothing)
+            result = subprocess.run(
+                ["pactl", "get-default-sink"],
+                capture_output=True, text=True, check=True, timeout=2
+            )
+            sink_name = result.stdout.strip()
+            if sink_name:
+                print(f"[Speaker] ⚠️ Using default PulseAudio sink (may not be correct device): {sink_name}")
+        
         if sink_name:
             # Set volume to TTS_VOLUME%
             result = subprocess.run(
@@ -266,7 +368,7 @@ def set_volume():
             VOLUME_SET = True
             return
         else:
-            print(f"[Speaker] ⚠️ PulseAudio default sink name is empty")
+            print(f"[Speaker] ⚠️ Could not find PulseAudio sink for UACDemoV1.0")
     except FileNotFoundError:
         print(f"[Speaker] ⚠️ pactl not found - PulseAudio not available")
     except subprocess.CalledProcessError as e:

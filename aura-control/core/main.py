@@ -398,7 +398,7 @@ def warm_up_llm():
             llm_mode = get_llm_mode()
             USE_MEDICAL_MODE = (llm_mode == "medical")
         except Exception:
-            USE_MEDICAL_MODE = os.environ.get('USE_MEDICAL_MODE', 'true').lower() == 'true'
+            USE_MEDICAL_MODE = os.environ.get('USE_MEDICAL_MODE', 'false').lower() == 'true'
         # Both medical and generic now use port 11434
         llm_port = "11434"
         
@@ -597,8 +597,8 @@ def start_services():
         print(f"[Aura] 📋 LLM Mode from settings: {llm_mode}")
     except Exception as e:
         print(f"[Aura] ⚠️ Could not read LLM mode from settings: {e}")
-        # Fallback to environment variable
-        USE_MEDICAL_MODE = os.environ.get('USE_MEDICAL_MODE', 'true').lower() == 'true'
+        # Fallback to environment variable (default to generic mode)
+        USE_MEDICAL_MODE = os.environ.get('USE_MEDICAL_MODE', 'false').lower() == 'true'
         print(f"[Aura] 📋 Using environment variable: USE_MEDICAL_MODE={USE_MEDICAL_MODE}")
     
     if RAG_MODE == 'GPU':

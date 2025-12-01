@@ -1,7 +1,8 @@
 #!/bin/bash
-# Set default audio output to UACDemoV1.0 on boot (ALSA only)
+# Set default audio output to UACDemoV1.0 on boot (ALSA and PulseAudio)
 # This script is called by the aura.service systemd unit
-# Sets ALSA default output card via .asoundrc (output only, won't affect microphone)
+# Sets ALSA default output card via .asoundrc and PulseAudio default sink
+# (output only, won't affect microphone)
 
 # Get user home directory (script runs as the service user)
 AURA_HOME="${HOME:-/home/ledger}"
@@ -32,6 +33,32 @@ EOF
             echo "[Audio]    Created minimal .asoundrc (output only, won't affect microphone)" >&2
         else
             echo "[Audio] ✅ ALSA default output card already set to $CARD_NUM" >&2
+        fi
+        
+        # Set PulseAudio default sink to UACDemoV1.0 (if PulseAudio is available)
+        if command -v pactl >/dev/null 2>&1; then
+            # Find the PulseAudio sink for UACDemoV1.0
+            # List all sinks and look for UACDemo in the description (but not XVF3800/microphone)
+            SINK_NAME=$(pactl list sinks 2>/dev/null | grep -B 5 -A 10 "UACDemo" | grep -v "XVF3800" | grep "^Name:" | head -1 | sed 's/^Name: //' | tr -d ' ')
+            
+            # If not found by UACDemo, try to find by card number
+            if [ -z "$SINK_NAME" ]; then
+                SINK_NAME=$(pactl list sinks 2>/dev/null | grep -B 5 -A 10 "card $CARD_NUM" | grep -v "XVF3800" | grep "^Name:" | head -1 | sed 's/^Name: //' | tr -d ' ')
+            fi
+            
+            if [ -n "$SINK_NAME" ]; then
+                # Set as default sink
+                if pactl set-default-sink "$SINK_NAME" 2>/dev/null; then
+                    echo "[Audio] ✅ Set PulseAudio default sink to $SINK_NAME (UACDemoV1.0)" >&2
+                else
+                    echo "[Audio] ⚠️  Failed to set PulseAudio default sink (may need PulseAudio restart)" >&2
+                fi
+            else
+                echo "[Audio] ⚠️  Could not find PulseAudio sink for UACDemoV1.0" >&2
+                echo "[Audio]    PulseAudio may not be running or device not yet available" >&2
+            fi
+        else
+            echo "[Audio] ℹ️  PulseAudio (pactl) not available - skipping PulseAudio default sink setup" >&2
         fi
     fi
 else

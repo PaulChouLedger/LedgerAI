@@ -162,17 +162,45 @@ def chat_tts():
                 try:
                     result, token_stream = navigator.process_message(session_id, prompt, stream=True)
                     
+                    # Wrap token stream with sentence tags for TTS compatibility
+                    sentence_open = False
+                    sentence_buffer = ""
+                    SENTENCE_ENDINGS = ('.', '!', '?')
+                    
+                    # Send initial sentence_start tag
+                    yield "<sentence_start>\n"
+                    sentence_open = True
+                    
                     # Stream tokens as they're generated
                     for token in token_stream:
                         if token:  # Skip empty tokens
-                            yield f"{token}\n"
+                            token_clean = token.strip()
+                            sentence_buffer += token
+                            
+                            # Check if token ends a sentence
+                            if token_clean and token_clean[-1] in SENTENCE_ENDINGS:
+                                # End current sentence
+                                yield f"{token}\n"
+                                yield "<sentence_end>\n"
+                                sentence_buffer = ""
+                                sentence_open = False
+                                # Start next sentence immediately
+                                yield "<sentence_start>\n"
+                                sentence_open = True
+                            else:
+                                # Continue current sentence
+                                yield f"{token}\n"
+                    
+                    # Close any remaining sentence
+                    if sentence_open and sentence_buffer.strip():
+                        yield "<sentence_end>\n"
                     
                     print(f"[Medical] ✅ Streamed response complete")
                 except Exception as e:
                     print(f"[Medical] ❌ Error: {e}")
                     import traceback
                     traceback.print_exc()
-                    yield "I apologize, I encountered an error processing your request.\n"
+                    yield "<sentence_start>\nI apologize, I encountered an error processing your request.\n<sentence_end>\n"
             
             return Response(
                 stream_with_context(generate_response()),
