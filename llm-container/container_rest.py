@@ -403,11 +403,6 @@ def handle_conversation(
         
         if rag_context:
             print(f"[Generic] ✅ Using combined RAG context ({len(rag_context)} chars, ~{len(rag_context)//4} tokens) for LLM response")
-            except Exception as e:
-                print(f"[Generic] ⚠️ RAG failed, using direct LLM: {e}")
-                import traceback
-                traceback.print_exc()
-                rag_context = ""  # Clear context on error
     else:
         print(f"[Generic] ⏭️ RAG_MODE={RAG_MODE} - RAG disabled")
     
