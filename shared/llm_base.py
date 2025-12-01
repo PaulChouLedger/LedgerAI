@@ -292,10 +292,15 @@ class BaseLLMContainer:
             # Normal word processing
             yield word_to_yield
         
+        # Track if we've yielded anything
+        has_yielded_anything = False
+        
         # Process word stream
         for word in word_stream:
             if not word:
                 continue
+            
+            has_yielded_anything = True
             
             # Handle buffered word from lookahead
             if buffered_word is not None:
@@ -344,6 +349,7 @@ class BaseLLMContainer:
         
         # Handle any remaining buffered word
         if buffered_word is not None:
+            has_yielded_anything = True
             if not sentence_open:
                 yield "<sentence_start>"
                 sentence_open = True
@@ -352,6 +358,11 @@ class BaseLLMContainer:
         
         # Close any remaining open sentence
         if sentence_open and sentence_buffer.strip():
+            yield "<sentence_end>"
+        elif not has_yielded_anything:
+            # If no tokens were yielded at all, send an empty sentence to indicate completion
+            # This ensures the speaker module knows the stream ended
+            yield "<sentence_start>"
             yield "<sentence_end>"
     
     def register_health_check(self, app: Flask):
