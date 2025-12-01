@@ -8,6 +8,7 @@ import requests
 import numpy as np
 from typing import List, Dict, Optional, Tuple
 import logging
+from difflib import SequenceMatcher
 
 logger = logging.getLogger(__name__)
 
@@ -202,9 +203,42 @@ class RAGClient:
             logger.error(f"[RAG Client] ❌ Failed to initialize auto-ingestion: {e}")
             self._auto_ingest = None
     
+    def _fuzzy_match_term(self, term: str, text: str, threshold: float = 0.75) -> bool:
+        """
+        Check if a term fuzzy matches any word in the text.
+        Handles transcription errors by using fuzzy string matching.
+        
+        Args:
+            term: Term to search for
+            text: Text to search in
+            threshold: Minimum similarity ratio (0.0-1.0) for a match
+        
+        Returns:
+            True if term fuzzy matches any word in text
+        """
+        import re
+        # Extract all words from text (3+ characters to avoid matching common words)
+        text_words = re.findall(r'\b\w{3,}\b', text.lower())
+        term_lower = term.lower()
+        
+        # First try exact match (fastest)
+        if term_lower in text_words:
+            return True
+        
+        # Then try fuzzy match for transcription errors
+        for word in text_words:
+            # Only fuzzy match words of similar length (avoid false positives)
+            if abs(len(word) - len(term_lower)) <= 2:
+                similarity = SequenceMatcher(None, term_lower, word).ratio()
+                if similarity >= threshold:
+                    return True
+        
+        return False
+    
     def quick_content_match(self, query: str) -> bool:
         """
-        Quick substring match to check if query terms appear in RAG content.
+        Quick substring/fuzzy match to check if query terms appear in RAG content.
+        Uses exact substring matching first (fast), then fuzzy matching for transcription errors.
         Much faster than full semantic search - used to decide if RAG should be used.
         
         Args:
@@ -227,7 +261,7 @@ class RAGClient:
         if not key_terms:
             return False
         
-        # Quick substring match against RAG chunks
+        # Quick substring/fuzzy match against RAG chunks
         if self.use_gpu:
             # For GPU mode, we'd need to check via API, but that's slow
             # Instead, assume GPU has content if service is available
@@ -240,7 +274,7 @@ class RAGClient:
                 pass
             return False
         else:
-            # CPU mode: quick substring match against chunk text
+            # CPU mode: quick substring/fuzzy match against chunk text
             if not self._cpu_chunks or len(self._cpu_chunks) == 0:
                 # Try to reload if empty
                 if self._auto_ingest:
@@ -251,11 +285,13 @@ class RAGClient:
             if not self._cpu_chunks or len(self._cpu_chunks) == 0:
                 return False
             
-            # Check if any key term appears in any chunk text
+            # Check if any key term appears in any chunk text (exact match first, then fuzzy)
             # For medical/technical queries, check more chunks (up to 500) to catch relevant content
-            # This is still fast (substring match) compared to full semantic search
+            # This is still fast (substring/fuzzy match) compared to full semantic search
             chunks_to_check = min(500, len(self._cpu_chunks))
-            matches_found = 0
+            exact_matches = 0
+            fuzzy_matches = 0
+            
             for i in range(chunks_to_check):
                 # Chunks are strings, not dictionaries
                 chunk = self._cpu_chunks[i]
@@ -264,15 +300,23 @@ class RAGClient:
                 else:
                     chunk_text = str(chunk).lower()
                 
-                # Check if multiple key terms match (more confident match)
-                matching_terms = sum(1 for term in key_terms if term in chunk_text)
-                if matching_terms >= 2:  # At least 2 key terms match
+                # First try exact substring matching (fastest)
+                exact_matching_terms = sum(1 for term in key_terms if term in chunk_text)
+                if exact_matching_terms >= 2:  # At least 2 key terms match exactly
                     return True
-                elif matching_terms == 1 and matches_found == 0:  # First single match
-                    matches_found = 1
+                elif exact_matching_terms == 1 and exact_matches == 0:  # First single exact match
+                    exact_matches = 1
+                
+                # If no exact match, try fuzzy matching for transcription errors
+                if exact_matching_terms == 0:
+                    fuzzy_matching_terms = sum(1 for term in key_terms if self._fuzzy_match_term(term, chunk_text, threshold=0.75))
+                    if fuzzy_matching_terms >= 2:  # At least 2 key terms fuzzy match
+                        return True
+                    elif fuzzy_matching_terms == 1 and fuzzy_matches == 0:  # First single fuzzy match
+                        fuzzy_matches = 1
             
-            # If we found at least one single-term match, use RAG (better than nothing)
-            return matches_found > 0
+            # If we found at least one match (exact or fuzzy), use RAG
+            return (exact_matches > 0) or (fuzzy_matches > 0)
     
     def _expand_query(self, query: str) -> str:
         """

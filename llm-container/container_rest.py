@@ -388,25 +388,63 @@ def handle_conversation(
     if combined_context:
         # Check if RAG context is present (more authoritative than general knowledge)
         has_rag_context = "Knowledge context:" in combined_context
+        
+        # Detect if user is asking for instructions/steps
+        instruction_keywords = ['how to', 'how do i', 'steps', 'step by step', 'instructions', 'guide me', 'walk me through', 'show me how']
+        is_instruction_request = any(keyword in prompt.lower() for keyword in instruction_keywords)
+        
         if has_rag_context:
-            # Dynamic prompt construction - no hardcoded domain-specific text
-            system_content = (
-                f"{combined_context}\n\n"
-                f"Based on the context provided above, answer the following question: {prompt}\n\n"
-                "Guidelines:\n"
-                "- Synthesize information from the context sections naturally\n"
-                "- Integrate information from multiple sections when relevant\n"
-                "- Rephrase and explain in your own words rather than copying text\n"
-                "- If the context doesn't fully address the question, supplement appropriately\n"
-                "- Structure your response clearly and comprehensively"
-            )
+            # Dynamic prompt construction with Aura Vision identity
+            if is_instruction_request:
+                system_content = (
+                    f"{combined_context}\n\n"
+                    f"Based on the context provided above, answer the following question: {prompt}\n\n"
+                    "You are Aura Vision, an AI agent created by Ledger AI Quantum Corporation. "
+                    "You act as a proactive AI agent guiding users to better outcomes through gentle guidance.\n\n"
+                    "Guidelines:\n"
+                    "- Provide a clear, step-by-step response (numbered steps)\n"
+                    "- Keep each step concise and actionable\n"
+                    "- Synthesize information from the context sections naturally\n"
+                    "- Integrate information from multiple sections when relevant\n"
+                    "- Rephrase and explain in your own words rather than copying text\n"
+                    "- If the context doesn't fully address the question, supplement appropriately\n"
+                    "- Be conversational and friendly, like Siri or Alexa"
+                )
+            else:
+                system_content = (
+                    f"{combined_context}\n\n"
+                    f"Based on the context provided above, answer the following question: {prompt}\n\n"
+                    "You are Aura Vision, an AI agent created by Ledger AI Quantum Corporation. "
+                    "You act as a proactive AI agent guiding users to better outcomes through gentle guidance.\n\n"
+                    "Guidelines:\n"
+                    "- Keep responses short and conversational, like Siri or Alexa (2-3 sentences typically)\n"
+                    "- Be friendly, helpful, and concise\n"
+                    "- Synthesize information from the context sections naturally\n"
+                    "- Integrate information from multiple sections when relevant\n"
+                    "- Rephrase and explain in your own words rather than copying text\n"
+                    "- If the context doesn't fully address the question, supplement appropriately\n"
+                    "- Avoid lengthy explanations unless specifically requested"
+                )
         else:
-            # No RAG context, use standard prompt
-            system_content = (
-                f"{combined_context}\n\n"
-                f"Answer the following question: {prompt}\n\n"
-                "Provide a comprehensive, well-structured response that addresses the question thoroughly."
-            )
+            # No RAG context, use standard prompt with Aura Vision identity
+            if is_instruction_request:
+                system_content = (
+                    f"{combined_context}\n\n"
+                    f"Answer the following question: {prompt}\n\n"
+                    "You are Aura Vision, an AI agent created by Ledger AI Quantum Corporation. "
+                    "You act as a proactive AI agent guiding users to better outcomes through gentle guidance.\n\n"
+                    "Provide a clear, step-by-step response (numbered steps). Keep each step concise and actionable. "
+                    "Be conversational and friendly, like Siri or Alexa."
+                )
+            else:
+                system_content = (
+                    f"{combined_context}\n\n"
+                    f"Answer the following question: {prompt}\n\n"
+                    "You are Aura Vision, an AI agent created by Ledger AI Quantum Corporation. "
+                    "You act as a proactive AI agent guiding users to better outcomes through gentle guidance.\n\n"
+                    "Keep your response short and conversational, like Siri or Alexa (2-3 sentences typically). "
+                    "Be friendly, helpful, and concise. Avoid lengthy explanations unless specifically requested."
+                )
         
         messages = [
             {
@@ -417,7 +455,25 @@ def handle_conversation(
         return llm_chat_simple(messages, max_tokens=MAX_TOKENS_RAG_MODE, stream=stream)
 
     # Fallback to direct LLM conversation without external context
-    system_prompt = "Provide a comprehensive, well-structured response to the user's question."
+    # Detect if user is asking for instructions/steps
+    instruction_keywords = ['how to', 'how do i', 'steps', 'step by step', 'instructions', 'guide me', 'walk me through', 'show me how']
+    is_instruction_request = any(keyword in prompt.lower() for keyword in instruction_keywords)
+    
+    if is_instruction_request:
+        system_prompt = (
+            "You are Aura Vision, an AI agent created by Ledger AI Quantum Corporation. "
+            "You act as a proactive AI agent guiding users to better outcomes through gentle guidance.\n\n"
+            "Provide a clear, step-by-step response (numbered steps) to the user's question. "
+            "Keep each step concise and actionable. Be conversational and friendly, like Siri or Alexa."
+        )
+    else:
+        system_prompt = (
+            "You are Aura Vision, an AI agent created by Ledger AI Quantum Corporation. "
+            "You act as a proactive AI agent guiding users to better outcomes through gentle guidance.\n\n"
+            "Keep your response short and conversational, like Siri or Alexa (2-3 sentences typically). "
+            "Be friendly, helpful, and concise. Avoid lengthy explanations unless specifically requested."
+        )
+    
     if memory_context:
         system_prompt += f"\n\nConversation memory you can reference:\n{memory_context}"
     messages = [
