@@ -32,17 +32,17 @@ def get_fan_rpm():
     
     for path in rpm_paths:
         try:
-            result = subprocess.run(
-                ["cat", path],
-                capture_output=True,
-                text=True,
-                timeout=1
-            )
-            if result.returncode == 0:
-                rpm = int(result.stdout.strip())
+            if not Path(path).exists():
+                continue
+            # Try to read the file directly (more reliable than subprocess)
+            with open(path, 'r') as f:
+                value = f.read().strip()
+            if value and (value.isdigit() or (value.startswith('-') and value[1:].isdigit())):
+                rpm = int(value)
                 if rpm > 0:  # Valid RPM reading
                     return rpm, path
-        except (FileNotFoundError, ValueError, subprocess.TimeoutExpired):
+        except (FileNotFoundError, PermissionError, ValueError, OSError) as e:
+            # Permission errors are common - continue trying other paths
             continue
     
     # Method 2: Try sensors command (if available)
@@ -70,17 +70,28 @@ def get_fan_rpm():
 
 def get_fan_pwm():
     """Get fan PWM value (0-255) as fallback if RPM not available"""
-    try:
-        result = subprocess.run(
-            ["cat", "/sys/devices/pwm-fan/target_pwm"],
-            capture_output=True,
-            text=True,
-            timeout=1
-        )
-        if result.returncode == 0:
-            return int(result.stdout.strip())
-    except:
-        pass
+    pwm_paths = [
+        "/sys/devices/pwm-fan/target_pwm",
+        "/sys/devices/pwm-fan/pwm1",  # Alternative path
+        "/sys/class/hwmon/hwmon0/pwm1",
+        "/sys/class/hwmon/hwmon1/pwm1",
+        "/sys/class/hwmon/hwmon2/pwm1",
+        "/sys/class/hwmon/hwmon3/pwm1",
+    ]
+    
+    for path in pwm_paths:
+        try:
+            if not Path(path).exists():
+                continue
+            # Try to read the file directly
+            with open(path, 'r') as f:
+                value = f.read().strip()
+            if value and (value.isdigit() or (value.startswith('-') and value[1:].isdigit())):
+                pwm = int(value)
+                return pwm
+        except (FileNotFoundError, PermissionError, ValueError, OSError):
+            # Permission errors are common - continue trying other paths
+            continue
     return None
 
 def get_temperature():
@@ -164,11 +175,52 @@ def main():
             print(f"{'Time':<12} {'RPM':<12} {'PWM':<8} {'Temp (°C)':<12} {'Power Mode':<20}")
             print("-" * 80)
         
-        # Initial detection
+        # Initial detection - try to find available paths
+        print("[Fan Monitor] 🔍 Detecting fan monitoring paths...")
         rpm, rpm_source = get_fan_rpm()
-        if rpm is None:
-            print("[Fan Monitor] ⚠️  RPM reading not available, using PWM as fallback")
-            print("[Fan Monitor] 💡 RPM may be available via: sensors command")
+        pwm = get_fan_pwm()
+        
+        # List available fan-related paths for debugging
+        fan_paths_to_check = [
+            "/sys/devices/pwm-fan/",
+            "/sys/class/hwmon/",
+        ]
+        
+        available_paths = []
+        for base_path in fan_paths_to_check:
+            if Path(base_path).exists():
+                try:
+                    if "pwm-fan" in base_path:
+                        for item in Path(base_path).iterdir():
+                            if item.is_file():
+                                available_paths.append(str(item))
+                    elif "hwmon" in base_path:
+                        for hwmon_dir in Path(base_path).iterdir():
+                            if hwmon_dir.is_dir():
+                                for item in hwmon_dir.iterdir():
+                                    if "fan" in item.name.lower() or "pwm" in item.name.lower():
+                                        available_paths.append(str(item))
+                except PermissionError:
+                    pass
+        
+        if available_paths:
+            print(f"[Fan Monitor] 📂 Found {len(available_paths)} fan-related paths:")
+            for path in available_paths[:10]:  # Show first 10
+                print(f"  - {path}")
+            if len(available_paths) > 10:
+                print(f"  ... and {len(available_paths) - 10} more")
+        
+        if rpm is None and pwm is None:
+            print("[Fan Monitor] ⚠️  Neither RPM nor PWM reading available")
+            print("[Fan Monitor] 💡 Try: sudo apt install lm-sensors && sudo sensors-detect")
+            print("[Fan Monitor] 💡 Or check: ls -la /sys/devices/pwm-fan/")
+            print()
+        elif rpm is None:
+            print(f"[Fan Monitor] ⚠️  RPM reading not available, using PWM as fallback")
+            print(f"[Fan Monitor] 📍 PWM source: /sys/devices/pwm-fan/target_pwm")
+            print()
+        else:
+            print(f"[Fan Monitor] ✅ RPM reading available from: {rpm_source}")
             print()
         
         # Main monitoring loop
