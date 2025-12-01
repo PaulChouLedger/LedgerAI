@@ -856,12 +856,20 @@ def tts_playback_thread(text, tts_start_time):
             if not first_chunk:
                 raise RuntimeError("No audio received")
 
-            # Use ALSA default device with plug plugin for automatic format conversion
+            # Use detected output device (UACDemoV1.0) with plug plugin for automatic format conversion
             # This ensures proper conversion from TTS mono 22050 Hz to device's native format
-            # Using default avoids "Device or resource busy" errors from direct hardware access
             # The plug plugin handles all format conversions automatically
+            if OUTPUT_CARD_INDEX is not None:
+                # Use detected output device (UACDemoV1.0)
+                alsa_device = f"plughw:{OUTPUT_CARD_INDEX},0"
+                print(f"[Speaker] 🔊 Playing TTS on detected device: {OUTPUT_DEVICE_NAME} (card {OUTPUT_CARD_INDEX})")
+            else:
+                # Fallback to default if device not detected
+                alsa_device = "plug:default"
+                print(f"[Speaker] 🔊 Playing TTS on default device (output device not detected)")
+            
             proc = subprocess.Popen(
-                ["aplay", "-D", "plug:default", "-f", "S16_LE", "-r", str(PCM_SAMPLE_RATE), "-c", "1"],
+                ["aplay", "-D", alsa_device, "-f", "S16_LE", "-r", str(PCM_SAMPLE_RATE), "-c", "1"],
                 stdin=subprocess.PIPE,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL
