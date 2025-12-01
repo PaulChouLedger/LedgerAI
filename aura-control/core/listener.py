@@ -46,7 +46,7 @@ ENABLE_ADVANCED_FILTER = True
 
 # Thresholds tuned from empirical testing
 SPEECH_ZCR_MAX = 0.40           # Reject if ZCR > this
-SPEECH_FLATNESS_MAX = 0.40      # Increased to allow natural speech variations (speech ~0.01-0.4, noise ~0.5-1.0) - some speech can have flatness up to 0.38
+SPEECH_FLATNESS_MAX = 0.30      # Balanced threshold (speech ~0.01-0.25, noise ~0.3-1.0) - reject borderline noise while allowing natural speech
 SPEECH_CENTROID_MIN = 300       # Hz - reject if too low (rumble/fan)
 SPEECH_CENTROID_MAX = 3000      # Hz - reject if too high (hiss)
 SPEECH_BAND_MIN = 0.30          # Reject if insufficient energy in speech band
@@ -56,9 +56,9 @@ SPEECH_LOW_FREQ_MAX = 0.05      # Reject if too much low-frequency energy (rumbl
 
 # CRITICAL: Energy thresholds (most reliable discriminators)
 # Updated after firmware tweaks - speech now has lower RMS/Peak values
-SPEECH_RMS_MIN = 0.0011         # Lower RMS threshold to accept quieter speech
+SPEECH_RMS_MIN = 0.015          # Increased minimum RMS to reject very quiet noise bursts (was 0.0011, too low)
 SPEECH_RMS_MAX = 0.40           # Reject if RMS > this (abnormally loud = likely noise/artifact)
-SPEECH_PEAK_MIN = 0.0023        # Lower peak threshold to accept softer speech
+SPEECH_PEAK_MIN = 0.020         # Increased minimum peak to reject very quiet noise (was 0.0023, too low)
 
 # BARE-BONES: Hardware DSP → Channel 0 → VAD → Advanced Filter → Whisper
 
@@ -428,11 +428,15 @@ def is_likely_speech(features, duration=None):
     if 'low_freq_ratio' in features and features['low_freq_ratio'] > SPEECH_LOW_FREQ_MAX:
         reasons.append(f"Low freq rumble ({features['low_freq_ratio']:.3f} > {SPEECH_LOW_FREQ_MAX})")
     
-    # Combined check: Very high flatness + low energy + short duration = likely noise
-    # Only reject if flatness is clearly in noise range (0.5+) AND other features suggest noise
-    if features['spectral_flatness'] > 0.50:  # Clearly in noise range (not borderline speech)
-        if features['rms'] < 0.030 and duration is not None and duration < 0.5:
-            reasons.append(f"Borderline noise (flatness={features['spectral_flatness']:.3f}, low RMS={features['rms']:.4f}, short={duration:.2f}s)")
+    # Combined check: High flatness + low energy + short duration = likely noise
+    # Reject borderline cases that have multiple noise indicators
+    if features['spectral_flatness'] > 0.25:  # Above typical speech range
+        # Very low RMS + short duration = likely noise burst
+        if features['rms'] < 0.020 and duration is not None and duration < 0.6:
+            reasons.append(f"Borderline noise (flatness={features['spectral_flatness']:.3f}, very low RMS={features['rms']:.4f}, short={duration:.2f}s)")
+        # Moderate flatness + very low RMS = likely noise
+        elif features['spectral_flatness'] > 0.30 and features['rms'] < 0.030:
+            reasons.append(f"Borderline noise (flatness={features['spectral_flatness']:.3f}, low RMS={features['rms']:.4f})")
     
     is_speech = len(reasons) == 0
     reason = " | ".join(reasons) if reasons else "All checks passed"
