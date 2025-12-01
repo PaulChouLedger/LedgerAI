@@ -53,8 +53,7 @@ COPY medical/guidelines/ /app/medical/guidelines/
 # This ensures that any change to any Python file only invalidates this single layer
 COPY container_rest.py advanced_medical_navigator.py fuzzy_medical_matcher.py ./
 
-# Copy RAG module (organized structure)
-COPY rag/ /app/rag/
+# Note: RAG module is now in /shared/rag/ (mounted via docker-compose.yml)
 
 # Note: medical_terms.json is mounted at /shared/medical_terms.json (see docker-compose.yml)
 

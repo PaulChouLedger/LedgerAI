@@ -1,0 +1,717 @@
+"""
+RAG Client - Modular RAG system with GPU/CPU fallback
+Supports both external RAG container (GPU) and internal FAISS (CPU)
+"""
+
+import os
+import requests
+import numpy as np
+from typing import List, Dict, Optional, Tuple
+import logging
+from difflib import SequenceMatcher
+
+logger = logging.getLogger(__name__)
+
+# Configuration
+RAG_MODE = os.environ.get('RAG_MODE', 'CPU').upper()  # GPU = RAG container, CPU = CPU FAISS
+RAG_SERVICE_URL = os.environ.get('RAG_SERVICE_URL', 'http://localhost:11435')
+RAG_TIMEOUT = int(os.environ.get('RAG_TIMEOUT', '10'))
+
+# RAG Search Configuration
+RAG_SEARCH_THRESHOLD = float(os.environ.get('RAG_SEARCH_THRESHOLD', '0.30'))  # Similarity threshold (0-1), lower = more results (lowered to 0.30 for better recall)
+RAG_SEARCH_K = int(os.environ.get('RAG_SEARCH_K', '3'))  # Number of results to return (default: 3)
+
+class RAGClient:
+    """
+    Unified RAG client that supports both GPU (external container) and CPU (local) modes
+    
+    GPU Mode:
+        - Uses HTTP API calls to external RAG container
+        - GPU-accelerated FAISS for faster searches on large datasets
+        - Network overhead for small queries, but faster for large batches
+        - Better for distributed systems and production deployments
+    
+    CPU Mode:
+        - Direct in-process FAISS operations
+        - Faster for small queries (no network overhead)
+        - Simpler (no external dependencies)
+        - All operations happen locally within the LLM container
+        - Better for development and systems without GPU
+    """
+    
+    def __init__(self, use_gpu: bool = None):
+        """
+        Initialize RAG client
+        
+        Args:
+            use_gpu: Force GPU mode (True) or CPU mode (False). If None, uses RAG_MODE env var
+        """
+        self.use_gpu = (RAG_MODE == 'GPU') if use_gpu is None else use_gpu
+        self._cpu_rag = None
+        self._mode = "GPU (External RAG Container - HTTP API)" if self.use_gpu else "CPU (Local FAISS - In-Process)"
+        
+        logger.info(f"[RAG Client] Initialized in {self._mode} mode")
+        
+        if self.use_gpu:
+            self._check_rag_service()
+        else:
+            # CPU mode: Initialize local FAISS - NO HTTP calls needed!
+            self._initialize_cpu_rag()
+    
+    def _check_rag_service(self) -> bool:
+        """Check if external RAG service is available"""
+        try:
+            response = requests.get(f"{RAG_SERVICE_URL}/health", timeout=2)
+            if response.status_code == 200:
+                logger.info(f"[RAG Client] ✅ RAG service available at {RAG_SERVICE_URL}")
+                return True
+            else:
+                logger.warning(f"[RAG Client] ⚠️ RAG service unhealthy: {response.status_code}")
+                return False
+        except Exception as e:
+            logger.error(f"[RAG Client] ❌ RAG service unavailable: {e}")
+            logger.info(f"[RAG Client] 🔄 Falling back to CPU mode")
+            self.use_gpu = False
+            self._mode = "CPU (Local FAISS - Fallback)"
+            self._initialize_cpu_rag()
+            return False
+    
+    def _initialize_cpu_rag(self):
+        """Initialize local CPU-based RAG system with auto-ingestion"""
+        try:
+            from sentence_transformers import SentenceTransformer
+            import faiss
+            
+            logger.info("[RAG Client] 🔧 Initializing CPU RAG system with auto-ingestion...")
+            
+            # Use all-distilroberta-v1 (benchmarked as best performing model)
+            self._embedding_model = SentenceTransformer('all-distilroberta-v1')
+            self._embedding_dim = 768
+            
+            # Initialize FAISS CPU index
+            self._cpu_index = None
+            self._cpu_chunks = []
+            self._cpu_metadata = []
+            
+            # Initialize auto-ingestion system
+            self._initialize_auto_ingestion()
+            
+            # Try to load pre-existing index
+            self._load_cpu_index()
+            
+            logger.info("[RAG Client] ✅ CPU RAG system initialized with auto-ingestion")
+            
+        except ImportError as e:
+            logger.error(f"[RAG Client] ❌ Failed to import CPU RAG dependencies: {e}")
+            logger.error("[RAG Client] Install with: pip install sentence-transformers faiss-cpu")
+            raise
+        except Exception as e:
+            logger.error(f"[RAG Client] ❌ Failed to initialize CPU RAG: {e}")
+            raise
+    
+    def _load_cpu_index(self):
+        """Load existing FAISS index from disk"""
+        print("[RAG Client] 📂 Attempting to load CPU FAISS index from disk...")
+        # Use absolute path to match auto-ingest system (/app/data/embeddings)
+        # This matches the path used in cpu_faiss_auto_ingest.py
+        index_path = "/app/data/embeddings"
+        print(f"[RAG Client] 📂 Index path: {index_path}")
+        
+        try:
+            import faiss
+            import pickle
+            
+            faiss_index_path = os.path.join(index_path, 'faiss_index.bin')
+            metadata_path = os.path.join(index_path, 'metadata.pkl')
+            
+            print(f"[RAG Client] 📂 Checking for index: {faiss_index_path}")
+            print(f"[RAG Client] 📂 Checking for metadata: {metadata_path}")
+            
+            if os.path.exists(faiss_index_path) and os.path.exists(metadata_path):
+                print("[RAG Client] ✅ Found existing index files, loading...")
+                self._cpu_index = faiss.read_index(faiss_index_path)
+                
+                with open(metadata_path, 'rb') as f:
+                    data = pickle.load(f)
+                    self._cpu_chunks = data.get('chunks', [])
+                    self._cpu_metadata = data.get('metadata', [])
+                
+                print(f"[RAG Client] ✅ Loaded {len(self._cpu_chunks)} chunks from CPU index")
+                logger.info(f"[RAG Client] ✅ Loaded {len(self._cpu_chunks)} chunks from CPU index")
+            else:
+                print(f"[RAG Client] ⚠️ No existing CPU index found at {index_path}")
+                print(f"[RAG Client] ⚠️ Index exists: {os.path.exists(faiss_index_path)}, Metadata exists: {os.path.exists(metadata_path)}")
+                logger.warning("[RAG Client] ⚠️ No existing CPU index found")
+                # Create empty index
+                import faiss
+                self._cpu_index = faiss.IndexFlatL2(self._embedding_dim)
+                
+        except Exception as e:
+            print(f"[RAG Client] ❌ Failed to load CPU index: {e}")
+            logger.error(f"[RAG Client] ❌ Failed to load CPU index: {e}")
+            import traceback
+            traceback.print_exc()
+            # Create empty index as fallback
+            import faiss
+            self._cpu_index = faiss.IndexFlatL2(self._embedding_dim)
+    
+    def _initialize_auto_ingestion(self):
+        """Initialize auto-ingestion system for CPU FAISS"""
+        try:
+            # Import the auto-ingestion system
+            from .cpu_faiss_auto_ingest import CPUFAISSAutoIngest
+            
+            print("[RAG Client] 🔄 Initializing auto-ingestion system...")
+            # Initialize auto-ingestion
+            self._auto_ingest = CPUFAISSAutoIngest()
+            
+            # Load existing embeddings
+            print("[RAG Client] 📂 Loading existing embeddings...")
+            if self._auto_ingest.load_existing_embeddings():
+                print("[RAG Client] ✅ Loaded existing embeddings via auto-ingestion")
+                logger.info("[RAG Client] ✅ Loaded existing embeddings via auto-ingestion")
+            else:
+                print("[RAG Client] ⚠️ No existing embeddings found, will scan input directory")
+                logger.info("[RAG Client] ⚠️ No existing embeddings found, will process on first scan")
+            
+            # Run initial scan to process any missing files
+            print("[RAG Client] 🔍 Running initial scan for missing files...")
+            scan_result = self._auto_ingest.scan_and_process()
+            if scan_result['processed'] > 0:
+                print(f"[RAG Client] ✅ Initial scan processed {scan_result['processed']} file(s)")
+                # Reload embeddings after processing
+                self._auto_ingest.load_existing_embeddings()
+                # Update our local references
+                self._cpu_chunks = self._auto_ingest.chunks
+                self._cpu_metadata = self._auto_ingest.metadata
+                # Rebuild index if we have chunks
+                if self._cpu_chunks and len(self._cpu_chunks) > 0:
+                    print(f"[RAG Client] 🔧 Rebuilding FAISS index with {len(self._cpu_chunks)} chunks...")
+                    self._rebuild_cpu_index()
+            else:
+                print(f"[RAG Client] ℹ️ Initial scan: {scan_result['processed']} processed, {scan_result['skipped']} skipped")
+            
+            # Start file watching
+            self._auto_ingest.start_watching()
+            print(f"[RAG Client] 👀 Started auto-ingestion file watching: {self._auto_ingest.input_dir}")
+            logger.info("[RAG Client] 👀 Started auto-ingestion file watching")
+            
+        except ImportError as e:
+            logger.warning(f"[RAG Client] ⚠️ Auto-ingestion not available: {e}")
+            self._auto_ingest = None
+        except Exception as e:
+            logger.error(f"[RAG Client] ❌ Failed to initialize auto-ingestion: {e}")
+            self._auto_ingest = None
+    
+    def _fuzzy_match_term(self, term: str, text: str, threshold: float = 0.75) -> bool:
+        """
+        Check if a term fuzzy matches any word in the text.
+        Handles transcription errors by using fuzzy string matching.
+        
+        Args:
+            term: Term to search for
+            text: Text to search in
+            threshold: Minimum similarity ratio (0.0-1.0) for a match
+        
+        Returns:
+            True if term fuzzy matches any word in text
+        """
+        import re
+        # Extract all words from text (3+ characters to avoid matching common words)
+        text_words = re.findall(r'\b\w{3,}\b', text.lower())
+        term_lower = term.lower()
+        
+        # First try exact match (fastest)
+        if term_lower in text_words:
+            return True
+        
+        # Then try fuzzy match for transcription errors
+        for word in text_words:
+            # Only fuzzy match words of similar length (avoid false positives)
+            if abs(len(word) - len(term_lower)) <= 2:
+                similarity = SequenceMatcher(None, term_lower, word).ratio()
+                if similarity >= threshold:
+                    return True
+        
+        return False
+    
+    def quick_content_match(self, query: str) -> bool:
+        """
+        Quick substring/fuzzy match to check if query terms appear in RAG content.
+        Uses exact substring matching first (fast), then fuzzy matching for transcription errors.
+        Much faster than full semantic search - used to decide if RAG should be used.
+        
+        Args:
+            query: Search query
+        
+        Returns:
+            True if query terms match any RAG content, False otherwise
+        """
+        if not query or not query.strip():
+            return False
+        
+        # Extract key terms from query (remove common stop words)
+        stop_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'i', 'you', 'he', 'she', 'it', 'we', 'they', 'is', 'are', 'was', 'were', 'do', 'does', 'did', 'how', 'what', 'when', 'where', 'why', 'can', 'could', 'should', 'would', 'may', 'might', 'must'}
+        query_lower = query.lower()
+        # Extract words (2+ characters) that aren't stop words
+        import re
+        words = re.findall(r'\b\w{2,}\b', query_lower)
+        key_terms = [w for w in words if w not in stop_words]
+        
+        if not key_terms:
+            return False
+        
+        # Quick substring/fuzzy match against RAG chunks
+        if self.use_gpu:
+            # For GPU mode, we'd need to check via API, but that's slow
+            # Instead, assume GPU has content if service is available
+            try:
+                response = requests.get(f"{RAG_SERVICE_URL}/rag/stats", timeout=1)
+                if response.status_code == 200:
+                    stats = response.json()
+                    return stats.get('chunks_loaded', 0) > 0
+            except:
+                pass
+            return False
+        else:
+            # CPU mode: quick substring/fuzzy match against chunk text
+            if not self._cpu_chunks or len(self._cpu_chunks) == 0:
+                # Try to reload if empty
+                if self._auto_ingest:
+                    if self._auto_ingest.load_existing_embeddings():
+                        self._cpu_chunks = self._auto_ingest.chunks
+                        self._cpu_metadata = self._auto_ingest.metadata
+            
+            if not self._cpu_chunks or len(self._cpu_chunks) == 0:
+                return False
+            
+            # Check if any key term appears in any chunk text (exact match first, then fuzzy)
+            # For medical/technical queries, check more chunks (up to 500) to catch relevant content
+            # This is still fast (substring/fuzzy match) compared to full semantic search
+            chunks_to_check = min(500, len(self._cpu_chunks))
+            exact_matches = 0
+            fuzzy_matches = 0
+            
+            for i in range(chunks_to_check):
+                # Chunks are strings, not dictionaries
+                chunk = self._cpu_chunks[i]
+                if isinstance(chunk, dict):
+                    chunk_text = chunk.get('text', '').lower()
+                else:
+                    chunk_text = str(chunk).lower()
+                
+                # First try exact substring matching (fastest)
+                exact_matching_terms = sum(1 for term in key_terms if term in chunk_text)
+                if exact_matching_terms >= 2:  # At least 2 key terms match exactly
+                    return True
+                elif exact_matching_terms == 1 and exact_matches == 0:  # First single exact match
+                    exact_matches = 1
+                
+                # If no exact match, try fuzzy matching for transcription errors
+                if exact_matching_terms == 0:
+                    fuzzy_matching_terms = sum(1 for term in key_terms if self._fuzzy_match_term(term, chunk_text, threshold=0.75))
+                    if fuzzy_matching_terms >= 2:  # At least 2 key terms fuzzy match
+                        return True
+                    elif fuzzy_matching_terms == 1 and fuzzy_matches == 0:  # First single fuzzy match
+                        fuzzy_matches = 1
+            
+            # If we found at least one match (exact or fuzzy), use RAG
+            return (exact_matches > 0) or (fuzzy_matches > 0)
+    
+    def _expand_query(self, query: str) -> str:
+        """
+        Expand query with basic linguistic variations to improve retrieval
+        
+        Generic approach: handles common word forms and variations
+        """
+        import re
+        
+        # Basic linguistic expansions (generic, not domain-specific)
+        # Handle common word variations
+        query_lower = query.lower()
+        
+        # Simple pluralization/singularization handling
+        # This is generic and works for any domain
+        words = query.split()
+        expanded_words = []
+        
+        for word in words:
+            word_lower = word.lower()
+            # Add common variations
+            if word_lower.endswith('s') and len(word_lower) > 3:
+                # Try singular form
+                singular = word_lower[:-1]
+                if singular not in expanded_words:
+                    expanded_words.append(singular)
+            elif len(word_lower) > 3:
+                # Try plural form
+                plural = word_lower + 's'
+                if plural not in expanded_words:
+                    expanded_words.append(plural)
+            expanded_words.append(word_lower)
+        
+        # Use original query for embedding (expansions handled in keyword matching)
+        return query
+    
+    def _rerank_results(self, query: str, results: List[Dict], top_k: int = None) -> List[Dict]:
+        """
+        Re-rank search results using cross-encoder or keyword matching
+        
+        Improves relevance by considering query-chunk interaction
+        """
+        if not results:
+            return results
+        
+        import re
+        
+        # Extract key terms from query (non-stopwords)
+        stop_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'are', 'was', 'were'}
+        query_terms = [w.lower() for w in re.findall(r'\b\w+\b', query.lower()) if w not in stop_words and len(w) > 2]
+        
+        # Score each result based on keyword matches and semantic score
+        reranked = []
+        for result in results:
+            text = result.get('text', '').lower()
+            semantic_score = result.get('score', 0.0)
+            
+            # Count keyword matches
+            keyword_matches = sum(1 for term in query_terms if term in text)
+            keyword_score = keyword_matches / max(len(query_terms), 1) if query_terms else 0
+            
+            # Combined score: 70% semantic, 30% keyword
+            combined_score = 0.7 * semantic_score + 0.3 * keyword_score
+            
+            reranked.append({
+                **result,
+                'score': combined_score,
+                'original_score': semantic_score,
+                'keyword_score': keyword_score
+            })
+        
+        # Sort by combined score (descending)
+        reranked.sort(key=lambda x: x['score'], reverse=True)
+        
+        # Return top_k if specified
+        if top_k is not None:
+            return reranked[:top_k]
+        
+        return reranked
+    
+    def search(self, query: str, k: int = None, threshold: float = None, rerank: bool = True) -> List[Dict]:
+        """
+        Search for relevant information with improved retrieval
+        
+        Args:
+            query: Search query
+            k: Number of results to return (default: RAG_SEARCH_K)
+            threshold: Similarity threshold 0-1 (default: RAG_SEARCH_THRESHOLD)
+            rerank: Whether to re-rank results for better relevance (default: True)
+        
+        Returns:
+            List of search results with text, score, and metadata
+        """
+        # Use configuration defaults if not provided
+        if k is None:
+            k = RAG_SEARCH_K
+        if threshold is None:
+            threshold = RAG_SEARCH_THRESHOLD
+        
+        # Expand query for better retrieval
+        expanded_query = self._expand_query(query)
+        
+        # Search with expanded query (but use original for embedding)
+        if self.use_gpu:
+            results = self._search_gpu(expanded_query, k * 2, threshold * 0.8)  # Get more candidates for re-ranking
+        else:
+            results = self._search_cpu(expanded_query, k * 2, threshold * 0.8)  # Get more candidates for re-ranking
+        
+        # Re-rank results if enabled
+        if rerank and results:
+            results = self._rerank_results(query, results, top_k=k)
+            # Re-apply threshold after re-ranking
+            results = [r for r in results if r['score'] >= threshold]
+        
+        return results[:k]  # Return top k results
+    
+    def _search_gpu(self, query: str, k: int, threshold: float) -> List[Dict]:
+        """Search using external RAG container (GPU)"""
+        print(f"[RAG Client] 🚀 GPU search: query='{query[:50]}...', k={k}, threshold={threshold}")
+        try:
+            response = requests.post(
+                f"{RAG_SERVICE_URL}/rag/search",
+                json={"query": query, "k": k, "threshold": threshold},
+                timeout=RAG_TIMEOUT
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                results = data.get('results', [])
+                print(f"[RAG Client] ✅ GPU search returned {len(results)} results")
+                return results
+            else:
+                print(f"[RAG Client] ❌ GPU search failed: HTTP {response.status_code}")
+                logger.error(f"[RAG Client] GPU search failed: {response.status_code}")
+                return []
+                
+        except requests.exceptions.Timeout:
+            print(f"[RAG Client] ⏱️ GPU search timeout after {RAG_TIMEOUT}s")
+            logger.error(f"[RAG Client] GPU search timeout after {RAG_TIMEOUT}s")
+            return []
+        except Exception as e:
+            print(f"[RAG Client] ❌ GPU search error: {e}")
+            logger.error(f"[RAG Client] GPU search error: {e}")
+            return []
+    
+    def _search_cpu(self, query: str, k: int, threshold: float) -> List[Dict]:
+        """Search using local CPU FAISS"""
+        print(f"[RAG Client] 🔍 CPU search: query='{query[:50]}...', k={k}, threshold={threshold}")
+        try:
+            # Try to reload index if it might be empty but files exist
+            if (self._cpu_index is None or len(self._cpu_chunks) == 0) and self._auto_ingest:
+                print("[RAG Client] 🔄 Index appears empty, attempting to reload...")
+                self._load_cpu_index()
+                # Also try reloading from auto-ingest
+                if self._auto_ingest.load_existing_embeddings():
+                    self._cpu_chunks = self._auto_ingest.chunks
+                    self._cpu_metadata = self._auto_ingest.metadata
+                    if self._cpu_chunks and len(self._cpu_chunks) > 0:
+                        self._rebuild_cpu_index()
+            
+            if self._cpu_index is None or len(self._cpu_chunks) == 0:
+                print(f"[RAG Client] ⚠️ CPU index is empty (no documents indexed)")
+                logger.warning("[RAG Client] CPU index is empty")
+                return []
+            
+            print(f"[RAG Client] 📊 CPU index: {len(self._cpu_chunks)} chunks available")
+            
+            # Generate query embedding
+            query_embedding = self._embedding_model.encode([query])[0]
+            query_embedding = np.array([query_embedding]).astype('float32')
+            
+            # Detect index type and handle accordingly
+            # IndexFlatIP returns similarity scores (higher = more similar)
+            # IndexFlatL2 returns distances (lower = more similar)
+            index_type = type(self._cpu_index).__name__
+            is_inner_product = 'IP' in index_type or 'InnerProduct' in index_type
+            
+            if is_inner_product:
+                # For IndexFlatIP: normalize query embedding for cosine similarity
+                import faiss
+                query_embedding = query_embedding.reshape(1, -1)
+                faiss.normalize_L2(query_embedding)
+                query_embedding = query_embedding.flatten()
+            
+            # Search FAISS index
+            search_results, indices = self._cpu_index.search(query_embedding.reshape(1, -1), k)
+            
+            # Convert to similarity scores
+            if is_inner_product:
+                # IndexFlatIP: results are already similarity scores (inner product = cosine similarity when normalized)
+                # Values range from -1 to 1, but typically 0 to 1 for normalized embeddings
+                scores = search_results[0]
+            else:
+                # IndexFlatL2: results are distances, convert to similarity
+                # Lower distance = higher similarity
+                scores = 1 / (1 + search_results[0])
+            
+            # Filter by threshold and build results
+            # First, collect ALL matches (including below threshold) for debugging
+            all_matches = []
+            for idx, score in zip(indices[0], scores):
+                if idx < len(self._cpu_chunks):
+                    all_matches.append({
+                        'text': self._cpu_chunks[idx],
+                        'score': float(score),
+                        'metadata': self._cpu_metadata[idx] if idx < len(self._cpu_metadata) else {}
+                    })
+            
+            # Show all matches for debugging (even below threshold)
+            print(f"[RAG Client] 🔍 DEBUG: All {len(all_matches)} matches (showing top {min(k, len(all_matches))}):")
+            for i, match in enumerate(all_matches[:k], 1):
+                # Extract file name from metadata
+                file_name = "unknown"
+                if isinstance(match.get('metadata'), dict):
+                    file_path = match['metadata'].get('file_path', '')
+                    if file_path:
+                        from pathlib import Path
+                        file_name = Path(file_path).name
+                    else:
+                        file_name = match['metadata'].get('document_name', 'unknown')
+                threshold_status = "✅" if match['score'] >= threshold else "❌"
+                print(f"[RAG Client]   [{i}] {threshold_status} Score: {match['score']:.3f} (threshold: {threshold:.3f}), File: {file_name}, Preview: '{match['text'][:50]}...'")
+            
+            # Filter by threshold
+            results = [match for match in all_matches if match['score'] >= threshold]
+            
+            print(f"[RAG Client] ✅ CPU search found {len(results)} results above threshold={threshold} (out of {len(all_matches)} total matches)")
+            if results:
+                for i, result in enumerate(results, 1):
+                    # Extract file name from metadata
+                    file_name = "unknown"
+                    if isinstance(result.get('metadata'), dict):
+                        file_path = result['metadata'].get('file_path', '')
+                        if file_path:
+                            from pathlib import Path
+                            file_name = Path(file_path).name
+                        else:
+                            file_name = result['metadata'].get('document_name', 'unknown')
+                    print(f"[RAG Client]   [{i}] Score: {result['score']:.3f}, File: {file_name}, Preview: '{result['text'][:50]}...'")
+            logger.info(f"[RAG Client] CPU search found {len(results)} results (threshold={threshold})")
+            return results
+            
+        except Exception as e:
+            print(f"[RAG Client] ❌ CPU search error: {e}")
+            logger.error(f"[RAG Client] ❌ CPU search error: {e}")
+            import traceback
+            traceback.print_exc()
+            return []
+    
+    def _rebuild_cpu_index(self):
+        """Rebuild FAISS index from current chunks"""
+        try:
+            import faiss
+            if not self._cpu_chunks or len(self._cpu_chunks) == 0:
+                print("[RAG Client] ⚠️ No chunks to rebuild index")
+                return
+            
+            print(f"[RAG Client] 🔧 Generating embeddings for {len(self._cpu_chunks)} chunks...")
+            embeddings = self._embedding_model.encode(self._cpu_chunks)
+            embeddings = np.array(embeddings).astype('float32')
+            
+            # Normalize embeddings for cosine similarity (required for IndexFlatIP)
+            faiss.normalize_L2(embeddings)
+            print(f"[RAG Client] ✅ Normalized embeddings for cosine similarity")
+            
+            print(f"[RAG Client] 🔧 Creating FAISS index (IndexFlatIP for cosine similarity)...")
+            self._cpu_index = faiss.IndexFlatIP(self._embedding_dim)
+            self._cpu_index.add(embeddings)
+            
+            print(f"[RAG Client] ✅ Rebuilt FAISS index: {self._cpu_index.ntotal} vectors")
+            logger.info(f"[RAG Client] ✅ Rebuilt FAISS index: {self._cpu_index.ntotal} vectors")
+        except Exception as e:
+            print(f"[RAG Client] ❌ Failed to rebuild CPU index: {e}")
+            logger.error(f"[RAG Client] ❌ Failed to rebuild CPU index: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    def embed(self, texts: List[str]) -> List[List[float]]:
+        """
+        Generate embeddings for texts
+        
+        Args:
+            texts: List of texts to embed
+        
+        Returns:
+            List of embedding vectors
+        """
+        if self.use_gpu:
+            return self._embed_gpu(texts)
+        else:
+            return self._embed_cpu(texts)
+    
+    def _embed_gpu(self, texts: List[str]) -> List[List[float]]:
+        """Generate embeddings using external RAG container (GPU)"""
+        try:
+            response = requests.post(
+                f"{RAG_SERVICE_URL}/embed",
+                json={"texts": texts},
+                timeout=RAG_TIMEOUT
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                return data.get('embeddings', [])
+            else:
+                logger.error(f"[RAG Client] GPU embedding failed: {response.status_code}")
+                return []
+                
+        except Exception as e:
+            logger.error(f"[RAG Client] GPU embedding error: {e}")
+            return []
+    
+    def _embed_cpu(self, texts: List[str]) -> List[List[float]]:
+        """Generate embeddings using local CPU model"""
+        try:
+            embeddings = self._embedding_model.encode(texts)
+            return embeddings.tolist()
+        except Exception as e:
+            logger.error(f"[RAG Client] CPU embedding error: {e}")
+            return []
+    
+    def get_guideline(self, guideline_name: str) -> Dict:
+        """
+        Get all chunks for a specific guideline
+        
+        Args:
+            guideline_name: Name of the guideline
+        
+        Returns:
+            Dictionary with guideline chunks and metadata
+        """
+        if self.use_gpu:
+            return self._get_guideline_gpu(guideline_name)
+        else:
+            return self._get_guideline_cpu(guideline_name)
+    
+    def _get_guideline_gpu(self, guideline_name: str) -> Dict:
+        """Get guideline using external RAG container (GPU)"""
+        try:
+            response = requests.get(
+                f"{RAG_SERVICE_URL}/rag/guideline/{guideline_name}",
+                timeout=RAG_TIMEOUT
+            )
+            
+            if response.status_code == 200:
+                return response.json()
+            else:
+                logger.error(f"[RAG Client] GPU guideline fetch failed: {response.status_code}")
+                return {}
+                
+        except Exception as e:
+            logger.error(f"[RAG Client] GPU guideline fetch error: {e}")
+            return {}
+    
+    def _get_guideline_cpu(self, guideline_name: str) -> Dict:
+        """Get guideline from local CPU index"""
+        try:
+            # Filter chunks by guideline name in metadata
+            guideline_chunks = []
+            for i, metadata in enumerate(self._cpu_metadata):
+                if metadata.get('guideline_name') == guideline_name:
+                    guideline_chunks.append({
+                        'text': self._cpu_chunks[i],
+                        'metadata': metadata
+                    })
+            
+            return {
+                'guideline_name': guideline_name,
+                'chunks': guideline_chunks,
+                'total': len(guideline_chunks)
+            }
+            
+        except Exception as e:
+            logger.error(f"[RAG Client] CPU guideline fetch error: {e}")
+            return {}
+    
+    def get_mode(self) -> str:
+        """Get current RAG mode"""
+        return self._mode
+    
+    def is_gpu_enabled(self) -> bool:
+        """Check if GPU mode is enabled"""
+        return self.use_gpu
+
+
+# Singleton instance
+_rag_client = None
+
+def get_rag_client(use_gpu: bool = None) -> RAGClient:
+    """Get or create RAG client singleton"""
+    global _rag_client
+    if _rag_client is None:
+        print(f"[RAG Client] 🚀 Initializing RAG client (first call)...")
+        print(f"[RAG Client] 🔧 RAG_MODE={RAG_MODE}, use_gpu={use_gpu}")
+        _rag_client = RAGClient(use_gpu=use_gpu)
+        print(f"[RAG Client] ✅ RAG client initialized: {_rag_client._mode}")
+    return _rag_client
+

@@ -42,8 +42,7 @@ COPY models/Qwen2.5-1.5B-Instruct.Q4_K_M.gguf /models/Qwen2.5-1.5B-Instruct.Q4_K
 COPY container_rest.py ./
 COPY conversation_manager.py ./
 
-# Copy RAG module (organized structure)
-COPY rag/ /app/rag/
+# Note: RAG module is now in /shared/rag/ (mounted via docker-compose.yml)
 
 # Models already copied above (cached layer)
 

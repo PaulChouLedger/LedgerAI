@@ -1,45 +1,8 @@
 #!/bin/bash
-# Git pre-commit hook to sync llm-container changes to llm-medical-container
+# Git pre-commit hook
+# Note: sync_llm_containers.py is no longer needed - both containers now use shared/llm_base.py
 
-# Get the workspace root
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-WORKSPACE_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
-SYNC_SCRIPT="$WORKSPACE_ROOT/setup/scripts/sync_llm_containers.py"
-
-# Check if any llm-container files were modified
-CHANGED_FILES=$(git diff --cached --name-only --diff-filter=ACM)
-
-# Check if any RAG files were changed
-NEEDS_SYNC=false
-
-for file in $CHANGED_FILES; do
-    if [[ "$file" == "llm-container/rag/"* ]] || \
-       [[ "$file" == "llm-container/rag"* ]]; then
-        NEEDS_SYNC=true
-        break
-    fi
-done
-
-if [ "$NEEDS_SYNC" = true ]; then
-    echo "🔄 Changes detected in llm-container - syncing to llm-medical-container..."
-    
-    # Run sync script
-    if [ -f "$SYNC_SCRIPT" ]; then
-        python3 "$SYNC_SCRIPT"
-        
-        # Check if sync created any changes
-        if [ -n "$(git diff --name-only llm-medical-container/)" ]; then
-            echo ""
-            echo "⚠️  Sync created changes in llm-medical-container/"
-            echo "   Review and stage these changes if needed:"
-            git diff --name-only llm-medical-container/
-            echo ""
-            echo "   To stage synced changes: git add llm-medical-container/"
-        fi
-    else
-        echo "⚠️  Sync script not found: $SYNC_SCRIPT"
-    fi
-fi
+# This hook is kept for future use or can be removed if not needed
 
 exit 0
 

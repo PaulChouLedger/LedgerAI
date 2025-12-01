@@ -1272,9 +1272,9 @@ GIT_HOOKS_DIR="$LEDGERAI_DIR/.git/hooks"
 POST_MERGE_HOOK="$GIT_HOOKS_DIR/post-merge"
 POST_MERGE_TEMPLATE="$LEDGERAI_DIR/setup/scripts/git-hooks/post-merge"
 
-# Install pre-commit hook to sync llm-container changes to llm-medical-container
-PRE_COMMIT_HOOK="$GIT_HOOKS_DIR/pre-commit"
-PRE_COMMIT_TEMPLATE="$LEDGERAI_DIR/setup/scripts/git-hooks/pre-commit"
+    # Install pre-commit hook (now minimal - sync_llm_containers.py no longer needed)
+    PRE_COMMIT_HOOK="$GIT_HOOKS_DIR/pre-commit"
+    PRE_COMMIT_TEMPLATE="$LEDGERAI_DIR/setup/scripts/git-hooks/pre-commit"
 
 if [ -d "$LEDGERAI_DIR/.git" ]; then
     # Install post-merge hook
@@ -1301,7 +1301,7 @@ fi
     POST_MERGE_HOOK="$GIT_HOOKS_DIR/post-merge"
     POST_MERGE_TEMPLATE="$LEDGERAI_DIR/setup/scripts/git-hooks/post-merge"
     
-    # Install pre-commit hook to sync llm-container changes to llm-medical-container
+    # Install pre-commit hook (now minimal - sync_llm_containers.py no longer needed)
     PRE_COMMIT_HOOK="$GIT_HOOKS_DIR/pre-commit"
     PRE_COMMIT_TEMPLATE="$LEDGERAI_DIR/setup/scripts/git-hooks/pre-commit"
     
@@ -1320,7 +1320,7 @@ fi
             if [ ! -f "$PRE_COMMIT_HOOK" ] || ! grep -q "llm-container" "$PRE_COMMIT_HOOK" 2>/dev/null; then
                 cp "$PRE_COMMIT_TEMPLATE" "$PRE_COMMIT_HOOK"
                 chmod +x "$PRE_COMMIT_HOOK"
-                print_info "Git pre-commit hook installed - llm-container changes will sync to llm-medical-container"
+                print_info "Git pre-commit hook installed"
         fi
     fi
 fi
