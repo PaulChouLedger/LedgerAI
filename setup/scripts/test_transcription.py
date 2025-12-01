@@ -100,7 +100,7 @@ ENABLE_ADVANCED_FILTER = True  # Toggle this to test
 
 # Thresholds tuned from empirical testing
 SPEECH_ZCR_MAX = 0.40           # Reject if ZCR > this
-SPEECH_FLATNESS_MAX = 0.25      # Balanced threshold (speech ~0.01-0.2, noise ~0.5-1.0) - allows legitimate speech with slight noise
+SPEECH_FLATNESS_MAX = 0.40      # Increased to allow natural speech variations (speech ~0.01-0.4, noise ~0.5-1.0) - some speech can have flatness up to 0.38
 SPEECH_CENTROID_MIN = 300       # Hz - reject if too low (rumble/fan)
 SPEECH_CENTROID_MAX = 3000      # Hz - reject if too high (hiss)
 SPEECH_BAND_MIN = 0.30          # Reject if insufficient energy in speech band
