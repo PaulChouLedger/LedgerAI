@@ -1277,12 +1277,12 @@ POST_MERGE_TEMPLATE="$LEDGERAI_DIR/setup/scripts/git-hooks/post-merge"
     PRE_COMMIT_TEMPLATE="$LEDGERAI_DIR/setup/scripts/git-hooks/pre-commit"
 
 if [ -d "$LEDGERAI_DIR/.git" ]; then
-    # Install post-merge hook
+    # Install post-merge hook (always update to ensure latest version)
     if [ -f "$POST_MERGE_TEMPLATE" ]; then
-        if [ ! -f "$POST_MERGE_HOOK" ]; then
-            cp "$POST_MERGE_TEMPLATE" "$POST_MERGE_HOOK"
-            chmod +x "$POST_MERGE_HOOK"
-            print_info "Git post-merge hook installed - systemd will auto-reload after git pull"
+        cp "$POST_MERGE_TEMPLATE" "$POST_MERGE_HOOK"
+        chmod +x "$POST_MERGE_HOOK"
+        if [ -f "$POST_MERGE_HOOK" ]; then
+            print_info "Git post-merge hook installed/updated - systemd will auto-reload after git pull"
         fi
     fi
     
@@ -1306,12 +1306,12 @@ fi
     PRE_COMMIT_TEMPLATE="$LEDGERAI_DIR/setup/scripts/git-hooks/pre-commit"
     
     if [ -d "$LEDGERAI_DIR/.git" ]; then
-        # Install post-merge hook
+        # Install post-merge hook (always update to ensure latest version)
         if [ -f "$POST_MERGE_TEMPLATE" ]; then
-        if [ ! -f "$POST_MERGE_HOOK" ]; then
-                cp "$POST_MERGE_TEMPLATE" "$POST_MERGE_HOOK"
+            cp "$POST_MERGE_TEMPLATE" "$POST_MERGE_HOOK"
             chmod +x "$POST_MERGE_HOOK"
-            print_info "Git post-merge hook installed - systemd will auto-reload after git pull"
+            if [ -f "$POST_MERGE_HOOK" ]; then
+                print_info "Git post-merge hook installed/updated - systemd will auto-reload after git pull"
             fi
         fi
         

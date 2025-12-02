@@ -142,9 +142,18 @@ class RAGClient:
                 print(f"[RAG Client] ⚠️ No existing CPU index found at {index_path}")
                 print(f"[RAG Client] ⚠️ Index exists: {os.path.exists(faiss_index_path)}, Metadata exists: {os.path.exists(metadata_path)}")
                 logger.warning("[RAG Client] ⚠️ No existing CPU index found")
-                # Create empty index
-                import faiss
-                self._cpu_index = faiss.IndexFlatL2(self._embedding_dim)
+                
+                # Check if auto-ingestion has chunks but no index - build index on startup
+                if self._auto_ingest and hasattr(self._auto_ingest, 'chunks') and len(self._auto_ingest.chunks) > 0:
+                    print(f"[RAG Client] 🔧 Found {len(self._auto_ingest.chunks)} chunks from auto-ingestion, building index on startup...")
+                    self._cpu_chunks = self._auto_ingest.chunks
+                    self._cpu_metadata = self._auto_ingest.metadata if hasattr(self._auto_ingest, 'metadata') else []
+                    self._rebuild_cpu_index()
+                    print(f"[RAG Client] ✅ Index built on startup with {len(self._cpu_chunks)} chunks")
+                else:
+                    # Create empty index
+                    import faiss
+                    self._cpu_index = faiss.IndexFlatL2(self._embedding_dim)
                 
         except Exception as e:
             print(f"[RAG Client] ❌ Failed to load CPU index: {e}")
@@ -532,10 +541,8 @@ class RAGClient:
                 import faiss
                 query_embedding = query_embedding.reshape(1, -1)
                 faiss.normalize_L2(query_embedding)
-                query_embedding = query_embedding.flatten()
-            
-            # Search FAISS index
-            search_results, indices = self._cpu_index.search(query_embedding.reshape(1, -1), k)
+                # Search returns similarity scores (higher = more similar)
+                search_results, indices = self._cpu_index.search(query_embedding.reshape(1, -1), k)
             
             # Convert to similarity scores
             if is_inner_product:
@@ -600,7 +607,7 @@ class RAGClient:
             return []
     
     def _rebuild_cpu_index(self):
-        """Rebuild FAISS index from current chunks"""
+        """Rebuild FAISS index from current chunks (triggered by auto-ingest on document upload)"""
         try:
             import faiss
             if not self._cpu_chunks or len(self._cpu_chunks) == 0:

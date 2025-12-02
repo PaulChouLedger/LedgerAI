@@ -68,10 +68,17 @@ def initialize_service():
     try:
         logger.info(f"[{SERVICE_NAME}] 🚀 Initializing Memory Container...")
         
-        # Initialize memory manager
+        # Initialize memory manager (this builds index on startup)
         logger.info(f"[{SERVICE_NAME}] 🔧 Initializing MemoryManager...")
         memory_manager = MemoryManager(memory_dir=MEMORY_DIR)
-        logger.info(f"[{SERVICE_NAME}] ✅ MemoryManager initialized")
+        
+        # Verify index is ready before accepting queries
+        if memory_manager.index is None:
+            logger.warning(f"[{SERVICE_NAME}] ⚠️ Index not initialized, rebuilding...")
+            memory_manager._rebuild_index()
+        
+        index_size = memory_manager.index.ntotal if memory_manager.index else 0
+        logger.info(f"[{SERVICE_NAME}] ✅ MemoryManager initialized (index ready with {index_size} vectors)")
         
         # Initialize proactive analyzer
         logger.info(f"[{SERVICE_NAME}] 🔧 Initializing ProactiveAnalyzer...")

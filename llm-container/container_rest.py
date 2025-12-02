@@ -184,6 +184,7 @@ def handle_conversation(
         rag_context = ""
         rag_results = []
         memory_rag_results = []  # Results from memory container
+        memory_rag_failed = False  # Track if memory RAG failed (timeout, error, etc.)
         
         if not is_personal_query:
             # Check document RAG (files/documents)
@@ -231,12 +232,18 @@ def handle_conversation(
             try:
                 memory_container_url = os.environ.get('MEMORY_CONTAINER_URL', 'http://localhost:11438')
                 # Quick check: does memory container have relevant conversations?
-                quick_match_response = requests.post(
-                    f"{memory_container_url}/rag/quick-match",
-                    json={"query": prompt},
-                    timeout=2
-                )
-                if quick_match_response.status_code == 200:
+                # Use shorter timeout for quick check (2s)
+                try:
+                    quick_match_response = requests.post(
+                        f"{memory_container_url}/rag/quick-match",
+                        json={"query": prompt},
+                        timeout=2
+                    )
+                except requests.exceptions.Timeout:
+                    print(f"[Generic] ⚠️ Memory container quick-match timeout - index may be rebuilding, skipping memory RAG")
+                    quick_match_response = None
+                
+                if quick_match_response and quick_match_response.status_code == 200:
                     quick_match_data = quick_match_response.json()
                     if quick_match_data.get('has_match', False):
                         print(f"[Generic] 🔍 Query may match stored conversations - performing memory RAG search...")
@@ -247,16 +254,23 @@ def handle_conversation(
                         memory_rag_k = RAG_SEARCH_K  # Use same k as document RAG (3)
                         
                         # Request k*2 results with lower threshold (same as document RAG)
-                        memory_rag_response = requests.post(
-                            f"{memory_container_url}/rag/search",
-                            json={
-                                "query": prompt,
-                                "k": memory_rag_k * 2,  # Get 6 candidates for re-ranking (same as document RAG)
-                                "threshold": memory_rag_threshold * 0.8  # Lower threshold for initial search (same as document RAG)
-                            },
-                            timeout=5
-                        )
-                        if memory_rag_response.status_code == 200:
+                        # Increased timeout to 15s to handle index rebuilds (happens every 10 conversations)
+                        try:
+                            memory_rag_response = requests.post(
+                                f"{memory_container_url}/rag/search",
+                                json={
+                                    "query": prompt,
+                                    "k": memory_rag_k * 2,  # Get 6 candidates for re-ranking (same as document RAG)
+                                    "threshold": memory_rag_threshold * 0.8  # Lower threshold for initial search (same as document RAG)
+                                },
+                                timeout=15  # Increased from 5s to handle index rebuilds
+                            )
+                        except requests.exceptions.Timeout:
+                            print(f"[Generic] ⚠️ Memory RAG search timeout (>15s) - index may be rebuilding, continuing without memory context")
+                            print(f"[Generic] ⚠️ WARNING: Response may be less accurate without conversation memory context")
+                            memory_rag_response = None
+                            memory_rag_failed = True
+                        if memory_rag_response and memory_rag_response.status_code == 200:
                             memory_rag_data = memory_rag_response.json()
                             memory_rag_candidates = memory_rag_data.get('results', [])
                             
@@ -435,8 +449,9 @@ def handle_conversation(
                                 print(f"[Generic] ✅ Memory RAG found {len(memory_rag_results)} relevant conversations (from {len(memory_rag_candidates)} candidates, threshold={memory_rag_threshold:.2f}) - will inject context")
                             else:
                                 print(f"[Generic] 🔍 Memory RAG search returned no results above threshold={memory_rag_threshold:.2f} after re-ranking")
-                        else:
+                        elif memory_rag_response:
                             print(f"[Generic] ⚠️ Memory RAG search failed: HTTP {memory_rag_response.status_code}")
+                        # If memory_rag_response is None, timeout was already handled above
                     else:
                         print(f"[Generic] 🔍 Query doesn't match stored conversations - skipping memory RAG")
                 else:
@@ -444,9 +459,11 @@ def handle_conversation(
                     pass
             except requests.exceptions.RequestException as e:
                 # Memory container not available - this is OK, continue without it
-                pass
+                print(f"[Generic] ⚠️ Memory container not available: {e}")
+                memory_rag_failed = True
             except Exception as e:
                 print(f"[Generic] ⚠️ Memory RAG check failed: {e}")
+                memory_rag_failed = True
         
         should_use_rag = (rag_results and len(rag_results) > 0) or (memory_rag_results and len(memory_rag_results) > 0)
         should_use_memory_rag = (memory_rag_results and len(memory_rag_results) > 0)
@@ -670,10 +687,19 @@ def handle_conversation(
                     "- Be conversational and friendly, like Siri or Alexa"
                 )
             else:
+                # Add warning if memory RAG failed
+                memory_warning = ""
+                if memory_rag_failed:
+                    memory_warning = "\n⚠️ IMPORTANT: Conversation memory context is unavailable (memory container may be rebuilding index). " \
+                                   "Only provide information you are certain about from the provided context. " \
+                                   "Do NOT make up or guess information about people, places, or facts. " \
+                                   "If you don't have reliable information, say so rather than speculating.\n\n"
+                
                 system_content = (
                     f"{combined_context}\n\n"
                     "You are Aura Vision, an AI agent created by Ledger AI Quantum Corporation. "
                     "You act as a proactive AI agent guiding users to better outcomes through gentle guidance.\n\n"
+                    f"{memory_warning}"
                     f"Based on the context provided above, answer the following question: {prompt}\n\n"
                     "Guidelines:\n"
                     "- Keep responses short and conversational, like Siri or Alexa (2-3 sentences typically)\n"
@@ -709,10 +735,19 @@ def handle_conversation(
                     "Be conversational and friendly, like Siri or Alexa."
                 )
             else:
+                # Add warning if memory RAG failed
+                memory_warning = ""
+                if memory_rag_failed:
+                    memory_warning = "\n\n⚠️ IMPORTANT: Conversation memory context is unavailable (memory container may be rebuilding index). " \
+                                   "Only provide information you are certain about from the provided context. " \
+                                   "Do NOT make up or guess information about people, places, or facts. " \
+                                   "If you don't have reliable information, say so rather than speculating.\n\n"
+                
                 system_content = (
                     f"{combined_context}\n\n"
                     "You are Aura Vision, an AI agent created by Ledger AI Quantum Corporation. "
                     "You act as a proactive AI agent guiding users to better outcomes through gentle guidance.\n\n"
+                    f"{memory_warning}"
                     "IMPORTANT: Use the conversation memory provided above to answer the user's question. "
                     "If the memory contains relevant information, provide that information in your response. "
                     "If you notice a misspelling or typo, briefly acknowledge it but still answer the actual question asked.\n\n"
