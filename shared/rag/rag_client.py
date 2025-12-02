@@ -362,48 +362,60 @@ class RAGClient:
         
         # Also extract individual capitalized words (first names, last names separately)
         # e.g., "John Smith" -> ["John", "Smith"]
+        # EXCLUDE question words at start of query (Who, What, Where, etc.)
+        question_words = {'who', 'what', 'where', 'when', 'why', 'how', 'which', 'whose', 'whom'}
         query_capitalized_words = re.findall(r'\b([A-Z][a-z]+)\b', query)
-        query_capitalized_lower = [w.lower() for w in query_capitalized_words]
+        query_capitalized_lower = [w.lower() for w in query_capitalized_words if w.lower() not in question_words]
         
         # Pre-filter: Only include chunks that have at least one query term match (fuzzy)
         # This prevents irrelevant chunks from being analyzed
         # CRITICAL: For queries with names, require at least one capitalized word (name) match
         print(f"[RAG Pre-filter] 🔍 Starting pre-filter: {len(results)} chunks, query: '{query[:50]}...'")
-        print(f"[RAG Pre-filter] 🔍 Query terms: {query_terms}, Capitalized words: {query_capitalized_lower}")
+        print(f"[RAG Pre-filter] 🔍 Query terms: {query_terms}, Capitalized words (names): {query_capitalized_lower}")
         filtered_results = []
-        for result in results:
+        for i, result in enumerate(results, 1):
             text = result.get('text', '').lower()
             original_text = result.get('text', '')
+            semantic_score = result.get('score', 0.0)
+            
+            # Show full chunk text for debugging
+            print(f"[RAG Pre-filter] 📄 Chunk {i}/{len(results)} (score: {semantic_score:.3f}):")
+            print(f"[RAG Pre-filter]    Full text: '{original_text}'")
             
             # For queries with capitalized words (names), REQUIRE at least one name match
             # This ensures chunks about different people are excluded
             has_name_match = False
+            matched_name_word = None
             if query_capitalized_lower:
                 for cap_word in query_capitalized_lower:
                     if self._fuzzy_match_term(cap_word, text, threshold=0.75):
                         has_name_match = True
-                        print(f"[RAG Pre-filter] ✅ Name match: '{cap_word}' in '{original_text[:60]}...'")
+                        matched_name_word = cap_word
+                        print(f"[RAG Pre-filter] ✅ Name match: '{cap_word}' found in chunk text")
                         break
             
             # If query has names but chunk has no name match, exclude it
             # This prevents chunks about different people from being included
             if query_capitalized_lower and not has_name_match:
-                print(f"[RAG Pre-filter] ❌ Excluded (query has names but chunk has no name match): '{original_text[:60]}...'")
+                print(f"[RAG Pre-filter] ❌ EXCLUDED: Query has names {query_capitalized_lower} but chunk has no name match")
                 continue
             
             # For queries without names, check for other query terms
             if not query_capitalized_lower:
                 has_query_term = False
+                matched_term = None
                 for term in query_terms:
                     if self._fuzzy_match_term(term, text, threshold=0.75):
                         has_query_term = True
-                        print(f"[RAG Pre-filter] ✅ Query term match: '{term}' in '{original_text[:60]}...'")
+                        matched_term = term
+                        print(f"[RAG Pre-filter] ✅ Query term match: '{term}' found in chunk text")
                         break
                 
                 if not has_query_term:
-                    print(f"[RAG Pre-filter] ❌ Excluded (no query term matches): '{original_text[:60]}...'")
+                    print(f"[RAG Pre-filter] ❌ EXCLUDED: No query term matches found (terms: {query_terms})")
                     continue
             
+            print(f"[RAG Pre-filter] ✅ INCLUDED: Chunk passed pre-filter (matched: {matched_name_word or matched_term})")
             filtered_results.append(result)
         
         if not filtered_results:
@@ -516,10 +528,13 @@ class RAGClient:
         expanded_query = self._expand_query(query)
         
         # Search with expanded query (but use original for embedding)
+        # When reranking is enabled, use very low threshold (0.0) to get ALL candidates
+        # Pre-filter will then exclude irrelevant chunks, and re-ranking will improve relevance
+        search_threshold = 0.0 if rerank else threshold
         if self.use_gpu:
-            results = self._search_gpu(expanded_query, k * 2, threshold * 0.8)  # Get more candidates for re-ranking
+            results = self._search_gpu(expanded_query, k * 2, search_threshold)  # Get all candidates for pre-filtering/re-ranking
         else:
-            results = self._search_cpu(expanded_query, k * 2, threshold * 0.8)  # Get more candidates for re-ranking
+            results = self._search_cpu(expanded_query, k * 2, search_threshold)  # Get all candidates for pre-filtering/re-ranking
         
         # Re-rank results if enabled (includes pre-filtering)
         if rerank and results:

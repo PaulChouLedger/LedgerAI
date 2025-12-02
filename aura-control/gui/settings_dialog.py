@@ -1288,20 +1288,6 @@ class AIModelSettingsDialog(BaseAuraDialog):
         memory_row.addWidget(self.memory_toggle, 1)
         layout.addLayout(memory_row)
         
-        # LLM Memory Selection toggle (uses LLM to select best memory results)
-        llm_memory_row = QHBoxLayout(); llm_memory_row.setSpacing(12)
-        llm_memory_label = QLabel("LLM Memory Selection:")
-        llm_memory_label.setStyleSheet("color: #ffffff; font-size: 14px;")
-        self.llm_memory_toggle = QPushButton("OFF")
-        self.llm_memory_toggle.setCheckable(True)
-        self.llm_memory_toggle.setStyleSheet(SettingsDialog.get_button_style(None))
-        llm_memory_status_label = QLabel("(slower, more accurate)")
-        llm_memory_status_label.setStyleSheet("color: #aaaaaa; font-size: 12px;")
-        llm_memory_row.addWidget(llm_memory_label)
-        llm_memory_row.addWidget(self.llm_memory_toggle, 1)
-        llm_memory_row.addWidget(llm_memory_status_label)
-        layout.addLayout(llm_memory_row)
-        
         # Add stretch at bottom to center content and ensure nothing gets cut off
         layout.addStretch(2)
         self.setLayout(layout)
@@ -1354,23 +1340,14 @@ class AIModelSettingsDialog(BaseAuraDialog):
                 self.memory_toggle.setChecked(memory_enabled)
                 self.memory_toggle.setText("ON" if memory_enabled else "OFF")
                 
-                # Initialize LLM memory selection toggle
-                llm_memory_enabled = data.get("memory_llm_selection_enabled", False)  # Default to False (faster)
-                self.llm_memory_toggle.setChecked(llm_memory_enabled)
-                self.llm_memory_toggle.setText("ON" if llm_memory_enabled else "OFF")
             else:
                 # Default to enabled if settings file doesn't exist
                 self.memory_toggle.setChecked(True)
                 self.memory_toggle.setText("ON")
-                # Default LLM selection to False (faster)
-                self.llm_memory_toggle.setChecked(False)
-                self.llm_memory_toggle.setText("OFF")
         except Exception as e:
             print(f"[ModelSettings] Error loading memory_enabled: {e}")
             self.memory_toggle.setChecked(True)
             self.memory_toggle.setText("ON")
-            self.llm_memory_toggle.setChecked(False)
-            self.llm_memory_toggle.setText("OFF")
         
         # Connect signals
         def on_wake_word_toggled(checked):
@@ -1431,33 +1408,6 @@ class AIModelSettingsDialog(BaseAuraDialog):
                 print(f"[ModelSettings] Error saving memory_enabled: {e}")
         
         self.memory_toggle.toggled.connect(on_memory_toggled)
-        
-        # Connect LLM memory selection toggle
-        def on_llm_memory_toggled(checked):
-            self.llm_memory_toggle.setText("ON" if checked else "OFF")
-            try:
-                settings_path = os.path.expanduser("~/LedgerAI/data/app_settings.json")
-                os.makedirs(os.path.dirname(settings_path), exist_ok=True)
-                data = {}
-                if os.path.exists(settings_path):
-                    with open(settings_path, "r") as f:
-                        data = json.load(f) or {}
-                data["memory_llm_selection_enabled"] = checked
-                with open(settings_path, "w") as f:
-                    json.dump(data, f, indent=2)
-                print(f"[ModelSettings] LLM memory selection: {'enabled' if checked else 'disabled'}")
-                
-                QMessageBox.information(
-                    self,
-                    "Setting Saved",
-                    f"LLM memory selection {'enabled' if checked else 'disabled'}.\n\n"
-                    f"{'Uses LLM to select most relevant memory results (slower, more accurate).' if checked else 'Uses fast scoring only (faster, good accuracy).'}\n"
-                    f"Change will take effect on next conversation."
-                )
-            except Exception as e:
-                print(f"[ModelSettings] Error saving memory_llm_selection_enabled: {e}")
-        
-        self.llm_memory_toggle.toggled.connect(on_llm_memory_toggled)
         
         # Connect mode buttons
         self.mode_generic_btn.clicked.connect(lambda: self._on_mode_changed("generic"))
