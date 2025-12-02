@@ -172,12 +172,30 @@ class BaseLLMContainer:
         
         with self.llm_lock:
             try:
-                response = self.llm_simple.create_chat_completion(**generation_params)
                 if stream:
-                    return response
+                    print(f"[{self.service_name}] 🔍 DEBUG: Calling create_chat_completion with stream=True")
+                    print(f"[{self.service_name}] 🔍 DEBUG: Messages: {len(messages)} messages, max_tokens={max_tokens}, temperature={temperature}")
+                    if messages:
+                        print(f"[{self.service_name}] 🔍 DEBUG: System message length: {len(messages[0].get('content', ''))} chars")
+                        if len(messages) > 1:
+                            print(f"[{self.service_name}] 🔍 DEBUG: User message: {messages[1].get('content', '')[:100]}")
+                
+                response = self.llm_simple.create_chat_completion(**generation_params)
+                
+                if stream:
+                    # Check if response is actually an iterator
+                    if hasattr(response, '__iter__'):
+                        print(f"[{self.service_name}] 🔍 DEBUG: LLM returned iterator for streaming")
+                        return response
+                    else:
+                        print(f"[{self.service_name}] ⚠️ WARNING: LLM did not return iterator for stream=True, got: {type(response)}")
+                        return iter([])
+                
                 return self.extract_llm_response_content(response)
             except Exception as e:
                 print(f"[{self.service_name}] ❌ Error in llm_chat_simple: {e}")
+                import traceback
+                traceback.print_exc()
                 if stream:
                     return iter([])
                 return ""
