@@ -396,28 +396,34 @@ class RAGClient:
             text = result.get('text', '').lower()
             original_text = result.get('text', '')
             
-            # For queries with capitalized words (names), prioritize name matching
+            # For queries with capitalized words (names), REQUIRE at least one name match
             # This ensures chunks about different people are excluded
             has_name_match = False
             if query_capitalized_lower:
                 for cap_word in query_capitalized_lower:
                     if self._fuzzy_match_term(cap_word, text, threshold=0.75):
                         has_name_match = True
-                        print(f"[RAG Pre-filter] ✅ Name match found: '{cap_word}' in chunk '{original_text[:60]}...'")
+                        print(f"[RAG Pre-filter] ✅ Name match: '{cap_word}' in '{original_text[:60]}...'")
                         break
             
-            # Also check for other query terms (non-name words)
-            has_query_term = has_name_match
-            if not has_query_term:
+            # If query has names but chunk has no name match, exclude it
+            # This prevents chunks about different people from being included
+            if query_capitalized_lower and not has_name_match:
+                print(f"[RAG Pre-filter] ❌ Excluded (query has names but chunk has no name match): '{original_text[:60]}...'")
+                continue
+            
+            # For queries without names, check for other query terms
+            if not query_capitalized_lower:
+                has_query_term = False
                 for term in query_terms:
                     if self._fuzzy_match_term(term, text, threshold=0.75):
                         has_query_term = True
-                        print(f"[RAG Pre-filter] ✅ Query term match found: '{term}' in chunk '{original_text[:60]}...'")
+                        print(f"[RAG Pre-filter] ✅ Query term match: '{term}' in '{original_text[:60]}...'")
                         break
-            
-            if not has_query_term:
-                print(f"[RAG Pre-filter] ❌ Excluded chunk (no query term/name matches): '{original_text[:60]}...'")
-                continue
+                
+                if not has_query_term:
+                    print(f"[RAG Pre-filter] ❌ Excluded (no query term matches): '{original_text[:60]}...'")
+                    continue
             
             filtered_results.append(result)
         
