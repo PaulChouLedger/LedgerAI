@@ -719,11 +719,17 @@ def chat_tts():
             # Check if result is a generator (streaming)
             if hasattr(result, '__iter__') and not isinstance(result, str):
                 print(f"[Generic] ✅ Streaming enabled - tokens will be yielded as generated")
+                print(f"[Generic] 🔍 DEBUG: Result type: {type(result).__name__}, is generator: {hasattr(result, '__iter__')}")
+                
                 # Pass iterator directly (don't collect chunks first - that consumes the iterator!)
                 # This matches the working version from commit d4a5c540a1a3da07a7ea5a2403155adf0d7e79e7
+                print(f"[Generic] 🔍 DEBUG: About to call _normalize_stream_chunks")
                 normalized_chunks = _normalize_stream_chunks(result)
+                print(f"[Generic] 🔍 DEBUG: _normalize_stream_chunks returned, about to call _word_stream_from_chunks")
                 word_stream = _word_stream_from_chunks(normalized_chunks)
+                print(f"[Generic] 🔍 DEBUG: _word_stream_from_chunks returned, about to call _sentence_tag_stream")
                 sentence_stream = _sentence_tag_stream(word_stream)
+                print(f"[Generic] 🔍 DEBUG: _sentence_tag_stream returned, about to iterate")
                 token_count = 0
                 chunk_count = 0
                 word_count = 0
