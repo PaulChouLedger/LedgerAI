@@ -158,12 +158,13 @@ class WelcomeSetupDialog(BaseAuraDialog):
         # Check WiFi connection and scan after dialog is shown
         # This ensures status is displayed in GUI before enabling button
         def check_and_scan():
-            # First check current WiFi status and display it
+            # First check current WiFi status and display it (only once)
             self.check_wifi_connection()
-            # Then scan for networks
+            # Then scan for networks (scan will update connection status if it changes)
             self.scan_wifi()
         
         # Start checking/scanning shortly after fade-in to avoid stutter
+        # Only call once to avoid duplicate checks
         try:
             if hasattr(self, 'fade_in') and self.fade_in:
                 self.fade_in.finished.connect(lambda: QTimer.singleShot(100, check_and_scan))
@@ -446,9 +447,8 @@ class WelcomeSetupDialog(BaseAuraDialog):
                 item.setData(Qt.UserRole, network)
                 self.wifi_list.addItem(item)
             
-            # Check connection status after scan and update button state
-            # This ensures button is only enabled when WiFi is confirmed and displayed
-            self.check_wifi_connection()
+            # Connection status was already checked in _on_show() - no need to check again
+            # The scan only finds available networks, it doesn't change connection status
         except (RuntimeError, AttributeError):
             # Dialog was deleted, ignore silently
             pass
@@ -462,7 +462,7 @@ class WelcomeSetupDialog(BaseAuraDialog):
             self.wifi_list.clear()
             self.wifi_list.addItem(f"Error: {error}")
             QMessageBox.warning(self, "WiFi Scan Error", error)
-            self.check_wifi_connection()
+            # Don't check WiFi connection here - it was already checked in _on_show()
         except (RuntimeError, AttributeError):
             # Dialog was deleted, ignore silently
             pass

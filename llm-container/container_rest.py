@@ -276,23 +276,53 @@ def handle_conversation(
                                     # Fallback to exact matching if fuzzy utils not available
                                     fuzzy_match_term = lambda term, text, threshold: term in text
                                 
+                                # Detect if query is a question
+                                query_lower = prompt.lower().strip()
+                                is_query_question = query_lower.startswith(('who', 'what', 'when', 'where', 'why', 'how', 'do you', 'can you', 'are you', 'is there'))
+                                
                                 reranked = []
                                 for result in memory_rag_candidates:
                                     text = result.get('text', '').lower()
+                                    original_text = result.get('text', '')  # Keep original for analysis
                                     semantic_score = result.get('score', 0.0)
                                     
                                     # Count keyword matches using fuzzy matching (handles transcription errors)
                                     keyword_matches = sum(1 for term in query_terms if fuzzy_match_term(term, text, threshold=0.75))
                                     keyword_score = keyword_matches / max(len(query_terms), 1) if query_terms else 0
                                     
-                                    # Combined score: 70% semantic, 30% keyword (same as document RAG)
-                                    combined_score = 0.7 * semantic_score + 0.3 * keyword_score
+                                    # Detect if result is a question (likely not useful if query is also a question)
+                                    is_result_question = original_text.strip().startswith(('who', 'what', 'when', 'where', 'why', 'how', 'do you', 'can you', 'are you', 'is there', "who's", "what's", "where's"))
+                                    
+                                    # Penalize question-to-question matches (user asking same question again)
+                                    question_penalty = 0.0
+                                    if is_query_question and is_result_question:
+                                        # Check if result is very similar to query (likely same question)
+                                        query_words = set(re.findall(r'\b\w{3,}\b', query_lower))
+                                        result_words = set(re.findall(r'\b\w{3,}\b', text))
+                                        overlap = len(query_words & result_words) / max(len(query_words), 1)
+                                        if overlap > 0.6:  # More than 60% word overlap = likely same question
+                                            question_penalty = 0.3  # Reduce score by 30%
+                                            print(f"[Generic]   ⚠️ Penalizing question-to-question match (overlap: {overlap:.2f}): '{original_text[:50]}...'")
+                                    
+                                    # Boost answer-like content (declarative statements with key terms)
+                                    answer_boost = 0.0
+                                    if keyword_matches >= 2 and not is_result_question:
+                                        # Contains key terms and is not a question = likely an answer
+                                        answer_boost = 0.15  # Boost by 15%
+                                    
+                                    # Combined score: 70% semantic, 30% keyword, with penalties/boosts
+                                    base_score = 0.7 * semantic_score + 0.3 * keyword_score
+                                    combined_score = base_score - question_penalty + answer_boost
+                                    combined_score = max(0.0, min(1.0, combined_score))  # Clamp to [0, 1]
                                     
                                     reranked.append({
                                         **result,
                                         'score': combined_score,
                                         'original_score': semantic_score,
-                                        'keyword_score': keyword_score
+                                        'keyword_score': keyword_score,
+                                        'is_question': is_result_question,
+                                        'penalty': question_penalty,
+                                        'boost': answer_boost
                                     })
                                 
                                 # Sort by combined score (descending)
@@ -441,6 +471,11 @@ def handle_conversation(
                     for i, result in enumerate(filtered_memory_results, 1):
                         text = result.get('text', '')
                         score = result.get('score', 0)
+                        original_score = result.get('original_score', score)
+                        keyword_score = result.get('keyword_score', 0)
+                        is_question = result.get('is_question', False)
+                        penalty = result.get('penalty', 0)
+                        boost = result.get('boost', 0)
                         metadata = result.get('metadata', {})
                         
                         if text:
@@ -477,7 +512,14 @@ def handle_conversation(
                             
                             memory_chunks.append(memory_chunk)
                             threshold_status = "✅" if score >= memory_rag_threshold else "❌"
-                            print(f"[Generic]   [Memory {i}] {threshold_status} Score: {score:.3f} (threshold: {memory_rag_threshold:.3f}), Source: {source}, Preview: '{text[:50]}...'")
+                            score_details = f"Score: {score:.3f} (semantic: {original_score:.3f}, keyword: {keyword_score:.3f}"
+                            if penalty > 0:
+                                score_details += f", -{penalty:.2f} penalty"
+                            if boost > 0:
+                                score_details += f", +{boost:.2f} boost"
+                            score_details += f")"
+                            question_marker = "❓" if is_question else "📝"
+                            print(f"[Generic]   [Memory {i}] {threshold_status} {question_marker} {score_details}, Source: {source}, Preview: '{text[:50]}...'")
                 
                 if memory_chunks:
                     memory_context = "\n\n---\n\n".join(memory_chunks)
