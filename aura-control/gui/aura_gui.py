@@ -263,11 +263,11 @@ class AuraGUI(QMainWindow):
             print("[AuraGUI] ⚠️ Could not import listener blocking functions")
         
         # Pass self as parent so dialog appears on top properly
-        print("[AuraGUI] 📂 Showing upload dialog...")
-        from gui.file_upload_dialog import FileUploadDialog
+        print("[AuraGUI] 📂 Showing memory dialog...")
+        from gui.file_upload_dialog import MemoryDialog
         
         # Create and show dialog with this window as parent
-        dialog = FileUploadDialog(parent=self)
+        dialog = MemoryDialog(parent=self)
         
         # The dialog should now appear on top of this window
         dialog.exec_()
@@ -278,7 +278,7 @@ class AuraGUI(QMainWindow):
         except:
             pass
         
-        print("[AuraGUI] ✅ Upload dialog closed")
+        print("[AuraGUI] ✅ Memory dialog closed")
     
     def _handle_settings(self):
         """Handle settings button click"""

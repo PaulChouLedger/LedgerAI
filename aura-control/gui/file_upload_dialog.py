@@ -1,4 +1,4 @@
-# file_upload_dialog.py — File Upload Dialog for Document Ingestion
+# file_upload_dialog.py — Memory Dialog for Conversation Management
 
 import os
 import sys
@@ -66,47 +66,21 @@ class RAGFilesDialog(BaseAuraDialog):
         # Load RAG files
         self._load_rag_files()
         
-        # Buttons - compact layout
+        # Close button - centered and wider
         button_layout = QHBoxLayout()
-        button_layout.setSpacing(10)  # Reduced spacing between buttons
-        
-        # Process Files button - matching settings dialog button style (scaled down)
-        process_btn = QPushButton("🔄 Process")
-        process_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #007AFF;
-                color: white;
-                font-size: 14px;
-                font-weight: 600;
-                padding: 12px 24px;
-                border-radius: 20px;
-                border: none;
-                min-width: 120px;
-            }
-            QPushButton:hover {
-                background-color: #0056CC;
-            }
-            QPushButton:pressed {
-                background-color: #004499;
-            }
-        """)
-        process_btn.clicked.connect(self._trigger_ingestion)
-        button_layout.addWidget(process_btn)
-        
         button_layout.addStretch()
         
-        # Close button - matching settings dialog close button style
         close_btn = QPushButton("❌ Close")
         close_btn.setStyleSheet("""
             QPushButton {
                 background-color: #FF3B30;
                 color: white;
-                font-size: 14px;
+                font-size: 16px;
                 font-weight: 600;
-                padding: 12px 24px;
+                padding: 15px 40px;
                 border-radius: 20px;
                 border: none;
-                min-width: 120px;
+                min-width: 200px;
             }
             QPushButton:hover {
                 background-color: #D70015;
@@ -117,6 +91,8 @@ class RAGFilesDialog(BaseAuraDialog):
         """)
         close_btn.clicked.connect(self.accept)
         button_layout.addWidget(close_btn)
+        
+        button_layout.addStretch()
         
         layout.addLayout(button_layout)
         self.setLayout(layout)
@@ -384,24 +360,366 @@ def get_local_ip():
     except:
         return "127.0.0.1"
 
-class FileUploadDialog(BaseAuraDialog):
+class ConversationsDialog(BaseAuraDialog):
+    """Dialog showing stored conversations with ability to select, delete selected, or delete all"""
+    
     def __init__(self, parent=None):
-        # Initialize attributes first
-        self.uploaded_files = []
-        self.touch_coordinates = []
+        super().__init__(parent, title="💬 Conversations", size=(1080, 1080), modal=True)
+        print("[Conversations] 🔧 Initializing conversations dialog...")
         
-        print("[Upload] 🔧 Initializing upload dialog...")
+        # Add additional styles
+        additional_styles = """
+            QLabel {
+                color: white;
+                font-size: 14px;
+            }
+            QListWidget {
+                background-color: rgba(44, 44, 46, 0.8);
+                color: #ffffff;
+                border-radius: 15px;
+                border: none;
+                padding: 10px;
+                font-size: 12px;
+            }
+            QListWidget::item {
+                padding: 8px;
+                border-radius: 8px;
+                margin: 2px;
+            }
+            QListWidget::item:selected {
+                background-color: rgba(0, 122, 255, 0.3);
+            }
+            QPushButton {
+                background-color: rgba(70, 130, 180, 0.25);
+                color: #ffffff;
+                font-size: 14px;
+                font-weight: 600;
+                padding: 12px 24px;
+                border-radius: 15px;
+                border: none;
+            }
+            QPushButton:hover {
+                background-color: rgba(70, 130, 180, 0.45);
+            }
+            QPushButton:pressed {
+                background-color: rgba(70, 130, 180, 0.65);
+            }
+        """
+        base_stylesheet = self.styleSheet()
+        self.setStyleSheet(base_stylesheet + additional_styles)
+    
+    def _setup_ui(self):
+        """Setup UI - called by BaseAuraDialog"""
+        self.setup_ui()
+    
+    def setup_ui(self):
+        """Setup conversations dialog UI"""
+        layout = QVBoxLayout()
+        layout.setContentsMargins(120, 100, 120, 100)
+        layout.setSpacing(15)
+        
+        # Title
+        title = QLabel("💬 Stored Conversations")
+        title.setFont(QFont("Arial", 18, QFont.Bold))
+        title.setAlignment(Qt.AlignCenter)
+        title.setStyleSheet("color: #ffffff; font-weight: 600; margin: 10px;")
+        layout.addWidget(title)
+        
+        # Description
+        desc = QLabel("Select conversations to delete or delete all")
+        desc.setAlignment(Qt.AlignCenter)
+        desc.setStyleSheet("color: #8e8e93; font-size: 12px; margin: 5px;")
+        layout.addWidget(desc)
+        
+        # Conversations list (multi-select)
+        self.conversations_list = QListWidget()
+        self.conversations_list.setSelectionMode(QListWidget.MultiSelection)
+        self.conversations_list.setStyleSheet("""
+            QListWidget {
+                background-color: rgba(44, 44, 46, 0.8);
+                color: #ffffff;
+                border-radius: 15px;
+                border: none;
+                padding: 10px;
+                font-size: 12px;
+            }
+            QListWidget::item {
+                padding: 8px;
+                border-radius: 8px;
+                margin: 2px;
+            }
+            QListWidget::item:selected {
+                background-color: rgba(0, 122, 255, 0.3);
+            }
+        """)
+        layout.addWidget(self.conversations_list, 1)
+        
+        # Buttons
+        button_layout = QHBoxLayout()
+        button_layout.setSpacing(15)
+        
+        # Delete Selected button
+        self.delete_selected_btn = QPushButton("🗑️ Delete Selected")
+        self.delete_selected_btn.clicked.connect(self._delete_selected)
+        self.delete_selected_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #FF9500;
+                color: white;
+                font-size: 14px;
+                font-weight: 600;
+                padding: 12px 24px;
+                border-radius: 20px;
+                border: none;
+                min-width: 150px;
+            }
+            QPushButton:hover {
+                background-color: #E58500;
+            }
+            QPushButton:pressed {
+                background-color: #CC7500;
+            }
+            QPushButton:disabled {
+                background-color: rgba(255, 149, 0, 0.3);
+                color: #999;
+            }
+        """)
+        self.delete_selected_btn.setEnabled(False)
+        button_layout.addWidget(self.delete_selected_btn)
+        
+        # Delete All button
+        self.delete_all_btn = QPushButton("🗑️ Delete All")
+        self.delete_all_btn.clicked.connect(self._delete_all)
+        self.delete_all_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #FF3B30;
+                color: white;
+                font-size: 14px;
+                font-weight: 600;
+                padding: 12px 24px;
+                border-radius: 20px;
+                border: none;
+                min-width: 150px;
+            }
+            QPushButton:hover {
+                background-color: #D70015;
+            }
+            QPushButton:pressed {
+                background-color: #B30000;
+            }
+            QPushButton:disabled {
+                background-color: rgba(255, 59, 48, 0.3);
+                color: #999;
+            }
+        """)
+        # Will be enabled after conversations are loaded
+        self.delete_all_btn.setEnabled(False)
+        button_layout.addWidget(self.delete_all_btn)
+        
+        button_layout.addStretch()
+        
+        # Close button
+        close_btn = QPushButton("❌ Close")
+        close_btn.clicked.connect(self.accept)
+        close_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #8E8E93;
+                color: white;
+                font-size: 14px;
+                font-weight: 600;
+                padding: 12px 24px;
+                border-radius: 20px;
+                border: none;
+                min-width: 120px;
+            }
+            QPushButton:hover {
+                background-color: #6E6E73;
+            }
+            QPushButton:pressed {
+                background-color: #5E5E63;
+            }
+        """)
+        button_layout.addWidget(close_btn)
+        
+        layout.addLayout(button_layout)
+        self.setLayout(layout)
+        
+        # Initialize conversation data list
+        self.conversation_data = []
+        
+        # Connect selection changed to enable/disable delete selected button
+        self.conversations_list.itemSelectionChanged.connect(self._on_selection_changed)
+        
+        # Load conversations after UI is set up
+        QTimer.singleShot(100, self._load_conversations)
+    
+    def _load_conversations(self):
+        """Load conversations from memory container"""
+        try:
+            import requests
+            response = requests.get("http://localhost:11438/recent?hours=8760&limit=1000", timeout=5)
+            if response.status_code == 200:
+                data = response.json()
+                conversations = data.get("conversations", [])
+                
+                self.conversations_list.clear()
+                self.conversation_data = []
+                
+                for conv in conversations:
+                    # Get brief description (first 100 chars of text or summary)
+                    text = conv.get("text", "")
+                    summary = conv.get("summary", "")
+                    description = summary if summary else (text[:100] + "..." if len(text) > 100 else text)
+                    
+                    # Get timestamp
+                    timestamp = conv.get("timestamp", 0)
+                    from datetime import datetime
+                    if timestamp:
+                        dt = datetime.fromtimestamp(timestamp)
+                        time_str = dt.strftime("%Y-%m-%d %H:%M")
+                    else:
+                        time_str = "Unknown"
+                    
+                    # Create item text
+                    item_text = f"💬 {time_str}\n{description}"
+                    item = QListWidgetItem(item_text)
+                    item.setData(Qt.UserRole, conv)
+                    self.conversations_list.addItem(item)
+                    self.conversation_data.append(conv)
+                
+                if not conversations:
+                    no_conv_item = QListWidgetItem("📭 No conversations stored yet")
+                    no_conv_item.setFlags(Qt.NoItemFlags)
+                    self.conversations_list.addItem(no_conv_item)
+                    if hasattr(self, 'delete_all_btn'):
+                        self.delete_all_btn.setEnabled(False)
+                else:
+                    # Enable delete all button if conversations exist
+                    if hasattr(self, 'delete_all_btn'):
+                        self.delete_all_btn.setEnabled(True)
+            else:
+                QMessageBox.warning(self, "Error", f"Failed to load conversations: HTTP {response.status_code}")
+        except requests.exceptions.RequestException as e:
+            QMessageBox.warning(self, "Error", f"Could not connect to memory container: {e}")
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"Error loading conversations: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    def _on_selection_changed(self):
+        """Enable/disable delete selected button based on selection"""
+        selected = self.conversations_list.selectedItems()
+        self.delete_selected_btn.setEnabled(len(selected) > 0)
+    
+    def _delete_selected(self):
+        """Delete selected conversations"""
+        selected = self.conversations_list.selectedItems()
+        if not selected:
+            return
+        
+        reply = QMessageBox.question(
+            self,
+            "Delete Selected",
+            f"Delete {len(selected)} selected conversation(s)?",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No
+        )
+        
+        if reply == QMessageBox.Yes:
+            try:
+                import requests
+                # Get conversation IDs to delete
+                conv_ids = []
+                for item in selected:
+                    conv = item.data(Qt.UserRole)
+                    if conv and "id" in conv:
+                        conv_ids.append(conv["id"])
+                
+                if not conv_ids:
+                    QMessageBox.warning(self, "Error", "Could not extract conversation IDs")
+                    return
+                
+                # Try to delete via API endpoint (if it exists)
+                # For now, we'll try POST to /delete endpoint
+                try:
+                    response = requests.post(
+                        "http://localhost:11438/delete",
+                        json={"conversation_ids": conv_ids},
+                        timeout=10
+                    )
+                    if response.status_code == 200:
+                        QMessageBox.information(self, "Success", 
+                            f"Successfully deleted {len(conv_ids)} conversation(s).")
+                        self._load_conversations()
+                    else:
+                        QMessageBox.warning(self, "Error", 
+                            f"Delete endpoint returned HTTP {response.status_code}.\n"
+                            "Deletion may not be implemented in memory container yet.\n\n"
+                            "To enable deletion, add a DELETE endpoint to memory-container/container_rest.py")
+                except requests.exceptions.RequestException:
+                    # Endpoint doesn't exist or container not running
+                    QMessageBox.information(self, "Info", 
+                        f"Delete endpoint not available.\n"
+                        f"To delete {len(conv_ids)} conversation(s), add a DELETE endpoint to the memory container.\n\n"
+                        f"For now, conversations can be cleared by deleting:\n"
+                        f"~/LedgerAI/data/memory/conversations.jsonl")
+            except Exception as e:
+                QMessageBox.warning(self, "Error", f"Failed to delete conversations: {e}")
+                import traceback
+                traceback.print_exc()
+    
+    def _delete_all(self):
+        """Delete all conversations"""
+        reply = QMessageBox.question(
+            self,
+            "Delete All",
+            "Delete ALL stored conversations? This cannot be undone!",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No
+        )
+        
+        if reply == QMessageBox.Yes:
+            try:
+                import requests
+                # Try to delete all via API endpoint
+                try:
+                    response = requests.post(
+                        "http://localhost:11438/delete-all",
+                        timeout=10
+                    )
+                    if response.status_code == 200:
+                        QMessageBox.information(self, "Success", 
+                            "Successfully deleted all conversations.")
+                        self._load_conversations()
+                    else:
+                        QMessageBox.warning(self, "Error", 
+                            f"Delete-all endpoint returned HTTP {response.status_code}.\n"
+                            "Deletion may not be implemented in memory container yet.")
+                except requests.exceptions.RequestException:
+                    # Endpoint doesn't exist or container not running
+                    QMessageBox.information(self, "Info", 
+                        "Delete-all endpoint not available.\n"
+                        "To delete all conversations, add a DELETE-ALL endpoint to the memory container.\n\n"
+                        "For now, conversations can be cleared by deleting:\n"
+                        "~/LedgerAI/data/memory/conversations.jsonl")
+            except Exception as e:
+                QMessageBox.warning(self, "Error", f"Failed to delete all conversations: {e}")
+                import traceback
+                traceback.print_exc()
+
+class MemoryDialog(BaseAuraDialog):
+    def __init__(self, parent=None):
+        print("[Memory] 🔧 Initializing memory dialog...")
         
         # Initialize base dialog
         super().__init__(
             parent=parent,
-            title="Document Upload - AuraVision",
+            title="Memory - AuraVision",
             size=(1080, 1080),
             modal=True
         )
         
         # Set stylesheet before creating UI (base class already sets white border)
-        print("[Upload] 👁️ Dialog initialized and ready")
+        print("[Memory] 👁️ Dialog initialized and ready")
         # Add additional styles while preserving base white border
         additional_styles = """
             /* Remove red border from message boxes */
@@ -465,68 +783,15 @@ class FileUploadDialog(BaseAuraDialog):
     
     def _on_show(self):
         """Block transcription when dialog opens"""
-        self._block_transcription("File upload dialog open")
+        self._block_transcription("Memory dialog open")
         # Ensure border overlay is on top when dialog is shown
         if hasattr(self, 'border_overlay'):
             self.border_overlay.raise_()
             self.border_overlay.update()
         
-    def mousePressEvent(self, event):
-        """Capture mouse/touch coordinates for debugging"""
-        x, y = event.x(), event.y()
-        self.touch_coordinates.append((x, y))
-        
-        # Make output more prominent
-        print("=" * 60)
-        print(f"[Upload] 🖱️ TOUCH DETECTED!")
-        print(f"[Upload] 📍 Dialog-relative coordinates: ({x}, {y})")
-        print(f"[Upload] 📐 Dialog size: {self.width()} x {self.height()}")
-        print(f"[Upload] 📐 Dialog position: ({self.x()}, {self.y()})")
-        
-        # Calculate center offset
-        dialog_center_x = self.width() // 2
-        dialog_center_y = self.height() // 2
-        offset_x = x - dialog_center_x
-        offset_y = y - dialog_center_y
-        print(f"[Upload] 📐 Dialog center: ({dialog_center_x}, {dialog_center_y})")
-        print(f"[Upload] 📐 Offset from dialog center: ({offset_x}, {offset_y})")
-        
-        # Calculate screen coordinates
-        screen_x = self.x() + x
-        screen_y = self.y() + y
-        print(f"[Upload] 🌍 ABSOLUTE SCREEN COORDINATES: ({screen_x}, {screen_y})")
-        
-        # Check if this is near the dialog center
-        if abs(offset_x) < 50 and abs(offset_y) < 50:
-            print(f"[Upload] 🎯 TOUCHED DIALOG CENTER!")
-            print(f"[Upload] 💡 Screen center should be around: ({screen_x}, {screen_y})")
-            print(f"[Upload] 💡 Dialog should be positioned at: ({screen_x - 540}, {screen_y - 540})")
-        
-        # Check if this is near the screen center (assuming 1080x1080 screen)
-        screen_center_x, screen_center_y = 540, 540
-        screen_offset_x = screen_x - screen_center_x
-        screen_offset_y = screen_y - screen_center_y
-        if abs(screen_offset_x) < 50 and abs(screen_offset_y) < 50:
-            print(f"[Upload] 🎯 TOUCHED SCREEN CENTER!")
-            print(f"[Upload] 📊 Screen offset from center: ({screen_offset_x}, {screen_offset_y})")
-        
-        print("=" * 60)
-        print()
-        
-        super().mousePressEvent(event)
-    
     def _on_close(self):
         """Additional cleanup when dialog closes (called by base class)"""
         pass
-
-    def center_dialog_manually(self, screen_center_x, screen_center_y):
-        """Manually center the dialog based on screen center coordinates"""
-        # Calculate new position to center the dialog
-        new_x = screen_center_x - 540  # 540 is half of 1080
-        new_y = screen_center_y - 540
-        self.move(new_x, new_y)
-        print(f"[Upload] 🎯 Manually centered dialog at: ({new_x}, {new_y})")
-        print(f"[Upload] 📐 Screen center was: ({screen_center_x}, {screen_center_y})")
         
     def setup_ui(self):
         # Create main layout with no margins for full screen
@@ -560,81 +825,51 @@ class FileUploadDialog(BaseAuraDialog):
         # Add top spacer for vertical centering
         self.content_layout.addStretch(1)
         
-        # Title centered (no close button)
+        # Title centered
         title_layout = QHBoxLayout()
-        
-        # Spacer to center title
         title_layout.addStretch()
         
         # Title
-        title = QLabel("📄 Document Upload")
+        title = QLabel("💾 Memory")
         title.setFont(QFont("Arial", 18, QFont.Bold))
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet("color: #ffffff; font-weight: 600; margin: 10px;")
         title_layout.addWidget(title)
         
-        # Spacer to balance layout
         title_layout.addStretch()
-        
         self.content_layout.addLayout(title_layout)
         
-        # Description - more compact
-        desc = QLabel("Upload docs to data/input - auto-ingest processes them")
+        # Description
+        desc = QLabel("Manage stored conversations and RAG files")
         desc.setAlignment(Qt.AlignCenter)
-        desc.setStyleSheet("color: #8e8e93; font-size: 11px; margin: 5px;")
+        desc.setStyleSheet("color: #8e8e93; font-size: 12px; margin: 5px;")
         self.content_layout.addWidget(desc)
         
-        # File selection area - optimized for circular screen
-        file_layout = QHBoxLayout()
-        file_layout.setSpacing(20)
-        
-        self.file_list = QListWidget()
-        # Remove fixed height constraints - let it match button layout height
-        self.file_list.setMaximumWidth(550)  # 10% bigger (500 * 1.1 = 550)
-        self.file_list.setStyleSheet("""
-            QListWidget {
-                background-color: rgba(44, 44, 46, 0.8);
-                color: #ffffff;
-                border-radius: 15px;
-                border: none;
-                padding: 10px;
-                font-size: 12px;
-            }
-            QListWidget::item {
-                padding: 8px;
-                border-radius: 8px;
-                margin: 2px;
-            }
-            QListWidget::item:selected {
-                background-color: rgba(0, 122, 255, 0.3);
-            }
-            QListWidget::item:hover {
-                background-color: rgba(142, 142, 147, 0.2);
-            }
-        """)
-        file_layout.addWidget(self.file_list, 1)  # Add stretch factor
-        
+        # Buttons layout
         button_layout = QVBoxLayout()
-        button_layout.setSpacing(20)  # More spacing for larger buttons
+        button_layout.setSpacing(20)
         
-        # Keep 3 main options (removed file selection, files uploaded via Google Drive or QR code)
+        # Conversations button
+        self.conversations_btn = QPushButton("💬 Conversations")
+        self.conversations_btn.clicked.connect(self.show_conversations)
+        button_layout.addWidget(self.conversations_btn)
+        
+        # RAG Files button
         self.rag_files_btn = QPushButton("📚 RAG Files")
         self.rag_files_btn.clicked.connect(self.show_rag_files)
         button_layout.addWidget(self.rag_files_btn)
         
+        # Google Drive button
         self.gdrive_btn = QPushButton("☁️ Google Drive")
         self.gdrive_btn.clicked.connect(self.add_google_drive)
         button_layout.addWidget(self.gdrive_btn)
         
+        # QR Code button
         self.qr_btn = QPushButton("📱 Show QR Code")
         self.qr_btn.clicked.connect(self.show_qr_code)
         button_layout.addWidget(self.qr_btn)
         
-        self.clear_btn = QPushButton("🗑️ Clear All")
-        self.clear_btn.clicked.connect(self.clear_files)
-        button_layout.addWidget(self.clear_btn)
-        
-        # Apply Apple-style styling to all action buttons (compact for 4 buttons)
+        # Apply Apple-style styling to all action buttons
         action_button_style = """
             QPushButton {
                 background-color: rgba(142, 142, 147, 0.2);
@@ -654,67 +889,15 @@ class FileUploadDialog(BaseAuraDialog):
             }
         """
         
-        for button in [self.rag_files_btn, self.gdrive_btn, self.qr_btn, self.clear_btn]:
+        for button in [self.conversations_btn, self.rag_files_btn, self.gdrive_btn, self.qr_btn]:
             button.setStyleSheet(action_button_style)
         
-        file_layout.addLayout(button_layout)
-        self.content_layout.addLayout(file_layout)
-        
-        # Upload progress
-        self.progress_bar = QProgressBar()
-        self.progress_bar.setVisible(False)
-        self.content_layout.addWidget(self.progress_bar)
-        
-        # Status log - made thinner for circular screen
-        self.status_log = QTextEdit()
-        self.status_log.setMaximumHeight(100)  # Much thinner
-        self.status_log.setMinimumHeight(80)   # Much thinner
-        self.status_log.setMaximumWidth(500)   # Narrower for circular screen
-        self.status_log.setReadOnly(True)
-        self.status_log.setPlaceholderText("Upload status will appear here...")
-        self.status_log.setStyleSheet("""
-            QTextEdit {
-                background-color: rgba(44, 44, 46, 0.8);
-                color: #ffffff;
-                border-radius: 15px;
-                font-size: 11px;
-                border: none;
-                padding: 10px;
-            }
-        """)
-        self.content_layout.addWidget(self.status_log)
-        
-        # Upload and Close buttons
-        button_layout = QHBoxLayout()
-        
-        # Upload button
-        self.upload_btn = QPushButton("📤 Upload Files")
-        self.upload_btn.setEnabled(False)  # Disabled until files are selected
-        self.upload_btn.clicked.connect(self.upload_files)
-        self.upload_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #007AFF;
-                color: white;
-                font-size: 14px;
-                font-weight: 600;
-                padding: 12px 24px;
-                border-radius: 20px;
-                border: none;
-                min-width: 80px;
-            }
-            QPushButton:hover {
-                background-color: #0056CC;
-            }
-            QPushButton:pressed {
-                background-color: #004499;
-            }
-            QPushButton:disabled {
-                background-color: rgba(142, 142, 147, 0.3);
-                color: rgba(255, 255, 255, 0.5);
-            }
-        """)
+        self.content_layout.addLayout(button_layout)
         
         # Close button
+        close_layout = QHBoxLayout()
+        close_layout.addStretch()
+        
         self.close_btn = QPushButton("❌ Close")
         self.close_btn.clicked.connect(self.accept)
         self.close_btn.setStyleSheet("""
@@ -726,7 +909,7 @@ class FileUploadDialog(BaseAuraDialog):
                 padding: 12px 24px;
                 border-radius: 20px;
                 border: none;
-                min-width: 80px;
+                min-width: 120px;
             }
             QPushButton:hover {
                 background-color: #D70015;
@@ -736,9 +919,9 @@ class FileUploadDialog(BaseAuraDialog):
             }
         """)
         
-        button_layout.addWidget(self.upload_btn)
-        button_layout.addWidget(self.close_btn)
-        self.content_layout.addLayout(button_layout)
+        close_layout.addWidget(self.close_btn)
+        close_layout.addStretch()
+        self.content_layout.addLayout(close_layout)
         
         # Add bottom spacer to maintain proper spacing (smaller since we shifted content up)
         self.content_layout.addStretch(2)  # Use integer, not float
@@ -763,17 +946,15 @@ class FileUploadDialog(BaseAuraDialog):
         
         # Edge buttons removed - separate GUI functions will have their own scripts
     
+    def show_conversations(self):
+        """Show conversations dialog"""
+        dialog = ConversationsDialog(self)
+        dialog.exec_()
+    
     def show_rag_files(self):
         """Show dialog with files actively being used by RAG"""
         dialog = RAGFilesDialog(self)
         dialog.exec_()
-    
-    def clear_files(self):
-        """Clear all files from the upload list"""
-        self.uploaded_files.clear()
-        self.file_list.clear()
-        self.upload_btn.setEnabled(False)
-        self.log_status("Cleared all files")
         
     def add_google_drive(self):
         """Add document from Google Drive"""
@@ -1011,154 +1192,26 @@ class FileUploadDialog(BaseAuraDialog):
                               "2. Restart Aura system\n"
                               "3. The upload server will start automatically")
     
-    def clear_files(self):
-        """Clear all selected files"""
-        self.uploaded_files.clear()
-        self.file_list.clear()
-        self.upload_btn.setEnabled(False)
-        self.log_status("Cleared all files")
-    
-    def log_status(self, message):
-        """Add message to status log"""
-        self.status_log.append(f"[{self.get_timestamp()}] {message}")
-        self.status_log.ensureCursorVisible()
-    
-    def get_timestamp(self):
-        """Get current timestamp"""
-        from datetime import datetime
-        return datetime.now().strftime("%H:%M:%S")
-    
-    def upload_files(self):
-        """Upload selected files to the system"""
-        if not self.uploaded_files:
-            QMessageBox.warning(self, "No Files", "Please select files to upload.")
-            return
-        
-        self.progress_bar.setVisible(True)
-        self.progress_bar.setMaximum(len(self.uploaded_files))
-        self.progress_bar.setValue(0)
-        self.upload_btn.setEnabled(False)
-        
-        # Start upload process
-        self.upload_worker = UploadWorker(self.uploaded_files)
-        self.upload_worker.progress.connect(self.progress_bar.setValue)
-        self.upload_worker.status.connect(self.log_status)
-        self.upload_worker.finished.connect(self.upload_finished)
-        self.upload_worker.start()
-    
-    def upload_finished(self, success_count, error_count):
-        """Handle upload completion"""
-        self.progress_bar.setVisible(False)
-        self.upload_btn.setEnabled(True)
-        
-        if success_count > 0:
-            self.log_status(f"✅ Successfully uploaded {success_count} file(s)")
-        if error_count > 0:
-            self.log_status(f"❌ Failed to upload {error_count} file(s)")
-        
-        # Show completion message
-        if success_count > 0:
-            QMessageBox.information(
-                self, 
-                "Upload Complete", 
-                f"Successfully uploaded {success_count} file(s).\n\n"
-                f"Auto-ingest is processing files automatically.\n"
-                f"Files will be available in RAG shortly."
-            )
-        
-        # Clear files after successful upload
-        if success_count > 0:
-            self.clear_files()
-
-class UploadWorker(QThread):
-    progress = pyqtSignal(int)
-    status = pyqtSignal(str)
-    
-    def __init__(self, files):
-        super().__init__()
-        self.files = files
-    
-    def run(self):
-        """Upload files to the data/input directory"""
-        success_count = 0
-        error_count = 0
-        
-        # Ensure data/input directory exists at workspace root
-        # From aura-control/gui/ we need to go up 2 levels to workspace root
-        workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-        input_dir = os.path.join(workspace_root, 'data', 'input')
-        os.makedirs(input_dir, exist_ok=True)
-        
-        for i, file_path in enumerate(self.files):
-            try:
-                if file_path.startswith(('http://', 'https://')):
-                    # Download from URL
-                    self.status.emit(f"🌐 Downloading from URL...")
-                    response = requests.get(file_path, timeout=30, stream=True)
-                    response.raise_for_status()
-                    
-                    # Get filename from URL or use default
-                    filename = os.path.basename(urllib.parse.urlparse(file_path).path)
-                    if not filename or '.' not in filename:
-                        # Try to get filename from Content-Disposition header
-                        content_disposition = response.headers.get('Content-Disposition', '')
-                        if 'filename=' in content_disposition:
-                            filename = content_disposition.split('filename=')[1].strip('"')
-                        else:
-                            filename = "downloaded_document.pdf"
-                    
-                    dest_path = os.path.join(input_dir, filename)
-                    
-                    # Download file
-                    with open(dest_path, 'wb') as f:
-                        for chunk in response.iter_content(chunk_size=8192):
-                            f.write(chunk)
-                    
-                    self.status.emit(f"🌐 Downloaded {filename} from URL")
-                    success_count += 1
-                    
-                else:
-                    # Copy local file
-                    filename = os.path.basename(file_path)
-                    dest_path = os.path.join(input_dir, filename)
-                    
-                    shutil.copy2(file_path, dest_path)
-                    self.status.emit(f"📄 Copied {filename} to data/input")
-                    success_count += 1
-                
-            except Exception as e:
-                self.status.emit(f"❌ Error processing {file_path}: {str(e)}")
-                error_count += 1
-            
-            self.progress.emit(i + 1)
-        
-        # Auto-ingest will automatically process files via file watcher
-        if success_count > 0:
-            self.status.emit(f"✅ Files uploaded to data/input - auto-ingest will process them automatically")
-        else:
-            self.status.emit("✅ Files uploaded to data/input")
-        
-        self.finished.emit(success_count, error_count)
 
 # Global variable to prevent multiple dialogs
 _current_dialog = None
 
-def show_upload_dialog():
-    """Show the file upload dialog"""
+def show_memory_dialog():
+    """Show the memory dialog"""
     global _current_dialog
     
     # Prevent multiple dialogs
     if _current_dialog is not None:
-        print("[Upload] ⚠️ Dialog already open, bringing to front...")
+        print("[Memory] ⚠️ Dialog already open, bringing to front...")
         _current_dialog.raise_()
         _current_dialog.activateWindow()
         return
     
-    print("[Upload] 🚀 Opening upload dialog...")
+    print("[Memory] 🚀 Opening memory dialog...")
     
     try:
-        _current_dialog = FileUploadDialog()
-        print("[Upload] 📱 Dialog created, showing...")
+        _current_dialog = MemoryDialog()
+        print("[Memory] 📱 Dialog created, showing...")
         
         # Ensure dialog is visible and on top
         _current_dialog.show()
@@ -1168,12 +1221,17 @@ def show_upload_dialog():
         # Process events to ensure dialog is rendered
         QApplication.processEvents()
         
-        print("[Upload] 👁️ Dialog is now visible, waiting for user interaction...")
+        print("[Memory] 👁️ Dialog is now visible, waiting for user interaction...")
         _current_dialog.exec_()
-        print("[Upload] ✅ Dialog closed")
+        print("[Memory] ✅ Dialog closed")
     except Exception as e:
-        print(f"[Upload] ❌ Dialog error: {e}")
+        print(f"[Memory] ❌ Dialog error: {e}")
         import traceback
         traceback.print_exc()
     finally:
         _current_dialog = None
+
+# Backward compatibility alias
+def show_upload_dialog():
+    """Backward compatibility - redirects to memory dialog"""
+    show_memory_dialog()

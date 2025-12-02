@@ -241,22 +241,78 @@ def handle_conversation(
                     if quick_match_data.get('has_match', False):
                         print(f"[Generic] 🔍 Query may match stored conversations - performing memory RAG search...")
                         # Search memory container for relevant conversations
+                        # Use same logic as document RAG: get k*2 candidates, re-rank, filter, return top k
+                        from rag.rag_client import RAG_SEARCH_THRESHOLD, RAG_SEARCH_K
+                        memory_rag_threshold = RAG_SEARCH_THRESHOLD  # Use same threshold as document RAG (0.30)
+                        memory_rag_k = RAG_SEARCH_K  # Use same k as document RAG (3)
+                        
+                        # Request k*2 results with lower threshold (same as document RAG)
                         memory_rag_response = requests.post(
                             f"{memory_container_url}/rag/search",
                             json={
                                 "query": prompt,
-                                "k": 3,  # Get top 3 relevant conversations
-                                "threshold": 0.35
+                                "k": memory_rag_k * 2,  # Get 6 candidates for re-ranking (same as document RAG)
+                                "threshold": memory_rag_threshold * 0.8  # Lower threshold for initial search (same as document RAG)
                             },
                             timeout=5
                         )
                         if memory_rag_response.status_code == 200:
                             memory_rag_data = memory_rag_response.json()
-                            memory_rag_results = memory_rag_data.get('results', [])
-                            if memory_rag_results and len(memory_rag_results) > 0:
-                                print(f"[Generic] ✅ Memory RAG found {len(memory_rag_results)} relevant conversations - will inject context")
+                            memory_rag_candidates = memory_rag_data.get('results', [])
+                            
+                            # Re-rank results using same logic as document RAG (70% semantic, 30% keyword)
+                            # Use fuzzy matching for keyword scoring to handle transcription errors
+                            if memory_rag_candidates:
+                                import re
+                                # Extract query terms (same as document RAG)
+                                stop_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'are', 'was', 'were'}
+                                query_terms = [w.lower() for w in re.findall(r'\b\w+\b', prompt.lower()) if w not in stop_words and len(w) > 2]
+                                
+                                # Import fuzzy matching utility
+                                try:
+                                    sys.path.insert(0, '/shared')
+                                    from rag.fuzzy_utils import fuzzy_match_term
+                                except ImportError:
+                                    # Fallback to exact matching if fuzzy utils not available
+                                    fuzzy_match_term = lambda term, text, threshold: term in text
+                                
+                                reranked = []
+                                for result in memory_rag_candidates:
+                                    text = result.get('text', '').lower()
+                                    semantic_score = result.get('score', 0.0)
+                                    
+                                    # Count keyword matches using fuzzy matching (handles transcription errors)
+                                    keyword_matches = sum(1 for term in query_terms if fuzzy_match_term(term, text, threshold=0.75))
+                                    keyword_score = keyword_matches / max(len(query_terms), 1) if query_terms else 0
+                                    
+                                    # Combined score: 70% semantic, 30% keyword (same as document RAG)
+                                    combined_score = 0.7 * semantic_score + 0.3 * keyword_score
+                                    
+                                    reranked.append({
+                                        **result,
+                                        'score': combined_score,
+                                        'original_score': semantic_score,
+                                        'keyword_score': keyword_score
+                                    })
+                                
+                                # Sort by combined score (descending)
+                                reranked.sort(key=lambda x: x['score'], reverse=True)
+                                
+                                # Filter by threshold after re-ranking (same as document RAG)
+                                memory_rag_results = [
+                                    r for r in reranked 
+                                    if r.get('score', 0) >= memory_rag_threshold
+                                ]
+                                
+                                # Return top k (same as document RAG)
+                                memory_rag_results = memory_rag_results[:memory_rag_k]
                             else:
-                                print(f"[Generic] 🔍 Memory RAG search returned no results above threshold")
+                                memory_rag_results = []
+                            
+                            if memory_rag_results and len(memory_rag_results) > 0:
+                                print(f"[Generic] ✅ Memory RAG found {len(memory_rag_results)} relevant conversations (from {len(memory_rag_candidates)} candidates, threshold={memory_rag_threshold:.2f}) - will inject context")
+                            else:
+                                print(f"[Generic] 🔍 Memory RAG search returned no results above threshold={memory_rag_threshold:.2f} after re-ranking")
                         else:
                             print(f"[Generic] ⚠️ Memory RAG search failed: HTTP {memory_rag_response.status_code}")
                     else:
@@ -355,48 +411,73 @@ def handle_conversation(
                 rag_context = ""  # Clear context on error
         
         # Add memory RAG results (stored conversations) to context (works independently)
+        # Apply same filtering logic as document RAG
         if memory_rag_results and len(memory_rag_results) > 0:
             try:
                 print(f"[Generic] 🔍 Memory RAG injection: '{prompt[:50]}...'")
                 memory_chunks = []
                 MAX_CHARS_PER_RESULT = 1200  # Same as document RAG
                 
+                # Get threshold for filtering (same as document RAG)
+                try:
+                    from rag.rag_client import RAG_SEARCH_THRESHOLD
+                    memory_rag_threshold = RAG_SEARCH_THRESHOLD
+                except ImportError:
+                    memory_rag_threshold = 0.30  # Default fallback
+                
                 # Sort memory results by score (highest first)
                 sorted_memory_results = sorted(memory_rag_results, key=lambda x: x.get('score', 0), reverse=True)
                 
-                for i, result in enumerate(sorted_memory_results, 1):
-                    text = result.get('text', '')
-                    score = result.get('score', 0)
-                    metadata = result.get('metadata', {})
-                    
-                    if text:
-                        # Extract conversation info
-                        conv_id = metadata.get('conversation_id', 'unknown')
-                        timestamp = metadata.get('datetime', metadata.get('timestamp', ''))
-                        source = metadata.get('source', 'unknown')
+                # Filter by threshold (same logic as document RAG)
+                filtered_memory_results = [
+                    r for r in sorted_memory_results 
+                    if r.get('score', 0) >= memory_rag_threshold
+                ]
+                
+                if not filtered_memory_results:
+                    print(f"[Generic] 🔍 Memory RAG: All results below threshold={memory_rag_threshold:.2f}, skipping injection")
+                    memory_rag_results = []  # Clear results
+                else:
+                    for i, result in enumerate(filtered_memory_results, 1):
+                        text = result.get('text', '')
+                        score = result.get('score', 0)
+                        metadata = result.get('metadata', {})
                         
-                        # Format memory chunk
-                        if timestamp:
-                            memory_chunk = f"[Previous conversation ({timestamp})]: {text}"
-                        else:
-                            memory_chunk = f"[Previous conversation]: {text}"
-                        
-                        # Truncate if too long
-                        if len(memory_chunk) > MAX_CHARS_PER_RESULT:
-                            truncated = memory_chunk[:MAX_CHARS_PER_RESULT]
-                            last_period = max(
-                                truncated.rfind('. '),
-                                truncated.rfind('! '),
-                                truncated.rfind('? ')
-                            )
-                            if last_period > MAX_CHARS_PER_RESULT * 0.8:
-                                truncated = truncated[:last_period + 1] + "..."
+                        if text:
+                            # Extract conversation info
+                            conv_id = metadata.get('conversation_id', 'unknown')
+                            timestamp = metadata.get('datetime', metadata.get('timestamp', ''))
+                            source = metadata.get('source', 'unknown')
+                            
+                            # Format memory chunk
+                            if timestamp:
+                                memory_chunk = f"[Previous conversation ({timestamp})]: {text}"
                             else:
-                                truncated = truncated + "..."
-                            memory_chunk = truncated
-                        
-                        memory_chunks.append(memory_chunk)
-                        print(f"[Generic]   [Memory {i}] Score: {score:.3f}, Source: {source}, Preview: '{text[:50]}...'")
+                                memory_chunk = f"[Previous conversation]: {text}"
+                            
+                            # Truncate if too long (same logic as document RAG)
+                            if len(memory_chunk) > MAX_CHARS_PER_RESULT:
+                                truncated = memory_chunk[:MAX_CHARS_PER_RESULT]
+                                # Try to break at sentence boundary (same as document RAG)
+                                last_period = max(
+                                    truncated.rfind('. '),
+                                    truncated.rfind('! '),
+                                    truncated.rfind('? ')
+                                )
+                                if last_period > MAX_CHARS_PER_RESULT * 0.7:  # Only if we're not losing too much
+                                    truncated = truncated[:last_period + 1] + "..."
+                                else:
+                                    # Fall back to word boundary
+                                    last_space = truncated.rfind(' ')
+                                    if last_space > MAX_CHARS_PER_RESULT * 0.8:
+                                        truncated = truncated[:last_space] + "..."
+                                    else:
+                                        truncated = truncated + "..."
+                                memory_chunk = truncated
+                            
+                            memory_chunks.append(memory_chunk)
+                            threshold_status = "✅" if score >= memory_rag_threshold else "❌"
+                            print(f"[Generic]   [Memory {i}] {threshold_status} Score: {score:.3f} (threshold: {memory_rag_threshold:.3f}), Source: {source}, Preview: '{text[:50]}...'")
                 
                 if memory_chunks:
                     memory_context = "\n\n---\n\n".join(memory_chunks)
