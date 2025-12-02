@@ -348,7 +348,12 @@ class BaseLLMContainer:
         has_yielded_anything = False
         
         # Process word stream
+        print(f"[{self.service_name}] 🔍 DEBUG: sentence_tag_stream starting to iterate over word_stream")
+        word_count = 0
         for word in word_stream:
+            word_count += 1
+            if word_count <= 3:
+                print(f"[{self.service_name}] 🔍 DEBUG: sentence_tag_stream received word {word_count}: {repr(word[:50])}")
             if not word:
                 continue
             

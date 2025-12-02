@@ -688,94 +688,17 @@ def chat_tts():
             # Check if result is a generator (streaming)
             if hasattr(result, '__iter__') and not isinstance(result, str):
                 print(f"[Generic] ✅ Streaming enabled - tokens will be yielded as generated")
-                
-                # Debug: Consume all chunks to see what we get
-                raw_chunks = []
-                try:
-                    for chunk in result:
-                        raw_chunks.append(chunk)
-                        if len(raw_chunks) <= 3:  # Debug first 3 chunks
-                            print(f"[Generic] 🔍 DEBUG: Raw chunk {len(raw_chunks)}: type={type(chunk).__name__}")
-                            if isinstance(chunk, dict):
-                                if 'choices' in chunk and chunk['choices']:
-                                    choice = chunk['choices'][0]
-                                    delta = choice.get('delta', {})
-                                    finish_reason = choice.get('finish_reason')
-                                    print(f"[Generic] 🔍 DEBUG: Chunk {len(raw_chunks)} - delta keys: {list(delta.keys())}, finish_reason: {finish_reason}")
-                                    if 'content' in delta:
-                                        print(f"[Generic] 🔍 DEBUG: Chunk {len(raw_chunks)} content: {repr(delta['content'][:100])}")
-                    print(f"[Generic] 🔍 DEBUG: Total raw chunks received: {len(raw_chunks)}")
-                    if len(raw_chunks) == 0:
-                        print(f"[Generic] ⚠️ DEBUG: Raw LLM iterator is EMPTY")
-                    elif len(raw_chunks) == 1:
-                        # Check if the single chunk has a finish_reason
-                        if isinstance(raw_chunks[0], dict) and 'choices' in raw_chunks[0]:
-                            choice = raw_chunks[0]['choices'][0]
-                            finish_reason = choice.get('finish_reason')
-                            if finish_reason:
-                                print(f"[Generic] ⚠️ DEBUG: Model stopped after 1 chunk with finish_reason: {finish_reason}")
-                            else:
-                                print(f"[Generic] ⚠️ DEBUG: Model only generated 1 chunk (role only) - no finish_reason")
-                except Exception as peek_error:
-                    print(f"[Generic] ⚠️ DEBUG: Error consuming iterator: {peek_error}")
-                    import traceback
-                    traceback.print_exc()
-                
-                # Process chunks: normalize -> words -> sentences -> yield with tags
-                # The speaker module will buffer tokens between <sentence_start> and <sentence_end>
-                # and send complete sentences to TTS (Eleven Labs doesn't support streaming)
-                print(f"[Generic] 🔍 DEBUG: About to normalize {len(raw_chunks)} chunks")
-                token_count = 0
-                chunk_count = 0
-                try:
-                    # Step 1: Normalize chunks (extract content from delta)
-                    print(f"[Generic] 🔍 DEBUG: Creating normalized_chunks iterator...")
-                    normalized_chunks = _normalize_stream_chunks(iter(raw_chunks))
-                    print(f"[Generic] 🔍 DEBUG: Created normalized_chunks iterator (lazy, will execute on first iteration)")
-                    
-                    # Step 2: Convert to word stream (buffer until word boundaries)
-                    print(f"[Generic] 🔍 DEBUG: Creating word_stream iterator...")
-                    word_stream = _word_stream_from_chunks(normalized_chunks)
-                    print(f"[Generic] 🔍 DEBUG: Created word_stream iterator (lazy, will execute on first iteration)")
-                    
-                    # Step 3: Add sentence tags (wraps words with <sentence_start>/<sentence_end>)
-                    print(f"[Generic] 🔍 DEBUG: Creating sentence_stream iterator...")
-                    sentence_stream = _sentence_tag_stream(word_stream)
-                    print(f"[Generic] 🔍 DEBUG: Created sentence_stream iterator (lazy, will execute on first iteration)")
-                    
-                    # Step 4: Yield tokens (speaker will buffer until <sentence_end>)
-                    print(f"[Generic] 🔍 DEBUG: Starting iteration over sentence_stream (this will trigger the chain)...")
-                    print(f"[Generic] 🔍 DEBUG: raw_chunks type: {type(raw_chunks)}, length: {len(raw_chunks)}")
-                    print(f"[Generic] 🔍 DEBUG: First raw_chunk sample: {raw_chunks[0] if raw_chunks else 'EMPTY'}")
-                    
-                    iteration_count = 0
-                    for token in sentence_stream:
-                        iteration_count += 1
-                        token_count += 1
-                        chunk_count += 1
-                        if chunk_count <= 5:  # Debug first 5 tokens
-                            print(f"[Generic] 🔍 DEBUG: Token {chunk_count}: {repr(token[:50])}")
-                        # Accumulate tokens for memory storage (skip control tags)
-                        if not (token.startswith('<') and token.endswith('>')):
-                            full_response_text += token
-                        yield f"{token}\n"
-                    
-                    print(f"[Generic] 🔍 DEBUG: Finished iterating over sentence_stream (iterations={iteration_count}, token_count={token_count})")
-                except Exception as stream_error:
-                    print(f"[Generic] ⚠️ DEBUG: Error in streaming pipeline: {stream_error}")
-                    import traceback
-                    traceback.print_exc()
-                    token_count = 0
-                    chunk_count = 0
-                
-                if token_count == 0:
-                    print(f"[Generic] ⚠️ WARNING: No tokens generated by LLM - sending empty response")
-                    print(f"[Generic] 🔍 DEBUG: Raw chunks: {len(raw_chunks)}, Normalized chunks processed: {chunk_count}, Tokens yielded: {token_count}")
-                    # Send empty sentence tags to indicate completion
-                    yield "<sentence_start>\n"
-                    yield "<sentence_end>\n"
-                else:
-                    print(f"[Generic] ✅ Streamed response complete ({token_count} tokens)")
+                # Pass iterator directly (don't collect chunks first - that consumes the iterator!)
+                # This matches the working version from commit d4a5c540a1a3da07a7ea5a2403155adf0d7e79e7
+                normalized_chunks = _normalize_stream_chunks(result)
+                word_stream = _word_stream_from_chunks(normalized_chunks)
+                sentence_stream = _sentence_tag_stream(word_stream)
+                for token in sentence_stream:
+                    # Accumulate tokens for memory storage (skip control tags)
+                    if not (token.startswith('<') and token.endswith('>')):
+                        full_response_text += token
+                    yield f"{token}\n"
+                print(f"[Generic] ✅ Streamed response complete")
                 
                 # Store assistant's response in conversation memory after streaming completes (with fallback)
                 if full_response_text.strip():
@@ -884,78 +807,24 @@ def _clean_text_formatting(text: str) -> str:
 def _normalize_stream_chunks(chunk_iter):
     """
     Normalize mixed-type streaming chunks (dicts, strings) to plain strings.
-    Note: First chunk from llama.cpp often only has 'role' in delta - this is normal.
-    Subsequent chunks will have 'content' in delta.
+    Matches the working version from commit d4a5c540a1a3da07a7ea5a2403155adf0d7e79e7
     """
-    print(f"[Generic] 🔍 DEBUG: _normalize_stream_chunks ENTERED - starting to iterate")
-    print(f"[Generic] 🔍 DEBUG: chunk_iter type: {type(chunk_iter)}")
-    chunk_idx = 0
-    chunks_with_content = 0
-    try:
-        print(f"[Generic] 🔍 DEBUG: About to iterate over chunk_iter...")
-        for chunk in chunk_iter:
-            chunk_idx += 1
-            if chunk_idx <= 5:  # Debug first 5 chunks
-                print(f"[Generic] 🔍 DEBUG: _normalize_stream_chunks received chunk {chunk_idx}: type={type(chunk).__name__}")
-            
-            if isinstance(chunk, dict):
-                if 'choices' in chunk and len(chunk['choices']) > 0:
-                    choice = chunk['choices'][0]
-                    delta = choice.get('delta', {})
-                    content = delta.get('content', '')
-                    finish_reason = choice.get('finish_reason')
-                    
-                    if chunk_idx <= 5:
-                        print(f"[Generic] 🔍 DEBUG: Chunk {chunk_idx} delta keys: {list(delta.keys())}, has_content={bool(content)}, finish_reason={finish_reason}")
-                    
-                    # Check if generation finished early
-                    if finish_reason and finish_reason != 'null':
-                        print(f"[Generic] ⚠️ DEBUG: LLM finished early with reason: {finish_reason}")
-                        if not content:
-                            print(f"[Generic] ⚠️ DEBUG: No content in final chunk - model may have stopped generating")
-                    
-                    if content:
-                        chunks_with_content += 1
-                        if chunk_idx <= 5:
-                            print(f"[Generic] 🔍 DEBUG: Extracted content from delta: {repr(content[:50])}")
-                        yield content
-                    elif chunk_idx <= 5:
-                        # First chunk often only has 'role' - this is normal, just log it
-                        print(f"[Generic] 🔍 DEBUG: Chunk {chunk_idx} has no content (only role/metadata) - skipping")
-                elif 'content' in chunk:
-                    content = chunk.get('content', '')
-                    if content:
-                        chunks_with_content += 1
-                        if chunk_idx <= 5:
-                            print(f"[Generic] 🔍 DEBUG: Extracted content from chunk: {repr(content[:50])}")
-                        yield content
-                elif chunk_idx <= 5:
-                    print(f"[Generic] 🔍 DEBUG: Dict chunk has no content: {list(chunk.keys())}")
-            elif isinstance(chunk, str):
-                if chunk:
-                    chunks_with_content += 1
-                    if chunk_idx <= 5:
-                        print(f"[Generic] 🔍 DEBUG: String chunk: {repr(chunk[:50])}")
-                    yield chunk
-            else:
-                chunks_with_content += 1
-                if chunk_idx <= 5:
-                    print(f"[Generic] 🔍 DEBUG: Unknown chunk type, converting to string: {repr(str(chunk)[:50])}")
-                yield str(chunk)
-    
-    except Exception as e:
-        print(f"[Generic] ⚠️ DEBUG: _normalize_stream_chunks ERROR: {e}")
-        import traceback
-        traceback.print_exc()
-        raise
-    
-    if chunk_idx == 0:
-        print(f"[Generic] ⚠️ DEBUG: _normalize_stream_chunks received NO chunks from iterator")
-    elif chunks_with_content == 0:
-        print(f"[Generic] ⚠️ DEBUG: _normalize_stream_chunks received {chunk_idx} chunks but NONE had content")
-        print(f"[Generic] 🔍 DEBUG: This usually means the LLM stopped generating after the first chunk (role only)")
-    else:
-        print(f"[Generic] 🔍 DEBUG: _normalize_stream_chunks processed {chunk_idx} chunks, {chunks_with_content} had content")
+    for chunk in chunk_iter:
+        if isinstance(chunk, dict):
+            if 'choices' in chunk and len(chunk['choices']) > 0:
+                delta = chunk['choices'][0].get('delta', {})
+                content = delta.get('content', '')
+                if content:
+                    yield content
+            elif 'content' in chunk:
+                content = chunk.get('content', '')
+                if content:
+                    yield content
+        elif isinstance(chunk, str):
+            if chunk:
+                yield chunk
+        else:
+            yield str(chunk)
 
 
 def _find_word_boundary(buffer: str):
@@ -973,6 +842,7 @@ def _word_stream_from_chunks(chunk_iter):
     Buffer raw LLM chunks until we reach a word boundary, then yield the word.
     Ensures downstream consumers receive complete words (no sub-word splits).
     Filters out whitespace-only tokens.
+    Matches the working version from commit d4a5c540a1a3da07a7ea5a2403155adf0d7e79e7
     """
     buffer = ""
     for chunk in chunk_iter:
