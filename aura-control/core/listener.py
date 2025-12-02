@@ -973,11 +973,11 @@ def listen():
                         show_debug = (wake_word_detector._debug_counter % 100 == 0) or (confidence > threshold / 10) or (confidence > 0.001)
                         if show_debug:
                             status = "🔴" if confidence < threshold * 0.5 else "🟡" if confidence < threshold else "🟢"
-                            print(f"[Wake Word] {status} Confidence: {confidence:.6f} (threshold: {threshold:.6f}) - Frame {wake_word_detector._debug_counter}")
+                            print(f"[Wake Word] {status} Confidence: {confidence:.6f} (threshold: {threshold:.6f}) | RMS: {features['rms']:.4f} - Frame {wake_word_detector._debug_counter}")
                                 
                         # Heartbeat every 500 frames to confirm we're still listening
                         if wake_word_detector._debug_counter % 500 == 0:
-                            print(f"[Wake Word] 💓 Still listening for wake word... (Frame {wake_word_detector._debug_counter})")
+                            print(f"[Wake Word] 💓 Still listening for wake word... (Frame {wake_word_detector._debug_counter}) | RMS: {features['rms']:.4f}")
                         
                         if wake_detected:
                             # Print RMS and audio features at detection time (using same calculation as VAD)
@@ -1012,11 +1012,11 @@ def listen():
                             show_debug = (wake_word_detector._debug_counter % 100 == 0) or (confidence > threshold / 10) or (confidence > 0.001)
                             if show_debug:
                                 status = "🔴" if confidence < threshold * 0.5 else "🟡" if confidence < threshold else "🟢"
-                                print(f"[Wake Word] {status} Confidence: {confidence:.6f} (threshold: {threshold:.6f}) - Frame {wake_word_detector._debug_counter}")
+                                print(f"[Wake Word] {status} Confidence: {confidence:.6f} (threshold: {threshold:.6f}) | RMS: {features['rms']:.4f} - Frame {wake_word_detector._debug_counter}")
                                 
                             # Heartbeat every 500 frames to confirm we're still listening
                             if wake_word_detector._debug_counter % 500 == 0:
-                                print(f"[Wake Word] 💓 Still listening for wake word... (Frame {wake_word_detector._debug_counter})")
+                                print(f"[Wake Word] 💓 Still listening for wake word... (Frame {wake_word_detector._debug_counter}) | RMS: {features['rms']:.4f}")
                             
                             if wake_detected:
                                 # Print RMS and audio features at detection time (using same calculation as VAD)
