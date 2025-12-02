@@ -470,36 +470,9 @@ def handle_conversation(
             print(f"[Generic] 🔍 DEBUG: System content length: {len(system_content)} chars")
             print(f"[Generic] 🔍 DEBUG: Prompt embedded in system message: {prompt[:100]}")
             
-            result = llm_chat_simple(messages, max_tokens=MAX_TOKENS_RAG_MODE, stream=stream)
-            
-            if stream:
-                print(f"[Generic] 🔍 DEBUG: llm_chat_simple returned iterator: {type(result).__name__}")
-                # Check if iterator is empty by trying to peek at first item
-                if hasattr(result, '__iter__'):
-                    # Create a wrapper that checks if iterator is empty
-                    def check_empty_iterator(iter_obj):
-                        first_item = None
-                        try:
-                            first_item = next(iter_obj)
-                            yield first_item
-                            for item in iter_obj:
-                                yield item
-                        except StopIteration:
-                            print(f"[Generic] ⚠️ WARNING: LLM iterator is EMPTY (no chunks)")
-                            # Yield empty sentence tags so speaker knows stream ended
-                            yield "<sentence_start>"
-                            yield "<sentence_end>"
-                        except Exception as e:
-                            print(f"[Generic] ⚠️ ERROR iterating LLM response: {e}")
-                            import traceback
-                            traceback.print_exc()
-                            # Yield empty sentence tags so speaker knows stream ended
-                            yield "<sentence_start>"
-                            yield "<sentence_end>"
-                    
-                    return check_empty_iterator(result)
-            
-            return result
+            # Don't wrap the iterator - let base_container's debug_iterator handle logging
+            # The base class already wraps it with debug logging
+            return llm_chat_simple(messages, max_tokens=MAX_TOKENS_RAG_MODE, stream=stream)
         else:
             # No RAG context, use standard prompt with Aura Vision identity
             if is_instruction_request:
@@ -535,36 +508,9 @@ def handle_conversation(
         print(f"[Generic] 🔍 DEBUG: System content length: {len(system_content)} chars")
         print(f"[Generic] 🔍 DEBUG: User prompt: {prompt[:100]}")
         
-        result = llm_chat_simple(messages, max_tokens=MAX_TOKENS_RAG_MODE, stream=stream)
-        
-        if stream:
-            print(f"[Generic] 🔍 DEBUG: llm_chat_simple returned iterator: {type(result).__name__}")
-            # Check if iterator is empty by trying to peek at first item
-            if hasattr(result, '__iter__'):
-                # Create a wrapper that checks if iterator is empty
-                def check_empty_iterator(iter_obj):
-                    first_item = None
-                    try:
-                        first_item = next(iter_obj)
-                        yield first_item
-                        for item in iter_obj:
-                            yield item
-                    except StopIteration:
-                        print(f"[Generic] ⚠️ WARNING: LLM iterator is EMPTY (no chunks)")
-                        # Yield empty sentence tags so speaker knows stream ended
-                        yield "<sentence_start>"
-                        yield "<sentence_end>"
-                    except Exception as e:
-                        print(f"[Generic] ⚠️ ERROR iterating LLM response: {e}")
-                        import traceback
-                        traceback.print_exc()
-                        # Yield empty sentence tags so speaker knows stream ended
-                        yield "<sentence_start>"
-                        yield "<sentence_end>"
-                
-                return check_empty_iterator(result)
-        
-        return result
+        # Don't wrap the iterator - let base_container's debug_iterator handle logging
+        # The base class already wraps it with debug logging
+        return llm_chat_simple(messages, max_tokens=MAX_TOKENS_RAG_MODE, stream=stream)
 
     # Fallback to direct LLM conversation without external context
     # Detect if user is asking for instructions/steps
@@ -604,36 +550,9 @@ def handle_conversation(
     print(f"[Generic] 🔍 DEBUG: User prompt: {prompt[:100]}")
 
     # Use standard max_tokens - matches LLM_NUM_PREDICT_DEFAULT
-    result = llm_chat_simple(messages, max_tokens=MAX_TOKENS_DIRECT_MODE, stream=stream)
-    
-    if stream:
-        print(f"[Generic] 🔍 DEBUG: llm_chat_simple returned iterator: {type(result).__name__}")
-        # Check if iterator is empty by trying to peek at first item
-        if hasattr(result, '__iter__'):
-            # Create a wrapper that checks if iterator is empty
-            def check_empty_iterator(iter_obj):
-                first_item = None
-                try:
-                    first_item = next(iter_obj)
-                    yield first_item
-                    for item in iter_obj:
-                        yield item
-                except StopIteration:
-                    print(f"[Generic] ⚠️ WARNING: LLM iterator is EMPTY (no chunks)")
-                    # Yield empty sentence tags so speaker knows stream ended
-                    yield "<sentence_start>"
-                    yield "<sentence_end>"
-                except Exception as e:
-                    print(f"[Generic] ⚠️ ERROR iterating LLM response: {e}")
-                    import traceback
-                    traceback.print_exc()
-                    # Yield empty sentence tags so speaker knows stream ended
-                    yield "<sentence_start>"
-                    yield "<sentence_end>"
-            
-            return check_empty_iterator(result)
-    
-    return result
+    # Don't wrap the iterator - let base_container's debug_iterator handle logging
+    # The base class already wraps it with debug logging
+    return llm_chat_simple(messages, max_tokens=MAX_TOKENS_DIRECT_MODE, stream=stream)
 
 
 def _embed_texts(texts: List[str]) -> List[List[float]]:
@@ -806,6 +725,8 @@ def chat_tts():
                 word_stream = _word_stream_from_chunks(normalized_chunks)
                 sentence_stream = _sentence_tag_stream(word_stream)
                 token_count = 0
+                chunk_count = 0
+                word_count = 0
                 for token in sentence_stream:
                     token_count += 1
                     if token_count <= 5:
@@ -814,6 +735,14 @@ def chat_tts():
                     if not (token.startswith('<') and token.endswith('>')):
                         full_response_text += token
                     yield f"{token}\n"
+                
+                if token_count == 0:
+                    print(f"[Generic] ⚠️ WARNING: No tokens yielded from sentence_stream!")
+                    print(f"[Generic] 🔍 DEBUG: This means the LLM iterator was empty or chunks were filtered out")
+                    # Yield empty sentence tags so speaker knows stream ended
+                    yield "<sentence_start>\n"
+                    yield "<sentence_end>\n"
+                
                 print(f"[Generic] ✅ Streamed response complete (yielded {token_count} tokens)")
                 
                 # Store assistant's response in conversation memory after streaming completes (with fallback)

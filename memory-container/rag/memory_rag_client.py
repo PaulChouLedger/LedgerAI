@@ -10,7 +10,25 @@ from typing import List, Dict, Optional
 import logging
 
 # Import fuzzy matching utilities from shared directory
-sys.path.insert(0, '/shared')
+# Ensure /shared is in path (must be first to take precedence)
+if '/shared' not in sys.path:
+    sys.path.insert(0, '/shared')
+
+# Verify shared directory is mounted
+if not os.path.exists('/shared'):
+    raise ImportError(
+        "❌ /shared directory not found! "
+        "Make sure docker-compose.yml mounts ../shared:/shared"
+    )
+
+if not os.path.exists('/shared/rag/fuzzy_utils.py'):
+    raise ImportError(
+        f"❌ Cannot find /shared/rag/fuzzy_utils.py. "
+        f"Shared dir contents: {os.listdir('/shared') if os.path.exists('/shared') else 'N/A'}. "
+        f"Make sure the shared directory is properly mounted."
+    )
+
+# Import from shared rag package
 from rag.fuzzy_utils import fuzzy_match_term, extract_key_terms
 
 logger = logging.getLogger(__name__)
