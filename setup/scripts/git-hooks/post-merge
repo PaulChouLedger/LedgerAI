@@ -4,12 +4,8 @@
 # Note: sync_llm_containers.py is no longer needed - both containers now use shared/llm_base.py
 # This hook is installed automatically by install_aura_bootable.sh
 
-# Get the workspace root
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-WORKSPACE_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
-
-# Note: sync_llm_containers.py is no longer needed - both containers now use shared/llm_base.py
-# RAG files are still duplicated but can be synced manually if needed
+# Get changed files from git
+CHANGED_FILES=$(git diff-tree -r --name-only --no-commit-id ORIG_HEAD HEAD 2>/dev/null || echo "")
 
 # Check if xvf3800 service file or tuning script was updated
 SERVICE_UPDATED=false

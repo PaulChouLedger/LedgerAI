@@ -498,9 +498,12 @@ def handle_conversation(
                     f"{combined_context}\n\n"
                     "You are Aura Vision, an AI agent created by Ledger AI Quantum Corporation. "
                     "You act as a proactive AI agent guiding users to better outcomes through gentle guidance.\n\n"
+                    "IMPORTANT: Use the conversation memory provided above to answer the user's question. "
+                    "If the memory contains relevant information, provide that information in your response. "
+                    "If you notice a misspelling or typo, briefly acknowledge it but still answer the actual question asked.\n\n"
                     "Keep your response short and conversational, like Siri or Alexa (2-3 sentences typically). "
                     "Be friendly, helpful, and concise. Avoid lengthy explanations unless specifically requested."
-            )
+                )
         
         # When only memory context (no RAG), use separate user message
         messages = [
@@ -543,7 +546,12 @@ def handle_conversation(
         )
     
     if memory_context:
-        system_prompt += f"\n\nConversation memory you can reference:\n{memory_context}"
+        system_prompt += (
+            f"\n\nConversation memory you can reference:\n{memory_context}\n\n"
+            "IMPORTANT: Use the conversation memory above to answer the user's question. "
+            "If the memory contains relevant information, provide that information in your response. "
+            "If you notice a misspelling or typo, briefly acknowledge it but still answer the actual question asked."
+        )
     messages = [
         {
             "role": "system",
