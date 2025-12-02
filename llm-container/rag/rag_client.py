@@ -355,9 +355,10 @@ class RAGClient:
     
     def _rerank_results(self, query: str, results: List[Dict], top_k: int = None) -> List[Dict]:
         """
-        Re-rank search results using cross-encoder or keyword matching
+        Re-rank search results using fuzzy keyword matching and entity detection
         
-        Improves relevance by considering query-chunk interaction
+        Improves relevance by considering query-chunk interaction, handles transcription errors,
+        and prioritizes results with matching person names/entities.
         """
         if not results:
             return results
@@ -368,24 +369,56 @@ class RAGClient:
         stop_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'are', 'was', 'were'}
         query_terms = [w.lower() for w in re.findall(r'\b\w+\b', query.lower()) if w not in stop_words and len(w) > 2]
         
+        # Extract person names/entities from query (capitalized words, 2+ words)
+        # Pattern matches full names like "John Smith", "Jane Doe", etc.
+        query_names = re.findall(r'\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\b', query)
+        query_names_lower = [name.lower() for name in query_names]
+        
         # Score each result based on keyword matches and semantic score
         reranked = []
         for result in results:
             text = result.get('text', '').lower()
+            original_text = result.get('text', '')  # Keep original for name extraction
             semantic_score = result.get('score', 0.0)
             
-            # Count keyword matches
-            keyword_matches = sum(1 for term in query_terms if term in text)
+            # Count keyword matches using fuzzy matching (handles transcription errors)
+            keyword_matches = sum(1 for term in query_terms if self._fuzzy_match_term(term, text, threshold=0.75))
             keyword_score = keyword_matches / max(len(query_terms), 1) if query_terms else 0
             
-            # Combined score: 70% semantic, 30% keyword
-            combined_score = 0.7 * semantic_score + 0.3 * keyword_score
+            # Check for person name matches (critical for "Who is X?" queries)
+            name_match_boost = 0.0
+            if query_names:
+                # Extract names from result text
+                result_names = re.findall(r'\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\b', original_text)
+                result_names_lower = [name.lower() for name in result_names]
+                
+                # Check if any query name matches any result name (exact or fuzzy)
+                for query_name in query_names_lower:
+                    # Exact match
+                    if query_name in result_names_lower:
+                        name_match_boost = 0.25  # Strong boost for exact name match
+                        break
+                    # Fuzzy match (check if query name words appear together in result)
+                    query_name_words = query_name.split()
+                    for result_name in result_names_lower:
+                        # Check if all query name words appear in result name (fuzzy)
+                        if all(self._fuzzy_match_term(word, result_name, threshold=0.75) for word in query_name_words if len(word) > 2):
+                            name_match_boost = 0.20  # Boost for fuzzy name match
+                            break
+                    if name_match_boost > 0:
+                        break
+            
+            # Combined score: 70% semantic, 30% keyword, plus name match boost
+            base_score = 0.7 * semantic_score + 0.3 * keyword_score
+            combined_score = base_score + name_match_boost
+            combined_score = min(1.0, combined_score)  # Cap at 1.0
             
             reranked.append({
                 **result,
                 'score': combined_score,
                 'original_score': semantic_score,
-                'keyword_score': keyword_score
+                'keyword_score': keyword_score,
+                'name_match_boost': name_match_boost
             })
         
         # Sort by combined score (descending)

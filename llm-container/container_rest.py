@@ -278,9 +278,17 @@ def handle_conversation(
                                 
                                 # Detect if query is a question
                                 query_lower = prompt.lower().strip()
-                                is_query_question = query_lower.startswith(('who', 'what', 'when', 'where', 'why', 'how', 'do you', 'can you', 'are you', 'is there'))
+                                query_stripped = query_lower.rstrip('?').strip()
+                                is_query_question = (query_lower.endswith('?') or 
+                                                    query_lower.startswith(('who', 'what', 'when', 'where', 'why', 'how', 'do you', 'can you', 'are you', 'is there')))
+                                
+                                # Extract person names/entities from query (capitalized words, 2+ words)
+                                # Pattern matches full names like "John Smith", "Jane Doe", etc.
+                                query_names = re.findall(r'\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\b', prompt)
+                                query_names_lower = [name.lower() for name in query_names]
                                 
                                 reranked = []
+                                excluded_count = 0
                                 for result in memory_rag_candidates:
                                     text = result.get('text', '').lower()
                                     original_text = result.get('text', '')  # Keep original for analysis
@@ -290,29 +298,109 @@ def handle_conversation(
                                     keyword_matches = sum(1 for term in query_terms if fuzzy_match_term(term, text, threshold=0.75))
                                     keyword_score = keyword_matches / max(len(query_terms), 1) if query_terms else 0
                                     
-                                    # Detect if result is a question (likely not useful if query is also a question)
-                                    is_result_question = original_text.strip().startswith(('who', 'what', 'when', 'where', 'why', 'how', 'do you', 'can you', 'are you', 'is there', "who's", "what's", "where's"))
+                                    # Detect if result is a question (check both start and end)
+                                    result_stripped = text.rstrip('?').strip()
+                                    is_result_question = (original_text.strip().endswith('?') or 
+                                                         original_text.strip().lower().startswith(('who', 'what', 'when', 'where', 'why', 'how', 'do you', 'can you', 'are you', 'is there', "who's", "what's", "where's")))
                                     
-                                    # Penalize question-to-question matches (user asking same question again)
+                                    # Check for exact or near-exact duplicate matches (exclude entirely)
+                                    query_words = set(re.findall(r'\b\w{3,}\b', query_stripped))
+                                    result_words = set(re.findall(r'\b\w{3,}\b', result_stripped))
+                                    overlap = len(query_words & result_words) / max(len(query_words), 1) if query_words else 0
+                                    
+                                    # EXCLUDE: Very high similarity + high word overlap = likely same question/conversation
+                                    # This catches cases where the same question was just stored and immediately retrieved
+                                    if semantic_score > 0.95 and overlap > 0.8:
+                                        excluded_count += 1
+                                        print(f"[Generic]   ❌ EXCLUDED duplicate match (semantic: {semantic_score:.3f}, overlap: {overlap:.2f}): '{original_text[:60]}...'")
+                                        continue
+                                    
+                                    # EXCLUDE: Question-to-question with very high similarity (likely same question asked before)
+                                    if is_query_question and is_result_question and semantic_score > 0.90 and overlap > 0.7:
+                                        excluded_count += 1
+                                        print(f"[Generic]   ❌ EXCLUDED question-to-question duplicate (semantic: {semantic_score:.3f}, overlap: {overlap:.2f}): '{original_text[:60]}...'")
+                                        continue
+                                    
+                                    # EXCLUDE: Different person/entity in question
+                                    # Prevents matching questions about different entities just because they're structurally similar
+                                    # Example: "Who is John Smith?" should not match "Who is Jane Doe?"
+                                    if query_names and is_query_question and is_result_question:
+                                        # Extract names from result
+                                        result_names = re.findall(r'\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\b', original_text)
+                                        result_names_lower = [name.lower() for name in result_names]
+                                        
+                                        # Check if query names match result names
+                                        name_matches = False
+                                        for query_name in query_names_lower:
+                                            # Exact match
+                                            if query_name in result_names_lower:
+                                                name_matches = True
+                                                break
+                                            # Fuzzy match (check if query name words appear in result names)
+                                            query_name_words = query_name.split()
+                                            for result_name in result_names_lower:
+                                                # Check if all query name words appear in result name (fuzzy)
+                                                if all(fuzzy_match_term(word, result_name, threshold=0.75) for word in query_name_words if len(word) > 2):
+                                                    name_matches = True
+                                                    break
+                                            if name_matches:
+                                                break
+                                        
+                                        # If query has names but result has different names, exclude it
+                                        if result_names and not name_matches:
+                                            excluded_count += 1
+                                            print(f"[Generic]   ❌ EXCLUDED different person/entity (query: {query_names}, result: {result_names}): '{original_text[:60]}...'")
+                                            continue
+                                    
+                                    # STRONG PENALTY: Question-to-question matches with moderate-high similarity
                                     question_penalty = 0.0
                                     if is_query_question and is_result_question:
-                                        # Check if result is very similar to query (likely same question)
-                                        query_words = set(re.findall(r'\b\w{3,}\b', query_lower))
-                                        result_words = set(re.findall(r'\b\w{3,}\b', text))
-                                        overlap = len(query_words & result_words) / max(len(query_words), 1)
-                                        if overlap > 0.6:  # More than 60% word overlap = likely same question
-                                            question_penalty = 0.3  # Reduce score by 30%
-                                            print(f"[Generic]   ⚠️ Penalizing question-to-question match (overlap: {overlap:.2f}): '{original_text[:50]}...'")
+                                        if overlap > 0.5:  # More than 50% word overlap = likely same question
+                                            # Stronger penalty based on similarity and overlap
+                                            if semantic_score > 0.85:
+                                                question_penalty = 0.6  # 60% penalty for very similar questions
+                                            elif semantic_score > 0.75:
+                                                question_penalty = 0.4  # 40% penalty for similar questions
+                                            else:
+                                                question_penalty = 0.2  # 20% penalty for moderately similar
+                                            print(f"[Generic]   ⚠️ Penalizing question-to-question match (semantic: {semantic_score:.3f}, overlap: {overlap:.2f}, penalty: {question_penalty:.2f}): '{original_text[:50]}...'")
                                     
                                     # Boost answer-like content (declarative statements with key terms)
                                     answer_boost = 0.0
                                     if keyword_matches >= 2 and not is_result_question:
                                         # Contains key terms and is not a question = likely an answer
-                                        answer_boost = 0.15  # Boost by 15%
+                                        # Stronger boost for higher keyword matches
+                                        if keyword_matches >= 3:
+                                            answer_boost = 0.25  # 25% boost for high keyword match
+                                        else:
+                                            answer_boost = 0.15  # 15% boost for moderate keyword match
+                                    
+                                    # Boost for matching person names/entities (critical for "Who is X?" queries)
+                                    name_match_boost = 0.0
+                                    if query_names:
+                                        # Extract names from result
+                                        result_names = re.findall(r'\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\b', original_text)
+                                        result_names_lower = [name.lower() for name in result_names]
+                                        
+                                        # Check if any query name matches any result name (exact or fuzzy)
+                                        for query_name in query_names_lower:
+                                            # Exact match
+                                            if query_name in result_names_lower:
+                                                name_match_boost = 0.20  # Strong boost for exact name match
+                                                break
+                                            # Fuzzy match (check if query name words appear together in result)
+                                            query_name_words = query_name.split()
+                                            for result_name in result_names_lower:
+                                                # Check if all query name words appear in result name (fuzzy)
+                                                if all(fuzzy_match_term(word, result_name, threshold=0.75) for word in query_name_words if len(word) > 2):
+                                                    name_match_boost = 0.15  # Boost for fuzzy name match
+                                                    break
+                                            if name_match_boost > 0:
+                                                break
                                     
                                     # Combined score: 70% semantic, 30% keyword, with penalties/boosts
                                     base_score = 0.7 * semantic_score + 0.3 * keyword_score
-                                    combined_score = base_score - question_penalty + answer_boost
+                                    combined_score = base_score - question_penalty + answer_boost + name_match_boost
                                     combined_score = max(0.0, min(1.0, combined_score))  # Clamp to [0, 1]
                                     
                                     reranked.append({
@@ -322,8 +410,12 @@ def handle_conversation(
                                         'keyword_score': keyword_score,
                                         'is_question': is_result_question,
                                         'penalty': question_penalty,
-                                        'boost': answer_boost
+                                        'boost': answer_boost,
+                                        'overlap': overlap
                                     })
+                                
+                                if excluded_count > 0:
+                                    print(f"[Generic]   📊 Excluded {excluded_count} duplicate/near-duplicate matches")
                                 
                                 # Sort by combined score (descending)
                                 reranked.sort(key=lambda x: x['score'], reverse=True)
