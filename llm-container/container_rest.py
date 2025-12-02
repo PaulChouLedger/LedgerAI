@@ -742,35 +742,8 @@ def chat_tts():
                 normalized_chunks = _normalize_stream_chunks(result)
                 print(f"[Generic] 🔍 DEBUG: _normalize_stream_chunks returned (generator created), about to call _word_stream_from_chunks")
                 
-                # Force the first iteration of normalized_chunks to trigger debug_iterator
-                print(f"[Generic] 🔍 DEBUG: Forcing first iteration of normalized_chunks to trigger debug_iterator...")
-                try:
-                    first_normalized = next(normalized_chunks)
-                    print(f"[Generic] 🔍 DEBUG: Got first normalized chunk: {repr(str(first_normalized)[:50])}")
-                    # Recreate the iterator with the first chunk prepended
-                    def prepend_first(iter_obj, first):
-                        yield first
-                        for item in iter_obj:
-                            yield item
-                    normalized_chunks = prepend_first(normalized_chunks, first_normalized)
-                except StopIteration:
-                    print(f"[Generic] ⚠️ WARNING: normalized_chunks is EMPTY (StopIteration on first next())")
-                    print(f"[Generic] 🔍 DEBUG: This means debug_iterator didn't yield any chunks - LLM iterator is empty")
-                    # Yield empty sentence tags so speaker knows stream ended
-                    yield "<sentence_start>\n"
-                    yield "<sentence_end>\n"
-                    print(f"[Generic] ✅ Streamed response complete (yielded 0 tokens - empty iterator)")
-                    return
-                except Exception as e:
-                    print(f"[Generic] ⚠️ ERROR getting first normalized chunk: {e}")
-                    import traceback
-                    traceback.print_exc()
-                    # Yield empty sentence tags so speaker knows stream ended
-                    yield "<sentence_start>\n"
-                    yield "<sentence_end>\n"
-                    print(f"[Generic] ✅ Streamed response complete (yielded 0 tokens - error)")
-                    return
-                
+                # Don't force iteration here - let the natural flow consume the iterator
+                # The _normalize_stream_chunks will handle the first iteration internally
                 word_stream = _word_stream_from_chunks(normalized_chunks)
                 print(f"[Generic] 🔍 DEBUG: _word_stream_from_chunks returned, about to call _sentence_tag_stream")
                 sentence_stream = _sentence_tag_stream(word_stream)
