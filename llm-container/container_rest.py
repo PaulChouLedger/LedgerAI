@@ -110,7 +110,17 @@ def extract_llm_response_content(response) -> str:
 
 def llm_chat_simple(messages, max_tokens=None, temperature=None, stream=False, **kwargs):
     """Wrapper for LLM chat completion"""
-    return base_container.llm_chat_simple(messages, max_tokens, temperature, stream, **kwargs)
+    # Check if model is loaded before calling
+    if not base_container._model_loaded or base_container.llm_simple is None:
+        print(f"[Generic] ⚠️ ERROR: Model not loaded! _model_loaded={base_container._model_loaded}, llm_simple={base_container.llm_simple is not None}")
+        if stream:
+            return iter([])
+        return ""
+    
+    print(f"[Generic] 🔍 DEBUG: Calling base_container.llm_chat_simple, model loaded: {base_container._model_loaded}")
+    result = base_container.llm_chat_simple(messages, max_tokens, temperature, stream, **kwargs)
+    print(f"[Generic] 🔍 DEBUG: base_container.llm_chat_simple returned: {type(result).__name__}")
+    return result
 
 # === Conversational Logic ===
 def handle_conversation(
@@ -724,8 +734,13 @@ def chat_tts():
                 # Pass iterator directly (don't collect chunks first - that consumes the iterator!)
                 # This matches the working version from commit d4a5c540a1a3da07a7ea5a2403155adf0d7e79e7
                 print(f"[Generic] 🔍 DEBUG: About to call _normalize_stream_chunks")
+                print(f"[Generic] 🔍 DEBUG: Result iterator type: {type(result).__name__}")
+                print(f"[Generic] 🔍 DEBUG: Result iterator repr: {repr(result)[:200]}")
+                
+                # The base class's debug_iterator should log when we iterate
+                # Let's pass the iterator through and see what happens
                 normalized_chunks = _normalize_stream_chunks(result)
-                print(f"[Generic] 🔍 DEBUG: _normalize_stream_chunks returned, about to call _word_stream_from_chunks")
+                print(f"[Generic] 🔍 DEBUG: _normalize_stream_chunks returned (generator created), about to call _word_stream_from_chunks")
                 word_stream = _word_stream_from_chunks(normalized_chunks)
                 print(f"[Generic] 🔍 DEBUG: _word_stream_from_chunks returned, about to call _sentence_tag_stream")
                 sentence_stream = _sentence_tag_stream(word_stream)
