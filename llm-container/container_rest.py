@@ -745,7 +745,12 @@ def chat_tts():
                     
                     # Step 4: Yield tokens (speaker will buffer until <sentence_end>)
                     print(f"[Generic] 🔍 DEBUG: Starting iteration over sentence_stream (this will trigger the chain)...")
+                    print(f"[Generic] 🔍 DEBUG: raw_chunks type: {type(raw_chunks)}, length: {len(raw_chunks)}")
+                    print(f"[Generic] 🔍 DEBUG: First raw_chunk sample: {raw_chunks[0] if raw_chunks else 'EMPTY'}")
+                    
+                    iteration_count = 0
                     for token in sentence_stream:
+                        iteration_count += 1
                         token_count += 1
                         chunk_count += 1
                         if chunk_count <= 5:  # Debug first 5 tokens
@@ -754,7 +759,8 @@ def chat_tts():
                         if not (token.startswith('<') and token.endswith('>')):
                             full_response_text += token
                         yield f"{token}\n"
-                    print(f"[Generic] 🔍 DEBUG: Finished iterating over sentence_stream (token_count={token_count})")
+                    
+                    print(f"[Generic] 🔍 DEBUG: Finished iterating over sentence_stream (iterations={iteration_count}, token_count={token_count})")
                 except Exception as stream_error:
                     print(f"[Generic] ⚠️ DEBUG: Error in streaming pipeline: {stream_error}")
                     import traceback
@@ -881,15 +887,19 @@ def _normalize_stream_chunks(chunk_iter):
     Note: First chunk from llama.cpp often only has 'role' in delta - this is normal.
     Subsequent chunks will have 'content' in delta.
     """
+    print(f"[Generic] 🔍 DEBUG: _normalize_stream_chunks ENTERED - starting to iterate")
+    print(f"[Generic] 🔍 DEBUG: chunk_iter type: {type(chunk_iter)}")
     chunk_idx = 0
     chunks_with_content = 0
-    for chunk in chunk_iter:
-        chunk_idx += 1
-        if chunk_idx <= 5:  # Debug first 5 chunks
-            print(f"[Generic] 🔍 DEBUG: _normalize_stream_chunks received chunk {chunk_idx}: type={type(chunk).__name__}")
-        
-        if isinstance(chunk, dict):
-            if 'choices' in chunk and len(chunk['choices']) > 0:
+    try:
+        print(f"[Generic] 🔍 DEBUG: About to iterate over chunk_iter...")
+        for chunk in chunk_iter:
+            chunk_idx += 1
+            if chunk_idx <= 5:  # Debug first 5 chunks
+                print(f"[Generic] 🔍 DEBUG: _normalize_stream_chunks received chunk {chunk_idx}: type={type(chunk).__name__}")
+            
+            if isinstance(chunk, dict):
+                if 'choices' in chunk and len(chunk['choices']) > 0:
                 choice = chunk['choices'][0]
                 delta = choice.get('delta', {})
                 content = delta.get('content', '')
@@ -912,26 +922,32 @@ def _normalize_stream_chunks(chunk_iter):
                 elif chunk_idx <= 5:
                     # First chunk often only has 'role' - this is normal, just log it
                     print(f"[Generic] 🔍 DEBUG: Chunk {chunk_idx} has no content (only role/metadata) - skipping")
-            elif 'content' in chunk:
-                content = chunk.get('content', '')
-                if content:
+                elif 'content' in chunk:
+                    content = chunk.get('content', '')
+                    if content:
+                        chunks_with_content += 1
+                        if chunk_idx <= 5:
+                            print(f"[Generic] 🔍 DEBUG: Extracted content from chunk: {repr(content[:50])}")
+                        yield content
+                elif chunk_idx <= 5:
+                    print(f"[Generic] 🔍 DEBUG: Dict chunk has no content: {list(chunk.keys())}")
+            elif isinstance(chunk, str):
+                if chunk:
                     chunks_with_content += 1
                     if chunk_idx <= 5:
-                        print(f"[Generic] 🔍 DEBUG: Extracted content from chunk: {repr(content[:50])}")
-                    yield content
-            elif chunk_idx <= 5:
-                print(f"[Generic] 🔍 DEBUG: Dict chunk has no content: {list(chunk.keys())}")
-        elif isinstance(chunk, str):
-            if chunk:
+                        print(f"[Generic] 🔍 DEBUG: String chunk: {repr(chunk[:50])}")
+                    yield chunk
+            else:
                 chunks_with_content += 1
                 if chunk_idx <= 5:
-                    print(f"[Generic] 🔍 DEBUG: String chunk: {repr(chunk[:50])}")
-                yield chunk
-        else:
-            chunks_with_content += 1
-            if chunk_idx <= 5:
-                print(f"[Generic] 🔍 DEBUG: Unknown chunk type, converting to string: {repr(str(chunk)[:50])}")
-            yield str(chunk)
+                    print(f"[Generic] 🔍 DEBUG: Unknown chunk type, converting to string: {repr(str(chunk)[:50])}")
+                yield str(chunk)
+    
+    except Exception as e:
+        print(f"[Generic] ⚠️ DEBUG: _normalize_stream_chunks ERROR: {e}")
+        import traceback
+        traceback.print_exc()
+        raise
     
     if chunk_idx == 0:
         print(f"[Generic] ⚠️ DEBUG: _normalize_stream_chunks received NO chunks from iterator")
