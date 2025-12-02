@@ -895,8 +895,9 @@ def _clean_text_formatting(text: str) -> str:
 def _normalize_stream_chunks(chunk_iter):
     """
     Normalize mixed-type streaming chunks (dicts, strings) to plain strings.
-    Matches the working version from commit d4a5c540a1a3da07a7ea5a2403155adf0d7e79e7
+    Matches the working version from commit d4a5c540a1a3da07a7ea5a2403155adf0d7e7
     """
+    print(f"[Generic] 🔍 DEBUG: _normalize_stream_chunks FUNCTION CALLED - creating generator")
     print(f"[Generic] 🔍 DEBUG: _normalize_stream_chunks starting to iterate over chunk_iter: {type(chunk_iter).__name__}")
     print(f"[Generic] 🔍 DEBUG: _normalize_stream_chunks: About to start iteration - this will trigger debug_iterator")
     chunk_count = 0
@@ -1036,7 +1037,10 @@ def _word_stream_from_chunks(chunk_iter):
 
 def _sentence_tag_stream(word_stream):
     """Wrapper for base class sentence tagging"""
-    return base_container.sentence_tag_stream(word_stream)
+    print(f"[Generic] 🔍 DEBUG: _sentence_tag_stream FUNCTION CALLED - word_stream type: {type(word_stream)}")
+    result = base_container.sentence_tag_stream(word_stream)
+    print(f"[Generic] 🔍 DEBUG: _sentence_tag_stream returning generator: {type(result)}")
+    return result
     """
     Wrap word stream with <sentence_start>/<sentence_end> markers, splitting on sentence boundaries.
     Each complete sentence/phrase gets its own tags for natural TTS playback.

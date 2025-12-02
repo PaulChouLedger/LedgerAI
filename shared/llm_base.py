@@ -188,13 +188,16 @@ class BaseLLMContainer:
                         print(f"[{self.service_name}] 🔍 DEBUG: LLM returned iterator for streaming")
                         # Create a wrapper that logs chunks as they're consumed
                         def debug_iterator(iter_obj):
+                            print(f"[{self.service_name}] 🔍 DEBUG: debug_iterator FUNCTION CALLED - creating generator")
                             print(f"[{self.service_name}] 🔍 DEBUG: debug_iterator: Starting to iterate over LLM response")
                             chunk_count = 0
                             try:
                                 # Try to get first chunk to check if iterator is empty
                                 try:
+                                    print(f"[{self.service_name}] 🔍 DEBUG: debug_iterator: About to call next() on LLM iterator")
                                     first_chunk = next(iter_obj)
                                     chunk_count = 1
+                                    print(f"[{self.service_name}] 🔍 DEBUG: debug_iterator: Got first chunk from LLM!")
                                     print(f"[{self.service_name}] 🔍 DEBUG: First chunk from LLM: type={type(first_chunk).__name__}")
                                     if isinstance(first_chunk, dict):
                                         print(f"[{self.service_name}] 🔍 DEBUG: Chunk keys: {list(first_chunk.keys())}")
