@@ -186,7 +186,38 @@ class BaseLLMContainer:
                     # Check if response is actually an iterator
                     if hasattr(response, '__iter__'):
                         print(f"[{self.service_name}] 🔍 DEBUG: LLM returned iterator for streaming")
-                        return response
+                        # Try to peek at first item to see if iterator has content
+                        try:
+                            # Create a wrapper that logs the first chunk
+                            def debug_iterator(iter_obj):
+                                first_chunk = None
+                                chunk_count = 0
+                                for chunk in iter_obj:
+                                    chunk_count += 1
+                                    if chunk_count == 1:
+                                        first_chunk = chunk
+                                        print(f"[{self.service_name}] 🔍 DEBUG: First chunk from LLM: type={type(chunk).__name__}, keys={list(chunk.keys()) if isinstance(chunk, dict) else 'N/A'}")
+                                        if isinstance(chunk, dict):
+                                            if 'choices' in chunk:
+                                                choice = chunk['choices'][0] if chunk['choices'] else {}
+                                                print(f"[{self.service_name}] 🔍 DEBUG: Choice keys: {list(choice.keys())}")
+                                                if 'delta' in choice:
+                                                    print(f"[{self.service_name}] 🔍 DEBUG: Delta keys: {list(choice['delta'].keys())}")
+                                                if 'content' in choice:
+                                                    print(f"[{self.service_name}] 🔍 DEBUG: Content: {repr(choice['content'][:100])}")
+                                    yield chunk
+                                
+                                if chunk_count == 0:
+                                    print(f"[{self.service_name}] ⚠️ WARNING: LLM iterator is EMPTY (no chunks generated)")
+                                else:
+                                    print(f"[{self.service_name}] 🔍 DEBUG: LLM iterator yielded {chunk_count} chunks total")
+                            
+                            return debug_iterator(response)
+                        except Exception as debug_error:
+                            print(f"[{self.service_name}] ⚠️ DEBUG: Error wrapping iterator: {debug_error}")
+                            import traceback
+                            traceback.print_exc()
+                            return response
                     else:
                         print(f"[{self.service_name}] ⚠️ WARNING: LLM did not return iterator for stream=True, got: {type(response)}")
                         return iter([])
