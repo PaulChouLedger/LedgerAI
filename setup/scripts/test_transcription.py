@@ -115,7 +115,7 @@ SPEECH_PEAK_MIN = 0.0025
 SPEECH_HIGH_FREQ_MAX = 0.08
 
 # === Audio Normalization (for optimal Whisper transcription) ===
-ENABLE_AUDIO_NORMALIZATION = False  # Disabled - using hardware AGC only (target: 0.12 RMS)
+ENABLE_AUDIO_NORMALIZATION = True  # Disabled - using hardware AGC only (target: 0.12 RMS)
 TARGET_RMS_FOR_WHISPER = 0.12      # Optimal RMS level for Whisper (found via find_optimal_rms.py)
 
 # === Soft Clipping Prevention ===
