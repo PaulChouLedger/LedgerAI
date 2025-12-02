@@ -186,38 +186,41 @@ class BaseLLMContainer:
                     # Check if response is actually an iterator
                     if hasattr(response, '__iter__'):
                         print(f"[{self.service_name}] 🔍 DEBUG: LLM returned iterator for streaming")
-                        # Try to peek at first item to see if iterator has content
-                        try:
-                            # Create a wrapper that logs the first chunk
-                            def debug_iterator(iter_obj):
-                                first_chunk = None
-                                chunk_count = 0
+                        # Create a wrapper that logs chunks as they're consumed
+                        def debug_iterator(iter_obj):
+                            chunk_count = 0
+                            try:
                                 for chunk in iter_obj:
                                     chunk_count += 1
                                     if chunk_count == 1:
-                                        first_chunk = chunk
-                                        print(f"[{self.service_name}] 🔍 DEBUG: First chunk from LLM: type={type(chunk).__name__}, keys={list(chunk.keys()) if isinstance(chunk, dict) else 'N/A'}")
+                                        print(f"[{self.service_name}] 🔍 DEBUG: First chunk from LLM: type={type(chunk).__name__}")
                                         if isinstance(chunk, dict):
-                                            if 'choices' in chunk:
-                                                choice = chunk['choices'][0] if chunk['choices'] else {}
+                                            print(f"[{self.service_name}] 🔍 DEBUG: Chunk keys: {list(chunk.keys())}")
+                                            if 'choices' in chunk and chunk['choices']:
+                                                choice = chunk['choices'][0]
                                                 print(f"[{self.service_name}] 🔍 DEBUG: Choice keys: {list(choice.keys())}")
                                                 if 'delta' in choice:
-                                                    print(f"[{self.service_name}] 🔍 DEBUG: Delta keys: {list(choice['delta'].keys())}")
-                                                if 'content' in choice:
-                                                    print(f"[{self.service_name}] 🔍 DEBUG: Content: {repr(choice['content'][:100])}")
+                                                    delta = choice['delta']
+                                                    print(f"[{self.service_name}] 🔍 DEBUG: Delta keys: {list(delta.keys())}")
+                                                    if 'content' in delta:
+                                                        print(f"[{self.service_name}] 🔍 DEBUG: Delta content: {repr(delta['content'][:100])}")
+                                                elif 'content' in choice:
+                                                    print(f"[{self.service_name}] 🔍 DEBUG: Choice content: {repr(choice['content'][:100])}")
                                     yield chunk
                                 
                                 if chunk_count == 0:
                                     print(f"[{self.service_name}] ⚠️ WARNING: LLM iterator is EMPTY (no chunks generated)")
+                                    print(f"[{self.service_name}] 🔍 DEBUG: This usually means the model isn't generating tokens")
+                                    print(f"[{self.service_name}] 🔍 DEBUG: Check if model is loaded: {self._model_loaded}, llm_simple: {self.llm_simple is not None}")
                                 else:
                                     print(f"[{self.service_name}] 🔍 DEBUG: LLM iterator yielded {chunk_count} chunks total")
-                            
-                            return debug_iterator(response)
-                        except Exception as debug_error:
-                            print(f"[{self.service_name}] ⚠️ DEBUG: Error wrapping iterator: {debug_error}")
-                            import traceback
-                            traceback.print_exc()
-                            return response
+                            except Exception as iter_error:
+                                print(f"[{self.service_name}] ⚠️ DEBUG: Error iterating LLM response: {iter_error}")
+                                import traceback
+                                traceback.print_exc()
+                                raise
+                        
+                        return debug_iterator(response)
                     else:
                         print(f"[{self.service_name}] ⚠️ WARNING: LLM did not return iterator for stream=True, got: {type(response)}")
                         return iter([])
