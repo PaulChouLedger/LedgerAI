@@ -949,36 +949,39 @@ def _normalize_stream_chunks(chunk_iter):
             
             # Continue with rest of iterator
             for chunk in chunk_iter:
-            chunk_count += 1
-            if chunk_count <= 3:
-                print(f"[Generic] 🔍 DEBUG: _normalize_stream_chunks received chunk {chunk_count}: type={type(chunk).__name__}, content={repr(str(chunk)[:100])}")
-            if isinstance(chunk, dict):
-                if 'choices' in chunk and len(chunk['choices']) > 0:
-                    delta = chunk['choices'][0].get('delta', {})
-                    content = delta.get('content', '')
-                    if content:
+                chunk_count += 1
+                if chunk_count <= 3:
+                    print(f"[Generic] 🔍 DEBUG: _normalize_stream_chunks received chunk {chunk_count}: type={type(chunk).__name__}, content={repr(str(chunk)[:100])}")
+                if isinstance(chunk, dict):
+                    if 'choices' in chunk and len(chunk['choices']) > 0:
+                        delta = chunk['choices'][0].get('delta', {})
+                        content = delta.get('content', '')
+                        if content:
+                            content_count += 1
+                            if content_count <= 3:
+                                print(f"[Generic] 🔍 DEBUG: _normalize_stream_chunks yielding content from delta: {repr(content[:50])}")
+                            yield content
+                    elif 'content' in chunk:
+                        content = chunk.get('content', '')
+                        if content:
+                            content_count += 1
+                            if content_count <= 3:
+                                print(f"[Generic] 🔍 DEBUG: _normalize_stream_chunks yielding content: {repr(content[:50])}")
+                            yield content
+                elif isinstance(chunk, str):
+                    if chunk:
                         content_count += 1
                         if content_count <= 3:
-                            print(f"[Generic] 🔍 DEBUG: _normalize_stream_chunks yielding content from delta: {repr(content[:50])}")
-                        yield content
-                elif 'content' in chunk:
-                    content = chunk.get('content', '')
-                    if content:
-                        content_count += 1
-                        if content_count <= 3:
-                            print(f"[Generic] 🔍 DEBUG: _normalize_stream_chunks yielding content: {repr(content[:50])}")
-                        yield content
-            elif isinstance(chunk, str):
-                if chunk:
+                            print(f"[Generic] 🔍 DEBUG: _normalize_stream_chunks yielding string chunk: {repr(chunk[:50])}")
+                        yield chunk
+                else:
                     content_count += 1
                     if content_count <= 3:
-                        print(f"[Generic] 🔍 DEBUG: _normalize_stream_chunks yielding string chunk: {repr(chunk[:50])}")
-                    yield chunk
-            else:
-                content_count += 1
-                if content_count <= 3:
-                    print(f"[Generic] 🔍 DEBUG: _normalize_stream_chunks yielding converted chunk: {repr(str(chunk)[:50])}")
-                yield str(chunk)
+                        print(f"[Generic] 🔍 DEBUG: _normalize_stream_chunks yielding converted chunk: {repr(str(chunk)[:50])}")
+                    yield str(chunk)
+        except StopIteration:
+            print(f"[Generic] 🔍 DEBUG: _normalize_stream_chunks: Iterator is EMPTY (StopIteration on first next())")
+            chunk_count = 0
         
         print(f"[Generic] 🔍 DEBUG: _normalize_stream_chunks finished: received {chunk_count} chunks, yielded {content_count} content items")
         if chunk_count == 0:
