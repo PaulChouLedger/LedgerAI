@@ -357,59 +357,140 @@ class BaseLLMContainer:
         # Process word stream
         print(f"[{self.service_name}] 🔍 DEBUG: sentence_tag_stream starting to iterate over word_stream")
         word_count = 0
-        for word in word_stream:
+        
+        # Force first iteration to trigger the chain
+        try:
+            first_word = next(word_stream)
             word_count += 1
-            if word_count <= 3:
-                print(f"[{self.service_name}] 🔍 DEBUG: sentence_tag_stream received word {word_count}: {repr(word[:50])}")
-            if not word:
-                continue
+            print(f"[{self.service_name}] 🔍 DEBUG: sentence_tag_stream got first word: {repr(first_word[:50])}")
             
-            has_yielded_anything = True
-            
-            # Handle buffered word from lookahead
-            if buffered_word is not None:
-                for token in yield_word(buffered_word):
-                    yield token
-                buffered_word = None
-            
-            # Check if this might be part of a multi-token abbreviation
-            word_stripped = word.strip().lower()
-            if word_stripped in ['e.', 'i.']:
-                # Buffer this word and look ahead
-                buffered_word = word
-                prev_word = word
-                continue
-            
-            # Start sentence if not already open
-            if not sentence_open:
-                yield "<sentence_start>"
-                sentence_open = True
-                sentence_buffer = ""
-            
-            # Process word
-            for token in yield_word(word):
-                yield token
-            
-            sentence_buffer += word
-            prev_word = word
-            
-            # Check for sentence endings
-            word_clean = word.strip()
-            if word_clean:
-                # Check if word ends with sentence punctuation
-                if word_clean[-1] in ('.', '!', '?'):
-                    # Check if it's an abbreviation (common patterns)
-                    is_abbrev = (
-                        len(word_clean) <= 4 and word_clean[-1] == '.' and
-                        word_clean[0].isupper() and
-                        word_clean[:-1].isalpha()
-                    )
-                    
-                    if not is_abbrev:
-                        # Real sentence ending
-                        yield "<sentence_end>"
-                        sentence_open = False
+            # Process first word
+            if not first_word:
+                pass  # Skip empty words
+            else:
+                has_yielded_anything = True
+                
+                # Handle buffered word from lookahead
+                if buffered_word is not None:
+                    for token in yield_word(buffered_word):
+                        yield token
+                    buffered_word = None
+                
+                # Check if current word could be first part of multi-token abbreviation
+                word_stripped = first_word.strip()
+                word_clean = word_stripped.lstrip('(').lstrip('[').lstrip('{').lower()
+                if len(word_clean) == 2 and word_clean[0].isalpha() and word_clean[-1] == '.':
+                    if word_clean in multi_token_abbrevs:
+                        # Buffer this word to check next token
+                        buffered_word = first_word
+                        prev_word = first_word
+                    else:
+                        # Normal processing - not part of multi-token abbreviation
+                        if not sentence_open:
+                            yield "<sentence_start>"
+                            sentence_open = True
+                            sentence_buffer = ""
+                        for item in yield_word(first_word):
+                            yield item
+                        sentence_buffer += first_word
+                        prev_word = first_word
+                else:
+                    # Normal processing - not part of multi-token abbreviation
+                    if not sentence_open:
+                        yield "<sentence_start>"
+                        sentence_open = True
                         sentence_buffer = ""
+                    for item in yield_word(first_word):
+                        yield item
+                    sentence_buffer += first_word
+                    prev_word = first_word
+                    
+                    # Check for sentence endings
+                    word_clean = first_word.strip()
+                    if word_clean:
+                        # Check if word ends with sentence punctuation
+                        if word_clean[-1] in ('.', '!', '?'):
+                            # Check if it's an abbreviation (common patterns)
+                            is_abbrev = (
+                                len(word_clean) <= 4 and word_clean[-1] == '.' and
+                                word_clean[0].isupper() and
+                                word_clean[:-1].isalpha()
+                            )
+                            
+                            if not is_abbrev:
+                                # Real sentence ending
+                                yield "<sentence_end>"
+                                sentence_open = False
+                                sentence_buffer = ""
+            
+            # Continue with rest of iterator
+            for word in word_stream:
+                word_count += 1
+                if word_count <= 3:
+                    print(f"[{self.service_name}] 🔍 DEBUG: sentence_tag_stream received word {word_count}: {repr(word[:50])}")
+                if not word:
+                    continue
+                
+                has_yielded_anything = True
+                
+                # Handle buffered word from lookahead
+                if buffered_word is not None:
+                    for token in yield_word(buffered_word):
+                        yield token
+                    buffered_word = None
+                
+                # Check if this might be part of a multi-token abbreviation
+                word_stripped = word.strip().lower()
+                if word_stripped in ['e.', 'i.']:
+                    # Buffer this word and look ahead
+                    buffered_word = word
+                    prev_word = word
+                    continue
+                
+                # Start sentence if not already open
+                if not sentence_open:
+                    yield "<sentence_start>"
+                    sentence_open = True
+                    sentence_buffer = ""
+                
+                # Process word
+                for token in yield_word(word):
+                    yield token
+                
+                sentence_buffer += word
+                prev_word = word
+                
+                # Check for sentence endings
+                word_clean = word.strip()
+                if word_clean:
+                    # Check if word ends with sentence punctuation
+                    if word_clean[-1] in ('.', '!', '?'):
+                        # Check if it's an abbreviation (common patterns)
+                        is_abbrev = (
+                            len(word_clean) <= 4 and word_clean[-1] == '.' and
+                            word_clean[0].isupper() and
+                            word_clean[:-1].isalpha()
+                        )
+                        
+                        if not is_abbrev:
+                            # Real sentence ending
+                            yield "<sentence_end>"
+                            sentence_open = False
+                            sentence_buffer = ""
+        except StopIteration:
+            print(f"[{self.service_name}] ⚠️ WARNING: sentence_tag_stream: word_stream is EMPTY (StopIteration on first next())")
+            # Yield empty sentence tags so speaker knows stream ended
+            yield "<sentence_start>"
+            yield "<sentence_end>"
+            return
+        except Exception as e:
+            print(f"[{self.service_name}] ⚠️ ERROR in sentence_tag_stream: {e}")
+            import traceback
+            traceback.print_exc()
+            # Yield empty sentence tags so speaker knows stream ended
+            yield "<sentence_start>"
+            yield "<sentence_end>"
+            return
         
         # Handle any remaining buffered word
         if buffered_word is not None:

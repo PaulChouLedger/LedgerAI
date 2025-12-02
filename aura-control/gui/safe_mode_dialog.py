@@ -8,7 +8,7 @@ import time
 from PyQt5.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel, 
                              QPushButton, QListWidget, QListWidgetItem, 
                              QMessageBox, QInputDialog, QLineEdit, QTextEdit,
-                             QProgressBar, QTabWidget, QWidget)
+                             QProgressBar, QTabWidget, QWidget, QApplication)
 from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer
 from PyQt5.QtGui import QFont
 import shutil
@@ -118,6 +118,30 @@ class SafeModeDialog(BaseAuraDialog):
             # Start WiFi scan and OTA check after dialog is shown
             QTimer.singleShot(500, self.scan_wifi)
             QTimer.singleShot(600, self.check_ota_updates)
+    
+    def closeEvent(self, event):
+        """Override closeEvent to ensure we only close this dialog, not the parent"""
+        # Set closing flag
+        self._is_closing = True
+        
+        # Call cleanup
+        try:
+            self._on_close()
+        except Exception as e:
+            print(f"[SafeMode] ⚠️ Error in cleanup: {e}")
+        
+        # Accept the close event - this will close only this dialog
+        # Don't call super().closeEvent() to avoid any parent dialog interactions
+        event.accept()
+        
+        # Ensure parent is reactivated but not closed
+        if self.parent():
+            try:
+                self.parent().raise_()
+                self.parent().activateWindow()
+                QApplication.processEvents()
+            except (RuntimeError, AttributeError):
+                pass
     
     def _on_close(self):
         """Cleanup when dialog closes"""
@@ -313,23 +337,9 @@ class SafeModeDialog(BaseAuraDialog):
         close_layout = QHBoxLayout()
         close_layout.addStretch()
         close_btn = QPushButton("❌ Close")
-        # Use done(Rejected) to explicitly close this dialog only
+        # Simply close the dialog - closeEvent will handle cleanup
         # This ensures we return to the welcome dialog, not close the entire app
-        def close_safe_mode():
-            """Close safe mode dialog and return to welcome dialog"""
-            try:
-                # Set flag to prevent new threads
-                self._is_closing = True
-                # Close this dialog only (don't affect parent)
-                self.done(QDialog.Rejected)
-            except Exception as e:
-                print(f"[SafeMode] ⚠️ Error closing dialog: {e}")
-                # Fallback to reject
-                try:
-                    self.reject()
-                except:
-                    pass
-        close_btn.clicked.connect(close_safe_mode)
+        close_btn.clicked.connect(self.close)
         close_btn.setStyleSheet("""
             QPushButton {
                 background-color: #FF3B30;
