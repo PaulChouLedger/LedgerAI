@@ -905,13 +905,50 @@ def _normalize_stream_chunks(chunk_iter):
     Matches the working version from commit d4a5c540a1a3da07a7ea5a2403155adf0d7e79e7
     """
     print(f"[Generic] 🔍 DEBUG: _normalize_stream_chunks starting to iterate over chunk_iter: {type(chunk_iter).__name__}")
-    print(f"[Generic] 🔍 DEBUG: _normalize_stream_chunks: About to start for loop - this will trigger debug_iterator")
+    print(f"[Generic] 🔍 DEBUG: _normalize_stream_chunks: About to start iteration - this will trigger debug_iterator")
     chunk_count = 0
     content_count = 0
     try:
-        # This for loop will trigger the base class's debug_iterator to execute
-        # The debug_iterator should log "First chunk from LLM" or "LLM iterator is EMPTY"
-        for chunk in chunk_iter:
+        # Force the first iteration to trigger debug_iterator immediately
+        # This will help us see if the iterator is empty
+        try:
+            first_chunk = next(chunk_iter)
+            chunk_count = 1
+            print(f"[Generic] 🔍 DEBUG: _normalize_stream_chunks: Got first chunk! type={type(first_chunk).__name__}")
+            if chunk_count <= 3:
+                print(f"[Generic] 🔍 DEBUG: _normalize_stream_chunks received chunk {chunk_count}: type={type(first_chunk).__name__}, content={repr(str(first_chunk)[:100])}")
+            
+            # Process first chunk
+            if isinstance(first_chunk, dict):
+                if 'choices' in first_chunk and len(first_chunk['choices']) > 0:
+                    delta = first_chunk['choices'][0].get('delta', {})
+                    content = delta.get('content', '')
+                    if content:
+                        content_count += 1
+                        if content_count <= 3:
+                            print(f"[Generic] 🔍 DEBUG: _normalize_stream_chunks yielding content from delta: {repr(content[:50])}")
+                        yield content
+                elif 'content' in first_chunk:
+                    content = first_chunk.get('content', '')
+                    if content:
+                        content_count += 1
+                        if content_count <= 3:
+                            print(f"[Generic] 🔍 DEBUG: _normalize_stream_chunks yielding content: {repr(content[:50])}")
+                        yield content
+            elif isinstance(first_chunk, str):
+                if first_chunk:
+                    content_count += 1
+                    if content_count <= 3:
+                        print(f"[Generic] 🔍 DEBUG: _normalize_stream_chunks yielding string chunk: {repr(first_chunk[:50])}")
+                    yield first_chunk
+            else:
+                content_count += 1
+                if content_count <= 3:
+                    print(f"[Generic] 🔍 DEBUG: _normalize_stream_chunks yielding converted chunk: {repr(str(first_chunk)[:50])}")
+                yield str(first_chunk)
+            
+            # Continue with rest of iterator
+            for chunk in chunk_iter:
             chunk_count += 1
             if chunk_count <= 3:
                 print(f"[Generic] 🔍 DEBUG: _normalize_stream_chunks received chunk {chunk_count}: type={type(chunk).__name__}, content={repr(str(chunk)[:100])}")
