@@ -965,12 +965,8 @@ def _word_stream_from_chunks(chunk_iter):
         print(f"[Generic] ⚠️ WARNING: _word_stream_from_chunks yielded 0 words (received {chunk_count} chunks)")
 
 
+
 def _sentence_tag_stream(word_stream):
-    """Wrapper for base class sentence tagging"""
-    print(f"[Generic] 🔍 DEBUG: _sentence_tag_stream FUNCTION CALLED - word_stream type: {type(word_stream)}")
-    result = base_container.sentence_tag_stream(word_stream)
-    print(f"[Generic] 🔍 DEBUG: _sentence_tag_stream returning generator: {type(result)}")
-    return result
     """
     Wrap word stream with <sentence_start>/<sentence_end> markers, splitting on sentence boundaries.
     Each complete sentence/phrase gets its own tags for natural TTS playback.
@@ -1073,10 +1069,6 @@ def _sentence_tag_stream(word_stream):
                 yield "<sentence_end>"
                 sentence_buffer = ""
                 sentence_open = False
-        # 2. Colons: Don't split on colons - they're usually part of list headers that should stay with content
-        # This prevents awkward splits like "**Symptoms:" being a separate sentence
-        # Colons will naturally be part of the sentence and cleaned up in post-processing
-        # (Removed colon-based splitting to prevent awkward chunking)
     
     # Process the word stream
     for word in word_stream:

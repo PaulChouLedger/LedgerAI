@@ -167,13 +167,17 @@ class WelcomeSetupDialog(BaseAuraDialog):
     
     def closeEvent(self, event):
         """Handle dialog close - prevent closing if WiFi not connected"""
-        # Check WiFi connection before allowing close
+        # Always check WiFi connection status before allowing close
+        self.check_wifi_connection()
+        
+        # Only allow closing if WiFi is connected OR user explicitly accepts
         if not self.wifi_connected:
             reply = QMessageBox.question(
                 self,
                 "WiFi Not Connected",
                 "WiFi is not connected. TTS requires internet connection.\n\n"
-                "Do you want to proceed anyway? (TTS will fail)",
+                "Do you want to proceed anyway? (TTS will fail)\n\n"
+                "You can use Safe Mode to configure WiFi.",
                 QMessageBox.Yes | QMessageBox.No,
                 QMessageBox.No
             )
@@ -357,6 +361,9 @@ class WelcomeSetupDialog(BaseAuraDialog):
             print(f"[WelcomeSetup] ⚠️ Error checking WiFi: {e}")
             self.status_label.setText("⚠️ Could not check WiFi status")
             self.status_label.setStyleSheet("color: #ffa500; margin: 10px;")
+            # Ensure button is disabled if we can't verify WiFi connection
+            self.wifi_connected = False
+            self.continue_btn.setEnabled(False)
     
     def scan_wifi(self):
         """Scan for available WiFi networks"""
@@ -591,6 +598,7 @@ class WelcomeSetupDialog(BaseAuraDialog):
             
             # Wait a moment for connection to stabilize
             time.sleep(2)
+            # Check WiFi connection (this will enable the continue button)
             self.check_wifi_connection()
             # Refresh network list
             self.scan_wifi()
@@ -609,8 +617,13 @@ class WelcomeSetupDialog(BaseAuraDialog):
             from gui.safe_mode_dialog import SafeModeDialog
             safe_mode_dialog = SafeModeDialog(parent=self)
             safe_mode_dialog.exec_()
-            # After safe mode dialog closes, refresh WiFi status
+            # After safe mode dialog closes, refresh WiFi status and update button
             self.check_wifi_connection()
+            # Ensure continue button state is correct
+            if self.wifi_connected:
+                self.continue_btn.setEnabled(True)
+            else:
+                self.continue_btn.setEnabled(False)
         except Exception as e:
             print(f"[WelcomeSetup] ⚠️ Error opening safe mode: {e}")
             import traceback
