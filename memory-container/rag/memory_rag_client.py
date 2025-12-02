@@ -18,18 +18,33 @@ if '/shared' not in sys.path:
 if not os.path.exists('/shared'):
     raise ImportError(
         "❌ /shared directory not found! "
-        "Make sure docker-compose.yml mounts ../shared:/shared"
+        "Make sure docker-compose.yml mounts ../shared:/shared. "
+        "Check: docker exec setup-memory-1 ls -la /shared"
     )
 
 if not os.path.exists('/shared/rag/fuzzy_utils.py'):
+    shared_contents = os.listdir('/shared') if os.path.exists('/shared') else []
     raise ImportError(
         f"❌ Cannot find /shared/rag/fuzzy_utils.py. "
-        f"Shared dir contents: {os.listdir('/shared') if os.path.exists('/shared') else 'N/A'}. "
-        f"Make sure the shared directory is properly mounted."
+        f"Shared dir exists: {os.path.exists('/shared')}, "
+        f"Contents: {shared_contents}. "
+        f"Make sure the shared directory is properly mounted in docker-compose.yml"
     )
 
-# Import from shared rag package
-from rag.fuzzy_utils import fuzzy_match_term, extract_key_terms
+# Import from shared rag package using importlib for more reliable loading
+# This works even if the package structure isn't perfect
+import importlib.util
+fuzzy_utils_path = '/shared/rag/fuzzy_utils.py'
+spec = importlib.util.spec_from_file_location("fuzzy_utils", fuzzy_utils_path)
+if spec is None or spec.loader is None:
+    raise ImportError(
+        f"❌ Failed to load fuzzy_utils from {fuzzy_utils_path}. "
+        f"File exists: {os.path.exists(fuzzy_utils_path)}"
+    )
+fuzzy_utils_module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(fuzzy_utils_module)
+fuzzy_match_term = fuzzy_utils_module.fuzzy_match_term
+extract_key_terms = fuzzy_utils_module.extract_key_terms
 
 logger = logging.getLogger(__name__)
 
