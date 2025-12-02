@@ -9,7 +9,7 @@ import numpy as np
 from typing import List, Dict, Optional
 import logging
 
-# Add shared directory to path for fuzzy matching utilities
+# Import fuzzy matching utilities from shared directory
 sys.path.insert(0, '/shared')
 from rag.fuzzy_utils import fuzzy_match_term, extract_key_terms
 

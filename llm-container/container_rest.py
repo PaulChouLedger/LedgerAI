@@ -428,11 +428,13 @@ def handle_conversation(
         
         if has_rag_context:
             # Dynamic prompt construction with Aura Vision identity
+            # IMPORTANT: Include the prompt in the system message (matches working commit 1927b467c106120dd4e1231f600eccdaa5a93f08)
             if is_instruction_request:
                 system_content = (
                     f"{combined_context}\n\n"
                     "You are Aura Vision, an AI agent created by Ledger AI Quantum Corporation. "
                     "You act as a proactive AI agent guiding users to better outcomes through gentle guidance.\n\n"
+                    f"Based on the context provided above, answer the following question: {prompt}\n\n"
                     "Guidelines:\n"
                     "- Provide a clear, step-by-step response (numbered steps)\n"
                     "- Keep each step concise and actionable\n"
@@ -447,6 +449,7 @@ def handle_conversation(
                     f"{combined_context}\n\n"
                     "You are Aura Vision, an AI agent created by Ledger AI Quantum Corporation. "
                     "You act as a proactive AI agent guiding users to better outcomes through gentle guidance.\n\n"
+                    f"Based on the context provided above, answer the following question: {prompt}\n\n"
                     "Guidelines:\n"
                     "- Keep responses short and conversational, like Siri or Alexa (2-3 sentences typically)\n"
                     "- Be friendly, helpful, and concise\n"
@@ -456,6 +459,47 @@ def handle_conversation(
                     "- If the context doesn't fully address the question, supplement appropriately\n"
                     "- Avoid lengthy explanations unless specifically requested"
                 )
+            # When RAG context is present, use only system message (matches working commit)
+            messages = [
+                {
+                    "role": "system",
+                    "content": system_content,
+                }
+            ]
+            print(f"[Generic] 🔍 DEBUG: Calling llm_chat_simple with RAG context, {len(messages)} messages, stream={stream}")
+            print(f"[Generic] 🔍 DEBUG: System content length: {len(system_content)} chars")
+            print(f"[Generic] 🔍 DEBUG: Prompt embedded in system message: {prompt[:100]}")
+            
+            result = llm_chat_simple(messages, max_tokens=MAX_TOKENS_RAG_MODE, stream=stream)
+            
+            if stream:
+                print(f"[Generic] 🔍 DEBUG: llm_chat_simple returned iterator: {type(result).__name__}")
+                # Check if iterator is empty by trying to peek at first item
+                if hasattr(result, '__iter__'):
+                    # Create a wrapper that checks if iterator is empty
+                    def check_empty_iterator(iter_obj):
+                        first_item = None
+                        try:
+                            first_item = next(iter_obj)
+                            yield first_item
+                            for item in iter_obj:
+                                yield item
+                        except StopIteration:
+                            print(f"[Generic] ⚠️ WARNING: LLM iterator is EMPTY (no chunks)")
+                            # Yield empty sentence tags so speaker knows stream ended
+                            yield "<sentence_start>"
+                            yield "<sentence_end>"
+                        except Exception as e:
+                            print(f"[Generic] ⚠️ ERROR iterating LLM response: {e}")
+                            import traceback
+                            traceback.print_exc()
+                            # Yield empty sentence tags so speaker knows stream ended
+                            yield "<sentence_start>"
+                            yield "<sentence_end>"
+                    
+                    return check_empty_iterator(result)
+            
+            return result
         else:
             # No RAG context, use standard prompt with Aura Vision identity
             if is_instruction_request:
@@ -475,6 +519,7 @@ def handle_conversation(
                     "Be friendly, helpful, and concise. Avoid lengthy explanations unless specifically requested."
                 )
         
+        # When only memory context (no RAG), use separate user message
         messages = [
             {
                 "role": "system",
@@ -485,7 +530,41 @@ def handle_conversation(
                 "content": prompt,
             }
         ]
-        return llm_chat_simple(messages, max_tokens=MAX_TOKENS_RAG_MODE, stream=stream)
+        
+        print(f"[Generic] 🔍 DEBUG: Calling llm_chat_simple with memory context only, {len(messages)} messages, stream={stream}")
+        print(f"[Generic] 🔍 DEBUG: System content length: {len(system_content)} chars")
+        print(f"[Generic] 🔍 DEBUG: User prompt: {prompt[:100]}")
+        
+        result = llm_chat_simple(messages, max_tokens=MAX_TOKENS_RAG_MODE, stream=stream)
+        
+        if stream:
+            print(f"[Generic] 🔍 DEBUG: llm_chat_simple returned iterator: {type(result).__name__}")
+            # Check if iterator is empty by trying to peek at first item
+            if hasattr(result, '__iter__'):
+                # Create a wrapper that checks if iterator is empty
+                def check_empty_iterator(iter_obj):
+                    first_item = None
+                    try:
+                        first_item = next(iter_obj)
+                        yield first_item
+                        for item in iter_obj:
+                            yield item
+                    except StopIteration:
+                        print(f"[Generic] ⚠️ WARNING: LLM iterator is EMPTY (no chunks)")
+                        # Yield empty sentence tags so speaker knows stream ended
+                        yield "<sentence_start>"
+                        yield "<sentence_end>"
+                    except Exception as e:
+                        print(f"[Generic] ⚠️ ERROR iterating LLM response: {e}")
+                        import traceback
+                        traceback.print_exc()
+                        # Yield empty sentence tags so speaker knows stream ended
+                        yield "<sentence_start>"
+                        yield "<sentence_end>"
+                
+                return check_empty_iterator(result)
+        
+        return result
 
     # Fallback to direct LLM conversation without external context
     # Detect if user is asking for instructions/steps
@@ -519,9 +598,42 @@ def handle_conversation(
             "content": prompt,
         },
     ]
+    
+    print(f"[Generic] 🔍 DEBUG: Calling llm_chat_simple with {len(messages)} messages, stream={stream}")
+    print(f"[Generic] 🔍 DEBUG: System prompt length: {len(system_prompt)} chars")
+    print(f"[Generic] 🔍 DEBUG: User prompt: {prompt[:100]}")
 
     # Use standard max_tokens - matches LLM_NUM_PREDICT_DEFAULT
-    return llm_chat_simple(messages, max_tokens=MAX_TOKENS_DIRECT_MODE, stream=stream)
+    result = llm_chat_simple(messages, max_tokens=MAX_TOKENS_DIRECT_MODE, stream=stream)
+    
+    if stream:
+        print(f"[Generic] 🔍 DEBUG: llm_chat_simple returned iterator: {type(result).__name__}")
+        # Check if iterator is empty by trying to peek at first item
+        if hasattr(result, '__iter__'):
+            # Create a wrapper that checks if iterator is empty
+            def check_empty_iterator(iter_obj):
+                first_item = None
+                try:
+                    first_item = next(iter_obj)
+                    yield first_item
+                    for item in iter_obj:
+                        yield item
+                except StopIteration:
+                    print(f"[Generic] ⚠️ WARNING: LLM iterator is EMPTY (no chunks)")
+                    # Yield empty sentence tags so speaker knows stream ended
+                    yield "<sentence_start>"
+                    yield "<sentence_end>"
+                except Exception as e:
+                    print(f"[Generic] ⚠️ ERROR iterating LLM response: {e}")
+                    import traceback
+                    traceback.print_exc()
+                    # Yield empty sentence tags so speaker knows stream ended
+                    yield "<sentence_start>"
+                    yield "<sentence_end>"
+            
+            return check_empty_iterator(result)
+    
+    return result
 
 
 def _embed_texts(texts: List[str]) -> List[List[float]]:
