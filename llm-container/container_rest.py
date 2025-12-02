@@ -854,41 +854,68 @@ def _clean_text_formatting(text: str) -> str:
 def _normalize_stream_chunks(chunk_iter):
     """
     Normalize mixed-type streaming chunks (dicts, strings) to plain strings.
+    Note: First chunk from llama.cpp often only has 'role' in delta - this is normal.
+    Subsequent chunks will have 'content' in delta.
     """
     chunk_idx = 0
+    chunks_with_content = 0
     for chunk in chunk_iter:
         chunk_idx += 1
-        if chunk_idx <= 3:  # Debug first 3 chunks
-            print(f"[Generic] 🔍 DEBUG: _normalize_stream_chunks received chunk {chunk_idx}: type={type(chunk).__name__}, value={repr(str(chunk)[:50])}")
+        if chunk_idx <= 5:  # Debug first 5 chunks
+            print(f"[Generic] 🔍 DEBUG: _normalize_stream_chunks received chunk {chunk_idx}: type={type(chunk).__name__}")
         
         if isinstance(chunk, dict):
             if 'choices' in chunk and len(chunk['choices']) > 0:
-                delta = chunk['choices'][0].get('delta', {})
+                choice = chunk['choices'][0]
+                delta = choice.get('delta', {})
                 content = delta.get('content', '')
+                finish_reason = choice.get('finish_reason')
+                
+                if chunk_idx <= 5:
+                    print(f"[Generic] 🔍 DEBUG: Chunk {chunk_idx} delta keys: {list(delta.keys())}, has_content={bool(content)}, finish_reason={finish_reason}")
+                
+                # Check if generation finished early
+                if finish_reason and finish_reason != 'null':
+                    print(f"[Generic] ⚠️ DEBUG: LLM finished early with reason: {finish_reason}")
+                    if not content:
+                        print(f"[Generic] ⚠️ DEBUG: No content in final chunk - model may have stopped generating")
+                
                 if content:
-                    if chunk_idx <= 3:
+                    chunks_with_content += 1
+                    if chunk_idx <= 5:
                         print(f"[Generic] 🔍 DEBUG: Extracted content from delta: {repr(content[:50])}")
                     yield content
+                elif chunk_idx <= 5:
+                    # First chunk often only has 'role' - this is normal, just log it
+                    print(f"[Generic] 🔍 DEBUG: Chunk {chunk_idx} has no content (only role/metadata) - skipping")
             elif 'content' in chunk:
                 content = chunk.get('content', '')
                 if content:
-                    if chunk_idx <= 3:
+                    chunks_with_content += 1
+                    if chunk_idx <= 5:
                         print(f"[Generic] 🔍 DEBUG: Extracted content from chunk: {repr(content[:50])}")
                     yield content
-            elif chunk_idx <= 3:
+            elif chunk_idx <= 5:
                 print(f"[Generic] 🔍 DEBUG: Dict chunk has no content: {list(chunk.keys())}")
         elif isinstance(chunk, str):
             if chunk:
-                if chunk_idx <= 3:
+                chunks_with_content += 1
+                if chunk_idx <= 5:
                     print(f"[Generic] 🔍 DEBUG: String chunk: {repr(chunk[:50])}")
                 yield chunk
         else:
-            if chunk_idx <= 3:
+            chunks_with_content += 1
+            if chunk_idx <= 5:
                 print(f"[Generic] 🔍 DEBUG: Unknown chunk type, converting to string: {repr(str(chunk)[:50])}")
             yield str(chunk)
     
     if chunk_idx == 0:
         print(f"[Generic] ⚠️ DEBUG: _normalize_stream_chunks received NO chunks from iterator")
+    elif chunks_with_content == 0:
+        print(f"[Generic] ⚠️ DEBUG: _normalize_stream_chunks received {chunk_idx} chunks but NONE had content")
+        print(f"[Generic] 🔍 DEBUG: This usually means the LLM stopped generating after the first chunk (role only)")
+    else:
+        print(f"[Generic] 🔍 DEBUG: _normalize_stream_chunks processed {chunk_idx} chunks, {chunks_with_content} had content")
 
 
 def _find_word_boundary(buffer: str):
