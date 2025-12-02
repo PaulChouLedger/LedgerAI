@@ -751,6 +751,16 @@ def chat_tts():
                 print(f"[Generic] 🔍 DEBUG: Now iterating over sentence_stream - this will trigger the entire chain")
                 token_count = 0
                 try:
+                    # Force first iteration to see what happens
+                    print(f"[Generic] 🔍 DEBUG: About to call next() on sentence_stream...")
+                    first_token = next(sentence_stream)
+                    token_count += 1
+                    print(f"[Generic] 🔍 DEBUG: Got first token from sentence_stream: {repr(first_token[:50])}")
+                    # Yield the first token
+                    if not (first_token.startswith('<') and first_token.endswith('>')):
+                        full_response_text += first_token
+                    yield f"{first_token}\n"
+                    # Continue with rest
                     for token in sentence_stream:
                         token_count += 1
                         if token_count <= 5:
@@ -760,7 +770,7 @@ def chat_tts():
                             full_response_text += token
                         yield f"{token}\n"
                 except StopIteration:
-                    print(f"[Generic] 🔍 DEBUG: sentence_stream is EMPTY (StopIteration)")
+                    print(f"[Generic] 🔍 DEBUG: sentence_stream is EMPTY (StopIteration on first next())")
                     # Yield empty sentence tags so speaker knows stream ended
                     yield "<sentence_start>\n"
                     yield "<sentence_end>\n"
