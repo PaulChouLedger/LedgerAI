@@ -378,9 +378,8 @@ class RAGClient:
             original_text = result.get('text', '')
             semantic_score = result.get('score', 0.0)
             
-            # Show full chunk text for debugging
-            print(f"[RAG Pre-filter] 📄 Chunk {i}/{len(results)} (score: {semantic_score:.3f}):")
-            print(f"[RAG Pre-filter]    Full text: '{original_text}'")
+            # Show chunk preview for debugging (reduced verbosity)
+            print(f"[RAG Pre-filter] 📄 Chunk {i}/{len(results)} (score: {semantic_score:.3f}): '{original_text[:100]}...'")
             
             # For queries with capitalized words (names), REQUIRE at least one name match
             # This ensures chunks about different people are excluded

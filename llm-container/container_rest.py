@@ -117,9 +117,8 @@ def llm_chat_simple(messages, max_tokens=None, temperature=None, stream=False, *
             return iter([])
         return ""
     
-    print(f"[Generic] 🔍 DEBUG: Calling base_container.llm_chat_simple, model loaded: {base_container._model_loaded}")
+    # Reduced debug logging for performance
     result = base_container.llm_chat_simple(messages, max_tokens, temperature, stream, **kwargs)
-    print(f"[Generic] 🔍 DEBUG: base_container.llm_chat_simple returned: {type(result).__name__}")
     return result
 
 # === Filler Phrases ===
@@ -141,15 +140,15 @@ def get_filler_phrase() -> str:
 # === Extract Relevant Sentences from Chunks ===
 def extract_relevant_sentences(chunk_text: str, query_person_names: List[str]) -> str:
     """
-    Extract only sentences from a chunk that mention the queried person(s).
-    This prevents mixing information about different people.
+    Extract sentences from a chunk that mention the queried person(s), plus adjacent sentences for context.
+    This prevents mixing information about different people while preserving important details.
     
     Args:
         chunk_text: Full chunk text (may contain multiple people)
-        query_person_names: List of person names from query (e.g., ["Bob Carella", "Bob Corella"])
+        query_person_names: List of person names from query (e.g., ["David Lara"])
     
     Returns:
-        Filtered text containing only sentences mentioning the queried person(s)
+        Filtered text containing sentences mentioning the queried person(s) plus context
     """
     if not query_person_names:
         return chunk_text  # No person names in query, return full chunk
@@ -161,28 +160,32 @@ def extract_relevant_sentences(chunk_text: str, query_person_names: List[str]) -
     sentences = [sentences[i] + (sentences[i+1] if i+1 < len(sentences) else '') 
                  for i in range(0, len(sentences), 2) if sentences[i].strip()]
     
-    # Check each sentence for mentions of query person names
-    relevant_sentences = []
-    for sentence in sentences:
+    # Find sentences that mention the person, and include adjacent sentences for context
+    relevant_indices = set()
+    for i, sentence in enumerate(sentences):
         sentence_lower = sentence.lower()
-        # Check if sentence mentions any of the query person names (fuzzy match)
+        # Check if sentence mentions any of the query person names
         for person_name in query_person_names:
-            # Split person name into words
             name_words = person_name.lower().split()
-            # Check if all name words appear in sentence (fuzzy match for transcription errors)
             if len(name_words) >= 2:
                 # For multi-word names, check if at least 2 words match
                 matches = sum(1 for word in name_words if word in sentence_lower)
-                if matches >= 2:  # At least 2 words from name must match
-                    relevant_sentences.append(sentence.strip())
+                if matches >= 2:
+                    # Include this sentence and adjacent sentences (2 before, 5 after) for context
+                    for j in range(max(0, i-2), min(len(sentences), i+6)):
+                        relevant_indices.add(j)
                     break
             elif len(name_words) == 1:
-                # Single word name - check exact or fuzzy match
+                # Single word name - check exact match
                 if name_words[0] in sentence_lower:
-                    relevant_sentences.append(sentence.strip())
+                    # Include this sentence and adjacent sentences for context
+                    for j in range(max(0, i-2), min(len(sentences), i+6)):
+                        relevant_indices.add(j)
                     break
     
-    if relevant_sentences:
+    if relevant_indices:
+        # Sort indices and extract sentences
+        relevant_sentences = [sentences[i].strip() for i in sorted(relevant_indices)]
         return ' '.join(relevant_sentences)
     else:
         # No relevant sentences found, return empty (chunk will be filtered out)
@@ -355,9 +358,13 @@ def handle_conversation(
                                     conv_text = candidate.get('text', '')
                                     conversations_text += f"{i}. {conv_text}\n"
                                 
+                                # Detect if query is asking for "what else" or additional information
+                                is_followup_query = any(phrase in prompt.lower() for phrase in ['what else', 'anything else', 'more about', 'additional', 'other'])
+                                
                                 scoring_prompt = f"""Rate how well each previous conversation answers the user's question.
 
 User's question: "{prompt}"
+{'⚠️ IMPORTANT: The user is asking for ADDITIONAL information. Give LOW scores (0.0-0.2) to conversations that are just the same question being asked. Prioritize conversations that contain NEW information or answers, not questions.' if is_followup_query else ''}
 
 Previous conversations:
 {conversations_text}
@@ -367,7 +374,7 @@ For each conversation, assign a score from 0.0 to 1.0:
 - 0.7-0.9 = Mostly answers the question, contains relevant information
 - 0.4-0.6 = Partially relevant, some useful information
 - 0.1-0.3 = Minimally relevant, little useful information
-- 0.0 = Not relevant, doesn't answer the question
+- 0.0 = Not relevant, doesn't answer the question{' OR is just the same question being asked again' if is_followup_query else ''}
 
 Return ONLY a JSON array with exactly {len(memory_rag_candidates)} scores in order.
 Example: [0.8, 0.3, 0.9, 0.1, 0.7, 0.2]
@@ -743,9 +750,7 @@ JSON array only:"""
                     "content": system_content,
                 }
             ]
-            print(f"[Generic] 🔍 DEBUG: Calling llm_chat_simple with RAG context, {len(messages)} messages, stream={stream}")
-            print(f"[Generic] 🔍 DEBUG: System content length: {len(system_content)} chars")
-            print(f"[Generic] 🔍 DEBUG: Prompt embedded in system message: {prompt[:100]}")
+            # Reduced debug logging for performance
             
             # Don't wrap the iterator - let base_container's debug_iterator handle logging
             # The base class already wraps it with debug logging
@@ -793,9 +798,7 @@ JSON array only:"""
             }
         ]
         
-        print(f"[Generic] 🔍 DEBUG: Calling llm_chat_simple with memory context only, {len(messages)} messages, stream={stream}")
-        print(f"[Generic] 🔍 DEBUG: System content length: {len(system_content)} chars")
-        print(f"[Generic] 🔍 DEBUG: User prompt: {prompt[:100]}")
+            # Reduced debug logging for performance
         
         # If streaming and we used LLM scoring, yield filler phrase first
         if stream and needs_filler_phrase:
@@ -859,9 +862,7 @@ JSON array only:"""
         },
     ]
     
-    print(f"[Generic] 🔍 DEBUG: Calling llm_chat_simple with {len(messages)} messages, stream={stream}")
-    print(f"[Generic] 🔍 DEBUG: System prompt length: {len(system_prompt)} chars")
-    print(f"[Generic] 🔍 DEBUG: User prompt: {prompt[:100]}")
+    # Reduced debug logging for performance
 
     # Use standard max_tokens - matches LLM_NUM_PREDICT_DEFAULT
     # Don't wrap the iterator - let base_container's debug_iterator handle logging
@@ -1032,34 +1033,14 @@ def chat_tts():
             
             # Check if result is a generator (streaming)
             if hasattr(result, '__iter__') and not isinstance(result, str):
-                print(f"[Generic] ✅ Streaming enabled - tokens will be yielded as generated")
-                print(f"[Generic] 🔍 DEBUG: Result type: {type(result).__name__}, is generator: {hasattr(result, '__iter__')}")
-                
-                # Pass iterator directly (don't collect chunks first - that consumes the iterator!)
-                # This matches the working version from commit d4a5c540a1a3da07a7ea5a2403155adf0d7e79e7
-                print(f"[Generic] 🔍 DEBUG: About to call _normalize_stream_chunks")
-                print(f"[Generic] 🔍 DEBUG: Result iterator type: {type(result).__name__}")
-                print(f"[Generic] 🔍 DEBUG: Result iterator repr: {repr(result)[:200]}")
-                
-                # The base class's debug_iterator should log when we iterate
-                # Pass the iterator directly - _normalize_stream_chunks will consume it
-                print(f"[Generic] 🔍 DEBUG: About to call _normalize_stream_chunks with result: {type(result)}")
+                # Reduced debug logging for performance
                 normalized_chunks = _normalize_stream_chunks(result)
-                print(f"[Generic] 🔍 DEBUG: _normalize_stream_chunks returned (generator created), about to call _word_stream_from_chunks")
-                
                 word_stream = _word_stream_from_chunks(normalized_chunks)
-                print(f"[Generic] 🔍 DEBUG: _word_stream_from_chunks returned, about to call _sentence_tag_stream")
-                print(f"[Generic] 🔍 DEBUG: word_stream type: {type(word_stream)}, repr: {repr(word_stream)}")
                 sentence_stream = _sentence_tag_stream(word_stream)
-                print(f"[Generic] 🔍 DEBUG: _sentence_tag_stream returned, type: {type(sentence_stream)}, repr: {repr(sentence_stream)}")
-                print(f"[Generic] 🔍 DEBUG: Now iterating over sentence_stream - this will trigger the entire chain")
                 token_count = 0
                 try:
-                    # Force first iteration to see what happens
-                    print(f"[Generic] 🔍 DEBUG: About to call next() on sentence_stream...")
                     first_token = next(sentence_stream)
                     token_count += 1
-                    print(f"[Generic] 🔍 DEBUG: Got first token from sentence_stream: {repr(first_token[:50])}")
                     # Yield the first token
                     if not (first_token.startswith('<') and first_token.endswith('>')):
                         full_response_text += first_token
@@ -1067,14 +1048,11 @@ def chat_tts():
                     # Continue with rest
                     for token in sentence_stream:
                         token_count += 1
-                        if token_count <= 5:
-                            print(f"[Generic] 🔍 DEBUG: Yielding token {token_count}: {repr(token[:50])}")
                         # Accumulate tokens for memory storage (skip control tags)
                         if not (token.startswith('<') and token.endswith('>')):
                             full_response_text += token
                         yield f"{token}\n"
                 except StopIteration:
-                    print(f"[Generic] 🔍 DEBUG: sentence_stream is EMPTY (StopIteration on first next())")
                     # Yield empty sentence tags so speaker knows stream ended
                     yield "<sentence_start>\n"
                     yield "<sentence_end>\n"
