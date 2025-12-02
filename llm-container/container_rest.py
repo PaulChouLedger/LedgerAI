@@ -138,6 +138,56 @@ def get_filler_phrase() -> str:
     ]
     return random.choice(filler_phrases)
 
+# === Extract Relevant Sentences from Chunks ===
+def extract_relevant_sentences(chunk_text: str, query_person_names: List[str]) -> str:
+    """
+    Extract only sentences from a chunk that mention the queried person(s).
+    This prevents mixing information about different people.
+    
+    Args:
+        chunk_text: Full chunk text (may contain multiple people)
+        query_person_names: List of person names from query (e.g., ["Bob Carella", "Bob Corella"])
+    
+    Returns:
+        Filtered text containing only sentences mentioning the queried person(s)
+    """
+    if not query_person_names:
+        return chunk_text  # No person names in query, return full chunk
+    
+    import re
+    # Split into sentences (handle common sentence endings)
+    sentences = re.split(r'([.!?]\s+)', chunk_text)
+    # Recombine sentences with their punctuation
+    sentences = [sentences[i] + (sentences[i+1] if i+1 < len(sentences) else '') 
+                 for i in range(0, len(sentences), 2) if sentences[i].strip()]
+    
+    # Check each sentence for mentions of query person names
+    relevant_sentences = []
+    for sentence in sentences:
+        sentence_lower = sentence.lower()
+        # Check if sentence mentions any of the query person names (fuzzy match)
+        for person_name in query_person_names:
+            # Split person name into words
+            name_words = person_name.lower().split()
+            # Check if all name words appear in sentence (fuzzy match for transcription errors)
+            if len(name_words) >= 2:
+                # For multi-word names, check if at least 2 words match
+                matches = sum(1 for word in name_words if word in sentence_lower)
+                if matches >= 2:  # At least 2 words from name must match
+                    relevant_sentences.append(sentence.strip())
+                    break
+            elif len(name_words) == 1:
+                # Single word name - check exact or fuzzy match
+                if name_words[0] in sentence_lower:
+                    relevant_sentences.append(sentence.strip())
+                    break
+    
+    if relevant_sentences:
+        return ' '.join(relevant_sentences)
+    else:
+        # No relevant sentences found, return empty (chunk will be filtered out)
+        return ""
+
 # === Conversational Logic ===
 def handle_conversation(
     prompt: str, session_id: str, memory_context: Optional[str] = None, stream: bool = False
@@ -434,6 +484,14 @@ JSON array only:"""
                             file_name = result['metadata'].get('document_name', 'unknown')
                     print(f"[Generic]   [{i}] Score: {score:.3f}, File: {file_name}, Preview: '{text_preview}...'")
                 
+                # Extract person names from query for filtering chunks
+                query_person_names = re.findall(r'\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\b', prompt)
+                # Also extract individual capitalized words that might be names
+                query_capitalized = re.findall(r'\b([A-Z][a-z]+)\b', prompt)
+                # Combine full names and individual capitalized words, exclude question words
+                question_words = {'Who', 'What', 'Where', 'When', 'Why', 'How', 'The', 'A', 'An', 'Is', 'Are', 'Was', 'Were'}
+                all_query_names = query_person_names + [w for w in query_capitalized if w not in question_words]
+                
                 # Build RAG context with improved formatting and relevance ordering
                 MAX_CHARS_PER_RESULT = 1200
                 rag_chunks = []
@@ -447,6 +505,15 @@ JSON array only:"""
                     metadata = r.get("metadata", {})
                     
                     if text:
+                        # If query has person names, extract only relevant sentences
+                        if all_query_names:
+                            filtered_text = extract_relevant_sentences(text, all_query_names)
+                            if not filtered_text:
+                                print(f"[Generic]   [RAG {i}] ⚠️ Filtered out (no sentences mention query person): '{text[:60]}...'")
+                                continue  # Skip this chunk if no relevant sentences
+                            text = filtered_text
+                            print(f"[Generic]   [RAG {i}] ✅ Filtered to relevant sentences: '{text[:80]}...'")
+                        
                         # Extract source information
                         source_name = "unknown"
                         if isinstance(metadata, dict):
@@ -645,17 +712,26 @@ JSON array only:"""
                                    "Do NOT make up or guess information about people, places, or facts. " \
                                    "If you don't have reliable information, say so rather than speculating.\n\n"
                 
+                # Extract person names from query for explicit instruction
+                query_person_names = re.findall(r'\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\b', prompt)
+                person_instruction = ""
+                if query_person_names:
+                    person_list = ", ".join(query_person_names)
+                    person_instruction = f"\n\n⚠️ CRITICAL: The user is asking about {person_list}. ONLY use information from the context that specifically mentions {person_list}. DO NOT confuse information about {person_list} with information about other people mentioned in the context. If a context section mentions multiple people, only extract and use the information that pertains to {person_list}.\n"
+                
                 system_content = (
                     f"{combined_context}\n\n"
                     "You are Aura Vision, an AI agent created by Ledger AI Quantum Corporation. "
                     "You act as a proactive AI agent guiding users to better outcomes through gentle guidance.\n\n"
                     f"{memory_warning}"
-                    f"Based on the context provided above, answer the following question: {prompt}\n\n"
+                    f"Based on the context provided above, answer the following question: {prompt}\n"
+                    f"{person_instruction}"
                     "Guidelines:\n"
                     "- Keep responses short and conversational, like Siri or Alexa (2-3 sentences typically)\n"
                     "- Be friendly, helpful, and concise\n"
                     "- Synthesize information from the context sections naturally\n"
-                    "- Integrate information from multiple sections when relevant\n"
+                    "- ONLY use information that directly relates to the person/entity asked about\n"
+                    "- DO NOT mix information about different people - be precise about who you're describing\n"
                     "- Rephrase and explain in your own words rather than copying text\n"
                     "- If the context doesn't fully address the question, supplement appropriately\n"
                     "- Avoid lengthy explanations unless specifically requested"
