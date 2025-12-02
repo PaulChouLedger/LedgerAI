@@ -1301,32 +1301,9 @@ def _sentence_tag_stream(word_stream):
             yield word_to_yield
             sentence_buffer += word_to_yield
         
-        # Check if we've reached a sentence boundary
-        # 1. Sentence endings: . ! ? (period, exclamation, question mark)
-        if word_stripped and word_stripped[-1] in SENTENCE_ENDINGS:
-            # Check if this might be part of an abbreviation
-            is_abbreviation = False
-            
-            # Check if word is a known single-token abbreviation
-            word_lower = word_stripped.lower().rstrip(',').rstrip(')').rstrip(']').rstrip('}')
-            if word_lower in abbrev_expansions:
-                is_abbreviation = True
-            # Check if it's a single letter followed by period (like "e." or "i.")
-            # Remove leading punctuation for detection
-            word_clean = word_stripped.lstrip('(').lstrip('[').lstrip('{').lower()
-            if len(word_clean) == 2 and word_clean[0].isalpha() and word_clean[-1] == '.':
-                # Check if this could be the first part of a multi-token abbreviation
-                if word_clean in multi_token_abbrevs:
-                    is_abbreviation = True  # Don't end sentence yet, wait for next token
-                # Also check if previous word was also short, likely abbreviation
-                elif prev_word and len(prev_word.strip()) <= 3:
-                    is_abbreviation = True
-            
-            # Only end sentence if it's not an abbreviation
-            if not is_abbreviation:
-                yield "<sentence_end>"
-                sentence_buffer = ""
-                sentence_open = False
+        # REMOVED: Punctuation-based sentence splitting
+        # Only tags should control sentence boundaries, not punctuation/grammar
+        # This prevents awkward splits and isolated punctuation marks
     
     # Process the word stream
     for word in word_stream:
