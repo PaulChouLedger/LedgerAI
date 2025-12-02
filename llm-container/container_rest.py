@@ -226,7 +226,7 @@ def handle_conversation(
             except Exception as e:
                 print(f"[Generic] ⚠️ RAG check failed: {e}")
                 rag_client = None
-            
+        
             # Check memory container RAG (stored conversations)
             try:
                 memory_container_url = os.environ.get('MEMORY_CONTAINER_URL', 'http://localhost:11438')
@@ -500,7 +500,7 @@ def handle_conversation(
                     "You act as a proactive AI agent guiding users to better outcomes through gentle guidance.\n\n"
                     "Keep your response short and conversational, like Siri or Alexa (2-3 sentences typically). "
                     "Be friendly, helpful, and concise. Avoid lengthy explanations unless specifically requested."
-                )
+            )
         
         # When only memory context (no RAG), use separate user message
         messages = [

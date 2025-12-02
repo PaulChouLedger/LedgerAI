@@ -145,12 +145,9 @@ class WelcomeSetupDialog(BaseAuraDialog):
         base_stylesheet = self.styleSheet()
         self.setStyleSheet(base_stylesheet + additional_styles)
         
-        # Check WiFi connection status
+        # Initialize WiFi connection status (button will be disabled until WiFi is confirmed)
         self.wifi_connected = False
-        self.check_wifi_connection()
-        
-        # Auto-scan on startup (kept minimal; also re-triggered post fade-in)
-        QTimer.singleShot(300, self.scan_wifi)
+        # Don't check WiFi yet - wait until UI is set up and status can be displayed
     
     def _setup_ui(self):
         """Setup UI - called by BaseAuraDialog"""
@@ -158,12 +155,24 @@ class WelcomeSetupDialog(BaseAuraDialog):
     
     def _on_show(self):
         """Override for additional show logic"""
-        # Start scanning shortly after fade-in to avoid stutter
+        # Check WiFi connection and scan after dialog is shown
+        # This ensures status is displayed in GUI before enabling button
+        def check_and_scan():
+            # First check current WiFi status and display it
+            self.check_wifi_connection()
+            # Then scan for networks
+            self.scan_wifi()
+        
+        # Start checking/scanning shortly after fade-in to avoid stutter
         try:
             if hasattr(self, 'fade_in') and self.fade_in:
-                self.fade_in.finished.connect(lambda: QTimer.singleShot(100, self.scan_wifi))
+                self.fade_in.finished.connect(lambda: QTimer.singleShot(100, check_and_scan))
+            else:
+                # If no fade-in, check immediately after a short delay
+                QTimer.singleShot(200, check_and_scan)
         except Exception:
-            pass
+            # Fallback: check after short delay
+            QTimer.singleShot(200, check_and_scan)
     
     def closeEvent(self, event):
         """Handle dialog close - prevent closing if WiFi not connected"""
@@ -335,7 +344,11 @@ class WelcomeSetupDialog(BaseAuraDialog):
         self.selected_wifi = None
     
     def check_wifi_connection(self):
-        """Check if WiFi is currently connected"""
+        """Check if WiFi is currently connected and update GUI"""
+        # Ensure UI elements exist before trying to update them
+        if not hasattr(self, 'status_label') or not hasattr(self, 'continue_btn'):
+            return
+        
         try:
             result = subprocess.run(
                 ['nmcli', '-t', '-f', 'DEVICE,TYPE,STATE', 'device', 'status'],
@@ -347,23 +360,30 @@ class WelcomeSetupDialog(BaseAuraDialog):
             if result.returncode == 0:
                 for line in result.stdout.strip().split('\n'):
                     if ':wifi:' in line.lower() and ':connected' in line.lower():
+                        # WiFi is connected - update GUI first, then enable button
                         self.wifi_connected = True
                         self.status_label.setText("✅ WiFi Connected")
                         self.status_label.setStyleSheet("color: #34C759; margin: 10px;")
+                        # Only enable button AFTER status is displayed in GUI
                         self.continue_btn.setEnabled(True)
+                        print("[WelcomeSetup] ✅ WiFi connected - Continue button enabled")
                         return
                 
+            # WiFi is not connected
             self.wifi_connected = False
             self.status_label.setText("❌ WiFi Not Connected")
             self.status_label.setStyleSheet("color: #FF3B30; margin: 10px;")
             self.continue_btn.setEnabled(False)
+            print("[WelcomeSetup] ❌ WiFi not connected - Continue button disabled")
         except Exception as e:
             print(f"[WelcomeSetup] ⚠️ Error checking WiFi: {e}")
-            self.status_label.setText("⚠️ Could not check WiFi status")
-            self.status_label.setStyleSheet("color: #ffa500; margin: 10px;")
+            if hasattr(self, 'status_label'):
+                self.status_label.setText("⚠️ Could not check WiFi status")
+                self.status_label.setStyleSheet("color: #ffa500; margin: 10px;")
             # Ensure button is disabled if we can't verify WiFi connection
             self.wifi_connected = False
-            self.continue_btn.setEnabled(False)
+            if hasattr(self, 'continue_btn'):
+                self.continue_btn.setEnabled(False)
     
     def scan_wifi(self):
         """Scan for available WiFi networks"""
@@ -426,7 +446,8 @@ class WelcomeSetupDialog(BaseAuraDialog):
                 item.setData(Qt.UserRole, network)
                 self.wifi_list.addItem(item)
             
-            # Check connection status after scan
+            # Check connection status after scan and update button state
+            # This ensures button is only enabled when WiFi is confirmed and displayed
             self.check_wifi_connection()
         except (RuntimeError, AttributeError):
             # Dialog was deleted, ignore silently

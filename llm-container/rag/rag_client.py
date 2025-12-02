@@ -306,7 +306,7 @@ class RAGClient:
                     return True
                 elif exact_matching_terms == 1 and exact_matches == 0:  # First single exact match
                     exact_matches = 1
-                
+            
                 # If no exact match, try fuzzy matching for transcription errors
                 if exact_matching_terms == 0:
                     fuzzy_matching_terms = sum(1 for term in key_terms if self._fuzzy_match_term(term, chunk_text, threshold=0.75))
