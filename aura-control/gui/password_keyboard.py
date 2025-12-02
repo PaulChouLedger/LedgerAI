@@ -29,9 +29,10 @@ class PasswordKeyboard(BaseAuraDialog):
     def _setup_ui(self):
         """Setup keyboard UI - compact to fit within white circular perimeter"""
         main_layout = QVBoxLayout()
-        # Increased margins to ensure content stays well within white perimeter (radius 535px)
-        main_layout.setContentsMargins(140, 120, 140, 120)
-        main_layout.setSpacing(8)  # Reduced spacing
+        # Use base class default margins to ensure content fits within white perimeter
+        margins = BaseAuraDialog.get_default_margins()
+        main_layout.setContentsMargins(*margins)
+        main_layout.setSpacing(BaseAuraDialog.get_default_spacing())
         
         main_layout.addStretch(1)
         

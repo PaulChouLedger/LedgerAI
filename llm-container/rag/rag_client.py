@@ -391,6 +391,8 @@ class RAGClient:
         # Pre-filter: Only include chunks that have at least one query term match (fuzzy)
         # This prevents irrelevant chunks from being analyzed
         # CRITICAL: For queries with names, require at least one capitalized word (name) match
+        print(f"[RAG Pre-filter] 🔍 Starting pre-filter: {len(results)} chunks, query: '{query[:50]}...'")
+        print(f"[RAG Pre-filter] 🔍 Query terms: {query_terms}, Capitalized words: {query_capitalized_lower}")
         filtered_results = []
         for result in results:
             text = result.get('text', '').lower()
@@ -542,9 +544,11 @@ class RAGClient:
         else:
             results = self._search_cpu(expanded_query, k * 2, threshold * 0.8)  # Get more candidates for re-ranking
         
-        # Re-rank results if enabled
+        # Re-rank results if enabled (includes pre-filtering)
         if rerank and results:
+            print(f"[RAG Client] 🔍 Pre-filtering and re-ranking {len(results)} results for query: '{query[:50]}...'")
             results = self._rerank_results(query, results, top_k=k)
+            print(f"[RAG Client] ✅ After pre-filter and re-rank: {len(results)} results remaining")
             # Re-apply threshold after re-ranking
             # Use slightly lower threshold for chunks with name matches (they're more likely to be relevant)
             filtered_results = []

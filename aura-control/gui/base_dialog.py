@@ -14,6 +14,21 @@ from PyQt5.QtGui import QPainter, QColor, QPen
 class BaseAuraDialog(QDialog):
     """Base dialog class for all Aura dialogs with consistent behavior"""
     
+    # Default margins to ensure content fits within white circular perimeter (radius 535px)
+    # White border is at radius 535px, so safe content area needs generous margins
+    DEFAULT_MARGINS = (140, 120, 140, 120)  # (left, top, right, bottom)
+    DEFAULT_SPACING = 12  # Default spacing between widgets
+    
+    @classmethod
+    def get_default_margins(cls):
+        """Get default margins that ensure content fits within white circular perimeter"""
+        return cls.DEFAULT_MARGINS
+    
+    @classmethod
+    def get_default_spacing(cls):
+        """Get default spacing between widgets"""
+        return cls.DEFAULT_SPACING
+    
     def __init__(self, parent=None, title="Aura Dialog", size=(1080, 1080), modal=True):
         super().__init__(parent)
         

@@ -523,8 +523,10 @@ class WifiSettingsDialog(BaseAuraDialog):
     
     def _setup_ui_original(self):
         main_layout = QVBoxLayout()
-        main_layout.setContentsMargins(120, 100, 120, 100)
-        main_layout.setSpacing(20)
+        # Use base class default margins to ensure content fits within white perimeter
+        margins = BaseAuraDialog.get_default_margins()
+        main_layout.setContentsMargins(*margins)
+        main_layout.setSpacing(BaseAuraDialog.get_default_spacing())
         main_layout.addStretch(1)
         
         # Top bar with Back
@@ -642,8 +644,10 @@ class WifiSettingsDialog(BaseAuraDialog):
     
     def _setup_ui(self):
         main_layout = QVBoxLayout()
-        main_layout.setContentsMargins(120, 100, 120, 100)
-        main_layout.setSpacing(20)
+        # Use base class default margins to ensure content fits within white perimeter
+        margins = BaseAuraDialog.get_default_margins()
+        main_layout.setContentsMargins(*margins)
+        main_layout.setSpacing(BaseAuraDialog.get_default_spacing())
         main_layout.addStretch(1)
         
         # Top bar with Back
@@ -815,7 +819,12 @@ class UpdateDialog(BaseAuraDialog):
         self._setup_ui_original()
     
     def _setup_ui_original(self):
-        main_layout = QVBoxLayout(); main_layout.setContentsMargins(120, 100, 120, 100); main_layout.setSpacing(20); main_layout.addStretch(1)
+        main_layout = QVBoxLayout()
+        # Use base class default margins to ensure content fits within white perimeter
+        margins = BaseAuraDialog.get_default_margins()
+        main_layout.setContentsMargins(*margins)
+        main_layout.setSpacing(BaseAuraDialog.get_default_spacing())
+        main_layout.addStretch(1)
         # Top bar with Back
         top_row = QHBoxLayout()
         back_btn = QPushButton("◀ Back")
@@ -1196,7 +1205,11 @@ class AIModelSettingsDialog(BaseAuraDialog):
         self._prompt_restart()
     
     def _setup_ui_original(self):
-        layout = QVBoxLayout(); layout.setContentsMargins(120, 140, 120, 100); layout.setSpacing(15)
+        layout = QVBoxLayout()
+        # Use base class default margins to ensure content fits within white perimeter
+        margins = BaseAuraDialog.get_default_margins()
+        layout.setContentsMargins(*margins)
+        layout.setSpacing(BaseAuraDialog.get_default_spacing())
         # Add stretch at top to center content vertically within white perimeter
         layout.addStretch(1)
         
@@ -1828,8 +1841,10 @@ class SettingsDialog(BaseAuraDialog):
     def setup_ui(self):
         """Setup simplified settings UI with subsections"""
         main_layout = QVBoxLayout()
-        main_layout.setContentsMargins(120, 100, 120, 100)
-        main_layout.setSpacing(20)
+        # Use base class default margins to ensure content fits within white perimeter
+        margins = BaseAuraDialog.get_default_margins()
+        main_layout.setContentsMargins(*margins)
+        main_layout.setSpacing(BaseAuraDialog.get_default_spacing())
         main_layout.addStretch(1)
         
         title_layout = QHBoxLayout()

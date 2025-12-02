@@ -239,9 +239,10 @@ class SafeModeDialog(BaseAuraDialog):
     def setup_ui(self):
         """Setup the safe mode UI with tabs for WiFi and Updates"""
         main_layout = QVBoxLayout()
-        # Increased margins to ensure content stays well within white perimeter (radius 535px)
-        main_layout.setContentsMargins(140, 120, 140, 120)
-        main_layout.setSpacing(12)  # Slightly reduced spacing
+        # Use base class default margins to ensure content fits within white perimeter
+        margins = BaseAuraDialog.get_default_margins()
+        main_layout.setContentsMargins(*margins)
+        main_layout.setSpacing(BaseAuraDialog.get_default_spacing())
         
         # Title
         title = QLabel("🛡️ Safe Mode")

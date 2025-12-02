@@ -221,9 +221,10 @@ class WelcomeSetupDialog(BaseAuraDialog):
     def setup_ui(self):
         """Setup the welcome setup UI - ensure content fits within white circular perimeter"""
         main_layout = QVBoxLayout()
-        # Increased margins to ensure content stays well within white perimeter (radius 535px)
-        main_layout.setContentsMargins(140, 120, 140, 120)
-        main_layout.setSpacing(15)  # Slightly reduced spacing
+        # Use base class default margins to ensure content fits within white perimeter
+        margins = BaseAuraDialog.get_default_margins()
+        main_layout.setContentsMargins(*margins)
+        main_layout.setSpacing(BaseAuraDialog.get_default_spacing())
         
         main_layout.addStretch(1)
         

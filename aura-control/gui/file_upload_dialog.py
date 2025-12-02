@@ -27,8 +27,10 @@ class RAGFilesDialog(BaseAuraDialog):
     def _setup_ui(self):
         """Setup UI - called by BaseAuraDialog"""
         layout = QVBoxLayout()
-        layout.setContentsMargins(160, 120, 160, 180)  # Increased bottom margin significantly to prevent button truncation
-        layout.setSpacing(10)  # Reduced spacing
+        # Use base class default margins to ensure content fits within white perimeter
+        margins = BaseAuraDialog.get_default_margins()
+        layout.setContentsMargins(*margins)
+        layout.setSpacing(BaseAuraDialog.get_default_spacing())
         
         # Title
         title = QLabel("📚 Files in RAG System")
@@ -415,9 +417,10 @@ class ConversationsDialog(BaseAuraDialog):
     def setup_ui(self):
         """Setup conversations dialog UI"""
         layout = QVBoxLayout()
-        # Increased margins to ensure content stays well within white perimeter (radius 535px)
-        layout.setContentsMargins(140, 120, 140, 120)
-        layout.setSpacing(12)  # Slightly reduced spacing
+        # Use base class default margins to ensure content fits within white perimeter
+        margins = BaseAuraDialog.get_default_margins()
+        layout.setContentsMargins(*margins)
+        layout.setSpacing(BaseAuraDialog.get_default_spacing())
         
         # Title
         title = QLabel("💬 Stored Conversations")
@@ -817,9 +820,10 @@ class MemoryDialog(BaseAuraDialog):
         
         # Create layout for circular content - centered within red border
         self.content_layout = QVBoxLayout()
-        # Increased margins to ensure content stays well within white perimeter (radius 535px)
-        self.content_layout.setContentsMargins(140, 120, 140, 120)
-        self.content_layout.setSpacing(15)  # Slightly reduced spacing
+        # Use base class default margins to ensure content fits within white perimeter
+        margins = BaseAuraDialog.get_default_margins()
+        self.content_layout.setContentsMargins(*margins)
+        self.content_layout.setSpacing(BaseAuraDialog.get_default_spacing())
         
         # Add top spacer for vertical centering
         self.content_layout.addStretch(1)

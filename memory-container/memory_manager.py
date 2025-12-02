@@ -290,18 +290,28 @@ class MemoryManager:
                 logger.debug(f"✅ Added embedding to FAISS index incrementally (total vectors: {self.index.ntotal})")
                 
                 # Trigger background rebuild periodically (configurable interval)
-                # This optimizes index structure without blocking queries
+                # Schedule rebuild asynchronously to avoid blocking query processing
                 conversations_since_rebuild = len(self.conversations) - self.last_rebuild_count
                 if conversations_since_rebuild >= self.rebuild_interval and not self.rebuild_in_progress:
-                    # Check system load before rebuilding to avoid impacting inference
-                    if self._should_rebuild_now():
-                        logger.info(f"🔧 Triggering background index rebuild (every {self.rebuild_interval} conversations, current: {len(self.conversations)})")
-                        self.last_rebuild_count = len(self.conversations)
-                        self._rebuild_index(background=True)
-                    else:
-                        logger.debug(f"⏸️ Skipping rebuild - system under load (will retry later)")
-                        # Reset counter to try again soon
-                        self.last_rebuild_count = len(self.conversations) - (self.rebuild_interval // 2)
+                    # Schedule rebuild in separate thread with delay to avoid blocking current query
+                    def schedule_rebuild_async():
+                        import time
+                        time.sleep(0.5)  # Delay to let current query finish processing
+                        if not self.rebuild_in_progress:  # Double-check after delay
+                            # Check system load before rebuilding to avoid impacting inference
+                            if self._should_rebuild_now():
+                                logger.info(f"🔧 Triggering background index rebuild (every {self.rebuild_interval} conversations, current: {len(self.conversations)})")
+                                self.last_rebuild_count = len(self.conversations)
+                                self._rebuild_index(background=True)
+                            else:
+                                logger.debug(f"⏸️ Skipping rebuild - system under load (will retry later)")
+                                # Reset counter to try again soon
+                                self.last_rebuild_count = len(self.conversations) - (self.rebuild_interval // 2)
+                    
+                    # Start rebuild scheduling in background thread (non-blocking)
+                    schedule_thread = threading.Thread(target=schedule_rebuild_async, daemon=True, name="ScheduleIndexRebuild")
+                    schedule_thread.start()
+                    logger.debug(f"📅 Scheduled background index rebuild (will start after current query)")
             else:
                 # Index not initialized yet - this should only happen on startup
                 logger.warning("⚠️ Index not initialized, skipping incremental update (will be built on next startup)")
