@@ -743,22 +743,6 @@ def chat_tts():
                 normalized_chunks = _normalize_stream_chunks(result)
                 print(f"[Generic] 🔍 DEBUG: _normalize_stream_chunks returned (generator created), about to call _word_stream_from_chunks")
                 
-                # Force execution by trying to get first item from normalized_chunks
-                print(f"[Generic] 🔍 DEBUG: About to force first iteration of normalized_chunks to trigger debug_iterator...")
-                try:
-                    first_normalized = next(normalized_chunks)
-                    print(f"[Generic] 🔍 DEBUG: Got first normalized chunk: {repr(str(first_normalized)[:50])}")
-                    # Create a new generator that yields the first item, then continues
-                    def normalized_with_first():
-                        yield first_normalized
-                        for chunk in normalized_chunks:
-                            yield chunk
-                    normalized_chunks = normalized_with_first()
-                except StopIteration:
-                    print(f"[Generic] 🔍 DEBUG: normalized_chunks is EMPTY (StopIteration on first next())")
-                    # Create empty generator
-                    normalized_chunks = iter([])
-                
                 word_stream = _word_stream_from_chunks(normalized_chunks)
                 print(f"[Generic] 🔍 DEBUG: _word_stream_from_chunks returned, about to call _sentence_tag_stream")
                 print(f"[Generic] 🔍 DEBUG: word_stream type: {type(word_stream)}, repr: {repr(word_stream)}")
@@ -1010,9 +994,11 @@ def _word_stream_from_chunks(chunk_iter):
     Filters out whitespace-only tokens.
     Matches the working version from commit d4a5c540a1a3da07a7ea5a2403155adf0d7e79e7
     """
+    print(f"[Generic] 🔍 DEBUG: _word_stream_from_chunks FUNCTION CALLED - creating generator")
     buffer = ""
     chunk_count = 0
     word_count = 0
+    print(f"[Generic] 🔍 DEBUG: _word_stream_from_chunks: About to iterate over chunk_iter")
     for chunk in chunk_iter:
         chunk_count += 1
         if chunk_count <= 3:
