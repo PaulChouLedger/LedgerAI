@@ -8,7 +8,7 @@ import requests
 import numpy as np
 from typing import List, Dict, Optional, Tuple
 import logging
-from difflib import SequenceMatcher
+from .fuzzy_utils import fuzzy_match_term, extract_key_terms
 
 logger = logging.getLogger(__name__)
 
@@ -206,34 +206,9 @@ class RAGClient:
     def _fuzzy_match_term(self, term: str, text: str, threshold: float = 0.75) -> bool:
         """
         Check if a term fuzzy matches any word in the text.
-        Handles transcription errors by using fuzzy string matching.
-        
-        Args:
-            term: Term to search for
-            text: Text to search in
-            threshold: Minimum similarity ratio (0.0-1.0) for a match
-        
-        Returns:
-            True if term fuzzy matches any word in text
+        Uses shared fuzzy matching utility.
         """
-        import re
-        # Extract all words from text (3+ characters to avoid matching common words)
-        text_words = re.findall(r'\b\w{3,}\b', text.lower())
-        term_lower = term.lower()
-        
-        # First try exact match (fastest)
-        if term_lower in text_words:
-            return True
-        
-        # Then try fuzzy match for transcription errors
-        for word in text_words:
-            # Only fuzzy match words of similar length (avoid false positives)
-            if abs(len(word) - len(term_lower)) <= 2:
-                similarity = SequenceMatcher(None, term_lower, word).ratio()
-                if similarity >= threshold:
-                    return True
-        
-        return False
+        return fuzzy_match_term(term, text, threshold)
     
     def quick_content_match(self, query: str) -> bool:
         """
@@ -251,12 +226,7 @@ class RAGClient:
             return False
         
         # Extract key terms from query (remove common stop words)
-        stop_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'i', 'you', 'he', 'she', 'it', 'we', 'they', 'is', 'are', 'was', 'were', 'do', 'does', 'did', 'how', 'what', 'when', 'where', 'why', 'can', 'could', 'should', 'would', 'may', 'might', 'must'}
-        query_lower = query.lower()
-        # Extract words (2+ characters) that aren't stop words
-        import re
-        words = re.findall(r'\b\w{2,}\b', query_lower)
-        key_terms = [w for w in words if w not in stop_words]
+        key_terms = extract_key_terms(query, min_word_length=2)
         
         if not key_terms:
             return False
@@ -309,7 +279,7 @@ class RAGClient:
                 
                 # If no exact match, try fuzzy matching for transcription errors
                 if exact_matching_terms == 0:
-                    fuzzy_matching_terms = sum(1 for term in key_terms if self._fuzzy_match_term(term, chunk_text, threshold=0.75))
+                    fuzzy_matching_terms = sum(1 for term in key_terms if fuzzy_match_term(term, chunk_text, threshold=0.75))
                     if fuzzy_matching_terms >= 2:  # At least 2 key terms fuzzy match
                         return True
                     elif fuzzy_matching_terms == 1 and fuzzy_matches == 0:  # First single fuzzy match
