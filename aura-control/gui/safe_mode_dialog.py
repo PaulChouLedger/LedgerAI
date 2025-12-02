@@ -313,7 +313,23 @@ class SafeModeDialog(BaseAuraDialog):
         close_layout = QHBoxLayout()
         close_layout.addStretch()
         close_btn = QPushButton("❌ Close")
-        close_btn.clicked.connect(self.accept)
+        # Use done(Rejected) to explicitly close this dialog only
+        # This ensures we return to the welcome dialog, not close the entire app
+        def close_safe_mode():
+            """Close safe mode dialog and return to welcome dialog"""
+            try:
+                # Set flag to prevent new threads
+                self._is_closing = True
+                # Close this dialog only (don't affect parent)
+                self.done(QDialog.Rejected)
+            except Exception as e:
+                print(f"[SafeMode] ⚠️ Error closing dialog: {e}")
+                # Fallback to reject
+                try:
+                    self.reject()
+                except:
+                    pass
+        close_btn.clicked.connect(close_safe_mode)
         close_btn.setStyleSheet("""
             QPushButton {
                 background-color: #FF3B30;
