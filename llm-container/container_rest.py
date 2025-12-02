@@ -746,28 +746,45 @@ def chat_tts():
                 # The _normalize_stream_chunks will handle the first iteration internally
                 word_stream = _word_stream_from_chunks(normalized_chunks)
                 print(f"[Generic] 🔍 DEBUG: _word_stream_from_chunks returned, about to call _sentence_tag_stream")
+                print(f"[Generic] 🔍 DEBUG: word_stream type: {type(word_stream)}, repr: {repr(word_stream)}")
                 sentence_stream = _sentence_tag_stream(word_stream)
-                print(f"[Generic] 🔍 DEBUG: _sentence_tag_stream returned, about to iterate")
+                print(f"[Generic] 🔍 DEBUG: _sentence_tag_stream returned, type: {type(sentence_stream)}, repr: {repr(sentence_stream)}")
                 print(f"[Generic] 🔍 DEBUG: Now iterating over sentence_stream - this will trigger the entire chain")
+                print(f"[Generic] 🔍 DEBUG: About to call next() on sentence_stream to force execution...")
                 token_count = 0
-                chunk_count = 0
-                word_count = 0
-                
-                for token in sentence_stream:
+                try:
+                    first_token = next(sentence_stream)
                     token_count += 1
-                    if token_count <= 5:
-                        print(f"[Generic] 🔍 DEBUG: Yielding token {token_count}: {repr(token[:50])}")
-                    # Accumulate tokens for memory storage (skip control tags)
-                    if not (token.startswith('<') and token.endswith('>')):
-                        full_response_text += token
-                    yield f"{token}\n"
+                    print(f"[Generic] 🔍 DEBUG: Got first token from sentence_stream: {repr(first_token[:50])}")
+                    # Yield the first token
+                    if not (first_token.startswith('<') and first_token.endswith('>')):
+                        full_response_text += first_token
+                    yield f"{first_token}\n"
+                    # Continue with rest
+                    for token in sentence_stream:
+                        token_count += 1
+                        if token_count <= 5:
+                            print(f"[Generic] 🔍 DEBUG: Yielding token {token_count}: {repr(token[:50])}")
+                        # Accumulate tokens for memory storage (skip control tags)
+                        if not (token.startswith('<') and token.endswith('>')):
+                            full_response_text += token
+                        yield f"{token}\n"
+                except StopIteration:
+                    print(f"[Generic] 🔍 DEBUG: sentence_stream is EMPTY (StopIteration on first next())")
+                    # Yield empty sentence tags so speaker knows stream ended
+                    yield "<sentence_start>\n"
+                    yield "<sentence_end>\n"
+                except Exception as e:
+                    print(f"[Generic] ⚠️ ERROR iterating sentence_stream: {e}")
+                    import traceback
+                    traceback.print_exc()
+                    # Yield empty sentence tags so speaker knows stream ended
+                    yield "<sentence_start>\n"
+                    yield "<sentence_end>\n"
                 
                 if token_count == 0:
                     print(f"[Generic] ⚠️ WARNING: No tokens yielded from sentence_stream!")
                     print(f"[Generic] 🔍 DEBUG: This means the LLM iterator was empty or chunks were filtered out")
-                    # Yield empty sentence tags so speaker knows stream ended
-                    yield "<sentence_start>\n"
-                    yield "<sentence_end>\n"
                 
                 print(f"[Generic] ✅ Streamed response complete (yielded {token_count} tokens)")
                 

@@ -289,6 +289,7 @@ class BaseLLMContainer:
         Yields:
             Tagged tokens with <sentence_start> and <sentence_end> markers
         """
+        print(f"[{self.service_name}] 🔍 DEBUG: sentence_tag_stream CALLED - creating generator")
         sentence_buffer = ""
         sentence_open = False
         prev_word = None
