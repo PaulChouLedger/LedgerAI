@@ -1288,10 +1288,10 @@ if [ -d "$LEDGERAI_DIR/.git" ]; then
     
     # Install pre-commit hook
     if [ -f "$PRE_COMMIT_TEMPLATE" ]; then
-        if [ ! -f "$PRE_COMMIT_HOOK" ] || ! grep -q "llm-container" "$PRE_COMMIT_HOOK" 2>/dev/null; then
+        if [ ! -f "$PRE_COMMIT_HOOK" ]; then
             cp "$PRE_COMMIT_TEMPLATE" "$PRE_COMMIT_HOOK"
             chmod +x "$PRE_COMMIT_HOOK"
-            print_info "Git pre-commit hook installed - llm-container changes will sync to llm-medical-container"
+            print_info "Git pre-commit hook installed"
         fi
     fi
 fi
@@ -1317,12 +1317,12 @@ fi
         
         # Install pre-commit hook
         if [ -f "$PRE_COMMIT_TEMPLATE" ]; then
-            if [ ! -f "$PRE_COMMIT_HOOK" ] || ! grep -q "llm-container" "$PRE_COMMIT_HOOK" 2>/dev/null; then
+            if [ ! -f "$PRE_COMMIT_HOOK" ]; then
                 cp "$PRE_COMMIT_TEMPLATE" "$PRE_COMMIT_HOOK"
                 chmod +x "$PRE_COMMIT_HOOK"
                 print_info "Git pre-commit hook installed"
+            fi
         fi
-    fi
 fi
 
 echo ""
