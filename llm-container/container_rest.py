@@ -738,7 +738,7 @@ def chat_tts():
                 print(f"[Generic] 🔍 DEBUG: Result iterator repr: {repr(result)[:200]}")
                 
                 # The base class's debug_iterator should log when we iterate
-                # Let's pass the iterator through and see what happens
+                # Pass the iterator directly - _normalize_stream_chunks will consume it
                 normalized_chunks = _normalize_stream_chunks(result)
                 print(f"[Generic] 🔍 DEBUG: _normalize_stream_chunks returned (generator created), about to call _word_stream_from_chunks")
                 word_stream = _word_stream_from_chunks(normalized_chunks)
@@ -876,9 +876,12 @@ def _normalize_stream_chunks(chunk_iter):
     Matches the working version from commit d4a5c540a1a3da07a7ea5a2403155adf0d7e79e7
     """
     print(f"[Generic] 🔍 DEBUG: _normalize_stream_chunks starting to iterate over chunk_iter: {type(chunk_iter).__name__}")
+    print(f"[Generic] 🔍 DEBUG: _normalize_stream_chunks: About to start for loop - this will trigger debug_iterator")
     chunk_count = 0
     content_count = 0
     try:
+        # This for loop will trigger the base class's debug_iterator to execute
+        # The debug_iterator should log "First chunk from LLM" or "LLM iterator is EMPTY"
         for chunk in chunk_iter:
             chunk_count += 1
             if chunk_count <= 3:
