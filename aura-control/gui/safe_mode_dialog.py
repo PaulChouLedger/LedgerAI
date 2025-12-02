@@ -61,10 +61,10 @@ class SafeModeDialog(BaseAuraDialog):
             QPushButton {
                 background-color: rgba(70, 130, 180, 0.25);
                 color: #ffffff;
-                font-size: 16px;
+                font-size: 14px;
                 font-weight: 600;
-                padding: 12px 20px;
-                min-height: 45px;
+                padding: 10px 18px;
+                min-height: 40px;
                 border-radius: 15px;
                 border: none;
             }
@@ -86,7 +86,8 @@ class SafeModeDialog(BaseAuraDialog):
             QTabBar::tab {
                 background-color: rgba(44, 44, 46, 0.8);
                 color: white;
-                padding: 10px 20px;
+                padding: 8px 16px;
+                font-size: 13px;
                 border-top-left-radius: 10px;
                 border-top-right-radius: 10px;
                 margin-right: 2px;
@@ -102,81 +103,135 @@ class SafeModeDialog(BaseAuraDialog):
         self.wifi_scan_thread = None
         self.ota_check_thread = None
         self.ota_update_thread = None
-        
-        # Auto-scan WiFi on startup
-        QTimer.singleShot(300, self.scan_wifi)
+        self._threads_initialized = False
+        self._is_closing = False
     
     def _setup_ui(self):
         """Setup UI - called by BaseAuraDialog"""
         self.setup_ui()
     
+    def _on_show(self):
+        """Override for additional show logic - start threads after dialog is shown"""
+        # Only start threads once, after dialog is fully shown
+        if not self._threads_initialized and not self._is_closing:
+            self._threads_initialized = True
+            # Start WiFi scan and OTA check after dialog is shown
+            QTimer.singleShot(500, self.scan_wifi)
+            QTimer.singleShot(600, self.check_ota_updates)
+    
     def _on_close(self):
         """Cleanup when dialog closes"""
+        # Set flag to prevent new threads from starting
+        self._is_closing = True
+        
         # Clean up WiFi scan thread
         if hasattr(self, 'wifi_scan_thread') and self.wifi_scan_thread:
             try:
+                # Disconnect signals first
                 if hasattr(self.wifi_scan_thread, 'networks_found'):
-                    self.wifi_scan_thread.networks_found.disconnect()
+                    try:
+                        self.wifi_scan_thread.networks_found.disconnect()
+                    except (TypeError, RuntimeError):
+                        pass
                 if hasattr(self.wifi_scan_thread, 'scan_error'):
-                    self.wifi_scan_thread.scan_error.disconnect()
+                    try:
+                        self.wifi_scan_thread.scan_error.disconnect()
+                    except (TypeError, RuntimeError):
+                        pass
                 if hasattr(self.wifi_scan_thread, 'finished'):
-                    self.wifi_scan_thread.finished.disconnect()
-            except Exception:
-                pass
-            try:
+                    try:
+                        self.wifi_scan_thread.finished.disconnect()
+                    except (TypeError, RuntimeError):
+                        pass
+                
+                # Stop thread gracefully
                 if self.wifi_scan_thread.isRunning():
                     self.wifi_scan_thread.quit()
-                    self.wifi_scan_thread.wait(1000)
-            except Exception:
-                pass
-            self.wifi_scan_thread = None
+                    if not self.wifi_scan_thread.wait(2000):  # Wait up to 2 seconds
+                        # Force terminate if it doesn't stop
+                        self.wifi_scan_thread.terminate()
+                        self.wifi_scan_thread.wait(500)
+            except (RuntimeError, AttributeError) as e:
+                print(f"[SafeMode] ⚠️ Error cleaning up WiFi thread: {e}")
+            except Exception as e:
+                print(f"[SafeMode] ⚠️ Unexpected error cleaning up WiFi thread: {e}")
+            finally:
+                self.wifi_scan_thread = None
         
-        # Clean up OTA threads
+        # Clean up OTA check thread
         if hasattr(self, 'ota_check_thread') and self.ota_check_thread:
             try:
+                if hasattr(self.ota_check_thread, 'check_complete'):
+                    try:
+                        self.ota_check_thread.check_complete.disconnect()
+                    except (TypeError, RuntimeError):
+                        pass
+                
                 if self.ota_check_thread.isRunning():
-                    self.ota_check_thread.terminate()
-                    self.ota_check_thread.wait(500)
-            except Exception:
-                pass
-            self.ota_check_thread = None
+                    self.ota_check_thread.quit()
+                    if not self.ota_check_thread.wait(1000):
+                        self.ota_check_thread.terminate()
+                        self.ota_check_thread.wait(500)
+            except (RuntimeError, AttributeError) as e:
+                print(f"[SafeMode] ⚠️ Error cleaning up OTA check thread: {e}")
+            except Exception as e:
+                print(f"[SafeMode] ⚠️ Unexpected error cleaning up OTA check thread: {e}")
+            finally:
+                self.ota_check_thread = None
         
+        # Clean up OTA update thread
         if hasattr(self, 'ota_update_thread') and self.ota_update_thread:
             try:
+                # Disconnect signals first
                 if hasattr(self.ota_update_thread, 'update_progress'):
-                    self.ota_update_thread.update_progress.disconnect()
+                    try:
+                        self.ota_update_thread.update_progress.disconnect()
+                    except (TypeError, RuntimeError):
+                        pass
                 if hasattr(self.ota_update_thread, 'update_complete'):
-                    self.ota_update_thread.update_complete.disconnect()
+                    try:
+                        self.ota_update_thread.update_complete.disconnect()
+                    except (TypeError, RuntimeError):
+                        pass
                 if hasattr(self.ota_update_thread, 'finished'):
-                    self.ota_update_thread.finished.disconnect()
-            except Exception:
-                pass
-            try:
+                    try:
+                        self.ota_update_thread.finished.disconnect()
+                    except (TypeError, RuntimeError):
+                        pass
+                
+                # Stop thread gracefully
                 if self.ota_update_thread.isRunning():
-                    self.ota_update_thread.terminate()
-                    self.ota_update_thread.wait(500)
-            except Exception:
-                pass
-            self.ota_update_thread = None
+                    self.ota_update_thread.quit()
+                    if not self.ota_update_thread.wait(2000):
+                        self.ota_update_thread.terminate()
+                        self.ota_update_thread.wait(500)
+            except (RuntimeError, AttributeError) as e:
+                print(f"[SafeMode] ⚠️ Error cleaning up OTA update thread: {e}")
+            except Exception as e:
+                print(f"[SafeMode] ⚠️ Unexpected error cleaning up OTA update thread: {e}")
+            finally:
+                self.ota_update_thread = None
     
     def setup_ui(self):
         """Setup the safe mode UI with tabs for WiFi and Updates"""
         main_layout = QVBoxLayout()
-        main_layout.setContentsMargins(80, 60, 80, 60)
-        main_layout.setSpacing(20)
+        # Use larger margins to ensure content fits within white circular perimeter (radius 535px)
+        # Content should stay well within the circular boundary
+        main_layout.setContentsMargins(120, 100, 120, 100)
+        main_layout.setSpacing(15)
         
         # Title
         title = QLabel("🛡️ Safe Mode")
-        title.setFont(QFont("Arial", 24, QFont.Bold))
+        title.setFont(QFont("Arial", 20, QFont.Bold))
         title.setAlignment(Qt.AlignCenter)
-        title.setStyleSheet("color: #ffffff; font-weight: 600; margin: 20px;")
+        title.setStyleSheet("color: #ffffff; font-weight: 600; margin: 10px;")
         main_layout.addWidget(title)
         
         # Description
         description = QLabel("Access WiFi and OTA updates even if Aura fails to load")
-        description.setFont(QFont("Arial", 14))
+        description.setFont(QFont("Arial", 12))
         description.setAlignment(Qt.AlignCenter)
-        description.setStyleSheet("color: #aaaaaa; margin: 10px;")
+        description.setStyleSheet("color: #aaaaaa; margin: 5px;")
         main_layout.addWidget(description)
         
         # Create tab widget
@@ -185,14 +240,14 @@ class SafeModeDialog(BaseAuraDialog):
         # WiFi Tab
         wifi_tab = QWidget()
         wifi_layout = QVBoxLayout()
-        wifi_layout.setContentsMargins(20, 20, 20, 20)
-        wifi_layout.setSpacing(15)
+        wifi_layout.setContentsMargins(15, 15, 15, 15)
+        wifi_layout.setSpacing(12)
         
         # WiFi status
         self.wifi_status_label = QLabel("Checking WiFi connection...")
-        self.wifi_status_label.setFont(QFont("Arial", 14))
+        self.wifi_status_label.setFont(QFont("Arial", 12))
         self.wifi_status_label.setAlignment(Qt.AlignCenter)
-        self.wifi_status_label.setStyleSheet("color: #ffa500; margin: 10px;")
+        self.wifi_status_label.setStyleSheet("color: #ffa500; margin: 5px;")
         wifi_layout.addWidget(self.wifi_status_label)
         
         # WiFi buttons
@@ -216,7 +271,8 @@ class SafeModeDialog(BaseAuraDialog):
         
         # WiFi networks list
         self.wifi_list = QListWidget()
-        self.wifi_list.setMaximumHeight(300)
+        # Reduce height to fit within circular perimeter
+        self.wifi_list.setMaximumHeight(250)
         self.wifi_list.itemSelectionChanged.connect(self.on_wifi_selection_changed)
         wifi_layout.addWidget(self.wifi_list)
         
@@ -226,12 +282,13 @@ class SafeModeDialog(BaseAuraDialog):
         # OTA Updates Tab
         ota_tab = QWidget()
         ota_layout = QVBoxLayout()
-        ota_layout.setContentsMargins(20, 20, 20, 20)
-        ota_layout.setSpacing(15)
+        ota_layout.setContentsMargins(15, 15, 15, 15)
+        ota_layout.setSpacing(12)
         
         # Status log
         self.ota_status_log = QTextEdit()
-        self.ota_status_log.setMaximumHeight(150)
+        # Reduce height to fit within circular perimeter
+        self.ota_status_log.setMaximumHeight(200)
         self.ota_status_log.setReadOnly(True)
         self.ota_status_log.setStyleSheet("QTextEdit { background-color: rgba(44,44,46,0.8); color: #ffffff; border-radius: 15px; border: none; padding: 10px; font-size: 11px; }")
         ota_layout.addWidget(self.ota_status_log)
@@ -261,12 +318,12 @@ class SafeModeDialog(BaseAuraDialog):
             QPushButton {
                 background-color: #FF3B30;
                 color: white;
-                font-size: 18px;
+                font-size: 16px;
                 font-weight: 600;
-                padding: 15px 40px;
+                padding: 12px 30px;
                 border-radius: 20px;
                 border: none;
-                min-width: 200px;
+                min-width: 180px;
             }
             QPushButton:hover {
                 background-color: #D70015;
@@ -281,11 +338,10 @@ class SafeModeDialog(BaseAuraDialog):
         
         self.setLayout(main_layout)
         
-        # Check WiFi connection status
+        # Check WiFi connection status (synchronous, no thread)
         self.check_wifi_connection()
         
-        # Check for OTA updates
-        QTimer.singleShot(500, self.check_ota_updates)
+        # OTA check will be started in _on_show after dialog is shown
     
     def check_wifi_connection(self):
         """Check if WiFi is currently connected"""
@@ -336,24 +392,46 @@ class SafeModeDialog(BaseAuraDialog):
     
     def scan_wifi(self):
         """Scan for available WiFi networks"""
-        self.wifi_status_label.setText("🔍 Scanning for networks...")
-        self.wifi_status_label.setStyleSheet("color: #ffa500; margin: 10px;")
-        self.scan_wifi_btn.setEnabled(False)
-        self.scan_wifi_btn.setText("🔄 Scanning...")
-        self.wifi_list.clear()
-        self.wifi_list.addItem("Scanning... Please wait...")
+        # Check if dialog still exists or is closing
+        if self._is_closing or not hasattr(self, 'wifi_status_label') or not hasattr(self, 'wifi_list'):
+            return
         
-        # Use WiFiScanThread from settings_dialog if available, otherwise use local implementation
-        if SETTINGS_AVAILABLE:
-            self.wifi_scan_thread = WiFiScanThread(self)
-        else:
-            # Fallback to local WiFi scan implementation
-            self.wifi_scan_thread = LocalWiFiScanThread()
-        
-        self.wifi_scan_thread.networks_found.connect(self.on_wifi_networks_found)
-        self.wifi_scan_thread.scan_error.connect(self.on_wifi_scan_error)
-        self.wifi_scan_thread.finished.connect(self._on_scan_finished)
-        self.wifi_scan_thread.start()
+        try:
+            self.wifi_status_label.setText("🔍 Scanning for networks...")
+            self.wifi_status_label.setStyleSheet("color: #ffa500; margin: 10px;")
+            self.scan_wifi_btn.setEnabled(False)
+            self.scan_wifi_btn.setText("🔄 Scanning...")
+            self.wifi_list.clear()
+            self.wifi_list.addItem("Scanning... Please wait...")
+            
+            # Clean up any existing thread first
+            if self.wifi_scan_thread and self.wifi_scan_thread.isRunning():
+                try:
+                    self.wifi_scan_thread.quit()
+                    self.wifi_scan_thread.wait(500)
+                except Exception:
+                    pass
+            
+            # Use WiFiScanThread from settings_dialog if available, otherwise use local implementation
+            if SETTINGS_AVAILABLE:
+                self.wifi_scan_thread = WiFiScanThread(self)  # Parent to dialog
+            else:
+                # Fallback to local WiFi scan implementation
+                self.wifi_scan_thread = LocalWiFiScanThread()
+                self.wifi_scan_thread.setParent(self)  # Parent to dialog
+            
+            self.wifi_scan_thread.networks_found.connect(self.on_wifi_networks_found)
+            self.wifi_scan_thread.scan_error.connect(self.on_wifi_scan_error)
+            self.wifi_scan_thread.finished.connect(self._on_scan_finished)
+            self.wifi_scan_thread.start()
+        except (RuntimeError, AttributeError) as e:
+            print(f"[SafeMode] ⚠️ Error starting WiFi scan: {e}")
+            if hasattr(self, 'wifi_status_label'):
+                self.wifi_status_label.setText("❌ Scan failed")
+                self.wifi_status_label.setStyleSheet("color: #FF3B30; margin: 10px;")
+            if hasattr(self, 'scan_wifi_btn'):
+                self.scan_wifi_btn.setEnabled(True)
+                self.scan_wifi_btn.setText("🔍 Scan Networks")
     
     def _on_scan_finished(self):
         """Handle WiFi scan thread finished"""
@@ -589,7 +667,19 @@ class SafeModeDialog(BaseAuraDialog):
     
     def check_ota_updates(self):
         """Check for OTA updates"""
+        # Check if dialog still exists or is closing
+        if self._is_closing or not hasattr(self, 'ota_status_log'):
+            return
+        
         try:
+            # Clean up any existing thread first
+            if self.ota_check_thread and self.ota_check_thread.isRunning():
+                try:
+                    self.ota_check_thread.quit()
+                    self.ota_check_thread.wait(500)
+                except Exception:
+                    pass
+            
             workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
             dotenv_path = os.path.join(workspace_root, '.env')
             github_token = None
@@ -610,9 +700,15 @@ class SafeModeDialog(BaseAuraDialog):
                 # Fallback implementation
                 self.ota_check_thread = LocalOTACheckThread(repo_path, github_token or '')
             
+            # Parent thread to dialog
+            self.ota_check_thread.setParent(self)
             self.ota_check_thread.check_complete.connect(self._on_ota_check_complete)
             self.ota_check_thread.start()
+        except (RuntimeError, AttributeError) as e:
+            print(f"[SafeMode] ⚠️ Error starting OTA check: {e}")
+            self._log_ota(f"⚠️ Error checking for updates: {e}")
         except Exception as e:
+            print(f"[SafeMode] ⚠️ Unexpected error in OTA check: {e}")
             self._log_ota(f"⚠️ Error checking for updates: {e}")
     
     def _on_ota_check_complete(self, has_updates, commits_behind):
@@ -623,12 +719,12 @@ class SafeModeDialog(BaseAuraDialog):
                 QPushButton {
                     background-color: #FF9500;
                     color: white;
-                    font-size: 16px;
+                    font-size: 14px;
                     font-weight: 600;
-                    padding: 15px 30px;
+                    padding: 12px 24px;
                     border-radius: 15px;
                     border: none;
-                    min-width: 200px;
+                    min-width: 180px;
                 }
                 QPushButton:hover {
                     background-color: #E58500;
@@ -644,12 +740,12 @@ class SafeModeDialog(BaseAuraDialog):
                 QPushButton {
                     background-color: rgba(70, 130, 180, 0.25);
                     color: #ffffff;
-                    font-size: 16px;
+                    font-size: 14px;
                     font-weight: 600;
-                    padding: 15px 30px;
+                    padding: 12px 24px;
                     border-radius: 15px;
                     border: none;
-                    min-width: 200px;
+                    min-width: 180px;
                 }
                 QPushButton:hover {
                     background-color: rgba(70, 130, 180, 0.45);
@@ -662,6 +758,10 @@ class SafeModeDialog(BaseAuraDialog):
     
     def start_ota_update(self):
         """Start OTA update process"""
+        # Check if dialog is closing
+        if self._is_closing:
+            return
+        
         workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
         dotenv_path = os.path.join(workspace_root, '.env')
         github_token = None
@@ -680,12 +780,22 @@ class SafeModeDialog(BaseAuraDialog):
         self.progress_bar.setVisible(True)
         self.progress_bar.setRange(0, 0)
         
+        # Clean up any existing thread first
+        if self.ota_update_thread and self.ota_update_thread.isRunning():
+            try:
+                self.ota_update_thread.quit()
+                self.ota_update_thread.wait(500)
+            except Exception:
+                pass
+        
         if SETTINGS_AVAILABLE:
             self.ota_update_thread = OTAUpdateThread(repo_path, github_token or '')
         else:
             # Fallback implementation
             self.ota_update_thread = LocalOTAUpdateThread(repo_path, github_token or '')
         
+        # Parent thread to dialog
+        self.ota_update_thread.setParent(self)
         self.ota_update_thread.update_progress.connect(lambda m: self._log_ota(m))
         self.ota_update_thread.update_complete.connect(self._on_ota_update_complete)
         self.ota_update_thread.finished.connect(lambda: (self.update_btn.setEnabled(True), self.progress_bar.setVisible(False)))
