@@ -693,12 +693,16 @@ def chat_tts():
                 normalized_chunks = _normalize_stream_chunks(result)
                 word_stream = _word_stream_from_chunks(normalized_chunks)
                 sentence_stream = _sentence_tag_stream(word_stream)
+                token_count = 0
                 for token in sentence_stream:
+                    token_count += 1
+                    if token_count <= 5:
+                        print(f"[Generic] 🔍 DEBUG: Yielding token {token_count}: {repr(token[:50])}")
                     # Accumulate tokens for memory storage (skip control tags)
                     if not (token.startswith('<') and token.endswith('>')):
                         full_response_text += token
                     yield f"{token}\n"
-                print(f"[Generic] ✅ Streamed response complete")
+                print(f"[Generic] ✅ Streamed response complete (yielded {token_count} tokens)")
                 
                 # Store assistant's response in conversation memory after streaming completes (with fallback)
                 if full_response_text.strip():
@@ -809,7 +813,11 @@ def _normalize_stream_chunks(chunk_iter):
     Normalize mixed-type streaming chunks (dicts, strings) to plain strings.
     Matches the working version from commit d4a5c540a1a3da07a7ea5a2403155adf0d7e79e7
     """
+    chunk_count = 0
     for chunk in chunk_iter:
+        chunk_count += 1
+        if chunk_count <= 3:
+            print(f"[Generic] 🔍 DEBUG: _normalize_stream_chunks received chunk {chunk_count}: type={type(chunk).__name__}, content={repr(str(chunk)[:50])}")
         if isinstance(chunk, dict):
             if 'choices' in chunk and len(chunk['choices']) > 0:
                 delta = chunk['choices'][0].get('delta', {})
@@ -825,6 +833,8 @@ def _normalize_stream_chunks(chunk_iter):
                 yield chunk
         else:
             yield str(chunk)
+    if chunk_count == 0:
+        print(f"[Generic] ⚠️ WARNING: _normalize_stream_chunks received 0 chunks from LLM iterator")
 
 
 def _find_word_boundary(buffer: str):
@@ -845,7 +855,12 @@ def _word_stream_from_chunks(chunk_iter):
     Matches the working version from commit d4a5c540a1a3da07a7ea5a2403155adf0d7e79e7
     """
     buffer = ""
+    chunk_count = 0
+    word_count = 0
     for chunk in chunk_iter:
+        chunk_count += 1
+        if chunk_count <= 3:
+            print(f"[Generic] 🔍 DEBUG: _word_stream_from_chunks received chunk {chunk_count}: {repr(str(chunk)[:50])}")
         if not chunk:
             continue
         buffer += chunk
@@ -857,10 +872,17 @@ def _word_stream_from_chunks(chunk_iter):
             buffer = buffer[boundary_idx + 1:]
             # Only yield non-empty words (filter out whitespace-only tokens)
             if word and word.strip():
+                word_count += 1
+                if word_count <= 3:
+                    print(f"[Generic] 🔍 DEBUG: _word_stream_from_chunks yielding word {word_count}: {repr(word[:50])}")
                 yield word
     # Only yield remaining buffer if it's not just whitespace
     if buffer and buffer.strip():
+        word_count += 1
+        print(f"[Generic] 🔍 DEBUG: _word_stream_from_chunks yielding final buffer: {repr(buffer[:50])}")
         yield buffer
+    if word_count == 0:
+        print(f"[Generic] ⚠️ WARNING: _word_stream_from_chunks yielded 0 words (received {chunk_count} chunks)")
 
 
 def _sentence_tag_stream(word_stream):
