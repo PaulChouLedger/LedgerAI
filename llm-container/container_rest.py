@@ -739,28 +739,34 @@ def chat_tts():
                 
                 # The base class's debug_iterator should log when we iterate
                 # Pass the iterator directly - _normalize_stream_chunks will consume it
+                print(f"[Generic] 🔍 DEBUG: About to call _normalize_stream_chunks with result: {type(result)}")
                 normalized_chunks = _normalize_stream_chunks(result)
                 print(f"[Generic] 🔍 DEBUG: _normalize_stream_chunks returned (generator created), about to call _word_stream_from_chunks")
                 
-                # Don't force iteration here - let the natural flow consume the iterator
-                # The _normalize_stream_chunks will handle the first iteration internally
+                # Force execution by trying to get first item from normalized_chunks
+                print(f"[Generic] 🔍 DEBUG: About to force first iteration of normalized_chunks to trigger debug_iterator...")
+                try:
+                    first_normalized = next(normalized_chunks)
+                    print(f"[Generic] 🔍 DEBUG: Got first normalized chunk: {repr(str(first_normalized)[:50])}")
+                    # Create a new generator that yields the first item, then continues
+                    def normalized_with_first():
+                        yield first_normalized
+                        for chunk in normalized_chunks:
+                            yield chunk
+                    normalized_chunks = normalized_with_first()
+                except StopIteration:
+                    print(f"[Generic] 🔍 DEBUG: normalized_chunks is EMPTY (StopIteration on first next())")
+                    # Create empty generator
+                    normalized_chunks = iter([])
+                
                 word_stream = _word_stream_from_chunks(normalized_chunks)
                 print(f"[Generic] 🔍 DEBUG: _word_stream_from_chunks returned, about to call _sentence_tag_stream")
                 print(f"[Generic] 🔍 DEBUG: word_stream type: {type(word_stream)}, repr: {repr(word_stream)}")
                 sentence_stream = _sentence_tag_stream(word_stream)
                 print(f"[Generic] 🔍 DEBUG: _sentence_tag_stream returned, type: {type(sentence_stream)}, repr: {repr(sentence_stream)}")
                 print(f"[Generic] 🔍 DEBUG: Now iterating over sentence_stream - this will trigger the entire chain")
-                print(f"[Generic] 🔍 DEBUG: About to call next() on sentence_stream to force execution...")
                 token_count = 0
                 try:
-                    first_token = next(sentence_stream)
-                    token_count += 1
-                    print(f"[Generic] 🔍 DEBUG: Got first token from sentence_stream: {repr(first_token[:50])}")
-                    # Yield the first token
-                    if not (first_token.startswith('<') and first_token.endswith('>')):
-                        full_response_text += first_token
-                    yield f"{first_token}\n"
-                    # Continue with rest
                     for token in sentence_stream:
                         token_count += 1
                         if token_count <= 5:
@@ -770,7 +776,7 @@ def chat_tts():
                             full_response_text += token
                         yield f"{token}\n"
                 except StopIteration:
-                    print(f"[Generic] 🔍 DEBUG: sentence_stream is EMPTY (StopIteration on first next())")
+                    print(f"[Generic] 🔍 DEBUG: sentence_stream is EMPTY (StopIteration)")
                     # Yield empty sentence tags so speaker knows stream ended
                     yield "<sentence_start>\n"
                     yield "<sentence_end>\n"
