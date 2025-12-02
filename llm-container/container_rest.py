@@ -10,6 +10,7 @@ import re
 import logging
 import json
 import sys
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # Add shared directory to path for base class and RAG imports
 sys.path.insert(0, '/shared')
@@ -257,114 +258,127 @@ def handle_conversation(
         memory_rag_failed = False  # Track if memory RAG failed (timeout, error, etc.)
         
         if not is_personal_query:
-            # Check document RAG (files/documents)
-            try:
-                rag_client = get_rag_client()
-                if rag_client:
-                    # Quick check: does RAG have content at all?
-                    has_content = rag_client.quick_content_match(prompt)
-                    if has_content:
-                        print(f"[Generic] 🔍 Query may match RAG content - performing search...")
-                        
-                        # Check if RAG client has any embeddings
-                        if hasattr(rag_client, '_cpu_chunks') and rag_client._cpu_chunks:
-                            print(f"[Generic] 📊 RAG index: {len(rag_client._cpu_chunks)} chunks available")
-                        elif hasattr(rag_client, '_cpu_index') and rag_client._cpu_index:
-                            index_size = rag_client._cpu_index.ntotal if hasattr(rag_client._cpu_index, 'ntotal') else 0
-                            print(f"[Generic] 📊 RAG index: {index_size} vectors available")
-                        else:
-                            print(f"[Generic] ⚠️ RAG index appears empty - no embeddings loaded")
-                        
-                        # Search for relevant results (uses RAG_SEARCH_THRESHOLD and RAG_SEARCH_K from rag_client config)
-                        rag_results = rag_client.search(query=prompt)
-                        
-                        # Get threshold from RAG client config for logging
-                        try:
-                            from rag.rag_client import RAG_SEARCH_THRESHOLD
-                            threshold_display = RAG_SEARCH_THRESHOLD
-                        except ImportError:
-                            threshold_display = "default"
-                        
-                        # Only use RAG if search actually returns results above threshold
-                        if rag_results and len(rag_results) > 0:
-                            print(f"[Generic] ✅ RAG found {len(rag_results)} relevant results (threshold={threshold_display}) - will inject context")
-                        else:
-                            print(f"[Generic] 🔍 RAG search returned no results above threshold - skipping RAG injection")
-                    else:
-                        print(f"[Generic] 🔍 Query doesn't match RAG content - skipping RAG (faster response)")
-                else:
-                    print(f"[Generic] ⚠️ RAG client not available")
-            except Exception as e:
-                print(f"[Generic] ⚠️ RAG check failed: {e}")
-                rag_client = None
-        
-            # Check memory container RAG (stored conversations)
-            try:
-                memory_container_url = os.environ.get('MEMORY_CONTAINER_URL', 'http://localhost:11438')
-                # Quick check: does memory container have relevant conversations?
-                # Use shorter timeout for quick check (2s)
+            # Detect if query is asking for "what else" or additional information
+            is_followup_query = any(phrase in prompt.lower() for phrase in ['what else', 'anything else', 'more about', 'additional', 'other'])
+            
+            # Parallelize document RAG and memory RAG searches for better latency
+            def search_document_rag():
+                """Search document RAG in parallel"""
                 try:
-                    quick_match_response = requests.post(
-                        f"{memory_container_url}/rag/quick-match",
-                        json={"query": prompt},
-                        timeout=2
-                    )
-                except requests.exceptions.Timeout:
-                    print(f"[Generic] ⚠️ Memory container quick-match timeout - index may be rebuilding, skipping memory RAG")
-                    quick_match_response = None
-                
-                if quick_match_response and quick_match_response.status_code == 200:
-                    quick_match_data = quick_match_response.json()
-                    if quick_match_data.get('has_match', False):
+                    client = get_rag_client()
+                    if client:
+                        has_content = client.quick_content_match(prompt)
+                        if has_content:
+                            print(f"[Generic] 🔍 Query may match RAG content - performing search...")
+                            if hasattr(client, '_cpu_chunks') and client._cpu_chunks:
+                                print(f"[Generic] 📊 RAG index: {len(client._cpu_chunks)} chunks available")
+                            elif hasattr(client, '_cpu_index') and client._cpu_index:
+                                index_size = client._cpu_index.ntotal if hasattr(client._cpu_index, 'ntotal') else 0
+                                print(f"[Generic] 📊 RAG index: {index_size} vectors available")
+                            results = client.search(query=prompt)
+                            if results and len(results) > 0:
+                                try:
+                                    from rag.rag_client import RAG_SEARCH_THRESHOLD
+                                    threshold_display = RAG_SEARCH_THRESHOLD
+                                except ImportError:
+                                    threshold_display = "default"
+                                print(f"[Generic] ✅ RAG found {len(results)} relevant results (threshold={threshold_display}) - will inject context")
+                            else:
+                                print(f"[Generic] 🔍 RAG search returned no results above threshold - skipping RAG injection")
+                            return client, results
+                        else:
+                            print(f"[Generic] 🔍 Query doesn't match RAG content - skipping RAG (faster response)")
+                    return None, []
+                except Exception as e:
+                    print(f"[Generic] ⚠️ RAG check failed: {e}")
+                    return None, []
+            
+            def search_memory_rag():
+                """Search memory RAG in parallel"""
+                try:
+                    memory_container_url = os.environ.get('MEMORY_CONTAINER_URL', 'http://localhost:11438')
+                    # For follow-up queries, skip quick-match and go straight to search (faster)
+                    if is_followup_query:
+                        print(f"[Generic] 🔍 Follow-up query detected - skipping quick-match, performing direct search...")
+                        quick_match_response = None
+                    else:
+                        # Quick check: does memory container have relevant conversations?
+                        # Reduced timeout from 2s to 500ms for faster response
+                        try:
+                            quick_match_response = requests.post(
+                                f"{memory_container_url}/rag/quick-match",
+                                json={"query": prompt},
+                                timeout=0.5  # Reduced from 2s
+                            )
+                        except requests.exceptions.Timeout:
+                            print(f"[Generic] ⚠️ Memory container quick-match timeout - index may be rebuilding, skipping memory RAG")
+                            quick_match_response = None
+                    
+                    if quick_match_response is None or (quick_match_response and quick_match_response.status_code == 200 and quick_match_response.json().get('has_match', False)):
                         print(f"[Generic] 🔍 Query may match stored conversations - performing memory RAG search...")
-                        # Search memory container for relevant conversations
-                        # Use same logic as document RAG: get k*2 candidates, re-rank, filter, return top k
                         from rag.rag_client import RAG_SEARCH_THRESHOLD, RAG_SEARCH_K
-                        memory_rag_threshold = RAG_SEARCH_THRESHOLD  # Use same threshold as document RAG (0.30)
-                        memory_rag_k = RAG_SEARCH_K  # Use same k as document RAG (3)
+                        memory_rag_threshold = RAG_SEARCH_THRESHOLD
+                        memory_rag_k = RAG_SEARCH_K
                         
-                        # Request k*2 results with lower threshold (same as document RAG)
-                        # Increased timeout to 15s to handle index rebuilds (happens every 10 conversations)
+                        # Reduced timeout from 15s to 3s (more realistic)
                         try:
                             memory_rag_response = requests.post(
                                 f"{memory_container_url}/rag/search",
                                 json={
                                     "query": prompt,
-                                    "k": memory_rag_k * 2,  # Get 6 candidates for re-ranking (same as document RAG)
-                                    "threshold": memory_rag_threshold * 0.8  # Lower threshold for initial search (same as document RAG)
+                                    "k": memory_rag_k * 2,
+                                    "threshold": memory_rag_threshold * 0.8
                                 },
-                                timeout=15  # Increased from 5s to handle index rebuilds
+                                timeout=3  # Reduced from 15s to 3s
                             )
                         except requests.exceptions.Timeout:
-                            print(f"[Generic] ⚠️ Memory RAG search timeout (>15s) - index may be rebuilding, continuing without memory context")
-                            print(f"[Generic] ⚠️ WARNING: Response may be less accurate without conversation memory context")
+                            print(f"[Generic] ⚠️ Memory RAG search timeout (>3s) - index may be rebuilding, continuing without memory context")
                             memory_rag_response = None
-                            memory_rag_failed = True
+                        
                         if memory_rag_response and memory_rag_response.status_code == 200:
                             memory_rag_data = memory_rag_response.json()
-                            memory_rag_candidates = memory_rag_data.get('results', [])
-                            
-                            # Use LLM to score and select best conversations that answer the query
-                            if memory_rag_candidates:
-                                print(f"[Generic] 🤖 Using LLM to score {len(memory_rag_candidates)} conversation candidates...")
-                                
-                                # If streaming, we'll yield filler phrase before LLM response (not before scoring)
-                                # Set flag to indicate we need to yield filler phrase before the actual response
-                                needs_filler_phrase = stream
-                                
-                                # Build prompt for LLM to score conversations
-                                conversations_text = ""
-                                for i, candidate in enumerate(memory_rag_candidates, 1):
-                                    conv_text = candidate.get('text', '')
-                                    conversations_text += f"{i}. {conv_text}\n"
-                                
-                                # Detect if query is asking for "what else" or additional information
-                                is_followup_query = any(phrase in prompt.lower() for phrase in ['what else', 'anything else', 'more about', 'additional', 'other'])
-                                
-                                scoring_prompt = f"""Rate how well each previous conversation answers the user's question.
+                            return memory_rag_data.get('results', []), memory_rag_threshold, memory_rag_k
+                    return [], None, None
+                except Exception as e:
+                    print(f"[Generic] ⚠️ Memory RAG check failed: {e}")
+                    return [], None, None
+            
+            # Run both searches in parallel
+            with ThreadPoolExecutor(max_workers=2) as executor:
+                doc_future = executor.submit(search_document_rag)
+                memory_future = executor.submit(search_memory_rag)
+                
+                # Get document RAG results
+                rag_client, rag_results = doc_future.result()
+                
+                # Get memory RAG candidates
+                memory_rag_candidates, memory_rag_threshold, memory_rag_k = memory_future.result()
+            
+            # Process memory RAG candidates with LLM scoring (if needed)
+            memory_rag_results = []
+            if memory_rag_candidates and memory_rag_threshold and memory_rag_k:
+                # For follow-up queries, skip LLM scoring and use semantic scores only (faster)
+                if is_followup_query:
+                    print(f"[Generic] ⚡ Follow-up query - using semantic scores only (skipping LLM scoring for speed)")
+                    scored_candidates = sorted(memory_rag_candidates, key=lambda x: x.get('score', 0), reverse=True)
+                    memory_rag_results = [
+                        r for r in scored_candidates 
+                        if r.get('score', 0) >= memory_rag_threshold
+                    ][:memory_rag_k]
+                else:
+                    # Use LLM scoring for initial queries
+                    print(f"[Generic] 🤖 Using LLM to score {len(memory_rag_candidates)} conversation candidates...")
+                    needs_filler_phrase = stream
+                    
+                    # Build prompt for LLM to score conversations
+                    conversations_text = ""
+                    for i, candidate in enumerate(memory_rag_candidates, 1):
+                        conv_text = candidate.get('text', '')
+                        conversations_text += f"{i}. {conv_text}\n"
+                    
+                    scoring_prompt = f"""Rate how well each previous conversation answers the user's question.
 
 User's question: "{prompt}"
-{'⚠️ IMPORTANT: The user is asking for ADDITIONAL information. Give LOW scores (0.0-0.2) to conversations that are just the same question being asked. Prioritize conversations that contain NEW information or answers, not questions.' if is_followup_query else ''}
 
 Previous conversations:
 {conversations_text}
@@ -374,98 +388,77 @@ For each conversation, assign a score from 0.0 to 1.0:
 - 0.7-0.9 = Mostly answers the question, contains relevant information
 - 0.4-0.6 = Partially relevant, some useful information
 - 0.1-0.3 = Minimally relevant, little useful information
-- 0.0 = Not relevant, doesn't answer the question{' OR is just the same question being asked again' if is_followup_query else ''}
+- 0.0 = Not relevant, doesn't answer the question
 
 Return ONLY a JSON array with exactly {len(memory_rag_candidates)} scores in order.
 Example: [0.8, 0.3, 0.9, 0.1, 0.7, 0.2]
 
 JSON array only:"""
-                                
-                                try:
-                                    # Call LLM for scoring (non-streaming, fast)
-                                    scoring_messages = [
-                                        {"role": "user", "content": scoring_prompt}
-                                    ]
-                                    scoring_response = llm_chat_simple(
-                                        scoring_messages,
-                                        max_tokens=200,  # Short response
-                                        temperature=0.3,  # Lower temperature for more consistent scoring
-                                        stream=False
-                                    )
-                                    
-                                    # Parse LLM response to extract scores
-                                    import json
-                                    import re
-                                    # Extract JSON array from response
-                                    json_match = re.search(r'\[[\d\.,\s]+\]', scoring_response)
-                                    if json_match:
-                                        scores = json.loads(json_match.group())
-                                        print(f"[Generic] ✅ LLM returned {len(scores)} scores")
-                                    else:
-                                        # Fallback: try to parse entire response as JSON
-                                        try:
-                                            scores = json.loads(scoring_response.strip())
-                                        except:
-                                            print(f"[Generic] ⚠️ Failed to parse LLM scores, using semantic scores as fallback")
-                                            scores = [c.get('score', 0.0) for c in memory_rag_candidates]
-                                    
-                                    # Ensure we have the right number of scores
-                                    if len(scores) != len(memory_rag_candidates):
-                                        print(f"[Generic] ⚠️ LLM returned {len(scores)} scores but expected {len(memory_rag_candidates)}, using semantic scores as fallback")
-                                        scores = [c.get('score', 0.0) for c in memory_rag_candidates]
-                                    
-                                    # Update candidates with LLM scores
-                                    scored_candidates = []
-                                    for i, (candidate, llm_score) in enumerate(zip(memory_rag_candidates, scores)):
-                                        scored_candidates.append({
-                                            **candidate,
-                                            'score': float(llm_score),
-                                            'original_semantic_score': candidate.get('score', 0.0),
-                                            'llm_score': float(llm_score)
-                                        })
-                                        print(f"[Generic]   [{i+1}] LLM score: {llm_score:.3f} (semantic: {candidate.get('score', 0.0):.3f}): '{candidate.get('text', '')[:60]}...'")
-                                    
-                                    # Sort by LLM score (descending)
-                                    scored_candidates.sort(key=lambda x: x['score'], reverse=True)
-                                    
-                                    # Filter by threshold and return top k
-                                    memory_rag_results = [
-                                        r for r in scored_candidates 
-                                        if r.get('score', 0) >= memory_rag_threshold
-                                    ][:memory_rag_k]
-                                    
-                                except Exception as e:
-                                    print(f"[Generic] ⚠️ LLM scoring failed: {e}, falling back to semantic scores")
-                                    import traceback
-                                    traceback.print_exc()
-                                    # Fallback to semantic scores
-                                    scored_candidates = sorted(memory_rag_candidates, key=lambda x: x.get('score', 0), reverse=True)
-                                    memory_rag_results = [
-                                        r for r in scored_candidates 
-                                        if r.get('score', 0) >= memory_rag_threshold
-                                    ][:memory_rag_k]
-                            else:
-                                memory_rag_results = []
-                            
-                            if memory_rag_results and len(memory_rag_results) > 0:
-                                print(f"[Generic] ✅ Memory RAG found {len(memory_rag_results)} relevant conversations (from {len(memory_rag_candidates)} candidates, threshold={memory_rag_threshold:.2f}) - will inject context")
-                            else:
-                                print(f"[Generic] 🔍 Memory RAG search returned no results above threshold={memory_rag_threshold:.2f} after re-ranking")
-                        elif memory_rag_response:
-                            print(f"[Generic] ⚠️ Memory RAG search failed: HTTP {memory_rag_response.status_code}")
-                        # If memory_rag_response is None, timeout was already handled above
-                    else:
-                        print(f"[Generic] 🔍 Query doesn't match stored conversations - skipping memory RAG")
+                    
+                    try:
+                        # Call LLM for scoring (non-streaming, fast)
+                        scoring_messages = [{"role": "user", "content": scoring_prompt}]
+                        scoring_response = llm_chat_simple(
+                            scoring_messages,
+                            max_tokens=100,  # Reduced from 200 to 100 for faster response
+                            temperature=0.3,
+                            stream=False
+                        )
+                        
+                        # Parse LLM response to extract scores
+                        import json
+                        import re
+                        json_match = re.search(r'\[[\d\.,\s]+\]', scoring_response)
+                        if json_match:
+                            scores = json.loads(json_match.group())
+                            print(f"[Generic] ✅ LLM returned {len(scores)} scores")
+                        else:
+                            try:
+                                scores = json.loads(scoring_response.strip())
+                            except:
+                                print(f"[Generic] ⚠️ Failed to parse LLM scores, using semantic scores as fallback")
+                                scores = [c.get('score', 0.0) for c in memory_rag_candidates]
+                        
+                        # Ensure we have the right number of scores
+                        if len(scores) != len(memory_rag_candidates):
+                            print(f"[Generic] ⚠️ LLM returned {len(scores)} scores but expected {len(memory_rag_candidates)}, using semantic scores as fallback")
+                            scores = [c.get('score', 0.0) for c in memory_rag_candidates]
+                        
+                        # Update candidates with LLM scores
+                        scored_candidates = []
+                        for i, (candidate, llm_score) in enumerate(zip(memory_rag_candidates, scores)):
+                            scored_candidates.append({
+                                **candidate,
+                                'score': float(llm_score),
+                                'original_semantic_score': candidate.get('score', 0.0),
+                                'llm_score': float(llm_score)
+                            })
+                            print(f"[Generic]   [{i+1}] LLM score: {llm_score:.3f} (semantic: {candidate.get('score', 0.0):.3f}): '{candidate.get('text', '')[:60]}...'")
+                        
+                        # Sort by LLM score (descending)
+                        scored_candidates.sort(key=lambda x: x['score'], reverse=True)
+                        
+                        # Filter by threshold and return top k
+                        memory_rag_results = [
+                            r for r in scored_candidates 
+                            if r.get('score', 0) >= memory_rag_threshold
+                        ][:memory_rag_k]
+                        
+                    except Exception as e:
+                        print(f"[Generic] ⚠️ LLM scoring failed: {e}, falling back to semantic scores")
+                        import traceback
+                        traceback.print_exc()
+                        # Fallback to semantic scores
+                        scored_candidates = sorted(memory_rag_candidates, key=lambda x: x.get('score', 0), reverse=True)
+                        memory_rag_results = [
+                            r for r in scored_candidates 
+                            if r.get('score', 0) >= memory_rag_threshold
+                        ][:memory_rag_k]
+                
+                if memory_rag_results and len(memory_rag_results) > 0:
+                    print(f"[Generic] ✅ Memory RAG found {len(memory_rag_results)} relevant conversations (from {len(memory_rag_candidates)} candidates, threshold={memory_rag_threshold:.2f}) - will inject context")
                 else:
-                    # Memory container not available or error - continue without it
-                    pass
-            except requests.exceptions.RequestException as e:
-                # Memory container not available - this is OK, continue without it
-                print(f"[Generic] ⚠️ Memory container not available: {e}")
-                memory_rag_failed = True
-            except Exception as e:
-                print(f"[Generic] ⚠️ Memory RAG check failed: {e}")
-                memory_rag_failed = True
+                    print(f"[Generic] 🔍 Memory RAG search returned no results above threshold={memory_rag_threshold:.2f} after re-ranking")
         
         should_use_rag = (rag_results and len(rag_results) > 0) or (memory_rag_results and len(memory_rag_results) > 0)
         should_use_memory_rag = (memory_rag_results and len(memory_rag_results) > 0)

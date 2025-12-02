@@ -151,9 +151,9 @@ class RAGClient:
                     self._rebuild_cpu_index()
                     print(f"[RAG Client] ✅ Index built on startup with {len(self._cpu_chunks)} chunks")
                 else:
-                    # Create empty index
-                    import faiss
-                    self._cpu_index = faiss.IndexFlatL2(self._embedding_dim)
+                # Create empty index
+                import faiss
+                self._cpu_index = faiss.IndexFlatL2(self._embedding_dim)
                 
         except Exception as e:
             print(f"[RAG Client] ❌ Failed to load CPU index: {e}")
@@ -633,7 +633,7 @@ class RAGClient:
                 query_embedding = query_embedding.reshape(1, -1)
                 faiss.normalize_L2(query_embedding)
                 # Search returns similarity scores (higher = more similar)
-                search_results, indices = self._cpu_index.search(query_embedding.reshape(1, -1), k)
+            search_results, indices = self._cpu_index.search(query_embedding.reshape(1, -1), k)
             
             # Convert to similarity scores
             if is_inner_product:

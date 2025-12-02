@@ -146,8 +146,8 @@ class MemoryManager:
                 self.rebuild_in_progress = True
                 try:
                     # Get current state (snapshot for thread safety)
-                    with self.lock:
-                        if self.embeddings is None or len(self.embeddings) == 0:
+        with self.lock:
+            if self.embeddings is None or len(self.embeddings) == 0:
                             logger.warning("⚠️ No embeddings to index")
                             new_index = faiss.IndexFlatIP(self.embedding_dim)
                         else:
@@ -155,11 +155,11 @@ class MemoryManager:
                             num_vectors = len(embeddings_snapshot)
                             
                             logger.info(f"🔧 Rebuilding FAISS index with {num_vectors} vectors (background: {background})")
-                            
-                            # Normalize embeddings for cosine similarity
+            
+            # Normalize embeddings for cosine similarity
                             embeddings_normalized = embeddings_snapshot.copy()
-                            faiss.normalize_L2(embeddings_normalized)
-                            
+            faiss.normalize_L2(embeddings_normalized)
+            
                             # Create new index (don't modify existing one yet)
                             new_index = faiss.IndexFlatIP(self.embedding_dim)
                             new_index.add(embeddings_normalized)
@@ -169,6 +169,7 @@ class MemoryManager:
                     # Atomically swap indices (quick operation)
                     # IMPORTANT: Take final snapshot right before swap to include any conversations
                     # that were added during the rebuild process
+                    # Minimize lock time - do heavy operations (disk write) outside lock
                     with self.lock:
                         # Check if index size changed during rebuild (new conversations added)
                         current_index_size = self.index.ntotal if self.index else 0
@@ -185,11 +186,15 @@ class MemoryManager:
                                 new_index.add(additional_normalized)
                                 logger.info(f"✅ Added {missing_count} conversations that were added during rebuild")
                         
+                        # Atomic swap (very fast - just pointer assignment)
                         old_index = self.index
                         self.index = new_index
-                        # Save new index to disk
-                        faiss.write_index(self.index, str(self.index_file))
-                        logger.info(f"✅ Index swapped and saved (old: {old_index.ntotal if old_index else 0}, new: {self.index.ntotal} vectors)")
+                        # Don't save to disk inside lock - do it outside to minimize lock time
+                    
+                    # Save new index to disk OUTSIDE lock (this is the slow part)
+                    # This allows searches to proceed while we write to disk
+                    faiss.write_index(new_index, str(self.index_file))
+                    logger.info(f"✅ Index swapped and saved (old: {old_index.ntotal if old_index else 0}, new: {new_index.ntotal} vectors)")
                     
                 except Exception as e:
                     logger.error(f"❌ Failed to rebuild index: {e}")
@@ -281,12 +286,12 @@ class MemoryManager:
             
             # Use incremental index updates for immediate availability
             # Periodically rebuild in background for optimal performance
-            if self.index is not None:
+                if self.index is not None:
                 embedding_normalized = embedding.copy().reshape(1, -1)  # Ensure 2D shape
-                faiss.normalize_L2(embedding_normalized)
-                self.index.add(embedding_normalized)
-                # Save updated index
-                faiss.write_index(self.index, str(self.index_file))
+                    faiss.normalize_L2(embedding_normalized)
+                    self.index.add(embedding_normalized)
+                    # Save updated index
+                    faiss.write_index(self.index, str(self.index_file))
                 logger.debug(f"✅ Added embedding to FAISS index incrementally (total vectors: {self.index.ntotal})")
                 
                 # Trigger background rebuild periodically (configurable interval)
@@ -294,11 +299,13 @@ class MemoryManager:
                 conversations_since_rebuild = len(self.conversations) - self.last_rebuild_count
                 if conversations_since_rebuild >= self.rebuild_interval and not self.rebuild_in_progress:
                     # Schedule rebuild in separate thread with delay to avoid blocking current query
-                    # This ensures queries are never blocked by index rebuilds
+                    # Delay ensures swap happens during TTS generation (after LLM response), not during query processing
                     def schedule_rebuild_async():
                         import time
-                        logger.info(f"📅 Scheduled background index rebuild (will start in 1s to avoid blocking current query)")
-                        time.sleep(1.0)  # Delay to let current query finish processing
+                        # Increased delay to 3s - this ensures swap happens during TTS generation
+                        # TTS typically takes 5-15s, so swap will occur during that time, not during query processing
+                        logger.info(f"📅 Scheduled background index rebuild (will start in 3s to avoid blocking query processing)")
+                        time.sleep(3.0)  # Delay to let query processing and LLM response generation complete
                         if not self.rebuild_in_progress:  # Double-check after delay
                             # Check system load before rebuilding to avoid impacting inference
                             if self._should_rebuild_now():
