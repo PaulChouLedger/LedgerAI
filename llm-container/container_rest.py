@@ -721,20 +721,30 @@ def chat_tts():
                     import traceback
                     traceback.print_exc()
                 
-                # Re-create iterator from collected chunks for processing
+                # Process chunks: normalize -> words -> sentences -> yield with tags
+                # The speaker module will buffer tokens between <sentence_start> and <sentence_end>
+                # and send complete sentences to TTS (Eleven Labs doesn't support streaming)
                 print(f"[Generic] 🔍 DEBUG: About to normalize {len(raw_chunks)} chunks")
+                token_count = 0
+                chunk_count = 0
                 try:
+                    # Step 1: Normalize chunks (extract content from delta)
+                    print(f"[Generic] 🔍 DEBUG: Creating normalized_chunks iterator...")
                     normalized_chunks = _normalize_stream_chunks(iter(raw_chunks))
-                    print(f"[Generic] 🔍 DEBUG: Created normalized_chunks iterator")
+                    print(f"[Generic] 🔍 DEBUG: Created normalized_chunks iterator (lazy, will execute on first iteration)")
                     
+                    # Step 2: Convert to word stream (buffer until word boundaries)
+                    print(f"[Generic] 🔍 DEBUG: Creating word_stream iterator...")
                     word_stream = _word_stream_from_chunks(normalized_chunks)
-                    print(f"[Generic] 🔍 DEBUG: Created word_stream iterator")
+                    print(f"[Generic] 🔍 DEBUG: Created word_stream iterator (lazy, will execute on first iteration)")
                     
+                    # Step 3: Add sentence tags (wraps words with <sentence_start>/<sentence_end>)
+                    print(f"[Generic] 🔍 DEBUG: Creating sentence_stream iterator...")
                     sentence_stream = _sentence_tag_stream(word_stream)
-                    print(f"[Generic] 🔍 DEBUG: Created sentence_stream iterator")
+                    print(f"[Generic] 🔍 DEBUG: Created sentence_stream iterator (lazy, will execute on first iteration)")
                     
-                    token_count = 0
-                    chunk_count = 0
+                    # Step 4: Yield tokens (speaker will buffer until <sentence_end>)
+                    print(f"[Generic] 🔍 DEBUG: Starting iteration over sentence_stream (this will trigger the chain)...")
                     for token in sentence_stream:
                         token_count += 1
                         chunk_count += 1
@@ -744,6 +754,7 @@ def chat_tts():
                         if not (token.startswith('<') and token.endswith('>')):
                             full_response_text += token
                         yield f"{token}\n"
+                    print(f"[Generic] 🔍 DEBUG: Finished iterating over sentence_stream (token_count={token_count})")
                 except Exception as stream_error:
                     print(f"[Generic] ⚠️ DEBUG: Error in streaming pipeline: {stream_error}")
                     import traceback
