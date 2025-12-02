@@ -323,11 +323,28 @@ class RAGClient:
         # Use original query for embedding (expansions handled in keyword matching)
         return query
     
+    def _fuzzy_match_term(self, term: str, text: str, threshold: float = 0.75) -> bool:
+        """
+        Check if a term fuzzy matches any word in the text.
+        Handles transcription errors by using fuzzy string matching.
+        
+        Args:
+            term: Term to search for
+            text: Text to search in
+            threshold: Minimum similarity ratio (0.0-1.0) for a match
+        
+        Returns:
+            True if term fuzzy matches any word in text
+        """
+        # Use the imported fuzzy_match_term function
+        return fuzzy_match_term(term, text, threshold)
+    
     def _rerank_results(self, query: str, results: List[Dict], top_k: int = None) -> List[Dict]:
         """
-        Re-rank search results using cross-encoder or keyword matching
+        Re-rank search results using fuzzy keyword matching and entity detection
         
-        Improves relevance by considering query-chunk interaction
+        Improves relevance by considering query-chunk interaction, handles transcription errors,
+        and prioritizes results with matching person names/entities.
         """
         if not results:
             return results
@@ -338,25 +355,134 @@ class RAGClient:
         stop_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'are', 'was', 'were'}
         query_terms = [w.lower() for w in re.findall(r'\b\w+\b', query.lower()) if w not in stop_words and len(w) > 2]
         
-        # Score each result based on keyword matches and semantic score
-        reranked = []
+        # Extract person names/entities from query (capitalized words, 2+ words)
+        # Pattern matches full names like "John Smith", "Jane Doe", etc.
+        query_names = re.findall(r'\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\b', query)
+        query_names_lower = [name.lower() for name in query_names]
+        
+        # Also extract individual capitalized words (first names, last names separately)
+        # e.g., "John Smith" -> ["John", "Smith"]
+        query_capitalized_words = re.findall(r'\b([A-Z][a-z]+)\b', query)
+        query_capitalized_lower = [w.lower() for w in query_capitalized_words]
+        
+        # Pre-filter: Only include chunks that have at least one query term match (fuzzy)
+        # This prevents irrelevant chunks from being analyzed
+        # CRITICAL: For queries with names, require at least one capitalized word (name) match
+        print(f"[RAG Pre-filter] 🔍 Starting pre-filter: {len(results)} chunks, query: '{query[:50]}...'")
+        print(f"[RAG Pre-filter] 🔍 Query terms: {query_terms}, Capitalized words: {query_capitalized_lower}")
+        filtered_results = []
         for result in results:
             text = result.get('text', '').lower()
+            original_text = result.get('text', '')
+            
+            # For queries with capitalized words (names), REQUIRE at least one name match
+            # This ensures chunks about different people are excluded
+            has_name_match = False
+            if query_capitalized_lower:
+                for cap_word in query_capitalized_lower:
+                    if self._fuzzy_match_term(cap_word, text, threshold=0.75):
+                        has_name_match = True
+                        print(f"[RAG Pre-filter] ✅ Name match: '{cap_word}' in '{original_text[:60]}...'")
+                        break
+            
+            # If query has names but chunk has no name match, exclude it
+            # This prevents chunks about different people from being included
+            if query_capitalized_lower and not has_name_match:
+                print(f"[RAG Pre-filter] ❌ Excluded (query has names but chunk has no name match): '{original_text[:60]}...'")
+                continue
+            
+            # For queries without names, check for other query terms
+            if not query_capitalized_lower:
+                has_query_term = False
+                for term in query_terms:
+                    if self._fuzzy_match_term(term, text, threshold=0.75):
+                        has_query_term = True
+                        print(f"[RAG Pre-filter] ✅ Query term match: '{term}' in '{original_text[:60]}...'")
+                        break
+                
+                if not has_query_term:
+                    print(f"[RAG Pre-filter] ❌ Excluded (no query term matches): '{original_text[:60]}...'")
+                    continue
+            
+            filtered_results.append(result)
+        
+        if not filtered_results:
+            print(f"[RAG Pre-filter] ⚠️ All chunks filtered out - no query term matches found")
+            logger.warning(f"[RAG Pre-filter] ⚠️ All chunks filtered out - no query term matches found")
+            return []
+        
+        print(f"[RAG Pre-filter] ✅ {len(filtered_results)}/{len(results)} chunks passed pre-filter")
+        logger.info(f"[RAG Pre-filter] ✅ {len(filtered_results)}/{len(results)} chunks passed pre-filter")
+        
+        # Score each result based on keyword matches and semantic score
+        reranked = []
+        for result in filtered_results:
+            text = result.get('text', '').lower()
+            original_text = result.get('text', '')  # Keep original for name extraction
             semantic_score = result.get('score', 0.0)
             
-            # Count keyword matches
-            keyword_matches = sum(1 for term in query_terms if term in text)
+            # Count keyword matches using fuzzy matching (handles transcription errors)
+            keyword_matches = sum(1 for term in query_terms if self._fuzzy_match_term(term, text, threshold=0.75))
             keyword_score = keyword_matches / max(len(query_terms), 1) if query_terms else 0
             
-            # Combined score: 70% semantic, 30% keyword
-            combined_score = 0.7 * semantic_score + 0.3 * keyword_score
+            # Check for person name matches (critical for "Who is X?" queries)
+            name_match_boost = 0.0
+            if query_names:
+                # Extract names from result text (full names)
+                result_names = re.findall(r'\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\b', original_text)
+                result_names_lower = [name.lower() for name in result_names]
+                
+                # Also check for individual name parts in text (handles cases where full name isn't together)
+                # e.g., "John" and "Smith" might appear separately in the text
+                text_lower = original_text.lower()
+                
+                # Check if any query name matches any result name (exact or fuzzy)
+                for query_name in query_names_lower:
+                    query_name_words = query_name.split()
+                    
+                    # 1. Check for exact full name match
+                    if query_name in result_names_lower:
+                        name_match_boost = 0.25  # Strong boost for exact name match
+                        break
+                    
+                    # 2. Check for fuzzy full name match
+                    for result_name in result_names_lower:
+                        # Check if all query name words appear in result name (fuzzy)
+                        if all(self._fuzzy_match_term(word, result_name, threshold=0.75) for word in query_name_words if len(word) > 2):
+                            name_match_boost = 0.20  # Boost for fuzzy name match
+                            break
+                    if name_match_boost > 0:
+                        break
+                    
+                    # 3. Check for partial name matches (individual words from query name appear in text)
+                    # This handles cases like "John worked at..." or "...Smith's role..."
+                    if len(query_name_words) >= 2:
+                        # Check if at least 2 name words appear in the text (fuzzy match)
+                        matching_words = sum(1 for word in query_name_words if len(word) > 2 and self._fuzzy_match_term(word, text_lower, threshold=0.75))
+                        if matching_words >= 2:
+                            name_match_boost = 0.15  # Moderate boost for partial name match
+                            break
+                        elif matching_words == 1 and len(query_name_words) == 2:
+                            # If query has 2 words and 1 matches, still give small boost
+                            name_match_boost = 0.10  # Small boost for single word match in 2-word name
+                            break
+            
+            # Combined score: 70% semantic, 30% keyword, plus name match boost
+            base_score = 0.7 * semantic_score + 0.3 * keyword_score
+            combined_score = base_score + name_match_boost
+            combined_score = min(1.0, combined_score)  # Cap at 1.0
             
             reranked.append({
                 **result,
                 'score': combined_score,
                 'original_score': semantic_score,
-                'keyword_score': keyword_score
+                'keyword_score': keyword_score,
+                'name_match_boost': name_match_boost
             })
+            
+            # Debug logging for re-ranking (only for first few results to avoid spam)
+            if len(reranked) <= 3:
+                logger.debug(f"[RAG Re-rank] Score: {combined_score:.3f} (semantic: {semantic_score:.3f}, keyword: {keyword_score:.3f}, name_boost: {name_match_boost:.3f}) - '{original_text[:60]}...'")
         
         # Sort by combined score (descending)
         reranked.sort(key=lambda x: x['score'], reverse=True)
@@ -395,11 +521,19 @@ class RAGClient:
         else:
             results = self._search_cpu(expanded_query, k * 2, threshold * 0.8)  # Get more candidates for re-ranking
         
-        # Re-rank results if enabled
+        # Re-rank results if enabled (includes pre-filtering)
         if rerank and results:
+            print(f"[RAG Client] 🔍 Pre-filtering and re-ranking {len(results)} results for query: '{query[:50]}...'")
             results = self._rerank_results(query, results, top_k=k)
             # Re-apply threshold after re-ranking
-            results = [r for r in results if r['score'] >= threshold]
+            # Note: Chunks with name_match_boost use slightly lower effective threshold (85% of threshold)
+            # to increase recall for relevant name-related content
+            filtered_results = []
+            for r in results:
+                effective_threshold = threshold * 0.85 if r.get('name_match_boost', 0) > 0 else threshold
+                if r['score'] >= effective_threshold:
+                    filtered_results.append(r)
+            results = filtered_results
         
         return results[:k]  # Return top k results
     

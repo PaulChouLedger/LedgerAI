@@ -294,24 +294,27 @@ class MemoryManager:
                 conversations_since_rebuild = len(self.conversations) - self.last_rebuild_count
                 if conversations_since_rebuild >= self.rebuild_interval and not self.rebuild_in_progress:
                     # Schedule rebuild in separate thread with delay to avoid blocking current query
+                    # This ensures queries are never blocked by index rebuilds
                     def schedule_rebuild_async():
                         import time
-                        time.sleep(0.5)  # Delay to let current query finish processing
+                        logger.info(f"📅 Scheduled background index rebuild (will start in 1s to avoid blocking current query)")
+                        time.sleep(1.0)  # Delay to let current query finish processing
                         if not self.rebuild_in_progress:  # Double-check after delay
                             # Check system load before rebuilding to avoid impacting inference
                             if self._should_rebuild_now():
-                                logger.info(f"🔧 Triggering background index rebuild (every {self.rebuild_interval} conversations, current: {len(self.conversations)})")
+                                logger.info(f"🔧 Starting background index rebuild (every {self.rebuild_interval} conversations, current: {len(self.conversations)})")
                                 self.last_rebuild_count = len(self.conversations)
                                 self._rebuild_index(background=True)
                             else:
-                                logger.debug(f"⏸️ Skipping rebuild - system under load (will retry later)")
+                                logger.info(f"⏸️ Skipping rebuild - system under load (will retry later)")
                                 # Reset counter to try again soon
                                 self.last_rebuild_count = len(self.conversations) - (self.rebuild_interval // 2)
                     
                     # Start rebuild scheduling in background thread (non-blocking)
+                    # This returns immediately, allowing query processing to continue
                     schedule_thread = threading.Thread(target=schedule_rebuild_async, daemon=True, name="ScheduleIndexRebuild")
                     schedule_thread.start()
-                    logger.debug(f"📅 Scheduled background index rebuild (will start after current query)")
+                    # Don't wait for thread - return immediately so query can continue
             else:
                 # Index not initialized yet - this should only happen on startup
                 logger.warning("⚠️ Index not initialized, skipping incremental update (will be built on next startup)")

@@ -673,6 +673,8 @@ def start_services():
             # Wake word detection uses OpenWakeWord (no container needed)
             
             # Start selected services with Docker Compose (different ports for each LLM)
+            # Use --build to ensure code changes are picked up (rebuilds if files changed)
+            # Note: Docker will use cache if files haven't changed, but will rebuild if they have
             cmd = ["docker", "compose", "up", "-d", "--build"] + services_to_start
             
             result = subprocess.run(
