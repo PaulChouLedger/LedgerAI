@@ -689,38 +689,41 @@ def chat_tts():
             if hasattr(result, '__iter__') and not isinstance(result, str):
                 print(f"[Generic] ✅ Streaming enabled - tokens will be yielded as generated")
                 
-                # Debug: Try to peek at the raw iterator first
-                raw_chunk_count = 0
+                # Debug: Consume all chunks to see what we get
+                raw_chunks = []
                 try:
-                    # Try to get first chunk directly from result
-                    first_chunk = next(result, None)
-                    if first_chunk is None:
-                        print(f"[Generic] ⚠️ DEBUG: Raw LLM iterator is EMPTY (next() returned None)")
-                    else:
-                        print(f"[Generic] 🔍 DEBUG: First raw chunk from LLM: type={type(first_chunk).__name__}")
-                        if isinstance(first_chunk, dict):
-                            print(f"[Generic] 🔍 DEBUG: Chunk keys: {list(first_chunk.keys())}")
-                            if 'choices' in first_chunk:
-                                choice = first_chunk['choices'][0] if first_chunk['choices'] else {}
-                                print(f"[Generic] 🔍 DEBUG: Choice keys: {list(choice.keys())}")
-                                if 'delta' in choice:
-                                    delta = choice['delta']
-                                    print(f"[Generic] 🔍 DEBUG: Delta keys: {list(delta.keys())}")
+                    for chunk in result:
+                        raw_chunks.append(chunk)
+                        if len(raw_chunks) <= 3:  # Debug first 3 chunks
+                            print(f"[Generic] 🔍 DEBUG: Raw chunk {len(raw_chunks)}: type={type(chunk).__name__}")
+                            if isinstance(chunk, dict):
+                                if 'choices' in chunk and chunk['choices']:
+                                    choice = chunk['choices'][0]
+                                    delta = choice.get('delta', {})
+                                    finish_reason = choice.get('finish_reason')
+                                    print(f"[Generic] 🔍 DEBUG: Chunk {len(raw_chunks)} - delta keys: {list(delta.keys())}, finish_reason: {finish_reason}")
                                     if 'content' in delta:
-                                        print(f"[Generic] 🔍 DEBUG: Delta content: {repr(delta['content'][:100])}")
-                        raw_chunk_count = 1
-                        # Re-create iterator with first chunk prepended
-                        def prepend_iterator(first, rest):
-                            yield first
-                            for item in rest:
-                                yield item
-                        result = prepend_iterator(first_chunk, result)
-                except StopIteration:
-                    print(f"[Generic] ⚠️ DEBUG: Raw LLM iterator raised StopIteration immediately")
+                                        print(f"[Generic] 🔍 DEBUG: Chunk {len(raw_chunks)} content: {repr(delta['content'][:100])}")
+                    print(f"[Generic] 🔍 DEBUG: Total raw chunks received: {len(raw_chunks)}")
+                    if len(raw_chunks) == 0:
+                        print(f"[Generic] ⚠️ DEBUG: Raw LLM iterator is EMPTY")
+                    elif len(raw_chunks) == 1:
+                        # Check if the single chunk has a finish_reason
+                        if isinstance(raw_chunks[0], dict) and 'choices' in raw_chunks[0]:
+                            choice = raw_chunks[0]['choices'][0]
+                            finish_reason = choice.get('finish_reason')
+                            if finish_reason:
+                                print(f"[Generic] ⚠️ DEBUG: Model stopped after 1 chunk with finish_reason: {finish_reason}")
+                            else:
+                                print(f"[Generic] ⚠️ DEBUG: Model only generated 1 chunk (role only) - no finish_reason")
+                    # Re-create iterator from collected chunks
+                    result = iter(raw_chunks)
                 except Exception as peek_error:
-                    print(f"[Generic] ⚠️ DEBUG: Error peeking at iterator: {peek_error}")
+                    print(f"[Generic] ⚠️ DEBUG: Error consuming iterator: {peek_error}")
                     import traceback
                     traceback.print_exc()
+                    # If we collected some chunks, use them; otherwise return empty
+                    result = iter(raw_chunks if raw_chunks else [])
                 
                 normalized_chunks = _normalize_stream_chunks(result)
                 word_stream = _word_stream_from_chunks(normalized_chunks)
