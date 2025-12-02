@@ -188,32 +188,39 @@ class BaseLLMContainer:
                         print(f"[{self.service_name}] 🔍 DEBUG: LLM returned iterator for streaming")
                         # Create a wrapper that logs chunks as they're consumed
                         def debug_iterator(iter_obj):
+                            print(f"[{self.service_name}] 🔍 DEBUG: debug_iterator: Starting to iterate over LLM response")
                             chunk_count = 0
                             try:
-                                for chunk in iter_obj:
-                                    chunk_count += 1
-                                    if chunk_count == 1:
-                                        print(f"[{self.service_name}] 🔍 DEBUG: First chunk from LLM: type={type(chunk).__name__}")
-                                        if isinstance(chunk, dict):
-                                            print(f"[{self.service_name}] 🔍 DEBUG: Chunk keys: {list(chunk.keys())}")
-                                            if 'choices' in chunk and chunk['choices']:
-                                                choice = chunk['choices'][0]
-                                                print(f"[{self.service_name}] 🔍 DEBUG: Choice keys: {list(choice.keys())}")
-                                                if 'delta' in choice:
-                                                    delta = choice['delta']
-                                                    print(f"[{self.service_name}] 🔍 DEBUG: Delta keys: {list(delta.keys())}")
-                                                    if 'content' in delta:
-                                                        print(f"[{self.service_name}] 🔍 DEBUG: Delta content: {repr(delta['content'][:100])}")
-                                                elif 'content' in choice:
-                                                    print(f"[{self.service_name}] 🔍 DEBUG: Choice content: {repr(choice['content'][:100])}")
-                                    yield chunk
-                                
-                                if chunk_count == 0:
-                                    print(f"[{self.service_name}] ⚠️ WARNING: LLM iterator is EMPTY (no chunks generated)")
+                                # Try to get first chunk to check if iterator is empty
+                                try:
+                                    first_chunk = next(iter_obj)
+                                    chunk_count = 1
+                                    print(f"[{self.service_name}] 🔍 DEBUG: First chunk from LLM: type={type(first_chunk).__name__}")
+                                    if isinstance(first_chunk, dict):
+                                        print(f"[{self.service_name}] 🔍 DEBUG: Chunk keys: {list(first_chunk.keys())}")
+                                        if 'choices' in first_chunk and first_chunk['choices']:
+                                            choice = first_chunk['choices'][0]
+                                            print(f"[{self.service_name}] 🔍 DEBUG: Choice keys: {list(choice.keys())}")
+                                            if 'delta' in choice:
+                                                delta = choice['delta']
+                                                print(f"[{self.service_name}] 🔍 DEBUG: Delta keys: {list(delta.keys())}")
+                                                if 'content' in delta:
+                                                    print(f"[{self.service_name}] 🔍 DEBUG: Delta content: {repr(delta['content'][:100])}")
+                                            elif 'content' in choice:
+                                                print(f"[{self.service_name}] 🔍 DEBUG: Choice content: {repr(choice['content'][:100])}")
+                                    yield first_chunk
+                                    
+                                    # Continue with rest of iterator
+                                    for chunk in iter_obj:
+                                        chunk_count += 1
+                                        yield chunk
+                                    
+                                    print(f"[{self.service_name}] 🔍 DEBUG: LLM iterator yielded {chunk_count} chunks total")
+                                except StopIteration:
+                                    print(f"[{self.service_name}] ⚠️ WARNING: LLM iterator is EMPTY (StopIteration on first next())")
                                     print(f"[{self.service_name}] 🔍 DEBUG: This usually means the model isn't generating tokens")
                                     print(f"[{self.service_name}] 🔍 DEBUG: Check if model is loaded: {self._model_loaded}, llm_simple: {self.llm_simple is not None}")
-                                else:
-                                    print(f"[{self.service_name}] 🔍 DEBUG: LLM iterator yielded {chunk_count} chunks total")
+                                    # Don't yield anything - empty iterator
                             except Exception as iter_error:
                                 print(f"[{self.service_name}] ⚠️ DEBUG: Error iterating LLM response: {iter_error}")
                                 import traceback
