@@ -264,6 +264,33 @@ class WelcomeSetupDialog(BaseAuraDialog):
         self.wifi_list.itemSelectionChanged.connect(self.on_wifi_selection_changed)
         main_layout.addWidget(self.wifi_list)
         
+        # Safe Mode button
+        safe_mode_layout = QHBoxLayout()
+        safe_mode_layout.addStretch()
+        self.safe_mode_btn = QPushButton("🛡️ Safe Mode")
+        self.safe_mode_btn.clicked.connect(self.open_safe_mode)
+        self.safe_mode_btn.setStyleSheet("""
+            QPushButton {
+                background-color: rgba(255, 149, 0, 0.3);
+                color: white;
+                font-size: 18px;
+                font-weight: 600;
+                padding: 15px 30px;
+                border-radius: 15px;
+                border: none;
+                min-width: 200px;
+            }
+            QPushButton:hover {
+                background-color: rgba(255, 149, 0, 0.5);
+            }
+            QPushButton:pressed {
+                background-color: rgba(255, 149, 0, 0.7);
+            }
+        """)
+        safe_mode_layout.addWidget(self.safe_mode_btn)
+        safe_mode_layout.addStretch()
+        main_layout.addLayout(safe_mode_layout)
+        
         # Continue button (only enabled when WiFi connected)
         continue_layout = QHBoxLayout()
         continue_layout.addStretch()
@@ -575,4 +602,23 @@ class WelcomeSetupDialog(BaseAuraDialog):
         finally:
             self.connect_wifi_btn.setText("🔗 Connect")
             self.connect_wifi_btn.setEnabled(len(self.wifi_list.selectedItems()) > 0)
+    
+    def open_safe_mode(self):
+        """Open Safe Mode dialog with WiFi and OTA update access"""
+        try:
+            from gui.safe_mode_dialog import SafeModeDialog
+            safe_mode_dialog = SafeModeDialog(parent=self)
+            safe_mode_dialog.exec_()
+            # After safe mode dialog closes, refresh WiFi status
+            self.check_wifi_connection()
+        except Exception as e:
+            print(f"[WelcomeSetup] ⚠️ Error opening safe mode: {e}")
+            import traceback
+            traceback.print_exc()
+            QMessageBox.warning(
+                self,
+                "Safe Mode Error",
+                f"Could not open Safe Mode dialog:\n{str(e)}\n\n"
+                "Safe Mode allows access to WiFi and OTA updates even if Aura fails to load."
+            )
 
