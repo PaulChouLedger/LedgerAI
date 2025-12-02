@@ -219,10 +219,11 @@ class WelcomeSetupDialog(BaseAuraDialog):
             self.wifi_scan_thread = None
     
     def setup_ui(self):
-        """Setup the welcome setup UI"""
+        """Setup the welcome setup UI - ensure content fits within white circular perimeter"""
         main_layout = QVBoxLayout()
-        main_layout.setContentsMargins(120, 100, 120, 100)
-        main_layout.setSpacing(20)
+        # Increased margins to ensure content stays well within white perimeter (radius 535px)
+        main_layout.setContentsMargins(140, 120, 140, 120)
+        main_layout.setSpacing(15)  # Slightly reduced spacing
         
         main_layout.addStretch(1)
         
@@ -272,9 +273,9 @@ class WelcomeSetupDialog(BaseAuraDialog):
         
         main_layout.addLayout(wifi_button_layout)
         
-        # WiFi networks list
+        # WiFi networks list - reduced height to fit within circular perimeter
         self.wifi_list = QListWidget()
-        self.wifi_list.setMaximumHeight(200)
+        self.wifi_list.setMaximumHeight(180)  # Reduced from 200
         self.wifi_list.itemSelectionChanged.connect(self.on_wifi_selection_changed)
         main_layout.addWidget(self.wifi_list)
         

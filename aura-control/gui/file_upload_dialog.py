@@ -415,8 +415,9 @@ class ConversationsDialog(BaseAuraDialog):
     def setup_ui(self):
         """Setup conversations dialog UI"""
         layout = QVBoxLayout()
-        layout.setContentsMargins(120, 100, 120, 100)
-        layout.setSpacing(15)
+        # Increased margins to ensure content stays well within white perimeter (radius 535px)
+        layout.setContentsMargins(140, 120, 140, 120)
+        layout.setSpacing(12)  # Slightly reduced spacing
         
         # Title
         title = QLabel("💬 Stored Conversations")
@@ -816,11 +817,9 @@ class MemoryDialog(BaseAuraDialog):
         
         # Create layout for circular content - centered within red border
         self.content_layout = QVBoxLayout()
-        # Symmetric margins to center content within the circular area
-        # Red border is 8px, so safe area starts at ~8px inset
-        # Use symmetric margins for proper centering
-        self.content_layout.setContentsMargins(120, 100, 120, 100)  # Equal top/bottom for vertical centering
-        self.content_layout.setSpacing(20)  # Compact spacing
+        # Increased margins to ensure content stays well within white perimeter (radius 535px)
+        self.content_layout.setContentsMargins(140, 120, 140, 120)
+        self.content_layout.setSpacing(15)  # Slightly reduced spacing
         
         # Add top spacer for vertical centering
         self.content_layout.addStretch(1)

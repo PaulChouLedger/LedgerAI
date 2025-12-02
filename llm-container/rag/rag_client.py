@@ -390,36 +390,44 @@ class RAGClient:
         
         # Pre-filter: Only include chunks that have at least one query term match (fuzzy)
         # This prevents irrelevant chunks from being analyzed
+        # CRITICAL: For queries with names, require at least one capitalized word (name) match
         filtered_results = []
         for result in results:
             text = result.get('text', '').lower()
             original_text = result.get('text', '')
             
-            # Check if chunk contains any query terms (fuzzy match)
-            has_query_term = False
-            for term in query_terms:
-                if self._fuzzy_match_term(term, text, threshold=0.75):
-                    has_query_term = True
-                    break
-            
-            # Also check for capitalized words (names) - these are critical
-            if not has_query_term and query_capitalized_lower:
+            # For queries with capitalized words (names), prioritize name matching
+            # This ensures chunks about different people are excluded
+            has_name_match = False
+            if query_capitalized_lower:
                 for cap_word in query_capitalized_lower:
                     if self._fuzzy_match_term(cap_word, text, threshold=0.75):
+                        has_name_match = True
+                        print(f"[RAG Pre-filter] ✅ Name match found: '{cap_word}' in chunk '{original_text[:60]}...'")
+                        break
+            
+            # Also check for other query terms (non-name words)
+            has_query_term = has_name_match
+            if not has_query_term:
+                for term in query_terms:
+                    if self._fuzzy_match_term(term, text, threshold=0.75):
                         has_query_term = True
+                        print(f"[RAG Pre-filter] ✅ Query term match found: '{term}' in chunk '{original_text[:60]}...'")
                         break
             
             if not has_query_term:
-                logger.debug(f"[RAG Pre-filter] ❌ Excluded chunk (no query term matches): '{original_text[:60]}...'")
+                print(f"[RAG Pre-filter] ❌ Excluded chunk (no query term/name matches): '{original_text[:60]}...'")
                 continue
             
             filtered_results.append(result)
         
         if not filtered_results:
+            print(f"[RAG Pre-filter] ⚠️ All chunks filtered out - no query term matches found")
             logger.warning(f"[RAG Pre-filter] ⚠️ All chunks filtered out - no query term matches found")
             return []
         
-        logger.debug(f"[RAG Pre-filter] ✅ {len(filtered_results)}/{len(results)} chunks passed pre-filter")
+        print(f"[RAG Pre-filter] ✅ {len(filtered_results)}/{len(results)} chunks passed pre-filter")
+        logger.info(f"[RAG Pre-filter] ✅ {len(filtered_results)}/{len(results)} chunks passed pre-filter")
         
         # Score each result based on keyword matches and semantic score
         reranked = []

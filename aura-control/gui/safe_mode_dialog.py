@@ -239,10 +239,9 @@ class SafeModeDialog(BaseAuraDialog):
     def setup_ui(self):
         """Setup the safe mode UI with tabs for WiFi and Updates"""
         main_layout = QVBoxLayout()
-        # Use larger margins to ensure content fits within white circular perimeter (radius 535px)
-        # Content should stay well within the circular boundary
-        main_layout.setContentsMargins(120, 100, 120, 100)
-        main_layout.setSpacing(15)
+        # Increased margins to ensure content stays well within white perimeter (radius 535px)
+        main_layout.setContentsMargins(140, 120, 140, 120)
+        main_layout.setSpacing(12)  # Slightly reduced spacing
         
         # Title
         title = QLabel("🛡️ Safe Mode")
@@ -293,10 +292,9 @@ class SafeModeDialog(BaseAuraDialog):
         
         wifi_layout.addLayout(wifi_button_layout)
         
-        # WiFi networks list
+        # WiFi networks list - reduced height to fit within circular perimeter
         self.wifi_list = QListWidget()
-        # Reduce height to fit within circular perimeter
-        self.wifi_list.setMaximumHeight(250)
+        self.wifi_list.setMaximumHeight(220)  # Reduced from 250
         self.wifi_list.itemSelectionChanged.connect(self.on_wifi_selection_changed)
         wifi_layout.addWidget(self.wifi_list)
         
@@ -309,10 +307,9 @@ class SafeModeDialog(BaseAuraDialog):
         ota_layout.setContentsMargins(15, 15, 15, 15)
         ota_layout.setSpacing(12)
         
-        # Status log
+        # Status log - reduced height to fit within circular perimeter
         self.ota_status_log = QTextEdit()
-        # Reduce height to fit within circular perimeter
-        self.ota_status_log.setMaximumHeight(200)
+        self.ota_status_log.setMaximumHeight(180)  # Reduced from 200
         self.ota_status_log.setReadOnly(True)
         self.ota_status_log.setStyleSheet("QTextEdit { background-color: rgba(44,44,46,0.8); color: #ffffff; border-radius: 15px; border: none; padding: 10px; font-size: 11px; }")
         ota_layout.addWidget(self.ota_status_log)

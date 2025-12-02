@@ -30,14 +30,11 @@ class CircularKeyboard(BaseAuraDialog):
         self.setStyleSheet(base_stylesheet + additional_styles)
         
     def _setup_ui(self):
-    
-    def _setup_ui(self):
-        """Setup keyboard UI"""
+        """Setup keyboard UI - compact to fit within white circular perimeter"""
         main_layout = QVBoxLayout()
-        # Keep content well inside the circular border (540px radius - margin for safety)
-        # White border is at radius 535, so keep content within ~450px radius
-        main_layout.setContentsMargins(120, 100, 120, 100)  # Match other dialogs
-        main_layout.setSpacing(12)  # Tighter spacing
+        # Increased margins to ensure content stays well within white perimeter (radius 535px)
+        main_layout.setContentsMargins(140, 120, 140, 120)
+        main_layout.setSpacing(8)  # Reduced spacing
         
         # Add vertical centering stretch
         main_layout.addStretch(1)
@@ -45,16 +42,16 @@ class CircularKeyboard(BaseAuraDialog):
         # Title - smaller for space
         title = QLabel("Enter Ethereum Address")
         title.setAlignment(Qt.AlignCenter)
-        title.setFont(QFont("Arial", 13, QFont.Bold))
-        title.setStyleSheet("color: #ffffff; margin-bottom: 5px;")
+        title.setFont(QFont("Arial", 12, QFont.Bold))
+        title.setStyleSheet("color: #ffffff; margin-bottom: 3px;")
         main_layout.addWidget(title)
         
         # Display area showing current input - more compact
         self.display = QLabel(self.format_display_text())
         self.display.setAlignment(Qt.AlignCenter)
         self.display.setWordWrap(True)
-        self.display.setMaximumHeight(70)
-        self.display.setMinimumHeight(70)
+        self.display.setMaximumHeight(60)
+        self.display.setMinimumHeight(60)
         self.display.setStyleSheet("""
             QLabel {
                 background-color: rgba(44, 44, 46, 0.9);
@@ -77,7 +74,7 @@ class CircularKeyboard(BaseAuraDialog):
         # Keyboard grid - hexadecimal characters for Ethereum addresses
         keyboard_widget = QWidget()
         keyboard_layout = QGridLayout()
-        keyboard_layout.setSpacing(6)  # Tighter spacing between buttons
+        keyboard_layout.setSpacing(4)  # Reduced spacing between buttons
         
         # Hex keyboard layout (0-9, a-f, x for 0x prefix)
         keys = [
@@ -91,13 +88,13 @@ class CircularKeyboard(BaseAuraDialog):
             QPushButton {
                 background-color: rgba(142, 142, 147, 0.3);
                 color: #ffffff;
-                font-size: 16pt;
+                font-size: 13pt;
                 font-weight: bold;
-                padding: 10px;
-                border-radius: 10px;
+                padding: 8px;
+                border-radius: 8px;
                 border: 2px solid rgba(142, 142, 147, 0.5);
-                min-height: 50px;
-                max-height: 50px;
+                min-height: 40px;
+                max-height: 40px;
             }
             QPushButton:hover {
                 background-color: rgba(142, 142, 147, 0.5);
@@ -126,13 +123,13 @@ class CircularKeyboard(BaseAuraDialog):
                         QPushButton {
                             background-color: rgba(255, 59, 48, 0.7);
                             color: #ffffff;
-                            font-size: 12pt;
+                            font-size: 11pt;
                             font-weight: bold;
-                            padding: 10px;
-                            border-radius: 10px;
+                            padding: 8px;
+                            border-radius: 8px;
                             border: 2px solid rgba(255, 59, 48, 0.9);
-                            min-height: 50px;
-                            max-height: 50px;
+                            min-height: 40px;
+                            max-height: 40px;
                         }
                         QPushButton:hover {
                             background-color: rgba(255, 59, 48, 0.85);
@@ -152,7 +149,7 @@ class CircularKeyboard(BaseAuraDialog):
         
         # Action buttons row - more compact
         action_layout = QHBoxLayout()
-        action_layout.setSpacing(10)
+        action_layout.setSpacing(8)
         
         # Voice input button
         voice_btn = QPushButton("🎤 Voice")
@@ -160,13 +157,13 @@ class CircularKeyboard(BaseAuraDialog):
             QPushButton {
                 background-color: #4D94D9;
                 color: #ffffff;
-                font-size: 11pt;
+                font-size: 10pt;
                 font-weight: bold;
-                padding: 12px 20px;
-                border-radius: 15px;
+                padding: 10px 18px;
+                border-radius: 12px;
                 border: none;
-                min-height: 45px;
-                max-height: 45px;
+                min-height: 40px;
+                max-height: 40px;
             }
             QPushButton:hover {
                 background-color: #5DA4E9;
@@ -184,13 +181,13 @@ class CircularKeyboard(BaseAuraDialog):
             QPushButton {
                 background-color: rgba(142, 142, 147, 0.4);
                 color: #ffffff;
-                font-size: 11pt;
+                font-size: 10pt;
                 font-weight: bold;
-                padding: 12px 20px;
-                border-radius: 15px;
+                padding: 10px 18px;
+                border-radius: 12px;
                 border: none;
-                min-height: 45px;
-                max-height: 45px;
+                min-height: 40px;
+                max-height: 40px;
             }
             QPushButton:hover {
                 background-color: rgba(142, 142, 147, 0.6);
@@ -206,20 +203,20 @@ class CircularKeyboard(BaseAuraDialog):
         
         # Confirm/Cancel buttons - more compact
         button_layout = QHBoxLayout()
-        button_layout.setSpacing(12)
+        button_layout.setSpacing(10)
         
         cancel_btn = QPushButton("❌ Cancel")
         cancel_btn.setStyleSheet("""
             QPushButton {
                 background-color: #FF3B30;
                 color: white;
-                font-size: 12pt;
+                font-size: 11pt;
                 font-weight: bold;
-                padding: 12px 20px;
-                border-radius: 15px;
+                padding: 10px 18px;
+                border-radius: 12px;
                 border: none;
-                min-height: 45px;
-                max-height: 45px;
+                min-height: 40px;
+                max-height: 40px;
             }
             QPushButton:hover {
                 background-color: #D70015;
@@ -236,13 +233,13 @@ class CircularKeyboard(BaseAuraDialog):
             QPushButton {
                 background-color: #34C759;
                 color: white;
-                font-size: 12pt;
+                font-size: 11pt;
                 font-weight: bold;
-                padding: 12px 20px;
-                border-radius: 15px;
+                padding: 10px 18px;
+                border-radius: 12px;
                 border: none;
-                min-height: 45px;
-                max-height: 45px;
+                min-height: 40px;
+                max-height: 40px;
             }
             QPushButton:hover {
                 background-color: #30B350;

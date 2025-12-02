@@ -27,26 +27,27 @@ class PasswordKeyboard(BaseAuraDialog):
         self.setStyleSheet(base_stylesheet + additional_styles)
     
     def _setup_ui(self):
-        """Setup keyboard UI"""
+        """Setup keyboard UI - compact to fit within white circular perimeter"""
         main_layout = QVBoxLayout()
-        main_layout.setContentsMargins(120, 100, 120, 100)
-        main_layout.setSpacing(12)
+        # Increased margins to ensure content stays well within white perimeter (radius 535px)
+        main_layout.setContentsMargins(140, 120, 140, 120)
+        main_layout.setSpacing(8)  # Reduced spacing
         
         main_layout.addStretch(1)
         
-        # Title
+        # Title - smaller
         title = QLabel(self.windowTitle())
         title.setAlignment(Qt.AlignCenter)
-        title.setFont(QFont("Arial", 16, QFont.Bold))
-        title.setStyleSheet("color: #ffffff; margin-bottom: 10px;")
+        title.setFont(QFont("Arial", 14, QFont.Bold))
+        title.setStyleSheet("color: #ffffff; margin-bottom: 5px;")
         main_layout.addWidget(title)
         
-        # Display area showing masked password
+        # Display area showing masked password - more compact
         self.display = QLabel(self.format_display_text())
         self.display.setAlignment(Qt.AlignCenter)
         self.display.setWordWrap(True)
-        self.display.setMaximumHeight(80)
-        self.display.setMinimumHeight(80)
+        self.display.setMaximumHeight(60)
+        self.display.setMinimumHeight(60)
         self.display.setStyleSheet("""
             QLabel {
                 background-color: rgba(44, 44, 46, 0.9);
@@ -60,16 +61,16 @@ class PasswordKeyboard(BaseAuraDialog):
         """)
         main_layout.addWidget(self.display)
         
-        # Character count
+        # Character count - smaller
         self.char_count = QLabel(f"{len(self.current_text)} characters")
         self.char_count.setAlignment(Qt.AlignCenter)
-        self.char_count.setStyleSheet("color: #8e8e93; font-size: 10pt; margin: 5px;")
+        self.char_count.setStyleSheet("color: #8e8e93; font-size: 9pt; margin: 3px;")
         main_layout.addWidget(self.char_count)
         
-        # Keyboard grid - full alphanumeric
+        # Keyboard grid - full alphanumeric - more compact
         keyboard_widget = QWidget()
         keyboard_layout = QGridLayout()
-        keyboard_layout.setSpacing(6)
+        keyboard_layout.setSpacing(4)  # Reduced spacing between buttons
         
         # Full keyboard layout (numbers, letters, common symbols)
         # Row 1: Numbers
@@ -87,13 +88,13 @@ class PasswordKeyboard(BaseAuraDialog):
             QPushButton {
                 background-color: rgba(142, 142, 147, 0.3);
                 color: #ffffff;
-                font-size: 14pt;
+                font-size: 12pt;
                 font-weight: bold;
-                padding: 12px;
-                border-radius: 10px;
+                padding: 8px;
+                border-radius: 8px;
                 border: 2px solid rgba(142, 142, 147, 0.5);
-                min-height: 50px;
-                max-height: 50px;
+                min-height: 40px;
+                max-height: 40px;
             }
             QPushButton:hover {
                 background-color: rgba(142, 142, 147, 0.5);
@@ -145,13 +146,13 @@ class PasswordKeyboard(BaseAuraDialog):
             QPushButton {
                 background-color: rgba(255, 59, 48, 0.7);
                 color: #ffffff;
-                font-size: 12pt;
+                font-size: 11pt;
                 font-weight: bold;
-                padding: 12px;
-                border-radius: 10px;
+                padding: 8px;
+                border-radius: 8px;
                 border: 2px solid rgba(255, 59, 48, 0.9);
-                min-height: 50px;
-                max-height: 50px;
+                min-height: 40px;
+                max-height: 40px;
             }
             QPushButton:hover {
                 background-color: rgba(255, 59, 48, 0.9);
@@ -172,12 +173,12 @@ class PasswordKeyboard(BaseAuraDialog):
             QPushButton {
                 background-color: #FF3B30;
                 color: white;
-                font-size: 12pt;
+                font-size: 11pt;
                 font-weight: bold;
-                padding: 12px 20px;
-                border-radius: 15px;
+                padding: 10px 18px;
+                border-radius: 12px;
                 border: none;
-                min-height: 45px;
+                min-height: 40px;
             }
             QPushButton:hover {
                 background-color: #D70015;
@@ -191,12 +192,12 @@ class PasswordKeyboard(BaseAuraDialog):
             QPushButton {
                 background-color: #34C759;
                 color: white;
-                font-size: 12pt;
+                font-size: 11pt;
                 font-weight: bold;
-                padding: 12px 20px;
-                border-radius: 15px;
+                padding: 10px 18px;
+                border-radius: 12px;
                 border: none;
-                min-height: 45px;
+                min-height: 40px;
             }
             QPushButton:hover {
                 background-color: #30B350;
