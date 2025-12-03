@@ -194,6 +194,138 @@ def extract_relevant_sentences(chunk_text: str, query_person_names: List[str]) -
         # No relevant sentences found, return empty (chunk will be filtered out)
             return ""
 
+# === Unified LLM Verification for RAG Chunks ===
+def verify_rag_chunks_with_llm(chunks: List[Dict], query: str, chunk_type: str = "document", threshold: float = 0.5) -> List[Dict]:
+    """
+    Unified LLM verification for both document and memory RAG chunks.
+    Uses LLM to verify which chunks actually answer the query, filtering out irrelevant or misleading chunks.
+    Follows the same pattern as memory RAG verification.
+    
+    Args:
+        chunks: List of chunk dictionaries with 'text' and optionally 'score', 'metadata' keys
+        query: User's query/question
+        chunk_type: "document" or "memory" (for logging)
+        threshold: Minimum LLM score to include chunk (0.0-1.0)
+    
+    Returns:
+        Filtered list of chunks that pass LLM verification
+    """
+    if not chunks or len(chunks) == 0:
+        return []
+    
+    # Pre-filter: Remove empty chunks
+    valid_chunks = [c for c in chunks if c.get('text', '').strip()]
+    if not valid_chunks:
+        return []
+    
+    # For small number of chunks, skip LLM verification (not worth the latency)
+    if len(valid_chunks) <= 2:
+        print(f"[Generic] 🔍 {chunk_type.capitalize()} RAG: {len(valid_chunks)} chunks, skipping LLM verification (too few)")
+        return valid_chunks
+    
+    try:
+        print(f"[Generic] 🤖 Using LLM to verify {len(valid_chunks)} {chunk_type} RAG chunks for query: '{query[:60]}...'")
+        
+        # Build prompt for LLM to score chunks
+        chunks_text = ""
+        for i, chunk in enumerate(valid_chunks, 1):
+            chunk_text = chunk.get('text', '').strip()
+            # Truncate chunk text for verification (keep it concise)
+            if len(chunk_text) > 500:
+                chunk_text = chunk_text[:500] + "..."
+            chunks_text += f"{i}. {chunk_text}\n"
+        
+        verification_prompt = f"""Rate how well each chunk of information answers the user's question.
+
+User's question: "{query}"
+
+Chunks of information:
+{chunks_text}
+
+For each chunk, assign a score from 0.0 to 1.0:
+- 1.0 = Perfectly answers the question with directly relevant information (e.g., explicitly states "X is co-founder of Y" when asked "who are co-founders of Y")
+- 0.7-0.9 = Mostly answers the question, contains relevant information that directly relates to the question
+- 0.4-0.6 = Partially relevant, some useful information but may be tangential
+- 0.1-0.3 = Minimally relevant, mentions related topics but doesn't directly answer the question
+- 0.0 = Not relevant, doesn't answer the question or contains misleading information
+
+CRITICAL: For relationship questions (e.g., "co-founders of X", "employees of Y"), only give high scores to chunks that EXPLICITLY state the relationship. 
+For example, if asked "who are co-founders of LedgerAI", a chunk mentioning "Albert Soler is Co-Founder of Soler Salva LLP" should get a LOW score (0.0-0.3) 
+even if the chunk also mentions "LedgerAI", because Albert is NOT a co-founder of LedgerAI.
+
+Return ONLY a JSON array with exactly {len(valid_chunks)} scores in order.
+Example: [0.8, 0.9, 0.2, 0.7, 0.1]
+
+JSON array only:"""
+        
+        # Call LLM for verification (non-streaming, fast, same as memory RAG)
+        verification_messages = [{"role": "user", "content": verification_prompt}]
+        verification_response = llm_chat_simple(
+            verification_messages,
+            max_tokens=150,  # Slightly more than memory RAG (100) to handle more chunks
+            temperature=0.3,  # Same as memory RAG - deterministic
+            stream=False
+        )
+        
+        # Parse LLM response to extract scores
+        import json
+        import re
+        json_match = re.search(r'\[[\d\.,\s]+\]', verification_response)
+        if json_match:
+            scores = json.loads(json_match.group())
+            print(f"[Generic] ✅ LLM returned {len(scores)} verification scores")
+        else:
+            try:
+                scores = json.loads(verification_response.strip())
+            except:
+                print(f"[Generic] ⚠️ Failed to parse LLM verification scores, using original scores as fallback")
+                scores = [c.get('score', 0.5) for c in valid_chunks]  # Use original scores as fallback
+        
+        # Ensure we have the right number of scores
+        if len(scores) != len(valid_chunks):
+            print(f"[Generic] ⚠️ LLM returned {len(scores)} scores but expected {len(valid_chunks)}, using original scores as fallback")
+            scores = [c.get('score', 0.5) for c in valid_chunks]
+        
+        # Update chunks with LLM verification scores
+        verified_chunks = []
+        for i, (chunk, llm_score) in enumerate(zip(valid_chunks, scores)):
+            original_score = chunk.get('score', 0.0)
+            verified_chunk = {
+                **chunk,
+                'score': float(llm_score),
+                'original_score': original_score,
+                'llm_verification_score': float(llm_score)
+            }
+            verified_chunks.append(verified_chunk)
+            
+            status = "✅" if float(llm_score) >= threshold else "❌"
+            print(f"[Generic]   [{chunk_type.capitalize()} {i+1}] {status} LLM verification: {llm_score:.3f} (original: {original_score:.3f}): '{chunk.get('text', '')[:60]}...'")
+        
+        # Sort by LLM verification score (descending)
+        verified_chunks.sort(key=lambda x: x.get('llm_verification_score', 0), reverse=True)
+        
+        # Filter by threshold
+        filtered_chunks = [
+            c for c in verified_chunks 
+            if c.get('llm_verification_score', 0) >= threshold
+        ]
+        
+        if filtered_chunks:
+            print(f"[Generic] ✅ {chunk_type.capitalize()} RAG LLM verification: {len(filtered_chunks)}/{len(valid_chunks)} chunks passed (threshold={threshold:.2f})")
+        else:
+            print(f"[Generic] ⚠️ {chunk_type.capitalize()} RAG LLM verification: All chunks below threshold={threshold:.2f}, using top 2 as fallback")
+            # Fallback: use top 2 chunks even if below threshold (to avoid empty results)
+            filtered_chunks = verified_chunks[:2]
+        
+        return filtered_chunks
+        
+    except Exception as e:
+        print(f"[Generic] ⚠️ LLM verification failed for {chunk_type} RAG: {e}, falling back to original chunks")
+        import traceback
+        traceback.print_exc()
+        # Fallback: return original chunks if verification fails
+        return valid_chunks
+
 # === Conversational Logic ===
 def handle_conversation(
     prompt: str, session_id: str, memory_context: Optional[str] = None, stream: bool = False
@@ -525,6 +657,29 @@ JSON array only:"""
                     print(f"[Generic]   [{i}] Score: {score:.3f}, File: {file_name}, Preview: '{text_preview}...'")
                     print(f"[Generic]   [{i}] FULL CHUNK TEXT: '{full_text}'")  # Log full chunk for debugging
                 
+                # Apply LLM verification to document RAG chunks (same pattern as memory RAG)
+                # This filters out chunks that don't actually answer the query, especially for relationship questions
+                try:
+                    from rag.rag_client import RAG_SEARCH_THRESHOLD
+                    verification_threshold = max(RAG_SEARCH_THRESHOLD, 0.4)  # At least 0.4 to ensure quality
+                except ImportError:
+                    verification_threshold = 0.4  # Default fallback
+                
+                # Verify chunks with LLM (unified verification function)
+                verified_rag_results = verify_rag_chunks_with_llm(
+                    rag_results, 
+                    prompt, 
+                    chunk_type="document",
+                    threshold=verification_threshold
+                )
+                
+                if not verified_rag_results:
+                    print(f"[Generic] ⚠️ All document RAG chunks failed LLM verification, using original top 3 as fallback")
+                    # Fallback: use original top 3 if all fail verification
+                    verified_rag_results = sorted(rag_results, key=lambda x: x.get('score', 0), reverse=True)[:3]
+                else:
+                    print(f"[Generic] ✅ Document RAG LLM verification: {len(verified_rag_results)}/{len(rag_results)} chunks verified")
+                
                 # Extract person names from query for filtering chunks
                 query_person_names = re.findall(r'\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\b', prompt)
                 # Also extract individual capitalized words that might be names
@@ -537,8 +692,8 @@ JSON array only:"""
                 MAX_CHARS_PER_RESULT = 1200
                 rag_chunks = []
                 
-                # Sort results by score (highest first) for better context ordering
-                sorted_results = sorted(rag_results, key=lambda x: x.get('score', 0), reverse=True)
+                # Use verified results (already sorted by LLM verification score)
+                sorted_results = verified_rag_results
                 
                 for i, r in enumerate(sorted_results, 1):
                     text = r.get("text", "")

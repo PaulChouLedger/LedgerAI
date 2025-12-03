@@ -1794,9 +1794,9 @@ if [ -f /etc/nv_tegra_release ] || [ -f /proc/device-tree/model ] && grep -q "Je
     if command -v nvpmodel >/dev/null 2>&1; then
         print_info "Setting MAXN power mode (mode 0)..."
         if sudo nvpmodel -m 0; then
-            print_info "✅ MAXN power mode configured successfully"
-        else
-            print_warning "⚠️  Failed to set nvpmodel - continuing anyway"
+                print_info "✅ MAXN power mode configured successfully"
+            else
+                print_warning "⚠️  Failed to set nvpmodel - continuing anyway"
         fi
         
         # Verify current power mode

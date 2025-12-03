@@ -1768,7 +1768,7 @@ class AIModelSettingsDialog(BaseAuraDialog):
                 else:
                     print(f"[ModelSettings] ⚠️ Container restart failed: {result.stderr}")
                     QMessageBox.warning(
-                        self,
+                self, 
                         "Restart Failed",
                         f"Failed to restart {service} container.\n\n"
                         f"Error: {result.stderr or 'Unknown error'}\n\n"
