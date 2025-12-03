@@ -27,6 +27,80 @@ _microphone_muted = False  # Tracks when microphone is muted via button
 # Debug: Print initial state
 print(f"[AuraGUI] 🎯 Initial state: listening_ready={_listening_ready}, transcribing={_transcribing}, tts_playing={_tts_playing}")
 
+class SafeModeButton(QPushButton):
+    """Completely transparent round button that opens safe mode when held for 3 seconds"""
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.setFixedSize(540, 540)  # 50% of 1080x1080 aura eye size
+        
+        # Make completely transparent - no visual impact
+        self.setAttribute(Qt.WA_TranslucentBackground, True)
+        self.setStyleSheet("""
+            QPushButton {
+                background: transparent;
+                border: none;
+                background-color: transparent;
+            }
+        """)
+        
+        # Ensure it doesn't block visual content
+        self.setAttribute(Qt.WA_NoSystemBackground, True)
+        
+        # Hold gesture tracking
+        self.hold_timer = QTimer()
+        self.hold_timer.setSingleShot(True)
+        self.hold_timer.timeout.connect(self._on_hold_complete)
+        self.is_holding = False
+        self.hold_start_time = 0
+        self.HOLD_DURATION_MS = 3000  # 3 seconds
+        
+        # Make button circular and transparent - cursor shows it's interactive
+        self.setCursor(Qt.PointingHandCursor)
+    
+    def paintEvent(self, event):
+        """Override paint event to ensure button is completely invisible"""
+        # Don't paint anything - completely transparent
+        pass
+        
+    def mousePressEvent(self, event):
+        """Start hold timer when mouse is pressed"""
+        if event.button() == Qt.LeftButton:
+            self.is_holding = True
+            self.hold_start_time = QTimer().remainingTime() if hasattr(QTimer(), 'remainingTime') else 0
+            self.hold_timer.start(self.HOLD_DURATION_MS)
+            print("[SafeModeButton] 👆 Hold started... (3 seconds)")
+            super().mousePressEvent(event)
+    
+    def mouseReleaseEvent(self, event):
+        """Cancel hold timer when mouse is released"""
+        if event.button() == Qt.LeftButton:
+            if self.hold_timer.isActive():
+                self.hold_timer.stop()
+                print("[SafeModeButton] 👆 Hold cancelled")
+            self.is_holding = False
+            super().mouseReleaseEvent(event)
+    
+    def _on_hold_complete(self):
+        """Open safe mode dialog when hold is complete (same as welcome screen)"""
+        print("[SafeModeButton] ✅ Hold complete - opening Safe Mode dialog...")
+        self.is_holding = False
+        
+        # Open safe mode dialog (same as welcome screen)
+        try:
+            from gui.safe_mode_dialog import SafeModeDialog
+            # Get the main window as parent
+            parent_window = self.parent()
+            while parent_window and not isinstance(parent_window, QMainWindow):
+                parent_window = parent_window.parent()
+            
+            dialog = SafeModeDialog(parent=parent_window)
+            dialog.exec_()
+            print("[SafeModeButton] ✅ Safe Mode dialog closed")
+        except Exception as e:
+            print(f"[SafeModeButton] ❌ Error opening Safe Mode: {e}")
+            import traceback
+            traceback.print_exc()
+
 class BorderOverlayWidget(QWidget):
     """Simple transparent overlay to paint borders on top of all other widgets"""
     def __init__(self, parent, size):
@@ -36,7 +110,7 @@ class BorderOverlayWidget(QWidget):
         self.setStyleSheet("background: transparent;")
         self.parent_gui = parent
         
-    def paintEvent(self, event):
+def paintEvent(self, event):
         """Paint borders - this runs AFTER buttons paint, so borders appear on top"""
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing, True)
@@ -131,7 +205,16 @@ class AuraGUI(QMainWindow):
         # Create 6 buttons equally spaced around the circular edge
         self.create_circular_buttons()
         
-        # Create simple overlay widget for borders (ON TOP of buttons)
+        # Create safe mode button (50% size of aura eye, centered)
+        self.safe_mode_button = SafeModeButton(self)
+        button_size = 540  # 50% of 1080
+        center_x = (window_size - button_size) // 2
+        center_y = (window_size - button_size) // 2
+        self.safe_mode_button.setGeometry(center_x, center_y, button_size, button_size)
+        self.safe_mode_button.hide()  # Hidden initially, shown when eye is visible
+        print(f"[SafeModeButton] Created at ({center_x},{center_y}), size {button_size}x{button_size}")
+        
+        # Create simple overlay widget for borders (ON TOP of buttons and safe mode button)
         self.border_overlay = BorderOverlayWidget(self, window_size)
         self.border_overlay.setGeometry(0, 0, window_size, window_size)
         self.border_overlay.raise_()
@@ -768,6 +851,9 @@ class AuraGUI(QMainWindow):
         # Apply opacity using graphics effect
         self.opacity_effect.setOpacity(self.opacity)
         
+        # Update safe mode button visibility based on aura eye opacity
+        self._update_safe_mode_button_visibility()
+        
         # Temporarily disable glow effect to test aura eye pulsation
         # Dynamic glow effect that responds to TTS
         # glow_intensity = (heartbeat_intensity + breathing_intensity) / 2
@@ -792,12 +878,18 @@ class AuraGUI(QMainWindow):
         
         # Apply opacity using graphics effect
         self.opacity_effect.setOpacity(self.opacity)
+        
+        # Update safe mode button visibility based on aura eye opacity
+        self._update_safe_mode_button_visibility()
     
     def _set_aura_eye_static(self):
         """Set aura eye to static state - no animation, ready for interaction"""
         # Full opacity, no pulsation
         self.opacity = 1.0
         self.opacity_effect.setOpacity(1.0)
+        
+        # Update safe mode button visibility based on aura eye opacity
+        self._update_safe_mode_button_visibility()
     
     def _set_aura_eye_muted(self):
         """Set aura eye to muted state - dim and grayed out to show microphone is off"""
@@ -812,7 +904,11 @@ class AuraGUI(QMainWindow):
         self.muted_pulse_phase += 0.01  # Very slow pulse
         pulse = (math.sin(self.muted_pulse_phase) + 1) / 2  # 0 to 1
         dimmed_opacity = 0.25 + (pulse * 0.1)  # Pulse between 0.25 and 0.35
+        self.opacity = dimmed_opacity
         self.opacity_effect.setOpacity(dimmed_opacity)
+        
+        # Update safe mode button visibility based on aura eye opacity
+        self._update_safe_mode_button_visibility()
     
     def _animate_aura_eye_setup(self):
         """Gentle, meditative aura eye animation during initial setup"""
@@ -832,6 +928,9 @@ class AuraGUI(QMainWindow):
         
         # Apply opacity using graphics effect
         self.opacity_effect.setOpacity(self.opacity)
+        
+        # Update safe mode button visibility based on aura eye opacity
+        self._update_safe_mode_button_visibility()
         
         # Debug: Print setup animation values
         # Remove blue glow effect - was causing issues
@@ -862,6 +961,9 @@ class AuraGUI(QMainWindow):
         # Apply opacity using graphics effect
         self.opacity_effect.setOpacity(self.opacity)
         
+        # Update safe mode button visibility based on aura eye opacity
+        self._update_safe_mode_button_visibility()
+        
         # Remove blue glow effect - was causing issues
         # glow_alpha = int(30 + combined_intensity * 40)  # 30-70 alpha
         # glow_color = QColor(0, 100, 255, glow_alpha)
@@ -878,6 +980,22 @@ class AuraGUI(QMainWindow):
                 self.label.setPixmap(self._original_pixmap)
         except Exception as e:
             pass
+    
+    def _update_safe_mode_button_visibility(self):
+        """Update safe mode button visibility based on aura eye opacity"""
+        if hasattr(self, 'safe_mode_button'):
+            # Show button only when aura eye is visible (opacity > 0)
+            if self.opacity > 0:
+                if not self.safe_mode_button.isVisible():
+                    self.safe_mode_button.show()
+                    self.safe_mode_button.raise_()  # Ensure it's above the eye but below border
+                    # Position it above buttons but below border overlay
+                    if hasattr(self, 'border_overlay'):
+                        self.safe_mode_button.lower()
+                        self.border_overlay.raise_()
+            else:
+                if self.safe_mode_button.isVisible():
+                    self.safe_mode_button.hide()
     
     @pyqtSlot()
     def _show_buttons(self):

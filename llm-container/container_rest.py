@@ -4,7 +4,7 @@
 from flask import Flask, request, jsonify, stream_with_context, Response
 import os, threading, atexit, time
 import requests
-from typing import List, Optional
+from typing import List, Dict, Optional
 from collections import Counter
 import re
 import logging
