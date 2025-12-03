@@ -43,8 +43,8 @@ class SafeModeButton(QPushButton):
             }
         """)
         
-        # Ensure it doesn't block visual content
-        self.setAttribute(Qt.WA_NoSystemBackground, True)
+        # Ensure it doesn't block visual content but still receives mouse events
+        # Don't use WA_NoSystemBackground as it might interfere with mouse events
         
         # Hold gesture tracking
         self.hold_timer = QTimer()
@@ -109,8 +109,8 @@ class BorderOverlayWidget(QWidget):
         self.setAttribute(Qt.WA_TranslucentBackground, True)
         self.setStyleSheet("background: transparent;")
         self.parent_gui = parent
-        
-def paintEvent(self, event):
+    
+    def paintEvent(self, event):
         """Paint borders - this runs AFTER buttons paint, so borders appear on top"""
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing, True)
@@ -212,13 +212,14 @@ class AuraGUI(QMainWindow):
         center_y = (window_size - button_size) // 2
         self.safe_mode_button.setGeometry(center_x, center_y, button_size, button_size)
         self.safe_mode_button.hide()  # Hidden initially, shown when eye is visible
+        self.safe_mode_button.setEnabled(True)  # Ensure it can receive mouse events
         print(f"[SafeModeButton] Created at ({center_x},{center_y}), size {button_size}x{button_size}")
         
-        # Create simple overlay widget for borders (ON TOP of buttons and safe mode button)
+        # Create simple overlay widget for borders (ON TOP of everything including safe mode button)
         self.border_overlay = BorderOverlayWidget(self, window_size)
         self.border_overlay.setGeometry(0, 0, window_size, window_size)
-        self.border_overlay.raise_()
         self.border_overlay.show()
+        self.border_overlay.raise_()  # Always on top
         print(f"[Border] Created overlay at (0,0), size {window_size}x{window_size}")
 
         # === Pulsation Effect ===
@@ -572,6 +573,14 @@ class AuraGUI(QMainWindow):
     def animate_pulse(self):
         global _listening_ready, _transcribing, _tts_playing, _tts_frequency, _setup_complete, _welcome_played
         
+        # Ensure border overlay is always visible and on top
+        if hasattr(self, 'border_overlay'):
+            if not self.border_overlay.isVisible():
+                self.border_overlay.show()
+            self.border_overlay.raise_()
+            # Update border overlay to ensure it repaints
+            self.border_overlay.update()
+        
         # Verify opacity effect is still attached and enabled
         if not hasattr(self, '_opacity_check_done'):
             if self.label.graphicsEffect() == self.opacity_effect:
@@ -683,8 +692,11 @@ class AuraGUI(QMainWindow):
             self.red_border_width = int(self.border_width)
             self.red_border_opacity = border_opacity
             self.show_red_border = True
-            self.border_overlay.raise_()  # Keep on top every frame
-            self.border_overlay.update()  # Trigger overlay paintEvent
+            # Ensure border overlay is visible and on top
+            if hasattr(self, 'border_overlay'):
+                self.border_overlay.show()
+                self.border_overlay.raise_()  # Keep on top every frame
+                self.border_overlay.update()  # Trigger overlay paintEvent
             
         # State 1: TTS playing - dramatic pulsation (priority after transcribing)
         elif _tts_playing:
@@ -695,11 +707,21 @@ class AuraGUI(QMainWindow):
         elif _microphone_muted:
             self._set_aura_eye_muted()  # Dim, grayed out
             self.show_red_border = False
+            # Ensure border overlay is visible and updates
+            if hasattr(self, 'border_overlay'):
+                self.border_overlay.show()
+                self.border_overlay.raise_()
+                self.border_overlay.update()
             
         # State 3: Setup complete AND listening ready - STATIC (normal idle state)
         elif _setup_complete and _listening_ready:
             self._set_aura_eye_static()  # Static, ready for interaction
             self.show_red_border = False
+            # Ensure border overlay is visible and updates
+            if hasattr(self, 'border_overlay'):
+                self.border_overlay.show()
+                self.border_overlay.raise_()
+                self.border_overlay.update()
             
         # State 3: Setup complete but welcome not played - continue breathing
         elif _setup_complete and not _welcome_played:
@@ -988,11 +1010,10 @@ class AuraGUI(QMainWindow):
             if self.opacity > 0:
                 if not self.safe_mode_button.isVisible():
                     self.safe_mode_button.show()
-                    self.safe_mode_button.raise_()  # Ensure it's above the eye but below border
-                    # Position it above buttons but below border overlay
+                    # Position it above the eye but below border overlay
+                    self.safe_mode_button.raise_()
                     if hasattr(self, 'border_overlay'):
-                        self.safe_mode_button.lower()
-                        self.border_overlay.raise_()
+                        self.border_overlay.raise_()  # Border always on top
             else:
                 if self.safe_mode_button.isVisible():
                     self.safe_mode_button.hide()
