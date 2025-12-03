@@ -163,12 +163,29 @@ class WelcomeSetupDialog(BaseAuraDialog):
         
         # Set up continuous keyboard monitoring while dialog is open
         def monitor_keyboard():
-            self._kill_ubuntu_keyboard()
-            # Re-center after keyboard operations
-            self._recenter_dialog()
+            try:
+                # Check if dialog still exists
+                if not hasattr(self, 'isVisible') or not self.isVisible():
+                    # Stop timer if dialog is gone
+                    if hasattr(self, '_keyboard_monitor_timer') and self._keyboard_monitor_timer:
+                        self._keyboard_monitor_timer.stop()
+                    return
+                self._kill_ubuntu_keyboard()
+                # Re-center after keyboard operations
+                self._recenter_dialog()
+            except (RuntimeError, AttributeError):
+                # Dialog deleted, stop timer
+                if hasattr(self, '_keyboard_monitor_timer') and self._keyboard_monitor_timer:
+                    try:
+                        self._keyboard_monitor_timer.stop()
+                    except:
+                        pass
         
         # Kill immediately
-        monitor_keyboard()
+        try:
+            monitor_keyboard()
+        except (RuntimeError, AttributeError):
+            pass  # Dialog already deleted
         
         # Set up timer to kill keyboard every second while dialog is open
         if not hasattr(self, '_keyboard_monitor_timer') or self._keyboard_monitor_timer is None:
@@ -201,8 +218,16 @@ class WelcomeSetupDialog(BaseAuraDialog):
             QTimer.singleShot(200, check_and_scan)
         
         # Also re-center after a short delay to ensure it stays centered
-        QTimer.singleShot(300, self._recenter_dialog)
-        QTimer.singleShot(600, self._recenter_dialog)
+        # Use lambda with safety check to prevent errors if dialog is deleted
+        def safe_recenter():
+            try:
+                if hasattr(self, 'isVisible') and self.isVisible():
+                    self._recenter_dialog()
+            except (RuntimeError, AttributeError):
+                pass  # Dialog deleted, ignore
+        
+        QTimer.singleShot(300, safe_recenter)
+        QTimer.singleShot(600, safe_recenter)
     
     def closeEvent(self, event):
         """Handle dialog close - prevent closing if WiFi not connected"""
@@ -234,12 +259,16 @@ class WelcomeSetupDialog(BaseAuraDialog):
         if hasattr(self, '_keyboard_monitor_timer') and self._keyboard_monitor_timer:
             try:
                 self._keyboard_monitor_timer.stop()
+                self._keyboard_monitor_timer.deleteLater()
             except Exception:
                 pass
             self._keyboard_monitor_timer = None
         
         # Final kill of Ubuntu keyboard
-        self._kill_ubuntu_keyboard()
+        try:
+            self._kill_ubuntu_keyboard()
+        except (RuntimeError, AttributeError):
+            pass  # Dialog already deleted
         
         # Clean up WiFi scan thread to prevent accessing deleted widgets
         if hasattr(self, 'wifi_scan_thread') and self.wifi_scan_thread:
@@ -409,29 +438,63 @@ class WelcomeSetupDialog(BaseAuraDialog):
     
     def _recenter_dialog(self):
         """Re-center the dialog to ensure white border aligns with screen"""
-        # Use the base class centering method
-        self._center_dialog()
+        try:
+            # Check if dialog still exists before trying to center
+            if not hasattr(self, 'isVisible') or not self.isVisible():
+                return
+            # Use the base class centering method
+            self._center_dialog()
+        except (RuntimeError, AttributeError):
+            # Dialog has been deleted, ignore silently
+            pass
     
     def _monitor_keyboard_during_dialog(self):
         """Monitor and kill Ubuntu keyboard while dialog is open"""
         def kill_keyboard():
-            self._kill_ubuntu_keyboard()
-            # Re-center dialog after keyboard operations (they can affect window position)
-            self._recenter_dialog()
+            try:
+                # Check if dialog still exists
+                if not hasattr(self, 'isVisible') or not self.isVisible():
+                    # Stop timer if dialog is gone
+                    if hasattr(self, '_keyboard_monitor_timer') and self._keyboard_monitor_timer:
+                        self._keyboard_monitor_timer.stop()
+                    return
+                self._kill_ubuntu_keyboard()
+                # Re-center dialog after keyboard operations (they can affect window position)
+                self._recenter_dialog()
+            except (RuntimeError, AttributeError):
+                # Dialog deleted, stop timer
+                if hasattr(self, '_keyboard_monitor_timer') and self._keyboard_monitor_timer:
+                    try:
+                        self._keyboard_monitor_timer.stop()
+                    except:
+                        pass
         
         # Kill immediately
-        kill_keyboard()
+        try:
+            kill_keyboard()
+        except (RuntimeError, AttributeError):
+            pass  # Dialog already deleted
         
         # Set up timer to kill every 500ms while dialog might be open
-        if self._keyboard_monitor_timer:
-            self._keyboard_monitor_timer.stop()
+        if hasattr(self, '_keyboard_monitor_timer') and self._keyboard_monitor_timer:
+            try:
+                self._keyboard_monitor_timer.stop()
+            except:
+                pass
         
         self._keyboard_monitor_timer = QTimer()
         self._keyboard_monitor_timer.timeout.connect(kill_keyboard)
         self._keyboard_monitor_timer.start(500)  # Check every 500ms
         
         # Stop timer after 30 seconds (dialog should be closed by then)
-        QTimer.singleShot(30000, lambda: self._keyboard_monitor_timer.stop() if self._keyboard_monitor_timer else None)
+        def stop_timer():
+            try:
+                if hasattr(self, '_keyboard_monitor_timer') and self._keyboard_monitor_timer:
+                    self._keyboard_monitor_timer.stop()
+            except (RuntimeError, AttributeError):
+                pass
+        
+        QTimer.singleShot(30000, stop_timer)
     
     def check_wifi_connection(self):
         """Check if WiFi is currently connected and update GUI"""
