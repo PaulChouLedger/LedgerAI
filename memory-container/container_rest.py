@@ -314,6 +314,7 @@ def rag_search():
     """
     RAG search endpoint for LLM containers to search stored conversations.
     Returns results in RAG format for injection into LLM responses.
+    Uses same re-ranking logic as document RAG (pre-filtering, keyword matching, name matching).
     """
     rag_client = get_memory_rag_client(memory_manager)
     if not rag_client:
@@ -324,14 +325,15 @@ def rag_search():
         query = data.get("query", "").strip()
         k = data.get("k", 3)
         threshold = data.get("threshold", 0.35)
+        rerank = data.get("rerank", True)  # Enable re-ranking by default (same as document RAG)
         
         if not query:
             return jsonify({"error": "Query is required"}), 400
         
-        logger.info(f"[{SERVICE_NAME}] 🔍 RAG search request: query='{query[:50]}...', k={k}, threshold={threshold}")
+        logger.info(f"[{SERVICE_NAME}] 🔍 RAG search request: query='{query[:50]}...', k={k}, threshold={threshold}, rerank={rerank}")
         
-        # Search using Memory RAG client
-        results = rag_client.search(query, k=k, threshold=threshold)
+        # Search using Memory RAG client (with re-ranking enabled by default)
+        results = rag_client.search(query, k=k, threshold=threshold, rerank=rerank)
         
         logger.info(f"[{SERVICE_NAME}] ✅ RAG search returned {len(results)} results")
         

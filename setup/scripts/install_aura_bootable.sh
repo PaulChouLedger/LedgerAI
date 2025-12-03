@@ -1792,21 +1792,11 @@ if [ -f /etc/nv_tegra_release ] || [ -f /proc/device-tree/model ] && grep -q "Je
     
     # Check if nvpmodel command exists
     if command -v nvpmodel >/dev/null 2>&1; then
-        # Check if the specific config file exists
-        if [ -f "/etc/nvpmodel/nvpmodel_p3767_0000_super.conf" ]; then
-            print_info "Setting MAXN power mode (mode 0) with p3767_0000_super config..."
-            if sudo nvpmodel -f /etc/nvpmodel/nvpmodel_p3767_0000_super.conf -m 0; then
-                print_info "✅ MAXN power mode configured successfully"
-            else
-                print_warning "⚠️  Failed to set nvpmodel - continuing anyway"
-            fi
+        print_info "Setting MAXN power mode (mode 0)..."
+        if sudo nvpmodel -m 0; then
+            print_info "✅ MAXN power mode configured successfully"
         else
-            print_info "p3767_0000_super config not found, trying default MAXN mode..."
-            if sudo nvpmodel -m 0; then
-                print_info "✅ MAXN power mode configured successfully (default config)"
-            else
-                print_warning "⚠️  Failed to set nvpmodel - continuing anyway"
-            fi
+            print_warning "⚠️  Failed to set nvpmodel - continuing anyway"
         fi
         
         # Verify current power mode
@@ -1841,7 +1831,7 @@ After=multi-user.target
 
 [Service]
 Type=oneshot
-ExecStart=/bin/bash -c 'if [ -f /etc/nvpmodel/nvpmodel_p3767_0000_super.conf ]; then /usr/bin/nvpmodel -f /etc/nvpmodel/nvpmodel_p3767_0000_super.conf -m 0; else /usr/bin/nvpmodel -m 0; fi'
+ExecStart=/usr/bin/nvpmodel -m 0
 ExecStart=/usr/bin/jetson_clocks
 RemainAfterExit=yes
 

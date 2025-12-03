@@ -205,14 +205,153 @@ class MemoryRAGClient:
         # Not enough matches found - skip RAG
         return False
     
-    def search(self, query: str, k: int = None, threshold: float = None) -> List[Dict]:
+    def _rerank_results(self, query: str, results: List[Dict], top_k: int = None) -> List[Dict]:
         """
-        Search for relevant stored conversations
+        Re-rank search results using fuzzy keyword matching and entity detection
+        Same logic as document RAG to ensure consistent filtering.
+        
+        Improves relevance by considering query-chunk interaction, handles transcription errors,
+        and prioritizes results with matching person names/entities.
+        """
+        if not results:
+            return results
+        
+        import re
+        
+        # Extract key terms from query (non-stopwords)
+        stop_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'are', 'was', 'were'}
+        query_terms = [w.lower() for w in re.findall(r'\b\w+\b', query.lower()) if w not in stop_words and len(w) > 2]
+        
+        # Extract person names/entities from query (capitalized words, 2+ words)
+        query_names = re.findall(r'\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\b', query)
+        query_names_lower = [name.lower() for name in query_names]
+        
+        # Also extract individual capitalized words (excluding question words)
+        question_words = {'who', 'what', 'where', 'when', 'why', 'how', 'which', 'whose', 'whom', 'do', 'does', 'did', 'is', 'are', 'was', 'were', 'can', 'could', 'will', 'would', 'should', 'may', 'might'}
+        query_capitalized_words = re.findall(r'\b([A-Z][a-z]+)\b', query)
+        query_capitalized_lower = [w.lower() for w in query_capitalized_words if w.lower() not in question_words]
+        
+        # Pre-filter: Only include chunks that have at least one query term match (fuzzy)
+        # CRITICAL: For queries with names, require at least one capitalized word (name) match
+        logger.info(f"[Memory RAG Pre-filter] 🔍 Starting pre-filter: {len(results)} conversations, query: '{query[:50]}...'")
+        filtered_results = []
+        for i, result in enumerate(results, 1):
+            text = result.get('text', '').lower()
+            original_text = result.get('text', '')
+            semantic_score = result.get('score', 0.0)
+            
+            # For queries with capitalized words (names), REQUIRE at least one name match
+            has_name_match = False
+            matched_name_word = None
+            if query_capitalized_lower:
+                for cap_word in query_capitalized_lower:
+                    if self._fuzzy_match_term(cap_word, text, threshold=0.75):
+                        has_name_match = True
+                        matched_name_word = cap_word
+                        break
+            
+            # If query has names but chunk has no name match, exclude it
+            if query_capitalized_lower and not has_name_match:
+                logger.debug(f"[Memory RAG Pre-filter] ❌ EXCLUDED: Query has names {query_capitalized_lower} but conversation has no name match")
+                continue
+            
+            # For queries without names, check for other query terms
+            if not query_capitalized_lower:
+                has_query_term = False
+                matched_term = None
+                for term in query_terms:
+                    if self._fuzzy_match_term(term, text, threshold=0.75):
+                        has_query_term = True
+                        matched_term = term
+                        break
+                
+                if not has_query_term:
+                    logger.debug(f"[Memory RAG Pre-filter] ❌ EXCLUDED: No query term matches found (terms: {query_terms})")
+                    continue
+            
+            filtered_results.append(result)
+        
+        if not filtered_results:
+            logger.warning(f"[Memory RAG Pre-filter] ⚠️ All conversations filtered out - no query term matches found")
+            return []
+        
+        logger.info(f"[Memory RAG Pre-filter] ✅ {len(filtered_results)}/{len(results)} conversations passed pre-filter")
+        
+        # Score each result based on keyword matches and semantic score
+        reranked = []
+        for result in filtered_results:
+            text = result.get('text', '').lower()
+            original_text = result.get('text', '')
+            semantic_score = result.get('score', 0.0)
+            
+            # Count keyword matches using fuzzy matching
+            keyword_matches = sum(1 for term in query_terms if self._fuzzy_match_term(term, text, threshold=0.75))
+            keyword_score = keyword_matches / max(len(query_terms), 1) if query_terms else 0
+            
+            # Check for person name matches
+            name_match_boost = 0.0
+            if query_names:
+                result_names = re.findall(r'\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\b', original_text)
+                result_names_lower = [name.lower() for name in result_names]
+                text_lower = original_text.lower()
+                
+                for query_name in query_names_lower:
+                    query_name_words = query_name.split()
+                    
+                    # 1. Check for exact full name match
+                    if query_name in result_names_lower:
+                        name_match_boost = 0.25
+                        break
+                    
+                    # 2. Check for fuzzy full name match
+                    for result_name in result_names_lower:
+                        if all(self._fuzzy_match_term(word, result_name, threshold=0.75) for word in query_name_words if len(word) > 2):
+                            name_match_boost = 0.20
+                            break
+                    if name_match_boost > 0:
+                        break
+                    
+                    # 3. Check for partial name matches
+                    if len(query_name_words) >= 2:
+                        matching_words = sum(1 for word in query_name_words if len(word) > 2 and self._fuzzy_match_term(word, text_lower, threshold=0.75))
+                        if matching_words >= 2:
+                            name_match_boost = 0.15
+                            break
+                        elif matching_words == 1 and len(query_name_words) == 2:
+                            name_match_boost = 0.10
+                            break
+            
+            # Combined score: 70% semantic, 30% keyword, plus name match boost
+            base_score = 0.7 * semantic_score + 0.3 * keyword_score
+            combined_score = base_score + name_match_boost
+            combined_score = min(1.0, combined_score)
+            
+            reranked.append({
+                **result,
+                'score': combined_score,
+                'original_score': semantic_score,
+                'keyword_score': keyword_score,
+                'name_match_boost': name_match_boost
+            })
+        
+        # Sort by combined score (descending)
+        reranked.sort(key=lambda x: x['score'], reverse=True)
+        
+        # Return top_k if specified
+        if top_k is not None:
+            return reranked[:top_k]
+        
+        return reranked
+    
+    def search(self, query: str, k: int = None, threshold: float = None, rerank: bool = True) -> List[Dict]:
+        """
+        Search for relevant stored conversations with re-ranking (same logic as document RAG)
         
         Args:
             query: Search query
             k: Number of results to return (default: MEMORY_RAG_SEARCH_K)
             threshold: Similarity threshold 0-1 (default: MEMORY_RAG_SEARCH_THRESHOLD)
+            rerank: Whether to apply re-ranking with pre-filtering (default: True)
         
         Returns:
             List of search results with text, score, and metadata
@@ -225,17 +364,20 @@ class MemoryRAGClient:
         
         logger.info(f"[Memory RAG] 🔍 Searching stored conversations: query='{query[:50]}...', k={k}, threshold={threshold}")
         
-        # Use MemoryManager's search_similar method
-        search_results = self.memory_manager.search_similar(query, k=k, threshold=threshold)
+        # Get more candidates for re-ranking (same as document RAG)
+        search_k = k * 2 if rerank else k
+        search_threshold = 0.0 if rerank else threshold  # Get all candidates when re-ranking
         
-        # Convert to RAG format (similar to LLM container's RAG client)
+        # Use MemoryManager's search_similar method
+        search_results = self.memory_manager.search_similar(query, k=search_k, threshold=search_threshold)
+        
+        # Convert to RAG format
         results = []
         for result in search_results:
             conv = result.get('conversation', {})
             score = result.get('score', 0.0)
             metadata = result.get('metadata', {})
             
-            # Format as RAG result
             rag_result = {
                 'text': conv.get('text', ''),
                 'score': score,
@@ -248,6 +390,17 @@ class MemoryRAGClient:
                 }
             }
             results.append(rag_result)
+        
+        # Re-rank results if enabled (includes pre-filtering)
+        if rerank and results:
+            results = self._rerank_results(query, results, top_k=k)
+            # Re-apply threshold after re-ranking
+            filtered_results = []
+            for r in results:
+                effective_threshold = threshold * 0.85 if r.get('name_match_boost', 0) > 0 else threshold
+                if r['score'] >= effective_threshold:
+                    filtered_results.append(r)
+            results = filtered_results
         
         logger.info(f"[Memory RAG] ✅ Found {len(results)} relevant conversations (threshold: {threshold})")
         return results

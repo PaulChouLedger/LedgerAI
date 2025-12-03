@@ -328,8 +328,9 @@ def handle_conversation(
                                 f"{memory_container_url}/rag/search",
                                 json={
                                     "query": prompt,
-                                    "k": memory_rag_k * 2,
-                                    "threshold": memory_rag_threshold * 0.8
+                                    "k": memory_rag_k * 2,  # Get more candidates for LLM scoring
+                                    "threshold": memory_rag_threshold * 0.8,  # Lower threshold to get more candidates
+                                    "rerank": True  # Enable re-ranking to pre-filter irrelevant conversations
                                 },
                                 timeout=3  # Reduced from 15s to 3s
                             )
@@ -353,24 +354,24 @@ def handle_conversation(
                 # Get document RAG results
                 rag_client, rag_results = doc_future.result()
                 
-                # Get memory RAG candidates
+                # Get memory RAG candidates (pre-filtered by re-ranking, but need LLM scoring to distinguish questions from answers)
                 memory_rag_candidates, memory_rag_threshold, memory_rag_k = memory_future.result()
             
-            # Process memory RAG candidates with LLM scoring (if needed)
+            # Process memory RAG candidates with LLM scoring
+            # Re-ranking pre-filters irrelevant conversations, but LLM scoring distinguishes questions from answers
             memory_rag_results = []
             if memory_rag_candidates and memory_rag_threshold and memory_rag_k:
-                # For follow-up queries, skip LLM scoring and use semantic scores only (faster)
+                # For follow-up queries, skip LLM scoring and use re-ranked scores only (faster)
                 if is_followup_query:
-                    print(f"[Generic] ⚡ Follow-up query - using semantic scores only (skipping LLM scoring for speed)")
+                    print(f"[Generic] ⚡ Follow-up query - using re-ranked scores only (skipping LLM scoring for speed)")
                     scored_candidates = sorted(memory_rag_candidates, key=lambda x: x.get('score', 0), reverse=True)
                     memory_rag_results = [
                         r for r in scored_candidates 
                         if r.get('score', 0) >= memory_rag_threshold
                     ][:memory_rag_k]
                 else:
-                    # Use LLM scoring for initial queries
-                    print(f"[Generic] 🤖 Using LLM to score {len(memory_rag_candidates)} conversation candidates...")
-                    needs_filler_phrase = stream
+                    # Use LLM scoring to distinguish questions from answers
+                    print(f"[Generic] 🤖 Using LLM to score {len(memory_rag_candidates)} conversation candidates (pre-filtered by re-ranking)...")
                     
                     # Build prompt for LLM to score conversations
                     conversations_text = ""
@@ -382,18 +383,21 @@ def handle_conversation(
 
 User's question: "{prompt}"
 
-Previous conversations:
+Previous conversations (pre-filtered for relevance):
 {conversations_text}
 
 For each conversation, assign a score from 0.0 to 1.0:
-- 1.0 = Perfectly answers the question with relevant information
+- 1.0 = Perfectly answers the question with relevant information (e.g., "Elizabeth Martinez is an ICU nurse")
 - 0.7-0.9 = Mostly answers the question, contains relevant information
 - 0.4-0.6 = Partially relevant, some useful information
 - 0.1-0.3 = Minimally relevant, little useful information
-- 0.0 = Not relevant, doesn't answer the question
+- 0.0 = Not relevant, doesn't answer the question (e.g., just repeats the question like "Who is Elizabeth Martinez?")
+
+IMPORTANT: Give LOW scores (0.0-0.3) to conversations that are just questions, not answers.
+Give HIGH scores (0.7-1.0) to conversations that provide actual information/answers.
 
 Return ONLY a JSON array with exactly {len(memory_rag_candidates)} scores in order.
-Example: [0.8, 0.3, 0.9, 0.1, 0.7, 0.2]
+Example: [0.8, 0.1, 0.9, 0.0, 0.7, 0.2]
 
 JSON array only:"""
                     
@@ -418,12 +422,12 @@ JSON array only:"""
                             try:
                                 scores = json.loads(scoring_response.strip())
                             except:
-                                print(f"[Generic] ⚠️ Failed to parse LLM scores, using semantic scores as fallback")
+                                print(f"[Generic] ⚠️ Failed to parse LLM scores, using re-ranked scores as fallback")
                                 scores = [c.get('score', 0.0) for c in memory_rag_candidates]
                         
                         # Ensure we have the right number of scores
                         if len(scores) != len(memory_rag_candidates):
-                            print(f"[Generic] ⚠️ LLM returned {len(scores)} scores but expected {len(memory_rag_candidates)}, using semantic scores as fallback")
+                            print(f"[Generic] ⚠️ LLM returned {len(scores)} scores but expected {len(memory_rag_candidates)}, using re-ranked scores as fallback")
                             scores = [c.get('score', 0.0) for c in memory_rag_candidates]
                         
                         # Update candidates with LLM scores
@@ -432,10 +436,10 @@ JSON array only:"""
                             scored_candidates.append({
                                 **candidate,
                                 'score': float(llm_score),
-                                'original_semantic_score': candidate.get('score', 0.0),
+                                'original_re_ranked_score': candidate.get('score', 0.0),
                                 'llm_score': float(llm_score)
                             })
-                            print(f"[Generic]   [{i+1}] LLM score: {llm_score:.3f} (semantic: {candidate.get('score', 0.0):.3f}): '{candidate.get('text', '')[:60]}...'")
+                            print(f"[Generic]   [{i+1}] LLM score: {llm_score:.3f} (re-ranked: {candidate.get('score', 0.0):.3f}): '{candidate.get('text', '')[:60]}...'")
                         
                         # Sort by LLM score (descending)
                         scored_candidates.sort(key=lambda x: x['score'], reverse=True)
@@ -446,10 +450,10 @@ JSON array only:"""
                             if r.get('score', 0) >= memory_rag_threshold
                         ][:memory_rag_k]
                     except Exception as e:
-                        print(f"[Generic] ⚠️ LLM scoring failed: {e}, falling back to semantic scores")
+                        print(f"[Generic] ⚠️ LLM scoring failed: {e}, falling back to re-ranked scores")
                         import traceback
                         traceback.print_exc()
-                        # Fallback to semantic scores
+                        # Fallback to re-ranked scores
                         scored_candidates = sorted(memory_rag_candidates, key=lambda x: x.get('score', 0), reverse=True)
                         memory_rag_results = [
                             r for r in scored_candidates 
@@ -459,7 +463,7 @@ JSON array only:"""
                 if memory_rag_results and len(memory_rag_results) > 0:
                     print(f"[Generic] ✅ Memory RAG found {len(memory_rag_results)} relevant conversations (from {len(memory_rag_candidates)} candidates, threshold={memory_rag_threshold:.2f}) - will inject context")
                 else:
-                    print(f"[Generic] 🔍 Memory RAG search returned no results above threshold={memory_rag_threshold:.2f} after re-ranking")
+                    print(f"[Generic] 🔍 Memory RAG search returned no results above threshold={memory_rag_threshold:.2f} after LLM scoring")
         
         should_use_rag = (rag_results and len(rag_results) > 0) or (memory_rag_results and len(memory_rag_results) > 0)
         should_use_memory_rag = (memory_rag_results and len(memory_rag_results) > 0)
