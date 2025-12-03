@@ -64,7 +64,7 @@ SPEECH_PEAK_MIN = 0.0023        # Lower peak threshold to accept softer speech
 # (Pre-gain removed)
 
 # === Audio Normalization (for optimal Whisper transcription) ===
-ENABLE_AUDIO_NORMALIZATION = True  # Disabled - using hardware AGC only (target: 0.05 RMS)
+ENABLE_AUDIO_NORMALIZATION = True  # Disabled - using hardware AGC only (target: 0.12 RMS)
 TARGET_RMS_FOR_WHISPER = 0.12      # Optimal RMS level for Whisper (found via find_optimal_rms.py)
 
 # === Wake Word Audio Normalization ===
@@ -875,9 +875,21 @@ def listen():
                         tts_playback_duration = time.time() - tts_start_time
                         print(f"[Listener] 🔊 TTS playback ended after {tts_playback_duration:.2f}s")
                         
+                        # Clear OpenWakeWord's internal buffer BEFORE restarting stream
+                        # This ensures clean state before new audio starts flowing
+                        if wake_word_enabled and wake_word_detector is not None:
+                            if hasattr(wake_word_detector, 'clear_buffer'):
+                                wake_word_detector.clear_buffer()
+                                print(f"[Listener] 🧹 OpenWakeWord buffer cleared (before stream restart)")
+                        
                         # Start the stream
                         stream.start()
                         print(f"[Listener] 🔇 Stream STARTED - mic is active again")
+                        
+                        # Brief delay to let hardware AGC stabilize after TTS
+                        # Hardware AGC may have adjusted during loud TTS playback and needs time to readjust
+                        # This is critical for reliable wake word detection on subsequent runs
+                        time.sleep(0.3)  # 300ms delay for AGC stabilization
                         
                         # Flush stream buffer (discard any audio frames that accumulated while mic was stopped)
                         flush_start = time.time()
@@ -890,12 +902,11 @@ def listen():
                         flush_duration = time.time() - flush_start
                         print(f"[Listener] 🧹 Stream buffer flushed ({i+1} frames discarded)")
                         
-                        # Clear OpenWakeWord's internal buffer after flush to ensure clean state
-                        # This prevents processing any stale audio that might have been in OpenWakeWord's buffer
+                        # Clear OpenWakeWord buffer again after flush to ensure completely clean state
                         if wake_word_enabled and wake_word_detector is not None:
                             if hasattr(wake_word_detector, 'clear_buffer'):
                                 wake_word_detector.clear_buffer()
-                                print(f"[Listener] 🧹 OpenWakeWord buffer cleared")
+                                print(f"[Listener] 🧹 OpenWakeWord buffer cleared (after flush)")
                         
                         total_mute_duration = time.time() - tts_start_time
                         print(f"[Listener] ▶️ Mic fully resumed")

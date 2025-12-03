@@ -1068,7 +1068,6 @@ def chat_tts():
                         yield f"{word}"
                 yield "\n<sentence_end>\n"
                 # Small delay to ensure filler phrase is fully processed before LLM response starts
-                import time
                 time.sleep(0.1)  # 100ms delay to ensure TTS starts processing filler phrase
             
             # Use streaming mode to get tokens as they're generated, with memory context
@@ -1273,8 +1272,6 @@ def _word_stream_from_chunks(chunk_iter):
     # Only yield remaining buffer if it's not just whitespace
     if buffer and buffer.strip():
         yield buffer
-    if word_count == 0:
-        print(f"[Generic] ⚠️ WARNING: _word_stream_from_chunks yielded 0 words (received {chunk_count} chunks)")
 
 
 
@@ -1369,9 +1366,9 @@ def _sentence_tag_stream(word_stream):
         # This allows TTS to start processing first sentence while LLM generates subsequent ones
         if word_ends_with_punct and sentence_open:
             # Close current sentence
-            yield "<sentence_end>"
-            sentence_buffer = ""
-            sentence_open = False
+                yield "<sentence_end>"
+                sentence_buffer = ""
+                sentence_open = False
             # Note: Don't immediately start new sentence - wait for next word
             # This prevents empty sentences if stream ends
     

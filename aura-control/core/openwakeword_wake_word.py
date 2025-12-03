@@ -306,6 +306,7 @@ class OpenWakeWordDetector:
     
     def clear_buffer(self):
         """Clear the internal audio buffer to prevent processing stale audio."""
+        # Clear buffer completely
         self.audio_buffer = np.array([], dtype=np.float32)
         self.frame_count = 0
         
@@ -316,10 +317,16 @@ class OpenWakeWordDetector:
                     self.engine.reset()
                     print("[OpenWakeWord] 🧹 Buffer and model state cleared")
                 else:
-                    print("[OpenWakeWord] 🧹 Buffer cleared")
+                    # Force clear by creating new buffer
+                    self.audio_buffer = np.array([], dtype=np.float32)
+                    print("[OpenWakeWord] 🧹 Buffer cleared (model reset not available)")
             except Exception as e:
+                # Even if reset fails, ensure buffer is cleared
+                self.audio_buffer = np.array([], dtype=np.float32)
                 print(f"[OpenWakeWord] 🧹 Buffer cleared (model reset failed: {e})")
         else:
+            # Ensure buffer is cleared even if engine is None
+            self.audio_buffer = np.array([], dtype=np.float32)
             print("[OpenWakeWord] 🧹 Buffer cleared")
     
     def cleanup(self):
