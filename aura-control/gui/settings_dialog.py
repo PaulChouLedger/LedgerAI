@@ -1232,15 +1232,47 @@ class AIModelSettingsDialog(BaseAuraDialog):
         
         mode_row = QHBoxLayout(); mode_row.setSpacing(12)
         self.mode_generic_btn = QPushButton("💬 Generic"); self.mode_medical_btn = QPushButton("🏥 Medical")
+        
+        # Store button styles as instance variables for reuse
+        self.button_style_unchecked = """
+            QPushButton {
+                background-color: rgba(44,44,46,0.6);
+                color: #ffffff;
+                border: 2px solid rgba(77,148,217,0.3);
+                border-radius: 10px;
+                padding: 12px 24px;
+                font-size: 14px;
+                font-weight: 500;
+            }
+            QPushButton:hover {
+                background-color: rgba(44,44,46,0.8);
+                border-color: rgba(77,148,217,0.6);
+            }
+        """
+        self.button_style_checked = """
+            QPushButton {
+                background-color: #4D94D9;
+                color: #ffffff;
+                border: 2px solid #4D94D9;
+                border-radius: 10px;
+                padding: 12px 24px;
+                font-size: 14px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #5BA0E5;
+                border-color: #5BA0E5;
+            }
+        """
+        
         for b in (self.mode_generic_btn, self.mode_medical_btn): 
             b.setCheckable(True)
-            b.setStyleSheet(SettingsDialog.get_button_style(None))
-        mode_row.addWidget(self.mode_generic_btn); mode_row.addWidget(self.mode_medical_btn)
+            b.setStyleSheet(self.button_style_unchecked)
+            # Update style when checked state changes
+            b.toggled.connect(self._update_mode_button_styles)
         
-        # Status label showing current active container
-        self.mode_status_label = QLabel("")
-        self.mode_status_label.setStyleSheet("color: #4D94D9; font-size: 12px; padding: 5px;")
-        mode_row.addWidget(self.mode_status_label, 1)
+        mode_row.addWidget(self.mode_generic_btn); mode_row.addWidget(self.mode_medical_btn)
+        mode_row.addStretch()  # Add stretch instead of status label
         layout.addLayout(mode_row)
         
         # Model dropdown + restart
@@ -1298,12 +1330,11 @@ class AIModelSettingsDialog(BaseAuraDialog):
             mode = get_llm_mode()
             self.mode_generic_btn.setChecked(mode == "generic")
             self.mode_medical_btn.setChecked(mode == "medical")
-            # Defer status update to avoid blocking during initialization
-            QTimer.singleShot(100, self._update_mode_status)
+            # Update button styles based on checked state
+            self._update_mode_button_styles()
         except Exception: 
             self.mode_medical_btn.setChecked(True)
-            # Defer status update to avoid blocking during initialization
-            QTimer.singleShot(100, self._update_mode_status)
+            self._update_mode_button_styles()
         self._populate_models()
         
         # Initialize rag_combo from settings file
@@ -1409,9 +1440,19 @@ class AIModelSettingsDialog(BaseAuraDialog):
         
         self.memory_toggle.toggled.connect(on_memory_toggled)
         
-        # Connect mode buttons
-        self.mode_generic_btn.clicked.connect(lambda: self._on_mode_changed("generic"))
-        self.mode_medical_btn.clicked.connect(lambda: self._on_mode_changed("medical"))
+        # Connect mode buttons - ensure mutual exclusivity
+        def on_generic_clicked():
+            if self.mode_generic_btn.isChecked():
+                self.mode_medical_btn.setChecked(False)
+                self._on_mode_changed("generic")
+        
+        def on_medical_clicked():
+            if self.mode_medical_btn.isChecked():
+                self.mode_generic_btn.setChecked(False)
+                self._on_mode_changed("medical")
+        
+        self.mode_generic_btn.clicked.connect(on_generic_clicked)
+        self.mode_medical_btn.clicked.connect(on_medical_clicked)
         self.restart_llm_btn.clicked.connect(self._restart_llm)
         self.model_combo.currentTextChanged.connect(self._on_model_changed)
     
@@ -1427,8 +1468,8 @@ class AIModelSettingsDialog(BaseAuraDialog):
     
     def _on_show(self):
         """Override for additional show logic"""
-        # Update mode status after dialog is shown (non-blocking)
-        QTimer.singleShot(200, self._update_mode_status)
+        # Update button styles after dialog is shown
+        QTimer.singleShot(200, self._update_mode_button_styles)
     
     def closeEvent_OLD(self, event):
         # Always ensure transcription is unblocked when dialog closes
@@ -1498,53 +1539,10 @@ class AIModelSettingsDialog(BaseAuraDialog):
             self.model_combo.clear()
             self.model_combo.addItem("(error loading models)")
     
-    def _update_mode_status(self):
-        """Update status label to show which container is active (non-blocking)."""
-        try:
-            mode_now = "medical" if self.mode_medical_btn.isChecked() else "generic"
-            container_name = "llm-medical" if mode_now == "medical" else "llm-generic"
-            
-            # Set initial status immediately (non-blocking)
-            self.mode_status_label.setText(f"📋 {container_name} (checking...)")
-            self.mode_status_label.setStyleSheet("color: #4D94D9; font-size: 12px; padding: 5px;")
-            
-            # Check if container is running in a separate thread to avoid blocking UI
-            def check_container_status():
-                try:
-                    import subprocess
-                    workspace_root = os.path.expanduser("~/LedgerAI")
-                    setup_dir = os.path.join(workspace_root, "setup")
-                    result = subprocess.run(
-                        ["docker", "compose", "ps", "-q", container_name],
-                        cwd=setup_dir,
-                        capture_output=True,
-                        text=True,
-                        timeout=5
-                    )
-                    is_running = bool(result.stdout.strip())
-                    
-                    # Update UI from main thread using QTimer
-                    def update_ui():
-                        if is_running:
-                            self.mode_status_label.setText(f"✅ {container_name} (running)")
-                            self.mode_status_label.setStyleSheet("color: #00ff00; font-size: 12px; padding: 5px; font-weight: bold;")
-                        else:
-                            self.mode_status_label.setText(f"⏸️ {container_name} (stopped)")
-                            self.mode_status_label.setStyleSheet("color: #ff9900; font-size: 12px; padding: 5px;")
-                    
-                    QTimer.singleShot(0, update_ui)
-                except Exception as e:
-                    # Update UI from main thread on error
-                    def update_ui_error():
-                        self.mode_status_label.setText(f"📋 {container_name}")
-                        self.mode_status_label.setStyleSheet("color: #4D94D9; font-size: 12px; padding: 5px;")
-                    QTimer.singleShot(0, update_ui_error)
-            
-            # Run check in background thread to avoid blocking
-            thread = threading.Thread(target=check_container_status, daemon=True)
-            thread.start()
-        except Exception:
-            self.mode_status_label.setText("")
+    def _update_mode_button_styles(self):
+        """Update button styles based on checked state"""
+        self.mode_generic_btn.setStyleSheet(self.button_style_checked if self.mode_generic_btn.isChecked() else self.button_style_unchecked)
+        self.mode_medical_btn.setStyleSheet(self.button_style_checked if self.mode_medical_btn.isChecked() else self.button_style_unchecked)
     
     def _restart_llm_container(self, mode_now: str):
         """Restart LLM container when mode changes."""
@@ -1581,15 +1579,11 @@ class AIModelSettingsDialog(BaseAuraDialog):
             
             if start_result.returncode == 0:
                 print(f"[ModelSettings] ✅ Container switched successfully: {new_service}")
-                self._update_mode_status()
-                QMessageBox.information(
-                    self,
-                    "Container Switched",
-                    f"LLM mode changed to {mode_now}.\n\n"
-                    f"Container {new_service} has been started.\n"
-                    f"Container {old_service} has been stopped.\n\n"
-                    "Aura will use the new container on next interaction."
-                )
+                # Update button styles
+                self._update_mode_button_styles()
+                # Repopulate models for new mode
+                self._populate_models()
+                # No message box - silent update for better UX
             else:
                 print(f"[ModelSettings] ⚠️ Failed to start container: {start_result.stderr}")
                 QMessageBox.warning(
@@ -1619,7 +1613,7 @@ class AIModelSettingsDialog(BaseAuraDialog):
             result = subprocess.run(["bash", "-lc", f"cd '{setup_dir}' && docker compose restart {service}"], capture_output=True, text=True, timeout=60)
             if result.returncode == 0: 
                 QMessageBox.information(self, "Restarted", f"{service} restarted successfully.")
-                self._update_mode_status()
+                self._update_mode_button_styles()
             else: QMessageBox.warning(self, "Restart Failed", result.stderr or result.stdout or "Unknown error")
         except Exception as e:
             QMessageBox.warning(self, "Error", f"Failed to restart container: {e}")
@@ -1678,28 +1672,62 @@ class AIModelSettingsDialog(BaseAuraDialog):
         try:
             self._save_mode_locally(mode)
             print(f"[ModelSettings] Mode changed to: {mode}")
-            # Update status
-            QTimer.singleShot(100, self._update_mode_status)
+            
+            # Update button styles immediately
+            self._update_mode_button_styles()
+            
+            # Repopulate models for the new mode
+            self._populate_models()
+            
+            # Automatically switch containers in real-time
+            self._restart_llm_container(mode)
         except Exception as e:
             print(f"[ModelSettings] Error changing mode: {e}")
     
     def _on_model_changed(self, model_name: str):
-        """Handle model selection change"""
+        """Handle model selection change - update in real-time"""
         try:
             self._save_model_locally(model_name)
             print(f"[ModelSettings] Model changed to: {model_name}")
-            # Prompt user to restart if needed
+            
+            # Automatically restart container to apply new model in real-time
             mode_now = "medical" if self.mode_medical_btn.isChecked() else "generic"
             service = "llm-medical" if mode_now == "medical" else "llm-generic"
-            reply = QMessageBox.question(
-                self, 
-                "Restart Required", 
-                f"Model changed to {model_name}.\n\nRestart the {service} container now to apply the new model?",
-                QMessageBox.Yes | QMessageBox.No, 
-                QMessageBox.Yes
-            )
-            if reply == QMessageBox.Yes:
-                self._prompt_restart()
+            
+            # Restart container automatically without prompting
+            try:
+                import subprocess
+                workspace_root = os.path.expanduser("~/LedgerAI")
+                setup_dir = os.path.join(workspace_root, "setup")
+                
+                print(f"[ModelSettings] 🔄 Restarting {service} container to apply model: {model_name}")
+                result = subprocess.run(
+                    ["docker", "compose", "restart", service],
+                    cwd=setup_dir,
+                    capture_output=True,
+                    text=True,
+                    timeout=60
+                )
+                
+                if result.returncode == 0:
+                    print(f"[ModelSettings] ✅ Container restarted successfully with model: {model_name}")
+                else:
+                    print(f"[ModelSettings] ⚠️ Container restart failed: {result.stderr}")
+                    QMessageBox.warning(
+                        self,
+                        "Restart Failed",
+                        f"Failed to restart {service} container.\n\n"
+                        f"Error: {result.stderr or 'Unknown error'}\n\n"
+                        "Please restart manually."
+                    )
+            except Exception as e:
+                print(f"[ModelSettings] ⚠️ Error restarting container: {e}")
+                QMessageBox.warning(
+                    self,
+                    "Error",
+                    f"Failed to restart container: {e}\n\n"
+                    "Please restart manually."
+                )
         except Exception as e:
             print(f"[ModelSettings] Error changing model: {e}")
     

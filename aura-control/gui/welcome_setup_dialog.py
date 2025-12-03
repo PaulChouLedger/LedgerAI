@@ -155,9 +155,27 @@ class WelcomeSetupDialog(BaseAuraDialog):
     
     def _on_show(self):
         """Override for additional show logic"""
+        # CRITICAL: Kill Ubuntu keyboard immediately when dialog shows
+        self._kill_ubuntu_keyboard()
+        
+        # Set up continuous keyboard monitoring while dialog is open
+        def monitor_keyboard():
+            self._kill_ubuntu_keyboard()
+        
+        # Kill immediately
+        monitor_keyboard()
+        
+        # Set up timer to kill keyboard every second while dialog is open
+        if not hasattr(self, '_keyboard_monitor_timer') or self._keyboard_monitor_timer is None:
+            self._keyboard_monitor_timer = QTimer()
+            self._keyboard_monitor_timer.timeout.connect(monitor_keyboard)
+            self._keyboard_monitor_timer.start(1000)  # Check every 1 second
+        
         # Check WiFi connection and scan after dialog is shown
         # This ensures status is displayed in GUI before enabling button
         def check_and_scan():
+            # Kill keyboard before any operations
+            self._kill_ubuntu_keyboard()
             # First check current WiFi status and display it (only once)
             self.check_wifi_connection()
             # Then scan for networks (scan will update connection status if it changes)
@@ -201,6 +219,17 @@ class WelcomeSetupDialog(BaseAuraDialog):
     
     def _on_close(self):
         """Cleanup when dialog closes (called by base class)"""
+        # Stop keyboard monitoring timer
+        if hasattr(self, '_keyboard_monitor_timer') and self._keyboard_monitor_timer:
+            try:
+                self._keyboard_monitor_timer.stop()
+            except Exception:
+                pass
+            self._keyboard_monitor_timer = None
+        
+        # Final kill of Ubuntu keyboard
+        self._kill_ubuntu_keyboard()
+        
         # Clean up WiFi scan thread to prevent accessing deleted widgets
         if hasattr(self, 'wifi_scan_thread') and self.wifi_scan_thread:
             try:
@@ -345,6 +374,46 @@ class WelcomeSetupDialog(BaseAuraDialog):
         # Initialize
         self.wifi_scan_thread = None
         self.selected_wifi = None
+        self._keyboard_monitor_timer = None
+    
+    def _kill_ubuntu_keyboard(self):
+        """Aggressively kill Ubuntu keyboard processes"""
+        try:
+            import subprocess
+            # Kill all keyboard processes with SIGKILL
+            subprocess.run(["pkill", "-9", "-f", "onboard|caribou|matchbox-keyboard|gnome-shell.*keyboard|ibus.*keyboard"], 
+                          check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=1)
+            # Also try individual kills
+            subprocess.run(["pkill", "-9", "-f", "onboard"], check=False,
+                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=1)
+            subprocess.run(["pkill", "-9", "-f", "caribou"], check=False,
+                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=1)
+            subprocess.run(["pkill", "-9", "-f", "matchbox-keyboard"], check=False,
+                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=1)
+            # Stop systemd services
+            subprocess.run(["systemctl", "--user", "stop", "onboard.service"], 
+                          check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=1)
+        except Exception:
+            pass
+    
+    def _monitor_keyboard_during_dialog(self):
+        """Monitor and kill Ubuntu keyboard while dialog is open"""
+        def kill_keyboard():
+            self._kill_ubuntu_keyboard()
+        
+        # Kill immediately
+        kill_keyboard()
+        
+        # Set up timer to kill every 500ms while dialog might be open
+        if self._keyboard_monitor_timer:
+            self._keyboard_monitor_timer.stop()
+        
+        self._keyboard_monitor_timer = QTimer()
+        self._keyboard_monitor_timer.timeout.connect(kill_keyboard)
+        self._keyboard_monitor_timer.start(500)  # Check every 500ms
+        
+        # Stop timer after 30 seconds (dialog should be closed by then)
+        QTimer.singleShot(30000, lambda: self._keyboard_monitor_timer.stop() if self._keyboard_monitor_timer else None)
     
     def check_wifi_connection(self):
         """Check if WiFi is currently connected and update GUI"""
@@ -486,18 +555,27 @@ class WelcomeSetupDialog(BaseAuraDialog):
         ssid = network['ssid']
         security = network['security']
         
+        # CRITICAL: Kill Ubuntu keyboard before showing any dialogs
+        self._kill_ubuntu_keyboard()
+        
         # Prompt for password if secured
         password = None
         if security and security != "Open" and "Open" not in security:
-            # Use custom password keyboard for password entry (works on touchscreen)
+            # ALWAYS use custom password keyboard - never use QInputDialog (triggers Ubuntu keyboard)
             try:
                 from gui.password_keyboard import PasswordKeyboard
+                
+                # Kill keyboard again right before showing dialog
+                self._kill_ubuntu_keyboard()
                 
                 keyboard = PasswordKeyboard(
                     parent=self, 
                     initial_text="",
                     title=f"WiFi Password - {ssid}"
                 )
+                
+                # Kill keyboard while dialog is open (monitor in background)
+                self._monitor_keyboard_during_dialog()
                 
                 # Show keyboard and get password
                 if keyboard.exec_() == QDialog.Accepted:
@@ -509,29 +587,37 @@ class WelcomeSetupDialog(BaseAuraDialog):
                     # User cancelled
                     return
             except ImportError:
-                # Fallback to QInputDialog if custom keyboard not available
-                password, ok = QInputDialog.getText(
+                # If custom keyboard not available, show error instead of using QInputDialog
+                QMessageBox.critical(
                     self,
-                    "WiFi Password",
-                    f"Enter password for {ssid}:",
-                    QLineEdit.Password
+                    "Keyboard Error",
+                    "Custom password keyboard not available.\n\n"
+                    "Please use Safe Mode to configure WiFi."
                 )
-                if not ok:
-                    return
+                return
         
         self.status_label.setText(f"🔗 Connecting to {ssid}...")
         self.status_label.setStyleSheet("color: #ffa500; margin: 10px;")
         self.connect_wifi_btn.setEnabled(False)
         self.connect_wifi_btn.setText("🔄 Connecting...")
         
+        # CRITICAL: Kill Ubuntu keyboard before connecting (nmcli errors can trigger Ubuntu UI)
+        self._kill_ubuntu_keyboard()
+        
         # Connect using nmcli, retrying with pkexec if permission is denied
         try:
+            # Set environment variables to prevent nmcli from showing UI dialogs
+            env = os.environ.copy()
+            env['DISPLAY'] = os.environ.get('DISPLAY', ':0')
+            # Prevent NetworkManager from showing password dialogs
+            env['NM_CLI_NO_TERSE'] = '0'  # Use terse mode (no interactive prompts)
+            
             base_cmd = ['nmcli', 'device', 'wifi', 'connect', ssid]
             if password:
                 base_cmd += ['password', password]
 
-            # Attempt without elevation first
-            result = subprocess.run(base_cmd, capture_output=True, text=True, timeout=30)
+            # Attempt without elevation first - use terse mode and capture all output
+            result = subprocess.run(base_cmd, capture_output=True, text=True, timeout=30, env=env)
 
             if result.returncode != 0:
                 error_msg = (result.stderr or result.stdout or "").strip()
@@ -601,16 +687,33 @@ class WelcomeSetupDialog(BaseAuraDialog):
                             error_msg = (str(e) or error_msg).strip()
 
                 if result.returncode != 0:
+                    # CRITICAL: Kill Ubuntu keyboard and WiFi UI immediately on error
+                    self._kill_ubuntu_keyboard()
+                    # Also kill any NetworkManager UI that might have appeared
+                    try:
+                        subprocess.run(["pkill", "-9", "-f", "nm-applet|nm-connection-editor|network-manager"], 
+                                      check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=1)
+                    except Exception:
+                        pass
+                    
                     self.status_label.setText("❌ Connection failed")
                     self.status_label.setStyleSheet("color: #FF3B30; margin: 10px;")
                     
                     # Provide helpful error message with fix instructions
                     detailed_error = error_msg or "Unknown error"
+                    
+                    # Check for common error types
                     if "permission" in detailed_error.lower() or "polkit" in detailed_error.lower() or "not authorized" in detailed_error.lower():
                         detailed_error += "\n\n💡 Fix: Run this command to fix permissions:\n"
                         detailed_error += f"   sudo {os.path.expanduser('~/LedgerAI/setup/scripts/fix_wifi_permissions.sh')} {os.getenv('USER', 'ledger')}"
+                    elif "secrets" in detailed_error.lower() or "password" in detailed_error.lower() or "wrong" in detailed_error.lower():
+                        detailed_error = "Incorrect WiFi password. Please try again."
                     
+                    # Kill keyboard again before showing error dialog
+                    self._kill_ubuntu_keyboard()
                     QMessageBox.warning(self, "Connection Failed", detailed_error)
+                    # Kill keyboard after dialog closes
+                    QTimer.singleShot(100, self._kill_ubuntu_keyboard)
                     self.check_wifi_connection()
                     return
 
