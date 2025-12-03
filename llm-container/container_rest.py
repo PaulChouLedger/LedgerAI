@@ -512,6 +512,7 @@ JSON array only:"""
                 for i, result in enumerate(rag_results, 1):
                     score = result.get('score', 0)
                     text_preview = result.get('text', '')[:50]
+                    full_text = result.get('text', '')
                     # Extract file name from metadata
                     file_name = "unknown"
                     if isinstance(result.get('metadata'), dict):
@@ -522,6 +523,7 @@ JSON array only:"""
                         else:
                             file_name = result['metadata'].get('document_name', 'unknown')
                     print(f"[Generic]   [{i}] Score: {score:.3f}, File: {file_name}, Preview: '{text_preview}...'")
+                    print(f"[Generic]   [{i}] FULL CHUNK TEXT: '{full_text}'")  # Log full chunk for debugging
                 
                 # Extract person names from query for filtering chunks
                 query_person_names = re.findall(r'\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\b', prompt)
@@ -594,6 +596,7 @@ JSON array only:"""
                 # Join with clear separators
                 rag_context = "\n\n---\n\n".join(rag_chunks)
                 print(f"[Generic] ✅ Using document RAG context ({len(rag_context)} chars, ~{len(rag_context)//4} tokens) from {len(rag_chunks)} chunks for LLM response")
+                print(f"[Generic] 📄 FULL RAG CONTEXT SENT TO LLM:\n{rag_context}\n")  # Log full context for debugging
             except Exception as e:
                 print(f"[Generic] ⚠️ RAG failed, using direct LLM: {e}")
                 import traceback
@@ -1043,6 +1046,7 @@ def chat_tts():
     
     session_id = session_id or "default"
     print(f"[Generic] 💬 Streaming Session: {session_id}, Prompt: '{prompt[:50]}...'")
+    print(f"[Generic] 📝 FULL TRANSCRIBED QUERY: '{prompt}'")  # Log full query for debugging
     
     # Build conversation memory context for this prompt (with fallback)
     memory_context = None
