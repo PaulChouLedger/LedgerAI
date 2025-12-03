@@ -432,6 +432,66 @@ def analyze_conversation():
         logger.error(f"[{SERVICE_NAME}] Failed to analyze: {e}")
         return jsonify({"error": str(e)}), 500
 
+@app.route('/delete', methods=['POST', 'DELETE'])
+def delete_conversations():
+    """Delete conversations by their IDs"""
+    if not memory_manager:
+        return jsonify({"error": "MemoryManager not initialized"}), 500
+    
+    try:
+        data = request.get_json() or {}
+        conversation_ids = data.get("conversation_ids", [])
+        
+        if not conversation_ids:
+            return jsonify({"error": "conversation_ids is required"}), 400
+        
+        if not isinstance(conversation_ids, list):
+            return jsonify({"error": "conversation_ids must be a list"}), 400
+        
+        logger.info(f"[{SERVICE_NAME}] 🗑️ Deleting {len(conversation_ids)} conversation(s)...")
+        
+        result = memory_manager.delete_conversations(conversation_ids)
+        
+        logger.info(f"[{SERVICE_NAME}] ✅ Deleted {result['deleted']} conversation(s)")
+        if result.get('not_found'):
+            logger.warning(f"[{SERVICE_NAME}] ⚠️ {len(result['not_found'])} conversation ID(s) not found: {result['not_found']}")
+        
+        return jsonify({
+            "status": "success",
+            "deleted": result['deleted'],
+            "not_found": result.get('not_found', [])
+        })
+        
+    except Exception as e:
+        logger.error(f"[{SERVICE_NAME}] ❌ Failed to delete conversations: {e}")
+        import traceback
+        logger.debug(traceback.format_exc())
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/delete-all', methods=['POST', 'DELETE'])
+def delete_all_conversations():
+    """Delete all conversations"""
+    if not memory_manager:
+        return jsonify({"error": "MemoryManager not initialized"}), 500
+    
+    try:
+        logger.info(f"[{SERVICE_NAME}] 🗑️ Deleting all conversations...")
+        
+        result = memory_manager.delete_all_conversations()
+        
+        logger.info(f"[{SERVICE_NAME}] ✅ Deleted all {result['deleted']} conversation(s)")
+        
+        return jsonify({
+            "status": "success",
+            "deleted": result['deleted']
+        })
+        
+    except Exception as e:
+        logger.error(f"[{SERVICE_NAME}] ❌ Failed to delete all conversations: {e}")
+        import traceback
+        logger.debug(traceback.format_exc())
+        return jsonify({"error": str(e)}), 500
+
 # === Main ===
 
 if __name__ == "__main__":

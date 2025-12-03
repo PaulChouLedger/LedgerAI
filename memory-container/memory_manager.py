@@ -443,6 +443,136 @@ class MemoryManager:
         
         return recent[:limit]
     
+    def delete_conversations(self, conversation_ids: List[str]) -> Dict:
+        """
+        Delete conversations by their IDs
+        
+        Args:
+            conversation_ids: List of conversation IDs to delete
+        
+        Returns:
+            Dict with deletion statistics
+        """
+        if not conversation_ids:
+            return {"deleted": 0, "not_found": []}
+        
+        with self.lock:
+            # Create a set for faster lookup
+            ids_to_delete = set(conversation_ids)
+            found_ids = set()
+            
+            # Build new lists/arrays excluding items to delete
+            new_conversations = []
+            new_metadata = []
+            new_embeddings_list = []
+            
+            # Track which IDs were actually found
+            for i, conv in enumerate(self.conversations):
+                conv_id = conv.get("id")
+                if conv_id in ids_to_delete:
+                    found_ids.add(conv_id)
+                    # Skip this conversation (don't add to new lists)
+                    continue
+                
+                # Keep this conversation
+                new_conversations.append(conv)
+                
+                # Keep corresponding metadata
+                if i < len(self.metadata):
+                    new_metadata.append(self.metadata[i])
+                
+                # Keep corresponding embedding
+                if self.embeddings is not None and i < len(self.embeddings):
+                    new_embeddings_list.append(self.embeddings[i])
+            
+            # Check for not found IDs
+            not_found = list(ids_to_delete - found_ids)
+            deleted_count = len(found_ids)
+            
+            # Update in-memory data
+            self.conversations = new_conversations
+            
+            # Update metadata
+            self.metadata = new_metadata
+            
+            # Update embeddings (reconstruct numpy array)
+            if new_embeddings_list:
+                self.embeddings = np.vstack(new_embeddings_list).astype('float32')
+            else:
+                self.embeddings = None
+            
+            # Save updated data to disk
+            if deleted_count > 0:
+                # Rewrite conversations file
+                try:
+                    with open(self.conversations_file, 'w') as f:
+                        for conv in self.conversations:
+                            f.write(json.dumps(conv) + '\n')
+                    logger.info(f"✅ Rewrote conversations file after deletion")
+                except Exception as e:
+                    logger.error(f"❌ Failed to save conversations after deletion: {e}")
+                
+                # Save embeddings and metadata
+                self._save_embeddings()
+                
+                # Rebuild index (in background to avoid blocking)
+                logger.info(f"🔧 Rebuilding index after deleting {deleted_count} conversations...")
+                self._rebuild_index(background=True)
+            
+            logger.info(f"✅ Deleted {deleted_count} conversation(s), {len(not_found)} not found")
+            return {
+                "deleted": deleted_count,
+                "not_found": not_found
+            }
+    
+    def delete_all_conversations(self) -> Dict:
+        """
+        Delete all conversations
+        
+        Returns:
+            Dict with deletion statistics
+        """
+        with self.lock:
+            count = len(self.conversations)
+            
+            # Clear all data
+            self.conversations = []
+            self.embeddings = None
+            self.metadata = []
+            
+            # Clear files
+            try:
+                # Clear conversations file
+                if self.conversations_file.exists():
+                    with open(self.conversations_file, 'w') as f:
+                        pass  # Truncate file
+                    logger.info(f"✅ Cleared conversations file")
+                
+                # Remove embeddings and metadata files
+                if self.embeddings_file.exists():
+                    self.embeddings_file.unlink()
+                    logger.info(f"✅ Removed embeddings file")
+                
+                if self.metadata_file.exists():
+                    self.metadata_file.unlink()
+                    logger.info(f"✅ Removed metadata file")
+                
+                # Remove index file
+                if self.index_file.exists():
+                    self.index_file.unlink()
+                    logger.info(f"✅ Removed index file")
+                
+            except Exception as e:
+                logger.error(f"❌ Failed to clear files: {e}")
+            
+            # Rebuild empty index
+            self._rebuild_index(background=False)
+            
+            logger.info(f"✅ Deleted all {count} conversation(s)")
+            return {
+                "deleted": count
+            }
+    
     def get_stats(self) -> Dict:
         """Get memory statistics"""
         return {
