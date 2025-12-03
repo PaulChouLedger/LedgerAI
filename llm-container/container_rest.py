@@ -387,14 +387,16 @@ Previous conversations (pre-filtered for relevance):
 {conversations_text}
 
 For each conversation, assign a score from 0.0 to 1.0:
-- 1.0 = Perfectly answers the question with relevant information (e.g., "Elizabeth Martinez is an ICU nurse")
+- 1.0 = Perfectly answers the question with relevant information (e.g., "Elizabeth Martinez is an ICU nurse at Memorial Hermann")
 - 0.7-0.9 = Mostly answers the question, contains relevant information
 - 0.4-0.6 = Partially relevant, some useful information
 - 0.1-0.3 = Minimally relevant, little useful information
-- 0.0 = Not relevant, doesn't answer the question (e.g., just repeats the question like "Who is Elizabeth Martinez?")
+- 0.0 = Not relevant, doesn't answer the question
 
-IMPORTANT: Give LOW scores (0.0-0.3) to conversations that are just questions, not answers.
-Give HIGH scores (0.7-1.0) to conversations that provide actual information/answers.
+CRITICAL RULES:
+1. Give VERY LOW scores (0.0-0.2) to conversations that are JUST QUESTIONS (e.g., "Who is Elizabeth Martinez?", "Where does Elizabeth Martinez work?")
+2. Give HIGH scores (0.7-1.0) ONLY to conversations that provide ACTUAL INFORMATION/ANSWERS (e.g., "Elizabeth Martinez is an ICU nurse", "Elizabeth Martinez works at Memorial Hermann")
+3. Questions that don't provide information should score 0.0-0.2, NOT 0.3-0.7
 
 Return ONLY a JSON array with exactly {len(memory_rag_candidates)} scores in order.
 Example: [0.8, 0.1, 0.9, 0.0, 0.7, 0.2]
@@ -445,25 +447,37 @@ JSON array only:"""
                         scored_candidates.sort(key=lambda x: x['score'], reverse=True)
                         
                         # Filter by threshold and return top k
+                        # Use higher threshold (0.5) to filter out questions - only inject actual answers
+                        answer_threshold = max(memory_rag_threshold, 0.5)  # At least 0.5 to ensure answers, not questions
                         memory_rag_results = [
                             r for r in scored_candidates 
-                            if r.get('score', 0) >= memory_rag_threshold
+                            if r.get('score', 0) >= answer_threshold
                         ][:memory_rag_k]
+                        
+                        # CRITICAL: If all results are questions (low scores), don't inject anything
+                        # This prevents hallucination when only questions are available
+                        if memory_rag_results:
+                            top_score = memory_rag_results[0].get('score', 0)
+                            if top_score < 0.5:
+                                print(f"[Generic] ⚠️ All memory RAG results are questions (top score: {top_score:.3f} < 0.5) - skipping injection to prevent hallucination")
+                                memory_rag_results = []
                     except Exception as e:
                         print(f"[Generic] ⚠️ LLM scoring failed: {e}, falling back to re-ranked scores")
                         import traceback
                         traceback.print_exc()
                         # Fallback to re-ranked scores
                         scored_candidates = sorted(memory_rag_candidates, key=lambda x: x.get('score', 0), reverse=True)
+                        # Use higher threshold for fallback too
+                        answer_threshold = max(memory_rag_threshold, 0.5)
                         memory_rag_results = [
                             r for r in scored_candidates 
-                            if r.get('score', 0) >= memory_rag_threshold
+                            if r.get('score', 0) >= answer_threshold
                         ][:memory_rag_k]
                 
                 if memory_rag_results and len(memory_rag_results) > 0:
-                    print(f"[Generic] ✅ Memory RAG found {len(memory_rag_results)} relevant conversations (from {len(memory_rag_candidates)} candidates, threshold={memory_rag_threshold:.2f}) - will inject context")
+                    print(f"[Generic] ✅ Memory RAG found {len(memory_rag_results)} relevant conversations (from {len(memory_rag_candidates)} candidates, threshold={max(memory_rag_threshold, 0.5):.2f}) - will inject context")
                 else:
-                    print(f"[Generic] 🔍 Memory RAG search returned no results above threshold={memory_rag_threshold:.2f} after LLM scoring")
+                    print(f"[Generic] 🔍 Memory RAG search returned no answer-like conversations (all were questions or below threshold) - skipping injection to prevent hallucination")
         
         should_use_rag = (rag_results and len(rag_results) > 0) or (memory_rag_results and len(memory_rag_results) > 0)
         should_use_memory_rag = (memory_rag_results and len(memory_rag_results) > 0)
