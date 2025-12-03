@@ -379,11 +379,42 @@ def handle_conversation(
                         conv_text = candidate.get('text', '')
                         conversations_text += f"{i}. {conv_text}\n"
                     
-                    scoring_prompt = f"""Rate how well each previous conversation answers the user's question.
+                    # Pre-filter: Detect obvious questions using heuristics
+                    question_words = {'who', 'what', 'where', 'when', 'why', 'how', 'which', 'whose', 'whom', 'do', 'does', 'did', 'is', 'are', 'was', 'were', 'can', 'could', 'will', 'would', 'should', 'may', 'might', 'remember'}
+                    filtered_candidates = []
+                    for candidate in memory_rag_candidates:
+                        text = candidate.get('text', '').strip()
+                        # Check if it's a question: starts with question word or "do you remember", ends with "?"
+                        is_question = False
+                        text_lower = text.lower()
+                        if text.endswith('?'):
+                            # Check if starts with question word
+                            first_word = text_lower.split()[0] if text_lower.split() else ""
+                            if first_word in question_words or text_lower.startswith('do you remember') or text_lower.startswith('remember'):
+                                is_question = True
+                        
+                        # Only include if it's NOT a question (has actual information)
+                        if not is_question:
+                            filtered_candidates.append(candidate)
+                        else:
+                            print(f"[Generic]   [Pre-filter] ❌ Excluded question: '{text[:60]}...'")
+                    
+                    # If all candidates were questions, skip LLM scoring and don't inject
+                    if not filtered_candidates:
+                        print(f"[Generic] ⚠️ All memory RAG candidates are questions - skipping injection to prevent hallucination")
+                        memory_rag_results = []
+                    else:
+                        # Use filtered candidates for LLM scoring
+                        conversations_text = ""
+                        for i, candidate in enumerate(filtered_candidates, 1):
+                            conv_text = candidate.get('text', '')
+                            conversations_text += f"{i}. {conv_text}\n"
+                        
+                        scoring_prompt = f"""Rate how well each previous conversation answers the user's question.
 
 User's question: "{prompt}"
 
-Previous conversations (pre-filtered for relevance):
+Previous conversations (pre-filtered to exclude questions):
 {conversations_text}
 
 For each conversation, assign a score from 0.0 to 1.0:
@@ -393,86 +424,75 @@ For each conversation, assign a score from 0.0 to 1.0:
 - 0.1-0.3 = Minimally relevant, little useful information
 - 0.0 = Not relevant, doesn't answer the question
 
-CRITICAL RULES:
-1. Give VERY LOW scores (0.0-0.2) to conversations that are JUST QUESTIONS (e.g., "Who is Elizabeth Martinez?", "Where does Elizabeth Martinez work?")
-2. Give HIGH scores (0.7-1.0) ONLY to conversations that provide ACTUAL INFORMATION/ANSWERS (e.g., "Elizabeth Martinez is an ICU nurse", "Elizabeth Martinez works at Memorial Hermann")
-3. Questions that don't provide information should score 0.0-0.2, NOT 0.3-0.7
+IMPORTANT: All conversations here have been pre-filtered to exclude questions. Only score based on how well they provide actual information/answers.
 
-Return ONLY a JSON array with exactly {len(memory_rag_candidates)} scores in order.
-Example: [0.8, 0.1, 0.9, 0.0, 0.7, 0.2]
+Return ONLY a JSON array with exactly {len(filtered_candidates)} scores in order.
+Example: [0.8, 0.9, 0.7, 0.6, 0.5]
 
 JSON array only:"""
                     
-                    try:
-                        # Call LLM for scoring (non-streaming, fast)
-                        scoring_messages = [{"role": "user", "content": scoring_prompt}]
-                        scoring_response = llm_chat_simple(
-                            scoring_messages,
-                            max_tokens=100,  # Reduced from 200 to 100 for faster response
-                            temperature=0.3,
-                            stream=False
-                        )
-                        
-                        # Parse LLM response to extract scores
-                        import json
-                        import re
-                        json_match = re.search(r'\[[\d\.,\s]+\]', scoring_response)
-                        if json_match:
-                            scores = json.loads(json_match.group())
-                            print(f"[Generic] ✅ LLM returned {len(scores)} scores")
-                        else:
-                            try:
-                                scores = json.loads(scoring_response.strip())
-                            except:
-                                print(f"[Generic] ⚠️ Failed to parse LLM scores, using re-ranked scores as fallback")
-                                scores = [c.get('score', 0.0) for c in memory_rag_candidates]
-                        
-                        # Ensure we have the right number of scores
-                        if len(scores) != len(memory_rag_candidates):
-                            print(f"[Generic] ⚠️ LLM returned {len(scores)} scores but expected {len(memory_rag_candidates)}, using re-ranked scores as fallback")
-                            scores = [c.get('score', 0.0) for c in memory_rag_candidates]
-                        
-                        # Update candidates with LLM scores
-                        scored_candidates = []
-                        for i, (candidate, llm_score) in enumerate(zip(memory_rag_candidates, scores)):
-                            scored_candidates.append({
-                                **candidate,
-                                'score': float(llm_score),
-                                'original_re_ranked_score': candidate.get('score', 0.0),
-                                'llm_score': float(llm_score)
-                            })
-                            print(f"[Generic]   [{i+1}] LLM score: {llm_score:.3f} (re-ranked: {candidate.get('score', 0.0):.3f}): '{candidate.get('text', '')[:60]}...'")
-                        
-                        # Sort by LLM score (descending)
-                        scored_candidates.sort(key=lambda x: x['score'], reverse=True)
-                        
-                        # Filter by threshold and return top k
-                        # Use higher threshold (0.5) to filter out questions - only inject actual answers
-                        answer_threshold = max(memory_rag_threshold, 0.5)  # At least 0.5 to ensure answers, not questions
-                        memory_rag_results = [
-                            r for r in scored_candidates 
-                            if r.get('score', 0) >= answer_threshold
-                        ][:memory_rag_k]
-                        
-                        # CRITICAL: If all results are questions (low scores), don't inject anything
-                        # This prevents hallucination when only questions are available
-                        if memory_rag_results:
-                            top_score = memory_rag_results[0].get('score', 0)
-                            if top_score < 0.5:
-                                print(f"[Generic] ⚠️ All memory RAG results are questions (top score: {top_score:.3f} < 0.5) - skipping injection to prevent hallucination")
-                                memory_rag_results = []
-                    except Exception as e:
-                        print(f"[Generic] ⚠️ LLM scoring failed: {e}, falling back to re-ranked scores")
-                        import traceback
-                        traceback.print_exc()
-                        # Fallback to re-ranked scores
-                        scored_candidates = sorted(memory_rag_candidates, key=lambda x: x.get('score', 0), reverse=True)
-                        # Use higher threshold for fallback too
-                        answer_threshold = max(memory_rag_threshold, 0.5)
-                        memory_rag_results = [
-                            r for r in scored_candidates 
-                            if r.get('score', 0) >= answer_threshold
-                        ][:memory_rag_k]
+                        try:
+                            # Call LLM for scoring (non-streaming, fast)
+                            scoring_messages = [{"role": "user", "content": scoring_prompt}]
+                            scoring_response = llm_chat_simple(
+                                scoring_messages,
+                                max_tokens=100,  # Reduced from 200 to 100 for faster response
+                                temperature=0.3,
+                                stream=False
+                            )
+                            
+                            # Parse LLM response to extract scores
+                            import json
+                            import re
+                            json_match = re.search(r'\[[\d\.,\s]+\]', scoring_response)
+                            if json_match:
+                                scores = json.loads(json_match.group())
+                                print(f"[Generic] ✅ LLM returned {len(scores)} scores")
+                            else:
+                                try:
+                                    scores = json.loads(scoring_response.strip())
+                                except:
+                                    print(f"[Generic] ⚠️ Failed to parse LLM scores, using re-ranked scores as fallback")
+                                    scores = [c.get('score', 0.0) for c in filtered_candidates]
+                            
+                            # Ensure we have the right number of scores
+                            if len(scores) != len(filtered_candidates):
+                                print(f"[Generic] ⚠️ LLM returned {len(scores)} scores but expected {len(filtered_candidates)}, using re-ranked scores as fallback")
+                                scores = [c.get('score', 0.0) for c in filtered_candidates]
+                            
+                            # Update candidates with LLM scores
+                            scored_candidates = []
+                            for i, (candidate, llm_score) in enumerate(zip(filtered_candidates, scores)):
+                                scored_candidates.append({
+                                    **candidate,
+                                    'score': float(llm_score),
+                                    'original_re_ranked_score': candidate.get('score', 0.0),
+                                    'llm_score': float(llm_score)
+                                })
+                                print(f"[Generic]   [{i+1}] LLM score: {llm_score:.3f} (re-ranked: {candidate.get('score', 0.0):.3f}): '{candidate.get('text', '')[:60]}...'")
+                            
+                            # Sort by LLM score (descending)
+                            scored_candidates.sort(key=lambda x: x['score'], reverse=True)
+                            
+                            # Filter by threshold and return top k
+                            # Use higher threshold (0.5) to filter out low-quality results
+                            answer_threshold = max(memory_rag_threshold, 0.5)  # At least 0.5 to ensure quality answers
+                            memory_rag_results = [
+                                r for r in scored_candidates 
+                                if r.get('score', 0) >= answer_threshold
+                            ][:memory_rag_k]
+                        except Exception as e:
+                            print(f"[Generic] ⚠️ LLM scoring failed: {e}, falling back to re-ranked scores")
+                            import traceback
+                            traceback.print_exc()
+                            # Fallback to re-ranked scores (use filtered candidates, not all candidates)
+                            scored_candidates = sorted(filtered_candidates, key=lambda x: x.get('score', 0), reverse=True)
+                            # Use higher threshold for fallback too
+                            answer_threshold = max(memory_rag_threshold, 0.5)
+                            memory_rag_results = [
+                                r for r in scored_candidates 
+                                if r.get('score', 0) >= answer_threshold
+                            ][:memory_rag_k]
                 
                 if memory_rag_results and len(memory_rag_results) > 0:
                     print(f"[Generic] ✅ Memory RAG found {len(memory_rag_results)} relevant conversations (from {len(memory_rag_candidates)} candidates, threshold={max(memory_rag_threshold, 0.5):.2f}) - will inject context")
@@ -769,22 +789,33 @@ JSON array only:"""
             return llm_chat_simple(messages, max_tokens=MAX_TOKENS_RAG_MODE, stream=stream)
         else:
             # No RAG context, use standard prompt with Aura Vision identity
+            # Check if memory RAG was attempted but found no useful information
+            no_useful_memory = (memory_rag_results is not None and len(memory_rag_results) == 0) or (memory_rag_candidates and len(memory_rag_candidates) > 0 and not memory_rag_results)
+            memory_note = ""
+            if no_useful_memory:
+                memory_note = "\n⚠️ IMPORTANT: No useful information was found in conversation memory (only questions were found, no actual answers). DO NOT make up or guess information. If you don't have reliable information about what was asked, say so clearly rather than providing generic or speculative responses.\n\n"
+            
             if is_instruction_request:
                 system_content = (
                     f"{combined_context}\n\n"
                     "You are Aura Vision, an AI agent created by Ledger AI Quantum Corporation. "
                     "You act as a proactive AI agent guiding users to better outcomes through gentle guidance.\n\n"
+                    f"{memory_note}"
                     "Provide a clear, step-by-step response (numbered steps). Keep each step concise and actionable. "
                     "Be conversational and friendly, like Siri or Alexa."
                 )
             else:
-                # Add warning if memory RAG failed
+                # Add warning if memory RAG failed or no useful information found
                 memory_warning = ""
                 if memory_rag_failed:
                     memory_warning = "\n\n⚠️ IMPORTANT: Conversation memory context is unavailable (memory container may be rebuilding index). " \
                                    "Only provide information you are certain about from the provided context. " \
                                    "Do NOT make up or guess information about people, places, or facts. " \
                                    "If you don't have reliable information, say so rather than speculating.\n\n"
+                elif no_useful_memory:
+                    memory_warning = "\n\n⚠️ IMPORTANT: No useful information was found in conversation memory (only questions were found, no actual answers). " \
+                                   "DO NOT make up or guess information. If you don't have reliable information about what was asked, " \
+                                   "say so clearly (e.g., 'I don't have that information in my memory') rather than providing generic or speculative responses.\n\n"
                 
                 system_content = (
                     f"{combined_context}\n\n"
