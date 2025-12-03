@@ -146,8 +146,8 @@ class MemoryManager:
                 self.rebuild_in_progress = True
                 try:
                     # Get current state (snapshot for thread safety)
-        with self.lock:
-            if self.embeddings is None or len(self.embeddings) == 0:
+                    with self.lock:
+                        if self.embeddings is None or len(self.embeddings) == 0:
                             logger.warning("⚠️ No embeddings to index")
                             new_index = faiss.IndexFlatIP(self.embedding_dim)
                         else:
@@ -155,16 +155,17 @@ class MemoryManager:
                             num_vectors = len(embeddings_snapshot)
                             
                             logger.info(f"🔧 Rebuilding FAISS index with {num_vectors} vectors (background: {background})")
-            
-            # Normalize embeddings for cosine similarity
-                            embeddings_normalized = embeddings_snapshot.copy()
-            faiss.normalize_L2(embeddings_normalized)
-            
-                            # Create new index (don't modify existing one yet)
-                            new_index = faiss.IndexFlatIP(self.embedding_dim)
-                            new_index.add(embeddings_normalized)
-                            
-                            logger.info(f"✅ New index built with {new_index.ntotal} vectors")
+                    
+                    # Normalize embeddings for cosine similarity (only if we have embeddings)
+                    if self.embeddings is not None and len(self.embeddings) > 0:
+                        embeddings_normalized = embeddings_snapshot.copy()
+                        faiss.normalize_L2(embeddings_normalized)
+                        
+                        # Create new index (don't modify existing one yet)
+                        new_index = faiss.IndexFlatIP(self.embedding_dim)
+                        new_index.add(embeddings_normalized)
+                        
+                        logger.info(f"✅ New index built with {new_index.ntotal} vectors")
                     
                     # Atomically swap indices (quick operation)
                     # IMPORTANT: Take final snapshot right before swap to include any conversations
@@ -286,12 +287,12 @@ class MemoryManager:
             
             # Use incremental index updates for immediate availability
             # Periodically rebuild in background for optimal performance
-                if self.index is not None:
+            if self.index is not None:
                 embedding_normalized = embedding.copy().reshape(1, -1)  # Ensure 2D shape
-                    faiss.normalize_L2(embedding_normalized)
-                    self.index.add(embedding_normalized)
-                    # Save updated index
-                    faiss.write_index(self.index, str(self.index_file))
+                faiss.normalize_L2(embedding_normalized)
+                self.index.add(embedding_normalized)
+                # Save updated index
+                faiss.write_index(self.index, str(self.index_file))
                 logger.debug(f"✅ Added embedding to FAISS index incrementally (total vectors: {self.index.ntotal})")
                 
                 # Trigger background rebuild periodically (configurable interval)
