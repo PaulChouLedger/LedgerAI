@@ -127,14 +127,16 @@ def get_filler_phrase() -> str:
     """Get a random filler phrase to use while processing (reduces perceived latency)"""
     import random
     filler_phrases = [
-        "Let me think about that...",
-        "Searching my memory...",
-        "Let me recall...",
-        "Thinking...",
-        "Let me check...",
-        "One moment...",
-        "Let me look that up...",
-        "Searching...",
+        "One moment, let me think about that.",
+        "Let me search through my knowledge base for that information.",
+        "Give me a moment to recall the details.",
+        "Let me check what I know about that.",
+        "I'll need a moment to look that up for you.",
+        "Let me think about that for a second.",
+        "One moment, I'm searching through my knowledge base.",
+        "Let me gather the relevant information for you.",
+        "Give me a moment to process that question.",
+        "I'll need a second to find the right information.",
     ]
     return random.choice(filler_phrases)
 
@@ -1057,10 +1059,18 @@ def chat_tts():
             if will_use_rag:
                 filler_phrase = get_filler_phrase()
                 print(f"[Generic] 💭 Yielding filler phrase before RAG processing: '{filler_phrase}'")
+                # Yield filler phrase with proper sentence tags - must be complete before LLM response
                 yield "<sentence_start>\n"
-                for word in filler_phrase.split():
-                    yield f"{word} "
-                yield "<sentence_end>\n"
+                words = filler_phrase.split()
+                for i, word in enumerate(words):
+                    if i < len(words) - 1:
+                        yield f"{word} "
+                    else:
+                        yield f"{word}"
+                yield "\n<sentence_end>\n"
+                # Small delay to ensure filler phrase is fully processed before LLM response starts
+                import time
+                time.sleep(0.1)  # 100ms delay to ensure TTS starts processing filler phrase
             
             # Use streaming mode to get tokens as they're generated, with memory context
             result = handle_conversation(prompt, session_id, memory_context=memory_context, stream=True)
