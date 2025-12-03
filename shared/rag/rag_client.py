@@ -287,58 +287,67 @@ class RAGClient:
                 
                 # If query has person names, check if at least one name appears in this chunk
                 if has_person_name:
-                    # Check full names first (e.g., "Elizabeth Martinez")
+                    # Check full names first (e.g., "John Smith" vs "John Smyth" - handles spelling variations)
                     for name in query_names_lower:
                         name_words = name.split()
                         if len(name_words) >= 2:
-                            # Check if at least 2 words of the name appear in chunk
-                            matches = sum(1 for word in name_words if word in chunk_text)
-                            if matches >= 2:
+                            # Check if at least 2 words of the name appear in chunk (using fuzzy matching for spelling variations)
+                            # Use fuzzy matching for all name words to handle transcription/spelling errors
+                            first_name_match = name_words[0] in chunk_text or fuzzy_match_term(name_words[0], chunk_text, threshold=0.75)
+                            last_name_match = name_words[-1] in chunk_text or fuzzy_match_term(name_words[-1], chunk_text, threshold=0.75)
+                            
+                            # If both first and last name match (exact or fuzzy), we found the person
+                            if first_name_match and last_name_match:
+                                name_found = True
+                                break
+                            # Or if at least 2 words match (exact or fuzzy)
+                            elif sum(1 for word in name_words if word in chunk_text or fuzzy_match_term(word, chunk_text, threshold=0.75)) >= 2:
                                 name_found = True
                                 break
                     
-                    # If full name not found, check individual capitalized words
+                    # If full name not found, check individual capitalized words with fuzzy matching
                     if not name_found and query_capitalized_lower:
                         for cap_word in query_capitalized_lower:
-                            if cap_word in chunk_text:
+                            # Use fuzzy matching to handle spelling variations (e.g., transcription errors)
+                            word_match = cap_word in chunk_text or fuzzy_match_term(cap_word, chunk_text, threshold=0.75)
+                            if word_match:
                                 # Check if at least one other capitalized word also appears (to avoid false positives)
                                 other_caps = [w for w in query_capitalized_lower if w != cap_word]
-                                if len(other_caps) == 0 or any(w in chunk_text for w in other_caps):
+                                if len(other_caps) == 0:
                                     name_found = True
                                     break
+                                else:
+                                    # At least one other capitalized word should also match
+                                    other_match = any(w in chunk_text or fuzzy_match_term(w, chunk_text, threshold=0.75) for w in other_caps)
+                                    if other_match:
+                                        name_found = True
+                                        break
                 
-                # First try exact substring matching (fastest)
-                exact_matching_terms = sum(1 for term in key_terms if term in chunk_text)
-                if exact_matching_terms >= 2:  # At least 2 key terms match exactly
+                # Check ALL key terms with fuzzy matching (handles transcription errors and spelling variations)
+                # Count both exact and fuzzy matches together
+                matching_terms = 0
+                for term in key_terms:
+                    if term in chunk_text:
+                        matching_terms += 1  # Exact match
+                    elif fuzzy_match_term(term, chunk_text, threshold=0.75):
+                        matching_terms += 1  # Fuzzy match
+                
+                if matching_terms >= 2:  # At least 2 key terms match (exact or fuzzy)
                     # If query has person names, require name match too
                     if has_person_name and not name_found:
                         continue  # Skip this chunk, no name match
-                    exact_matches = 2  # Found 2+ matches, definitely use RAG
+                    # Found 2+ matches (exact or fuzzy), definitely use RAG
+                    exact_matches = 2
+                    fuzzy_matches = 0  # Reset fuzzy_matches since we're using combined count
                     break  # Found good match, no need to continue
-                elif exact_matching_terms == 1:
-                    # Track single exact match, but continue looking for better matches
+                elif matching_terms == 1:
+                    # Track single match, but continue looking for better matches
                     if exact_matches == 0:
                         # If query has person names, require name match too
                         if has_person_name and not name_found:
                             continue  # Skip this chunk, no name match
                         exact_matches = 1
-                
-                # If no exact match, try fuzzy matching for transcription errors
-                if exact_matching_terms == 0:
-                    fuzzy_matching_terms = sum(1 for term in key_terms if fuzzy_match_term(term, chunk_text, threshold=0.75))
-                    if fuzzy_matching_terms >= 2:  # At least 2 key terms fuzzy match
-                        # If query has person names, require name match too
-                        if has_person_name and not name_found:
-                            continue  # Skip this chunk, no name match
-                        fuzzy_matches = 2  # Found 2+ fuzzy matches, definitely use RAG
-                        break  # Found good match, no need to continue
-                    elif fuzzy_matching_terms == 1:
-                        # Track single fuzzy match, but continue looking for better matches
-                        if fuzzy_matches == 0:
-                            # If query has person names, require name match too
-                            if has_person_name and not name_found:
-                                continue  # Skip this chunk, no name match
-                            fuzzy_matches = 1
+                        fuzzy_matches = 0  # Reset fuzzy_matches since we're using combined count
             
             # If query has person names but none were found, don't use RAG
             if has_person_name and not name_found:
@@ -346,10 +355,11 @@ class RAGClient:
             
             # Require at least 2 matches (exact or fuzzy) to use RAG - prevents false positives
             # This ensures RAG is only used when there's actual relevant content
-            if exact_matches >= 2 or fuzzy_matches >= 2:
+            # Note: exact_matches now counts both exact and fuzzy matches combined
+            if exact_matches >= 2:
                 return True
             elif exact_matches == 1 and fuzzy_matches == 1:
-                # One exact + one fuzzy = 2 total matches, use RAG
+                # One match from first pass + one from second pass = 2 total matches, use RAG
                 return True
             
             # Not enough matches found - skip RAG
