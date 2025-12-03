@@ -28,7 +28,8 @@ Restart=on-failure
 RestartSec=5
 # Monitor both aura.service and manual main.py execution
 # Check if aura.service is active OR if main.py process is running
-ExecStart=/bin/bash -c 'while systemctl is-active --quiet aura.service || pgrep -f "python.*main.py" > /dev/null; do pkill -f "onboard|caribou|matchbox-keyboard" 2>/dev/null || true; sleep 2; done'
+# Use aggressive SIGKILL (-9) and check every 1 second to catch restarts faster
+ExecStart=/bin/bash -c 'while systemctl is-active --quiet aura.service || pgrep -f "python.*main.py" > /dev/null; do pkill -9 -f "onboard|caribou|matchbox-keyboard|gnome-shell.*keyboard|ibus.*keyboard" 2>/dev/null || true; systemctl --user stop onboard.service 2>/dev/null || true; sleep 1; done'
 StandardOutput=journal
 StandardError=journal
 

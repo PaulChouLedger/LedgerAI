@@ -82,24 +82,80 @@ def monitor_and_disable_ubuntu_keyboard():
     global _keyboard_monitor_running
     _keyboard_monitor_running = True
     
+    # Try to stop systemd services on first run
+    try:
+        subprocess.run(["systemctl", "--user", "stop", "onboard.service"], 
+                      check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=1)
+    except Exception:
+        pass
+    
     while _keyboard_monitor_running:
         try:
-            # Kill any running Ubuntu keyboard processes
-            subprocess.run(["pkill", "-f", "onboard"], check=False,
-                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            subprocess.run(["pkill", "-f", "caribou"], check=False,
-                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            subprocess.run(["pkill", "-f", "matchbox-keyboard"], check=False,
-                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            # Kill all Ubuntu keyboard processes with a single aggressive command
+            # Using SIGKILL (-9) and regex to catch all variants
+            subprocess.run(["pkill", "-9", "-f", "onboard|caribou|matchbox-keyboard|gnome-shell.*keyboard|ibus.*keyboard"], 
+                          check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=1)
+            
+            # Also try individual kills as fallback (more reliable)
+            subprocess.run(["pkill", "-9", "-f", "onboard"], check=False,
+                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=1)
+            subprocess.run(["pkill", "-9", "-f", "caribou"], check=False,
+                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=1)
+            subprocess.run(["pkill", "-9", "-f", "matchbox-keyboard"], check=False,
+                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=1)
+            
+            # Try to stop systemd user services if they exist
+            subprocess.run(["systemctl", "--user", "stop", "onboard.service"], 
+                          check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=1)
         except Exception:
             pass
         
-        # Check every 2 seconds
-        time.sleep(2)
+        # Check every 1 second (more frequent to catch restarts faster)
+        time.sleep(1)
+
+def disable_keyboard_autostart():
+    """Disable Ubuntu keyboard autostart by creating override files in ~/.config/autostart"""
+    try:
+        autostart_dir = os.path.expanduser("~/.config/autostart")
+        os.makedirs(autostart_dir, exist_ok=True)
+        
+        # Disable onboard
+        onboard_override = os.path.join(autostart_dir, "onboard.desktop")
+        with open(onboard_override, 'w') as f:
+            f.write("[Desktop Entry]\n")
+            f.write("Hidden=true\n")
+            f.write("NoDisplay=true\n")
+        
+        # Disable caribou
+        caribou_override = os.path.join(autostart_dir, "caribou.desktop")
+        with open(caribou_override, 'w') as f:
+            f.write("[Desktop Entry]\n")
+            f.write("Hidden=true\n")
+            f.write("NoDisplay=true\n")
+    except Exception:
+        pass  # Silently fail if we can't write to autostart directory
+
+def enable_keyboard_autostart():
+    """Re-enable Ubuntu keyboard autostart by removing override files"""
+    try:
+        autostart_dir = os.path.expanduser("~/.config/autostart")
+        # Remove override files if they exist
+        onboard_override = os.path.join(autostart_dir, "onboard.desktop")
+        caribou_override = os.path.join(autostart_dir, "caribou.desktop")
+        if os.path.exists(onboard_override):
+            os.remove(onboard_override)
+        if os.path.exists(caribou_override):
+            os.remove(caribou_override)
+    except Exception:
+        pass  # Silently fail if we can't remove files
 
 def start_keyboard_monitor():
     """Start the background thread that monitors and disables Ubuntu keyboard"""
     global _keyboard_monitor_thread
+    
+    # Disable autostart first (prevents keyboard from starting)
+    disable_keyboard_autostart()
+    
     if _keyboard_monitor_thread is None or not _keyboard_monitor_thread.is_alive():
         _keyboard_monitor_thread = threading.Thread(target=monitor_and_disable_ubuntu_keyboard, daemon=True)
         _keyboard_monitor_thread.start()
@@ -109,6 +165,10 @@ def stop_keyboard_monitor():
     """Stop the background thread (allows Ubuntu keyboard to restart when main.py exits)"""
     global _keyboard_monitor_running
     _keyboard_monitor_running = False
+    
+    # Re-enable autostart when Aura stops
+    enable_keyboard_autostart()
+    
     print("[Aura] ⌨️  Ubuntu keyboard monitor stopped (keyboard can restart)")
 
 # Register cleanup on exit
