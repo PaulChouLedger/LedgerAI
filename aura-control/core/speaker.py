@@ -218,6 +218,7 @@ _batch_lock = threading.Lock()
 _batch_timer = None  # Timer for delayed flush
 _batch_started = False  # Track if we've sent the first batch (for low-latency start)
 _llm_request_start_time = None  # Track when LLM request started for accurate latency measurement
+_sentence_enqueue_time = None  # Track when sentence was enqueued for latency measurement
 TTS_TOKEN_LIMIT = 200  # Max tokens before forcing sentence split (hardcoded)
 USE_SSML = True
 INSERT_BREAKS = True
@@ -851,8 +852,12 @@ def tts_playback_thread(text, tts_start_time):
             print(f"[TokenUsage] ⚠️ Failed to track TTS usage: {e}")
         
         try:
+            tts_api_start_time = time.time()
             stream = _generate_tts_audio(text)
             first_chunk = next(stream, None)
+            tts_api_latency = time.time() - tts_api_start_time
+            if tts_api_latency > 0.5:  # Only log if significant
+                print(f"[Speaker] ⏱️ ElevenLabs API latency: {tts_api_latency:.3f}s (time to first chunk)")
             if not first_chunk:
                 raise RuntimeError("No audio received")
 
@@ -949,6 +954,7 @@ def tts_playback_thread(text, tts_start_time):
 def playback_loop():
     set_volume_once()
     while True:
+        queue_get_time = time.time()
         sentence = SENTENCE_QUEUE.get()
         sentence = preprocess_for_tts(sentence)
         if not sentence or sentence.lower() in {"uh", "hmm", "um", "<silence>"}:
@@ -956,11 +962,19 @@ def playback_loop():
             continue
         print(f"[Speaker] 🔈 Speaking: \"{sentence}\"")
         # Use LLM request start time if available, otherwise use current time
-        global _llm_request_start_time
+        global _llm_request_start_time, _sentence_enqueue_time
         tts_start_time = _llm_request_start_time if _llm_request_start_time is not None else time.time()
         # Reset after first use to avoid using stale time for subsequent chunks
         if _llm_request_start_time is not None:
             _llm_request_start_time = None
+        
+        # Track queue processing latency
+        if _sentence_enqueue_time is not None:
+            queue_latency = queue_get_time - _sentence_enqueue_time
+            if queue_latency > 0.1:  # Only log if significant
+                print(f"[Speaker] ⏱️ Queue processing latency: {queue_latency:.3f}s")
+            _sentence_enqueue_time = None
+        
         threading.Thread(target=tts_playback_thread, args=(sentence, tts_start_time), daemon=True).start()
         # Removed sleep to reduce latency - threads are daemon so they won't block
 
@@ -1191,6 +1205,7 @@ def speak_llm_response(prompt, context=""):
                 continue
             elif token == '<sentence_end>':
                 # Send remaining buffer to TTS when sentence_end tag is received
+                sentence_end_received_time = time.time()
                 if sentence_buffer:
                     # Join all buffered tokens into complete sentence
                     chunk_text = "".join(sentence_buffer).strip()
@@ -1207,6 +1222,9 @@ def speak_llm_response(prompt, context=""):
                             # First sentence - send immediately
                             print(f"[Speaker] 🎙️ <sentence_end> received - sending first sentence to TTS: '{clean_text[:60]}...'")
                             enqueue_tts_chunk(clean_text)
+                            # Store time when sentence was enqueued for latency tracking
+                            global _sentence_enqueue_time
+                            _sentence_enqueue_time = sentence_end_received_time
                         else:
                             # We have a batch started - check if this sentence should be added to it
                             should_batch = False
