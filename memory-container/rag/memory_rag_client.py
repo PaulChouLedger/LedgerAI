@@ -12,7 +12,7 @@ import logging
 # Import fuzzy matching utilities from shared directory
 # Ensure /shared is in path (must be first to take precedence)
 if '/shared' not in sys.path:
-sys.path.insert(0, '/shared')
+    sys.path.insert(0, '/shared')
 
 # Verify shared directory is mounted
 if not os.path.exists('/shared'):
