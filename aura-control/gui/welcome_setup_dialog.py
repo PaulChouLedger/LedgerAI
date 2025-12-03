@@ -158,9 +158,14 @@ class WelcomeSetupDialog(BaseAuraDialog):
         # CRITICAL: Kill Ubuntu keyboard immediately when dialog shows
         self._kill_ubuntu_keyboard()
         
+        # Re-center dialog immediately (in case it was moved)
+        self._recenter_dialog()
+        
         # Set up continuous keyboard monitoring while dialog is open
         def monitor_keyboard():
             self._kill_ubuntu_keyboard()
+            # Re-center after keyboard operations
+            self._recenter_dialog()
         
         # Kill immediately
         monitor_keyboard()
@@ -176,6 +181,8 @@ class WelcomeSetupDialog(BaseAuraDialog):
         def check_and_scan():
             # Kill keyboard before any operations
             self._kill_ubuntu_keyboard()
+            # Re-center dialog
+            self._recenter_dialog()
             # First check current WiFi status and display it (only once)
             self.check_wifi_connection()
             # Then scan for networks (scan will update connection status if it changes)
@@ -192,6 +199,10 @@ class WelcomeSetupDialog(BaseAuraDialog):
         except Exception:
             # Fallback: check after short delay
             QTimer.singleShot(200, check_and_scan)
+        
+        # Also re-center after a short delay to ensure it stays centered
+        QTimer.singleShot(300, self._recenter_dialog)
+        QTimer.singleShot(600, self._recenter_dialog)
     
     def closeEvent(self, event):
         """Handle dialog close - prevent closing if WiFi not connected"""
@@ -396,10 +407,17 @@ class WelcomeSetupDialog(BaseAuraDialog):
         except Exception:
             pass
     
+    def _recenter_dialog(self):
+        """Re-center the dialog to ensure white border aligns with screen"""
+        # Use the base class centering method
+        self._center_dialog()
+    
     def _monitor_keyboard_during_dialog(self):
         """Monitor and kill Ubuntu keyboard while dialog is open"""
         def kill_keyboard():
             self._kill_ubuntu_keyboard()
+            # Re-center dialog after keyboard operations (they can affect window position)
+            self._recenter_dialog()
         
         # Kill immediately
         kill_keyboard()
@@ -533,6 +551,8 @@ class WelcomeSetupDialog(BaseAuraDialog):
             self.wifi_list.clear()
             self.wifi_list.addItem(f"Error: {error}")
             QMessageBox.warning(self, "WiFi Scan Error", error)
+            # Re-center dialog after message box
+            self._recenter_dialog()
             # Don't check WiFi connection here - it was already checked in _on_show()
         except (RuntimeError, AttributeError):
             # Dialog was deleted, ignore silently
@@ -580,11 +600,16 @@ class WelcomeSetupDialog(BaseAuraDialog):
                 # Show keyboard and get password
                 if keyboard.exec_() == QDialog.Accepted:
                     password = keyboard.get_text()
+                    # Re-center welcome dialog after password keyboard closes
+                    self._recenter_dialog()
                     if not password:
                         QMessageBox.warning(self, "No Password", "Password cannot be empty")
+                        # Re-center after message box
+                        self._recenter_dialog()
                         return
                 else:
-                    # User cancelled
+                    # User cancelled - re-center welcome dialog
+                    self._recenter_dialog()
                     return
             except ImportError:
                 # If custom keyboard not available, show error instead of using QInputDialog
@@ -594,6 +619,8 @@ class WelcomeSetupDialog(BaseAuraDialog):
                     "Custom password keyboard not available.\n\n"
                     "Please use Safe Mode to configure WiFi."
                 )
+                # Re-center after message box
+                self._recenter_dialog()
                 return
         
         self.status_label.setText(f"🔗 Connecting to {ssid}...")
@@ -712,6 +739,8 @@ class WelcomeSetupDialog(BaseAuraDialog):
                     # Kill keyboard again before showing error dialog
                     self._kill_ubuntu_keyboard()
                     QMessageBox.warning(self, "Connection Failed", detailed_error)
+                    # Re-center dialog after message box (message boxes can affect parent position)
+                    self._recenter_dialog()
                     # Kill keyboard after dialog closes
                     QTimer.singleShot(100, self._kill_ubuntu_keyboard)
                     self.check_wifi_connection()
@@ -721,6 +750,8 @@ class WelcomeSetupDialog(BaseAuraDialog):
             self.status_label.setText(f"✅ Connected to {ssid}")
             self.status_label.setStyleSheet("color: #34C759; margin: 10px;")
             QMessageBox.information(self, "Success", f"Connected to {ssid}")
+            # Re-center dialog after message box
+            self._recenter_dialog()
             
             # Wait a moment for connection to stabilize
             time.sleep(2)
@@ -732,6 +763,8 @@ class WelcomeSetupDialog(BaseAuraDialog):
             self.status_label.setText("❌ Connection error")
             self.status_label.setStyleSheet("color: #FF3B30; margin: 10px;")
             QMessageBox.warning(self, "Error", str(e))
+            # Re-center dialog after message box
+            self._recenter_dialog()
             self.check_wifi_connection()
         finally:
             self.connect_wifi_btn.setText("🔗 Connect")

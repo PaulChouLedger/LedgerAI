@@ -288,6 +288,58 @@ class OTACheckThread(QThread):
             print(f"[OTA Check] ⚠️ Error checking for updates: {e}")
             self.check_complete.emit(False, 0)
 
+class ContainerSwitchThread(QThread):
+    """Background thread to switch LLM containers without blocking UI"""
+    switch_complete = pyqtSignal(bool, str)  # success, message
+    
+    def __init__(self, mode_now: str):
+        super().__init__()
+        self.mode_now = mode_now
+    
+    def run(self):
+        """Switch containers in background"""
+        try:
+            import subprocess
+            workspace_root = os.path.expanduser("~/LedgerAI")
+            setup_dir = os.path.join(workspace_root, "setup")
+            
+            # Determine which containers to stop/start
+            new_service = "llm-medical" if self.mode_now == "medical" else "llm-generic"
+            old_service = "llm-generic" if self.mode_now == "medical" else "llm-medical"
+            
+            print(f"[ModelSettings] 🔄 Switching LLM mode: {self.mode_now}")
+            print(f"[ModelSettings] 🛑 Stopping: {old_service}")
+            print(f"[ModelSettings] 🚀 Starting: {new_service}")
+            
+            # Stop old container
+            stop_result = subprocess.run(
+                ["docker", "compose", "stop", old_service],
+                cwd=setup_dir,
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+            
+            # Start new container
+            start_result = subprocess.run(
+                ["docker", "compose", "up", "-d", new_service],
+                cwd=setup_dir,
+                capture_output=True,
+                text=True,
+                timeout=60
+            )
+            
+            if start_result.returncode == 0:
+                print(f"[ModelSettings] ✅ Container switched successfully: {new_service}")
+                self.switch_complete.emit(True, f"Switched to {new_service}")
+            else:
+                error_msg = start_result.stderr or "Unknown error"
+                print(f"[ModelSettings] ⚠️ Failed to start container: {error_msg}")
+                self.switch_complete.emit(False, f"Failed to start {new_service}: {error_msg}")
+        except Exception as e:
+            print(f"[ModelSettings] ⚠️ Error switching container: {e}")
+            self.switch_complete.emit(False, f"Error: {str(e)}")
+
 class OTAUpdateThread(QThread):
     """Thread to perform OTA update without blocking UI"""
     update_progress = pyqtSignal(str)
@@ -1440,24 +1492,52 @@ class AIModelSettingsDialog(BaseAuraDialog):
         
         self.memory_toggle.toggled.connect(on_memory_toggled)
         
-        # Connect mode buttons - ensure mutual exclusivity
+        # Connect mode buttons - ensure mutual exclusivity and immediate UI update
         def on_generic_clicked():
+            # Update button states immediately (before any async operations)
             if self.mode_generic_btn.isChecked():
                 self.mode_medical_btn.setChecked(False)
+                # Update styles immediately
+                self._update_mode_button_styles()
+                # Then trigger mode change (which will do async container switch)
                 self._on_mode_changed("generic")
+            else:
+                # If unchecking, don't allow it (at least one must be checked)
+                self.mode_generic_btn.setChecked(True)
         
         def on_medical_clicked():
+            # Update button states immediately (before any async operations)
             if self.mode_medical_btn.isChecked():
                 self.mode_generic_btn.setChecked(False)
+                # Update styles immediately
+                self._update_mode_button_styles()
+                # Then trigger mode change (which will do async container switch)
                 self._on_mode_changed("medical")
+            else:
+                # If unchecking, don't allow it (at least one must be checked)
+                self.mode_medical_btn.setChecked(True)
         
         self.mode_generic_btn.clicked.connect(on_generic_clicked)
         self.mode_medical_btn.clicked.connect(on_medical_clicked)
+        
+        # Initialize container switch thread
+        self.container_switch_thread = None
         self.restart_llm_btn.clicked.connect(self._restart_llm)
         self.model_combo.currentTextChanged.connect(self._on_model_changed)
     
     def _on_close(self):
         """Override for cleanup"""
+        # Stop container switch thread if running
+        if hasattr(self, 'container_switch_thread') and self.container_switch_thread:
+            try:
+                if self.container_switch_thread.isRunning():
+                    print("[AIModelSettings] Stopping container switch thread...")
+                    self.container_switch_thread.quit()
+                    self.container_switch_thread.wait(2000)  # Wait up to 2 seconds
+                self.container_switch_thread = None
+            except Exception as e:
+                print(f"[AIModelSettings] Error stopping container switch thread: {e}")
+        
         # Always ensure transcription is unblocked when dialog closes
         try:
             from listener import unblock_transcription
@@ -1545,62 +1625,9 @@ class AIModelSettingsDialog(BaseAuraDialog):
         self.mode_medical_btn.setStyleSheet(self.button_style_checked if self.mode_medical_btn.isChecked() else self.button_style_unchecked)
     
     def _restart_llm_container(self, mode_now: str):
-        """Restart LLM container when mode changes."""
-        try:
-            import subprocess
-            workspace_root = os.path.expanduser("~/LedgerAI")
-            setup_dir = os.path.join(workspace_root, "setup")
-            
-            # Determine which containers to stop/start
-            new_service = "llm-medical" if mode_now == "medical" else "llm-generic"
-            old_service = "llm-generic" if mode_now == "medical" else "llm-medical"
-            
-            print(f"[ModelSettings] 🔄 Switching LLM mode: {mode_now}")
-            print(f"[ModelSettings] 🛑 Stopping: {old_service}")
-            print(f"[ModelSettings] 🚀 Starting: {new_service}")
-            
-            # Stop old container
-            stop_result = subprocess.run(
-                ["docker", "compose", "stop", old_service],
-                cwd=setup_dir,
-                capture_output=True,
-                text=True,
-                timeout=30
-            )
-            
-            # Start new container
-            start_result = subprocess.run(
-                ["docker", "compose", "up", "-d", new_service],
-                cwd=setup_dir,
-                capture_output=True,
-                text=True,
-                timeout=60
-            )
-            
-            if start_result.returncode == 0:
-                print(f"[ModelSettings] ✅ Container switched successfully: {new_service}")
-                # Update button styles
-                self._update_mode_button_styles()
-                # Repopulate models for new mode
-                self._populate_models()
-                # No message box - silent update for better UX
-            else:
-                print(f"[ModelSettings] ⚠️ Failed to start container: {start_result.stderr}")
-                QMessageBox.warning(
-                    self,
-                    "Container Switch Failed",
-                    f"Failed to start {new_service} container.\n\n"
-                    f"Error: {start_result.stderr or 'Unknown error'}\n\n"
-                    "Please restart Aura manually to apply the change."
-                )
-        except Exception as e:
-            print(f"[ModelSettings] ⚠️ Error switching container: {e}")
-            QMessageBox.warning(
-                self,
-                "Error",
-                f"Failed to switch container: {e}\n\n"
-                "Please restart Aura manually to apply the change."
-            )
+        """Restart LLM container when mode changes - DEPRECATED: use _switch_containers_async instead"""
+        # This method is kept for backward compatibility but should use async version
+        self._switch_containers_async(mode_now)
     
     def _prompt_restart(self):
         try:
@@ -1668,21 +1695,48 @@ class AIModelSettingsDialog(BaseAuraDialog):
             return False
     
     def _on_mode_changed(self, mode: str):
-        """Handle mode change (generic/medical)"""
+        """Handle mode change (generic/medical) - runs asynchronously"""
         try:
             self._save_mode_locally(mode)
             print(f"[ModelSettings] Mode changed to: {mode}")
             
-            # Update button styles immediately
-            self._update_mode_button_styles()
-            
-            # Repopulate models for the new mode
+            # Repopulate models for the new mode (this is fast, can do synchronously)
             self._populate_models()
             
-            # Automatically switch containers in real-time
-            self._restart_llm_container(mode)
+            # Switch containers in background thread (non-blocking)
+            self._switch_containers_async(mode)
         except Exception as e:
             print(f"[ModelSettings] Error changing mode: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    def _switch_containers_async(self, mode: str):
+        """Switch containers in background thread without blocking UI"""
+        # Stop any existing switch thread
+        if self.container_switch_thread and self.container_switch_thread.isRunning():
+            print("[ModelSettings] ⚠️ Previous container switch still running, waiting...")
+            self.container_switch_thread.wait(5000)  # Wait up to 5 seconds
+        
+        # Create and start new switch thread
+        self.container_switch_thread = ContainerSwitchThread(mode)
+        self.container_switch_thread.switch_complete.connect(self._on_container_switch_complete)
+        self.container_switch_thread.start()
+        print(f"[ModelSettings] 🔄 Starting container switch in background thread...")
+    
+    def _on_container_switch_complete(self, success: bool, message: str):
+        """Handle container switch completion"""
+        if success:
+            print(f"[ModelSettings] ✅ {message}")
+            # Update button styles (in case they weren't updated yet)
+            self._update_mode_button_styles()
+        else:
+            print(f"[ModelSettings] ⚠️ {message}")
+            QMessageBox.warning(
+                self,
+                "Container Switch Failed",
+                f"{message}\n\n"
+                "Please restart Aura manually to apply the change."
+            )
     
     def _on_model_changed(self, model_name: str):
         """Handle model selection change - update in real-time"""
