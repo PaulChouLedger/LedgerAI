@@ -200,7 +200,7 @@ class MemoryRAGClient:
             return True
         elif exact_matches == 1 and fuzzy_matches == 1:
             # One match from first pass + one from second pass = 2 total matches, use RAG
-            return True
+                    return True
         
         # Not enough matches found - skip RAG
         return False

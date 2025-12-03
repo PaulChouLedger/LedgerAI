@@ -1216,49 +1216,22 @@ def speak_llm_response(prompt, context=""):
                     clean_text = re.sub(r'\s+', ' ', clean_text).strip()
                     
                     if clean_text and not _is_empty_sentence(clean_text):
-                        # Always send the first sentence immediately for low latency
-                        # Only batch subsequent sentences if they're related
-                        if not sentence_batch:
-                            # First sentence - send immediately
-                            print(f"[Speaker] 🎙️ <sentence_end> received - sending first sentence to TTS: '{clean_text[:60]}...'")
-                            enqueue_tts_chunk(clean_text)
-                            # Store time when sentence was enqueued for latency tracking
-                            global _sentence_enqueue_time
+                        # OPTIMIZED: Send each sentence immediately when <sentence_end> is received
+                        # This allows TTS to start playing while LLM continues generating next sentence
+                        # No batching - each sentence is sent as soon as it's complete for lowest latency
+                        
+                        # Flush any pending batch first (maintain order)
+                        if sentence_batch:
+                            _flush_sentence_batch()
+                        
+                        # Send this sentence immediately - don't wait for LLM to finish generating
+                        print(f"[Speaker] 🎙️ <sentence_end> received - sending sentence to TTS immediately: '{clean_text[:60]}...'")
+                        enqueue_tts_chunk(clean_text)
+                        
+                        # Store time when first sentence was enqueued for latency tracking
+                        global _sentence_enqueue_time
+                        if _sentence_enqueue_time is None:
                             _sentence_enqueue_time = sentence_end_received_time
-                        else:
-                            # We have a batch started - check if this sentence should be added to it
-                            should_batch = False
-                            
-                            # Check if we should batch with previous sentence
-                            prev_text = sentence_batch[-1]
-                            if _should_batch_with_previous(prev_text, clean_text):
-                                should_batch = True
-                            
-                            # Also batch if current sentence is incomplete (needs continuation)
-                            if _is_incomplete_sentence(clean_text):
-                                should_batch = True
-                            
-                            # Batch short sentences or list items (only if we already have a batch)
-                            if not should_batch and (_is_short_sentence(clean_text) or _is_list_item(clean_text)):
-                                should_batch = True
-                            
-                            # Check if we need to flush before adding this sentence
-                            if _should_flush_batch(clean_text):
-                                _flush_sentence_batch()
-                                should_batch = False  # After flush, this becomes a new batch
-                            
-                            if should_batch:
-                                sentence_batch.append(clean_text)
-                                print(f"[Speaker] 📝 Sentence buffered for grouping ({len(clean_text)} chars): '{clean_text[:60]}...'")
-                                # Flush if batch is full or too large
-                                if _should_flush_batch():
-                                    _flush_sentence_batch()
-                            else:
-                                # Flush any pending batch first
-                                _flush_sentence_batch()
-                                # Send this sentence immediately (it's a complete, standalone sentence)
-                                print(f"[Speaker] 🎙️ <sentence_end> received - sending sentence to TTS: '{clean_text[:60]}...'")
-                                enqueue_tts_chunk(clean_text)
                     else:
                         # Empty or whitespace-only sentence - skip it
                         if clean_text:

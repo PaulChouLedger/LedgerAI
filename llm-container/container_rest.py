@@ -192,7 +192,7 @@ def extract_relevant_sentences(chunk_text: str, query_person_names: List[str]) -
         return ' '.join(relevant_sentences)
     else:
         # No relevant sentences found, return empty (chunk will be filtered out)
-        return ""
+            return ""
 
 # === Conversational Logic ===
 def handle_conversation(
@@ -445,7 +445,6 @@ JSON array only:"""
                             r for r in scored_candidates 
                             if r.get('score', 0) >= memory_rag_threshold
                         ][:memory_rag_k]
-                        
                     except Exception as e:
                         print(f"[Generic] ⚠️ LLM scoring failed: {e}, falling back to semantic scores")
                         import traceback
@@ -1369,9 +1368,25 @@ def _sentence_tag_stream(word_stream):
             yield word_to_yield
             sentence_buffer += word_to_yield
         
-        # REMOVED: Punctuation-based sentence splitting
-        # Only tags should control sentence boundaries, not punctuation/grammar
-        # This prevents awkward splits and isolated punctuation marks
+        # Detect sentence endings based on punctuation (for immediate TTS processing)
+        # Check if word ends with sentence-ending punctuation
+        word_ends_with_punct = False
+        sentence_ending_punct = None
+        for punct in SENTENCE_ENDINGS:
+            if word_to_yield.rstrip().endswith(punct):
+                word_ends_with_punct = True
+                sentence_ending_punct = punct
+                break
+        
+        # If sentence ending detected, close current sentence and start new one
+        # This allows TTS to start processing first sentence while LLM generates subsequent ones
+        if word_ends_with_punct and sentence_open:
+            # Close current sentence
+            yield "<sentence_end>"
+            sentence_buffer = ""
+            sentence_open = False
+            # Note: Don't immediately start new sentence - wait for next word
+            # This prevents empty sentences if stream ends
     
     # Process the word stream
     for word in word_stream:
