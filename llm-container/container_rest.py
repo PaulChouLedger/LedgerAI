@@ -1021,6 +1021,47 @@ def chat_tts():
     def generate_response():
         full_response_text = ""  # Accumulate full response for memory storage
         try:
+            # Check if RAG will be used BEFORE processing (to play filler phrase during RAG)
+            will_use_rag = False
+            if RAG_MODE in ("CPU", "GPU"):
+                try:
+                    # Quick check: will document RAG be used?
+                    client = get_rag_client()
+                    if client:
+                        has_doc_content = client.quick_content_match(prompt)
+                        if has_doc_content:
+                            will_use_rag = True
+                            print(f"[Generic] ✅ Document RAG will be used - prefiltering confirmed match")
+                    
+                    # Quick check: will memory RAG be used?
+                    memory_container_url = os.environ.get('MEMORY_CONTAINER_URL', 'http://localhost:11438')
+                    try:
+                        quick_match_response = requests.post(
+                            f"{memory_container_url}/rag/quick-match",
+                            json={"query": prompt},
+                            timeout=0.5
+                        )
+                        if quick_match_response and quick_match_response.status_code == 200:
+                            has_memory_content = quick_match_response.json().get('has_match', False)
+                            if has_memory_content:
+                                will_use_rag = True
+                                print(f"[Generic] ✅ Memory RAG will be used - prefiltering confirmed match")
+                    except requests.exceptions.Timeout:
+                        pass  # Timeout means we'll skip memory RAG, no filler needed
+                    except Exception as e:
+                        print(f"[Generic] ⚠️ Memory RAG quick-match check failed: {e}")
+                except Exception as e:
+                    print(f"[Generic] ⚠️ RAG pre-check failed: {e}")
+            
+            # If RAG will be used, yield filler phrase first (RAG processing happens during playback)
+            if will_use_rag:
+                filler_phrase = get_filler_phrase()
+                print(f"[Generic] 💭 Yielding filler phrase before RAG processing: '{filler_phrase}'")
+                yield "<sentence_start>\n"
+                for word in filler_phrase.split():
+                    yield f"{word} "
+                yield "<sentence_end>\n"
+            
             # Use streaming mode to get tokens as they're generated, with memory context
             result = handle_conversation(prompt, session_id, memory_context=memory_context, stream=True)
             
