@@ -231,6 +231,20 @@ class RAGClient:
         if not key_terms:
             return False
         
+        # Extract person names from query (capitalized multi-word names)
+        # If query contains person names, we MUST find at least one name in the document
+        import re
+        question_words = {'who', 'what', 'where', 'when', 'why', 'how', 'which', 'whose', 'whom', 'do', 'does', 'did', 'is', 'are', 'was', 'were', 'can', 'could', 'will', 'would', 'should', 'may', 'might'}
+        query_names = re.findall(r'\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\b', query)
+        query_names_lower = [name.lower() for name in query_names]
+        
+        # Also extract individual capitalized words (excluding question words)
+        query_capitalized_words = re.findall(r'\b([A-Z][a-z]+)\b', query)
+        query_capitalized_lower = [w.lower() for w in query_capitalized_words if w.lower() not in question_words]
+        
+        # If we have person names, we need to find at least one in the document
+        has_person_name = len(query_names_lower) > 0 or len(query_capitalized_lower) >= 2
+        
         # Quick substring/fuzzy match against RAG chunks
         if self.use_gpu:
             # For GPU mode, we'd need to check via API, but that's slow
@@ -261,6 +275,7 @@ class RAGClient:
             chunks_to_check = min(500, len(self._cpu_chunks))
             exact_matches = 0
             fuzzy_matches = 0
+            name_found = False  # Track if person name was found (if query has names)
             
             for i in range(chunks_to_check):
                 # Chunks are strings, not dictionaries
@@ -270,23 +285,75 @@ class RAGClient:
                 else:
                     chunk_text = str(chunk).lower()
                 
+                # If query has person names, check if at least one name appears in this chunk
+                if has_person_name:
+                    # Check full names first (e.g., "Elizabeth Martinez")
+                    for name in query_names_lower:
+                        name_words = name.split()
+                        if len(name_words) >= 2:
+                            # Check if at least 2 words of the name appear in chunk
+                            matches = sum(1 for word in name_words if word in chunk_text)
+                            if matches >= 2:
+                                name_found = True
+                                break
+                    
+                    # If full name not found, check individual capitalized words
+                    if not name_found and query_capitalized_lower:
+                        for cap_word in query_capitalized_lower:
+                            if cap_word in chunk_text:
+                                # Check if at least one other capitalized word also appears (to avoid false positives)
+                                other_caps = [w for w in query_capitalized_lower if w != cap_word]
+                                if len(other_caps) == 0 or any(w in chunk_text for w in other_caps):
+                                    name_found = True
+                                    break
+                
                 # First try exact substring matching (fastest)
                 exact_matching_terms = sum(1 for term in key_terms if term in chunk_text)
                 if exact_matching_terms >= 2:  # At least 2 key terms match exactly
-                    return True
-                elif exact_matching_terms == 1 and exact_matches == 0:  # First single exact match
-                    exact_matches = 1
+                    # If query has person names, require name match too
+                    if has_person_name and not name_found:
+                        continue  # Skip this chunk, no name match
+                    exact_matches = 2  # Found 2+ matches, definitely use RAG
+                    break  # Found good match, no need to continue
+                elif exact_matching_terms == 1:
+                    # Track single exact match, but continue looking for better matches
+                    if exact_matches == 0:
+                        # If query has person names, require name match too
+                        if has_person_name and not name_found:
+                            continue  # Skip this chunk, no name match
+                        exact_matches = 1
                 
                 # If no exact match, try fuzzy matching for transcription errors
                 if exact_matching_terms == 0:
                     fuzzy_matching_terms = sum(1 for term in key_terms if fuzzy_match_term(term, chunk_text, threshold=0.75))
                     if fuzzy_matching_terms >= 2:  # At least 2 key terms fuzzy match
-                        return True
-                    elif fuzzy_matching_terms == 1 and fuzzy_matches == 0:  # First single fuzzy match
-                        fuzzy_matches = 1
+                        # If query has person names, require name match too
+                        if has_person_name and not name_found:
+                            continue  # Skip this chunk, no name match
+                        fuzzy_matches = 2  # Found 2+ fuzzy matches, definitely use RAG
+                        break  # Found good match, no need to continue
+                    elif fuzzy_matching_terms == 1:
+                        # Track single fuzzy match, but continue looking for better matches
+                        if fuzzy_matches == 0:
+                            # If query has person names, require name match too
+                            if has_person_name and not name_found:
+                                continue  # Skip this chunk, no name match
+                            fuzzy_matches = 1
             
-            # If we found at least one match (exact or fuzzy), use RAG
-            return (exact_matches > 0) or (fuzzy_matches > 0)
+            # If query has person names but none were found, don't use RAG
+            if has_person_name and not name_found:
+                return False
+            
+            # Require at least 2 matches (exact or fuzzy) to use RAG - prevents false positives
+            # This ensures RAG is only used when there's actual relevant content
+            if exact_matches >= 2 or fuzzy_matches >= 2:
+                return True
+            elif exact_matches == 1 and fuzzy_matches == 1:
+                # One exact + one fuzzy = 2 total matches, use RAG
+                return True
+            
+            # Not enough matches found - skip RAG
+            return False
     
     def _expand_query(self, query: str) -> str:
         """
@@ -362,8 +429,8 @@ class RAGClient:
         
         # Also extract individual capitalized words (first names, last names separately)
         # e.g., "John Smith" -> ["John", "Smith"]
-        # EXCLUDE question words at start of query (Who, What, Where, etc.)
-        question_words = {'who', 'what', 'where', 'when', 'why', 'how', 'which', 'whose', 'whom'}
+        # EXCLUDE question words at start of query (Who, What, Where, etc.) and common verbs
+        question_words = {'who', 'what', 'where', 'when', 'why', 'how', 'which', 'whose', 'whom', 'do', 'does', 'did', 'is', 'are', 'was', 'were', 'can', 'could', 'will', 'would', 'should', 'may', 'might'}
         query_capitalized_words = re.findall(r'\b([A-Z][a-z]+)\b', query)
         query_capitalized_lower = [w.lower() for w in query_capitalized_words if w.lower() not in question_words]
         
