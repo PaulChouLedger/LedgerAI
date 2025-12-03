@@ -64,7 +64,7 @@ SPEECH_PEAK_MIN = 0.0023        # Lower peak threshold to accept softer speech
 # (Pre-gain removed)
 
 # === Audio Normalization (for optimal Whisper transcription) ===
-ENABLE_AUDIO_NORMALIZATION = False  # Disabled - using hardware AGC only (target: 0.05 RMS)
+ENABLE_AUDIO_NORMALIZATION = True  # Disabled - using hardware AGC only (target: 0.05 RMS)
 TARGET_RMS_FOR_WHISPER = 0.12      # Optimal RMS level for Whisper (found via find_optimal_rms.py)
 
 # === Wake Word Audio Normalization ===
@@ -968,16 +968,6 @@ def listen():
                             wake_word_detector._debug_counter = 0
                         wake_word_detector._debug_counter += 1
                         
-                        # Show confidence every 100 frames, or if confidence > threshold/10 (getting close), or if confidence > 0
-                        threshold = getattr(wake_word_detector, 'threshold', 0.5)
-                        show_debug = (wake_word_detector._debug_counter % 100 == 0) or (confidence > threshold / 10) or (confidence > 0.001)
-                        if show_debug:
-                            status = "🔴" if confidence < threshold * 0.5 else "🟡" if confidence < threshold else "🟢"
-                            print(f"[Wake Word] {status} Confidence: {confidence:.6f} (threshold: {threshold:.6f}) | RMS: {features['rms']:.4f} - Frame {wake_word_detector._debug_counter}")
-                                
-                        # Heartbeat every 500 frames to confirm we're still listening
-                        if wake_word_detector._debug_counter % 500 == 0:
-                            print(f"[Wake Word] 💓 Still listening for wake word... (Frame {wake_word_detector._debug_counter}) | RMS: {features['rms']:.4f}")
                         
                         if wake_detected:
                             # Print RMS and audio features at detection time (using same calculation as VAD)
@@ -1009,14 +999,6 @@ def listen():
                             
                             # Show confidence every 100 frames, or if confidence > threshold/10 (getting close), or if confidence > 0
                             threshold = getattr(wake_word_detector, 'threshold', 0.5)
-                            show_debug = (wake_word_detector._debug_counter % 100 == 0) or (confidence > threshold / 10) or (confidence > 0.001)
-                            if show_debug:
-                                status = "🔴" if confidence < threshold * 0.5 else "🟡" if confidence < threshold else "🟢"
-                                print(f"[Wake Word] {status} Confidence: {confidence:.6f} (threshold: {threshold:.6f}) | RMS: {features['rms']:.4f} - Frame {wake_word_detector._debug_counter}")
-                                
-                            # Heartbeat every 500 frames to confirm we're still listening
-                            if wake_word_detector._debug_counter % 500 == 0:
-                                print(f"[Wake Word] 💓 Still listening for wake word... (Frame {wake_word_detector._debug_counter}) | RMS: {features['rms']:.4f}")
                             
                             if wake_detected:
                                 # Print RMS and audio features at detection time (using same calculation as VAD)

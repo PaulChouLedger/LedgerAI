@@ -231,8 +231,6 @@ class MemoryManager:
             logger.warning("⚠️ Empty text provided, skipping storage")
             return None
         
-        logger.debug(f"📝 Storing conversation (source: {source}, length: {len(text)} chars)")
-        
         with self.lock:
             timestamp = timestamp or time.time()
             conv_id = hashlib.md5(f"{text}{timestamp}".encode()).hexdigest()[:16]
@@ -249,29 +247,23 @@ class MemoryManager:
             
             # Store conversation
             self.conversations.append(conversation)
-            logger.debug(f"📚 Added to conversations list (total: {len(self.conversations)})")
             
             # Append to file
             try:
                 with open(self.conversations_file, 'a') as f:
                     f.write(json.dumps(conversation) + '\n')
-                logger.debug(f"💾 Saved conversation to disk")
             except Exception as e:
                 logger.error(f"❌ Failed to save conversation to file: {e}")
             
             # Generate embedding
-            logger.debug(f"🔢 Generating embedding for conversation...")
             embedding = self.embedding_model.encode([text])[0]
             embedding = np.array([embedding]).astype('float32')
-            logger.debug(f"✅ Embedding generated (shape: {embedding.shape})")
             
             # Update embeddings
             if self.embeddings is None:
                 self.embeddings = embedding
-                logger.debug("📊 Created new embeddings array")
             else:
                 self.embeddings = np.vstack([self.embeddings, embedding])
-                logger.debug(f"📊 Added to embeddings array (total: {len(self.embeddings)})")
             
             # Update metadata
             self.metadata.append({
@@ -293,7 +285,6 @@ class MemoryManager:
                 self.index.add(embedding_normalized)
                 # Save updated index
                 faiss.write_index(self.index, str(self.index_file))
-                logger.debug(f"✅ Added embedding to FAISS index incrementally (total vectors: {self.index.ntotal})")
                 
                 # Trigger background rebuild periodically (configurable interval)
                 # Schedule rebuild asynchronously to avoid blocking query processing

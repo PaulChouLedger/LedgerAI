@@ -172,65 +172,13 @@ class BaseLLMContainer:
         
         with self.llm_lock:
             try:
-                if stream:
-                    print(f"[{self.service_name}] 🔍 DEBUG: Calling create_chat_completion with stream=True")
-                    print(f"[{self.service_name}] 🔍 DEBUG: Messages: {len(messages)} messages, max_tokens={max_tokens}, temperature={temperature}")
-                    if messages:
-                        print(f"[{self.service_name}] 🔍 DEBUG: System message length: {len(messages[0].get('content', ''))} chars")
-                        if len(messages) > 1:
-                            print(f"[{self.service_name}] 🔍 DEBUG: User message: {messages[1].get('content', '')[:100]}")
-                
                 response = self.llm_simple.create_chat_completion(**generation_params)
                 
                 if stream:
                     # Check if response is actually an iterator
                     if hasattr(response, '__iter__'):
-                        print(f"[{self.service_name}] 🔍 DEBUG: LLM returned iterator for streaming")
-                        # Create a wrapper that logs chunks as they're consumed
-                        def debug_iterator(iter_obj):
-                            print(f"[{self.service_name}] 🔍 DEBUG: debug_iterator FUNCTION CALLED - creating generator")
-                            print(f"[{self.service_name}] 🔍 DEBUG: debug_iterator: Starting to iterate over LLM response")
-                            chunk_count = 0
-                            try:
-                                # Try to get first chunk to check if iterator is empty
-                                try:
-                                    print(f"[{self.service_name}] 🔍 DEBUG: debug_iterator: About to call next() on LLM iterator")
-                                    first_chunk = next(iter_obj)
-                                    chunk_count = 1
-                                    print(f"[{self.service_name}] 🔍 DEBUG: debug_iterator: Got first chunk from LLM!")
-                                    print(f"[{self.service_name}] 🔍 DEBUG: First chunk from LLM: type={type(first_chunk).__name__}")
-                                    if isinstance(first_chunk, dict):
-                                        print(f"[{self.service_name}] 🔍 DEBUG: Chunk keys: {list(first_chunk.keys())}")
-                                        if 'choices' in first_chunk and first_chunk['choices']:
-                                            choice = first_chunk['choices'][0]
-                                            print(f"[{self.service_name}] 🔍 DEBUG: Choice keys: {list(choice.keys())}")
-                                            if 'delta' in choice:
-                                                delta = choice['delta']
-                                                print(f"[{self.service_name}] 🔍 DEBUG: Delta keys: {list(delta.keys())}")
-                                                if 'content' in delta:
-                                                    print(f"[{self.service_name}] 🔍 DEBUG: Delta content: {repr(delta['content'][:100])}")
-                                            elif 'content' in choice:
-                                                print(f"[{self.service_name}] 🔍 DEBUG: Choice content: {repr(choice['content'][:100])}")
-                                    yield first_chunk
-                                    
-                                    # Continue with rest of iterator
-                                    for chunk in iter_obj:
-                                        chunk_count += 1
-                                        yield chunk
-                                    
-                                    print(f"[{self.service_name}] 🔍 DEBUG: LLM iterator yielded {chunk_count} chunks total")
-                                except StopIteration:
-                                    print(f"[{self.service_name}] ⚠️ WARNING: LLM iterator is EMPTY (StopIteration on first next())")
-                                    print(f"[{self.service_name}] 🔍 DEBUG: This usually means the model isn't generating tokens")
-                                    print(f"[{self.service_name}] 🔍 DEBUG: Check if model is loaded: {self._model_loaded}, llm_simple: {self.llm_simple is not None}")
-                                    # Don't yield anything - empty iterator
-                            except Exception as iter_error:
-                                print(f"[{self.service_name}] ⚠️ DEBUG: Error iterating LLM response: {iter_error}")
-                                import traceback
-                                traceback.print_exc()
-                                raise
-                        
-                        return debug_iterator(response)
+                        # Return iterator directly without debug wrapper
+                        return response
                     else:
                         print(f"[{self.service_name}] ⚠️ WARNING: LLM did not return iterator for stream=True, got: {type(response)}")
                         return iter([])
@@ -359,14 +307,12 @@ class BaseLLMContainer:
         has_yielded_anything = False
         
         # Process word stream
-        print(f"[{self.service_name}] 🔍 DEBUG: sentence_tag_stream starting to iterate over word_stream")
         word_count = 0
         
         # Force first iteration to trigger the chain
         try:
             first_word = next(word_stream)
             word_count += 1
-            print(f"[{self.service_name}] 🔍 DEBUG: sentence_tag_stream got first word: {repr(first_word[:50])}")
             
             # Process first word
             if not first_word:
@@ -430,8 +376,6 @@ class BaseLLMContainer:
             # Continue with rest of iterator
             for word in word_stream:
                 word_count += 1
-                if word_count <= 3:
-                    print(f"[{self.service_name}] 🔍 DEBUG: sentence_tag_stream received word {word_count}: {repr(word[:50])}")
                 if not word:
                     continue
                 

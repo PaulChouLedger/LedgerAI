@@ -1109,7 +1109,6 @@ def chat_tts():
                 
                 if token_count == 0:
                     print(f"[Generic] ⚠️ WARNING: No tokens yielded from sentence_stream!")
-                    print(f"[Generic] 🔍 DEBUG: This means the LLM iterator was empty or chunks were filtered out")
                 
                 print(f"[Generic] ✅ Streamed response complete (yielded {token_count} tokens)")
                 
@@ -1257,15 +1256,8 @@ def _word_stream_from_chunks(chunk_iter):
     Filters out whitespace-only tokens.
     Matches the working version from commit d4a5c540a1a3da07a7ea5a2403155adf0d7e79e7
     """
-    print(f"[Generic] 🔍 DEBUG: _word_stream_from_chunks FUNCTION CALLED - creating generator")
     buffer = ""
-    chunk_count = 0
-    word_count = 0
-    print(f"[Generic] 🔍 DEBUG: _word_stream_from_chunks: About to iterate over chunk_iter")
     for chunk in chunk_iter:
-        chunk_count += 1
-        if chunk_count <= 3:
-            print(f"[Generic] 🔍 DEBUG: _word_stream_from_chunks received chunk {chunk_count}: {repr(str(chunk)[:50])}")
         if not chunk:
             continue
         buffer += chunk
@@ -1277,14 +1269,9 @@ def _word_stream_from_chunks(chunk_iter):
             buffer = buffer[boundary_idx + 1:]
             # Only yield non-empty words (filter out whitespace-only tokens)
             if word and word.strip():
-                word_count += 1
-                if word_count <= 3:
-                    print(f"[Generic] 🔍 DEBUG: _word_stream_from_chunks yielding word {word_count}: {repr(word[:50])}")
                 yield word
     # Only yield remaining buffer if it's not just whitespace
     if buffer and buffer.strip():
-        word_count += 1
-        print(f"[Generic] 🔍 DEBUG: _word_stream_from_chunks yielding final buffer: {repr(buffer[:50])}")
         yield buffer
     if word_count == 0:
         print(f"[Generic] ⚠️ WARNING: _word_stream_from_chunks yielded 0 words (received {chunk_count} chunks)")

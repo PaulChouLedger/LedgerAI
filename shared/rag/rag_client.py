@@ -720,8 +720,6 @@ class RAGClient:
                         'metadata': self._cpu_metadata[idx] if idx < len(self._cpu_metadata) else {}
                     })
             
-            # Show all matches for debugging (even below threshold)
-            print(f"[RAG Client] 🔍 DEBUG: All {len(all_matches)} matches (showing top {min(k, len(all_matches))}):")
             for i, match in enumerate(all_matches[:k], 1):
                 # Extract file name from metadata
                 file_name = "unknown"
