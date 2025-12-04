@@ -792,13 +792,22 @@ JSON array only:"""
                             print(f"[Generic] 📝 Including {len(additional_chunks)} additional chunks (verification scores >= 0.2) for completeness")
                             verified_rag_results.extend(additional_chunks)
                 
-                # Extract person names from query for filtering chunks
-                query_person_names = re.findall(r'\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\b', prompt)
-                # Also extract individual capitalized words that might be names
-                query_capitalized = re.findall(r'\b([A-Z][a-z]+)\b', prompt)
-                # Combine full names and individual capitalized words, exclude question words
-                question_words = {'Who', 'What', 'Where', 'When', 'Why', 'How', 'The', 'A', 'An', 'Is', 'Are', 'Was', 'Were'}
-                all_query_names = query_person_names + [w for w in query_capitalized if w not in question_words]
+                # Detect if this is a list question (needs full context, not sentence filtering)
+                # Skip sentence filtering for list questions to preserve all information
+                list_keywords = ['who are', 'who were', 'list all', 'list the', 'what are the', 'what are', 'name all', 'name the']
+                is_list_query = any(keyword in prompt.lower() for keyword in list_keywords)
+                
+                # Extract person names from query for filtering chunks (skip for list questions - need full context)
+                all_query_names = []
+                if not is_list_query:
+                    query_person_names = re.findall(r'\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\b', prompt)
+                    # Also extract individual capitalized words that might be names
+                    query_capitalized = re.findall(r'\b([A-Z][a-z]+)\b', prompt)
+                    # Combine full names and individual capitalized words, exclude question words
+                    question_words = {'Who', 'What', 'Where', 'When', 'Why', 'How', 'The', 'A', 'An', 'Is', 'Are', 'Was', 'Were'}
+                    all_query_names = query_person_names + [w for w in query_capitalized if w not in question_words]
+                else:
+                    print(f"[Generic] 📋 List question detected - using full context (no sentence filtering)")
                 
                 # Build RAG context with improved formatting and relevance ordering
                 MAX_CHARS_PER_RESULT = 1200
