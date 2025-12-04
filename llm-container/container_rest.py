@@ -333,11 +333,15 @@ Scoring Guidelines:
 2. MEDIUM SCORE (0.4-0.6): The chunk is related to the topic but doesn't fully answer the question, or answers only part of it
 3. LOW SCORE (0.0-0.3): The chunk mentions related terms/concepts but doesn't actually answer the question, or contains information that contradicts what's being asked
 
+CRITICAL: Accuracy is essential. Be strict with scoring:
+- If a chunk mentions entities/concepts that seem related but are actually about different things (different entities, different contexts, different relationships), give it a LOW score (0.0-0.3)
+- Only give HIGH scores to chunks that provide accurate, directly relevant information that answers the specific question asked
+- Chunks that could lead to incorrect conclusions or confusion should get very low scores, even if they mention related keywords
+
 IMPORTANT: 
 - Name variations should be treated as referring to the same person (e.g., "John Smith" ≈ "John Smyth")
-- Focus on whether the chunk actually ANSWERS the question, not just whether it mentions related keywords
-- Chunks that mention the topic but provide incorrect or irrelevant information should get low scores
-- Consider context carefully - information about similar but different entities should get lower scores
+- Focus on whether the chunk actually ANSWERS the question accurately, not just whether it mentions related keywords
+- When in doubt about accuracy or relevance, use a lower score to avoid misinformation
 
 Return ONLY a JSON array with exactly {len(valid_chunks)} scores in order.
 Example: [0.8, 0.9, 0.2, 0.7, 0.1]

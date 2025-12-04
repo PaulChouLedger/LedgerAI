@@ -56,7 +56,8 @@ SPEECH_HIGH_FREQ_MAX = 0.08     # Allow a bit more high-frequency content
 # CRITICAL: Energy thresholds (most reliable discriminators)
 # Updated after firmware tweaks - speech now has lower RMS/Peak values
 SPEECH_RMS_MIN = 0.0011         # Lower RMS threshold to accept quieter speech
-SPEECH_RMS_MAX = 0.40           # Reject if RMS > this (abnormally loud = likely noise/artifact)
+SPEECH_RMS_MAX = 0.80           # Reject if RMS > this (very loud = likely noise/artifact/clipping)
+                                # Increased from 0.40 to allow normal/loud speech (RMS 0.4-0.7)
 SPEECH_PEAK_MIN = 0.0023        # Lower peak threshold to accept softer speech
 
 # BARE-BONES: Hardware DSP → Channel 0 → VAD → Advanced Filter → Whisper
