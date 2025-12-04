@@ -4,7 +4,7 @@
 from flask import Flask, request, jsonify, stream_with_context, Response
 import os, threading, atexit, time
 import requests
-from typing import List, Dict, Optional, Tuple, Union
+from typing import List, Dict, Optional
 from collections import Counter
 import re
 import logging
@@ -139,286 +139,6 @@ def get_filler_phrase() -> str:
         "I'll need a second to find the right information.",
     ]
     return random.choice(filler_phrases)
-
-# === Extract Relevant Sentences from Chunks ===
-def extract_relevant_sentences(chunk_text: str, query_person_names: List[str]) -> str:
-    """
-    Extract sentences from a chunk that mention the queried person(s), plus adjacent sentences for context.
-    This prevents mixing information about different people while preserving important details.
-    Uses fuzzy matching to handle name variations (e.g., "Smith" vs "Smyth").
-    
-    Args:
-        chunk_text: Full chunk text (may contain multiple people)
-        query_person_names: List of person names from query (e.g., ["John Doe", "Jane Smith"])
-    
-    Returns:
-        Filtered text containing sentences mentioning the queried person(s) plus context
-    """
-    if not query_person_names:
-        return chunk_text  # No person names in query, return full chunk
-    
-    import re
-    from difflib import SequenceMatcher
-    
-    # Split into sentences (handle common sentence endings)
-    sentences = re.split(r'([.!?]\s+)', chunk_text)
-    # Recombine sentences with their punctuation
-    sentences = [sentences[i] + (sentences[i+1] if i+1 < len(sentences) else '') 
-                 for i in range(0, len(sentences), 2) if sentences[i].strip()]
-    
-    # Fuzzy matching threshold for names (0.75 = 75% similarity)
-    # This handles common name spelling variations (similarity ~0.75)
-    FUZZY_THRESHOLD = 0.75
-    
-    def fuzzy_name_match(query_name: str, text: str) -> bool:
-        """
-        Check if text contains a fuzzy match for the query name.
-        Tries exact match first, then fuzzy match if needed.
-        """
-        query_lower = query_name.lower()
-        text_lower = text.lower()
-        
-        # First try exact match (fastest)
-        if query_lower in text_lower:
-            return True
-        
-        # Extract all capitalized words/phrases from text as potential names
-        # Look for patterns like "First Last", "John Smith", etc.
-        capitalized_patterns = re.findall(r'\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b', text)
-        
-        # Check each capitalized phrase against query name
-        query_words = query_lower.split()
-        
-        for pattern in capitalized_patterns:
-            pattern_lower = pattern.lower()
-            pattern_words = pattern_lower.split()
-            
-            # For multi-word names, check if words match (exact or fuzzy)
-            if len(query_words) >= 2 and len(pattern_words) >= 2:
-                # Check if first name matches (exact or fuzzy)
-                first_match = (query_words[0] == pattern_words[0] or 
-                              SequenceMatcher(None, query_words[0], pattern_words[0]).ratio() >= FUZZY_THRESHOLD)
-                
-                # Check if last name matches (exact or fuzzy)
-                last_match = (query_words[-1] == pattern_words[-1] or 
-                             SequenceMatcher(None, query_words[-1], pattern_words[-1]).ratio() >= FUZZY_THRESHOLD)
-                
-                if first_match and last_match:
-                    print(f"[Generic] ✅ Fuzzy name match: '{query_name}' ≈ '{pattern}'")
-                    return True
-            
-            # For single-word names, check fuzzy match
-            elif len(query_words) == 1 and len(pattern_words) == 1:
-                similarity = SequenceMatcher(None, query_words[0], pattern_words[0]).ratio()
-                if similarity >= FUZZY_THRESHOLD:
-                    print(f"[Generic] ✅ Fuzzy name match: '{query_name}' ≈ '{pattern}' (similarity: {similarity:.2f})")
-                    return True
-        
-        return False
-    
-    # Find sentences that mention the person, and include adjacent sentences for context
-    relevant_indices = set()
-    for i, sentence in enumerate(sentences):
-        # Check if sentence mentions any of the query person names (exact or fuzzy)
-        for person_name in query_person_names:
-            if fuzzy_name_match(person_name, sentence):
-                # Include this sentence and adjacent sentences (2 before, 5 after) for context
-                for j in range(max(0, i-2), min(len(sentences), i+6)):
-                    relevant_indices.add(j)
-                break
-    
-    if relevant_indices:
-        # Sort indices and extract sentences
-        relevant_sentences = [sentences[i].strip() for i in sorted(relevant_indices)]
-        return ' '.join(relevant_sentences)
-    else:
-        # No relevant sentences found, return empty (chunk will be filtered out)
-        return ""
-
-# === Unified LLM Verification for RAG Chunks ===
-def verify_rag_chunks_with_llm(chunks: List[Dict], query: str, chunk_type: str = "document", threshold: float = 0.5, return_all_with_scores: bool = False) -> Union[List[Dict], Tuple[List[Dict], List[Dict]]]:
-    """
-    Unified LLM verification for both document and memory RAG chunks.
-    Uses LLM to verify which chunks actually answer the query, filtering out irrelevant or misleading chunks.
-    Follows the same pattern as memory RAG verification.
-    
-    Args:
-        chunks: List of chunk dictionaries with 'text' and optionally 'score', 'metadata' keys
-        query: User's query/question
-        chunk_type: "document" or "memory" (for logging)
-        threshold: Minimum LLM score to include chunk (0.0-1.0)
-    
-    Returns:
-        Filtered list of chunks that pass LLM verification
-    """
-    if not chunks or len(chunks) == 0:
-        return []
-    
-    # Pre-filter: Remove empty chunks
-    valid_chunks = [c for c in chunks if c.get('text', '').strip()]
-    if not valid_chunks:
-        return []
-    
-    # For small number of chunks, skip LLM verification (not worth the latency)
-    if len(valid_chunks) <= 2:
-        print(f"[Generic] 🔍 {chunk_type.capitalize()} RAG: {len(valid_chunks)} chunks, skipping LLM verification (too few)")
-        return valid_chunks
-    
-    try:
-        print(f"[Generic] 🤖 Using LLM to verify {len(valid_chunks)} {chunk_type} RAG chunks for query: '{query[:60]}...'")
-        
-        # Extract person names from query for fuzzy matching
-        query_person_names = re.findall(r'\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\b', query)
-        query_capitalized = re.findall(r'\b([A-Z][a-z]+)\b', query)
-        question_words = {'Who', 'What', 'Where', 'When', 'Why', 'How', 'The', 'A', 'An', 'Is', 'Are', 'Was', 'Were'}
-        all_query_names = query_person_names + [w for w in query_capitalized if w not in question_words]
-        
-        # Build prompt for LLM to score chunks, with name match hints
-        chunks_text = ""
-        name_match_notes = []
-        
-        # Import fuzzy matching function (defined earlier in file)
-        from difflib import SequenceMatcher
-        FUZZY_THRESHOLD = 0.75
-        
-        for i, chunk in enumerate(valid_chunks, 1):
-            chunk_text = chunk.get('text', '').strip()
-            # Truncate chunk text for verification (keep it concise)
-            if len(chunk_text) > 500:
-                chunk_text = chunk_text[:500] + "..."
-            
-            # Check for fuzzy name matches in this chunk
-            name_matches = []
-            if all_query_names:
-                capitalized_patterns = re.findall(r'\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b', chunk_text)
-                for query_name in all_query_names:
-                    query_words = query_name.lower().split()
-                    for pattern in capitalized_patterns:
-                        pattern_words = pattern.lower().split()
-                        if len(query_words) >= 2 and len(pattern_words) >= 2:
-                            first_match = (query_words[0] == pattern_words[0] or 
-                                         SequenceMatcher(None, query_words[0], pattern_words[0]).ratio() >= FUZZY_THRESHOLD)
-                            last_match = (query_words[-1] == pattern_words[-1] or 
-                                        SequenceMatcher(None, query_words[-1], pattern_words[-1]).ratio() >= FUZZY_THRESHOLD)
-                            if first_match and last_match and query_name.lower() != pattern.lower():
-                                name_matches.append((query_name, pattern))
-            
-            chunks_text += f"{i}. {chunk_text}\n"
-            
-            # Add note if fuzzy name match found
-            if name_matches:
-                for query_name, doc_name in name_matches:
-                    name_match_notes.append(f"NOTE: Chunk {i} mentions '{doc_name}' which likely refers to the same person as '{query_name}' in the query (name variation).")
-        
-        # Build name match notes section
-        name_match_section = ""
-        if name_match_notes:
-            name_match_section = "\n\n" + "\n".join(name_match_notes) + "\n"
-        
-        verification_prompt = f"""Rate how well each chunk of information answers the user's question.
-
-User's question: "{query}"
-
-Chunks of information:
-{chunks_text}{name_match_section}
-For each chunk, assign a score from 0.0 to 1.0 based on how well it answers the question:
-- 1.0 = Perfectly answers the question with directly relevant and accurate information
-- 0.7-0.9 = Mostly answers the question with relevant information that directly relates to the question
-- 0.4-0.6 = Partially relevant, contains some useful information but may be tangential or incomplete
-- 0.1-0.3 = Minimally relevant, mentions related topics but doesn't directly answer the question
-- 0.0 = Not relevant, doesn't answer the question, or contains misleading/incorrect information
-
-Scoring Guidelines:
-1. HIGH SCORE (0.7-1.0): The chunk contains information that directly and accurately answers what the question is asking for
-2. MEDIUM SCORE (0.4-0.6): The chunk is related to the topic but doesn't fully answer the question, or answers only part of it
-3. LOW SCORE (0.0-0.3): The chunk mentions related terms/concepts but doesn't actually answer the question, or contains information that contradicts what's being asked
-
-CRITICAL: Accuracy is essential. Be strict but fair with scoring:
-- If a chunk EXPLICITLY states the answer to the question (e.g., explicitly says "Co-Founder of [Target Company]"), give it a HIGH score (0.7-1.0)
-- If a chunk mentions entities/concepts that seem related but are actually about different things (different entities, different contexts, different relationships), give it a LOW score (0.0-0.3)
-- Only give HIGH scores to chunks that provide accurate, directly relevant information that answers the specific question asked
-- Chunks that could lead to incorrect conclusions or confusion should get very low scores, even if they mention related keywords
-- Chunks that explicitly state relationships to the target entity should score higher than chunks that only mention the entity in passing
-
-IMPORTANT: 
-- Name variations should be treated as referring to the same person (e.g., "John Smith" ≈ "John Smyth")
-- Focus on whether the chunk actually ANSWERS the question accurately, not just whether it mentions related keywords
-- When in doubt about accuracy or relevance, use a lower score to avoid misinformation
-
-Return ONLY a JSON array with exactly {len(valid_chunks)} scores in order.
-Example: [0.8, 0.9, 0.2, 0.7, 0.1]
-
-JSON array only:"""
-        
-        # Call LLM for verification (non-streaming, fast, same as memory RAG)
-        verification_messages = [{"role": "user", "content": verification_prompt}]
-        verification_response = llm_chat_simple(
-            verification_messages,
-            max_tokens=150,  # Slightly more than memory RAG (100) to handle more chunks
-            temperature=0.3,  # Same as memory RAG - deterministic
-            stream=False
-        )
-        
-        # Parse LLM response to extract scores
-        # Note: re and json are already imported at module level
-        json_match = re.search(r'\[[\d\.,\s]+\]', verification_response)
-        if json_match:
-            scores = json.loads(json_match.group())
-            print(f"[Generic] ✅ LLM returned {len(scores)} verification scores")
-        else:
-            try:
-                scores = json.loads(verification_response.strip())
-            except:
-                print(f"[Generic] ⚠️ Failed to parse LLM verification scores, using original scores as fallback")
-                scores = [c.get('score', 0.5) for c in valid_chunks]  # Use original scores as fallback
-        
-        # Ensure we have the right number of scores
-        if len(scores) != len(valid_chunks):
-            print(f"[Generic] ⚠️ LLM returned {len(scores)} scores but expected {len(valid_chunks)}, using original scores as fallback")
-            scores = [c.get('score', 0.5) for c in valid_chunks]
-        
-        # Update chunks with LLM verification scores
-        verified_chunks = []
-        for i, (chunk, llm_score) in enumerate(zip(valid_chunks, scores)):
-            original_score = chunk.get('score', 0.0)
-            verified_chunk = {
-                **chunk,
-                'score': float(llm_score),
-                'original_score': original_score,
-                'llm_verification_score': float(llm_score)
-            }
-            verified_chunks.append(verified_chunk)
-            
-            status = "✅" if float(llm_score) >= threshold else "❌"
-            print(f"[Generic]   [{chunk_type.capitalize()} {i+1}] {status} LLM verification: {llm_score:.3f} (original: {original_score:.3f}): '{chunk.get('text', '')[:60]}...'")
-        
-        # Sort by LLM verification score (descending)
-        verified_chunks.sort(key=lambda x: x.get('llm_verification_score', 0), reverse=True)
-        
-        # Filter by threshold
-        filtered_chunks = [
-            c for c in verified_chunks 
-            if c.get('llm_verification_score', 0) >= threshold
-        ]
-        
-        if filtered_chunks:
-            print(f"[Generic] ✅ {chunk_type.capitalize()} RAG LLM verification: {len(filtered_chunks)}/{len(valid_chunks)} chunks passed (threshold={threshold:.2f})")
-        else:
-            print(f"[Generic] ⚠️ {chunk_type.capitalize()} RAG LLM verification: All chunks below threshold={threshold:.2f}, using top 2 as fallback")
-            # Fallback: use top 2 chunks even if below threshold (to avoid empty results)
-            filtered_chunks = verified_chunks[:2]
-        
-        # If requested, return all chunks with scores (for additional chunks selection)
-        if return_all_with_scores:
-            return filtered_chunks, verified_chunks
-        return filtered_chunks
-        
-    except Exception as e:
-        print(f"[Generic] ⚠️ LLM verification failed for {chunk_type} RAG: {e}, falling back to original chunks")
-        import traceback
-        traceback.print_exc()
-        # Fallback: return original chunks if verification fails
-        return valid_chunks
 
 # === Conversational Logic ===
 def handle_conversation(
@@ -750,96 +470,36 @@ JSON array only:"""
                     print(f"[Generic]   [{i}] Score: {score:.3f}, File: {file_name}, Preview: '{text_preview}...'")
                     print(f"[Generic]   [{i}] FULL CHUNK TEXT: '{full_text}'")  # Log full chunk for debugging
                 
-                # Detect if this is a list question early (for threshold adjustment)
+                # Detect if this is a list question early (for context handling)
                 list_keywords = ['who are', 'who were', 'list all', 'list the', 'what are the', 'what are', 'name all', 'name the']
                 is_list_query = any(keyword in prompt.lower() for keyword in list_keywords)
                 
-                # Apply LLM verification to document RAG chunks (same pattern as memory RAG)
-                # This filters out chunks that don't actually answer the query, especially for relationship questions
-                try:
-                    from rag.rag_client import RAG_SEARCH_THRESHOLD
-                    verification_threshold = max(RAG_SEARCH_THRESHOLD, 0.4)  # At least 0.4 to ensure quality
-                except ImportError:
-                    verification_threshold = 0.4  # Default fallback
+                # SIMPLIFIED: Trust final LLM to reason through chunks internally
+                # No pre-filtering - let LLM understand query and extract valid information from all chunks
+                # RAG semantic search already filtered by relevance, now LLM will internally reason through chunks
+                print(f"[Generic] 📋 Using {len(rag_results)} RAG chunks - LLM will internally reason and extract valid information")
                 
-                # Verify chunks with LLM (unified verification function)
-                # Get both filtered chunks and all chunks with scores for smart additional chunk selection
-                verification_result = verify_rag_chunks_with_llm(
-                    rag_results, 
-                    prompt, 
-                    chunk_type="document",
-                    threshold=verification_threshold,
-                    return_all_with_scores=True
-                )
-                verified_rag_results, all_chunks_with_scores = verification_result
+                # Use original RAG results, sorted by semantic similarity score
+                sorted_results = sorted(rag_results, key=lambda x: x.get('score', 0), reverse=True)
                 
-                if not verified_rag_results:
-                    print(f"[Generic] ⚠️ All document RAG chunks failed LLM verification, using original top 3 as fallback")
-                    # Fallback: use original top 3 if all fail verification
-                    verified_rag_results = sorted(rag_results, key=lambda x: x.get('score', 0), reverse=True)[:3]
-                else:
-                    print(f"[Generic] ✅ Document RAG LLM verification: {len(verified_rag_results)}/{len(rag_results)} chunks verified")
-                    
-                    # If only 1-2 chunks passed, include additional chunks with reasonable verification scores to ensure completeness
-                    # This helps when verification is too strict but chunks still contain relevant information
-                    if len(verified_rag_results) <= 2:
-                        verified_texts = {v.get('text', '') for v in verified_rag_results}
-                        # For list questions, use lower threshold (0.15) to capture relevant items while avoiding very low-quality chunks
-                        # For other questions, use higher threshold (0.2) to avoid low-quality chunks
-                        # Even for list questions, exclude chunks with very low scores (< 0.15) that are likely irrelevant
-                        additional_threshold = 0.15 if is_list_query else 0.2
-                        additional_chunks = [
-                            chunk for chunk in all_chunks_with_scores
-                            if chunk.get('text', '') not in verified_texts
-                            and chunk.get('llm_verification_score', 0) >= additional_threshold
-                        ]
-                        # Sort by verification score (not original RAG score) and take top 2
-                        additional_chunks.sort(key=lambda x: x.get('llm_verification_score', 0), reverse=True)
-                        additional_chunks = additional_chunks[:2]
-                        
-                        if additional_chunks:
-                            print(f"[Generic] 📝 Including {len(additional_chunks)} additional chunks (verification scores >= {additional_threshold}) for completeness")
-                            verified_rag_results.extend(additional_chunks)
+                # Limit number of chunks to avoid token bloat (but keep more for list questions)
+                max_chunks = 8 if is_list_query else 6
+                sorted_results = sorted_results[:max_chunks]
                 
-                # Use the list query detection from earlier (for sentence filtering skip)
-                # Skip sentence filtering for list questions to preserve all information
+                print(f"[Generic] 📋 Using top {len(sorted_results)} chunks (max {max_chunks}) for LLM reasoning")
                 
-                # Extract person names from query for filtering chunks (skip for list questions - need full context)
-                all_query_names = []
-                if not is_list_query:
-                    query_person_names = re.findall(r'\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\b', prompt)
-                    # Also extract individual capitalized words that might be names
-                    query_capitalized = re.findall(r'\b([A-Z][a-z]+)\b', prompt)
-                    # Combine full names and individual capitalized words, exclude question words
-                    question_words = {'Who', 'What', 'Where', 'When', 'Why', 'How', 'The', 'A', 'An', 'Is', 'Are', 'Was', 'Were'}
-                    all_query_names = query_person_names + [w for w in query_capitalized if w not in question_words]
-                else:
-                    print(f"[Generic] 📋 List question detected - using full context (no sentence filtering)")
-                
-                # Build RAG context with improved formatting and relevance ordering
-                # For list questions, use larger character limit to ensure completeness
+                # Build RAG context - let LLM reason through all chunks
                 MAX_CHARS_PER_RESULT = 1800 if is_list_query else 1200
                 rag_chunks = []
                 
-                # Use verified results (already sorted by LLM verification score)
-                sorted_results = verified_rag_results
-                
+                # Process chunks - let LLM reason through them internally
                 for i, r in enumerate(sorted_results, 1):
                     text = r.get("text", "")
                     score = r.get("score", 0)
                     metadata = r.get("metadata", {})
                     
                     if text:
-                        # If query has person names, extract only relevant sentences
-                        if all_query_names:
-                            filtered_text = extract_relevant_sentences(text, all_query_names)
-                            if not filtered_text:
-                                print(f"[Generic]   [RAG {i}] ⚠️ Filtered out (no sentences mention query person): '{text[:60]}...'")
-                                continue  # Skip this chunk if no relevant sentences
-                            text = filtered_text
-                            print(f"[Generic]   [RAG {i}] ✅ Filtered to relevant sentences: '{text[:80]}...'")
-                        
-                        # Extract source information
+                        # Extract source information for reference
                         source_name = "unknown"
                         if isinstance(metadata, dict):
                             file_path = metadata.get('file_path', '')
@@ -849,29 +509,21 @@ JSON array only:"""
                             else:
                                 source_name = metadata.get('document_name', 'unknown')
                         
-                        # Truncate if too long, but try to break at sentence boundary
-                        # For list questions, disable truncation entirely to preserve all information for completeness
-                        if not is_list_query and len(text) > MAX_CHARS_PER_RESULT:
+                        # Only truncate if extremely long (let LLM handle most filtering)
+                        if len(text) > MAX_CHARS_PER_RESULT:
+                            # Try to break at sentence boundary
                             truncated = text[:MAX_CHARS_PER_RESULT]
-                            # Try to break at last sentence boundary
                             last_period = max(
                                 truncated.rfind('. '),
                                 truncated.rfind('! '),
                                 truncated.rfind('? ')
                             )
-                            if last_period > MAX_CHARS_PER_RESULT * 0.7:  # Only if we're not losing too much
-                                truncated = truncated[:last_period + 1] + "..."
+                            if last_period > MAX_CHARS_PER_RESULT * 0.7:
+                                text = truncated[:last_period + 1] + "..."
                             else:
-                                # Fall back to word boundary
-                                last_space = truncated.rfind(' ')
-                                if last_space > MAX_CHARS_PER_RESULT * 0.8:
-                                    truncated = truncated[:last_space] + "..."
-                                else:
-                                    truncated = truncated + "..."
-                            text = truncated
+                                text = truncated + "..."
                         
-                        # Format chunk (minimal metadata, let LLM focus on content)
-                        # Only include source if available, relevance score is implicit in ordering
+                        # Format chunk - LLM will internally reason and extract valid information
                         if source_name != "unknown":
                             formatted_chunk = f"{text}\n[Source: {source_name}]"
                         else:
@@ -1077,7 +729,14 @@ JSON array only:"""
                     "You are Aura Vision, an AI agent created by Ledger AI Quantum Corporation. "
                     "You act as a proactive AI agent guiding users to better outcomes through gentle guidance.\n\n"
                     f"{memory_warning}"
-                    f"Based on the context provided above, answer the following question: {prompt}\n"
+                    f"Based on the context provided above, answer the following question: {prompt}\n\n"
+                    "🧠 REASONING PROCESS:\n"
+                    "1. First, understand what the user is asking for (e.g., 'The user is asking about co-founders of Ledger AI')\n"
+                    "2. Read through ALL context sections provided above from beginning to end\n"
+                    "3. For each context section, identify which information directly answers the question\n"
+                    "4. Extract ONLY the valid information that specifically answers what is being asked\n"
+                    "5. Ignore information that is related but doesn't directly answer the question\n"
+                    "6. Be precise about relationships - only extract information that matches the EXACT relationship being asked about\n\n"
                     f"{person_instruction}"
                     f"{list_instruction}"
                     "Guidelines:\n"
