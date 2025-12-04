@@ -103,6 +103,8 @@ MAX_TOKENS_DIRECT_MODE = 1200  # Max tokens for direct conversation (increased f
 # Note: Using Qwen2.5-1.5B (1.5B parameters) - this is a small model. If reasoning quality is poor,
 # consider using a larger model (7B+ parameters) for better reasoning capability.
 SHOW_REASONING_DEBUG = os.environ.get('SHOW_REASONING_DEBUG', 'false').lower() == 'true'
+if SHOW_REASONING_DEBUG:
+    print(f"[Generic] 🔍 SHOW_REASONING_DEBUG is ENABLED - LLM will show step-by-step reasoning")
 
 # Use base class model resolution
 SIMPLE_MODEL_PATH = base_container.resolve_model_path()
@@ -736,37 +738,36 @@ JSON array only:"""
                 )
                 
                 # Add chain-of-thought reasoning instructions if debug mode is enabled
-                reasoning_instruction = ""
+                debug_header = ""
+                debug_footer = ""
                 if SHOW_REASONING_DEBUG:
-                    reasoning_instruction = (
-                        "\n\n🔍 DEBUG MODE: SHOW YOUR REASONING STEP-BY-STEP\n"
-                        "CRITICAL: You MUST show your reasoning process in your response using this EXACT format:\n\n"
-                        "STEP 1: Understand the question\n"
-                        "Start your response with: \"1. User is asking about [restate the question clearly]\"\n\n"
-                        "STEP 2: Analyze the RAG chunks\n"
-                        "Then say: \"2. Reading and analyzing RAG chunks...\"\n"
-                        "For each context section provided above, explicitly state:\n"
-                        "   - \"Context Section X: [briefly describe what this section contains]\"\n"
-                        "   - \"Found: [list any relevant information found in this section]\"\n"
-                        "   - \"Relevant to question: [yes/no and why]\"\n\n"
-                        "STEP 3: Compile findings\n"
-                        "Say: \"3. Found information regarding [what you're looking for]:\"\n"
-                        "List all items/people/entities you identified, one by one, with their details.\n\n"
-                        "STEP 4: Final answer\n"
-                        "After showing all steps above, provide your final answer.\n\n"
-                        "EXAMPLE FORMAT:\n"
-                        "1. User is asking about co-founders of Ledger AI\n"
+                    print(f"[Generic] 🔍 DEBUG MODE ENABLED - LLM will show step-by-step reasoning in response")
+                    debug_header = (
+                        "🔍 DEBUG MODE ENABLED - YOU MUST SHOW REASONING STEPS\n"
+                        "========================================================\n"
+                        "Your response MUST follow this EXACT format - start with these steps:\n\n"
+                    )
+                    debug_footer = (
+                        "\n\n🚨 RESPONSE FORMAT REQUIREMENTS:\n"
+                        "Your response MUST start with these exact steps:\n\n"
+                        "1. User is asking about [question]\n"
                         "2. Reading and analyzing RAG chunks...\n"
-                        "   Context Section 1: [description] - Found: [info] - Relevant: yes\n"
-                        "   Context Section 2: [description] - Found: [info] - Relevant: yes\n"
-                        "3. Found information regarding co-founders:\n"
-                        "   - [Name 1], [title]\n"
-                        "   - [Name 2], [title]\n"
-                        "   - [Name 3], [title]\n"
-                        "[Final answer here]\n\n"
+                        "   - Context Section 1: [what does it contain?] - Found: [relevant info] - Relevant: [yes/no]\n"
+                        "   - Context Section 2: [what does it contain?] - Found: [relevant info] - Relevant: [yes/no]\n"
+                        "   - Context Section 3: [what does it contain?] - Found: [relevant info] - Relevant: [yes/no]\n"
+                        "3. Found information regarding [what you're looking for]:\n"
+                        "   - [Person/Item 1], [details]\n"
+                        "   - [Person/Item 2], [details]\n"
+                        "   - [Person/Item 3], [details]\n"
+                        "\n"
+                        "FINAL ANSWER:\n"
+                        "[Your final answer here]\n"
+                        "\n"
+                        "IMPORTANT: Do NOT skip steps 1-3. You MUST show your reasoning before the final answer.\n"
                     )
                 
                 system_content = (
+                    f"{debug_header}"
                     f"{combined_context}\n\n"
                     "You are Aura Vision, an AI agent created by Ledger AI Quantum Corporation. "
                     "You act as a proactive AI agent guiding users to better outcomes through gentle guidance.\n\n"
@@ -779,9 +780,9 @@ JSON array only:"""
                     "4. Extract ONLY the valid information that specifically answers what is being asked\n"
                     "5. Ignore information that is related but doesn't directly answer the question\n"
                     "6. Be precise about relationships - only extract information that matches the EXACT relationship being asked about\n\n"
-                    f"{reasoning_instruction}"
                     f"{person_instruction}"
                     f"{list_instruction}"
+                    f"{debug_footer}"
                     "Guidelines:\n"
                     f"{response_length_guideline}"
                     "- Review ALL context sections thoroughly from start to finish before responding to ensure nothing is missed\n"
@@ -1645,6 +1646,7 @@ def cpu_faiss_status():
 
 if __name__ == "__main__":
     print("[Generic] 🚀 Starting Aura Generic LLM Container...")
+    print(f"[Generic] 🔍 SHOW_REASONING_DEBUG = {SHOW_REASONING_DEBUG} (from environment)")
     
     # Load model with GPU acceleration using base class
     print(f"[Generic] 📦 Loading model: {SIMPLE_MODEL_PATH}")
