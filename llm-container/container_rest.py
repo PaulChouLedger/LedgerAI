@@ -767,6 +767,22 @@ JSON array only:"""
                     verified_rag_results = sorted(rag_results, key=lambda x: x.get('score', 0), reverse=True)[:3]
                 else:
                     print(f"[Generic] ✅ Document RAG LLM verification: {len(verified_rag_results)}/{len(rag_results)} chunks verified")
+                    
+                    # If only 1-2 chunks passed, include additional chunks from original results to ensure completeness
+                    # This helps when verification is too strict but chunks still contain relevant information
+                    if len(verified_rag_results) <= 2:
+                        verified_texts = {v.get('text', '') for v in verified_rag_results}
+                        additional_chunks = [
+                            chunk for chunk in rag_results 
+                            if chunk.get('text', '') not in verified_texts
+                        ]
+                        # Sort by original RAG score and take top 2
+                        additional_chunks.sort(key=lambda x: x.get('score', 0), reverse=True)
+                        additional_chunks = additional_chunks[:2]
+                        
+                        if additional_chunks:
+                            print(f"[Generic] 📝 Including {len(additional_chunks)} additional chunks (from original results) for completeness")
+                            verified_rag_results.extend(additional_chunks)
                 
                 # Extract person names from query for filtering chunks
                 query_person_names = re.findall(r'\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\b', prompt)
