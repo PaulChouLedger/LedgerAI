@@ -8,7 +8,7 @@ requests
 
 # Embeddings (for vectorizing conversations)
 sentence-transformers
-torch  # Required for GPU support in sentence-transformers
+# Note: torch is provided by the base image (dustynv/pytorch:2.6-r36.4.0-cu128-24.04)
 
 # Semantic search (for finding similar conversations)
 faiss-cpu
@@ -24,6 +24,6 @@ pydub        # Audio processing (if needed)
 
 # Note: 
 # - Does NOT include faster-whisper (calls Whisper container via HTTP)
-# - torch is included for GPU support in sentence-transformers (will use CPU if GPU unavailable)
+# - torch is provided by base image (dustynv/pytorch:2.6-r36.4.0-cu128-24.04) with CUDA support
 # - Uses CPU FAISS (sufficient for conversation volumes)
 

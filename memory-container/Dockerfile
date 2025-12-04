@@ -4,7 +4,8 @@
 # - Calls Whisper container via HTTP API (doesn't run Whisper locally)
 # - Uses Sentence Transformers for embeddings (separate from Whisper)
 # - Uses FAISS-CPU for semantic search on stored conversations
-FROM python:3.10-slim
+# Uses pre-built PyTorch image to avoid slow pip installs and get GPU support
+FROM dustynv/pytorch:2.6-r36.4.0-cu128-24.04
 
 # Install system dependencies
 # Note: portaudio19-dev needed for background audio capture (sounddevice)
@@ -18,9 +19,13 @@ RUN apt-get update && apt-get install -y \
 # Set working directory
 WORKDIR /app
 
+# Verify PyTorch is installed and CUDA-enabled (from base image)
+RUN python3 -c "import torch; assert hasattr(torch.version, 'cuda') and torch.version.cuda is not None, 'CUDA PyTorch required'; print(f'✅ PyTorch {torch.__version__} with CUDA {torch.version.cuda}')"
+
 # Copy requirements and install Python dependencies
+# Note: PyTorch is already included in base image (with CUDA support), so we skip it in requirements
 COPY requirements.txt .
-RUN pip3 install --no-cache-dir -r requirements.txt
+RUN pip3 install --no-cache-dir --ignore-installed --index-url https://pypi.org/simple -r requirements.txt
 
 # Pre-download sentence transformer model (cached layer)
 # This is for embeddings, NOT for transcription (Whisper handles transcription)
