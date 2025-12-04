@@ -32,6 +32,9 @@ class RAGFilesDialog(BaseAuraDialog):
         layout.setContentsMargins(*margins)
         layout.setSpacing(BaseAuraDialog.get_default_spacing())
         
+        # Add top stretch to center content vertically within white perimeter
+        layout.addStretch(1)
+        
         # Title
         title = QLabel("📚 Files in RAG System")
         title.setFont(QFont("Arial", 15, QFont.Bold))  # Further reduced font size
@@ -422,6 +425,9 @@ class ConversationsDialog(BaseAuraDialog):
         layout.setContentsMargins(*margins)
         layout.setSpacing(BaseAuraDialog.get_default_spacing())
         
+        # Add top stretch to center content vertically within white perimeter
+        layout.addStretch(1)
+        
         # Title
         title = QLabel("💬 Stored Conversations")
         title.setFont(QFont("Arial", 18, QFont.Bold))
@@ -439,7 +445,7 @@ class ConversationsDialog(BaseAuraDialog):
         # Limit height to ensure buttons fit within white perimeter
         self.conversations_list = QListWidget()
         self.conversations_list.setSelectionMode(QListWidget.MultiSelection)
-        self.conversations_list.setMaximumHeight(400)  # Limit height so buttons fit within white perimeter
+        self.conversations_list.setMaximumHeight(350)  # Reduced height to ensure buttons fit
         self.conversations_list.setStyleSheet("""
             QListWidget {
                 background-color: rgba(44, 44, 46, 0.8);

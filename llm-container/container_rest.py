@@ -994,6 +994,10 @@ JSON array only:"""
         instruction_keywords = ['how to', 'how do i', 'steps', 'step by step', 'instructions', 'guide me', 'walk me through', 'show me how']
         is_instruction_request = any(keyword in prompt.lower() for keyword in instruction_keywords)
         
+        # Detect if user is asking for a list (e.g., "who are", "list all", "what are the")
+        list_keywords = ['who are', 'who were', 'list all', 'list the', 'what are the', 'what are', 'name all', 'name the']
+        is_list_request = any(keyword in prompt.lower() for keyword in list_keywords)
+        
         if has_rag_context:
             # Dynamic prompt construction with Aura Vision identity
             # IMPORTANT: Include the prompt in the system message (matches working commit 1927b467c106120dd4e1231f600eccdaa5a93f08)
@@ -1028,6 +1032,16 @@ JSON array only:"""
                     person_list = ", ".join(query_person_names)
                     person_instruction = f"\n\n⚠️ CRITICAL: The user is asking about {person_list}. ONLY use information from the context that specifically mentions {person_list}. DO NOT confuse information about {person_list} with information about other people mentioned in the context. If a context section mentions multiple people, only extract and use the information that pertains to {person_list}.\n"
                 
+                # Add list-specific instructions if this is a list question
+                list_instruction = ""
+                if is_list_request:
+                    list_instruction = (
+                        "\n⚠️ IMPORTANT: This question asks for a LIST or MULTIPLE items. "
+                        "You MUST extract and mention ALL relevant items from the context, not just one. "
+                        "Review ALL context sections carefully to identify every item that answers the question. "
+                        "If the question asks 'who are', 'list all', or 'what are', provide a complete list.\n"
+                    )
+                
                 system_content = (
                     f"{combined_context}\n\n"
                     "You are Aura Vision, an AI agent created by Ledger AI Quantum Corporation. "
@@ -1035,6 +1049,7 @@ JSON array only:"""
                     f"{memory_warning}"
                     f"Based on the context provided above, answer the following question: {prompt}\n"
                     f"{person_instruction}"
+                    f"{list_instruction}"
                     "Guidelines:\n"
                     "- Keep responses short and conversational, like Siri or Alexa (2-3 sentences typically)\n"
                     "- Be friendly, helpful, and concise\n"
