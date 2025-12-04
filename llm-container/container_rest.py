@@ -847,7 +847,8 @@ JSON array only:"""
                                 source_name = metadata.get('document_name', 'unknown')
                         
                         # Truncate if too long, but try to break at sentence boundary
-                        if len(text) > MAX_CHARS_PER_RESULT:
+                        # For list questions, disable truncation entirely to preserve all information for completeness
+                        if not is_list_query and len(text) > MAX_CHARS_PER_RESULT:
                             truncated = text[:MAX_CHARS_PER_RESULT]
                             # Try to break at last sentence boundary
                             last_period = max(
@@ -1054,8 +1055,11 @@ JSON array only:"""
                         "Before responding, carefully scan EVERY context section from beginning to end to identify ALL items that answer the question. "
                         "Read through each context section completely - do NOT stop reading once you find a few items. "
                         "You MUST mention EVERY relevant item from ALL context sections - missing items is worse than a longer response. "
-                        "For lists of people: Include their titles/roles when mentioned (e.g., 'Co-Founder and CEO', 'Chief Operating Officer'). "
-                        "Format your response naturally, starting with 'The co-founders of [Company] are:' or similar natural phrasing, then list each person with their role.\n"
+                        "Be precise about relationships and entities: Only include items that match the specific relationship or category being asked about. "
+                        "If the question asks about a specific entity (company, person, organization), only include items that have the EXACT relationship to that entity. "
+                        "DO NOT include items with similar but different relationships (e.g., if asking about Company X, exclude people/entities related to Company Y). "
+                        "For lists of people: Include their titles/roles when mentioned in the context. "
+                        "Format your response naturally, using complete sentences that clearly introduce the list (e.g., 'The [items] are:').\n"
                     )
                 
                 # Build response length guideline - prioritize completeness for lists
@@ -1080,9 +1084,10 @@ JSON array only:"""
                     "- Be friendly, helpful, and conversational\n"
                     "- Synthesize information from ALL context sections naturally - don't ignore any relevant information\n"
                     "- When listing people, include their titles/roles when mentioned in the context (e.g., 'Paul Chou, Co-Founder and CEO')\n"
-                    "- Format list responses naturally: Start with a complete sentence like 'The co-founders of [Company] are:' then list each person\n"
+                    "- Format list responses naturally: Start with a complete sentence that introduces the list, then list each item\n"
                     "- ONLY use information that directly relates to what is being asked\n"
-                    "- Be precise and accurate - don't confuse or mix different entities, people, or concepts\n"
+                    "- Be precise and accurate - don't confuse or mix different entities, people, organizations, or concepts\n"
+                    "- For relationship questions: Only include items that have the EXACT relationship being asked about - exclude similar but different relationships (e.g., if asking about 'founders of Company X', exclude founders of Company Y)\n"
                     "- Rephrase and explain in your own words rather than copying text verbatim\n"
                     "- If the context doesn't fully address the question, supplement appropriately\n"
                     "- Prioritize completeness and accuracy over brevity when important information would be lost"
