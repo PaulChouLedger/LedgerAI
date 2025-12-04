@@ -814,7 +814,8 @@ JSON array only:"""
                     print(f"[Generic] 📋 List question detected - using full context (no sentence filtering)")
                 
                 # Build RAG context with improved formatting and relevance ordering
-                MAX_CHARS_PER_RESULT = 1200
+                # For list questions, use larger character limit to ensure completeness
+                MAX_CHARS_PER_RESULT = 1800 if is_list_query else 1200
                 rag_chunks = []
                 
                 # Use verified results (already sorted by LLM verification score)
@@ -1050,9 +1051,11 @@ JSON array only:"""
                 if is_list_request:
                     list_instruction = (
                         "\n🚨 CRITICAL: This question asks for a LIST or MULTIPLE items. "
-                        "Before responding, carefully review ALL context sections to identify EVERY item that answers the question. "
-                        "You MUST mention ALL relevant items from the context - do NOT stop after one or two items. "
-                        "Keep each item brief, but ensure the entire list is COMPLETE and includes everything mentioned across all context sections.\n"
+                        "Before responding, carefully scan EVERY context section from beginning to end to identify ALL items that answer the question. "
+                        "Read through each context section completely - do NOT stop reading once you find a few items. "
+                        "You MUST mention EVERY relevant item from ALL context sections - missing items is worse than a longer response. "
+                        "For lists of people: Include their titles/roles when mentioned (e.g., 'Co-Founder and CEO', 'Chief Operating Officer'). "
+                        "Format your response naturally, starting with 'The co-founders of [Company] are:' or similar natural phrasing, then list each person with their role.\n"
                     )
                 
                 # Build response length guideline - prioritize completeness for lists
@@ -1072,9 +1075,12 @@ JSON array only:"""
                     f"{list_instruction}"
                     "Guidelines:\n"
                     f"{response_length_guideline}"
-                    "- Review ALL context sections thoroughly before responding to ensure nothing is missed\n"
-                    "- Be friendly, helpful, and concise\n"
+                    "- Review ALL context sections thoroughly from start to finish before responding to ensure nothing is missed\n"
+                    "- For list questions: Scan every context section completely - read each one entirely, don't skip ahead\n"
+                    "- Be friendly, helpful, and conversational\n"
                     "- Synthesize information from ALL context sections naturally - don't ignore any relevant information\n"
+                    "- When listing people, include their titles/roles when mentioned in the context (e.g., 'Paul Chou, Co-Founder and CEO')\n"
+                    "- Format list responses naturally: Start with a complete sentence like 'The co-founders of [Company] are:' then list each person\n"
                     "- ONLY use information that directly relates to what is being asked\n"
                     "- Be precise and accurate - don't confuse or mix different entities, people, or concepts\n"
                     "- Rephrase and explain in your own words rather than copying text verbatim\n"
