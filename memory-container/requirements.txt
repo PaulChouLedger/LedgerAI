@@ -8,6 +8,7 @@ requests
 
 # Embeddings (for vectorizing conversations)
 sentence-transformers
+torch  # Required for GPU support in sentence-transformers
 
 # Semantic search (for finding similar conversations)
 faiss-cpu
@@ -23,6 +24,6 @@ pydub        # Audio processing (if needed)
 
 # Note: 
 # - Does NOT include faster-whisper (calls Whisper container via HTTP)
-# - Does NOT include torch/cuda (Whisper runs in separate container)
+# - torch is included for GPU support in sentence-transformers (will use CPU if GPU unavailable)
 # - Uses CPU FAISS (sufficient for conversation volumes)
 

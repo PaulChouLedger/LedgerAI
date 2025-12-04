@@ -674,10 +674,12 @@ def start_services():
             workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
             setup_dir = os.path.join(workspace_root, 'setup')
             
-            # Check if containers need rebuilding (after OTA update)
+            # Check if containers need rebuilding (after OTA update or code changes)
             if should_rebuild_containers(workspace_root):
                 print("[Aura] 🔄 Code changes detected - rebuilding containers...")
-                rebuild_containers(setup_dir, USE_MEDICAL_MODE, RAG_MODE)
+                if not rebuild_containers(setup_dir, USE_MEDICAL_MODE, RAG_MODE):
+                    print("[Aura] ⚠️ Container rebuild failed or was skipped")
+                    print("[Aura] 💡 Containers will use --build flag to pick up changes")
             
             # Stop any existing containers first
             print("[Aura] 🛑 Stopping existing containers...")
@@ -735,7 +737,8 @@ def start_services():
             # Start selected services with Docker Compose (different ports for each LLM)
             # Use --build to ensure code changes are picked up (rebuilds if files changed)
             # Note: Docker will use cache if files haven't changed, but will rebuild if they have
-            cmd = ["docker", "compose", "up", "-d", "--build"] + services_to_start
+            # Force rebuild for memory container if code files changed (Docker cache might prevent rebuild)
+            cmd = ["docker", "compose", "up", "-d", "--build", "--force-recreate"] + services_to_start
             
             result = subprocess.run(
                 cmd,

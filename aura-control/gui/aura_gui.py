@@ -109,7 +109,7 @@ class BorderOverlayWidget(QWidget):
         self.setAttribute(Qt.WA_TranslucentBackground, True)
         self.setStyleSheet("background: transparent;")
         self.parent_gui = parent
-    
+        
     def paintEvent(self, event):
         """Paint borders - this runs AFTER buttons paint, so borders appear on top"""
         painter = QPainter(self)
@@ -695,8 +695,8 @@ class AuraGUI(QMainWindow):
             # Ensure border overlay is visible and on top
             if hasattr(self, 'border_overlay'):
                 self.border_overlay.show()
-                self.border_overlay.raise_()  # Keep on top every frame
-                self.border_overlay.update()  # Trigger overlay paintEvent
+            self.border_overlay.raise_()  # Keep on top every frame
+            self.border_overlay.update()  # Trigger overlay paintEvent
             
         # State 1: TTS playing - dramatic pulsation (priority after transcribing)
         elif _tts_playing:

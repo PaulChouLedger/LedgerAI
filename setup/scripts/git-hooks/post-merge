@@ -11,12 +11,20 @@ CHANGED_FILES=$(git diff-tree -r --name-only --no-commit-id ORIG_HEAD HEAD 2>/de
 SERVICE_UPDATED=false
 TUNING_SCRIPT_UPDATED=false
 
+# Check if container code files were updated (triggers rebuild on next main.py start)
+CONTAINER_CODE_UPDATED=false
+
 if echo "$CHANGED_FILES" | grep -q "setup/scripts/xvf3800-tuning.service"; then
     SERVICE_UPDATED=true
 fi
 
 if echo "$CHANGED_FILES" | grep -q "setup/scripts/tune_xvf3800.py"; then
     TUNING_SCRIPT_UPDATED=true
+fi
+
+# Check if any container code files changed (memory-container, llm-container, etc.)
+if echo "$CHANGED_FILES" | grep -qE "(memory-container|llm-container|llm-medical-container|whisper-container|rag-container)/.*\.py"; then
+    CONTAINER_CODE_UPDATED=true
 fi
 
 if [ "$SERVICE_UPDATED" = true ] || [ "$TUNING_SCRIPT_UPDATED" = true ]; then
@@ -52,6 +60,18 @@ if [ "$SERVICE_UPDATED" = true ] || [ "$TUNING_SCRIPT_UPDATED" = true ]; then
             echo "💡 Then restart service: sudo systemctl restart xvf3800-tuning.service"
         fi
         echo "💡 Or reboot - changes will take effect automatically on next boot"
+    fi
+fi
+
+# If container code changed, clear the last_built_commit file to force rebuild on next main.py start
+if [ "$CONTAINER_CODE_UPDATED" = true ]; then
+    echo ""
+    echo "🔄 Container code files updated - will trigger rebuild on next main.py start"
+    WORKSPACE_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || echo "")
+    if [ -n "$WORKSPACE_ROOT" ] && [ -f "$WORKSPACE_ROOT/.last_built_commit" ]; then
+        rm -f "$WORKSPACE_ROOT/.last_built_commit"
+        echo "✅ Cleared .last_built_commit - containers will rebuild on next main.py start"
+        echo "💡 Restart main.py (or reboot) to rebuild containers with new code"
     fi
 fi
 
