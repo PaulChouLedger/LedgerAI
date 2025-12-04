@@ -436,8 +436,10 @@ class ConversationsDialog(BaseAuraDialog):
         layout.addWidget(desc)
         
         # Conversations list (multi-select)
+        # Limit height to ensure buttons fit within white perimeter
         self.conversations_list = QListWidget()
         self.conversations_list.setSelectionMode(QListWidget.MultiSelection)
+        self.conversations_list.setMaximumHeight(400)  # Limit height so buttons fit within white perimeter
         self.conversations_list.setStyleSheet("""
             QListWidget {
                 background-color: rgba(44, 44, 46, 0.8);
@@ -456,7 +458,7 @@ class ConversationsDialog(BaseAuraDialog):
                 background-color: rgba(0, 122, 255, 0.3);
             }
         """)
-        layout.addWidget(self.conversations_list, 1)
+        layout.addWidget(self.conversations_list)
         
         # Buttons
         button_layout = QHBoxLayout()

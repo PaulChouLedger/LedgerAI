@@ -4,7 +4,7 @@
 from flask import Flask, request, jsonify, stream_with_context, Response
 import os, threading, atexit, time
 import requests
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Tuple, Union
 from collections import Counter
 import re
 import logging
@@ -236,7 +236,7 @@ def extract_relevant_sentences(chunk_text: str, query_person_names: List[str]) -
         return ""
 
 # === Unified LLM Verification for RAG Chunks ===
-def verify_rag_chunks_with_llm(chunks: List[Dict], query: str, chunk_type: str = "document", threshold: float = 0.5) -> List[Dict]:
+def verify_rag_chunks_with_llm(chunks: List[Dict], query: str, chunk_type: str = "document", threshold: float = 0.5, return_all_with_scores: bool = False) -> Union[List[Dict], Tuple[List[Dict], List[Dict]]]:
     """
     Unified LLM verification for both document and memory RAG chunks.
     Uses LLM to verify which chunks actually answer the query, filtering out irrelevant or misleading chunks.
@@ -406,6 +406,9 @@ JSON array only:"""
             # Fallback: use top 2 chunks even if below threshold (to avoid empty results)
             filtered_chunks = verified_chunks[:2]
         
+        # If requested, return all chunks with scores (for additional chunks selection)
+        if return_all_with_scores:
+            return filtered_chunks, verified_chunks
         return filtered_chunks
         
     except Exception as e:
@@ -754,12 +757,15 @@ JSON array only:"""
                     verification_threshold = 0.4  # Default fallback
                 
                 # Verify chunks with LLM (unified verification function)
-                verified_rag_results = verify_rag_chunks_with_llm(
+                # Get both filtered chunks and all chunks with scores for smart additional chunk selection
+                verification_result = verify_rag_chunks_with_llm(
                     rag_results, 
                     prompt, 
                     chunk_type="document",
-                    threshold=verification_threshold
+                    threshold=verification_threshold,
+                    return_all_with_scores=True
                 )
+                verified_rag_results, all_chunks_with_scores = verification_result
                 
                 if not verified_rag_results:
                     print(f"[Generic] ⚠️ All document RAG chunks failed LLM verification, using original top 3 as fallback")
@@ -768,20 +774,22 @@ JSON array only:"""
                 else:
                     print(f"[Generic] ✅ Document RAG LLM verification: {len(verified_rag_results)}/{len(rag_results)} chunks verified")
                     
-                    # If only 1-2 chunks passed, include additional chunks from original results to ensure completeness
+                    # If only 1-2 chunks passed, include additional chunks with reasonable verification scores to ensure completeness
                     # This helps when verification is too strict but chunks still contain relevant information
                     if len(verified_rag_results) <= 2:
                         verified_texts = {v.get('text', '') for v in verified_rag_results}
+                        # Use verification scores to select additional chunks (scores >= 0.2 to avoid very low-quality chunks)
                         additional_chunks = [
-                            chunk for chunk in rag_results 
+                            chunk for chunk in all_chunks_with_scores
                             if chunk.get('text', '') not in verified_texts
+                            and chunk.get('llm_verification_score', 0) >= 0.2
                         ]
-                        # Sort by original RAG score and take top 2
-                        additional_chunks.sort(key=lambda x: x.get('score', 0), reverse=True)
+                        # Sort by verification score (not original RAG score) and take top 2
+                        additional_chunks.sort(key=lambda x: x.get('llm_verification_score', 0), reverse=True)
                         additional_chunks = additional_chunks[:2]
                         
                         if additional_chunks:
-                            print(f"[Generic] 📝 Including {len(additional_chunks)} additional chunks (from original results) for completeness")
+                            print(f"[Generic] 📝 Including {len(additional_chunks)} additional chunks (verification scores >= 0.2) for completeness")
                             verified_rag_results.extend(additional_chunks)
                 
                 # Extract person names from query for filtering chunks
