@@ -22,10 +22,22 @@ WORKDIR /app
 # Verify PyTorch is installed and CUDA-enabled (from base image)
 RUN python3 -c "import torch; assert hasattr(torch.version, 'cuda') and torch.version.cuda is not None, 'CUDA PyTorch required'; print(f'✅ PyTorch {torch.__version__} with CUDA {torch.version.cuda}')"
 
-# Copy requirements and install Python dependencies
-# Note: PyTorch is already included in base image (with CUDA support), so we skip it in requirements
-COPY requirements.txt .
-RUN pip3 install --no-cache-dir --ignore-installed --index-url https://pypi.org/simple -r requirements.txt
+# Install Python dependencies (matching LLM container approach)
+# Note: PyTorch is already included in base image (with CUDA support)
+# sentence-transformers will automatically pull its dependencies (huggingface-hub, transformers, etc.)
+# pip should detect existing torch and skip re-installing it
+RUN pip3 install --no-cache-dir --index-url https://pypi.org/simple \
+    flask \
+    flask-cors \
+    numpy>=1.26.0 \
+    requests \
+    sentence-transformers \
+    faiss-cpu \
+    watchdog \
+    python-dotenv \
+    sounddevice \
+    soundfile \
+    pydub
 
 # Pre-download sentence transformer model (cached layer)
 # This is for embeddings, NOT for transcription (Whisper handles transcription)
