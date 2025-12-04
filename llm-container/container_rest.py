@@ -267,28 +267,71 @@ def verify_rag_chunks_with_llm(chunks: List[Dict], query: str, chunk_type: str =
     try:
         print(f"[Generic] 🤖 Using LLM to verify {len(valid_chunks)} {chunk_type} RAG chunks for query: '{query[:60]}...'")
         
-        # Build prompt for LLM to score chunks
+        # Extract person names from query for fuzzy matching
+        query_person_names = re.findall(r'\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\b', query)
+        query_capitalized = re.findall(r'\b([A-Z][a-z]+)\b', query)
+        question_words = {'Who', 'What', 'Where', 'When', 'Why', 'How', 'The', 'A', 'An', 'Is', 'Are', 'Was', 'Were'}
+        all_query_names = query_person_names + [w for w in query_capitalized if w not in question_words]
+        
+        # Build prompt for LLM to score chunks, with name match hints
         chunks_text = ""
+        name_match_notes = []
+        
+        # Import fuzzy matching function (defined earlier in file)
+        from difflib import SequenceMatcher
+        FUZZY_THRESHOLD = 0.75
+        
         for i, chunk in enumerate(valid_chunks, 1):
             chunk_text = chunk.get('text', '').strip()
             # Truncate chunk text for verification (keep it concise)
             if len(chunk_text) > 500:
                 chunk_text = chunk_text[:500] + "..."
+            
+            # Check for fuzzy name matches in this chunk
+            name_matches = []
+            if all_query_names:
+                capitalized_patterns = re.findall(r'\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b', chunk_text)
+                for query_name in all_query_names:
+                    query_words = query_name.lower().split()
+                    for pattern in capitalized_patterns:
+                        pattern_words = pattern.lower().split()
+                        if len(query_words) >= 2 and len(pattern_words) >= 2:
+                            first_match = (query_words[0] == pattern_words[0] or 
+                                         SequenceMatcher(None, query_words[0], pattern_words[0]).ratio() >= FUZZY_THRESHOLD)
+                            last_match = (query_words[-1] == pattern_words[-1] or 
+                                        SequenceMatcher(None, query_words[-1], pattern_words[-1]).ratio() >= FUZZY_THRESHOLD)
+                            if first_match and last_match and query_name.lower() != pattern.lower():
+                                name_matches.append((query_name, pattern))
+            
             chunks_text += f"{i}. {chunk_text}\n"
+            
+            # Add note if fuzzy name match found
+            if name_matches:
+                for query_name, doc_name in name_matches:
+                    name_match_notes.append(f"NOTE: Chunk {i} mentions '{doc_name}' which likely refers to the same person as '{query_name}' in the query (name variation).")
+        
+        # Build name match notes section
+        name_match_section = ""
+        if name_match_notes:
+            name_match_section = "\n\n" + "\n".join(name_match_notes) + "\n"
         
         verification_prompt = f"""Rate how well each chunk of information answers the user's question.
 
 User's question: "{query}"
 
 Chunks of information:
-{chunks_text}
-
+{chunks_text}{name_match_section}
 For each chunk, assign a score from 0.0 to 1.0:
 - 1.0 = Perfectly answers the question with directly relevant information (e.g., explicitly states "X is co-founder of Y" when asked "who are co-founders of Y")
 - 0.7-0.9 = Mostly answers the question, contains relevant information that directly relates to the question
 - 0.4-0.6 = Partially relevant, some useful information but may be tangential
 - 0.1-0.3 = Minimally relevant, mentions related topics but doesn't directly answer the question
 - 0.0 = Not relevant, doesn't answer the question or contains misleading information
+
+IMPORTANT: Name variations should be treated as referring to the same person. For example:
+- "John Smith" and "John Smyth" refer to the same person
+- "Mary Johnson" and "Mary Johnston" refer to the same person  
+- Similar name spellings with slight differences (1-2 characters) should be considered matches
 
 CRITICAL: For relationship questions (e.g., "co-founders of X", "employees of Y"), only give high scores to chunks that EXPLICITLY state the relationship. 
 For example, if asked "who are co-founders of LedgerAI", a chunk mentioning "Albert Soler is Co-Founder of Soler Salva LLP" should get a LOW score (0.0-0.3) 
