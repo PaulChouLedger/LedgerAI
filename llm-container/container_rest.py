@@ -140,6 +140,99 @@ def get_filler_phrase() -> str:
     ]
     return random.choice(filler_phrases)
 
+# === Debug: Analyze Chunks for LLM Reasoning ===
+def analyze_chunks_for_reasoning(chunks: List[Dict], query: str) -> None:
+    """
+    Analyze RAG chunks and log key information to help debug LLM reasoning.
+    Shows what co-founders/entities are mentioned in each chunk.
+    """
+    print(f"\n{'='*80}")
+    print(f"[LLM Reasoning Debug] 🔍 ANALYZING CHUNKS FOR QUERY: '{query}'")
+    print(f"{'='*80}")
+    
+    # Extract target entity and relationship from query
+    target_entity = None
+    relationship_type = None
+    relationship_patterns = [
+        r'(?:co-?founders?|founders?|employees?|members?|partners?|advisors?|executives?|leaders?|directors?)\s+(?:of|for)\s+([A-Z][a-zA-Z\s&]+?)(?:\s|$|[?.!])',
+        r'([A-Z][a-zA-Z\s&]+?)\'s\s+(?:co-?founders?|founders?|employees?|members?|partners?|advisors?|executives?|leaders?|directors?)',
+    ]
+    for pattern in relationship_patterns:
+        match = re.search(pattern, query, re.IGNORECASE)
+        if match:
+            target_entity = match.group(1).strip()
+            rel_match = re.search(r'(co-?founders?|founders?|employees?|members?|partners?|advisors?|executives?|leaders?|directors?)', query, re.IGNORECASE)
+            if rel_match:
+                relationship_type = rel_match.group(1).lower()
+            break
+    
+    if target_entity and relationship_type:
+        print(f"[LLM Reasoning Debug] 🎯 Query Type: Relationship question")
+        print(f"[LLM Reasoning Debug] 📌 Target Entity: '{target_entity}'")
+        print(f"[LLM Reasoning Debug] 📌 Relationship: '{relationship_type}'")
+        print(f"[LLM Reasoning Debug] 🔍 Looking for: People who are '{relationship_type}' of '{target_entity}'")
+    else:
+        print(f"[LLM Reasoning Debug] 🎯 Query Type: General question")
+    
+    print(f"[LLM Reasoning Debug] 📊 Analyzing {len(chunks)} chunks...\n")
+    
+    for i, chunk in enumerate(chunks, 1):
+        text = chunk.get('text', '')
+        score = chunk.get('score', 0)
+        
+        print(f"[LLM Reasoning Debug] 📄 CHUNK {i}/{len(chunks)} (Score: {score:.3f}):")
+        print(f"[LLM Reasoning Debug] {'-'*76}")
+        
+        # Extract co-founders/founders mentioned in this chunk
+        if target_entity and relationship_type:
+            target_variations = ['LedgerAI', 'Ledger AI', 'Ledger AI Quantum', target_entity]
+            found_people = []
+            
+            # Simple pattern matching for co-founder statements
+            # Look for "Co-Founder of LedgerAI" or "Co-Founder and Title of LedgerAI"
+            for target in target_variations:
+                # Pattern 1: "Name is Co-Founder of Target"
+                pattern1 = rf'([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\s+is\s+(?:a\s+)?(?:the\s+)?(?:Co-?[Ff]ounder|co-founder)[\s,]+(?:and\s+\w+[\s,]+)?(?:of|for)\s+{target}'
+                for match in re.finditer(pattern1, text, re.IGNORECASE):
+                    person = match.group(1)
+                    if person and person not in found_people:
+                        found_people.append(person)
+                        print(f"[LLM Reasoning Debug]   ✅ FOUND: '{person}' is Co-Founder of {target}")
+                
+                # Pattern 2: "As Co-Founder of Target" - extract name from preceding context
+                pattern2 = rf'(?:As|Being)\s+(?:a\s+)?(?:Co-?[Ff]ounder|co-founder)[\s,]+(?:and\s+\w+[\s,]+)?(?:of|for)\s+{target}'
+                for match in re.finditer(pattern2, text, re.IGNORECASE):
+                    # Look backwards for person name
+                    context_start = max(0, match.start() - 150)
+                    context = text[context_start:match.start()]
+                    name_match = re.search(r'([A-Z][a-z]+\s+[A-Z][a-z]+)\s+(?:is|was|,\s*|$)', context[-80:])
+                    if name_match:
+                        person = name_match.group(1)
+                        if person and person not in found_people:
+                            found_people.append(person)
+                            print(f"[LLM Reasoning Debug]   ✅ FOUND: '{person}' is Co-Founder of {target}")
+            
+            if not found_people:
+                print(f"[LLM Reasoning Debug]   ❌ No co-founders of '{target_entity}' explicitly found in this chunk")
+            
+            # Check for misleading: co-founder of OTHER companies
+            misleading_pattern = r'Co-?[Ff]ounder[\s,]+(?:and\s+\w+[\s,]+)?(?:of|for)\s+([A-Z][a-zA-Z\s&]+(?:LLP|Inc|Corp)?)'
+            for match in re.finditer(misleading_pattern, text, re.IGNORECASE):
+                company = match.group(1)
+                if company and not any(target.lower() in company.lower() for target in target_variations):
+                    context_start = max(0, match.start() - 100)
+                    context = text[context_start:match.start()]
+                    name_match = re.search(r'([A-Z][a-z]+\s+[A-Z][a-z]+)\s+(?:is|was|,\s*|$)', context[-60:])
+                    if name_match:
+                        person = name_match.group(1)
+                        print(f"[LLM Reasoning Debug]   ⚠️  MISLEADING: '{person}' is Co-Founder of '{company}' (NOT {target_entity})")
+        
+        # Show preview of chunk
+        preview = text[:200] + "..." if len(text) > 200 else text
+        print(f"[LLM Reasoning Debug]   📝 Preview: {preview}\n")
+    
+    print(f"{'='*80}\n")
+
 # === Conversational Logic ===
 def handle_conversation(
     prompt: str, session_id: str, memory_context: Optional[str] = None, stream: bool = False
@@ -534,6 +627,9 @@ JSON array only:"""
                 rag_context = "\n\n---\n\n".join(rag_chunks)
                 print(f"[Generic] ✅ Using document RAG context ({len(rag_context)} chars, ~{len(rag_context)//4} tokens) from {len(rag_chunks)} chunks for LLM response")
                 print(f"[Generic] 📄 FULL RAG CONTEXT SENT TO LLM:\n{rag_context}\n")  # Log full context for debugging
+                
+                # DEBUG: Analyze chunks to show what LLM should extract
+                analyze_chunks_for_reasoning(sorted_results, prompt)
             except Exception as e:
                 print(f"[Generic] ⚠️ RAG failed, using direct LLM: {e}")
                 import traceback
@@ -761,7 +857,13 @@ JSON array only:"""
                     "content": system_content,
                 }
             ]
-            # Reduced debug logging for performance
+            
+            # DEBUG: Log full system prompt being sent to LLM
+            print(f"\n{'='*80}")
+            print(f"[LLM Reasoning Debug] 📤 FULL SYSTEM PROMPT BEING SENT TO LLM:")
+            print(f"{'='*80}")
+            print(system_content)
+            print(f"{'='*80}\n")
             
             # Don't wrap the iterator - let base_container's debug_iterator handle logging
             # The base class already wraps it with debug logging
