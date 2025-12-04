@@ -321,21 +321,23 @@ User's question: "{query}"
 
 Chunks of information:
 {chunks_text}{name_match_section}
-For each chunk, assign a score from 0.0 to 1.0:
-- 1.0 = Perfectly answers the question with directly relevant information (e.g., explicitly states "X is co-founder of Y" when asked "who are co-founders of Y")
-- 0.7-0.9 = Mostly answers the question, contains relevant information that directly relates to the question
-- 0.4-0.6 = Partially relevant, some useful information but may be tangential
+For each chunk, assign a score from 0.0 to 1.0 based on how well it answers the question:
+- 1.0 = Perfectly answers the question with directly relevant and accurate information
+- 0.7-0.9 = Mostly answers the question with relevant information that directly relates to the question
+- 0.4-0.6 = Partially relevant, contains some useful information but may be tangential or incomplete
 - 0.1-0.3 = Minimally relevant, mentions related topics but doesn't directly answer the question
-- 0.0 = Not relevant, doesn't answer the question or contains misleading information
+- 0.0 = Not relevant, doesn't answer the question, or contains misleading/incorrect information
 
-IMPORTANT: Name variations should be treated as referring to the same person. For example:
-- "John Smith" and "John Smyth" refer to the same person
-- "Mary Johnson" and "Mary Johnston" refer to the same person  
-- Similar name spellings with slight differences (1-2 characters) should be considered matches
+Scoring Guidelines:
+1. HIGH SCORE (0.7-1.0): The chunk contains information that directly and accurately answers what the question is asking for
+2. MEDIUM SCORE (0.4-0.6): The chunk is related to the topic but doesn't fully answer the question, or answers only part of it
+3. LOW SCORE (0.0-0.3): The chunk mentions related terms/concepts but doesn't actually answer the question, or contains information that contradicts what's being asked
 
-CRITICAL: For relationship questions (e.g., "co-founders of X", "employees of Y"), only give high scores to chunks that EXPLICITLY state the relationship. 
-For example, if asked "who are co-founders of LedgerAI", a chunk mentioning "Albert Soler is Co-Founder of Soler Salva LLP" should get a LOW score (0.0-0.3) 
-even if the chunk also mentions "LedgerAI", because Albert is NOT a co-founder of LedgerAI.
+IMPORTANT: 
+- Name variations should be treated as referring to the same person (e.g., "John Smith" ≈ "John Smyth")
+- Focus on whether the chunk actually ANSWERS the question, not just whether it mentions related keywords
+- Chunks that mention the topic but provide incorrect or irrelevant information should get low scores
+- Consider context carefully - information about similar but different entities should get lower scores
 
 Return ONLY a JSON array with exactly {len(valid_chunks)} scores in order.
 Example: [0.8, 0.9, 0.2, 0.7, 0.1]
