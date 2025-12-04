@@ -1036,11 +1036,18 @@ JSON array only:"""
                 list_instruction = ""
                 if is_list_request:
                     list_instruction = (
-                        "\n⚠️ IMPORTANT: This question asks for a LIST or MULTIPLE items. "
-                        "You MUST extract and mention ALL relevant items from the context, not just one. "
-                        "Review ALL context sections carefully to identify every item that answers the question. "
-                        "If the question asks 'who are', 'list all', or 'what are', provide a complete list.\n"
+                        "\n🚨 CRITICAL: This question asks for a LIST or MULTIPLE items. "
+                        "Before responding, carefully review ALL context sections to identify EVERY item that answers the question. "
+                        "You MUST mention ALL relevant items from the context - do NOT stop after one or two items. "
+                        "Keep each item brief, but ensure the entire list is COMPLETE and includes everything mentioned across all context sections.\n"
                     )
+                
+                # Build response length guideline - prioritize completeness for lists
+                response_length_guideline = (
+                    "- Keep items brief but include ALL items from the RAG context (completeness over brevity for lists)\n"
+                    if is_list_request
+                    else "- Keep responses short and conversational, like Siri or Alexa (2-3 sentences typically)\n"
+                )
                 
                 system_content = (
                     f"{combined_context}\n\n"
@@ -1051,14 +1058,15 @@ JSON array only:"""
                     f"{person_instruction}"
                     f"{list_instruction}"
                     "Guidelines:\n"
-                    "- Keep responses short and conversational, like Siri or Alexa (2-3 sentences typically)\n"
+                    f"{response_length_guideline}"
+                    "- Review ALL context sections thoroughly before responding to ensure nothing is missed\n"
                     "- Be friendly, helpful, and concise\n"
-                    "- Synthesize information from the context sections naturally\n"
-                    "- ONLY use information that directly relates to the person/entity asked about\n"
-                    "- DO NOT mix information about different people - be precise about who you're describing\n"
-                    "- Rephrase and explain in your own words rather than copying text\n"
+                    "- Synthesize information from ALL context sections naturally - don't ignore any relevant information\n"
+                    "- ONLY use information that directly relates to what is being asked\n"
+                    "- Be precise and accurate - don't confuse or mix different entities, people, or concepts\n"
+                    "- Rephrase and explain in your own words rather than copying text verbatim\n"
                     "- If the context doesn't fully address the question, supplement appropriately\n"
-                    "- Avoid lengthy explanations unless specifically requested"
+                    "- Prioritize completeness and accuracy over brevity when important information would be lost"
                 )
             # When RAG context is present, use only system message (matches working commit)
             messages = [

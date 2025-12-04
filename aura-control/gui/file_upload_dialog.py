@@ -445,7 +445,7 @@ class ConversationsDialog(BaseAuraDialog):
         # Limit height to ensure buttons fit within white perimeter
         self.conversations_list = QListWidget()
         self.conversations_list.setSelectionMode(QListWidget.MultiSelection)
-        self.conversations_list.setMaximumHeight(350)  # Reduced height to ensure buttons fit
+        self.conversations_list.setMaximumHeight(250)  # Reduced height to ensure buttons fit within white perimeter
         self.conversations_list.setStyleSheet("""
             QListWidget {
                 background-color: rgba(44, 44, 46, 0.8);
@@ -553,6 +553,10 @@ class ConversationsDialog(BaseAuraDialog):
         button_layout.addWidget(close_btn)
         
         layout.addLayout(button_layout)
+        
+        # Add bottom stretch to center content vertically within white perimeter
+        layout.addStretch(1)
+        
         self.setLayout(layout)
         
         # Initialize conversation data list
