@@ -145,10 +145,11 @@ def extract_relevant_sentences(chunk_text: str, query_person_names: List[str]) -
     """
     Extract sentences from a chunk that mention the queried person(s), plus adjacent sentences for context.
     This prevents mixing information about different people while preserving important details.
+    Uses fuzzy matching to handle name variations (e.g., "Smith" vs "Smyth").
     
     Args:
         chunk_text: Full chunk text (may contain multiple people)
-        query_person_names: List of person names from query (e.g., ["David Lara"])
+        query_person_names: List of person names from query (e.g., ["John Doe", "Jane Smith"])
     
     Returns:
         Filtered text containing sentences mentioning the queried person(s) plus context
@@ -157,34 +158,74 @@ def extract_relevant_sentences(chunk_text: str, query_person_names: List[str]) -
         return chunk_text  # No person names in query, return full chunk
     
     import re
+    from difflib import SequenceMatcher
+    
     # Split into sentences (handle common sentence endings)
     sentences = re.split(r'([.!?]\s+)', chunk_text)
     # Recombine sentences with their punctuation
     sentences = [sentences[i] + (sentences[i+1] if i+1 < len(sentences) else '') 
                  for i in range(0, len(sentences), 2) if sentences[i].strip()]
     
+    # Fuzzy matching threshold for names (0.75 = 75% similarity)
+    # This handles common name spelling variations (similarity ~0.75)
+    FUZZY_THRESHOLD = 0.75
+    
+    def fuzzy_name_match(query_name: str, text: str) -> bool:
+        """
+        Check if text contains a fuzzy match for the query name.
+        Tries exact match first, then fuzzy match if needed.
+        """
+        query_lower = query_name.lower()
+        text_lower = text.lower()
+        
+        # First try exact match (fastest)
+        if query_lower in text_lower:
+            return True
+        
+        # Extract all capitalized words/phrases from text as potential names
+        # Look for patterns like "First Last", "John Smith", etc.
+        capitalized_patterns = re.findall(r'\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b', text)
+        
+        # Check each capitalized phrase against query name
+        query_words = query_lower.split()
+        
+        for pattern in capitalized_patterns:
+            pattern_lower = pattern.lower()
+            pattern_words = pattern_lower.split()
+            
+            # For multi-word names, check if words match (exact or fuzzy)
+            if len(query_words) >= 2 and len(pattern_words) >= 2:
+                # Check if first name matches (exact or fuzzy)
+                first_match = (query_words[0] == pattern_words[0] or 
+                              SequenceMatcher(None, query_words[0], pattern_words[0]).ratio() >= FUZZY_THRESHOLD)
+                
+                # Check if last name matches (exact or fuzzy)
+                last_match = (query_words[-1] == pattern_words[-1] or 
+                             SequenceMatcher(None, query_words[-1], pattern_words[-1]).ratio() >= FUZZY_THRESHOLD)
+                
+                if first_match and last_match:
+                    print(f"[Generic] ✅ Fuzzy name match: '{query_name}' ≈ '{pattern}'")
+                    return True
+            
+            # For single-word names, check fuzzy match
+            elif len(query_words) == 1 and len(pattern_words) == 1:
+                similarity = SequenceMatcher(None, query_words[0], pattern_words[0]).ratio()
+                if similarity >= FUZZY_THRESHOLD:
+                    print(f"[Generic] ✅ Fuzzy name match: '{query_name}' ≈ '{pattern}' (similarity: {similarity:.2f})")
+                    return True
+        
+        return False
+    
     # Find sentences that mention the person, and include adjacent sentences for context
     relevant_indices = set()
     for i, sentence in enumerate(sentences):
-        sentence_lower = sentence.lower()
-        # Check if sentence mentions any of the query person names
+        # Check if sentence mentions any of the query person names (exact or fuzzy)
         for person_name in query_person_names:
-            name_words = person_name.lower().split()
-            if len(name_words) >= 2:
-                # For multi-word names, check if at least 2 words match
-                matches = sum(1 for word in name_words if word in sentence_lower)
-                if matches >= 2:
-                    # Include this sentence and adjacent sentences (2 before, 5 after) for context
-                    for j in range(max(0, i-2), min(len(sentences), i+6)):
-                        relevant_indices.add(j)
-                    break
-            elif len(name_words) == 1:
-                # Single word name - check exact match
-                if name_words[0] in sentence_lower:
-                    # Include this sentence and adjacent sentences for context
-                    for j in range(max(0, i-2), min(len(sentences), i+6)):
-                        relevant_indices.add(j)
-                    break
+            if fuzzy_name_match(person_name, sentence):
+                # Include this sentence and adjacent sentences (2 before, 5 after) for context
+                for j in range(max(0, i-2), min(len(sentences), i+6)):
+                    relevant_indices.add(j)
+                break
     
     if relevant_indices:
         # Sort indices and extract sentences
@@ -192,7 +233,7 @@ def extract_relevant_sentences(chunk_text: str, query_person_names: List[str]) -
         return ' '.join(relevant_sentences)
     else:
         # No relevant sentences found, return empty (chunk will be filtered out)
-            return ""
+        return ""
 
 # === Unified LLM Verification for RAG Chunks ===
 def verify_rag_chunks_with_llm(chunks: List[Dict], query: str, chunk_type: str = "document", threshold: float = 0.5) -> List[Dict]:
@@ -574,7 +615,6 @@ JSON array only:"""
                             
                             # Parse LLM response to extract scores
                             import json
-                            import re
                             json_match = re.search(r'\[[\d\.,\s]+\]', scoring_response)
                             if json_match:
                                 scores = json.loads(json_match.group())
