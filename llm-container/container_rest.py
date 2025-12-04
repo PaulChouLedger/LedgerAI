@@ -748,6 +748,10 @@ JSON array only:"""
                     print(f"[Generic]   [{i}] Score: {score:.3f}, File: {file_name}, Preview: '{text_preview}...'")
                     print(f"[Generic]   [{i}] FULL CHUNK TEXT: '{full_text}'")  # Log full chunk for debugging
                 
+                # Detect if this is a list question early (for threshold adjustment)
+                list_keywords = ['who are', 'who were', 'list all', 'list the', 'what are the', 'what are', 'name all', 'name the']
+                is_list_query = any(keyword in prompt.lower() for keyword in list_keywords)
+                
                 # Apply LLM verification to document RAG chunks (same pattern as memory RAG)
                 # This filters out chunks that don't actually answer the query, especially for relationship questions
                 try:
@@ -778,24 +782,24 @@ JSON array only:"""
                     # This helps when verification is too strict but chunks still contain relevant information
                     if len(verified_rag_results) <= 2:
                         verified_texts = {v.get('text', '') for v in verified_rag_results}
-                        # Use verification scores to select additional chunks (scores >= 0.2 to avoid very low-quality chunks)
+                        # For list questions, use lower threshold (0.1) to capture all relevant items
+                        # For other questions, use higher threshold (0.2) to avoid low-quality chunks
+                        additional_threshold = 0.1 if is_list_query else 0.2
                         additional_chunks = [
                             chunk for chunk in all_chunks_with_scores
                             if chunk.get('text', '') not in verified_texts
-                            and chunk.get('llm_verification_score', 0) >= 0.2
+                            and chunk.get('llm_verification_score', 0) >= additional_threshold
                         ]
                         # Sort by verification score (not original RAG score) and take top 2
                         additional_chunks.sort(key=lambda x: x.get('llm_verification_score', 0), reverse=True)
                         additional_chunks = additional_chunks[:2]
                         
                         if additional_chunks:
-                            print(f"[Generic] 📝 Including {len(additional_chunks)} additional chunks (verification scores >= 0.2) for completeness")
+                            print(f"[Generic] 📝 Including {len(additional_chunks)} additional chunks (verification scores >= {additional_threshold}) for completeness")
                             verified_rag_results.extend(additional_chunks)
                 
-                # Detect if this is a list question (needs full context, not sentence filtering)
+                # Use the list query detection from earlier (for sentence filtering skip)
                 # Skip sentence filtering for list questions to preserve all information
-                list_keywords = ['who are', 'who were', 'list all', 'list the', 'what are the', 'what are', 'name all', 'name the']
-                is_list_query = any(keyword in prompt.lower() for keyword in list_keywords)
                 
                 # Extract person names from query for filtering chunks (skip for list questions - need full context)
                 all_query_names = []
