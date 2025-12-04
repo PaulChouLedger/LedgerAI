@@ -811,7 +811,6 @@ def _generate_tts_audio(text):
             # Fall through to ElevenLabs
     
     # Use ElevenLabs (either as primary or fallback)
-    elevenlabs_failed = False
     try:
         client = _get_elevenlabs_client()
         print(f"[Speaker] 🎙️ Using ElevenLabs")
@@ -831,78 +830,15 @@ def _generate_tts_audio(text):
             if chunk:
                 yield chunk
     except Exception as e:
-        elevenlabs_failed = True
-        elevenlabs_error = e
         print(f"[Speaker] ❌ ElevenLabs TTS failed: {e}")
         import traceback
         traceback.print_exc()
         
-        # If ElevenLabs failed and Chatterbox wasn't tried yet, try it as final fallback
-        if not use_chatterbox:
-            print(f"[Speaker] 🔄 Attempting ChatterboxTTS fallback...")
-            try:
-                chatterbox = _get_chatterbox_tts()
-                print(f"[Speaker] 🎙️ Using ChatterboxTTS (fallback)")
-                # ChatterboxTTS may not support SSML, so use plain normalized text
-                clean_text = normalize_units(text)
-                # Remove any SSML tags that might have been added
-                clean_text = re.sub(r'<[^>]+>', '', clean_text)
-                
-                # Use voice cloning if enabled
-                voice_cloning_enabled = get_chatterbox_voice_cloning_enabled()
-                global CHATTERBOX_VOICE_SAMPLE
-                if voice_cloning_enabled and CHATTERBOX_VOICE_SAMPLE and os.path.exists(CHATTERBOX_VOICE_SAMPLE):
-                    if hasattr(chatterbox, 'generate'):
-                        audio = chatterbox.generate(
-                            clean_text,
-                            audio_prompt_path=CHATTERBOX_VOICE_SAMPLE,
-                            exaggeration=0.6
-                        )
-                    elif hasattr(chatterbox, 'synthesize'):
-                        sig = inspect.signature(chatterbox.synthesize)
-                        if 'audio_prompt_path' in sig.parameters:
-                            audio = chatterbox.synthesize(
-                                clean_text,
-                                audio_prompt_path=CHATTERBOX_VOICE_SAMPLE
-                            )
-                        else:
-                            audio = chatterbox.synthesize(clean_text)
-                    else:
-                        raise AttributeError("No synthesis method found")
-                else:
-                    # No voice cloning - use default voice
-                    if hasattr(chatterbox, 'generate'):
-                        audio = chatterbox.generate(clean_text)
-                    else:
-                        audio = chatterbox.synthesize(clean_text)
-                
-                # Convert to bytes if needed
-                if isinstance(audio, np.ndarray):
-                    if audio.dtype == np.float32 or audio.dtype == np.float64:
-                        audio = np.clip(audio, -1.0, 1.0)
-                        audio = (audio * 32767).astype(np.int16)
-                    elif audio.dtype != np.int16:
-                        audio = audio.astype(np.int16)
-                    audio_bytes = audio.tobytes()
-                elif isinstance(audio, bytes):
-                    audio_bytes = audio
-                else:
-                    audio_bytes = bytes(audio)
-                
-                # Yield audio in chunks
-                chunk_size = 4096
-                for i in range(0, len(audio_bytes), chunk_size):
-                    yield audio_bytes[i:i + chunk_size]
-                return
-            except Exception as chatterbox_error:
-                print(f"[Speaker] ❌ ChatterboxTTS fallback failed: {chatterbox_error}")
-                import traceback
-                traceback.print_exc()
-                # Raise error with both failures
-                raise RuntimeError(f"Both TTS engines failed. ElevenLabs: {elevenlabs_error}, Chatterbox: {chatterbox_error}")
-        
-        # If Chatterbox was already tried (as primary) and both failed, raise error
-        raise RuntimeError(f"Both TTS engines failed. ElevenLabs: {elevenlabs_error}, Chatterbox: already tried as primary")
+        # If Chatterbox was used as primary and also failed, report both failures
+        if use_chatterbox:
+            raise RuntimeError(f"Both TTS engines failed. Chatterbox: already tried as primary, ElevenLabs: {e}")
+        else:
+            raise RuntimeError(f"ElevenLabs TTS failed: {e}")
 
 # === TTS playback using aplay ===
 def tts_playback_thread(text, tts_start_time):
