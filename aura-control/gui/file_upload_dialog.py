@@ -659,13 +659,22 @@ class ConversationsDialog(BaseAuraDialog):
                             f"Delete endpoint returned HTTP {response.status_code}.\n"
                             "Deletion may not be implemented in memory container yet.\n\n"
                             "To enable deletion, add a DELETE endpoint to memory-container/container_rest.py")
-                except requests.exceptions.RequestException:
-                    # Endpoint doesn't exist or container not running
-                    QMessageBox.information(self, "Info", 
-                        f"Delete endpoint not available.\n"
-                        f"To delete {len(conv_ids)} conversation(s), add a DELETE endpoint to the memory container.\n\n"
-                        f"For now, conversations can be cleared by deleting:\n"
-                        f"~/LedgerAI/data/memory/conversations.jsonl")
+                except requests.exceptions.Timeout:
+                    QMessageBox.warning(self, "Timeout", 
+                        f"Delete request timed out for {len(conv_ids)} conversation(s).\n"
+                        "The deletion may have still succeeded. Reloading conversation list...")
+                    self._load_conversations()  # Check if deletion actually happened
+                except requests.exceptions.ConnectionError:
+                    QMessageBox.warning(self, "Connection Error", 
+                        "Could not connect to memory container.\n"
+                        "Please ensure it's running on port 11438.")
+                except requests.exceptions.RequestException as e:
+                    # Request failed, but deletion may have still succeeded
+                    QMessageBox.warning(self, "Request Error", 
+                        f"Error during delete request: {str(e)}\n\n"
+                        "The deletion may have still succeeded on the server.\n"
+                        "Reloading conversation list to verify...")
+                    self._load_conversations()  # Check if deletion actually happened
             except Exception as e:
                 QMessageBox.warning(self, "Error", f"Failed to delete conversations: {e}")
                 import traceback
@@ -708,18 +717,26 @@ class ConversationsDialog(BaseAuraDialog):
                             "Deletion may have failed.")
                 except requests.exceptions.Timeout:
                     QMessageBox.warning(self, "Timeout", 
-                        "Delete request timed out. The deletion may still be in progress.")
+                        "Delete request timed out. The deletion may still be in progress.\n"
+                        "Reloading conversation list to check...")
+                    self._load_conversations()  # Check if deletion actually happened
                 except requests.exceptions.ConnectionError:
                     QMessageBox.warning(self, "Connection Error", 
-                        "Could not connect to memory container. Please ensure it's running.")
+                        "Could not connect to memory container.\n"
+                        "Please ensure it's running on port 11438.")
                 except requests.exceptions.RequestException as e:
-                    # Other request errors
-                    QMessageBox.warning(self, "Error", 
-                        f"Failed to delete conversations: {str(e)}")
+                    # Other request errors - deletion may have still succeeded
+                    QMessageBox.warning(self, "Request Error", 
+                        f"Error during delete request: {str(e)}\n\n"
+                        "The deletion may have succeeded. Reloading conversation list...")
+                    self._load_conversations()  # Check if deletion actually happened
                 except Exception as e:
                     # Catch any other errors (JSON parsing, etc.)
                     QMessageBox.warning(self, "Error", 
-                        f"Unexpected error: {str(e)}")
+                        f"Unexpected error: {str(e)}\n\n"
+                        "The deletion may have still succeeded on the server.\n"
+                        "Reloading conversation list to verify...")
+                    self._load_conversations()  # Reload to check if deletion actually happened
             except Exception as e:
                 QMessageBox.warning(self, "Error", f"Failed to delete all conversations: {e}")
                 import traceback
