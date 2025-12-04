@@ -333,10 +333,12 @@ Scoring Guidelines:
 2. MEDIUM SCORE (0.4-0.6): The chunk is related to the topic but doesn't fully answer the question, or answers only part of it
 3. LOW SCORE (0.0-0.3): The chunk mentions related terms/concepts but doesn't actually answer the question, or contains information that contradicts what's being asked
 
-CRITICAL: Accuracy is essential. Be strict with scoring:
+CRITICAL: Accuracy is essential. Be strict but fair with scoring:
+- If a chunk EXPLICITLY states the answer to the question (e.g., explicitly says "Co-Founder of [Target Company]"), give it a HIGH score (0.7-1.0)
 - If a chunk mentions entities/concepts that seem related but are actually about different things (different entities, different contexts, different relationships), give it a LOW score (0.0-0.3)
 - Only give HIGH scores to chunks that provide accurate, directly relevant information that answers the specific question asked
 - Chunks that could lead to incorrect conclusions or confusion should get very low scores, even if they mention related keywords
+- Chunks that explicitly state relationships to the target entity should score higher than chunks that only mention the entity in passing
 
 IMPORTANT: 
 - Name variations should be treated as referring to the same person (e.g., "John Smith" ≈ "John Smyth")
@@ -782,9 +784,10 @@ JSON array only:"""
                     # This helps when verification is too strict but chunks still contain relevant information
                     if len(verified_rag_results) <= 2:
                         verified_texts = {v.get('text', '') for v in verified_rag_results}
-                        # For list questions, use lower threshold (0.1) to capture all relevant items
+                        # For list questions, use lower threshold (0.15) to capture relevant items while avoiding very low-quality chunks
                         # For other questions, use higher threshold (0.2) to avoid low-quality chunks
-                        additional_threshold = 0.1 if is_list_query else 0.2
+                        # Even for list questions, exclude chunks with very low scores (< 0.15) that are likely irrelevant
+                        additional_threshold = 0.15 if is_list_query else 0.2
                         additional_chunks = [
                             chunk for chunk in all_chunks_with_scores
                             if chunk.get('text', '') not in verified_texts
