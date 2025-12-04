@@ -268,8 +268,7 @@ JSON array only:"""
         )
         
         # Parse LLM response to extract scores
-        import json
-        import re
+        # Note: re and json are already imported at module level
         json_match = re.search(r'\[[\d\.,\s]+\]', verification_response)
         if json_match:
             scores = json.loads(json_match.group())

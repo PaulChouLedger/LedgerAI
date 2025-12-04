@@ -691,20 +691,35 @@ class ConversationsDialog(BaseAuraDialog):
                         timeout=10
                     )
                     if response.status_code == 200:
+                        result = response.json()
+                        deleted_count = result.get('deleted', 0)
                         QMessageBox.information(self, "Success", 
-                            "Successfully deleted all conversations.")
+                            f"Successfully deleted all {deleted_count} conversation(s).")
                         self._load_conversations()
                     else:
+                        # Try to get error message from response
+                        try:
+                            error_data = response.json()
+                            error_msg = error_data.get('error', f'HTTP {response.status_code}')
+                        except:
+                            error_msg = f'HTTP {response.status_code}'
                         QMessageBox.warning(self, "Error", 
-                            f"Delete-all endpoint returned HTTP {response.status_code}.\n"
-                            "Deletion may not be implemented in memory container yet.")
-                except requests.exceptions.RequestException:
-                    # Endpoint doesn't exist or container not running
-                    QMessageBox.information(self, "Info", 
-                        "Delete-all endpoint not available.\n"
-                        "To delete all conversations, add a DELETE-ALL endpoint to the memory container.\n\n"
-                        "For now, conversations can be cleared by deleting:\n"
-                        "~/LedgerAI/data/memory/conversations.jsonl")
+                            f"Delete-all endpoint returned: {error_msg}.\n"
+                            "Deletion may have failed.")
+                except requests.exceptions.Timeout:
+                    QMessageBox.warning(self, "Timeout", 
+                        "Delete request timed out. The deletion may still be in progress.")
+                except requests.exceptions.ConnectionError:
+                    QMessageBox.warning(self, "Connection Error", 
+                        "Could not connect to memory container. Please ensure it's running.")
+                except requests.exceptions.RequestException as e:
+                    # Other request errors
+                    QMessageBox.warning(self, "Error", 
+                        f"Failed to delete conversations: {str(e)}")
+                except Exception as e:
+                    # Catch any other errors (JSON parsing, etc.)
+                    QMessageBox.warning(self, "Error", 
+                        f"Unexpected error: {str(e)}")
             except Exception as e:
                 QMessageBox.warning(self, "Error", f"Failed to delete all conversations: {e}")
                 import traceback
