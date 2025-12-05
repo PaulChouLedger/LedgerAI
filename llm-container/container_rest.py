@@ -721,13 +721,12 @@ JSON array only:"""
                 if is_list_request:
                     list_instruction = (
                         "\n🚨 CRITICAL: This question asks for a LIST or MULTIPLE items. "
-                        "Before responding, carefully scan EVERY context section from beginning to end to identify ALL items that answer the question. "
-                        "Read through each context section completely - do NOT stop reading once you find a few items. "
-                        "You MUST mention EVERY relevant item from ALL context sections - missing items is worse than a longer response. "
-                        "Be precise about relationships and entities: Only include items that match the specific relationship or category being asked about. "
-                        "If the question asks about a specific entity (company, person, organization), only include items that have the EXACT relationship to that entity. "
-                        "DO NOT include items with similar but different relationships (e.g., if asking about Company X, exclude people/entities related to Company Y). "
-                        "For lists of people: Include their titles/roles when mentioned in the context. "
+                        "You MUST scan EVERY context section from beginning to end to identify ALL items. "
+                        "Read through each context section COMPLETELY - do NOT stop reading once you find a few items. "
+                        "Missing even ONE item is worse than a longer response. "
+                        "For each context section, read it from start to finish, then identify ALL items that match the question. "
+                        "Only include items that have the EXACT relationship being asked about (e.g., if asking about co-founders of Company X, only include people explicitly mentioned as co-founders of Company X, not advisors, employees, or co-founders of other companies). "
+                        "For lists of people: Include their titles/roles when mentioned. "
                         "Format your response naturally, using complete sentences that clearly introduce the list (e.g., 'The [items] are:').\n"
                     )
                 
@@ -764,14 +763,18 @@ JSON array only:"""
                 # Build user message - add debug instructions if enabled
                 user_content = prompt
                 if SHOW_REASONING_DEBUG:
-                    print(f"[Generic] 🔍 DEBUG MODE ENABLED - LLM will show step-by-step reasoning in response")
+                    print(f"[Generic] 🔍 DEBUG MODE ENABLED - LLM will show step-by-step reasoning (will be logged, not spoken)")
                     user_content = (
-                        f"⚠️ MANDATORY: You MUST show your reasoning BEFORE answering. Start your response with:\n\n"
-                        f"STEP 1 - State what the user is asking: [clearly restate the question]\n\n"
-                        f"STEP 2 - Analyze each context section: For each context section provided above, state what information you found that answers the question. Be specific about which section contains which information.\n\n"
-                        f"STEP 3 - Extract relevant information: Based on the question, identify and list ONLY the information that directly answers it. Be precise about relationships and entities.\n\n"
-                        f"STEP 4 - Provide your answer: Based on your analysis, give the final answer.\n\n"
-                        f"Now answer the following question: {prompt}"
+                        f"⚠️ MANDATORY FORMAT: Show your reasoning, then your answer in separate sections.\n\n"
+                        f"First, show your reasoning:\n"
+                        f"STEP 1 - State what the user is asking\n"
+                        f"STEP 2 - Analyze each context section (read EVERY section completely, state what you found in each)\n"
+                        f"STEP 3 - Extract ALL relevant information (for lists, find EVERY item from ALL sections)\n\n"
+                        f"Then, after showing your reasoning, write:\n"
+                        f"---ANSWER---\n"
+                        f"[Provide only your final answer here, no reasoning]\n"
+                        f"---END ANSWER---\n\n"
+                        f"Now answer: {prompt}"
                     )
                 
             # For phi-2 with chatml format, separate system and user messages
@@ -867,10 +870,127 @@ JSON array only:"""
                 
                 # Then yield from actual LLM response
                 llm_response = llm_chat_simple(messages, max_tokens=MAX_TOKENS_RAG_MODE, stream=True)
-                for chunk in llm_response:
-                    yield chunk
+                
+                # If debug mode is enabled, filter out reasoning and only stream the answer
+                if SHOW_REASONING_DEBUG:
+                    buffer = ""
+                    in_answer = False
+                    answer_started = False
+                    
+                    for chunk in llm_response:
+                        buffer += chunk
+                        
+                        # Check if we've reached the answer section
+                        if "---ANSWER---" in buffer and not in_answer:
+                            # Extract everything before answer for logging
+                            answer_marker = buffer.find("---ANSWER---")
+                            reasoning_text = buffer[:answer_marker].strip()
+                            if reasoning_text:
+                                print(f"\n{'='*80}")
+                                print(f"[Generic] 🔍 [LLM Reasoning Debug] FULL REASONING OUTPUT:")
+                                print(f"{'='*80}")
+                                print(reasoning_text)
+                                print(f"{'='*80}\n")
+                            # Start streaming from after the marker
+                            in_answer = True
+                            answer_started = True
+                            # Yield everything after ---ANSWER---
+                            answer_start_pos = buffer.find("---ANSWER---") + len("---ANSWER---")
+                            remaining = buffer[answer_start_pos:].lstrip()
+                            if remaining and "---END ANSWER---" not in remaining:
+                                yield remaining
+                            buffer = ""  # Clear buffer after extracting reasoning
+                        
+                        # If we're in answer section, check for end marker
+                        if in_answer:
+                            if "---END ANSWER---" in buffer:
+                                # Extract answer before end marker
+                                end_pos = buffer.find("---END ANSWER---")
+                                answer_text = buffer[:end_pos].strip()
+                                if answer_text:
+                                    yield answer_text
+                                break
+                            elif answer_started:
+                                # Stream chunks normally in answer section
+                                yield chunk
+                        # If not in answer yet, just buffer (don't yield)
+                    
+                    # If we never found answer marker, log full response and yield it
+                    if not in_answer and buffer:
+                        print(f"\n{'='*80}")
+                        print(f"[Generic] 🔍 [LLM Reasoning Debug] FULL RESPONSE (no answer marker found):")
+                        print(f"{'='*80}")
+                        print(buffer)
+                        print(f"{'='*80}\n")
+                        # Yield full response as fallback
+                        for char in buffer:
+                            yield char
+                else:
+                    # Not debug mode, stream normally
+                    for chunk in llm_response:
+                        yield chunk
             
             return response_with_filler()
+        
+        # For streaming with debug mode, filter out reasoning
+        if stream and SHOW_REASONING_DEBUG:
+            def filter_reasoning():
+                buffer = ""
+                in_answer = False
+                answer_started = False
+                
+                llm_response = llm_chat_simple(messages, max_tokens=MAX_TOKENS_RAG_MODE, stream=True)
+                
+                for chunk in llm_response:
+                    buffer += chunk
+                    
+                    # Check if we've reached the answer section
+                    if "---ANSWER---" in buffer and not in_answer:
+                        # Extract everything before answer for logging
+                        answer_marker = buffer.find("---ANSWER---")
+                        reasoning_text = buffer[:answer_marker].strip()
+                        if reasoning_text:
+                            print(f"\n{'='*80}")
+                            print(f"[Generic] 🔍 [LLM Reasoning Debug] FULL REASONING OUTPUT:")
+                            print(f"{'='*80}")
+                            print(reasoning_text)
+                            print(f"{'='*80}\n")
+                        # Start streaming from after the marker
+                        in_answer = True
+                        answer_started = True
+                        # Yield everything after ---ANSWER---
+                        answer_start_pos = buffer.find("---ANSWER---") + len("---ANSWER---")
+                        remaining = buffer[answer_start_pos:].lstrip()
+                        if remaining and "---END ANSWER---" not in remaining:
+                            yield remaining
+                        buffer = ""  # Clear buffer after extracting reasoning
+                    
+                    # If we're in answer section, check for end marker
+                    if in_answer:
+                        if "---END ANSWER---" in buffer:
+                            # Extract answer before end marker
+                            end_pos = buffer.find("---END ANSWER---")
+                            answer_text = buffer[:end_pos].strip()
+                            if answer_text:
+                                yield answer_text
+                            break
+                        elif answer_started:
+                            # Stream chunks normally in answer section
+                            yield chunk
+                    # If not in answer yet, just buffer (don't yield)
+                
+                # If we never found answer marker, log full response and yield it
+                if not in_answer and buffer:
+                    print(f"\n{'='*80}")
+                    print(f"[Generic] 🔍 [LLM Reasoning Debug] FULL RESPONSE (no answer marker found):")
+                    print(f"{'='*80}")
+                    print(buffer)
+                    print(f"{'='*80}\n")
+                    # Yield full response as fallback
+                    for char in buffer:
+                        yield char
+            
+            return filter_reasoning()
         
         # Don't wrap the iterator - let base_container's debug_iterator handle logging
         # The base class already wraps it with debug logging
