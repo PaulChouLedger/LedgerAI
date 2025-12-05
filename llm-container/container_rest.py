@@ -705,10 +705,20 @@ JSON array only:"""
             # Dynamic prompt construction with Aura Vision identity
             # IMPORTANT: Include the prompt in the system message (matches working commit 1927b467c106120dd4e1231f600eccdaa5a93f08)
             if is_instruction_request:
+                # Build structured reasoning instructions for instruction requests
+                reasoning_instructions = (
+                    "\n🧠 REASONING PROCESS:\n"
+                    "1. Think step-by-step - analyze the question and available context systematically\n"
+                    "2. Use only provided information - do not invent facts or guess\n"
+                    "3. If information is missing, state 'unknown' instead of guessing\n"
+                    "4. Structure your response with: Known Facts, Reasoning Steps, Conflicts/Missing Info, Final Answer, Confidence\n"
+                )
+                
                 system_content = (
                     f"{combined_context}\n\n"
                     "You are Aura Vision, an AI agent created by Ledger AI Quantum Corporation. "
                     "You act as a proactive AI agent guiding users to better outcomes through gentle guidance.\n\n"
+                    f"{reasoning_instructions}"
                     f"Based on the context provided above, answer the following question: {prompt}\n\n"
                     "Guidelines:\n"
                     "- Provide a clear, step-by-step response (numbered steps)\n"
@@ -752,6 +762,8 @@ JSON array only:"""
                         "Missing even one item is a critical error - completeness is essential. "
                         "Be extremely precise: Only include items with the EXACT relationship or category being asked about. "
                         "Verify that each item matches the question's criteria exactly - if the question asks about a specific relationship to a specific entity, ensure the relationship explicitly connects to that exact entity mentioned in the question. "
+                        "CRITICAL EXCLUSION RULE: If an item has the same relationship type (e.g., 'co-founder', 'CEO', 'employee') but with a DIFFERENT entity than the one asked about, EXCLUDE it. "
+                        "Only include items where the relationship explicitly connects to the exact entity mentioned in the question. "
                         "Exclude items that have similar but different relationships or that relate to different entities. "
                         "When listing people: Include titles/roles when mentioned. Be CONCISE (name and title/role only). "
                         "CRITICAL: A single context section may contain MULTIPLE matching items - do NOT stop reading a section after finding one item, continue to the end to find ALL items in that section. "
@@ -767,6 +779,33 @@ JSON array only:"""
                 else:
                     response_length_guideline = "- Keep responses short and conversational, like Siri or Alexa (2-3 sentences typically)\n"
                 
+                # Build structured reasoning instructions
+                reasoning_instructions = (
+                    "\n🧠 REASONING PROCESS:\n"
+                    "1. Think step-by-step - analyze the question and available context systematically\n"
+                    "2. Use only provided information - do not invent facts or guess\n"
+                    "3. If information is missing, state 'unknown' instead of guessing\n"
+                    "4. Identify any contradictions or conflicts in the provided information\n"
+                    "5. Structure your response as follows:\n"
+                    "   - Known Facts: List the key facts extracted from the context\n"
+                    "   - Reasoning Steps: Explain your step-by-step analysis process\n"
+                    "   - Conflicts/Missing Info: Note any contradictions or missing information\n"
+                    "   - Final Answer: Provide your complete answer based on the analysis\n"
+                    "   - Confidence: Rate your confidence (high/medium/low) based on information quality\n"
+                )
+                
+                # Build RAG chunk scoring instructions (if RAG context is present)
+                rag_scoring_instructions = ""
+                if rag_context:
+                    rag_scoring_instructions = (
+                        "\n📊 RAG CHUNK EVALUATION:\n"
+                        "Evaluate the relevance of each context section (separated by '---'):\n"
+                        "- High relevance: Direct evidence that answers the question\n"
+                        "- Medium relevance: Related information but not directly answering\n"
+                        "- Low relevance: Not related to the question\n"
+                        "Note which sections contain the most relevant information for your answer.\n"
+                    )
+                
                 system_content = (
                     f"{combined_context}\n\n"
                     "You are Aura Vision, an AI agent created by Ledger AI Quantum Corporation. "
@@ -774,6 +813,8 @@ JSON array only:"""
                     f"{memory_warning}"
                     f"{person_instruction}"
                     f"{list_instruction}"
+                    f"{reasoning_instructions}"
+                    f"{rag_scoring_instructions}"
                     "Instructions:\n"
                     "- PRIMARY SOURCE: Use the 'Knowledge context' sections as your primary source - these contain the most authoritative information\n"
                     "- Read ALL context sections THOROUGHLY from beginning to end - analyze each section carefully and in detail to ensure comprehensive coverage\n"
@@ -787,20 +828,31 @@ JSON array only:"""
                     "- When identifying relationships: Verify that the relationship explicitly connects to the exact entity mentioned in the question - exclude similar relationships with different entities\n"
                     "- CRITICAL: DO NOT repeat or echo the conversation history format (e.g., '[Previous conversation]' or timestamps) - use the information FROM the conversation history to answer the current question\n"
                     "- Format your answer naturally and clearly\n"
-                    "- Include titles/roles when listing people"
+                    "- Include titles/roles when listing people\n"
+                    f"{response_length_guideline}"
                 )
                 
-                # Build user message - add debug instructions if enabled
+                # Build user message - add structured reasoning format if debug enabled
                 user_content = prompt
                 if SHOW_REASONING_DEBUG:
-                    print(f"[Generic] 🔍 DEBUG MODE ENABLED - LLM will show step-by-step reasoning (will be logged, not spoken)")
+                    print(f"[Generic] 🔍 DEBUG MODE ENABLED - LLM will show structured reasoning (will be logged, not spoken)")
                     user_content = (
-                        f"⚠️ MANDATORY FORMAT: Show your reasoning, then your answer in separate sections.\n\n"
-                        f"First, show your reasoning:\n"
-                        f"STEP 1 - State what the user is asking\n"
-                        f"STEP 2 - Analyze each context section (read EVERY section completely, state what you found in each)\n"
-                        f"STEP 3 - Extract ALL relevant information (for lists, find EVERY item from ALL sections)\n\n"
-                        f"Then, after showing your reasoning, write:\n"
+                        f"⚠️ MANDATORY STRUCTURED FORMAT:\n\n"
+                        f"1. Known Facts:\n"
+                        f"   [List key facts extracted from context sections]\n\n"
+                        f"2. Reasoning Steps:\n"
+                        f"   STEP 1 - State what the user is asking\n"
+                        f"   STEP 2 - Analyze each context section (read EVERY section completely, state what you found in each)\n"
+                        f"   STEP 3 - Evaluate relevance of each section (high/medium/low)\n"
+                        f"   STEP 4 - Extract ALL relevant information (for lists, find EVERY item from ALL sections)\n"
+                        f"   STEP 5 - Identify any conflicts or missing information\n\n"
+                        f"3. Conflicts / Missing Info:\n"
+                        f"   [Note any contradictions or missing information, or state 'None' if complete]\n\n"
+                        f"4. Final Answer:\n"
+                        f"   [Provide your complete answer here]\n\n"
+                        f"5. Confidence:\n"
+                        f"   [Rate: high/medium/low based on information quality]\n\n"
+                        f"Then, after the structured format, write:\n"
                         f"---ANSWER---\n"
                         f"[Provide only your final answer here, no reasoning]\n"
                         f"---END ANSWER---\n\n"
@@ -861,10 +913,20 @@ JSON array only:"""
                                    "DO NOT make up or guess information. If you don't have reliable information about what was asked, " \
                                    "say so clearly (e.g., 'I don't have that information in my memory') rather than providing generic or speculative responses.\n\n"
                 
+                # Build structured reasoning instructions for memory-only context
+                reasoning_instructions = (
+                    "\n🧠 REASONING PROCESS:\n"
+                    "1. Think step-by-step - analyze the question and available context systematically\n"
+                    "2. Use only provided information - do not invent facts or guess\n"
+                    "3. If information is missing, state 'unknown' instead of guessing\n"
+                    "4. Structure your response with: Known Facts, Reasoning Steps, Conflicts/Missing Info, Final Answer, Confidence\n"
+                )
+                
                 system_content = (
                     f"{combined_context}\n\n"
                     "You are Aura Vision, an AI agent created by Ledger AI Quantum Corporation. "
                     "You act as a proactive AI agent guiding users to better outcomes through gentle guidance.\n\n"
+                    f"{reasoning_instructions}"
                     f"{memory_warning}"
                     "IMPORTANT: Use the conversation memory provided above to answer the user's question. "
                     "If the memory contains relevant information, provide that information in your response. "
