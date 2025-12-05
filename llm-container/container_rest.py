@@ -740,29 +740,13 @@ JSON array only:"""
                 else:
                     response_length_guideline = "- Keep responses short and conversational, like Siri or Alexa (2-3 sentences typically)\n"
                 
-                # Add chain-of-thought reasoning instructions if debug mode is enabled
-                debug_header = ""
-                debug_footer = ""
-                if SHOW_REASONING_DEBUG:
-                    print(f"[Generic] 🔍 DEBUG MODE ENABLED - LLM will show step-by-step reasoning in response")
-                    debug_header = ""
-                    debug_footer = (
-                        "\n\n🔍 DEBUG MODE: Show your reasoning process:\n"
-                        "First, state what the user is asking.\n"
-                        "Then, analyze each context section above and state what information you found in each one.\n"
-                        "Finally, provide your answer based on what you found.\n"
-                        "Show your actual analysis - do not copy instructions.\n"
-                    )
-                
                 system_content = (
-                    f"{debug_header}"
                     f"{combined_context}\n\n"
                     "You are Aura Vision, an AI agent created by Ledger AI Quantum Corporation. "
                     "You act as a proactive AI agent guiding users to better outcomes through gentle guidance.\n\n"
                     f"{memory_warning}"
                     f"{person_instruction}"
                     f"{list_instruction}"
-                    f"{debug_footer}"
                     "Guidelines:\n"
                     "- Review ALL context sections thoroughly from start to finish before responding\n"
                     "- For list questions: Scan every context section completely - read each one entirely\n"
@@ -776,6 +760,20 @@ JSON array only:"""
                     "- Rephrase and explain in your own words rather than copying text verbatim\n"
                     "- Prioritize completeness and accuracy when important information would be lost"
                 )
+                
+                # Build user message - add debug instructions if enabled
+                user_content = prompt
+                if SHOW_REASONING_DEBUG:
+                    print(f"[Generic] 🔍 DEBUG MODE ENABLED - LLM will show step-by-step reasoning in response")
+                    user_content = (
+                        f"⚠️ MANDATORY: You MUST show your reasoning BEFORE answering. Start your response with:\n\n"
+                        f"STEP 1 - State what the user is asking: [clearly restate the question]\n\n"
+                        f"STEP 2 - Analyze each context section: For each context section provided above, state what information you found that answers the question. Be specific about which section contains which information.\n\n"
+                        f"STEP 3 - Extract relevant information: Based on the question, identify and list ONLY the information that directly answers it. Be precise about relationships and entities.\n\n"
+                        f"STEP 4 - Provide your answer: Based on your analysis, give the final answer.\n\n"
+                        f"Now answer the following question: {prompt}"
+                    )
+                
             # For phi-2 with chatml format, separate system and user messages
             messages = [
                 {
@@ -784,7 +782,7 @@ JSON array only:"""
                 },
                 {
                     "role": "user",
-                    "content": prompt,
+                    "content": user_content,
                 }
             ]
             
