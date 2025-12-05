@@ -517,8 +517,8 @@ JSON array only:"""
                 # Use original RAG results, sorted by semantic similarity score
                 sorted_results = sorted(rag_results, key=lambda x: x.get('score', 0), reverse=True)
                 
-                # Limit number of chunks to avoid token bloat (but keep more for list questions)
-                max_chunks = 8 if is_list_query else 6
+                # Limit number of chunks to avoid token bloat (but keep more for list questions to ensure completeness)
+                max_chunks = 10 if is_list_query else 6  # Increased to 10 for list queries to ensure all items are found
                 sorted_results = sorted_results[:max_chunks]
                 
                 print(f"[Generic] 📋 Using top {len(sorted_results)} chunks (max {max_chunks}) for LLM reasoning")
@@ -797,7 +797,14 @@ JSON array only:"""
                         "If you find one matching item in a chunk, continue reading that same chunk to find any additional matching items. "
                         "Only move to the next chunk after you have read the current chunk completely and extracted ALL matching items from it. "
                         "Missing items because you stopped reading a chunk early is a critical error.\n"
-                        "Format your answer naturally, clearly introducing the list.\n"
+                        "\n"
+                        "📝 FORMATTING INSTRUCTIONS: "
+                        "Format your answer as natural, conversational sentences - like you're speaking to someone. "
+                        "DO NOT use hyphens, dashes, or bullet points. "
+                        "DO NOT format as 'Name - Title' or 'Name - Name - Name'. "
+                        "Instead, use complete sentences like: 'The co-founders are [Name] who is [Title], [Name] who is [Title], [Name] who is [Title], and [Name] who is [Title].' "
+                        "Or use a natural list format: 'The co-founders include [Name] ([Title]), [Name] ([Title]), [Name] ([Title]), and [Name] ([Title]).' "
+                        "Speak naturally and conversationally, as if having a friendly conversation.\n"
                     )
                 
                 # Build response length guideline - prioritize completeness for lists and debug mode
@@ -805,7 +812,7 @@ JSON array only:"""
                     # Debug mode: Allow longer responses to show reasoning
                     response_length_guideline = "- When debug mode is enabled, show your complete reasoning process - length is not a concern\n"
                 elif is_list_request:
-                    response_length_guideline = "- For lists: Ensure THOROUGH coverage of ALL items from the RAG context, but be CONCISE (name and title only, 1-2 sentences per item max). Completeness is critical - include every item before concluding.\n"
+                    response_length_guideline = "- For lists: Ensure THOROUGH coverage of ALL items from the RAG context. Format as natural conversational sentences (no hyphens, dashes, or bullet points). Use complete sentences like 'The [items] are [Name] ([Title]), [Name] ([Title]), [Name] ([Title]), and [Name] ([Title]).' Completeness is critical - include every item before concluding.\n"
                 else:
                     response_length_guideline = "- Keep responses short and conversational, like Siri or Alexa (2-3 sentences typically)\n"
                 
@@ -874,8 +881,9 @@ JSON array only:"""
                     "- Be extremely precise: Only include items with the EXACT relationship being asked about - look for exact phrases where the relationship type and entity name appear together\n"
                     "- When identifying relationships: Verify that the relationship explicitly connects to the exact entity mentioned in the question - exclude similar relationships with different entities\n"
                     "- CRITICAL: DO NOT repeat or echo the conversation history format (e.g., '[Previous conversation]' or timestamps) - use the information FROM the conversation history to answer the current question\n"
-                    "- Format your answer naturally and clearly\n"
+                    "- Format your answer naturally and clearly as conversational sentences - NO hyphens, dashes, or bullet points\n"
                     "- Include titles/roles when listing people\n"
+                    "- For lists: Format as natural sentences like 'The [items] are [Name] ([Title]), [Name] ([Title]), [Name] ([Title]), and [Name] ([Title]).' DO NOT use hyphens or dashes.\n"
                     f"{response_length_guideline}"
                 )
                 
