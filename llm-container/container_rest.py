@@ -370,7 +370,7 @@ def handle_conversation(
                         if text_lower.startswith('for the ') or text_lower.startswith('or the '):
                             is_question = True
                         elif 'co-founder' in text_lower and (text_lower.startswith('for ') or text_lower.startswith('or ')):
-                            is_question = True
+                                is_question = True
                         
                         # Only include if it's NOT a question (has actual information)
                         if not is_question:
@@ -750,10 +750,10 @@ JSON array only:"""
                         "6. ONLY AFTER processing ALL sections, compile your FINAL COMPLETE list with ALL items found across ALL sections "
                         "Do NOT stop or conclude after processing just some sections - you MUST process ALL sections first. "
                         "Missing even one item is a critical error - completeness is essential. "
-                        "Be extremely precise: Only include items with the EXACT relationship. "
-                        "For co-founder questions: Look for 'Co-Founder of LedgerAI' or '[Role] and Co-Founder of LedgerAI' - verify company name matches exactly. "
-                        "Exclude people who are co-founders of DIFFERENT companies. "
-                        "When listing: Include titles/roles. Be CONCISE (name and title only). "
+                        "Be extremely precise: Only include items with the EXACT relationship or category being asked about. "
+                        "Verify that each item matches the question's criteria exactly - if the question asks about a specific relationship to a specific entity, ensure the relationship explicitly connects to that exact entity mentioned in the question. "
+                        "Exclude items that have similar but different relationships or that relate to different entities. "
+                        "When listing people: Include titles/roles when mentioned. Be CONCISE (name and title/role only). "
                         "CRITICAL: A single context section may contain MULTIPLE matching items - do NOT stop reading a section after finding one item, continue to the end to find ALL items in that section. "
                         "Format your answer naturally, clearly introducing the list.\n"
                     )
@@ -911,7 +911,7 @@ JSON array only:"""
                     in_answer = False
                     answer_started = False
                     
-                    for chunk in llm_response:
+                for chunk in llm_response:
                         buffer += chunk
                         
                         # Check if we've reached the answer section
@@ -962,7 +962,7 @@ JSON array only:"""
                 else:
                     # Not debug mode, stream normally
                     for chunk in llm_response:
-                        yield chunk
+                    yield chunk
             
             return response_with_filler()
         
