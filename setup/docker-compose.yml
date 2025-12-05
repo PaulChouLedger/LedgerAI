@@ -36,7 +36,7 @@ services:
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
-      - SHOW_REASONING_DEBUG=true
+      - SHOW_REASONING_DEBUG=false
 
   memory:
     build: ../memory-container
