@@ -33,13 +33,15 @@ werkzeug_logger.setLevel(logging.WARNING)  # Only log warnings and errors, not i
 # === Initialize Base Container ===
 base_container = BaseLLMContainer(
     service_name="aura-llm-generic",
-    default_model_path="/models/Qwen2.5-1.5B-Instruct.Q4_K_M.gguf"
+    default_model_path="/models/phi-2.Q4_K_M.gguf"
 )
 
 # Override default parameters for generic container
 base_container.LLM_NUM_PREDICT_DEFAULT = 800  # Increased for comprehensive responses
 base_container.SIMPLE_N_CTX = 4096  # Reduced from 8192 for lower latency
 base_container.N_BATCH = 256  # Reduced for faster generation
+# Override chat format for phi-2 (phi-2 uses chatml format)
+base_container.SIMPLE_CHAT_FORMAT = os.getenv('SIMPLE_CHAT_FORMAT', 'chatml')
 
 # === Model/LLM Config (using base class, but keeping for backward compatibility) ===
 LLM_TEMPERATURE_SIMPLE = base_container.LLM_TEMPERATURE_SIMPLE
@@ -100,11 +102,10 @@ MAX_TOKENS_DIRECT_MODE = 1200  # Max tokens for direct conversation (increased f
 # However, we CAN make the LLM show its reasoning PROCESS in the OUTPUT using chain-of-thought prompting.
 # This will make the LLM explicitly show: what it's analyzing, what it finds in each chunk, etc.
 #
-# Note: Using Qwen2.5-1.5B (1.5B parameters) - this is a small model. If reasoning quality is poor,
-# consider using a larger model (7B+ parameters) for better reasoning capability.
+# Note: Using phi-2 (2.7B parameters) - optimized for reasoning tasks and should follow step-by-step instructions well.
 SHOW_REASONING_DEBUG = os.environ.get('SHOW_REASONING_DEBUG', 'false').lower() == 'true'
 if SHOW_REASONING_DEBUG:
-    print(f"[Generic] 🔍 SHOW_REASONING_DEBUG is ENABLED - LLM will show step-by-step reasoning")
+    print(f"[Generic] 🔍 SHOW_REASONING_DEBUG is ENABLED - phi-2 will show step-by-step reasoning in response")
 
 # Use base class model resolution
 SIMPLE_MODEL_PATH = base_container.resolve_model_path()
@@ -743,27 +744,44 @@ JSON array only:"""
                 if SHOW_REASONING_DEBUG:
                     print(f"[Generic] 🔍 DEBUG MODE ENABLED - LLM will show step-by-step reasoning in response")
                     debug_header = (
-                        "🔍 DEBUG MODE ENABLED - YOU MUST SHOW REASONING STEPS\n"
-                        "========================================================\n"
-                        "Your response MUST follow this EXACT format - start with these steps:\n\n"
+                        "🔍 DEBUG MODE: SHOW STEP-BY-STEP REASONING\n"
+                        "==========================================\n"
+                        "You MUST show your reasoning process in your response.\n"
+                        "Think step by step and explain what you're doing at each stage.\n\n"
                     )
                     debug_footer = (
-                        "\n\n🚨 RESPONSE FORMAT REQUIREMENTS:\n"
-                        "Your response MUST start with these exact steps:\n\n"
-                        "1. User is asking about [question]\n"
+                        "\n\n🚨 CRITICAL: YOUR RESPONSE MUST FOLLOW THIS EXACT FORMAT:\n"
+                        "============================================================\n\n"
+                        "STEP 1: State what the user is asking\n"
+                        "Begin with: \"1. User is asking about [restate the question clearly]\"\n\n"
+                        "STEP 2: Analyze each context section\n"
+                        "Then say: \"2. Reading and analyzing RAG chunks...\"\n"
+                        "For EACH context section above, state:\n"
+                        "   \"   - Context Section 1: [brief description of content]\"\n"
+                        "   \"   - Found: [any relevant information from this section]\"\n"
+                        "   \"   - Relevant to question: [yes/no - explain why]\"\n"
+                        "Repeat for Context Section 2, 3, etc.\n\n"
+                        "STEP 3: Compile your findings\n"
+                        "Say: \"3. Found information regarding [what you're looking for]:\"\n"
+                        "List ALL items/people/entities you identified:\n"
+                        "   \"   - [Name/Item 1], [title/details]\"\n"
+                        "   \"   - [Name/Item 2], [title/details]\"\n"
+                        "   \"   - [Name/Item 3], [title/details]\"\n\n"
+                        "STEP 4: Provide final answer\n"
+                        "After steps 1-3, provide your final answer.\n\n"
+                        "EXAMPLE OUTPUT FORMAT:\n"
+                        "1. User is asking about co-founders of Ledger AI\n"
                         "2. Reading and analyzing RAG chunks...\n"
-                        "   - Context Section 1: [what does it contain?] - Found: [relevant info] - Relevant: [yes/no]\n"
-                        "   - Context Section 2: [what does it contain?] - Found: [relevant info] - Relevant: [yes/no]\n"
-                        "   - Context Section 3: [what does it contain?] - Found: [relevant info] - Relevant: [yes/no]\n"
-                        "3. Found information regarding [what you're looking for]:\n"
-                        "   - [Person/Item 1], [details]\n"
-                        "   - [Person/Item 2], [details]\n"
-                        "   - [Person/Item 3], [details]\n"
-                        "\n"
+                        "   - Context Section 1: Information about David Lara - Found: \"Co-Founder and COO of LedgerAI\" - Relevant: yes\n"
+                        "   - Context Section 2: Information about Paul Chou - Found: \"CEO and Co-Founder of LedgerAI\" - Relevant: yes\n"
+                        "   - Context Section 3: Information about Bob Carella - Found: \"Co-Founder and CFO of LedgerAI\" - Relevant: yes\n"
+                        "3. Found information regarding co-founders:\n"
+                        "   - Paul Chou, CEO and Co-Founder\n"
+                        "   - David Lara, Co-Founder and COO\n"
+                        "   - Bob Carella, Co-Founder and CFO\n\n"
                         "FINAL ANSWER:\n"
-                        "[Your final answer here]\n"
-                        "\n"
-                        "IMPORTANT: Do NOT skip steps 1-3. You MUST show your reasoning before the final answer.\n"
+                        "The co-founders of Ledger AI are Paul Chou (CEO and Co-Founder), David Lara (Co-Founder and COO), and Bob Carella (Co-Founder and CFO).\n\n"
+                        "⚠️ CRITICAL: Do NOT skip steps 1-3. Show your reasoning process before the final answer.\n"
                     )
                 
                 system_content = (

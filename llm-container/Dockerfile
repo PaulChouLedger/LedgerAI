@@ -31,6 +31,7 @@ RUN python3 -c "from sentence_transformers import SentenceTransformer; SentenceT
 
 # Copy models (cached - these are large and rarely change)
 COPY models/Qwen2.5-1.5B-Instruct.Q4_K_M.gguf /models/Qwen2.5-1.5B-Instruct.Q4_K_M.gguf
+COPY models/phi-2.Q4_K_M.gguf /models/phi-2.Q4_K_M.gguf
 # === GENERIC CONVERSATIONAL CONTAINER ===
 # This container provides general conversation with RAG-powered knowledge:
 # - General conversational responses
@@ -47,10 +48,10 @@ COPY conversation_manager.py ./
 # Models already copied above (cached layer)
 
 # === Environment defaults (can be overridden by .env or -e) ===
-ENV SIMPLE_MODEL_PATH=/models/Qwen2.5-1.5B-Instruct.Q4_K_M.gguf
-ENV SIMPLE_CHAT_FORMAT=qwen
+ENV SIMPLE_MODEL_PATH=/models/phi-2.Q4_K_M.gguf
+ENV SIMPLE_CHAT_FORMAT=chatml
 ENV SIMPLE_N_CTX=2048
-ENV LLM_STOP=<|eot_id|>
+ENV LLM_STOP=<|endoftext|>
 
 # Expose port for API
 EXPOSE 11434
