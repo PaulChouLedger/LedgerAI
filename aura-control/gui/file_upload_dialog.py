@@ -51,6 +51,7 @@ class RAGFilesDialog(BaseAuraDialog):
         # File list (read-only, no selection)
         self.file_list = QListWidget()
         self.file_list.setSelectionMode(QListWidget.NoSelection)
+        self.file_list.setMaximumHeight(500)  # Limit height to ensure buttons fit within white perimeter
         self.file_list.setStyleSheet("""
             QListWidget {
                 background-color: rgba(44, 44, 46, 0.8);
@@ -66,7 +67,7 @@ class RAGFilesDialog(BaseAuraDialog):
                 margin: 1px;
             }
         """)
-        layout.addWidget(self.file_list, 1)  # Stretch factor
+        layout.addWidget(self.file_list)
         
         # Load RAG files
         self._load_rag_files()
@@ -100,6 +101,10 @@ class RAGFilesDialog(BaseAuraDialog):
         button_layout.addStretch()
         
         layout.addLayout(button_layout)
+        
+        # Add bottom stretch to center content vertically within white perimeter
+        layout.addStretch(1)
+        
         self.setLayout(layout)
     
     def _load_rag_files(self):

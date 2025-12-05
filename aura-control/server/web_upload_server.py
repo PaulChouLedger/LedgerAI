@@ -360,7 +360,7 @@ def upload_files():
             
             def trigger_cpu_rag_generic():
                 try:
-                    response = requests.post("http://localhost:11436/cpu-faiss/ingest", timeout=30)
+                    response = requests.post("http://localhost:11434/cpu-faiss/ingest", timeout=30)
                     if response.status_code == 200:
                         print("[Upload] ✅ Generic CPU FAISS ingest triggered")
                     else:
