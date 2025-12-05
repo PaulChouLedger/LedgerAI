@@ -731,57 +731,27 @@ JSON array only:"""
                         "Format your response naturally, using complete sentences that clearly introduce the list (e.g., 'The [items] are:').\n"
                     )
                 
-                # Build response length guideline - prioritize completeness for lists
-                response_length_guideline = (
-                    "- Keep items brief but include ALL items from the RAG context (completeness over brevity for lists)\n"
-                    if is_list_request
-                    else "- Keep responses short and conversational, like Siri or Alexa (2-3 sentences typically)\n"
-                )
+                # Build response length guideline - prioritize completeness for lists and debug mode
+                if SHOW_REASONING_DEBUG:
+                    # Debug mode: Allow longer responses to show reasoning
+                    response_length_guideline = "- When debug mode is enabled, show your complete reasoning process - length is not a concern\n"
+                elif is_list_request:
+                    response_length_guideline = "- Keep items brief but include ALL items from the RAG context (completeness over brevity for lists)\n"
+                else:
+                    response_length_guideline = "- Keep responses short and conversational, like Siri or Alexa (2-3 sentences typically)\n"
                 
                 # Add chain-of-thought reasoning instructions if debug mode is enabled
                 debug_header = ""
                 debug_footer = ""
                 if SHOW_REASONING_DEBUG:
                     print(f"[Generic] 🔍 DEBUG MODE ENABLED - LLM will show step-by-step reasoning in response")
-                    debug_header = (
-                        "🔍 DEBUG MODE: SHOW STEP-BY-STEP REASONING\n"
-                        "==========================================\n"
-                        "You MUST show your reasoning process in your response.\n"
-                        "Think step by step and explain what you're doing at each stage.\n\n"
-                    )
+                    debug_header = ""
                     debug_footer = (
-                        "\n\n🚨 CRITICAL: YOUR RESPONSE MUST FOLLOW THIS EXACT FORMAT:\n"
-                        "============================================================\n\n"
-                        "STEP 1: State what the user is asking\n"
-                        "Begin with: \"1. User is asking about [restate the question clearly]\"\n\n"
-                        "STEP 2: Analyze each context section\n"
-                        "Then say: \"2. Reading and analyzing RAG chunks...\"\n"
-                        "For EACH context section above, state:\n"
-                        "   \"   - Context Section 1: [brief description of content]\"\n"
-                        "   \"   - Found: [any relevant information from this section]\"\n"
-                        "   \"   - Relevant to question: [yes/no - explain why]\"\n"
-                        "Repeat for Context Section 2, 3, etc.\n\n"
-                        "STEP 3: Compile your findings\n"
-                        "Say: \"3. Found information regarding [what you're looking for]:\"\n"
-                        "List ALL items/people/entities you identified:\n"
-                        "   \"   - [Name/Item 1], [title/details]\"\n"
-                        "   \"   - [Name/Item 2], [title/details]\"\n"
-                        "   \"   - [Name/Item 3], [title/details]\"\n\n"
-                        "STEP 4: Provide final answer\n"
-                        "After steps 1-3, provide your final answer.\n\n"
-                        "EXAMPLE OUTPUT FORMAT:\n"
-                        "1. User is asking about co-founders of Ledger AI\n"
-                        "2. Reading and analyzing RAG chunks...\n"
-                        "   - Context Section 1: Information about David Lara - Found: \"Co-Founder and COO of LedgerAI\" - Relevant: yes\n"
-                        "   - Context Section 2: Information about Paul Chou - Found: \"CEO and Co-Founder of LedgerAI\" - Relevant: yes\n"
-                        "   - Context Section 3: Information about Bob Carella - Found: \"Co-Founder and CFO of LedgerAI\" - Relevant: yes\n"
-                        "3. Found information regarding co-founders:\n"
-                        "   - Paul Chou, CEO and Co-Founder\n"
-                        "   - David Lara, Co-Founder and COO\n"
-                        "   - Bob Carella, Co-Founder and CFO\n\n"
-                        "FINAL ANSWER:\n"
-                        "The co-founders of Ledger AI are Paul Chou (CEO and Co-Founder), David Lara (Co-Founder and COO), and Bob Carella (Co-Founder and CFO).\n\n"
-                        "⚠️ CRITICAL: Do NOT skip steps 1-3. Show your reasoning process before the final answer.\n"
+                        "\n\n⚠️ IMPORTANT: Before giving your answer, show your reasoning:\n"
+                        "1. What is the user asking?\n"
+                        "2. What information did you find in each context section?\n"
+                        "3. What is your final answer based on the information?\n\n"
+                        "Start your response with: \"1. User is asking about [question]\". Then show your analysis, then give the answer.\n"
                     )
                 
                 system_content = (
@@ -802,19 +772,18 @@ JSON array only:"""
                     f"{list_instruction}"
                     f"{debug_footer}"
                     "Guidelines:\n"
-                    f"{response_length_guideline}"
-                    "- Review ALL context sections thoroughly from start to finish before responding to ensure nothing is missed\n"
-                    "- For list questions: Scan every context section completely - read each one entirely, don't skip ahead\n"
+                    "- When debug mode is enabled, show your reasoning steps before the final answer\n"
+                    "- Review ALL context sections thoroughly from start to finish before responding\n"
+                    "- For list questions: Scan every context section completely - read each one entirely\n"
                     "- Be friendly, helpful, and conversational\n"
                     "- Synthesize information from ALL context sections naturally - don't ignore any relevant information\n"
-                    "- When listing people, include their titles/roles when mentioned in the context (e.g., 'Paul Chou, Co-Founder and CEO')\n"
-                    "- Format list responses naturally: Start with a complete sentence that introduces the list, then list each item\n"
+                    "- When listing people, include their titles/roles when mentioned in the context\n"
+                    "- Format responses naturally\n"
                     "- ONLY use information that directly relates to what is being asked\n"
                     "- Be precise and accurate - don't confuse or mix different entities, people, organizations, or concepts\n"
-                    "- For relationship questions: Only include items that have the EXACT relationship being asked about - exclude similar but different relationships (e.g., if asking about 'founders of Company X', exclude founders of Company Y)\n"
+                    "- For relationship questions: Only include items that have the EXACT relationship being asked about\n"
                     "- Rephrase and explain in your own words rather than copying text verbatim\n"
-                    "- If the context doesn't fully address the question, supplement appropriately\n"
-                    "- Prioritize completeness and accuracy over brevity when important information would be lost"
+                    "- Prioritize completeness and accuracy when important information would be lost"
                 )
             # When RAG context is present, use only system message (matches working commit)
             messages = [
