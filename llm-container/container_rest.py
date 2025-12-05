@@ -340,18 +340,36 @@ def handle_conversation(
                         conversations_text += f"{i}. {conv_text}\n"
                     
                     # Pre-filter: Detect obvious questions using heuristics
-                    question_words = {'who', 'what', 'where', 'when', 'why', 'how', 'which', 'whose', 'whom', 'do', 'does', 'did', 'is', 'are', 'was', 'were', 'can', 'could', 'will', 'would', 'should', 'may', 'might', 'remember'}
+                    question_words = {'who', 'what', 'where', 'when', 'why', 'how', 'which', 'whose', 'whom', 'do', 'does', 'did', 'is', 'are', 'was', 'were', 'can', 'could', 'will', 'would', 'should', 'may', 'might', 'remember', 'for the', 'or the'}
+                    question_phrases = {'for the', 'or the', 'who are', 'who is', 'what are', 'what is', 'tell me', 'do you remember', 'remember'}
                     filtered_candidates = []
                     for candidate in memory_rag_candidates:
                         text = candidate.get('text', '').strip()
-                        # Check if it's a question: starts with question word or "do you remember", ends with "?"
+                        # Check if it's a question: starts with question word/phrase, ends with "?", or is a question-like pattern
                         is_question = False
-                        text_lower = text.lower()
+                        text_lower = text.lower().strip()
+                        
+                        # Check if it ends with "?"
                         if text.endswith('?'):
-                            # Check if starts with question word
                             first_word = text_lower.split()[0] if text_lower.split() else ""
-                            if first_word in question_words or text_lower.startswith('do you remember') or text_lower.startswith('remember'):
+                            if first_word in question_words:
                                 is_question = True
+                        
+                        # Check if it starts with question words/phrases (even without "?")
+                        if text_lower.split():
+                            first_word = text_lower.split()[0]
+                            first_two_words = ' '.join(text_lower.split()[:2]) if len(text_lower.split()) >= 2 else first_word
+                            
+                            # Check for question phrases like "for the", "or the", "who are", etc.
+                            if first_two_words in question_phrases or first_word in question_words:
+                                is_question = True
+                        
+                        # Check for question patterns: "for the X", "or the X" (common transcription errors)
+                        # Also check if text contains "co-founder" or similar with "for the"/"or the" prefix (common in transcriptions)
+                        if text_lower.startswith('for the ') or text_lower.startswith('or the '):
+                            is_question = True
+                        elif 'co-founder' in text_lower and (text_lower.startswith('for ') or text_lower.startswith('or ')):
+                            is_question = True
                         
                         # Only include if it's NOT a question (has actual information)
                         if not is_question:
@@ -755,6 +773,7 @@ JSON array only:"""
                     "- For list questions: Scan every section completely to find EVERY item that matches - missing any is a serious error\n"
                     "- Be extremely precise: Only include items with the EXACT relationship being asked about - look for exact phrases where the relationship type and entity name appear together\n"
                     "- When identifying relationships: Verify that the relationship explicitly connects to the exact entity mentioned in the question - exclude similar relationships with different entities\n"
+                    "- CRITICAL: DO NOT repeat or echo the conversation history format (e.g., '[Previous conversation]' or timestamps) - use the information FROM the conversation history to answer the current question\n"
                     "- Format your answer naturally and clearly\n"
                     "- Include titles/roles when listing people"
                 )
