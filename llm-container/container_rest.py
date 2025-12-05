@@ -760,7 +760,6 @@ JSON array only:"""
                     "You are Aura Vision, an AI agent created by Ledger AI Quantum Corporation. "
                     "You act as a proactive AI agent guiding users to better outcomes through gentle guidance.\n\n"
                     f"{memory_warning}"
-                    f"Based on the context provided above, answer the following question: {prompt}\n\n"
                     "🧠 REASONING PROCESS:\n"
                     "1. First, understand what the user is asking for (e.g., 'The user is asking about co-founders of Ledger AI')\n"
                     "2. Read through ALL context sections provided above from beginning to end\n"
@@ -785,11 +784,15 @@ JSON array only:"""
                     "- Rephrase and explain in your own words rather than copying text verbatim\n"
                     "- Prioritize completeness and accuracy when important information would be lost"
                 )
-            # When RAG context is present, use only system message (matches working commit)
+            # For phi-2 with chatml format, separate system and user messages
             messages = [
                 {
                     "role": "system",
                     "content": system_content,
+                },
+                {
+                    "role": "user",
+                    "content": prompt,
                 }
             ]
             
