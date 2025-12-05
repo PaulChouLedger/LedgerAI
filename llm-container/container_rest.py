@@ -911,7 +911,7 @@ JSON array only:"""
                     in_answer = False
                     answer_started = False
                     
-                for chunk in llm_response:
+                    for chunk in llm_response:
                         buffer += chunk
                         
                         # Check if we've reached the answer section
@@ -962,7 +962,7 @@ JSON array only:"""
                 else:
                     # Not debug mode, stream normally
                     for chunk in llm_response:
-                    yield chunk
+                        yield chunk
             
             return response_with_filler()
         
