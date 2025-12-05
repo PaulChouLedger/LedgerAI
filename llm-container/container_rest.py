@@ -779,24 +779,36 @@ JSON array only:"""
                 else:
                     response_length_guideline = "- Keep responses short and conversational, like Siri or Alexa (2-3 sentences typically)\n"
                 
-                # Build structured reasoning instructions
-                reasoning_instructions = (
-                    "\n🧠 REASONING PROCESS:\n"
-                    "1. Think step-by-step - analyze the question and available context systematically\n"
-                    "2. Use only provided information - do not invent facts or guess\n"
-                    "3. If information is missing, state 'unknown' instead of guessing\n"
-                    "4. Identify any contradictions or conflicts in the provided information\n"
-                    "5. Structure your response as follows:\n"
-                    "   - Known Facts: List the key facts extracted from the context\n"
-                    "   - Reasoning Steps: Explain your step-by-step analysis process\n"
-                    "   - Conflicts/Missing Info: Note any contradictions or missing information\n"
-                    "   - Final Answer: Provide your complete answer based on the analysis\n"
-                    "   - Confidence: Rate your confidence (high/medium/low) based on information quality\n"
-                )
+                # Build structured reasoning instructions (only show structure in debug mode)
+                # In normal mode, LLM should think step-by-step internally but output naturally
+                if SHOW_REASONING_DEBUG:
+                    reasoning_instructions = (
+                        "\n🧠 REASONING PROCESS:\n"
+                        "1. Think step-by-step - analyze the question and available context systematically\n"
+                        "2. Use only provided information - do not invent facts or guess\n"
+                        "3. If information is missing, state 'unknown' instead of guessing\n"
+                        "4. Identify any contradictions or conflicts in the provided information\n"
+                        "5. Structure your response as follows:\n"
+                        "   - Known Facts: List the key facts extracted from the context\n"
+                        "   - Reasoning Steps: Explain your step-by-step analysis process\n"
+                        "   - Conflicts/Missing Info: Note any contradictions or missing information\n"
+                        "   - Final Answer: Provide your complete answer based on the analysis\n"
+                        "   - Confidence: Rate your confidence (high/medium/low) based on information quality\n"
+                    )
+                else:
+                    # Normal mode: Think step-by-step internally but output naturally
+                    reasoning_instructions = (
+                        "\n🧠 REASONING PROCESS (internal - think step-by-step):\n"
+                        "1. Think step-by-step - analyze the question and available context systematically\n"
+                        "2. Use only provided information - do not invent facts or guess\n"
+                        "3. If information is missing, state 'unknown' instead of guessing\n"
+                        "4. Identify any contradictions or conflicts in the provided information\n"
+                        "5. Provide your answer naturally - do not include section headers like 'Known Facts' or 'Final Answer'\n"
+                    )
                 
-                # Build RAG chunk scoring instructions (if RAG context is present)
+                # Build RAG chunk scoring instructions (if RAG context is present and debug mode)
                 rag_scoring_instructions = ""
-                if rag_context:
+                if rag_context and SHOW_REASONING_DEBUG:
                     rag_scoring_instructions = (
                         "\n📊 RAG CHUNK EVALUATION:\n"
                         "Evaluate the relevance of each context section (separated by '---'):\n"
@@ -967,64 +979,120 @@ JSON array only:"""
                 max_tokens_limit = MAX_TOKENS_RAG_MODE_LIST if is_list_request else MAX_TOKENS_RAG_MODE
                 llm_response = llm_chat_simple(messages, max_tokens=max_tokens_limit, stream=True)
                 
-                # If debug mode is enabled, filter out reasoning and only stream the answer
-                if SHOW_REASONING_DEBUG:
-                    buffer = ""
-                    in_answer = False
-                    answer_started = False
+                # Always filter structured format to extract only Final Answer for TTS
+                # The LLM may output structured format (Known Facts, Reasoning Steps, Final Answer, Confidence)
+                # We need to extract only the Final Answer section
+                buffer = ""
+                in_final_answer = False
+                final_answer_started = False
+                reasoning_buffer = ""  # Buffer for logging reasoning in debug mode
+                
+                for chunk in llm_response:
+                    buffer += chunk
                     
-                    for chunk in llm_response:
-                        buffer += chunk
+                    # Check for structured format markers
+                    # Look for "Final Answer:" or "---ANSWER---" markers
+                    final_answer_marker = None
+                    if "Final Answer:" in buffer and not in_final_answer:
+                        final_answer_marker = buffer.find("Final Answer:")
+                        # Extract everything before Final Answer for logging (if debug mode)
+                        if SHOW_REASONING_DEBUG:
+                            reasoning_buffer = buffer[:final_answer_marker].strip()
+                    elif "---ANSWER---" in buffer and not in_final_answer:
+                        final_answer_marker = buffer.find("---ANSWER---")
+                        # Extract everything before answer for logging (if debug mode)
+                        if SHOW_REASONING_DEBUG:
+                            reasoning_buffer = buffer[:final_answer_marker].strip()
+                    
+                    # If we found Final Answer section, start extracting
+                    if final_answer_marker is not None and not in_final_answer:
+                        if SHOW_REASONING_DEBUG and reasoning_buffer:
+                            print(f"\n{'='*80}")
+                            print(f"[Generic] 🔍 [LLM Reasoning Debug] FULL REASONING OUTPUT:")
+                            print(f"{'='*80}")
+                            print(reasoning_buffer)
+                            print(f"{'='*80}\n")
                         
-                        # Check if we've reached the answer section
-                        if "---ANSWER---" in buffer and not in_answer:
-                            # Extract everything before answer for logging
-                            answer_marker = buffer.find("---ANSWER---")
-                            reasoning_text = buffer[:answer_marker].strip()
-                            if reasoning_text:
-                                print(f"\n{'='*80}")
-                                print(f"[Generic] 🔍 [LLM Reasoning Debug] FULL REASONING OUTPUT:")
-                                print(f"{'='*80}")
-                                print(reasoning_text)
-                                print(f"{'='*80}\n")
-                            # Start streaming from after the marker
-                            in_answer = True
-                            answer_started = True
-                            # Yield everything after ---ANSWER---
+                        in_final_answer = True
+                        final_answer_started = True
+                        
+                        # Extract text after "Final Answer:" or "---ANSWER---"
+                        if "Final Answer:" in buffer:
+                            answer_start_pos = buffer.find("Final Answer:") + len("Final Answer:")
+                        else:
                             answer_start_pos = buffer.find("---ANSWER---") + len("---ANSWER---")
-                            remaining = buffer[answer_start_pos:].lstrip()
-                            if remaining and "---END ANSWER---" not in remaining:
-                                yield remaining
-                            buffer = ""  # Clear buffer after extracting reasoning
                         
-                        # If we're in answer section, check for end marker
-                        if in_answer:
-                            if "---END ANSWER---" in buffer:
-                                # Extract answer before end marker
-                                end_pos = buffer.find("---END ANSWER---")
-                                answer_text = buffer[:end_pos].strip()
-                                if answer_text:
-                                    yield answer_text
-                                break
-                            elif answer_started:
-                                # Stream chunks normally in answer section
-                                yield chunk
-                        # If not in answer yet, just buffer (don't yield)
+                        remaining = buffer[answer_start_pos:].lstrip()
+                        # Check if we've already hit Confidence section (end of Final Answer)
+                        if "Confidence:" in remaining:
+                            confidence_pos = remaining.find("Confidence:")
+                            answer_text = remaining[:confidence_pos].strip()
+                            if answer_text:
+                                yield answer_text
+                            break
+                        elif "---END ANSWER---" in remaining:
+                            end_pos = remaining.find("---END ANSWER---")
+                            answer_text = remaining[:end_pos].strip()
+                            if answer_text:
+                                yield answer_text
+                            break
+                        elif remaining:
+                            yield remaining
+                        buffer = ""  # Clear buffer after extracting
                     
-                    # If we never found answer marker, log full response and yield it
-                    if not in_answer and buffer:
+                    # If we're in Final Answer section, check for end markers
+                    if in_final_answer:
+                        # Check for end markers: "Confidence:" or "---END ANSWER---"
+                        if "Confidence:" in buffer:
+                            confidence_pos = buffer.find("Confidence:")
+                            answer_text = buffer[:confidence_pos].strip()
+                            if answer_text:
+                                yield answer_text
+                            break
+                        elif "---END ANSWER---" in buffer:
+                            end_pos = buffer.find("---END ANSWER---")
+                            answer_text = buffer[:end_pos].strip()
+                            if answer_text:
+                                yield answer_text
+                            break
+                        elif final_answer_started:
+                            # Stream chunks normally in Final Answer section (but check for Confidence: in each chunk)
+                            if "Confidence:" in chunk:
+                                # Chunk contains end marker, extract answer part only
+                                confidence_pos = chunk.find("Confidence:")
+                                answer_part = chunk[:confidence_pos].strip()
+                                if answer_part:
+                                    yield answer_part
+                                break
+                            else:
+                                yield chunk
+                    # If not in Final Answer yet, just buffer (don't yield)
+                
+                # If we never found Final Answer marker, log full response and extract answer if possible
+                if not in_final_answer and buffer:
+                    if SHOW_REASONING_DEBUG:
                         print(f"\n{'='*80}")
-                        print(f"[Generic] 🔍 [LLM Reasoning Debug] FULL RESPONSE (no answer marker found):")
+                        print(f"[Generic] 🔍 [LLM Reasoning Debug] FULL RESPONSE (no Final Answer marker found):")
                         print(f"{'='*80}")
                         print(buffer)
                         print(f"{'='*80}\n")
-                        # Yield full response as fallback
+                    
+                    # Try to extract Final Answer section even if marker wasn't found
+                    if "Final Answer:" in buffer:
+                        answer_start = buffer.find("Final Answer:") + len("Final Answer:")
+                        remaining = buffer[answer_start:].lstrip()
+                        if "Confidence:" in remaining:
+                            confidence_pos = remaining.find("Confidence:")
+                            answer_text = remaining[:confidence_pos].strip()
+                            if answer_text:
+                                yield answer_text
+                        else:
+                            # Yield everything after Final Answer:
+                            yield remaining
+                    else:
+                        # Fallback: yield full response
                         for char in buffer:
                             yield char
-                else:
-                    # Not debug mode, stream normally
-                    for chunk in llm_response:
-                        yield chunk
             
             return response_with_filler()
         
