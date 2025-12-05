@@ -38,7 +38,7 @@ base_container = BaseLLMContainer(
 
 # Override default parameters for generic container
 base_container.LLM_NUM_PREDICT_DEFAULT = 800  # Increased for comprehensive responses
-base_container.SIMPLE_N_CTX = 4096  # Reduced from 8192 for lower latency
+base_container.SIMPLE_N_CTX = 8192  # Increased for better reasoning with multiple RAG chunks
 base_container.N_BATCH = 256  # Reduced for faster generation
 # Override chat format for Qwen2.5 (Qwen2.5 uses chatml format)
 base_container.SIMPLE_CHAT_FORMAT = os.getenv('SIMPLE_CHAT_FORMAT', 'chatml')
@@ -93,6 +93,7 @@ SENTENCE_ENDINGS = ('.', '!', '?')
 
 # === Response Generation Config ===
 MAX_TOKENS_RAG_MODE = 1500  # Max tokens when using RAG context (increased for comprehensive responses)
+MAX_TOKENS_RAG_MODE_LIST = 2500  # Max tokens for list questions (need more space to list all items)
 MAX_TOKENS_DIRECT_MODE = 1200  # Max tokens for direct conversation (increased for comprehensive responses)
 
 # === Debug Mode: Show LLM Reasoning ===
@@ -748,6 +749,7 @@ JSON array only:"""
                         "Exclude people who are co-founders of DIFFERENT companies or who have different roles at the company. "
                         "Carefully verify that each item matches EXACTLY - exclude items that are similar but don't match exactly. "
                         "When listing people: Include their titles/roles when mentioned. "
+                        "Ensure THOROUGH coverage of ALL items but be CONCISE - list each item briefly (name and title). "
                         "Format your answer naturally, clearly introducing the list.\n"
                     )
                 
@@ -756,7 +758,7 @@ JSON array only:"""
                     # Debug mode: Allow longer responses to show reasoning
                     response_length_guideline = "- When debug mode is enabled, show your complete reasoning process - length is not a concern\n"
                 elif is_list_request:
-                    response_length_guideline = "- Keep items brief but include ALL items from the RAG context (completeness over brevity for lists)\n"
+                    response_length_guideline = "- For lists: Ensure THOROUGH coverage of ALL items from the RAG context, but be CONCISE (name and title only, 1-2 sentences per item max). Completeness is critical - include every item before concluding.\n"
                 else:
                     response_length_guideline = "- Keep responses short and conversational, like Siri or Alexa (2-3 sentences typically)\n"
                 
@@ -768,13 +770,14 @@ JSON array only:"""
                     f"{person_instruction}"
                     f"{list_instruction}"
                     "Instructions:\n"
-                    "- Read ALL context sections THOROUGHLY from beginning to end - analyze each section carefully and in detail\n"
+                    "- Read ALL context sections THOROUGHLY from beginning to end - analyze each section carefully and in detail to ensure comprehensive coverage\n"
                     "- Examine every sentence in every section to understand the full context and relationships\n"
                     "- Do not skip any part - read each section completely from start to finish before moving to the next\n"
-                    "- Extract ALL information that directly answers the question\n"
-                    "- For list questions: Scan every section completely to find EVERY item that matches - missing any is a serious error\n"
+                    "- Extract ALL information that directly answers the question - ensure thorough coverage of all relevant information\n"
+                    "- For list questions: Scan every section completely to find EVERY item that matches - missing any is a serious error. List all items concisely.\n"
                     "- Be extremely precise: Only include items with the EXACT relationship being asked about - look for exact phrases where the relationship type and entity name appear together\n"
                     "- When identifying relationships: Verify that the relationship explicitly connects to the exact entity mentioned in the question - exclude similar relationships with different entities\n"
+                    "- Answer THOROUGHLY but CONCISELY - cover all information needed to answer completely, but be brief and direct\n"
                     "- CRITICAL: DO NOT repeat or echo the conversation history format (e.g., '[Previous conversation]' or timestamps) - use the information FROM the conversation history to answer the current question\n"
                     "- Format your answer naturally and clearly\n"
                     "- Include titles/roles when listing people"
@@ -818,7 +821,9 @@ JSON array only:"""
             
             # Don't wrap the iterator - let base_container's debug_iterator handle logging
             # The base class already wraps it with debug logging
-            return llm_chat_simple(messages, max_tokens=MAX_TOKENS_RAG_MODE, stream=stream)
+            # Use higher token limit for list questions to ensure all items are included
+            max_tokens_limit = MAX_TOKENS_RAG_MODE_LIST if is_list_request else MAX_TOKENS_RAG_MODE
+            return llm_chat_simple(messages, max_tokens=max_tokens_limit, stream=stream)
         else:
             # No RAG context, use standard prompt with Aura Vision identity
             # Check if memory RAG was attempted but found no useful information
@@ -889,7 +894,9 @@ JSON array only:"""
                 yield "<sentence_end>\n"
                 
                 # Then yield from actual LLM response
-                llm_response = llm_chat_simple(messages, max_tokens=MAX_TOKENS_RAG_MODE, stream=True)
+                # Use higher token limit for list questions to ensure all items are included
+                max_tokens_limit = MAX_TOKENS_RAG_MODE_LIST if is_list_request else MAX_TOKENS_RAG_MODE
+                llm_response = llm_chat_simple(messages, max_tokens=max_tokens_limit, stream=True)
                 
                 # If debug mode is enabled, filter out reasoning and only stream the answer
                 if SHOW_REASONING_DEBUG:
@@ -959,7 +966,9 @@ JSON array only:"""
                 in_answer = False
                 answer_started = False
                 
-                llm_response = llm_chat_simple(messages, max_tokens=MAX_TOKENS_RAG_MODE, stream=True)
+                # Use higher token limit for list questions to ensure all items are included
+                max_tokens_limit = MAX_TOKENS_RAG_MODE_LIST if is_list_request else MAX_TOKENS_RAG_MODE
+                llm_response = llm_chat_simple(messages, max_tokens=max_tokens_limit, stream=True)
                 
                 for chunk in llm_response:
                     buffer += chunk
@@ -1014,7 +1023,9 @@ JSON array only:"""
         
         # Don't wrap the iterator - let base_container's debug_iterator handle logging
         # The base class already wraps it with debug logging
-        return llm_chat_simple(messages, max_tokens=MAX_TOKENS_RAG_MODE, stream=stream)
+        # Use higher token limit for list questions to ensure all items are included
+        max_tokens_limit = MAX_TOKENS_RAG_MODE_LIST if is_list_request else MAX_TOKENS_RAG_MODE
+        return llm_chat_simple(messages, max_tokens=max_tokens_limit, stream=stream)
 
     # Fallback to direct LLM conversation without external context
     # Detect if user is asking for instructions/steps
