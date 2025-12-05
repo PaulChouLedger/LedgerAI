@@ -33,14 +33,14 @@ werkzeug_logger.setLevel(logging.WARNING)  # Only log warnings and errors, not i
 # === Initialize Base Container ===
 base_container = BaseLLMContainer(
     service_name="aura-llm-generic",
-    default_model_path="/models/phi-2.Q4_K_M.gguf"
+    default_model_path="/models/Qwen2.5-1.5B-Instruct.Q4_K_M.gguf"
 )
 
 # Override default parameters for generic container
 base_container.LLM_NUM_PREDICT_DEFAULT = 800  # Increased for comprehensive responses
 base_container.SIMPLE_N_CTX = 4096  # Reduced from 8192 for lower latency
 base_container.N_BATCH = 256  # Reduced for faster generation
-# Override chat format for phi-2 (phi-2 uses chatml format)
+# Override chat format for Qwen2.5 (Qwen2.5 uses chatml format)
 base_container.SIMPLE_CHAT_FORMAT = os.getenv('SIMPLE_CHAT_FORMAT', 'chatml')
 
 # === Model/LLM Config (using base class, but keeping for backward compatibility) ===
@@ -102,10 +102,10 @@ MAX_TOKENS_DIRECT_MODE = 1200  # Max tokens for direct conversation (increased f
 # However, we CAN make the LLM show its reasoning PROCESS in the OUTPUT using chain-of-thought prompting.
 # This will make the LLM explicitly show: what it's analyzing, what it finds in each chunk, etc.
 #
-# Note: Using phi-2 (2.7B parameters) - optimized for reasoning tasks and should follow step-by-step instructions well.
+# Note: Using Qwen2.5-1.5B - optimized for instruction following and conversational tasks.
 SHOW_REASONING_DEBUG = os.environ.get('SHOW_REASONING_DEBUG', 'false').lower() == 'true'
 if SHOW_REASONING_DEBUG:
-    print(f"[Generic] 🔍 SHOW_REASONING_DEBUG is ENABLED - phi-2 will show step-by-step reasoning in response")
+    print(f"[Generic] 🔍 SHOW_REASONING_DEBUG is ENABLED - Qwen2.5 will show step-by-step reasoning in response")
 
 # Use base class model resolution
 SIMPLE_MODEL_PATH = base_container.resolve_model_path()
@@ -697,7 +697,7 @@ JSON array only:"""
         is_instruction_request = any(keyword in prompt.lower() for keyword in instruction_keywords)
         
         # Detect if user is asking for a list (e.g., "who are", "list all", "what are the")
-        list_keywords = ['who are', 'who were', 'list all', 'list the', 'what are the', 'what are', 'name all', 'name the']
+        list_keywords = ['who are', 'who were', 'list all', 'list the', 'what are the', 'what are', 'what were', 'name all', 'name the']
         is_list_request = any(keyword in prompt.lower() for keyword in list_keywords)
         
         if has_rag_context:
@@ -744,6 +744,8 @@ JSON array only:"""
                         "Do NOT stop reading a section once you find some items - continue reading until the section ends to find ALL relevant items. "
                         "Missing even one item is a critical error - completeness is essential. "
                         "Be extremely precise: Only include items that have the EXACT relationship or category being asked about. "
+                        "For co-founder questions: Look for exact phrases like 'Co-Founder of [Company]' or '[Role] and Co-Founder of [Company]' where [Company] matches the company asked about. "
+                        "Exclude people who are co-founders of DIFFERENT companies or who have different roles at the company. "
                         "Carefully verify that each item matches EXACTLY - exclude items that are similar but don't match exactly. "
                         "When listing people: Include their titles/roles when mentioned. "
                         "Format your answer naturally, clearly introducing the list.\n"
@@ -795,7 +797,7 @@ JSON array only:"""
                         f"Now answer: {prompt}"
                     )
                 
-            # For phi-2 with chatml format, separate system and user messages
+            # For chatml format, separate system and user messages
             messages = [
                 {
                     "role": "system",
