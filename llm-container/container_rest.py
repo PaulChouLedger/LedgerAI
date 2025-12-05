@@ -505,7 +505,9 @@ JSON array only:"""
                 
                 # Detect if this is a list question early (for context handling)
                 list_keywords = ['who are', 'who were', 'list all', 'list the', 'what are the', 'what are', 'name all', 'name the']
-                is_list_query = any(keyword in prompt.lower() for keyword in list_keywords)
+                # Also detect plural nouns that indicate lists (co-founders, founders, employees, members, etc.)
+                list_indicators = ['co-founders', 'founders', 'employees', 'members', 'team', 'people', 'individuals']
+                is_list_query = any(keyword in prompt.lower() for keyword in list_keywords) or any(indicator in prompt.lower() for indicator in list_indicators)
                 
                 # SIMPLIFIED: Trust final LLM to reason through chunks internally
                 # No pre-filtering - let LLM understand query and extract valid information from all chunks
@@ -542,8 +544,9 @@ JSON array only:"""
                             else:
                                 source_name = metadata.get('document_name', 'unknown')
                         
+                        # For list queries, don't truncate - we need full chunks to extract all items
                         # Only truncate if extremely long (let LLM handle most filtering)
-                        if len(text) > MAX_CHARS_PER_RESULT:
+                        if not is_list_query and len(text) > MAX_CHARS_PER_RESULT:
                             # Try to break at sentence boundary
                             truncated = text[:MAX_CHARS_PER_RESULT]
                             last_period = max(
@@ -552,6 +555,19 @@ JSON array only:"""
                                 truncated.rfind('? ')
                             )
                             if last_period > MAX_CHARS_PER_RESULT * 0.7:
+                                text = truncated[:last_period + 1] + "..."
+                            else:
+                                text = truncated + "..."
+                        # For list queries, keep full text even if longer (up to reasonable limit of 3000 chars)
+                        elif is_list_query and len(text) > 3000:
+                            # Only truncate if extremely long (over 3000 chars) - try to break at sentence boundary
+                            truncated = text[:3000]
+                            last_period = max(
+                                truncated.rfind('. '),
+                                truncated.rfind('! '),
+                                truncated.rfind('? ')
+                            )
+                            if last_period > 2500:  # Only if we can break near the end
                                 text = truncated[:last_period + 1] + "..."
                             else:
                                 text = truncated + "..."
@@ -697,9 +713,11 @@ JSON array only:"""
         instruction_keywords = ['how to', 'how do i', 'steps', 'step by step', 'instructions', 'guide me', 'walk me through', 'show me how']
         is_instruction_request = any(keyword in prompt.lower() for keyword in instruction_keywords)
         
-        # Detect if user is asking for a list (e.g., "who are", "list all", "what are the")
+        # Detect if user is asking for a list (e.g., "who are", "list all", "what are the", "co-founders", "founders")
         list_keywords = ['who are', 'who were', 'list all', 'list the', 'what are the', 'what are', 'what were', 'name all', 'name the']
-        is_list_request = any(keyword in prompt.lower() for keyword in list_keywords)
+        # Also detect plural nouns that indicate lists (co-founders, founders, employees, members, etc.)
+        list_indicators = ['co-founders', 'founders', 'employees', 'members', 'team', 'people', 'individuals']
+        is_list_request = any(keyword in prompt.lower() for keyword in list_keywords) or any(indicator in prompt.lower() for indicator in list_indicators)
         
         if has_rag_context:
             # Dynamic prompt construction with Aura Vision identity
@@ -754,7 +772,7 @@ JSON array only:"""
                         "PROCESSING METHOD - DO NOT SKIP ANY STEP: "
                         "1. First, count how many context sections there are (sections are separated by '---' markers) "
                         "2. Process Section 1 completely - read from beginning to end, sentence by sentence, identify ALL matching items, write them down. "
-                        "   EXAMPLE: If Section 1 says 'Bob is Co-Founder. David is Co-Founder. Jorge is Co-Founder.', you must extract ALL THREE, not just one. "
+                        "   EXAMPLE: If Section 1 lists multiple items like 'Item A is [relationship]. Item B is [relationship]. Item C is [relationship].', you must extract ALL matching items, not just one. "
                         "3. Process Section 2 completely - read from beginning to end, sentence by sentence, identify ALL matching items, add them to your list. "
                         "   Continue reading the ENTIRE section even after finding one match - there may be more matches later in the same section. "
                         "4. Process Section 3 completely (if present) - read from beginning to end, sentence by sentence, identify ALL matching items, add them to your list. "
@@ -765,17 +783,18 @@ JSON array only:"""
                         "Be extremely precise: Only include items with the EXACT relationship or category being asked about. "
                         "Verify that each item matches the question's criteria exactly - if the question asks about a specific relationship to a specific entity, ensure the relationship explicitly connects to that exact entity mentioned in the question. "
                         "CRITICAL EXCLUSION RULE: If an item has the same relationship type (e.g., 'co-founder', 'CEO', 'employee') but with a DIFFERENT entity than the one asked about, EXCLUDE it. "
-                        "Only include items where the relationship explicitly connects to the exact entity mentioned in the question. "
+                        "EXAMPLE: If the question asks 'Who are the co-founders of Company X?' and you see 'Person Y is Co-Founder of Company Z', you MUST EXCLUDE Person Y because they are a co-founder of Company Z, NOT Company X. "
+                        "Only include items where the relationship explicitly connects to the exact entity mentioned in the question (e.g., 'Co-Founder of [Entity]', 'CEO of [Entity]'). "
                         "Exclude items that have similar but different relationships or that relate to different entities. "
                         "When listing people: Include titles/roles when mentioned. Be CONCISE (name and title/role only). "
                         "\n"
                         "🔥 ABSOLUTELY CRITICAL - READING ENTIRE CHUNKS: "
                         "A single context section/chunk can contain MULTIPLE matching items. "
-                        "For example, one chunk might say 'Bob is Co-Founder and CFO. David is Co-Founder and COO. Jorge is Co-Founder and CMO.' "
-                        "In this case, you MUST extract ALL THREE co-founders from that single chunk. "
+                        "For example, one chunk might list multiple people with the same relationship: 'Person A is [Role] of [Entity]. Person B is [Role] of [Entity]. Person C is [Role] of [Entity].' "
+                        "In this case, you MUST extract ALL matching items from that single chunk, not just the first one. "
                         "DO NOT stop reading after finding the first match - you MUST read the ENTIRE chunk from start to finish, sentence by sentence, to find EVERY matching item. "
                         "Scan every sentence in every chunk completely before moving to the next chunk. "
-                        "If you find one co-founder in a chunk, continue reading that same chunk to find any additional co-founders. "
+                        "If you find one matching item in a chunk, continue reading that same chunk to find any additional matching items. "
                         "Only move to the next chunk after you have read the current chunk completely and extracted ALL matching items from it. "
                         "Missing items because you stopped reading a chunk early is a critical error.\n"
                         "Format your answer naturally, clearly introducing the list.\n"
