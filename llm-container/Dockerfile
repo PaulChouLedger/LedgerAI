@@ -30,8 +30,10 @@ RUN python3 -c "from sentence_transformers import SentenceTransformer; SentenceT
     echo "✅ all-distilroberta-v1 model pre-downloaded into image cache"
 
 # Copy models (cached - these are large and rarely change)
+# Both 1.5B and 3B models are available - switch via SIMPLE_MODEL_PATH environment variable
+# Default: 3B model (better reasoning), fallback: 1.5B model (faster)
 COPY models/Qwen2.5-1.5B-Instruct.Q4_K_M.gguf /models/Qwen2.5-1.5B-Instruct.Q4_K_M.gguf
-COPY models/phi-2.Q4_K_M.gguf /models/phi-2.Q4_K_M.gguf
+COPY models/qwen2.5-3b-instruct-q4_k_m.gguf /models/qwen2.5-3b-instruct-q4_k_m.gguf
 # === GENERIC CONVERSATIONAL CONTAINER ===
 # This container provides general conversation with RAG-powered knowledge:
 # - General conversational responses
@@ -48,7 +50,8 @@ COPY conversation_manager.py ./
 # Models already copied above (cached layer)
 
 # === Environment defaults (can be overridden by .env or -e) ===
-ENV SIMPLE_MODEL_PATH=/models/Qwen2.5-1.5B-Instruct.Q4_K_M.gguf
+ENV SIMPLE_MODEL_PATH=/models/qwen2.5-3b-instruct-q4_k_m.gguf
+# To switch to 1.5B model, override with: /models/Qwen2.5-1.5B-Instruct.Q4_K_M.gguf
 ENV SIMPLE_CHAT_FORMAT=chatml
 ENV SIMPLE_N_CTX=8192
 ENV LLM_STOP=<|im_end|>
