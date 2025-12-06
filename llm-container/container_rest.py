@@ -828,9 +828,22 @@ JSON array only:"""
                     # Debug mode: Allow longer responses to show reasoning
                     response_length_guideline = "- When debug mode is enabled, show your complete reasoning process - length is not a concern\n"
                 elif is_list_request:
-                    response_length_guideline = "- For lists: Ensure THOROUGH coverage of ALL items from the RAG context. Format as natural conversational sentences (no hyphens, dashes, or bullet points). Use complete sentences like 'The [items] are [Name] ([Title]), [Name] ([Title]), [Name] ([Title]), and [Name] ([Title]).' Completeness is critical - include every item before concluding.\n"
+                    response_length_guideline = (
+                        "- For lists: Ensure THOROUGH coverage of ALL items from the RAG context. Format as natural conversational sentences (no hyphens, dashes, or bullet points). "
+                        "Use complete sentences like 'The [items] are [Name] ([Title]), [Name] ([Title]), [Name] ([Title]), and [Name] ([Title]).' "
+                        "Completeness is critical - include every item before concluding.\n"
+                        "- ALWAYS end your response with a brief, natural follow-up question related to the conversation. "
+                        "Examples: 'Would you like more information about any of these?' or 'Is there anything else I can help you with?' "
+                        "Make it flow naturally with the conversation topic.\n"
+                    )
                 else:
-                    response_length_guideline = "- Keep responses short and conversational, like Siri or Alexa (2-3 sentences typically)\n"
+                    response_length_guideline = (
+                        "- Keep responses VERY SHORT and conversational, like Siri or Alexa. Aim for 1-2 sentences maximum. "
+                        "Get straight to the point - avoid lengthy explanations, background details, or multiple examples.\n"
+                        "- ALWAYS end your response with a brief, natural follow-up question related to the conversation. "
+                        "Examples: 'Would you like more information about this?' or 'Is there anything else I can help you with?' "
+                        "or 'Need more details?' Make it flow naturally with the conversation topic.\n"
+                    )
                 
                 # Build structured reasoning instructions (only show structure in debug mode)
                 # In normal mode, LLM should think step-by-step internally but output naturally
@@ -969,7 +982,9 @@ JSON array only:"""
                     "You act as a proactive AI agent guiding users to better outcomes through gentle guidance.\n\n"
                     f"{memory_note}"
                     "Provide a clear, step-by-step response (numbered steps). Keep each step concise and actionable. "
-                    "Be conversational and friendly, like Siri or Alexa."
+                    "Be conversational and friendly, like Siri or Alexa.\n\n"
+                    "Always end your response with a brief follow-up question such as: "
+                    "'Would you like more information about this?' or 'Is there anything else I can help you with?'"
                 )
             else:
                 # Add warning if memory RAG failed or no useful information found
@@ -1002,8 +1017,12 @@ JSON array only:"""
                     "IMPORTANT: Use the conversation memory provided above to answer the user's question. "
                     "If the memory contains relevant information, provide that information in your response. "
                     "If you notice a misspelling or typo, briefly acknowledge it but still answer the actual question asked.\n\n"
-                    "Keep your response short and conversational, like Siri or Alexa (2-3 sentences typically). "
-                    "Be friendly, helpful, and concise. Avoid lengthy explanations unless specifically requested."
+                    "Keep your response VERY SHORT and conversational, like Siri or Alexa. Aim for 1-2 sentences maximum. "
+                    "Get straight to the point - avoid lengthy explanations, background details, or multiple examples. "
+                    "Be friendly, helpful, and extremely concise.\n\n"
+                    "ALWAYS end your response with a brief, natural follow-up question related to the conversation. "
+                    "Examples: 'Would you like more information about this?' or 'Is there anything else I can help you with?' "
+                    "or 'Need more details?' Make it flow naturally with the conversation topic."
                 )
         
         # When only memory context (no RAG), use separate user message
