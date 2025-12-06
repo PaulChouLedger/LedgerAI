@@ -530,6 +530,15 @@ def transcribe(audio):
         result = response.json()
         text = result["text"].get("text", "").strip() if isinstance(result["text"], dict) else result.get("text", "").strip()
         print(f"[Whisper] '{text}'")
+        
+        # Update GUI transcription overlay if available
+        try:
+            from gui.aura_gui import update_transcription_text
+            if text:
+                update_transcription_text(text)
+        except Exception:
+            pass  # Silently fail if GUI not available
+        
         return text
     except Exception as e:
         print(f"[Whisper] ❌ {e}")

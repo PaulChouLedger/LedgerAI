@@ -1953,6 +1953,42 @@ class SettingsDialog(BaseAuraDialog):
         self.voice_cloning_row.addWidget(self.voice_cloning_status_label)
         main_layout.addLayout(self.voice_cloning_row)
         
+        # Debug Overlay toggle
+        debug_row = QHBoxLayout()
+        debug_row.setSpacing(12)
+        debug_label = QLabel("🐛 Debug Overlay")
+        debug_label.setStyleSheet("color: #ffffff; font-size: 14px;")
+        self.debug_status_label = QLabel("")
+        self.debug_status_label.setStyleSheet("color: #aaaaaa; font-size: 12px;")
+        self.debug_overlay_toggle = QPushButton("ON")
+        self.debug_overlay_toggle.setCheckable(True)
+        self.debug_overlay_toggle.setStyleSheet(self.get_button_style(None))
+        self.debug_overlay_toggle.setMinimumWidth(120)
+        self._init_debug_overlay_toggle()
+        self.debug_overlay_toggle.toggled.connect(self._on_debug_overlay_toggled)
+        debug_row.addWidget(debug_label)
+        debug_row.addWidget(self.debug_overlay_toggle, 1)
+        debug_row.addWidget(self.debug_status_label)
+        main_layout.addLayout(debug_row)
+        
+        # Transcription Overlay toggle
+        transcription_row = QHBoxLayout()
+        transcription_row.setSpacing(12)
+        transcription_label = QLabel("📝 Transcription Display")
+        transcription_label.setStyleSheet("color: #ffffff; font-size: 14px;")
+        self.transcription_status_label = QLabel("")
+        self.transcription_status_label.setStyleSheet("color: #aaaaaa; font-size: 12px;")
+        self.transcription_overlay_toggle = QPushButton("ON")
+        self.transcription_overlay_toggle.setCheckable(True)
+        self.transcription_overlay_toggle.setStyleSheet(self.get_button_style(None))
+        self.transcription_overlay_toggle.setMinimumWidth(120)
+        self._init_transcription_overlay_toggle()
+        self.transcription_overlay_toggle.toggled.connect(self._on_transcription_overlay_toggled)
+        transcription_row.addWidget(transcription_label)
+        transcription_row.addWidget(self.transcription_overlay_toggle, 1)
+        transcription_row.addWidget(self.transcription_status_label)
+        main_layout.addLayout(transcription_row)
+        
         row1 = QHBoxLayout()
         row1.setSpacing(15)
         wifi_btn = QPushButton("📶 WiFi Settings")
@@ -2147,6 +2183,120 @@ class SettingsDialog(BaseAuraDialog):
                 "Error",
                 f"Failed to change TTS engine: {e}"
             )
+    
+    def _init_debug_overlay_toggle(self):
+        """Initialize debug overlay toggle from settings"""
+        try:
+            import json
+            settings_path = os.path.expanduser("~/LedgerAI/data/app_settings.json")
+            enabled = True  # Default to enabled
+            if os.path.exists(settings_path):
+                with open(settings_path, "r") as f:
+                    settings_data = json.load(f) or {}
+                    enabled = settings_data.get("debug_overlay_enabled", True)
+            
+            self.debug_overlay_toggle.setChecked(enabled)
+            self.debug_overlay_toggle.setText("ON" if enabled else "OFF")
+            status_text = "Shown during init" if enabled else "Hidden"
+            if hasattr(self, 'debug_status_label'):
+                self.debug_status_label.setText(status_text)
+        except Exception as e:
+            print(f"[Settings] ⚠️ Failed to initialize debug overlay toggle: {e}")
+            self.debug_overlay_toggle.setChecked(True)
+            self.debug_overlay_toggle.setText("ON")
+    
+    def _on_debug_overlay_toggled(self, checked):
+        """Handle debug overlay toggle change"""
+        try:
+            import json
+            settings_path = os.path.expanduser("~/LedgerAI/data/app_settings.json")
+            os.makedirs(os.path.dirname(settings_path), exist_ok=True)
+            
+            # Load existing settings
+            settings_data = {}
+            if os.path.exists(settings_path):
+                with open(settings_path, "r") as f:
+                    settings_data = json.load(f) or {}
+            
+            # Update setting
+            settings_data["debug_overlay_enabled"] = checked
+            
+            # Save settings
+            with open(settings_path, "w") as f:
+                json.dump(settings_data, f, indent=2)
+            
+            # Update GUI
+            from gui.aura_gui import _debug_overlay_enabled
+            global _debug_overlay_enabled
+            _debug_overlay_enabled = checked
+            
+            self.debug_overlay_toggle.setText("ON" if checked else "OFF")
+            status_text = "Shown during init" if checked else "Hidden"
+            if hasattr(self, 'debug_status_label'):
+                self.debug_status_label.setText(status_text)
+            
+            print(f"[Settings] ✅ Debug overlay {'enabled' if checked else 'disabled'}")
+        except Exception as e:
+            print(f"[Settings] ❌ Failed to set debug overlay: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    def _init_transcription_overlay_toggle(self):
+        """Initialize transcription overlay toggle from settings"""
+        try:
+            import json
+            settings_path = os.path.expanduser("~/LedgerAI/data/app_settings.json")
+            enabled = True  # Default to enabled
+            if os.path.exists(settings_path):
+                with open(settings_path, "r") as f:
+                    settings_data = json.load(f) or {}
+                    enabled = settings_data.get("transcription_overlay_enabled", True)
+            
+            self.transcription_overlay_toggle.setChecked(enabled)
+            self.transcription_overlay_toggle.setText("ON" if enabled else "OFF")
+            status_text = "Shown during speech" if enabled else "Hidden"
+            if hasattr(self, 'transcription_status_label'):
+                self.transcription_status_label.setText(status_text)
+        except Exception as e:
+            print(f"[Settings] ⚠️ Failed to initialize transcription overlay toggle: {e}")
+            self.transcription_overlay_toggle.setChecked(True)
+            self.transcription_overlay_toggle.setText("ON")
+    
+    def _on_transcription_overlay_toggled(self, checked):
+        """Handle transcription overlay toggle change"""
+        try:
+            import json
+            settings_path = os.path.expanduser("~/LedgerAI/data/app_settings.json")
+            os.makedirs(os.path.dirname(settings_path), exist_ok=True)
+            
+            # Load existing settings
+            settings_data = {}
+            if os.path.exists(settings_path):
+                with open(settings_path, "r") as f:
+                    settings_data = json.load(f) or {}
+            
+            # Update setting
+            settings_data["transcription_overlay_enabled"] = checked
+            
+            # Save settings
+            with open(settings_path, "w") as f:
+                json.dump(settings_data, f, indent=2)
+            
+            # Update GUI
+            from gui.aura_gui import _transcription_overlay_enabled
+            global _transcription_overlay_enabled
+            _transcription_overlay_enabled = checked
+            
+            self.transcription_overlay_toggle.setText("ON" if checked else "OFF")
+            status_text = "Shown during speech" if checked else "Hidden"
+            if hasattr(self, 'transcription_status_label'):
+                self.transcription_status_label.setText(status_text)
+            
+            print(f"[Settings] ✅ Transcription overlay {'enabled' if checked else 'disabled'}")
+        except Exception as e:
+            print(f"[Settings] ❌ Failed to set transcription overlay: {e}")
+            import traceback
+            traceback.print_exc()
     
     def _init_voice_cloning_toggle(self):
         """Initialize voice cloning toggle from state"""

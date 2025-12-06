@@ -23,6 +23,8 @@ _setup_complete = False  # Tracks when initial setup is complete
 _welcome_played = False  # Tracks when welcome prompt has been played
 _tts_frequency = 0.15  # Current TTS frequency for pulsation speed
 _microphone_muted = False  # Tracks when microphone is muted via button
+_debug_overlay_enabled = True  # Debug overlay enabled by default
+_transcription_overlay_enabled = True  # Transcription overlay enabled by default
 
 # Debug: Print initial state
 print(f"[AuraGUI] 🎯 Initial state: listening_ready={_listening_ready}, transcribing={_transcribing}, tts_playing={_tts_playing}")
@@ -165,11 +167,11 @@ class DebugOverlayWidget(QWidget):
             }
         """)
         
-        # Position at bottom of screen (below Aura eye)
+        # Position at bottom of screen (below Aura eye) - CENTERED
         overlay_height = 200
         overlay_y = window_size - overlay_height - 40  # 40px from bottom
         overlay_width = window_size - 100  # 50px margins on each side
-        overlay_x = 50  # 50px from left
+        overlay_x = (window_size - overlay_width) // 2  # Centered horizontally
         
         self.setGeometry(overlay_x, overlay_y, overlay_width, overlay_height)
         self.debug_text.setGeometry(0, 0, overlay_width, overlay_height)
@@ -187,10 +189,10 @@ class DebugOverlayWidget(QWidget):
     
     def _update_debug_messages(self):
         """Read new messages from debug log file and display them"""
-        global _setup_complete
+        global _setup_complete, _debug_overlay_enabled
         
-        # Only read file if we're visible (during initialization)
-        if not self.isVisible() or _setup_complete:
+        # Only read file if we're visible and enabled (during initialization)
+        if not self.isVisible() or _setup_complete or not _debug_overlay_enabled:
             return
         
         try:
@@ -245,6 +247,66 @@ class DebugOverlayWidget(QWidget):
         """Reset file position (when starting new initialization)"""
         self.last_file_position = 0
         self.debug_text.clear()
+
+class TranscriptionOverlayWidget(QWidget):
+    """Transcription text overlay that displays real-time transcription"""
+    def __init__(self, parent, window_size):
+        super().__init__(parent)
+        self.setAttribute(Qt.WA_TransparentForMouseEvents, True)
+        self.parent_gui = parent
+        self.window_size = window_size
+        self.current_text = ""
+        self.max_lines = 3  # Show last 3 lines of transcription
+        
+        # Create transcription text widget
+        self.transcription_text = QTextEdit(self)
+        self.transcription_text.setReadOnly(True)
+        self.transcription_text.setFrameShape(QTextEdit.NoFrame)
+        
+        # Styling for transcription display
+        self.transcription_text.setStyleSheet("""
+            QTextEdit {
+                background-color: rgba(0, 0, 0, 0.8);
+                color: #ffffff;
+                border: none;
+                border-radius: 10px;
+                padding: 12px;
+                font-family: 'Arial', sans-serif;
+                font-size: 14pt;
+                font-weight: 500;
+            }
+        """)
+        
+        # Position at top center of screen (above Aura eye)
+        overlay_height = 120
+        overlay_y = 40  # 40px from top
+        overlay_width = window_size - 150  # 75px margins on each side
+        overlay_x = (window_size - overlay_width) // 2  # Centered horizontally
+        
+        self.setGeometry(overlay_x, overlay_y, overlay_width, overlay_height)
+        self.transcription_text.setGeometry(0, 0, overlay_width, overlay_height)
+        
+        # Initially hidden - will be shown when transcription is active
+        self.hide()
+    
+    def update_transcription(self, text):
+        """Update transcription text"""
+        if not text or not text.strip():
+            return
+        
+        self.current_text = text.strip()
+        # Display transcription text
+        self.transcription_text.clear()
+        self.transcription_text.append(self.current_text)
+        
+        # Auto-scroll to bottom
+        scrollbar = self.transcription_text.verticalScrollBar()
+        scrollbar.setValue(scrollbar.maximum())
+    
+    def clear_transcription(self):
+        """Clear transcription text"""
+        self.current_text = ""
+        self.transcription_text.clear()
 
 class AuraGUI(QMainWindow):
     def __init__(self):
@@ -335,6 +397,10 @@ class AuraGUI(QMainWindow):
         # Create debug overlay widget for initialization messages
         self.debug_overlay = DebugOverlayWidget(self, window_size)
         print(f"[DebugOverlay] Created debug overlay widget")
+        
+        # Create transcription overlay widget for real-time transcription
+        self.transcription_overlay = TranscriptionOverlayWidget(self, window_size)
+        print(f"[TranscriptionOverlay] Created transcription overlay widget")
 
         # === Pulsation Effect ===
         self.opacity = 1.0
@@ -365,9 +431,47 @@ class AuraGUI(QMainWindow):
         self.timer.timeout.connect(self.animate_pulse)
         self.timer.start(50)  # Faster updates for smoother animation
         
+        # Load overlay settings from app_settings.json
+        self._load_overlay_settings()
         
         # Enable keyboard focus for shortcuts
         self.setFocusPolicy(Qt.StrongFocus)
+    
+    def _load_overlay_settings(self):
+        """Load overlay settings from app_settings.json"""
+        global _debug_overlay_enabled, _transcription_overlay_enabled
+        try:
+            import json
+            settings_path = os.path.expanduser("~/LedgerAI/data/app_settings.json")
+            if os.path.exists(settings_path):
+                with open(settings_path, "r") as f:
+                    settings_data = json.load(f) or {}
+                    _debug_overlay_enabled = settings_data.get("debug_overlay_enabled", True)
+                    _transcription_overlay_enabled = settings_data.get("transcription_overlay_enabled", True)
+            print(f"[AuraGUI] 📋 Overlay settings loaded: debug={_debug_overlay_enabled}, transcription={_transcription_overlay_enabled}")
+        except Exception as e:
+            print(f"[AuraGUI] ⚠️ Failed to load overlay settings: {e}")
+            # Use defaults
+            _debug_overlay_enabled = True
+            _transcription_overlay_enabled = True
+    
+    def _load_overlay_settings(self):
+        """Load overlay settings from app_settings.json"""
+        global _debug_overlay_enabled, _transcription_overlay_enabled
+        try:
+            import json
+            settings_path = os.path.expanduser("~/LedgerAI/data/app_settings.json")
+            if os.path.exists(settings_path):
+                with open(settings_path, "r") as f:
+                    settings_data = json.load(f) or {}
+                    _debug_overlay_enabled = settings_data.get("debug_overlay_enabled", True)
+                    _transcription_overlay_enabled = settings_data.get("transcription_overlay_enabled", True)
+            print(f"[AuraGUI] 📋 Overlay settings loaded: debug={_debug_overlay_enabled}, transcription={_transcription_overlay_enabled}")
+        except Exception as e:
+            print(f"[AuraGUI] ⚠️ Failed to load overlay settings: {e}")
+            # Use defaults
+            _debug_overlay_enabled = True
+            _transcription_overlay_enabled = True
     
     def create_circular_buttons(self):
         """Create 6 buttons equally spaced around the circular edge"""
@@ -851,12 +955,16 @@ class AuraGUI(QMainWindow):
         elif not _setup_complete:
             self._animate_aura_eye_breathing()  # Breathing during setup
             self.show_red_border = False
-            # Show debug overlay during initialization
-            if hasattr(self, 'debug_overlay'):
+            # Show debug overlay during initialization (if enabled)
+            global _debug_overlay_enabled
+            if hasattr(self, 'debug_overlay') and _debug_overlay_enabled:
                 if not self.debug_overlay.isVisible():
                     self.debug_overlay.reset_position()  # Reset to start reading from beginning
                     self.debug_overlay.show()
                 self.debug_overlay.raise_()  # Ensure it's visible (but below border)
+            elif hasattr(self, 'debug_overlay') and not _debug_overlay_enabled:
+                if self.debug_overlay.isVisible():
+                    self.debug_overlay.hide()
         else:
             # Hide debug overlay once initialization is complete
             if hasattr(self, 'debug_overlay'):
@@ -1165,6 +1273,28 @@ class AuraGUI(QMainWindow):
             print("[AuraGUI] ⚠️ No buttons to show (buttons list is empty or missing)")
     
     @pyqtSlot(bool)
+    def _update_transcription_text(self, text):
+        """Update transcription text in overlay (called from listener thread)"""
+        global _transcription_overlay_enabled
+        if hasattr(self, 'transcription_overlay') and _transcription_overlay_enabled:
+            if text and text.strip():
+                self.transcription_overlay.update_transcription(text)
+                if not self.transcription_overlay.isVisible():
+                    self.transcription_overlay.show()
+                    self.transcription_overlay.raise_()  # But below border overlay
+            else:
+                # Clear and hide if text is empty
+                self.transcription_overlay.clear_transcription()
+                if self.transcription_overlay.isVisible():
+                    self.transcription_overlay.hide()
+    
+    def _clear_transcription_text(self):
+        """Clear transcription text in overlay"""
+        if hasattr(self, 'transcription_overlay'):
+            self.transcription_overlay.clear_transcription()
+            if self.transcription_overlay.isVisible():
+                self.transcription_overlay.hide()
+    
     def _update_transcribing_state(self, active):
         """Thread-safe method to update transcribing state (must be called from GUI thread)"""
         global _transcribing
