@@ -832,44 +832,22 @@ class SafeModeDialog(BaseAuraDialog):
         if success:
             self._log_ota(f"✅ {message}")
             if was_updated:
-                self._log_ota("🔄 Restarting Aura system...")
-                try:
-                    result = subprocess.run(
-                        ['systemctl', 'is-active', '--quiet', 'aura.service'],
-                        capture_output=True,
-                        timeout=2
-                    )
-                    is_systemd_service = (result.returncode == 0)
-                    
-                    if is_systemd_service:
-                        try:
-                            subprocess.run(['systemctl', 'restart', 'aura.service'], 
-                                         capture_output=True, timeout=5)
-                            self._log_ota("✅ Service restart initiated")
-                        except:
-                            try:
-                                subprocess.run(['sudo', 'systemctl', 'restart', 'aura.service'],
-                                             capture_output=True, timeout=10)
-                                self._log_ota("✅ Service restart initiated (with sudo)")
-                            except:
-                                self._log_ota("⚠️ Could not restart service automatically")
-                                QMessageBox.information(
-                                    self,
-                                    "Update Complete",
-                                    f"{message}\n\nPlease restart Aura manually."
-                                )
-                    else:
-                        QMessageBox.information(
-                            self,
-                            "Update Complete",
-                            f"{message}\n\nPlease restart Aura manually."
-                        )
-                except Exception as e:
-                    self._log_ota(f"⚠️ Error restarting: {e}")
-                    QMessageBox.information(
+                self._log_ota("🔄 Update complete - forcing system reboot...")
+                # Show message before reboot
+                QMessageBox.information(
+                    self,
+                    "Update Complete",
+                    f"{message}\n\nSystem will reboot automatically in 3 seconds to apply changes..."
+                )
+                # Force reboot after GitHub update (automatic)
+                self._log_ota("🚀 Initiating force reboot...")
+                reboot_success = self._force_reboot()
+                if not reboot_success:
+                    self._log_ota("⚠️ Could not reboot automatically")
+                    QMessageBox.warning(
                         self,
-                        "Update Complete",
-                        f"{message}\n\nPlease restart Aura manually."
+                        "Reboot Required",
+                        f"{message}\n\n⚠️ Please reboot manually to apply changes:\n\nsudo reboot"
                     )
             else:
                 QMessageBox.information(self, "Update Check", message)
@@ -877,6 +855,86 @@ class SafeModeDialog(BaseAuraDialog):
         else:
             self._log_ota(f"❌ {message}")
             QMessageBox.warning(self, "Update Failed", message)
+    
+    def _force_reboot(self):
+        """Force system reboot using multiple methods"""
+        error_msg = None
+        
+        # Small delay to allow UI to update and user to see the message
+        time.sleep(3)
+        
+        try:
+            # Method 1: Use dbus-send (works with polkit permissions)
+            print("[SafeMode] Trying dbus-send reboot method...")
+            result = subprocess.run(
+                ['dbus-send', '--system', '--print-reply', '--dest=org.freedesktop.login1',
+                 '/org/freedesktop/login1', 'org.freedesktop.login1.Manager.Reboot', 'boolean:false'],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            if result.returncode == 0:
+                print("[SafeMode] ✅ Reboot command sent via dbus-send")
+                self._log_ota("✅ Reboot initiated via dbus-send")
+                return True
+            else:
+                error_msg = f"dbus-send failed: {result.stderr or result.stdout}"
+                print(f"[SafeMode] ⚠️ {error_msg}")
+        except FileNotFoundError:
+            error_msg = "dbus-send not found"
+            print(f"[SafeMode] ⚠️ {error_msg}")
+        except Exception as e:
+            error_msg = f"dbus-send error: {str(e)}"
+            print(f"[SafeMode] ⚠️ {error_msg}")
+        
+        try:
+            # Method 2: Use systemctl reboot (works with polkit)
+            print("[SafeMode] Trying systemctl reboot method...")
+            # Use --no-block to avoid waiting for authentication
+            result = subprocess.run(
+                ['systemctl', '--no-block', 'reboot'],
+                capture_output=True,
+                text=True,
+                timeout=2
+            )
+            # systemctl --no-block returns immediately, so check if it started
+            if result.returncode == 0 or "reboot" in str(result.stdout).lower():
+                print("[SafeMode] ✅ Reboot command sent via systemctl")
+                self._log_ota("✅ Reboot initiated via systemctl")
+                return True
+            else:
+                error_msg = f"systemctl failed: {result.stderr or result.stdout}"
+                print(f"[SafeMode] ⚠️ {error_msg}")
+        except subprocess.TimeoutExpired:
+            # Timeout is OK - reboot command was sent
+            print("[SafeMode] ✅ Reboot command sent (timeout expected)")
+            self._log_ota("✅ Reboot initiated via systemctl (timeout expected)")
+            return True
+        except Exception as e:
+            error_msg = f"systemctl error: {str(e)}"
+            print(f"[SafeMode] ⚠️ {error_msg}")
+        
+        try:
+            # Method 3: Try reboot command
+            print("[SafeMode] Trying reboot command...")
+            result = subprocess.run(
+                ['reboot'],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            if result.returncode == 0:
+                print("[SafeMode] ✅ Reboot command sent via reboot")
+                self._log_ota("✅ Reboot initiated via reboot command")
+                return True
+        except Exception as e:
+            error_msg = f"reboot command error: {str(e)}"
+            print(f"[SafeMode] ⚠️ {error_msg}")
+        
+        # All methods failed
+        print(f"[SafeMode] ❌ All reboot methods failed")
+        self._log_ota(f"❌ All reboot methods failed: {error_msg or 'Unknown error'}")
+        return False
     
     def _log_ota(self, message):
         """Log message to OTA status log"""
