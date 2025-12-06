@@ -116,7 +116,7 @@ SPEECH_HIGH_FREQ_MAX = 0.08
 
 # === Audio Normalization (for optimal Whisper transcription) ===
 ENABLE_AUDIO_NORMALIZATION = True  # Disabled - using hardware AGC only (target: 0.08 RMS)
-TARGET_RMS_FOR_WHISPER = 0.08      # Target RMS level for Whisper
+TARGET_RMS_FOR_WHISPER = 0.15      # Target RMS level for Whisper
 
 # === Soft Clipping Prevention ===
 ENABLE_SOFT_LIMITER = False      # Prevent clipping from near-field speech
