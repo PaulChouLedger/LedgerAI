@@ -60,7 +60,7 @@ TEMPERATURE = 0.0
 # Latency: No significant impact
 # Use: Keep at 0.0 for consistent, accurate transcriptions
 
-PATIENCE = 2.0
+PATIENCE = 0.0
 # Range: 0.0-2.0
 # Accuracy: Higher = better accuracy (waits longer for better results)
 # Latency: Higher = slower (waits longer before finalizing)
