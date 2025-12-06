@@ -65,12 +65,12 @@ SPEECH_PEAK_MIN = 0.0023        # Lower peak threshold to accept softer speech
 # (Pre-gain removed)
 
 # === Audio Normalization (for optimal Whisper transcription) ===
-ENABLE_AUDIO_NORMALIZATION = True  # Disabled - using hardware AGC only (target: 0.12 RMS)
-TARGET_RMS_FOR_WHISPER = 0.12      # Optimal RMS level for Whisper (found via find_optimal_rms.py)
+ENABLE_AUDIO_NORMALIZATION = True  # Disabled - using hardware AGC only (target: 0.08 RMS)
+TARGET_RMS_FOR_WHISPER = 0.08      # Target RMS level for Whisper
 
 # === Wake Word Audio Normalization ===
 # Wake word uses same normalization function and target RMS as Whisper for consistency
-WAKE_WORD_TARGET_RMS = 0.12  # Same as TARGET_RMS_FOR_WHISPER
+WAKE_WORD_TARGET_RMS = 0.08  # Same as TARGET_RMS_FOR_WHISPER
 WAKE_WORD_MAX_GAIN = 10.0
 
 # === Soft Clipping Prevention ===
