@@ -64,14 +64,9 @@ SPEECH_PEAK_MIN = 0.0023        # Lower peak threshold to accept softer speech
 
 # (Pre-gain removed)
 
-# === Audio Normalization (for optimal Whisper transcription) ===
-ENABLE_AUDIO_NORMALIZATION = True  # Disabled - using hardware AGC only (target: 0.08 RMS)
-TARGET_RMS_FOR_WHISPER = 0.15      # Target RMS level for Whisper
-
-# === Wake Word Audio Normalization ===
-# Wake word uses same normalization function and target RMS as Whisper for consistency
-WAKE_WORD_TARGET_RMS = 0.15  # Same as TARGET_RMS_FOR_WHISPER
-WAKE_WORD_MAX_GAIN = 10.0
+# === Audio Normalization (shared pipeline for VAD, wake word, and Whisper) ===
+ENABLE_AUDIO_NORMALIZATION = False  # Disabled - using hardware AGC only (target: 0.08 RMS)
+TARGET_RMS_FOR_WHISPER = 0.15      # Target RMS level (used for all audio processing in shared pipeline)
 
 # === Soft Clipping Prevention ===
 ENABLE_SOFT_LIMITER = False      # Prevent clipping from near-field speech
@@ -295,14 +290,14 @@ def calculate_audio_features(audio_chunk, sample_rate=SAMPLE_RATE):
 
 def normalize_audio_for_whisper(audio_data, target_rms=TARGET_RMS_FOR_WHISPER, max_gain=None):
     """
-    Normalize audio to target RMS level for optimal Whisper transcription.
+    Normalize audio to target RMS level for optimal processing.
+    Used in shared pipeline for VAD, wake word detection, and Whisper transcription.
     This matches the approach in find_optimal_rms.py which shows better results.
-    Also used for wake word detection with different target RMS.
     
     Args:
         audio_data: Raw audio array
-        target_rms: Target RMS level (default 0.12 - optimal for Whisper, 0.05 for wake word)
-        max_gain: Maximum gain factor to prevent distortion (default: no limit for Whisper, 10.0 for wake word)
+        target_rms: Target RMS level (default TARGET_RMS_FOR_WHISPER - used for all processing)
+        max_gain: Maximum gain factor to prevent distortion (default: no limit)
     
     Returns:
         Normalized audio array
