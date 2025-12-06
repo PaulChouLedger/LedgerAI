@@ -36,7 +36,7 @@ def get_medical_prompt():
 # ============================================================================
 
 # === Model Selection ===
-MODEL_NAME = "distil-whisper/distil-large-v3.5-ct2"
+MODEL_NAME = "distil-small.en"
 # Options: "distil-small.en", "small.en", "medium.en", "base.en", "large-v3-turbo", "distil-large-v3", "distil-whisper/distil-large-v3.5-ct2"
 # Accuracy: distil-small < small < medium < distil-large-v3 < distil-large-v3.5 ≈ large-v3-turbo
 # Latency: distil-small (fastest) < small < medium < distil-large-v3 < distil-large-v3.5 < large-v3-turbo (slowest)
@@ -47,7 +47,7 @@ CACHE_DIR = "/app/cache/whisper"  # Model cache directory (internal use)
 
 # === Transcription Parameters ===
 
-BEAM_SIZE = 10
+BEAM_SIZE = 20
 # Range: 1-20 (integer)
 # Accuracy: Higher = better accuracy (more candidate paths evaluated)
 # Latency: Higher = slower (exponential increase: 5≈1x, 10≈2x, 20≈4x latency)
@@ -60,7 +60,7 @@ TEMPERATURE = 0.0
 # Latency: No significant impact
 # Use: Keep at 0.0 for consistent, accurate transcriptions
 
-PATIENCE = 1.0
+PATIENCE = 2.0
 # Range: 0.0-2.0
 # Accuracy: Higher = better accuracy (waits longer for better results)
 # Latency: Higher = slower (waits longer before finalizing)
