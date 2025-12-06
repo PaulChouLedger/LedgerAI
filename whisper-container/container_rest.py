@@ -47,7 +47,7 @@ CACHE_DIR = "/app/cache/whisper"  # Model cache directory (internal use)
 
 # === Transcription Parameters ===
 
-BEAM_SIZE = 5
+BEAM_SIZE = 1
 # Range: 1-20 (integer)
 # Accuracy: Higher = better accuracy (more candidate paths evaluated)
 # Latency: Higher = slower (exponential increase: 5≈1x, 10≈2x, 20≈4x latency)
