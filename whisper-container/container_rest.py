@@ -36,12 +36,12 @@ def get_medical_prompt():
 # ============================================================================
 
 # === Model Selection ===
-MODEL_NAME = "distil-large-v3"
+MODEL_NAME = "large-v3-turbo"
 # Options: "distil-small.en", "small.en", "medium.en", "base.en", "large-v3-turbo", "distil-large-v3"
 # Accuracy: distil-small < small < medium < distil-large-v3 < large-v3-turbo
 # Latency: distil-small (fastest) < small < medium < distil-large-v3 < large-v3-turbo (slowest)
 # Memory: Smaller models use less GPU memory
-# Recommendation: "distil-small.en" for speed, "distil-large-v3" for best accuracy/speed balance
+# Recommendation: "distil-small.en" for speed, "large-v3-turbo" for best accuracy
 
 CACHE_DIR = "/app/cache/whisper"  # Model cache directory (internal use)
 

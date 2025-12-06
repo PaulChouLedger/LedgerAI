@@ -2,10 +2,10 @@
 """
 Simple script to download Whisper models for Docker build.
 Downloads both:
-- faster-distil-whisper-large-v3 (excellent accuracy, low latency)
+- faster-whisper-large-v3-turbo (best accuracy, higher latency)
 - faster-distil-whisper-small.en (fast, lower accuracy)
 
-Downloads directly to whisper-container/models--Systran--faster-distil-whisper-*/
+Downloads directly to whisper-container/models--*/
 
 Usage:
     python3 download_model_simple.py
@@ -24,10 +24,10 @@ SCRIPT_DIR = Path(__file__).parent.absolute()
 # Models to download
 MODELS = [
     {
-        "name": "Systran/faster-distil-whisper-large-v3",
-        "target_dir": SCRIPT_DIR / "models--Systran--faster-distil-whisper-large-v3",
-        "cache_name": "models--Systran--faster-distil-whisper-large-v3",
-        "description": "excellent accuracy, low latency"
+        "name": "large-v3-turbo",
+        "target_dir": SCRIPT_DIR / "models--mobiuslabsgmbh--faster-whisper-large-v3-turbo",
+        "cache_name": "models--mobiuslabsgmbh--faster-whisper-large-v3-turbo",
+        "description": "best accuracy, higher latency"
     },
     {
         "name": "Systran/faster-distil-whisper-small.en",
@@ -123,16 +123,16 @@ for model_info in downloaded_models:
 print()
 print("📤 To transfer via SCP (entire directory):")
 print(f"   cd {SCRIPT_DIR}")
-print(f"   scp -r models--Systran--faster-distil-whisper-*/ user@remote:/path/to/whisper-container/")
+print(f"   scp -r models--*/ user@remote:/path/to/whisper-container/")
 print()
 print("Or compress first (recommended):")
 print(f"   cd {SCRIPT_DIR}")
 for model_info in downloaded_models:
-    model_dir_name = model_info['name']
+    model_dir_name = model_info['cache_name']
     print(f"   tar -czf {model_dir_name}.tar.gz {model_dir_name}/")
-print(f"   scp models--Systran--faster-distil-whisper-*.tar.gz user@remote:/path/to/whisper-container/")
+print(f"   scp models--*.tar.gz user@remote:/path/to/whisper-container/")
 print("   # On remote host:")
 print(f"   cd whisper-container")
-print(f"   tar -xzf models--Systran--faster-distil-whisper-*.tar.gz")
+print(f"   tar -xzf models--*.tar.gz")
 print()
 
