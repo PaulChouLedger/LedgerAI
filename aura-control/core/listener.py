@@ -49,7 +49,7 @@ SPEECH_ZCR_MAX = 0.40           # Reject if ZCR > this
 SPEECH_FLATNESS_MAX = 0.60      # More tolerant of flatness for far-field/quiet speech
 SPEECH_CENTROID_MIN = 300       # Hz - reject if too low (rumble/fan)
 SPEECH_CENTROID_MAX = 3000      # Hz - reject if too high (hiss)
-SPEECH_BAND_MIN = 0.20  # Lowered from 0.30 to allow quieter/far-field speech (0.27-0.28 range)          # Reject if insufficient energy in speech band
+SPEECH_BAND_MIN = 0.15  # Lowered from 0.20 to allow quieter/far-field speech (0.19+ range)          # Reject if insufficient energy in speech band
 SPEECH_DURATION_MIN = 0.4       # Seconds - reject if too short (noise bursts)
 SPEECH_HIGH_FREQ_MAX = 0.08     # Allow a bit more high-frequency content
 

@@ -1824,24 +1824,62 @@ if [ -f /etc/nv_tegra_release ] || [ -f /proc/device-tree/model ] && grep -q "Je
     # Create a systemd service to set power mode on boot
     JETSON_POWER_SERVICE="/etc/systemd/system/jetson-maxn-power.service"
     if [ ! -f "$JETSON_POWER_SERVICE" ]; then
-        sudo tee "$JETSON_POWER_SERVICE" >/dev/null << 'EOFPOWER'
+        # Find jetson_clocks path
+        JETSON_CLOCKS_CMD="jetson_clocks"
+        if ! command -v jetson_clocks >/dev/null 2>&1; then
+            if [ -f "/usr/bin/jetson_clocks" ]; then
+                JETSON_CLOCKS_CMD="/usr/bin/jetson_clocks"
+            else
+                print_warning "⚠️  jetson_clocks not found - skipping service creation"
+                JETSON_CLOCKS_CMD=""
+            fi
+        fi
+        
+        if [ -n "$JETSON_CLOCKS_CMD" ]; then
+            # Check if nvpmodel exists (optional)
+            NVPMODEL_CMD=""
+            if command -v nvpmodel >/dev/null 2>&1 || [ -f "/usr/bin/nvpmodel" ]; then
+                NVPMODEL_CMD="$(command -v nvpmodel 2>/dev/null || echo '/usr/bin/nvpmodel')"
+            fi
+            
+            if [ -n "$NVPMODEL_CMD" ]; then
+                # Create service with both nvpmodel and jetson_clocks
+                sudo tee "$JETSON_POWER_SERVICE" >/dev/null << EOFPOWER
 [Unit]
 Description=Set Jetson to MAXN Power Mode
 After=multi-user.target
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/nvpmodel -m 0
-ExecStart=/usr/bin/jetson_clocks
+ExecStart=$NVPMODEL_CMD -m 0
+ExecStart=$JETSON_CLOCKS_CMD
 RemainAfterExit=yes
 
 [Install]
 WantedBy=multi-user.target
 EOFPOWER
-        sudo systemctl daemon-reload
-        sudo systemctl enable jetson-maxn-power.service
-        print_info "✅ Created systemd service for persistent MAXN power mode"
-        print_info "   Power mode will be set to MAXN on every boot"
+            else
+                # Create service with jetson_clocks only
+                sudo tee "$JETSON_POWER_SERVICE" >/dev/null << EOFPOWER
+[Unit]
+Description=Set Jetson to Maximum Clocks
+After=multi-user.target
+
+[Service]
+Type=oneshot
+ExecStart=$JETSON_CLOCKS_CMD
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+EOFPOWER
+            fi
+            
+            sudo systemctl daemon-reload
+            sudo systemctl enable jetson-maxn-power.service
+            print_info "✅ Created systemd service for persistent MAXN power mode"
+            print_info "   Power mode will be set to MAXN on every boot"
+        fi
     else
         print_info "Jetson power service already exists"
     fi
