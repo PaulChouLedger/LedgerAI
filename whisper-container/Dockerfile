@@ -19,7 +19,7 @@ RUN mkdir -p /root/.cache/huggingface/hub/models--Systran--faster-distil-whisper
 COPY models--Systran--faster-distil-whisper-small.en/snapshots/ef77d90526ccd62cde3808ee70626a01e5cf83e4/* /root/.cache/huggingface/hub/models--Systran--faster-distil-whisper-small.en/snapshots/ef77d90526ccd62cde3808ee70626a01e5cf83e4/
 
 # distil-large-v3 (excellent accuracy, low latency) - commented out
-# COPY models--Systran--faster-distil-whisper-large-v3/ /root/.cache/huggingface/hub/models--Systran--faster-distil-whisper-large-v3/
+COPY models--Systran--faster-distil-whisper-large-v3/ /root/.cache/huggingface/hub/models--Systran--faster-distil-whisper-large-v3/
 
 EXPOSE 5000
 CMD ["python3", "/app/container_rest.py"]

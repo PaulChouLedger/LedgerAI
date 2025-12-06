@@ -36,7 +36,7 @@ def get_medical_prompt():
 # ============================================================================
 
 # === Model Selection ===
-MODEL_NAME = "distil-small.en"
+MODEL_NAME = "distil-large-v3"
 # Options: "distil-small.en", "small.en", "medium.en", "base.en", "large-v3-turbo", "distil-large-v3"
 # Accuracy: distil-small < small < medium < distil-large-v3 < large-v3-turbo
 # Latency: distil-small (fastest) < small < medium < distil-large-v3 < large-v3-turbo (slowest)
