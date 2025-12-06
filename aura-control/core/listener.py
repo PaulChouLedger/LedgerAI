@@ -535,9 +535,14 @@ def transcribe(audio):
         try:
             from gui.aura_gui import update_transcription_text
             if text:
+                print(f"[Listener] 📝 Calling update_transcription_text('{text[:50]}...')")
                 update_transcription_text(text)
-        except Exception:
-            pass  # Silently fail if GUI not available
+            else:
+                print(f"[Listener] ⚠️ Text is empty, not updating transcription overlay")
+        except Exception as e:
+            print(f"[Listener] ❌ Error updating transcription overlay: {e}")
+            import traceback
+            traceback.print_exc()
         
         return text
     except Exception as e:

@@ -253,22 +253,27 @@ class TranscriptionOverlayWidget(QWidget):
     def __init__(self, parent, window_size):
         super().__init__(parent)
         self.setAttribute(Qt.WA_TransparentForMouseEvents, True)
+        # Ensure widget is visible and can be painted
+        self.setAttribute(Qt.WA_OpaquePaintEvent, False)
+        self.setAttribute(Qt.WA_NoSystemBackground, False)
         self.parent_gui = parent
         self.window_size = window_size
         self.current_text = ""
         self.max_lines = 3  # Show last 3 lines of transcription
+        
+        print(f"[TranscriptionOverlay] 🔧 Initializing transcription overlay widget")
         
         # Create transcription text widget
         self.transcription_text = QTextEdit(self)
         self.transcription_text.setReadOnly(True)
         self.transcription_text.setFrameShape(QTextEdit.NoFrame)
         
-        # Styling for transcription display
+        # Styling for transcription display - more visible with border
         self.transcription_text.setStyleSheet("""
             QTextEdit {
-                background-color: rgba(0, 0, 0, 0.8);
+                background-color: rgba(0, 0, 0, 0.9);
                 color: #ffffff;
-                border: none;
+                border: 2px solid rgba(255, 255, 255, 0.5);
                 border-radius: 10px;
                 padding: 12px;
                 font-family: 'Arial', sans-serif;
@@ -276,6 +281,7 @@ class TranscriptionOverlayWidget(QWidget):
                 font-weight: 500;
             }
         """)
+        print(f"[TranscriptionOverlay] 🎨 Styling applied: background=rgba(0,0,0,0.9), color=white, border=2px white")
         
         # Position at top center of screen (above Aura eye)
         overlay_height = 120
@@ -286,25 +292,41 @@ class TranscriptionOverlayWidget(QWidget):
         self.setGeometry(overlay_x, overlay_y, overlay_width, overlay_height)
         self.transcription_text.setGeometry(0, 0, overlay_width, overlay_height)
         
+        print(f"[TranscriptionOverlay] 📐 Created at ({overlay_x}, {overlay_y}), size {overlay_width}x{overlay_height}")
+        print(f"[TranscriptionOverlay] 📐 Text widget geometry: {self.transcription_text.geometry()}")
+        
         # Initially hidden - will be shown when transcription is active
         self.hide()
+        print(f"[TranscriptionOverlay] 👁️ Initial state: visible={self.isVisible()}")
     
     def update_transcription(self, text):
         """Update transcription text"""
         if not text or not text.strip():
+            print(f"[TranscriptionOverlay] ⚠️ update_transcription called with empty text")
             return
         
         self.current_text = text.strip()
+        print(f"[TranscriptionOverlay] 📝 Updating transcription: '{self.current_text[:50]}...'")
+        
         # Display transcription text
         self.transcription_text.clear()
         self.transcription_text.append(self.current_text)
         
+        # Force update to ensure text is visible
+        self.transcription_text.update()
+        self.transcription_text.repaint()
+        
         # Auto-scroll to bottom
         scrollbar = self.transcription_text.verticalScrollBar()
         scrollbar.setValue(scrollbar.maximum())
+        
+        print(f"[TranscriptionOverlay] ✅ Transcription text updated in widget")
+        print(f"[TranscriptionOverlay] 📐 Widget state: visible={self.isVisible()}, text_widget_visible={self.transcription_text.isVisible()}, geometry={self.geometry()}")
+        print(f"[TranscriptionOverlay] 📐 Text widget has content: {len(self.transcription_text.toPlainText())} chars")
     
     def clear_transcription(self):
         """Clear transcription text"""
+        print(f"[TranscriptionOverlay] 🧹 Clearing transcription text")
         self.current_text = ""
         self.transcription_text.clear()
 
@@ -1280,22 +1302,55 @@ class AuraGUI(QMainWindow):
     def _update_transcription_text(self, text):
         """Update transcription text in overlay (called from listener thread)"""
         global _transcription_overlay_enabled
+        print(f"[TranscriptionOverlay] 🔔 _update_transcription_text called: text='{text}', enabled={_transcription_overlay_enabled}")
+        
         if hasattr(self, 'transcription_overlay'):
+            print(f"[TranscriptionOverlay] ✅ Overlay widget exists: visible={self.transcription_overlay.isVisible()}, geometry={self.transcription_overlay.geometry()}")
+            
             if _transcription_overlay_enabled and text and text.strip():
+                print(f"[TranscriptionOverlay] 📝 Updating transcription (enabled=True, has_text=True)")
                 self.transcription_overlay.update_transcription(text)
+                
                 if not self.transcription_overlay.isVisible():
+                    print(f"[TranscriptionOverlay] 👁️ Showing overlay (was hidden)")
                     self.transcription_overlay.show()
+                else:
+                    print(f"[TranscriptionOverlay] 👁️ Overlay already visible")
+                
                 # Raise transcription overlay, then ensure border stays on top
+                print(f"[TranscriptionOverlay] ⬆️ Raising transcription overlay")
                 self.transcription_overlay.raise_()
+                
+                # Force update and repaint to ensure visibility
+                self.transcription_overlay.update()
+                self.transcription_overlay.repaint()
+                if hasattr(self.transcription_overlay, 'transcription_text'):
+                    self.transcription_overlay.transcription_text.update()
+                    self.transcription_overlay.transcription_text.repaint()
+                
                 if hasattr(self, 'border_overlay'):
+                    print(f"[TranscriptionOverlay] ⬆️ Raising border overlay (keep on top)")
                     self.border_overlay.raise_()  # Border always on top
+                
+                # Force main window update
+                self.update()
+                QApplication.processEvents()  # Force Qt to process events
+                
+                print(f"[TranscriptionOverlay] ✅ Final state: visible={self.transcription_overlay.isVisible()}, geometry={self.transcription_overlay.geometry()}")
+                if hasattr(self.transcription_overlay, 'transcription_text'):
+                    print(f"[TranscriptionOverlay] ✅ Text widget visible={self.transcription_overlay.transcription_text.isVisible()}, text_length={len(self.transcription_overlay.transcription_text.toPlainText())}")
             else:
                 # Clear and hide if disabled or text is empty
+                reason = "disabled" if not _transcription_overlay_enabled else "empty text"
+                print(f"[TranscriptionOverlay] 🚫 Clearing/hiding overlay: {reason}")
                 if hasattr(self.transcription_overlay, 'current_text'):
                     self.transcription_overlay.current_text = ""
                 self.transcription_overlay.clear_transcription()
                 if self.transcription_overlay.isVisible():
+                    print(f"[TranscriptionOverlay] 👁️ Hiding overlay")
                     self.transcription_overlay.hide()
+        else:
+            print(f"[TranscriptionOverlay] ❌ Overlay widget does not exist!")
     
     def _clear_transcription_text(self):
         """Clear transcription text in overlay"""
@@ -1520,6 +1575,35 @@ def set_microphone_muted(muted):
         print("[AuraGUI] 🔇 Microphone MUTED - aura eye dimmed")
     else:
         print("[AuraGUI] 🔊 Microphone ACTIVE - aura eye normal")
+
+def update_transcription_text(text):
+    """Update transcription text in GUI overlay (thread-safe)"""
+    global _window
+    print(f"[AuraGUI] 📝 update_transcription_text called: text='{text}', window={_window is not None}")
+    
+    if _window:
+        # Use Qt's thread-safe mechanism to update GUI from any thread
+        print(f"[AuraGUI] 📝 Invoking _update_transcription_text via QMetaObject")
+        success = QMetaObject.invokeMethod(_window, "_update_transcription_text",
+                                          Qt.QueuedConnection,
+                                          Q_ARG(str, text))
+        print(f"[AuraGUI] 📝 QMetaObject.invokeMethod result: {success}")
+        if not success:
+            print(f"[AuraGUI] ❌ QMetaObject.invokeMethod FAILED - method may not exist or have wrong signature")
+    else:
+        print("[AuraGUI] ⚠️ Window not initialized, cannot update transcription text")
+
+def clear_transcription_text():
+    """Clear transcription text in GUI overlay (thread-safe)"""
+    global _window
+    print(f"[AuraGUI] 🧹 clear_transcription_text called, window={_window is not None}")
+    
+    if _window:
+        # Use Qt's thread-safe mechanism to update GUI from any thread
+        QMetaObject.invokeMethod(_window, "_clear_transcription_text",
+                                Qt.QueuedConnection)
+    else:
+        print("[AuraGUI] ⚠️ Window not initialized, cannot clear transcription text")
 
 def set_setup_complete():
     """Mark initial setup as complete"""
