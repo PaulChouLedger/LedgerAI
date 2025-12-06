@@ -23,8 +23,8 @@ os.makedirs(PROMPT_DIR, exist_ok=True)
 
 # === Prompts to generate ===
 prompts = {
-    "startup": "AuraVision is setting up, please wait while I initialize",
-    "welcome": "Welcome to AuraVision. How may I assist you?"
+    "startup": "How you are doing well. AuraVision is setting up, give me a second while I initialize",
+    "welcome": "Welcome to AuraVision, it's good to see you. Let's get started, shall we?"
 }
 
 # === Generate and save prompts ===
