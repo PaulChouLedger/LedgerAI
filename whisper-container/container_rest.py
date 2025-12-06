@@ -52,7 +52,8 @@ BEAM_SIZE = 1
 # Accuracy: Higher = better accuracy (more candidate paths evaluated)
 # Latency: Higher = slower (exponential increase: 5≈1x, 10≈2x, 20≈4x latency)
 # Memory: Higher = more GPU memory required
-# Trade-off: 5=fast/good, 10=balanced (current), 20=best accuracy/slowest
+# Trade-off: 1=fastest/lowest latency, 5=fast/good, 10=balanced, 20=best accuracy/slowest
+# ⚡ MINIMUM LATENCY: Set to 1 for fastest transcription
 
 TEMPERATURE = 0.0
 # Range: 0.0-1.0
@@ -60,11 +61,12 @@ TEMPERATURE = 0.0
 # Latency: No significant impact
 # Use: Keep at 0.0 for consistent, accurate transcriptions
 
-PATIENCE = 0.1
+PATIENCE = 1.0
 # Range: 0.0-2.0
 # Accuracy: Higher = better accuracy (waits longer for better results)
 # Latency: Higher = slower (waits longer before finalizing)
-# Trade-off: 1.0=balanced, 2.0=better accuracy but slower
+# Trade-off: 1.0=minimum for beam_size=1 (required constraint: beam_size * patience >= 1)
+# ⚡ MINIMUM LATENCY: Set to 1.0 (minimum required with beam_size=1)
 
 LENGTH_PENALTY = 1.0
 # Range: 0.0-2.0
