@@ -1272,7 +1272,7 @@ class AuraGUI(QMainWindow):
         else:
             print("[AuraGUI] ⚠️ No buttons to show (buttons list is empty or missing)")
     
-    @pyqtSlot(bool)
+    @pyqtSlot(str)
     def _update_transcription_text(self, text):
         """Update transcription text in overlay (called from listener thread)"""
         global _transcription_overlay_enabled
@@ -1295,6 +1295,47 @@ class AuraGUI(QMainWindow):
             if self.transcription_overlay.isVisible():
                 self.transcription_overlay.hide()
     
+    @pyqtSlot()
+    def _update_debug_overlay_visibility(self):
+        """Update debug overlay visibility based on enabled flag (called from settings)"""
+        global _debug_overlay_enabled, _setup_complete
+        if hasattr(self, 'debug_overlay'):
+            if _debug_overlay_enabled and not _setup_complete:
+                # Show if enabled and during initialization
+                if not self.debug_overlay.isVisible():
+                    self.debug_overlay.reset_position()
+                    self.debug_overlay.show()
+                self.debug_overlay.raise_()
+            else:
+                # Hide if disabled or initialization complete
+                if self.debug_overlay.isVisible():
+                    self.debug_overlay.hide()
+    
+    @pyqtSlot()
+    def _update_transcription_overlay_visibility(self):
+        """Update transcription overlay visibility based on enabled flag (called from settings)"""
+        global _transcription_overlay_enabled
+        if hasattr(self, 'transcription_overlay'):
+            if _transcription_overlay_enabled:
+                # Show if enabled and there's current transcription text
+                if hasattr(self.transcription_overlay, 'current_text') and self.transcription_overlay.current_text:
+                    if not self.transcription_overlay.isVisible():
+                        self.transcription_overlay.show()
+                    self.transcription_overlay.raise_()
+                else:
+                    # Hide if no transcription text
+                    if self.transcription_overlay.isVisible():
+                        self.transcription_overlay.hide()
+            else:
+                # Hide immediately if disabled
+                if self.transcription_overlay.isVisible():
+                    self.transcription_overlay.clear_transcription()
+                    self.transcription_overlay.hide()
+                # Also clear current text
+                if hasattr(self.transcription_overlay, 'current_text'):
+                    self.transcription_overlay.current_text = ""
+    
+    @pyqtSlot(bool)
     def _update_transcribing_state(self, active):
         """Thread-safe method to update transcribing state (must be called from GUI thread)"""
         global _transcribing

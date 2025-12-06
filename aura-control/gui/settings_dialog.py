@@ -2225,17 +2225,23 @@ class SettingsDialog(BaseAuraDialog):
             with open(settings_path, "w") as f:
                 json.dump(settings_data, f, indent=2)
             
-            # Update GUI
-            from gui.aura_gui import _debug_overlay_enabled
-            global _debug_overlay_enabled
-            _debug_overlay_enabled = checked
+            # Update global flag
+            from gui.aura_gui import _debug_overlay_enabled, _window, QMetaObject, Q_ARG, Qt
+            import sys
+            # Update the global variable in aura_gui module
+            sys.modules['gui.aura_gui']._debug_overlay_enabled = checked
+            
+            # Immediately update GUI overlay visibility (thread-safe)
+            if _window:
+                QMetaObject.invokeMethod(_window, "_update_debug_overlay_visibility",
+                                        Qt.QueuedConnection)
             
             self.debug_overlay_toggle.setText("ON" if checked else "OFF")
             status_text = "Shown during init" if checked else "Hidden"
             if hasattr(self, 'debug_status_label'):
                 self.debug_status_label.setText(status_text)
             
-            print(f"[Settings] ✅ Debug overlay {'enabled' if checked else 'disabled'}")
+            print(f"[Settings] ✅ Debug overlay {'enabled' if checked else 'disabled'} (real-time)")
         except Exception as e:
             print(f"[Settings] ❌ Failed to set debug overlay: {e}")
             import traceback
@@ -2282,17 +2288,23 @@ class SettingsDialog(BaseAuraDialog):
             with open(settings_path, "w") as f:
                 json.dump(settings_data, f, indent=2)
             
-            # Update GUI
-            from gui.aura_gui import _transcription_overlay_enabled
-            global _transcription_overlay_enabled
-            _transcription_overlay_enabled = checked
+            # Update global flag
+            from gui.aura_gui import _window, QMetaObject, Qt
+            import sys
+            # Update the global variable in aura_gui module
+            sys.modules['gui.aura_gui']._transcription_overlay_enabled = checked
+            
+            # Immediately update GUI overlay visibility (thread-safe)
+            if _window:
+                QMetaObject.invokeMethod(_window, "_update_transcription_overlay_visibility",
+                                        Qt.QueuedConnection)
             
             self.transcription_overlay_toggle.setText("ON" if checked else "OFF")
             status_text = "Shown during speech" if checked else "Hidden"
             if hasattr(self, 'transcription_status_label'):
                 self.transcription_status_label.setText(status_text)
             
-            print(f"[Settings] ✅ Transcription overlay {'enabled' if checked else 'disabled'}")
+            print(f"[Settings] ✅ Transcription overlay {'enabled' if checked else 'disabled'} (real-time)")
         except Exception as e:
             print(f"[Settings] ❌ Failed to set transcription overlay: {e}")
             import traceback
