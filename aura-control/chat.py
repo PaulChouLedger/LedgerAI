@@ -23,11 +23,11 @@ llm = Llama(
 
 # === Filler phrases ===
 FILLER_PHRASES = [
-    "I'm happy to help!",
-    "Let me think about that...",
-    "Sure, one moment...",
-    "Alright, let's take a look.",
-    "Hold on while I check.",
+    "Hah, no problem with that...",
+    "OK interesting, one sec...",
+    "Interesting...",
+    "Alright, if you must, let's take a look...",
+    "Easy day for me, give me a sec...",
     "Great question! Let me see..."
 ]
 recent_fillers = deque(maxlen=3)
