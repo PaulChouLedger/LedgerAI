@@ -311,6 +311,12 @@ class TranscriptionOverlayWidget(QWidget):
         self.current_text = text.strip()
         print(f"[TranscriptionOverlay] 📝 Updating transcription: '{self.current_text[:50]}...'")
         
+        # Ensure widget and text widget are visible
+        if not self.isVisible():
+            self.show()
+        if not self.transcription_text.isVisible():
+            self.transcription_text.show()
+        
         # Display transcription text
         self.transcription_text.clear()
         self.transcription_text.append(self.current_text)
@@ -318,6 +324,8 @@ class TranscriptionOverlayWidget(QWidget):
         # Force update to ensure text is visible
         self.transcription_text.update()
         self.transcription_text.repaint()
+        self.update()
+        self.repaint()
         
         # Auto-scroll to bottom
         scrollbar = self.transcription_text.verticalScrollBar()
@@ -1314,15 +1322,30 @@ class AuraGUI(QMainWindow):
                 print(f"[TranscriptionOverlay] 📝 Updating transcription (enabled=True, has_text=True)")
                 self.transcription_overlay.update_transcription(text)
                 
+                # Ensure parent window is visible
+                if not self.isVisible():
+                    print(f"[TranscriptionOverlay] ⚠️ Parent window not visible, showing it")
+                    self.show()
+                
+                # Show and raise the overlay widget
                 if not self.transcription_overlay.isVisible():
                     print(f"[TranscriptionOverlay] 👁️ Showing overlay (was hidden)")
                     self.transcription_overlay.show()
+                    self.transcription_overlay.setAttribute(Qt.WA_ShowWithoutActivating, True)
+                
+                # Ensure text widget is visible
+                if hasattr(self.transcription_overlay, 'transcription_text'):
+                    if not self.transcription_overlay.transcription_text.isVisible():
+                        print(f"[TranscriptionOverlay] 👁️ Showing text widget (was hidden)")
+                        self.transcription_overlay.transcription_text.show()
                 else:
                     print(f"[TranscriptionOverlay] 👁️ Overlay already visible")
                 
                 # Raise transcription overlay, then ensure border stays on top
                 print(f"[TranscriptionOverlay] ⬆️ Raising transcription overlay")
                 self.transcription_overlay.raise_()
+                if hasattr(self.transcription_overlay, 'transcription_text'):
+                    self.transcription_overlay.transcription_text.raise_()
                 
                 # Force update and repaint to ensure visibility
                 self.transcription_overlay.update()
@@ -1337,6 +1360,7 @@ class AuraGUI(QMainWindow):
                 
                 # Force main window update
                 self.update()
+                self.repaint()
                 QApplication.processEvents()  # Force Qt to process events
                 
                 print(f"[TranscriptionOverlay] ✅ Final state: visible={self.transcription_overlay.isVisible()}, geometry={self.transcription_overlay.geometry()}")
@@ -1592,7 +1616,9 @@ def update_transcription_text(text):
                                           Q_ARG(str, text))
         print(f"[AuraGUI] 📝 QMetaObject.invokeMethod result: {success}")
         if not success:
-            print(f"[AuraGUI] ❌ QMetaObject.invokeMethod FAILED - method may not exist or have wrong signature")
+            print(f"[AuraGUI] ⚠️ QMetaObject.invokeMethod returned False, using QTimer fallback")
+            # Fallback: use QTimer to call method directly in main thread
+            QTimer.singleShot(0, lambda: _window._update_transcription_text(text))
     else:
         print("[AuraGUI] ⚠️ Window not initialized, cannot update transcription text")
 

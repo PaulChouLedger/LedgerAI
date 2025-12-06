@@ -94,7 +94,7 @@ SENTENCE_ENDINGS = ('.', '!', '?')
 # === Response Generation Config ===
 MAX_TOKENS_RAG_MODE = 1500  # Max tokens when using RAG context (increased for comprehensive responses)
 MAX_TOKENS_RAG_MODE_LIST = 2500  # Max tokens for list questions (need more space to list all items)
-MAX_TOKENS_DIRECT_MODE = 1200  # Max tokens for direct conversation (increased for comprehensive responses)
+MAX_TOKENS_DIRECT_MODE = 300  # Max tokens for direct conversation (reduced for concise Siri/Alexa-style responses)
 
 # === Debug Mode: Show LLM Reasoning ===
 # Set SHOW_REASONING_DEBUG=true to make LLM show its reasoning step-by-step in the output (visible chain-of-thought)
@@ -1233,14 +1233,20 @@ JSON array only:"""
             "You are Aura Vision, an AI agent created by Ledger AI Quantum Corporation. "
             "You act as a proactive AI agent guiding users to better outcomes through gentle guidance.\n\n"
             "Provide a clear, step-by-step response (numbered steps) to the user's question. "
-            "Keep each step concise and actionable. Be conversational and friendly, like Siri or Alexa."
+            "Keep each step concise and actionable. Be conversational and friendly, like Siri or Alexa.\n\n"
+            "Always end your response with a brief follow-up question such as: "
+            "'Would you like more information about this?' or 'Is there anything else I can help you with?'"
         )
     else:
         system_prompt = (
             "You are Aura Vision, an AI agent created by Ledger AI Quantum Corporation. "
             "You act as a proactive AI agent guiding users to better outcomes through gentle guidance.\n\n"
-            "Keep your response short and conversational, like Siri or Alexa (2-3 sentences typically). "
-            "Be friendly, helpful, and concise. Avoid lengthy explanations unless specifically requested."
+            "Keep your response VERY SHORT and conversational, like Siri or Alexa. "
+            "Aim for 1-2 sentences maximum. Be friendly, helpful, and extremely concise. "
+            "Get straight to the point - avoid lengthy explanations, background details, or multiple examples.\n\n"
+            "ALWAYS end your response with a brief follow-up question such as: "
+            "'Would you like more information?' or 'Is there anything else I can help you with?' "
+            "or 'Need more details on this?'"
         )
     
     if memory_context:
