@@ -33,7 +33,7 @@ werkzeug_logger.setLevel(logging.WARNING)  # Only log warnings and errors, not i
 # === Initialize Base Container ===
 base_container = BaseLLMContainer(
     service_name="aura-llm-generic",
-    default_model_path="/models/qwen2.5-3b-instruct-q4_k_m.gguf"
+    default_model_path="/models/Qwen2.5-1.5B-Instruct.Q4_K_M.gguf"
 )
 
 # Override default parameters for generic container
