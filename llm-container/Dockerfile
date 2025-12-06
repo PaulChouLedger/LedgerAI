@@ -33,7 +33,7 @@ RUN python3 -c "from sentence_transformers import SentenceTransformer; SentenceT
 # Both 1.5B and 3B models are available - switch via SIMPLE_MODEL_PATH environment variable
 # Default: 1.5B model (faster), fallback: 3B model (better reasoning)
 COPY models/Qwen2.5-1.5B-Instruct.Q4_K_M.gguf /models/Qwen2.5-1.5B-Instruct.Q4_K_M.gguf
-COPY models/qwen2.5-3b-instruct-q4_k_m.gguf /models/qwen2.5-3b-instruct-q4_k_m.gguf
+#COPY models/qwen2.5-3b-instruct-q4_k_m.gguf /models/qwen2.5-3b-instruct-q4_k_m.gguf
 # === GENERIC CONVERSATIONAL CONTAINER ===
 # This container provides general conversation with RAG-powered knowledge:
 # - General conversational responses
