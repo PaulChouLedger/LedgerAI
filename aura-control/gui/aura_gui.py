@@ -283,10 +283,13 @@ class TranscriptionOverlayWidget(QWidget):
         """)
         print(f"[TranscriptionOverlay] 🎨 Styling applied: background=rgba(0,0,0,0.9), color=white, border=2px white")
         
-        # Position at top center of screen (above Aura eye)
+        # Position above Aura eye, within button inner perimeter
+        # Aura eye center is at 540px, so above it would be around 400-450px
+        # Buttons are at radius 450px, inner edge ~400px from center
+        # So max width should be ~750px to fit within inner perimeter with margins
         overlay_height = 120
-        overlay_y = 40  # 40px from top
-        overlay_width = window_size - 150  # 75px margins on each side
+        overlay_y = 420  # Above center (540), positioned above Aura eye
+        overlay_width = 750  # Fits within button inner perimeter (~400px radius * 2 - margins)
         overlay_x = (window_size - overlay_width) // 2  # Centered horizontally
         
         self.setGeometry(overlay_x, overlay_y, overlay_width, overlay_height)

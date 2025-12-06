@@ -1875,10 +1875,10 @@ WantedBy=multi-user.target
 EOFPOWER
             fi
             
-            sudo systemctl daemon-reload
-            sudo systemctl enable jetson-maxn-power.service
-            print_info "✅ Created systemd service for persistent MAXN power mode"
-            print_info "   Power mode will be set to MAXN on every boot"
+        sudo systemctl daemon-reload
+        sudo systemctl enable jetson-maxn-power.service
+        print_info "✅ Created systemd service for persistent MAXN power mode"
+        print_info "   Power mode will be set to MAXN on every boot"
         fi
     else
         print_info "Jetson power service already exists"
