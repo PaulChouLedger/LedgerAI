@@ -293,7 +293,7 @@ def configure_agc_20_ec():
     save_config_state('agc_20_ec', {
         'AEC_HPFONOFF': 1,
         'PP_AGCONOFF': 1,
-        'PP_AGCDESIREDLEVEL': 0.12,
+        'PP_AGCDESIREDLEVEL': 0.08,
         'PP_AGCMAXGAIN': 1000,
         'PP_AGCTIME': 0.5,
         'PP_ECHOONOFF': 1
