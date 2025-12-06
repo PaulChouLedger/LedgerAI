@@ -401,6 +401,10 @@ class AuraGUI(QMainWindow):
         # Create transcription overlay widget for real-time transcription
         self.transcription_overlay = TranscriptionOverlayWidget(self, window_size)
         print(f"[TranscriptionOverlay] Created transcription overlay widget")
+        
+        # Ensure proper z-order: border overlay always on top
+        if hasattr(self, 'border_overlay'):
+            self.border_overlay.raise_()  # Border always on top
 
         # === Pulsation Effect ===
         self.opacity = 1.0
@@ -1276,14 +1280,19 @@ class AuraGUI(QMainWindow):
     def _update_transcription_text(self, text):
         """Update transcription text in overlay (called from listener thread)"""
         global _transcription_overlay_enabled
-        if hasattr(self, 'transcription_overlay') and _transcription_overlay_enabled:
-            if text and text.strip():
+        if hasattr(self, 'transcription_overlay'):
+            if _transcription_overlay_enabled and text and text.strip():
                 self.transcription_overlay.update_transcription(text)
                 if not self.transcription_overlay.isVisible():
                     self.transcription_overlay.show()
-                    self.transcription_overlay.raise_()  # But below border overlay
+                # Raise transcription overlay, then ensure border stays on top
+                self.transcription_overlay.raise_()
+                if hasattr(self, 'border_overlay'):
+                    self.border_overlay.raise_()  # Border always on top
             else:
-                # Clear and hide if text is empty
+                # Clear and hide if disabled or text is empty
+                if hasattr(self.transcription_overlay, 'current_text'):
+                    self.transcription_overlay.current_text = ""
                 self.transcription_overlay.clear_transcription()
                 if self.transcription_overlay.isVisible():
                     self.transcription_overlay.hide()
@@ -1321,7 +1330,10 @@ class AuraGUI(QMainWindow):
                 if hasattr(self.transcription_overlay, 'current_text') and self.transcription_overlay.current_text:
                     if not self.transcription_overlay.isVisible():
                         self.transcription_overlay.show()
+                    # Raise transcription overlay, then ensure border stays on top
                     self.transcription_overlay.raise_()
+                    if hasattr(self, 'border_overlay'):
+                        self.border_overlay.raise_()  # Border always on top
                 else:
                     # Hide if no transcription text
                     if self.transcription_overlay.isVisible():
