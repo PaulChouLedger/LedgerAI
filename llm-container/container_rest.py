@@ -92,7 +92,7 @@ WORD_BOUNDARY_CHARS = [' ', '.', ',', '!', '?', ':', ';', '-', '(', ')', '[', ']
 SENTENCE_ENDINGS = ('.', '!', '?')
 
 # === Response Generation Config ===
-MAX_TOKENS_RAG_MODE = 1500  # Max tokens when using RAG context (increased for comprehensive responses)
+MAX_TOKENS_RAG_MODE = 200  # Max tokens when using RAG context (reduced for concise Siri/Alexa-style responses)
 MAX_TOKENS_RAG_MODE_LIST = 2500  # Max tokens for list questions (need more space to list all items)
 MAX_TOKENS_DIRECT_MODE = 300  # Max tokens for direct conversation (reduced for concise Siri/Alexa-style responses)
 
@@ -838,11 +838,14 @@ JSON array only:"""
                     )
                 else:
                     response_length_guideline = (
-                        "- Keep responses VERY SHORT and conversational, like Siri or Alexa. Aim for 1-2 sentences maximum. "
-                        "Get straight to the point - avoid lengthy explanations, background details, or multiple examples.\n"
-                        "- ALWAYS end your response with a brief, natural follow-up question related to the conversation. "
-                        "Examples: 'Would you like more information about this?' or 'Is there anything else I can help you with?' "
-                        "or 'Need more details?' Make it flow naturally with the conversation topic.\n"
+                        "- CRITICAL: Keep responses EXTREMELY SHORT - maximum 1-2 sentences total. "
+                        "Get straight to the point with only the most essential information. "
+                        "NO lengthy explanations, background details, dates, or multiple examples. "
+                        "Think: What is the absolute minimum needed to answer the question?\n"
+                        "- MANDATORY: Your response MUST end with a brief, natural follow-up question. "
+                        "This is REQUIRED - do not skip it. Examples: 'Would you like more information about this?' "
+                        "or 'Is there anything else I can help you with?' or 'Need more details on this?' "
+                        "Make it flow naturally with the conversation topic. The follow-up question counts toward your 1-2 sentence limit.\n"
                     )
                 
                 # Build structured reasoning instructions (only show structure in debug mode)
@@ -906,7 +909,8 @@ JSON array only:"""
                     "Read every sentence in the chunk to extract ALL matching items. "
                     "Only move to the next chunk after you have read the current chunk completely and found ALL matching items in it. "
                     "Missing any item because you stopped reading a chunk early is a serious error. List all items concisely.\n"
-                    "- Answer THOROUGHLY but CONCISELY: Cover all information needed to answer the question completely and thoroughly, but be brief and direct in your response\n"
+                    "- Answer EXTREMELY CONCISELY: Provide only the most essential information in 1-2 sentences maximum. "
+                    "If more details are available, mention that you can provide more if asked, but keep the initial response very brief.\n"
                     "- Be extremely precise: Only include items with the EXACT relationship being asked about - look for exact phrases where the relationship type and entity name appear together\n"
                     "- When identifying relationships: Verify that the relationship explicitly connects to the exact entity mentioned in the question - exclude similar relationships with different entities\n"
                     "- CRITICAL: DO NOT repeat or echo the conversation history format (e.g., '[Previous conversation]' or timestamps) - use the information FROM the conversation history to answer the current question\n"
@@ -914,6 +918,7 @@ JSON array only:"""
                     "- Include titles/roles when listing people\n"
                     "- For lists: Format as natural sentences like 'The [items] are [Name] ([Title]), [Name] ([Title]), [Name] ([Title]), and [Name] ([Title]).' DO NOT use hyphens or dashes.\n"
                     f"{response_length_guideline}"
+                    "- REMINDER: Your response MUST end with a follow-up question. This is mandatory, not optional.\n"
                 )
                 
                 # Build user message - add structured reasoning format if debug enabled
@@ -1017,12 +1022,15 @@ JSON array only:"""
                     "IMPORTANT: Use the conversation memory provided above to answer the user's question. "
                     "If the memory contains relevant information, provide that information in your response. "
                     "If you notice a misspelling or typo, briefly acknowledge it but still answer the actual question asked.\n\n"
-                    "Keep your response VERY SHORT and conversational, like Siri or Alexa. Aim for 1-2 sentences maximum. "
-                    "Get straight to the point - avoid lengthy explanations, background details, or multiple examples. "
+                    "CRITICAL: Keep your response EXTREMELY SHORT - maximum 1-2 sentences total. "
+                    "Get straight to the point with only the most essential information. "
+                    "NO lengthy explanations, background details, dates, or multiple examples. "
+                    "Think: What is the absolute minimum needed to answer the question? "
                     "Be friendly, helpful, and extremely concise.\n\n"
-                    "ALWAYS end your response with a brief, natural follow-up question related to the conversation. "
-                    "Examples: 'Would you like more information about this?' or 'Is there anything else I can help you with?' "
-                    "or 'Need more details?' Make it flow naturally with the conversation topic."
+                    "MANDATORY: Your response MUST end with a brief, natural follow-up question. "
+                    "This is REQUIRED - do not skip it. Examples: 'Would you like more information about this?' "
+                    "or 'Is there anything else I can help you with?' or 'Need more details on this?' "
+                    "Make it flow naturally with the conversation topic. The follow-up question counts toward your 1-2 sentence limit."
                 )
         
         # When only memory context (no RAG), use separate user message
