@@ -3,8 +3,8 @@
 import os
 import sys
 import math
-from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QPushButton, QVBoxLayout, QWidget, QHBoxLayout, QGraphicsDropShadowEffect
-from PyQt5.QtGui import QPixmap, QKeySequence, QColor, QTransform, QPainter, QPen
+from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QPushButton, QVBoxLayout, QWidget, QHBoxLayout, QGraphicsDropShadowEffect, QTextEdit, QScrollBar
+from PyQt5.QtGui import QPixmap, QKeySequence, QColor, QTransform, QPainter, QPen, QFont, QFontMetrics
 from PyQt5.QtCore import Qt, QTimer, QPoint, QPropertyAnimation, QEasingCurve, QMetaObject, Q_ARG, pyqtSlot
 
 # Add the parent directories to Python path for imports
@@ -136,6 +136,116 @@ class BorderOverlayWidget(QWidget):
         
         painter.end()
 
+class DebugOverlayWidget(QWidget):
+    """Debug text overlay that displays initialization messages during setup"""
+    def __init__(self, parent, window_size):
+        super().__init__(parent)
+        self.setAttribute(Qt.WA_TransparentForMouseEvents, True)
+        self.parent_gui = parent
+        self.window_size = window_size
+        self.debug_log_path = os.path.expanduser("~/LedgerAI/data/aura_init_debug.log")
+        self.last_file_position = 0
+        self.max_lines = 12  # Show last 12 lines of debug messages
+        
+        # Create debug text widget
+        self.debug_text = QTextEdit(self)
+        self.debug_text.setReadOnly(True)
+        self.debug_text.setFrameShape(QTextEdit.NoFrame)
+        
+        # Styling for console-like appearance
+        self.debug_text.setStyleSheet("""
+            QTextEdit {
+                background-color: rgba(0, 0, 0, 0.75);
+                color: #00ff00;
+                border: none;
+                border-radius: 10px;
+                padding: 8px;
+                font-family: 'Courier New', monospace;
+                font-size: 10pt;
+            }
+        """)
+        
+        # Position at bottom of screen (below Aura eye)
+        overlay_height = 200
+        overlay_y = window_size - overlay_height - 40  # 40px from bottom
+        overlay_width = window_size - 100  # 50px margins on each side
+        overlay_x = 50  # 50px from left
+        
+        self.setGeometry(overlay_x, overlay_y, overlay_width, overlay_height)
+        self.debug_text.setGeometry(0, 0, overlay_width, overlay_height)
+        
+        # Initially hidden - will be shown during initialization
+        self.hide()
+        
+        # Timer to poll debug log file
+        self.poll_timer = QTimer()
+        self.poll_timer.timeout.connect(self._update_debug_messages)
+        self.poll_timer.start(500)  # Poll every 500ms
+        
+        # Initialize debug log file if it doesn't exist
+        os.makedirs(os.path.dirname(self.debug_log_path), exist_ok=True)
+    
+    def _update_debug_messages(self):
+        """Read new messages from debug log file and display them"""
+        global _setup_complete
+        
+        # Only read file if we're visible (during initialization)
+        if not self.isVisible() or _setup_complete:
+            return
+        
+        try:
+            if not os.path.exists(self.debug_log_path):
+                return
+            
+            # Read new content from file
+            with open(self.debug_log_path, 'r', encoding='utf-8', errors='ignore') as f:
+                f.seek(self.last_file_position)
+                new_content = f.read()
+                self.last_file_position = f.tell()
+            
+            if new_content:
+                # Add new messages
+                lines = new_content.strip().split('\n')
+                for line in lines:
+                    if line.strip():
+                        # Strip emoji and format for display
+                        clean_line = self._clean_debug_line(line)
+                        self.debug_text.append(clean_line)
+                        
+                        # Limit to max_lines
+                        document = self.debug_text.document()
+                        block_count = document.blockCount()
+                        if block_count > self.max_lines:
+                            cursor = self.debug_text.textCursor()
+                            cursor.movePosition(cursor.Start)
+                            cursor.movePosition(cursor.Down, cursor.MoveAnchor, block_count - self.max_lines)
+                            cursor.movePosition(cursor.StartOfBlock)
+                            cursor.movePosition(cursor.End, cursor.KeepAnchor)
+                            cursor.removeSelectedText()
+                            cursor.deletePreviousChar()  # Remove extra newline
+                        
+                        # Auto-scroll to bottom
+                        scrollbar = self.debug_text.verticalScrollBar()
+                        scrollbar.setValue(scrollbar.maximum())
+        
+        except Exception as e:
+            # Silently handle errors - don't break GUI
+            pass
+    
+    def _clean_debug_line(self, line):
+        """Clean debug line for display - strip excessive formatting but keep readability"""
+        # Remove common timestamp prefixes like [2025-12-05 18:20:01]
+        import re
+        line = re.sub(r'\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\]\s*', '', line)
+        
+        # Keep emojis but ensure line is readable
+        return line.strip()
+    
+    def reset_position(self):
+        """Reset file position (when starting new initialization)"""
+        self.last_file_position = 0
+        self.debug_text.clear()
+
 class AuraGUI(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -221,6 +331,10 @@ class AuraGUI(QMainWindow):
         self.border_overlay.show()
         self.border_overlay.raise_()  # Always on top
         print(f"[Border] Created overlay at (0,0), size {window_size}x{window_size}")
+        
+        # Create debug overlay widget for initialization messages
+        self.debug_overlay = DebugOverlayWidget(self, window_size)
+        print(f"[DebugOverlay] Created debug overlay widget")
 
         # === Pulsation Effect ===
         self.opacity = 1.0
@@ -737,6 +851,17 @@ class AuraGUI(QMainWindow):
         elif not _setup_complete:
             self._animate_aura_eye_breathing()  # Breathing during setup
             self.show_red_border = False
+            # Show debug overlay during initialization
+            if hasattr(self, 'debug_overlay'):
+                if not self.debug_overlay.isVisible():
+                    self.debug_overlay.reset_position()  # Reset to start reading from beginning
+                    self.debug_overlay.show()
+                self.debug_overlay.raise_()  # Ensure it's visible (but below border)
+        else:
+            # Hide debug overlay once initialization is complete
+            if hasattr(self, 'debug_overlay'):
+                if self.debug_overlay.isVisible():
+                    self.debug_overlay.hide()
     
     def _update_border_style(self, static=True, pulsating=False, width=5, opacity=0.7):
         """Update the border style with organic opacity variation"""
@@ -1217,4 +1342,12 @@ def set_setup_complete():
     """Mark initial setup as complete"""
     global _setup_complete
     _setup_complete = True
+    
+    # Close debug log file when initialization completes
+    try:
+        from core.main import end_initialization_phase
+        end_initialization_phase()  # Stop debug logging
+    except Exception:
+        pass  # Silently fail if import fails
+    
     print("[AuraGUI] ✅ Setup complete - switching to idle mode")

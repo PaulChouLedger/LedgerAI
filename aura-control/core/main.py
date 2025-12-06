@@ -53,6 +53,74 @@ if "DISPLAY" not in os.environ or not os.environ.get("DISPLAY"):
 workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 dotenv_path = os.path.join(workspace_root, '.env')
 HOST_ENV = dotenv_values(dotenv_path)
+
+# === Debug Log File for GUI Overlay ===
+DEBUG_LOG_PATH = os.path.expanduser("~/LedgerAI/data/aura_init_debug.log")
+_debug_log_file = None
+_debug_log_enabled = False
+
+def init_debug_log():
+    """Initialize debug log file for GUI overlay"""
+    global _debug_log_file, _debug_log_enabled
+    try:
+        os.makedirs(os.path.dirname(DEBUG_LOG_PATH), exist_ok=True)
+        # Clear existing log file for fresh start
+        with open(DEBUG_LOG_PATH, 'w') as f:
+            f.write("")  # Clear file
+        _debug_log_file = open(DEBUG_LOG_PATH, 'a', encoding='utf-8', buffering=1)  # Line buffered
+        _debug_log_enabled = True
+        print(f"[Aura] 📋 Loading config from: {dotenv_path}")
+        _debug_log(f"[Aura] 📋 Loading config from: {dotenv_path}")
+    except Exception as e:
+        print(f"[Aura] ⚠️ Failed to initialize debug log: {e}")
+        _debug_log_enabled = False
+
+def _debug_log(message):
+    """Write message to debug log file for GUI overlay"""
+    global _debug_log_file, _debug_log_enabled
+    if _debug_log_enabled and _debug_log_file:
+        try:
+            _debug_log_file.write(message + '\n')
+            _debug_log_file.flush()  # Ensure immediate write
+        except Exception:
+            pass  # Silently fail - don't break initialization
+
+def close_debug_log():
+    """Close debug log file after initialization"""
+    global _debug_log_file, _debug_log_enabled
+    if _debug_log_file:
+        try:
+            _debug_log_file.close()
+            _debug_log_file = None
+            _debug_log_enabled = False
+        except Exception:
+            pass
+
+# Initialize debug log
+init_debug_log()
+
+# Wrap print function to also write to debug log during initialization
+_original_print = print
+_initialization_phase = True  # Track if we're in initialization phase (can be set from other modules)
+
+def debug_print(*args, **kwargs):
+    """Print wrapper that also writes to debug log file during initialization"""
+    _original_print(*args, **kwargs)
+    if _initialization_phase and _debug_log_enabled:
+        # Convert print arguments to string (handles both single string and multiple args)
+        message = ' '.join(str(arg) for arg in args)
+        _debug_log(message)
+
+def end_initialization_phase():
+    """End initialization phase - stop writing to debug log"""
+    global _initialization_phase
+    _initialization_phase = False
+    close_debug_log()
+
+# Replace print with our wrapper during initialization
+# Note: This only applies to this module - other modules use their own print
+print = debug_print
+
 print(f"[Aura] 📋 Loading config from: {dotenv_path}")
 
 # === Whisper Container Configuration ===
