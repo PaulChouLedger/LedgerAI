@@ -18,8 +18,8 @@ RUN pip3 install --ignore-installed --index-url https://pypi.org/simple flask so
 RUN mkdir -p /root/.cache/huggingface/hub/models--Systran--faster-distil-whisper-small.en/snapshots/ef77d90526ccd62cde3808ee70626a01e5cf83e4
 COPY models--Systran--faster-distil-whisper-small.en/snapshots/ef77d90526ccd62cde3808ee70626a01e5cf83e4/* /root/.cache/huggingface/hub/models--Systran--faster-distil-whisper-small.en/snapshots/ef77d90526ccd62cde3808ee70626a01e5cf83e4/
 
-# large-v3-turbo (best accuracy, higher latency)
-COPY models--mobiuslabsgmbh--faster-whisper-large-v3-turbo/ /root/.cache/huggingface/hub/models--mobiuslabsgmbh--faster-whisper-large-v3-turbo/
+# distil-large-v3.5-ct2 (best accuracy/speed balance - 1.5x faster than turbo, better short-form accuracy) ⭐ RECOMMENDED
+COPY models--distil-whisper--distil-large-v3.5-ct2/ /root/.cache/huggingface/hub/models--distil-whisper--distil-large-v3.5-ct2/
 
 EXPOSE 5000
 CMD ["python3", "/app/container_rest.py"]

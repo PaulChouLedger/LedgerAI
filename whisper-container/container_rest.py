@@ -36,12 +36,12 @@ def get_medical_prompt():
 # ============================================================================
 
 # === Model Selection ===
-MODEL_NAME = "large-v3-turbo"
-# Options: "distil-small.en", "small.en", "medium.en", "base.en", "large-v3-turbo", "distil-large-v3"
-# Accuracy: distil-small < small < medium < distil-large-v3 < large-v3-turbo
-# Latency: distil-small (fastest) < small < medium < distil-large-v3 < large-v3-turbo (slowest)
+MODEL_NAME = "distil-whisper/distil-large-v3.5-ct2"
+# Options: "distil-small.en", "small.en", "medium.en", "base.en", "large-v3-turbo", "distil-large-v3", "distil-whisper/distil-large-v3.5-ct2"
+# Accuracy: distil-small < small < medium < distil-large-v3 < distil-large-v3.5 ≈ large-v3-turbo
+# Latency: distil-small (fastest) < small < medium < distil-large-v3 < distil-large-v3.5 < large-v3-turbo (slowest)
 # Memory: Smaller models use less GPU memory
-# Recommendation: "distil-small.en" for speed, "large-v3-turbo" for best accuracy
+# Recommendation: "distil-small.en" for speed, "distil-whisper/distil-large-v3.5-ct2" for best accuracy/speed balance ⭐ RECOMMENDED (1.5x faster than turbo, better short-form accuracy)
 
 CACHE_DIR = "/app/cache/whisper"  # Model cache directory (internal use)
 
@@ -157,7 +157,8 @@ MODEL_MAPPING = {
     "medium.en": "models--Systran--faster-medium-whisper.en",                  # Much better for names
     "base.en": "models--Systran--faster-base-whisper.en",                      # Basic model
     "large-v3-turbo": "models--mobiuslabsgmbh--faster-whisper-large-v3-turbo", # Best accuracy, higher latency
-    "distil-large-v3": "models--Systran--faster-distil-whisper-large-v3"       # Excellent accuracy, low latency ⭐ RECOMMENDED
+    "distil-large-v3": "models--Systran--faster-distil-whisper-large-v3",      # Excellent accuracy, low latency
+    "distil-whisper/distil-large-v3.5-ct2": "models--distil-whisper--distil-large-v3.5-ct2"  # Best accuracy/speed balance ⭐ RECOMMENDED (1.5x faster than turbo, better short-form accuracy)
 }
 
 # Get the actual model repo name

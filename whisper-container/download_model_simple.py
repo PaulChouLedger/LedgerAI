@@ -2,7 +2,7 @@
 """
 Simple script to download Whisper models for Docker build.
 Downloads both:
-- faster-whisper-large-v3-turbo (best accuracy, higher latency)
+- distil-large-v3.5-ct2 (best accuracy/speed balance - 1.5x faster than turbo, better short-form accuracy ⭐ RECOMMENDED)
 - faster-distil-whisper-small.en (fast, lower accuracy)
 
 Downloads directly to whisper-container/models--*/
@@ -24,10 +24,10 @@ SCRIPT_DIR = Path(__file__).parent.absolute()
 # Models to download
 MODELS = [
     {
-        "name": "large-v3-turbo",
-        "target_dir": SCRIPT_DIR / "models--mobiuslabsgmbh--faster-whisper-large-v3-turbo",
-        "cache_name": "models--mobiuslabsgmbh--faster-whisper-large-v3-turbo",
-        "description": "best accuracy, higher latency"
+        "name": "distil-whisper/distil-large-v3.5-ct2",
+        "target_dir": SCRIPT_DIR / "models--distil-whisper--distil-large-v3.5-ct2",
+        "cache_name": "models--distil-whisper--distil-large-v3.5-ct2",
+        "description": "best accuracy/speed balance - 1.5x faster than turbo, better short-form accuracy ⭐ RECOMMENDED"
     },
     {
         "name": "Systran/faster-distil-whisper-small.en",
