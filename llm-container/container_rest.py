@@ -93,7 +93,7 @@ SENTENCE_ENDINGS = ('.', '!', '?')
 
 # === Response Generation Config ===
 MAX_TOKENS_RAG_MODE = 200  # Max tokens when using RAG context (reduced for concise Siri/Alexa-style responses)
-MAX_TOKENS_RAG_MODE_LIST = 2500  # Max tokens for list questions (need more space to list all items)
+MAX_TOKENS_RAG_MODE_LIST = 300  # Max tokens for list questions (reduced for concise responses with follow-up question)
 MAX_TOKENS_DIRECT_MODE = 300  # Max tokens for direct conversation (reduced for concise Siri/Alexa-style responses)
 
 # === Debug Mode: Show LLM Reasoning ===
@@ -821,6 +821,11 @@ JSON array only:"""
                         "Instead, use complete sentences like: 'The co-founders are [Name] who is [Title], [Name] who is [Title], [Name] who is [Title], and [Name] who is [Title].' "
                         "Or use a natural list format: 'The co-founders include [Name] ([Title]), [Name] ([Title]), [Name] ([Title]), and [Name] ([Title]).' "
                         "Speak naturally and conversationally, as if having a friendly conversation.\n"
+                        "\n"
+                        "❓ MANDATORY FOLLOW-UP QUESTION: "
+                        "Your response MUST end with a brief, natural follow-up question. This is REQUIRED - do not skip it. "
+                        "Examples: 'Would you like more information about any of these?' or 'Is there anything else I can help you with?' "
+                        "or 'Need more details on any of them?' Make it flow naturally with the conversation topic.\n"
                     )
                 
                 # Build response length guideline - prioritize completeness for lists and debug mode
@@ -918,7 +923,10 @@ JSON array only:"""
                     "- Include titles/roles when listing people\n"
                     "- For lists: Format as natural sentences like 'The [items] are [Name] ([Title]), [Name] ([Title]), [Name] ([Title]), and [Name] ([Title]).' DO NOT use hyphens or dashes.\n"
                     f"{response_length_guideline}"
-                    "- REMINDER: Your response MUST end with a follow-up question. This is mandatory, not optional.\n"
+                    "\n"
+                    "🚨 FINAL REMINDER - MANDATORY: Your response MUST end with a brief follow-up question. "
+                    "Do NOT end your response without a question. Examples: 'Would you like more information?' "
+                    "or 'Is there anything else I can help you with?' This is REQUIRED for every response.\n"
                 )
                 
                 # Build user message - add structured reasoning format if debug enabled
