@@ -775,17 +775,23 @@ JSON array only:"""
                     person_list = ", ".join(query_person_names)
                     person_instruction = f"\n\n⚠️ CRITICAL: The user is asking about {person_list}. ONLY use information from the context that specifically mentions {person_list}. DO NOT confuse information about {person_list} with information about other people mentioned in the context. If a context section mentions multiple people, only extract and use the information that pertains to {person_list}.\n"
                 
-                # Simplified list instruction - clear and direct
+                # Simplified list instruction - clear and direct with LLM scoring
                 list_instruction = ""
                 if is_list_request:
                     list_instruction = (
                         "\n📋 LIST QUESTION DETECTED:\n"
-                        "Read every section (separated by '---') completely from start to finish.\n"
-                        "DO NOT stop reading once you find a matching item - chunks can contain multiple matching items.\n"
-                        "Extract ALL items that match the question from EVERY section.\n"
-                        "A single section may contain multiple matching items - read the entire section completely to find them all.\n"
-                        "Format as: 'The [items] are [Name] ([Title]), [Name] ([Title]), and [Name] ([Title]).'\n"
-                        "End with a follow-up question.\n"
+                        "1. Read every section (separated by '---') completely from start to finish.\n"
+                        "2. DO NOT stop reading once you find a matching item - chunks can contain multiple matching items.\n"
+                        "3. For each potential item, use LLM scoring to determine relevance:\n"
+                        "   - Score HIGH (include): Items with the EXACT relationship to the EXACT entity mentioned in the query\n"
+                        "   - Score MEDIUM (exclude): Items with similar relationships but to different entities\n"
+                        "   - Score LOW (exclude): Items that mention similar terms but don't actually match the query\n"
+                        "4. Extract ONLY items that score HIGH - be precise about exact matches.\n"
+                        "   Example: If asked 'co-founders of Company X', only include people explicitly listed as co-founders of Company X.\n"
+                        "   Exclude: People who are co-founders of Company Y, employees of Company X, or advisors to Company X.\n"
+                        "5. A single section may contain multiple matching items - read the entire section completely to find them all.\n"
+                        "6. Format as: 'The [items] are [Name] ([Title]), [Name] ([Title]), and [Name] ([Title]).'\n"
+                        "7. End with a brief, natural question (do not include 'follow up' or 'follow-up' in the question text).\n"
                     )
                 
                 # Build response length guideline - prioritize completeness for lists and debug mode
@@ -797,8 +803,9 @@ JSON array only:"""
                         "- For lists: Ensure THOROUGH coverage of ALL items from the RAG context. Format as natural conversational sentences (no hyphens, dashes, or bullet points). "
                         "Use complete sentences like 'The [items] are [Name] ([Title]), [Name] ([Title]), [Name] ([Title]), and [Name] ([Title]).' "
                         "Completeness is critical - include every item before concluding.\n"
-                        "- ALWAYS end your response with a brief, natural follow-up question related to the conversation. "
+                        "- ALWAYS end your response with a brief, natural question related to the conversation. "
                         "Examples: 'Would you like more information about any of these?' or 'Is there anything else I can help you with?' "
+                        "Do not include the phrase 'follow up' or 'follow-up' in your question - just ask naturally. "
                         "Make it flow naturally with the conversation topic.\n"
                     )
                 else:
@@ -806,10 +813,11 @@ JSON array only:"""
                         "- Keep responses SHORT and conversational, like Siri or Alexa - aim for 2-3 sentences total. "
                         "Get straight to the point with essential information. Avoid lengthy explanations, excessive background details, or multiple examples. "
                         "Be concise but complete enough to answer the question.\n"
-                        "- MANDATORY: Your response MUST end with a brief, natural follow-up question. "
+                        "- MANDATORY: Your response MUST end with a brief, natural question. "
                         "This is REQUIRED - do not skip it. Examples: 'Would you like more information about this?' "
                         "or 'Is there anything else I can help you with?' or 'Need more details on this?' "
-                        "Make it flow naturally with the conversation topic. The follow-up question is in addition to your 2-3 sentence answer.\n"
+                        "Do not include the phrase 'follow up' or 'follow-up' in your question - just ask naturally. "
+                        "Make it flow naturally with the conversation topic. This question is in addition to your 2-3 sentence answer.\n"
                     )
                 
                 # Simplified reasoning - only for debug mode
@@ -824,15 +832,21 @@ JSON array only:"""
                 
                 rag_scoring_instructions = ""  # Removed for simplicity
                 
-                # Ultra-simplified RAG instructions - focus on reading and extracting
+                # Ultra-simplified RAG instructions - focus on reading and extracting with LLM scoring
                 simple_instructions = (
                     "\nINSTRUCTIONS:\n"
-                    "Read every section (separated by '---') completely from start to finish. "
-                    "DO NOT stop reading once you find relevant information - chunks can contain multiple instances of valuable information. "
-                    "Extract all information that answers the question from each section. "
-                    "For lists, find EVERY matching item in EVERY section - read each section completely to find all items. "
-                    "Format as natural sentences. "
-                    "End with a follow-up question.\n"
+                    "1. Read every section (separated by '---') completely from start to finish. "
+                    "DO NOT stop reading once you find relevant information - chunks can contain multiple instances of valuable information.\n"
+                    "2. For each piece of information found, use LLM scoring to determine relevance:\n"
+                    "   - Score HIGH (include): Information that directly and explicitly answers the query with exact matches\n"
+                    "   - Score MEDIUM (consider): Information that is related but requires inference or is indirectly related\n"
+                    "   - Score LOW (exclude): Information that mentions similar terms but does not actually answer the query\n"
+                    "3. Extract only information that scores HIGH - be precise about what exactly matches the query.\n"
+                    "   For relationship questions (co-founders, employees, etc.), only include people with the EXACT relationship to the EXACT entity mentioned.\n"
+                    "   Example: If asked 'co-founders of Company X', exclude people who are co-founders of Company Y or employees of Company X.\n"
+                    "4. For lists, find EVERY matching item in EVERY section - read each section completely to find all items.\n"
+                    "5. Format as natural sentences.\n"
+                    "6. End with a brief, natural question (do not include the phrase 'follow up' or 'follow-up' in your question).\n"
                 )
                 
                 system_content = (
@@ -912,7 +926,7 @@ JSON array only:"""
                     f"{memory_note}"
                     "Provide a clear, step-by-step response (numbered steps). Keep each step concise and actionable. "
                     "Be conversational and friendly, like Siri or Alexa.\n\n"
-                    "Always end your response with a brief follow-up question such as: "
+                    "Always end your response with a brief, natural question (do not include 'follow up' or 'follow-up' in the question text). Examples: "
                     "'Would you like more information about this?' or 'Is there anything else I can help you with?'"
                 )
             else:
@@ -949,10 +963,11 @@ JSON array only:"""
                     "Keep your response SHORT and conversational, like Siri or Alexa - aim for 2-3 sentences total. "
                     "Get straight to the point with essential information. Avoid lengthy explanations, excessive background details, or multiple examples. "
                     "Be concise but complete enough to answer the question. Be friendly, helpful, and conversational.\n\n"
-                    "MANDATORY: Your response MUST end with a brief, natural follow-up question. "
+                    "MANDATORY: Your response MUST end with a brief, natural question. "
                     "This is REQUIRED - do not skip it. Examples: 'Would you like more information about this?' "
                     "or 'Is there anything else I can help you with?' or 'Need more details on this?' "
-                    "Make it flow naturally with the conversation topic. The follow-up question is in addition to your 2-3 sentence answer."
+                    "Do not include the phrase 'follow up' or 'follow-up' in your question - just ask naturally. "
+                    "Make it flow naturally with the conversation topic. This question is in addition to your 2-3 sentence answer."
                 )
         
         # When only memory context (no RAG), use separate user message
@@ -1197,7 +1212,7 @@ JSON array only:"""
             "You act as a proactive AI agent guiding users to better outcomes through gentle guidance.\n\n"
             "Provide a clear, step-by-step response (numbered steps) to the user's question. "
             "Keep each step concise and actionable. Be conversational and friendly, like Siri or Alexa.\n\n"
-            "Always end your response with a brief follow-up question such as: "
+            "Always end your response with a brief, natural question (do not include 'follow up' or 'follow-up' in the question text). Examples: "
             "'Would you like more information about this?' or 'Is there anything else I can help you with?'"
         )
     elif is_conversational_fallback:
@@ -1217,10 +1232,11 @@ JSON array only:"""
             "Keep your response SHORT and conversational, like Siri or Alexa - aim for 2-3 sentences total. "
             "Be friendly, helpful, and concise. Get straight to the point with essential information. "
             "Avoid lengthy explanations, excessive background details, or multiple examples.\n\n"
-            "MANDATORY: Your response MUST end with a brief, natural follow-up question. "
+            "MANDATORY: Your response MUST end with a brief, natural question. "
             "This is REQUIRED - do not skip it. Examples: 'Would you like more information about this?' "
             "or 'Is there anything else I can help you with?' or 'Need more details on this?' "
-            "Make it flow naturally with the conversation topic. The follow-up question is in addition to your 2-3 sentence answer."
+            "Do not include the phrase 'follow up' or 'follow-up' in your question - just ask naturally. "
+            "Make it flow naturally with the conversation topic. This question is in addition to your 2-3 sentence answer."
         )
     
     if memory_context:
