@@ -1122,31 +1122,43 @@ JSON array only:"""
                 # Track if we're in scoring section - don't yield anything until we're past it
                 in_scoring_section = False
                 answer_started = False
+                accumulated_buffer = ""  # Accumulate chunks until we find the answer
                 
                 for chunk in llm_response:
-                    buffer += chunk
+                    accumulated_buffer += chunk
                     
                     # Early detection: If buffer contains scoring patterns, don't yield until we find the answer
                     if not answer_started:
                         # Check for scoring markers or patterns (including "Final Answer:" which is still part of scoring format)
-                        if re.search(r'\b(SCORING|Item\s+\d+|Person\s+\d+|Score:|Include:|Reason:|Text:|Final\s+Answer:)\b', buffer, re.IGNORECASE):
+                        if re.search(r'\b(SCORING|Item\s+\d+|Person\s+\d+|Score:|Include:|Reason:|Text:|Final\s+Answer:)\b', accumulated_buffer, re.IGNORECASE):
                             in_scoring_section = True
                         
                         # Check if we've reached the actual answer (after "Final Answer:" marker)
-                        # Look for the actual list starting with "The co-founders" or a numbered list
-                        if re.search(r'\b(The\s+co-founders|The\s+founders|Ledger\s+AI[\'"]?s\s+co-founders|co-founders\s+are|founders\s+are|The\s+[A-Z][a-z]+\s+co-founders|^\d+\.\s+[A-Z][a-z]+)\b', buffer, re.IGNORECASE | re.MULTILINE):
+                        # Look for the actual list starting with "The co-founders" or a numbered list like "1. Paul" or "Paul Chou"
+                        answer_pattern = r'\b(The\s+co-founders|The\s+founders|Ledger\s+AI[\'"]?s\s+co-founders|co-founders\s+are|founders\s+are|The\s+[A-Z][a-z]+\s+co-founders)\b|^\d+\.\s+[A-Z][a-z]+\s+[A-Z][a-z]+'
+                        if re.search(answer_pattern, accumulated_buffer, re.IGNORECASE | re.MULTILINE):
                             answer_started = True
                             in_scoring_section = False
                             # Extract only the answer part - find the actual list start
-                            answer_match = re.search(r'\b(The\s+co-founders|The\s+founders|Ledger\s+AI[\'"]?s\s+co-founders|co-founders\s+are|founders\s+are|The\s+[A-Z][a-z]+\s+co-founders|^\d+\.\s+[A-Z][a-z]+)\b', buffer, re.IGNORECASE | re.MULTILINE)
+                            answer_match = re.search(answer_pattern, accumulated_buffer, re.IGNORECASE | re.MULTILINE)
                             if answer_match:
-                                buffer = buffer[answer_match.start():]
+                                accumulated_buffer = accumulated_buffer[answer_match.start():]
                             # Also remove "Final Answer:" if it's still there
-                            buffer = re.sub(r'Final\s+Answer:\s*', '', buffer, flags=re.IGNORECASE)
-                        
-                        # If still in scoring section, don't yield
-                        if in_scoring_section and not answer_started:
+                            accumulated_buffer = re.sub(r'Final\s+Answer:\s*', '', accumulated_buffer, flags=re.IGNORECASE)
+                            # Now set buffer to the cleaned answer and continue processing
+                            buffer = accumulated_buffer
+                            # Continue to process this chunk and subsequent chunks normally
+                        else:
+                            # Still in scoring section, don't process this chunk yet
                             continue
+                    
+                    # From here on, we're processing the answer (either just found it or already processing it)
+                    # Only add to buffer if answer has started
+                    if answer_started:
+                        buffer += chunk
+                    else:
+                        # Still in scoring section, skip this chunk
+                        continue
                     
                     # First, filter out scoring sections (catch variations: ---SCORING---, SCORING-, -SCORING-, etc.)
                     # Look for scoring markers (flexible matching)
