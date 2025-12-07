@@ -775,69 +775,17 @@ JSON array only:"""
                     person_list = ", ".join(query_person_names)
                     person_instruction = f"\n\n⚠️ CRITICAL: The user is asking about {person_list}. ONLY use information from the context that specifically mentions {person_list}. DO NOT confuse information about {person_list} with information about other people mentioned in the context. If a context section mentions multiple people, only extract and use the information that pertains to {person_list}.\n"
                 
-                # Add list-specific instructions if this is a list question
+                # Simplified list instruction - clear and direct
                 list_instruction = ""
                 if is_list_request:
                     list_instruction = (
-                        "\n🚨 CRITICAL: This question asks for a LIST or MULTIPLE items. "
-                        "You MUST systematically process EVERY context section completely before finalizing your answer. "
-                        "PROCESSING METHOD - DO NOT SKIP ANY STEP: "
-                        "1. First, count how many context sections there are (sections are separated by '---' markers) "
-                        "2. Process Section 1 completely - read from beginning to end, sentence by sentence, identify ALL matching items, write them down. "
-                        "   EXAMPLE: If Section 1 lists multiple items like 'Item A is [relationship]. Item B is [relationship]. Item C is [relationship].', you must extract ALL matching items, not just one. "
-                        "3. Process Section 2 completely - read from beginning to end, sentence by sentence, identify ALL matching items, add them to your list. "
-                        "   Continue reading the ENTIRE section even after finding one match - there may be more matches later in the same section. "
-                        "   Count as you go: 'Found Y items so far in Section 2'. "
-                        "   If you find one matching item, keep reading - there may be another matching item mentioned later in the same section. "
-                        "   DO NOT stop after finding the first matching item in a section - read to the very end of that section.\n"
-                        "4. Process Section 3 completely (if present) - read from beginning to end, sentence by sentence, identify ALL matching items, add them to your list. "
-                        "5. Continue this for EVERY remaining section - process each one completely, reading every sentence to find ALL matches. "
-                        "6. ONLY AFTER processing ALL sections completely, compile your FINAL COMPLETE list with ALL items found across ALL sections "
-                        "Do NOT stop or conclude after processing just some sections - you MUST process ALL sections first. "
-                        "Missing even one item is a critical error - completeness is essential. "
-                        "Be extremely precise: Only include items with the EXACT relationship or category being asked about. "
-                        "Verify that each item matches the question's criteria exactly - if the question asks about a specific relationship to a specific entity, ensure the relationship explicitly connects to that exact entity mentioned in the question. "
-                        "CRITICAL EXCLUSION RULE: If an item has the same relationship type (e.g., 'co-founder', 'CEO', 'employee', 'manager') but with a DIFFERENT entity than the one asked about, EXCLUDE it. "
-                        "EXAMPLE: If the question asks 'Who are the co-founders of Company X?' and you see 'Person Y is Co-Founder of Company Z', you MUST EXCLUDE Person Y because they are a co-founder of Company Z, NOT Company X. "
-                        "Only include items where the relationship explicitly connects to the exact entity mentioned in the question. "
-                        "For relationship questions (co-founders, employees, managers, etc.), ONLY include people who have the EXACT relationship type and entity mentioned. "
-                        "EXCLUDE people who work FOR the company but don't have the exact relationship asked about. "
-                        "EXCLUDE people who have the relationship with a DIFFERENT entity. "
-                        "When listing people: Include titles/roles when mentioned. Be CONCISE (name and title/role only). "
-                        "\n"
-                        "🔥 ABSOLUTELY CRITICAL - READING ENTIRE CHUNKS: "
-                        "A single context section/chunk can contain MULTIPLE matching items. "
-                        "For example, one chunk might list multiple people with the same relationship: 'Person A is [Role] of [Entity]. Person B is [Role] of [Entity]. Person C is [Role] of [Entity].' "
-                        "In this case, you MUST extract ALL matching items from that single chunk, not just the first one. "
-                        "DO NOT stop reading after finding the first match - you MUST read the ENTIRE chunk from start to finish, sentence by sentence, to find EVERY matching item. "
-                        "Scan every sentence in every chunk completely before moving to the next chunk. "
-                        "If you find one matching item in a chunk, continue reading that same chunk to find any additional matching items. "
-                        "Only move to the next chunk after you have read the current chunk completely and extracted ALL matching items from it. "
-                        "Missing items because you stopped reading a chunk early is a critical error.\n"
-                        "\n"
-                        "🔢 COUNTING AND VERIFICATION METHOD: "
-                        "As you read each chunk, actively count how many matching items you find. "
-                        "After reading chunk 1, mentally note: 'Found X items in chunk 1'. "
-                        "After reading chunk 2, mentally note: 'Found Y items in chunk 2'. "
-                        "Continue counting for all chunks. "
-                        "BEFORE finalizing your answer, verify: Did you read EVERY sentence in EVERY chunk? "
-                        "If a chunk mentions multiple items with the same relationship (e.g., 'Person A is [Role]... Person B is [Role]... Person C is [Role]...'), you MUST count and include ALL of them, not just one or two. "
-                        "ONLY AFTER reading ALL chunks completely and counting ALL items, compile your final list. "
-                        "If you find 2 items in one chunk but the chunk continues with more sentences, keep reading - there may be a 3rd or 4th item further down. "
-                        "A single chunk can contain 3, 4, or even more matching items - you MUST read to the very end of each chunk.\n"
-                        "\n"
-                        "📝 FORMATTING INSTRUCTIONS: "
-                        "Format your answer as natural, conversational sentences - like you're speaking to someone. "
-                        "DO NOT use hyphens, dashes, or bullet points. "
-                        "DO NOT format as 'Name - Title' or 'Name - Name - Name'. "
-                        "Instead, use complete sentences like: 'The co-founders are [Name] who is [Title], [Name] who is [Title], [Name] who is [Title], and [Name] who is [Title].' "
-                        "Or use a natural list format: 'The co-founders include [Name] ([Title]), [Name] ([Title]), [Name] ([Title]), and [Name] ([Title]).' "
-                        "Speak naturally and conversationally, as if having a friendly conversation.\n"
-                        "\n"
-                        "❓ MANDATORY FOLLOW-UP QUESTION: "
-                        "Your response MUST end with a brief, natural follow-up question. This is REQUIRED - do not skip it. "
-                        "Examples: 'Would you like more information about any of these?' or 'Is there anything else I can help you with?' "
-                        "or 'Need more details on any of them?' Make it flow naturally with the conversation topic.\n"
+                        "\n📋 LIST QUESTION DETECTED:\n"
+                        "Read every section (separated by '---') completely from start to finish.\n"
+                        "DO NOT stop reading once you find a matching item - chunks can contain multiple matching items.\n"
+                        "Extract ALL items that match the question from EVERY section.\n"
+                        "A single section may contain multiple matching items - read the entire section completely to find them all.\n"
+                        "Format as: 'The [items] are [Name] ([Title]), [Name] ([Title]), and [Name] ([Title]).'\n"
+                        "End with a follow-up question.\n"
                     )
                 
                 # Build response length guideline - prioritize completeness for lists and debug mode
@@ -864,44 +812,28 @@ JSON array only:"""
                         "Make it flow naturally with the conversation topic. The follow-up question is in addition to your 2-3 sentence answer.\n"
                     )
                 
-                # Build structured reasoning instructions (only show structure in debug mode)
-                # In normal mode, LLM should think step-by-step internally but output naturally
+                # Simplified reasoning - only for debug mode
+                reasoning_instructions = ""
                 if SHOW_REASONING_DEBUG:
                     reasoning_instructions = (
                         "\n🧠 REASONING PROCESS:\n"
-                        "1. Think step-by-step - analyze the question and available context systematically\n"
-                        "2. Use only provided information - do not invent facts or guess\n"
-                        "3. If information is missing, state 'unknown' instead of guessing\n"
-                        "4. Identify any contradictions or conflicts in the provided information\n"
-                        "5. Structure your response as follows:\n"
-                        "   - Known Facts: List the key facts extracted from the context\n"
-                        "   - Reasoning Steps: Explain your step-by-step analysis process\n"
-                        "   - Conflicts/Missing Info: Note any contradictions or missing information\n"
-                        "   - Final Answer: Provide your complete answer based on the analysis\n"
-                        "   - Confidence: Rate your confidence (high/medium/low) based on information quality\n"
-                    )
-                else:
-                    # Normal mode: Think step-by-step internally but output naturally
-                    reasoning_instructions = (
-                        "\n🧠 REASONING PROCESS (internal - think step-by-step):\n"
-                        "1. Think step-by-step - analyze the question and available context systematically\n"
-                        "2. Use only provided information - do not invent facts or guess\n"
-                        "3. If information is missing, state 'unknown' instead of guessing\n"
-                        "4. Identify any contradictions or conflicts in the provided information\n"
-                        "5. Provide your answer naturally - do not include section headers like 'Known Facts' or 'Final Answer'\n"
+                        "1. Analyze the question and context systematically\n"
+                        "2. Use only provided information - do not invent facts\n"
+                        "3. Structure: Known Facts → Reasoning Steps → Conflicts/Missing Info → Final Answer → Confidence\n"
                     )
                 
-                # Build RAG chunk scoring instructions (if RAG context is present and debug mode)
-                rag_scoring_instructions = ""
-                if rag_context and SHOW_REASONING_DEBUG:
-                    rag_scoring_instructions = (
-                        "\n📊 RAG CHUNK EVALUATION:\n"
-                        "Evaluate the relevance of each context section (separated by '---'):\n"
-                        "- High relevance: Direct evidence that answers the question\n"
-                        "- Medium relevance: Related information but not directly answering\n"
-                        "- Low relevance: Not related to the question\n"
-                        "Note which sections contain the most relevant information for your answer.\n"
-                    )
+                rag_scoring_instructions = ""  # Removed for simplicity
+                
+                # Ultra-simplified RAG instructions - focus on reading and extracting
+                simple_instructions = (
+                    "\nINSTRUCTIONS:\n"
+                    "Read every section (separated by '---') completely from start to finish. "
+                    "DO NOT stop reading once you find relevant information - chunks can contain multiple instances of valuable information. "
+                    "Extract all information that answers the question from each section. "
+                    "For lists, find EVERY matching item in EVERY section - read each section completely to find all items. "
+                    "Format as natural sentences. "
+                    "End with a follow-up question.\n"
+                )
                 
                 system_content = (
                     f"{combined_context}\n\n"
@@ -909,40 +841,12 @@ JSON array only:"""
                     "You act as a proactive AI agent guiding users to better outcomes through gentle guidance.\n\n"
                     f"{memory_warning}"
                     f"{person_instruction}"
-                    f"{list_instruction}"
-                    f"{reasoning_instructions}"
-                    f"{rag_scoring_instructions}"
-                    "Instructions:\n"
-                    "- PRIMARY SOURCE: Use the 'Knowledge context' sections as your primary source - these contain the most authoritative information\n"
-                    "- Read ALL context sections THOROUGHLY from beginning to end - analyze each section carefully and in detail to ensure comprehensive coverage\n"
-                    "- Process each section that is separated by '---' systematically - go through them one by one, completely\n"
-                    "- Examine every sentence in every section to understand the full context and relationships\n"
-                    "- Do not skip any part - read each section completely from start to finish before moving to the next\n"
-                    "- Extract ALL information that directly answers the question - ensure thorough coverage of all relevant information to answer completely\n"
-                    "- For list questions: Process EVERY section separated by '---' completely. Scan each section from start to finish, sentence by sentence, to find EVERY item that matches. "
-                    "🔥 CRITICAL: A single section/chunk can contain MULTIPLE matching items (e.g., one chunk might list 3 co-founders). "
-                    "You MUST read the ENTIRE chunk completely before moving on - do NOT stop after finding one match. "
-                    "Read every sentence in the chunk to extract ALL matching items. "
-                    "Only move to the next chunk after you have read the current chunk completely and found ALL matching items in it. "
-                    "Missing any item because you stopped reading a chunk early is a serious error. List all items concisely.\n"
-                    "- Answer CONCISELY: Provide essential information in 2-3 sentences. "
-                    "Be brief but complete enough to answer the question. If more details are available, mention that you can provide more if asked.\n"
-                    "- Be extremely precise: Only include items with the EXACT relationship being asked about - look for exact phrases where the relationship type and entity name appear together\n"
-                    "- When identifying relationships: Verify that the relationship explicitly connects to the exact entity mentioned in the question - exclude similar relationships with different entities\n"
-                    "- CRITICAL: DO NOT repeat or echo the conversation history format (e.g., '[Previous conversation]' or timestamps) - use the information FROM the conversation history to answer the current question\n"
-                    "- Format your answer naturally and clearly as conversational sentences - NO hyphens, dashes, or bullet points\n"
-                    "- Include titles/roles when listing people\n"
-                    "- For lists: Format as natural sentences like 'The [items] are [Name] ([Title]), [Name] ([Title]), [Name] ([Title]), and [Name] ([Title]).' DO NOT use hyphens or dashes.\n"
+                    f"{simple_instructions}"
                     f"{response_length_guideline}"
-                    "\n"
-                    "🚨 FINAL REMINDER - MANDATORY: Your response MUST end with a brief follow-up question. "
-                    "Do NOT end your response without a question. Examples: 'Would you like more information?' "
-                    "or 'Is there anything else I can help you with?' This is REQUIRED for every response.\n"
                 )
                 
                 # Build user message - add structured reasoning format if debug enabled
-                # Add follow-up question requirement to user message for emphasis
-                user_content = f"{prompt}\n\nIMPORTANT: End your response with a brief follow-up question such as 'Would you like more information?' or 'Is there anything else I can help you with?'"
+                user_content = prompt
                 if SHOW_REASONING_DEBUG:
                     print(f"[Generic] 🔍 DEBUG MODE ENABLED - LLM will show structured reasoning (will be logged, not spoken)")
                     user_content = (
@@ -1274,6 +1178,19 @@ JSON array only:"""
     instruction_keywords = ['how to', 'how do i', 'steps', 'step by step', 'instructions', 'guide me', 'walk me through', 'show me how']
     is_instruction_request = any(keyword in prompt.lower() for keyword in instruction_keywords)
     
+    # Check if this is a conversational phrase (thank you, goodbye, etc.) - skip follow-up question
+    normalized_prompt_fallback = prompt.lower()
+    conversational_phrases_fallback = [
+        'thank you', 'thanks', 'thank', 'thanks a lot', 'thank you very much',
+        'goodbye', 'bye', 'see you', 'see ya', 'farewell',
+        'you\'re welcome', 'no problem', 'my pleasure', 'anytime',
+        'hello', 'hi', 'hey', 'greetings',
+        'ok', 'okay', 'sure', 'alright', 'got it', 'understood',
+        'yes', 'yeah', 'yep', 'no', 'nope',
+        'please', 'excuse me', 'sorry', 'pardon'
+    ]
+    is_conversational_fallback = any(phrase in normalized_prompt_fallback for phrase in conversational_phrases_fallback)
+    
     if is_instruction_request:
         system_prompt = (
             "You are Aura Vision, an AI agent created by Ledger AI Quantum Corporation. "
@@ -1283,7 +1200,17 @@ JSON array only:"""
             "Always end your response with a brief follow-up question such as: "
             "'Would you like more information about this?' or 'Is there anything else I can help you with?'"
         )
+    elif is_conversational_fallback:
+        # For non-conversational phrases (thank you, goodbye, etc.), just respond naturally without follow-up question
+        system_prompt = (
+            "You are Aura Vision, an AI agent created by Ledger AI Quantum Corporation. "
+            "You act as a proactive AI agent guiding users to better outcomes through gentle guidance.\n\n"
+            "Keep your response SHORT and natural - 1-2 sentences maximum. "
+            "Be friendly, helpful, and conversational. Respond naturally to the user's phrase. "
+            "Do NOT add a follow-up question - just respond appropriately to what they said."
+        )
     else:
+        # For conversational queries (actual questions), include follow-up question
         system_prompt = (
             "You are Aura Vision, an AI agent created by Ledger AI Quantum Corporation. "
             "You act as a proactive AI agent guiding users to better outcomes through gentle guidance.\n\n"
@@ -1310,7 +1237,7 @@ JSON array only:"""
         },
         {
             "role": "user",
-            "content": f"{prompt}\n\nIMPORTANT: End your response with a brief follow-up question such as 'Would you like more information?' or 'Is there anything else I can help you with?'",
+            "content": prompt,
         },
     ]
     
