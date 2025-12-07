@@ -947,7 +947,10 @@ JSON array only:"""
                         f"For relationship questions, explicitly state: (1) what relationship is stated in text, (2) what entity is mentioned, "
                         f"(3) whether it matches the query. If text says '[Role] at Entity' but NOT '[relationship] of Entity', state that explicitly.]\n"
                         f"   - Include? YES/NO\n"
-                        f"7. After scoring all candidates, provide your final answer with only HIGH scores.\n\n"
+                        f"7. After scoring all candidates, provide your final answer with only HIGH scores.\n"
+                        f"   CRITICAL: For list questions, you MUST include ALL items that score HIGH.\n"
+                        f"   Read through ALL chunks completely to find EVERY matching item.\n"
+                        f"   Do not stop after finding a few items - continue reading to find all of them.\n\n"
                         f"Example format:\n"
                         f"---SCORING---\n"
                         f"Item 1: [Name/Description]\n"
@@ -961,7 +964,7 @@ JSON array only:"""
                         f"Reason: Information is related but doesn't directly answer the query\n"
                         f"Include: NO\n"
                         f"---END SCORING---\n\n"
-                        f"Now answer: {prompt}"
+                        f"Now provide your answer with ALL HIGH-scoring items: {prompt}"
                     )
                 elif SHOW_REASONING_DEBUG:
                     print(f"[Generic] 🔍 DEBUG MODE ENABLED - LLM will show structured reasoning (will be logged, not spoken)")
@@ -1125,18 +1128,21 @@ JSON array only:"""
                     
                     # Early detection: If buffer contains scoring patterns, don't yield until we find the answer
                     if not answer_started:
-                        # Check for scoring markers or patterns
-                        if re.search(r'\b(SCORING|Item\s+\d+|Person\s+\d+|Score:|Include:|Reason:|Text:)\b', buffer, re.IGNORECASE):
+                        # Check for scoring markers or patterns (including "Final Answer:" which is still part of scoring format)
+                        if re.search(r'\b(SCORING|Item\s+\d+|Person\s+\d+|Score:|Include:|Reason:|Text:|Final\s+Answer:)\b', buffer, re.IGNORECASE):
                             in_scoring_section = True
                         
-                        # Check if we've reached the actual answer
-                        if re.search(r'\b(The\s+co-founders|The\s+founders|Ledger\s+AI[\'"]?s\s+co-founders|co-founders\s+are|founders\s+are|The\s+[A-Z][a-z]+\s+co-founders)\b', buffer, re.IGNORECASE):
+                        # Check if we've reached the actual answer (after "Final Answer:" marker)
+                        # Look for the actual list starting with "The co-founders" or a numbered list
+                        if re.search(r'\b(The\s+co-founders|The\s+founders|Ledger\s+AI[\'"]?s\s+co-founders|co-founders\s+are|founders\s+are|The\s+[A-Z][a-z]+\s+co-founders|^\d+\.\s+[A-Z][a-z]+)\b', buffer, re.IGNORECASE | re.MULTILINE):
                             answer_started = True
                             in_scoring_section = False
-                            # Extract only the answer part
-                            answer_match = re.search(r'\b(The\s+co-founders|The\s+founders|Ledger\s+AI[\'"]?s\s+co-founders|co-founders\s+are|founders\s+are|The\s+[A-Z][a-z]+\s+co-founders)\b', buffer, re.IGNORECASE)
+                            # Extract only the answer part - find the actual list start
+                            answer_match = re.search(r'\b(The\s+co-founders|The\s+founders|Ledger\s+AI[\'"]?s\s+co-founders|co-founders\s+are|founders\s+are|The\s+[A-Z][a-z]+\s+co-founders|^\d+\.\s+[A-Z][a-z]+)\b', buffer, re.IGNORECASE | re.MULTILINE)
                             if answer_match:
                                 buffer = buffer[answer_match.start():]
+                            # Also remove "Final Answer:" if it's still there
+                            buffer = re.sub(r'Final\s+Answer:\s*', '', buffer, flags=re.IGNORECASE)
                         
                         # If still in scoring section, don't yield
                         if in_scoring_section and not answer_started:
@@ -1257,6 +1263,11 @@ JSON array only:"""
                     buffer = re.sub(r'Score:\s*(HIGH|MEDIUM|LOW).*?(?=\n|$)', '', buffer, flags=re.IGNORECASE | re.MULTILINE)
                     buffer = re.sub(r'Include:\s*(YES|NO).*?(?=\n|$)', '', buffer, flags=re.IGNORECASE | re.MULTILINE)
                     buffer = re.sub(r'Reason:.*?(?=\n|$)', '', buffer, flags=re.IGNORECASE | re.MULTILINE)
+                    
+                    # Remove scoring markers
+                    buffer = re.sub(r'-*\s*SCORING\s*-*', '', buffer, flags=re.IGNORECASE)
+                    buffer = re.sub(r'-*\s*END\s+SCORING\s*-*', '', buffer, flags=re.IGNORECASE)
+                    buffer = re.sub(r'Final\s+Answer:\s*', '', buffer, flags=re.IGNORECASE)
                     
                     # Remove any standalone scoring keywords that might have leaked through
                     buffer = re.sub(r'\b(Item\s+\d+|Person\s+\d+|Score:|Include:|Reason:|Text:)\b', '', buffer, flags=re.IGNORECASE)
@@ -1393,18 +1404,21 @@ JSON array only:"""
                     
                     # Early detection: If buffer contains scoring patterns, don't yield until we find the answer
                     if not answer_started_debug:
-                        # Check for scoring markers or patterns
-                        if re.search(r'\b(SCORING|Item\s+\d+|Person\s+\d+|Score:|Include:|Reason:|Text:)\b', buffer, re.IGNORECASE):
+                        # Check for scoring markers or patterns (including "Final Answer:" which is still part of scoring format)
+                        if re.search(r'\b(SCORING|Item\s+\d+|Person\s+\d+|Score:|Include:|Reason:|Text:|Final\s+Answer:)\b', buffer, re.IGNORECASE):
                             in_scoring_section_debug = True
                         
-                        # Check if we've reached the actual answer
-                        if re.search(r'\b(The\s+co-founders|The\s+founders|Ledger\s+AI[\'"]?s\s+co-founders|co-founders\s+are|founders\s+are|The\s+[A-Z][a-z]+\s+co-founders)\b', buffer, re.IGNORECASE):
+                        # Check if we've reached the actual answer (after "Final Answer:" marker)
+                        # Look for the actual list starting with "The co-founders" or a numbered list
+                        if re.search(r'\b(The\s+co-founders|The\s+founders|Ledger\s+AI[\'"]?s\s+co-founders|co-founders\s+are|founders\s+are|The\s+[A-Z][a-z]+\s+co-founders|^\d+\.\s+[A-Z][a-z]+)\b', buffer, re.IGNORECASE | re.MULTILINE):
                             answer_started_debug = True
                             in_scoring_section_debug = False
-                            # Extract only the answer part
-                            answer_match = re.search(r'\b(The\s+co-founders|The\s+founders|Ledger\s+AI[\'"]?s\s+co-founders|co-founders\s+are|founders\s+are|The\s+[A-Z][a-z]+\s+co-founders)\b', buffer, re.IGNORECASE)
+                            # Extract only the answer part - find the actual list start
+                            answer_match = re.search(r'\b(The\s+co-founders|The\s+founders|Ledger\s+AI[\'"]?s\s+co-founders|co-founders\s+are|founders\s+are|The\s+[A-Z][a-z]+\s+co-founders|^\d+\.\s+[A-Z][a-z]+)\b', buffer, re.IGNORECASE | re.MULTILINE)
                             if answer_match:
                                 buffer = buffer[answer_match.start():]
+                            # Also remove "Final Answer:" if it's still there
+                            buffer = re.sub(r'Final\s+Answer:\s*', '', buffer, flags=re.IGNORECASE)
                         
                         # If still in scoring section, don't yield
                         if in_scoring_section_debug and not answer_started_debug:
