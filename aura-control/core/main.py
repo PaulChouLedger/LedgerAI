@@ -124,8 +124,10 @@ print = debug_print
 print(f"[Aura] 📋 Loading config from: {dotenv_path}")
 
 # === Whisper Container Configuration ===
-# Using faster-whisper with distil-small.en model
-WHISPER_DESCRIPTION = "faster-whisper with distil-small.en"
+# Whisper model is configured via app_settings.json (not .env - that's only for API keys)
+from state import get_whisper_model
+WHISPER_MODEL = get_whisper_model()
+WHISPER_DESCRIPTION = f"faster-whisper with {WHISPER_MODEL}"
 
 print(f"[Aura] 🎤 Whisper container: {WHISPER_DESCRIPTION}")
 
@@ -806,11 +808,17 @@ def start_services():
             # Use --build to ensure code changes are picked up (rebuilds if files changed)
             # Note: Docker will use cache if files haven't changed, but will rebuild if they have
             # Force rebuild for memory container if code files changed (Docker cache might prevent rebuild)
+            # Set WHISPER_MODEL environment variable from app_settings.json before starting containers
+            whisper_model = get_whisper_model()
+            env = os.environ.copy()
+            env["WHISPER_MODEL"] = whisper_model
+            
             cmd = ["docker", "compose", "up", "-d", "--build", "--force-recreate"] + services_to_start
             
             result = subprocess.run(
                 cmd,
                 cwd=setup_dir,
+                env=env,
                 capture_output=True,
                 text=True
             )

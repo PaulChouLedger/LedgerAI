@@ -52,6 +52,7 @@ _wake_word_model_path = None  # Optional path to custom model file
 _wake_word_engine = "openwakeword"  # Wake word engine: "openwakeword"
 _tts_engine = "elevenlabs"  # TTS engine: "chatterbox" or "elevenlabs"
 _chatterbox_voice_cloning_enabled = True  # Enable voice cloning for ChatterboxTTS (adds ~50-100ms latency)
+_whisper_model = "distil-whisper/distil-large-v3.5-ct2"  # Whisper model name (default: best accuracy/speed balance)
 
 def _save_settings_to_disk():
     """Save current settings to disk"""
@@ -65,7 +66,8 @@ def _save_settings_to_disk():
             "wake_word_sensitivity": _wake_word_sensitivity,
             "wake_word_engine": _wake_word_engine,
             "tts_engine": _tts_engine,
-            "chatterbox_voice_cloning_enabled": _chatterbox_voice_cloning_enabled
+            "chatterbox_voice_cloning_enabled": _chatterbox_voice_cloning_enabled,
+            "whisper_model": _whisper_model
         }
         if _wake_word_model_path:
             settings_data["wake_word_model_path"] = _wake_word_model_path
@@ -76,7 +78,7 @@ def _save_settings_to_disk():
 
 def _load_settings_from_disk():
     """Load settings from disk, creating default file if it doesn't exist"""
-    global _llm_mode, _llm_model, _wake_word_enabled, _wake_word_sensitivity, _wake_word_model_path, _wake_word_engine, _tts_engine, _chatterbox_voice_cloning_enabled
+    global _llm_mode, _llm_model, _wake_word_enabled, _wake_word_sensitivity, _wake_word_model_path, _wake_word_engine, _tts_engine, _chatterbox_voice_cloning_enabled, _whisper_model
     try:
         import json
         with open(_settings_file, "r") as f:
@@ -89,6 +91,7 @@ def _load_settings_from_disk():
             _wake_word_engine = data.get("wake_word_engine", _wake_word_engine)
             _tts_engine = data.get("tts_engine", _tts_engine)
             _chatterbox_voice_cloning_enabled = data.get("chatterbox_voice_cloning_enabled", _chatterbox_voice_cloning_enabled)
+            _whisper_model = data.get("whisper_model", _whisper_model)
     except FileNotFoundError:
         # File doesn't exist - use defaults and create it
         _save_settings_to_disk()
@@ -184,6 +187,21 @@ def set_chatterbox_voice_cloning_enabled(enabled: bool):
     """Enable or disable voice cloning for ChatterboxTTS (adds ~50-100ms latency)."""
     global _chatterbox_voice_cloning_enabled
     _chatterbox_voice_cloning_enabled = bool(enabled)
+    _save_settings_to_disk()
+
+# === Whisper Model Settings ===
+def get_whisper_model() -> str:
+    """Return Whisper model name (e.g., 'distil-whisper/distil-large-v3.5-ct2')."""
+    return _whisper_model
+
+def set_whisper_model(model: str):
+    """Set Whisper model name.
+    
+    Options: "distil-small.en", "small.en", "medium.en", "base.en", 
+             "large-v3-turbo", "distil-large-v3", "distil-whisper/distil-large-v3.5-ct2"
+    """
+    global _whisper_model
+    _whisper_model = model or "distil-whisper/distil-large-v3.5-ct2"
     _save_settings_to_disk()
 
 

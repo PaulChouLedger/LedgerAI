@@ -137,6 +137,286 @@ def llm_chat_simple(messages, max_tokens=None, temperature=None, stream=False, *
     result = base_container.llm_chat_simple(messages, max_tokens, temperature, stream, **kwargs)
     return result
 
+# === RAG Chunk Filtering ===
+# Cache for sentence transformer model (lazy loading)
+_semantic_model = None
+
+def _get_semantic_model():
+    """Lazy load sentence transformer model for semantic similarity"""
+    global _semantic_model
+    if _semantic_model is None:
+        try:
+            from sentence_transformers import SentenceTransformer
+            _semantic_model = SentenceTransformer('all-distilroberta-v1')
+            print("[Generic] ✅ Loaded semantic model for chunk filtering")
+        except Exception as e:
+            print(f"[Generic] ⚠️ Failed to load semantic model: {e}, using substring matching only")
+            _semantic_model = False  # Mark as failed to avoid retrying
+    return _semantic_model if _semantic_model is not False else None
+
+def extract_relevant_substrings(text: str, query: str, entity_names: list = None, use_semantic: bool = True) -> str:
+    """
+    Extract sentences/paragraphs from text that are relevant to the query using:
+    1. Substring matching (direct matches for query terms and entity names)
+    2. Semantic similarity (related/relevant information)
+    
+    This is more inclusive - includes both direct matches and semantically related content.
+    The LLM will do final scoring to determine what to include in the answer.
+    
+    Args:
+        text: Full chunk text to filter
+        query: Original user query
+        entity_names: List of entity names to look for (e.g., ["LedgerAI", "Ledger AI"])
+        use_semantic: Whether to use semantic similarity (default: True)
+    
+    Returns:
+        Filtered text containing relevant sentences/paragraphs (both direct matches and semantically related)
+    """
+    import re
+    import numpy as np
+    
+    if not text or not query:
+        return text
+    
+    # Extract key query terms (co-founder, founder, etc.)
+    query_lower = query.lower()
+    query_terms = []
+    
+    # Look for relationship terms
+    relationship_patterns = [
+        r'\bco-?founder\w*\b',
+        r'\bfounder\w*\b',
+        r'\bco-?found\w*\b',
+        r'\bemployee\w*\b',
+        r'\bmanager\w*\b',
+        r'\bdirector\w*\b',
+        r'\bofficer\w*\b',
+        r'\bceo\b',
+        r'\bcfo\b',
+        r'\bcto\b',
+        r'\bambassador\w*\b',
+    ]
+    
+    for pattern in relationship_patterns:
+        matches = re.findall(pattern, query_lower, re.IGNORECASE)
+        query_terms.extend([m.lower() for m in matches])
+    
+    # If no relationship terms found, extract important words from query
+    if not query_terms:
+        # Extract words that are likely important (3+ chars, not common words)
+        common_words = {'the', 'are', 'who', 'what', 'where', 'when', 'how', 'is', 'at', 'of', 'and', 'or'}
+        words = re.findall(r'\b\w{3,}\b', query_lower)
+        query_terms = [w for w in words if w not in common_words][:5]  # Top 5 important words
+    
+    # Extract entity names from query if not provided
+    if entity_names is None:
+        entity_names = []
+        # Look for capitalized phrases (likely entity names)
+        entity_patterns = [
+            r'\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)+\b',  # "Ledger AI", "Company Name"
+            r'\b[A-Z][a-z]+[A-Z][a-z]+\b',  # "LedgerAI" (camelCase)
+        ]
+        for pattern in entity_patterns:
+            matches = re.findall(pattern, query)
+            entity_names.extend(matches)
+    
+    # Normalize entity names (remove duplicates, handle variations)
+    entity_names = list(set([e.lower() for e in entity_names if len(e) > 2]))
+    
+    # If no entity names found, try to extract from common patterns
+    if not entity_names:
+        # Look for "of X" or "at X" patterns
+        of_pattern = r'\bof\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b'
+        at_pattern = r'\bat\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b'
+        matches = re.findall(of_pattern, query, re.IGNORECASE) + re.findall(at_pattern, query, re.IGNORECASE)
+        entity_names = [m.lower() for m in matches if len(m) > 2]
+    
+    # Split text into sentences and paragraphs
+    sentences = re.split(r'([.!?]\s+)', text)
+    # Recombine sentences with their punctuation
+    sentences = [sentences[i] + (sentences[i+1] if i+1 < len(sentences) else '') 
+                 for i in range(0, len(sentences), 2)]
+    sentences = [s.strip() for s in sentences if s.strip()]
+    
+    # Also try paragraph-level extraction (split by double newlines)
+    paragraphs = re.split(r'\n\n+', text)
+    paragraphs = [p.strip() for p in paragraphs if p.strip()]
+    
+    # Collect all candidate parts (sentences and paragraphs)
+    candidates = []
+    for s in sentences:
+        if len(s) > 10:  # Only consider substantial sentences
+            candidates.append(('sentence', s))
+    for p in paragraphs:
+        if len(p) > 20:  # Only consider substantial paragraphs
+            candidates.append(('paragraph', p))
+    
+    if not candidates:
+        return text
+    
+    # Score each candidate using both substring and semantic matching
+    scored_candidates = []
+    
+    # Get semantic model if available
+    semantic_model = _get_semantic_model() if use_semantic else None
+    
+    # Compute query embedding once if using semantic matching
+    query_embedding = None
+    if semantic_model:
+        try:
+            query_embedding = semantic_model.encode([query], convert_to_numpy=True)[0]
+        except Exception as e:
+            print(f"[Generic] ⚠️ Semantic encoding failed: {e}, using substring matching only")
+            semantic_model = None
+    
+    for candidate_type, candidate_text in candidates:
+        candidate_lower = candidate_text.lower()
+        
+        # Substring matching score
+        substring_score = 0.0
+        has_query_term = False
+        has_entity = False
+        
+        if query_terms:
+            for term in query_terms:
+                if term in candidate_lower:
+                    substring_score += 0.3
+                    has_query_term = True
+        
+        if entity_names:
+            for entity in entity_names:
+                if entity in candidate_lower:
+                    substring_score += 0.4
+                    has_entity = True
+        
+        # Bonus for having both query term and entity (direct match)
+        if has_query_term and has_entity:
+            substring_score += 0.3
+        
+        # Semantic similarity score
+        semantic_score = 0.0
+        if semantic_model and query_embedding is not None:
+            try:
+                candidate_embedding = semantic_model.encode([candidate_text], convert_to_numpy=True)[0]
+                # Cosine similarity
+                similarity = np.dot(query_embedding, candidate_embedding) / (
+                    np.linalg.norm(query_embedding) * np.linalg.norm(candidate_embedding)
+                )
+                semantic_score = max(0.0, similarity)  # Normalize to 0-1
+            except Exception as e:
+                # If semantic encoding fails, just use substring score
+                pass
+        
+        # Combined score (weighted: 60% substring, 40% semantic)
+        # This ensures we get both direct matches and related content
+        combined_score = (substring_score * 0.6) + (semantic_score * 0.4)
+        
+        scored_candidates.append({
+            'text': candidate_text,
+            'type': candidate_type,
+            'substring_score': substring_score,
+            'semantic_score': semantic_score,
+            'combined_score': combined_score
+        })
+    
+    # Sort by combined score (highest first)
+    scored_candidates.sort(key=lambda x: x['combined_score'], reverse=True)
+    
+    # Include candidates that meet threshold (be inclusive - let LLM do final filtering)
+    # Lower threshold to include both direct matches and semantically related content
+    threshold = 0.15  # Low threshold to be inclusive
+    relevant_parts = []
+    
+    for candidate in scored_candidates:
+        if candidate['combined_score'] >= threshold:
+            # Avoid duplicates
+            if candidate['text'] not in relevant_parts:
+                relevant_parts.append(candidate['text'])
+    
+    # If we found relevant parts, join them; otherwise return original
+    if relevant_parts:
+        filtered_text = ' '.join(relevant_parts)
+        # Ensure we have reasonable amount of context
+        if len(filtered_text) < 50:
+            # Too short, return original to avoid losing all context
+            return text
+        return filtered_text
+    else:
+        # No matches found - return original text (better to have some context than none)
+        return text
+
+# === Filler Phrases ===
+def get_filler_phrase() -> str:
+    """
+    Extract only sentences/paragraphs from text that contain both query terms and entity names.
+    This helps filter out irrelevant information before passing to LLM.
+    
+    Args:
+        text: Full chunk text to filter
+        query: Original user query
+        entity_names: List of entity names to look for (e.g., ["LedgerAI", "Ledger AI"])
+    
+    Returns:
+        Filtered text containing only relevant sentences/paragraphs
+    """
+    import re
+    
+    if not text or not query:
+        return text
+    
+    # Extract key query terms (co-founder, founder, etc.)
+    query_lower = query.lower()
+    query_terms = []
+    
+    # Look for relationship terms
+    relationship_patterns = [
+        r'\bco-?founder\w*\b',
+        r'\bfounder\w*\b',
+        r'\bco-?found\w*\b',
+        r'\bemployee\w*\b',
+        r'\bmanager\w*\b',
+        r'\bdirector\w*\b',
+        r'\bofficer\w*\b',
+        r'\bceo\b',
+        r'\bcfo\b',
+        r'\bcto\b',
+        r'\bambassador\w*\b',
+    ]
+    
+    for pattern in relationship_patterns:
+        matches = re.findall(pattern, query_lower, re.IGNORECASE)
+        query_terms.extend([m.lower() for m in matches])
+    
+    # If no relationship terms found, extract important words from query
+    if not query_terms:
+        # Extract words that are likely important (3+ chars, not common words)
+        common_words = {'the', 'are', 'who', 'what', 'where', 'when', 'how', 'is', 'at', 'of', 'and', 'or'}
+        words = re.findall(r'\b\w{3,}\b', query_lower)
+        query_terms = [w for w in words if w not in common_words][:5]  # Top 5 important words
+    
+    # Extract entity names from query if not provided
+    if entity_names is None:
+        entity_names = []
+        # Look for capitalized phrases (likely entity names)
+        entity_patterns = [
+            r'\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)+\b',  # "Ledger AI", "Company Name"
+            r'\b[A-Z]{2,}\b',  # "AI", "LLC", etc.
+        ]
+        for pattern in entity_patterns:
+            matches = re.findall(pattern, query)
+            entity_names.extend(matches)
+    
+    # Normalize entity names (remove duplicates, handle variations)
+    entity_names = list(set([e.lower() for e in entity_names if len(e) > 2]))
+    
+    # If no entity names found, try to extract from common patterns
+    if not entity_names:
+        # Look for "of X" or "at X" patterns
+        of_pattern = r'\bof\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b'
+        at_pattern = r'\bat\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b'
+        matches = re.findall(of_pattern, query, re.IGNORECASE) + re.findall(at_pattern, query, re.IGNORECASE)
+        entity_names = [m.lower() for m in matches if len(m) > 2]
+    
 # === Filler Phrases ===
 def get_filler_phrase() -> str:
     """Get a random filler phrase to use while processing (reduces perceived latency)"""
@@ -556,6 +836,34 @@ JSON array only:"""
                             else:
                                 source_name = metadata.get('document_name', 'unknown')
                         
+                        # For relationship/list queries, extract only relevant substrings that contain both query terms and entity
+                        if is_list_query or any(term in prompt.lower() for term in ['co-founder', 'founder', 'employee', 'manager', 'director', 'officer']):
+                            # Extract entity names from query (e.g., "LedgerAI", "Ledger AI")
+                            entity_names = []
+                            # Look for capitalized phrases (likely entity names)
+                            entity_patterns = [
+                                r'\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)+\b',  # "Ledger AI", "Company Name"
+                                r'\b[A-Z][a-z]+[A-Z][a-z]+\b',  # "LedgerAI" (camelCase)
+                            ]
+                            for pattern in entity_patterns:
+                                matches = re.findall(pattern, prompt)
+                                entity_names.extend(matches)
+                            # Also look for "of X" or "at X" patterns
+                            of_pattern = r'\bof\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b'
+                            at_pattern = r'\bat\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b'
+                            matches = re.findall(of_pattern, prompt, re.IGNORECASE) + re.findall(at_pattern, prompt, re.IGNORECASE)
+                            entity_names.extend(matches)
+                            entity_names = list(set([e for e in entity_names if len(e) > 2]))
+                            
+                            # Filter text to only include sentences/paragraphs with both query terms and entity
+                            original_len = len(text)
+                            text = extract_relevant_substrings(text, prompt, entity_names if entity_names else None)
+                            if text:  # Only process if we have filtered content
+                                print(f"[Generic] 🔍 Filtered chunk {i}: {len(text)} chars (from {original_len} chars, extracted relevant substrings)")
+                            else:
+                                print(f"[Generic] ⚠️ Chunk {i}: No relevant substrings found (no match for query terms + entity), skipping")
+                                continue  # Skip this chunk if no relevant content
+                        
                         # For list queries, don't truncate - we need full chunks to extract all items
                         # Only truncate if extremely long (let LLM handle most filtering)
                         if not is_list_query and len(text) > MAX_CHARS_PER_RESULT:
@@ -934,36 +1242,60 @@ JSON array only:"""
                         f"   - If text says '[relationship] of Entity B' (different entity), that is MEDIUM/LOW score, not HIGH.\n"
                         f"   - Example: Query asks 'co-founders of Company X'. Text says 'Co-Founder of Company Y' = MEDIUM (wrong entity).\n"
                         f"4. CRITICAL: Read the COMPLETE sentence/paragraph about each person before scoring.\n"
-                        f"   - If text says 'Person X is [Role] at Entity A' but does NOT say 'Co-Founder of Entity A', that is MEDIUM/LOW.\n"
+                        f"   - If text says 'Person X is [Role] at Entity A' but does NOT say 'Co-Founder of Entity A', that is LOW (complete mismatch).\n"
                         f"   - Do NOT assume someone is a co-founder just because they work at the entity.\n"
                         f"   - Only score HIGH if text EXPLICITLY states the exact relationship to the exact entity.\n"
-                        f"   - Example: Text says 'Person X is Business Development Lead at Company X' = MEDIUM (not co-founder).\n"
+                        f"   - For co-founder questions: ONLY 'Co-Founder', 'Co Founder', 'Founder', or 'Co-Founded' roles score HIGH.\n"
+                        f"   - Other roles like 'Ambassador', 'Business Development Lead', 'Officer', 'Director', 'Manager', 'Employee' = LOW (NOT co-founders, complete mismatch with query).\n"
+                        f"   - MEDIUM should only be used for edge cases with partial relevance (e.g., text mentions person in relation to entity but role is unclear).\n"
+                        f"   - Example: Text says 'Person X is Business Development Lead at Company X' = LOW (not co-founder, complete mismatch).\n"
+                        f"   - Example: Text says 'Person X is Ambassador of Influence at Company X' = LOW (not co-founder, complete mismatch).\n"
+                        f"   - Example: Text says 'Person X is Co-Founder and CFO of Company X' = HIGH (explicitly states co-founder).\n"
+                        f"   - Example: Text says 'Person X is Chief Financial Officer of Company X' = LOW (CFO, not co-founder, complete mismatch).\n"
                         f"5. List EVERY item/person/entity you found in the context that might match the query.\n"
                         f"6. For EACH item, show:\n"
                         f"   - Name/Item: [Name or description]\n"
                         f"   - Text found: [Exact quote from context - read the ENTIRE relevant sentence/paragraph]\n"
                         f"   - Score: HIGH/MEDIUM/LOW\n"
                         f"   - Reason: [Why this score - be specific about what information is stated in text vs. what was asked in the query. "
-                        f"For relationship questions, explicitly state: (1) what relationship is stated in text, (2) what entity is mentioned, "
-                        f"(3) whether it matches the query. If text says '[Role] at Entity' but NOT '[relationship] of Entity', state that explicitly.]\n"
+                        f"For relationship questions, explicitly state: (1) what relationship/role is stated in text (e.g., 'Co-Founder', 'Ambassador', 'CFO', 'Business Development Lead'), "
+                        f"(2) what entity is mentioned, (3) whether the role matches the query. "
+                        f"CRITICAL: If the query asks for 'co-founders' but the text says a different role (like 'Ambassador', 'Business Development Lead', 'CFO', etc.), "
+                        f"you MUST state that explicitly and score LOW (complete mismatch), NOT HIGH or MEDIUM. "
+                        f"Only score HIGH if the text EXPLICITLY says 'Co-Founder', 'Co Founder', 'Founder', or 'Co-Founded' for the exact entity in the query. "
+                        f"MEDIUM should only be used for edge cases with partial relevance where the role is unclear or ambiguous.]\n"
                         f"   - Include? YES/NO\n"
                         f"7. After scoring all candidates, provide your final answer with only HIGH scores.\n"
                         f"   CRITICAL: For list questions, you MUST include ALL items that score HIGH.\n"
+                        f"   CRITICAL: Do NOT include items that score MEDIUM or LOW, even if they work at the entity.\n"
+                        f"   CRITICAL: For co-founder questions, ONLY include people whose role is explicitly stated as 'Co-Founder', 'Co Founder', 'Founder', or 'Co-Founded'.\n"
+                        f"   Do NOT include people with other roles like Ambassador, Business Development Lead, Officer, Director, Manager, etc. - these are NOT co-founders and should score LOW (complete mismatch).\n"
+                        f"   Remember: If someone is not a co-founder, they do NOT match the query at all - score them LOW, not MEDIUM.\n"
                         f"   Read through ALL chunks completely to find EVERY matching item.\n"
                         f"   Do not stop after finding a few items - continue reading to find all of them.\n\n"
                         f"Example format:\n"
                         f"---SCORING---\n"
-                        f"Item 1: [Name/Description]\n"
-                        f"Text: '[Exact quote from context]'\n"
+                        f"Item 1: Bob Carella\n"
+                        f"Text: 'Bob Carella is Co-Founder and Chief Financial Officer of LedgerAI'\n"
                         f"Score: HIGH\n"
-                        f"Reason: Text explicitly states information that directly answers the query\n"
+                        f"Reason: Text explicitly states 'Co-Founder' of LedgerAI, which directly matches the query asking for co-founders\n"
                         f"Include: YES\n\n"
-                        f"Item 2: [Name/Description]\n"
-                        f"Text: '[Exact quote from context]'\n"
-                        f"Score: MEDIUM\n"
-                        f"Reason: Information is related but doesn't directly answer the query\n"
+                        f"Item 2: Liam Hugill\n"
+                        f"Text: 'Liam Hugill is Ambassador of Influence and Engagement at LedgerAI'\n"
+                        f"Score: LOW\n"
+                        f"Reason: Text states 'Ambassador' role at LedgerAI, NOT 'Co-Founder'. The query asks for co-founders, but this person has a completely different role. "
+                        f"This is a complete mismatch - working at the entity does not make someone a co-founder. Only explicit 'Co-Founder' or 'Founder' roles qualify.\n"
+                        f"Include: NO\n\n"
+                        f"Item 3: Peter Moeller\n"
+                        f"Text: 'Peter Moeller is Business Development Lead at LedgerAI'\n"
+                        f"Score: LOW\n"
+                        f"Reason: Text states 'Business Development Lead' role at LedgerAI, NOT 'Co-Founder'. The query asks for co-founders, but this person has a completely different role. "
+                        f"This is a complete mismatch with the query.\n"
                         f"Include: NO\n"
                         f"---END SCORING---\n\n"
+                        f"CRITICAL: After the scoring section, provide ONLY your final answer. Do NOT include any scoring format markers (Item X:, Text:, Score:, Include:, Reason:) in your answer.\n"
+                        f"Your answer should be natural conversational text, formatted as complete sentences.\n"
+                        f"For lists, format as: 'The co-founders are [Name] ([Title]), [Name] ([Title]), and [Name] ([Title]).'\n"
                         f"Now provide your answer with ALL HIGH-scoring items: {prompt}"
                     )
                 elif SHOW_REASONING_DEBUG:
@@ -1133,22 +1465,57 @@ JSON array only:"""
                         if re.search(r'\b(SCORING|Item\s+\d+|Person\s+\d+|Score:|Include:|Reason:|Text:|Final\s+Answer:)\b', accumulated_buffer, re.IGNORECASE):
                             in_scoring_section = True
                         
-                        # Check if we've reached the actual answer (after "Final Answer:" marker)
-                        # Look for the actual list starting with "The co-founders" or a numbered list like "1. Paul" or "Paul Chou"
-                        answer_pattern = r'\b(The\s+co-founders|The\s+founders|Ledger\s+AI[\'"]?s\s+co-founders|co-founders\s+are|founders\s+are|The\s+[A-Z][a-z]+\s+co-founders)\b|^\d+\.\s+[A-Z][a-z]+\s+[A-Z][a-z]+'
-                        if re.search(answer_pattern, accumulated_buffer, re.IGNORECASE | re.MULTILINE):
-                            answer_started = True
-                            in_scoring_section = False
-                            # Extract only the answer part - find the actual list start
-                            answer_match = re.search(answer_pattern, accumulated_buffer, re.IGNORECASE | re.MULTILINE)
-                            if answer_match:
-                                accumulated_buffer = accumulated_buffer[answer_match.start():]
-                            # Also remove "Final Answer:" if it's still there
-                            accumulated_buffer = re.sub(r'Final\s+Answer:\s*', '', accumulated_buffer, flags=re.IGNORECASE)
-                            # Now set buffer to the cleaned answer and continue processing
-                            buffer = accumulated_buffer
-                            # Continue to process this chunk and subsequent chunks normally
-                        else:
+                        # Check if we've reached the actual answer (after "Final Answer:" marker or after scoring section)
+                        # Look for the actual list starting with "The co-founders" or a numbered list like "1. Paul" or just "Paul Chou" (first name in list)
+                        # Also check for patterns that indicate we're past scoring: "The co-founders", "are:", "include:", etc.
+                        # IMPORTANT: Also detect when scoring format is mixed with answer (e.g., "Item 1: NameText:'Name is description'")
+                        # In this case, look for pattern like "[Name] is [description]" which indicates the actual answer content
+                        answer_patterns = [
+                            r'\bThe\s+co-founders\s+(of|are)',
+                            r'\bco-founders\s+(of|are)',
+                            r'\bfounders\s+(of|are)',
+                            r'^\d+\.\s+[A-Z][a-z]+\s+[A-Z][a-z]+',  # "1. Paul Chou"
+                            r'^[A-Z][a-z]+\s+[A-Z][a-z]+\s+\(',  # "Paul Chou (Co-Founder"
+                            r'^[A-Z][a-z]+\s+[A-Z][a-z]+\s+is\s+a\s+co-founder',  # "Paul Chou is a co-founder"
+                            # Detect when answer content appears after scoring format (e.g., "Item 1: NameText:'Name is description'")
+                            r'[A-Z][a-z]+\s+[A-Z][a-z]+\s+is\s+(a|an|the)\s+[a-z]+',  # "Bob Carella is a driving force"
+                            r'[A-Z][a-z]+\s+[A-Z][a-z]+\s+is\s+[a-z]+',  # "Bob Carella is strategic"
+                        ]
+                        answer_found = False
+                        for pattern in answer_patterns:
+                            if re.search(pattern, accumulated_buffer, re.IGNORECASE | re.MULTILINE):
+                                answer_started = True
+                                in_scoring_section = False
+                                # Extract only the answer part - find the actual list start
+                                answer_match = re.search(pattern, accumulated_buffer, re.IGNORECASE | re.MULTILINE)
+                                if answer_match:
+                                    # If we found answer content, extract from that point
+                                    # But first, try to clean up any scoring prefixes that might be right before it
+                                    start_pos = answer_match.start()
+                                    # Look backwards to see if there's scoring format we should remove
+                                    before_match = accumulated_buffer[:start_pos]
+                                    # Remove common scoring prefixes
+                                    before_match = re.sub(r'Item\s+\d+:\s*', '', before_match, flags=re.IGNORECASE)
+                                    before_match = re.sub(r'Person\s+\d+:\s*', '', before_match, flags=re.IGNORECASE)
+                                    before_match = re.sub(r'Text:\s*[\'"]?', '', before_match, flags=re.IGNORECASE)
+                                    before_match = re.sub(r'Score:\s*(HIGH|MEDIUM|LOW)\s*', '', before_match, flags=re.IGNORECASE)
+                                    before_match = re.sub(r'Include:\s*(YES|NO)\s*', '', before_match, flags=re.IGNORECASE)
+                                    before_match = re.sub(r'Reason:.*?(?=\n|$)', '', before_match, flags=re.IGNORECASE | re.MULTILINE | re.DOTALL)
+                                    # If there's still content before the match, check if it's just scoring format
+                                    if before_match.strip() and not re.search(r'[A-Z][a-z]+\s+[A-Z][a-z]+', before_match):
+                                        # It's likely just scoring format, start from the answer match
+                                        accumulated_buffer = accumulated_buffer[start_pos:]
+                                    else:
+                                        # Keep some context before
+                                        accumulated_buffer = before_match + accumulated_buffer[start_pos:]
+                                # Also remove "Final Answer:" if it's still there
+                                accumulated_buffer = re.sub(r'Final\s+Answer:\s*', '', accumulated_buffer, flags=re.IGNORECASE)
+                                # Now set buffer to the cleaned answer and continue processing
+                                buffer = accumulated_buffer
+                                answer_found = True
+                                break
+                        
+                        if not answer_found:
                             # Still in scoring section, don't process this chunk yet
                             continue
                     
@@ -1226,7 +1593,10 @@ JSON array only:"""
                     if re.search(scoring_content_pattern, buffer, re.IGNORECASE):
                         # This looks like scoring output - find where it ends
                         # Look for end markers or transition to answer
+                        # Also look for actual answer content patterns (person name + description)
                         end_patterns = ["---END SCORING---", "END SCORING", "Now answer:", "Final Answer:", "---ANSWER---", "The co-founders", "The founders", "Ledger AI's co-founders"]
+                        # Also check for answer content that might be mixed with scoring format
+                        answer_content_pattern = r'[A-Z][a-z]+\s+[A-Z][a-z]+\s+is\s+(a|an|the|strategic|driving|visionary|master|dynamic)'
                         found_end = False
                         for ep in end_patterns:
                             if ep in buffer:
@@ -1243,6 +1613,33 @@ JSON array only:"""
                                 buffer = buffer[end_pos + len(ep):].lstrip()
                                 found_end = True
                                 break
+                        # If no explicit end marker, check if answer content appears (even if mixed with scoring)
+                        if not found_end and re.search(answer_content_pattern, buffer, re.IGNORECASE):
+                            # Find the first occurrence of answer content
+                            answer_match = re.search(answer_content_pattern, buffer, re.IGNORECASE)
+                            if answer_match:
+                                # Extract scoring section before answer for logging
+                                scoring_section = buffer[:answer_match.start()]
+                                if scoring_section and re.search(scoring_content_pattern, scoring_section, re.IGNORECASE):
+                                    print(f"\n{'='*80}")
+                                    print(f"[Generic] 🔍 [LLM Scoring Debug] SCORING OUTPUT (detected before answer):")
+                                    print(f"{'='*80}")
+                                    print(scoring_section)
+                                    print(f"{'='*80}\n")
+                                # Keep answer content, but clean up any scoring format that's right before it
+                                answer_start = answer_match.start()
+                                # Look for scoring format immediately before the answer
+                                before_answer = buffer[:answer_start]
+                                # Remove scoring prefixes
+                                before_answer = re.sub(r'Item\s+\d+:\s*', '', before_answer, flags=re.IGNORECASE)
+                                before_answer = re.sub(r'Person\s+\d+:\s*', '', before_answer, flags=re.IGNORECASE)
+                                before_answer = re.sub(r'Text:\s*[\'"]?', '', before_answer, flags=re.IGNORECASE)
+                                before_answer = re.sub(r'Score:\s*(HIGH|MEDIUM|LOW)\s*', '', before_answer, flags=re.IGNORECASE)
+                                before_answer = re.sub(r'Include:\s*(YES|NO)\s*', '', before_answer, flags=re.IGNORECASE)
+                                before_answer = re.sub(r'Reason:.*?(?=\n|$)', '', before_answer, flags=re.IGNORECASE | re.MULTILINE | re.DOTALL)
+                                # Reconstruct buffer with cleaned prefix + answer
+                                buffer = before_answer + buffer[answer_start:]
+                                found_end = True
                         if not found_end:
                             # Still in scoring section, clear buffer and skip this chunk
                             buffer = ""
@@ -1281,6 +1678,19 @@ JSON array only:"""
                     buffer = re.sub(r'-*\s*END\s+SCORING\s*-*', '', buffer, flags=re.IGNORECASE)
                     buffer = re.sub(r'Final\s+Answer:\s*', '', buffer, flags=re.IGNORECASE)
                     
+                    # Remove inline scoring format that's mixed with answer content
+                    # Pattern: "Item 1: NameText:'Name is description'" -> "Name is description"
+                    buffer = re.sub(r'Item\s+\d+:\s*([A-Z][a-z]+\s+[A-Z][a-z]+)Text:\s*[\'"]?', r'\1 ', buffer, flags=re.IGNORECASE)
+                    buffer = re.sub(r'Person\s+\d+:\s*([A-Z][a-z]+\s+[A-Z][a-z]+)Text:\s*[\'"]?', r'\1 ', buffer, flags=re.IGNORECASE)
+                    # Pattern: "Score: HIGHReason:" -> remove
+                    buffer = re.sub(r'Score:\s*(HIGH|MEDIUM|LOW)\s*Reason:\s*', '', buffer, flags=re.IGNORECASE)
+                    # Pattern: "Include: YESItem 2:" -> remove
+                    buffer = re.sub(r'Include:\s*(YES|NO)\s*(Item|Person)\s+\d+:\s*', '', buffer, flags=re.IGNORECASE)
+                    # Pattern: "'Score: HIGHReason:" -> remove
+                    buffer = re.sub(r'[\'"]\s*Score:\s*(HIGH|MEDIUM|LOW)\s*Reason:\s*', '', buffer, flags=re.IGNORECASE)
+                    # Pattern: "Text:'Name is description'" -> "Name is description"
+                    buffer = re.sub(r'Text:\s*[\'"]', '', buffer, flags=re.IGNORECASE)
+                    
                     # Remove any standalone scoring keywords that might have leaked through
                     buffer = re.sub(r'\b(Item\s+\d+|Person\s+\d+|Score:|Include:|Reason:|Text:)\b', '', buffer, flags=re.IGNORECASE)
                     
@@ -1288,19 +1698,38 @@ JSON array only:"""
                     buffer = re.sub(r'[\'"]\s*(Item|Person|Score|Include|Reason|Text):', '', buffer, flags=re.IGNORECASE)
                     buffer = re.sub(r'[\'"]\s*(HIGH|MEDIUM|LOW|YES|NO)\b', '', buffer, flags=re.IGNORECASE)
                     
+                    # Clean up any double spaces or weird spacing left after removals
+                    buffer = re.sub(r'\s+', ' ', buffer)  # Multiple spaces to single space
+                    buffer = re.sub(r'\s+([,.!?;:])', r'\1', buffer)  # Remove space before punctuation
+                    buffer = re.sub(r'([,.!?;:])\s*([,.!?;:])', r'\1\2', buffer)  # Remove duplicate punctuation
+                    
                     # Check for structured format markers
                     # Look for "Final Answer:" or "---ANSWER---" markers
+                    # BUT only if we've already detected the answer started (to avoid false positives from scoring section)
                     final_answer_marker = None
-                    if "Final Answer:" in buffer and not in_final_answer:
+                    if answer_started and "Final Answer:" in buffer and not in_final_answer:
                         final_answer_marker = buffer.find("Final Answer:")
                         # Extract everything before Final Answer for logging (if debug mode)
                         if SHOW_REASONING_DEBUG:
                             reasoning_buffer = buffer[:final_answer_marker].strip()
-                    elif "---ANSWER---" in buffer and not in_final_answer:
+                    elif answer_started and "---ANSWER---" in buffer and not in_final_answer:
                         final_answer_marker = buffer.find("---ANSWER---")
                         # Extract everything before answer for logging (if debug mode)
                         if SHOW_REASONING_DEBUG:
                             reasoning_buffer = buffer[:final_answer_marker].strip()
+                    # Also check if buffer contains actual answer content (not just markers)
+                    elif answer_started and not in_final_answer:
+                        # Check if buffer contains actual answer patterns
+                        answer_content_patterns = [
+                            r'\bThe\s+co-founders\s+(of|are)',
+                            r'\bco-founders\s+(of|are)',
+                            r'^\d+\.\s+[A-Z][a-z]+\s+[A-Z][a-z]+',
+                        ]
+                        for pattern in answer_content_patterns:
+                            if re.search(pattern, buffer, re.IGNORECASE | re.MULTILINE):
+                                in_final_answer = True
+                                final_answer_started = True
+                                break
                     
                     # If we found Final Answer section, start extracting
                     if final_answer_marker is not None and not in_final_answer:
