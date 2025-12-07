@@ -837,6 +837,7 @@ JSON array only:"""
                                 source_name = metadata.get('document_name', 'unknown')
                         
                         # For relationship/list queries, extract only relevant substrings that contain both query terms and entity
+                        # BUT be more restrictive: require explicit relationship terms (co-founder, founder) in the same sentence
                         if is_list_query or any(term in prompt.lower() for term in ['co-founder', 'founder', 'employee', 'manager', 'director', 'officer']):
                             # Extract entity names from query (e.g., "LedgerAI", "Ledger AI")
                             entity_names = []
@@ -855,14 +856,42 @@ JSON array only:"""
                             entity_names.extend(matches)
                             entity_names = list(set([e for e in entity_names if len(e) > 2]))
                             
-                            # Filter text to only include sentences/paragraphs with both query terms and entity
-                            original_len = len(text)
-                            text = extract_relevant_substrings(text, prompt, entity_names if entity_names else None)
-                            if text:  # Only process if we have filtered content
-                                print(f"[Generic] 🔍 Filtered chunk {i}: {len(text)} chars (from {original_len} chars, extracted relevant substrings)")
+                            # For co-founder queries, be more restrictive: require explicit "co-founder" or "founder" in same sentence as entity
+                            if any(term in prompt.lower() for term in ['co-founder', 'founder']):
+                                # Extract only sentences that contain BOTH the relationship term AND entity name
+                                import re
+                                sentences = re.split(r'([.!?]\s+)', text)
+                                sentences = [sentences[i] + (sentences[i+1] if i+1 < len(sentences) else '') 
+                                             for i in range(0, len(sentences), 2)]
+                                sentences = [s.strip() for s in sentences if s.strip()]
+                                
+                                relevant_sentences = []
+                                for sentence in sentences:
+                                    sentence_lower = sentence.lower()
+                                    # Check for relationship term
+                                    has_relationship = any(term in sentence_lower for term in ['co-founder', 'co founder', 'founder'])
+                                    # Check for entity
+                                    has_entity = any(entity.lower() in sentence_lower for entity in entity_names) if entity_names else True
+                                    
+                                    # Only include if BOTH relationship term AND entity are present
+                                    if has_relationship and has_entity:
+                                        relevant_sentences.append(sentence)
+                                
+                                if relevant_sentences:
+                                    text = ' '.join(relevant_sentences)
+                                    print(f"[Generic] 🔍 Filtered chunk {i}: {len(text)} chars (extracted sentences with explicit co-founder/founder + entity)")
+                                else:
+                                    print(f"[Generic] ⚠️ Chunk {i}: No sentences with explicit co-founder/founder + entity, skipping")
+                                    continue
                             else:
-                                print(f"[Generic] ⚠️ Chunk {i}: No relevant substrings found (no match for query terms + entity), skipping")
-                                continue  # Skip this chunk if no relevant content
+                                # For other relationship queries, use the general filtering
+                                original_len = len(text)
+                                text = extract_relevant_substrings(text, prompt, entity_names if entity_names else None)
+                                if text:
+                                    print(f"[Generic] 🔍 Filtered chunk {i}: {len(text)} chars (from {original_len} chars, extracted relevant substrings)")
+                                else:
+                                    print(f"[Generic] ⚠️ Chunk {i}: No relevant substrings found, skipping")
+                                    continue
                         
                         # For list queries, don't truncate - we need full chunks to extract all items
                         # Only truncate if extremely long (let LLM handle most filtering)

@@ -69,7 +69,6 @@ def init_debug_log():
             f.write("")  # Clear file
         _debug_log_file = open(DEBUG_LOG_PATH, 'a', encoding='utf-8', buffering=1)  # Line buffered
         _debug_log_enabled = True
-        print(f"[Aura] 📋 Loading config from: {dotenv_path}")
         _debug_log(f"[Aura] 📋 Loading config from: {dotenv_path}")
     except Exception as e:
         print(f"[Aura] ⚠️ Failed to initialize debug log: {e}")
