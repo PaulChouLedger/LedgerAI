@@ -842,7 +842,9 @@ JSON array only:"""
                     "   - Score MEDIUM (exclude): Information that is related but requires inference or doesn't directly answer the query.\n"
                     "   - Score LOW (exclude): Information that mentions similar terms but doesn't actually answer the query.\n"
                     "4. Extract only information that scores HIGH - be precise about what exactly matches the query.\n"
-                    "   - For relationship questions: Only include where text explicitly states the exact relationship to the exact entity.\n"
+                    "   - For relationship questions: Only include where text explicitly states the exact relationship to the exact entity mentioned in the query.\n"
+                    "     CRITICAL: The entity in the text must match the entity in the query EXACTLY. "
+                    "If text says '[relationship] of Entity A' but query asks about '[relationship] of Entity B', that is MEDIUM/LOW, not HIGH.\n"
                     "   - For factual questions: Only include information that directly answers the question asked.\n"
                     "   - For list questions: Find EVERY matching item in EVERY section - read each section completely.\n"
                     "   - For analytical questions: Extract all relevant information from all chunks before synthesizing.\n"
@@ -927,14 +929,19 @@ JSON array only:"""
                         f"2. CRITICAL: When evaluating information, read the COMPLETE sentence/paragraph about each item.\n"
                         f"   - Do not stop reading after the first mention - continue to find ALL relevant information.\n"
                         f"   - A single chunk may contain multiple pieces of information that answer the query.\n"
-                        f"3. List EVERY item/person/entity you found in the context that might match the query.\n"
-                        f"4. For EACH item, show:\n"
+                        f"3. CRITICAL FOR RELATIONSHIP QUESTIONS: The entity in the text MUST match the entity in the query EXACTLY.\n"
+                        f"   - If query asks about '[relationship] of Entity A', text must say '[relationship] of Entity A'.\n"
+                        f"   - If text says '[relationship] of Entity B' (different entity), that is MEDIUM/LOW score, not HIGH.\n"
+                        f"   - Example: Query asks 'co-founders of Company X'. Text says 'Co-Founder of Company Y' = MEDIUM (wrong entity).\n"
+                        f"4. List EVERY item/person/entity you found in the context that might match the query.\n"
+                        f"5. For EACH item, show:\n"
                         f"   - Name/Item: [Name or description]\n"
                         f"   - Text found: [Exact quote from context - read the ENTIRE relevant sentence/paragraph]\n"
                         f"   - Score: HIGH/MEDIUM/LOW\n"
-                        f"   - Reason: [Why this score - be specific about what information is stated in text vs. what was asked in the query]\n"
+                        f"   - Reason: [Why this score - be specific about what information is stated in text vs. what was asked in the query. "
+                        f"For relationship questions, explicitly state if the entity matches or not.]\n"
                         f"   - Include? YES/NO\n"
-                        f"5. After scoring all candidates, provide your final answer with only HIGH scores.\n\n"
+                        f"6. After scoring all candidates, provide your final answer with only HIGH scores.\n\n"
                         f"Example format:\n"
                         f"---SCORING---\n"
                         f"Item 1: [Name/Description]\n"
@@ -1104,6 +1111,14 @@ JSON array only:"""
                 scoring_buffer = ""  # Buffer for logging scoring in debug mode
                 
                 for chunk in llm_response:
+                    # Pre-filter: Check if chunk contains scoring keywords and filter immediately
+                    if re.search(r'\b(Item\s+\d+|Person\s+\d+|Score:|Include:|Reason:|Text:)\b', chunk, re.IGNORECASE):
+                        # This chunk likely contains scoring content - check if it's part of actual answer
+                        # If it's just scoring format without actual answer content, skip it
+                        if not re.search(r'\b(co-founders|founders|The|Ledger|Based on|According to|are|is)\b', chunk, re.IGNORECASE):
+                            # Likely scoring format, skip this chunk
+                            continue
+                    
                     buffer += chunk
                     
                     # First, filter out scoring sections (catch variations: ---SCORING---, SCORING-, -SCORING-, etc.)
@@ -1167,8 +1182,8 @@ JSON array only:"""
                         continue
                     
                     # Detect scoring sections by content patterns (even without explicit markers)
-                    # Look for patterns like "Person 1:", "Score: HIGH/MEDIUM/LOW", "Include: YES/NO", "Reason:"
-                    scoring_content_pattern = r"Person\s+\d+:|Score:\s*(HIGH|MEDIUM|LOW)|Include:\s*(YES|NO)|Reason:"
+                    # Look for patterns like "Item X:", "Person X:", "Score: HIGH/MEDIUM/LOW", "Include: YES/NO", "Reason:"
+                    scoring_content_pattern = r"Item\s+\d+:|Person\s+\d+:|Score:\s*(HIGH|MEDIUM|LOW)|Include:\s*(YES|NO)|Reason:"
                     if re.search(scoring_content_pattern, buffer, re.IGNORECASE):
                         # This looks like scoring output - find where it ends
                         # Look for end markers or transition to answer
@@ -1200,12 +1215,12 @@ JSON array only:"""
                     filtered_lines = []
                     skip_until_answer = False
                     for line in lines:
-                        # Check if this line starts scoring format
-                        if re.match(r'^\s*(Person\s+\d+:|Score:|Include:|Reason:|Text:)\s*', line, re.IGNORECASE):
+                        # Check if this line starts scoring format (Item X:, Person X:, Score:, Include:, Reason:, Text:)
+                        if re.match(r'^\s*(Item\s+\d+:|Person\s+\d+:|Score:|Include:|Reason:|Text:)\s*', line, re.IGNORECASE):
                             skip_until_answer = True
                             continue
                         # Check if we've reached the actual answer
-                        if re.search(r'^(The|Ledger|co-founders|founders)', line, re.IGNORECASE) and skip_until_answer:
+                        if re.search(r'^(The|Ledger|co-founders|founders|Based on|According to)', line, re.IGNORECASE) and skip_until_answer:
                             skip_until_answer = False
                         # Skip lines while in scoring section
                         if skip_until_answer:
@@ -1213,11 +1228,21 @@ JSON array only:"""
                         filtered_lines.append(line)
                     buffer = '\n'.join(filtered_lines)
                     
-                    # Final cleanup: remove any remaining scoring patterns
+                    # Final cleanup: remove any remaining scoring patterns (more aggressive)
+                    # Remove entire lines that contain scoring format
+                    buffer = re.sub(r'Item\s+\d+:.*?(?=\n|$)', '', buffer, flags=re.IGNORECASE | re.MULTILINE)
                     buffer = re.sub(r'Person\s+\d+:.*?(?=\n|$)', '', buffer, flags=re.IGNORECASE | re.MULTILINE)
+                    buffer = re.sub(r'Text:\s*[\'"].*?[\'"].*?(?=\n|$)', '', buffer, flags=re.IGNORECASE | re.MULTILINE | re.DOTALL)
                     buffer = re.sub(r'Score:\s*(HIGH|MEDIUM|LOW).*?(?=\n|$)', '', buffer, flags=re.IGNORECASE | re.MULTILINE)
                     buffer = re.sub(r'Include:\s*(YES|NO).*?(?=\n|$)', '', buffer, flags=re.IGNORECASE | re.MULTILINE)
                     buffer = re.sub(r'Reason:.*?(?=\n|$)', '', buffer, flags=re.IGNORECASE | re.MULTILINE)
+                    
+                    # Remove any standalone scoring keywords that might have leaked through
+                    buffer = re.sub(r'\b(Item\s+\d+|Person\s+\d+|Score:|Include:|Reason:|Text:)\b', '', buffer, flags=re.IGNORECASE)
+                    
+                    # Remove quotes around scoring text that might remain
+                    buffer = re.sub(r'[\'"]\s*(Item|Person|Score|Include|Reason|Text):', '', buffer, flags=re.IGNORECASE)
+                    buffer = re.sub(r'[\'"]\s*(HIGH|MEDIUM|LOW|YES|NO)\b', '', buffer, flags=re.IGNORECASE)
                     
                     # Check for structured format markers
                     # Look for "Final Answer:" or "---ANSWER---" markers
@@ -1339,6 +1364,13 @@ JSON array only:"""
                 llm_response = llm_chat_simple(messages, max_tokens=max_tokens_limit, stream=True)
                 
                 for chunk in llm_response:
+                    # Pre-filter: Check if chunk contains scoring keywords and filter immediately
+                    if re.search(r'\b(Item\s+\d+|Person\s+\d+|Score:|Include:|Reason:|Text:)\b', chunk, re.IGNORECASE):
+                        # This chunk likely contains scoring content - check if it's part of actual answer
+                        if not re.search(r'\b(co-founders|founders|The|Ledger|Based on|According to|are|is)\b', chunk, re.IGNORECASE):
+                            # Likely scoring format, skip this chunk
+                            continue
+                    
                     buffer += chunk
                     
                     # First, filter out scoring sections (catch variations: ---SCORING---, SCORING-, -SCORING-, etc.)
