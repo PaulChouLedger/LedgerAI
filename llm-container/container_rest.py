@@ -866,26 +866,29 @@ JSON array only:"""
                     user_content = (
                         f"⚠️ MANDATORY: Before providing your answer, you MUST show your scoring process.\n\n"
                         f"SCORING PROCESS (show this in your reasoning, it will be logged but not spoken):\n"
-                        f"1. Read the ENTIRE text of each chunk completely - do not stop at the first sentence about a person.\n"
-                        f"2. List EVERY person/entity you found in the context that might match the query.\n"
-                        f"3. For EACH person/entity, show:\n"
-                        f"   - Name: [Person/Entity Name]\n"
-                        f"   - Text found: [Exact quote from context showing the relationship - read the ENTIRE relevant sentence/paragraph]\n"
+                        f"1. Read the ENTIRE text of each chunk completely - do not stop at the first sentence that seems relevant.\n"
+                        f"2. CRITICAL: When evaluating information, read the COMPLETE sentence/paragraph about each item.\n"
+                        f"   - Do not stop reading after the first mention - continue to find ALL relevant information.\n"
+                        f"   - A single chunk may contain multiple pieces of information that answer the query.\n"
+                        f"3. List EVERY item/person/entity you found in the context that might match the query.\n"
+                        f"4. For EACH item, show:\n"
+                        f"   - Name/Item: [Name or description]\n"
+                        f"   - Text found: [Exact quote from context - read the ENTIRE relevant sentence/paragraph]\n"
                         f"   - Score: HIGH/MEDIUM/LOW\n"
-                        f"   - Reason: [Why this score - be specific about the relationship type and entity stated in text vs. what was asked]\n"
+                        f"   - Reason: [Why this score - be specific about what information is stated in text vs. what was asked in the query]\n"
                         f"   - Include? YES/NO\n"
-                        f"4. After scoring all candidates, provide your final answer with only HIGH scores.\n\n"
+                        f"5. After scoring all candidates, provide your final answer with only HIGH scores.\n\n"
                         f"Example format:\n"
                         f"---SCORING---\n"
-                        f"Person 1: [Name]\n"
-                        f"Text: '[Exact quote from context showing the relationship]'\n"
+                        f"Item 1: [Name/Description]\n"
+                        f"Text: '[Exact quote from context]'\n"
                         f"Score: HIGH\n"
-                        f"Reason: Text explicitly states the exact relationship type to the exact entity mentioned in query\n"
+                        f"Reason: Text explicitly states information that directly answers the query\n"
                         f"Include: YES\n\n"
-                        f"Person 2: [Name]\n"
-                        f"Text: '[Exact quote from context showing the relationship]'\n"
+                        f"Item 2: [Name/Description]\n"
+                        f"Text: '[Exact quote from context]'\n"
                         f"Score: MEDIUM\n"
-                        f"Reason: Associated with entity but relationship type is '[different type]', not '[asked type]'\n"
+                        f"Reason: Information is related but doesn't directly answer the query\n"
                         f"Include: NO\n"
                         f"---END SCORING---\n\n"
                         f"Now answer: {prompt}"
@@ -1107,12 +1110,12 @@ JSON array only:"""
                         continue
                     
                     # Detect scoring sections by content patterns (even without explicit markers)
-                    # Look for patterns like "Person 1:", "Score: HIGH/MEDIUM/LOW", "Include: YES/NO"
-                    scoring_content_pattern = r"Person\s+\d+:|Score:\s*(HIGH|MEDIUM|LOW)|Include:\s*(YES|NO)"
+                    # Look for patterns like "Person 1:", "Score: HIGH/MEDIUM/LOW", "Include: YES/NO", "Reason:"
+                    scoring_content_pattern = r"Person\s+\d+:|Score:\s*(HIGH|MEDIUM|LOW)|Include:\s*(YES|NO)|Reason:"
                     if re.search(scoring_content_pattern, buffer, re.IGNORECASE):
                         # This looks like scoring output - find where it ends
                         # Look for end markers or transition to answer
-                        end_patterns = ["---END SCORING---", "END SCORING", "Now answer:", "Final Answer:", "---ANSWER---"]
+                        end_patterns = ["---END SCORING---", "END SCORING", "Now answer:", "Final Answer:", "---ANSWER---", "The co-founders", "The founders", "Ledger AI's co-founders"]
                         found_end = False
                         for ep in end_patterns:
                             if ep in buffer:
@@ -1130,9 +1133,34 @@ JSON array only:"""
                                 found_end = True
                                 break
                         if not found_end:
-                            # Still in scoring section, clear buffer
+                            # Still in scoring section, clear buffer and skip this chunk
                             buffer = ""
                             continue
+                    
+                    # Additional aggressive filter: remove any remaining scoring format patterns
+                    # Look for lines that start with scoring keywords followed by scoring content
+                    lines = buffer.split('\n')
+                    filtered_lines = []
+                    skip_until_answer = False
+                    for line in lines:
+                        # Check if this line starts scoring format
+                        if re.match(r'^\s*(Person\s+\d+:|Score:|Include:|Reason:|Text:)\s*', line, re.IGNORECASE):
+                            skip_until_answer = True
+                            continue
+                        # Check if we've reached the actual answer
+                        if re.search(r'^(The|Ledger|co-founders|founders)', line, re.IGNORECASE) and skip_until_answer:
+                            skip_until_answer = False
+                        # Skip lines while in scoring section
+                        if skip_until_answer:
+                            continue
+                        filtered_lines.append(line)
+                    buffer = '\n'.join(filtered_lines)
+                    
+                    # Final cleanup: remove any remaining scoring patterns
+                    buffer = re.sub(r'Person\s+\d+:.*?(?=\n|$)', '', buffer, flags=re.IGNORECASE | re.MULTILINE)
+                    buffer = re.sub(r'Score:\s*(HIGH|MEDIUM|LOW).*?(?=\n|$)', '', buffer, flags=re.IGNORECASE | re.MULTILINE)
+                    buffer = re.sub(r'Include:\s*(YES|NO).*?(?=\n|$)', '', buffer, flags=re.IGNORECASE | re.MULTILINE)
+                    buffer = re.sub(r'Reason:.*?(?=\n|$)', '', buffer, flags=re.IGNORECASE | re.MULTILINE)
                     
                     # Check for structured format markers
                     # Look for "Final Answer:" or "---ANSWER---" markers
@@ -1310,10 +1338,10 @@ JSON array only:"""
                         continue
                     
                     # Detect scoring sections by content patterns (even without explicit markers)
-                    scoring_content_pattern = r"Person\s+\d+:|Score:\s*(HIGH|MEDIUM|LOW)|Include:\s*(YES|NO)"
+                    scoring_content_pattern = r"Person\s+\d+:|Score:\s*(HIGH|MEDIUM|LOW)|Include:\s*(YES|NO)|Reason:"
                     if re.search(scoring_content_pattern, buffer, re.IGNORECASE):
                         # This looks like scoring output - find where it ends
-                        end_patterns = ["---END SCORING---", "END SCORING", "Now answer:", "Final Answer:", "---ANSWER---"]
+                        end_patterns = ["---END SCORING---", "END SCORING", "Now answer:", "Final Answer:", "---ANSWER---", "The co-founders", "The founders", "Ledger AI's co-founders"]
                         found_end = False
                         for ep in end_patterns:
                             if ep in buffer:
@@ -1331,6 +1359,27 @@ JSON array only:"""
                         if not found_end:
                             buffer = ""
                             continue
+                    
+                    # Additional aggressive filter: remove any remaining scoring format patterns
+                    lines = buffer.split('\n')
+                    filtered_lines = []
+                    skip_until_answer = False
+                    for line in lines:
+                        if re.match(r'^\s*(Person\s+\d+:|Score:|Include:|Reason:|Text:)\s*', line, re.IGNORECASE):
+                            skip_until_answer = True
+                            continue
+                        if re.search(r'^(The|Ledger|co-founders|founders)', line, re.IGNORECASE) and skip_until_answer:
+                            skip_until_answer = False
+                        if skip_until_answer:
+                            continue
+                        filtered_lines.append(line)
+                    buffer = '\n'.join(filtered_lines)
+                    
+                    # Final cleanup: remove any remaining scoring patterns
+                    buffer = re.sub(r'Person\s+\d+:.*?(?=\n|$)', '', buffer, flags=re.IGNORECASE | re.MULTILINE)
+                    buffer = re.sub(r'Score:\s*(HIGH|MEDIUM|LOW).*?(?=\n|$)', '', buffer, flags=re.IGNORECASE | re.MULTILINE)
+                    buffer = re.sub(r'Include:\s*(YES|NO).*?(?=\n|$)', '', buffer, flags=re.IGNORECASE | re.MULTILINE)
+                    buffer = re.sub(r'Reason:.*?(?=\n|$)', '', buffer, flags=re.IGNORECASE | re.MULTILINE)
                     
                     # Check if we've reached the answer section
                     if "---ANSWER---" in buffer and not in_answer:
