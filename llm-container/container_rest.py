@@ -1130,11 +1130,11 @@ JSON array only:"""
                             in_scoring_section = True
                         
                         # Check if we've reached the actual answer
-                        if re.search(r'\b(The\s+co-founders|The\s+founders|Ledger\s+AI[\'']?s\s+co-founders|co-founders\s+are|founders\s+are|The\s+[A-Z][a-z]+\s+co-founders)\b', buffer, re.IGNORECASE):
+                        if re.search(r'\b(The\s+co-founders|The\s+founders|Ledger\s+AI[\'"]?s\s+co-founders|co-founders\s+are|founders\s+are|The\s+[A-Z][a-z]+\s+co-founders)\b', buffer, re.IGNORECASE):
                             answer_started = True
                             in_scoring_section = False
                             # Extract only the answer part
-                            answer_match = re.search(r'\b(The\s+co-founders|The\s+founders|Ledger\s+AI[\'']?s\s+co-founders|co-founders\s+are|founders\s+are|The\s+[A-Z][a-z]+\s+co-founders)\b', buffer, re.IGNORECASE)
+                            answer_match = re.search(r'\b(The\s+co-founders|The\s+founders|Ledger\s+AI[\'"]?s\s+co-founders|co-founders\s+are|founders\s+are|The\s+[A-Z][a-z]+\s+co-founders)\b', buffer, re.IGNORECASE)
                             if answer_match:
                                 buffer = buffer[answer_match.start():]
                         
@@ -1398,11 +1398,11 @@ JSON array only:"""
                             in_scoring_section_debug = True
                         
                         # Check if we've reached the actual answer
-                        if re.search(r'\b(The\s+co-founders|The\s+founders|Ledger\s+AI[\'']?s\s+co-founders|co-founders\s+are|founders\s+are|The\s+[A-Z][a-z]+\s+co-founders)\b', buffer, re.IGNORECASE):
+                        if re.search(r'\b(The\s+co-founders|The\s+founders|Ledger\s+AI[\'"]?s\s+co-founders|co-founders\s+are|founders\s+are|The\s+[A-Z][a-z]+\s+co-founders)\b', buffer, re.IGNORECASE):
                             answer_started_debug = True
                             in_scoring_section_debug = False
                             # Extract only the answer part
-                            answer_match = re.search(r'\b(The\s+co-founders|The\s+founders|Ledger\s+AI[\'']?s\s+co-founders|co-founders\s+are|founders\s+are|The\s+[A-Z][a-z]+\s+co-founders)\b', buffer, re.IGNORECASE)
+                            answer_match = re.search(r'\b(The\s+co-founders|The\s+founders|Ledger\s+AI[\'"]?s\s+co-founders|co-founders\s+are|founders\s+are|The\s+[A-Z][a-z]+\s+co-founders)\b', buffer, re.IGNORECASE)
                             if answer_match:
                                 buffer = buffer[answer_match.start():]
                         
