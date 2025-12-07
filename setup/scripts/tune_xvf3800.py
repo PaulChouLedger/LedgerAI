@@ -272,9 +272,9 @@ def configure_agc_20_ec():
     print("  - High-Pass Filter: 70 Hz")
     run_xvf_command("AEC_HPFONOFF", 1)
     
-    print("  - AGC: ENABLED (target: 0.15 RMS, max gain: 30 dB)")
+    print("  - AGC: ENABLED (target: 0.12 RMS, max gain: 30 dB)")
     run_xvf_command("PP_AGCONOFF", 1)
-    run_xvf_command("PP_AGCDESIREDLEVEL", 0.15)
+    run_xvf_command("PP_AGCDESIREDLEVEL", 0.12)
     run_xvf_command("PP_AGCMAXGAIN", 1000)
     run_xvf_command("PP_AGCTIME", 0.5)
     
@@ -293,7 +293,7 @@ def configure_agc_20_ec():
     save_config_state('agc_20_ec', {
         'AEC_HPFONOFF': 1,
         'PP_AGCONOFF': 1,
-        'PP_AGCDESIREDLEVEL': 0.15,
+        'PP_AGCDESIREDLEVEL': 0.12,
         'PP_AGCMAXGAIN': 1000,
         'PP_AGCTIME': 0.5,
         'PP_ECHOONOFF': 1

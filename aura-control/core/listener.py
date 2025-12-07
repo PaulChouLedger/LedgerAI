@@ -65,8 +65,8 @@ SPEECH_PEAK_MIN = 0.0023        # Lower peak threshold to accept softer speech
 # (Pre-gain removed)
 
 # === Audio Normalization (shared pipeline for VAD, wake word, and Whisper) ===
-ENABLE_AUDIO_NORMALIZATION = False  # Disabled - using hardware AGC only (target: 0.08 RMS)
-TARGET_RMS_FOR_WHISPER = 0.15      # Target RMS level (used for all audio processing in shared pipeline)
+ENABLE_AUDIO_NORMALIZATION = False  # Disabled - using hardware AGC only (target: 0.12 RMS)
+TARGET_RMS_FOR_WHISPER = 0.12      # Target RMS level (used for all audio processing in shared pipeline)
 
 # === Soft Clipping Prevention ===
 ENABLE_SOFT_LIMITER = False      # Prevent clipping from near-field speech
