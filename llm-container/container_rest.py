@@ -840,20 +840,22 @@ JSON array only:"""
                     "\nINSTRUCTIONS:\n"
                     "1. Read every section (separated by '---') completely from start to finish. "
                     "DO NOT stop reading once you find relevant information - chunks can contain multiple instances of valuable information.\n"
-                    "2. For relationship questions (any relationship type: co-founders, employees, managers, directors, etc.), CRITICAL RULES:\n"
+                    "2. CRITICAL: When reading chunks, read the ENTIRE text of each chunk completely. "
+                    "Do not stop at the first sentence about a person - continue reading to find all mentions and relationships.\n"
+                    "3. For relationship questions (any relationship type: co-founders, employees, managers, directors, etc.), CRITICAL RULES:\n"
                     "   - ONLY include people/entities where the text EXPLICITLY states the exact relationship type to the exact entity mentioned in the query.\n"
                     "   - The relationship type in the text must match the relationship type asked about.\n"
                     "   - The entity in the text must match the entity asked about.\n"
                     "   - EXCLUDE: People/entities with the same relationship type but to a different entity.\n"
                     "   - EXCLUDE: People/entities who work for or are associated with the entity but have a different relationship type.\n"
-                    "3. For each person/entity found, you MUST internally score:\n"
+                    "4. For each person/entity found, you MUST internally score:\n"
                     "   - Score HIGH (include): Text explicitly states the exact relationship type to the exact entity mentioned in the query.\n"
                     "   - Score MEDIUM (exclude): Person/entity is associated with the entity but has a different relationship type.\n"
                     "   - Score LOW (exclude): Person/entity mentioned but relationship type or entity doesn't match the query.\n"
-                    "4. Extract only information that scores HIGH - be precise about exact matches.\n"
-                    "5. For lists, find EVERY matching item in EVERY section - read each section completely to find all items.\n"
-                    "6. Format as natural sentences.\n"
-                    "7. End with a brief, natural question (do not include the phrase 'follow up' or 'follow-up' in your question).\n"
+                    "5. Extract only information that scores HIGH - be precise about exact matches.\n"
+                    "6. For lists, find EVERY matching item in EVERY section - read each section completely to find all items.\n"
+                    "7. Format as natural sentences.\n"
+                    "8. End with a brief, natural question (do not include the phrase 'follow up' or 'follow-up' in your question).\n"
                 )
                 
                 system_content = (
@@ -873,23 +875,24 @@ JSON array only:"""
                     user_content = (
                         f"⚠️ MANDATORY: Before providing your answer, you MUST show your scoring process.\n\n"
                         f"SCORING PROCESS (show this in your reasoning, it will be logged but not spoken):\n"
-                        f"1. List EVERY person/entity you found in the context that might match the query.\n"
-                        f"2. For EACH person/entity, show:\n"
+                        f"1. Read the ENTIRE text of each chunk completely - do not stop at the first sentence about a person.\n"
+                        f"2. List EVERY person/entity you found in the context that might match the query.\n"
+                        f"3. For EACH person/entity, show:\n"
                         f"   - Name: [Person/Entity Name]\n"
-                        f"   - Text found: [Exact quote from context]\n"
+                        f"   - Text found: [Exact quote from context showing the relationship - read the ENTIRE relevant sentence/paragraph]\n"
                         f"   - Score: HIGH/MEDIUM/LOW\n"
                         f"   - Reason: [Why this score - be specific about the relationship type and entity stated in text vs. what was asked]\n"
                         f"   - Include? YES/NO\n"
-                        f"3. After scoring all candidates, provide your final answer with only HIGH scores.\n\n"
+                        f"4. After scoring all candidates, provide your final answer with only HIGH scores.\n\n"
                         f"Example format:\n"
                         f"---SCORING---\n"
                         f"Person 1: [Name]\n"
-                        f"Text: '[Exact quote from context]'\n"
+                        f"Text: '[Exact quote from context showing the relationship]'\n"
                         f"Score: HIGH\n"
                         f"Reason: Text explicitly states the exact relationship type to the exact entity mentioned in query\n"
                         f"Include: YES\n\n"
                         f"Person 2: [Name]\n"
-                        f"Text: '[Exact quote from context]'\n"
+                        f"Text: '[Exact quote from context showing the relationship]'\n"
                         f"Score: MEDIUM\n"
                         f"Reason: Associated with entity but relationship type is '[different type]', not '[asked type]'\n"
                         f"Include: NO\n"
@@ -1041,13 +1044,55 @@ JSON array only:"""
                 # Always filter structured format to extract only Final Answer for TTS
                 # The LLM may output structured format (Known Facts, Reasoning Steps, Final Answer, Confidence)
                 # We need to extract only the Final Answer section
+                # Also filter out scoring debug sections (---SCORING--- to ---END SCORING---)
                 buffer = ""
                 in_final_answer = False
                 final_answer_started = False
+                in_scoring = False
                 reasoning_buffer = ""  # Buffer for logging reasoning in debug mode
+                scoring_buffer = ""  # Buffer for logging scoring in debug mode
                 
                 for chunk in llm_response:
                     buffer += chunk
+                    
+                    # First, filter out scoring sections (---SCORING--- to ---END SCORING---)
+                    if "---SCORING---" in buffer and not in_scoring:
+                        scoring_start = buffer.find("---SCORING---")
+                        in_scoring = True
+                        # Extract scoring section for logging
+                        scoring_buffer = buffer[scoring_start:].split("---END SCORING---")[0] if "---END SCORING---" in buffer else buffer[scoring_start:]
+                        # Remove scoring section from buffer
+                        if "---END SCORING---" in buffer:
+                            end_scoring = buffer.find("---END SCORING---") + len("---END SCORING---")
+                            buffer = buffer[:scoring_start] + buffer[end_scoring:]
+                            in_scoring = False
+                            # Log scoring for debugging
+                            if scoring_buffer:
+                                print(f"\n{'='*80}")
+                                print(f"[Generic] 🔍 [LLM Scoring Debug] SCORING OUTPUT:")
+                                print(f"{'='*80}")
+                                print(scoring_buffer)
+                                print(f"{'='*80}\n")
+                        else:
+                            # Still waiting for end marker, remove what we have so far
+                            buffer = buffer[:scoring_start]
+                    
+                    if in_scoring and "---END SCORING---" in buffer:
+                        end_scoring = buffer.find("---END SCORING---")
+                        scoring_buffer += buffer[:end_scoring]
+                        buffer = buffer[end_scoring + len("---END SCORING---"):]
+                        in_scoring = False
+                        # Log scoring for debugging
+                        if scoring_buffer:
+                            print(f"\n{'='*80}")
+                            print(f"[Generic] 🔍 [LLM Scoring Debug] SCORING OUTPUT:")
+                            print(f"{'='*80}")
+                            print(scoring_buffer)
+                            print(f"{'='*80}\n")
+                    
+                    # Skip chunks while in scoring section
+                    if in_scoring:
+                        continue
                     
                     # Check for structured format markers
                     # Look for "Final Answer:" or "---ANSWER---" markers
@@ -1155,12 +1200,14 @@ JSON array only:"""
             
             return response_with_filler()
         
-        # For streaming with debug mode, filter out reasoning
+        # For streaming with debug mode, filter out reasoning and scoring
         if stream and SHOW_REASONING_DEBUG:
             def filter_reasoning():
                 buffer = ""
                 in_answer = False
                 answer_started = False
+                in_scoring = False
+                scoring_buffer = ""
                 
                 # Use higher token limit for list questions to ensure all items are included
                 max_tokens_limit = MAX_TOKENS_RAG_MODE_LIST if is_list_request else MAX_TOKENS_RAG_MODE
@@ -1168,6 +1215,39 @@ JSON array only:"""
                 
                 for chunk in llm_response:
                     buffer += chunk
+                    
+                    # First, filter out scoring sections (---SCORING--- to ---END SCORING---)
+                    if "---SCORING---" in buffer and not in_scoring:
+                        scoring_start = buffer.find("---SCORING---")
+                        in_scoring = True
+                        scoring_buffer = buffer[scoring_start:].split("---END SCORING---")[0] if "---END SCORING---" in buffer else buffer[scoring_start:]
+                        if "---END SCORING---" in buffer:
+                            end_scoring = buffer.find("---END SCORING---") + len("---END SCORING---")
+                            buffer = buffer[:scoring_start] + buffer[end_scoring:]
+                            in_scoring = False
+                            if scoring_buffer:
+                                print(f"\n{'='*80}")
+                                print(f"[Generic] 🔍 [LLM Scoring Debug] SCORING OUTPUT:")
+                                print(f"{'='*80}")
+                                print(scoring_buffer)
+                                print(f"{'='*80}\n")
+                        else:
+                            buffer = buffer[:scoring_start]
+                    
+                    if in_scoring and "---END SCORING---" in buffer:
+                        end_scoring = buffer.find("---END SCORING---")
+                        scoring_buffer += buffer[:end_scoring]
+                        buffer = buffer[end_scoring + len("---END SCORING---"):]
+                        in_scoring = False
+                        if scoring_buffer:
+                            print(f"\n{'='*80}")
+                            print(f"[Generic] 🔍 [LLM Scoring Debug] SCORING OUTPUT:")
+                            print(f"{'='*80}")
+                            print(scoring_buffer)
+                            print(f"{'='*80}\n")
+                    
+                    if in_scoring:
+                        continue
                     
                     # Check if we've reached the answer section
                     if "---ANSWER---" in buffer and not in_answer:
