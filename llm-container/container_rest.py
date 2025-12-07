@@ -782,19 +782,14 @@ JSON array only:"""
                         "\n📋 LIST QUESTION DETECTED:\n"
                         "1. Read every section (separated by '---') completely from start to finish.\n"
                         "2. DO NOT stop reading once you find a matching item - chunks can contain multiple matching items.\n"
-                        "3. CRITICAL: For relationship questions, ONLY include people/entities where text EXPLICITLY states the exact relationship type to the exact entity.\n"
-                        "   - The relationship type in the text must match the relationship type asked about.\n"
-                        "   - The entity in the text must match the entity asked about.\n"
-                        "   - EXCLUDE: Same relationship type but to a different entity.\n"
-                        "   - EXCLUDE: Different relationship type to the same entity.\n"
-                        "4. For each potential item, you MUST internally score:\n"
-                        "   - Score HIGH (include): Text explicitly states exact relationship type to exact entity mentioned in query.\n"
-                        "   - Score MEDIUM (exclude): Person/entity associated with entity but has different relationship type.\n"
-                        "   - Score LOW (exclude): Person/entity mentioned but relationship type or entity doesn't match query.\n"
-                        "5. Extract ONLY items that score HIGH - be precise about exact matches.\n"
-                        "6. A single section may contain multiple matching items - read the entire section completely to find them all.\n"
-                        "7. Format as: 'The [items] are [Name] ([Title]), [Name] ([Title]), and [Name] ([Title]).'\n"
-                        "8. End with a brief, natural question (do not include 'follow up' or 'follow-up' in the question text).\n"
+                        "3. For each potential item, evaluate relevance:\n"
+                        "   - Score HIGH (include): Information that directly and explicitly matches what is asked for in the query.\n"
+                        "   - Score MEDIUM (exclude): Information that is related but doesn't directly match the query criteria.\n"
+                        "   - Score LOW (exclude): Information that mentions similar terms but doesn't match the query.\n"
+                        "4. Extract ONLY items that score HIGH - be precise about exact matches to the query.\n"
+                        "5. A single section may contain multiple matching items - read the entire section completely to find them all.\n"
+                        "6. Format as natural sentences listing all matching items.\n"
+                        "7. End with a brief, natural question (do not include 'follow up' or 'follow-up' in the question text).\n"
                     )
                 
                 # Build response length guideline - prioritize completeness for lists and debug mode
@@ -835,27 +830,23 @@ JSON array only:"""
                 
                 rag_scoring_instructions = ""  # Removed for simplicity
                 
-                # Ultra-simplified RAG instructions - focus on reading and extracting with LLM scoring
+                # Ultra-simplified RAG instructions - universal for any query type
                 simple_instructions = (
                     "\nINSTRUCTIONS:\n"
                     "1. Read every section (separated by '---') completely from start to finish. "
                     "DO NOT stop reading once you find relevant information - chunks can contain multiple instances of valuable information.\n"
                     "2. CRITICAL: When reading chunks, read the ENTIRE text of each chunk completely. "
-                    "Do not stop at the first sentence about a person - continue reading to find all mentions and relationships.\n"
-                    "3. For relationship questions (any relationship type: co-founders, employees, managers, directors, etc.), CRITICAL RULES:\n"
-                    "   - ONLY include people/entities where the text EXPLICITLY states the exact relationship type to the exact entity mentioned in the query.\n"
-                    "   - The relationship type in the text must match the relationship type asked about.\n"
-                    "   - The entity in the text must match the entity asked about.\n"
-                    "   - EXCLUDE: People/entities with the same relationship type but to a different entity.\n"
-                    "   - EXCLUDE: People/entities who work for or are associated with the entity but have a different relationship type.\n"
-                    "4. For each person/entity found, you MUST internally score:\n"
-                    "   - Score HIGH (include): Text explicitly states the exact relationship type to the exact entity mentioned in the query.\n"
-                    "   - Score MEDIUM (exclude): Person/entity is associated with the entity but has a different relationship type.\n"
-                    "   - Score LOW (exclude): Person/entity mentioned but relationship type or entity doesn't match the query.\n"
-                    "5. Extract only information that scores HIGH - be precise about exact matches.\n"
-                    "6. For lists, find EVERY matching item in EVERY section - read each section completely to find all items.\n"
-                    "7. Format as natural sentences.\n"
-                    "8. End with a brief, natural question (do not include the phrase 'follow up' or 'follow-up' in your question).\n"
+                    "Do not stop at the first sentence that seems relevant - continue reading to find all information that answers the query.\n"
+                    "3. For each piece of information found, evaluate relevance:\n"
+                    "   - Score HIGH (include): Information that directly and explicitly answers the query with exact matches.\n"
+                    "   - Score MEDIUM (exclude): Information that is related but requires inference or doesn't directly answer the query.\n"
+                    "   - Score LOW (exclude): Information that mentions similar terms but doesn't actually answer the query.\n"
+                    "4. Extract only information that scores HIGH - be precise about what exactly matches the query.\n"
+                    "   - For relationship questions: Only include where text explicitly states the exact relationship to the exact entity.\n"
+                    "   - For factual questions: Only include information that directly answers the question asked.\n"
+                    "   - For list questions: Find EVERY matching item in EVERY section - read each section completely.\n"
+                    "5. Format as natural sentences.\n"
+                    "6. End with a brief, natural question (do not include the phrase 'follow up' or 'follow-up' in your question).\n"
                 )
                 
                 system_content = (
@@ -1055,16 +1046,32 @@ JSON array only:"""
                 for chunk in llm_response:
                     buffer += chunk
                     
-                    # First, filter out scoring sections (---SCORING--- to ---END SCORING---)
-                    if "---SCORING---" in buffer and not in_scoring:
-                        scoring_start = buffer.find("---SCORING---")
+                    # First, filter out scoring sections (catch variations: ---SCORING---, SCORING-, -SCORING-, etc.)
+                    # Look for scoring markers (flexible matching)
+                    scoring_markers = ["---SCORING---", "SCORING-", "-SCORING-", "SCORING"]
+                    scoring_start_pos = -1
+                    scoring_marker = None
+                    for marker in scoring_markers:
+                        if marker in buffer and not in_scoring:
+                            scoring_start_pos = buffer.find(marker)
+                            scoring_marker = marker
+                            break
+                    
+                    if scoring_start_pos >= 0 and not in_scoring:
                         in_scoring = True
                         # Extract scoring section for logging
-                        scoring_buffer = buffer[scoring_start:].split("---END SCORING---")[0] if "---END SCORING---" in buffer else buffer[scoring_start:]
-                        # Remove scoring section from buffer
-                        if "---END SCORING---" in buffer:
-                            end_scoring = buffer.find("---END SCORING---") + len("---END SCORING---")
-                            buffer = buffer[:scoring_start] + buffer[end_scoring:]
+                        end_markers = ["---END SCORING---", "END SCORING-", "-END SCORING-", "END SCORING"]
+                        end_pos = -1
+                        end_marker = None
+                        for em in end_markers:
+                            if em in buffer[scoring_start_pos:]:
+                                end_pos = buffer.find(em, scoring_start_pos)
+                                end_marker = em
+                                break
+                        
+                        if end_pos >= 0:
+                            scoring_buffer = buffer[scoring_start_pos:end_pos]
+                            buffer = buffer[:scoring_start_pos] + buffer[end_pos + len(end_marker):]
                             in_scoring = False
                             # Log scoring for debugging
                             if scoring_buffer:
@@ -1075,24 +1082,57 @@ JSON array only:"""
                                 print(f"{'='*80}\n")
                         else:
                             # Still waiting for end marker, remove what we have so far
-                            buffer = buffer[:scoring_start]
+                            buffer = buffer[:scoring_start_pos]
                     
-                    if in_scoring and "---END SCORING---" in buffer:
-                        end_scoring = buffer.find("---END SCORING---")
-                        scoring_buffer += buffer[:end_scoring]
-                        buffer = buffer[end_scoring + len("---END SCORING---"):]
-                        in_scoring = False
-                        # Log scoring for debugging
-                        if scoring_buffer:
-                            print(f"\n{'='*80}")
-                            print(f"[Generic] 🔍 [LLM Scoring Debug] SCORING OUTPUT:")
-                            print(f"{'='*80}")
-                            print(scoring_buffer)
-                            print(f"{'='*80}\n")
+                    # Check for end marker while in scoring section
+                    if in_scoring:
+                        end_markers = ["---END SCORING---", "END SCORING-", "-END SCORING-", "END SCORING"]
+                        for em in end_markers:
+                            if em in buffer:
+                                end_pos = buffer.find(em)
+                                scoring_buffer += buffer[:end_pos]
+                                buffer = buffer[end_pos + len(em):]
+                                in_scoring = False
+                                # Log scoring for debugging
+                                if scoring_buffer:
+                                    print(f"\n{'='*80}")
+                                    print(f"[Generic] 🔍 [LLM Scoring Debug] SCORING OUTPUT:")
+                                    print(f"{'='*80}")
+                                    print(scoring_buffer)
+                                    print(f"{'='*80}\n")
+                                break
                     
                     # Skip chunks while in scoring section
                     if in_scoring:
                         continue
+                    
+                    # Detect scoring sections by content patterns (even without explicit markers)
+                    # Look for patterns like "Person 1:", "Score: HIGH/MEDIUM/LOW", "Include: YES/NO"
+                    scoring_content_pattern = r"Person\s+\d+:|Score:\s*(HIGH|MEDIUM|LOW)|Include:\s*(YES|NO)"
+                    if re.search(scoring_content_pattern, buffer, re.IGNORECASE):
+                        # This looks like scoring output - find where it ends
+                        # Look for end markers or transition to answer
+                        end_patterns = ["---END SCORING---", "END SCORING", "Now answer:", "Final Answer:", "---ANSWER---"]
+                        found_end = False
+                        for ep in end_patterns:
+                            if ep in buffer:
+                                end_pos = buffer.find(ep)
+                                # Extract scoring section for logging
+                                scoring_section = buffer[:end_pos]
+                                if scoring_section:
+                                    print(f"\n{'='*80}")
+                                    print(f"[Generic] 🔍 [LLM Scoring Debug] SCORING OUTPUT (detected by pattern):")
+                                    print(f"{'='*80}")
+                                    print(scoring_section)
+                                    print(f"{'='*80}\n")
+                                # Remove scoring section
+                                buffer = buffer[end_pos + len(ep):].lstrip()
+                                found_end = True
+                                break
+                        if not found_end:
+                            # Still in scoring section, clear buffer
+                            buffer = ""
+                            continue
                     
                     # Check for structured format markers
                     # Look for "Final Answer:" or "---ANSWER---" markers
@@ -1216,14 +1256,30 @@ JSON array only:"""
                 for chunk in llm_response:
                     buffer += chunk
                     
-                    # First, filter out scoring sections (---SCORING--- to ---END SCORING---)
-                    if "---SCORING---" in buffer and not in_scoring:
-                        scoring_start = buffer.find("---SCORING---")
+                    # First, filter out scoring sections (catch variations: ---SCORING---, SCORING-, -SCORING-, etc.)
+                    scoring_markers = ["---SCORING---", "SCORING-", "-SCORING-", "SCORING"]
+                    scoring_start_pos = -1
+                    scoring_marker = None
+                    for marker in scoring_markers:
+                        if marker in buffer and not in_scoring:
+                            scoring_start_pos = buffer.find(marker)
+                            scoring_marker = marker
+                            break
+                    
+                    if scoring_start_pos >= 0 and not in_scoring:
                         in_scoring = True
-                        scoring_buffer = buffer[scoring_start:].split("---END SCORING---")[0] if "---END SCORING---" in buffer else buffer[scoring_start:]
-                        if "---END SCORING---" in buffer:
-                            end_scoring = buffer.find("---END SCORING---") + len("---END SCORING---")
-                            buffer = buffer[:scoring_start] + buffer[end_scoring:]
+                        end_markers = ["---END SCORING---", "END SCORING-", "-END SCORING-", "END SCORING"]
+                        end_pos = -1
+                        end_marker = None
+                        for em in end_markers:
+                            if em in buffer[scoring_start_pos:]:
+                                end_pos = buffer.find(em, scoring_start_pos)
+                                end_marker = em
+                                break
+                        
+                        if end_pos >= 0:
+                            scoring_buffer = buffer[scoring_start_pos:end_pos]
+                            buffer = buffer[:scoring_start_pos] + buffer[end_pos + len(end_marker):]
                             in_scoring = False
                             if scoring_buffer:
                                 print(f"\n{'='*80}")
@@ -1232,22 +1288,49 @@ JSON array only:"""
                                 print(scoring_buffer)
                                 print(f"{'='*80}\n")
                         else:
-                            buffer = buffer[:scoring_start]
+                            buffer = buffer[:scoring_start_pos]
                     
-                    if in_scoring and "---END SCORING---" in buffer:
-                        end_scoring = buffer.find("---END SCORING---")
-                        scoring_buffer += buffer[:end_scoring]
-                        buffer = buffer[end_scoring + len("---END SCORING---"):]
-                        in_scoring = False
-                        if scoring_buffer:
-                            print(f"\n{'='*80}")
-                            print(f"[Generic] 🔍 [LLM Scoring Debug] SCORING OUTPUT:")
-                            print(f"{'='*80}")
-                            print(scoring_buffer)
-                            print(f"{'='*80}\n")
+                    if in_scoring:
+                        end_markers = ["---END SCORING---", "END SCORING-", "-END SCORING-", "END SCORING"]
+                        for em in end_markers:
+                            if em in buffer:
+                                end_pos = buffer.find(em)
+                                scoring_buffer += buffer[:end_pos]
+                                buffer = buffer[end_pos + len(em):]
+                                in_scoring = False
+                                if scoring_buffer:
+                                    print(f"\n{'='*80}")
+                                    print(f"[Generic] 🔍 [LLM Scoring Debug] SCORING OUTPUT:")
+                                    print(f"{'='*80}")
+                                    print(scoring_buffer)
+                                    print(f"{'='*80}\n")
+                                break
                     
                     if in_scoring:
                         continue
+                    
+                    # Detect scoring sections by content patterns (even without explicit markers)
+                    scoring_content_pattern = r"Person\s+\d+:|Score:\s*(HIGH|MEDIUM|LOW)|Include:\s*(YES|NO)"
+                    if re.search(scoring_content_pattern, buffer, re.IGNORECASE):
+                        # This looks like scoring output - find where it ends
+                        end_patterns = ["---END SCORING---", "END SCORING", "Now answer:", "Final Answer:", "---ANSWER---"]
+                        found_end = False
+                        for ep in end_patterns:
+                            if ep in buffer:
+                                end_pos = buffer.find(ep)
+                                scoring_section = buffer[:end_pos]
+                                if scoring_section:
+                                    print(f"\n{'='*80}")
+                                    print(f"[Generic] 🔍 [LLM Scoring Debug] SCORING OUTPUT (detected by pattern):")
+                                    print(f"{'='*80}")
+                                    print(scoring_section)
+                                    print(f"{'='*80}\n")
+                                buffer = buffer[end_pos + len(ep):].lstrip()
+                                found_end = True
+                                break
+                        if not found_end:
+                            buffer = ""
+                            continue
                     
                     # Check if we've reached the answer section
                     if "---ANSWER---" in buffer and not in_answer:
