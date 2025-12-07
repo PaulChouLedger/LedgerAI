@@ -933,15 +933,21 @@ JSON array only:"""
                         f"   - If query asks about '[relationship] of Entity A', text must say '[relationship] of Entity A'.\n"
                         f"   - If text says '[relationship] of Entity B' (different entity), that is MEDIUM/LOW score, not HIGH.\n"
                         f"   - Example: Query asks 'co-founders of Company X'. Text says 'Co-Founder of Company Y' = MEDIUM (wrong entity).\n"
-                        f"4. List EVERY item/person/entity you found in the context that might match the query.\n"
-                        f"5. For EACH item, show:\n"
+                        f"4. CRITICAL: Read the COMPLETE sentence/paragraph about each person before scoring.\n"
+                        f"   - If text says 'Person X is [Role] at Entity A' but does NOT say 'Co-Founder of Entity A', that is MEDIUM/LOW.\n"
+                        f"   - Do NOT assume someone is a co-founder just because they work at the entity.\n"
+                        f"   - Only score HIGH if text EXPLICITLY states the exact relationship to the exact entity.\n"
+                        f"   - Example: Text says 'Person X is Business Development Lead at Company X' = MEDIUM (not co-founder).\n"
+                        f"5. List EVERY item/person/entity you found in the context that might match the query.\n"
+                        f"6. For EACH item, show:\n"
                         f"   - Name/Item: [Name or description]\n"
                         f"   - Text found: [Exact quote from context - read the ENTIRE relevant sentence/paragraph]\n"
                         f"   - Score: HIGH/MEDIUM/LOW\n"
                         f"   - Reason: [Why this score - be specific about what information is stated in text vs. what was asked in the query. "
-                        f"For relationship questions, explicitly state if the entity matches or not.]\n"
+                        f"For relationship questions, explicitly state: (1) what relationship is stated in text, (2) what entity is mentioned, "
+                        f"(3) whether it matches the query. If text says '[Role] at Entity' but NOT '[relationship] of Entity', state that explicitly.]\n"
                         f"   - Include? YES/NO\n"
-                        f"6. After scoring all candidates, provide your final answer with only HIGH scores.\n\n"
+                        f"7. After scoring all candidates, provide your final answer with only HIGH scores.\n\n"
                         f"Example format:\n"
                         f"---SCORING---\n"
                         f"Item 1: [Name/Description]\n"
@@ -1110,16 +1116,31 @@ JSON array only:"""
                 reasoning_buffer = ""  # Buffer for logging reasoning in debug mode
                 scoring_buffer = ""  # Buffer for logging scoring in debug mode
                 
+                # Track if we're in scoring section - don't yield anything until we're past it
+                in_scoring_section = False
+                answer_started = False
+                
                 for chunk in llm_response:
-                    # Pre-filter: Check if chunk contains scoring keywords and filter immediately
-                    if re.search(r'\b(Item\s+\d+|Person\s+\d+|Score:|Include:|Reason:|Text:)\b', chunk, re.IGNORECASE):
-                        # This chunk likely contains scoring content - check if it's part of actual answer
-                        # If it's just scoring format without actual answer content, skip it
-                        if not re.search(r'\b(co-founders|founders|The|Ledger|Based on|According to|are|is)\b', chunk, re.IGNORECASE):
-                            # Likely scoring format, skip this chunk
-                            continue
-                    
                     buffer += chunk
+                    
+                    # Early detection: If buffer contains scoring patterns, don't yield until we find the answer
+                    if not answer_started:
+                        # Check for scoring markers or patterns
+                        if re.search(r'\b(SCORING|Item\s+\d+|Person\s+\d+|Score:|Include:|Reason:|Text:)\b', buffer, re.IGNORECASE):
+                            in_scoring_section = True
+                        
+                        # Check if we've reached the actual answer
+                        if re.search(r'\b(The\s+co-founders|The\s+founders|Ledger\s+AI[\'']?s\s+co-founders|co-founders\s+are|founders\s+are|The\s+[A-Z][a-z]+\s+co-founders)\b', buffer, re.IGNORECASE):
+                            answer_started = True
+                            in_scoring_section = False
+                            # Extract only the answer part
+                            answer_match = re.search(r'\b(The\s+co-founders|The\s+founders|Ledger\s+AI[\'']?s\s+co-founders|co-founders\s+are|founders\s+are|The\s+[A-Z][a-z]+\s+co-founders)\b', buffer, re.IGNORECASE)
+                            if answer_match:
+                                buffer = buffer[answer_match.start():]
+                        
+                        # If still in scoring section, don't yield
+                        if in_scoring_section and not answer_started:
+                            continue
                     
                     # First, filter out scoring sections (catch variations: ---SCORING---, SCORING-, -SCORING-, etc.)
                     # Look for scoring markers (flexible matching)
@@ -1363,15 +1384,31 @@ JSON array only:"""
                 max_tokens_limit = MAX_TOKENS_RAG_MODE_LIST if is_list_request else MAX_TOKENS_RAG_MODE
                 llm_response = llm_chat_simple(messages, max_tokens=max_tokens_limit, stream=True)
                 
+                # Track if we're in scoring section - don't yield anything until we're past it
+                in_scoring_section_debug = False
+                answer_started_debug = False
+                
                 for chunk in llm_response:
-                    # Pre-filter: Check if chunk contains scoring keywords and filter immediately
-                    if re.search(r'\b(Item\s+\d+|Person\s+\d+|Score:|Include:|Reason:|Text:)\b', chunk, re.IGNORECASE):
-                        # This chunk likely contains scoring content - check if it's part of actual answer
-                        if not re.search(r'\b(co-founders|founders|The|Ledger|Based on|According to|are|is)\b', chunk, re.IGNORECASE):
-                            # Likely scoring format, skip this chunk
-                            continue
-                    
                     buffer += chunk
+                    
+                    # Early detection: If buffer contains scoring patterns, don't yield until we find the answer
+                    if not answer_started_debug:
+                        # Check for scoring markers or patterns
+                        if re.search(r'\b(SCORING|Item\s+\d+|Person\s+\d+|Score:|Include:|Reason:|Text:)\b', buffer, re.IGNORECASE):
+                            in_scoring_section_debug = True
+                        
+                        # Check if we've reached the actual answer
+                        if re.search(r'\b(The\s+co-founders|The\s+founders|Ledger\s+AI[\'']?s\s+co-founders|co-founders\s+are|founders\s+are|The\s+[A-Z][a-z]+\s+co-founders)\b', buffer, re.IGNORECASE):
+                            answer_started_debug = True
+                            in_scoring_section_debug = False
+                            # Extract only the answer part
+                            answer_match = re.search(r'\b(The\s+co-founders|The\s+founders|Ledger\s+AI[\'']?s\s+co-founders|co-founders\s+are|founders\s+are|The\s+[A-Z][a-z]+\s+co-founders)\b', buffer, re.IGNORECASE)
+                            if answer_match:
+                                buffer = buffer[answer_match.start():]
+                        
+                        # If still in scoring section, don't yield
+                        if in_scoring_section_debug and not answer_started_debug:
+                            continue
                     
                     # First, filter out scoring sections (catch variations: ---SCORING---, SCORING-, -SCORING-, etc.)
                     scoring_markers = ["---SCORING---", "SCORING-", "-SCORING-", "SCORING"]
