@@ -211,6 +211,18 @@ def handle_conversation(
                           'what am i', 'when am i', 'where am i', 'tell me about me']
         is_personal_query = any(keyword in normalized_prompt for keyword in personal_keywords)
         
+        # Skip RAG and filler phrases for simple conversational responses (thank you, goodbye, etc.)
+        conversational_phrases = [
+            'thank you', 'thanks', 'thank', 'thanks a lot', 'thank you very much',
+            'goodbye', 'bye', 'see you', 'see ya', 'farewell',
+            'you\'re welcome', 'no problem', 'my pleasure', 'anytime',
+            'hello', 'hi', 'hey', 'greetings',
+            'ok', 'okay', 'sure', 'alright', 'got it', 'understood',
+            'yes', 'yeah', 'yep', 'no', 'nope',
+            'please', 'excuse me', 'sorry', 'pardon'
+        ]
+        is_conversational = any(phrase in normalized_prompt for phrase in conversational_phrases)
+        
         # Only use RAG if search actually returns results (require actual relevance, not just substring match)
         # This ensures RAG is only used when there's actually relevant content to inject
         rag_client = None
@@ -220,7 +232,7 @@ def handle_conversation(
         memory_rag_results = []  # Results from memory container
         memory_rag_failed = False  # Track if memory RAG failed (timeout, error, etc.)
         
-        if not is_personal_query:
+        if not is_personal_query and not is_conversational:
             # Detect if query is asking for "what else" or additional information
             is_followup_query = any(phrase in prompt.lower() for phrase in ['what else', 'anything else', 'more about', 'additional', 'other'])
             
@@ -479,7 +491,7 @@ JSON array only:"""
         
         should_use_rag = (rag_results and len(rag_results) > 0) or (memory_rag_results and len(memory_rag_results) > 0)
         should_use_memory_rag = (memory_rag_results and len(memory_rag_results) > 0)
-        print(f"[Generic] 🔍 Query analysis: is_personal={is_personal_query}, should_use_rag={should_use_rag}, should_use_memory_rag={should_use_memory_rag}")
+        print(f"[Generic] 🔍 Query analysis: is_personal={is_personal_query}, is_conversational={is_conversational}, should_use_rag={should_use_rag}, should_use_memory_rag={should_use_memory_rag}")
         
         if should_use_rag and rag_results:
             try:
@@ -1054,7 +1066,8 @@ JSON array only:"""
             # Reduced debug logging for performance
         
         # If streaming and we used LLM scoring, yield filler phrase first
-        if stream and needs_filler_phrase:
+        # Skip filler phrase for conversational queries
+        if stream and needs_filler_phrase and not is_conversational:
             filler_phrase = get_filler_phrase()
             print(f"[Generic] 💭 Yielding filler phrase before response: '{filler_phrase}'")
             
@@ -1468,9 +1481,22 @@ def chat_tts():
     def generate_response():
         full_response_text = ""  # Accumulate full response for memory storage
         try:
+            # Check if this is a simple conversational phrase (skip RAG and filler phrases)
+            normalized_prompt = prompt.lower()
+            conversational_phrases = [
+                'thank you', 'thanks', 'thank', 'thanks a lot', 'thank you very much',
+                'goodbye', 'bye', 'see you', 'see ya', 'farewell',
+                'you\'re welcome', 'no problem', 'my pleasure', 'anytime',
+                'hello', 'hi', 'hey', 'greetings',
+                'ok', 'okay', 'sure', 'alright', 'got it', 'understood',
+                'yes', 'yeah', 'yep', 'no', 'nope',
+                'please', 'excuse me', 'sorry', 'pardon'
+            ]
+            is_conversational = any(phrase in normalized_prompt for phrase in conversational_phrases)
+            
             # Check if RAG will be used BEFORE processing (to play filler phrase during RAG)
             will_use_rag = False
-            if RAG_MODE in ("CPU", "GPU"):
+            if RAG_MODE in ("CPU", "GPU") and not is_conversational:
                 try:
                     # Quick check: will document RAG be used?
                     client = get_rag_client()
@@ -1501,7 +1527,8 @@ def chat_tts():
                     print(f"[Generic] ⚠️ RAG pre-check failed: {e}")
             
             # If RAG will be used, yield filler phrase first (RAG processing happens during playback)
-            if will_use_rag:
+            # Skip filler phrase for conversational queries
+            if will_use_rag and not is_conversational:
                 filler_phrase = get_filler_phrase()
                 print(f"[Generic] 💭 Yielding filler phrase before RAG processing: '{filler_phrase}'")
                 # Yield filler phrase with proper sentence tags - must be complete before LLM response
