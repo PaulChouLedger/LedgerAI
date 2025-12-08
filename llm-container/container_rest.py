@@ -874,8 +874,33 @@ JSON array only:"""
                                     # Check for entity
                                     has_entity = any(entity.lower() in sentence_lower for entity in entity_names) if entity_names else True
                                     
-                                    # Only include if BOTH relationship term AND entity are present
-                                    if has_relationship and has_entity:
+                                    # CRITICAL: For co-founder queries, ensure the relationship is TO the query entity, not another entity
+                                    # Check that the relationship term appears in context with the query entity
+                                    # Pattern: "Co-Founder of [QueryEntity]" or "[QueryEntity] Co-Founder" or "Co-Founder and [Title] of [QueryEntity]"
+                                    if has_relationship and has_entity and entity_names:
+                                        # Check if the sentence contains the pattern: relationship + of/at + entity OR entity + relationship
+                                        entity_lower = [e.lower() for e in entity_names]
+                                        # Look for patterns like "co-founder of ledgerai" or "ledgerai co-founder"
+                                        relationship_entity_pattern = False
+                                        for entity in entity_lower:
+                                            # Pattern 1: "co-founder of [entity]" or "co-founder and [title] of [entity]"
+                                            if f'co-founder' in sentence_lower and f'of {entity}' in sentence_lower:
+                                                relationship_entity_pattern = True
+                                                break
+                                            # Pattern 2: "[entity] co-founder" (less common but possible)
+                                            if f'{entity} co-founder' in sentence_lower:
+                                                relationship_entity_pattern = True
+                                                break
+                                            # Pattern 3: "co-founder and [title] of [entity]"
+                                            if f'co-founder and' in sentence_lower and f'of {entity}' in sentence_lower:
+                                                relationship_entity_pattern = True
+                                                break
+                                        
+                                        # Only include if the relationship is explicitly to the query entity
+                                        if relationship_entity_pattern:
+                                            relevant_sentences.append(sentence)
+                                    elif has_relationship and has_entity:
+                                        # If no entity names extracted, include if both are present (fallback)
                                         relevant_sentences.append(sentence)
                                 
                                 if relevant_sentences:
@@ -1193,13 +1218,16 @@ JSON array only:"""
                 # Add few-shot examples to guide RAG handling
                 few_shot_examples = (
                     "\nEXAMPLES OF PROPER RAG HANDLING:\n\n"
-                    "Example 1 - List Question:\n"
+                    "Example 1 - List Question (THIS IS JUST AN EXAMPLE - USE ACTUAL DATA FROM CONTEXT):\n"
                     "Query: 'Who are the co-founders of Company X?'\n"
                     "Chunk 1: 'John Smith is CEO and Co-Founder of Company X. He leads the engineering team. "
                     "Sarah Jones is Co-Founder and CTO of Company X. She manages product development. "
                     "Mike Brown works as Head of Sales at Company X.'\n"
                     "Correct approach: Read the ENTIRE chunk. Extract: John Smith (Co-Founder of Company X - HIGH), "
-                    "Sarah Jones (Co-Founder of Company X - HIGH). Exclude: Mike Brown (Head of Sales, not Co-Founder - MEDIUM).\n\n"
+                    "Sarah Jones (Co-Founder of Company X - HIGH). Exclude: Mike Brown (Head of Sales, not Co-Founder - MEDIUM).\n"
+                    "⚠️ CRITICAL: The names 'John Smith', 'Sarah Jones', and 'Mike Brown' are EXAMPLE names only. "
+                    "You MUST extract the ACTUAL names from the provided context sections above, NOT use these example names. "
+                    "Only use information that appears in the 'Knowledge context' sections provided to you.\n\n"
                     "Example 2 - Analytical Question:\n"
                     "Query: 'What emotional themes appear in my journal entries?'\n"
                     "Chunk 1: 'Entry 1: I felt isolated and alone. Entry 2: The isolation continued for weeks. "
@@ -1217,13 +1245,16 @@ JSON array only:"""
                 # Add few-shot examples to guide RAG handling
                 few_shot_examples = (
                     "\nEXAMPLES OF PROPER RAG HANDLING:\n\n"
-                    "Example 1 - List Question:\n"
+                    "Example 1 - List Question (THIS IS JUST AN EXAMPLE - USE ACTUAL DATA FROM CONTEXT):\n"
                     "Query: 'Who are the co-founders of Company X?'\n"
                     "Chunk 1: 'John Smith is CEO and Co-Founder of Company X. He leads the engineering team. "
                     "Sarah Jones is Co-Founder and CTO of Company X. She manages product development. "
                     "Mike Brown works as Head of Sales at Company X.'\n"
                     "Correct approach: Read the ENTIRE chunk. Extract: John Smith (Co-Founder of Company X - HIGH), "
-                    "Sarah Jones (Co-Founder of Company X - HIGH). Exclude: Mike Brown (Head of Sales, not Co-Founder - MEDIUM).\n\n"
+                    "Sarah Jones (Co-Founder of Company X - HIGH). Exclude: Mike Brown (Head of Sales, not Co-Founder - MEDIUM).\n"
+                    "⚠️ CRITICAL: The names 'John Smith', 'Sarah Jones', and 'Mike Brown' are EXAMPLE names only. "
+                    "You MUST extract the ACTUAL names from the provided context sections above, NOT use these example names. "
+                    "Only use information that appears in the 'Knowledge context' sections provided to you.\n\n"
                     "Example 2 - Analytical Question:\n"
                     "Query: 'What emotional themes appear in my journal entries?'\n"
                     "Chunk 1: 'Entry 1: I felt isolated and alone. Entry 2: The isolation continued for weeks. "
