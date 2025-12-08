@@ -1,0 +1,507 @@
+{
+  "total_usage": 8207.400000000007,
+  "total_paid": 0.0,
+  "operation_history": [
+    {
+      "type": "tts_generation",
+      "cost": 5.0,
+      "multiplier": 2.5
+    },
+    {
+      "type": "simple_query",
+      "cost": 10.0,
+      "multiplier": 1.0
+    },
+    {
+      "type": "tts_generation",
+      "cost": 7.0,
+      "multiplier": 3.5
+    },
+    {
+      "type": "tts_generation",
+      "cost": 5.0,
+      "multiplier": 2.5
+    },
+    {
+      "type": "tts_generation",
+      "cost": 5.0,
+      "multiplier": 2.5
+    },
+    {
+      "type": "simple_query",
+      "cost": 10.0,
+      "multiplier": 1.0
+    },
+    {
+      "type": "tts_generation",
+      "cost": 7.0,
+      "multiplier": 3.5
+    },
+    {
+      "type": "tts_generation",
+      "cost": 5.0,
+      "multiplier": 2.5
+    },
+    {
+      "type": "tts_generation",
+      "cost": 12.0,
+      "multiplier": 6.0
+    },
+    {
+      "type": "tts_generation",
+      "cost": 10.0,
+      "multiplier": 5.0
+    },
+    {
+      "type": "tts_generation",
+      "cost": 5.0,
+      "multiplier": 2.5
+    },
+    {
+      "type": "simple_query",
+      "cost": 10.0,
+      "multiplier": 1.0
+    },
+    {
+      "type": "tts_generation",
+      "cost": 8.0,
+      "multiplier": 4.0
+    },
+    {
+      "type": "tts_generation",
+      "cost": 2.0,
+      "multiplier": 1.0
+    },
+    {
+      "type": "tts_generation",
+      "cost": 14.0,
+      "multiplier": 7.0
+    },
+    {
+      "type": "simple_query",
+      "cost": 10.0,
+      "multiplier": 1.0
+    },
+    {
+      "type": "tts_generation",
+      "cost": 7.0,
+      "multiplier": 3.5
+    },
+    {
+      "type": "tts_generation",
+      "cost": 5.0,
+      "multiplier": 2.5
+    },
+    {
+      "type": "simple_query",
+      "cost": 10.0,
+      "multiplier": 1.0
+    },
+    {
+      "type": "tts_generation",
+      "cost": 10.0,
+      "multiplier": 5.0
+    },
+    {
+      "type": "tts_generation",
+      "cost": 5.0,
+      "multiplier": 2.5
+    },
+    {
+      "type": "tts_generation",
+      "cost": 4.0,
+      "multiplier": 2.0
+    },
+    {
+      "type": "simple_query",
+      "cost": 10.0,
+      "multiplier": 1.0
+    },
+    {
+      "type": "tts_generation",
+      "cost": 10.0,
+      "multiplier": 5.0
+    },
+    {
+      "type": "tts_generation",
+      "cost": 7.0,
+      "multiplier": 3.5
+    },
+    {
+      "type": "tts_generation",
+      "cost": 5.0,
+      "multiplier": 2.5
+    },
+    {
+      "type": "simple_query",
+      "cost": 10.0,
+      "multiplier": 1.0
+    },
+    {
+      "type": "tts_generation",
+      "cost": 8.0,
+      "multiplier": 4.0
+    },
+    {
+      "type": "tts_generation",
+      "cost": 2.0,
+      "multiplier": 1.0
+    },
+    {
+      "type": "tts_generation",
+      "cost": 6.0,
+      "multiplier": 3.0
+    },
+    {
+      "type": "tts_generation",
+      "cost": 4.0,
+      "multiplier": 2.0
+    },
+    {
+      "type": "simple_query",
+      "cost": 10.0,
+      "multiplier": 1.0
+    },
+    {
+      "type": "tts_generation",
+      "cost": 8.0,
+      "multiplier": 4.0
+    },
+    {
+      "type": "tts_generation",
+      "cost": 4.0,
+      "multiplier": 2.0
+    },
+    {
+      "type": "tts_generation",
+      "cost": 6.0,
+      "multiplier": 3.0
+    },
+    {
+      "type": "simple_query",
+      "cost": 10.0,
+      "multiplier": 1.0
+    },
+    {
+      "type": "tts_generation",
+      "cost": 8.0,
+      "multiplier": 4.0
+    },
+    {
+      "type": "tts_generation",
+      "cost": 4.0,
+      "multiplier": 2.0
+    },
+    {
+      "type": "tts_generation",
+      "cost": 8.0,
+      "multiplier": 4.0
+    },
+    {
+      "type": "tts_generation",
+      "cost": 5.0,
+      "multiplier": 2.5
+    },
+    {
+      "type": "simple_query",
+      "cost": 10.0,
+      "multiplier": 1.0
+    },
+    {
+      "type": "tts_generation",
+      "cost": 8.0,
+      "multiplier": 4.0
+    },
+    {
+      "type": "tts_generation",
+      "cost": 1.0,
+      "multiplier": 0.5
+    },
+    {
+      "type": "tts_generation",
+      "cost": 2.0,
+      "multiplier": 1.0
+    },
+    {
+      "type": "tts_generation",
+      "cost": 6.0,
+      "multiplier": 3.0
+    },
+    {
+      "type": "tts_generation",
+      "cost": 5.0,
+      "multiplier": 2.5
+    },
+    {
+      "type": "simple_query",
+      "cost": 10.0,
+      "multiplier": 1.0
+    },
+    {
+      "type": "tts_generation",
+      "cost": 9.0,
+      "multiplier": 4.5
+    },
+    {
+      "type": "tts_generation",
+      "cost": 3.0,
+      "multiplier": 1.5
+    },
+    {
+      "type": "tts_generation",
+      "cost": 3.0,
+      "multiplier": 1.5
+    },
+    {
+      "type": "tts_generation",
+      "cost": 8.0,
+      "multiplier": 4.0
+    },
+    {
+      "type": "simple_query",
+      "cost": 10.0,
+      "multiplier": 1.0
+    },
+    {
+      "type": "tts_generation",
+      "cost": 10.0,
+      "multiplier": 5.0
+    },
+    {
+      "type": "tts_generation",
+      "cost": 6.0,
+      "multiplier": 3.0
+    },
+    {
+      "type": "tts_generation",
+      "cost": 16.0,
+      "multiplier": 8.0
+    },
+    {
+      "type": "tts_generation",
+      "cost": 3.0,
+      "multiplier": 1.5
+    },
+    {
+      "type": "tts_generation",
+      "cost": 5.0,
+      "multiplier": 2.5
+    },
+    {
+      "type": "simple_query",
+      "cost": 10.0,
+      "multiplier": 1.0
+    },
+    {
+      "type": "tts_generation",
+      "cost": 8.0,
+      "multiplier": 4.0
+    },
+    {
+      "type": "tts_generation",
+      "cost": 8.0,
+      "multiplier": 4.0
+    },
+    {
+      "type": "tts_generation",
+      "cost": 11.0,
+      "multiplier": 5.5
+    },
+    {
+      "type": "tts_generation",
+      "cost": 5.0,
+      "multiplier": 2.5
+    },
+    {
+      "type": "tts_generation",
+      "cost": 5.0,
+      "multiplier": 2.5
+    },
+    {
+      "type": "tts_generation",
+      "cost": 5.0,
+      "multiplier": 2.5
+    },
+    {
+      "type": "simple_query",
+      "cost": 10.0,
+      "multiplier": 1.0
+    },
+    {
+      "type": "tts_generation",
+      "cost": 7.0,
+      "multiplier": 3.5
+    },
+    {
+      "type": "tts_generation",
+      "cost": 2.0,
+      "multiplier": 1.0
+    },
+    {
+      "type": "tts_generation",
+      "cost": 4.0,
+      "multiplier": 2.0
+    },
+    {
+      "type": "tts_generation",
+      "cost": 11.0,
+      "multiplier": 5.5
+    },
+    {
+      "type": "tts_generation",
+      "cost": 5.0,
+      "multiplier": 2.5
+    },
+    {
+      "type": "simple_query",
+      "cost": 10.0,
+      "multiplier": 1.0
+    },
+    {
+      "type": "tts_generation",
+      "cost": 4.0,
+      "multiplier": 2.0
+    },
+    {
+      "type": "tts_generation",
+      "cost": 6.0,
+      "multiplier": 3.0
+    },
+    {
+      "type": "tts_generation",
+      "cost": 6.0,
+      "multiplier": 3.0
+    },
+    {
+      "type": "simple_query",
+      "cost": 10.0,
+      "multiplier": 1.0
+    },
+    {
+      "type": "tts_generation",
+      "cost": 5.0,
+      "multiplier": 2.5
+    },
+    {
+      "type": "simple_query",
+      "cost": 10.0,
+      "multiplier": 1.0
+    },
+    {
+      "type": "tts_generation",
+      "cost": 20.0,
+      "multiplier": 10.0
+    },
+    {
+      "type": "tts_generation",
+      "cost": 13.0,
+      "multiplier": 6.5
+    },
+    {
+      "type": "simple_query",
+      "cost": 10.0,
+      "multiplier": 1.0
+    },
+    {
+      "type": "tts_generation",
+      "cost": 3.0,
+      "multiplier": 1.5
+    },
+    {
+      "type": "tts_generation",
+      "cost": 8.0,
+      "multiplier": 4.0
+    },
+    {
+      "type": "tts_generation",
+      "cost": 16.0,
+      "multiplier": 8.0
+    },
+    {
+      "type": "tts_generation",
+      "cost": 26.0,
+      "multiplier": 13.0
+    },
+    {
+      "type": "simple_query",
+      "cost": 10.0,
+      "multiplier": 1.0
+    },
+    {
+      "type": "tts_generation",
+      "cost": 1.0,
+      "multiplier": 0.5
+    },
+    {
+      "type": "tts_generation",
+      "cost": 6.0,
+      "multiplier": 3.0
+    },
+    {
+      "type": "tts_generation",
+      "cost": 6.0,
+      "multiplier": 3.0
+    },
+    {
+      "type": "tts_generation",
+      "cost": 6.0,
+      "multiplier": 3.0
+    },
+    {
+      "type": "simple_query",
+      "cost": 10.0,
+      "multiplier": 1.0
+    },
+    {
+      "type": "tts_generation",
+      "cost": 8.0,
+      "multiplier": 4.0
+    },
+    {
+      "type": "simple_query",
+      "cost": 10.0,
+      "multiplier": 1.0
+    },
+    {
+      "type": "tts_generation",
+      "cost": 4.0,
+      "multiplier": 2.0
+    },
+    {
+      "type": "tts_generation",
+      "cost": 6.0,
+      "multiplier": 3.0
+    },
+    {
+      "type": "simple_query",
+      "cost": 10.0,
+      "multiplier": 1.0
+    },
+    {
+      "type": "tts_generation",
+      "cost": 2.0,
+      "multiplier": 1.0
+    },
+    {
+      "type": "tts_generation",
+      "cost": 19.0,
+      "multiplier": 9.5
+    },
+    {
+      "type": "simple_query",
+      "cost": 10.0,
+      "multiplier": 1.0
+    },
+    {
+      "type": "tts_generation",
+      "cost": 6.0,
+      "multiplier": 3.0
+    },
+    {
+      "type": "tts_generation",
+      "cost": 19.0,
+      "multiplier": 9.5
+    }
+  ],
+  "client_wallet": "0xd3c4d619C8515Bc764921209821Ec7A77FC31Ba4"
+}

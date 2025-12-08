@@ -6,9 +6,6 @@ import math
 from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QPushButton, QVBoxLayout, QWidget, QHBoxLayout, QGraphicsDropShadowEffect, QTextEdit, QScrollBar
 from PyQt5.QtGui import QPixmap, QKeySequence, QColor, QTransform, QPainter, QPen, QFont, QFontMetrics
 from PyQt5.QtCore import Qt, QTimer, QPoint, QPropertyAnimation, QEasingCurve, QMetaObject, Q_ARG, pyqtSlot
-from PyQt5.QtWidgets import QPushButton, QGraphicsDropShadowEffect, QGraphicsOpacityEffect
-from PyQt5.QtCore import QPropertyAnimation, QEasingCurve, QSequentialAnimationGroup, QPauseAnimation, QTimer
-from PyQt5.QtGui import QColor
 
 # Add the parent directories to Python path for imports
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -169,14 +166,13 @@ class DebugOverlayWidget(QWidget):
         """)
         
         # Position at bottom of screen (below Aura eye)
-        overlay_height = 180
-        # Move it further up from the bottom of the 1080x1080 circle
-        overlay_y = window_size - overlay_height - 200  # 200px above bottom edge
+        overlay_height = 200
+        overlay_y = window_size - overlay_height - 40  # 40px from bottom
         overlay_width = window_size - 100  # 50px margins on each side
         overlay_x = 50  # 50px from left
+        
         self.setGeometry(overlay_x, overlay_y, overlay_width, overlay_height)
         self.debug_text.setGeometry(0, 0, overlay_width, overlay_height)
-
         
         # Initially hidden - will be shown during initialization
         self.hide()
@@ -337,8 +333,8 @@ class AuraGUI(QMainWindow):
         print(f"[Border] Created overlay at (0,0), size {window_size}x{window_size}")
         
         # Create debug overlay widget for initialization messages
-        #self.debug_overlay = DebugOverlayWidget(self, window_size)
-        #print(f"[DebugOverlay] Created debug overlay widget")
+        self.debug_overlay = DebugOverlayWidget(self, window_size)
+        print(f"[DebugOverlay] Created debug overlay widget")
 
         # === Pulsation Effect ===
         self.opacity = 1.0
@@ -379,34 +375,32 @@ class AuraGUI(QMainWindow):
             return
         for btn in self.buttons:
             btn.setEnabled(enabled)
-
+    
     def create_circular_buttons(self):
         """Create 6 buttons equally spaced around the circular edge"""
-        # Button configurations: (text, tooltip, handler, color)
+        # Button configurations: (text, icon, function, color)
+
         button_configs = [
-            ("↑", "Upload",     self._handle_upload,    "#444e66"),  # Mercury  - metallic grey
-            ("⚙", "Settings",   self._handle_settings,  "#524903"),  # Venus    - pale yellow
-            ("📊", "Analytics", self._handle_analytics, "#0c2461"),  # Earth    - blue-green
-            ("🎤", "Voice",     self._handle_voice,     "#6b0c05"),  # Mars     - rusty red
-            ("📱", "Mobile",    self._handle_mobile,    "#b1ba49"),  # Jupiter  - warm tan
-            ("ℹ", "Info",       self._handle_info,      "#080961"),  # Neptune  - deep blue
+            ("↑", "Upload",    self._handle_upload,    "#B4B4B4"),  # Mercury  - metallic grey
+            ("⚙", "Settings",  self._handle_settings,  "#E6D2A0"),  # Venus    - pale yellow
+            ("📊", "Analytics",self._handle_analytics, "#4696C8"),  # Earth    - blue-green
+            ("🎤", "Voice",    self._handle_voice,     "#C85A46"),  # Mars     - rusty red
+            ("📱", "Mobile",   self._handle_mobile,    "#D2A06E"),  # Jupiter  - warm tan
+            ("ℹ", "Info",      self._handle_info,      "#325AB4"),  # Neptune  - deep blue
         ]
 
-        center_x = 540  # center of 1080x1080
+        
+        # Calculate positions for 6 buttons around a circle
+        # Move buttons further inward to avoid interfering with red border
+        # Edge radius is 540px, button radius is 50px, border is 8-12px, so: 540 - 20 - 50 - 20 = 450px
+        radius = 420  # Distance from center to button (further from edge to avoid border interference)
+        center_x = 540  # Center of 1080x1080 screen
         center_y = 540
-
+        
         self.buttons = []
 
-        button_size = 150
+        button_size = 150  # <<< make sure this line exists
         button_radius = button_size // 2
-
-        # Near-edge orbit radius (tuned for your round 1080x1080 display)
-        radius = 430
-
-        # Storage for shadows and opacity effects so we can animate then restore shadows
-        self._planet_button_shadows = {}
-        self._planet_opacity_effects = {}
-        self._planet_intro_group = QSequentialAnimationGroup(self)
 
         for i, (text, tooltip, handler, color) in enumerate(button_configs):
             # Calculate angle for this button (0° to 300° in 60° increments)
@@ -417,14 +411,13 @@ class AuraGUI(QMainWindow):
             cy = center_y + radius * math.sin(angle)
 
             # Convert center to top-left position
-            x = cx - button_radius
-            y = cy - button_radius
+            x = cx - (button_size // 2)
+            y = cy - (button_size // 2)
 
             # Create button
             btn = QPushButton(text)
-            btn.setFixedSize(button_size, button_size)
+            btn.setFixedSize(button_size, button_size)  # e.g. 150x150, set above
             btn.setToolTip(tooltip)
-            btn.setParent(self.centralWidget())
             btn.move(int(x), int(y))
 
             btn.setStyleSheet(f"""
@@ -438,7 +431,7 @@ class AuraGUI(QMainWindow):
                         stop:1  {color}
                     );
                     color: #101010;
-                    font-size: 48px;
+                    font-size: 36px;
                     font-weight: bold;
                     border-radius: {button_size // 2}px;   /* keep it circular */
                     border: 2px solid rgba(0, 0, 0, 0.30);
@@ -467,50 +460,24 @@ class AuraGUI(QMainWindow):
                 }}
             """)
 
-            # Shadow we want *after* the fade animation
+
+            
+            # Add depth shadow effect (dark shadow for depth, not colored glow)
             shadow_effect = QGraphicsDropShadowEffect()
-            shadow_effect.setBlurRadius(12)
-            shadow_effect.setColor(QColor(0, 0, 0, 80))
-            shadow_effect.setOffset(0, 1)
-
-            # Store shadow for later, and set an opacity effect for the intro fade
-            self._planet_button_shadows[btn] = shadow_effect
-
-            opacity_effect = QGraphicsOpacityEffect(btn)
-            opacity_effect.setOpacity(0.0)    # start fully transparent
-            btn.setGraphicsEffect(opacity_effect)
-            self._planet_opacity_effects[btn] = opacity_effect
-
+            shadow_effect.setBlurRadius(12)  # smaller blur so it doesn't swallow the bottom
+            shadow_effect.setColor(QColor(0, 0, 0, 80))  # a bit lighter
+            shadow_effect.setOffset(0, 1)  # tiny offset for depth, not a big “drop”
+            btn.setGraphicsEffect(shadow_effect)
+            
             # Connect handler
             btn.clicked.connect(handler)
             self.buttons.append(btn)
-
-            # Must be visible for the fade animation to work
-            btn.show()
-
-            # Animation for this button's opacity
-            anim = QPropertyAnimation(opacity_effect, b"opacity", self)
-            anim.setDuration(250)        # ms per button fade
-            anim.setStartValue(0.0)
-            anim.setEndValue(1.0)
-            anim.setEasingCurve(QEasingCurve.InOutQuad)
-
-            # Add to the sequential group: fade this button, then short pause before next
-            self._planet_intro_group.addAnimation(anim)
-            self._planet_intro_group.addAnimation(QPauseAnimation(80, self))
-
-        # When the whole sequence finishes, restore the original shadows
-        def _restore_shadows():
-            for btn in self.buttons:
-                shadow = self._planet_button_shadows.get(btn)
-                if shadow is not None:
-                    btn.setGraphicsEffect(shadow)
-
-        self._planet_intro_group.finished.connect(_restore_shadows)
-
-        # Start the intro animation shortly after startup
-        QTimer.singleShot(500, self._planet_intro_group.start)
-
+            
+            # Add button to the main widget (positioned absolutely)
+            btn.setParent(self.centralWidget())
+            btn.move(int(x), int(y))
+            btn.hide()  # Start hidden, show after welcome prompt
+    
     def _handle_upload(self):
         """Handle upload button click"""
         print("[AuraGUI] 📤 Upload button clicked")

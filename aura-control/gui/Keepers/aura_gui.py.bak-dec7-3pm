@@ -384,12 +384,12 @@ class AuraGUI(QMainWindow):
         """Create 6 buttons equally spaced around the circular edge"""
         # Button configurations: (text, tooltip, handler, color)
         button_configs = [
-            ("↑", "Upload",     self._handle_upload,    "#444e66"),  # Mercury  - metallic grey
-            ("⚙", "Settings",   self._handle_settings,  "#524903"),  # Venus    - pale yellow
-            ("📊", "Analytics", self._handle_analytics, "#0c2461"),  # Earth    - blue-green
-            ("🎤", "Voice",     self._handle_voice,     "#6b0c05"),  # Mars     - rusty red
-            ("📱", "Mobile",    self._handle_mobile,    "#b1ba49"),  # Jupiter  - warm tan
-            ("ℹ", "Info",       self._handle_info,      "#080961"),  # Neptune  - deep blue
+            ("↑", "Upload",     self._handle_upload,    "#B4B4B4"),  # Mercury  - metallic grey
+            ("⚙", "Settings",   self._handle_settings,  "#E6D2A0"),  # Venus    - pale yellow
+            ("📊", "Analytics", self._handle_analytics, "#4696C8"),  # Earth    - blue-green
+            ("🎤", "Voice",     self._handle_voice,     "#C85A46"),  # Mars     - rusty red
+            ("📱", "Mobile",    self._handle_mobile,    "#D2A06E"),  # Jupiter  - warm tan
+            ("ℹ", "Info",       self._handle_info,      "#325AB4"),  # Neptune  - deep blue
         ]
 
         center_x = 540  # center of 1080x1080

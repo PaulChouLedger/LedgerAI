@@ -6,9 +6,6 @@ import math
 from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QPushButton, QVBoxLayout, QWidget, QHBoxLayout, QGraphicsDropShadowEffect, QTextEdit, QScrollBar
 from PyQt5.QtGui import QPixmap, QKeySequence, QColor, QTransform, QPainter, QPen, QFont, QFontMetrics
 from PyQt5.QtCore import Qt, QTimer, QPoint, QPropertyAnimation, QEasingCurve, QMetaObject, Q_ARG, pyqtSlot
-from PyQt5.QtWidgets import QPushButton, QGraphicsDropShadowEffect, QGraphicsOpacityEffect
-from PyQt5.QtCore import QPropertyAnimation, QEasingCurve, QSequentialAnimationGroup, QPauseAnimation, QTimer
-from PyQt5.QtGui import QColor
 
 # Add the parent directories to Python path for imports
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -169,14 +166,13 @@ class DebugOverlayWidget(QWidget):
         """)
         
         # Position at bottom of screen (below Aura eye)
-        overlay_height = 180
-        # Move it further up from the bottom of the 1080x1080 circle
-        overlay_y = window_size - overlay_height - 200  # 200px above bottom edge
+        overlay_height = 200
+        overlay_y = window_size - overlay_height - 40  # 40px from bottom
         overlay_width = window_size - 100  # 50px margins on each side
         overlay_x = 50  # 50px from left
+        
         self.setGeometry(overlay_x, overlay_y, overlay_width, overlay_height)
         self.debug_text.setGeometry(0, 0, overlay_width, overlay_height)
-
         
         # Initially hidden - will be shown during initialization
         self.hide()
@@ -337,8 +333,8 @@ class AuraGUI(QMainWindow):
         print(f"[Border] Created overlay at (0,0), size {window_size}x{window_size}")
         
         # Create debug overlay widget for initialization messages
-        #self.debug_overlay = DebugOverlayWidget(self, window_size)
-        #print(f"[DebugOverlay] Created debug overlay widget")
+        self.debug_overlay = DebugOverlayWidget(self, window_size)
+        print(f"[DebugOverlay] Created debug overlay widget")
 
         # === Pulsation Effect ===
         self.opacity = 1.0
@@ -373,143 +369,119 @@ class AuraGUI(QMainWindow):
         # Enable keyboard focus for shortcuts
         self.setFocusPolicy(Qt.StrongFocus)
 
-    def set_planet_buttons_enabled(self, enabled: bool):
-        """Enable or disable all edge/planet buttons at once."""
-        if not hasattr(self, "buttons"):
-            return
-        for btn in self.buttons:
-            btn.setEnabled(enabled)
 
     def create_circular_buttons(self):
-        """Create 6 buttons equally spaced around the circular edge"""
-        # Button configurations: (text, tooltip, handler, color)
-        button_configs = [
-            ("↑", "Upload",     self._handle_upload,    "#444e66"),  # Mercury  - metallic grey
-            ("⚙", "Settings",   self._handle_settings,  "#524903"),  # Venus    - pale yellow
-            ("📊", "Analytics", self._handle_analytics, "#0c2461"),  # Earth    - blue-green
-            ("🎤", "Voice",     self._handle_voice,     "#6b0c05"),  # Mars     - rusty red
-            ("📱", "Mobile",    self._handle_mobile,    "#b1ba49"),  # Jupiter  - warm tan
-            ("ℹ", "Info",       self._handle_info,      "#080961"),  # Neptune  - deep blue
+        """
+        Create 6 buttons equally spaced around the circular edge.
+
+        Buttons are styled as 'planets' around the Aura eye, with distinct colors
+        and positions chosen to stay safely inside the circular screen edge.
+        """
+        from PyQt5.QtWidgets import QPushButton, QGraphicsDropShadowEffect
+        from PyQt5.QtGui import QColor
+
+        # Planet-style buttons: (label, tooltip, color)
+        planet_buttons = [
+            ("☿", "Mercury / Upload",   "#B4B4B4"),  # metallic grey
+            ("♀", "Venus / Settings",   "#E6D2A0"),  # pale yellow
+            ("🌍", "Earth / Analytics", "#4696C8"),  # blue-green
+            ("♂", "Mars / Voice",      "#C85A46"),  # rusty red
+            ("♃", "Jupiter / Mobile",  "#D2A06E"),  # warm tan
+            ("♆", "Neptune / Info",    "#325AB4"),  # deep blue
         ]
 
-        center_x = 540  # center of 1080x1080
-        center_y = 540
+        # Use the actual window size (1080x1080 in your case, but this keeps it flexible)
+        width = self.width() or 1080
+        height = self.height() or 1080
+        center_x = width // 2
+        center_y = height // 2
 
-        self.buttons = []
-
+        # Button geometry
         button_size = 150
         button_radius = button_size // 2
 
-        # Near-edge orbit radius (tuned for your round 1080x1080 display)
-        radius = 430
+        # Orbit radius: stay comfortably inside the circle so we don't clip or blur at the edge
+        screen_radius = min(width, height) // 2
+        margin = 40  # distance from physical edge
+        radius = screen_radius - button_radius - margin
+        if radius < 60:
+            radius = 60  # safety clamp
 
-        # Storage for shadows and opacity effects so we can animate then restore shadows
-        self._planet_button_shadows = {}
-        self._planet_opacity_effects = {}
-        self._planet_intro_group = QSequentialAnimationGroup(self)
+        self.buttons = []
 
-        for i, (text, tooltip, handler, color) in enumerate(button_configs):
-            # Calculate angle for this button (0° to 300° in 60° increments)
-            angle = math.radians(i * 60)  # 0, 60, 120, 180, 240, 300 degrees
+        for i, (label, tooltip, color) in enumerate(planet_buttons):
+            # Even spacing: 0°, 60°, 120°, 180°, 240°, 300°
+            angle = math.radians(i * 60)
 
-            # Calculate position of the button center
+            # Center of the button along the orbit
             cx = center_x + radius * math.cos(angle)
             cy = center_y + radius * math.sin(angle)
 
-            # Convert center to top-left position
-            x = cx - button_radius
-            y = cy - button_radius
+            # Convert from center to top-left for move()
+            x = int(cx - button_radius)
+            y = int(cy - button_radius)
 
-            # Create button
-            btn = QPushButton(text)
-            btn.setFixedSize(button_size, button_size)
+            btn = QPushButton(label, self)
             btn.setToolTip(tooltip)
-            btn.setParent(self.centralWidget())
-            btn.move(int(x), int(y))
+            btn.setFixedSize(button_size, button_size)
+            btn.move(x, y)
 
+            # Planet-like style with subtle gradient
             btn.setStyleSheet(f"""
                 QPushButton {{
-                    /* Planet-like gradient: bright core, colored mid, deeper edge */
                     background: qradialgradient(
-                        cx:0.5, cy:0.5, radius:0.9,
-                        fx:0.5, fy:0.35,
-                        stop:0  #FFFFFF,
-                        stop:0.45 {color},
-                        stop:1  {color}
+                        cx:0.5, cy:0.5, radius:0.8,
+                        fx:0.5, fy:0.3,
+                        stop:0 #F5F5F5,
+                        stop:0.5 {color},
+                        stop:1 {color}
                     );
                     color: #101010;
-                    font-size: 48px;
+                    font-size: 32px;
                     font-weight: bold;
-                    border-radius: {button_size // 2}px;   /* keep it circular */
-                    border: 2px solid rgba(0, 0, 0, 0.30);
+                    border-radius: {button_radius}px;
+                    border: 2px solid rgba(0, 0, 0, 60);
                     padding: 0px;
                 }}
                 QPushButton:hover {{
-                    /* Slightly brighter + hint of Aura blue on hover */
                     background: qradialgradient(
-                        cx:0.5, cy:0.5, radius:0.9,
-                        fx:0.5, fy:0.35,
-                        stop:0  #FFFFFF,
-                        stop:0.35 #99BBE6,
-                        stop:1  {color}
+                        cx:0.5, cy:0.5, radius:0.8,
+                        fx:0.5, fy:0.3,
+                        stop:0 #FFFFFF,
+                        stop:0.4 #99BBEEC,
+                        stop:1 {color}
                     );
-                    border: 2px solid rgba(255, 255, 255, 0.45);
+                    border: 2px solid rgba(255, 255, 255, 100);
                 }}
                 QPushButton:pressed {{
-                    /* Darker, “deeper” planet when pressed */
                     background: qradialgradient(
-                        cx:0.5, cy:0.5, radius:0.9,
-                        fx:0.5, fy:0.35,
-                        stop:0  {color},
-                        stop:1  #002040
+                        cx:0.5, cy:0.5, radius:0.8,
+                        fx:0.5, fy:0.3,
+                        stop:0 {color},
+                        stop:1 #002040
                     );
-                    border: 2px solid rgba(0, 0, 0, 0.6);
+                    border: 2px solid rgba(0, 0, 0, 120);
                 }}
             """)
 
-            # Shadow we want *after* the fade animation
-            shadow_effect = QGraphicsDropShadowEffect()
-            shadow_effect.setBlurRadius(12)
-            shadow_effect.setColor(QColor(0, 0, 0, 80))
-            shadow_effect.setOffset(0, 1)
+            # Shadow for depth
+            shadow = QGraphicsDropShadowEffect()
+            shadow.setBlurRadius(18)
+            shadow.setColor(QColor(0, 0, 0, 120))
+            shadow.setOffset(0, 3)
+            btn.setGraphicsEffect(shadow)
 
-            # Store shadow for later, and set an opacity effect for the intro fade
-            self._planet_button_shadows[btn] = shadow_effect
+            # Click handler: log which planet was tapped
+            btn.clicked.connect(
+                lambda checked=False, name=tooltip: self.append_log(f"[Aura] {name} button pressed")
+            )
 
-            opacity_effect = QGraphicsOpacityEffect(btn)
-            opacity_effect.setOpacity(0.0)    # start fully transparent
-            btn.setGraphicsEffect(opacity_effect)
-            self._planet_opacity_effects[btn] = opacity_effect
+            # Start hidden — your welcome/setup flow will show them later
+            btn.hide()
 
-            # Connect handler
-            btn.clicked.connect(handler)
             self.buttons.append(btn)
 
-            # Must be visible for the fade animation to work
-            btn.show()
 
-            # Animation for this button's opacity
-            anim = QPropertyAnimation(opacity_effect, b"opacity", self)
-            anim.setDuration(250)        # ms per button fade
-            anim.setStartValue(0.0)
-            anim.setEndValue(1.0)
-            anim.setEasingCurve(QEasingCurve.InOutQuad)
-
-            # Add to the sequential group: fade this button, then short pause before next
-            self._planet_intro_group.addAnimation(anim)
-            self._planet_intro_group.addAnimation(QPauseAnimation(80, self))
-
-        # When the whole sequence finishes, restore the original shadows
-        def _restore_shadows():
-            for btn in self.buttons:
-                shadow = self._planet_button_shadows.get(btn)
-                if shadow is not None:
-                    btn.setGraphicsEffect(shadow)
-
-        self._planet_intro_group.finished.connect(_restore_shadows)
-
-        # Start the intro animation shortly after startup
-        QTimer.singleShot(500, self._planet_intro_group.start)
 
     def _handle_upload(self):
         """Handle upload button click"""
@@ -865,14 +837,14 @@ class AuraGUI(QMainWindow):
             
             # Debug logging (occasional)
             # Update red border state and trigger overlay repaint
-            #self.red_border_width = int(self.border_width)
-            #self.red_border_opacity = border_opacity
-            #self.show_red_border = True
+            self.red_border_width = int(self.border_width)
+            self.red_border_opacity = border_opacity
+            self.show_red_border = True
             # Ensure border overlay is visible and on top
-            #if hasattr(self, 'border_overlay'):
-            #    self.border_overlay.show()
-            #self.border_overlay.raise_()  # Keep on top every frame
-            #self.border_overlay.update()  # Trigger overlay paintEvent
+            if hasattr(self, 'border_overlay'):
+                self.border_overlay.show()
+            self.border_overlay.raise_()  # Keep on top every frame
+            self.border_overlay.update()  # Trigger overlay paintEvent
             
         # State 1: TTS playing - dramatic pulsation (priority after transcribing)
         elif _tts_playing:

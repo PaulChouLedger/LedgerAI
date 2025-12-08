@@ -224,8 +224,8 @@ USE_SSML = True
 INSERT_BREAKS = True
 INSERT_SENTENCE_PAUSE = True
 EMPHASIZE_WORDS = ["really", "important", "please", "must", "urgent"]
-DEFAULT_EMOTION = "energetic"
-RATE = "90.0%"
+DEFAULT_EMOTION = "neutral"
+RATE = "100%"
 
 # === Output smoothing / protection for tiny puck speakers ===
 # How many audio chunks to buffer before starting playback (jitter buffer)
@@ -857,10 +857,10 @@ def _generate_tts_audio(text):
             voice_id=ELEVEN_VOICE_ID,
             output_format=PCM_FORMAT,
             voice_settings={
-                "stability": 0.3,
-                "similarity_boost": 0.3,
-                "style": 0.7,
-                "use_speaker_boost": True,
+                "stability": 0.5,
+                "similarity_boost": 0.0,
+                "style": 0.0,
+                "use_speaker_boost": False,
                 "optimize_streaming_latency": True
             }
         )
@@ -893,7 +893,7 @@ def tts_playback_thread(text, tts_start_time):
             from wallet.wallet_integration import get_usage_tracker
             tracker = get_usage_tracker()
             words = len(text.split())
-            speech_duration_seconds = words / 2.0 if words else 0.0  # ~2.5 words/s
+            speech_duration_seconds = words / 2.5 if words else 0.0  # ~2.5 words/s
             tracker.record_usage("tts_generation", multiplier=speech_duration_seconds)
         except Exception as e:
             print(f"[TokenUsage] ⚠️ Failed to track TTS usage: {e}")
