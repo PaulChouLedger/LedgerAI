@@ -839,6 +839,8 @@ JSON array only:"""
                         # For relationship/list queries, extract only relevant substrings that contain both query terms and entity
                         # BUT be more restrictive: require explicit relationship terms (co-founder, founder) in the same sentence
                         if is_list_query or any(term in prompt.lower() for term in ['co-founder', 'founder', 'employee', 'manager', 'director', 'officer']):
+                            import re  # Import re at the start of this block
+                            
                             # Extract entity names from query (e.g., "LedgerAI", "Ledger AI")
                             entity_names = []
                             # Look for capitalized phrases (likely entity names)
@@ -859,7 +861,6 @@ JSON array only:"""
                             # For co-founder queries, be more restrictive: require explicit "co-founder" or "founder" in same sentence as entity
                             if any(term in prompt.lower() for term in ['co-founder', 'founder']):
                                 # Extract only sentences that contain BOTH the relationship term AND entity name
-                                import re
                                 sentences = re.split(r'([.!?]\s+)', text)
                                 sentences = [sentences[i] + (sentences[i+1] if i+1 < len(sentences) else '') 
                                              for i in range(0, len(sentences), 2)]
