@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Your Clinic — Home</title>
+  <meta name="description" content="Your Clinic — professional medical and wellness services. Book an appointment or learn more about our services." />
+  <style>
+    /* ---------- Simple reset ---------- */
+    * {box-sizing: border-box; margin:0; padding:0}
+    html,body {height:100%; font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial; color:#111}
+    a {color:inherit; text-decoration:none}
+    img {max-width:100%; display:block}
+
+    /* ---------- Layout tokens ---------- */
+    :root{
+      --accent:#0077cc;
+      --muted:#6b7280;
+      --bg:#f8fafc;
+      --card:#ffffff;
+      --radius:12px;
+      --max-width:1100px;
+      --container-pad:24px;
+    }
+
+    /* ---------- Top nav ---------- */
+    header {background:linear-gradient(180deg,rgba(255,255,255,0.98),rgba(255,255,255,0.96)); backdrop-filter: blur(6px); position:sticky; top:0; z-index:50; border-bottom:1px solid #e6eef6}
+    .nav {
+      max-width:var(--max-width); margin:0 auto; padding:14px var(--container-pad); display:flex;align-items:center;gap:12px;justify-content:space-between;
+    }
+    .logo {display:flex; gap:12px; align-items:center}
+    .logo img{height:38px; width:auto; border-radius:6px; background:linear-gradient(90deg,#eef6ff,#ffffff)}
+    .nav-links {display:flex; gap:18px; align-items:center}
+    .nav-links a{padding:8px 10px; border-radius:8px; color:var(--muted); font-weight:600}
+    .nav-links a.cta{background:var(--accent); color:white; padding:10px 14px}
+    .mobile-toggle{display:none; border:0; background:transparent; font-size:20px}
+
+    /* ---------- Hero ---------- */
+    .hero {background:var(--bg); padding:42px var(--container-pad); }
+    .hero-inner {max-width:var(--max-width); margin:0 auto; display:grid; grid-template-columns:1fr 420px; gap:28px; align-items:center;}
+    .hero h1{font-size:28px; margin-bottom:10px; color:#05223A}
+    .hero p{color:var(--muted); margin-bottom:18px}
+    .hero .cta-row {display:flex; gap:12px; align-items:center}
+    .hero .cta-row .btn {background:var(--accent); color:#fff; padding:12px 16px; border-radius:10px; font-weight:700}
+    .card {background:var(--card); border-radius:var(--radius); padding:18px; box-shadow:0 6px 18px rgba(12,50,80,0.06);}
+
+    /* right column appointment card */
+    .appt-card h3{margin-bottom:8px}
+    .appt-row {display:flex; gap:8px; margin-top:8px}
+    .pill {display:inline-block; font-size:13px; padding:6px 8px; border-radius:999px; background:#eef7ff; color:var(--accent); font-weight:600}
+
+    /* ---------- Services grid ---------- */
+    .section {max-width:var(--max-width); margin:30px auto; padding:0 var(--container-pad)}
+    .services-grid {display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:18px}
+    .service {background:var(--card); border-radius:12px; padding:16px; box-shadow:0 6px 16px rgba(10,30,55,0.04)}
+    .service h4{margin-top:12px; margin-bottom:6px}
+    .service p{color:var(--muted); font-size:14px}
+
+    /* ---------- About & Team ---------- */
+    .two-col {display:grid; grid-template-columns:1fr 360px; gap:22px; align-items:start}
+    .team-card {display:flex; gap:12px; margin-bottom:12px}
+    .avatar {width:76px; height:76px; border-radius:10px; background:#eaf4ff; display:flex; align-items:center; justify-content:center; color:var(--accent); font-weight:700}
+
+    /* ---------- Contact / Footer ---------- */
+    .contact {display:grid; grid-template-columns:1fr 360px; gap:22px}
+    form input, form textarea, form select {width:100%; padding:10px 12px; border-radius:8px; border:1px solid #e6eef6; margin-bottom:10px}
+    form button {background:var(--accent); color:white; border:0; padding:10px 14px; border-radius:8px}
+
+    footer{margin-top:40px; padding:22px var(--container-pad); background:#0b1220; color:#b8c7d6}
+    footer .foot-inner {max-width:var(--max-width); margin:0 auto; display:flex; justify-content:space-between; gap:18px; align-items:start; flex-wrap:wrap}
+    .disclaimer {font-size:13px; color:#9fb0c8; max-width:650px}
+
+    /* ---------- Responsive ---------- */
+    @media (max-width:920px){
+      .hero-inner {grid-template-columns:1fr}
+      .two-col {grid-template-columns:1fr}
+      .contact {grid-template-columns:1fr}
+      .nav-links{display:none}
+      .mobile-toggle{display:block}
+    }
+
+    /* small utilities */
+    .muted {color:var(--muted); font-size:14px}
+    .kbd {background:#f1f5f9; padding:4px 8px; border-radius:6px; font-weight:700}
+  </style>
+</head>
+<body>
+
+  <!-- ===== Header / Nav ===== -->
+  <header>
+    <div class="nav">
+      <div class="logo">
+        <!-- Replace with your logo -->
+        <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='40'><rect rx='8' ry='8' width='160' height='40' fill='%23007BCC'/><text x='18' y='26' font-family='Arial' font-size='16' fill='white'>YourClinic</text></svg>" alt="Logo">
+        <div>
+          <div style="font-weight:700;color:#05223A">Your Clinic</div>
+          <div style="font-size:12px;color:var(--muted)">Medical & Wellness</div>
+        </div>
+      </div>
+
+      <nav class="nav-links" aria-label="Main navigation">
+        <a href="#services">Services</a>
+        <a href="#about">About</a>
+        <a href="#team">Team</a>
+        <a href="#contact">Contact</a>
+        <a class="cta" href="#book" onclick="openAppt()">Book Now</a>
+      </nav>
+
+      <button class="mobile-toggle" aria-expanded="false" onclick="toggleMenu()">☰</button>
+    </div>
+  </header>
+
+  <!-- ===== Hero ===== -->
+  <section class="hero" role="banner">
+    <div class="hero-inner">
+      <div>
+        <h1>Modern, trusted care for body & mind</h1>
+        <p class="muted">Evidence-based aesthetic, wellness, and functional medicine services. Book a consultation or learn about our tailored programs.</p>
+
+        <div class="cta-row">
+          <a class="btn" href="#book" onclick="openAppt()">Book an appointment</a>
+          <a class="btn" href="#services" style="background:transparent;color:var(--accent);border:1px solid #ddf0ff;padding:10px 14px">View services</a>
+        </div>
+
+        <div style="margin-top:18px" class="muted">Need help now? <span style="font-weight:700;color:var(--accent)">Call (555) 555-0123</span></div>
+      </div>
+
+      <aside class="card appt-card" aria-label="Appointment">
+        <h3>Schedule a visit</h3>
+        <p class="muted">Choose a service & request a time. We'll confirm availability.</p>
+        <div class="appt-row">
+          <span class="pill">Walk-in</span>
+          <span class="pill">Telehealth</span>
+        </div>
+
+        <div style="margin-top:12px">
+          <label style="font-size:13px;color:var(--muted)">Service</label>
+          <select>
+            <option>General Consultation</option>
+            <option>Aesthetic Treatments</option>
+            <option>IV Therapy</option>
+            <option>Hormone Therapy</option>
+          </select>
+
+          <label style="font-size:13px;color:var(--muted)">Preferred date</label>
+          <input type="date" />
+
+          <button style="margin-top:8px" onclick="openAppt()">Request Appointment</button>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- ===== Services ===== -->
+  <section id="services" class="section" aria-labelledby="servicesTitle">
+    <h2 id="servicesTitle" style="margin-bottom:14px">Our Services</h2>
+
+    <div class="services-grid">
+      <article class="service" aria-labelledby="s1">
+        <!-- Replace with real icon/photo -->
+        <div style="height:120px;background:linear-gradient(180deg,#eef8ff,#fff);border-radius:10px;display:flex;align-items:center;justify-content:center">Image</div>
+        <h4 id="s1">Aesthetic Treatments</h4>
+        <p>Non-surgical treatments: injectables, skin resurfacing, and personalized care plans to improve skin health.</p>
+        <p style="margin-top:10px"><a href="#contact" onclick="scrollTo('#contact')">Learn more →</a></p>
+      </article>
+
+      <article class="service" aria-labelledby="s2">
+        <div style="height:120px;background:linear-gradient(180deg,#fff7ef,#fff);border-radius:10px;display:flex;align-items:center;justify-content:center">Image</div>
+        <h4 id="s2">IV Therapy & Nutrients</h4>
+        <p>Hydration, vitamin infusions, and tailored protocols to boost wellness and recovery.</p>
+      </article>
+
+      <article class="service" aria-labelledby="s3">
+        <div style="height:120px;background:linear-gradient(180deg,#f2fff7,#fff);border-radius:10px;display:flex;align-items:center;justify-content:center">Image</div>
+        <h4 id="s3">Hormone Optimization</h4>
+        <p>Comprehensive hormone assessments and individualized treatment plans to restore balance.</p>
+      </article>
+
+      <article class="service" aria-labelledby="s4">
+        <div style="height:120px;background:linear-gradient(180deg,#f8f2ff,#fff);border-radius:10px;display:flex;align-items:center;justify-content:center">Image</div>
+        <h4 id="s4">Weight Management</h4>
+        <p>Evidence-based programs including nutrition counseling and medication-assisted strategies if appropriate.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- ===== About + Team ===== -->
+  <section id="about" class="section">
+    <div class="two-col">
+      <div>
+        <h2>About Our Clinic</h2>
+        <p class="muted">We combine clinical expertise with modern technology to deliver safe, effective care. Our staff are board-certified clinicians and trained specialists.</p>
+
+      </div>
+
+      <aside class="card">
+        <h3 id="team">Meet the team</h3>
+        <div class="team-card">
+          <div class="avatar">DR</div>
+          <div>
+            <div style="font-weight:700">Dr. Jane Doe, MD</div>
+            <div class="muted">Medical Director</div>
+          </div>
+        </div>
+
+        <div class="team-card">
+          <div class="avatar">NP</div>
+          <div>
+            <div style="font-weight:700">Alex Smith, NP</div>
+            <div class="muted">Nurse Practitioner</div>
+          </div>
+        </div>
+
+        <p class="muted" style="margin-top:8px;font-size:13px">All clinicians are licensed in the state where we practice. Replace these bios with real staff info.</p>
+      </aside>
+    </div>
+  </section>
+
+  <!-- ===== Contact ===== -->
+  <section id="contact" class="section" aria-labelledby="contactTitle">
+    <h2 id="contactTitle">Contact & Location</h2>
+    <div class="contact" style="margin-top:12px">
+      <div class="card">
+        <h4>Get in touch</h4>
+        <p class="muted">Call or send a message. For urgent matters please call the number directly.</p>
+
+        <form id="contactForm" onsubmit="submitContact(event)">
+          <input type="text" id="name" placeholder="Full name" required />
+          <input type="email" id="email" placeholder="Email address" required />
+          <input type="tel" id="phone" placeholder="Phone (optional)" />
+          <textarea id="msg" rows="5" placeholder="How can we help?" required></textarea>
+          <button type="submit">Send Message</button>
+        </form>
+      </div>
+
+      <aside class="card">
+        <h4>Our location</h4>
+        <p class="muted">123 Wellness Way<br/>City, State ZIP</p>
+        <p class="muted">Hours: Mon–Fri 9am–6pm</p>
+
+        <h4 style="margin-top:12px">Payment & Portal</h4>
+        <p class="muted">We accept major cards. For secure records and billing, visit our Patient Portal (link placeholder).</p>
+
+        <div style="margin-top:12px">
+          <button onclick="window.open('#', '_blank')">Patient Portal</button>
+          <button style="margin-left:8px" onclick="window.open('#', '_blank')">Pay Online</button>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- ===== Footer ===== -->
+  <footer>
+    <div class="foot-inner">
+      <div>
+        <div style="font-weight:800;color:white;margin-bottom:6px">Your Clinic</div>
+        <div class="muted">Trusted medical & wellness services</div>
+        <div style="margin-top:10px" class="muted">Phone: (555) 555-0123</div>
+      </div>
+
+      <div class="disclaimer">
+        <strong>Disclaimer:</strong> The content on this site is for informational purposes only and does not constitute medical advice. Always consult a qualified healthcare professional for diagnosis and treatment. Ensure any patient data is handled according to applicable laws.
+      </div>
+    </div>
+  </footer>
+
+  <!-- ===== Appointment Modal (simple) ===== -->
+  <div id="apptModal" role="dialog" aria-modal="true" style="display:none;position:fixed;inset:0;align-items:center;justify-content:center;background:rgba(2,6,23,0.5);z-index:60">
+    <div style="max-width:520px;width:94%;background:white;border-radius:12px;padding:18px;">
+      <h3 style="margin-bottom:8px">Request an appointment</h3>
+      <p class="muted">Complete the form and our team will confirm a time.</p>
+      <form onsubmit="submitAppt(event)">
+        <input id="a_name" placeholder="Full name" required />
+        <input id="a_phone" placeholder="Phone or email" required />
+        <input type="date" id="a_date" required />
+        <textarea id="a_notes" rows="3" placeholder="Notes (optional)"></textarea>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button type="submit">Submit</button>
+          <button type="button" onclick="closeAppt()" style="background:#f3f6f8">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    /* ===== Mobile menu toggle (very small) ===== */
+    function toggleMenu(){
+      const nav = document.querySelector('.nav-links');
+      const btn = document.querySelector('.mobile-toggle');
+      if(nav.style.display === 'flex'){ nav.style.display = 'none'; btn.setAttribute('aria-expanded','false'); }
+      else { nav.style.display = 'flex'; nav.style.flexDirection='column'; nav.style.position='absolute'; nav.style.right='16px'; nav.style.top='64px'; btn.setAttribute('aria-expanded','true'); }
+    }
+
+    /* ===== Appointment modal helpers ===== */
+    function openAppt(){ document.getElementById('apptModal').style.display='flex' }
+    function closeAppt(){ document.getElementById('apptModal').style.display='none' }
+
+    function submitAppt(e){
+      e.preventDefault();
+      // TODO: post to your API endpoint / scheduling system
+      alert('Appointment request submitted. Replace this alert with an API call.');
+      closeAppt();
+    }
+
+    /* ===== Contact form (demo) ===== */
+    function submitContact(e){
+      e.preventDefault();
+      const data = {
+        name: document.getElementById('name').value,
+        email: document.getElementById('email').value,
+        phone: document.getElementById('phone').value,
+        msg: document.getElementById('msg').value
+      };
+      // Replace with AJAX / fetch to your server
+      console.log('Contact form:', data);
+      alert('Thanks — we received your message. Replace this with real submission flow.');
+      e.target.reset();
+    }
+
+    /* small helper to smooth scroll */
+    function scrollTo(sel){
+      document.querySelector(sel).scrollIntoView({behavior:'smooth', block:'start'});
+    }
+  </script>
+</body>
+</html>
+
+
