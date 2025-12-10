@@ -7,7 +7,40 @@ import os
 import signal
 import sys
 import requests
+from pathlib import Path
 from dotenv import dotenv_values   # 👈 load host .env
+
+# Base dir of the repo: /home/ledger/LedgerAI/aura-control
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+DEFAULT_DIRECTIVES_PATH = BASE_DIR / "config" / "directives.txt"
+
+
+def load_directives() -> str:
+    """
+    Load Aura persona / behavior directives from a text file.
+    Priority:
+      1. AURA_DIRECTIVES_PATH env
+      2. config/directives.txt
+    """
+    env_path = os.environ.get("AURA_DIRECTIVES_PATH", "")
+    path = Path(env_path) if env_path else DEFAULT_DIRECTIVES_PATH
+
+    try:
+        with path.open("r", encoding="utf-8") as f:
+            text = f.read().strip()
+        if not text:
+            print(f"[Directives] WARNING: {path} is empty")
+        else:
+            print(f"[Directives] Loaded {len(text)} chars from {path}")
+        return text
+    except FileNotFoundError:
+        print(f"[Directives] WARNING: directives file not found at {path}")
+        return ""
+    except Exception as e:
+        print(f"[Directives] ERROR reading {path}: {e}")
+        return ""
+
 
 # Add the parent directories to Python path for imports
 current_dir = os.path.dirname(os.path.abspath(__file__))

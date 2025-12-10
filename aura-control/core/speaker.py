@@ -19,6 +19,53 @@ load_dotenv(dotenv_path)
 ELEVEN_API_KEY = os.getenv("ELEVENLABS_API_KEY") or os.getenv("ELEVEN_API_KEY")
 ELEVEN_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID") or os.getenv("ELEVEN_VOICE_ID") or "default"
 
+INTRO_MUSIC_VOLUME = 0.1  # 30% of original volume; try 0.2 or 0.1 if still too loud
+
+# --- Aura intro music config ---
+
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+INTRO_MUSIC_PATH = os.path.join(BASE_DIR, "media", "atlantic-lights-rain-402613.mp3")
+
+def play_intro_music():
+    """Play the boot intro track once, in the background via ffplay."""
+    if not os.path.exists(INTRO_MUSIC_PATH):
+        print(f"[Speaker] Intro music not found: {INTRO_MUSIC_PATH}")
+        return
+
+    try:
+        print(f"[Speaker] Playing intro music: {INTRO_MUSIC_PATH} at {INTRO_MUSIC_VOLUME*100:.0f}% volume")
+        subprocess.Popen(
+            [
+                "ffplay",
+                "-nodisp",
+                "-autoexit",
+                "-loglevel", "quiet",
+                "-af", f"volume={INTRO_MUSIC_VOLUME}",
+                INTRO_MUSIC_PATH,
+            ],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+    except Exception as e:
+        print(f"[Speaker] Failed to play intro music: {e}")
+
+
+def start_intro_music_after_tts(delay_seconds: float = 4.0):
+    """
+    Fire-and-forget helper that waits a bit for the TTS line to play,
+    then starts the intro music in the background.
+    """
+
+    def _worker():
+        try:
+            time.sleep(delay_seconds)
+            play_intro_music()
+        except Exception as e:
+            print(f"[Speaker] Intro music worker error: {e}")
+
+    threading.Thread(target=_worker, daemon=True).start()
+
+
 # ChatterboxTTS voice cloning - path to reference audio file (optional)
 # If set, ChatterboxTTS will clone the voice from this audio sample
 # Should be a WAV file with at least 5 seconds of clear speech
@@ -161,7 +208,7 @@ VOLUME_SET = False
 # TTS volume - load from .env if available, otherwise default to 100
 TTS_VOLUME = int(os.getenv("TTS_VOLUME", "80"))  # percent (default: 100%)
 # Ensure volume is in valid range
-TTS_VOLUME = max(0, min(100, TTS_VOLUME))
+TTS_VOLUME = max(0, min(800, TTS_VOLUME))
 
 # Device identification - auto-detect connected output device
 ALSA_CONTROLS = ["PCM", "Speaker", "Master"]  # try these in order
@@ -1307,7 +1354,11 @@ def speak_llm_response(prompt, context=""):
 # === Warmup ===
 def warm_up_tts():
     print("[Speaker] 🔧 Warming up...")
-    enqueue_tts_chunk("AuraVision is initializing, please wait.")
+    # Queue the TTS line
+    enqueue_tts_chunk("Aura is initializing, please standby as I connect to the Aura System")
+    # After a short delay (so she can finish the line), start the intro music
+    start_intro_music_after_tts(delay_seconds=4.0)
+
 
 # === Start thread ===
 threading.Thread(target=playback_loop, daemon=True).start()

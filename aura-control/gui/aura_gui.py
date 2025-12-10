@@ -27,6 +27,7 @@ _welcome_played = False  # Tracks when welcome prompt has been played
 _tts_frequency = 0.15  # Current TTS frequency for pulsation speed
 _microphone_muted = False  # Tracks when microphone is muted via button
 
+
 # Debug: Print initial state
 print(f"[AuraGUI] 🎯 Initial state: listening_ready={_listening_ready}, transcribing={_transcribing}, tts_playing={_tts_playing}")
 
@@ -104,40 +105,57 @@ class SafeModeButton(QPushButton):
             import traceback
             traceback.print_exc()
 
+
 class BorderOverlayWidget(QWidget):
     """Simple transparent overlay to paint borders on top of all other widgets"""
     def __init__(self, parent, size):
         super().__init__(parent)
+        self.parent_gui = parent
+        self.window_size = size  # avoid shadowing QWidget.size()
+
+        # Overlay is purely visual, should not eat input
         self.setAttribute(Qt.WA_TransparentForMouseEvents, True)
         self.setAttribute(Qt.WA_TranslucentBackground, True)
         self.setStyleSheet("background: transparent;")
-        self.parent_gui = parent
-        
+
     def paintEvent(self, event):
         """Paint borders - this runs AFTER buttons paint, so borders appear on top"""
         painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing, True)
+        painter.setRenderHints(QPainter.Antialiasing | QPainter.HighQualityAntialiasing)
         painter.setBrush(Qt.NoBrush)
-        
-        center = 540
-        # Move border to the edge: 540 (screen edge) - 4 (half of 8px pen) - 1 (safety) = 535px
-        radius = 535  # Right at the edge of the circular screen
-        
-        # White reference circle (always) - 70% transparent (30% opacity)
-        white_color = QColor(255, 255, 255, 77)  # Alpha: 77/255 = 30% opacity
-        white_pen = QPen(white_color, 8, Qt.SolidLine)
-        painter.setPen(white_pen)
+
+        # 1080x1080 puck → center at 540, radius out to the edge
+        center = self.window_size // 2
+        radius = center - 5  # small margin from the edge
+
+        # --- Outer circular frame (deep blue, subtle but clear) ---
+        outer_color = QColor(18, 32, 52, 230)  # #122034 with alpha
+        outer_pen = QPen(outer_color, 8, Qt.SolidLine)
+        painter.setPen(outer_pen)
         painter.drawEllipse(center - radius, center - radius, radius * 2, radius * 2)
-        
-        # Red circle (when transcribing)
-        if hasattr(self.parent_gui, 'show_red_border') and self.parent_gui.show_red_border:
+
+        # --- Inner orbit guide for planets (VERY faint now) ---
+        inner_radius = int(radius * 0.68)
+        orbit_color = QColor(36, 140, 200, 40)  # alpha 40/255 → almost invisible
+        orbit_pen = QPen(orbit_color, 2, Qt.SolidLine)
+        painter.setPen(orbit_pen)
+        painter.drawEllipse(
+            center - inner_radius,
+            center - inner_radius,
+            inner_radius * 2,
+            inner_radius * 2,
+        )
+
+        # --- Red circle (when transcribing) drawn on top of everything ---
+        if getattr(self.parent_gui, "show_red_border", False):
             red_color = QColor(200, 0, 0)
             red_color.setAlphaF(self.parent_gui.red_border_opacity)
             red_pen = QPen(red_color, self.parent_gui.red_border_width, Qt.SolidLine)
             painter.setPen(red_pen)
             painter.drawEllipse(center - radius, center - radius, radius * 2, radius * 2)
-        
+
         painter.end()
+
 
 class DebugOverlayWidget(QWidget):
     """Debug text overlay that displays initialization messages during setup"""
@@ -384,12 +402,12 @@ class AuraGUI(QMainWindow):
         """Create 6 buttons equally spaced around the circular edge"""
         # Button configurations: (text, tooltip, handler, color)
         button_configs = [
-            ("↑", "Upload",     self._handle_upload,    "#444e66"),  # Mercury  - metallic grey
-            ("⚙", "Settings",   self._handle_settings,  "#524903"),  # Venus    - pale yellow
-            ("📊", "Analytics", self._handle_analytics, "#0c2461"),  # Earth    - blue-green
-            ("🎤", "Voice",     self._handle_voice,     "#6b0c05"),  # Mars     - rusty red
-            ("📱", "Mobile",    self._handle_mobile,    "#b1ba49"),  # Jupiter  - warm tan
-            ("ℹ", "Info",       self._handle_info,      "#080961"),  # Neptune  - deep blue
+            ("↑", "Upload",     self._handle_upload,    "#2FD3C8"),  # Mercury  - metallic grey
+            ("⚙", "Settings",   self._handle_settings,  "#2A6FF2"),  # Venus    - pale yellow
+            ("📊", "Analytics", self._handle_analytics, "#7A3FF6"),  # Earth    - blue-green
+            ("🎤", "Voice",     self._handle_voice,     "#F5A623"),  # Mars     - rusty red
+            ("📱", "Mobile",    self._handle_mobile,    "#F26B8A"),  # Jupiter  - warm tan
+            ("ℹ", "Info",       self._handle_info,      "#D244E3"),  # Neptune  - deep blue
         ]
 
         center_x = 540  # center of 1080x1080
@@ -853,12 +871,13 @@ class AuraGUI(QMainWindow):
             
             # Calculate border width based on combined pulse and voice intensity
             # Make it MUCH more dynamic and thicker
-            base_width = 10  # Increased from 6
-            max_variation = 15  # Increased from 10 for dramatic pulsation
+            base_width = 14  # Increased from 6
+            max_variation = 18  # Increased from 10 for dramatic pulsation
             self.border_width = int(base_width + combined_pulse * max_variation * (0.7 + voice_freq))
+
             
             # Wider range for more dramatic effect
-            self.border_width = max(10, min(self.border_width, 25))
+            self.border_width = max(14, min(self.border_width, 32))
             
             # Calculate opacity variation - consistent visibility
             border_opacity = 0.6 + combined_pulse * 0.3  # 0.6 to 0.9 opacity (more visible)
