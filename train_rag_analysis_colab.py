@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 RAG Chunk Analysis Fine-Tuning Script for Qwen 2.5 (Google Colab Version)
-Trains model to read, analyze, and score extracted information from RAG chunks
+Trains model on general RAG analysis patterns (not entity-specific)
 
 Configuration:
 - Model: Qwen2.5-1.5B-Instruct (better instruction following and reasoning)
@@ -14,12 +14,13 @@ To use in Colab:
 2. Run: !pip install unsloth trl peft accelerate bitsandbytes datasets
 3. Run this script
 
-The model will learn to:
-- Read RAG chunks completely from start to finish
-- Evaluate relevance (HIGH/MEDIUM/LOW) based on scores
-- Extract only HIGH relevance information
-- Synthesize answers from multiple chunks
-- Handle various query types (factual, analytical, list, personal reflection)
+The model will learn general RAG analysis skills:
+- Read entire RAG chunks completely (6-8 sentences each)
+- Analyze and understand meaning in chunks (not just keywords)
+- Extract relevant information to query (any type: entities, facts, concepts, relationships)
+- Ignore irrelevant information (even in HIGH relevance chunks)
+- Use scoring to determine if information directly answers query
+- Handle various query types (factual, analytical, comparison, relationship, list)
 """
 
 import json
@@ -27,6 +28,16 @@ import os
 import shutil
 import torch
 from datasets import Dataset
+
+# Workaround for Unsloth 2025.12.3 bug: is_unsupported_gemma not defined
+# Patch it before importing SFTTrainer
+try:
+    import unsloth.trainer
+    # Set the missing variable
+    setattr(unsloth.trainer, 'is_unsupported_gemma', False)
+except Exception as e:
+    print(f"⚠️  Warning: Could not patch Unsloth trainer ({e}), continuing anyway...")
+
 from unsloth import FastLanguageModel
 from trl import SFTTrainer
 from transformers import TrainingArguments
@@ -50,25 +61,30 @@ if os.path.exists("rag_analysis_dataset.json"):
 else:
     raise FileNotFoundError("rag_analysis_dataset.json not found. Please run generate_rag_analysis_dataset.py first.")
 
-MAX_SEQ_LENGTH = 2048
+MAX_SEQ_LENGTH = 8192  # Increased to accommodate full chunk examples and provide headroom for longer chunks
 OUTPUT_DIR = "outputs_rag_analysis"
 GGUF_OUTPUT_DIR = "gguf_model_rag_analysis"
 
-# System prompt for RAG analysis
-SYSTEM_PROMPT = """You are an AI assistant trained to analyze RAG (Retrieval-Augmented Generation) chunks and extract relevant information.
+# System prompt for RAG analysis (fallback - dataset should have its own)
+# NOTE: Dataset examples include this system prompt, but this is kept as fallback
+SYSTEM_PROMPT = """You are an AI assistant trained to analyze RAG chunks and extract relevant information.
 
-Your task is to:
-1. Read every chunk completely from start to finish - DO NOT stop reading once you find relevant information
-2. Evaluate relevance for each chunk:
-   - HIGH (score ≥0.70): Information that directly and explicitly answers the query
-   - MEDIUM (0.50-0.69): Information that is related but requires inference
-   - LOW (score <0.50): Information that mentions similar terms but doesn't actually answer the query
-3. Extract only HIGH relevance information - be precise about what exactly matches the query
-4. For list questions: Find EVERY matching item in EVERY chunk - read each chunk completely
-5. For analytical questions: Extract all relevant information from all chunks before synthesizing
-6. Format your analysis showing: RELEVANCE EVALUATION → EXTRACTING INFORMATION → SYNTHESIS → Final Answer
+CRITICAL: Always use the EXACT names, entities, or terms from the user's query. Never hallucinate or substitute different names.
 
-Always end with a brief, natural follow-up question."""
+Process:
+1. Read each chunk COMPLETELY from start to finish (each chunk has 6-8 sentences)
+2. Evaluate relevance using the provided score:
+   - HIGH relevance (score ≥0.70): Extract information that directly answers the query
+   - MEDIUM relevance (0.50-0.69): May contain related information, use with caution
+   - LOW relevance (score <0.50): Likely irrelevant, ignore unless no HIGH relevance chunks available
+3. Understand the MEANING in each chunk, not just keywords
+4. Extract ONLY information that directly answers or addresses the query
+5. IGNORE information that is similar but does NOT answer the query (even if in HIGH relevance chunks)
+6. Use the score to determine if extracted information directly answers the query
+7. SYNTHESIZE information from multiple chunks into a coherent, natural response
+8. Use natural language - avoid simple repetition, create meaningful connections between facts
+
+Return ONLY the final answer in natural, conversational language. Synthesize information rather than just listing facts. Do not include reasoning steps or process details."""
 
 # ============================================================================
 # GPU Check
@@ -296,9 +312,10 @@ print("=" * 80)
 training_args = TrainingArguments(
     per_device_train_batch_size=2,
     gradient_accumulation_steps=4,  # Effective batch size = 8
-    warmup_steps=100,  # Increased warmup for better extraction pattern learning
+    warmup_steps=200,  # Increased warmup for better extraction pattern learning and stability
     num_train_epochs=25,  # Increased to 25 for better extraction accuracy and entity differentiation
-    learning_rate=1.2e-4,  # Slightly lower for more stable and precise extraction learning
+    learning_rate=1.0e-4,  # Reduced from 1.2e-4 for more stable training (prevents gradient explosions)
+    max_grad_norm=1.0,  # CRITICAL: Gradient clipping to prevent explosions (gradient norm spiked to 41.08)
     fp16=not torch.cuda.is_bf16_supported(),
     bf16=torch.cuda.is_bf16_supported(),
     logging_steps=20,  # More frequent logging for better monitoring
@@ -329,7 +346,8 @@ print(f"   - Batch size: {training_args.per_device_train_batch_size}")
 print(f"   - Gradient accumulation: {training_args.gradient_accumulation_steps}")
 print(f"   - Effective batch size: {training_args.per_device_train_batch_size * training_args.gradient_accumulation_steps}")
 print(f"   - Epochs: {training_args.num_train_epochs} (increased for better extraction accuracy and entity differentiation)")
-print(f"   - Learning rate: {training_args.learning_rate} (optimized for precise extraction learning)")
+print(f"   - Learning rate: {training_args.learning_rate} (reduced for stability, prevents gradient explosions)")
+print(f"   - Gradient clipping: max_norm={training_args.max_grad_norm} (prevents training instability)")
 # Calculate approximate trainable parameters
 approx_params = {
     64: (45, 3.4),
@@ -340,15 +358,17 @@ approx_params = {
 params_m, params_pct = approx_params.get(LORA_RANK, (90, 6.8))
 print(f"   - LoRA rank: {LORA_RANK} (~{params_m}M trainable parameters, ~{params_pct}% of model)")
 print(f"   - LoRA alpha: {LORA_ALPHA} (2x rank for optimal scaling)")
-print(f"   - Warmup steps: {training_args.warmup_steps} (increased for better extraction pattern learning)")
+print(f"   - Warmup steps: {training_args.warmup_steps} (increased for better extraction pattern learning and stability)")
 print(f"   - Scheduler: {training_args.lr_scheduler_type}")
 print(f"   - Logging steps: {training_args.logging_steps} (more frequent monitoring)")
 print()
 print("📊 Training Goals:")
-print("   ✅ Extract ALL entities (not just some)")
-print("   ✅ Correctly differentiate between entities from different companies")
-print("   ✅ Filter out irrelevant content from mixed chunks")
-print("   ✅ Include all relevant keywords in responses")
+print("   ✅ Read entire RAG chunks completely (6-8 sentences each)")
+print("   ✅ Analyze and understand meaning in chunks (not just keywords)")
+print("   ✅ Extract relevant information to query (any type: entities, facts, concepts, etc.)")
+print("   ✅ Ignore irrelevant information (even in HIGH relevance chunks)")
+print("   ✅ Use scoring to determine if information directly answers query")
+print("   ✅ Handle various query types (factual, analytical, comparison, relationship)")
 print()
 
 # ============================================================================
@@ -462,12 +482,13 @@ print(f"  - HuggingFace format: {OUTPUT_DIR}/")
 print(f"  - GGUF format: {GGUF_OUTPUT_DIR}/")
 print()
 print("The model has been trained to:")
-print("  ✅ Read RAG chunks completely from start to finish")
-print("  ✅ Evaluate relevance (HIGH/MEDIUM/LOW) based on scores")
-print("  ✅ Extract only HIGH relevance information")
-print("  ✅ Synthesize answers from multiple chunks")
-print("  ✅ Handle various query types (factual, analytical, list, personal reflection)")
-print("  ✅ Format analysis showing: RELEVANCE EVALUATION → EXTRACTING INFORMATION → SYNTHESIS")
+print("  ✅ Read entire RAG chunks completely (6-8 sentences each)")
+print("  ✅ Analyze and understand meaning in chunks (not just keywords)")
+print("  ✅ Extract relevant information to query (any type: entities, facts, concepts, relationships)")
+print("  ✅ Ignore irrelevant information (even in HIGH relevance chunks)")
+print("  ✅ Use scoring to determine if information directly answers query")
+print("  ✅ Handle various query types (factual, analytical, comparison, relationship, list)")
+print("  ✅ Return only the final answer (no internal reasoning steps)")
 print()
 
 # For Colab: Download the GGUF file
