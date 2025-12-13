@@ -1098,29 +1098,15 @@ JSON array only:"""
             # Dynamic prompt construction with Aura Vision identity
             # IMPORTANT: Include the prompt in the system message (matches working commit 1927b467c106120dd4e1231f600eccdaa5a93f08)
             if is_instruction_request:
-                # Build structured reasoning instructions for instruction requests
-                reasoning_instructions = (
-                    "\n🧠 REASONING PROCESS:\n"
-                    "1. Think step-by-step - analyze the question and available context systematically\n"
-                    "2. Use only provided information - do not invent facts or guess\n"
-                    "3. If information is missing, state 'unknown' instead of guessing\n"
-                    "4. Structure your response with: Known Facts, Reasoning Steps, Conflicts/Missing Info, Final Answer, Confidence\n"
-                )
-                
+                # Simplified instruction request handling
                 system_content = (
                     f"{combined_context}\n\n"
                     "You are Aura Vision, an AI agent created by Ledger AI Quantum Corporation. "
                     "You act as a proactive AI agent guiding users to better outcomes through gentle guidance.\n\n"
-                    f"{reasoning_instructions}"
-                    f"Based on the context provided above, answer the following question: {prompt}\n\n"
-                    "Guidelines:\n"
-                    "- Provide a clear, step-by-step response (numbered steps)\n"
-                    "- Keep each step concise and actionable\n"
-                    "- Synthesize information from the context sections naturally\n"
-                    "- Integrate information from multiple sections when relevant\n"
-                    "- Rephrase and explain in your own words rather than copying text\n"
-                    "- If the context doesn't fully address the question, supplement appropriately\n"
-                    "- Be conversational and friendly, like Siri or Alexa"
+                    "Use ONLY information from the context above. Do not invent facts.\n"
+                    "If information is missing, say 'I don't have that information'.\n\n"
+                    f"Answer: {prompt}\n\n"
+                    "Provide a clear, step-by-step response. Be conversational and friendly."
                 )
             else:
                 # Add warning if memory RAG failed
@@ -1136,83 +1122,50 @@ JSON array only:"""
                 person_instruction = ""
                 if query_person_names:
                     person_list = ", ".join(query_person_names)
-                    person_instruction = f"\n\n⚠️ CRITICAL: The user is asking about {person_list}. ONLY use information from the context that specifically mentions {person_list}. DO NOT confuse information about {person_list} with information about other people mentioned in the context. If a context section mentions multiple people, only extract and use the information that pertains to {person_list}.\n"
+                    person_instruction = f"\n⚠️ Only use information about {person_list} from the context. Do not confuse with other people.\n"
                 
-                # Simplified list instruction - clear and direct with LLM scoring
+                # Simplified list instruction
                 list_instruction = ""
                 if is_list_request:
                     list_instruction = (
-                        "\n📋 LIST QUESTION DETECTED:\n"
-                        "1. Read every section (separated by '---') completely from start to finish.\n"
-                        "2. DO NOT stop reading once you find a matching item - chunks can contain multiple matching items.\n"
-                        "3. For each potential item, evaluate relevance:\n"
-                        "   - Score HIGH (include): Information that directly and explicitly matches what is asked for in the query.\n"
-                        "   - Score MEDIUM (exclude): Information that is related but doesn't directly match the query criteria.\n"
-                        "   - Score LOW (exclude): Information that mentions similar terms but doesn't match the query.\n"
-                        "4. Extract ONLY items that score HIGH - be precise about exact matches to the query.\n"
-                        "5. A single section may contain multiple matching items - read the entire section completely to find them all.\n"
-                        "6. Format as natural sentences listing all matching items.\n"
-                        "7. End with a brief, natural question (do not include 'follow up' or 'follow-up' in the question text).\n"
+                        "\n📋 LIST QUESTION:\n"
+                        "Read all sections completely. Extract all items that directly match the query. "
+                        "Only include information explicitly stated in the context.\n"
                     )
                 
-                # Build response length guideline - prioritize completeness for lists and debug mode
+                # Build response length guideline - simplified
                 if SHOW_REASONING_DEBUG:
-                    # Debug mode: Allow longer responses to show reasoning
-                    response_length_guideline = "- When debug mode is enabled, show your complete reasoning process - length is not a concern\n"
+                    response_length_guideline = "- Show your reasoning process.\n"
                 elif is_list_request:
                     response_length_guideline = (
-                        "- For lists: Ensure THOROUGH coverage of ALL items from the RAG context. Format as natural conversational sentences (no hyphens, dashes, or bullet points). "
-                        "Use complete sentences like 'The [items] are [Name] ([Title]), [Name] ([Title]), [Name] ([Title]), and [Name] ([Title]).' "
-                        "Completeness is critical - include every item before concluding.\n"
-                        "- ALWAYS end your response with a brief, natural question related to the conversation. "
-                        "Examples: 'Would you like more information about any of these?' or 'Is there anything else I can help you with?' "
-                        "Do not include the phrase 'follow up' or 'follow-up' in your question - just ask naturally. "
-                        "Make it flow naturally with the conversation topic.\n"
+                        "- List all items that match the query from the context. "
+                        "Format as natural sentences. End with a brief question.\n"
                     )
                 else:
                     response_length_guideline = (
-                        "- Keep responses SHORT and conversational, like Siri or Alexa - aim for 2-3 sentences total. "
-                        "Get straight to the point with essential information. Avoid lengthy explanations, excessive background details, or multiple examples. "
-                        "Be concise but complete enough to answer the question.\n"
-                        "- MANDATORY: Your response MUST end with a brief, natural question. "
-                        "This is REQUIRED - do not skip it. Examples: 'Would you like more information about this?' "
-                        "or 'Is there anything else I can help you with?' or 'Need more details on this?' "
-                        "Do not include the phrase 'follow up' or 'follow-up' in your question - just ask naturally. "
-                        "Make it flow naturally with the conversation topic. This question is in addition to your 2-3 sentence answer.\n"
+                        "- Keep responses short (2-3 sentences). "
+                        "End with a brief, natural question.\n"
                     )
                 
                 # Simplified reasoning - only for debug mode
                 reasoning_instructions = ""
                 if SHOW_REASONING_DEBUG:
                     reasoning_instructions = (
-                        "\n🧠 REASONING PROCESS:\n"
-                        "1. Analyze the question and context systematically\n"
-                        "2. Use only provided information - do not invent facts\n"
-                        "3. Structure: Known Facts → Reasoning Steps → Conflicts/Missing Info → Final Answer → Confidence\n"
+                        "\n🧠 REASONING:\n"
+                        "Use only information from the context. Do not invent facts.\n"
                     )
                 
                 rag_scoring_instructions = ""  # Removed for simplicity
                 
-                # Ultra-simplified RAG instructions - universal for any query type
+                # Ultra-simplified RAG instructions - prevent hallucination
                 simple_instructions = (
                     "\nINSTRUCTIONS:\n"
-                    "1. Read every section (separated by '---') completely from start to finish. "
-                    "DO NOT stop reading once you find relevant information - chunks can contain multiple instances of valuable information.\n"
-                    "2. CRITICAL: When reading chunks, read the ENTIRE text of each chunk completely. "
-                    "Do not stop at the first sentence that seems relevant - continue reading to find all information that answers the query.\n"
-                    "3. For each piece of information found, evaluate relevance:\n"
-                    "   - Score HIGH (include): Information that directly and explicitly answers the query with exact matches.\n"
-                    "   - Score MEDIUM (exclude): Information that is related but requires inference or doesn't directly answer the query.\n"
-                    "   - Score LOW (exclude): Information that mentions similar terms but doesn't actually answer the query.\n"
-                    "4. Extract only information that scores HIGH - be precise about what exactly matches the query.\n"
-                    "   - For relationship questions: Only include where text explicitly states the exact relationship to the exact entity mentioned in the query.\n"
-                    "     CRITICAL: The entity in the text must match the entity in the query EXACTLY. "
-                    "If text says '[relationship] of Entity A' but query asks about '[relationship] of Entity B', that is MEDIUM/LOW, not HIGH.\n"
-                    "   - For factual questions: Only include information that directly answers the question asked.\n"
-                    "   - For list questions: Find EVERY matching item in EVERY section - read each section completely.\n"
-                    "   - For analytical questions: Extract all relevant information from all chunks before synthesizing.\n"
-                    "5. Format as natural sentences.\n"
-                    "6. End with a brief, natural question (do not include the phrase 'follow up' or 'follow-up' in your question).\n"
+                    "1. Read all sections (separated by '---') completely from start to finish.\n"
+                    "2. Extract ONLY information that directly answers the query from the context above.\n"
+                    "3. DO NOT invent, guess, or use information not in the context.\n"
+                    "4. If information is not in the context, say 'I don't have that information'.\n"
+                    "5. Format your answer naturally.\n"
+                    "6. End with a brief, natural question.\n"
                     )
                 
                 # No examples - LLM must use only the RAG context provided
@@ -1229,96 +1182,18 @@ JSON array only:"""
                     f"{response_length_guideline}"
                 )
                 
-                # Build user message - add mandatory scoring debug for list/relationship questions
-                user_content = prompt
-                if is_list_request or any(term in prompt.lower() for term in ['co-founder', 'founder', 'employee', 'manager', 'director', 'officer', 'ceo', 'cfo', 'cto', 'who are', 'who is']):
-                    # Always show scoring debug for relationship/list questions
-                    user_content = (
-                        f"⚠️ CRITICAL: You MUST extract information ONLY from the 'Knowledge context' sections provided above. "
-                        f"DO NOT use any example names (like 'John Smith', 'Sarah Jones', 'Mike Brown') - these are just format examples. "
-                        f"ONLY use actual names and information that appear in the Knowledge context sections.\n\n"
-                        f"⚠️ MANDATORY: Before providing your answer, you MUST show your scoring process.\n\n"
-                        f"SCORING PROCESS (show this in your reasoning, it will be logged but not spoken):\n"
-                        f"1. Read the ENTIRE text of each chunk completely - do not stop at the first sentence that seems relevant.\n"
-                        f"2. CRITICAL: When evaluating information, read the COMPLETE sentence/paragraph about each item.\n"
-                        f"   - Do not stop reading after the first mention - continue to find ALL relevant information.\n"
-                        f"   - A single chunk may contain multiple pieces of information that answer the query.\n"
-                        f"3. CRITICAL FOR RELATIONSHIP QUESTIONS: The entity in the text MUST match the entity in the query EXACTLY.\n"
-                        f"   - If query asks about '[relationship] of Entity A', text must say '[relationship] of Entity A'.\n"
-                        f"   - If text says '[relationship] of Entity B' (different entity), that is MEDIUM/LOW score, not HIGH.\n"
-                        f"   - Example: Query asks 'co-founders of Company X'. Text says 'Co-Founder of Company Y' = MEDIUM (wrong entity).\n"
-                        f"4. CRITICAL: Read the COMPLETE sentence/paragraph about each person before scoring.\n"
-                        f"   - If text says 'Person X is [Role] at Entity A' but does NOT say 'Co-Founder of Entity A', that is LOW (complete mismatch).\n"
-                        f"   - Do NOT assume someone is a co-founder just because they work at the entity.\n"
-                        f"   - Only score HIGH if text EXPLICITLY states the exact relationship to the exact entity.\n"
-                        f"   - For co-founder questions: ONLY 'Co-Founder', 'Co Founder', 'Founder', or 'Co-Founded' roles score HIGH.\n"
-                        f"   - Other roles like 'Ambassador', 'Business Development Lead', 'Officer', 'Director', 'Manager', 'Employee' = LOW (NOT co-founders, complete mismatch with query).\n"
-                        f"   - MEDIUM should only be used for edge cases with partial relevance (e.g., text mentions person in relation to entity but role is unclear).\n"
-                        f"   - Example: Text says 'Person X is Business Development Lead at Company X' = LOW (not co-founder, complete mismatch).\n"
-                        f"   - Example: Text says 'Person X is Ambassador of Influence at Company X' = LOW (not co-founder, complete mismatch).\n"
-                        f"   - Example: Text says 'Person X is Co-Founder and CFO of Company X' = HIGH (explicitly states co-founder).\n"
-                        f"   - Example: Text says 'Person X is Chief Financial Officer of Company X' = LOW (CFO, not co-founder, complete mismatch).\n"
-                        f"5. List EVERY item/person/entity you found in the context that might match the query.\n"
-                        f"6. For EACH item, show:\n"
-                        f"   - Name/Item: [Name or description]\n"
-                        f"   - Text found: [Exact quote from context - read the ENTIRE relevant sentence/paragraph]\n"
-                        f"   - Score: HIGH/MEDIUM/LOW\n"
-                        f"   - Reason: [Why this score - be specific about what information is stated in text vs. what was asked in the query. "
-                        f"For relationship questions, explicitly state: (1) what relationship/role is stated in text (e.g., 'Co-Founder', 'Ambassador', 'CFO', 'Business Development Lead'), "
-                        f"(2) what entity is mentioned, (3) whether the role matches the query. "
-                        f"CRITICAL: If the query asks for 'co-founders' but the text says a different role (like 'Ambassador', 'Business Development Lead', 'CFO', etc.), "
-                        f"you MUST state that explicitly and score LOW (complete mismatch), NOT HIGH or MEDIUM. "
-                        f"Only score HIGH if the text EXPLICITLY says 'Co-Founder', 'Co Founder', 'Founder', or 'Co-Founded' for the exact entity in the query. "
-                        f"MEDIUM should only be used for edge cases with partial relevance where the role is unclear or ambiguous.]\n"
-                        f"   - Include? YES/NO\n"
-                        f"7. After scoring all candidates, provide your final answer with only HIGH scores.\n"
-                        f"   CRITICAL: For list questions, you MUST include ALL items that score HIGH.\n"
-                        f"   CRITICAL: Do NOT include items that score MEDIUM or LOW, even if they work at the entity.\n"
-                        f"   CRITICAL: For co-founder questions, ONLY include people whose role is explicitly stated as 'Co-Founder', 'Co Founder', 'Founder', or 'Co-Founded'.\n"
-                        f"   Do NOT include people with other roles like Ambassador, Business Development Lead, Officer, Director, Manager, etc. - these are NOT co-founders and should score LOW (complete mismatch).\n"
-                        f"   Remember: If someone is not a co-founder, they do NOT match the query at all - score them LOW, not MEDIUM.\n"
-                        f"   ⚠️ CRITICAL: Extract names ONLY from the Knowledge context sections provided. DO NOT use example names like 'John Smith', 'Sarah Jones', or 'Mike Brown' - these are just format examples.\n"
-                        f"   Read through ALL chunks completely to find EVERY matching item.\n"
-                        f"   Do not stop after finding a few items - continue reading to find all of them.\n\n"
-                        f"Format your scoring like this (use ACTUAL names and information from the Knowledge context sections above):\n"
-                        f"---SCORING---\n"
-                        f"Item 1: [Actual Name from Knowledge context]\n"
-                        f"Text: '[Exact quote from Knowledge context showing the person's role]'\n"
-                        f"Score: HIGH/MEDIUM/LOW\n"
-                        f"Reason: [Why this score based on what the text says]\n"
-                        f"Include: YES/NO\n"
-                        f"[Repeat for each person found in Knowledge context]\n"
-                        f"---END SCORING---\n\n"
-                        f"⚠️ CRITICAL: Extract names and information ONLY from the 'Knowledge context' sections provided above. "
-                        f"DO NOT invent names or use example names. Only use information that actually appears in the Knowledge context.\n\n"
-                        f"CRITICAL: After the scoring section, provide ONLY your final answer. Do NOT include any scoring format markers (Item X:, Text:, Score:, Include:, Reason:) in your answer.\n"
-                        f"Your answer should be natural conversational text, formatted as complete sentences.\n"
-                        f"For lists, format as: 'The co-founders are [Name] ([Title]), [Name] ([Title]), and [Name] ([Title]).'\n"
-                        f"Now provide your answer with ALL HIGH-scoring items: {prompt}"
-                    )
+                # Build user message - simplified to prevent hallucination
+                user_content = (
+                    f"Answer this question using ONLY the information from the 'Knowledge context' sections above.\n"
+                    f"DO NOT invent, guess, or use information not in the context.\n"
+                    f"If the information is not in the context, say 'I don't have that information'.\n\n"
+                    f"Question: {prompt}"
+                )
                 elif SHOW_REASONING_DEBUG:
-                    print(f"[Generic] 🔍 DEBUG MODE ENABLED - LLM will show structured reasoning (will be logged, not spoken)")
+                    print(f"[Generic] 🔍 DEBUG MODE ENABLED - LLM will show reasoning")
                     user_content = (
-                        f"⚠️ MANDATORY STRUCTURED FORMAT:\n\n"
-                        f"1. Known Facts:\n"
-                        f"   [List key facts extracted from context sections]\n\n"
-                        f"2. Reasoning Steps:\n"
-                        f"   STEP 1 - State what the user is asking\n"
-                        f"   STEP 2 - Analyze each context section (read EVERY section completely, state what you found in each)\n"
-                        f"   STEP 3 - Evaluate relevance of each section (high/medium/low)\n"
-                        f"   STEP 4 - Extract ALL relevant information (for lists, find EVERY item from ALL sections)\n"
-                        f"   STEP 5 - Identify any conflicts or missing information\n\n"
-                        f"3. Conflicts / Missing Info:\n"
-                        f"   [Note any contradictions or missing information, or state 'None' if complete]\n\n"
-                        f"4. Final Answer:\n"
-                        f"   [Provide your complete answer here]\n\n"
-                        f"5. Confidence:\n"
-                        f"   [Rate: high/medium/low based on information quality]\n\n"
-                        f"Then, after the structured format, write:\n"
-                        f"---ANSWER---\n"
-                        f"[Provide only your final answer here, no reasoning]\n"
-                        f"---END ANSWER---\n\n"
-                        f"Now answer: {prompt}"
+                        f"Show your reasoning, then provide your answer.\n\n"
+                        f"Question: {prompt}"
                     )
                 
             # For chatml format, separate system and user messages
