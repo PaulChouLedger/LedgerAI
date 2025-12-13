@@ -836,88 +836,45 @@ JSON array only:"""
                             else:
                                 source_name = metadata.get('document_name', 'unknown')
                         
-                        # For relationship/list queries, extract only relevant substrings that contain both query terms and entity
-                        # BUT be more restrictive: require explicit relationship terms (co-founder, founder) in the same sentence
+                        # SIMPLIFIED: Let the model do the filtering - just pass through chunks that mention the entity
+                        # The fine-tuned model should handle entity-specific extraction
                         if is_list_query or any(term in prompt.lower() for term in ['co-founder', 'founder', 'employee', 'manager', 'director', 'officer']):
-                            import re  # Import re at the start of this block
+                            import re
                             
-                            # Extract entity names from query (e.g., "LedgerAI", "Ledger AI")
+                            # Extract entity names from query for basic filtering
                             entity_names = []
-                            # Look for capitalized phrases (likely entity names)
-                            entity_patterns = [
-                                r'\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)+\b',  # "Ledger AI", "Company Name"
-                                r'\b[A-Z][a-z]+[A-Z][a-z]+\b',  # "LedgerAI" (camelCase)
-                            ]
-                            for pattern in entity_patterns:
-                                matches = re.findall(pattern, prompt)
-                                entity_names.extend(matches)
-                            # Also look for "of X" or "at X" patterns
-                            of_pattern = r'\bof\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b'
-                            at_pattern = r'\bat\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b'
-                            matches = re.findall(of_pattern, prompt, re.IGNORECASE) + re.findall(at_pattern, prompt, re.IGNORECASE)
+                            of_pattern = r'\bof\s+([A-Z][A-Za-z]*(?:\s+[A-Z][A-Za-z]*)*)\b'
+                            at_pattern = r'\bat\s+([A-Z][A-Za-z]*(?:\s+[A-Z][A-Za-z]*)*)\b'
+                            matches = re.findall(of_pattern, prompt) + re.findall(at_pattern, prompt)
                             entity_names.extend(matches)
                             entity_names = list(set([e for e in entity_names if len(e) > 2]))
                             
-                            # For co-founder queries, be more restrictive: require explicit "co-founder" or "founder" in same sentence as entity
-                            if any(term in prompt.lower() for term in ['co-founder', 'founder']):
-                                # Extract only sentences that contain BOTH the relationship term AND entity name
-                                sentences = re.split(r'([.!?]\s+)', text)
-                                sentences = [sentences[i] + (sentences[i+1] if i+1 < len(sentences) else '') 
-                                             for i in range(0, len(sentences), 2)]
-                                sentences = [s.strip() for s in sentences if s.strip()]
+                            # Normalize for matching
+                            if entity_names:
+                                normalized_entities = []
+                                for entity in entity_names:
+                                    normalized_entities.append(entity.lower())
+                                    normalized_entities.append(entity.lower().replace(' ', ''))
+                                entity_names_normalized = list(set(normalized_entities))
                                 
-                                relevant_sentences = []
-                                for sentence in sentences:
-                                    sentence_lower = sentence.lower()
-                                    # Check for relationship term
-                                    has_relationship = any(term in sentence_lower for term in ['co-founder', 'co founder', 'founder'])
-                                    # Check for entity
-                                    has_entity = any(entity.lower() in sentence_lower for entity in entity_names) if entity_names else True
-                                    
-                                    # CRITICAL: For co-founder queries, ensure the relationship is TO the query entity, not another entity
-                                    # Check that the relationship term appears in context with the query entity
-                                    # Pattern: "Co-Founder of [QueryEntity]" or "[QueryEntity] Co-Founder" or "Co-Founder and [Title] of [QueryEntity]"
-                                    if has_relationship and has_entity and entity_names:
-                                        # Check if the sentence contains the pattern: relationship + of/at + entity OR entity + relationship
-                                        entity_lower = [e.lower() for e in entity_names]
-                                        # Look for patterns like "co-founder of ledgerai" or "ledgerai co-founder"
-                                        relationship_entity_pattern = False
-                                        for entity in entity_lower:
-                                            # Pattern 1: "co-founder of [entity]" or "co-founder and [title] of [entity]"
-                                            if f'co-founder' in sentence_lower and f'of {entity}' in sentence_lower:
-                                                relationship_entity_pattern = True
-                                                break
-                                            # Pattern 2: "[entity] co-founder" (less common but possible)
-                                            if f'{entity} co-founder' in sentence_lower:
-                                                relationship_entity_pattern = True
-                                                break
-                                            # Pattern 3: "co-founder and [title] of [entity]"
-                                            if f'co-founder and' in sentence_lower and f'of {entity}' in sentence_lower:
-                                                relationship_entity_pattern = True
-                                                break
-                                        
-                                        # Only include if the relationship is explicitly to the query entity
-                                        if relationship_entity_pattern:
-                                            relevant_sentences.append(sentence)
-                                    elif has_relationship and has_entity:
-                                        # If no entity names extracted, include if both are present (fallback)
-                                        relevant_sentences.append(sentence)
+                                # Basic check: does chunk mention the entity at all?
+                                text_lower = text.lower()
+                                entity_mentioned = False
+                                for entity_norm in entity_names_normalized:
+                                    if entity_norm in text_lower:
+                                        entity_mentioned = True
+                                        break
+                                    # Check capitalized versions
+                                    if entity.replace(' ', '') in text or entity in text:
+                                        entity_mentioned = True
+                                        break
                                 
-                                if relevant_sentences:
-                                    text = ' '.join(relevant_sentences)
-                                    print(f"[Generic] 🔍 Filtered chunk {i}: {len(text)} chars (extracted sentences with explicit co-founder/founder + entity)")
-                                else:
-                                    print(f"[Generic] ⚠️ Chunk {i}: No sentences with explicit co-founder/founder + entity, skipping")
+                                if not entity_mentioned:
+                                    print(f"[Generic] ⚠️ Chunk {i}: Does not mention query entity, skipping")
                                     continue
-                            else:
-                                # For other relationship queries, use the general filtering
-                                original_len = len(text)
-                                text = extract_relevant_substrings(text, prompt, entity_names if entity_names else None)
-                                if text:
-                                    print(f"[Generic] 🔍 Filtered chunk {i}: {len(text)} chars (from {original_len} chars, extracted relevant substrings)")
-                                else:
-                                    print(f"[Generic] ⚠️ Chunk {i}: No relevant substrings found, skipping")
-                                    continue
+                                
+                                print(f"[Generic] ✅ Chunk {i}: Mentions query entity, including full chunk ({len(text)} chars)")
+                            # If no entity extracted, include chunk anyway (let model decide)
                         
                         # For list queries, don't truncate - we need full chunks to extract all items
                         # Only truncate if extremely long (let LLM handle most filtering)
@@ -1158,14 +1115,32 @@ JSON array only:"""
                 rag_scoring_instructions = ""  # Removed for simplicity
                 
                 # Ultra-simplified RAG instructions - prevent hallucination
+                # Check if query asks about a specific entity (company, person, etc.)
+                query_has_entity = any(word in prompt.lower() for word in ['of ', 'at ', 'from '])
+                entity_instruction = ""
+                if query_has_entity:
+                    # Extract entity name from query for explicit instruction
+                    import re
+                    entity_match = re.search(r'\bof\s+([A-Z][A-Za-z]*(?:\s+[A-Z][A-Za-z]*)*)', prompt)
+                    if entity_match:
+                        entity_name = entity_match.group(1)
+                        entity_instruction = (
+                            f"\n⚠️ CRITICAL: The query asks about '{entity_name}'. "
+                            f"ONLY extract information where the text explicitly states the relationship TO '{entity_name}'. "
+                            f"DO NOT include information about other entities, even if they have similar roles. "
+                            f"For example, if the query asks 'co-founders of Company A', do NOT include people who are co-founders of Company B, Company C, etc. "
+                            f"Only include people whose role is explicitly stated as being related to '{entity_name}'.\n"
+                        )
+                
                 simple_instructions = (
                     "\nINSTRUCTIONS:\n"
                     "1. Read all sections (separated by '---') completely from start to finish.\n"
                     "2. Extract ONLY information that directly answers the query from the context above.\n"
-                    "3. DO NOT invent, guess, or use information not in the context.\n"
-                    "4. If information is not in the context, say 'I don't have that information'.\n"
-                    "5. Format your answer naturally.\n"
-                    "6. End with a brief, natural question.\n"
+                    "3. For relationship queries (co-founders, employees, etc.): ONLY include people whose relationship is explicitly stated as being TO the entity mentioned in the query.\n"
+                    "4. DO NOT invent, guess, or use information not in the context.\n"
+                    "5. If information is not in the context, say 'I don't have that information'.\n"
+                    "6. Format your answer naturally.\n"
+                    "7. End with a brief, natural question.\n"
                     )
                 
                 # No examples - LLM must use only the RAG context provided
@@ -1177,6 +1152,7 @@ JSON array only:"""
                     "You act as a proactive AI agent guiding users to better outcomes through gentle guidance.\n\n"
                     f"{memory_warning}"
                     f"{person_instruction}"
+                    f"{entity_instruction}"
                     f"{simple_instructions}"
                     f"{few_shot_examples}"
                     f"{response_length_guideline}"

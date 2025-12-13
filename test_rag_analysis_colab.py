@@ -46,48 +46,99 @@ def load_base_model():
     if TRANSFORMERS_AVAILABLE:
         print("📦 Loading BASE model (Qwen2.5-1.5B-Instruct)...")
         try:
-            from transformers import AutoTokenizer, AutoModelForCausalLM
             import torch
             import os
+            import sys
             
-            # Disable Unsloth if it's interfering
+            # Disable Unsloth patches if possible
             os.environ.setdefault('UNSLOTH_OFF', '1')
             
-            # Try multiple possible model names (prefer non-Unsloth versions)
-            model_names = [
-                "Qwen/Qwen2.5-1.5B-Instruct",
-                "Qwen/Qwen2.5-1.5B",
-            ]
+            # Try to reload transformers without Unsloth patches
+            # This is a workaround for when Unsloth has already patched transformers
+            try:
+                # Remove Unsloth from sys.modules if it was imported
+                if 'unsloth' in sys.modules:
+                    print("  ⚠️  Unsloth detected - attempting to load base model with workaround...")
+                    # Try loading with low_cpu_mem_usage to avoid Unsloth patches
+                    from transformers import AutoTokenizer, AutoModelForCausalLM
+                    
+                    model_names = [
+                        "Qwen/Qwen2.5-1.5B-Instruct",
+                        "Qwen/Qwen2.5-1.5B",
+                    ]
+                    
+                    for model_name in model_names:
+                        try:
+                            print(f"  Trying: {model_name}...")
+                            tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
+                            
+                            # Try loading with different options to avoid Unsloth patches
+                            try:
+                                model = AutoModelForCausalLM.from_pretrained(
+                                    model_name,
+                                    torch_dtype=torch.float16,
+                                    device_map="auto",
+                                    trust_remote_code=True,
+                                    low_cpu_mem_usage=True,
+                                )
+                            except AttributeError as ae:
+                                if 'apply_qkv' in str(ae):
+                                    print(f"    ⚠️  Unsloth patches detected - base model comparison disabled")
+                                    print(f"    Continuing with fine-tuned model only...")
+                                    return None, None, None
+                                raise
+                            
+                            print(f"✅ Loaded BASE model: {model_name}")
+                            return model, tokenizer, "transformers"
+                        except Exception as e:
+                            if 'apply_qkv' in str(e):
+                                print(f"    ⚠️  Unsloth patches interfere with base model loading")
+                                print(f"    Continuing with fine-tuned model only...")
+                                return None, None, None
+                            print(f"    Failed: {str(e)[:100]}")
+                            continue
+                else:
+                    # No Unsloth, normal loading
+                    from transformers import AutoTokenizer, AutoModelForCausalLM
+                    
+                    model_names = [
+                        "Qwen/Qwen2.5-1.5B-Instruct",
+                        "Qwen/Qwen2.5-1.5B",
+                    ]
+                    
+                    for model_name in model_names:
+                        try:
+                            print(f"  Trying: {model_name}...")
+                            tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
+                            model = AutoModelForCausalLM.from_pretrained(
+                                model_name,
+                                torch_dtype=torch.float16,
+                                device_map="auto",
+                                trust_remote_code=True,
+                            )
+                            print(f"✅ Loaded BASE model: {model_name}")
+                            return model, tokenizer, "transformers"
+                        except Exception as e:
+                            print(f"    Failed: {str(e)[:100]}")
+                            continue
+            except Exception as e:
+                if 'apply_qkv' in str(e):
+                    print(f"⚠️  Unsloth patches prevent base model loading")
+                    print("   Continuing with fine-tuned model only...")
+                    return None, None, None
+                raise
             
-            model = None
-            tokenizer = None
-            last_error = None
-            
-            for model_name in model_names:
-                try:
-                    print(f"  Trying: {model_name}...")
-                    tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
-                    model = AutoModelForCausalLM.from_pretrained(
-                        model_name,
-                        torch_dtype=torch.float16,
-                        device_map="auto",
-                        trust_remote_code=True,
-                    )
-                    print(f"✅ Loaded BASE model: {model_name}")
-                    return model, tokenizer, "transformers"
-                except Exception as e:
-                    last_error = e
-                    print(f"    Failed: {str(e)[:100]}")
-                    continue
-            
-            if model is None:
-                print(f"⚠️  Could not load BASE model. Last error: {str(last_error)[:200]}")
-                print("   Continuing without base model comparison...")
-                return None, None, None
+            print("⚠️  Could not load BASE model")
+            print("   Continuing without base model comparison...")
+            return None, None, None
                 
         except Exception as e:
-            print(f"⚠️  Could not load BASE model: {e}")
-            print("   Continuing without base model comparison...")
+            if 'apply_qkv' in str(e):
+                print(f"⚠️  Unsloth patches prevent base model loading")
+                print("   Continuing with fine-tuned model only...")
+            else:
+                print(f"⚠️  Could not load BASE model: {e}")
+                print("   Continuing without base model comparison...")
             return None, None, None
     
     return None, None, None
@@ -187,51 +238,60 @@ def load_model():
 def generate_response(model, tokenizer, messages: List[Dict], model_type: str, 
                      max_tokens: int = 2000, temperature: float = 0.7) -> str:
     """Generate response from model."""
-    if hasattr(tokenizer, 'apply_chat_template'):
-        formatted_text = tokenizer.apply_chat_template(
-            messages,
-            tokenize=False,
-            add_generation_prompt=True
-        )
-    else:
-        formatted_text = "\n".join([f"{m['role']}: {m['content']}" for m in messages])
-    
-    if model_type == "gguf":
-        response = model(
-            formatted_text,
-            max_tokens=max_tokens,
-            temperature=temperature,
-            stop=["<|im_end|>", "<|endoftext|>"],
-        )
-        return response['choices'][0]['text'].strip()
-    
-    inputs = tokenizer(formatted_text, return_tensors="pt", truncation=True, max_length=8192)
-    
-    if model_type == "unsloth":
-        inputs = inputs.to(model.device)
-        outputs = model.generate(
-            **inputs,
-            max_new_tokens=max_tokens,
-            temperature=temperature,
-            do_sample=True,
-            pad_token_id=tokenizer.eos_token_id,
-            eos_token_id=tokenizer.eos_token_id,
-        )
-    else:
-        inputs = inputs.to(model.device)
-        outputs = model.generate(
-            **inputs,
-            max_new_tokens=max_tokens,
-            temperature=temperature,
-            do_sample=True,
-            pad_token_id=tokenizer.eos_token_id,
-            eos_token_id=tokenizer.eos_token_id,
-        )
-    
-    input_length = inputs['input_ids'].shape[1]
-    generated_tokens = outputs[0][input_length:]
-    response = tokenizer.decode(generated_tokens, skip_special_tokens=True)
-    return response.strip()
+    try:
+        if hasattr(tokenizer, 'apply_chat_template'):
+            formatted_text = tokenizer.apply_chat_template(
+                messages,
+                tokenize=False,
+                add_generation_prompt=True
+            )
+        else:
+            formatted_text = "\n".join([f"{m['role']}: {m['content']}" for m in messages])
+        
+        if model_type == "gguf":
+            response = model(
+                formatted_text,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                stop=["<|im_end|>", "<|endoftext|>"],
+            )
+            return response['choices'][0]['text'].strip()
+        
+        inputs = tokenizer(formatted_text, return_tensors="pt", truncation=True, max_length=8192)
+        
+        if model_type == "unsloth":
+            inputs = inputs.to(model.device)
+            outputs = model.generate(
+                **inputs,
+                max_new_tokens=max_tokens,
+                temperature=temperature,
+                do_sample=True,
+                pad_token_id=tokenizer.eos_token_id,
+                eos_token_id=tokenizer.eos_token_id,
+            )
+        else:
+            inputs = inputs.to(model.device)
+            outputs = model.generate(
+                **inputs,
+                max_new_tokens=max_tokens,
+                temperature=temperature,
+                do_sample=True,
+                pad_token_id=tokenizer.eos_token_id,
+                eos_token_id=tokenizer.eos_token_id,
+            )
+        
+        input_length = inputs['input_ids'].shape[1]
+        generated_tokens = outputs[0][input_length:]
+        response = tokenizer.decode(generated_tokens, skip_special_tokens=True)
+        return response.strip()
+    except AttributeError as e:
+        if 'apply_qkv' in str(e):
+            raise RuntimeError(
+                "Base model cannot be used with Unsloth patches. "
+                "This is expected - base model comparison is disabled. "
+                "Only the fine-tuned model will be tested."
+            ) from e
+        raise
 
 # ============================================================================
 # Simple System Prompt (Minimal Guidance)
@@ -423,24 +483,36 @@ def interactive_mode(model, tokenizer, model_type: str, base_model=None, base_to
             response_finetuned = None
         
         # Test base model if available
+        response_base = None
         if base_model and base_tokenizer and base_model_type:
             print("\n🤖 Analyzing with BASE model (for comparison)...")
             try:
                 response_base = analyze_rag_chunks(base_model, base_tokenizer, query, chunks, base_model_type)
                 print(f"\n📝 BASE Model Response:\n{response_base}\n")
-                
-                print("\n" + "="*80)
-                print("COMPARISON SUMMARY")
-                print("="*80)
-                print(f"\n✅ Fine-tuned model response length: {len(response_finetuned) if response_finetuned else 0} chars")
-                print(f"✅ Base model response length: {len(response_base) if response_base else 0} chars")
-                print("\n" + "="*80)
+            except RuntimeError as e:
+                if 'Unsloth patches' in str(e) or 'apply_qkv' in str(e):
+                    print(f"⚠️  {e}")
+                    print("   Skipping base model comparison - continuing with fine-tuned model only.\n")
+                    response_base = None
+                else:
+                    raise
             except Exception as e:
                 print(f"❌ Error with base model: {e}")
                 import traceback
                 traceback.print_exc()
-        else:
-            print("\n⚠️  Base model not available for comparison.")
+                response_base = None
+        
+        # Show comparison if both models ran successfully
+        if response_finetuned:
+            if response_base:
+                print("\n" + "="*80)
+                print("COMPARISON SUMMARY")
+                print("="*80)
+                print(f"✅ Fine-tuned model response length: {len(response_finetuned)} chars")
+                print(f"✅ Base model response length: {len(response_base)} chars")
+                print("\n" + "="*80)
+            elif base_model is None:
+                print("\n⚠️  Base model not available for comparison.")
 
 # ============================================================================
 # Main

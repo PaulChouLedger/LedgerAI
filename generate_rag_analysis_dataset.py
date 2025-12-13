@@ -248,7 +248,18 @@ def extract_information_from_chunks(query: str, chunks: List[Dict[str, Any]]) ->
             
             for name in names:
                 # Check if name is associated with the query role and organization
-                name_context = text[max(0, text.find(name)-100):min(len(text), text.find(name)+200)].lower()
+                # Get sentence containing the name for more precise matching
+                name_pos = text.find(name)
+                sentence_start = max(0, text.rfind('. ', max(0, name_pos-200), name_pos) + 2)
+                sentence_end = min(len(text), text.find('. ', name_pos))
+                if sentence_end == -1:
+                    sentence_end = min(len(text), text.find('\n', name_pos))
+                if sentence_end == -1:
+                    sentence_end = len(text)
+                name_sentence = text[sentence_start:sentence_end].lower()
+                
+                # Also get broader context for role matching
+                name_context = text[max(0, name_pos-100):min(len(text), name_pos+200)].lower()
                 
                 # Check if role matches
                 role_matches = False
@@ -267,12 +278,35 @@ def extract_information_from_chunks(query: str, chunks: List[Dict[str, Any]]) ->
                 else:
                     role_matches = True  # If no specific role, accept any
                 
-                # Check if organization matches
+                # CRITICAL: Check if organization matches - must appear WITH the role in same sentence
                 org_matches = True
                 if query_org:
                     org_normalized = re.sub(r'\s+', '', query_org.lower())
-                    context_normalized = re.sub(r'\s+', '', name_context)
-                    org_matches = org_normalized in context_normalized or query_org.lower() in name_context
+                    query_org_lower = query_org.lower()
+                    
+                    # Check if organization appears in the sentence with the name
+                    sentence_normalized = re.sub(r'\s+', '', name_sentence)
+                    
+                    # Must have BOTH role AND organization in same sentence/context
+                    # Pattern: "[role] of [org]" or "[org] [role]" or "[name] is [role] of [org]"
+                    if role_matches:
+                        # Check for explicit pattern: role + of + org
+                        role_org_pattern = False
+                        for var in (role_variations.get(query_role, [query_role]) if query_role else [""]):
+                            if var:
+                                # Pattern 1: "co-founder of ledgerai" or "co-founder of ledger ai"
+                                if f"{var} of {query_org_lower}" in name_sentence or f"{var} of {org_normalized}" in sentence_normalized:
+                                    role_org_pattern = True
+                                    break
+                                # Pattern 2: "ledgerai co-founder" (less common)
+                                if f"{query_org_lower} {var}" in name_sentence or f"{org_normalized}{var}" in sentence_normalized:
+                                    role_org_pattern = True
+                                    break
+                        
+                        org_matches = role_org_pattern
+                    else:
+                        # If role doesn't match, org match is irrelevant
+                        org_matches = False
                 
                 if role_matches and org_matches and name not in person_names:
                     # Exclude common non-name phrases
@@ -683,9 +717,16 @@ def generate_dataset(num_examples: int = 3000) -> List[Dict[str, Any]]:
                         attempts += 1
                     
                     if other_company != organization:
-                        irrelevant_info.append(
-                            f"{other_person} is a {role_term_irrelevant} of {other_company}, bringing expertise in {generate_random_concept()}."
-                        )
+                        # Format as "Co-Founder of [OtherCompany]" to match real-world patterns
+                        # This explicitly tests entity-specific filtering - model must exclude this
+                        if "co-founder" in role_term_irrelevant.lower() or "founder" in role_term_irrelevant.lower():
+                            irrelevant_info.append(
+                                f"{other_person} is Co-Founder of {other_company}, bringing expertise in {generate_random_concept()}."
+                            )
+                        else:
+                            irrelevant_info.append(
+                                f"{other_person} is a {role_term_irrelevant} of {other_company}, bringing expertise in {generate_random_concept()}."
+                            )
                 
                 text = create_general_chunk(relevant_info, irrelevant_info)
                 score = random.uniform(0.70, 0.90)  # HIGH but mixed
