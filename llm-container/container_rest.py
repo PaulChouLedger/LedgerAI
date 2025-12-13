@@ -1183,16 +1183,17 @@ JSON array only:"""
                 )
                 
                 # Build user message - simplified to prevent hallucination
-                user_content = (
-                    f"Answer this question using ONLY the information from the 'Knowledge context' sections above.\n"
-                    f"DO NOT invent, guess, or use information not in the context.\n"
-                    f"If the information is not in the context, say 'I don't have that information'.\n\n"
-                    f"Question: {prompt}"
-                )
-                elif SHOW_REASONING_DEBUG:
+                if SHOW_REASONING_DEBUG:
                     print(f"[Generic] 🔍 DEBUG MODE ENABLED - LLM will show reasoning")
                     user_content = (
                         f"Show your reasoning, then provide your answer.\n\n"
+                        f"Question: {prompt}"
+                    )
+                else:
+                    user_content = (
+                        f"Answer this question using ONLY the information from the 'Knowledge context' sections above.\n"
+                        f"DO NOT invent, guess, or use information not in the context.\n"
+                        f"If the information is not in the context, say 'I don't have that information'.\n\n"
                         f"Question: {prompt}"
                     )
                 
