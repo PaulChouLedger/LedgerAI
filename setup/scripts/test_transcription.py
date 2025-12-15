@@ -119,7 +119,7 @@ ENABLE_AUDIO_NORMALIZATION = False  # Disabled - using hardware AGC only (target
 TARGET_RMS_FOR_WHISPER = 0.12      # Target RMS level for Whisper
 
 # === Soft Clipping Prevention ===
-ENABLE_SOFT_LIMITER = True      # Prevent clipping from near-field speech
+ENABLE_SOFT_LIMITER = False      # Prevent clipping from near-field speech
 LIMITER_THRESHOLD = 0.95        # Start limiting above this peak level
 LIMITER_KNEE = 0.05             # Soft knee width for smooth limiting
 
