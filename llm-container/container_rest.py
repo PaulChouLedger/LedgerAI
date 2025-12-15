@@ -1120,16 +1120,19 @@ JSON array only:"""
                 entity_instruction = ""
                 if query_has_entity:
                     # Extract entity name from query for explicit instruction
+                    # Handle abbreviations with periods (e.g., "Ledger A.I." not "Ledger A")
                     import re
-                    entity_match = re.search(r'\bof\s+([A-Z][A-Za-z]*(?:\s+[A-Z][A-Za-z]*)*)', prompt)
+                    # Match entity name including periods and common abbreviations
+                    entity_match = re.search(r'\bof\s+([A-Z][A-Za-z]*(?:\s+[A-Z][A-Za-z.]*)*)', prompt)
                     if entity_match:
-                        entity_name = entity_match.group(1)
+                        entity_name = entity_match.group(1).strip()
+                        # Normalize entity name variations (e.g., "Ledger A.I." = "LedgerAI" = "Ledger AI")
+                        entity_name_normalized = entity_name.replace('.', '').replace(' ', '').lower()
                         entity_instruction = (
                             f"\n⚠️ CRITICAL: The query asks about '{entity_name}'. "
-                            f"ONLY extract information where the text explicitly states the relationship TO '{entity_name}'. "
-                            f"DO NOT include information about other entities, even if they have similar roles. "
-                            f"For example, if the query asks 'co-founders of Company A', do NOT include people who are co-founders of Company B, Company C, etc. "
-                            f"Only include people whose role is explicitly stated as being related to '{entity_name}'.\n"
+                            f"Extract information where the text explicitly states relationships to '{entity_name}' or its variations (e.g., '{entity_name.replace('.', '')}', '{entity_name.replace('.', ' ')}'). "
+                            f"DO NOT exclude information due to minor name variations (spaces, periods, capitalization). "
+                            f"Only exclude information about clearly different entities.\n"
                         )
                 
                 simple_instructions = (
@@ -2076,14 +2079,12 @@ def chat_tts():
     print(f"[Generic] 📝 FULL TRANSCRIBED QUERY: '{prompt}'")  # Log full query for debugging
     
     # Build conversation memory context for this prompt (with fallback)
+    # NOTE: Conversation memory should ONLY be evaluated by memory container, not LLM container
+    # The memory container API is called separately in the RAG processing section
     memory_context = None
-    try:
-        memory_context = conversation_orchestrator._build_memory_context(prompt)
-        if memory_context:
-            print(f"[Generic] 📝 Retrieved conversation memory context for session {session_id}")
-    except Exception as e:
-        print(f"[Generic] ⚠️ Failed to retrieve conversation memory (continuing without it): {e}")
-        memory_context = None  # Fallback: continue without memory context
+    # Removed local conversation memory evaluation - only use memory container API
+    # if memory_context:
+    #     print(f"[Generic] 📝 Retrieved conversation memory context for session {session_id}")
     
     # Store user's prompt in conversation memory for future reference (with fallback)
     try:
