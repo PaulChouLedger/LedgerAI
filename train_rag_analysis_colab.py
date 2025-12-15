@@ -6,8 +6,10 @@ Trains model on general RAG analysis patterns (not entity-specific)
 
 Configuration:
 - Model: Qwen2.5-1.5B-Instruct (better instruction following and reasoning)
-- LoRA Rank: 256 (good balance for 1.5B model)
+- LoRA Rank: 128 (reduced from 256 to prevent overfitting)
 - Strategy: 1.5B provides better base reasoning + LoRA adaptation for RAG analysis patterns
+- Epochs: 5 (reduced from 25 to prevent overfitting)
+- Regularization: weight_decay=0.15 (evaluation disabled - crashes system)
 
 To use in Colab:
 1. Upload rag_analysis_dataset.json to Colab
@@ -28,6 +30,10 @@ import os
 import shutil
 import torch
 from datasets import Dataset
+
+# Disable caching to ensure fresh loads
+os.environ["HF_HUB_DISABLE_EXPERIMENTAL_WARNING"] = "1"
+os.environ["TRANSFORMERS_NO_ADVISORY_WARNINGS"] = "1"
 
 # Workaround for Unsloth 2025.12.3 bug: is_unsupported_gemma not defined
 # Patch it before importing SFTTrainer
@@ -67,24 +73,66 @@ GGUF_OUTPUT_DIR = "gguf_model_rag_analysis"
 
 # System prompt for RAG analysis (fallback - dataset should have its own)
 # NOTE: Dataset examples include this system prompt, but this is kept as fallback
+# Updated to match new 7-step core principles format
 SYSTEM_PROMPT = """You are an AI assistant trained to analyze RAG chunks and extract relevant information.
 
-CRITICAL: Always use the EXACT names, entities, or terms from the user's query. Never hallucinate or substitute different names.
+CORE PRINCIPLES (SYSTEMATIC EVALUATION PROCESS):
 
-Process:
-1. Read each chunk COMPLETELY from start to finish (each chunk has 6-8 sentences)
-2. Evaluate relevance using the provided score:
-   - HIGH relevance (score ≥0.70): Extract information that directly answers the query
-   - MEDIUM relevance (0.50-0.69): May contain related information, use with caution
-   - LOW relevance (score <0.50): Likely irrelevant, ignore unless no HIGH relevance chunks available
-3. Understand the MEANING in each chunk, not just keywords
-4. Extract ONLY information that directly answers or addresses the query
-5. IGNORE information that is similar but does NOT answer the query (even if in HIGH relevance chunks)
-6. Use the score to determine if extracted information directly answers the query
-7. SYNTHESIZE information from multiple chunks into a coherent, natural response
-8. Use natural language - avoid simple repetition, create meaningful connections between facts
+STEP 1: UNDERSTAND THE QUERY
+- Identify what information is being requested
+- Note any specific filtering requirements (role, entity, attribute, relationship, etc.)
+- Understand the scope and context of what needs to be extracted
 
-Return ONLY the final answer in natural, conversational language. Synthesize information rather than just listing facts. Do not include reasoning steps or process details."""
+STEP 2: READ EACH CHUNK COMPLETELY
+- Read the entire chunk from start to finish
+- Do not stop at keywords - read for full context and meaning
+- Understand the complete context before making extraction decisions
+
+STEP 3: ANALYZE CHUNK MEANING
+- Understand the semantic meaning, not just surface-level keywords
+- Identify entities, relationships, attributes, and concepts mentioned
+- Recognize how information relates to the query
+
+STEP 4: EVALUATE RELEVANCE
+- Determine if information directly answers or addresses the query
+- Apply query-specific filtering (match role, entity, attribute, etc. as requested)
+- Ignore information that is similar but does NOT answer the query
+- Use relevance scores to guide prioritization (HIGH ≥0.70, MEDIUM 0.50-0.69, LOW <0.50)
+
+STEP 5: EXTRACT MATCHING INFORMATION
+- Extract only information that passes the relevance evaluation
+- Apply exact matching - use information exactly as it appears in chunks
+- Track all matching items across all chunks
+
+STEP 6: VERIFY COMPLETENESS
+- Ensure you have read ALL chunks completely
+- Verify you extracted ALL matching items (do not stop after first match)
+- Confirm extraction is complete before finalizing response
+
+STEP 7: SYNTHESIZE RESPONSE
+- Combine information from all chunks into coherent answer
+- Format naturally and directly address the query
+- If no matching information found, state "I don't have that information in the provided documents"
+
+CRITICAL: Follow these steps in order for EVERY query. Chunk order does not change the answer - read all chunks before responding.
+
+ESSENTIAL GUIDELINES:
+- NEVER hallucinate - only use information that appears in the provided chunks
+- NEVER make up names, entities, or information - if information doesn't exist, say "I don't have that information in the provided documents"
+- Use EXACT information from chunks - never substitute or modify names, terms, or entities
+- Apply query-specific filtering during Step 4 (evaluate relevance) - match what the query specifically asks for
+- Extract ALL matching items - complete Step 6 (verify completeness) ensures nothing is missed
+- Relevance scores guide prioritization but do not override the evaluation steps
+
+QUERY TYPE HANDLING (applied during Step 4 - Evaluate Relevance):
+- Role/entity queries: Filter by the specific role or entity mentioned in the query
+- Comparison queries: Extract information comparing the entities mentioned
+- Relationship queries: Extract connection information between entities
+- Analytical queries: Extract reasoning, causation, or explanation
+- Process queries: Extract step-by-step information
+- List queries: Extract all items that match the query criteria
+
+Return ONLY the final answer in natural, conversational language. Do not include reasoning steps in the response."""
 
 # ============================================================================
 # GPU Check
@@ -180,6 +228,7 @@ print("=" * 80)
 print("Loading Model and Tokenizer")
 print("=" * 80)
 
+# Disable model caching to ensure fresh load
 model, tokenizer = FastLanguageModel.from_pretrained(
     model_name=MODEL_NAME,
     max_seq_length=MAX_SEQ_LENGTH,
@@ -271,14 +320,16 @@ print("Configuring LoRA Adapters")
 print("=" * 80)
 
 # LoRA Configuration
-# r=128: ~90M trainable (6.80%) - Good balance, works on T4/V100
-# r=256: ~180M trainable (13.6%) - Better capacity, needs 16GB+ VRAM (CURRENT)
-# r=512: ~360M trainable (27.2%) - Maximum capacity, needs 24GB+ VRAM
+# r=16: ~11M trainable (0.85%) - Extremely minimal capacity
+# r=32: ~22M trainable (1.7%) - Very minimal capacity (CURRENT)
+# r=64: ~45M trainable (3.4%) - Still too much capacity (loss decreased too fast: 1.99→0.0076 in 80 steps)
+# r=128: ~90M trainable (6.80%) - Too much capacity (loss decreased too fast)
+# r=256: ~180M trainable (13.6%) - Higher capacity, causes overfitting
 #
-# Using r=256 with Qwen2.5-1.5B for good balance of base model reasoning + task adaptation.
+# Using r=32 with Qwen2.5-1.5B - loss still decreasing too fast (1.99→0.0076 in 80 steps) with r=64.
 
-LORA_RANK = 256  # Good balance for 1.5B model
-LORA_ALPHA = LORA_RANK * 2  # Optimal scaling: alpha = 2x rank (512)
+LORA_RANK = 8  # Further reduced from 16 - loss still decreasing too fast (0.204→0.16 at epoch 1.5), need minimal capacity to prevent memorization
+LORA_ALPHA = LORA_RANK * 2  # Optimal scaling: alpha = 2x rank (16)
 
 model = FastLanguageModel.get_peft_model(
     model,
@@ -288,7 +339,7 @@ model = FastLanguageModel.get_peft_model(
         "gate_proj", "up_proj", "down_proj",
     ],
     lora_alpha=LORA_ALPHA,
-    lora_dropout=0,  # Supports any, but = 0 is optimized
+    lora_dropout=0,  # Unsloth optimized: 0.0 is fastest. Using weight_decay=0.3 for regularization instead
     bias="none",     # Supports any, but = "none" is optimized
     use_gradient_checkpointing="unsloth",  # Unsloth's optimized version
     random_state=3407,
@@ -308,34 +359,40 @@ print("Configuring Training")
 print("=" * 80)
 
 # Training arguments optimized for Unsloth and RAG analysis
-# Increased epochs and warmup for better extraction accuracy
+# Reduced epochs and added regularization to prevent overfitting (loss was hitting 0.0)
 training_args = TrainingArguments(
     per_device_train_batch_size=2,
     gradient_accumulation_steps=4,  # Effective batch size = 8
-    warmup_steps=200,  # Increased warmup for better extraction pattern learning and stability
-    num_train_epochs=25,  # Increased to 25 for better extraction accuracy and entity differentiation
-    learning_rate=1.0e-4,  # Reduced from 1.2e-4 for more stable training (prevents gradient explosions)
+    warmup_steps=800,  # Increased from 600 - loss still decreasing too fast (0.204→0.16 at epoch 1.5), need even slower initial learning
+    num_train_epochs=3,  # Reduced from 5 - loss already very low, likely to plateau early (prevent overfitting)
+    learning_rate=5e-6,  # Further reduced from 8e-6 - loss still decreasing too fast (0.204→0.16 at epoch 1.5), need even slower learning to prevent memorization
     max_grad_norm=1.0,  # CRITICAL: Gradient clipping to prevent explosions (gradient norm spiked to 41.08)
     fp16=not torch.cuda.is_bf16_supported(),
     bf16=torch.cuda.is_bf16_supported(),
     logging_steps=20,  # More frequent logging for better monitoring
     optim="adamw_8bit",
-    weight_decay=0.01,
+    weight_decay=0.3,  # Increased from 0.25 - loss still decreasing too fast (0.204→0.16 at epoch 1.5), need even stronger regularization to prevent memorization
     lr_scheduler_type="cosine",  # Cosine scheduler for smoother learning
     seed=3407,
     output_dir=OUTPUT_DIR,
     save_strategy="epoch",
-    save_total_limit=10,  # Keep more checkpoints for 25 epochs
+    eval_strategy="no",  # Disabled - evaluation crashes system
+    save_total_limit=3,  # Keep 3 best checkpoints
     dataloader_pin_memory=False,
     report_to="none",  # Disable Weights & Biases logging
     max_steps=-1,  # Use epochs instead
     save_safetensors=True,
 )
 
+# Use full dataset for training (no validation split - evaluation disabled)
+train_dataset = dataset
+
+print(f"   - Train examples: {len(train_dataset)}")
+
 trainer = SFTTrainer(
     model=model,
     tokenizer=tokenizer,
-    train_dataset=dataset,
+    train_dataset=train_dataset,
     dataset_text_field="text",
     max_seq_length=MAX_SEQ_LENGTH,
     args=training_args,
@@ -345,20 +402,23 @@ print("✅ Training configured")
 print(f"   - Batch size: {training_args.per_device_train_batch_size}")
 print(f"   - Gradient accumulation: {training_args.gradient_accumulation_steps}")
 print(f"   - Effective batch size: {training_args.per_device_train_batch_size * training_args.gradient_accumulation_steps}")
-print(f"   - Epochs: {training_args.num_train_epochs} (increased for better extraction accuracy and entity differentiation)")
-print(f"   - Learning rate: {training_args.learning_rate} (reduced for stability, prevents gradient explosions)")
+print(f"   - Epochs: {training_args.num_train_epochs} (reduced from 5 - loss already at 0.18 in 0.7 epochs, likely to plateau early)")
+print(f"   - Learning rate: {training_args.learning_rate} (further reduced - loss decreasing too fast: 2.39→0.18 in 0.7 epochs, need slower learning to prevent memorization)")
 print(f"   - Gradient clipping: max_norm={training_args.max_grad_norm} (prevents training instability)")
 # Calculate approximate trainable parameters
 approx_params = {
+    8: (5.5, 0.35),
+    16: (11, 0.85),
+    32: (22, 1.7),
     64: (45, 3.4),
     128: (90, 6.8),
     256: (180, 13.6),
     512: (360, 27.2),
 }
-params_m, params_pct = approx_params.get(LORA_RANK, (90, 6.8))
-print(f"   - LoRA rank: {LORA_RANK} (~{params_m}M trainable parameters, ~{params_pct}% of model)")
+params_m, params_pct = approx_params.get(LORA_RANK, (5.5, 0.35))
+print(f"   - LoRA rank: {LORA_RANK} (~{params_m}M trainable parameters, ~{params_pct}% of model) (further reduced from 16 - loss still decreasing too fast: 0.204→0.16 at epoch 1.5, need minimal capacity to prevent memorization)")
 print(f"   - LoRA alpha: {LORA_ALPHA} (2x rank for optimal scaling)")
-print(f"   - Warmup steps: {training_args.warmup_steps} (increased for better extraction pattern learning and stability)")
+print(f"   - Warmup steps: {training_args.warmup_steps} (increased to slow down initial learning)")
 print(f"   - Scheduler: {training_args.lr_scheduler_type}")
 print(f"   - Logging steps: {training_args.logging_steps} (more frequent monitoring)")
 print()
