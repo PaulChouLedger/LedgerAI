@@ -160,12 +160,30 @@ MODEL_MAPPING = {
     "base.en": "models--Systran--faster-base-whisper.en",                      # Basic model
     "large-v3-turbo": "models--mobiuslabsgmbh--faster-whisper-large-v3-turbo", # Best accuracy, higher latency
     "distil-large-v3": "models--Systran--faster-distil-whisper-large-v3",      # Excellent accuracy, low latency
-    "distil-whisper/distil-large-v3.5-ct2": "models--distil-whisper--distil-large-v3.5-ct2"  # Best accuracy/speed balance ⭐ RECOMMENDED (1.5x faster than turbo, better short-form accuracy)
+    "distil-whisper/distil-large-v3.5-ct2": "models--distil-whisper--distil-large-v3.5-ct2"  # Best accuracy/speed balance (1.5x faster than turbo, better short-form accuracy)
 }
 
 # Get the actual model repo name
 model_repo = MODEL_MAPPING.get(MODEL_NAME, f"models--Systran--faster-{MODEL_NAME.replace('.', '-')}")
 model_cache_path = f"/root/.cache/huggingface/hub/{model_repo}"
+
+# Clean up unused models to save space (only keep the requested model)
+# This ensures that when the default changes via git pull, old models are removed
+cache_base = "/root/.cache/huggingface/hub"
+if os.path.exists(cache_base):
+    import shutil
+    all_models = [d for d in os.listdir(cache_base) if d.startswith("models--")]
+    for model_dir in all_models:
+        model_full_path = os.path.join(cache_base, model_dir)
+        # Only remove if it's not the model we need
+        if model_dir != model_repo and os.path.isdir(model_full_path):
+            # Check if it's a Whisper model (not other HuggingFace models)
+            if any(whisper_keyword in model_dir.lower() for whisper_keyword in ["whisper", "distil"]):
+                try:
+                    print(f"[Whisper] 🗑️  Removing unused model: {model_dir}")
+                    shutil.rmtree(model_full_path)
+                except Exception as e:
+                    print(f"[Whisper] ⚠️  Could not remove {model_dir}: {e}")
 
 if os.path.exists(model_cache_path):
     print(f"[Whisper] ✅ Model found in cache: {MODEL_NAME}")
