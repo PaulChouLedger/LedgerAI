@@ -69,7 +69,7 @@ ENABLE_AUDIO_NORMALIZATION = False  # Disabled - using hardware AGC only (target
 TARGET_RMS_FOR_WHISPER = 0.12      # Target RMS level (used for all audio processing in shared pipeline)
 
 # === Soft Clipping Prevention ===
-ENABLE_SOFT_LIMITER = False      # Prevent clipping from near-field speech
+ENABLE_SOFT_LIMITER = True      # Prevent clipping from near-field speech
 LIMITER_THRESHOLD = 0.95        # Start limiting above this peak level
 LIMITER_KNEE = 0.05             # Soft knee width for smooth limiting
 
@@ -679,6 +679,11 @@ def read_audio_frame(stream, stream_valid, label="Listener"):
     
     if channel_audio.size < 512:
         return None, None, None, True  # Continue
+    
+    # Apply soft limiting to prevent clipping BEFORE VAD and wake word detection
+    # This prevents degraded transcription quality and wake word detection failures
+    # when peak hits 1.0 (hard clipping)
+    channel_audio = soft_limit(channel_audio)
     
     # Calculate audio features (same calculation for both)
     features = calculate_audio_features(channel_audio)
