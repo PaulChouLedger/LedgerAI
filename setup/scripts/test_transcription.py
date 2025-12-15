@@ -645,6 +645,11 @@ def listen():
                 if channel_0.size < 512:
                     continue
                 
+                # Apply soft limiting to prevent clipping BEFORE VAD processing
+                # This prevents degraded transcription quality and VAD failures
+                # when peak hits 1.0 (hard clipping)
+                channel_0 = soft_limit(channel_0)
+                
                 # Hardware HPF already applied in XVF3800 DSP
                 vad_prob = model_vad(torch.from_numpy(channel_0), SAMPLE_RATE).item()
                 
@@ -685,6 +690,11 @@ def listen():
                 
                 if channel_0.size < 512:
                     continue
+                
+                # Apply soft limiting to prevent clipping BEFORE VAD processing
+                # This prevents degraded transcription quality and VAD failures
+                # when peak hits 1.0 (hard clipping)
+                channel_0 = soft_limit(channel_0)
                 
                 buffer.append(audio_block)
                 
