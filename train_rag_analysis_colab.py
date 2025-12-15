@@ -12,7 +12,7 @@ Configuration:
 - Regularization: weight_decay=0.15 (evaluation disabled - crashes system)
 
 To use in Colab:
-1. Upload rag_analysis_dataset.json to Colab
+1. Upload rag_analysis_dataset_v2.json (or rag_analysis_dataset.json) to Colab
 2. Run: !pip install unsloth trl peft accelerate bitsandbytes datasets
 3. Run this script
 
@@ -60,12 +60,15 @@ from transformers import TrainingArguments
 
 MODEL_NAME = "unsloth/Qwen2.5-1.5B-Instruct-bnb-4bit"  # Qwen 2.5 1.5B - better instruction following and reasoning
 
-# Dataset path
-if os.path.exists("rag_analysis_dataset.json"):
+# Dataset path (prefer v2, fallback to v1)
+if os.path.exists("rag_analysis_dataset_v2.json"):
+    DATASET_PATH = "rag_analysis_dataset_v2.json"
+    print("✅ Using RAG analysis dataset v2")
+elif os.path.exists("rag_analysis_dataset.json"):
     DATASET_PATH = "rag_analysis_dataset.json"
-    print("✅ Using RAG analysis dataset")
+    print("✅ Using RAG analysis dataset v1")
 else:
-    raise FileNotFoundError("rag_analysis_dataset.json not found. Please run generate_rag_analysis_dataset.py first.")
+    raise FileNotFoundError("Neither rag_analysis_dataset_v2.json nor rag_analysis_dataset.json found. Please run generate_rag_dataset_v2.py first.")
 
 MAX_SEQ_LENGTH = 8192  # Increased to accommodate full chunk examples and provide headroom for longer chunks
 OUTPUT_DIR = "outputs_rag_analysis"

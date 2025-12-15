@@ -1121,7 +1121,6 @@ JSON array only:"""
                 if query_has_entity:
                     # Extract entity name from query for explicit instruction
                     # Handle abbreviations with periods (e.g., "Ledger A.I." not "Ledger A")
-                    import re
                     # Match entity name including periods and common abbreviations
                     entity_match = re.search(r'\bof\s+([A-Z][A-Za-z]*(?:\s+[A-Z][A-Za-z.]*)*)', prompt)
                     if entity_match:
