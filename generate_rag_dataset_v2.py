@@ -43,6 +43,8 @@ STEP 3: ANALYZE CHUNK MEANING
 STEP 4: EVALUATE RELEVANCE
 - Determine if information directly answers or addresses the query
 - Apply query-specific filtering (match role, entity, attribute, etc. as requested)
+- CRITICAL: For role queries, match the EXACT role (e.g., "co-founders" ≠ "CEO" ≠ "CTO" - extract ONLY the exact role requested)
+- CRITICAL: For company queries, extract information ONLY about the company that matches the query. Use the company name EXACTLY as it appears in the chunks (RAG handles fuzzy matching at retrieval - if chunk says "TechCorp", extract "TechCorp" even if query said "Tech Corp"). Do NOT extract information about other companies
 - Ignore information that is similar but does NOT answer the query
 
 STEP 5: EXTRACT MATCHING INFORMATION
@@ -58,7 +60,8 @@ STEP 6: VERIFY COMPLETENESS
 STEP 7: SYNTHESIZE RESPONSE
 - Combine information from all chunks into coherent answer
 - Format naturally and directly address the query
-- If no matching information found, state "I don't have that information in the provided documents"
+- CRITICAL: If after reading ALL chunks completely you find NO information that matches the query (wrong role, wrong company, or missing entirely), you MUST respond with exactly: "I don't have that information in the provided documents"
+- DO NOT infer, guess, or make up information - if it's not explicitly in the chunks, say "I don't have that information in the provided documents"
 
 CRITICAL: Follow these steps in order for EVERY query. Chunk order does not change the answer - read all chunks before responding."""
     
@@ -70,18 +73,20 @@ CRITICAL: Follow these steps in order for EVERY query. Chunk order does not chan
 ESSENTIAL GUIDELINES:
 - NEVER hallucinate - only use information that appears in the provided chunks
 - NEVER make up names, entities, or information - if information doesn't exist, say "I don't have that information in the provided documents"
+- CRITICAL: If you cannot find the EXACT information requested in ANY chunk, you MUST respond with "I don't have that information in the provided documents" - DO NOT guess, infer, or make up information
 - Use EXACT information from chunks - never substitute or modify names, terms, or entities
 - Apply query-specific filtering during Step 4 (evaluate relevance) - match what the query specifically asks for
 - Extract ALL matching items - complete Step 6 (verify completeness) ensures nothing is missed
 - Relevance scores guide prioritization but do not override the evaluation steps
 
 QUERY TYPE HANDLING (applied during Step 4 - Evaluate Relevance):
-- Role/entity queries: Filter by the specific role or entity mentioned in the query
+- Role/entity queries: Filter by the SPECIFIC role mentioned (e.g., "co-founders" means ONLY co-founders, NOT CEOs, CTOs, or other roles). If the query asks for "co-founders", extract ONLY people explicitly labeled as co-founders, NOT other roles even if they are at the same company
+- Company-specific queries: Extract information ONLY about the company that matches the query. If query asks about "TechCorp", extract information ONLY about the matching company in chunks (RAG handles fuzzy matching like "Tech Corp" → "TechCorp" at retrieval level). Use the company name EXACTLY as it appears in the chunks. Do NOT extract information about other companies mentioned in the same chunk
 - Comparison queries: Extract information comparing the entities mentioned
 - Relationship queries: Extract connection information between entities
 - Analytical queries: Extract reasoning, causation, or explanation
 - Process queries: Extract step-by-step information
-- List queries: Extract all items that match the query criteria
+- List queries: Extract ALL items that match the query criteria - read ALL chunks completely before responding
 
 Return ONLY the final answer in natural, conversational language. Do not include reasoning steps in the response."""
     
@@ -93,10 +98,11 @@ Return ONLY the final answer in natural, conversational language. Do not include
 KEY RULES:
 1. NEVER hallucinate - if information doesn't exist, say "I don't have that information in the provided documents"
 2. NEVER make up names or entities - ONLY use information that appears in the provided chunks
-3. EXACT MATCHING: Use EXACT names, terms, and information from chunks - NEVER substitute or modify
-4. FILTERING: Apply the query's specific requirements - exclude information that doesn't match what is asked
-5. COMPLETE EXTRACTION: Extract ALL matching items - read ALL chunks completely before responding
-6. ORDER-INDEPENDENT: Extract same results regardless of chunk order
+3. CRITICAL: If EXACT match not found (wrong role, wrong company, or missing), respond with "I don't have that information in the provided documents"
+4. EXACT MATCHING: Use EXACT names, terms, and information from chunks - NEVER substitute or modify
+5. FILTERING: Apply the query's specific requirements - exclude information that doesn't match what is asked (e.g., "co-founders" ≠ "CEO", "TechCorp" ≠ "Tech Corp")
+6. COMPLETE EXTRACTION: Extract ALL matching items - read ALL chunks completely before responding
+7. ORDER-INDEPENDENT: Extract same results regardless of chunk order
 
 RELEVANCE PRIORITIZATION:
 - Prioritize HIGH relevance chunks (score ≥0.70) over LOW relevance chunks (score <0.50)
@@ -112,8 +118,9 @@ Return ONLY the final answer in natural, conversational language. Do not include
 
 ESSENTIAL RULES:
 - NEVER hallucinate - if information doesn't exist, say "I don't have that information in the provided documents"
+- CRITICAL: If EXACT match not found, respond with "I don't have that information in the provided documents" - DO NOT guess
 - Use EXACT information from chunks - NEVER invent or modify
-- Apply query-specific filtering - exclude information that doesn't match what is asked
+- Apply query-specific filtering - exclude information that doesn't match what is asked (exact role, exact company)
 - Extract ALL matching items - read ALL chunks completely before responding
 - ORDER-INDEPENDENT: Extract same results regardless of chunk order
 

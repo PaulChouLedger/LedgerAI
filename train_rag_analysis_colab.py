@@ -99,6 +99,8 @@ STEP 3: ANALYZE CHUNK MEANING
 STEP 4: EVALUATE RELEVANCE
 - Determine if information directly answers or addresses the query
 - Apply query-specific filtering (match role, entity, attribute, etc. as requested)
+- CRITICAL: For role queries, match the EXACT role (e.g., "co-founders" ≠ "CEO" ≠ "CTO" - extract ONLY the exact role requested)
+- CRITICAL: For company queries, extract information ONLY about the company that matches the query. Use the company name EXACTLY as it appears in the chunks (RAG handles fuzzy matching at retrieval - if chunk says "TechCorp", extract "TechCorp" even if query said "Tech Corp"). Do NOT extract information about other companies
 - Ignore information that is similar but does NOT answer the query
 - Use relevance scores to guide prioritization (HIGH ≥0.70, MEDIUM 0.50-0.69, LOW <0.50)
 
@@ -115,25 +117,28 @@ STEP 6: VERIFY COMPLETENESS
 STEP 7: SYNTHESIZE RESPONSE
 - Combine information from all chunks into coherent answer
 - Format naturally and directly address the query
-- If no matching information found, state "I don't have that information in the provided documents"
+- CRITICAL: If after reading ALL chunks completely you find NO information that matches the query (wrong role, wrong company, or missing entirely), you MUST respond with exactly: "I don't have that information in the provided documents"
+- DO NOT infer, guess, or make up information - if it's not explicitly in the chunks, say "I don't have that information in the provided documents"
 
 CRITICAL: Follow these steps in order for EVERY query. Chunk order does not change the answer - read all chunks before responding.
 
 ESSENTIAL GUIDELINES:
 - NEVER hallucinate - only use information that appears in the provided chunks
 - NEVER make up names, entities, or information - if information doesn't exist, say "I don't have that information in the provided documents"
+- CRITICAL: If you cannot find the EXACT information requested in ANY chunk, you MUST respond with "I don't have that information in the provided documents" - DO NOT guess, infer, or make up information
 - Use EXACT information from chunks - never substitute or modify names, terms, or entities
 - Apply query-specific filtering during Step 4 (evaluate relevance) - match what the query specifically asks for
 - Extract ALL matching items - complete Step 6 (verify completeness) ensures nothing is missed
 - Relevance scores guide prioritization but do not override the evaluation steps
 
 QUERY TYPE HANDLING (applied during Step 4 - Evaluate Relevance):
-- Role/entity queries: Filter by the specific role or entity mentioned in the query
+- Role/entity queries: Filter by the SPECIFIC role mentioned (e.g., "co-founders" means ONLY co-founders, NOT CEOs, CTOs, or other roles). If the query asks for "co-founders", extract ONLY people explicitly labeled as co-founders, NOT other roles even if they are at the same company
+- Company-specific queries: Extract information ONLY about the company that matches the query. If query asks about "TechCorp", extract information ONLY about the matching company in chunks (RAG handles fuzzy matching like "Tech Corp" → "TechCorp" at retrieval level). Do NOT extract information about other companies mentioned in the same chunk
 - Comparison queries: Extract information comparing the entities mentioned
 - Relationship queries: Extract connection information between entities
 - Analytical queries: Extract reasoning, causation, or explanation
 - Process queries: Extract step-by-step information
-- List queries: Extract all items that match the query criteria
+- List queries: Extract ALL items that match the query criteria - read ALL chunks completely before responding
 
 Return ONLY the final answer in natural, conversational language. Do not include reasoning steps in the response."""
 
@@ -366,15 +371,15 @@ print("=" * 80)
 training_args = TrainingArguments(
     per_device_train_batch_size=2,
     gradient_accumulation_steps=4,  # Effective batch size = 8
-    warmup_steps=800,  # Increased from 600 - loss still decreasing too fast (0.204→0.16 at epoch 1.5), need even slower initial learning
-    num_train_epochs=3,  # Reduced from 5 - loss already very low, likely to plateau early (prevent overfitting)
-    learning_rate=5e-6,  # Further reduced from 8e-6 - loss still decreasing too fast (0.204→0.16 at epoch 1.5), need even slower learning to prevent memorization
+    warmup_steps=1000,  # Increased from 800 - slower warmup to prevent rapid loss decrease and improve generalization
+    num_train_epochs=4,  # Increased from 3 - loss plateaued at 0.15-0.16, need more training to improve generalization
+    learning_rate=4e-6,  # Slightly reduced from 5e-6 - loss decreased very quickly, slower learning for better generalization
     max_grad_norm=1.0,  # CRITICAL: Gradient clipping to prevent explosions (gradient norm spiked to 41.08)
     fp16=not torch.cuda.is_bf16_supported(),
     bf16=torch.cuda.is_bf16_supported(),
     logging_steps=20,  # More frequent logging for better monitoring
     optim="adamw_8bit",
-    weight_decay=0.3,  # Increased from 0.25 - loss still decreasing too fast (0.204→0.16 at epoch 1.5), need even stronger regularization to prevent memorization
+    weight_decay=0.35,  # Increased from 0.3 - stronger regularization to prevent overfitting and improve generalization on test cases
     lr_scheduler_type="cosine",  # Cosine scheduler for smoother learning
     seed=3407,
     output_dir=OUTPUT_DIR,
