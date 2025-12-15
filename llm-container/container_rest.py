@@ -172,7 +172,6 @@ def extract_relevant_substrings(text: str, query: str, entity_names: list = None
     Returns:
         Filtered text containing relevant sentences/paragraphs (both direct matches and semantically related)
     """
-    import re
     import numpy as np
     
     if not text or not query:
@@ -359,8 +358,6 @@ def get_filler_phrase() -> str:
     Returns:
         Filtered text containing only relevant sentences/paragraphs
     """
-    import re
-    
     if not text or not query:
         return text
     
@@ -839,8 +836,6 @@ JSON array only:"""
                         # SIMPLIFIED: Let the model do the filtering - just pass through chunks that mention the entity
                         # The fine-tuned model should handle entity-specific extraction
                         if is_list_query or any(term in prompt.lower() for term in ['co-founder', 'founder', 'employee', 'manager', 'director', 'officer']):
-                            import re
-                            
                             # Extract entity names from query for basic filtering
                             entity_names = []
                             of_pattern = r'\bof\s+([A-Z][A-Za-z]*(?:\s+[A-Z][A-Za-z]*)*)\b'
@@ -1029,9 +1024,8 @@ JSON array only:"""
     if rag_context:
         contextual_sections.append(f"Knowledge context:\n{rag_context}")
         print(f"[Generic] 📝 LLM prompt includes RAG context")
-    if memory_context:
-        contextual_sections.append(f"Conversation memory:\n{memory_context}")
-        print(f"[Generic] 📝 LLM prompt includes conversation memory")
+    # NOTE: Conversation memory is already included in rag_context from memory container API
+    # The memory_context parameter is deprecated - memory container is the only source
     combined_context = "\n\n".join(contextual_sections).strip()
     
     if not combined_context:
@@ -1919,13 +1913,9 @@ JSON array only:"""
             "Make it flow naturally with the conversation topic. This question is in addition to your 2-3 sentence answer."
         )
     
-    if memory_context:
-        system_prompt += (
-            f"\n\nConversation memory you can reference:\n{memory_context}\n\n"
-            "IMPORTANT: Use the conversation memory above to answer the user's question. "
-            "If the memory contains relevant information, provide that information in your response. "
-            "If you notice a misspelling or typo, briefly acknowledge it but still answer the actual question asked."
-        )
+    # NOTE: Conversation memory should ONLY come from memory container API
+    # Memory context is already included in RAG context if available
+    # The memory_context parameter is deprecated - do not use it
     messages = [
         {
             "role": "system",
