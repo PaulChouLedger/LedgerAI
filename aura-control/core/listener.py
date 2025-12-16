@@ -582,6 +582,13 @@ def send_to_llm(text):
     if not text:
         return
     
+    # Clear question flag when new user input arrives (starting new interaction)
+    try:
+        from state import clear_last_response_question_flag
+        clear_last_response_question_flag()
+    except Exception as e:
+        print(f"[Listener] ⚠️ Failed to clear question flag: {e}")
+    
     prompt_history.append(text)
     if len(prompt_history) > CONTEXT_DEPTH:
         prompt_history.pop(0)
@@ -932,7 +939,23 @@ def listen():
                             print(f"[Listener] ⚠️  Stream error during TTS pause: {pa_error}")
                             stream_valid = False
                             break
-                    listening_active = False  # Reset after TTS
+                    
+                    # Check if last response ended with a question - if so, keep VAD active for natural conversation flow
+                    try:
+                        from state import get_last_response_ended_with_question, clear_last_response_question_flag
+                        ended_with_question = get_last_response_ended_with_question()
+                        if ended_with_question:
+                            # Keep listening active so user can respond directly without wake word
+                            listening_active = True
+                            print(f"[Listener] ❓ Last response ended with question - keeping VAD active for natural conversation")
+                        else:
+                            # Normal flow: reset to wake word detection
+                            listening_active = False
+                            print(f"[Listener] 🔄 Response ended without question - returning to wake word detection")
+                    except Exception as e:
+                        # Fallback: reset to wake word detection if state check fails
+                        print(f"[Listener] ⚠️ Failed to check question flag: {e}, resetting to wake word detection")
+                        listening_active = False
                 
                 # === STAGE 1: Wake Word Detection (if enabled) ===
                 # Only process wake word if detector is actually available

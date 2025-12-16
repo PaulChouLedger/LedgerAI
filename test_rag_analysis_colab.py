@@ -283,6 +283,19 @@ def generate_response(model, tokenizer, messages: List[Dict], model_type: str,
         input_length = inputs['input_ids'].shape[1]
         generated_tokens = outputs[0][input_length:]
         response = tokenizer.decode(generated_tokens, skip_special_tokens=True)
+        
+        # Extract final answer from CoT response if present
+        # Model trained with CoT, but we want just the final answer for testing
+        if "STEP 7: SYNTHESIZE RESPONSE" in response:
+            # Extract just STEP 7 (final answer)
+            step7_start = response.find("STEP 7: SYNTHESIZE RESPONSE")
+            if step7_start >= 0:
+                final_answer = response[step7_start + len("STEP 7: SYNTHESIZE RESPONSE"):].strip()
+                # Remove any remaining STEP markers
+                import re
+                final_answer = re.sub(r'^STEP\s+\d+:.*?\n', '', final_answer, flags=re.IGNORECASE | re.MULTILINE)
+                return final_answer.strip()
+        
         return response.strip()
     except AttributeError as e:
         if 'apply_qkv' in str(e):
@@ -298,30 +311,73 @@ def generate_response(model, tokenizer, messages: List[Dict], model_type: str,
 # ============================================================================
 
 def create_system_prompt() -> str:
-    """System prompt - matches the training dataset."""
+    """System prompt - matches the training dataset exactly."""
     return """You are an AI assistant trained to analyze RAG chunks and extract relevant information.
 
-CRITICAL: Always use the EXACT names, entities, or terms from the user's query. Never hallucinate or substitute different names.
+CORE PRINCIPLES (SYSTEMATIC EVALUATION PROCESS):
 
-Process:
-1. Read each chunk COMPLETELY from start to finish (each chunk has 6-8 sentences)
-2. Evaluate relevance using the provided score:
-   - HIGH relevance (score ≥0.70): Extract information that directly answers the query
-   - MEDIUM relevance (0.50-0.69): May contain related information, use with caution
-   - LOW relevance (score <0.50): Likely irrelevant, ignore unless no HIGH relevance chunks available
-3. Understand the MEANING in each chunk, not just keywords
-4. Extract ONLY information that directly answers or addresses the query
-5. IGNORE information that is similar but does NOT answer the query (even if in HIGH relevance chunks)
-6. Use the score to determine if extracted information directly answers the query
+STEP 1: UNDERSTAND THE QUERY
+- Identify what information is being requested
+- Note any specific filtering requirements (role, entity, attribute, relationship, etc.)
+- Understand the scope and context of what needs to be extracted
 
-Return ONLY the final answer. Do not include reasoning steps or process details."""
+STEP 2: READ EACH CHUNK COMPLETELY
+- Read the entire chunk from start to finish
+- Do not stop at keywords - read for full context and meaning
+- Understand the complete context before making extraction decisions
+
+STEP 3: ANALYZE CHUNK MEANING
+- Understand the semantic meaning, not just surface-level keywords
+- Identify entities, relationships, attributes, and concepts mentioned
+- Recognize how information relates to the query
+
+STEP 4: EVALUATE RELEVANCE
+- Determine if information directly answers or addresses the query
+- Apply query-specific filtering (match role, entity, attribute, etc. as requested)
+- CRITICAL: For role queries, match the EXACT role (e.g., "co-founders" ≠ "CEO" ≠ "CTO" - extract ONLY the exact role requested)
+- CRITICAL: For company queries, extract information ONLY about the company that matches the query. Use the company name EXACTLY as it appears in the chunks (RAG handles fuzzy matching at retrieval - if chunk says "TechCorp", extract "TechCorp" even if query said "Tech Corp"). Do NOT extract information about other companies
+- Ignore information that is similar but does NOT answer the query
+
+STEP 5: EXTRACT MATCHING INFORMATION
+- Extract only information that passes the relevance evaluation
+- Apply exact matching - use information exactly as it appears in chunks
+- Track all matching items across all chunks
+
+STEP 6: VERIFY COMPLETENESS
+- Ensure you have read ALL chunks completely
+- Verify you extracted ALL matching items (do not stop after first match)
+- Confirm extraction is complete before finalizing response
+
+STEP 7: SYNTHESIZE RESPONSE
+- Combine information from all chunks into coherent answer
+- Format naturally and directly address the query
+- CRITICAL: If after reading ALL chunks completely you find NO information that matches the query (wrong role, wrong company, or missing entirely), you MUST respond with exactly: "I don't have that information in the provided documents"
+- DO NOT infer, guess, or make up information - if it's not explicitly in the chunks, say "I don't have that information in the provided documents"
+
+CRITICAL: Follow these steps in order for EVERY query. Chunk order does not change the answer - read all chunks before responding.
+
+KEY RULES:
+1. NEVER hallucinate - if information doesn't exist, say "I don't have that information in the provided documents"
+2. NEVER make up names or entities - ONLY use information that appears in the provided chunks
+3. CRITICAL: If EXACT match not found (wrong role, wrong company, or missing), respond with "I don't have that information in the provided documents"
+4. EXACT MATCHING: Use EXACT names, terms, and information from chunks - NEVER substitute or modify
+5. FILTERING: Apply the query's specific requirements - exclude information that doesn't match what is asked (e.g., "co-founders" ≠ "CEO", "TechCorp" ≠ "Tech Corp")
+6. COMPLETE EXTRACTION: Extract ALL matching items - read ALL chunks completely before responding
+7. ORDER-INDEPENDENT: Extract same results regardless of chunk order
+
+RELEVANCE PRIORITIZATION:
+- Prioritize HIGH relevance chunks (score ≥0.70) over LOW relevance chunks (score <0.50)
+- Extract ONLY information that directly answers the query
+- IGNORE similar information that does NOT answer the query
+
+Return ONLY the final answer in natural, conversational language. Do not include reasoning steps in the response."""
 
 # ============================================================================
 # Format Chunks
 # ============================================================================
 
 def format_rag_chunks(chunks: List[Dict]) -> str:
-    """Format RAG chunks for the model (matches training dataset format)."""
+    """Format RAG chunks for the model (matches training dataset format exactly)."""
     context_parts = []
     for i, chunk in enumerate(chunks, 1):
         score = chunk.get('score', 0.0)
@@ -329,8 +385,9 @@ def format_rag_chunks(chunks: List[Dict]) -> str:
         text = chunk['text']
         # Escape single quotes to match dataset format
         text_escaped = text.replace("'", "\\'")
-        context_parts.append(f"[Chunk {i}] Score: {score:.3f}, File: {file_name}")
-        context_parts.append(f"[{i}] FULL CHUNK TEXT: '{text_escaped}'")
+        # Match exact format from training dataset: "[Chunk 1] Score: 0.74, File: document.pdf\nFULL CHUNK TEXT: '...'"
+        context_parts.append(f"[Chunk {i}] Score: {score:.2f}, File: {file_name}")
+        context_parts.append(f"FULL CHUNK TEXT: '{text_escaped}'")
         context_parts.append("")
     return "\n".join(context_parts)
 

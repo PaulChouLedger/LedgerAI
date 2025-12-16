@@ -494,6 +494,7 @@ def handle_conversation(
             'goodbye', 'bye', 'see you', 'see ya', 'farewell',
             'you\'re welcome', 'no problem', 'my pleasure', 'anytime',
             'hello', 'hi', 'hey', 'greetings',
+            'how are you', 'how\'s it going', 'how\'s everything', 'how do you do',
             'ok', 'okay', 'sure', 'alright', 'got it', 'understood',
             'yes', 'yeah', 'yep', 'no', 'nope',
             'please', 'excuse me', 'sorry', 'pardon'
@@ -1050,6 +1051,8 @@ JSON array only:"""
             # IMPORTANT: Include the prompt in the system message (matches working commit 1927b467c106120dd4e1231f600eccdaa5a93f08)
             if is_instruction_request:
                 # Simplified instruction request handling
+                # Only add question instruction if not a conversational query
+                question_instruction = "" if is_conversational else "\n\nAlways end your response with a brief, natural question (do not include 'follow up' or 'follow-up' in the question text). Examples: 'Would you like more information about this?' or 'Is there anything else I can help you with?'"
                 system_content = (
                     f"{combined_context}\n\n"
                     "You are Aura Vision, an AI agent created by Ledger AI Quantum Corporation. "
@@ -1058,6 +1061,7 @@ JSON array only:"""
                     "If information is missing, say 'I don't have that information'.\n\n"
                     f"Answer: {prompt}\n\n"
                     "Provide a clear, step-by-step response. Be conversational and friendly."
+                    f"{question_instruction}"
                 )
             else:
                 # Add warning if memory RAG failed
@@ -1088,13 +1092,19 @@ JSON array only:"""
                 if SHOW_REASONING_DEBUG:
                     response_length_guideline = "- Show your reasoning process.\n"
                 elif is_list_request:
+                    # Only add question instruction if not a conversational query
+                    question_instruction = "" if is_conversational else "- End with a brief, natural question. Examples: 'Would you like more information about this?' or 'Is there anything else I can help you with?'\n"
                     response_length_guideline = (
                         "- List all items that match the query from the context. "
                         "Format as natural sentences.\n"
+                        f"{question_instruction}"
                     )
                 else:
+                    # Only add question instruction if not a conversational query
+                    question_instruction = "" if is_conversational else "- End with a brief, natural question. Examples: 'Would you like more information about this?' or 'Is there anything else I can help you with?'\n"
                     response_length_guideline = (
                         "- Keep responses short (2-3 sentences).\n"
+                        f"{question_instruction}"
                     )
                 
                 # Simplified reasoning - only for debug mode
@@ -1877,6 +1887,7 @@ JSON array only:"""
         'goodbye', 'bye', 'see you', 'see ya', 'farewell',
         'you\'re welcome', 'no problem', 'my pleasure', 'anytime',
         'hello', 'hi', 'hey', 'greetings',
+        'how are you', 'how\'s it going', 'how\'s everything', 'how do you do',
         'ok', 'okay', 'sure', 'alright', 'got it', 'understood',
         'yes', 'yeah', 'yep', 'no', 'nope',
         'please', 'excuse me', 'sorry', 'pardon'
@@ -1884,13 +1895,14 @@ JSON array only:"""
     is_conversational_fallback = any(phrase in normalized_prompt_fallback for phrase in conversational_phrases_fallback)
     
     if is_instruction_request:
+        # Only add question instruction if not a conversational query
+        question_instruction = "" if is_conversational_fallback else "\n\nAlways end your response with a brief, natural question (do not include 'follow up' or 'follow-up' in the question text). Examples: 'Would you like more information about this?' or 'Is there anything else I can help you with?'"
         system_prompt = (
             "You are Aura Vision, an AI agent created by Ledger AI Quantum Corporation. "
             "You act as a proactive AI agent guiding users to better outcomes through gentle guidance.\n\n"
             "Provide a clear, step-by-step response (numbered steps) to the user's question. "
-            "Keep each step concise and actionable. Be conversational and friendly, like Siri or Alexa.\n\n"
-            "Always end your response with a brief, natural question (do not include 'follow up' or 'follow-up' in the question text). Examples: "
-            "'Would you like more information about this?' or 'Is there anything else I can help you with?'"
+            "Keep each step concise and actionable. Be conversational and friendly, like Siri or Alexa."
+            f"{question_instruction}"
         )
     elif is_conversational_fallback:
         # For non-conversational phrases (thank you, goodbye, etc.), just respond naturally without follow-up question
@@ -2102,6 +2114,7 @@ def chat_tts():
                 'goodbye', 'bye', 'see you', 'see ya', 'farewell',
                 'you\'re welcome', 'no problem', 'my pleasure', 'anytime',
                 'hello', 'hi', 'hey', 'greetings',
+                'how are you', 'how\'s it going', 'how\'s everything', 'how do you do',
                 'ok', 'okay', 'sure', 'alright', 'got it', 'understood',
                 'yes', 'yeah', 'yep', 'no', 'nope',
                 'please', 'excuse me', 'sorry', 'pardon'

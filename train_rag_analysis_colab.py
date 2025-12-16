@@ -336,8 +336,8 @@ print("=" * 80)
 #
 # Using r=32 with Qwen2.5-1.5B - loss still decreasing too fast (1.99→0.0076 in 80 steps) with r=64.
 
-LORA_RANK = 8  # Further reduced from 16 - loss still decreasing too fast (0.204→0.16 at epoch 1.5), need minimal capacity to prevent memorization
-LORA_ALPHA = LORA_RANK * 2  # Optimal scaling: alpha = 2x rank (16)
+LORA_RANK = 16  # Increased from 8 - more capacity for complex patterns (role filtering, cross-company, multi-chunk extraction)
+LORA_ALPHA = LORA_RANK * 2  # Optimal scaling: alpha = 2x rank (32)
 
 model = FastLanguageModel.get_peft_model(
     model,
@@ -371,15 +371,15 @@ print("=" * 80)
 training_args = TrainingArguments(
     per_device_train_batch_size=2,
     gradient_accumulation_steps=4,  # Effective batch size = 8
-    warmup_steps=1000,  # Increased from 800 - slower warmup to prevent rapid loss decrease and improve generalization
-    num_train_epochs=4,  # Increased from 3 - loss plateaued at 0.15-0.16, need more training to improve generalization
-    learning_rate=4e-6,  # Slightly reduced from 5e-6 - loss decreased very quickly, slower learning for better generalization
+    warmup_steps=500,  # Reduced from 1000 - faster warmup, more time in actual training
+    num_train_epochs=5,  # Increased from 4 - with 6,250 examples, more epochs help model learn all patterns
+    learning_rate=3e-6,  # Reduced from 4e-6 - slower, more stable learning for better generalization
     max_grad_norm=1.0,  # CRITICAL: Gradient clipping to prevent explosions (gradient norm spiked to 41.08)
     fp16=not torch.cuda.is_bf16_supported(),
     bf16=torch.cuda.is_bf16_supported(),
     logging_steps=20,  # More frequent logging for better monitoring
     optim="adamw_8bit",
-    weight_decay=0.35,  # Increased from 0.3 - stronger regularization to prevent overfitting and improve generalization on test cases
+    weight_decay=0.3,  # Reduced from 0.35 - less aggressive regularization, allows model to learn more patterns while still preventing overfitting
     lr_scheduler_type="cosine",  # Cosine scheduler for smoother learning
     seed=3407,
     output_dir=OUTPUT_DIR,
@@ -410,8 +410,8 @@ print("✅ Training configured")
 print(f"   - Batch size: {training_args.per_device_train_batch_size}")
 print(f"   - Gradient accumulation: {training_args.gradient_accumulation_steps}")
 print(f"   - Effective batch size: {training_args.per_device_train_batch_size * training_args.gradient_accumulation_steps}")
-print(f"   - Epochs: {training_args.num_train_epochs} (reduced from 5 - loss already at 0.18 in 0.7 epochs, likely to plateau early)")
-print(f"   - Learning rate: {training_args.learning_rate} (further reduced - loss decreasing too fast: 2.39→0.18 in 0.7 epochs, need slower learning to prevent memorization)")
+print(f"   - Epochs: {training_args.num_train_epochs} (increased from 4 - with 6,250 examples, more epochs help model learn all patterns)")
+print(f"   - Learning rate: {training_args.learning_rate} (reduced from 4e-6 - slower, more stable learning for better generalization)")
 print(f"   - Gradient clipping: max_norm={training_args.max_grad_norm} (prevents training instability)")
 # Calculate approximate trainable parameters
 approx_params = {
@@ -424,9 +424,9 @@ approx_params = {
     512: (360, 27.2),
 }
 params_m, params_pct = approx_params.get(LORA_RANK, (5.5, 0.35))
-print(f"   - LoRA rank: {LORA_RANK} (~{params_m}M trainable parameters, ~{params_pct}% of model) (further reduced from 16 - loss still decreasing too fast: 0.204→0.16 at epoch 1.5, need minimal capacity to prevent memorization)")
+print(f"   - LoRA rank: {LORA_RANK} (~{params_m}M trainable parameters, ~{params_pct}% of model) (increased from 8 - more capacity for complex patterns)")
 print(f"   - LoRA alpha: {LORA_ALPHA} (2x rank for optimal scaling)")
-print(f"   - Warmup steps: {training_args.warmup_steps} (increased to slow down initial learning)")
+print(f"   - Warmup steps: {training_args.warmup_steps} (reduced from 1000 - faster warmup, more training time)")
 print(f"   - Scheduler: {training_args.lr_scheduler_type}")
 print(f"   - Logging steps: {training_args.logging_steps} (more frequent monitoring)")
 print()

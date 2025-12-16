@@ -218,3 +218,20 @@ def clear_listener_restart():
 
 def should_restart_listener():
     return restart_listener_flag
+
+# === Last response question tracking ===
+_last_response_ended_with_question = False
+
+def set_last_response_ended_with_question(ended_with_question: bool):
+    """Track if the last LLM response ended with a question mark."""
+    global _last_response_ended_with_question
+    _last_response_ended_with_question = ended_with_question
+
+def get_last_response_ended_with_question() -> bool:
+    """Return True if the last LLM response ended with a question mark."""
+    return _last_response_ended_with_question
+
+def clear_last_response_question_flag():
+    """Clear the question flag (call after user responds)."""
+    global _last_response_ended_with_question
+    _last_response_ended_with_question = False

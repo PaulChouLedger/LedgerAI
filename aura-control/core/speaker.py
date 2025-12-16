@@ -1047,6 +1047,7 @@ def speak_llm_response(prompt, context=""):
         sentence_buffer = []  # Buffer for current sentence (between sentence_start and sentence_end)
         in_sentence = False  # Track if we're inside a sentence block
         sentence_batch = []  # Buffer for batching related sentences together
+        last_sentence_text = None  # Track last sentence sent to TTS (to detect questions)
         MIN_SENTENCE_WORDS = 5  # Sentences with fewer words will be batched
         MIN_SENTENCE_CHARS = 20  # Sentences with fewer chars will be batched
         MAX_BATCH_SIZE = 5  # Increased from 3 for better grouping of related content
@@ -1185,11 +1186,14 @@ def speak_llm_response(prompt, context=""):
         
         def _flush_sentence_batch():
             """Send batched sentences as one chunk"""
+            nonlocal last_sentence_text
             if sentence_batch:
                 combined = " ".join(sentence_batch).strip()
                 if combined and not _is_empty_sentence(combined):
                     print(f"[Speaker] 📦 Batching {len(sentence_batch)} related sentences: '{combined[:80]}...'")
                     enqueue_tts_chunk(combined)
+                    # Track last batched text (for question detection)
+                    last_sentence_text = combined
                 sentence_batch.clear()
         
         for line in response.iter_lines(decode_unicode=True):
@@ -1233,6 +1237,9 @@ def speak_llm_response(prompt, context=""):
                         print(f"[Speaker] 🎙️ <sentence_end> received - sending sentence to TTS immediately: '{clean_text[:60]}...'")
                         enqueue_tts_chunk(clean_text)
                         
+                        # Track last sentence sent to TTS (for question detection)
+                        last_sentence_text = clean_text
+                        
                         # Store time when first sentence was enqueued for latency tracking
                         global _sentence_enqueue_time
                         if _sentence_enqueue_time is None:
@@ -1260,6 +1267,31 @@ def speak_llm_response(prompt, context=""):
         
         # Flush any remaining batched sentences at end of stream
         _flush_sentence_batch()
+        
+        # Check if last sentence ended with a question mark (for natural conversation flow)
+        # This allows VAD to remain active so user can respond without wake word
+        if last_sentence_text:
+            # Check if last sentence ends with "?" (after stripping whitespace and markdown)
+            last_sentence_stripped = last_sentence_text.strip()
+            # Remove trailing markdown/punctuation artifacts and check for question mark
+            last_char = last_sentence_stripped[-1] if last_sentence_stripped else ""
+            ended_with_question = last_char == "?"
+            
+            # Update state to track if response ended with question
+            try:
+                from state import set_last_response_ended_with_question
+                set_last_response_ended_with_question(ended_with_question)
+                if ended_with_question:
+                    print(f"[Speaker] ❓ Last response ended with question - VAD will remain active for natural conversation")
+            except Exception as e:
+                print(f"[Speaker] ⚠️ Failed to set question flag: {e}")
+        else:
+            # No sentences were sent, clear the flag
+            try:
+                from state import set_last_response_ended_with_question
+                set_last_response_ended_with_question(False)
+            except Exception:
+                pass
         
         # No fallback: if stream ends without sentence_end tag, tokens are lost (tags are required)
     except Exception as e:
