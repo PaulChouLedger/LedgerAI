@@ -364,13 +364,28 @@ if __name__ == '__main__':
             import torch
             print(f"[Chatterbox] PyTorch version: {torch.__version__}", flush=True)
             
+            # Check if PyTorch has CUDA support compiled in
+            has_cuda_build = hasattr(torch.version, 'cuda') and torch.version.cuda is not None
+            if not has_cuda_build:
+                print(f"❌ FATAL ERROR: PyTorch is CPU-only version!", flush=True)
+                print(f"   PyTorch {torch.__version__} does not have CUDA support.", flush=True)
+                print(f"   This indicates PyTorch was overwritten with CPU version during installation.", flush=True)
+                print(f"   Check Dockerfile - dependencies may have installed CPU PyTorch.", flush=True)
+                sys.exit(1)
+            
+            print(f"[Chatterbox] ✅ PyTorch has CUDA build: {torch.version.cuda}", flush=True)
+            
+            # Check if CUDA is available at runtime (GPU access)
             if not torch.cuda.is_available():
                 print("❌ FATAL ERROR: CUDA is not available at runtime!", flush=True)
-                print("   This container requires GPU support. CPU fallback is not allowed.", flush=True)
+                print("   PyTorch has CUDA support, but GPU is not accessible.", flush=True)
+                print("   This is a runtime configuration issue, not a PyTorch build issue.", flush=True)
                 print("   Ensure:", flush=True)
                 print("   1. Container is run with --runtime=nvidia", flush=True)
                 print("   2. NVIDIA Docker runtime is installed", flush=True)
                 print("   3. GPU is accessible to the container", flush=True)
+                print("   4. Check: docker info | grep -i nvidia", flush=True)
+                print("   5. Check: nvidia-smi (on host)", flush=True)
                 sys.exit(1)
             
             print(f"[Chatterbox] ✅ CUDA available: {torch.cuda.get_device_name(0)}", flush=True)

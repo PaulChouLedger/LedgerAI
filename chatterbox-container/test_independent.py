@@ -492,6 +492,7 @@ def main():
             test_voice_embedding(VOICE_SAMPLES_DIR / voice_sample)
             
             # Test synthesis with voice cloning
+            print("\n" + "=" * 70)
             if test_synthesize(
                 "Hello, this is a test with voice cloning enabled.",
                 voice_sample=voice_sample,

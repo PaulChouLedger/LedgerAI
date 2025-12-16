@@ -22,12 +22,31 @@ RUN python3 -c "import torch; assert hasattr(torch.version, 'cuda') and torch.ve
 # Install numpy - use 1.26.0+ which has Python 3.12 wheels on PyPI (avoids slow Jetson index)
 RUN pip3 install --index-url https://pypi.org/simple "numpy>=1.26.0,<2.0.0"
 
-# Install remaining Chatterbox dependencies (standard PyPI packages)
+# CRITICAL: Base image already has PyTorch CUDA - DO NOT install or upgrade it
+# Install packages that might pull in PyTorch with --no-deps to prevent PyTorch installation
+RUN pip3 install --index-url https://pypi.org/simple \
+    --no-deps \
+    transformers==4.46.3 \
+    diffusers==0.29.0
+
+# Install non-PyTorch dependencies for transformers and diffusers
+RUN pip3 install --index-url https://pypi.org/simple \
+    packaging \
+    filelock \
+    huggingface-hub \
+    regex \
+    requests \
+    tokenizers \
+    tqdm \
+    pyyaml \
+    pillow \
+    accelerate \
+    psutil \
+    safetensors==0.5.3 || true
+
+# Install other Chatterbox dependencies (these shouldn't pull in PyTorch)
 RUN pip3 install --index-url https://pypi.org/simple \
     librosa==0.11.0 \
-    transformers==4.46.3 \
-    diffusers==0.29.0 \
-    safetensors==0.5.3 \
     conformer==0.3.2 \
     resemble-perth==1.0.1 \
     s3tokenizer \
@@ -36,6 +55,9 @@ RUN pip3 install --index-url https://pypi.org/simple \
     soundfile \
     scipy \
     typer==0.9.0
+
+# CRITICAL: Re-verify PyTorch CUDA was not overwritten
+RUN python3 -c "import torch; assert hasattr(torch.version, 'cuda') and torch.version.cuda is not None, f'CUDA PyTorch lost! Current: {torch.__version__}'; print(f'✅ PyTorch {torch.__version__} with CUDA {torch.version.cuda} preserved')"
 
 # Clone and install Chatterbox from source (skip dependencies to avoid conflicts)
 # Note: russian-text-stresser may not be available on PyPI - skipping (optional for Russian support)
