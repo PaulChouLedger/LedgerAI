@@ -92,7 +92,8 @@ RUN pip3 install --index-url https://pypi.org/simple \
     numba \
     llvmlite \
     resampy \
-    pooch || true
+    pooch \
+    lazy_loader || true
 
 # Check PyTorch after installing librosa deps
 RUN python3 -c "import torch; v=torch.__version__; cuda=hasattr(torch.version, 'cuda') and torch.version.cuda is not None; print(f'After librosa deps: {v}, CUDA: {cuda}'); assert cuda, f'PyTorch lost after librosa deps! Version: {v}'"
@@ -136,7 +137,9 @@ RUN pip3 install --index-url https://pypi.org/simple \
 # Clone Chatterbox and install (keep source for editable install)
 RUN git clone https://github.com/resemble-ai/chatterbox.git /app/chatterbox && \
     cd /app/chatterbox && \
-    pip3 install --index-url https://pypi.org/simple -e . --no-deps && \
+    pip3 install --index-url https://pypi.org/simple \
+    --constraint /tmp/constraints.txt \
+    -e . --no-deps && \
     python3 -c "from chatterbox import ChatterboxTTS; print('✅ Chatterbox installed successfully')"
 
 # Install Flask for REST API
