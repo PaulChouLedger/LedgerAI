@@ -501,6 +501,22 @@ def handle_conversation(
         ]
         is_conversational = any(phrase in normalized_prompt for phrase in conversational_phrases)
         
+        # Exclude information-seeking questions from being marked as conversational
+        # These are actual queries that should use RAG and end with follow-up questions
+        information_seeking_patterns = [
+            'do you know', 'who is', 'who are', 'who was', 'who were',
+            'what is', 'what are', 'what was', 'what were',
+            'where is', 'where are', 'where was', 'where were',
+            'when is', 'when are', 'when was', 'when were',
+            'why is', 'why are', 'why was', 'why were',
+            'how is', 'how are', 'how was', 'how were',
+            'tell me about', 'tell me who', 'tell me what', 'tell me where',
+            'can you tell me', 'could you tell me', 'would you tell me'
+        ]
+        # If query contains information-seeking patterns, it's NOT conversational
+        if any(pattern in normalized_prompt for pattern in information_seeking_patterns):
+            is_conversational = False
+        
         # Only use RAG if search actually returns results (require actual relevance, not just substring match)
         # This ensures RAG is only used when there's actually relevant content to inject
         rag_client = None
@@ -1894,6 +1910,21 @@ JSON array only:"""
     ]
     is_conversational_fallback = any(phrase in normalized_prompt_fallback for phrase in conversational_phrases_fallback)
     
+    # Exclude information-seeking questions from being marked as conversational
+    information_seeking_patterns_fallback = [
+        'do you know', 'who is', 'who are', 'who was', 'who were',
+        'what is', 'what are', 'what was', 'what were',
+        'where is', 'where are', 'where was', 'where were',
+        'when is', 'when are', 'when was', 'when were',
+        'why is', 'why are', 'why was', 'why were',
+        'how is', 'how are', 'how was', 'how were',
+        'tell me about', 'tell me who', 'tell me what', 'tell me where',
+        'can you tell me', 'could you tell me', 'would you tell me'
+    ]
+    # If query contains information-seeking patterns, it's NOT conversational
+    if any(pattern in normalized_prompt_fallback for pattern in information_seeking_patterns_fallback):
+        is_conversational_fallback = False
+    
     if is_instruction_request:
         # Only add question instruction if not a conversational query
         question_instruction = "" if is_conversational_fallback else "\n\nAlways end your response with a brief, natural question (do not include 'follow up' or 'follow-up' in the question text). Examples: 'Would you like more information about this?' or 'Is there anything else I can help you with?'"
@@ -2120,6 +2151,21 @@ def chat_tts():
                 'please', 'excuse me', 'sorry', 'pardon'
             ]
             is_conversational = any(phrase in normalized_prompt for phrase in conversational_phrases)
+            
+            # Exclude information-seeking questions from being marked as conversational
+            information_seeking_patterns = [
+                'do you know', 'who is', 'who are', 'who was', 'who were',
+                'what is', 'what are', 'what was', 'what were',
+                'where is', 'where are', 'where was', 'where were',
+                'when is', 'when are', 'when was', 'when were',
+                'why is', 'why are', 'why was', 'why were',
+                'how is', 'how are', 'how was', 'how were',
+                'tell me about', 'tell me who', 'tell me what', 'tell me where',
+                'can you tell me', 'could you tell me', 'would you tell me'
+            ]
+            # If query contains information-seeking patterns, it's NOT conversational
+            if any(pattern in normalized_prompt for pattern in information_seeking_patterns):
+                is_conversational = False
             
             # Check if RAG will be used BEFORE processing (to play filler phrase during RAG)
             will_use_rag = False

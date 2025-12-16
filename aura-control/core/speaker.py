@@ -882,19 +882,36 @@ def tts_playback_thread(text, tts_start_time):
                 ["aplay", "-D", alsa_device, "-f", "S16_LE", "-r", str(PCM_SAMPLE_RATE), "-c", "1"],
                 stdin=subprocess.PIPE,
                 stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL
+                stderr=subprocess.PIPE  # Capture stderr for diagnostics
             )
 
+            # Give aplay a brief moment to initialize and catch immediate failures
+            time.sleep(0.01)
+            
+            # Verify process is still running after startup
+            if proc.poll() is not None:
+                # Process already terminated - get error details
+                aplay_stderr = None
+                if proc.stderr:
+                    try:
+                        aplay_stderr = proc.stderr.read().decode().strip()
+                    except Exception:
+                        pass
+                error_msg = f"aplay process terminated immediately (exit code: {proc.returncode})"
+                if aplay_stderr:
+                    error_msg += f": {aplay_stderr}"
+                raise BrokenPipeError(error_msg)
+            
+            # Validate first chunk
+            if not first_chunk or len(first_chunk) == 0:
+                raise ValueError("First audio chunk is empty")
+            
             # Calculate TTS latency from transcription end to TTS initiation
             tts_latency = time.time() - tts_start_time
             print(f"⏱️ TTS latency: {tts_latency:.2f}s")
             
             # Write chunks directly (ALSA plug plugin handles mono->stereo and sample rate conversion)
             try:
-                # Verify process is still running before writing first chunk
-                if proc.poll() is not None:
-                    raise BrokenPipeError(f"aplay process terminated before writing (exit code: {proc.returncode})")
-                
                 # Write first chunk directly (plug plugin handles conversion)
                 proc.stdin.write(first_chunk)
                 proc.stdin.flush()
@@ -931,24 +948,77 @@ def tts_playback_thread(text, tts_start_time):
                 
             except BrokenPipeError as e:
                 print(f"[Speaker] ❌ Audio pipe broken: {e}")
-                # Try to get stderr if available for better diagnostics
+                # Get stderr for diagnostics
+                aplay_stderr = None
                 if proc and proc.stderr:
                     try:
-                        stderr = proc.stderr.read().decode().strip()
-                        if stderr:
-                            print(f"[Speaker] aplay stderr: {stderr}")
+                        aplay_stderr = proc.stderr.read().decode().strip()
+                    except Exception as stderr_err:
+                        print(f"[Speaker] ⚠️ Could not read aplay stderr: {stderr_err}")
+                
+                # Get process return code for diagnostics
+                exit_code = None
+                if proc:
+                    try:
+                        exit_code = proc.poll()
+                        if exit_code is None:
+                            # Process still running, try to wait for it
+                            try:
+                                exit_code = proc.wait(timeout=1)
+                            except (subprocess.TimeoutExpired, TypeError):
+                                # Force kill if it's hanging
+                                proc.kill()
+                                exit_code = proc.wait()
+                    except Exception as poll_err:
+                        print(f"[Speaker] ⚠️ Could not get exit code: {poll_err}")
+                
+                # Print detailed diagnostics
+                if aplay_stderr:
+                    print(f"[Speaker] 🔍 aplay error details: {aplay_stderr}")
+                if exit_code is not None:
+                    print(f"[Speaker] 🔍 aplay exit code: {exit_code}")
+                if not aplay_stderr and exit_code is not None:
+                    # Common aplay exit code meanings
+                    if exit_code == 1:
+                        print(f"[Speaker] 💡 aplay exit code 1 usually means: invalid format/device/permissions or audio data issue")
+                    elif exit_code == 2:
+                        print(f"[Speaker] 💡 aplay exit code 2 usually means: device busy or unavailable")
+                
+                # Clean up process
+                if proc and proc.poll() is None:
+                    try:
+                        proc.kill()
+                        proc.wait()
                     except Exception:
                         pass
-                if proc:
-                    proc.kill()
-                    proc.wait()
+                
                 # Don't re-raise - just log the error
                 print(f"[Speaker] ⚠️ TTS playback failed - continuing...")
             except Exception as e:
                 print(f"[Speaker] ❌ Unexpected TTS error: {e}")
+                import traceback
+                traceback.print_exc()
+                # Try to get diagnostics
                 if proc:
-                    proc.kill()
-            proc.wait()
+                    try:
+                        if proc.stderr:
+                            stderr_output = proc.stderr.read().decode().strip()
+                            if stderr_output:
+                                print(f"[Speaker] 🔍 aplay stderr: {stderr_output}")
+                        exit_code = proc.poll()
+                        if exit_code is None:
+                            proc.kill()
+                            exit_code = proc.wait()
+                        print(f"[Speaker] 🔍 aplay exit code: {exit_code}")
+                    except Exception as cleanup_err:
+                        print(f"[Speaker] ⚠️ Error during cleanup: {cleanup_err}")
+                    finally:
+                        if proc.poll() is None:
+                            try:
+                                proc.kill()
+                                proc.wait()
+                            except Exception:
+                                pass
 
         except Exception as e:
             print(f"[Speaker] ❌ TTS error: {e}")
