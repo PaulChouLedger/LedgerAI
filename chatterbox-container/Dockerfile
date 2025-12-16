@@ -62,7 +62,8 @@ RUN pip3 install --index-url https://pypi.org/simple \
     pyyaml \
     pillow \
     psutil \
-    safetensors==0.5.3 || true
+    safetensors==0.5.3 \
+    einops || true
 
 # Check PyTorch after installing dependencies
 RUN python3 -c "import torch; v=torch.__version__; cuda=hasattr(torch.version, 'cuda') and torch.version.cuda is not None; print(f'After deps: {v}, CUDA: {cuda}'); assert cuda, f'PyTorch lost after deps install! Version: {v}'"
