@@ -28,6 +28,71 @@ RUN python3 -c "import torch; print(torch.__version__)" > /tmp/pytorch_version.t
     echo "torchaudio" >> /tmp/constraints.txt && \
     echo "Constraints file created:" && cat /tmp/constraints.txt
 
+# Install torchaudio and torchvision if not already present (required by s3tokenizer)
+# Use constraints on torch only to prevent PyTorch upgrade, but allow torchaudio/torchvision installation
+RUN python3 << 'EOF'
+import torch
+import subprocess
+import sys
+
+# Check if torchaudio is installed
+try:
+    import torchaudio
+    print(f"✅ torchaudio {torchaudio.__version__} already installed")
+except ImportError:
+    print("⚠️  torchaudio not found, installing...")
+    # Create constraints file with only torch (to prevent PyTorch upgrade)
+    torch_ver = torch.__version__
+    with open('/tmp/torch_only_constraints.txt', 'w') as f:
+        f.write(f"torch=={torch_ver}\n")
+    
+    # Install torchaudio matching PyTorch version
+    result = subprocess.run([
+        'pip3', 'install', '--index-url', 'https://pypi.org/simple',
+        '--constraint', '/tmp/torch_only_constraints.txt',
+        'torchaudio'
+    ], capture_output=True, text=True)
+    
+    if result.returncode != 0:
+        print(f"❌ Failed to install torchaudio: {result.stderr}")
+        sys.exit(1)
+    
+    # Verify installation
+    import torchaudio
+    print(f"✅ torchaudio {torchaudio.__version__} installed successfully")
+
+# Check if torchvision is installed
+try:
+    import torchvision
+    print(f"✅ torchvision {torchvision.__version__} already installed")
+except ImportError:
+    print("⚠️  torchvision not found, installing...")
+    # Create constraints file with only torch (to prevent PyTorch upgrade)
+    torch_ver = torch.__version__
+    with open('/tmp/torch_only_constraints.txt', 'w') as f:
+        f.write(f"torch=={torch_ver}\n")
+    
+    # Install torchvision matching PyTorch version
+    result = subprocess.run([
+        'pip3', 'install', '--index-url', 'https://pypi.org/simple',
+        '--constraint', '/tmp/torch_only_constraints.txt',
+        'torchvision'
+    ], capture_output=True, text=True)
+    
+    if result.returncode != 0:
+        print(f"❌ Failed to install torchvision: {result.stderr}")
+        sys.exit(1)
+    
+    # Verify installation
+    import torchvision
+    print(f"✅ torchvision {torchvision.__version__} installed successfully")
+
+# Verify PyTorch CUDA is still intact
+assert hasattr(torch.version, 'cuda') and torch.version.cuda is not None, \
+    f'PyTorch CUDA lost after torchaudio/torchvision install! Version: {torch.__version__}'
+print(f"✅ PyTorch {torch.__version__} with CUDA {torch.version.cuda} preserved")
+EOF
+
 # Install numpy - use 1.26.0+ which has Python 3.12 wheels on PyPI (avoids slow Jetson index)
 # Use constraints to prevent PyTorch changes
 RUN pip3 install --index-url https://pypi.org/simple \

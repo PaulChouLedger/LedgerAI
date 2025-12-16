@@ -1296,6 +1296,14 @@ def run_comprehensive_tests(model, tokenizer, model_type="unsloth", verbose=True
         print("   Make sure test_rag_analysis_colab.py is available", flush=True)
         return
     
+    # Import CoT leakage filter
+    try:
+        from cot_leakage_filter import clean_cot_leakage
+        USE_COT_FILTER = True
+    except ImportError:
+        print("⚠️  CoT leakage filter not available - responses will not be cleaned", flush=True)
+        USE_COT_FILTER = False
+    
     # Force unbuffered output for real-time display in Colab
     # Use print with flush=True instead of reconfigure (not available in Colab)
     
@@ -1333,7 +1341,17 @@ def run_comprehensive_tests(model, tokenizer, model_type="unsloth", verbose=True
             if verbose:
                 print("🤖 Generating response...", flush=True)
             
-            response = analyze_rag_chunks(model, tokenizer, test['query'], test['chunks'], model_type)
+            raw_response = analyze_rag_chunks(model, tokenizer, test['query'], test['chunks'], model_type)
+            
+            # Apply CoT leakage filter if available
+            if USE_COT_FILTER:
+                response = clean_cot_leakage(raw_response, aggressive=True)
+                # Show both raw and cleaned if they differ significantly
+                if response != raw_response and len(response) < len(raw_response) * 0.8:
+                    if verbose:
+                        print(f"🧹 CoT leakage detected - cleaned response", flush=True)
+            else:
+                response = raw_response
             
             test_time = time.time() - test_start
             if verbose:

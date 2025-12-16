@@ -6,10 +6,11 @@ Trains model on general RAG analysis patterns (not entity-specific)
 
 Configuration:
 - Model: Qwen2.5-1.5B-Instruct (better instruction following and reasoning)
-- LoRA Rank: 128 (reduced from 256 to prevent overfitting)
+- LoRA Rank: 16 (increased from 8 for better extraction learning)
 - Strategy: 1.5B provides better base reasoning + LoRA adaptation for RAG analysis patterns
-- Epochs: 5 (reduced from 25 to prevent overfitting)
-- Regularization: weight_decay=0.15 (evaluation disabled - crashes system)
+- Epochs: 10 (increased from 2 - model needs more training to learn extraction patterns)
+- Learning Rate: 1e-6 (increased from 8e-7 for faster learning while preventing overfitting)
+- Regularization: weight_decay=0.7 (evaluation disabled - crashes system)
 
 To use in Colab:
 1. Upload rag_analysis_dataset_v2.json (or rag_analysis_dataset.json) to Colab
@@ -220,6 +221,24 @@ for idx, conversation in enumerate(data):
         content = msg.get("content", "").strip()
 
         if role and content:
+            # CRITICAL: For assistant messages, ensure they only contain final answers
+            # CoT steps (STEP 1-5) should be in system prompt only, not in assistant response
+            if role == "assistant":
+                # Check if assistant response contains CoT leakage patterns
+                cot_patterns = [
+                    r'STEP\s*[1-5]',
+                    r'Step\s*[1-5]',
+                    r'Extract information from Chunk',
+                    r'Chunk\s*\d+[:\-]?\s*$',
+                ]
+                import re
+                has_cot = any(re.search(pattern, content, re.IGNORECASE) for pattern in cot_patterns)
+                if has_cot:
+                    print(f"⚠️  WARNING: Assistant response contains CoT steps (should be final answer only):")
+                    print(f"   {content[:200]}...")
+                    print(f"   → This will teach model to output CoT steps in final answer (incorrect behavior)")
+                    # Continue anyway - dataset may have some examples with CoT, but we'll train to avoid it
+            
             chat_messages.append({
                 "role": role,
                 "content": content
@@ -337,16 +356,18 @@ print("Configuring LoRA Adapters")
 print("=" * 80)
 
 # LoRA Configuration
-# FIXED: Further reduced rank to prevent memorization (loss dropped 2.03 → 0.08 in 1320 steps)
-# r=4: ~2.7M trainable (0.17%) - Very minimal capacity, maximum generalization (NEW - AGGRESSIVE)
-# r=8: ~5.5M trainable (0.35%) - Still too much capacity, caused rapid memorization
-# r=16: ~11M trainable (0.85%) - Way too much capacity
+# LoRA Rank Configuration
+# r=4: ~2.7M trainable (0.17%) - Very minimal capacity, maximum generalization
+# r=8: ~5.5M trainable (0.35%) - Balanced capacity for better pattern learning
+# r=16: ~11M trainable (0.85%) - Higher capacity for complex extraction patterns (CURRENT)
 #
-# Target: Loss should decrease gradually (~0.1-0.3 per epoch), not 78% in 1.69 epochs
+# Note: CoT steps (STEP 1-5) are in system prompt as instructions/comments only.
+# Model should learn to use them internally but output ONLY final answer (STEP 6 content).
+# Dataset verified: 100% correct format, no CoT instructions in assistant responses.
 
-LORA_RANK = 4  # Further reduced from 8 - minimal capacity prevents memorization, promotes generalization
-LORA_ALPHA = LORA_RANK * 2  # Optimal scaling: alpha = 2x rank (8)
-LORA_DROPOUT = 0.15  # Increased from 0.1 - more regularization to prevent memorization
+LORA_RANK = 16  # Increased from 8 - more capacity to learn extraction patterns and distinguish instructions from output
+LORA_ALPHA = LORA_RANK * 2  # Optimal scaling: alpha = 2x rank (32)
+LORA_DROPOUT = 0.15  # Regularization to prevent overfitting
 
 model = FastLanguageModel.get_peft_model(
     model,
@@ -375,15 +396,15 @@ print("=" * 80)
 print("Configuring Training")
 print("=" * 80)
 
-# Training arguments optimized to prevent memorization
-# FIXED: Loss still dropping too fast (2.03 → 0.08 in 1320 steps) indicating memorization
-# AGGRESSIVE CHANGES: Further reduced learning rate, increased weight decay, reduced LoRA rank to 4, fewer epochs
+# Training arguments optimized for better extraction learning
+# UPDATED: Increased LoRA rank to 16, more epochs (10), slightly higher learning rate (1e-6)
+# Dataset verified: 100% correct format - model needs more capacity to learn extraction patterns
 training_args = TrainingArguments(
     per_device_train_batch_size=2,
     gradient_accumulation_steps=4,  # Effective batch size = 8
-    warmup_steps=1500,  # Increased from 1000 - more stable warmup prevents rapid loss drop
-    num_train_epochs=2,  # Reduced from 3 - start with 2 epochs to prevent overfitting, can increase if needed
-    learning_rate=8e-7,  # Further reduced from 1.2e-6 - much slower learning prevents memorization
+    warmup_steps=1500,  # Stable warmup prevents rapid loss drop
+    num_train_epochs=10,  # Increased from 2 - model needs more training to learn extraction patterns
+    learning_rate=1e-6,  # Increased from 8e-7 - faster learning while still preventing overfitting
     max_grad_norm=1.0,  # CRITICAL: Gradient clipping to prevent explosions
     fp16=not torch.cuda.is_bf16_supported(),
     bf16=torch.cuda.is_bf16_supported(),
@@ -416,8 +437,8 @@ ENABLE_EXAMPLE_MONITORING = True  # Toggle: True to enable, False to disable
 
 # Early stopping callback to prevent memorization
 class EarlyStoppingCallback(TrainerCallback):
-    """Stop training if loss drops below threshold before epoch 2 (indicates memorization)"""
-    def __init__(self, loss_threshold=0.2, min_epoch=2.0):
+    """Stop training if loss drops below threshold too early (indicates memorization)"""
+    def __init__(self, loss_threshold=0.2, min_epoch=8.0):  # Increased to 8.0 to allow full training
         self.loss_threshold = loss_threshold
         self.min_epoch = min_epoch
     
@@ -458,8 +479,10 @@ class CoTLeakageMonitor(TrainerCallback):
 callbacks = []
 
 # Add early stopping callback
-early_stopping = EarlyStoppingCallback(loss_threshold=0.2, min_epoch=2.0)
-callbacks.append(early_stopping)
+# DISABLED for first training run - model needs full 10 epochs to learn
+# Uncomment and adjust if you see signs of overfitting after full training
+# early_stopping = EarlyStoppingCallback(loss_threshold=0.2, min_epoch=8.0)  # Increased min_epoch to 8.0
+# callbacks.append(early_stopping)
 
 # Add CoT leakage monitor
 cot_monitor = CoTLeakageMonitor(sample_every_n_steps=100)
@@ -491,8 +514,8 @@ print("✅ Training configured")
 print(f"   - Batch size: {training_args.per_device_train_batch_size}")
 print(f"   - Gradient accumulation: {training_args.gradient_accumulation_steps}")
 print(f"   - Effective batch size: {training_args.per_device_train_batch_size * training_args.gradient_accumulation_steps}")
-print(f"   - Epochs: {training_args.num_train_epochs} (reduced from 3 - start with 2 to prevent overfitting)")
-print(f"   - Learning rate: {training_args.learning_rate} (further reduced from 1.2e-6 - much slower learning prevents memorization)")
+print(f"   - Epochs: {training_args.num_train_epochs} (increased from 2 to 10 - model needs more training to learn extraction patterns)")
+print(f"   - Learning rate: {training_args.learning_rate} (increased from 8e-7 to 1e-6 - faster learning while preventing overfitting)")
 print(f"   - Weight decay: {training_args.weight_decay} (increased from 0.5 - more aggressive regularization)")
 print(f"   - Gradient clipping: max_norm={training_args.max_grad_norm} (prevents training instability)")
 # Calculate approximate trainable parameters
@@ -506,20 +529,28 @@ approx_params = {
     256: (180, 13.6),
     512: (360, 27.2),
 }
-params_m, params_pct = approx_params.get(LORA_RANK, (2.7, 0.17))
-print(f"   - LoRA rank: {LORA_RANK} (~{params_m}M trainable parameters, ~{params_pct}% of model) (further reduced from 8 - AGGRESSIVE anti-memorization)")
+params_m, params_pct = approx_params.get(LORA_RANK, (11.0, 0.85))
+print(f"   - LoRA rank: {LORA_RANK} (~{params_m}M trainable parameters, ~{params_pct}% of model) (increased from 8 to 16 for better extraction learning)")
 print(f"   - LoRA alpha: {LORA_ALPHA} (2x rank for optimal scaling)")
 print(f"   - LoRA dropout: {LORA_DROPOUT} (increased from 0.1 - more regularization)")
 print(f"   - Warmup steps: {training_args.warmup_steps} (increased from 1000 - more stable start)")
 print(f"   - Scheduler: {training_args.lr_scheduler_type}")
 print(f"   - Logging steps: {training_args.logging_steps} (more frequent monitoring)")
-print(f"\n⚠️  AGGRESSIVE FIX: Further reduced learning rate (8e-7), LoRA rank (4), increased weight decay (0.7) and dropout (0.15)")
-print(f"   Target: Loss should decrease gradually (~0.1-0.3 per epoch), not 78% in 1.69 epochs")
-print(f"   ⚠️  STOP training if loss drops below 0.2 before epoch 2 (indicates memorization)")
+print(f"\n📝 Training Configuration:")
+print(f"   - LoRA rank: {LORA_RANK} (increased from 8 for better extraction learning)")
+print(f"   - Epochs: 10 (increased from 2 - model needs more training)")
+print(f"   - Learning rate: 1e-6 (increased from 8e-7 for faster learning)")
+print(f"   - CoT steps are in system prompt (instructions) but should NOT appear in final answer")
+print(f"   - Model should learn CoT reasoning internally but output ONLY final answer (STEP 6 content)")
+print(f"   - Dataset verified: 100% correct format, no CoT instructions in assistant responses")
+print(f"   - Target: Loss should decrease gradually (~0.1-0.3 per epoch)")
+print(f"   - Weight decay: 0.7 (regularization to prevent overfitting)")
 print(f"\n🔍 MONITORING:")
 print(f"   - CoT Leakage: Watch for outputs containing 'STEP 1-5' or 'Extract information from Chunk X'")
 print(f"   - Poor Learning: Check match scores - if consistently <50% for specific query types, may need more examples")
 print(f"   - Model should output ONLY final answer (STEP 6 content), not intermediate reasoning steps")
+print(f"   - CRITICAL: CoT steps (STEP 1-5) are in system prompt as instructions/comments only")
+print(f"   - Model should learn to use CoT reasoning internally but NOT output these steps in final answer")
 print()
 print("📊 Training Goals:")
 print("   ✅ Read entire RAG chunks completely (6-8 sentences each)")

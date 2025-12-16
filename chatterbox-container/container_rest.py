@@ -23,6 +23,88 @@ app = Flask(__name__)
 # Load environment variables
 load_dotenv('/app/.env') if os.path.exists('/app/.env') else None
 
+# ============================================================================
+# Auto-install torchaudio and torchvision if needed
+# ============================================================================
+
+def ensure_torch_extensions():
+    """Ensure torchaudio and torchvision are installed (required by s3tokenizer)"""
+    try:
+        import torch
+        import subprocess
+        import sys
+        
+        # Check if torchaudio is installed
+        try:
+            import torchaudio
+            print(f"[Chatterbox] ✅ torchaudio {torchaudio.__version__} already installed")
+        except ImportError:
+            print("[Chatterbox] ⚠️  torchaudio not found, installing...")
+            # Create constraints file with only torch (to prevent PyTorch upgrade)
+            torch_ver = torch.__version__
+            constraints_file = '/tmp/torch_only_constraints.txt'
+            with open(constraints_file, 'w') as f:
+                f.write(f"torch=={torch_ver}\n")
+            
+            # Install torchaudio matching PyTorch version
+            result = subprocess.run([
+                'pip3', 'install', '--index-url', 'https://pypi.org/simple',
+                '--constraint', constraints_file,
+                'torchaudio'
+            ], capture_output=True, text=True)
+            
+            if result.returncode != 0:
+                print(f"[Chatterbox] ❌ Failed to install torchaudio: {result.stderr}")
+                return False
+            
+            # Verify installation
+            import torchaudio
+            print(f"[Chatterbox] ✅ torchaudio {torchaudio.__version__} installed successfully")
+        
+        # Check if torchvision is installed
+        try:
+            import torchvision
+            print(f"[Chatterbox] ✅ torchvision {torchvision.__version__} already installed")
+        except ImportError:
+            print("[Chatterbox] ⚠️  torchvision not found, installing...")
+            # Create constraints file with only torch (to prevent PyTorch upgrade)
+            torch_ver = torch.__version__
+            constraints_file = '/tmp/torch_only_constraints.txt'
+            with open(constraints_file, 'w') as f:
+                f.write(f"torch=={torch_ver}\n")
+            
+            # Install torchvision matching PyTorch version
+            result = subprocess.run([
+                'pip3', 'install', '--index-url', 'https://pypi.org/simple',
+                '--constraint', constraints_file,
+                'torchvision'
+            ], capture_output=True, text=True)
+            
+            if result.returncode != 0:
+                print(f"[Chatterbox] ❌ Failed to install torchvision: {result.stderr}")
+                return False
+            
+            # Verify installation
+            import torchvision
+            print(f"[Chatterbox] ✅ torchvision {torchvision.__version__} installed successfully")
+        
+        # Verify PyTorch CUDA is still intact
+        assert hasattr(torch.version, 'cuda') and torch.version.cuda is not None, \
+            f'PyTorch CUDA lost after torchaudio/torchvision install! Version: {torch.__version__}'
+        print(f"[Chatterbox] ✅ PyTorch {torch.__version__} with CUDA {torch.version.cuda} preserved")
+        
+        return True
+        
+    except Exception as e:
+        print(f"[Chatterbox] ⚠️  Error ensuring torch extensions: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+# Run auto-installation on startup
+print("[Chatterbox] 🔍 Checking for torchaudio and torchvision...")
+ensure_torch_extensions()
+
 # Initialize Chatterbox TTS (lazy loading)
 _chatterbox_tts = None
 _chatterbox_voice_embedding = None
