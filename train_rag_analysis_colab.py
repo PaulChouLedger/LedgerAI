@@ -365,8 +365,8 @@ print("=" * 80)
 # Model should learn to use them internally but output ONLY final answer (STEP 6 content).
 # Dataset verified: 100% correct format, no CoT instructions in assistant responses.
 
-LORA_RANK = 16  # Increased from 8 - more capacity to learn extraction patterns and distinguish instructions from output
-LORA_ALPHA = LORA_RANK * 2  # Optimal scaling: alpha = 2x rank (32)
+LORA_RANK = 8  # Reduced from 16 - rank 16 caused memorization (loss dropped 2.03→0.02 in 1.92 epochs)
+LORA_ALPHA = LORA_RANK * 2  # Optimal scaling: alpha = 2x rank (16)
 LORA_DROPOUT = 0.15  # Regularization to prevent overfitting
 
 model = FastLanguageModel.get_peft_model(
@@ -404,7 +404,7 @@ training_args = TrainingArguments(
     gradient_accumulation_steps=4,  # Effective batch size = 8
     warmup_steps=1500,  # Stable warmup prevents rapid loss drop
     num_train_epochs=10,  # Increased from 2 - model needs more training to learn extraction patterns
-    learning_rate=1e-6,  # Increased from 8e-7 - faster learning while still preventing overfitting
+    learning_rate=8e-7,  # Reduced from 1e-6 - slower learning prevents memorization (rank 16 caused loss to drop 99% in <2 epochs)
     max_grad_norm=1.0,  # CRITICAL: Gradient clipping to prevent explosions
     fp16=not torch.cuda.is_bf16_supported(),
     bf16=torch.cuda.is_bf16_supported(),
@@ -529,17 +529,17 @@ approx_params = {
     256: (180, 13.6),
     512: (360, 27.2),
 }
-params_m, params_pct = approx_params.get(LORA_RANK, (11.0, 0.85))
-print(f"   - LoRA rank: {LORA_RANK} (~{params_m}M trainable parameters, ~{params_pct}% of model) (increased from 8 to 16 for better extraction learning)")
+params_m, params_pct = approx_params.get(LORA_RANK, (5.5, 0.35))
+print(f"   - LoRA rank: {LORA_RANK} (~{params_m}M trainable parameters, ~{params_pct}% of model) (reduced from 16 - rank 16 caused memorization)")
 print(f"   - LoRA alpha: {LORA_ALPHA} (2x rank for optimal scaling)")
 print(f"   - LoRA dropout: {LORA_DROPOUT} (increased from 0.1 - more regularization)")
 print(f"   - Warmup steps: {training_args.warmup_steps} (increased from 1000 - more stable start)")
 print(f"   - Scheduler: {training_args.lr_scheduler_type}")
 print(f"   - Logging steps: {training_args.logging_steps} (more frequent monitoring)")
 print(f"\n📝 Training Configuration:")
-print(f"   - LoRA rank: {LORA_RANK} (increased from 8 for better extraction learning)")
+print(f"   - LoRA rank: {LORA_RANK} (reduced from 16 - rank 16 caused memorization, loss dropped 99% in <2 epochs)")
 print(f"   - Epochs: 10 (increased from 2 - model needs more training)")
-print(f"   - Learning rate: 1e-6 (increased from 8e-7 for faster learning)")
+print(f"   - Learning rate: 8e-7 (reduced from 1e-6 - slower learning prevents memorization)")
 print(f"   - CoT steps are in system prompt (instructions) but should NOT appear in final answer")
 print(f"   - Model should learn CoT reasoning internally but output ONLY final answer (STEP 6 content)")
 print(f"   - Dataset verified: 100% correct format, no CoT instructions in assistant responses")

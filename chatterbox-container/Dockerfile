@@ -195,11 +195,12 @@ EOF
 
 # Clone and install Chatterbox from source (skip dependencies to avoid conflicts)
 # Note: russian-text-stresser may not be available on PyPI - skipping (optional for Russian support)
-# Install spacy first (Chatterbox dependency)
+# Install spacy and omegaconf first (Chatterbox dependencies)
 # Use constraints to prevent PyTorch installation
 RUN pip3 install --index-url https://pypi.org/simple \
     --constraint /tmp/constraints.txt \
-    spacy==3.6.1 || true
+    spacy==3.6.1 \
+    omegaconf>=2.3.0 || true
 
 # Clone Chatterbox and install (keep source for editable install)
 RUN git clone https://github.com/resemble-ai/chatterbox.git /app/chatterbox && \
