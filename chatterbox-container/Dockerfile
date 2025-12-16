@@ -49,6 +49,7 @@ RUN pip3 install --index-url https://pypi.org/simple \
 
 # Install other dependencies (these shouldn't pull in PyTorch)
 # Use constraints to prevent PyTorch installation
+# CRITICAL: Install tokenizers version compatible with transformers==4.46.3 (requires >=0.20,<0.21)
 RUN pip3 install --index-url https://pypi.org/simple \
     --constraint /tmp/constraints.txt \
     packaging \
@@ -56,7 +57,7 @@ RUN pip3 install --index-url https://pypi.org/simple \
     huggingface-hub \
     regex \
     requests \
-    tokenizers \
+    "tokenizers>=0.20,<0.21" \
     tqdm \
     pyyaml \
     pillow \
