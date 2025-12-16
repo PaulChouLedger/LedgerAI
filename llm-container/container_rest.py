@@ -1109,7 +1109,7 @@ JSON array only:"""
                     response_length_guideline = "- Show your reasoning process.\n"
                 elif is_list_request:
                     # Only add question instruction if not a conversational query
-                    question_instruction = "" if is_conversational else "- End with a brief, natural question. Examples: 'Would you like more information about this?' or 'Is there anything else I can help you with?'\n"
+                    question_instruction = "" if is_conversational else "\n- MANDATORY: End your response with a brief, natural question. This is REQUIRED. Examples: 'Would you like more information about this?' or 'Is there anything else I can help you with?'\n"
                     response_length_guideline = (
                         "- List all items that match the query from the context. "
                         "Format as natural sentences.\n"
@@ -1117,7 +1117,7 @@ JSON array only:"""
                     )
                 else:
                     # Only add question instruction if not a conversational query
-                    question_instruction = "" if is_conversational else "- End with a brief, natural question. Examples: 'Would you like more information about this?' or 'Is there anything else I can help you with?'\n"
+                    question_instruction = "" if is_conversational else "\n6. MANDATORY: End your response with a brief, natural question. This is REQUIRED. Examples: 'Would you like more information about this?' or 'Is there anything else I can help you with?'\n"
                     response_length_guideline = (
                         "- Keep responses short (2-3 sentences).\n"
                         f"{question_instruction}"
