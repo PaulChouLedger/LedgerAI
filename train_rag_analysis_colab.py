@@ -46,7 +46,7 @@ except Exception as e:
 
 from unsloth import FastLanguageModel
 from trl import SFTTrainer
-from transformers import TrainingArguments
+from transformers import TrainingArguments, TrainerCallback
 
 # ============================================================================
 # Install Dependencies (Colab)
@@ -139,6 +139,15 @@ QUERY TYPE HANDLING (applied during Step 4 - Evaluate Relevance):
 - Analytical queries: Extract reasoning, causation, or explanation
 - Process queries: Extract step-by-step information
 - List queries: Extract ALL items that match the query criteria - read ALL chunks completely before responding
+
+CRITICAL OUTPUT REQUIREMENT:
+- You MUST output ONLY the final answer (STEP 6/STEP 7 content)
+- DO NOT output STEP 1, STEP 2, STEP 3, STEP 4, or STEP 5
+- DO NOT output "Extract information from Chunk X" or any intermediate reasoning
+- DO NOT output "STEP 6: SYNTHESIZE RESPONSE" or any step markers
+- Output ONLY the final answer text itself (e.g., "John Smith and Mike Brown" or "I don't have that information in the provided documents")
+- The CoT steps (STEP 1-5) are for INTERNAL reasoning only - they should NOT appear in your output
+- If you output any intermediate steps, your response is INCORRECT
 
 Return ONLY the final answer in natural, conversational language. Do not include reasoning steps in the response."""
 
@@ -328,16 +337,16 @@ print("Configuring LoRA Adapters")
 print("=" * 80)
 
 # LoRA Configuration
-# r=16: ~11M trainable (0.85%) - Extremely minimal capacity
-# r=32: ~22M trainable (1.7%) - Very minimal capacity (CURRENT)
-# r=64: ~45M trainable (3.4%) - Still too much capacity (loss decreased too fast: 1.99→0.0076 in 80 steps)
-# r=128: ~90M trainable (6.80%) - Too much capacity (loss decreased too fast)
-# r=256: ~180M trainable (13.6%) - Higher capacity, causes overfitting
+# FIXED: Further reduced rank to prevent memorization (loss dropped 2.03 → 0.08 in 1320 steps)
+# r=4: ~2.7M trainable (0.17%) - Very minimal capacity, maximum generalization (NEW - AGGRESSIVE)
+# r=8: ~5.5M trainable (0.35%) - Still too much capacity, caused rapid memorization
+# r=16: ~11M trainable (0.85%) - Way too much capacity
 #
-# Using r=32 with Qwen2.5-1.5B - loss still decreasing too fast (1.99→0.0076 in 80 steps) with r=64.
+# Target: Loss should decrease gradually (~0.1-0.3 per epoch), not 78% in 1.69 epochs
 
-LORA_RANK = 16  # Increased from 8 - more capacity for complex patterns (role filtering, cross-company, multi-chunk extraction)
-LORA_ALPHA = LORA_RANK * 2  # Optimal scaling: alpha = 2x rank (32)
+LORA_RANK = 4  # Further reduced from 8 - minimal capacity prevents memorization, promotes generalization
+LORA_ALPHA = LORA_RANK * 2  # Optimal scaling: alpha = 2x rank (8)
+LORA_DROPOUT = 0.15  # Increased from 0.1 - more regularization to prevent memorization
 
 model = FastLanguageModel.get_peft_model(
     model,
@@ -347,7 +356,7 @@ model = FastLanguageModel.get_peft_model(
         "gate_proj", "up_proj", "down_proj",
     ],
     lora_alpha=LORA_ALPHA,
-    lora_dropout=0,  # Unsloth optimized: 0.0 is fastest. Using weight_decay=0.3 for regularization instead
+    lora_dropout=LORA_DROPOUT,  # Increased from 0 - more regularization to prevent memorization
     bias="none",     # Supports any, but = "none" is optimized
     use_gradient_checkpointing="unsloth",  # Unsloth's optimized version
     random_state=3407,
@@ -366,20 +375,21 @@ print("=" * 80)
 print("Configuring Training")
 print("=" * 80)
 
-# Training arguments optimized for Unsloth and RAG analysis
-# Reduced epochs and added regularization to prevent overfitting (loss was hitting 0.0)
+# Training arguments optimized to prevent memorization
+# FIXED: Loss still dropping too fast (2.03 → 0.08 in 1320 steps) indicating memorization
+# AGGRESSIVE CHANGES: Further reduced learning rate, increased weight decay, reduced LoRA rank to 4, fewer epochs
 training_args = TrainingArguments(
     per_device_train_batch_size=2,
     gradient_accumulation_steps=4,  # Effective batch size = 8
-    warmup_steps=500,  # Reduced from 1000 - faster warmup, more time in actual training
-    num_train_epochs=5,  # Increased from 4 - with 6,250 examples, more epochs help model learn all patterns
-    learning_rate=3e-6,  # Reduced from 4e-6 - slower, more stable learning for better generalization
-    max_grad_norm=1.0,  # CRITICAL: Gradient clipping to prevent explosions (gradient norm spiked to 41.08)
+    warmup_steps=1500,  # Increased from 1000 - more stable warmup prevents rapid loss drop
+    num_train_epochs=2,  # Reduced from 3 - start with 2 epochs to prevent overfitting, can increase if needed
+    learning_rate=8e-7,  # Further reduced from 1.2e-6 - much slower learning prevents memorization
+    max_grad_norm=1.0,  # CRITICAL: Gradient clipping to prevent explosions
     fp16=not torch.cuda.is_bf16_supported(),
     bf16=torch.cuda.is_bf16_supported(),
     logging_steps=20,  # More frequent logging for better monitoring
     optim="adamw_8bit",
-    weight_decay=0.3,  # Reduced from 0.35 - less aggressive regularization, allows model to learn more patterns while still preventing overfitting
+    weight_decay=0.7,  # Increased from 0.5 - more aggressive regularization prevents memorization
     lr_scheduler_type="cosine",  # Cosine scheduler for smoother learning
     seed=3407,
     output_dir=OUTPUT_DIR,
@@ -397,6 +407,76 @@ train_dataset = dataset
 
 print(f"   - Train examples: {len(train_dataset)}")
 
+# ============================================================================
+# Optional: Real-Time Example Monitoring
+# ============================================================================
+# Set to True to see examples being processed during training
+# This helps determine if training will be successful before wasting compute
+ENABLE_EXAMPLE_MONITORING = True  # Toggle: True to enable, False to disable
+
+# Early stopping callback to prevent memorization
+class EarlyStoppingCallback(TrainerCallback):
+    """Stop training if loss drops below threshold before epoch 2 (indicates memorization)"""
+    def __init__(self, loss_threshold=0.2, min_epoch=2.0):
+        self.loss_threshold = loss_threshold
+        self.min_epoch = min_epoch
+    
+    def on_log(self, args, state, control, logs=None, **kwargs):
+        if logs is None:
+            return
+        
+        loss = logs.get("loss", None)
+        epoch = logs.get("epoch", 0)
+        
+        if loss is not None and epoch < self.min_epoch:
+            if loss < self.loss_threshold:
+                print(f"\n❌ EARLY STOPPING: Loss ({loss:.4f}) dropped below {self.loss_threshold} before epoch {self.min_epoch}")
+                print(f"   This indicates memorization. Stopping training to prevent overfitting.")
+                control.should_training_stop = True
+        return control
+
+# CoT leakage monitoring callback
+class CoTLeakageMonitor(TrainerCallback):
+    """Monitor and warn about CoT step leakage in model outputs"""
+    def __init__(self, sample_every_n_steps=100):
+        self.sample_every_n_steps = sample_every_n_steps
+        self.cot_leakage_count = 0
+        self.total_samples = 0
+    
+    def on_log(self, args, state, control, logs=None, **kwargs):
+        if logs is None or state.global_step % self.sample_every_n_steps != 0:
+            return
+        
+        # Check if we have predictions to analyze
+        # This is a simplified check - actual monitoring happens in example_monitor
+        if state.global_step > 0:
+            print(f"\n⚠️  CoT Leakage Monitor: Step {state.global_step}")
+            print(f"   Monitor training examples above for CoT step leakage (STEP 1-5 or 'Extract information from Chunk X')")
+            print(f"   Model should output ONLY the final answer (STEP 6 content), not intermediate steps")
+        return control
+
+callbacks = []
+
+# Add early stopping callback
+early_stopping = EarlyStoppingCallback(loss_threshold=0.2, min_epoch=2.0)
+callbacks.append(early_stopping)
+
+# Add CoT leakage monitor
+cot_monitor = CoTLeakageMonitor(sample_every_n_steps=100)
+callbacks.append(cot_monitor)
+
+if ENABLE_EXAMPLE_MONITORING:
+    from training_example_monitor import create_example_monitor
+    example_monitor = create_example_monitor(
+        dataset=train_dataset,
+        tokenizer=tokenizer,
+        model=model,
+        sample_every_n_steps=20,  # Show examples every 20 steps
+        num_samples=3,  # Show 3 examples each time
+        show_predictions=True  # Set True to see model predictions (slower but more informative)
+    )
+    callbacks.append(example_monitor)
+
 trainer = SFTTrainer(
     model=model,
     tokenizer=tokenizer,
@@ -404,17 +484,20 @@ trainer = SFTTrainer(
     dataset_text_field="text",
     max_seq_length=MAX_SEQ_LENGTH,
     args=training_args,
+    callbacks=callbacks,  # Add example monitor here if enabled
 )
 
 print("✅ Training configured")
 print(f"   - Batch size: {training_args.per_device_train_batch_size}")
 print(f"   - Gradient accumulation: {training_args.gradient_accumulation_steps}")
 print(f"   - Effective batch size: {training_args.per_device_train_batch_size * training_args.gradient_accumulation_steps}")
-print(f"   - Epochs: {training_args.num_train_epochs} (increased from 4 - with 6,250 examples, more epochs help model learn all patterns)")
-print(f"   - Learning rate: {training_args.learning_rate} (reduced from 4e-6 - slower, more stable learning for better generalization)")
+print(f"   - Epochs: {training_args.num_train_epochs} (reduced from 3 - start with 2 to prevent overfitting)")
+print(f"   - Learning rate: {training_args.learning_rate} (further reduced from 1.2e-6 - much slower learning prevents memorization)")
+print(f"   - Weight decay: {training_args.weight_decay} (increased from 0.5 - more aggressive regularization)")
 print(f"   - Gradient clipping: max_norm={training_args.max_grad_norm} (prevents training instability)")
 # Calculate approximate trainable parameters
 approx_params = {
+    4: (2.7, 0.17),
     8: (5.5, 0.35),
     16: (11, 0.85),
     32: (22, 1.7),
@@ -423,12 +506,20 @@ approx_params = {
     256: (180, 13.6),
     512: (360, 27.2),
 }
-params_m, params_pct = approx_params.get(LORA_RANK, (5.5, 0.35))
-print(f"   - LoRA rank: {LORA_RANK} (~{params_m}M trainable parameters, ~{params_pct}% of model) (increased from 8 - more capacity for complex patterns)")
+params_m, params_pct = approx_params.get(LORA_RANK, (2.7, 0.17))
+print(f"   - LoRA rank: {LORA_RANK} (~{params_m}M trainable parameters, ~{params_pct}% of model) (further reduced from 8 - AGGRESSIVE anti-memorization)")
 print(f"   - LoRA alpha: {LORA_ALPHA} (2x rank for optimal scaling)")
-print(f"   - Warmup steps: {training_args.warmup_steps} (reduced from 1000 - faster warmup, more training time)")
+print(f"   - LoRA dropout: {LORA_DROPOUT} (increased from 0.1 - more regularization)")
+print(f"   - Warmup steps: {training_args.warmup_steps} (increased from 1000 - more stable start)")
 print(f"   - Scheduler: {training_args.lr_scheduler_type}")
 print(f"   - Logging steps: {training_args.logging_steps} (more frequent monitoring)")
+print(f"\n⚠️  AGGRESSIVE FIX: Further reduced learning rate (8e-7), LoRA rank (4), increased weight decay (0.7) and dropout (0.15)")
+print(f"   Target: Loss should decrease gradually (~0.1-0.3 per epoch), not 78% in 1.69 epochs")
+print(f"   ⚠️  STOP training if loss drops below 0.2 before epoch 2 (indicates memorization)")
+print(f"\n🔍 MONITORING:")
+print(f"   - CoT Leakage: Watch for outputs containing 'STEP 1-5' or 'Extract information from Chunk X'")
+print(f"   - Poor Learning: Check match scores - if consistently <50% for specific query types, may need more examples")
+print(f"   - Model should output ONLY final answer (STEP 6 content), not intermediate reasoning steps")
 print()
 print("📊 Training Goals:")
 print("   ✅ Read entire RAG chunks completely (6-8 sentences each)")

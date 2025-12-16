@@ -1,15 +1,23 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-RAG Analysis Dataset Generator V2 - High Quality Implementation
-================================================================
+RAG Analysis Dataset Generator - Master Script (Unified)
+========================================================
 
-Generates 6000 training examples for SLM to analyze RAG chunks:
+UNIFIED MASTER SCRIPT: Combines generate_rag_dataset_v2.py and generate_rag_dataset_complete.py
+- Generates 6250 training examples for SLM to analyze RAG chunks
+- Uses 6-step CoT system prompt with expected output formats
+- Assistant responses contain ONLY final answer (no CoT steps) - prevents CoT leakage
 - Each chunk: 6-8 sentences with realistic, meaningful content
 - Multiple instances of relevant information across chunks
-- Varied system prompts (full, medium, short) with 7-step core principles
 - Pattern-based distribution to teach general RAG skills
 - Realistic business/technical content instead of placeholders
+- Mixed relevance scores for robust training
+
+OUTPUT FORMAT:
+- System prompt: 6-step CoT with expected output formats (for instruction)
+- Assistant response: ONLY final answer (what model learns to output)
+- No intermediate CoT steps in assistant response (prevents CoT leakage)
 """
 
 import json
@@ -20,66 +28,106 @@ from typing import List, Dict, Any, Tuple
 # System Prompt Variations (7-Step Core Principles)
 # ============================================================================
 
-def get_system_prompt_variation(variation_type="full"):
-    """Generate system prompt with 7-step core principles"""
-    
-    core_principles = """CORE PRINCIPLES (SYSTEMATIC EVALUATION PROCESS):
+# 6-Step CoT System Prompt (unified from generate_rag_dataset_complete.py)
+# This is the master system prompt used for all examples
+SYSTEM_PROMPT_6_STEP = """You are an AI assistant trained to analyze RAG chunks and extract relevant information.
+
+CORE PRINCIPLES (SYSTEMATIC EVALUATION PROCESS):
 
 STEP 1: UNDERSTAND THE QUERY
 - Identify what information is being requested
 - Note any specific filtering requirements (role, entity, attribute, relationship, etc.)
 - Understand the scope and context of what needs to be extracted
 
+EXPECTED OUTPUT FORMAT FOR STEP 1:
+"The query asks: [query]. I need to [action]."
+
+Example outputs:
+- "The query asks for co-founders of TechCorp. I need to extract ONLY people explicitly labeled as 'Co-Founder' of TechCorp, not other roles like CEO, CTO, CFO, or VP."
+- "The query asks: what is the difference between FutureCapital and AICapital?. I need to find relevant information for both entities and determine how the two entities differ."
+- "The query asks: what are the features of blockchain?. I need to extract all items that match this query from all chunks."
+
 STEP 2: READ EACH CHUNK COMPLETELY
 - Read the entire chunk from start to finish
 - Do not stop at keywords - read for full context and meaning
 - Understand the complete context before making extraction decisions
+- Provide a relevance score based on how well the chunk applies to the query
+
+EXPECTED OUTPUT FORMAT FOR STEP 2:
+"Chunk X (Score: Y.YY, [HIGH/MEDIUM/LOW] relevance): [first 1-2 sentences of chunk]..."
+
+Example output:
+"Chunk 1 (Score: 0.85, HIGH relevance): John Smith is Co-Founder of TechCorp. Sarah Jones is Co-Founder of DataSystems.
+Chunk 2 (Score: 0.66, MEDIUM relevance): Partnership ecosystems have been developed to create mutually beneficial business relationships..."
 
 STEP 3: ANALYZE CHUNK MEANING
 - Understand the semantic meaning, not just surface-level keywords
+- Describe what each chunk contains and how it relates to the query
 - Identify entities, relationships, attributes, and concepts mentioned
-- Recognize how information relates to the query
+- Determine if the chunk provides useful information for answering the query
 
-STEP 4: EVALUATE RELEVANCE
-- Determine if information directly answers or addresses the query
-- Apply query-specific filtering (match role, entity, attribute, etc. as requested)
-- CRITICAL: For role queries, match the EXACT role (e.g., "co-founders" ≠ "CEO" ≠ "CTO" - extract ONLY the exact role requested)
-- CRITICAL: For company queries, extract information ONLY about the company that matches the query. Use the company name EXACTLY as it appears in the chunks (RAG handles fuzzy matching at retrieval - if chunk says "TechCorp", extract "TechCorp" even if query said "Tech Corp"). Do NOT extract information about other companies
-- Ignore information that is similar but does NOT answer the query
+EXPECTED OUTPUT FORMAT FOR STEP 3:
+"Chunk X: [describes what the chunk contains and whether it's useful for the query]"
 
-STEP 5: EXTRACT MATCHING INFORMATION
-- Extract only information that passes the relevance evaluation
+Example outputs:
+- "Chunk 1: describes FutureCapital providing detailed information but does not mention AICapital."
+- "Chunk 2: briefly mentions AICapital but does not provide descriptive information useful for a comparison."
+- "Chunk 3: provides descriptive information regarding AICapital sufficient to compare against FutureCapital."
+- "Chunk 4: mentions IrrelevantAI, not useful for query."
+- "Chunk 1: describes mentions QuantumSystems, contains co-founder information."
+
+STEP 4: EXTRACT MATCHING INFORMATION
+- Extract information from chunks identified as relevant in Step 3
 - Apply exact matching - use information exactly as it appears in chunks
 - Track all matching items across all chunks
 
-STEP 6: VERIFY COMPLETENESS
+EXPECTED OUTPUT FORMAT FOR STEP 4:
+"Extract information from Chunk X [and Chunk Y]"
+
+Example outputs:
+- "Extract information from Chunk 1 and Chunk 3"
+- "Extract information from Chunk 1"
+- "No matching information found in any chunk. The query cannot be answered from the provided documents."
+
+STEP 5: VERIFY COMPLETENESS
 - Ensure you have read ALL chunks completely
 - Verify you extracted ALL matching items (do not stop after first match)
 - Confirm extraction is complete before finalizing response
 
-STEP 7: SYNTHESIZE RESPONSE
+EXPECTED OUTPUT FORMAT FOR STEP 5:
+"Ensuring all relevant information was extracted. Read all X chunk(s) completely. [Extracted Y matching item(s) across all chunks. All relevant information has been identified / No matching information found in any chunk.]"
+
+Example outputs:
+- "Ensuring all relevant information was extracted. Read all 4 chunk(s) completely. Extracted 2 matching item(s) across all chunks. All relevant information has been identified."
+- "Ensuring all relevant information was extracted. Read all 3 chunk(s) completely. No matching information found in any chunk."
+
+STEP 6: SYNTHESIZE RESPONSE
 - Combine information from all chunks into coherent answer
 - Format naturally and directly address the query
 - CRITICAL: If after reading ALL chunks completely you find NO information that matches the query (wrong role, wrong company, or missing entirely), you MUST respond with exactly: "I don't have that information in the provided documents"
 - DO NOT infer, guess, or make up information - if it's not explicitly in the chunks, say "I don't have that information in the provided documents"
 
-CRITICAL: Follow these steps in order for EVERY query. Chunk order does not change the answer - read all chunks before responding."""
-    
-    if variation_type == "full":
-        return f"""You are an AI assistant trained to analyze RAG chunks and extract relevant information.
+EXPECTED OUTPUT FORMAT FOR STEP 6:
+[Just the final answer - no prefix, no "STEP 6:" marker, just the answer itself]
 
-{core_principles}
+Example outputs:
+- "John Smith and Mike Brown"
+- "cloud-based storage, real-time analytics dashboard, automated reporting system, and mobile application"
+- "The primary distinction between FutureCapital and AICapital lies in their handling of innovation strategy. While FutureCapital excels in pricing strategy, AICapital takes a more comprehensive approach to the market."
+- "I don't have that information in the provided documents"
+
+CRITICAL: Follow these steps in order for EVERY query. Chunk order does not change the answer - read all chunks before responding.
 
 ESSENTIAL GUIDELINES:
 - NEVER hallucinate - only use information that appears in the provided chunks
 - NEVER make up names, entities, or information - if information doesn't exist, say "I don't have that information in the provided documents"
 - CRITICAL: If you cannot find the EXACT information requested in ANY chunk, you MUST respond with "I don't have that information in the provided documents" - DO NOT guess, infer, or make up information
 - Use EXACT information from chunks - never substitute or modify names, terms, or entities
-- Apply query-specific filtering during Step 4 (evaluate relevance) - match what the query specifically asks for
-- Extract ALL matching items - complete Step 6 (verify completeness) ensures nothing is missed
-- Relevance scores guide prioritization but do not override the evaluation steps
+- Apply query-specific filtering during Step 3 (analyze chunk meaning) - match what the query specifically asks for
+- Extract ALL matching items - complete Step 5 (verify completeness) ensures nothing is missed
+- Relevance scores guide prioritization but do not override the analysis steps
 
-QUERY TYPE HANDLING (applied during Step 4 - Evaluate Relevance):
+QUERY TYPE HANDLING (applied during Step 3 - Analyze Chunk Meaning):
 - Role/entity queries: Filter by the SPECIFIC role mentioned (e.g., "co-founders" means ONLY co-founders, NOT CEOs, CTOs, or other roles). If the query asks for "co-founders", extract ONLY people explicitly labeled as co-founders, NOT other roles even if they are at the same company
 - Company-specific queries: Extract information ONLY about the company that matches the query. If query asks about "TechCorp", extract information ONLY about the matching company in chunks (RAG handles fuzzy matching like "Tech Corp" → "TechCorp" at retrieval level). Use the company name EXACTLY as it appears in the chunks. Do NOT extract information about other companies mentioned in the same chunk
 - Comparison queries: Extract information comparing the entities mentioned
@@ -88,43 +136,26 @@ QUERY TYPE HANDLING (applied during Step 4 - Evaluate Relevance):
 - Process queries: Extract step-by-step information
 - List queries: Extract ALL items that match the query criteria - read ALL chunks completely before responding
 
-Return ONLY the final answer in natural, conversational language. Do not include reasoning steps in the response."""
-    
-    elif variation_type == "medium":
-        return f"""You are an AI assistant trained to analyze RAG chunks and extract relevant information.
-
-{core_principles}
-
-KEY RULES:
-1. NEVER hallucinate - if information doesn't exist, say "I don't have that information in the provided documents"
-2. NEVER make up names or entities - ONLY use information that appears in the provided chunks
-3. CRITICAL: If EXACT match not found (wrong role, wrong company, or missing), respond with "I don't have that information in the provided documents"
-4. EXACT MATCHING: Use EXACT names, terms, and information from chunks - NEVER substitute or modify
-5. FILTERING: Apply the query's specific requirements - exclude information that doesn't match what is asked (e.g., "co-founders" ≠ "CEO", "TechCorp" ≠ "Tech Corp")
-6. COMPLETE EXTRACTION: Extract ALL matching items - read ALL chunks completely before responding
-7. ORDER-INDEPENDENT: Extract same results regardless of chunk order
-
-RELEVANCE PRIORITIZATION:
-- Prioritize HIGH relevance chunks (score ≥0.70) over LOW relevance chunks (score <0.50)
-- Extract ONLY information that directly answers the query
-- IGNORE similar information that does NOT answer the query
+CRITICAL OUTPUT REQUIREMENT:
+- You MUST output ONLY the final answer (STEP 6 content)
+- DO NOT output STEP 1, STEP 2, STEP 3, STEP 4, or STEP 5
+- DO NOT output "Extract information from Chunk X" or any intermediate reasoning
+- DO NOT output "STEP 6: SYNTHESIZE RESPONSE" or any step markers
+- Output ONLY the final answer text itself (e.g., "John Smith and Mike Brown" or "I don't have that information in the provided documents")
+- The CoT steps (STEP 1-5) are for INTERNAL reasoning only - they should NOT appear in your output
+- If you output any intermediate steps, your response is INCORRECT
 
 Return ONLY the final answer in natural, conversational language. Do not include reasoning steps in the response."""
+
+def get_system_prompt_variation(variation_type="full"):
+    """
+    Get system prompt - now always uses unified 6-step CoT format
     
-    else:  # short
-        return f"""You are an AI assistant that analyzes RAG chunks to extract relevant information.
-
-{core_principles}
-
-ESSENTIAL RULES:
-- NEVER hallucinate - if information doesn't exist, say "I don't have that information in the provided documents"
-- CRITICAL: If EXACT match not found, respond with "I don't have that information in the provided documents" - DO NOT guess
-- Use EXACT information from chunks - NEVER invent or modify
-- Apply query-specific filtering - exclude information that doesn't match what is asked (exact role, exact company)
-- Extract ALL matching items - read ALL chunks completely before responding
-- ORDER-INDEPENDENT: Extract same results regardless of chunk order
-
-Return the final answer in natural language. Do not include reasoning steps in the response."""
+    NOTE: variation_type parameter is kept for compatibility but always returns
+    the same 6-step CoT prompt. This ensures consistent training format.
+    """
+    # Always use the unified 6-step CoT system prompt
+    return SYSTEM_PROMPT_6_STEP
 
 # ============================================================================
 # Realistic Content Generation
@@ -640,9 +671,26 @@ def generate_example(pattern_type: str = "mixed_content") -> Dict[str, Any]:
                 if sentence_template not in relevant_per_chunk[chunk_idx]:
                     relevant_per_chunk[chunk_idx].append(sentence_template)
     
-    # Create chunks
+    # Create chunks with mixed relevance scores for realistic training
+    # Strategy: Ensure variety - some relevant chunks can be MEDIUM, some irrelevant can be MEDIUM
+    chunk_relevance_types = []
+    
+    # Determine which chunks should have relevant info
     for chunk_idx in range(num_chunks):
         chunk_relevant = relevant_per_chunk.get(chunk_idx, [])
+        chunk_relevance_types.append({
+            'idx': chunk_idx,
+            'has_relevant': bool(chunk_relevant),
+            'relevant': chunk_relevant
+        })
+    
+    # Assign mixed relevance scores (more realistic distribution)
+    # - Relevant chunks: 60% HIGH, 30% MEDIUM, 10% LOW (to teach ignoring low-relevance even if has keywords)
+    # - Irrelevant chunks: 20% MEDIUM (to teach ignoring medium-relevance if doesn't answer query), 80% LOW
+    for chunk_info in chunk_relevance_types:
+        chunk_idx = chunk_info['idx']
+        chunk_relevant = chunk_info['relevant']
+        
         # Select irrelevant info for this chunk
         num_irrelevant_needed = random.randint(2, 4)
         num_irrelevant_available = min(num_irrelevant_needed, len(irrelevant_sentences_templates))
@@ -655,8 +703,24 @@ def generate_example(pattern_type: str = "mixed_content") -> Dict[str, Any]:
         chunk_text = create_realistic_chunk(chunk_relevant, chunk_irrelevant, 
                                             num_sentences=random.randint(6, 8))
         
-        # Format chunk with relevance score
-        relevance_score = random.uniform(0.65, 0.95) if chunk_relevant else random.uniform(0.30, 0.60)
+        # Assign relevance score with mixed distribution
+        if chunk_relevant:
+            # Relevant chunk: mix of HIGH, MEDIUM, and occasionally LOW
+            rand = random.random()
+            if rand < 0.60:  # 60% HIGH
+                relevance_score = random.uniform(0.70, 0.95)
+            elif rand < 0.90:  # 30% MEDIUM
+                relevance_score = random.uniform(0.50, 0.69)
+            else:  # 10% LOW (teaches model to still extract from low-score chunks if relevant)
+                relevance_score = random.uniform(0.40, 0.49)
+        else:
+            # Irrelevant chunk: mostly LOW, some MEDIUM
+            rand = random.random()
+            if rand < 0.80:  # 80% LOW
+                relevance_score = random.uniform(0.30, 0.49)
+            else:  # 20% MEDIUM (teaches model to ignore medium-score chunks if irrelevant)
+                relevance_score = random.uniform(0.50, 0.69)
+        
         chunks.append({
             "text": chunk_text,
             "score": round(relevance_score, 2),
@@ -688,25 +752,29 @@ def generate_example(pattern_type: str = "mixed_content") -> Dict[str, Any]:
 # ============================================================================
 
 def main():
-    """Generate 6000 training examples"""
+    """Generate 6250 training examples with 6-step CoT format"""
     
     print("="*80)
-    print("RAG Analysis Dataset Generator V2 - High Quality")
+    print("RAG Analysis Dataset Generator - Master Script (Unified)")
     print("="*80)
     print()
-    print("Generating 6000 training examples with realistic content...")
+    print("Generating 6250 training examples with 6-step CoT format...")
+    print("✅ System prompt: 6-step CoT with expected output formats")
+    print("✅ Assistant response: ONLY final answer (no CoT steps)")
+    print("✅ Prevents CoT leakage - model learns to output only final answer")
     print()
     
-    # Pattern distribution (6000 examples)
+    # Pattern distribution (6250 examples - increased from 6000)
     patterns = {
-        "mixed_content": 900,      # 15% - Extract relevant, ignore irrelevant
-        "multi_chunk": 1200,       # 20% - Extract from multiple chunks
-        "role_filtering": 900,     # 15% - Filter by role/entity
-        "cross_entity": 900,       # 15% - Filter by specific entity
-        "synthesis": 600,          # 10% - Combine info from chunks
-        "not_found": 600,          # 10% - Recognize missing info
-        "comparison": 450,         # 7.5% - Compare entities
-        "relationship": 450,       # 7.5% - Extract relationships
+        "mixed_content": 900,      # 14.4% - Extract relevant, ignore irrelevant
+        "multi_chunk": 1200,       # 19.2% - Extract from multiple chunks
+        "role_filtering": 900,     # 14.4% - Filter by role/entity
+        "cross_entity": 900,       # 14.4% - Filter by specific entity
+        "synthesis": 600,          # 9.6% - Combine info from chunks
+        "not_found": 600,          # 9.6% - Recognize missing info
+        "comparison": 450,         # 7.2% - Compare entities
+        "relationship": 450,       # 7.2% - Extract relationships
+        "analytical": 250,        # 4.0% - Analytical queries (new)
     }
     
     dataset = []
@@ -736,21 +804,30 @@ def main():
     print(f"Total examples: {len(dataset)}")
     print(f"Output file: {output_file}")
     print()
+    print("✅ Format: 6-step CoT system prompt + final answer only in assistant response")
+    print("✅ Prevents CoT leakage - model will learn to output only final answer")
+    print()
     
-    # Verify distribution
-    prompt_types = {"full": 0, "medium": 0, "short": 0}
-    for example in dataset:
-        system_content = example["messages"][0]["content"]
-        if "ESSENTIAL GUIDELINES:" in system_content:
-            prompt_types["full"] += 1
-        elif "KEY RULES:" in system_content:
-            prompt_types["medium"] += 1
-        else:
-            prompt_types["short"] += 1
+    # Verify format
+    cot_steps_in_response = 0
+    final_answer_only = 0
+    for i, example in enumerate(dataset[:100]):  # Check first 100
+        messages = example.get("messages", [])
+        for msg in messages:
+            if msg.get("role") == "assistant":
+                content = msg.get("content", "")
+                if "STEP 1:" in content or "STEP 4:" in content or "Extract information from Chunk" in content:
+                    cot_steps_in_response += 1
+                else:
+                    final_answer_only += 1
     
-    print("System Prompt Distribution:")
-    for ptype, count in prompt_types.items():
-        print(f"  {ptype}: {count} ({100*count/len(dataset):.1f}%)")
+    print("Format Verification (first 100 examples):")
+    print(f"  ✅ Final answer only: {final_answer_only}")
+    print(f"  ❌ CoT steps in response: {cot_steps_in_response} (should be 0)")
+    if cot_steps_in_response == 0:
+        print("  ✅ Dataset format is CORRECT!")
+    else:
+        print("  ⚠️  WARNING: Some examples still contain CoT steps!")
     print()
     print("="*80)
 

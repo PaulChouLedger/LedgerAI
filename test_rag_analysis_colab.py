@@ -286,7 +286,7 @@ def generate_response(model, tokenizer, messages: List[Dict], model_type: str,
         
         # Extract final answer from CoT response if present
         # Model trained with CoT (6-step structure), but we want just the final answer for testing
-        # Check for STEP 6 (new structure) first, then fallback to STEP 7 (old structure) for compatibility
+        # Check for STEP 6 (6-step structure) first, then fallback to STEP 7 (old structure) for compatibility
         if "STEP 6: SYNTHESIZE RESPONSE" in response:
             # Extract just STEP 6 (final answer)
             step6_start = response.find("STEP 6: SYNTHESIZE RESPONSE")
