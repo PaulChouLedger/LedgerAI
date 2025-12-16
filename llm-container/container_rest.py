@@ -1131,12 +1131,16 @@ JSON array only:"""
                 simple_instructions = (
                     "\nINSTRUCTIONS:\n"
                     "1. Read all sections (separated by '---') completely from start to finish.\n"
-                    "2. Extract ONLY information that directly answers the query from the context above.\n"
-                    "3. For relationship queries (co-founders, employees, etc.): ONLY include people whose relationship is explicitly stated as being TO the entity mentioned in the query.\n"
-                    "4. DO NOT invent, guess, or use information not in the context.\n"
-                    "5. If information is not in the context, say 'I don't have that information'.\n"
-                    "6. Format your answer naturally.\n"
-                    "7. End with a brief, natural question.\n"
+                    "2. Check if the context above actually contains information relevant to answering the query.\n"
+                    "3. If the context contains relevant information that answers the query:\n"
+                    "   - Extract ONLY information that directly answers the query from the context.\n"
+                    "   - For relationship queries (co-founders, employees, etc.): ONLY include people whose relationship is explicitly stated as being TO the entity mentioned in the query.\n"
+                    "   - DO NOT invent, guess, or use information not in the context.\n"
+                    "4. If the context does NOT contain relevant information (e.g., context is about unrelated topics, or only mentions keywords but doesn't answer the query):\n"
+                    "   - Use your general knowledge to provide a helpful answer.\n"
+                    "   - Be clear and informative based on common knowledge.\n"
+                    "5. Format your answer naturally.\n"
+                    "6. End with a brief, natural question.\n"
                     )
                 
                 # No examples - LLM must use only the RAG context provided
@@ -1163,9 +1167,10 @@ JSON array only:"""
                     )
                 else:
                     user_content = (
-                        f"Answer this question using ONLY the information from the 'Knowledge context' sections above.\n"
-                        f"DO NOT invent, guess, or use information not in the context.\n"
-                        f"If the information is not in the context, say 'I don't have that information'.\n\n"
+                        f"Answer this question:\n"
+                        f"- If the 'Knowledge context' sections above contain relevant information that answers the query, use that information.\n"
+                        f"- If the context does NOT contain relevant information (e.g., it's about unrelated topics or only mentions keywords without answering), use your general knowledge to provide a helpful answer.\n"
+                        f"- Be helpful and informative - use context when available, but don't hesitate to use general knowledge when the context isn't relevant.\n\n"
                         f"Question: {prompt}"
                     )
                 
