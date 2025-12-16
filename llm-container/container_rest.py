@@ -1090,12 +1090,11 @@ JSON array only:"""
                 elif is_list_request:
                     response_length_guideline = (
                         "- List all items that match the query from the context. "
-                        "Format as natural sentences. End with a brief question.\n"
+                        "Format as natural sentences.\n"
                     )
                 else:
                     response_length_guideline = (
-                        "- Keep responses short (2-3 sentences). "
-                        "End with a brief, natural question.\n"
+                        "- Keep responses short (2-3 sentences).\n"
                     )
                 
                 # Simplified reasoning - only for debug mode
@@ -1140,7 +1139,6 @@ JSON array only:"""
                     "   - Use your general knowledge to provide a helpful answer.\n"
                     "   - Be clear and informative based on common knowledge.\n"
                     "5. Format your answer naturally.\n"
-                    "6. End with a brief, natural question.\n"
                     )
                 
                 # No examples - LLM must use only the RAG context provided

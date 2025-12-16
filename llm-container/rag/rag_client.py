@@ -9,6 +9,7 @@ import numpy as np
 from typing import List, Dict, Optional, Tuple
 import logging
 from difflib import SequenceMatcher
+import math
 
 logger = logging.getLogger(__name__)
 
@@ -399,7 +400,6 @@ class RAGClient:
             original_text = result.get('text', '')
             
             # For queries with capitalized words (names), REQUIRE at least one name match
-            # This ensures chunks about different people are excluded
             has_name_match = False
             if query_capitalized_lower:
                 for cap_word in query_capitalized_lower:
@@ -409,23 +409,28 @@ class RAGClient:
                         break
             
             # If query has names but chunk has no name match, exclude it
-            # This prevents chunks about different people from being included
             if query_capitalized_lower and not has_name_match:
                 print(f"[RAG Pre-filter] ❌ Excluded (query has names but chunk has no name match): '{original_text[:60]}...'")
                 continue
-            
-            # For queries without names, check for other query terms
-            if not query_capitalized_lower:
-                has_query_term = False
-                for term in query_terms:
-                    if self._fuzzy_match_term(term, text, threshold=0.75):
-                        has_query_term = True
-                        print(f"[RAG Pre-filter] ✅ Query term match: '{term}' in '{original_text[:60]}...'")
-                        break
-                
-                if not has_query_term:
-                    print(f"[RAG Pre-filter] ❌ Excluded (no query term matches): '{original_text[:60]}...'")
-                    continue
+
+            # Require a minimum number of query term overlaps (handles general relevance)
+            match_count = 0
+            for term in query_terms:
+                if self._fuzzy_match_term(term, text, threshold=0.75):
+                    match_count += 1
+            if query_terms:
+                required_matches = min(
+                    len(query_terms),
+                    max(2, math.ceil(len(query_terms) * 0.35))
+                )
+            else:
+                required_matches = 0
+
+            if match_count < required_matches:
+                print(f"[RAG Pre-filter] ❌ Excluded (insufficient term overlap: {match_count}/{required_matches}) '{original_text[:60]}...'")
+                continue
+            else:
+                print(f"[RAG Pre-filter] ✅ Term overlap: {match_count}/{required_matches} matches for '{original_text[:60]}...'")
             
             filtered_results.append(result)
         
