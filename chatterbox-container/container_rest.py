@@ -148,7 +148,7 @@ def get_chatterbox_tts():
             # Method 1: Try from_pretrained (recommended)
             if hasattr(ChatterboxTTS, 'from_pretrained'):
                 try:
-                    print("[Chatterbox] 🔧 Trying from_pretrained(device={device})...")
+                    print(f"[Chatterbox] 🔧 Trying from_pretrained(device={device})...")
                     # Check if from_pretrained accepts device parameter
                     import inspect
                     if hasattr(ChatterboxTTS, 'from_pretrained'):
@@ -478,15 +478,27 @@ if __name__ == '__main__':
             sys.exit(1)
         
         # Try to import Chatterbox at startup (non-blocking - Flask will start anyway)
-        print("[Chatterbox] 🔍 Pre-loading ChatterboxTTS (non-blocking)...", flush=True)
-        try:
-            # Don't block on this - just try it
-            get_chatterbox_tts()
-            print("[Chatterbox] ✅ ChatterboxTTS pre-loaded successfully", flush=True)
-        except Exception as e:
-            print(f"[Chatterbox] ⚠️ Pre-loading failed (will retry on first request): {e}", flush=True)
-            print("[Chatterbox] 💡 Container will start but synthesis may fail until Chatterbox loads", flush=True)
-            # Don't exit - let Flask start anyway
+        print("[Chatterbox] 🔍 Pre-loading ChatterboxTTS in background thread (non-blocking)...", flush=True)
+        
+        def preload_chatterbox():
+            """Pre-load ChatterboxTTS in background thread"""
+            try:
+                import time
+                time.sleep(2)  # Give Flask a moment to start
+                print("[Chatterbox] 🔄 Background thread: Starting ChatterboxTTS initialization...", flush=True)
+                get_chatterbox_tts()
+                print("[Chatterbox] ✅ Background thread: ChatterboxTTS pre-loaded successfully", flush=True)
+            except Exception as e:
+                print(f"[Chatterbox] ⚠️ Background thread: Pre-loading failed (will retry on first request): {e}", flush=True)
+                import traceback
+                traceback.print_exc()
+                print("[Chatterbox] 💡 Container will start but synthesis may fail until Chatterbox loads", flush=True)
+        
+        # Start pre-loading in background thread
+        import threading
+        preload_thread = threading.Thread(target=preload_chatterbox, daemon=True)
+        preload_thread.start()
+        print("[Chatterbox] ✅ Background pre-loading thread started - Flask will start immediately", flush=True)
         
         print("[Chatterbox] 🌐 Starting Flask server on 0.0.0.0:11437...", flush=True)
         print("[Chatterbox] ✅ Flask server is running - ready for requests", flush=True)
