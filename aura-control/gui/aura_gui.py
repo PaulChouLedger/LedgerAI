@@ -291,9 +291,20 @@ class CircularProgressWidget(QWidget):
         """Update progress based on actual initialization milestones - no time-based jumping"""
         global _setup_complete, _welcome_played
         
-        # Hide when setup is complete (before buttons show)
-        if _setup_complete or _welcome_played:
-            # Complete the progress and hide immediately
+        # Only hide when setup is complete AND progress is near 100%
+        # Don't hide on welcome_played alone - let progress complete first
+        if _setup_complete:
+            # Complete the progress and hide
+            self.progress = 1.0
+            self.update()
+            self.hide()
+            self.update_timer.stop()
+            return
+        
+        # If welcome played but setup not complete, continue showing progress
+        # Progress should reach near completion before hiding
+        if _welcome_played and self.progress >= 0.95:
+            # Only hide if progress is nearly complete
             self.progress = 1.0
             self.update()
             self.hide()
@@ -330,43 +341,44 @@ class CircularProgressWidget(QWidget):
             with open(debug_log_path, 'r', encoding='utf-8', errors='ignore') as f:
                 content = f.read()
             
-            # Sequential milestones - must be detected in order, very conservative progress values
-            # Each milestone only adds a small amount of progress
+            # Sequential milestones - very conservative progress values
+            # Progress only advances when containers are actually loaded, not just starting
             milestones = [
-                # Very early setup (low progress)
-                ("Loading config", 0.03),
-                ("Starting services", 0.06),
+                # Very early setup (minimal progress)
+                ("Loading config", 0.02),
+                ("Starting services", 0.05),
                 
-                # Container health checks (containers are starting)
-                ("Waiting for.*whisper", 0.10),  # Whisper container starting
-                ("Waiting for.*llm", 0.15),      # LLM container starting
-                ("health", 0.18),                # Health checks passing
+                # Container health checks (containers are starting, not loaded yet)
+                ("Waiting for.*whisper", 0.08),   # Whisper container starting
+                ("Waiting for.*llm", 0.12),       # LLM container starting
+                ("health.*200", 0.15),            # Health checks passing (status 200)
                 
-                # Containers actually responding
-                ("whisper.*respond", 0.22),      # Whisper responding
-                ("llm.*respond", 0.28),          # LLM responding
+                # Containers actually responding (but model may not be loaded)
+                ("whisper.*respond", 0.20),       # Whisper responding
+                ("llm.*respond", 0.25),           # LLM responding (but model may still be loading)
                 
-                # Model loading (this takes time)
+                # Model loading (this is the critical step - takes time)
                 ("Model loaded", 0.35),
-                ("simple_loaded.*true", 0.40),   # Model actually loaded
+                ("simple_loaded.*true", 0.42),    # Model actually loaded and ready
                 
-                # Warm-ups (these happen after containers are up)
-                ("Testing LLM", 0.48),
-                ("LLM warm-up", 0.52),
-                ("warm-up complete", 0.56),
+                # Warm-ups (only after model is loaded)
+                ("Testing LLM", 0.50),
+                ("LLM warm-up", 0.55),
+                ("warm-up complete", 0.60),
+                ("LLM warm-up complete", 0.65),    # Explicit warm-up completion
                 
                 # RAG initialization (after LLM is ready)
-                ("RAG initialization", 0.62),
-                ("RAG container initialized", 0.68),
-                ("RAG.*ready", 0.72),
+                ("RAG initialization", 0.70),
+                ("RAG container initialized", 0.75),
+                ("RAG.*ready", 0.80),
                 
-                # Listener/audio (near the end)
-                ("Listener.*initializing", 0.78),
-                ("listener ready", 0.84),
-                ("listener is now READY", 0.90),
+                # Listener/audio (near the end, after everything else)
+                ("Listener.*initializing", 0.85),
+                ("listener ready", 0.90),
+                ("listener is now READY", 0.95),
                 
-                # Final completion
-                ("Setup complete", 0.95),
+                # Final completion (this should be the last step)
+                ("Setup complete", 0.98),
             ]
             
             # Check milestones - use regex for pattern matching
@@ -382,25 +394,35 @@ class CircularProgressWidget(QWidget):
             # Get the highest milestone
             max_progress = max(m[1] for m in detected_milestones)
             
-            # Safety checks to prevent false positives:
-            # 1. If we see late milestones (>50%) but no container milestones, cap progress
-            early_container_milestones = [m for m in detected_milestones if "whisper" in m[0].lower() or "llm" in m[0].lower() or "health" in m[0].lower()]
-            late_milestones = [m for m in detected_milestones if m[1] >= 0.5]
+            # Safety checks to prevent false positives and premature progress:
+            # 1. Require model loaded before allowing progress > 50%
+            model_loaded_milestones = [m for m in detected_milestones if "model loaded" in m[0].lower() or "simple_loaded" in m[0].lower()]
+            if max_progress > 0.50 and len(model_loaded_milestones) == 0:
+                max_progress = min(max_progress, 0.40)  # Cap at 40% until model is loaded
             
-            if len(late_milestones) > 0 and len(early_container_milestones) == 0:
-                # Late milestones detected but no containers - likely false positive
-                max_progress = min(max_progress, 0.20)  # Cap at 20%
+            # 2. Require LLM warm-up complete before allowing progress > 70%
+            warmup_milestones = [m for m in detected_milestones if "warm-up complete" in m[0].lower() or "warm-up complete" in m[0].lower()]
+            if max_progress > 0.70 and len(warmup_milestones) == 0:
+                max_progress = min(max_progress, 0.65)  # Cap at 65% until warm-up complete
             
-            # 2. Exclude TTS initialization from triggering high progress
-            # TTS happens early but shouldn't indicate containers are loaded
+            # 3. If we see late milestones (>60%) but no container response milestones, cap progress
+            container_response_milestones = [m for m in detected_milestones if "respond" in m[0].lower() or "health.*200" in m[0].lower()]
+            late_milestones = [m for m in detected_milestones if m[1] >= 0.60]
+            
+            if len(late_milestones) > 0 and len(container_response_milestones) == 0:
+                # Late milestones detected but containers not responding - likely false positive
+                max_progress = min(max_progress, 0.30)  # Cap at 30%
+            
+            # 4. Exclude TTS initialization from triggering high progress
             if "TTS" in content and "initialization" in content.lower():
-                # If we see TTS but no container milestones, cap progress
-                if len(early_container_milestones) == 0:
-                    max_progress = min(max_progress, 0.15)  # Cap at 15% if only TTS
+                # If we see TTS but no model loaded, cap progress
+                if len(model_loaded_milestones) == 0:
+                    max_progress = min(max_progress, 0.20)  # Cap at 20% if only TTS
             
-            # 3. Require at least one container milestone before allowing progress > 30%
-            if max_progress > 0.30 and len(early_container_milestones) == 0:
-                max_progress = min(max_progress, 0.25)  # Cap at 25% without containers
+            # 5. Don't allow progress > 85% until listener is ready
+            listener_milestones = [m for m in detected_milestones if "listener" in m[0].lower()]
+            if max_progress > 0.85 and len(listener_milestones) == 0:
+                max_progress = min(max_progress, 0.80)  # Cap at 80% until listener starts
             
             return max_progress
         except Exception:
