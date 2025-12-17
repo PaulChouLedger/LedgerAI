@@ -45,7 +45,8 @@ EXPECTED OUTPUT FORMAT FOR STEP 1:
 Example outputs:
 - "The query asks for co-founders of TechCorp. I need to extract ONLY people explicitly labeled as 'Co-Founder' of TechCorp, not other roles like CEO, CTO, CFO, or VP."
 - "The query asks: what is the difference between FutureCapital and AICapital?. I need to find relevant information for both entities and determine how the two entities differ."
-- "The query asks: what are the features of blockchain?. I need to extract all items that match this query from all chunks."
+- "The query asks: what are the features of blockchain?. I need to extract ALL items that match this query from ALL chunks - this is a list query requiring complete extraction."
+- "The query asks: who are the managers of TechCorp?. I need to extract ALL managers (plural indicates multiple), not just the first one I find. I must read ALL chunks and extract EVERY manager mentioned."
 
 STEP 2: READ EACH CHUNK COMPLETELY
 - Read the entire chunk from start to finish
@@ -79,19 +80,28 @@ Example outputs:
 STEP 4: EXTRACT MATCHING INFORMATION
 - Extract information from chunks identified as relevant in Step 3
 - Apply exact matching - use information exactly as it appears in chunks
-- Track all matching items across all chunks
+- Track ALL matching items across ALL chunks - for list queries, count items as you extract them
+- CRITICAL: Do NOT stop after finding first match - continue extracting from all relevant chunks
 
 EXPECTED OUTPUT FORMAT FOR STEP 4:
 "Extract information from Chunk X [and Chunk Y]"
 
 Example outputs:
-- "Extract information from Chunk 1 and Chunk 3"
-- "Extract information from Chunk 1"
+- "Extract information from Chunk 1 and Chunk 3" (found 2 managers in Chunk 1, 1 manager in Chunk 3 - total 3 managers)
+- "Extract information from Chunk 1" (found all 4 features in Chunk 1)
+- "Extract information from Chunk 1, Chunk 2, and Chunk 4" (found items scattered across multiple chunks - must extract from all)
 - "No matching information found in any chunk. The query cannot be answered from the provided documents."
 
 STEP 5: VERIFY COMPLETENESS
 - Ensure you have read ALL chunks completely
 - Verify you extracted ALL matching items (do not stop after first match)
+- CRITICAL FOR LIST/MULTIPLE ENTITY QUERIES: 
+  * If query asks for multiple items using plural forms (e.g., "who are the managers", "list the features", "what are the services", "who are the directors", "list the components"), you MUST extract ALL matching items from ALL chunks
+  * Do NOT stop after finding the first match - continue reading ALL chunks until you have checked every single one
+  * If you find 3 managers across chunks, list all 3. If you find 4 features, list all 4. If you find 2 services in Chunk 1 and 2 more in Chunk 3, list all 4 services
+  * Count the items as you extract them - if the query asks for "managers" (plural), expect multiple managers and extract ALL of them
+  * Read each chunk from start to finish - items may appear anywhere in a chunk, not just at the beginning
+  * If a chunk mentions multiple matching items, extract ALL of them, not just the first one
 - Confirm extraction is complete before finalizing response
 
 EXPECTED OUTPUT FORMAT FOR STEP 5:
@@ -111,8 +121,9 @@ EXPECTED OUTPUT FORMAT FOR STEP 6:
 [Just the final answer - no prefix, no "STEP 6:" marker, just the answer itself]
 
 Example outputs:
-- "John Smith and Mike Brown"
-- "cloud-based storage, real-time analytics dashboard, automated reporting system, and mobile application"
+- "John Smith and Mike Brown" (for "who are the co-founders" - extracted both from chunks)
+- "cloud-based storage, real-time analytics dashboard, automated reporting system, and mobile application" (for "list the features" - extracted ALL 4 features from multiple chunks)
+- "Alice Johnson, Bob Smith, and Carol Williams" (for "who are the managers" - extracted ALL 3 managers, not just the first one)
 - "The primary distinction between FutureCapital and AICapital lies in their handling of innovation strategy. While FutureCapital excels in pricing strategy, AICapital takes a more comprehensive approach to the market."
 - "I don't have that information in the provided documents"
 
@@ -125,6 +136,7 @@ ESSENTIAL GUIDELINES:
 - Use EXACT information from chunks - never substitute or modify names, terms, or entities
 - Apply query-specific filtering during Step 3 (analyze chunk meaning) - match what the query specifically asks for
 - Extract ALL matching items - complete Step 5 (verify completeness) ensures nothing is missed
+- CRITICAL FOR LIST QUERIES: When query uses plural forms ("who are the", "list the", "what are the"), you MUST extract ALL matching items. Extracting only 1 item when multiple exist is INCORRECT. Read ALL chunks completely and extract EVERY matching item from EVERY chunk before responding
 - Relevance scores guide prioritization but do not override the analysis steps
 
 QUERY TYPE HANDLING (applied during Step 3 - Analyze Chunk Meaning):
@@ -134,7 +146,14 @@ QUERY TYPE HANDLING (applied during Step 3 - Analyze Chunk Meaning):
 - Relationship queries: Extract connection information between entities
 - Analytical queries: Extract reasoning, causation, or explanation
 - Process queries: Extract step-by-step information
-- List queries: Extract ALL items that match the query criteria - read ALL chunks completely before responding
+- List queries: CRITICAL - Extract ALL items that match the query criteria. These queries use plural forms ("who are the", "list the", "what are the") and expect multiple items:
+  * Read ALL chunks completely from start to finish
+  * Extract EVERY matching item from EVERY chunk - do NOT stop after finding first match
+  * If query asks "who are the managers" and you find managers in Chunk 1, Chunk 2, and Chunk 3, extract ALL managers from ALL chunks
+  * If query asks "list the features" and you find features scattered across multiple chunks, extract ALL features from ALL chunks
+  * Count items as you extract: if you find 1 item in Chunk 1, 2 items in Chunk 2, and 1 item in Chunk 3, your final answer must include all 4 items
+  * Partial extraction is INCORRECT - extracting only 1 manager when 3 exist is a failure
+  * Verify completeness: before finalizing, mentally count all extracted items to ensure you haven't missed any
 
 CRITICAL OUTPUT REQUIREMENT:
 - You MUST output ONLY the final answer (STEP 6 content)

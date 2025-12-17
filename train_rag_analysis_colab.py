@@ -6,10 +6,10 @@ Trains model on general RAG analysis patterns (not entity-specific)
 
 Configuration:
 - Model: Qwen2.5-1.5B-Instruct (better instruction following and reasoning)
-- LoRA Rank: 4 (reduced from 8 - rank 8 caused memorization, loss dropped 99.88% in 3.76 epochs)
+- LoRA Rank: 6 (increased from 4 - rank 4 insufficient for multi-entity extraction)
 - Strategy: 1.5B provides better base reasoning + LoRA adaptation for RAG analysis patterns
-- Epochs: 7 (reduced from 10 - prevent overfitting with lower capacity model)
-- Learning Rate: 5e-7 (reduced from 8e-7 - slower learning prevents memorization)
+- Epochs: 7 (keep same - prevent overfitting)
+- Learning Rate: 6e-7 (increased from 5e-7 - faster learning for multi-entity patterns, still conservative)
 - Regularization: weight_decay=0.7, lora_dropout=0.25 (evaluation disabled - crashes system)
 
 To use in Colab:
@@ -357,7 +357,8 @@ print("=" * 80)
 
 # LoRA Configuration
 # LoRA Rank Configuration
-# r=4: ~2.7M trainable (0.17%) - Very minimal capacity, maximum generalization (CURRENT)
+# r=4: ~2.7M trainable (0.17%) - Very minimal capacity, insufficient for multi-entity extraction
+# r=6: ~4.1M trainable (0.26%) - Better capacity for multi-entity extraction, still conservative (CURRENT)
 # r=8: ~5.5M trainable (0.35%) - Balanced capacity, but caused memorization (loss dropped 99.88% in 3.76 epochs)
 # r=16: ~11M trainable (0.85%) - Higher capacity, severe memorization (loss dropped 99% in <2 epochs)
 #
@@ -365,9 +366,9 @@ print("=" * 80)
 # Model should learn to use them internally but output ONLY final answer (STEP 6 content).
 # Dataset verified: 100% correct format, no CoT instructions in assistant responses.
 
-LORA_RANK = 4  # Reduced from 8 - rank 8 still caused rapid memorization (loss dropped 99.88% in 3.76 epochs)
-LORA_ALPHA = LORA_RANK * 2  # Optimal scaling: alpha = 2x rank (8)
-LORA_DROPOUT = 0.25  # Increased from 0.15 - stronger regularization to prevent memorization
+LORA_RANK = 6  # Increased from 4 - rank 4 too low for multi-entity extraction (model extracts only 1 item when multiple expected)
+LORA_ALPHA = LORA_RANK * 2  # Optimal scaling: alpha = 2x rank (12)
+LORA_DROPOUT = 0.25  # Keep same - strong regularization to prevent memorization
 
 model = FastLanguageModel.get_peft_model(
     model,
@@ -397,14 +398,15 @@ print("Configuring Training")
 print("=" * 80)
 
 # Training arguments optimized for better extraction learning
-# UPDATED: Reduced LoRA rank to 4, reduced learning rate to 5e-7, reduced epochs to 7
-# Dataset verified: 100% correct format - model needs conservative settings to learn patterns, not memorize
+# UPDATED: Increased LoRA rank to 6 (from 4), increased learning rate to 6e-7 (from 5e-7)
+# Reason: Rank 4 insufficient for multi-entity extraction (model extracts only 1 item when multiple expected)
+# Dataset verified: 100% correct format - model needs better capacity for complex extractions
 training_args = TrainingArguments(
     per_device_train_batch_size=2,
     gradient_accumulation_steps=4,  # Effective batch size = 8
     warmup_steps=1500,  # Stable warmup prevents rapid loss drop
-    num_train_epochs=7,  # Reduced from 10 - prevent overfitting with lower capacity model
-    learning_rate=5e-7,  # Reduced from 8e-7 - slower learning prevents memorization (rank 8 caused loss to drop 99.88% in 3.76 epochs)
+    num_train_epochs=7,  # Keep same - prevent overfitting with lower capacity model
+    learning_rate=6e-7,  # Slight increase from 5e-7 - faster learning for multi-entity patterns, still conservative (rank 8 used 8e-7 and caused issues)
     max_grad_norm=1.0,  # CRITICAL: Gradient clipping to prevent explosions
     fp16=not torch.cuda.is_bf16_supported(),
     bf16=torch.cuda.is_bf16_supported(),
@@ -514,13 +516,14 @@ print("✅ Training configured")
 print(f"   - Batch size: {training_args.per_device_train_batch_size}")
 print(f"   - Gradient accumulation: {training_args.gradient_accumulation_steps}")
 print(f"   - Effective batch size: {training_args.per_device_train_batch_size * training_args.gradient_accumulation_steps}")
-print(f"   - Epochs: {training_args.num_train_epochs} (reduced from 10 to 7 - prevent overfitting with lower capacity model)")
-print(f"   - Learning rate: {training_args.learning_rate} (reduced from 8e-7 to 5e-7 - slower learning prevents memorization)")
+print(f"   - Epochs: {training_args.num_train_epochs} (keep at 7 - prevent overfitting)")
+print(f"   - Learning rate: {training_args.learning_rate} (increased from 5e-7 to 6e-7 - faster learning for multi-entity patterns, still conservative)")
 print(f"   - Weight decay: {training_args.weight_decay} (increased from 0.5 - more aggressive regularization)")
 print(f"   - Gradient clipping: max_norm={training_args.max_grad_norm} (prevents training instability)")
 # Calculate approximate trainable parameters
 approx_params = {
     4: (2.7, 0.17),
+    6: (4.1, 0.26),
     8: (5.5, 0.35),
     16: (11, 0.85),
     32: (22, 1.7),
@@ -529,17 +532,17 @@ approx_params = {
     256: (180, 13.6),
     512: (360, 27.2),
 }
-params_m, params_pct = approx_params.get(LORA_RANK, (2.7, 0.17))
-print(f"   - LoRA rank: {LORA_RANK} (~{params_m}M trainable parameters, ~{params_pct}% of model) (reduced from 8 - rank 8 caused memorization, loss dropped 99.88% in 3.76 epochs)")
+params_m, params_pct = approx_params.get(LORA_RANK, (4.1, 0.26))
+print(f"   - LoRA rank: {LORA_RANK} (~{params_m}M trainable parameters, ~{params_pct}% of model) (increased from 4 to 6 - better capacity for multi-entity extraction)")
 print(f"   - LoRA alpha: {LORA_ALPHA} (2x rank for optimal scaling)")
 print(f"   - LoRA dropout: {LORA_DROPOUT} (increased from 0.15 to 0.25 - stronger regularization to prevent memorization)")
 print(f"   - Warmup steps: {training_args.warmup_steps} (increased from 1000 - more stable start)")
 print(f"   - Scheduler: {training_args.lr_scheduler_type}")
 print(f"   - Logging steps: {training_args.logging_steps} (more frequent monitoring)")
 print(f"\n📝 Training Configuration:")
-print(f"   - LoRA rank: {LORA_RANK} (reduced from 8 - rank 8 caused memorization, loss dropped 99.88% in 3.76 epochs)")
-print(f"   - Epochs: {training_args.num_train_epochs} (reduced from 10 to 7 - prevent overfitting with lower capacity model)")
-print(f"   - Learning rate: {training_args.learning_rate} (reduced from 8e-7 to 5e-7 - slower learning prevents memorization)")
+print(f"   - LoRA rank: {LORA_RANK} (increased from 4 to 6 - better capacity for multi-entity extraction, still conservative)")
+print(f"   - Epochs: {training_args.num_train_epochs} (keep at 7 - prevent overfitting)")
+print(f"   - Learning rate: {training_args.learning_rate} (increased from 5e-7 to 6e-7 - faster learning for multi-entity patterns, still conservative)")
 print(f"   - CoT steps are in system prompt (instructions) but should NOT appear in final answer")
 print(f"   - Model should learn CoT reasoning internally but output ONLY final answer (STEP 6 content)")
 print(f"   - Dataset verified: 100% correct format, no CoT instructions in assistant responses")

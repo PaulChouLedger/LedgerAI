@@ -105,19 +105,49 @@ def ensure_torch_extensions():
 print("[Chatterbox] 🔍 Checking for torchaudio and torchvision...")
 ensure_torch_extensions()
 
-# Check if perth module is working
-def check_perth_module():
-    """Check if perth module can be imported and PerthImplicitWatermarker is available"""
+# Check if perth module is working and fix if needed
+def check_and_fix_perth_module():
+    """Check if perth module can be imported and PerthImplicitWatermarker is available.
+    If PerthImplicitWatermarker is None, try to use DummyWatermarker as fallback.
+    """
     try:
         import perth
         print(f"[Chatterbox] ✅ perth module imported")
         print(f"[Chatterbox] 📋 perth attributes: {[attr for attr in dir(perth) if not attr.startswith('_')]}")
         
+        # Try to get the actual class, checking if it's None
         if hasattr(perth, 'PerthImplicitWatermarker'):
-            watermarker_class = perth.PerthImplicitWatermarker
+            watermarker_class = getattr(perth, 'PerthImplicitWatermarker')
+            print(f"[Chatterbox] 🔍 PerthImplicitWatermarker value: {watermarker_class}")
+            print(f"[Chatterbox] 🔍 PerthImplicitWatermarker type: {type(watermarker_class)}")
+            
             if watermarker_class is None:
-                print("[Chatterbox] ❌ PerthImplicitWatermarker is None - this will cause initialization to fail")
-                print("[Chatterbox] 💡 This usually means resemble-perth dependencies are missing")
+                print("[Chatterbox] ⚠️  PerthImplicitWatermarker is None - attempting to fix...")
+                
+                # Try importing directly from submodule
+                try:
+                    from perth.perth_net import PerthImplicitWatermarker as DirectWatermarker
+                    if DirectWatermarker is not None:
+                        print("[Chatterbox] ✅ Found PerthImplicitWatermarker in perth.perth_net")
+                        perth.PerthImplicitWatermarker = DirectWatermarker
+                        print("[Chatterbox] 🔧 Patched perth.PerthImplicitWatermarker to use direct import")
+                        return True
+                except (ImportError, AttributeError) as e:
+                    print(f"[Chatterbox] ⚠️  Direct import failed: {e}")
+                
+                # Fallback: Try to use DummyWatermarker
+                if hasattr(perth, 'DummyWatermarker'):
+                    dummy_class = getattr(perth, 'DummyWatermarker')
+                    if dummy_class is not None:
+                        print("[Chatterbox] ✅ DummyWatermarker is available as fallback")
+                        # Monkey-patch PerthImplicitWatermarker to use DummyWatermarker
+                        perth.PerthImplicitWatermarker = dummy_class
+                        print("[Chatterbox] 🔧 Patched PerthImplicitWatermarker to use DummyWatermarker")
+                        return True
+                    else:
+                        print("[Chatterbox] ⚠️  DummyWatermarker is also None")
+                
+                print("[Chatterbox] ❌ Could not fix PerthImplicitWatermarker - initialization may fail")
                 return False
             else:
                 print(f"[Chatterbox] ✅ PerthImplicitWatermarker is available: {watermarker_class}")
@@ -128,13 +158,17 @@ def check_perth_module():
     except ImportError as e:
         print(f"[Chatterbox] ❌ Failed to import perth: {e}")
         print("[Chatterbox] 💡 resemble-perth may not be installed correctly")
+        import traceback
+        traceback.print_exc()
         return False
     except Exception as e:
         print(f"[Chatterbox] ⚠️  Error checking perth module: {e}")
+        import traceback
+        traceback.print_exc()
         return False
 
-print("[Chatterbox] 🔍 Checking perth module...")
-perth_ok = check_perth_module()
+print("[Chatterbox] 🔍 Checking and fixing perth module...")
+perth_ok = check_and_fix_perth_module()
 
 # Initialize Chatterbox TTS (lazy loading)
 _chatterbox_tts = None
