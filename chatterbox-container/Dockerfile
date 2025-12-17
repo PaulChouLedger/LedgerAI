@@ -225,26 +225,37 @@ RUN git clone https://github.com/resemble-ai/chatterbox.git /app/chatterbox && \
     -e . --no-deps && \
     python3 -c "from chatterbox import ChatterboxTTS; print('✅ Chatterbox installed successfully')"
 
-# Pre-download ChatterboxTTS models using huggingface_hub for better progress tracking
-# Model repository: ResembleAI/chatterbox
-# This ensures models are available in the image and avoids first-request download delays
+# Pre-download ChatterboxTTS models using huggingface_hub with hf_transfer
+# Model repository: ResembleAI/chatterbox (~2-3GB total)
+# Note: Large files can take 15-30+ minutes each - progress may appear stuck but it's downloading
+# Set SKIP_MODEL_DOWNLOAD=1 to skip: docker build --build-arg SKIP_MODEL_DOWNLOAD=1
+ARG SKIP_MODEL_DOWNLOAD=0
 RUN pip3 install --index-url https://pypi.org/simple huggingface_hub[hf_transfer] && \
-    python3 << 'EOF'
+    if [ "$SKIP_MODEL_DOWNLOAD" = "1" ]; then \
+        echo "[Chatterbox] ⏭️  Skipping model pre-download (will download at runtime)"; \
+    else \
+        python3 << 'DOWNLOAD_EOF'
 import os
 import sys
 from pathlib import Path
 import time
+import signal
 from huggingface_hub import snapshot_download
 
-# Set HuggingFace cache directory
+# Set HuggingFace cache directory and enable hf_transfer for faster downloads
 cache_dir = Path.home() / '.cache' / 'huggingface'
 os.environ['HF_HOME'] = str(cache_dir.parent)
 os.environ['HF_HUB_DISABLE_PROGRESS_BARS'] = '0'  # Show progress bars
+os.environ['HF_HUB_ENABLE_HF_TRANSFER'] = '1'  # Use hf_transfer if available
+
+# Set longer timeouts for large files
+os.environ['HF_HUB_DOWNLOAD_TIMEOUT'] = '3600'  # 1 hour per file
 
 print(f"[Chatterbox] 📦 Using HuggingFace cache: {cache_dir}")
 print("[Chatterbox] 📥 Pre-downloading ChatterboxTTS models from HuggingFace...")
 print("[Chatterbox] 💡 Model: ResembleAI/chatterbox")
-print("[Chatterbox] ⏳ This may take several minutes (models are ~2-3GB)...")
+print("[Chatterbox] ⏳ Large files - may take 20-40 minutes on slow connections...")
+print("[Chatterbox] 💡 Progress bars will show per-file downloads")
 print("[Chatterbox] " + "="*70)
 
 start_time = time.time()
@@ -256,18 +267,20 @@ if cache_dir.exists():
     print(f"[Chatterbox] 📊 Cache size before: {cache_size_before / (1024**3):.2f} GB")
 
 try:
-    # Download the entire model repository with progress tracking
-    print("[Chatterbox] 🔄 Downloading ResembleAI/chatterbox models...")
+    # Download with verbose logging - this will show progress for each file
+    print("[Chatterbox] 🔄 Starting download (you'll see progress bars for each file)...")
+    print("[Chatterbox] 💡 Large .safetensors/.pt files may take 5-15 minutes each")
+    
     snapshot_download(
         repo_id="ResembleAI/chatterbox",
         cache_dir=str(cache_dir),
-        resume_download=True,
-        local_files_only=False
+        local_files_only=False,
+        max_workers=1  # Single worker to avoid overwhelming connection
     )
     
     elapsed = time.time() - start_time
     print("[Chatterbox] " + "="*70)
-    print(f"[Chatterbox] ✅ Models downloaded successfully (took {elapsed:.1f} seconds)")
+    print(f"[Chatterbox] ✅ Models downloaded successfully (took {elapsed/60:.1f} minutes)")
     
     # Verify models are cached
     if cache_dir.exists():
@@ -280,19 +293,29 @@ try:
     else:
         print(f"[Chatterbox] ⚠️  Cache directory {cache_dir} does not exist after download")
         
+except KeyboardInterrupt:
+    elapsed = time.time() - start_time if 'start_time' in locals() else 0
+    print("[Chatterbox] " + "="*70)
+    print(f"[Chatterbox] ⚠️  Download interrupted by user after {elapsed/60:.1f} minutes")
+    print("[Chatterbox] 💡 Partial download may be cached - will resume on next build")
+    sys.exit(0)
 except Exception as e:
     elapsed = time.time() - start_time if 'start_time' in locals() else 0
     print("[Chatterbox] " + "="*70)
-    print(f"[Chatterbox] ⚠️  Model pre-download failed after {elapsed:.1f} seconds: {e}")
+    print(f"[Chatterbox] ⚠️  Model pre-download failed after {elapsed/60:.1f} minutes: {e}")
     import traceback
     traceback.print_exc()
     print("[Chatterbox] 💡 Models will be downloaded on first request instead")
+    print("[Chatterbox] 💡 Partial downloads are cached and will resume")
     print("[Chatterbox] 💡 Ensure container has internet access on first use")
     sys.exit(0)  # Exit with success to not fail the build
-EOF
+DOWNLOAD_EOF \
+    ; fi
 
-# Verify ChatterboxTTS can load the downloaded models
-RUN python3 << 'EOF'
+# Verify ChatterboxTTS can load the downloaded models (only if we downloaded them)
+ARG SKIP_MODEL_DOWNLOAD=0
+RUN if [ "$SKIP_MODEL_DOWNLOAD" != "1" ]; then \
+    python3 << 'VERIFY_EOF'
 import os
 from pathlib import Path
 
@@ -311,7 +334,10 @@ except Exception as e:
     print(f"[Chatterbox] ⚠️  Model verification failed: {e}")
     print("[Chatterbox] 💡 Models may still download at runtime")
     # Don't fail build - models might work at runtime
-EOF
+VERIFY_EOF \
+    ; else \
+        echo "[Chatterbox] ⏭️  Skipping model verification (models not pre-downloaded)"; \
+    fi
 
 
 # Install Flask for REST API

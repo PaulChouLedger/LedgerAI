@@ -556,7 +556,19 @@ def generate_example(pattern_type: str = "mixed_content") -> Dict[str, Any]:
     """Generate a single training example with realistic content"""
     
     # Select query template
-    template = random.choice(QUERY_TEMPLATES)
+    # ENHANCED: For multi_chunk and role_filtering patterns, prioritize list/entity queries
+    # These patterns are specifically designed to teach complete multi-entity extraction
+    if pattern_type in ["multi_chunk", "role_filtering"]:
+        # 70% chance of list/entity queries for these patterns
+        list_entity_templates = [t for t in QUERY_TEMPLATES if t["type"] in ["list", "entity"]]
+        other_templates = [t for t in QUERY_TEMPLATES if t["type"] not in ["list", "entity"]]
+        if random.random() < 0.70 and list_entity_templates:
+            template = random.choice(list_entity_templates)
+        else:
+            template = random.choice(QUERY_TEMPLATES)
+    else:
+        template = random.choice(QUERY_TEMPLATES)
+    
     query, context = generate_query(template)
     query_type = template["type"]
     
@@ -573,6 +585,8 @@ def generate_example(pattern_type: str = "mixed_content") -> Dict[str, Any]:
         relevant_sentences_templates = []
     else:
         # Generate relevant information (what should be extracted) - as realistic sentences
+        # ENHANCED: For list/entity queries, prefer 3-4 items to force complete extraction
+        # Default to 2-4, but will be adjusted per query type below
         num_relevant_items = random.randint(2, 4)
         relevant_info = []
         relevant_sentences_templates = []
@@ -581,6 +595,11 @@ def generate_example(pattern_type: str = "mixed_content") -> Dict[str, Any]:
             # Generate entity names and sentences about them
             role = context.get("role", "leaders")
             company = context.get("company", generate_random_company())
+            # ENHANCED: For entity queries, ensure we generate 3-4 entities (not just 2)
+            # This forces model to extract multiple entities, not just first match
+            if pattern_type in ["multi_chunk", "role_filtering"]:
+                # For multi-chunk patterns, generate more entities to force complete extraction
+                num_relevant_items = random.randint(3, 4)
             for _ in range(num_relevant_items):
                 name = generate_random_name()
                 relevant_info.append(name)
@@ -599,6 +618,10 @@ def generate_example(pattern_type: str = "mixed_content") -> Dict[str, Any]:
                 "services": ["consulting", "implementation support", "training programs", "maintenance", "custom development"]
             }
             items_list = list_items.get(items_type, ["feature A", "feature B", "feature C"])
+            # ENHANCED: For list queries, ensure we generate 3-4 items (not just 2)
+            # This forces model to extract ALL items, not stop after first match
+            if pattern_type in ["multi_chunk", "mixed_content"]:
+                num_relevant_items = random.randint(3, 4)
             selected_items = random.sample(items_list, min(num_relevant_items, len(items_list)))
             for item in selected_items:
                 relevant_info.append(item)
@@ -672,23 +695,58 @@ def generate_example(pattern_type: str = "mixed_content") -> Dict[str, Any]:
     num_chunks = random.randint(3, 4)
     chunks = []
     
+    # ENHANCED DISTRIBUTION LOGIC FOR MULTI-ENTITY EXTRACTION
     # Distribute relevant info across chunks (multiple instances)
+    # Key improvement: For list/entity queries, explicitly scatter items across multiple chunks
+    # This forces model to read ALL chunks to find ALL items, preventing early stopping
     relevant_per_chunk = {}
     if relevant_info and relevant_sentences_templates:
-        for i, (info, sentence_template) in enumerate(zip(relevant_info, relevant_sentences_templates)):
-            chunk_idx = i % num_chunks
-            if chunk_idx not in relevant_per_chunk:
-                relevant_per_chunk[chunk_idx] = []
-            relevant_per_chunk[chunk_idx].append(sentence_template)
-        
-        # Also add some relevant info to multiple chunks (to teach complete extraction)
-        for info, sentence_template in zip(relevant_info[:2], relevant_sentences_templates[:2]):
-            additional_chunks = random.sample(range(num_chunks), random.randint(1, 2))
-            for chunk_idx in additional_chunks:
+        # For list and entity queries, ensure items are scattered across multiple chunks
+        # This forces model to read ALL chunks to find ALL items
+        if query_type in ["list", "entity"]:
+            # Strategy: Scatter items across chunks, ensuring multiple chunks have items
+            # This teaches model to NOT stop after first match
+            items_per_chunk = {}
+            for chunk_idx in range(num_chunks):
+                items_per_chunk[chunk_idx] = []
+            
+            # Distribute items across chunks (ensure at least 2 chunks have items for multi-item queries)
+            if len(relevant_info) >= 2:
+                # For 2-3 items: put in 2 different chunks
+                # For 4+ items: put in 3+ different chunks
+                num_chunks_with_items = min(len(relevant_info), max(2, num_chunks))
+                chunks_with_items = random.sample(range(num_chunks), num_chunks_with_items)
+                
+                # Distribute items across selected chunks
+                for i, (info, sentence_template) in enumerate(zip(relevant_info, relevant_sentences_templates)):
+                    # Use modulo to distribute, but ensure we use chunks_with_items
+                    chunk_idx = chunks_with_items[i % len(chunks_with_items)]
+                    items_per_chunk[chunk_idx].append((info, sentence_template))
+            else:
+                # Single item: can be in any chunk
+                chunk_idx = random.randint(0, num_chunks - 1)
+                items_per_chunk[chunk_idx].append((relevant_info[0], relevant_sentences_templates[0]))
+            
+            # Convert to relevant_per_chunk format
+            for chunk_idx, items in items_per_chunk.items():
+                if items:
+                    relevant_per_chunk[chunk_idx] = [sentence for _, sentence in items]
+        else:
+            # For other query types, use original distribution logic
+            for i, (info, sentence_template) in enumerate(zip(relevant_info, relevant_sentences_templates)):
+                chunk_idx = i % num_chunks
                 if chunk_idx not in relevant_per_chunk:
                     relevant_per_chunk[chunk_idx] = []
-                if sentence_template not in relevant_per_chunk[chunk_idx]:
-                    relevant_per_chunk[chunk_idx].append(sentence_template)
+                relevant_per_chunk[chunk_idx].append(sentence_template)
+            
+            # Also add some relevant info to multiple chunks (to teach complete extraction)
+            for info, sentence_template in zip(relevant_info[:2], relevant_sentences_templates[:2]):
+                additional_chunks = random.sample(range(num_chunks), random.randint(1, 2))
+                for chunk_idx in additional_chunks:
+                    if chunk_idx not in relevant_per_chunk:
+                        relevant_per_chunk[chunk_idx] = []
+                    if sentence_template not in relevant_per_chunk[chunk_idx]:
+                        relevant_per_chunk[chunk_idx].append(sentence_template)
     
     # Create chunks with mixed relevance scores for realistic training
     # Strategy: Ensure variety - some relevant chunks can be MEDIUM, some irrelevant can be MEDIUM
@@ -783,17 +841,19 @@ def main():
     print("✅ Prevents CoT leakage - model learns to output only final answer")
     print()
     
-    # Pattern distribution (6250 examples - increased from 6000)
+    # Pattern distribution (6250 examples total)
+    # ENHANCED: Increased multi_chunk and role_filtering to emphasize multi-entity extraction
+    # Reduced other patterns to maintain 6250 total
     patterns = {
-        "mixed_content": 900,      # 14.4% - Extract relevant, ignore irrelevant
-        "multi_chunk": 1200,       # 19.2% - Extract from multiple chunks
-        "role_filtering": 900,     # 14.4% - Filter by role/entity
-        "cross_entity": 900,       # 14.4% - Filter by specific entity
-        "synthesis": 600,          # 9.6% - Combine info from chunks
-        "not_found": 600,          # 9.6% - Recognize missing info
-        "comparison": 450,         # 7.2% - Compare entities
-        "relationship": 450,       # 7.2% - Extract relationships
-        "analytical": 250,        # 4.0% - Analytical queries (new)
+        "mixed_content": 700,      # 11.2% - Extract relevant, ignore irrelevant (reduced from 900)
+        "multi_chunk": 1500,       # 24.0% - Extract from multiple chunks (INCREASED from 1200 - more multi-entity examples)
+        "role_filtering": 1200,    # 19.2% - Filter by role/entity (INCREASED from 900 - more entity list queries)
+        "cross_entity": 800,       # 12.8% - Filter by specific entity (reduced from 900)
+        "synthesis": 550,          # 8.8% - Combine info from chunks (reduced from 600)
+        "not_found": 550,          # 8.8% - Recognize missing info (reduced from 600)
+        "comparison": 400,         # 6.4% - Compare entities (reduced from 450)
+        "relationship": 400,        # 6.4% - Extract relationships (reduced from 450)
+        "analytical": 150,         # 2.4% - Analytical queries (reduced from 250)
     }
     
     dataset = []
