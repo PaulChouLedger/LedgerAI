@@ -231,13 +231,20 @@ RUN git clone https://github.com/resemble-ai/chatterbox.git /app/chatterbox && \
 RUN python3 << 'EOF'
 import os
 import sys
+from pathlib import Path
 
 # Set timeout for model download (in case network is slow)
 os.environ['HF_HUB_DOWNLOAD_TIMEOUT'] = '600'  # 10 minutes timeout
 
+# Set HuggingFace cache directory to a known location
+cache_dir = Path.home() / '.cache' / 'huggingface'
+os.environ['HF_HOME'] = str(cache_dir.parent)
+print(f"[Chatterbox] 📦 Using HuggingFace cache: {cache_dir}")
+
 try:
     print("[Chatterbox] 📥 Pre-downloading ChatterboxTTS models from HuggingFace...")
     print("[Chatterbox] ⏳ This may take several minutes (models are ~2-3GB)...")
+    print("[Chatterbox] 💡 Build will continue even if download fails (models can download at runtime)")
     
     from chatterbox.tts import ChatterboxTTS
     import torch
@@ -248,13 +255,39 @@ try:
     print(f"[Chatterbox] 🔄 Downloading models to CPU (will use CUDA at runtime)...")
     model = ChatterboxTTS.from_pretrained(device=device)
     print("[Chatterbox] ✅ Models pre-downloaded successfully")
-    print("[Chatterbox] 💡 Models cached in ~/.cache/huggingface/ and baked into image")
+    
+    # Verify models are cached
+    if cache_dir.exists():
+        cache_size = sum(f.stat().st_size for f in cache_dir.rglob('*') if f.is_file())
+        print(f"[Chatterbox] 📊 Cache size: {cache_size / (1024**3):.2f} GB")
+        print(f"[Chatterbox] 💡 Models cached in {cache_dir} and baked into image")
+    else:
+        print(f"[Chatterbox] ⚠️  Cache directory {cache_dir} does not exist after download")
+        
 except Exception as e:
     print(f"[Chatterbox] ⚠️  Model pre-download failed: {e}")
+    import traceback
+    traceback.print_exc()
     print("[Chatterbox] 💡 Models will be downloaded on first request instead")
     print("[Chatterbox] 💡 Ensure container has internet access on first use")
     # Don't fail the build if download fails - allow runtime download
+    # But make it clear in the logs that models weren't pre-downloaded
     sys.exit(0)  # Exit with success to not fail the build
+EOF
+
+# Verify models were downloaded (informational - don't fail if missing)
+RUN python3 << 'EOF'
+from pathlib import Path
+import os
+
+cache_dir = Path.home() / '.cache' / 'huggingface'
+if cache_dir.exists():
+    cache_size = sum(f.stat().st_size for f in cache_dir.rglob('*') if f.is_file())
+    print(f"[Chatterbox] ✅ Model cache verified: {cache_size / (1024**3):.2f} GB in {cache_dir}")
+    print("[Chatterbox] 💡 Models are baked into image - no download needed at runtime")
+else:
+    print("[Chatterbox] ⚠️  Model cache not found - models will download on first request")
+    print("[Chatterbox] 💡 This is OK if pre-download failed, but will cause delays on first use")
 EOF
 
 # Install Flask for REST API

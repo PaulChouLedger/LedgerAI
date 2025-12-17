@@ -256,20 +256,32 @@ def get_chatterbox_tts():
                 params = list(sig.parameters.keys())
                 print(f"[Chatterbox] 📋 from_pretrained signature: {params}")
                 
-                print("[Chatterbox] ⏳ This may take a while (downloading/loading models)...")
-                print("[Chatterbox] 💡 ChatterboxTTS will download models from HuggingFace on first use")
-                print("[Chatterbox] 💡 Models will be cached in ~/.cache/huggingface/")
-                print("[Chatterbox] 💡 First download can take several minutes depending on network speed")
-                print("[Chatterbox] 💡 If this hangs, check:")
-                print("[Chatterbox]    - Internet connectivity")
-                print("[Chatterbox]    - Disk space (models are ~2-3GB)")
-                print("[Chatterbox]    - HuggingFace access (may need token if gated)")
+                # Check if models are already cached
+                from pathlib import Path
+                cache_dir = Path.home() / '.cache' / 'huggingface'
+                models_cached = cache_dir.exists() and any(cache_dir.rglob('*'))
+                
+                if models_cached:
+                    cache_size = sum(f.stat().st_size for f in cache_dir.rglob('*') if f.is_file())
+                    print(f"[Chatterbox] ✅ Models found in cache: {cache_size / (1024**3):.2f} GB")
+                    print(f"[Chatterbox] 💡 Using cached models from {cache_dir}")
+                    print("[Chatterbox] ⏳ Loading models (should be fast - already downloaded)...")
+                else:
+                    print("[Chatterbox] ⚠️  Models not found in cache - will download from HuggingFace")
+                    print(f"[Chatterbox] 💡 Cache directory: {cache_dir}")
+                    print("[Chatterbox] ⏳ This may take a while (downloading/loading models)...")
+                    print("[Chatterbox] 💡 First download can take several minutes depending on network speed")
+                    print("[Chatterbox] 💡 Models will be cached for future use")
+                    print("[Chatterbox] 💡 If this hangs, check:")
+                    print("[Chatterbox]    - Internet connectivity")
+                    print("[Chatterbox]    - Disk space (models are ~2-3GB)")
+                    print("[Chatterbox]    - HuggingFace access (may need token if gated)")
                 
                 # Set HuggingFace cache directory if specified
-                cache_dir = os.environ.get('HUGGINGFACE_CACHE_DIR', None)
-                if cache_dir:
-                    print(f"[Chatterbox] 📦 Using custom HuggingFace cache: {cache_dir}")
-                    os.environ['HF_HOME'] = cache_dir
+                custom_cache = os.environ.get('HUGGINGFACE_CACHE_DIR', None)
+                if custom_cache:
+                    print(f"[Chatterbox] 📦 Using custom HuggingFace cache: {custom_cache}")
+                    os.environ['HF_HOME'] = custom_cache
                 
                 if 'device' in params:
                     print(f"[Chatterbox] 🔄 Calling ChatterboxTTS.from_pretrained(device={device})...")
@@ -478,16 +490,63 @@ def synthesize():
             return jsonify({'error': f'Synthesis failed: {str(e)}'}), 500
         
         # Convert audio to WAV format
-        if isinstance(audio, np.ndarray):
-            # Normalize audio
-            if audio.dtype != np.float32:
-                audio = audio.astype(np.float32)
-            if np.max(np.abs(audio)) > 1.0:
-                audio = audio / np.max(np.abs(audio))
-            
-            # Save to temporary file
-            temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.wav')
-            sf.write(temp_file.name, audio, 22050)  # Chatterbox uses 22.05kHz
+        # Handle different audio formats (numpy array, torch tensor, etc.)
+        print(f"[Chatterbox] 🔍 Audio type: {type(audio)}")
+        
+        # Convert torch tensor to numpy if needed
+        if hasattr(audio, 'cpu'):  # torch.Tensor
+            print("[Chatterbox] 🔄 Converting torch tensor to numpy array...")
+            audio = audio.cpu().numpy()
+        
+        # Convert to numpy array if not already
+        if not isinstance(audio, np.ndarray):
+            try:
+                audio = np.array(audio)
+                print(f"[Chatterbox] 🔄 Converted to numpy array, shape: {audio.shape}, dtype: {audio.dtype}")
+            except Exception as e:
+                print(f"[Chatterbox] ❌ Could not convert audio to numpy array: {e}")
+                return jsonify({'error': f'Unexpected audio format: {type(audio)}'}), 500
+        
+        # Handle multi-dimensional arrays (flatten if needed)
+        if len(audio.shape) > 1:
+            if audio.shape[0] == 1:
+                audio = audio[0]  # Remove batch dimension
+            elif audio.shape[1] == 1:
+                audio = audio[:, 0]  # Remove channel dimension if mono
+            else:
+                # Take first channel if stereo/multi-channel
+                audio = audio[0] if audio.shape[0] < audio.shape[1] else audio[:, 0]
+            print(f"[Chatterbox] 🔄 Flattened audio shape: {audio.shape}")
+        
+        # Normalize audio
+        if audio.dtype != np.float32:
+            audio = audio.astype(np.float32)
+        
+        # Normalize amplitude to [-1, 1] range
+        max_val = np.max(np.abs(audio))
+        if max_val > 1.0:
+            audio = audio / max_val
+        elif max_val == 0:
+            print("[Chatterbox] ⚠️  Audio is all zeros!")
+        else:
+            print(f"[Chatterbox] ✅ Audio normalized, max amplitude: {max_val}")
+        
+        # Get sample rate from model if available, otherwise use default
+        sample_rate = 22050  # Chatterbox default
+        if hasattr(chatterbox, 'sr'):
+            sample_rate = chatterbox.sr
+            print(f"[Chatterbox] 📊 Using model sample rate: {sample_rate}")
+        elif hasattr(chatterbox, 'sample_rate'):
+            sample_rate = chatterbox.sample_rate
+            print(f"[Chatterbox] 📊 Using model sample rate: {sample_rate}")
+        else:
+            print(f"[Chatterbox] 📊 Using default sample rate: {sample_rate}")
+        
+        # Save to temporary file
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.wav')
+        try:
+            sf.write(temp_file.name, audio, sample_rate)
+            print(f"[Chatterbox] ✅ Audio saved to {temp_file.name} ({len(audio)/sample_rate:.2f}s)")
             
             return send_file(
                 temp_file.name,
@@ -495,8 +554,11 @@ def synthesize():
                 as_attachment=True,
                 download_name='output.wav'
             )
-        else:
-            return jsonify({'error': 'Unexpected audio format'}), 500
+        except Exception as e:
+            print(f"[Chatterbox] ❌ Error saving audio file: {e}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({'error': f'Error saving audio: {str(e)}'}), 500
             
     except Exception as e:
         print(f"[Chatterbox] ❌ Error: {e}")

@@ -415,10 +415,14 @@ def ssml_wrap(text):
     if INSERT_BREAKS:
         text = re.sub(r"([,;])", r"\1<break time='300ms'/>", text)
     if INSERT_SENTENCE_PAUSE:
-        # Add longer pauses for numbered list items (e.g., "1.", "2.", "3.")
-        # Pattern matches: one or more digits followed by period
-        # This gives numbered items a longer pause (900ms) for more natural speech between list items
-        # Replace numbered list patterns first (e.g., "1.", "2.", "10.") with longer pause
+        # Add pauses for numbered list items (e.g., "1.", "2.", "3.")
+        # First, add a pause BEFORE the number to separate it from preceding text
+        # This makes "Albert Soler 2." sound like "Albert Soler [pause] 2."
+        # Handles both cases: "text 2." and "text: 2." (after spacing fix)
+        text = re.sub(r"(\s+)(\d+\.)", r"\1<break time='500ms'/>\2", text)
+        # Also handle numbers that appear right after colons/semicolons (if spacing fix missed them)
+        text = re.sub(r"([:;])(\d+\.)", r"\1<break time='500ms'/>\2", text)
+        # Then add a longer pause AFTER the number for natural list pacing
         text = re.sub(r"(\d+\.)", r"\1<break time='900ms'/>", text)
         # Add standard pauses for other sentence endings
         # Only add breaks to periods that don't already have a break immediately after them
@@ -426,6 +430,8 @@ def ssml_wrap(text):
         # Clean up: if we accidentally added both breaks, keep only the longer one
         text = re.sub(r"<break time='600ms'/><break time='900ms'/>", r"<break time='900ms'/>", text)
         text = re.sub(r"<break time='900ms'/><break time='600ms'/>", r"<break time='900ms'/>", text)
+        # Clean up: remove duplicate breaks before numbers
+        text = re.sub(r"<break time='500ms'/><break time='500ms'/>", r"<break time='500ms'/>", text)
     for word in EMPHASIZE_WORDS:
         text = re.sub(rf"\b({word})\b", r"<emphasis>\1</emphasis>", text, flags=re.IGNORECASE)
     emotion = detect_emotion(text)
