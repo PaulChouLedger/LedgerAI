@@ -3,6 +3,7 @@
 import os
 import sys
 import math
+import time
 from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QPushButton, QVBoxLayout, QWidget, QHBoxLayout, QGraphicsDropShadowEffect, QTextEdit, QScrollBar
 from PyQt5.QtGui import QPixmap, QKeySequence, QColor, QTransform, QPainter, QPen, QFont, QFontMetrics
 from PyQt5.QtCore import Qt, QTimer, QPoint, QPropertyAnimation, QEasingCurve, QMetaObject, Q_ARG, pyqtSlot
@@ -248,6 +249,182 @@ class DebugOverlayWidget(QWidget):
         self.last_file_position = 0
         self.debug_text.clear()
 
+class CircularProgressWidget(QWidget):
+    """Circular progress indicator around the aura eye showing initialization progress"""
+    def __init__(self, parent, window_size):
+        super().__init__(parent)
+        self.setAttribute(Qt.WA_TransparentForMouseEvents, True)
+        self.setAttribute(Qt.WA_TranslucentBackground, True)
+        self.setAttribute(Qt.WA_OpaquePaintEvent, False)
+        self.parent_gui = parent
+        self.window_size = window_size
+        self.progress = 0.0  # 0.0 to 1.0
+        self.start_time = None
+        self.estimated_duration = 30.0  # Estimated 30 seconds for initialization
+        
+        # Set transparent background
+        self.setStyleSheet("background: transparent;")
+        
+        # Position to cover entire screen (will draw circle around aura eye)
+        self.setGeometry(0, 0, window_size, window_size)
+        
+        # Initially hidden - will be shown during initialization
+        self.hide()
+        
+        # Timer to update progress
+        self.update_timer = QTimer()
+        self.update_timer.timeout.connect(self._update_progress)
+        self.update_timer.start(100)  # Update every 100ms for smooth animation
+        
+        print(f"[CircularProgress] 🔧 Initializing circular progress widget")
+    
+    def start(self):
+        """Start the progress indicator"""
+        self.start_time = time.time()
+        self.progress = 0.0
+        self.show()
+        self.update_timer.start()
+        self.raise_()  # Ensure it's above aura eye but below border
+        print(f"[CircularProgress] ▶️ Started progress indicator")
+    
+    def _update_progress(self):
+        """Update progress based on time elapsed and milestones"""
+        global _setup_complete
+        
+        if _setup_complete:
+            # Complete the progress and hide
+            self.progress = 1.0
+            self.update()
+            QTimer.singleShot(500, self.hide)  # Hide after 500ms
+            self.update_timer.stop()
+            return
+        
+        if self.start_time is None:
+            return
+        
+        elapsed = time.time() - self.start_time
+        
+        # Base progress on time (0-80% of estimated duration)
+        time_progress = min(0.8, elapsed / self.estimated_duration)
+        
+        # Try to get progress from debug log milestones
+        milestone_progress = self._get_milestone_progress()
+        
+        # Use the higher of the two (time-based or milestone-based)
+        self.progress = max(time_progress, milestone_progress)
+        
+        # Ensure progress doesn't exceed 0.95 until setup is complete
+        self.progress = min(0.95, self.progress)
+        
+        self.update()
+    
+    def _get_milestone_progress(self):
+        """Estimate progress based on initialization milestones in debug log"""
+        try:
+            debug_log_path = os.path.expanduser("~/LedgerAI/data/aura_init_debug.log")
+            if not os.path.exists(debug_log_path):
+                return 0.0
+            
+            with open(debug_log_path, 'r', encoding='utf-8', errors='ignore') as f:
+                content = f.read()
+            
+            # Key milestones and their progress values
+            milestones = [
+                ("Loading config", 0.1),
+                ("Starting services", 0.2),
+                ("Container", 0.3),
+                ("Model loaded", 0.5),
+                ("LLM warm-up", 0.6),
+                ("RAG", 0.7),
+                ("Listener", 0.8),
+                ("Setup complete", 0.95),
+            ]
+            
+            # Find the highest milestone reached
+            max_progress = 0.0
+            for milestone_text, progress_value in milestones:
+                if milestone_text.lower() in content.lower():
+                    max_progress = max(max_progress, progress_value)
+            
+            return max_progress
+        except Exception:
+            return 0.0
+    
+    def set_progress(self, value):
+        """Set progress manually (0.0 to 1.0)"""
+        self.progress = max(0.0, min(1.0, value))
+        self.update()
+    
+    def paintEvent(self, event):
+        """Draw circular progress ring around the aura eye"""
+        if not self.isVisible() or self.progress <= 0:
+            return
+        
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing, True)
+        
+        # Center of screen (same as aura eye)
+        center_x, center_y = 540, 540
+        
+        # Progress ring parameters
+        # Inner radius: just outside aura eye (~400px radius)
+        # Outer radius: closer to buttons (~450px radius)
+        inner_radius = 400
+        outer_radius = 450
+        ring_thickness = outer_radius - inner_radius
+        
+        # Draw background ring (unfilled portion)
+        bg_pen = QPen(QColor(255, 255, 255, 30), ring_thickness, Qt.SolidLine, Qt.RoundCap)
+        painter.setPen(bg_pen)
+        painter.setBrush(Qt.NoBrush)
+        painter.drawArc(
+            center_x - outer_radius,
+            center_y - outer_radius,
+            outer_radius * 2,
+            outer_radius * 2,
+            0,
+            360 * 16  # Full circle (Qt uses 1/16th degree units)
+        )
+        
+        # Draw progress ring (filled portion)
+        if self.progress > 0:
+            # Create gradient for progress ring
+            progress_color_start = QColor(0, 122, 255, 200)  # iOS Blue
+            progress_color_end = QColor(52, 199, 89, 200)    # iOS Green
+            
+            # Calculate angle for progress (start at top, go clockwise)
+            progress_angle = int(self.progress * 360 * 16)  # Convert to 1/16th degree units
+            
+            # Draw progress arc with gradient effect
+            # Use multiple segments for gradient effect
+            segments = max(1, int(self.progress * 20))  # 20 segments for smooth gradient
+            
+            for i in range(segments):
+                segment_start = i * progress_angle // segments
+                segment_span = progress_angle // segments
+                
+                # Interpolate color
+                t = i / segments if segments > 1 else 1.0
+                r = int(progress_color_start.red() * (1 - t) + progress_color_end.red() * t)
+                g = int(progress_color_start.green() * (1 - t) + progress_color_end.green() * t)
+                b = int(progress_color_start.blue() * (1 - t) + progress_color_end.blue() * t)
+                
+                progress_pen = QPen(QColor(r, g, b, 220), ring_thickness, Qt.SolidLine, Qt.RoundCap)
+                painter.setPen(progress_pen)
+                
+                # Draw arc segment (Qt: 0° = 3 o'clock, we want 0° = 12 o'clock, so start at -90°)
+                start_angle = -90 * 16 + segment_start
+                painter.drawArc(
+                    center_x - outer_radius,
+                    center_y - outer_radius,
+                    outer_radius * 2,
+                    outer_radius * 2,
+                    start_angle,
+                    segment_span
+                )
+        
+        painter.end()
+
 class TranscriptionOverlayWidget(QWidget):
     """Transcription text overlay that displays real-time transcription"""
     def __init__(self, parent, window_size):
@@ -482,6 +659,10 @@ class AuraGUI(QMainWindow):
         self.transcription_overlay = TranscriptionOverlayWidget(self, window_size)
         print(f"[TranscriptionOverlay] Created transcription overlay widget")
         
+        # Create circular progress indicator for initialization
+        self.circular_progress = CircularProgressWidget(self, window_size)
+        print(f"[CircularProgress] Created circular progress widget")
+        
         # Ensure proper z-order: border overlay always on top
         if hasattr(self, 'border_overlay'):
             self.border_overlay.raise_()  # Border always on top
@@ -595,30 +776,31 @@ class AuraGUI(QMainWindow):
             btn.setToolTip(tooltip)
             btn.move(int(x), int(y))
             
-            # iPhone-style styling with enhanced depth gradients - 3D effect
+            # iPhone-style styling with iOS 3D effect - glossy, raised appearance
             # Convert color to RGB for depth calculations
             base_color = QColor(color)
-            # Create lighter highlight (top-left light source)
-            highlight_r = min(255, base_color.red() + 60)
-            highlight_g = min(255, base_color.green() + 60)
-            highlight_b = min(255, base_color.blue() + 60)
+            # Create bright highlight for top-left (iOS style - strong white highlight)
+            highlight_r = min(255, base_color.red() + 80)
+            highlight_g = min(255, base_color.green() + 80)
+            highlight_b = min(255, base_color.blue() + 80)
             highlight_color = f"rgb({highlight_r}, {highlight_g}, {highlight_b})"
-            # Create darker shadow (bottom-right shadow)
-            shadow_r = max(0, base_color.red() - 40)
-            shadow_g = max(0, base_color.green() - 40)
-            shadow_b = max(0, base_color.blue() - 40)
-            shadow_color = f"rgb({shadow_r}, {shadow_g}, {shadow_b})"
+            # Create subtle darker area for bottom-right depth (not a shadow, just darker tone)
+            depth_r = max(0, base_color.red() - 25)
+            depth_g = max(0, base_color.green() - 25)
+            depth_b = max(0, base_color.blue() - 25)
+            depth_color = f"rgb({depth_r}, {depth_g}, {depth_b})"
             
             btn.setStyleSheet(f"""
                 QPushButton {{
-                    /* Enhanced 3D depth gradient - light from top-left, shadow at bottom-right */
-                    background: qradialgradient(cx:0.35, cy:0.35, radius:1.2,
-                        fx:0.3, fy:0.3,
-                        stop:0 rgba(255, 255, 255, 0.4),
-                        stop:0.2 {highlight_color},
-                        stop:0.5 {color},
-                        stop:0.8 {color},
-                        stop:1 {shadow_color});
+                    /* iOS-style 3D glossy effect - light from top-left, smooth gradient */
+                    background: qradialgradient(cx:0.3, cy:0.3, radius:1.0,
+                        fx:0.25, fy:0.25,
+                        stop:0 rgba(255, 255, 255, 0.5),
+                        stop:0.15 rgba(255, 255, 255, 0.3),
+                        stop:0.3 {highlight_color},
+                        stop:0.6 {color},
+                        stop:0.85 {color},
+                        stop:1 {depth_color});
                     color: #FFFFFF;
                     font-size: 56px;
                     font-weight: bold;
@@ -627,24 +809,25 @@ class AuraGUI(QMainWindow):
                     padding: 0px;
                 }}
                 QPushButton:hover {{
-                    /* Brighter on hover with enhanced depth */
-                    background: qradialgradient(cx:0.35, cy:0.35, radius:1.2,
-                        fx:0.3, fy:0.3,
-                        stop:0 rgba(255, 255, 255, 0.5),
-                        stop:0.2 {highlight_color},
-                        stop:0.5 {hover_color},
-                        stop:0.8 {hover_color},
-                        stop:1 {shadow_color});
+                    /* Brighter on hover - enhanced highlight */
+                    background: qradialgradient(cx:0.3, cy:0.3, radius:1.0,
+                        fx:0.25, fy:0.25,
+                        stop:0 rgba(255, 255, 255, 0.6),
+                        stop:0.15 rgba(255, 255, 255, 0.4),
+                        stop:0.3 {highlight_color},
+                        stop:0.6 {hover_color},
+                        stop:0.85 {hover_color},
+                        stop:1 {depth_color});
                     border: none;
                 }}
                 QPushButton:pressed {{
-                    /* Pressed state - inverted depth (pushed in effect) */
-                    background: qradialgradient(cx:0.65, cy:0.65, radius:1.2,
-                        fx:0.7, fy:0.7,
-                        stop:0 {shadow_color},
-                        stop:0.3 {pressed_color},
+                    /* Pressed state - reduced highlight, darker overall */
+                    background: qradialgradient(cx:0.3, cy:0.3, radius:1.0,
+                        fx:0.25, fy:0.25,
+                        stop:0 rgba(255, 255, 255, 0.2),
+                        stop:0.2 {pressed_color},
                         stop:0.7 {pressed_color},
-                        stop:1 rgba(0, 0, 0, 0.3));
+                        stop:1 {depth_color});
                     border: none;
                 }}
             """)
@@ -921,14 +1104,21 @@ class AuraGUI(QMainWindow):
 
     def showEvent(self, event):
         super().showEvent(event)
-        global _gui_ready
+        global _gui_ready, _setup_complete
         _gui_ready = True
         print("[AuraGUI] 🎯 GUI has fully rendered")
         
-        # Ensure border overlay is on top
+        # Ensure proper z-order: border overlay always on top, then progress, then other elements
+        if hasattr(self, 'circular_progress') and not _setup_complete:
+            # Start progress indicator if initialization is in progress
+            if not self.circular_progress.isVisible():
+                self.circular_progress.start()
         if hasattr(self, 'border_overlay'):
-            self.border_overlay.raise_()
+            self.border_overlay.raise_()  # Border always on top
             self.border_overlay.show()
+        if hasattr(self, 'circular_progress'):
+            # Progress should be above aura eye but below border
+            self.circular_progress.raise_()
 
     def animate_pulse(self):
         global _listening_ready, _transcribing, _tts_playing, _tts_frequency, _setup_complete, _welcome_played
@@ -1097,6 +1287,11 @@ class AuraGUI(QMainWindow):
         elif not _setup_complete:
             self._animate_aura_eye_breathing()  # Breathing during setup
             self.show_red_border = False
+            # Show circular progress indicator during initialization
+            if hasattr(self, 'circular_progress'):
+                if not self.circular_progress.isVisible():
+                    self.circular_progress.start()  # Start progress indicator
+                self.circular_progress.raise_()  # Ensure it's visible (but below border)
             # Show debug overlay during initialization (if enabled)
             global _debug_overlay_enabled
             if hasattr(self, 'debug_overlay') and _debug_overlay_enabled:
@@ -1108,10 +1303,13 @@ class AuraGUI(QMainWindow):
                 if self.debug_overlay.isVisible():
                     self.debug_overlay.hide()
         else:
-            # Hide debug overlay once initialization is complete
+            # Hide debug overlay and progress indicator once initialization is complete
             if hasattr(self, 'debug_overlay'):
                 if self.debug_overlay.isVisible():
                     self.debug_overlay.hide()
+            if hasattr(self, 'circular_progress'):
+                if self.circular_progress.isVisible():
+                    self.circular_progress.hide()
     
     def _update_border_style(self, static=True, pulsating=False, width=5, opacity=0.7):
         """Update the border style with organic opacity variation"""
@@ -1741,8 +1939,13 @@ def clear_transcription_text():
 
 def set_setup_complete():
     """Mark initial setup as complete"""
-    global _setup_complete
+    global _setup_complete, _window
     _setup_complete = True
+    
+    # Complete and hide circular progress indicator
+    if _window and hasattr(_window, 'circular_progress'):
+        _window.circular_progress.set_progress(1.0)  # Complete the progress
+        QTimer.singleShot(500, lambda: _window.circular_progress.hide() if hasattr(_window, 'circular_progress') else None)
     
     # Close debug log file when initialization completes
     try:
