@@ -271,13 +271,13 @@ class TranscriptionOverlayWidget(QWidget):
         self.transcription_text.setReadOnly(True)
         self.transcription_text.setFrameShape(QTextEdit.NoFrame)
         
-        # Styling for transcription display - fully transparent background with subtle border
-        # White text with semi-transparent border for visibility without blocking content
+        # Styling for transcription display - fully transparent background with clean border
+        # No border dots - using solid border with proper rendering
         self.transcription_text.setStyleSheet("""
             QTextEdit {
                 background-color: rgba(0, 0, 0, 0.0);
                 color: #ffffff;
-                border: 2px solid rgba(255, 255, 255, 0.25);
+                border: none;
                 border-radius: 15px;
                 padding: 12px 16px;
                 font-family: 'Arial', sans-serif;
@@ -285,39 +285,58 @@ class TranscriptionOverlayWidget(QWidget):
                 font-weight: 500;
             }
         """)
+        
+        # Add a custom paint method to draw a clean border without dots
+        # We'll override paintEvent to draw a smooth border
         print(f"[TranscriptionOverlay] 🎨 Styling applied: transparent background, subtle border")
         
-        # Strategic positioning to avoid aura eye and buttons
+        # Strategic positioning to avoid aura eye, buttons, and stay within circular perimeter
         # Layout analysis:
-        # - Screen: 1080x1080, center at (540, 540)
+        # - Screen: 1080x1080 circular, center at (540, 540), radius 535px
         # - Aura eye: centered, roughly 300-400px radius
         # - Buttons: at radius 430px from center, size 140x140, at angles 0°, 60°, 120°, 180°, 240°, 300°
         # 
-        # Calculate button positions to find safe zones:
-        # Button at angle θ: x = 540 + 430*cos(θ), y = 540 + 430*sin(θ)
-        # Button extends ±70px in each direction
+        # Calculate exact button positions:
+        # 0° (top): x=540, y=110, extends y:40-180
+        # 60° (top-right): x≈912, y≈325, extends x:842-982, y:255-395
+        # 120° (bottom-right/analytics): x≈325, y≈912, extends x:255-395, y:842-982
+        # 180° (bottom): x=540, y=970, extends y:900-1040
+        # 240° (bottom-left): x≈325, y≈168, extends x:255-395, y:98-238
+        # 300° (top-left): x≈168, y≈325, extends x:98-238, y:255-395
         #
-        # Safe zones (areas with no buttons):
-        # - Bottom-left: x < 200, y > 850 (clear of all buttons)
-        # - Bottom-right: x > 880, y > 850 (clear of all buttons)
-        # - Top area: y < 150 (but might be too close to top button)
+        # Safe zones within circular perimeter:
+        # - Top area: y < 200, x centered (avoids top button, clear of aura)
+        # - Left edge: x < 150, y centered (avoids top-left and bottom-left buttons)
+        # - Right edge: x > 930, y centered (avoids top-right and bottom-right buttons)
         
-        overlay_height = 160  # Taller for more text
-        overlay_width = 400   # Width for readable text
+        overlay_height = 140  # Slightly shorter to fit better
+        overlay_width = 350   # Narrower to fit in safe zones
         
-        # Calculate safe bottom-left position
-        # Bottom button (180°) is at: x=540, y=540+430=970, extends to y=1040
-        # Bottom-left button (240°) is at: x≈325, y≈168 (actually top-left area!)
-        # So bottom-left corner (x<200, y>850) is safe
+        # Position in top area (above aura eye, avoids all buttons, within perimeter)
+        # Top area is safest: y < 200, centered horizontally
+        overlay_x = (window_size - overlay_width) // 2  # Centered horizontally
+        overlay_y = 50  # Top margin, well above aura eye and buttons
         
-        # Use bottom-left corner (most readable, doesn't interfere)
-        overlay_x = 40   # Left margin, well clear of any buttons
-        overlay_y = window_size - overlay_height - 40  # Bottom margin, above bottom button area
+        # Verify position is within circular perimeter
+        # Distance from center (540, 540) to overlay corners:
+        # Top-left corner: (overlay_x, overlay_y)
+        # Top-right corner: (overlay_x + overlay_width, overlay_y)
+        # Bottom-left corner: (overlay_x, overlay_y + overlay_height)
+        # Bottom-right corner: (overlay_x + overlay_width, overlay_y + overlay_height)
+        # All corners must be within radius 535 from center
+        center_x, center_y = 540, 540
+        perimeter_radius = 535
         
-        # Alternative positions (uncomment to use):
-        # Bottom-right corner:
-        # overlay_x = window_size - overlay_width - 40
-        # overlay_y = window_size - overlay_height - 40
+        # Check if overlay fits (using farthest corner)
+        farthest_x = max(abs(overlay_x - center_x), abs(overlay_x + overlay_width - center_x))
+        farthest_y = max(abs(overlay_y - center_y), abs(overlay_y + overlay_height - center_y))
+        farthest_dist = math.sqrt(farthest_x**2 + farthest_y**2)
+        
+        if farthest_dist > perimeter_radius - 20:  # 20px safety margin
+            # Adjust if too close to edge - move slightly down and narrower
+            overlay_width = 320
+            overlay_x = (window_size - overlay_width) // 2
+            overlay_y = 60
         
         self.setGeometry(overlay_x, overlay_y, overlay_width, overlay_height)
         self.transcription_text.setGeometry(0, 0, overlay_width, overlay_height)
@@ -367,6 +386,21 @@ class TranscriptionOverlayWidget(QWidget):
         print(f"[TranscriptionOverlay] 🧹 Clearing transcription text")
         self.current_text = ""
         self.transcription_text.clear()
+    
+    def paintEvent(self, event):
+        """Custom paint event to draw a clean border without dots"""
+        super().paintEvent(event)
+        
+        # Draw a smooth border around the text area
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing, True)
+        painter.setPen(QPen(QColor(255, 255, 255, 64), 2, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
+        painter.setBrush(Qt.NoBrush)
+        
+        # Draw border around text widget area
+        text_rect = self.transcription_text.geometry()
+        painter.drawRoundedRect(text_rect, 15, 15)
+        painter.end()
 
 class AuraGUI(QMainWindow):
     def __init__(self):
