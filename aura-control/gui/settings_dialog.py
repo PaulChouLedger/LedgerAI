@@ -1372,6 +1372,29 @@ class AIModelSettingsDialog(BaseAuraDialog):
         memory_row.addWidget(self.memory_toggle, 1)
         layout.addLayout(memory_row)
         
+        # Whisper Model selector
+        whisper_row = QHBoxLayout(); whisper_row.setSpacing(12)
+        whisper_label = QLabel("Whisper Model:")
+        whisper_label.setStyleSheet("color: #ffffff; font-size: 14px;")
+        self.whisper_combo = QComboBox()
+        self.whisper_combo.setStyleSheet("""
+            QComboBox { background-color: rgba(44,44,46,0.8); color: #ffffff; padding: 8px; border: none; border-radius: 10px; min-height: 36px; }
+            QComboBox QAbstractItemView { background-color: #2d2d2d; color: #ffffff; selection-background-color: #4D94D9; }
+        """)
+        # Add available Whisper models
+        self.whisper_combo.addItems([
+            "distil-whisper/distil-large-v3.5-ct2",
+            "distil-small.en",
+            "small.en",
+            "medium.en",
+            "base.en",
+            "large-v3-turbo",
+            "distil-large-v3"
+        ])
+        whisper_row.addWidget(whisper_label)
+        whisper_row.addWidget(self.whisper_combo, 1)
+        layout.addLayout(whisper_row)
+        
         # Add stretch at bottom to center content and ensure nothing gets cut off
         layout.addStretch(2)
         self.setLayout(layout)
@@ -1491,6 +1514,46 @@ class AIModelSettingsDialog(BaseAuraDialog):
                 print(f"[ModelSettings] Error saving memory_enabled: {e}")
         
         self.memory_toggle.toggled.connect(on_memory_toggled)
+        
+        # Initialize Whisper model selector from state
+        try:
+            from core.state import get_whisper_model
+            current_model = get_whisper_model()
+            idx = self.whisper_combo.findText(current_model)
+            if idx >= 0:
+                self.whisper_combo.setCurrentIndex(idx)
+            else:
+                # If model not in list, add it and select it
+                self.whisper_combo.insertItem(0, current_model)
+                self.whisper_combo.setCurrentIndex(0)
+        except Exception as e:
+            print(f"[ModelSettings] Error loading Whisper model: {e}")
+        
+        # Connect Whisper model selector
+        def on_whisper_model_changed():
+            try:
+                selected_model = self.whisper_combo.currentText()
+                from core.state import set_whisper_model
+                set_whisper_model(selected_model)
+                print(f"[ModelSettings] Whisper model changed to: {selected_model}")
+                
+                # Inform user that container restart is needed
+                QMessageBox.information(
+                    self,
+                    "Whisper Model Changed",
+                    f"Whisper model set to: {selected_model}\n\n"
+                    "The Whisper container will need to be restarted for the change to take effect.\n\n"
+                    "You can restart it manually or it will restart automatically on next Aura startup."
+                )
+            except Exception as e:
+                print(f"[ModelSettings] Error saving Whisper model: {e}")
+                QMessageBox.warning(
+                    self,
+                    "Error",
+                    f"Failed to save Whisper model setting: {e}"
+                )
+        
+        self.whisper_combo.currentIndexChanged.connect(on_whisper_model_changed)
         
         # Connect mode buttons - ensure mutual exclusivity and immediate UI update
         def on_generic_clicked():

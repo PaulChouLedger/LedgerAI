@@ -52,7 +52,7 @@ _wake_word_model_path = None  # Optional path to custom model file
 _wake_word_engine = "openwakeword"  # Wake word engine: "openwakeword"
 _tts_engine = "elevenlabs"  # TTS engine: "chatterbox" or "elevenlabs"
 _chatterbox_voice_cloning_enabled = True  # Enable voice cloning for ChatterboxTTS (adds ~50-100ms latency)
-_whisper_model = "distil-small.en"  # Whisper model name (default: fastest, lower accuracy)
+_whisper_model = "distil-whisper/distil-large-v3.5-ct2"  # Whisper model name (default: best accuracy/speed balance)
 
 def _save_settings_to_disk():
     """Save current settings to disk"""
@@ -201,7 +201,7 @@ def set_whisper_model(model: str):
              "large-v3-turbo", "distil-large-v3", "distil-whisper/distil-large-v3.5-ct2"
     """
     global _whisper_model
-    _whisper_model = model or "distil-small.en"
+    _whisper_model = model or "distil-whisper/distil-large-v3.5-ct2"
     _save_settings_to_disk()
 
 
