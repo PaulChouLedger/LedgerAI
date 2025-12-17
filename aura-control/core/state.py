@@ -91,7 +91,17 @@ def _load_settings_from_disk():
             _wake_word_engine = data.get("wake_word_engine", _wake_word_engine)
             _tts_engine = data.get("tts_engine", _tts_engine)
             _chatterbox_voice_cloning_enabled = data.get("chatterbox_voice_cloning_enabled", _chatterbox_voice_cloning_enabled)
-            _whisper_model = data.get("whisper_model", _whisper_model)
+            saved_whisper_model = data.get("whisper_model", _whisper_model)
+            # Migration: Reset to default if old default was saved
+            if saved_whisper_model == "distil-whisper/distil-large-v3.5-ct2":
+                print(f"[State] 🔄 Migrating whisper_model from old default to new default: {saved_whisper_model} -> {_whisper_model}")
+                # Keep using code default (already set to "distil-small.en")
+                # Save updated value back to disk
+                data["whisper_model"] = _whisper_model
+                with open(_settings_file, "w") as f:
+                    json.dump(data, f, indent=2)
+            else:
+                _whisper_model = saved_whisper_model
     except FileNotFoundError:
         # File doesn't exist - use defaults and create it
         _save_settings_to_disk()
