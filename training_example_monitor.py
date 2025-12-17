@@ -104,17 +104,38 @@ class ExampleMonitorCallback(TrainerCallback):
                 # Show model prediction if enabled (skip during very early training for better performance)
                 if self.show_predictions and self.model is not None and not early_training:
                     try:
-                        prediction = self._get_prediction(text)
-                        if prediction:
-                            print(f"   🤖 Model Output: {prediction[:150]}..." if len(prediction) > 150 else f"   🤖 Model Output: {prediction}")
+                        # Get raw prediction first (before filtering)
+                        raw_prediction = self._generate_prediction(text, apply_filter=False)
+                        
+                        if raw_prediction:
+                            # Check if CoT leakage was present before filtering
+                            has_leakage = self._has_cot_leakage(raw_prediction)
                             
-                            # Check if prediction matches expected (simple check)
-                            if expected_answer:
-                                match_score = self._calculate_match_score(expected_answer, prediction)
-                                if match_score > 0.5:
-                                    print(f"   ✅ Match Score: {match_score:.2%} (Good)")
+                            # Apply filter to get cleaned prediction
+                            if has_leakage:
+                                try:
+                                    from cot_leakage_filter import clean_cot_leakage
+                                    prediction = clean_cot_leakage(raw_prediction, aggressive=True)
+                                except ImportError:
+                                    prediction = raw_prediction
+                            else:
+                                prediction = raw_prediction
+                            
+                            if prediction:
+                                # Display prediction with indication if leakage was filtered
+                                if has_leakage:
+                                    print(f"   🤖 Model Output (cleaned): {prediction[:150]}..." if len(prediction) > 150 else f"   🤖 Model Output (cleaned): {prediction}")
+                                    print(f"   🧹 CoT leakage filtered from raw output")
                                 else:
-                                    print(f"   ⚠️  Match Score: {match_score:.2%} (Needs improvement)")
+                                    print(f"   🤖 Model Output: {prediction[:150]}..." if len(prediction) > 150 else f"   🤖 Model Output: {prediction}")
+                                
+                                # Check if prediction matches expected (simple check)
+                                if expected_answer:
+                                    match_score = self._calculate_match_score(expected_answer, prediction)
+                                    if match_score > 0.5:
+                                        print(f"   ✅ Match Score: {match_score:.2%} (Good)")
+                                    else:
+                                        print(f"   ⚠️  Match Score: {match_score:.2%} (Needs improvement)")
                     except Exception as e:
                         print(f"   ⚠️  Could not generate prediction: {e}")
                 elif self.show_predictions and early_training:
@@ -202,11 +223,15 @@ class ExampleMonitorCallback(TrainerCallback):
         return query, expected_answer
     
     def _get_prediction(self, text: str, max_new_tokens: int = 300) -> Optional[str]:
-        """Get model prediction for the input text.
+        """Get model prediction for the input text (with CoT leakage filtering).
         
         Note: The text should already be in chat template format (as used during training).
         The model will generate from where the assistant response should start.
         """
+        return self._generate_prediction(text, max_new_tokens, apply_filter=True)
+    
+    def _generate_prediction(self, text: str, max_new_tokens: int = 300, apply_filter: bool = True) -> Optional[str]:
+        """Generate prediction from model, optionally applying CoT leakage filter."""
         try:
             # The text is already in chat template format from training
             # We need to find where the assistant response should start
@@ -252,9 +277,37 @@ class ExampleMonitorCallback(TrainerCallback):
                 step7_start = prediction.find("STEP 7: SYNTHESIZE RESPONSE")
                 prediction = prediction[step7_start + len("STEP 7: SYNTHESIZE RESPONSE"):].strip()
             
+            # Apply CoT leakage filter to clean the prediction (if requested)
+            # This shows what the model would output after post-processing
+            if apply_filter:
+                try:
+                    from cot_leakage_filter import clean_cot_leakage
+                    prediction = clean_cot_leakage(prediction, aggressive=True)
+                except ImportError:
+                    # If filter not available, just continue with raw prediction
+                    pass
+            
             return prediction.strip()
         except Exception as e:
             return None
+    
+    def _has_cot_leakage(self, text: str) -> bool:
+        """Check if text contains CoT leakage patterns."""
+        if not text:
+            return False
+        
+        cot_patterns = [
+            r'STEP\s*[1-6]',
+            r'Step\s*[1-6]',
+            r'Extract information from Chunk',
+            r'Chunk\s*\d+[:\-]?\s*$',  # Standalone chunk references
+        ]
+        
+        for pattern in cot_patterns:
+            if re.search(pattern, text, re.IGNORECASE):
+                return True
+        
+        return False
     
     def _calculate_match_score(self, expected: str, predicted: str) -> float:
         """Calculate a match score between expected and predicted.
