@@ -561,6 +561,12 @@ def warmup_whisper():
             timeout=10
         )
         print("[Whisper] ✅ Model warmed up - first transcription will be fast!")
+        # Also write to debug log for progress bar detection
+        try:
+            from main import _debug_log
+            _debug_log("[Whisper] ✅ Model warmed up - first transcription will be fast!")
+        except:
+            pass  # Debug log not available, continue anyway
     except Exception as e:
         print(f"[Whisper] ⚠️ Warmup failed: {e}")
 
