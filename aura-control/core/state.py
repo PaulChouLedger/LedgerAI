@@ -52,7 +52,36 @@ _wake_word_model_path = None  # Optional path to custom model file
 _wake_word_engine = "openwakeword"  # Wake word engine: "openwakeword"
 _tts_engine = "elevenlabs"  # TTS engine: "chatterbox" or "elevenlabs"
 _chatterbox_voice_cloning_enabled = True  # Enable voice cloning for ChatterboxTTS (adds ~50-100ms latency)
-_whisper_model = "distil-small.en"  # Whisper model name (default: fastest, lower accuracy)
+
+def _get_whisper_model_default_from_container_rest():
+    """Read the default Whisper model from container_rest.py (single source of truth)"""
+    try:
+        # Get workspace root (2 levels up from core/)
+        workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+        container_rest_path = os.path.join(workspace_root, 'whisper-container', 'container_rest.py')
+        
+        if not os.path.exists(container_rest_path):
+            # Fallback if file doesn't exist
+            return "distil-small.en"
+        
+        # Read container_rest.py and extract MODEL_NAME default
+        import re
+        with open(container_rest_path, 'r') as f:
+            content = f.read()
+            # Match: MODEL_NAME = os.environ.get("WHISPER_MODEL", "default-value")
+            match = re.search(r'MODEL_NAME\s*=\s*os\.environ\.get\([^,]+,\s*"([^"]+)"\)', content)
+            if match:
+                return match.group(1)
+        
+        # Fallback if pattern not found
+        return "distil-small.en"
+    except Exception as e:
+        print(f"[State] ⚠️ Could not read default from container_rest.py: {e}")
+        return "distil-small.en"  # Safe fallback
+
+# Whisper model default comes from container_rest.py (single source of truth)
+_whisper_model_default = _get_whisper_model_default_from_container_rest()
+_whisper_model = _whisper_model_default  # Will be overridden by saved settings if exists
 
 def _save_settings_to_disk():
     """Save current settings to disk"""
@@ -91,17 +120,7 @@ def _load_settings_from_disk():
             _wake_word_engine = data.get("wake_word_engine", _wake_word_engine)
             _tts_engine = data.get("tts_engine", _tts_engine)
             _chatterbox_voice_cloning_enabled = data.get("chatterbox_voice_cloning_enabled", _chatterbox_voice_cloning_enabled)
-            saved_whisper_model = data.get("whisper_model", _whisper_model)
-            # Migration: Reset to default if old default was saved
-            if saved_whisper_model == "distil-whisper/distil-large-v3.5-ct2":
-                print(f"[State] 🔄 Migrating whisper_model from old default to new default: {saved_whisper_model} -> {_whisper_model}")
-                # Keep using code default (already set to "distil-small.en")
-                # Save updated value back to disk
-                data["whisper_model"] = _whisper_model
-                with open(_settings_file, "w") as f:
-                    json.dump(data, f, indent=2)
-            else:
-                _whisper_model = saved_whisper_model
+            _whisper_model = data.get("whisper_model", _whisper_model)
     except FileNotFoundError:
         # File doesn't exist - use defaults and create it
         _save_settings_to_disk()
@@ -210,8 +229,8 @@ def set_whisper_model(model: str):
     Options: "distil-small.en", "small.en", "medium.en", "base.en", 
              "large-v3-turbo", "distil-large-v3", "distil-whisper/distil-large-v3.5-ct2"
     """
-    global _whisper_model
-    _whisper_model = model or "distil-small.en"
+    global _whisper_model, _whisper_model_default
+    _whisper_model = model or _whisper_model_default
     _save_settings_to_disk()
 
 

@@ -565,7 +565,7 @@ def generate_example(pattern_type: str = "mixed_content") -> Dict[str, Any]:
         if random.random() < 0.70 and list_entity_templates:
             template = random.choice(list_entity_templates)
         else:
-            template = random.choice(QUERY_TEMPLATES)
+    template = random.choice(QUERY_TEMPLATES)
     else:
         template = random.choice(QUERY_TEMPLATES)
     
@@ -733,20 +733,20 @@ def generate_example(pattern_type: str = "mixed_content") -> Dict[str, Any]:
                     relevant_per_chunk[chunk_idx] = [sentence for _, sentence in items]
         else:
             # For other query types, use original distribution logic
-            for i, (info, sentence_template) in enumerate(zip(relevant_info, relevant_sentences_templates)):
-                chunk_idx = i % num_chunks
+        for i, (info, sentence_template) in enumerate(zip(relevant_info, relevant_sentences_templates)):
+            chunk_idx = i % num_chunks
+            if chunk_idx not in relevant_per_chunk:
+                relevant_per_chunk[chunk_idx] = []
+            relevant_per_chunk[chunk_idx].append(sentence_template)
+        
+        # Also add some relevant info to multiple chunks (to teach complete extraction)
+        for info, sentence_template in zip(relevant_info[:2], relevant_sentences_templates[:2]):
+            additional_chunks = random.sample(range(num_chunks), random.randint(1, 2))
+            for chunk_idx in additional_chunks:
                 if chunk_idx not in relevant_per_chunk:
                     relevant_per_chunk[chunk_idx] = []
-                relevant_per_chunk[chunk_idx].append(sentence_template)
-            
-            # Also add some relevant info to multiple chunks (to teach complete extraction)
-            for info, sentence_template in zip(relevant_info[:2], relevant_sentences_templates[:2]):
-                additional_chunks = random.sample(range(num_chunks), random.randint(1, 2))
-                for chunk_idx in additional_chunks:
-                    if chunk_idx not in relevant_per_chunk:
-                        relevant_per_chunk[chunk_idx] = []
-                    if sentence_template not in relevant_per_chunk[chunk_idx]:
-                        relevant_per_chunk[chunk_idx].append(sentence_template)
+                if sentence_template not in relevant_per_chunk[chunk_idx]:
+                    relevant_per_chunk[chunk_idx].append(sentence_template)
     
     # Create chunks with mixed relevance scores for realistic training
     # Strategy: Ensure variety - some relevant chunks can be MEDIUM, some irrelevant can be MEDIUM

@@ -8,7 +8,10 @@ services:
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
-      - WHISPER_MODEL=${WHISPER_MODEL:-distil-small.en}
+      # NOTE: Default value should match MODEL_NAME default in whisper-container/container_rest.py
+      # The actual value is set by main.py from state.py, which reads from container_rest.py
+      # This is only a fallback if WHISPER_MODEL env var is not set
+      - WHISPER_MODEL=${WHISPER_MODEL:-distil-whisper/distil-large-v3.5-ct2}
 
   llm-medical:
     build: ../llm-medical-container
