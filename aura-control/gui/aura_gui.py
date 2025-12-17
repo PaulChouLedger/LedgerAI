@@ -389,7 +389,7 @@ class CircularProgressWidget(QWidget):
             with open(debug_log_path, 'r', encoding='utf-8', errors='ignore') as f:
                 content = f.read()
             
-            # SIMPLE: Explicit percentages for each milestone - no validation, just direct assignment
+            # SIMPLE: Explicit percentages for each milestone - with safety checks to prevent early completion
             import re
             steps = [
                 # Early setup
@@ -425,11 +425,38 @@ class CircularProgressWidget(QWidget):
                 ("Setup complete", 1.0),                 # 100% - All done
             ]
             
-            # Check steps in order, return the highest percentage found
+            # RESPECT MILESTONE PERCENTAGES: Each milestone sets its specific percentage
+            # Find the highest milestone that matches
             max_progress = 0.0
+            detected_milestones = []
+            
             for step_text, progress_value in steps:
                 if re.search(step_text.lower(), content.lower(), re.IGNORECASE):
+                    detected_milestones.append((step_text, progress_value))
                     max_progress = max(max_progress, progress_value)
+            
+            # MINIMAL SAFETY: Only prevent false positives, RESPECT legitimate milestone percentages
+            
+            # 1. Exclude TTS warm-up from triggering high progress ONLY if it's falsely matching 100% milestones
+            # Check if a 100% milestone was detected but it's actually just TTS warm-up
+            if max_progress >= 1.0:
+                has_tts_warmup_only = (
+                    re.search("tts.*warm|warm.*tts", content.lower(), re.IGNORECASE) and
+                    not any(re.search(p.lower(), content.lower()) for p in [
+                        "audio.*detected.*architecture", "detected arm architecture",
+                        "🔧.*detected.*architecture", "using latency.*high.*stability",
+                        "playing welcome prompt", "🔊 playing welcome",
+                        "setup complete", "listener.*initializing", "listen\\(\\) function called"
+                    ])
+                )
+                if has_tts_warmup_only:
+                    max_progress = 0.10  # TTS warm-up alone shouldn't trigger 100%
+                    print(f"[CircularProgress] ⚠️ False 100% from TTS warm-up - correcting to 10%")
+            
+            # Log detected milestones for debugging
+            if detected_milestones:
+                latest_milestone = detected_milestones[-1]  # Most recent milestone
+                print(f"[CircularProgress] 🎯 Milestone: '{latest_milestone[0]}' → {int(max_progress * 100)}%")
             
             return max_progress
         except Exception as e:
