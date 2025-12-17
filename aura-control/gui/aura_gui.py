@@ -421,9 +421,11 @@ class CircularProgressWidget(QWidget):
                 
                 # CRITICAL: These milestones happen right before welcome - set to 100%
                 # Order matters - most specific/latest first
-                ("Playing welcome prompt|🔊 Playing welcome", 1.0),  # 100% - Welcome about to play (MOST RELIABLE)
-                ("Audio.*Detected.*architecture|Detected ARM architecture|🔧.*detected.*architecture|using latency.*high.*stability", 1.0),  # 100% - Stream setup (before welcome)
-                (".*Model warmed up.*first transcription|Whisper.*Model warmed up|Model warmed up.*fast|✅.*Model warmed up", 1.0),  # 100% - Whisper ready (before welcome)
+                # "Audio.*Detected.*architecture" happens RIGHT AFTER Whisper warm-up completes
+                # This is the most reliable signal that warm-up is done and welcome is imminent
+                ("Audio.*Detected.*architecture|Detected ARM architecture|🔧.*detected.*architecture|using latency.*high.*stability", 1.0),  # 100% - Happens right after Whisper warm-up
+                ("Playing welcome prompt|🔊 Playing welcome", 1.0),  # 100% - Welcome about to play
+                (".*Model warmed up.*first transcription|Whisper.*Model warmed up|Model warmed up.*fast|✅.*Model warmed up", 1.0),  # 100% - Whisper ready (may not be in log)
                 # "Setup complete" - only match when it includes "listener ready" to ensure it's the real completion
                 ("Setup complete, listener ready|✅ Setup complete, listener ready", 1.0),  # 100% - All done (specific pattern)
             ]
@@ -479,19 +481,20 @@ class CircularProgressWidget(QWidget):
                         max_progress = legitimate_progress
                         print(f"[CircularProgress] ⚠️ False 'Setup complete' match - using {int(max_progress * 100)}% instead")
             
-            # FALLBACK: Only jump to 100% when welcome is ACTUALLY about to play
-            # Don't trigger on "Starting listener" - that's too early
-            # Wait for signals that indicate welcome is IMMINENT (Whisper warm-up + audio setup)
+            # FALLBACK: Jump to 100% when we see signals that welcome is imminent
+            # "Audio.*Detected.*architecture" appears in log RIGHT AFTER Whisper warm-up
+            # This is the most reliable trigger since "Model warmed up" may not be in log
             if max_progress < 1.0 and max_progress >= 0.70:
-                # Check for welcome message (most reliable - happens right before welcome)
+                # Check for audio architecture detection (happens right after Whisper warm-up)
+                has_audio_setup = re.search("audio.*detected.*architecture|detected arm architecture|🔧.*detected.*architecture|using latency.*high.*stability", content.lower(), re.IGNORECASE)
+                # Also check for welcome message (backup)
                 has_welcome = re.search("playing welcome prompt|🔊 playing welcome", content.lower(), re.IGNORECASE)
                 
-                # Only jump to 100% if welcome is actually about to play
-                # Don't use "Starting listener" - that happens too early
-                if has_welcome:
+                if has_audio_setup or has_welcome:
                     max_progress = 1.0
+                    trigger = "Audio setup" if has_audio_setup else "Welcome"
                     if not hasattr(self, '_fallback_triggered'):
-                        print(f"[CircularProgress] 🎯 Fallback: 'Welcome' detected → jumping to 100% (welcome NOW)")
+                        print(f"[CircularProgress] 🎯 Fallback: '{trigger}' detected → jumping to 100% (welcome NOW)")
                         self._fallback_triggered = True
             
             # Log detected milestones for debugging (only log when milestone changes or progress changes significantly)
