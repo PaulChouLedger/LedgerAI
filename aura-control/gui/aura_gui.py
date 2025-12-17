@@ -490,7 +490,7 @@ class CircularProgressWidget(QWidget):
             if max_progress < 1.0 and max_progress >= 0.70:
                 has_welcome = re.search("playing welcome prompt|🔊 playing welcome", content.lower(), re.IGNORECASE)
                 if has_welcome:
-                    max_progress = 1.5
+                    max_progress = 1.0
                     print(f"[CircularProgress] 🎯 Fallback: Welcome detected at {int(max_progress * 100)}% → jumping to 100%")
             
             # Log detected milestones for debugging (only log when milestone changes or progress changes significantly)
