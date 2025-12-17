@@ -5,7 +5,7 @@ import sys
 import math
 import time
 from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QPushButton, QVBoxLayout, QWidget, QHBoxLayout, QGraphicsDropShadowEffect, QTextEdit, QScrollBar
-from PyQt5.QtGui import QPixmap, QKeySequence, QColor, QTransform, QPainter, QPen, QFont, QFontMetrics
+from PyQt5.QtGui import QPixmap, QKeySequence, QColor, QTransform, QPainter, QPen, QFont, QFontMetrics, QLinearGradient
 from PyQt5.QtCore import Qt, QTimer, QPoint, QPropertyAnimation, QEasingCurve, QMetaObject, Q_ARG, pyqtSlot
 
 # Add the parent directories to Python path for imports
@@ -30,6 +30,108 @@ _transcription_overlay_enabled = True  # Transcription overlay enabled by defaul
 
 # Debug: Print initial state
 print(f"[AuraGUI] 🎯 Initial state: listening_ready={_listening_ready}, transcribing={_transcribing}, tts_playing={_tts_playing}")
+
+class CircularButton(QPushButton):
+    """High-quality circular button with 3D effect and no borders"""
+    def __init__(self, text, color, hover_color, pressed_color, size, parent=None):
+        super().__init__(text, parent)
+        self.color = color
+        self.hover_color = hover_color
+        self.pressed_color = pressed_color
+        self.size = size
+        self.setFixedSize(size, size)
+        
+        # Remove all default Qt styling
+        self.setStyleSheet(f"""
+            QPushButton {{
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 rgba(255, 255, 255, 0.5),
+                    stop:0.2 rgba(255, 255, 255, 0.3),
+                    stop:0.4 {color},
+                    stop:0.6 {color},
+                    stop:0.8 {color},
+                    stop:1 rgba(0, 0, 0, 0.4));
+                color: #FFFFFF;
+                font-size: 56px;
+                font-weight: bold;
+                border-radius: {size // 2}px;
+                border: none;
+                outline: none;
+                padding: 0px;
+            }}
+            QPushButton:hover {{
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 rgba(255, 255, 255, 0.6),
+                    stop:0.2 rgba(255, 255, 255, 0.4),
+                    stop:0.4 {hover_color},
+                    stop:0.6 {hover_color},
+                    stop:0.8 {hover_color},
+                    stop:1 rgba(0, 0, 0, 0.3));
+                border: none;
+                outline: none;
+            }}
+            QPushButton:pressed {{
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 rgba(0, 0, 0, 0.3),
+                    stop:0.2 {pressed_color},
+                    stop:0.4 {pressed_color},
+                    stop:0.6 {pressed_color},
+                    stop:0.8 rgba(255, 255, 255, 0.2),
+                    stop:1 rgba(255, 255, 255, 0.3));
+                border: none;
+                outline: none;
+            }}
+            QPushButton:focus {{
+                outline: none;
+                border: none;
+            }}
+        """)
+        
+        # High-quality rendering
+        self.setAttribute(Qt.WA_TranslucentBackground, False)
+        self.setAttribute(Qt.WA_OpaquePaintEvent, True)
+        self.setFocusPolicy(Qt.NoFocus)  # Remove focus to prevent focus rectangles
+    
+    def paintEvent(self, event):
+        """Custom paint event for high-quality rendering"""
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing, True)
+        painter.setRenderHint(QPainter.SmoothPixmapTransform, True)
+        painter.setRenderHint(QPainter.HighQualityAntialiasing, True)
+        
+        # Draw button with gradient
+        rect = self.rect()
+        radius = self.size // 2
+        
+        # Determine gradient based on state
+        if self.isDown():
+            gradient = QColor()
+            gradient.setNamedColor(self.pressed_color)
+        elif self.underMouse():
+            gradient = QColor()
+            gradient.setNamedColor(self.hover_color)
+        else:
+            gradient = QColor()
+            gradient.setNamedColor(self.color)
+        
+        # Create linear gradient for 3D effect
+        linear_gradient = QLinearGradient(0, 0, 0, self.size)
+        linear_gradient.setColorAt(0, QColor(255, 255, 255, 128))
+        linear_gradient.setColorAt(0.2, QColor(255, 255, 255, 77))
+        linear_gradient.setColorAt(0.4, gradient)
+        linear_gradient.setColorAt(0.6, gradient)
+        linear_gradient.setColorAt(0.8, gradient)
+        linear_gradient.setColorAt(1, QColor(0, 0, 0, 102))
+        
+        # Draw rounded rectangle with gradient
+        painter.setBrush(linear_gradient)
+        painter.setPen(Qt.NoPen)  # No border
+        painter.drawRoundedRect(rect, radius, radius)
+        
+        # Draw text
+        painter.setPen(QColor(255, 255, 255))
+        painter.setFont(QFont("Arial", 56, QFont.Bold))
+        painter.drawText(rect, Qt.AlignCenter, self.text())
 
 class SafeModeButton(QPushButton):
     """Completely transparent round button that opens safe mode when held for 3 seconds"""
@@ -931,53 +1033,10 @@ class AuraGUI(QMainWindow):
             x = center_x + radius * math.cos(angle) - (button_size // 2)
             y = center_y + radius * math.sin(angle) - (button_size // 2)
             
-            # Create button
-            btn = QPushButton(text)
-            btn.setFixedSize(button_size, button_size)
+            # Create high-quality circular button with custom rendering
+            btn = CircularButton(text, color, hover_color, pressed_color, button_size, self.centralWidget())
             btn.setToolTip(tooltip)
             btn.move(int(x), int(y))
-            
-            # 3D pop-out styling - buttons appear to rise from screen using gradient depth
-            btn.setStyleSheet(f"""
-                QPushButton {{
-                    /* Strong 3D gradient: very bright top, darker bottom for dramatic depth */
-                    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                        stop:0 rgba(255, 255, 255, 0.5),
-                        stop:0.2 rgba(255, 255, 255, 0.3),
-                        stop:0.4 {color},
-                        stop:0.6 {color},
-                        stop:0.8 {color},
-                        stop:1 rgba(0, 0, 0, 0.4));
-                    color: #FFFFFF;
-                    font-size: 56px;
-                    font-weight: bold;
-                    border-radius: {button_size // 2}px;
-                    border: 3px solid rgba(255, 255, 255, 0.4);
-                    padding: 0px;
-                }}
-                QPushButton:hover {{
-                    /* Enhanced 3D effect on hover - even brighter highlight */
-                    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                        stop:0 rgba(255, 255, 255, 0.6),
-                        stop:0.2 rgba(255, 255, 255, 0.4),
-                        stop:0.4 {hover_color},
-                        stop:0.6 {hover_color},
-                        stop:0.8 {hover_color},
-                        stop:1 rgba(0, 0, 0, 0.3));
-                    border: 3px solid rgba(255, 255, 255, 0.5);
-                }}
-                QPushButton:pressed {{
-                    /* Inverted gradient when pressed - appears pushed in */
-                    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                        stop:0 rgba(0, 0, 0, 0.3),
-                        stop:0.2 {pressed_color},
-                        stop:0.4 {pressed_color},
-                        stop:0.6 {pressed_color},
-                        stop:0.8 rgba(255, 255, 255, 0.2),
-                        stop:1 rgba(255, 255, 255, 0.3));
-                    border: 3px solid rgba(0, 0, 0, 0.4);
-                }}
-            """)
             
             # Subtle colored shadow for 3D pop-out (no black shadow)
             shadow_effect = QGraphicsDropShadowEffect()
@@ -989,9 +1048,6 @@ class AuraGUI(QMainWindow):
             shadow_effect.setColor(shadow_color)
             shadow_effect.setOffset(0, 8)  # Offset downward for 3D pop-out effect
             btn.setGraphicsEffect(shadow_effect)
-            
-            # Enable high-quality rendering attributes
-            btn.setAttribute(Qt.WA_TranslucentBackground, False)  # Solid background for better rendering
             
             # Connect handler
             btn.clicked.connect(handler)
