@@ -348,22 +348,29 @@ class CircularProgressWidget(QWidget):
             self.update()
             return
         
-        # Fallback: Try to get progress from log milestones (less reliable)
+        # Fallback: Try to get progress from log milestones - animate quickly towards milestone percentage
         milestone_progress = self._get_milestone_progress()
         
+        # GRADUAL INCREMENTS: Quickly animate towards milestone percentage for smooth visual progress
         if milestone_progress > self.progress:
-            # If milestone is 100%, immediately set to 100% (no gradual increase)
-            if milestone_progress >= 1.0:
-                self.progress = 1.0  # Immediately reach 100% when final milestone detected
-                print(f"[CircularProgress] ✅ Reached 100% - milestone detected!")
-            elif milestone_progress >= 0.90 and self.progress >= 0.85:
-                # When close to completion (90%+ milestone, 85%+ current), accelerate
-                increment = (milestone_progress - self.progress) * 0.5  # Fast when near completion
-                self.progress = min(1.0, self.progress + increment)
+            # Calculate increment - faster when far from target, slower when close
+            distance = milestone_progress - self.progress
+            
+            # If we're very close (< 2%), move quickly to finish
+            if distance < 0.02:
+                increment = distance  # Move directly to target when very close
+            # If we're close (< 10%), move at 50% speed per update
+            elif distance < 0.10:
+                increment = distance * 0.5  # Fast when close
+            # If we're far, move at 30% speed per update for smooth animation
             else:
-                # Very slow, gradual increase to avoid sudden jumps
-                increment = (milestone_progress - self.progress) * 0.1  # Very slow (10% per cycle)
-                self.progress = min(1.0, self.progress + increment)
+                increment = distance * 0.3  # Smooth but quick when far
+            
+            self.progress = min(1.0, self.progress + increment)
+            
+            # Log when we reach significant milestones
+            if int(self.progress * 100) != int((self.progress - increment) * 100):
+                print(f"[CircularProgress] 📊 Progress: {int(self.progress * 100)}% (target: {int(milestone_progress * 100)}%)")
         elif milestone_progress == 0 and self.progress == 0:
             # Very slow initial progress if no milestones detected yet
             elapsed = time.time() - self.start_time
@@ -373,7 +380,7 @@ class CircularProgressWidget(QWidget):
         self.update()
     
     def _get_milestone_progress(self):
-        """Estimate progress based on initialization milestones - very conservative, sequential validation"""
+        """Simple milestone detection - just return the percentage for the highest milestone found"""
         try:
             debug_log_path = os.path.expanduser("~/LedgerAI/data/aura_init_debug.log")
             if not os.path.exists(debug_log_path):
@@ -382,133 +389,51 @@ class CircularProgressWidget(QWidget):
             with open(debug_log_path, 'r', encoding='utf-8', errors='ignore') as f:
                 content = f.read()
             
-            # Very conservative explicit percentages - require sequential validation
+            # SIMPLE: Explicit percentages for each milestone - no validation, just direct assignment
             import re
             steps = [
-                # Early setup (very low progress)
-                ("Welcome setup completed", 0.03),      # 3% - Welcome dialog done
-                ("TTS initialized", 0.05),              # 5% - TTS ready (but containers not started)
-                ("Starting.*containers", 0.08),         # 8% - Containers starting
-                ("Rebuilding containers", 0.12),         # 12% - Rebuilding (if needed)
-                ("Containers rebuilt", 0.15),           # 15% - Rebuild complete
+                # Early setup
+                ("Welcome setup completed", 0.05),      # 5% - Welcome dialog done
+                ("TTS initialized", 0.10),              # 10% - TTS ready
+                ("Starting.*containers", 0.15),         # 15% - Containers starting
+                ("Rebuilding containers", 0.20),        # 20% - Rebuilding (if needed)
+                ("Containers rebuilt", 0.25),           # 25% - Rebuild complete
                 
-                # Container readiness (gradual)
-                ("Whisper.*ready|whisper.*respond", 0.20),  # 20% - Whisper ready
-                ("LLM.*ready|llm.*respond", 0.30),          # 30% - LLM container responding
-                ("Model loaded after", 0.45),               # 45% - Model loaded
-                ("simple_loaded.*true", 0.50),              # 50% - Model confirmed loaded
+                # Container readiness
+                ("Whisper.*ready|whisper.*respond", 0.30),  # 30% - Whisper ready
+                ("LLM.*ready|llm.*respond", 0.40),          # 40% - LLM container responding
+                ("Model loaded after", 0.50),               # 50% - Model loaded
+                ("simple_loaded.*true", 0.55),              # 55% - Model confirmed loaded
                 
-                # Warm-ups (after model is loaded)
-                ("Testing LLM", 0.55),                   # 55% - LLM test starting
-                ("LLM warm-up complete", 0.65),         # 65% - LLM warm-up done
+                # Warm-ups
+                ("Testing LLM", 0.60),                   # 60% - LLM test starting
+                ("LLM warm-up complete", 0.70),         # 70% - LLM warm-up done
                 
-                # RAG (after LLM is ready)
-                ("RAG initialization", 0.70),            # 70% - RAG starting
-                ("RAG container initialized", 0.75),     # 75% - RAG ready
+                # RAG
+                ("RAG initialization", 0.75),            # 75% - RAG starting
+                ("RAG container initialized", 0.80),     # 80% - RAG ready
                 
-                # Listener (near the end)
-                ("Listener.*initializing", 0.80),        # 80% - Listener starting
-                ("listener ready", 0.90),               # 90% - Listener ready
-                ("listener is now READY", 0.95),         # 95% - Listener fully ready
-                # CRITICAL: When listener function is called or audio stream is being set up, reach 100%
-                ("listen\\(\\) function called|🎧 listen", 0.98),  # 98% - Listener function called
-                # Multiple patterns to catch audio setup message
+                # Listener
+                ("Listener.*initializing", 0.85),        # 85% - Listener starting
+                ("listen\\(\\) function called|🎧 listen", 0.90),  # 90% - Listener function called
+                ("listener ready", 0.95),               # 95% - Listener ready
+                ("listener is now READY", 0.98),         # 98% - Listener fully ready
+                
+                # CRITICAL: Audio setup happens RIGHT BEFORE welcome - set to 100%
                 ("Audio.*Detected.*architecture|Detected ARM architecture|🔧.*detected.*architecture|using latency.*high.*stability", 1.0),  # 100% - Stream setup (before welcome)
-                # Fallback: If welcome prompt is about to play, we should already be at 100%
-                ("Playing welcome prompt|🔊 Playing welcome", 1.0),  # 100% - Welcome about to play (should already be 100%)
+                ("Playing welcome prompt|🔊 Playing welcome", 1.0),  # 100% - Welcome about to play
+                ("Setup complete", 1.0),                 # 100% - All done
             ]
             
-            # Check steps in order, return the highest one found
+            # Check steps in order, return the highest percentage found
             max_progress = 0.0
-            detected_steps = []
             for step_text, progress_value in steps:
                 if re.search(step_text.lower(), content.lower(), re.IGNORECASE):
-                    detected_steps.append((step_text, progress_value))
                     max_progress = max(max_progress, progress_value)
             
-            # STRICT VALIDATION: Require sequential milestones before allowing high progress
-            
-            # 1. Don't allow > 20% without container activity
-            has_container_activity = any(re.search(p.lower(), content.lower()) for p in [
-                "starting.*containers", "containers rebuilt", "whisper", "llm"
-            ])
-            if max_progress > 0.20 and not has_container_activity:
-                max_progress = min(max_progress, 0.15)  # Cap at 15%
-            
-            # 2. Don't allow > 50% without model loaded
-            has_model_loaded = any(re.search(p.lower(), content.lower()) for p in [
-                "model loaded after", "simple_loaded.*true"
-            ])
-            if max_progress > 0.50 and not has_model_loaded:
-                max_progress = min(max_progress, 0.45)  # Cap at 45%
-            
-            # 3. Don't allow > 70% without LLM warm-up complete
-            has_llm_warmup = re.search("llm warm-up complete", content.lower(), re.IGNORECASE)
-            if max_progress > 0.70 and not has_llm_warmup:
-                max_progress = min(max_progress, 0.65)  # Cap at 65%
-            
-            # 4. Don't allow > 90% without listener
-            has_listener = any(re.search(p.lower(), content.lower()) for p in [
-                "listener.*initializing", "listener ready", "listener is now READY", 
-                "listen\\(\\) function called", "🎧 listen", "audio.*detected.*architecture"
-            ])
-            if max_progress > 0.90 and not has_listener:
-                max_progress = min(max_progress, 0.80)  # Cap at 80%
-            
-            # 5. CRITICAL: When audio stream is being set up (ARM architecture detected), we're ready for welcome
-            # This happens RIGHT BEFORE welcome prompt plays, so progress should be 100%
-            # Use multiple patterns to catch the message
-            audio_patterns = [
-                "audio.*detected.*architecture",
-                "detected arm architecture",
-                "🔧 detected.*architecture",
-                "using latency.*high.*stability"
-            ]
-            has_audio_setup = any(re.search(p.lower(), content.lower(), re.IGNORECASE) for p in audio_patterns)
-            if has_audio_setup:
-                # If we're at this point, we're very close - be lenient with requirements
-                # Just need model loaded (LLM warm-up should have happened by now)
-                if has_model_loaded or has_llm_warmup:
-                    max_progress = 1.0  # Ready for welcome - reach 100%
-                    print(f"[CircularProgress] 🎯 Audio setup detected - setting to 100%")
-                else:
-                    # If neither check passes, still allow high progress (95%) since we're at audio setup
-                    max_progress = max(max_progress, 0.95)
-            
-            # 6. Also check if listener function was called (earlier milestone)
-            has_listener_called = re.search("listen\\(\\) function called|🎧 listen", content.lower(), re.IGNORECASE)
-            if has_listener_called and max_progress < 0.98:
-                # Require model loaded and LLM warm-up before allowing high progress
-                required_for_high = [
-                    has_model_loaded,      # Model must be loaded
-                    has_llm_warmup,       # LLM warm-up must be complete
-                ]
-                if all(required_for_high):
-                    max_progress = max(max_progress, 0.98)  # Almost there
-                else:
-                    max_progress = min(max_progress, 0.95)  # Cap at 95% if missing steps
-            
-            # 6. STRICT: "Setup complete" only reaches 100% if ALL required steps are present
-            has_setup_complete = re.search("setup complete", content.lower(), re.IGNORECASE)
-            if has_setup_complete:
-                # Require ALL of these before allowing 100%:
-                required_steps = [
-                    has_model_loaded,      # Model must be loaded
-                    has_llm_warmup,       # LLM warm-up must be complete
-                    has_listener,         # Listener must be ready
-                ]
-                if all(required_steps):
-                    max_progress = 1.0  # Only then allow 100%
-                else:
-                    max_progress = min(max_progress, 0.95)  # Cap at 95% if missing steps
-            
-            # 6. Exclude TTS warm-up from triggering any progress > 10%
-            if "TTS" in content.upper() and "warm" in content.lower():
-                if not has_container_activity:
-                    max_progress = min(max_progress, 0.05)  # Cap at 5% if only TTS
-            
             return max_progress
-        except Exception:
+        except Exception as e:
+            print(f"[CircularProgress] ⚠️ Error reading milestone progress: {e}")
             return 0.0
     
     def set_progress(self, value):
