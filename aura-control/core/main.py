@@ -58,6 +58,7 @@ HOST_ENV = dotenv_values(dotenv_path)
 DEBUG_LOG_PATH = os.path.expanduser("~/LedgerAI/data/aura_init_debug.log")
 _debug_log_file = None
 _debug_log_enabled = False
+_debug_log_lock = threading.Lock()
 
 def init_debug_log():
     """Initialize debug log file for GUI overlay"""
@@ -83,6 +84,14 @@ def _debug_log(message):
             _debug_log_file.flush()  # Ensure immediate write
         except Exception:
             pass  # Silently fail - don't break initialization
+
+def log_debug_message(message):
+    """Thread-safe helper to write arbitrary messages into the GUI debug log."""
+    if not _debug_log_enabled:
+        return
+
+    with _debug_log_lock:
+        _debug_log(message)
 
 def close_debug_log():
     """Close debug log file after initialization"""
@@ -958,12 +967,7 @@ def start_services():
     else:
         print("[Aura] ⚠️ Upload server skipped (Flask not available)")
     
-    # Step 7: Note about data ingestion (handled by convert_and_ingest_all() if needed)
-    # This runs automatically in background if new medical guidelines or data files detected
-    print("[Aura] ℹ️ Data ingestion: Handled by background process if new files detected")
-    print("[Aura] ℹ️ Auto-ingest: Triggered by file uploads via web server")
-    
-    # Step 8: Final RAG ready check before starting listener (if GPU mode)
+    # Step 7: Final RAG ready check before starting listener (if GPU mode)
     RAG_MODE = os.environ.get('RAG_MODE', 'CPU').upper()
     if RAG_MODE == 'GPU':
         print("[Aura] 🔍 Final RAG container ready check before starting listener...")
@@ -1024,7 +1028,7 @@ def focus_gui_window():
     except Exception as e:
         print(f"[Aura] ⚠️  Window focus warning: {e}")
 
-# === Auto-Convert New Medical Guidelines ===
+# === Container rebuild helpers ===
 def should_rebuild_containers(workspace_root):
     """
     Check if containers need rebuilding after OTA update.
@@ -1127,290 +1131,6 @@ def rebuild_containers(setup_dir, use_medical_mode, rag_mode):
     except Exception as e:
         print(f"[Aura] ❌ Error rebuilding containers: {e}")
         return False
-
-def check_for_new_guidelines_quick():
-    """
-    Quick check if new guidelines exist (doesn't convert)
-    Returns True if new JSONs found, False otherwise
-    """
-    try:
-        workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
-        guidelines_dir = os.path.join(workspace_root, 'llm-container', 'medical', 'guidelines')
-        output_dir = os.path.join(workspace_root, 'data', 'input')
-        
-        if not os.path.exists(guidelines_dir):
-            return False
-        
-        json_files = [f for f in os.listdir(guidelines_dir) if f.endswith('.json')]
-        
-        if not json_files:
-            return False
-        
-        # Check for any missing RAG files
-        for json_file in json_files:
-            txt_filename = f"GUIDELINE_{json_file.replace('.json', '.txt')}"
-            txt_path = os.path.join(output_dir, txt_filename)
-            
-            if not os.path.exists(txt_path):
-                return True  # Found at least one new guideline
-        
-        # All already converted
-        print(f"[Aura] ✅ All {len(json_files)} medical guidelines already converted - skipping rebuild")
-        return False
-    
-    except Exception as e:
-        print(f"[Aura] ⚠️ Error checking guidelines: {e}")
-        return False
-
-
-def convert_and_ingest_all():
-    """
-    Background task to process medical guidelines and ingest all data
-    
-    Two-stage process:
-    1. Convert medical guidelines (JSON → TXT in data/input/)
-    2. Wait for RAG container, then ingest all data and rebuild embeddings
-    """
-    print("[Aura] 🔄 Starting background data processing...")
-    
-    # STAGE 1: Convert medical guidelines (if any new ones exist)
-    # This can run immediately - no container dependencies
-    convert_medical_guidelines()
-    
-    # STAGE 2: Ingest ALL files from data/input/ (guidelines + any other files)
-    # This waits for RAG container to be ready, then processes ALL file types
-    ingest_and_rebuild_embeddings()
-
-
-def convert_medical_guidelines():
-    """
-    STAGE 1: Convert medical guidelines (JSON) to RAG-ready format
-    
-    Checks llm-container/medical/guidelines/ for JSON files
-    Converts them to TXT and saves to data/input/
-    
-    Returns: True if new guidelines were converted, False otherwise
-    """
-    try:
-        workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
-        guidelines_dir = os.path.join(workspace_root, 'llm-container', 'medical', 'guidelines')
-        output_dir = os.path.join(workspace_root, 'data', 'input')
-        
-        if not os.path.exists(guidelines_dir):
-            return False
-        
-        # Check for new guidelines
-        json_files = [f for f in os.listdir(guidelines_dir) if f.endswith('.json')]
-        
-        if not json_files:
-            return False
-        
-        new_guidelines = []
-        for json_file in json_files:
-            # Expected output filename
-            txt_filename = f"GUIDELINE_{json_file.replace('.json', '.txt')}"
-            txt_path = os.path.join(output_dir, txt_filename)
-            
-            # Check if RAG file exists
-            if not os.path.exists(txt_path):
-                new_guidelines.append(json_file)
-        
-        if not new_guidelines:
-            print(f"[Aura] ✅ All {len(json_files)} medical guidelines already RAG-ready")
-            return False
-        
-        print(f"[Aura] 📋 Converting {len(new_guidelines)} medical guidelines to RAG format...")
-        for guideline in new_guidelines[:5]:  # Show first 5
-            print(f"[Aura]    - {guideline}")
-        if len(new_guidelines) > 5:
-            print(f"[Aura]    ... and {len(new_guidelines) - 5} more")
-        
-        # Run converter script
-        converter_script = os.path.join(workspace_root, 'medical', 'convert_guidelines_to_rag.py')
-        
-        if not os.path.exists(converter_script):
-            print(f"[Aura] ⚠️ Converter script not found: {converter_script}")
-            return False
-        
-        result = subprocess.run(
-            ["python3", converter_script],
-            cwd=workspace_root,
-            capture_output=True,
-            text=True,
-            timeout=60
-        )
-        
-        if result.returncode == 0:
-            print(f"[Aura] ✅ Medical guidelines converted and saved to data/input/")
-            return True
-        else:
-            print(f"[Aura] ⚠️ Guideline conversion failed:")
-            print(result.stderr[:500])
-            return False
-    
-    except Exception as e:
-        print(f"[Aura] ⚠️ Error in guideline conversion: {e}")
-        return False
-
-
-def ingest_and_rebuild_embeddings():
-    """
-    STAGE 2: Universal data ingestion from data/input/
-    
-    Waits for RAG container, then:
-    1. Triggers /rag/ingest (extracts PDFs, copies TXT files to data/parsed/)
-    2. Rebuilds embeddings from data/parsed/
-    3. Reloads RAG container with new embeddings
-    
-    Handles ALL file types: PDFs, TXT, DOCX, etc.
-    """
-    try:
-        workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
-        
-        # Check RAG mode
-        RAG_MODE = os.environ.get('RAG_MODE', 'CPU').upper()
-        
-        # Only wait for RAG container if GPU mode
-        if RAG_MODE == 'GPU':
-            print(f"[Aura] 📂 Waiting for RAG container to be ready for data ingestion...")
-            
-            import requests
-            import time
-            
-            # Wait up to 30 seconds for RAG container to be ready
-            rag_ready = False
-            for attempt in range(30):
-                try:
-                    health_check = requests.get("http://localhost:11435/health", timeout=2)
-                    if health_check.status_code == 200:
-                        rag_ready = True
-                        print(f"[Aura] ✅ RAG container ready")
-                        break
-                except:
-                    if attempt < 29:
-                        time.sleep(1)
-                    else:
-                        print(f"[Aura] ⚠️ RAG container not responding - skipping data ingestion")
-                        return
-            
-            if not rag_ready:
-                return
-        
-        print(f"[Aura] 📂 Checking data/input/ for new files to ingest...")
-        
-        # Step 1: Trigger ingest based on RAG_MODE setting
-        import threading
-        
-        # Check RAG_MODE from environment (GPU = RAG container, CPU = CPU FAISS)
-        RAG_MODE = os.environ.get('RAG_MODE', 'CPU').upper()
-        
-        def trigger_cpu_rag_medical():
-            try:
-                cpu_response = requests.post("http://localhost:11434/cpu-faiss/ingest", timeout=30)
-                if cpu_response.status_code == 200:
-                    print("[Aura] ✅ Medical CPU FAISS ingest triggered")
-                else:
-                    print(f"[Aura] ⚠️ Medical CPU FAISS ingest failed: HTTP {cpu_response.status_code}")
-            except Exception as e:
-                print(f"[Aura] ⚠️ Medical CPU FAISS ingest error: {e}")
-        
-        def trigger_cpu_rag_generic():
-            try:
-                cpu_response = requests.post("http://localhost:11434/cpu-faiss/ingest", timeout=30)
-                if cpu_response.status_code == 200:
-                    print("[Aura] ✅ Generic CPU FAISS ingest triggered")
-                else:
-                    print(f"[Aura] ⚠️ Generic CPU FAISS ingest failed: HTTP {cpu_response.status_code}")
-            except Exception as e:
-                print(f"[Aura] ⚠️ Generic CPU FAISS ingest error: {e}")
-        
-        if RAG_MODE == 'GPU':
-            # GPU RAG mode: Use RAG container only (skip CPU FAISS)
-            print("[Aura] 🚀 RAG_MODE=GPU - using RAG container")
-            def trigger_gpu_rag():
-                try:
-                    ingest_response = requests.post("http://localhost:11435/rag/ingest", timeout=30)
-                    if ingest_response.status_code == 200:
-                        result = ingest_response.json()
-                        print(f"[Aura] ✅ GPU RAG ingest: {result.get('processed', 0)} processed, {result.get('skipped', 0)} skipped")
-                        return result
-                    else:
-                        print(f"[Aura] ⚠️ GPU RAG ingest failed: HTTP {ingest_response.status_code}")
-                        return None
-                except Exception as e:
-                    print(f"[Aura] ⚠️ GPU RAG ingest error: {e}")
-                    return None
-            
-            # Trigger GPU RAG only
-            result = trigger_gpu_rag()
-            if result:
-                ingest_response = type('obj', (object,), {'status_code': 200, 'json': lambda: result})()
-            else:
-                ingest_response = type('obj', (object,), {'status_code': 500})()
-        else:
-            # CPU RAG mode: Use CPU FAISS only (skip GPU RAG container)
-            print("[Aura] 💻 RAG_MODE=CPU - using CPU FAISS in LLM containers")
-            cpu_medical_thread = threading.Thread(target=trigger_cpu_rag_medical, daemon=True)
-            cpu_generic_thread = threading.Thread(target=trigger_cpu_rag_generic, daemon=True)
-            
-            cpu_medical_thread.start()
-            cpu_generic_thread.start()
-            
-            cpu_medical_thread.join(timeout=30)
-            cpu_generic_thread.join(timeout=30)
-            
-            # Dummy response for compatibility (CPU FAISS handles its own state)
-            ingest_response = type('obj', (object,), {'status_code': 200, 'json': lambda: {'processed': 0, 'skipped': 0}})()
-        
-        if ingest_response.status_code == 200:
-            ingest_result = ingest_response.json()
-            processed = ingest_result.get('processed', 0)
-            skipped = ingest_result.get('skipped', 0)
-            
-            print(f"[Aura] ✅ RAG ingest: {processed} processed, {skipped} skipped")
-            
-            # Only rebuild if new files were processed
-            if processed > 0:
-                # Step 2: Rebuild embeddings on host (from data/parsed)
-                print(f"[Aura] 🔄 Rebuilding embeddings with new data...")
-                embed_script = os.path.join(workspace_root, 'setup', 'scripts', 'rebuild_embeddings_host.py')
-                
-                if os.path.exists(embed_script):
-                    embed_result = subprocess.run(
-                        ["python3", embed_script],
-                        cwd=workspace_root,
-                        capture_output=True,
-                        text=True,
-                        timeout=180
-                    )
-                    
-                    if embed_result.returncode == 0:
-                        print(f"[Aura] ✅ Embeddings rebuilt successfully")
-                        
-                        # Step 3: Reload RAG container with new embeddings
-                        print(f"[Aura] 🔄 Reloading RAG with new embeddings...")
-                        reload_response = requests.post("http://localhost:11435/rag/reload", timeout=10)
-                        
-                        if reload_response.status_code == 200:
-                            reload_result = reload_response.json()
-                            total_chunks = reload_result.get('total_chunks', 0)
-                            print(f"[Aura] ✅ RAG reloaded: {total_chunks} total chunks available")
-                        else:
-                            print(f"[Aura] ⚠️ RAG reload failed: HTTP {reload_response.status_code}")
-                    else:
-                        print(f"[Aura] ⚠️ Embedding rebuild failed:")
-                        print(embed_result.stderr[:500])
-                else:
-                    print(f"[Aura] ⚠️ Embedding script not found")
-            else:
-                print(f"[Aura] ℹ️ No new files to process - embeddings up to date")
-        else:
-            print(f"[Aura] ⚠️ RAG ingest failed: HTTP {ingest_response.status_code}")
-    
-    except Exception as e:
-        print(f"[Aura] ⚠️ Error in data ingestion: {e}")
-        import traceback
-        traceback.print_exc()
 
 
 # === Main Entrypoint ===
@@ -1536,19 +1256,7 @@ def main():
     else:
         print("[Aura] ⚠️ TTS not available (speaker module not loaded)")
     
-    # Check for new medical guidelines (but don't rebuild embeddings yet if found)
-    # This is quick - just checks if new JSONs exist
-    new_guidelines_exist = check_for_new_guidelines_quick()
-    
-    if new_guidelines_exist:
-        print("[Aura] 📋 New data detected in medical guidelines or data/input/ - will process in background")
-        # Start services first (user can interact immediately)
-        threading.Thread(target=start_services, daemon=True).start()
-        # Convert and ingest all data in background
-        threading.Thread(target=convert_and_ingest_all, daemon=True).start()
-    else:
-        # No new data - start immediately
-        threading.Thread(target=start_services, daemon=True).start()
+    threading.Thread(target=start_services, daemon=True).start()
     
     # Bring GUI to front after launch
     threading.Thread(target=focus_gui_window, daemon=True).start()
