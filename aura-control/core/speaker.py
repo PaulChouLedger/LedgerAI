@@ -707,6 +707,30 @@ def update_gui_frequency(frequency_speed):
         pass  # GUI not available
 
 # === TTS audio generation (supports both engines) ===
+def _is_network_error(exception):
+    """Check if exception is a network/DNS error that might be retryable"""
+    error_str = str(exception).lower()
+    error_type = type(exception).__name__
+    
+    # Check for DNS resolution failures
+    if "temporary failure in name resolution" in error_str or "name resolution" in error_str:
+        return True
+    if "errno -3" in error_str or "errno -2" in error_str:  # DNS errors
+        return True
+    
+    # Check for connection errors
+    if "connect" in error_type.lower() or "connection" in error_str:
+        return True
+    if "timeout" in error_str or "timed out" in error_str:
+        return True
+    
+    # Check for network-related httpx/httpcore errors
+    if "httpx" in error_type.lower() or "httpcore" in error_type.lower():
+        if "connect" in error_str or "network" in error_str or "dns" in error_str:
+            return True
+    
+    return False
+
 def _generate_tts_audio(text):
     """
     Generate TTS audio using the selected engine with fallback.
@@ -830,35 +854,102 @@ def _generate_tts_audio(text):
             print(f"[Speaker] 🔄 Falling back to ElevenLabs...")
             # Fall through to ElevenLabs
     
-    # Use ElevenLabs (either as primary or fallback)
-    try:
-        client = _get_elevenlabs_client()
-        print(f"[Speaker] 🎙️ Using ElevenLabs")
-        stream = client.text_to_speech.convert(
-            text=ssml_wrap(normalize_units(text)),
-            voice_id=ELEVEN_VOICE_ID,
-            output_format=PCM_FORMAT,
-            voice_settings={
-                "stability": 0.5,
-                "similarity_boost": 0.0,
-                "style": 0.0,
-                "use_speaker_boost": False,
-                "optimize_streaming_latency": True
-            }
-        )
-        for chunk in stream:
-            if chunk:
-                yield chunk
-    except Exception as e:
-        print(f"[Speaker] ❌ ElevenLabs TTS failed: {e}")
-        import traceback
-        traceback.print_exc()
-        
-        # If Chatterbox was used as primary and also failed, report both failures
-        if use_chatterbox:
-            raise RuntimeError(f"Both TTS engines failed. Chatterbox: already tried as primary, ElevenLabs: {e}")
-        else:
-            raise RuntimeError(f"ElevenLabs TTS failed: {e}")
+    # Use ElevenLabs (either as primary or fallback) with retry logic for network errors
+    max_retries = 3
+    initial_delay = 1.0  # Start with 1 second
+    max_delay = 10.0  # Cap at 10 seconds
+    
+    for attempt in range(max_retries):
+        try:
+            client = _get_elevenlabs_client()
+            if attempt == 0:
+                print(f"[Speaker] 🎙️ Using ElevenLabs")
+            else:
+                print(f"[Speaker] 🔄 Retrying ElevenLabs (attempt {attempt + 1}/{max_retries})")
+            
+            stream = client.text_to_speech.convert(
+                text=ssml_wrap(normalize_units(text)),
+                voice_id=ELEVEN_VOICE_ID,
+                output_format=PCM_FORMAT,
+                voice_settings={
+                    "stability": 0.5,
+                    "similarity_boost": 0.0,
+                    "style": 0.0,
+                    "use_speaker_boost": False,
+                    "optimize_streaming_latency": True
+                }
+            )
+            # Successfully got stream - yield chunks
+            for chunk in stream:
+                if chunk:
+                    yield chunk
+            return  # Success - exit retry loop
+            
+        except Exception as e:
+            is_network_err = _is_network_error(e)
+            error_msg = str(e)
+            
+            if is_network_err and attempt < max_retries - 1:
+                # Calculate exponential backoff delay
+                delay = min(initial_delay * (2 ** attempt), max_delay)
+                print(f"[Speaker] ⚠️ Network error (DNS/connection failure): {error_msg}")
+                print(f"[Speaker] 🔄 Retrying in {delay:.1f}s (attempt {attempt + 1}/{max_retries})...")
+                print(f"[Speaker] 💡 Check network connectivity and DNS configuration")
+                time.sleep(delay)
+                continue  # Retry
+            else:
+                # Not a network error, or all retries exhausted
+                print(f"[Speaker] ❌ ElevenLabs TTS failed: {e}")
+                import traceback
+                traceback.print_exc()
+                
+                # If it's a network error after all retries, try ChatterboxTTS as fallback
+                if is_network_err and not use_chatterbox:
+                    print(f"[Speaker] 🔄 Network connectivity issue - trying ChatterboxTTS as fallback...")
+                    try:
+                        chatterbox = _get_chatterbox_tts()
+                        print(f"[Speaker] 🎙️ Using ChatterboxTTS (offline fallback)")
+                        clean_text = normalize_units(text)
+                        clean_text = re.sub(r'<[^>]+>', '', clean_text)
+                        
+                        if hasattr(chatterbox, 'generate'):
+                            audio = chatterbox.generate(clean_text)
+                        else:
+                            audio = chatterbox.synthesize(clean_text)
+                        
+                        # Convert to bytes
+                        if isinstance(audio, np.ndarray):
+                            if audio.dtype == np.float32 or audio.dtype == np.float64:
+                                audio = np.clip(audio, -1.0, 1.0)
+                                audio = (audio * 32767).astype(np.int16)
+                            elif audio.dtype != np.int16:
+                                audio = audio.astype(np.int16)
+                            audio_bytes = audio.tobytes()
+                        elif isinstance(audio, bytes):
+                            audio_bytes = audio
+                        else:
+                            audio_bytes = bytes(audio)
+                        
+                        # Yield audio in chunks
+                        chunk_size = 4096
+                        for i in range(0, len(audio_bytes), chunk_size):
+                            yield audio_bytes[i:i + chunk_size]
+                        return  # Success with fallback
+                    except Exception as fallback_error:
+                        print(f"[Speaker] ❌ ChatterboxTTS fallback also failed: {fallback_error}")
+                        # Fall through to raise original error
+                
+                # If Chatterbox was used as primary and also failed, report both failures
+                if use_chatterbox:
+                    raise RuntimeError(f"Both TTS engines failed. Chatterbox: already tried as primary, ElevenLabs: {e}")
+                else:
+                    if is_network_err:
+                        raise RuntimeError(
+                            f"ElevenLabs TTS failed after {max_retries} retries due to network error: {e}\n"
+                            f"💡 Check network connectivity, DNS configuration, and internet connection"
+                        )
+                    else:
+                        raise RuntimeError(f"ElevenLabs TTS failed: {e}")
 
 # === TTS playback using aplay ===
 def tts_playback_thread(text, tts_start_time):

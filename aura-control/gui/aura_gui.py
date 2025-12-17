@@ -548,50 +548,52 @@ class AuraGUI(QMainWindow):
             btn.setToolTip(tooltip)
             btn.move(int(x), int(y))
             
-            # iPhone-style styling with vibrant colors and modern gradients
+            # iPhone-style styling with vibrant colors and modern gradients - high quality rendering
             btn.setStyleSheet(f"""
                 QPushButton {{
-                    /* Vibrant radial gradient - iPhone app icon style */
-                    background: qradialgradient(cx:0.5, cy:0.5, radius:1.0,
-                        fx:0.4, fy:0.4,
-                        stop:0 rgba(255, 255, 255, 0.3),
-                        stop:0.5 {color},
+                    /* High-quality solid gradient - no dark shadows */
+                    background: qradialgradient(cx:0.5, cy:0.5, radius:0.9,
+                        fx:0.45, fy:0.45,
+                        stop:0 rgba(255, 255, 255, 0.25),
+                        stop:0.3 {color},
                         stop:1 {color});
                     color: #FFFFFF;
                     font-size: 56px;
                     font-weight: bold;
                     border-radius: {button_size // 2}px;
-                    /* Modern subtle border */
-                    border: 3px solid rgba(255, 255, 255, 0.2);
+                    /* Clean border - no dots */
+                    border: none;
                     padding: 0px;
                 }}
                 QPushButton:hover {{
                     /* Brighter on hover - iPhone press effect */
-                    background: qradialgradient(cx:0.5, cy:0.5, radius:1.0,
-                        fx:0.4, fy:0.4,
-                        stop:0 rgba(255, 255, 255, 0.4),
-                        stop:0.5 {hover_color},
+                    background: qradialgradient(cx:0.5, cy:0.5, radius:0.9,
+                        fx:0.45, fy:0.45,
+                        stop:0 rgba(255, 255, 255, 0.35),
+                        stop:0.3 {hover_color},
                         stop:1 {hover_color});
-                    border: 3px solid rgba(255, 255, 255, 0.35);
-                    transform: scale(1.05);
+                    border: none;
                 }}
                 QPushButton:pressed {{
                     /* Darker when pressed - iPhone press feedback */
-                    background: qradialgradient(cx:0.5, cy:0.5, radius:1.0,
-                        fx:0.4, fy:0.4,
-                        stop:0 rgba(255, 255, 255, 0.2),
-                        stop:0.5 {pressed_color},
+                    background: qradialgradient(cx:0.5, cy:0.5, radius:0.9,
+                        fx:0.45, fy:0.45,
+                        stop:0 rgba(255, 255, 255, 0.15),
+                        stop:0.3 {pressed_color},
                         stop:1 {pressed_color});
-                    border: 3px solid rgba(255, 255, 255, 0.25);
+                    border: none;
                 }}
             """)
             
-            # Enhanced shadow effect - iPhone-style depth
+            # High-quality shadow effect - smooth, no artifacts
             shadow_effect = QGraphicsDropShadowEffect()
-            shadow_effect.setBlurRadius(30)  # Larger blur for more depth
-            shadow_effect.setColor(QColor(0, 0, 0, 150))  # Darker shadow with more opacity
-            shadow_effect.setOffset(0, 5)  # More pronounced offset for depth
+            shadow_effect.setBlurRadius(25)  # Smooth blur
+            shadow_effect.setColor(QColor(0, 0, 0, 120))  # Softer shadow
+            shadow_effect.setOffset(0, 4)  # Subtle offset
             btn.setGraphicsEffect(shadow_effect)
+            
+            # Enable high-quality rendering attributes
+            btn.setAttribute(Qt.WA_TranslucentBackground, False)  # Solid background for better rendering
             
             # Connect handler
             btn.clicked.connect(handler)
@@ -762,38 +764,38 @@ class AuraGUI(QMainWindow):
                 # Update global state
                 set_microphone_muted(True)
                 
-                # Update button to RED to show muted state - iPhone-style
+                # Update button to RED for muted state (muted = red)
                 if voice_btn:
                     voice_btn.setStyleSheet(f"""
                         QPushButton {{
                             /* Vibrant red for muted state */
-                            background: qradialgradient(cx:0.5, cy:0.5, radius:1.0,
-                                fx:0.4, fy:0.4,
-                                stop:0 rgba(255, 255, 255, 0.3),
-                                stop:0.5 #FF3B30,
+                            background: qradialgradient(cx:0.5, cy:0.5, radius:0.9,
+                                fx:0.45, fy:0.45,
+                                stop:0 rgba(255, 255, 255, 0.25),
+                                stop:0.3 #FF3B30,
                                 stop:1 #FF3B30);
                             color: #FFFFFF;
                             font-size: 56px;
                             font-weight: bold;
                             border-radius: 70px;
-                            border: 3px solid rgba(255, 255, 255, 0.2);
+                            border: none;
                             padding: 0px;
                         }}
                         QPushButton:hover {{
-                            background: qradialgradient(cx:0.5, cy:0.5, radius:1.0,
-                                fx:0.4, fy:0.4,
-                                stop:0 rgba(255, 255, 255, 0.4),
-                                stop:0.5 #D32F2F,
+                            background: qradialgradient(cx:0.5, cy:0.5, radius:0.9,
+                                fx:0.45, fy:0.45,
+                                stop:0 rgba(255, 255, 255, 0.35),
+                                stop:0.3 #D32F2F,
                                 stop:1 #D32F2F);
-                            border: 3px solid rgba(255, 255, 255, 0.35);
+                            border: none;
                         }}
                         QPushButton:pressed {{
-                            background: qradialgradient(cx:0.5, cy:0.5, radius:1.0,
-                                fx:0.4, fy:0.4,
-                                stop:0 rgba(255, 255, 255, 0.2),
-                                stop:0.5 #B71C1C,
+                            background: qradialgradient(cx:0.5, cy:0.5, radius:0.9,
+                                fx:0.45, fy:0.45,
+                                stop:0 rgba(255, 255, 255, 0.15),
+                                stop:0.3 #B71C1C,
                                 stop:1 #B71C1C);
-                            border: 3px solid rgba(255, 255, 255, 0.25);
+                            border: none;
                         }}
                     """)
             else:
@@ -801,38 +803,38 @@ class AuraGUI(QMainWindow):
                 # Update global state
                 set_microphone_muted(False)
                 
-                # Update button to RED (normal active state) - iPhone-style
+                # Update button to GRAY-BLUE for active state (active = gray-blue)
                 if voice_btn:
                     voice_btn.setStyleSheet(f"""
                         QPushButton {{
-                            /* Vibrant red for active voice state */
-                            background: qradialgradient(cx:0.5, cy:0.5, radius:1.0,
-                                fx:0.4, fy:0.4,
-                                stop:0 rgba(255, 255, 255, 0.3),
-                                stop:0.5 #FF3B30,
-                                stop:1 #FF3B30);
+                            /* Gray-blue for active voice state - high quality */
+                            background: qradialgradient(cx:0.5, cy:0.5, radius:0.9,
+                                fx:0.45, fy:0.45,
+                                stop:0 rgba(255, 255, 255, 0.25),
+                                stop:0.3 #6C7A89,
+                                stop:1 #5A6B7A);
                             color: #FFFFFF;
                             font-size: 56px;
                             font-weight: bold;
                             border-radius: 70px;
-                            border: 3px solid rgba(255, 255, 255, 0.2);
+                            border: none;
                             padding: 0px;
                         }}
                         QPushButton:hover {{
-                            background: qradialgradient(cx:0.5, cy:0.5, radius:1.0,
-                                fx:0.4, fy:0.4,
-                                stop:0 rgba(255, 255, 255, 0.4),
-                                stop:0.5 #D32F2F,
-                                stop:1 #D32F2F);
-                            border: 3px solid rgba(255, 255, 255, 0.35);
+                            background: qradialgradient(cx:0.5, cy:0.5, radius:0.9,
+                                fx:0.45, fy:0.45,
+                                stop:0 rgba(255, 255, 255, 0.35),
+                                stop:0.3 #5B6A79,
+                                stop:1 #4A5968);
+                            border: none;
                         }}
                         QPushButton:pressed {{
-                            background: qradialgradient(cx:0.5, cy:0.5, radius:1.0,
-                                fx:0.4, fy:0.4,
-                                stop:0 rgba(255, 255, 255, 0.2),
-                                stop:0.5 #B71C1C,
-                                stop:1 #B71C1C);
-                            border: 3px solid rgba(255, 255, 255, 0.25);
+                            background: qradialgradient(cx:0.5, cy:0.5, radius:0.9,
+                                fx:0.45, fy:0.45,
+                                stop:0 rgba(255, 255, 255, 0.15),
+                                stop:0.3 #4A5968,
+                                stop:1 #3A4958);
+                            border: none;
                         }}
                     """)
                 
