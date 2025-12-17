@@ -419,11 +419,11 @@ class CircularProgressWidget(QWidget):
                 ("listener ready", 0.95),               # 95% - Listener ready
                 ("listener is now READY", 0.98),         # 98% - Listener fully ready
                 
-                # CRITICAL: Whisper model warm-up completion = 100% (happens right before welcome)
-                # Match various formats of the warm-up message - be very flexible
-                (".*Model warmed up.*first transcription|Whisper.*Model warmed up|Model warmed up.*fast|✅.*Model warmed up", 1.0),  # 100% - Whisper ready (before welcome)
+                # CRITICAL: These milestones happen right before welcome - set to 100%
+                # Order matters - most specific/latest first
+                ("Playing welcome prompt|🔊 Playing welcome", 1.0),  # 100% - Welcome about to play (MOST RELIABLE)
                 ("Audio.*Detected.*architecture|Detected ARM architecture|🔧.*detected.*architecture|using latency.*high.*stability", 1.0),  # 100% - Stream setup (before welcome)
-                ("Playing welcome prompt|🔊 Playing welcome", 1.0),  # 100% - Welcome about to play
+                (".*Model warmed up.*first transcription|Whisper.*Model warmed up|Model warmed up.*fast|✅.*Model warmed up", 1.0),  # 100% - Whisper ready (before welcome)
                 # "Setup complete" - only match when it includes "listener ready" to ensure it's the real completion
                 ("Setup complete, listener ready|✅ Setup complete, listener ready", 1.0),  # 100% - All done (specific pattern)
             ]
@@ -479,40 +479,20 @@ class CircularProgressWidget(QWidget):
                         max_progress = legitimate_progress
                         print(f"[CircularProgress] ⚠️ False 'Setup complete' match - using {int(max_progress * 100)}% instead")
             
-            # FALLBACK: If we're at 70%+ and listener has been called, jump to 100%
-            # "listen() function called" should be in the log and happens right before welcome
+            # FALLBACK: Only jump to 100% when welcome is ACTUALLY about to play
+            # Don't trigger on "Starting listener" - that's too early
+            # Wait for signals that indicate welcome is IMMINENT (Whisper warm-up + audio setup)
             if max_progress < 1.0 and max_progress >= 0.70:
-                # Check for listener being called - this happens right before welcome prompt
-                has_listener_called = re.search("listen\\(\\) function called|🎧 listen|listener.*function called", content.lower(), re.IGNORECASE)
-                # Also check for "Starting listener" which should be in the log
-                has_listener_starting = re.search("🎙️.*starting listener|starting listener", content.lower(), re.IGNORECASE)
-                # Check for "Core services started" - last message in log before welcome
-                has_core_services = re.search("core services started successfully", content.lower(), re.IGNORECASE)
+                # Check for welcome message (most reliable - happens right before welcome)
+                has_welcome = re.search("playing welcome prompt|🔊 playing welcome", content.lower(), re.IGNORECASE)
                 
-                # Debug: show what we're checking
-                if not hasattr(self, '_fallback_checked') or not self._fallback_checked:
-                    print(f"[CircularProgress] 🔍 At 70%+, checking fallback triggers...")
-                    print(f"[CircularProgress] 🔍 Listener called: {bool(has_listener_called)}, Starting: {bool(has_listener_starting)}, Core services: {bool(has_core_services)}")
-                    # Show if "Starting listener" text exists in log
-                    if "starting listener" in content.lower():
-                        print(f"[CircularProgress] 🔍 Found 'starting listener' in log!")
-                        # Show the actual line
-                        for line in content.split('\n'):
-                            if "starting listener" in line.lower():
-                                print(f"[CircularProgress] 🔍 Line: {line[:100]}")
-                                break
-                    self._fallback_checked = True
-                
-                if has_listener_called or has_listener_starting or has_core_services:
+                # Only jump to 100% if welcome is actually about to play
+                # Don't use "Starting listener" - that happens too early
+                if has_welcome:
                     max_progress = 1.0
-                    trigger = "Listener called" if has_listener_called else ("Starting listener" if has_listener_starting else "Core services started")
-                    print(f"[CircularProgress] 🎯 Fallback: '{trigger}' detected at 70%+ → jumping to 100% (welcome imminent)")
-                else:
-                    # Also check for welcome message (in case it's in log)
-                    has_welcome = re.search("playing welcome prompt|🔊 playing welcome", content.lower(), re.IGNORECASE)
-                    if has_welcome:
-                        max_progress = 1.0
-                        print(f"[CircularProgress] 🎯 Fallback: Welcome detected → jumping to 100%")
+                    if not hasattr(self, '_fallback_triggered'):
+                        print(f"[CircularProgress] 🎯 Fallback: 'Welcome' detected → jumping to 100% (welcome NOW)")
+                        self._fallback_triggered = True
             
             # Log detected milestones for debugging (only log when milestone changes or progress changes significantly)
             if detected_milestones:
