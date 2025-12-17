@@ -341,8 +341,8 @@ class CircularProgressWidget(QWidget):
             with open(debug_log_path, 'r', encoding='utf-8', errors='ignore') as f:
                 content = f.read()
             
-            # Sequential milestones - very conservative progress values
-            # Progress only advances when containers are actually loaded, not just starting
+            # Sequential milestones - adjusted to reach 100% before welcome message
+            # Progress must complete before welcome prompt plays
             milestones = [
                 # Very early setup (minimal progress)
                 ("Loading config", 0.02),
@@ -359,26 +359,26 @@ class CircularProgressWidget(QWidget):
                 
                 # Model loading (this is the critical step - takes time)
                 ("Model loaded", 0.35),
-                ("simple_loaded.*true", 0.42),    # Model actually loaded and ready
+                ("simple_loaded.*true", 0.45),    # Model actually loaded and ready
                 
                 # Warm-ups (only after model is loaded)
-                ("Testing LLM", 0.50),
-                ("LLM warm-up", 0.55),
-                ("warm-up complete", 0.60),
-                ("LLM warm-up complete", 0.65),    # Explicit warm-up completion
+                ("Testing LLM", 0.55),
+                ("LLM warm-up", 0.62),
+                ("warm-up complete", 0.70),
+                ("LLM warm-up complete", 0.75),    # Explicit warm-up completion
                 
                 # RAG initialization (after LLM is ready)
-                ("RAG initialization", 0.70),
-                ("RAG container initialized", 0.75),
-                ("RAG.*ready", 0.80),
+                ("RAG initialization", 0.80),
+                ("RAG container initialized", 0.85),
+                ("RAG.*ready", 0.88),
                 
                 # Listener/audio (near the end, after everything else)
-                ("Listener.*initializing", 0.85),
-                ("listener ready", 0.90),
-                ("listener is now READY", 0.95),
+                ("Listener.*initializing", 0.92),
+                ("listener ready", 0.95),
+                ("listener is now READY", 0.98),
                 
-                # Final completion (this should be the last step)
-                ("Setup complete", 0.98),
+                # Final completion (this should be the last step before welcome)
+                ("Setup complete", 1.0),  # 100% - must reach this before welcome
             ]
             
             # Check milestones - use regex for pattern matching
@@ -394,16 +394,16 @@ class CircularProgressWidget(QWidget):
             # Get the highest milestone
             max_progress = max(m[1] for m in detected_milestones)
             
-            # Safety checks to prevent false positives and premature progress:
-            # 1. Require model loaded before allowing progress > 50%
+            # Safety checks to prevent false positives, but allow progress to reach 100%
+            # 1. Require model loaded before allowing progress > 55%
             model_loaded_milestones = [m for m in detected_milestones if "model loaded" in m[0].lower() or "simple_loaded" in m[0].lower()]
-            if max_progress > 0.50 and len(model_loaded_milestones) == 0:
-                max_progress = min(max_progress, 0.40)  # Cap at 40% until model is loaded
+            if max_progress > 0.55 and len(model_loaded_milestones) == 0:
+                max_progress = min(max_progress, 0.45)  # Cap at 45% until model is loaded
             
-            # 2. Require LLM warm-up complete before allowing progress > 70%
+            # 2. Require LLM warm-up complete before allowing progress > 80%
             warmup_milestones = [m for m in detected_milestones if "warm-up complete" in m[0].lower() or "warm-up complete" in m[0].lower()]
-            if max_progress > 0.70 and len(warmup_milestones) == 0:
-                max_progress = min(max_progress, 0.65)  # Cap at 65% until warm-up complete
+            if max_progress > 0.80 and len(warmup_milestones) == 0:
+                max_progress = min(max_progress, 0.75)  # Cap at 75% until warm-up complete
             
             # 3. If we see late milestones (>60%) but no container response milestones, cap progress
             container_response_milestones = [m for m in detected_milestones if "respond" in m[0].lower() or "health.*200" in m[0].lower()]
@@ -419,10 +419,15 @@ class CircularProgressWidget(QWidget):
                 if len(model_loaded_milestones) == 0:
                     max_progress = min(max_progress, 0.20)  # Cap at 20% if only TTS
             
-            # 5. Don't allow progress > 85% until listener is ready
+            # 5. Don't allow progress > 92% until listener is ready
             listener_milestones = [m for m in detected_milestones if "listener" in m[0].lower()]
-            if max_progress > 0.85 and len(listener_milestones) == 0:
-                max_progress = min(max_progress, 0.80)  # Cap at 80% until listener starts
+            if max_progress > 0.92 and len(listener_milestones) == 0:
+                max_progress = min(max_progress, 0.88)  # Cap at 88% until listener starts
+            
+            # 6. Ensure "Setup complete" milestone reaches 100%
+            setup_complete_milestones = [m for m in detected_milestones if "setup complete" in m[0].lower()]
+            if len(setup_complete_milestones) > 0:
+                max_progress = 1.0  # Force 100% when setup is complete
             
             return max_progress
         except Exception:
@@ -445,9 +450,9 @@ class CircularProgressWidget(QWidget):
         center_x, center_y = 540, 540
         
         # Progress ring parameters - hug the aura eye closely
-        # Decreased diameter by 20%: 280px * 0.8 = 224px radius
+        # Decreased diameter by 10% more: 224px * 0.9 = 201.6px, rounded to 202px
         # Increased thickness by 20%: 8px * 1.2 = 9.6px, rounded to 10px
-        ring_radius = 224  # 20% smaller diameter (was 280, now 224)
+        ring_radius = 202  # 10% smaller diameter (was 224, now 202)
         ring_thickness = 10  # 20% thicker (was 8, now 10)
         
         # White color matching the perimeter (30% opacity)
