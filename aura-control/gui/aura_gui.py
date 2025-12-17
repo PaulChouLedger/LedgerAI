@@ -485,13 +485,31 @@ class CircularProgressWidget(QWidget):
                         max_progress = legitimate_progress
                         print(f"[CircularProgress] ⚠️ False 'Setup complete' match - using {int(max_progress * 100)}% instead")
             
-            # FALLBACK: If we're at 70%+ and welcome is about to play, jump to 100%
+            # FALLBACK: If we're at 70%+ and welcome/audio setup is detected, jump to 100%
             # This handles cases where messages aren't in the debug log
             if max_progress < 1.0 and max_progress >= 0.70:
                 has_welcome = re.search("playing welcome prompt|🔊 playing welcome", content.lower(), re.IGNORECASE)
-                if has_welcome:
+                has_audio_setup = re.search("audio.*detected.*architecture|detected arm architecture|🔧.*detected.*architecture", content.lower(), re.IGNORECASE)
+                has_model_warmup = re.search("model warmed up|whisper.*model warmed up", content.lower(), re.IGNORECASE)
+                
+                # Debug: show what we found
+                if has_welcome or has_audio_setup or has_model_warmup:
+                    triggers = []
+                    if has_welcome:
+                        triggers.append("Welcome")
+                    if has_audio_setup:
+                        triggers.append("Audio setup")
+                    if has_model_warmup:
+                        triggers.append("Model warmup")
                     max_progress = 1.0
-                    print(f"[CircularProgress] 🎯 Fallback: Welcome detected at {int(max_progress * 100)}% → jumping to 100%")
+                    print(f"[CircularProgress] 🎯 Fallback: {', '.join(triggers)} detected → jumping to 100%")
+                elif max_progress >= 0.70:
+                    # Debug: show what we're looking for but didn't find
+                    print(f"[CircularProgress] 🔍 At {int(max_progress * 100)}%, checking for completion signals...")
+                    print(f"[CircularProgress] 🔍 Welcome: {bool(has_welcome)}, Audio: {bool(has_audio_setup)}, Model: {bool(has_model_warmup)}")
+                    # Show last few lines of log for debugging
+                    last_lines = content.split('\n')[-5:]
+                    print(f"[CircularProgress] 🔍 Last 5 log lines: {last_lines}")
             
             # Log detected milestones for debugging (only log when milestone changes or progress changes significantly)
             if detected_milestones:
