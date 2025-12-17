@@ -222,15 +222,27 @@ def get_chatterbox_tts():
                 params = list(sig.parameters.keys())
                 print(f"[Chatterbox] 📋 from_pretrained signature: {params}")
                 
+                print("[Chatterbox] ⏳ This may take a while (downloading/loading models)...")
+                print("[Chatterbox] 💡 If this hangs, check network connectivity and disk space")
+                
                 if 'device' in params:
+                    print(f"[Chatterbox] 🔄 Calling ChatterboxTTS.from_pretrained(device={device})...")
                     _chatterbox_tts = ChatterboxTTS.from_pretrained(device=device)
+                    print("[Chatterbox] ✅ from_pretrained(device=...) returned")
                 else:
+                    print("[Chatterbox] 🔄 Calling ChatterboxTTS.from_pretrained()...")
                     _chatterbox_tts = ChatterboxTTS.from_pretrained()
+                    print("[Chatterbox] ✅ from_pretrained() returned")
                     # If device parameter not available, try to move model to device manually
                     if hasattr(_chatterbox_tts, 'to'):
+                        print(f"[Chatterbox] 🔄 Moving model to device {device}...")
                         _chatterbox_tts = _chatterbox_tts.to(device)
+                        print(f"[Chatterbox] ✅ Model moved to device {device}")
                 
-                print("[Chatterbox] ✅ Initialized using from_pretrained()")
+                print("[Chatterbox] ✅ Successfully initialized using from_pretrained()")
+            except KeyboardInterrupt:
+                print("[Chatterbox] ⚠️  Initialization interrupted")
+                raise
             except Exception as e:
                 print(f"[Chatterbox] ❌ from_pretrained() failed: {e}")
                 import traceback
