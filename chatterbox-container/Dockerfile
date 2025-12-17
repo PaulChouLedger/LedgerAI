@@ -232,9 +232,12 @@ RUN python3 << 'EOF'
 import os
 import sys
 from pathlib import Path
+import time
 
-# Set timeout for model download (in case network is slow)
-os.environ['HF_HUB_DOWNLOAD_TIMEOUT'] = '600'  # 10 minutes timeout
+# Enable HuggingFace progress bars and verbose logging
+os.environ['HF_HUB_DISABLE_PROGRESS_BARS'] = '0'  # Show progress bars
+os.environ['TRANSFORMERS_VERBOSITY'] = 'info'  # Verbose logging
+os.environ['HF_HUB_DOWNLOAD_TIMEOUT'] = '1800'  # 30 minutes timeout (models are large)
 
 # Set HuggingFace cache directory to a known location
 cache_dir = Path.home() / '.cache' / 'huggingface'
@@ -244,7 +247,11 @@ print(f"[Chatterbox] 📦 Using HuggingFace cache: {cache_dir}")
 try:
     print("[Chatterbox] 📥 Pre-downloading ChatterboxTTS models from HuggingFace...")
     print("[Chatterbox] ⏳ This may take several minutes (models are ~2-3GB)...")
+    print("[Chatterbox] 💡 You should see download progress below")
     print("[Chatterbox] 💡 Build will continue even if download fails (models can download at runtime)")
+    print("[Chatterbox] " + "="*70)
+    
+    start_time = time.time()
     
     from chatterbox.tts import ChatterboxTTS
     import torch
@@ -252,20 +259,36 @@ try:
     # Detect device (use CPU for build-time download)
     device = "cpu"  # Use CPU during build, will use CUDA at runtime
     
-    print(f"[Chatterbox] 🔄 Downloading models to CPU (will use CUDA at runtime)...")
+    print(f"[Chatterbox] 🔄 Calling ChatterboxTTS.from_pretrained(device={device})...")
+    print("[Chatterbox] 💡 HuggingFace will show download progress (downloading/loading files)...")
+    
+    # Track cache size before
+    cache_size_before = 0
+    if cache_dir.exists():
+        cache_size_before = sum(f.stat().st_size for f in cache_dir.rglob('*') if f.is_file())
+        print(f"[Chatterbox] 📊 Cache size before: {cache_size_before / (1024**3):.2f} GB")
+    
     model = ChatterboxTTS.from_pretrained(device=device)
-    print("[Chatterbox] ✅ Models pre-downloaded successfully")
+    
+    elapsed = time.time() - start_time
+    print("[Chatterbox] " + "="*70)
+    print(f"[Chatterbox] ✅ Models pre-downloaded successfully (took {elapsed:.1f} seconds)")
     
     # Verify models are cached
     if cache_dir.exists():
-        cache_size = sum(f.stat().st_size for f in cache_dir.rglob('*') if f.is_file())
-        print(f"[Chatterbox] 📊 Cache size: {cache_size / (1024**3):.2f} GB")
+        cache_size_after = sum(f.stat().st_size for f in cache_dir.rglob('*') if f.is_file())
+        downloaded = cache_size_after - cache_size_before
+        print(f"[Chatterbox] 📊 Cache size after: {cache_size_after / (1024**3):.2f} GB")
+        if downloaded > 0:
+            print(f"[Chatterbox] 📥 Downloaded: {downloaded / (1024**3):.2f} GB")
         print(f"[Chatterbox] 💡 Models cached in {cache_dir} and baked into image")
     else:
         print(f"[Chatterbox] ⚠️  Cache directory {cache_dir} does not exist after download")
         
 except Exception as e:
-    print(f"[Chatterbox] ⚠️  Model pre-download failed: {e}")
+    elapsed = time.time() - start_time if 'start_time' in locals() else 0
+    print("[Chatterbox] " + "="*70)
+    print(f"[Chatterbox] ⚠️  Model pre-download failed after {elapsed:.1f} seconds: {e}")
     import traceback
     traceback.print_exc()
     print("[Chatterbox] 💡 Models will be downloaded on first request instead")
