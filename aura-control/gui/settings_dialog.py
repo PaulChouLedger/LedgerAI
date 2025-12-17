@@ -1530,14 +1530,8 @@ class AIModelSettingsDialog(BaseAuraDialog):
                 set_whisper_model(selected_model)
                 print(f"[ModelSettings] Whisper model changed to: {selected_model}")
                 
-                # Inform user that container restart is needed
-                QMessageBox.information(
-                    self,
-                    "Whisper Model Changed",
-                    f"Whisper model set to: {selected_model}\n\n"
-                    "The Whisper container will need to be restarted for the change to take effect.\n\n"
-                    "You can restart it manually or it will restart automatically on next Aura startup."
-                )
+                # Automatically restart Whisper container to apply changes
+                self._restart_whisper_container(selected_model)
             except Exception as e:
                 print(f"[ModelSettings] Error saving Whisper model: {e}")
                 QMessageBox.warning(
@@ -1785,6 +1779,69 @@ class AIModelSettingsDialog(BaseAuraDialog):
             else: QMessageBox.warning(self, "Restart Failed", result.stderr or result.stdout or "Unknown error")
         except Exception as e:
             QMessageBox.warning(self, "Error", f"Failed to restart container: {e}")
+    
+    def _restart_whisper_container(self, model_name: str):
+        """Restart Whisper container when model changes"""
+        try:
+            workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+            setup_dir = os.path.join(workspace_root, 'setup')
+            service = "whisper"
+            
+            print(f"[ModelSettings] 🔄 Restarting Whisper container with model: {model_name}")
+            
+            # Set WHISPER_MODEL environment variable so docker-compose uses the new value
+            import subprocess
+            import os as os_module
+            env = os_module.environ.copy()
+            env["WHISPER_MODEL"] = model_name
+            
+            # Stop and start (not just restart) to ensure new env var is picked up
+            # Stop first
+            stop_result = subprocess.run(
+                ["docker", "compose", "stop", service],
+                cwd=setup_dir,
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+            
+            # Start with new environment variable
+            result = subprocess.run(
+                ["docker", "compose", "up", "-d", service],
+                cwd=setup_dir,
+                env=env,
+                capture_output=True,
+                text=True,
+                timeout=60
+            )
+            
+            if result.returncode == 0:
+                print(f"[ModelSettings] ✅ Whisper container restarted successfully with model: {model_name}")
+                QMessageBox.information(
+                    self,
+                    "Whisper Model Changed",
+                    f"Whisper model set to: {model_name}\n\n"
+                    "The Whisper container has been restarted and the new model is now active."
+                )
+            else:
+                error_msg = result.stderr or result.stdout or "Unknown error"
+                print(f"[ModelSettings] ⚠️ Whisper container restart failed: {error_msg}")
+                QMessageBox.warning(
+                    self,
+                    "Restart Failed",
+                    f"Whisper model was saved, but container restart failed:\n\n{error_msg}\n\n"
+                    "Please restart the container manually or restart Aura."
+                )
+        except Exception as e:
+            print(f"[ModelSettings] ⚠️ Error restarting Whisper container: {e}")
+            import traceback
+            traceback.print_exc()
+            QMessageBox.warning(
+                self,
+                "Error",
+                f"Whisper model was saved, but failed to restart container:\n\n{str(e)}\n\n"
+                "Please restart the container manually or restart Aura."
+            )
     
     # Override on_mode_clicked and on_model_changed to persist even if import fails
     def _save_mode_locally(self, mode_now: str):
