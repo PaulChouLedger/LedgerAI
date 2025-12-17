@@ -352,18 +352,20 @@ class CircularProgressWidget(QWidget):
         milestone_progress = self._get_milestone_progress()
         
         if milestone_progress > self.progress:
-            # Smooth the increase to avoid sudden jumps
-            self.progress = min(1.0, self.progress + (milestone_progress - self.progress) * 0.3)
+            # Very slow, gradual increase to avoid sudden jumps
+            # Only increase by small increments per update cycle
+            increment = (milestone_progress - self.progress) * 0.1  # Very slow (10% per cycle)
+            self.progress = min(1.0, self.progress + increment)
         elif milestone_progress == 0 and self.progress == 0:
             # Very slow initial progress if no milestones detected yet
             elapsed = time.time() - self.start_time
-            if elapsed > 2.0:
-                self.progress = min(0.05, (elapsed - 2.0) * 0.01)
+            if elapsed > 3.0:  # Wait 3 seconds before showing any progress
+                self.progress = min(0.03, (elapsed - 3.0) * 0.005)  # Very slow crawl
         
         self.update()
     
     def _get_milestone_progress(self):
-        """Estimate progress based on initialization milestones - simple explicit percentages"""
+        """Estimate progress based on initialization milestones - very conservative, sequential validation"""
         try:
             debug_log_path = os.path.expanduser("~/LedgerAI/data/aura_init_debug.log")
             if not os.path.exists(debug_log_path):
@@ -372,57 +374,90 @@ class CircularProgressWidget(QWidget):
             with open(debug_log_path, 'r', encoding='utf-8', errors='ignore') as f:
                 content = f.read()
             
-            # Simple explicit percentages for each step - based on actual log messages
-            # Each step has a fixed percentage, checked in order
+            # Very conservative explicit percentages - require sequential validation
             import re
             steps = [
-                # Early setup
-                ("Welcome setup completed", 0.05),      # 5% - Welcome dialog done
-                ("TTS initialized", 0.10),              # 10% - TTS ready
-                ("Starting.*containers", 0.15),         # 15% - Containers starting
-                ("Rebuilding containers", 0.20),        # 20% - Rebuilding (if needed)
-                ("Containers rebuilt", 0.25),           # 25% - Rebuild complete
+                # Early setup (very low progress)
+                ("Welcome setup completed", 0.03),      # 3% - Welcome dialog done
+                ("TTS initialized", 0.05),              # 5% - TTS ready (but containers not started)
+                ("Starting.*containers", 0.08),         # 8% - Containers starting
+                ("Rebuilding containers", 0.12),         # 12% - Rebuilding (if needed)
+                ("Containers rebuilt", 0.15),           # 15% - Rebuild complete
                 
-                # Container readiness
-                ("Whisper.*ready|whisper.*respond", 0.30),  # 30% - Whisper ready
-                ("LLM.*ready|llm.*respond", 0.40),          # 40% - LLM container ready
-                ("Model loaded after", 0.50),               # 50% - Model loaded
-                ("simple_loaded.*true", 0.55),              # 55% - Model confirmed loaded
+                # Container readiness (gradual)
+                ("Whisper.*ready|whisper.*respond", 0.20),  # 20% - Whisper ready
+                ("LLM.*ready|llm.*respond", 0.30),          # 30% - LLM container responding
+                ("Model loaded after", 0.45),               # 45% - Model loaded
+                ("simple_loaded.*true", 0.50),              # 50% - Model confirmed loaded
                 
-                # Warm-ups
-                ("Testing LLM", 0.60),                   # 60% - LLM test starting
-                ("LLM warm-up complete", 0.70),         # 70% - LLM warm-up done
+                # Warm-ups (after model is loaded)
+                ("Testing LLM", 0.55),                   # 55% - LLM test starting
+                ("LLM warm-up complete", 0.65),         # 65% - LLM warm-up done
                 
-                # RAG
-                ("RAG initialization", 0.75),            # 75% - RAG starting
-                ("RAG container initialized", 0.80),     # 80% - RAG ready
+                # RAG (after LLM is ready)
+                ("RAG initialization", 0.70),            # 70% - RAG starting
+                ("RAG container initialized", 0.75),     # 75% - RAG ready
                 
-                # Listener
-                ("Listener.*initializing", 0.85),        # 85% - Listener starting
+                # Listener (near the end)
+                ("Listener.*initializing", 0.80),        # 80% - Listener starting
                 ("listener ready", 0.90),               # 90% - Listener ready
                 ("listener is now READY", 0.95),         # 95% - Listener fully ready
-                
-                # Final
-                ("Setup complete", 1.0),                 # 100% - All done
             ]
             
             # Check steps in order, return the highest one found
             max_progress = 0.0
+            detected_steps = []
             for step_text, progress_value in steps:
                 if re.search(step_text.lower(), content.lower(), re.IGNORECASE):
+                    detected_steps.append((step_text, progress_value))
                     max_progress = max(max_progress, progress_value)
             
-            # Safety: Exclude TTS warm-up from triggering high progress
-            # TTS happens early and shouldn't indicate containers are ready
+            # STRICT VALIDATION: Require sequential milestones before allowing high progress
+            
+            # 1. Don't allow > 20% without container activity
+            has_container_activity = any(re.search(p.lower(), content.lower()) for p in [
+                "starting.*containers", "containers rebuilt", "whisper", "llm"
+            ])
+            if max_progress > 0.20 and not has_container_activity:
+                max_progress = min(max_progress, 0.15)  # Cap at 15%
+            
+            # 2. Don't allow > 50% without model loaded
+            has_model_loaded = any(re.search(p.lower(), content.lower()) for p in [
+                "model loaded after", "simple_loaded.*true"
+            ])
+            if max_progress > 0.50 and not has_model_loaded:
+                max_progress = min(max_progress, 0.45)  # Cap at 45%
+            
+            # 3. Don't allow > 70% without LLM warm-up complete
+            has_llm_warmup = re.search("llm warm-up complete", content.lower(), re.IGNORECASE)
+            if max_progress > 0.70 and not has_llm_warmup:
+                max_progress = min(max_progress, 0.65)  # Cap at 65%
+            
+            # 4. Don't allow > 90% without listener
+            has_listener = any(re.search(p.lower(), content.lower()) for p in [
+                "listener.*initializing", "listener ready", "listener is now READY"
+            ])
+            if max_progress > 0.90 and not has_listener:
+                max_progress = min(max_progress, 0.80)  # Cap at 80%
+            
+            # 5. STRICT: "Setup complete" only reaches 100% if ALL required steps are present
+            has_setup_complete = re.search("setup complete", content.lower(), re.IGNORECASE)
+            if has_setup_complete:
+                # Require ALL of these before allowing 100%:
+                required_steps = [
+                    has_model_loaded,      # Model must be loaded
+                    has_llm_warmup,       # LLM warm-up must be complete
+                    has_listener,         # Listener must be ready
+                ]
+                if all(required_steps):
+                    max_progress = 1.0  # Only then allow 100%
+                else:
+                    max_progress = min(max_progress, 0.95)  # Cap at 95% if missing steps
+            
+            # 6. Exclude TTS warm-up from triggering any progress > 10%
             if "TTS" in content.upper() and "warm" in content.lower():
-                # If only TTS warm-up, cap at 10%
-                if max_progress > 0.10:
-                    # Check if we have container milestones
-                    has_containers = any(re.search(p.lower(), content.lower()) for p in [
-                        "containers", "whisper", "llm", "model loaded"
-                    ])
-                    if not has_containers:
-                        max_progress = min(max_progress, 0.10)  # Cap at 10% if only TTS
+                if not has_container_activity:
+                    max_progress = min(max_progress, 0.05)  # Cap at 5% if only TTS
             
             return max_progress
         except Exception:
