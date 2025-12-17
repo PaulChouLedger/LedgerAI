@@ -218,7 +218,6 @@ def get_chatterbox_tts():
         _initialization_in_progress = True
         
         try:
-        try:
             print("[Chatterbox] 🔄 Attempting to import ChatterboxTTS...")
             # Try different import paths
             ChatterboxTTS = None
@@ -258,7 +257,19 @@ def get_chatterbox_tts():
                 print(f"[Chatterbox] 📋 from_pretrained signature: {params}")
                 
                 print("[Chatterbox] ⏳ This may take a while (downloading/loading models)...")
-                print("[Chatterbox] 💡 If this hangs, check network connectivity and disk space")
+                print("[Chatterbox] 💡 ChatterboxTTS will download models from HuggingFace on first use")
+                print("[Chatterbox] 💡 Models will be cached in ~/.cache/huggingface/")
+                print("[Chatterbox] 💡 First download can take several minutes depending on network speed")
+                print("[Chatterbox] 💡 If this hangs, check:")
+                print("[Chatterbox]    - Internet connectivity")
+                print("[Chatterbox]    - Disk space (models are ~2-3GB)")
+                print("[Chatterbox]    - HuggingFace access (may need token if gated)")
+                
+                # Set HuggingFace cache directory if specified
+                cache_dir = os.environ.get('HUGGINGFACE_CACHE_DIR', None)
+                if cache_dir:
+                    print(f"[Chatterbox] 📦 Using custom HuggingFace cache: {cache_dir}")
+                    os.environ['HF_HOME'] = cache_dir
                 
                 if 'device' in params:
                     print(f"[Chatterbox] 🔄 Calling ChatterboxTTS.from_pretrained(device={device})...")

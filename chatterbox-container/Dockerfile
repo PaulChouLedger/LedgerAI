@@ -225,6 +225,38 @@ RUN git clone https://github.com/resemble-ai/chatterbox.git /app/chatterbox && \
     -e . --no-deps && \
     python3 -c "from chatterbox import ChatterboxTTS; print('✅ Chatterbox installed successfully')"
 
+# Pre-download ChatterboxTTS models (cached layer - models are large ~2-3GB)
+# This ensures models are available in the image and avoids first-request download delays
+# Models will be cached in ~/.cache/huggingface/ which is baked into the image
+RUN python3 << 'EOF'
+import os
+import sys
+
+# Set timeout for model download (in case network is slow)
+os.environ['HF_HUB_DOWNLOAD_TIMEOUT'] = '600'  # 10 minutes timeout
+
+try:
+    print("[Chatterbox] 📥 Pre-downloading ChatterboxTTS models from HuggingFace...")
+    print("[Chatterbox] ⏳ This may take several minutes (models are ~2-3GB)...")
+    
+    from chatterbox.tts import ChatterboxTTS
+    import torch
+    
+    # Detect device (use CPU for build-time download)
+    device = "cpu"  # Use CPU during build, will use CUDA at runtime
+    
+    print(f"[Chatterbox] 🔄 Downloading models to CPU (will use CUDA at runtime)...")
+    model = ChatterboxTTS.from_pretrained(device=device)
+    print("[Chatterbox] ✅ Models pre-downloaded successfully")
+    print("[Chatterbox] 💡 Models cached in ~/.cache/huggingface/ and baked into image")
+except Exception as e:
+    print(f"[Chatterbox] ⚠️  Model pre-download failed: {e}")
+    print("[Chatterbox] 💡 Models will be downloaded on first request instead")
+    print("[Chatterbox] 💡 Ensure container has internet access on first use")
+    # Don't fail the build if download fails - allow runtime download
+    sys.exit(0)  # Exit with success to not fail the build
+EOF
+
 # Install Flask for REST API
 # Use constraints to prevent PyTorch installation (though these shouldn't need it)
 RUN pip3 install --index-url https://pypi.org/simple \
