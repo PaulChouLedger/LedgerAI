@@ -963,14 +963,32 @@ def listen():
                             # Keep listening active so user can respond directly without wake word
                             listening_active = True
                             print(f"[Listener] ❓ Last response ended with question - keeping VAD active for natural conversation")
+                            # Update GUI to show solid red border (VAD active, waiting for speech)
+                            try:
+                                from gui.aura_gui import set_vad_active_waiting
+                                set_vad_active_waiting(True)
+                            except (ImportError, NameError):
+                                pass
                         else:
                             # Normal flow: reset to wake word detection
                             listening_active = False
                             print(f"[Listener] 🔄 Response ended without question - returning to wake word detection")
+                            # Clear VAD active waiting state
+                            try:
+                                from gui.aura_gui import set_vad_active_waiting
+                                set_vad_active_waiting(False)
+                            except (ImportError, NameError):
+                                pass
                     except Exception as e:
                         # Fallback: reset to wake word detection if state check fails
                         print(f"[Listener] ⚠️ Failed to check question flag: {e}, resetting to wake word detection")
                         listening_active = False
+                        # Clear VAD active waiting state
+                        try:
+                            from gui.aura_gui import set_vad_active_waiting
+                            set_vad_active_waiting(False)
+                        except (ImportError, NameError):
+                            pass
                 
                 # === STAGE 1: Wake Word Detection (if enabled) ===
                 # Only process wake word if detector is actually available
@@ -1159,8 +1177,9 @@ def listen():
                             
                             # Speech detected - switch from solid red to pulsating red
                             try:
-                                from gui.aura_gui import set_wake_word_detected
+                                from gui.aura_gui import set_wake_word_detected, set_vad_active_waiting
                                 set_wake_word_detected(False)  # Clear wake word state
+                                set_vad_active_waiting(False)  # Clear VAD active waiting state
                             except (ImportError, NameError):
                                 pass
                             set_transcribing(True)  # Start pulsating red LED

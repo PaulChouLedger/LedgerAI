@@ -19,6 +19,7 @@ _gui_ready = False
 _listening_ready = False  # Tracks when system is ready to transcribe
 _transcribing = False  # Tracks when user is speaking (transcription active)
 _wake_word_detected = False  # Tracks when wake word is detected (solid red LED)
+_vad_active_waiting = False  # Tracks when VAD is active and waiting for speech (e.g., after question)
 _tts_playing = False  # Tracks when TTS is playing (AI speaking)
 _setup_complete = False  # Tracks when initial setup is complete
 _welcome_played = False  # Tracks when welcome prompt has been played
@@ -1308,9 +1309,9 @@ class AuraGUI(QMainWindow):
             print(f"      Current opacity: {self.opacity_effect.opacity():.3f}")
         self._last_state = current_state
         
-        # PRIORITY: Check wake word detected state (solid red, no pulsation)
-        if _wake_word_detected and not _transcribing:
-            # Wake word detected but no speech yet - show solid red LED
+        # PRIORITY: Check wake word detected state OR VAD active waiting (solid red, no pulsation)
+        if (_wake_word_detected or _vad_active_waiting) and not _transcribing:
+            # Wake word detected or VAD active waiting for speech - show solid red LED
             self.opacity_effect.setOpacity(1.0)
             # Solid red border (no pulsation)
             self.red_border_width = 10
@@ -1323,8 +1324,66 @@ class AuraGUI(QMainWindow):
         elif _transcribing:
             # Keep aura eye fully visible during transcription
             self.opacity_effect.setOpacity(1.0)
-            # Show solid red border (VAD stays triggered during natural conversation)
-            self._set_red_border_solid(width=14, opacity=0.92)
+            
+            # Get real-time voice frequency from audio analysis
+            try:
+                from listener import get_transcription_frequency
+                voice_freq = get_transcription_frequency()
+                # voice_freq is 0.0 to 1.0 based on amplitude and pitch
+            except ImportError:
+                voice_freq = 0.5  # Moderate default
+            except Exception as e:
+                voice_freq = 0.5  # Fallback
+            
+            # Create organic pulsation based on voice characteristics
+            # Use multiple sine waves at different frequencies for natural feel
+            
+            # Primary pulse (follows voice frequency closely) - VERY FAST for speech dynamics
+            primary_speed = 0.4 + (voice_freq * 1.0)  # 0.4 to 1.4 range (4x faster than original)
+            self.border_pulse_phase += primary_speed
+            primary_pulse = (math.sin(self.border_pulse_phase) + 1) / 2
+            
+            # Secondary pulse (adds organic variation) - VERY FAST
+            if not hasattr(self, 'secondary_phase'):
+                self.secondary_phase = 0.0
+            self.secondary_phase += 0.25  # Much faster
+            secondary_pulse = (math.sin(self.secondary_phase) + 1) / 2
+            
+            # Tertiary pulse (micro variations for organic feel) - VERY FAST
+            if not hasattr(self, 'tertiary_phase'):
+                self.tertiary_phase = 0.0
+            self.tertiary_phase += 0.45  # Much faster
+            tertiary_pulse = (math.sin(self.tertiary_phase * 1.7) + 1) / 2
+            
+            # Combine pulses with voice frequency weighting
+            # Higher voice frequency = more influence from primary pulse
+            combined_pulse = (
+                primary_pulse * (0.7 + voice_freq * 0.2) +      # 70-90% primary (highly responsive)
+                secondary_pulse * (0.2 - voice_freq * 0.05) +   # 20-15% secondary  
+                tertiary_pulse * 0.1                             # 10% micro variation
+            )
+            
+            # Calculate border width based on combined pulse and voice intensity
+            # Make it MUCH more dynamic and thicker
+            base_width = 10  # Increased from 6
+            max_variation = 15  # Increased from 10 for dramatic pulsation
+            self.border_width = int(base_width + combined_pulse * max_variation * (0.7 + voice_freq))
+            
+            # Wider range for more dramatic effect
+            self.border_width = max(10, min(self.border_width, 25))
+            
+            # Calculate opacity variation - consistent visibility
+            border_opacity = 0.6 + combined_pulse * 0.3  # 0.6 to 0.9 opacity (more visible)
+            
+            # Update red border state and trigger overlay repaint
+            self.red_border_width = int(self.border_width)
+            self.red_border_opacity = border_opacity
+            self.show_red_border = True
+            # Ensure border overlay is visible and on top
+            if hasattr(self, 'border_overlay'):
+                self.border_overlay.show()
+            self.border_overlay.raise_()  # Keep on top every frame
+            self.border_overlay.update()  # Trigger overlay paintEvent
             
         # State 1: TTS playing - dramatic pulsation (priority after transcribing)
         elif _tts_playing:
@@ -1974,6 +2033,15 @@ def set_wake_word_detected(active):
                                 Q_ARG(bool, active))
     else:
         print("[AuraGUI] ⚠️ Window not initialized, cannot update wake word detected state")
+
+def set_vad_active_waiting(active):
+    """Set VAD active waiting state - solid red edge when VAD is active and waiting for speech (thread-safe)"""
+    global _vad_active_waiting, _window
+    _vad_active_waiting = active
+    if active:
+        print("[AuraGUI] 🎤 VAD active - waiting for speech (solid red border)")
+    else:
+        print("[AuraGUI] ⚫ VAD inactive - returning to normal state")
 
 def set_tts_playing(active):
     """Set TTS state - aura eye pulsation when AI is speaking"""
