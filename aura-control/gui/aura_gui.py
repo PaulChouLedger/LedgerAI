@@ -389,7 +389,7 @@ class CircularProgressWidget(QWidget):
             with open(debug_log_path, 'r', encoding='utf-8', errors='ignore') as f:
                 content = f.read()
             
-            # SIMPLE: Explicit percentages for each milestone - with safety checks to prevent early completion
+            # SIMPLE: Explicit percentages for each milestone - ordered from early to late
             import re
             steps = [
                 # Early setup
@@ -422,7 +422,8 @@ class CircularProgressWidget(QWidget):
                 # CRITICAL: Audio setup happens RIGHT BEFORE welcome - set to 100%
                 ("Audio.*Detected.*architecture|Detected ARM architecture|🔧.*detected.*architecture|using latency.*high.*stability", 1.0),  # 100% - Stream setup (before welcome)
                 ("Playing welcome prompt|🔊 Playing welcome", 1.0),  # 100% - Welcome about to play
-                ("Setup complete", 1.0),                 # 100% - All done
+                # "Setup complete" - only match when it includes "listener ready" to ensure it's the real completion
+                ("Setup complete, listener ready|✅ Setup complete, listener ready", 1.0),  # 100% - All done (specific pattern)
             ]
             
             # RESPECT MILESTONE PERCENTAGES: Each milestone sets its specific percentage
@@ -435,28 +436,51 @@ class CircularProgressWidget(QWidget):
                     detected_milestones.append((step_text, progress_value))
                     max_progress = max(max_progress, progress_value)
             
-            # MINIMAL SAFETY: Only prevent false positives, RESPECT legitimate milestone percentages
+            # SAFETY: Prevent false positives for 100% milestones
             
-            # 1. Exclude TTS warm-up from triggering high progress ONLY if it's falsely matching 100% milestones
-            # Check if a 100% milestone was detected but it's actually just TTS warm-up
+            # 1. "Setup complete" should only trigger 100% if we have listener/audio setup
+            # This prevents early false matches
             if max_progress >= 1.0:
-                has_tts_warmup_only = (
-                    re.search("tts.*warm|warm.*tts", content.lower(), re.IGNORECASE) and
-                    not any(re.search(p.lower(), content.lower()) for p in [
-                        "audio.*detected.*architecture", "detected arm architecture",
-                        "🔧.*detected.*architecture", "using latency.*high.*stability",
-                        "playing welcome prompt", "🔊 playing welcome",
-                        "setup complete", "listener.*initializing", "listen\\(\\) function called"
-                    ])
+                # Check if "Setup complete" was matched
+                has_setup_complete_match = any(
+                    "setup complete" in step.lower() for step, _ in detected_milestones if _ >= 1.0
                 )
-                if has_tts_warmup_only:
-                    max_progress = 0.10  # TTS warm-up alone shouldn't trigger 100%
-                    print(f"[CircularProgress] ⚠️ False 100% from TTS warm-up - correcting to 10%")
+                
+                if has_setup_complete_match:
+                    # Verify we have legitimate completion signals
+                    has_listener = any(re.search(p.lower(), content.lower()) for p in [
+                        "listener.*initializing", "listen\\(\\) function called", "🎧 listen",
+                        "listener ready", "listener is now READY"
+                    ])
+                    has_audio_setup = any(re.search(p.lower(), content.lower()) for p in [
+                        "audio.*detected.*architecture", "detected arm architecture",
+                        "🔧.*detected.*architecture", "using latency.*high.*stability"
+                    ])
+                    has_welcome = re.search("playing welcome prompt|🔊 playing welcome", content.lower(), re.IGNORECASE)
+                    
+                    # If "Setup complete" matched but no listener/audio/welcome, it's a false positive
+                    if not (has_listener or has_audio_setup or has_welcome):
+                        # Find the next highest legitimate milestone
+                        legitimate_progress = 0.0
+                        for step_text, progress_value in steps:
+                            if progress_value < 1.0:  # Skip 100% milestones
+                                if re.search(step_text.lower(), content.lower(), re.IGNORECASE):
+                                    legitimate_progress = max(legitimate_progress, progress_value)
+                        max_progress = legitimate_progress
+                        print(f"[CircularProgress] ⚠️ False 'Setup complete' match - using {int(max_progress * 100)}% instead")
             
-            # Log detected milestones for debugging
+            # Log detected milestones for debugging (only log when milestone changes or progress changes significantly)
             if detected_milestones:
                 latest_milestone = detected_milestones[-1]  # Most recent milestone
-                print(f"[CircularProgress] 🎯 Milestone: '{latest_milestone[0]}' → {int(max_progress * 100)}%")
+                # Only log if this is a new milestone or progress changed significantly
+                current_progress_int = int(max_progress * 100)
+                if (not hasattr(self, '_last_logged_milestone') or 
+                    self._last_logged_milestone != latest_milestone[0] or
+                    not hasattr(self, '_last_logged_progress') or
+                    abs(self._last_logged_progress - current_progress_int) >= 5):  # Log if progress changed by 5%+
+                    print(f"[CircularProgress] 🎯 Milestone: '{latest_milestone[0]}' → {current_progress_int}%")
+                    self._last_logged_milestone = latest_milestone[0]
+                    self._last_logged_progress = current_progress_int
             
             return max_progress
         except Exception as e:
