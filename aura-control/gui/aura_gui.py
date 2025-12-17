@@ -321,7 +321,7 @@ class CircularProgressWidget(QWidget):
         self.update()
     
     def _get_milestone_progress(self):
-        """Estimate progress based on initialization milestones in debug log - incremental growth"""
+        """Estimate progress based on initialization milestones in debug log - sequential, conservative"""
         try:
             debug_log_path = os.path.expanduser("~/LedgerAI/data/aura_init_debug.log")
             if not os.path.exists(debug_log_path):
@@ -330,47 +330,77 @@ class CircularProgressWidget(QWidget):
             with open(debug_log_path, 'r', encoding='utf-8', errors='ignore') as f:
                 content = f.read()
             
-            # Specific milestones with incremental progress - each container/module adds progress
-            # Progress values are more spread out and conservative
+            # Sequential milestones - must be detected in order, very conservative progress values
+            # Each milestone only adds a small amount of progress
             milestones = [
-                # Initial setup
-                ("Loading config", 0.05),
-                ("Starting services", 0.10),
+                # Very early setup (low progress)
+                ("Loading config", 0.03),
+                ("Starting services", 0.06),
                 
-                # Containers loading (each adds progress)
-                ("whisper", 0.15),  # Whisper container
-                ("llm", 0.20),      # LLM container starting
-                ("rag", 0.25),      # RAG container (if GPU mode)
+                # Container health checks (containers are starting)
+                ("Waiting for.*whisper", 0.10),  # Whisper container starting
+                ("Waiting for.*llm", 0.15),      # LLM container starting
+                ("health", 0.18),                # Health checks passing
                 
-                # Model loading
+                # Containers actually responding
+                ("whisper.*respond", 0.22),      # Whisper responding
+                ("llm.*respond", 0.28),          # LLM responding
+                
+                # Model loading (this takes time)
                 ("Model loaded", 0.35),
-                ("simple_loaded", 0.40),  # Model actually loaded
+                ("simple_loaded.*true", 0.40),   # Model actually loaded
                 
-                # Warm-ups (each adds progress)
-                ("warm-up", 0.50),
-                ("LLM warm-up", 0.55),
-                ("warm-up complete", 0.60),
-                ("Testing LLM", 0.65),
+                # Warm-ups (these happen after containers are up)
+                ("Testing LLM", 0.48),
+                ("LLM warm-up", 0.52),
+                ("warm-up complete", 0.56),
                 
-                # RAG initialization
-                ("RAG initialization", 0.70),
-                ("RAG container initialized", 0.75),
-                ("RAG", 0.80),  # RAG ready
+                # RAG initialization (after LLM is ready)
+                ("RAG initialization", 0.62),
+                ("RAG container initialized", 0.68),
+                ("RAG.*ready", 0.72),
                 
-                # Listener/audio
-                ("Listener", 0.85),
-                ("listener ready", 0.90),
+                # Listener/audio (near the end)
+                ("Listener.*initializing", 0.78),
+                ("listener ready", 0.84),
+                ("listener is now READY", 0.90),
                 
-                # Final steps
+                # Final completion
                 ("Setup complete", 0.95),
-                ("listener is now READY", 0.98),
             ]
             
-            # Find the highest milestone reached
-            max_progress = 0.0
+            # Check milestones - use regex for pattern matching
+            import re
+            detected_milestones = []
             for milestone_text, progress_value in milestones:
-                if milestone_text.lower() in content.lower():
-                    max_progress = max(max_progress, progress_value)
+                if re.search(milestone_text.lower(), content.lower(), re.IGNORECASE):
+                    detected_milestones.append((milestone_text, progress_value))
+            
+            if len(detected_milestones) == 0:
+                return 0.0
+            
+            # Get the highest milestone
+            max_progress = max(m[1] for m in detected_milestones)
+            
+            # Safety checks to prevent false positives:
+            # 1. If we see late milestones (>50%) but no container milestones, cap progress
+            early_container_milestones = [m for m in detected_milestones if "whisper" in m[0].lower() or "llm" in m[0].lower() or "health" in m[0].lower()]
+            late_milestones = [m for m in detected_milestones if m[1] >= 0.5]
+            
+            if len(late_milestones) > 0 and len(early_container_milestones) == 0:
+                # Late milestones detected but no containers - likely false positive
+                max_progress = min(max_progress, 0.20)  # Cap at 20%
+            
+            # 2. Exclude TTS initialization from triggering high progress
+            # TTS happens early but shouldn't indicate containers are loaded
+            if "TTS" in content and "initialization" in content.lower():
+                # If we see TTS but no container milestones, cap progress
+                if len(early_container_milestones) == 0:
+                    max_progress = min(max_progress, 0.15)  # Cap at 15% if only TTS
+            
+            # 3. Require at least one container milestone before allowing progress > 30%
+            if max_progress > 0.30 and len(early_container_milestones) == 0:
+                max_progress = min(max_progress, 0.25)  # Cap at 25% without containers
             
             return max_progress
         except Exception:
@@ -490,9 +520,8 @@ class TranscriptionOverlayWidget(QWidget):
         
         # Position lower, closer to center (but still above aura eye)
         # Safe zone: Below top button (ends at y=180), above aura eye center (starts ~y=240)
-        # Position moved up by 5% (54px for 1080px screen)
         overlay_x = (window_size - overlay_width) // 2  # Centered horizontally
-        overlay_y = 226  # Moved up by 5% (was 280, now 226 = 280 - 54)
+        overlay_y = 240  # Position adjusted
         
         # Verify position is within circular perimeter
         # Distance from center (540, 540) to overlay corners:
@@ -508,7 +537,7 @@ class TranscriptionOverlayWidget(QWidget):
             # Adjust if too close to edge - move slightly up and narrower
             overlay_width = 360
             overlay_x = (window_size - overlay_width) // 2
-            overlay_y = 216  # Moved up by 5% (was 270, now 216 = 270 - 54)
+            overlay_y = 240  # Position adjusted
         
         self.setGeometry(overlay_x, overlay_y, overlay_width, overlay_height)
         self.transcription_text.setGeometry(0, 0, overlay_width, overlay_height)
