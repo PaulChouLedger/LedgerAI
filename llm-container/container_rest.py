@@ -972,16 +972,14 @@ JSON array only:"""
                         metadata = result.get('metadata', {})
                         
                         if text:
-                            # Extract conversation info
+                            # Extract conversation info (for logging only, not included in prompt)
                             conv_id = metadata.get('conversation_id', 'unknown')
                             timestamp = metadata.get('datetime', metadata.get('timestamp', ''))
                             source = metadata.get('source', 'unknown')
                             
-                            # Format memory chunk
-                            if timestamp:
-                                memory_chunk = f"[Previous conversation ({timestamp})]: {text}"
-                            else:
-                                memory_chunk = f"[Previous conversation]: {text}"
+                            # Format memory chunk - use only the text content, no metadata wrapper
+                            # This prevents LLM from including timestamps/metadata in spoken responses
+                            memory_chunk = text
                             
                             # Truncate if too long (same logic as document RAG)
                             if len(memory_chunk) > MAX_CHARS_PER_RESULT:
@@ -1022,10 +1020,11 @@ JSON array only:"""
                 if memory_chunks:
                     memory_context = "\n\n---\n\n".join(memory_chunks)
                     # Combine with document RAG context if it exists
+                    # Note: No metadata wrapper - just the text content to prevent LLM from including it in responses
                     if rag_context:
-                        rag_context = f"{rag_context}\n\n---\n\n[Stored Conversations]\n{memory_context}"
+                        rag_context = f"{rag_context}\n\n---\n\n{memory_context}"
                     else:
-                        rag_context = f"[Stored Conversations]\n{memory_context}"
+                        rag_context = memory_context
                     print(f"[Generic] ✅ Added memory RAG context ({len(memory_context)} chars) from {len(memory_chunks)} conversations")
             except Exception as e:
                 print(f"[Generic] ⚠️ Memory RAG context building failed: {e}")
@@ -2467,12 +2466,16 @@ def _sentence_tag_stream(word_stream):
         word_stripped = word_to_yield.strip()
         
         # Special handling for standalone dashes: they start new sentences for list items
+        # Note: This will be called from yield_word, but we can't know if content follows.
+        # The main loop will handle skipping dashes that don't have content.
         if word_stripped == '-':
             # Close previous sentence if open
             if sentence_open:
                 yield "<sentence_end>"
                 sentence_buffer = ""
+                pending_sentence_end = False
             # Start new sentence for list item (dash is first word)
+            # If no content follows, this will be skipped as empty by the speaker
             sentence_open = True
             yield "<sentence_start>"
             yield word_to_yield
@@ -2526,6 +2529,13 @@ def _sentence_tag_stream(word_stream):
             continue
         
         word_stripped = word.strip()
+        
+        # Skip standalone dashes that are formatting artifacts (no meaningful content)
+        # These often appear as list formatting but without actual list items
+        if word_stripped == '-' and not sentence_open and not pending_sentence_end:
+            # Standalone dash with no context - skip it (likely formatting artifact)
+            prev_word = word
+            continue
         
         # CRITICAL FIX: If we detected sentence-ending punctuation in previous word,
         # check if current token is trailing punctuation-only. If so, include it in current sentence before closing.
