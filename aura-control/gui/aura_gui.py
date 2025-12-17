@@ -262,6 +262,27 @@ class CircularProgressWidget(QWidget):
         self.start_time = None
         self.estimated_duration = 30.0  # Estimated 30 seconds for initialization
         
+        # Explicit progress steps - each initialization step reports its percentage
+        # This is much more reliable than parsing log files
+        self.progress_steps = {
+            "welcome_setup": 0.05,           # 5% - Welcome setup dialog shown
+            "tts_initialized": 0.10,          # 10% - TTS initialized
+            "containers_starting": 0.15,      # 15% - Starting containers
+            "whisper_ready": 0.25,            # 25% - Whisper container ready
+            "llm_starting": 0.30,             # 30% - LLM container starting
+            "llm_ready": 0.40,                # 40% - LLM container responding
+            "model_loading": 0.50,             # 50% - Model loading
+            "model_loaded": 0.60,              # 60% - Model loaded
+            "llm_warmup": 0.70,               # 70% - LLM warm-up
+            "llm_warmup_complete": 0.75,      # 75% - LLM warm-up complete
+            "rag_initializing": 0.80,         # 80% - RAG initializing
+            "rag_ready": 0.85,                # 85% - RAG ready
+            "listener_initializing": 0.90,    # 90% - Listener initializing
+            "listener_ready": 0.95,           # 95% - Listener ready
+            "setup_complete": 1.0,            # 100% - Setup complete
+        }
+        self.current_step = None
+        
         # Set transparent background
         self.setStyleSheet("background: transparent;")
         
@@ -271,7 +292,7 @@ class CircularProgressWidget(QWidget):
         # Initially hidden - will be shown during initialization
         self.hide()
         
-        # Timer to update progress
+        # Timer to update progress (fallback to log parsing if no explicit steps)
         self.update_timer = QTimer()
         self.update_timer.timeout.connect(self._update_progress)
         self.update_timer.start(100)  # Update every 100ms for smooth animation
@@ -287,14 +308,23 @@ class CircularProgressWidget(QWidget):
         self.raise_()  # Ensure it's above aura eye but below border
         print(f"[CircularProgress] ▶️ Started progress indicator")
     
+    @pyqtSlot(str)
+    def set_step_progress(self, step_name):
+        """Set progress based on explicit step name - called from initialization code"""
+        if step_name in self.progress_steps:
+            target_progress = self.progress_steps[step_name]
+            if target_progress > self.progress:
+                self.current_step = step_name
+                self.progress = target_progress
+                self.update()
+                print(f"[CircularProgress] 📊 Step '{step_name}': {int(target_progress * 100)}%")
+    
     def _update_progress(self):
-        """Update progress based on actual initialization milestones - no time-based jumping"""
+        """Update progress - use explicit steps if set, otherwise fallback to log parsing"""
         global _setup_complete, _welcome_played
         
-        # Only hide when setup is complete AND progress is near 100%
-        # Don't hide on welcome_played alone - let progress complete first
+        # Hide when setup is complete
         if _setup_complete:
-            # Complete the progress and hide
             self.progress = 1.0
             self.update()
             self.hide()
@@ -302,9 +332,7 @@ class CircularProgressWidget(QWidget):
             return
         
         # If welcome played but setup not complete, continue showing progress
-        # Progress should reach near completion before hiding
         if _welcome_played and self.progress >= 0.95:
-            # Only hide if progress is nearly complete
             self.progress = 1.0
             self.update()
             self.hide()
@@ -314,25 +342,28 @@ class CircularProgressWidget(QWidget):
         if self.start_time is None:
             return
         
-        # Get progress ONLY from milestones - no time-based jumping
+        # If we have explicit step progress, use it (preferred method)
+        if self.current_step and self.current_step in self.progress_steps:
+            # Progress already set by explicit step - just update display
+            self.update()
+            return
+        
+        # Fallback: Try to get progress from log milestones (less reliable)
         milestone_progress = self._get_milestone_progress()
         
-        # Only use milestone progress - this ensures it grows as modules actually load
-        # Don't let it jump ahead based on time
         if milestone_progress > self.progress:
-            # Only allow progress to increase, never decrease
             # Smooth the increase to avoid sudden jumps
             self.progress = min(1.0, self.progress + (milestone_progress - self.progress) * 0.3)
         elif milestone_progress == 0 and self.progress == 0:
             # Very slow initial progress if no milestones detected yet
             elapsed = time.time() - self.start_time
-            if elapsed > 2.0:  # Only start showing progress after 2 seconds
-                self.progress = min(0.05, (elapsed - 2.0) * 0.01)  # Very slow initial crawl
+            if elapsed > 2.0:
+                self.progress = min(0.05, (elapsed - 2.0) * 0.01)
         
         self.update()
     
     def _get_milestone_progress(self):
-        """Estimate progress based on initialization milestones in debug log - sequential, conservative"""
+        """Estimate progress based on initialization milestones - simple explicit percentages"""
         try:
             debug_log_path = os.path.expanduser("~/LedgerAI/data/aura_init_debug.log")
             if not os.path.exists(debug_log_path):
@@ -341,93 +372,57 @@ class CircularProgressWidget(QWidget):
             with open(debug_log_path, 'r', encoding='utf-8', errors='ignore') as f:
                 content = f.read()
             
-            # Sequential milestones - adjusted to reach 100% before welcome message
-            # Progress must complete before welcome prompt plays
-            milestones = [
-                # Very early setup (minimal progress)
-                ("Loading config", 0.02),
-                ("Starting services", 0.05),
+            # Simple explicit percentages for each step - based on actual log messages
+            # Each step has a fixed percentage, checked in order
+            import re
+            steps = [
+                # Early setup
+                ("Welcome setup completed", 0.05),      # 5% - Welcome dialog done
+                ("TTS initialized", 0.10),              # 10% - TTS ready
+                ("Starting.*containers", 0.15),         # 15% - Containers starting
+                ("Rebuilding containers", 0.20),        # 20% - Rebuilding (if needed)
+                ("Containers rebuilt", 0.25),           # 25% - Rebuild complete
                 
-                # Container health checks (containers are starting, not loaded yet)
-                ("Waiting for.*whisper", 0.08),   # Whisper container starting
-                ("Waiting for.*llm", 0.12),       # LLM container starting
-                ("health.*200", 0.15),            # Health checks passing (status 200)
+                # Container readiness
+                ("Whisper.*ready|whisper.*respond", 0.30),  # 30% - Whisper ready
+                ("LLM.*ready|llm.*respond", 0.40),          # 40% - LLM container ready
+                ("Model loaded after", 0.50),               # 50% - Model loaded
+                ("simple_loaded.*true", 0.55),              # 55% - Model confirmed loaded
                 
-                # Containers actually responding (but model may not be loaded)
-                ("whisper.*respond", 0.20),       # Whisper responding
-                ("llm.*respond", 0.25),           # LLM responding (but model may still be loading)
+                # Warm-ups
+                ("Testing LLM", 0.60),                   # 60% - LLM test starting
+                ("LLM warm-up complete", 0.70),         # 70% - LLM warm-up done
                 
-                # Model loading (this is the critical step - takes time)
-                ("Model loaded", 0.35),
-                ("simple_loaded.*true", 0.45),    # Model actually loaded and ready
+                # RAG
+                ("RAG initialization", 0.75),            # 75% - RAG starting
+                ("RAG container initialized", 0.80),     # 80% - RAG ready
                 
-                # Warm-ups (only after model is loaded)
-                ("Testing LLM", 0.55),
-                ("LLM warm-up", 0.62),
-                ("warm-up complete", 0.70),
-                ("LLM warm-up complete", 0.75),    # Explicit warm-up completion
+                # Listener
+                ("Listener.*initializing", 0.85),        # 85% - Listener starting
+                ("listener ready", 0.90),               # 90% - Listener ready
+                ("listener is now READY", 0.95),         # 95% - Listener fully ready
                 
-                # RAG initialization (after LLM is ready)
-                ("RAG initialization", 0.80),
-                ("RAG container initialized", 0.85),
-                ("RAG.*ready", 0.88),
-                
-                # Listener/audio (near the end, after everything else)
-                ("Listener.*initializing", 0.92),
-                ("listener ready", 0.95),
-                ("listener is now READY", 0.98),
-                
-                # Final completion (this should be the last step before welcome)
-                ("Setup complete", 1.0),  # 100% - must reach this before welcome
+                # Final
+                ("Setup complete", 1.0),                 # 100% - All done
             ]
             
-            # Check milestones - use regex for pattern matching
-            import re
-            detected_milestones = []
-            for milestone_text, progress_value in milestones:
-                if re.search(milestone_text.lower(), content.lower(), re.IGNORECASE):
-                    detected_milestones.append((milestone_text, progress_value))
+            # Check steps in order, return the highest one found
+            max_progress = 0.0
+            for step_text, progress_value in steps:
+                if re.search(step_text.lower(), content.lower(), re.IGNORECASE):
+                    max_progress = max(max_progress, progress_value)
             
-            if len(detected_milestones) == 0:
-                return 0.0
-            
-            # Get the highest milestone
-            max_progress = max(m[1] for m in detected_milestones)
-            
-            # Safety checks to prevent false positives, but allow progress to reach 100%
-            # 1. Require model loaded before allowing progress > 55%
-            model_loaded_milestones = [m for m in detected_milestones if "model loaded" in m[0].lower() or "simple_loaded" in m[0].lower()]
-            if max_progress > 0.55 and len(model_loaded_milestones) == 0:
-                max_progress = min(max_progress, 0.45)  # Cap at 45% until model is loaded
-            
-            # 2. Require LLM warm-up complete before allowing progress > 80%
-            warmup_milestones = [m for m in detected_milestones if "warm-up complete" in m[0].lower() or "warm-up complete" in m[0].lower()]
-            if max_progress > 0.80 and len(warmup_milestones) == 0:
-                max_progress = min(max_progress, 0.75)  # Cap at 75% until warm-up complete
-            
-            # 3. If we see late milestones (>60%) but no container response milestones, cap progress
-            container_response_milestones = [m for m in detected_milestones if "respond" in m[0].lower() or "health.*200" in m[0].lower()]
-            late_milestones = [m for m in detected_milestones if m[1] >= 0.60]
-            
-            if len(late_milestones) > 0 and len(container_response_milestones) == 0:
-                # Late milestones detected but containers not responding - likely false positive
-                max_progress = min(max_progress, 0.30)  # Cap at 30%
-            
-            # 4. Exclude TTS initialization from triggering high progress
-            if "TTS" in content and "initialization" in content.lower():
-                # If we see TTS but no model loaded, cap progress
-                if len(model_loaded_milestones) == 0:
-                    max_progress = min(max_progress, 0.20)  # Cap at 20% if only TTS
-            
-            # 5. Don't allow progress > 92% until listener is ready
-            listener_milestones = [m for m in detected_milestones if "listener" in m[0].lower()]
-            if max_progress > 0.92 and len(listener_milestones) == 0:
-                max_progress = min(max_progress, 0.88)  # Cap at 88% until listener starts
-            
-            # 6. Ensure "Setup complete" milestone reaches 100%
-            setup_complete_milestones = [m for m in detected_milestones if "setup complete" in m[0].lower()]
-            if len(setup_complete_milestones) > 0:
-                max_progress = 1.0  # Force 100% when setup is complete
+            # Safety: Exclude TTS warm-up from triggering high progress
+            # TTS happens early and shouldn't indicate containers are ready
+            if "TTS" in content.upper() and "warm" in content.lower():
+                # If only TTS warm-up, cap at 10%
+                if max_progress > 0.10:
+                    # Check if we have container milestones
+                    has_containers = any(re.search(p.lower(), content.lower()) for p in [
+                        "containers", "whisper", "llm", "model loaded"
+                    ])
+                    if not has_containers:
+                        max_progress = min(max_progress, 0.10)  # Cap at 10% if only TTS
             
             return max_progress
         except Exception:
@@ -1978,10 +1973,22 @@ def clear_transcription_text():
     else:
         print("[AuraGUI] ⚠️ Window not initialized, cannot clear transcription text")
 
+def set_progress_step(step_name):
+    """Set progress based on explicit initialization step name (thread-safe)"""
+    global _window
+    if _window and hasattr(_window, 'circular_progress'):
+        # Use Qt's thread-safe mechanism to update GUI from any thread
+        QMetaObject.invokeMethod(_window.circular_progress, "set_step_progress",
+                                Qt.QueuedConnection,
+                                Q_ARG(str, step_name))
+
 def set_setup_complete():
     """Mark initial setup as complete"""
     global _setup_complete, _window
     _setup_complete = True
+    
+    # Set final progress step
+    set_progress_step("setup_complete")
     
     # Complete and hide circular progress indicator
     if _window and hasattr(_window, 'circular_progress'):
