@@ -289,13 +289,14 @@ class CircularProgressWidget(QWidget):
     
     def _update_progress(self):
         """Update progress based on time elapsed and milestones"""
-        global _setup_complete
+        global _setup_complete, _welcome_played
         
-        if _setup_complete:
-            # Complete the progress and hide
+        # Hide when setup is complete (before buttons show)
+        if _setup_complete or _welcome_played:
+            # Complete the progress and hide immediately
             self.progress = 1.0
             self.update()
-            QTimer.singleShot(500, self.hide)  # Hide after 500ms
+            self.hide()
             self.update_timer.stop()
             return
         
@@ -304,17 +305,19 @@ class CircularProgressWidget(QWidget):
         
         elapsed = time.time() - self.start_time
         
-        # Base progress on time (0-80% of estimated duration)
-        time_progress = min(0.8, elapsed / self.estimated_duration)
+        # Base progress on time (0-90% of estimated duration, slower start)
+        # Start slower to avoid appearing 90% done immediately
+        time_progress = min(0.9, (elapsed / self.estimated_duration) * 0.9)
         
-        # Try to get progress from debug log milestones
+        # Try to get progress from debug log milestones (more conservative)
         milestone_progress = self._get_milestone_progress()
         
-        # Use the higher of the two (time-based or milestone-based)
-        self.progress = max(time_progress, milestone_progress)
+        # Use the higher of the two, but cap at 0.9 until setup is complete
+        self.progress = min(0.9, max(time_progress, milestone_progress))
         
-        # Ensure progress doesn't exceed 0.95 until setup is complete
-        self.progress = min(0.95, self.progress)
+        # Ensure progress starts at 0 and grows gradually
+        if elapsed < 0.5:  # First 0.5 seconds, start very low
+            self.progress = min(self.progress, elapsed * 0.1)
         
         self.update()
     
@@ -328,15 +331,15 @@ class CircularProgressWidget(QWidget):
             with open(debug_log_path, 'r', encoding='utf-8', errors='ignore') as f:
                 content = f.read()
             
-            # Key milestones and their progress values
+            # Key milestones and their progress values (more conservative, gradual)
             milestones = [
-                ("Loading config", 0.1),
-                ("Starting services", 0.2),
-                ("Container", 0.3),
-                ("Model loaded", 0.5),
-                ("LLM warm-up", 0.6),
-                ("RAG", 0.7),
-                ("Listener", 0.8),
+                ("Loading config", 0.05),
+                ("Starting services", 0.15),
+                ("Container", 0.25),
+                ("Model loaded", 0.45),
+                ("LLM warm-up", 0.60),
+                ("RAG", 0.75),
+                ("Listener", 0.85),
                 ("Setup complete", 0.95),
             ]
             
@@ -356,7 +359,7 @@ class CircularProgressWidget(QWidget):
         self.update()
     
     def paintEvent(self, event):
-        """Draw circular progress ring around the aura eye"""
+        """Draw circular progress ring around the aura eye - hugs the eye, matches white perimeter"""
         if not self.isVisible() or self.progress <= 0:
             return
         
@@ -366,62 +369,35 @@ class CircularProgressWidget(QWidget):
         # Center of screen (same as aura eye)
         center_x, center_y = 540, 540
         
-        # Progress ring parameters
-        # Inner radius: just outside aura eye (~400px radius)
-        # Outer radius: closer to buttons (~450px radius)
-        inner_radius = 400
-        outer_radius = 450
-        ring_thickness = outer_radius - inner_radius
+        # Progress ring parameters - hug the aura eye closely
+        # Aura eye is roughly 300-400px radius, so place ring just outside it
+        # Match white perimeter: 8px thickness, white with 30% opacity (77/255)
+        ring_radius = 350  # Close to aura eye edge
+        ring_thickness = 8  # Match white perimeter thickness
         
-        # Draw background ring (unfilled portion)
-        bg_pen = QPen(QColor(255, 255, 255, 30), ring_thickness, Qt.SolidLine, Qt.RoundCap)
-        painter.setPen(bg_pen)
-        painter.setBrush(Qt.NoBrush)
-        painter.drawArc(
-            center_x - outer_radius,
-            center_y - outer_radius,
-            outer_radius * 2,
-            outer_radius * 2,
-            0,
-            360 * 16  # Full circle (Qt uses 1/16th degree units)
-        )
+        # White color matching the perimeter (30% opacity)
+        white_color = QColor(255, 255, 255, 77)  # Same as white perimeter
         
-        # Draw progress ring (filled portion)
+        # Draw progress ring (filled portion) - grows from top clockwise
         if self.progress > 0:
-            # Create gradient for progress ring
-            progress_color_start = QColor(0, 122, 255, 200)  # iOS Blue
-            progress_color_end = QColor(52, 199, 89, 200)    # iOS Green
-            
             # Calculate angle for progress (start at top, go clockwise)
             progress_angle = int(self.progress * 360 * 16)  # Convert to 1/16th degree units
             
-            # Draw progress arc with gradient effect
-            # Use multiple segments for gradient effect
-            segments = max(1, int(self.progress * 20))  # 20 segments for smooth gradient
+            # Draw progress arc with white color matching perimeter
+            progress_pen = QPen(white_color, ring_thickness, Qt.SolidLine, Qt.RoundCap)
+            painter.setPen(progress_pen)
+            painter.setBrush(Qt.NoBrush)
             
-            for i in range(segments):
-                segment_start = i * progress_angle // segments
-                segment_span = progress_angle // segments
-                
-                # Interpolate color
-                t = i / segments if segments > 1 else 1.0
-                r = int(progress_color_start.red() * (1 - t) + progress_color_end.red() * t)
-                g = int(progress_color_start.green() * (1 - t) + progress_color_end.green() * t)
-                b = int(progress_color_start.blue() * (1 - t) + progress_color_end.blue() * t)
-                
-                progress_pen = QPen(QColor(r, g, b, 220), ring_thickness, Qt.SolidLine, Qt.RoundCap)
-                painter.setPen(progress_pen)
-                
-                # Draw arc segment (Qt: 0° = 3 o'clock, we want 0° = 12 o'clock, so start at -90°)
-                start_angle = -90 * 16 + segment_start
-                painter.drawArc(
-                    center_x - outer_radius,
-                    center_y - outer_radius,
-                    outer_radius * 2,
-                    outer_radius * 2,
-                    start_angle,
-                    segment_span
-                )
+            # Draw arc (Qt: 0° = 3 o'clock, we want 0° = 12 o'clock, so start at -90°)
+            start_angle = -90 * 16  # Start at top (12 o'clock)
+            painter.drawArc(
+                center_x - ring_radius,
+                center_y - ring_radius,
+                ring_radius * 2,
+                ring_radius * 2,
+                start_angle,
+                progress_angle
+            )
         
         painter.end()
 
@@ -776,31 +752,17 @@ class AuraGUI(QMainWindow):
             btn.setToolTip(tooltip)
             btn.move(int(x), int(y))
             
-            # iPhone-style styling with iOS 3D effect - glossy, raised appearance
-            # Convert color to RGB for depth calculations
-            base_color = QColor(color)
-            # Create bright highlight for top-left (iOS style - strong white highlight)
-            highlight_r = min(255, base_color.red() + 80)
-            highlight_g = min(255, base_color.green() + 80)
-            highlight_b = min(255, base_color.blue() + 80)
-            highlight_color = f"rgb({highlight_r}, {highlight_g}, {highlight_b})"
-            # Create subtle darker area for bottom-right depth (not a shadow, just darker tone)
-            depth_r = max(0, base_color.red() - 25)
-            depth_g = max(0, base_color.green() - 25)
-            depth_b = max(0, base_color.blue() - 25)
-            depth_color = f"rgb({depth_r}, {depth_g}, {depth_b})"
-            
+            # iPhone-style styling with clean iOS 3D effect - no dark shadows
+            # Simple gradient: bright white highlight at top-left fading to base color
             btn.setStyleSheet(f"""
                 QPushButton {{
-                    /* iOS-style 3D glossy effect - light from top-left, smooth gradient */
+                    /* Clean iOS-style 3D effect - bright highlight, no dark shadows */
                     background: qradialgradient(cx:0.3, cy:0.3, radius:1.0,
                         fx:0.25, fy:0.25,
-                        stop:0 rgba(255, 255, 255, 0.5),
-                        stop:0.15 rgba(255, 255, 255, 0.3),
-                        stop:0.3 {highlight_color},
-                        stop:0.6 {color},
-                        stop:0.85 {color},
-                        stop:1 {depth_color});
+                        stop:0 rgba(255, 255, 255, 0.6),
+                        stop:0.2 rgba(255, 255, 255, 0.3),
+                        stop:0.4 {color},
+                        stop:1 {color});
                     color: #FFFFFF;
                     font-size: 56px;
                     font-weight: bold;
@@ -812,22 +774,19 @@ class AuraGUI(QMainWindow):
                     /* Brighter on hover - enhanced highlight */
                     background: qradialgradient(cx:0.3, cy:0.3, radius:1.0,
                         fx:0.25, fy:0.25,
-                        stop:0 rgba(255, 255, 255, 0.6),
-                        stop:0.15 rgba(255, 255, 255, 0.4),
-                        stop:0.3 {highlight_color},
-                        stop:0.6 {hover_color},
-                        stop:0.85 {hover_color},
-                        stop:1 {depth_color});
+                        stop:0 rgba(255, 255, 255, 0.7),
+                        stop:0.2 rgba(255, 255, 255, 0.4),
+                        stop:0.4 {hover_color},
+                        stop:1 {hover_color});
                     border: none;
                 }}
                 QPushButton:pressed {{
-                    /* Pressed state - reduced highlight, darker overall */
+                    /* Pressed state - reduced highlight */
                     background: qradialgradient(cx:0.3, cy:0.3, radius:1.0,
                         fx:0.25, fy:0.25,
                         stop:0 rgba(255, 255, 255, 0.2),
-                        stop:0.2 {pressed_color},
-                        stop:0.7 {pressed_color},
-                        stop:1 {depth_color});
+                        stop:0.3 {pressed_color},
+                        stop:1 {pressed_color});
                     border: none;
                 }}
             """)
@@ -1853,6 +1812,12 @@ def set_welcome_played():
     global _welcome_played, _window
     _welcome_played = True
     print("[AuraGUI] 👋 Welcome prompt played - aura eye now static and ready")
+    
+    # Hide circular progress indicator before showing buttons
+    if _window and hasattr(_window, 'circular_progress'):
+        if _window.circular_progress.isVisible():
+            _window.circular_progress.hide()
+            _window.circular_progress.update_timer.stop()
     
     # Show buttons using thread-safe Qt mechanism
     if _window:
