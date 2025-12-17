@@ -354,7 +354,12 @@ class CircularProgressWidget(QWidget):
         if milestone_progress > self.progress:
             # Very slow, gradual increase to avoid sudden jumps
             # Only increase by small increments per update cycle
-            increment = (milestone_progress - self.progress) * 0.1  # Very slow (10% per cycle)
+            # But if we're close to 100% and milestone is 100%, accelerate to reach it
+            if milestone_progress >= 1.0 and self.progress >= 0.90:
+                # When listener is detected and we're at 90%+, quickly reach 100%
+                increment = (milestone_progress - self.progress) * 0.3  # Faster when near completion
+            else:
+                increment = (milestone_progress - self.progress) * 0.1  # Very slow (10% per cycle)
             self.progress = min(1.0, self.progress + increment)
         elif milestone_progress == 0 and self.progress == 0:
             # Very slow initial progress if no milestones detected yet
@@ -402,6 +407,9 @@ class CircularProgressWidget(QWidget):
                 ("Listener.*initializing", 0.80),        # 80% - Listener starting
                 ("listener ready", 0.90),               # 90% - Listener ready
                 ("listener is now READY", 0.95),         # 95% - Listener fully ready
+                # CRITICAL: When listener function is called or audio stream is being set up, reach 100%
+                ("listen\\(\\) function called|🎧 listen", 0.98),  # 98% - Listener function called
+                ("Audio.*Detected.*architecture|Detected ARM architecture", 1.0),  # 100% - Stream setup (before welcome)
             ]
             
             # Check steps in order, return the highest one found
@@ -435,12 +443,40 @@ class CircularProgressWidget(QWidget):
             
             # 4. Don't allow > 90% without listener
             has_listener = any(re.search(p.lower(), content.lower()) for p in [
-                "listener.*initializing", "listener ready", "listener is now READY"
+                "listener.*initializing", "listener ready", "listener is now READY", 
+                "listen\\(\\) function called", "🎧 listen", "audio.*detected.*architecture"
             ])
             if max_progress > 0.90 and not has_listener:
                 max_progress = min(max_progress, 0.80)  # Cap at 80%
             
-            # 5. STRICT: "Setup complete" only reaches 100% if ALL required steps are present
+            # 5. CRITICAL: When audio stream is being set up (ARM architecture detected), we're ready for welcome
+            # This happens RIGHT BEFORE welcome prompt plays, so progress should be 100%
+            has_audio_setup = re.search("audio.*detected.*architecture|detected arm architecture", content.lower(), re.IGNORECASE)
+            if has_audio_setup:
+                # Require model loaded and LLM warm-up before allowing 100%
+                required_for_100 = [
+                    has_model_loaded,      # Model must be loaded
+                    has_llm_warmup,       # LLM warm-up must be complete
+                ]
+                if all(required_for_100):
+                    max_progress = 1.0  # Ready for welcome - reach 100%
+                else:
+                    max_progress = min(max_progress, 0.95)  # Cap at 95% if missing steps
+            
+            # 6. Also check if listener function was called (earlier milestone)
+            has_listener_called = re.search("listen\\(\\) function called|🎧 listen", content.lower(), re.IGNORECASE)
+            if has_listener_called and max_progress < 0.98:
+                # Require model loaded and LLM warm-up before allowing high progress
+                required_for_high = [
+                    has_model_loaded,      # Model must be loaded
+                    has_llm_warmup,       # LLM warm-up must be complete
+                ]
+                if all(required_for_high):
+                    max_progress = max(max_progress, 0.98)  # Almost there
+                else:
+                    max_progress = min(max_progress, 0.95)  # Cap at 95% if missing steps
+            
+            # 6. STRICT: "Setup complete" only reaches 100% if ALL required steps are present
             has_setup_complete = re.search("setup complete", content.lower(), re.IGNORECASE)
             if has_setup_complete:
                 # Require ALL of these before allowing 100%:
@@ -480,10 +516,10 @@ class CircularProgressWidget(QWidget):
         center_x, center_y = 540, 540
         
         # Progress ring parameters - hug the aura eye closely
-        # Decreased diameter by 10% more: 224px * 0.9 = 201.6px, rounded to 202px
-        # Increased thickness by 20%: 8px * 1.2 = 9.6px, rounded to 10px
-        ring_radius = 202  # 10% smaller diameter (was 224, now 202)
-        ring_thickness = 10  # 20% thicker (was 8, now 10)
+        # Increased diameter by 10%: 202px * 1.1 = 222.2px, rounded to 222px
+        # Increased thickness by 10%: 10px * 1.1 = 11px
+        ring_radius = 222  # 10% larger diameter (was 202, now 222)
+        ring_thickness = 11  # 10% thicker (was 10, now 11)
         
         # White color matching the perimeter (30% opacity)
         white_color = QColor(255, 255, 255, 77)  # Same as white perimeter
