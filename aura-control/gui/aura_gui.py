@@ -331,12 +331,13 @@ class CircularProgressWidget(QWidget):
             self.update_timer.stop()
             return
         
-        # If welcome played but setup not complete, continue showing progress
-        if _welcome_played and self.progress >= 0.95:
+        # If welcome played, jump to 100% immediately (don't wait for 95%)
+        if _welcome_played:
             self.progress = 1.0
             self.update()
             self.hide()
             self.update_timer.stop()
+            print(f"[CircularProgress] ✅ Welcome played → reached 100% and hiding")
             return
         
         if self.start_time is None:
@@ -346,6 +347,16 @@ class CircularProgressWidget(QWidget):
         if self.current_step and self.current_step in self.progress_steps:
             # Progress already set by explicit step - just update display
             self.update()
+            return
+        
+        # Check if welcome is about to play - if so, jump to 100% immediately
+        # This handles the case where messages aren't in the debug log
+        if _welcome_played and self.progress < 1.0:
+            self.progress = 1.0
+            print(f"[CircularProgress] ✅ Welcome played detected → jumping to 100%")
+            self.update()
+            self.hide()
+            self.update_timer.stop()
             return
         
         # Fallback: Try to get progress from log milestones - animate quickly towards milestone percentage
