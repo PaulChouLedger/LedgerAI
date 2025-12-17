@@ -321,8 +321,7 @@ RUN if [ "$SKIP_MODEL_DOWNLOAD" = "1" ]; then \
     fi
 
 # Verify ChatterboxTTS can load the downloaded models (only if we downloaded them)
-RUN if [ "$SKIP_MODEL_DOWNLOAD" != "1" ]; then \
-    python3 << 'EOF'
+RUN cat > /tmp/verify_models.py << 'EOF'
 import os
 from pathlib import Path
 
@@ -342,6 +341,9 @@ except Exception as e:
     print("[Chatterbox] 💡 Models may still download at runtime")
     # Don't fail build - models might work at runtime
 EOF
+
+RUN if [ "$SKIP_MODEL_DOWNLOAD" != "1" ]; then \
+        python3 /tmp/verify_models.py || true; \
     else \
         echo "[Chatterbox] ⏭️  Skipping model verification (models not pre-downloaded)"; \
     fi
