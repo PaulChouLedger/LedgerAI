@@ -352,15 +352,18 @@ class CircularProgressWidget(QWidget):
         milestone_progress = self._get_milestone_progress()
         
         if milestone_progress > self.progress:
-            # Very slow, gradual increase to avoid sudden jumps
-            # Only increase by small increments per update cycle
-            # But if we're close to 100% and milestone is 100%, accelerate to reach it
-            if milestone_progress >= 1.0 and self.progress >= 0.90:
-                # When listener is detected and we're at 90%+, quickly reach 100%
-                increment = (milestone_progress - self.progress) * 0.3  # Faster when near completion
+            # If milestone is 100%, immediately set to 100% (no gradual increase)
+            if milestone_progress >= 1.0:
+                self.progress = 1.0  # Immediately reach 100% when final milestone detected
+                print(f"[CircularProgress] ✅ Reached 100% - milestone detected!")
+            elif milestone_progress >= 0.90 and self.progress >= 0.85:
+                # When close to completion (90%+ milestone, 85%+ current), accelerate
+                increment = (milestone_progress - self.progress) * 0.5  # Fast when near completion
+                self.progress = min(1.0, self.progress + increment)
             else:
+                # Very slow, gradual increase to avoid sudden jumps
                 increment = (milestone_progress - self.progress) * 0.1  # Very slow (10% per cycle)
-            self.progress = min(1.0, self.progress + increment)
+                self.progress = min(1.0, self.progress + increment)
         elif milestone_progress == 0 and self.progress == 0:
             # Very slow initial progress if no milestones detected yet
             elapsed = time.time() - self.start_time
@@ -409,7 +412,10 @@ class CircularProgressWidget(QWidget):
                 ("listener is now READY", 0.95),         # 95% - Listener fully ready
                 # CRITICAL: When listener function is called or audio stream is being set up, reach 100%
                 ("listen\\(\\) function called|🎧 listen", 0.98),  # 98% - Listener function called
-                ("Audio.*Detected.*architecture|Detected ARM architecture", 1.0),  # 100% - Stream setup (before welcome)
+                # Multiple patterns to catch audio setup message
+                ("Audio.*Detected.*architecture|Detected ARM architecture|🔧.*detected.*architecture|using latency.*high.*stability", 1.0),  # 100% - Stream setup (before welcome)
+                # Fallback: If welcome prompt is about to play, we should already be at 100%
+                ("Playing welcome prompt|🔊 Playing welcome", 1.0),  # 100% - Welcome about to play (should already be 100%)
             ]
             
             # Check steps in order, return the highest one found
@@ -451,17 +457,23 @@ class CircularProgressWidget(QWidget):
             
             # 5. CRITICAL: When audio stream is being set up (ARM architecture detected), we're ready for welcome
             # This happens RIGHT BEFORE welcome prompt plays, so progress should be 100%
-            has_audio_setup = re.search("audio.*detected.*architecture|detected arm architecture", content.lower(), re.IGNORECASE)
+            # Use multiple patterns to catch the message
+            audio_patterns = [
+                "audio.*detected.*architecture",
+                "detected arm architecture",
+                "🔧 detected.*architecture",
+                "using latency.*high.*stability"
+            ]
+            has_audio_setup = any(re.search(p.lower(), content.lower(), re.IGNORECASE) for p in audio_patterns)
             if has_audio_setup:
-                # Require model loaded and LLM warm-up before allowing 100%
-                required_for_100 = [
-                    has_model_loaded,      # Model must be loaded
-                    has_llm_warmup,       # LLM warm-up must be complete
-                ]
-                if all(required_for_100):
+                # If we're at this point, we're very close - be lenient with requirements
+                # Just need model loaded (LLM warm-up should have happened by now)
+                if has_model_loaded or has_llm_warmup:
                     max_progress = 1.0  # Ready for welcome - reach 100%
+                    print(f"[CircularProgress] 🎯 Audio setup detected - setting to 100%")
                 else:
-                    max_progress = min(max_progress, 0.95)  # Cap at 95% if missing steps
+                    # If neither check passes, still allow high progress (95%) since we're at audio setup
+                    max_progress = max(max_progress, 0.95)
             
             # 6. Also check if listener function was called (earlier milestone)
             has_listener_called = re.search("listen\\(\\) function called|🎧 listen", content.lower(), re.IGNORECASE)
@@ -862,14 +874,14 @@ class AuraGUI(QMainWindow):
     def create_circular_buttons(self):
         """Create 6 buttons equally spaced around the circular edge - iPhone-style with bigger, multicolored icons"""
         # Button configurations: (text, icon, function, color, hover_color, pressed_color)
-        # Using vibrant iPhone-inspired colors
+        # Using new custom color palette
         button_configs = [
-            ("↑", "Upload", self._handle_upload, "#007AFF", "#0051D5", "#003D9E"),      # iOS Blue
-            ("⚙", "Settings", self._handle_settings, "#8E8E93", "#6E6E73", "#4E4E53"),  # iOS Gray
-            ("📊", "Analytics", self._handle_analytics, "#FF3B30", "#D32F2F", "#B71C1C"), # iOS Red (swapped from Green)
-            ("🎤", "Voice", self._handle_voice, "#34C759", "#28A745", "#1E7E34"),        # iOS Green (swapped from Red)
-            ("📱", "Mobile", self._handle_mobile, "#AF52DE", "#9C27B0", "#7B1FA2"),     # iOS Purple
-            ("ℹ", "Info", self._handle_info, "#FF9500", "#F57C00", "#E65100")          # iOS Orange
+            ("↑", "Upload", self._handle_upload, "#0D4D4B", "#0A3D3B", "#082B2A"),      # Deep Teal
+            ("⚙", "Settings", self._handle_settings, "#333333", "#2A2A2A", "#1F1F1F"),  # Charcoal Gray
+            ("📊", "Analytics", self._handle_analytics, "#FF7E5F", "#E66D4F", "#CC5C3F"), # Sunset Orange
+            ("🎤", "Voice", self._handle_voice, "#228B22", "#1E7A1E", "#1A691A"),        # Forest Green
+            ("📱", "Mobile", self._handle_mobile, "#B57EDC", "#9D6BC4", "#8558AC"),     # Lavender
+            ("ℹ", "Info", self._handle_info, "#FFD700", "#E6C200", "#CCAD00")          # Golden Yellow
         ]
         
         # Calculate positions for 6 buttons around a circle
@@ -1151,16 +1163,16 @@ class AuraGUI(QMainWindow):
                 # Update global state
                 set_microphone_muted(False)
                 
-                # Update button to GREEN for active state (active = green, more visible)
+                # Update button to FOREST GREEN for active state (active = forest green)
                 if voice_btn:
                     voice_btn.setStyleSheet(f"""
                         QPushButton {{
-                            /* Vibrant green for active voice state - high quality, highly visible */
+                            /* Forest green for active voice state - high quality, highly visible */
                             background: qradialgradient(cx:0.5, cy:0.5, radius:0.9,
                                 fx:0.45, fy:0.45,
                                 stop:0 rgba(255, 255, 255, 0.25),
-                                stop:0.3 #34C759,
-                                stop:1 #34C759);
+                                stop:0.3 #228B22,
+                                stop:1 #228B22);
                             color: #FFFFFF;
                             font-size: 56px;
                             font-weight: bold;
@@ -1172,16 +1184,16 @@ class AuraGUI(QMainWindow):
                             background: qradialgradient(cx:0.5, cy:0.5, radius:0.9,
                                 fx:0.45, fy:0.45,
                                 stop:0 rgba(255, 255, 255, 0.35),
-                                stop:0.3 #28A745,
-                                stop:1 #28A745);
+                                stop:0.3 #1E7A1E,
+                                stop:1 #1E7A1E);
                             border: none;
                         }}
                         QPushButton:pressed {{
                             background: qradialgradient(cx:0.5, cy:0.5, radius:0.9,
                                 fx:0.45, fy:0.45,
                                 stop:0 rgba(255, 255, 255, 0.15),
-                                stop:0.3 #1E7E34,
-                                stop:1 #1E7E34);
+                                stop:0.3 #1A691A,
+                                stop:1 #1A691A);
                             border: none;
                         }}
                     """)
