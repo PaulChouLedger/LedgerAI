@@ -392,6 +392,11 @@ class CircularProgressWidget(QWidget):
             # Debug: Check if Whisper warm-up message is in the log
             if "model warmed up" in content.lower():
                 print(f"[CircularProgress] 🔍 Found 'model warmed up' in log - checking patterns...")
+                # Show the actual line that contains it
+                for line in content.split('\n'):
+                    if "model warmed up" in line.lower():
+                        print(f"[CircularProgress] 🔍 Log line: {line[:100]}")
+                        break
             
             # SIMPLE: Explicit percentages for each milestone - ordered from early to late
             import re
@@ -424,8 +429,8 @@ class CircularProgressWidget(QWidget):
                 ("listener is now READY", 0.98),         # 98% - Listener fully ready
                 
                 # CRITICAL: Whisper model warm-up completion = 100% (happens right before welcome)
-                # Match various formats of the warm-up message
-                ("Whisper.*Model warmed up|Model warmed up.*first transcription|✅ Model warmed up", 1.0),  # 100% - Whisper ready (before welcome)
+                # Match various formats of the warm-up message - be very flexible
+                (".*Model warmed up.*first transcription|Whisper.*Model warmed up|Model warmed up.*fast|✅.*Model warmed up", 1.0),  # 100% - Whisper ready (before welcome)
                 ("Audio.*Detected.*architecture|Detected ARM architecture|🔧.*detected.*architecture|using latency.*high.*stability", 1.0),  # 100% - Stream setup (before welcome)
                 ("Playing welcome prompt|🔊 Playing welcome", 1.0),  # 100% - Welcome about to play
                 # "Setup complete" - only match when it includes "listener ready" to ensure it's the real completion

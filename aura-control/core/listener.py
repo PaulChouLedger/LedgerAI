@@ -565,8 +565,9 @@ def warmup_whisper():
         try:
             from main import _debug_log
             _debug_log("[Whisper] ✅ Model warmed up - first transcription will be fast!")
-        except:
-            pass  # Debug log not available, continue anyway
+            print("[CircularProgress] 📝 Written 'Model warmed up' to debug log")
+        except Exception as e:
+            print(f"[CircularProgress] ⚠️ Could not write to debug log: {e}")
     except Exception as e:
         print(f"[Whisper] ⚠️ Warmup failed: {e}")
 
