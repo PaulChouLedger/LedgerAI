@@ -160,7 +160,8 @@ RUN pip3 install --index-url https://pypi.org/simple \
     llvmlite \
     resampy \
     pooch \
-    lazy_loader || true
+    lazy_loader \
+    joblib || true
 
 # Check PyTorch after installing librosa deps
 RUN python3 -c "import torch; v=torch.__version__; cuda=hasattr(torch.version, 'cuda') and torch.version.cuda is not None; print(f'After librosa deps: {v}, CUDA: {cuda}'); assert cuda, f'PyTorch lost after librosa deps! Version: {v}'"
