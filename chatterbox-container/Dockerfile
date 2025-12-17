@@ -236,10 +236,8 @@ ARG SKIP_MODEL_DOWNLOAD=0
 RUN pip3 install --index-url https://pypi.org/simple huggingface_hub[hf_transfer]
 
 # Download models (conditionally based on SKIP_MODEL_DOWNLOAD)
-RUN if [ "$SKIP_MODEL_DOWNLOAD" = "1" ]; then \
-        echo "[Chatterbox] ⏭️  Skipping model pre-download (will download at runtime)"; \
-    else \
-        python3 << 'EOF'
+# Create download script first
+RUN cat > /tmp/download_models.py << 'EOF'
 import os
 import sys
 from pathlib import Path
@@ -314,6 +312,12 @@ except Exception as e:
     print("[Chatterbox] 💡 Ensure container has internet access on first use")
     sys.exit(0)  # Exit with success to not fail the build
 EOF
+
+# Run the download script conditionally
+RUN if [ "$SKIP_MODEL_DOWNLOAD" = "1" ]; then \
+        echo "[Chatterbox] ⏭️  Skipping model pre-download (will download at runtime)"; \
+    else \
+        python3 /tmp/download_models.py || true; \
     fi
 
 # Verify ChatterboxTTS can load the downloaded models (only if we downloaded them)
