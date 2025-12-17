@@ -1889,21 +1889,51 @@ class SettingsDialog(BaseAuraDialog):
         title_layout.addStretch()
         main_layout.addLayout(title_layout)
         
-        # Volume control (inline, small)
+        # Volume control (bigger, more responsive)
         vol_row = QHBoxLayout()
         vol_row.setSpacing(12)
         vol_label = QLabel("🔊 Volume")
-        vol_label.setStyleSheet("color: #ffffff; font-size: 14px;")
+        vol_label.setStyleSheet("color: #ffffff; font-size: 16px; font-weight: bold;")
         self.volume_value_label = QLabel("")
-        self.volume_value_label.setStyleSheet("color: #aaaaaa; font-size: 14px;")
+        self.volume_value_label.setStyleSheet("color: #ffffff; font-size: 18px; font-weight: bold; min-width: 60px;")
         self.volume_slider = QSlider(Qt.Horizontal)
         self.volume_slider.setMinimum(0)
         self.volume_slider.setMaximum(100)
         self.volume_slider.setSingleStep(1)
+        self.volume_slider.setPageStep(5)  # Faster response when clicking on track
+        self.volume_slider.setMinimumHeight(60)  # Make slider taller for easier interaction
         self.volume_slider.setStyleSheet("""
-            QSlider::groove:horizontal { height: 16px; background: #444; border-radius: 8px; }
-            QSlider::handle:horizontal { background: #4D94D9; width: 32px; margin: -8px 0; border-radius: 16px; }
-            QSlider::sub-page:horizontal { background: #4D94D9; border-radius: 8px; }
+            QSlider::groove:horizontal {
+                height: 40px;
+                background: #333;
+                border: 2px solid #555;
+                border-radius: 20px;
+                margin: 5px 0;
+            }
+            QSlider::handle:horizontal {
+                background: qradialgradient(cx:0.5, cy:0.5, radius:0.8,
+                    stop:0 #6BB6FF, stop:1 #4D94D9);
+                width: 50px;
+                height: 50px;
+                margin: -5px 0;
+                border: 3px solid #ffffff;
+                border-radius: 25px;
+            }
+            QSlider::handle:horizontal:hover {
+                background: qradialgradient(cx:0.5, cy:0.5, radius:0.8,
+                    stop:0 #7BC6FF, stop:1 #5DA4E9);
+                border: 3px solid #ffffff;
+            }
+            QSlider::handle:horizontal:pressed {
+                background: qradialgradient(cx:0.5, cy:0.5, radius:0.8,
+                    stop:0 #5BA6EF, stop:1 #3D84C9);
+                border: 3px solid #ffffff;
+            }
+            QSlider::sub-page:horizontal {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 #4D94D9, stop:1 #6BB6FF);
+                border-radius: 20px;
+            }
         """)
         # Initialize slider value from env or speaker
         self._init_volume_slider()

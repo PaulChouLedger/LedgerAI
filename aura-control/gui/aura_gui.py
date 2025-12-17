@@ -310,20 +310,16 @@ class TranscriptionOverlayWidget(QWidget):
         # - Right edge: x > 930, y centered (avoids top-right and bottom-right buttons)
         
         overlay_height = 140  # Slightly shorter to fit better
-        overlay_width = 350   # Narrower to fit in safe zones
+        overlay_width = 380   # Slightly wider for better readability
         
-        # Position in top area (above aura eye, avoids all buttons, within perimeter)
-        # Top area is safest: y < 200, centered horizontally
+        # Position lower, closer to center (but still above aura eye)
+        # Safe zone: Below top button (ends at y=180), above aura eye center (starts ~y=240)
+        # Position around y=280-300 for good visibility without blocking aura eye
         overlay_x = (window_size - overlay_width) // 2  # Centered horizontally
-        overlay_y = 50  # Top margin, well above aura eye and buttons
+        overlay_y = 280  # Lower position, closer to center but above aura eye
         
         # Verify position is within circular perimeter
         # Distance from center (540, 540) to overlay corners:
-        # Top-left corner: (overlay_x, overlay_y)
-        # Top-right corner: (overlay_x + overlay_width, overlay_y)
-        # Bottom-left corner: (overlay_x, overlay_y + overlay_height)
-        # Bottom-right corner: (overlay_x + overlay_width, overlay_y + overlay_height)
-        # All corners must be within radius 535 from center
         center_x, center_y = 540, 540
         perimeter_radius = 535
         
@@ -333,10 +329,10 @@ class TranscriptionOverlayWidget(QWidget):
         farthest_dist = math.sqrt(farthest_x**2 + farthest_y**2)
         
         if farthest_dist > perimeter_radius - 20:  # 20px safety margin
-            # Adjust if too close to edge - move slightly down and narrower
-            overlay_width = 320
+            # Adjust if too close to edge - move slightly up and narrower
+            overlay_width = 360
             overlay_x = (window_size - overlay_width) // 2
-            overlay_y = 60
+            overlay_y = 270
         
         self.setGeometry(overlay_x, overlay_y, overlay_width, overlay_height)
         self.transcription_text.setGeometry(0, 0, overlay_width, overlay_height)
