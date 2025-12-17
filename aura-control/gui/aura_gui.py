@@ -517,8 +517,8 @@ class AuraGUI(QMainWindow):
         button_configs = [
             ("↑", "Upload", self._handle_upload, "#007AFF", "#0051D5", "#003D9E"),      # iOS Blue
             ("⚙", "Settings", self._handle_settings, "#8E8E93", "#6E6E73", "#4E4E53"),  # iOS Gray
-            ("📊", "Analytics", self._handle_analytics, "#34C759", "#28A745", "#1E7E34"), # iOS Green
-            ("🎤", "Voice", self._handle_voice, "#FF3B30", "#D32F2F", "#B71C1C"),        # iOS Red
+            ("📊", "Analytics", self._handle_analytics, "#FF3B30", "#D32F2F", "#B71C1C"), # iOS Red (swapped from Green)
+            ("🎤", "Voice", self._handle_voice, "#34C759", "#28A745", "#1E7E34"),        # iOS Green (swapped from Red)
             ("📱", "Mobile", self._handle_mobile, "#AF52DE", "#9C27B0", "#7B1FA2"),     # iOS Purple
             ("ℹ", "Info", self._handle_info, "#FF9500", "#F57C00", "#E65100")          # iOS Orange
         ]
@@ -803,16 +803,16 @@ class AuraGUI(QMainWindow):
                 # Update global state
                 set_microphone_muted(False)
                 
-                # Update button to GRAY-BLUE for active state (active = gray-blue)
+                # Update button to GREEN for active state (active = green, more visible)
                 if voice_btn:
                     voice_btn.setStyleSheet(f"""
                         QPushButton {{
-                            /* Gray-blue for active voice state - high quality */
+                            /* Vibrant green for active voice state - high quality, highly visible */
                             background: qradialgradient(cx:0.5, cy:0.5, radius:0.9,
                                 fx:0.45, fy:0.45,
                                 stop:0 rgba(255, 255, 255, 0.25),
-                                stop:0.3 #6C7A89,
-                                stop:1 #5A6B7A);
+                                stop:0.3 #34C759,
+                                stop:1 #34C759);
                             color: #FFFFFF;
                             font-size: 56px;
                             font-weight: bold;
@@ -824,16 +824,16 @@ class AuraGUI(QMainWindow):
                             background: qradialgradient(cx:0.5, cy:0.5, radius:0.9,
                                 fx:0.45, fy:0.45,
                                 stop:0 rgba(255, 255, 255, 0.35),
-                                stop:0.3 #5B6A79,
-                                stop:1 #4A5968);
+                                stop:0.3 #28A745,
+                                stop:1 #28A745);
                             border: none;
                         }}
                         QPushButton:pressed {{
                             background: qradialgradient(cx:0.5, cy:0.5, radius:0.9,
                                 fx:0.45, fy:0.45,
                                 stop:0 rgba(255, 255, 255, 0.15),
-                                stop:0.3 #4A5968,
-                                stop:1 #3A4958);
+                                stop:0.3 #1E7E34,
+                                stop:1 #1E7E34);
                             border: none;
                         }}
                     """)
