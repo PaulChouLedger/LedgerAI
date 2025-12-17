@@ -485,31 +485,40 @@ class CircularProgressWidget(QWidget):
                         max_progress = legitimate_progress
                         print(f"[CircularProgress] ⚠️ False 'Setup complete' match - using {int(max_progress * 100)}% instead")
             
-            # FALLBACK: If we're at 70%+ and welcome/audio setup is detected, jump to 100%
-            # This handles cases where messages aren't in the debug log
+            # FALLBACK: If we're at 70%+ and "Starting listener" or "Core services started" is in log, jump to 100%
+            # These messages appear in the log and indicate welcome is imminent
+            # The log stops updating after "Core services started", so use that as reliable trigger
             if max_progress < 1.0 and max_progress >= 0.70:
-                has_welcome = re.search("playing welcome prompt|🔊 playing welcome", content.lower(), re.IGNORECASE)
-                has_audio_setup = re.search("audio.*detected.*architecture|detected arm architecture|🔧.*detected.*architecture", content.lower(), re.IGNORECASE)
-                has_model_warmup = re.search("model warmed up|whisper.*model warmed up", content.lower(), re.IGNORECASE)
+                # Check for "Starting listener" - this message IS in the debug log (from the last 5 lines shown)
+                # Pattern should match "[Aura] 🎙️ Starting listener..."
+                has_listener_starting = re.search("🎙️.*starting listener|starting listener|🎙️ starting", content.lower(), re.IGNORECASE)
+                # Also check for "Core services started" - this is the last message in the log
+                has_core_services = re.search("core services started successfully|✅ core services started", content.lower(), re.IGNORECASE)
                 
-                # Debug: show what we found
-                if has_welcome or has_audio_setup or has_model_warmup:
-                    triggers = []
-                    if has_welcome:
-                        triggers.append("Welcome")
-                    if has_audio_setup:
-                        triggers.append("Audio setup")
-                    if has_model_warmup:
-                        triggers.append("Model warmup")
+                if has_listener_starting or has_core_services:
+                    # These messages indicate we're ready, jump to 100% (welcome is imminent)
                     max_progress = 1.0
-                    print(f"[CircularProgress] 🎯 Fallback: {', '.join(triggers)} detected → jumping to 100%")
-                elif max_progress >= 0.70:
-                    # Debug: show what we're looking for but didn't find
-                    print(f"[CircularProgress] 🔍 At {int(max_progress * 100)}%, checking for completion signals...")
-                    print(f"[CircularProgress] 🔍 Welcome: {bool(has_welcome)}, Audio: {bool(has_audio_setup)}, Model: {bool(has_model_warmup)}")
-                    # Show last few lines of log for debugging
-                    last_lines = content.split('\n')[-5:]
-                    print(f"[CircularProgress] 🔍 Last 5 log lines: {last_lines}")
+                    trigger = "Starting listener" if has_listener_starting else "Core services started"
+                    print(f"[CircularProgress] 🎯 Fallback: '{trigger}' detected at 70%+ → jumping to 100% (welcome imminent)")
+                else:
+                    # Check for other completion signals (in case they're in log)
+                    has_welcome = re.search("playing welcome prompt|🔊 playing welcome", content.lower(), re.IGNORECASE)
+                    has_audio_setup = re.search("audio.*detected.*architecture|detected arm architecture|🔧.*detected.*architecture", content.lower(), re.IGNORECASE)
+                    has_model_warmup = re.search("model warmed up|whisper.*model warmed up", content.lower(), re.IGNORECASE)
+                    has_listener_called = re.search("listen\\(\\) function called|🎧 listen", content.lower(), re.IGNORECASE)
+                    
+                    if has_welcome or has_audio_setup or has_model_warmup or has_listener_called:
+                        triggers = []
+                        if has_welcome:
+                            triggers.append("Welcome")
+                        if has_audio_setup:
+                            triggers.append("Audio setup")
+                        if has_model_warmup:
+                            triggers.append("Model warmup")
+                        if has_listener_called:
+                            triggers.append("Listener called")
+                        max_progress = 1.0
+                        print(f"[CircularProgress] 🎯 Fallback: {', '.join(triggers)} detected → jumping to 100%")
             
             # Log detected milestones for debugging (only log when milestone changes or progress changes significantly)
             if detected_milestones:
