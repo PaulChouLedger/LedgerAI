@@ -133,13 +133,18 @@ RUN pip3 install --index-url https://pypi.org/simple \
 # Check PyTorch after installing dependencies
 RUN python3 -c "import torch; v=torch.__version__; cuda=hasattr(torch.version, 'cuda') and torch.version.cuda is not None; print(f'After deps: {v}, CUDA: {cuda}'); assert cuda, f'PyTorch lost after deps install! Version: {v}'"
 
+# Install resemble-perth WITH dependencies (needed for PerthImplicitWatermarker)
+# Use constraints to prevent PyTorch installation
+RUN pip3 install --index-url https://pypi.org/simple \
+    --constraint /tmp/constraints.txt \
+    resemble-perth==1.0.1
+
 # Install other Chatterbox dependencies (these shouldn't pull in PyTorch)
 # CRITICAL: Use --no-deps and install dependencies manually to prevent PyTorch installation
 RUN pip3 install --index-url https://pypi.org/simple \
     --no-deps \
     librosa==0.11.0 \
     conformer==0.3.2 \
-    resemble-perth==1.0.1 \
     s3tokenizer \
     pykakasi==2.3.0 \
     jaconv \
