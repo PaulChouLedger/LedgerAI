@@ -699,13 +699,24 @@ def read_audio_frame(stream, stream_valid, label="Listener"):
     
     return audio_block, channel_audio, features, True  # Success
 
+def _log_listener_debug(message: str):
+    """Helper that writes the same message to the GUI debug log (if available)."""
+    try:
+        from core.main import log_debug_message
+        log_debug_message(message)
+    except Exception:
+        pass
+
+
 def play_welcome_prompt(stream):
     try:
+        _log_listener_debug("[Aura] 🔊 Playing welcome prompt...")
         print("[Aura] 🔊 Playing welcome prompt...")
         stream.stop()
         
         # Detect output device (same as speaker module)
         output_device = detect_output_device_for_welcome()
+        _log_listener_debug(f"[Aura] 🔊 Using output device: {output_device}")
         print(f"[Aura] 🔊 Using output device: {output_device}")
         
         # Use plughw or plug:default for automatic format conversion (44100 Hz mono -> device format)
@@ -729,6 +740,7 @@ def play_welcome_prompt(stream):
             except:
                 break
         
+        _log_listener_debug("[Aura] 🎤 Mic resumed after welcome prompt")
         print("[Aura] 🎤 Mic resumed after welcome prompt")
         
         try:
@@ -857,6 +869,7 @@ def listen():
     
     # Add latency for ARM devices (helps with ALSA buffer issues)
     if is_arm:
+        _log_listener_debug("[Audio] 🔧 Detected ARM architecture - using latency='high' for stability")
         print("[Audio] 🔧 Detected ARM architecture - using latency='high' for stability")
         stream_params['latency'] = 'high'
     
