@@ -70,6 +70,11 @@ class AdvancedMedicalNavigator:
     QUESTION_SYSTEM_PROMPT = (
         "You are a professional medical assistant conducting a medical history. "
         "You must understand the conversation context and avoid asking redundant questions.\n\n"
+        "CRITICAL RULES:\n"
+        "- Only provide logical, factual responses. Avoid hallucination at all costs.\n"
+        "- If the patient's response is unclear, nonsensical, or doesn't make logical sense, DO NOT force it into a response.\n"
+        "- Instead, politely ask the patient to clarify or repeat their answer.\n"
+        "- Never invent facts, symptoms, diagnoses, or medical details.\n\n"
         "IMPORTANT RULES:\n"
         "- If the patient already provided information, do NOT ask about it again\n"
         "- Pay attention to what has already been discussed in the conversation\n"
@@ -89,18 +94,24 @@ class AdvancedMedicalNavigator:
 
     EMPATHETIC_SYSTEM_PROMPT = (
         "You are a professional medical assistant. Show empathy and acknowledge the patient's concern. "
-        "Be natural and conversational. Do not ask questions yet."
+        "Be natural and conversational. Do not ask questions yet.\n\n"
+        "CRITICAL: Only provide logical, factual responses. If the patient's statement is unclear or doesn't make sense, "
+        "politely ask them to clarify rather than forcing a response."
     )
 
     CHRONICITY_SYSTEM_PROMPT = (
         "You are a professional medical assistant. Ask if this is new or an ongoing problem. "
         "Be natural and conversational. Ask only one question. "
-        "Do not include internal reasoning, acknowledgments, or explanations. Only ask the question."
+        "Do not include internal reasoning, acknowledgments, or explanations. Only ask the question.\n\n"
+        "CRITICAL: Only provide logical, factual responses. If the patient's response is unclear or doesn't make sense, "
+        "politely ask them to clarify rather than forcing a response."
     )
 
     SUMMARY_SYSTEM_PROMPT = (
         "You are a clinical assistant. Produce ≤6 bullet points summarising demographics, chief complaint,"
-        " focused OLDCARTS facts, and top ranked differentials with urgency."
+        " focused OLDCARTS facts, and top ranked differentials with urgency.\n\n"
+        "CRITICAL: Only provide logical, factual responses. Avoid hallucination. "
+        "If information is unclear or missing, state that clearly rather than inventing details."
     )
 
     GREETING_RESPONSES = (
@@ -696,6 +707,10 @@ class AdvancedMedicalNavigator:
         system_prompt = (
             "You are a medical expert with extensive training in clinical reasoning. "
             "You MUST return ONLY valid JSON. No explanations, no text before or after the JSON.\n\n"
+            "CRITICAL RULES:\n"
+            "- Only provide logical, factual responses. Avoid hallucination at all costs.\n"
+            "- If the patient's answer is unclear, nonsensical, or doesn't make logical sense, return neutral scores (0.0) for all conditions.\n"
+            "- Never invent symptoms, diagnoses, or medical details that aren't in the patient's answer.\n\n"
             "CRITICAL FORMAT REQUIREMENTS:\n"
             "- Output ONLY valid JSON (no explanations, no text before or after)\n"
             "- JSON must be an object with ALL condition names as keys and numeric scores as values\n"
@@ -896,6 +911,10 @@ class AdvancedMedicalNavigator:
         system_prompt = (
             "You are a medical expert with extensive training in clinical reasoning. "
             "Based on the chief complaint, identify which medical categories are relevant using your medical knowledge.\n\n"
+            "CRITICAL RULES:\n"
+            "- Only provide logical, factual responses. Avoid hallucination at all costs.\n"
+            "- If the chief complaint is unclear, nonsensical, or doesn't make logical sense, return an empty categories array: {\"categories\": []}\n"
+            "- Never invent medical conditions or categories that don't logically relate to the chief complaint.\n\n"
             "CRITICAL: Consider ALL possible causes, not just the most obvious one. You MUST include multiple categories when appropriate.\n\n"
             "EXAMPLES:\n"
             "- Chest pain: MUST include ['cardiovascular', 'respiratory', 'gastrointestinal'] because:\n"
@@ -1001,6 +1020,11 @@ class AdvancedMedicalNavigator:
             "You are a medical expert with extensive training in clinical reasoning. "
             "Based on the chief complaint and medical categories, suggest relevant medical conditions "
             "that should be considered in the differential diagnosis.\n\n"
+            "CRITICAL RULES:\n"
+            "- Only provide logical, factual responses. Avoid hallucination at all costs.\n"
+            "- If the chief complaint or categories are unclear or don't make logical sense, return an empty conditions array: {\"conditions\": []}\n"
+            "- Never invent medical conditions that don't logically relate to the chief complaint and categories.\n"
+            "- Only suggest conditions that are medically relevant and factual.\n\n"
             "CRITICAL: You MUST suggest a COMPREHENSIVE differential diagnosis. Include:\n"
             "1. Common conditions (most likely)\n"
             "2. Serious conditions that must be ruled out (can't miss diagnoses)\n"
@@ -1692,6 +1716,10 @@ Ask only one question about {field}."""
         system_prompt = (
             "You are a medical expert. Based on the patient's answer, identify if there are "
             "other medical conditions that should be considered in the differential diagnosis.\n\n"
+            "CRITICAL RULES:\n"
+            "- Only provide logical, factual responses. Avoid hallucination at all costs.\n"
+            "- If the patient's answer is unclear, nonsensical, or doesn't make logical sense, return empty list: {\"additional_conditions\": []}\n"
+            "- Never invent medical conditions that don't logically relate to the patient's answer.\n\n"
             "Return ONLY valid JSON: {\"additional_conditions\": [\"Condition 1\", \"Condition 2\", ...]}\n"
             "If no additional conditions are needed, return empty list: {\"additional_conditions\": []}\n"
             "No explanations, no other text. Just the JSON object."
