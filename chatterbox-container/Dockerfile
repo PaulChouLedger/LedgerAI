@@ -225,54 +225,49 @@ RUN git clone https://github.com/resemble-ai/chatterbox.git /app/chatterbox && \
     -e . --no-deps && \
     python3 -c "from chatterbox import ChatterboxTTS; print('✅ Chatterbox installed successfully')"
 
-# Pre-download ChatterboxTTS models (cached layer - models are large ~2-3GB)
+# Pre-download ChatterboxTTS models using huggingface_hub for better progress tracking
+# Model repository: ResembleAI/chatterbox
 # This ensures models are available in the image and avoids first-request download delays
-# Models will be cached in ~/.cache/huggingface/ which is baked into the image
-RUN python3 << 'EOF'
+RUN pip3 install --index-url https://pypi.org/simple huggingface_hub[hf_transfer] && \
+    python3 << 'EOF'
 import os
 import sys
 from pathlib import Path
 import time
+from huggingface_hub import snapshot_download
 
-# Enable HuggingFace progress bars and verbose logging
-os.environ['HF_HUB_DISABLE_PROGRESS_BARS'] = '0'  # Show progress bars
-os.environ['TRANSFORMERS_VERBOSITY'] = 'info'  # Verbose logging
-os.environ['HF_HUB_DOWNLOAD_TIMEOUT'] = '1800'  # 30 minutes timeout (models are large)
-
-# Set HuggingFace cache directory to a known location
+# Set HuggingFace cache directory
 cache_dir = Path.home() / '.cache' / 'huggingface'
 os.environ['HF_HOME'] = str(cache_dir.parent)
+os.environ['HF_HUB_DISABLE_PROGRESS_BARS'] = '0'  # Show progress bars
+
 print(f"[Chatterbox] 📦 Using HuggingFace cache: {cache_dir}")
+print("[Chatterbox] 📥 Pre-downloading ChatterboxTTS models from HuggingFace...")
+print("[Chatterbox] 💡 Model: ResembleAI/chatterbox")
+print("[Chatterbox] ⏳ This may take several minutes (models are ~2-3GB)...")
+print("[Chatterbox] " + "="*70)
+
+start_time = time.time()
+
+# Track cache size before
+cache_size_before = 0
+if cache_dir.exists():
+    cache_size_before = sum(f.stat().st_size for f in cache_dir.rglob('*') if f.is_file())
+    print(f"[Chatterbox] 📊 Cache size before: {cache_size_before / (1024**3):.2f} GB")
 
 try:
-    print("[Chatterbox] 📥 Pre-downloading ChatterboxTTS models from HuggingFace...")
-    print("[Chatterbox] ⏳ This may take several minutes (models are ~2-3GB)...")
-    print("[Chatterbox] 💡 You should see download progress below")
-    print("[Chatterbox] 💡 Build will continue even if download fails (models can download at runtime)")
-    print("[Chatterbox] " + "="*70)
-    
-    start_time = time.time()
-    
-    from chatterbox.tts import ChatterboxTTS
-    import torch
-    
-    # Detect device (use CPU for build-time download)
-    device = "cpu"  # Use CPU during build, will use CUDA at runtime
-    
-    print(f"[Chatterbox] 🔄 Calling ChatterboxTTS.from_pretrained(device={device})...")
-    print("[Chatterbox] 💡 HuggingFace will show download progress (downloading/loading files)...")
-    
-    # Track cache size before
-    cache_size_before = 0
-    if cache_dir.exists():
-        cache_size_before = sum(f.stat().st_size for f in cache_dir.rglob('*') if f.is_file())
-        print(f"[Chatterbox] 📊 Cache size before: {cache_size_before / (1024**3):.2f} GB")
-    
-    model = ChatterboxTTS.from_pretrained(device=device)
+    # Download the entire model repository with progress tracking
+    print("[Chatterbox] 🔄 Downloading ResembleAI/chatterbox models...")
+    snapshot_download(
+        repo_id="ResembleAI/chatterbox",
+        cache_dir=str(cache_dir),
+        resume_download=True,
+        local_files_only=False
+    )
     
     elapsed = time.time() - start_time
     print("[Chatterbox] " + "="*70)
-    print(f"[Chatterbox] ✅ Models pre-downloaded successfully (took {elapsed:.1f} seconds)")
+    print(f"[Chatterbox] ✅ Models downloaded successfully (took {elapsed:.1f} seconds)")
     
     # Verify models are cached
     if cache_dir.exists():
@@ -293,25 +288,31 @@ except Exception as e:
     traceback.print_exc()
     print("[Chatterbox] 💡 Models will be downloaded on first request instead")
     print("[Chatterbox] 💡 Ensure container has internet access on first use")
-    # Don't fail the build if download fails - allow runtime download
-    # But make it clear in the logs that models weren't pre-downloaded
     sys.exit(0)  # Exit with success to not fail the build
 EOF
 
-# Verify models were downloaded (informational - don't fail if missing)
+# Verify ChatterboxTTS can load the downloaded models
 RUN python3 << 'EOF'
-from pathlib import Path
 import os
+from pathlib import Path
 
 cache_dir = Path.home() / '.cache' / 'huggingface'
-if cache_dir.exists():
-    cache_size = sum(f.stat().st_size for f in cache_dir.rglob('*') if f.is_file())
-    print(f"[Chatterbox] ✅ Model cache verified: {cache_size / (1024**3):.2f} GB in {cache_dir}")
-    print("[Chatterbox] 💡 Models are baked into image - no download needed at runtime")
-else:
-    print("[Chatterbox] ⚠️  Model cache not found - models will download on first request")
-    print("[Chatterbox] 💡 This is OK if pre-download failed, but will cause delays on first use")
+os.environ['HF_HOME'] = str(cache_dir.parent)
+
+try:
+    print("[Chatterbox] 🔍 Verifying models can be loaded...")
+    from chatterbox.tts import ChatterboxTTS
+    
+    # Try to load (this should use cached models now)
+    print("[Chatterbox] 🔄 Testing model loading (should be fast - models are cached)...")
+    model = ChatterboxTTS.from_pretrained(device="cpu")  # Use CPU for verification
+    print("[Chatterbox] ✅ Models verified - ChatterboxTTS loaded successfully")
+except Exception as e:
+    print(f"[Chatterbox] ⚠️  Model verification failed: {e}")
+    print("[Chatterbox] 💡 Models may still download at runtime")
+    # Don't fail build - models might work at runtime
 EOF
+
 
 # Install Flask for REST API
 # Use constraints to prevent PyTorch installation (though these shouldn't need it)
