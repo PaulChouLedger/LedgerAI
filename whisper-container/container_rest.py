@@ -36,9 +36,7 @@ def get_medical_prompt():
 # ============================================================================
 
 # === Model Selection ===
-DEFAULT_MODEL = "distil-small.en"  # Fastest, lower accuracy (default)
-FALLBACK_MODEL = "distil-small.en"  # Fallback if default model not found (same as default)
-MODEL_NAME = os.environ.get("WHISPER_MODEL", DEFAULT_MODEL)
+MODEL_NAME = os.environ.get("WHISPER_MODEL", "distil-small.en")
 # Options: "distil-small.en", "small.en", "medium.en", "base.en", "large-v3-turbo", "distil-large-v3", "distil-whisper/distil-large-v3.5-ct2"
 # Accuracy: distil-small < small < medium < distil-large-v3 < distil-large-v3.5 ≈ large-v3-turbo
 # Latency: distil-small (fastest) < small < medium < distil-large-v3 < distil-large-v3.5 < large-v3-turbo (slowest)
@@ -187,57 +185,29 @@ if os.path.exists(cache_base):
                 except Exception as e:
                     print(f"[Whisper] ⚠️  Could not remove {model_dir}: {e}")
 
-# Check if model exists in cache, with fallback logic
-actual_model_name = MODEL_NAME
+# Check if model exists in cache
 if os.path.exists(model_cache_path):
     print(f"[Whisper] ✅ Model found in cache: {MODEL_NAME}")
 else:
-    print(f"[Whisper] ⚠️ Model not in cache: {MODEL_NAME}")
-    # Check if fallback model exists
-    fallback_repo = MODEL_MAPPING.get(FALLBACK_MODEL, f"models--Systran--faster-{FALLBACK_MODEL.replace('.', '-')}")
-    fallback_cache_path = f"/root/.cache/huggingface/hub/{fallback_repo}"
-    if MODEL_NAME != FALLBACK_MODEL and os.path.exists(fallback_cache_path):
-        print(f"[Whisper] ⚠️ Default model not found, using fallback: {FALLBACK_MODEL}")
-        actual_model_name = FALLBACK_MODEL
-        model_cache_path = fallback_cache_path
-    else:
-        print(f"[Whisper] ⚠️ Model not in cache, will download: {MODEL_NAME}")
+    print(f"[Whisper] ⚠️ Model not in cache, will download: {MODEL_NAME}")
 
 # Load GPU model optimized for speed and accuracy
 try:
-    model = WhisperModel(actual_model_name, device="cuda", compute_type=COMPUTE_TYPE, download_root="/root/.cache/huggingface/hub")
-    print(f"[Whisper] ✅ GPU model '{actual_model_name}' loaded with {COMPUTE_TYPE} quantization (optimized for speed + accuracy)")
+    model = WhisperModel(MODEL_NAME, device="cuda", compute_type=COMPUTE_TYPE, download_root="/root/.cache/huggingface/hub")
+    print(f"[Whisper] ✅ GPU model '{MODEL_NAME}' loaded with {COMPUTE_TYPE} quantization (optimized for speed + accuracy)")
 except Exception as e:
-    print(f"[Whisper] ⚠️ {COMPUTE_TYPE} loading failed: {e}")
-    # If default model failed and we haven't tried fallback, try fallback
-    if actual_model_name != FALLBACK_MODEL:
-        print(f"[Whisper] ⚠️ Trying fallback model: {FALLBACK_MODEL}")
-        try:
-            model = WhisperModel(FALLBACK_MODEL, device="cuda", compute_type=COMPUTE_TYPE, download_root="/root/.cache/huggingface/hub")
-            actual_model_name = FALLBACK_MODEL
-            print(f"[Whisper] ✅ GPU fallback model '{FALLBACK_MODEL}' loaded with {COMPUTE_TYPE} quantization")
-        except Exception as e_fallback:
-            print(f"[Whisper] ⚠️ Fallback model also failed: {e_fallback}, trying int8_float16...")
-            try:
-                model = WhisperModel(FALLBACK_MODEL, device="cuda", compute_type="int8_float16", download_root="/root/.cache/huggingface/hub")
-                actual_model_name = FALLBACK_MODEL
-                print(f"[Whisper] ✅ GPU fallback model '{FALLBACK_MODEL}' loaded with int8_float16 quantization")
-            except Exception as e2:
-                print(f"[Whisper] ❌ GPU model loading failed: {e2}")
-                print(f"[Whisper] 💥 FATAL: GPU required - no CPU fallback available")
-                raise RuntimeError("GPU initialization failed - GPU is required for this container")
-    else:
-        # Try int8_float16 if primary compute type fails
-        try:
-            model = WhisperModel(actual_model_name, device="cuda", compute_type="int8_float16", download_root="/root/.cache/huggingface/hub")
-            print(f"[Whisper] ✅ GPU model '{actual_model_name}' loaded with int8_float16 quantization (fallback)")
-        except Exception as e2:
-            print(f"[Whisper] ❌ GPU model loading failed: {e2}")
-            print(f"[Whisper] 💥 FATAL: GPU required - no CPU fallback available")
-            raise RuntimeError("GPU initialization failed - GPU is required for this container")
+    print(f"[Whisper] ⚠️ {COMPUTE_TYPE} loading failed: {e}, trying int8_float16 fallback...")
+    try:
+        # Fallback to int8_float16 if primary compute type fails
+        model = WhisperModel(MODEL_NAME, device="cuda", compute_type="int8_float16", download_root="/root/.cache/huggingface/hub")
+        print(f"[Whisper] ✅ GPU model '{MODEL_NAME}' loaded with int8_float16 quantization (fallback)")
+    except Exception as e2:
+        print(f"[Whisper] ❌ GPU model loading failed: {e2}")
+        print(f"[Whisper] 💥 FATAL: GPU required - no CPU fallback available")
+        raise RuntimeError("GPU initialization failed - GPU is required for this container")
 
-# Track actual model being used (may differ from MODEL_NAME if fallback was used)
-ACTUAL_MODEL_NAME = actual_model_name
+# Track actual model being used
+ACTUAL_MODEL_NAME = MODEL_NAME
 
 # Timing statistics tracking
 timing_stats = {
@@ -508,8 +478,6 @@ def model_info():
     return jsonify({
         "current_model": ACTUAL_MODEL_NAME,
         "requested_model": MODEL_NAME,
-        "default_model": DEFAULT_MODEL,
-        "fallback_model": FALLBACK_MODEL,
         "available_models": available_models,
         "model_mapping": MODEL_MAPPING
     })
