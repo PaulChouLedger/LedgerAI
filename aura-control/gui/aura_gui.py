@@ -519,6 +519,17 @@ class CircularProgressWidget(QWidget):
         """Set progress manually (0.0 to 1.0)"""
         self.progress = max(0.0, min(1.0, value))
         self.update()
+
+    @pyqtSlot(float)
+    def update_progress_slot(self, value):
+        """Slot so other threads can request a progress update."""
+        self.set_progress(value)
+
+    @pyqtSlot()
+    def complete_and_hide(self):
+        """Complete the progress ring and hide it after a short delay."""
+        self.set_progress(1.0)
+        QTimer.singleShot(500, self.hide)
     
     def paintEvent(self, event):
         """Draw circular progress ring around the aura eye - hugs the eye, matches white perimeter"""
@@ -2079,8 +2090,9 @@ def set_setup_complete():
     
     # Complete and hide circular progress indicator
     if _window and hasattr(_window, 'circular_progress'):
-        _window.circular_progress.set_progress(1.0)  # Complete the progress
-        QTimer.singleShot(500, lambda: _window.circular_progress.hide() if hasattr(_window, 'circular_progress') else None)
+        QMetaObject.invokeMethod(_window.circular_progress,
+                                 "complete_and_hide",
+                                 Qt.QueuedConnection)
     
     # Close debug log file when initialization completes
     try:
