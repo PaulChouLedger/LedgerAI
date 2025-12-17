@@ -288,7 +288,7 @@ class CircularProgressWidget(QWidget):
         print(f"[CircularProgress] ▶️ Started progress indicator")
     
     def _update_progress(self):
-        """Update progress based on time elapsed and milestones"""
+        """Update progress based on actual initialization milestones - no time-based jumping"""
         global _setup_complete, _welcome_played
         
         # Hide when setup is complete (before buttons show)
@@ -303,34 +303,25 @@ class CircularProgressWidget(QWidget):
         if self.start_time is None:
             return
         
-        elapsed = time.time() - self.start_time
-        
-        # Base progress on time - more gradual, linear progression
-        # Don't cap at 90% - let it continue to 100% as initialization progresses
-        time_progress = min(1.0, elapsed / self.estimated_duration)
-        
-        # Try to get progress from debug log milestones (more conservative, gradual)
+        # Get progress ONLY from milestones - no time-based jumping
         milestone_progress = self._get_milestone_progress()
         
-        # Use milestone progress if available, otherwise use time-based
-        # Milestone progress is more accurate, but don't let it jump ahead too fast
-        if milestone_progress > 0:
-            # Use milestone but smooth it with time to avoid sudden jumps
-            self.progress = min(1.0, max(time_progress * 0.7, milestone_progress * 0.9))
-        else:
-            # No milestones yet, use time-based only
-            self.progress = time_progress
-        
-        # Ensure progress starts at 0 and grows gradually
-        if elapsed < 1.0:  # First second, start very gradually
-            self.progress = min(self.progress, elapsed * 0.2)
-        elif elapsed < 3.0:  # First 3 seconds, gradual ramp
-            self.progress = min(self.progress, 0.2 + (elapsed - 1.0) * 0.15)
+        # Only use milestone progress - this ensures it grows as modules actually load
+        # Don't let it jump ahead based on time
+        if milestone_progress > self.progress:
+            # Only allow progress to increase, never decrease
+            # Smooth the increase to avoid sudden jumps
+            self.progress = min(1.0, self.progress + (milestone_progress - self.progress) * 0.3)
+        elif milestone_progress == 0 and self.progress == 0:
+            # Very slow initial progress if no milestones detected yet
+            elapsed = time.time() - self.start_time
+            if elapsed > 2.0:  # Only start showing progress after 2 seconds
+                self.progress = min(0.05, (elapsed - 2.0) * 0.01)  # Very slow initial crawl
         
         self.update()
     
     def _get_milestone_progress(self):
-        """Estimate progress based on initialization milestones in debug log"""
+        """Estimate progress based on initialization milestones in debug log - incremental growth"""
         try:
             debug_log_path = os.path.expanduser("~/LedgerAI/data/aura_init_debug.log")
             if not os.path.exists(debug_log_path):
@@ -339,16 +330,40 @@ class CircularProgressWidget(QWidget):
             with open(debug_log_path, 'r', encoding='utf-8', errors='ignore') as f:
                 content = f.read()
             
-            # Key milestones and their progress values (more gradual, spread out)
+            # Specific milestones with incremental progress - each container/module adds progress
+            # Progress values are more spread out and conservative
             milestones = [
-                ("Loading config", 0.10),
-                ("Starting services", 0.20),
-                ("Container", 0.30),
-                ("Model loaded", 0.50),
-                ("LLM warm-up", 0.65),
-                ("RAG", 0.80),
-                ("Listener", 0.90),
-                ("Setup complete", 0.98),
+                # Initial setup
+                ("Loading config", 0.05),
+                ("Starting services", 0.10),
+                
+                # Containers loading (each adds progress)
+                ("whisper", 0.15),  # Whisper container
+                ("llm", 0.20),      # LLM container starting
+                ("rag", 0.25),      # RAG container (if GPU mode)
+                
+                # Model loading
+                ("Model loaded", 0.35),
+                ("simple_loaded", 0.40),  # Model actually loaded
+                
+                # Warm-ups (each adds progress)
+                ("warm-up", 0.50),
+                ("LLM warm-up", 0.55),
+                ("warm-up complete", 0.60),
+                ("Testing LLM", 0.65),
+                
+                # RAG initialization
+                ("RAG initialization", 0.70),
+                ("RAG container initialized", 0.75),
+                ("RAG", 0.80),  # RAG ready
+                
+                # Listener/audio
+                ("Listener", 0.85),
+                ("listener ready", 0.90),
+                
+                # Final steps
+                ("Setup complete", 0.95),
+                ("listener is now READY", 0.98),
             ]
             
             # Find the highest milestone reached
@@ -475,9 +490,9 @@ class TranscriptionOverlayWidget(QWidget):
         
         # Position lower, closer to center (but still above aura eye)
         # Safe zone: Below top button (ends at y=180), above aura eye center (starts ~y=240)
-        # Position around y=280-300 for good visibility without blocking aura eye
+        # Position moved up by 5% (54px for 1080px screen)
         overlay_x = (window_size - overlay_width) // 2  # Centered horizontally
-        overlay_y = 280  # Lower position, closer to center but above aura eye
+        overlay_y = 226  # Moved up by 5% (was 280, now 226 = 280 - 54)
         
         # Verify position is within circular perimeter
         # Distance from center (540, 540) to overlay corners:
@@ -493,7 +508,7 @@ class TranscriptionOverlayWidget(QWidget):
             # Adjust if too close to edge - move slightly up and narrower
             overlay_width = 360
             overlay_x = (window_size - overlay_width) // 2
-            overlay_y = 270
+            overlay_y = 216  # Moved up by 5% (was 270, now 216 = 270 - 54)
         
         self.setGeometry(overlay_x, overlay_y, overlay_width, overlay_height)
         self.transcription_text.setGeometry(0, 0, overlay_width, overlay_height)
