@@ -226,20 +226,24 @@ RUN git clone https://github.com/resemble-ai/chatterbox.git /app/chatterbox && \
     python3 -c "from chatterbox import ChatterboxTTS; print('✅ Chatterbox installed successfully')"
 
 # Pre-download ChatterboxTTS models using huggingface_hub with hf_transfer
-# Model repository: ResembleAI/chatterbox (~2-3GB total)
-# Note: Large files can take 15-30+ minutes each - progress may appear stuck but it's downloading
-# Set SKIP_MODEL_DOWNLOAD=1 to skip: docker build --build-arg SKIP_MODEL_DOWNLOAD=1
+# Model repository: ResembleAI/chatterbox (~2-3GB total, ~15 files)
+# WARNING: Large .safetensors/.pt files can take 15-30+ minutes EACH on slow connections
+# Progress may appear "stuck" at a file count (e.g., "4/15") - this is normal, it's downloading large files
+# To skip: docker build --build-arg SKIP_MODEL_DOWNLOAD=1 (models will download at runtime instead)
 ARG SKIP_MODEL_DOWNLOAD=0
-RUN pip3 install --index-url https://pypi.org/simple huggingface_hub[hf_transfer] && \
-    if [ "$SKIP_MODEL_DOWNLOAD" = "1" ]; then \
+
+# Install huggingface_hub first
+RUN pip3 install --index-url https://pypi.org/simple huggingface_hub[hf_transfer]
+
+# Download models (conditionally based on SKIP_MODEL_DOWNLOAD)
+RUN if [ "$SKIP_MODEL_DOWNLOAD" = "1" ]; then \
         echo "[Chatterbox] ⏭️  Skipping model pre-download (will download at runtime)"; \
     else \
-        python3 << 'DOWNLOAD_EOF'
+        python3 << 'EOF'
 import os
 import sys
 from pathlib import Path
 import time
-import signal
 from huggingface_hub import snapshot_download
 
 # Set HuggingFace cache directory and enable hf_transfer for faster downloads
@@ -309,13 +313,12 @@ except Exception as e:
     print("[Chatterbox] 💡 Partial downloads are cached and will resume")
     print("[Chatterbox] 💡 Ensure container has internet access on first use")
     sys.exit(0)  # Exit with success to not fail the build
-DOWNLOAD_EOF \
-    ; fi
+EOF
+    fi
 
 # Verify ChatterboxTTS can load the downloaded models (only if we downloaded them)
-ARG SKIP_MODEL_DOWNLOAD=0
 RUN if [ "$SKIP_MODEL_DOWNLOAD" != "1" ]; then \
-    python3 << 'VERIFY_EOF'
+    python3 << 'EOF'
 import os
 from pathlib import Path
 
@@ -334,8 +337,8 @@ except Exception as e:
     print(f"[Chatterbox] ⚠️  Model verification failed: {e}")
     print("[Chatterbox] 💡 Models may still download at runtime")
     # Don't fail build - models might work at runtime
-VERIFY_EOF \
-    ; else \
+EOF
+    else \
         echo "[Chatterbox] ⏭️  Skipping model verification (models not pre-downloaded)"; \
     fi
 
