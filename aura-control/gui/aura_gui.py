@@ -41,16 +41,10 @@ class CircularButton(QPushButton):
         self.size = size
         self.setFixedSize(size, size)
         
-        # Remove all default Qt styling
+        # iOS-style clean styling (paintEvent handles actual rendering)
         self.setStyleSheet(f"""
             QPushButton {{
-                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 rgba(255, 255, 255, 0.5),
-                    stop:0.2 rgba(255, 255, 255, 0.3),
-                    stop:0.4 {color},
-                    stop:0.6 {color},
-                    stop:0.8 {color},
-                    stop:1 rgba(0, 0, 0, 0.4));
+                background: transparent;
                 color: #FFFFFF;
                 font-size: 56px;
                 font-weight: bold;
@@ -58,28 +52,6 @@ class CircularButton(QPushButton):
                 border: none;
                 outline: none;
                 padding: 0px;
-            }}
-            QPushButton:hover {{
-                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 rgba(255, 255, 255, 0.6),
-                    stop:0.2 rgba(255, 255, 255, 0.4),
-                    stop:0.4 {hover_color},
-                    stop:0.6 {hover_color},
-                    stop:0.8 {hover_color},
-                    stop:1 rgba(0, 0, 0, 0.3));
-                border: none;
-                outline: none;
-            }}
-            QPushButton:pressed {{
-                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 rgba(0, 0, 0, 0.3),
-                    stop:0.2 {pressed_color},
-                    stop:0.4 {pressed_color},
-                    stop:0.6 {pressed_color},
-                    stop:0.8 rgba(255, 255, 255, 0.2),
-                    stop:1 rgba(255, 255, 255, 0.3));
-                border: none;
-                outline: none;
             }}
             QPushButton:focus {{
                 outline: none;
@@ -92,8 +64,15 @@ class CircularButton(QPushButton):
         self.setAttribute(Qt.WA_OpaquePaintEvent, True)
         self.setFocusPolicy(Qt.NoFocus)  # Remove focus to prevent focus rectangles
     
+    def update_colors(self, color, hover_color, pressed_color):
+        """Update button colors dynamically"""
+        self.color = color
+        self.hover_color = hover_color
+        self.pressed_color = pressed_color
+        self.update()  # Trigger repaint
+    
     def paintEvent(self, event):
-        """Custom paint event for high-quality rendering"""
+        """Custom paint event for high-quality iOS-style rendering"""
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing, True)
         painter.setRenderHint(QPainter.SmoothPixmapTransform, True)
@@ -103,33 +82,43 @@ class CircularButton(QPushButton):
         rect = self.rect()
         radius = self.size // 2
         
-        # Determine gradient based on state
+        # Determine base color based on state
         if self.isDown():
-            gradient = QColor()
-            gradient.setNamedColor(self.pressed_color)
+            base_color = QColor()
+            base_color.setNamedColor(self.pressed_color)
         elif self.underMouse():
-            gradient = QColor()
-            gradient.setNamedColor(self.hover_color)
+            base_color = QColor()
+            base_color.setNamedColor(self.hover_color)
         else:
-            gradient = QColor()
-            gradient.setNamedColor(self.color)
+            base_color = QColor()
+            base_color.setNamedColor(self.color)
         
-        # Create linear gradient for 3D effect
+        # iOS-style gradient: subtle highlight at top, darker shade at bottom (no black)
+        # Create lighter and darker versions of the base color
+        lighter = QColor(base_color)
+        lighter.setRed(min(255, lighter.red() + 40))
+        lighter.setGreen(min(255, lighter.green() + 40))
+        lighter.setBlue(min(255, lighter.blue() + 40))
+        
+        darker = QColor(base_color)
+        darker.setRed(max(0, darker.red() - 30))
+        darker.setGreen(max(0, darker.green() - 30))
+        darker.setBlue(max(0, darker.blue() - 30))
+        
+        # iOS-style linear gradient: bright top, base middle, darker bottom
         linear_gradient = QLinearGradient(0, 0, 0, self.size)
-        linear_gradient.setColorAt(0, QColor(255, 255, 255, 128))
-        linear_gradient.setColorAt(0.2, QColor(255, 255, 255, 77))
-        linear_gradient.setColorAt(0.4, gradient)
-        linear_gradient.setColorAt(0.6, gradient)
-        linear_gradient.setColorAt(0.8, gradient)
-        linear_gradient.setColorAt(1, QColor(0, 0, 0, 102))
+        linear_gradient.setColorAt(0, lighter)  # Bright top
+        linear_gradient.setColorAt(0.3, base_color)  # Base color
+        linear_gradient.setColorAt(0.7, base_color)  # Base color
+        linear_gradient.setColorAt(1, darker)  # Darker bottom (no black)
         
         # Draw rounded rectangle with gradient
         painter.setBrush(linear_gradient)
         painter.setPen(Qt.NoPen)  # No border
         painter.drawRoundedRect(rect, radius, radius)
         
-        # Draw text
-        painter.setPen(QColor(255, 255, 255))
+        # Draw text with subtle shadow for depth
+        painter.setPen(QColor(255, 255, 255, 255))
         painter.setFont(QFont("Arial", 56, QFont.Bold))
         painter.drawText(rect, Qt.AlignCenter, self.text())
 
@@ -1009,7 +998,7 @@ class AuraGUI(QMainWindow):
             ("↑", "Upload", self._handle_upload, "#0D4D4B", "#0A3D3B", "#082B2A"),      # Deep Teal
             ("⚙", "Settings", self._handle_settings, "#333333", "#2A2A2A", "#1F1F1F"),  # Charcoal Gray
             ("📊", "Analytics", self._handle_analytics, "#FF7E5F", "#E66D4F", "#CC5C3F"), # Sunset Orange
-            ("🎤", "Voice", self._handle_voice, "#228B22", "#1E7A1E", "#1A691A"),        # Forest Green
+            ("🎤", "Voice", self._handle_voice, "#228B22", "#1E7A1E", "#1A691A"),        # Forest Green (active state)
             ("📱", "Mobile", self._handle_mobile, "#B57EDC", "#9D6BC4", "#8558AC"),     # Lavender
             ("ℹ", "Info", self._handle_info, "#FFD700", "#E6C200", "#CCAD00")          # Golden Yellow
         ]
@@ -1219,78 +1208,16 @@ class AuraGUI(QMainWindow):
                 set_microphone_muted(True)
                 
                 # Update button to RED for muted state (muted = red)
-                if voice_btn:
-                    voice_btn.setStyleSheet(f"""
-                        QPushButton {{
-                            /* Vibrant red for muted state */
-                            background: qradialgradient(cx:0.5, cy:0.5, radius:0.9,
-                                fx:0.45, fy:0.45,
-                                stop:0 rgba(255, 255, 255, 0.25),
-                                stop:0.3 #FF3B30,
-                                stop:1 #FF3B30);
-                            color: #FFFFFF;
-                            font-size: 56px;
-                            font-weight: bold;
-                            border-radius: 70px;
-                            border: none;
-                            padding: 0px;
-                        }}
-                        QPushButton:hover {{
-                            background: qradialgradient(cx:0.5, cy:0.5, radius:0.9,
-                                fx:0.45, fy:0.45,
-                                stop:0 rgba(255, 255, 255, 0.35),
-                                stop:0.3 #D32F2F,
-                                stop:1 #D32F2F);
-                            border: none;
-                        }}
-                        QPushButton:pressed {{
-                            background: qradialgradient(cx:0.5, cy:0.5, radius:0.9,
-                                fx:0.45, fy:0.45,
-                                stop:0 rgba(255, 255, 255, 0.15),
-                                stop:0.3 #B71C1C,
-                                stop:1 #B71C1C);
-                            border: none;
-                        }}
-                    """)
+                if voice_btn and isinstance(voice_btn, CircularButton):
+                    voice_btn.update_colors("#FF3B30", "#FF5252", "#D32F2F")  # Red shades
             else:
                 print("[AuraGUI] ✅ Microphone ACTIVE - transcription enabled")
                 # Update global state
                 set_microphone_muted(False)
                 
-                # Update button to FOREST GREEN for active state (active = forest green)
-                if voice_btn:
-                    voice_btn.setStyleSheet(f"""
-                        QPushButton {{
-                            /* Forest green for active voice state - high quality, highly visible */
-                            background: qradialgradient(cx:0.5, cy:0.5, radius:0.9,
-                                fx:0.45, fy:0.45,
-                                stop:0 rgba(255, 255, 255, 0.25),
-                                stop:0.3 #228B22,
-                                stop:1 #228B22);
-                            color: #FFFFFF;
-                            font-size: 56px;
-                            font-weight: bold;
-                            border-radius: 70px;
-                            border: none;
-                            padding: 0px;
-                        }}
-                        QPushButton:hover {{
-                            background: qradialgradient(cx:0.5, cy:0.5, radius:0.9,
-                                fx:0.45, fy:0.45,
-                                stop:0 rgba(255, 255, 255, 0.35),
-                                stop:0.3 #1E7A1E,
-                                stop:1 #1E7A1E);
-                            border: none;
-                        }}
-                        QPushButton:pressed {{
-                            background: qradialgradient(cx:0.5, cy:0.5, radius:0.9,
-                                fx:0.45, fy:0.45,
-                                stop:0 rgba(255, 255, 255, 0.15),
-                                stop:0.3 #1A691A,
-                                stop:1 #1A691A);
-                            border: none;
-                        }}
-                    """)
+                # Update button to GREEN for active state (active = green)
+                if voice_btn and isinstance(voice_btn, CircularButton):
+                    voice_btn.update_colors("#228B22", "#1E7A1E", "#1A691A")  # Forest Green shades
                 
         except ImportError:
             print("[AuraGUI] ⚠️ Could not import listener blocking functions")

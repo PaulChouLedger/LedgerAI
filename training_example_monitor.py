@@ -32,7 +32,8 @@ class ExampleMonitorCallback(TrainerCallback):
         sample_every_n_steps: int = 50,
         num_samples: int = 3,
         show_predictions: bool = False,  # Default False - predictions are slow
-        show_input: bool = False
+        show_input: bool = False,
+        show_chunks: bool = True  # NEW: Show actual chunk text for verification
     ):
         """
         Args:
@@ -43,6 +44,7 @@ class ExampleMonitorCallback(TrainerCallback):
             num_samples: Number of examples to show each time
             show_predictions: Whether to show model predictions
             show_input: Whether to show full input (can be verbose)
+            show_chunks: Whether to show actual chunk text (helps verify what model sees)
         """
         self.dataset = dataset
         self.tokenizer = tokenizer
@@ -51,6 +53,7 @@ class ExampleMonitorCallback(TrainerCallback):
         self.num_samples = num_samples
         self.show_predictions = show_predictions
         self.show_input = show_input
+        self.show_chunks = show_chunks
         self.last_step = -1
         
     def on_log(self, args, state: TrainerState, control: TrainerControl, logs=None, **kwargs):
@@ -101,6 +104,19 @@ class ExampleMonitorCallback(TrainerCallback):
                 if expected_answer:
                     print(f"   ✅ Expected: {expected_answer[:150]}..." if len(expected_answer) > 150 else f"   ✅ Expected: {expected_answer}")
                 
+                # Show chunk understanding diagnostics (NEW)
+                chunks_analysis = self._analyze_chunks(text, query, expected_answer, show_chunk_text=self.show_chunks)
+                if chunks_analysis:
+                    print(f"\n   🔍 Chunk Understanding Analysis:")
+                    for chunk_info in chunks_analysis:
+                        # Check if this is chunk text (starts with "Chunk X Text:")
+                        if chunk_info.startswith("Chunk") and "Text:" in chunk_info:
+                            print(f"      {chunk_info}")
+                        elif chunk_info.startswith("   "):  # Indented chunk text
+                            print(f"      {chunk_info}")
+                        else:
+                            print(f"      {chunk_info}")
+                
                 # Show model prediction if enabled (skip during very early training for better performance)
                 if self.show_predictions and self.model is not None and not early_training:
                     try:
@@ -136,6 +152,14 @@ class ExampleMonitorCallback(TrainerCallback):
                                         print(f"   ✅ Match Score: {match_score:.2%} (Good)")
                                     else:
                                         print(f"   ⚠️  Match Score: {match_score:.2%} (Needs improvement)")
+                                
+                                # Show model's understanding vs chunks (NEW - JSON mode)
+                                if self.show_predictions and prediction:
+                                    model_understanding = self._analyze_model_output(prediction, chunks_analysis, query)
+                                    if model_understanding:
+                                        print(f"\n   🤖 Model's Understanding:")
+                                        for info in model_understanding:
+                                            print(f"      {info}")
                     except Exception as e:
                         print(f"   ⚠️  Could not generate prediction: {e}")
                 elif self.show_predictions and early_training:
@@ -365,6 +389,261 @@ class ExampleMonitorCallback(TrainerCallback):
         else:
             # For single answers, use word overlap
             return word_score
+    
+    def _analyze_chunks(self, text: str, query: str, expected_answer: str = None, show_chunk_text: bool = True) -> List[str]:
+        """
+        Analyze chunks to show what entities/items are actually in each chunk.
+        Helps diagnose if model is reading chunks completely.
+        
+        Args:
+            text: Full training example text
+            query: The query being asked
+            expected_answer: Expected answer (for comparison)
+            show_chunk_text: Whether to include actual chunk text in output
+        
+        Returns:
+            List of strings describing what's in each chunk
+        """
+        analysis = []
+        
+        try:
+            # Extract chunks from user message
+            user_match = re.search(r'<\|im_start\|>user\s*\n(.*?)<\|im_end\|>', text, re.DOTALL)
+            if not user_match:
+                return analysis
+            
+            user_content = user_match.group(1)
+            
+            # Find all chunks with their scores
+            # Handle both single and double quotes, and escaped quotes
+            chunk_pattern = r'\[Chunk (\d+)\] Score: ([\d.]+).*?FULL CHUNK TEXT: [\'"](.+?)[\'"]'
+            chunks = re.findall(chunk_pattern, user_content, re.DOTALL)
+            
+            # Also handle escaped quotes in chunk text
+            chunks_cleaned = []
+            for chunk_num, chunk_score, chunk_text in chunks:
+                # Remove escape sequences
+                chunk_text_clean = chunk_text.replace("\\'", "'").replace('\\"', '"')
+                chunks_cleaned.append((chunk_num, chunk_score, chunk_text_clean))
+            chunks = chunks_cleaned
+            
+            if not chunks:
+                return analysis
+            
+            # Determine query type
+            is_entity_query = any(word in query.lower() for word in ['who are', 'who is', 'executives', 'managers', 'directors', 'founders', 'co-founders', 'leaders', 'members'])
+            is_list_query = any(word in query.lower() for word in ['list', 'what are', 'features', 'benefits', 'components', 'capabilities', 'services'])
+            
+            # Parse expected answer if JSON
+            expected_items = []
+            if expected_answer:
+                try:
+                    expected_json = json.loads(expected_answer)
+                    expected_items = expected_json.get('items', [])
+                except (json.JSONDecodeError, ValueError):
+                    # Not JSON, try to parse as natural language
+                    if is_entity_query or is_list_query:
+                        # Split by comma/and
+                        expected_items = [item.strip() for item in re.split(r'[,;]| and ', expected_answer) if item.strip()]
+            
+            # Analyze each chunk
+            for chunk_num, chunk_score, chunk_text in chunks:
+                chunk_num = int(chunk_num)
+                chunk_score = float(chunk_score)
+                chunk_info = []
+                
+                # Show actual chunk text if requested (helps verify what model sees)
+                if show_chunk_text:
+                    # Show full chunk text (truncated if very long)
+                    if len(chunk_text) > 400:
+                        chunk_preview = chunk_text[:400] + "..."
+                        chunk_info.append(f"Chunk {chunk_num} (Score: {chunk_score:.2f}) - Full Text ({len(chunk_text)} chars, showing first 400):")
+                    else:
+                        chunk_preview = chunk_text
+                        chunk_info.append(f"Chunk {chunk_num} (Score: {chunk_score:.2f}) - Full Text ({len(chunk_text)} chars):")
+                    # Indent the text for readability
+                    chunk_info.append(f"   \"{chunk_preview}\"")
+                    chunk_info.append("")  # Empty line for readability
+                
+                # Find entities/items in this chunk
+                if is_entity_query:
+                    # Look for person names (common patterns)
+                    # Pattern: "Name serves as ROLE at Company" or "As ROLE, Name..." or "Name is ROLE"
+                    name_patterns = [
+                        r'([A-Z][a-z]+ [A-Z][a-z]+) serves as',
+                        r'As [^,]+, ([A-Z][a-z]+ [A-Z][a-z]+)',
+                        r'([A-Z][a-z]+ [A-Z][a-z]+) holds the position',
+                        r'([A-Z][a-z]+ [A-Z][a-z]+) is (?:executive|manager|director|founder|co-founder|leader|member)',
+                        r'([A-Z][a-z]+ [A-Z][a-z]+) is [^,]+,',
+                        r'([A-Z][a-z]+ [A-Z][a-z]+), (?:executive|manager|director|founder|co-founder|leader|member)',
+                    ]
+                    
+                    found_names = set()
+                    for pattern in name_patterns:
+                        matches = re.findall(pattern, chunk_text, re.IGNORECASE)
+                        found_names.update(matches)
+                    
+                    # Also try simple pattern: Capitalized First Last name
+                    # This catches names that might not match the above patterns
+                    simple_names = re.findall(r'\b([A-Z][a-z]+ [A-Z][a-z]+)\b', chunk_text)
+                    # Filter out common false positives (company names, etc.)
+                    false_positives = {'Smart Systems', 'Data Systems', 'Cloud Systems', 'AI Systems', 'Tech Systems'}
+                    for name in simple_names:
+                        if name not in false_positives and len(name.split()) == 2:
+                            # Check if it appears in context that suggests it's a person
+                            name_lower = name.lower()
+                            chunk_lower = chunk_text.lower()
+                            name_idx = chunk_lower.find(name_lower)
+                            if name_idx >= 0:
+                                # Check surrounding context (50 chars before/after)
+                                context_start = max(0, name_idx - 50)
+                                context_end = min(len(chunk_lower), name_idx + len(name) + 50)
+                                context = chunk_lower[context_start:context_end]
+                                # If context suggests person (role words nearby), include it
+                                role_words = ['executive', 'manager', 'director', 'founder', 'co-founder', 'leader', 'member', 'serves', 'holds', 'position']
+                                if any(role in context for role in role_words):
+                                    found_names.add(name)
+                    
+                    if found_names:
+                        chunk_info.append(f"Chunk {chunk_num}: Found {len(found_names)} entities: {', '.join(sorted(found_names)[:5])}")
+                        if len(found_names) > 5:
+                            chunk_info[-1] += f" (+{len(found_names)-5} more)"
+                    else:
+                        chunk_info.append(f"Chunk {chunk_num}: No entities found")
+                
+                elif is_list_query:
+                    # Look for list items (features, benefits, etc.)
+                    # Common patterns: "offers X", "provides X", "X is available"
+                    list_patterns = [
+                        r'offers ([^,\.]+)',
+                        r'provides ([^,\.]+)',
+                        r'([^,\.]+) is available',
+                        r'key (?:features|benefits|components): ([^,\.]+)',
+                    ]
+                    
+                    found_items = set()
+                    for pattern in list_patterns:
+                        matches = re.findall(pattern, chunk_text, re.IGNORECASE)
+                        found_items.update([m.strip() for m in matches if len(m.strip()) > 3])
+                    
+                    if found_items:
+                        chunk_info.append(f"Chunk {chunk_num}: Found {len(found_items)} items: {', '.join(list(found_items)[:3])}")
+                        if len(found_items) > 3:
+                            chunk_info[-1] += f" (+{len(found_items)-3} more)"
+                    else:
+                        chunk_info.append(f"Chunk {chunk_num}: No list items found")
+                
+                # Check if expected items are in this chunk
+                if expected_items:
+                    found_expected = []
+                    for item in expected_items:
+                        # Simple check: is this item mentioned in chunk?
+                        item_words = set(item.lower().split())
+                        chunk_words = set(chunk_text.lower().split())
+                        # If significant overlap, consider it found
+                        if len(item_words) > 0 and len(item_words.intersection(chunk_words)) >= len(item_words) * 0.6:
+                            found_expected.append(item)
+                    
+                    if found_expected:
+                        chunk_info.append(f"         ✅ Contains {len(found_expected)}/{len(expected_items)} expected items: {', '.join(found_expected[:3])}")
+                        if len(found_expected) > 3:
+                            chunk_info[-1] += f" (+{len(found_expected)-3} more)"
+                
+                if chunk_info:
+                    analysis.extend(chunk_info)
+            
+            # Summary
+            if expected_items and len(chunks) > 0:
+                total_chunks = len(chunks)
+                analysis.append(f"📊 Summary: {total_chunks} chunks, {len(expected_items)} expected items")
+        
+        except Exception as e:
+            analysis.append(f"⚠️  Error analyzing chunks: {e}")
+        
+        return analysis
+    
+    def _analyze_model_output(self, prediction: str, chunks_analysis: List[str], query: str) -> List[str]:
+        """
+        Analyze model's output to show what it extracted vs what's in chunks.
+        Helps diagnose extraction completeness issues.
+        
+        Returns:
+            List of strings describing model's understanding
+        """
+        analysis = []
+        
+        try:
+            # Try to parse as JSON
+            try:
+                # Remove markdown code blocks if present
+                prediction_clean = prediction.strip()
+                if prediction_clean.startswith('```json'):
+                    prediction_clean = prediction_clean[7:]
+                if prediction_clean.startswith('```'):
+                    prediction_clean = prediction_clean[3:]
+                if prediction_clean.endswith('```'):
+                    prediction_clean = prediction_clean[:-3]
+                prediction_clean = prediction_clean.strip()
+                
+                model_json = json.loads(prediction_clean)
+                model_items = model_json.get('items', [])
+                model_answer_type = model_json.get('answer_type', 'unknown')
+                model_chunks_used = model_json.get('chunks_used', [])
+                
+                analysis.append(f"Answer type: {model_answer_type}")
+                analysis.append(f"Extracted {len(model_items)} items: {', '.join(model_items[:5])}")
+                if len(model_items) > 5:
+                    analysis[-1] += f" (+{len(model_items)-5} more)"
+                
+                # Check for duplicates
+                unique_items = set(model_items)
+                if len(unique_items) < len(model_items):
+                    duplicates = len(model_items) - len(unique_items)
+                    analysis.append(f"⚠️  Found {duplicates} duplicate(s) - model may be repeating same entity")
+                
+                # Check which chunks were used
+                if model_chunks_used:
+                    analysis.append(f"Chunks used: {model_chunks_used}")
+                else:
+                    analysis.append(f"⚠️  No chunks_used specified - model may not be tracking source")
+                
+                # Compare with expected (if available from chunks_analysis)
+                # This is a simple heuristic - could be improved
+                if chunks_analysis:
+                    # Count expected items from chunks_analysis
+                    expected_count = 0
+                    for line in chunks_analysis:
+                        if 'expected items' in line.lower():
+                            match = re.search(r'(\d+)/(\d+) expected items', line)
+                            if match:
+                                expected_count = int(match.group(2))
+                                break
+                    
+                    if expected_count > 0:
+                        if len(model_items) < expected_count:
+                            missing = expected_count - len(model_items)
+                            analysis.append(f"❌ Missing {missing} item(s) - incomplete extraction")
+                        elif len(model_items) == expected_count:
+                            analysis.append(f"✅ All {expected_count} items extracted")
+                        else:
+                            analysis.append(f"⚠️  Extracted {len(model_items)} items (expected {expected_count}) - may have duplicates")
+            
+            except json.JSONDecodeError:
+                # Not JSON, try natural language parsing
+                is_entity_query = any(word in query.lower() for word in ['who are', 'who is', 'executives', 'managers'])
+                if is_entity_query:
+                    # Try to extract names
+                    names = re.findall(r'([A-Z][a-z]+ [A-Z][a-z]+)', prediction)
+                    if names:
+                        unique_names = list(set(names))
+                        analysis.append(f"Extracted {len(unique_names)} unique entities: {', '.join(unique_names[:5])}")
+                        if len(names) > len(unique_names):
+                            analysis.append(f"⚠️  Found {len(names) - len(unique_names)} duplicate(s)")
+        
+        except Exception as e:
+            analysis.append(f"⚠️  Error analyzing model output: {e}")
+        
+        return analysis
 
 
 def create_example_monitor(
@@ -373,7 +652,8 @@ def create_example_monitor(
     model: Any,
     sample_every_n_steps: int = 50,
     num_samples: int = 3,
-    show_predictions: bool = True
+    show_predictions: bool = True,
+    show_chunks: bool = True  # NEW: Show actual chunk text
 ) -> ExampleMonitorCallback:
     """
     Create an example monitor callback for training.
@@ -385,6 +665,7 @@ def create_example_monitor(
         sample_every_n_steps: Show examples every N steps
         num_samples: Number of examples to show
         show_predictions: Whether to show model predictions (slower but more informative)
+        show_chunks: Whether to show actual chunk text (helps verify what model sees)
     
     Returns:
         ExampleMonitorCallback instance
@@ -396,7 +677,8 @@ def create_example_monitor(
         sample_every_n_steps=sample_every_n_steps,
         num_samples=num_samples,
         show_predictions=show_predictions,
-        show_input=False  # Set to True for debugging, but it's very verbose
+        show_input=False,  # Set to True for debugging, but it's very verbose
+        show_chunks=show_chunks  # Show chunk text for verification
     )
 
 

@@ -529,7 +529,8 @@ if ENABLE_EXAMPLE_MONITORING:
         model=model,
         sample_every_n_steps=20,  # Show examples every 20 steps
         num_samples=3,  # Show 3 examples each time
-        show_predictions=True  # Set True to see model predictions (slower but more informative)
+        show_predictions=True,  # Set True to see model predictions (slower but more informative)
+        show_chunks=True  # Show actual chunk text to verify what model sees
     )
     callbacks.append(example_monitor)
 
