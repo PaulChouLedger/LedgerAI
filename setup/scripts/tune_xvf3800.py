@@ -272,9 +272,9 @@ def configure_agc_20_ec():
     print("  - High-Pass Filter: 70 Hz")
     run_xvf_command("AEC_HPFONOFF", 1)
     
-    print("  - AGC: ENABLED (target: 0.15 RMS, max gain: 20x linear = ~26 dB, response: 0.1s)")
+    print("  - AGC: ENABLED (target: 0.3 RMS, max gain: 20x linear = ~26 dB, response: 0.1s)")
     run_xvf_command("PP_AGCONOFF", 1)
-    run_xvf_command("PP_AGCDESIREDLEVEL", 0.15)
+    run_xvf_command("PP_AGCDESIREDLEVEL", 0.3)
     run_xvf_command("PP_AGCMAXGAIN", 20)  # Linear gain factor (20x = ~26 dB) - reduced from 1000 to prevent clipping
     run_xvf_command("PP_AGCTIME", 0.1)  # Faster response (0.1s) for better clipping prevention - hardware-only solution
     
@@ -293,7 +293,7 @@ def configure_agc_20_ec():
     save_config_state('agc_20_ec', {
         'AEC_HPFONOFF': 1,
         'PP_AGCONOFF': 1,
-        'PP_AGCDESIREDLEVEL': 0.15,
+        'PP_AGCDESIREDLEVEL': 0.3,
         'PP_AGCMAXGAIN': 20,  # Linear gain factor (20x = ~26 dB) - reduced to prevent clipping
         'PP_AGCTIME': 0.1,  # Faster response (0.1s) for hardware-only clipping prevention
         'PP_ECHOONOFF': 1
