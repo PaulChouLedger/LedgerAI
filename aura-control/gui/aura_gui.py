@@ -318,7 +318,9 @@ class CircularProgressWidget(QWidget):
                 self.current_step = step_name
                 self.progress = target_progress
                 self.update()
-                print(f"[CircularProgress] 📊 Step '{step_name}': {int(target_progress * 100)}%")
+                # Only log significant step changes (10%+ or final step)
+                if target_progress >= 1.0 or target_progress >= 0.10:
+                    print(f"[CircularProgress] 📊 {int(target_progress * 100)}%")
     
     def _update_progress(self):
         """Update progress - use explicit steps if set, otherwise fallback to log parsing"""
@@ -328,7 +330,10 @@ class CircularProgressWidget(QWidget):
         if _welcome_played or _setup_complete:
             if self.progress < 1.0:
                 self.progress = 1.0
-                print(f"[CircularProgress] ✅ {'Welcome played' if _welcome_played else 'Setup complete'} → jumping to 100%")
+                # Only log once when first reaching 100%
+                if not hasattr(self, '_completion_logged'):
+                    print(f"[CircularProgress] ✅ Initialization complete")
+                    self._completion_logged = True
             self.update()
             self.hide()
             self.update_timer.stop()
@@ -366,11 +371,11 @@ class CircularProgressWidget(QWidget):
             
             self.progress = min(1.0, self.progress + increment)
             
-            # Log when we reach significant milestones (every 5% change)
+            # Log when we reach significant milestones (every 10% change, less verbose)
             current_pct = int(self.progress * 100)
             prev_pct = int((self.progress - increment) * 100)
-            if current_pct != prev_pct and current_pct % 5 == 0:  # Log every 5%
-                print(f"[CircularProgress] 📊 Progress: {current_pct}% (target: {int(milestone_progress * 100)}%)")
+            if current_pct != prev_pct and current_pct % 10 == 0:  # Log every 10%
+                print(f"[CircularProgress] 📊 {current_pct}%")
         elif milestone_progress == 0 and self.progress == 0:
             # Very slow initial progress if no milestones detected yet
             elapsed = time.time() - self.start_time
@@ -450,18 +455,14 @@ class CircularProgressWidget(QWidget):
         max_progress = 0.0
         detected_milestones = []
         
-        for step_text, progress_value in steps:
-            if re.search(step_text.lower(), log_content.lower(), re.IGNORECASE):
-                detected_milestones.append((step_text, progress_value))
-                max_progress = max(max_progress, progress_value)
-                # Debug: log when 100% milestone is detected
-                if progress_value >= 1.0:
-                    print(f"[CircularProgress] 🎯 100% milestone detected: '{step_text[:50]}...' → {int(progress_value * 100)}%")
-                    # Show a sample of the matching line
-                    for line in log_content.split('\n'):
-                        if re.search(step_text.lower(), line.lower(), re.IGNORECASE):
-                            print(f"[CircularProgress] 🔍 Matching line: {line[:80]}...")
-                            break
+            for step_text, progress_value in steps:
+                if re.search(step_text.lower(), log_content.lower(), re.IGNORECASE):
+                    detected_milestones.append((step_text, progress_value))
+                    max_progress = max(max_progress, progress_value)
+                    # Log 100% milestone only once when first detected
+                    if progress_value >= 1.0 and not hasattr(self, '_100_percent_logged'):
+                        print(f"[CircularProgress] ✅ Reached 100% - initialization complete")
+                        self._100_percent_logged = True
         
         # SAFETY: Prevent false positives for 100% milestones
         
@@ -507,21 +508,21 @@ class CircularProgressWidget(QWidget):
             
             if has_audio_setup or has_welcome:
                 max_progress = 1.0
-                trigger = "Audio setup" if has_audio_setup else "Welcome"
                 if not hasattr(self, '_fallback_triggered'):
-                    print(f"[CircularProgress] 🎯 Fallback: '{trigger}' detected → jumping to 100% (welcome NOW)")
                     self._fallback_triggered = True
         
         # Log detected milestones for debugging (only log when milestone changes or progress changes significantly)
         if detected_milestones:
             latest_milestone = detected_milestones[-1]  # Most recent milestone
-            # Only log if this is a new milestone or progress changed significantly
+            # Only log if this is a new milestone or progress changed significantly (10%+ to reduce noise)
             current_progress_int = int(max_progress * 100)
             if (not hasattr(self, '_last_logged_milestone') or 
                 self._last_logged_milestone != latest_milestone[0] or
                 not hasattr(self, '_last_logged_progress') or
-                abs(self._last_logged_progress - current_progress_int) >= 5):  # Log if progress changed by 5%+
-                print(f"[CircularProgress] 🎯 Milestone: '{latest_milestone[0]}' → {current_progress_int}%")
+                abs(self._last_logged_progress - current_progress_int) >= 10):  # Log if progress changed by 10%+
+                # Only log milestone name for non-100% milestones to reduce noise
+                if current_progress_int < 100:
+                    print(f"[CircularProgress] 📊 {current_progress_int}%")
                 self._last_logged_milestone = latest_milestone[0]
                 self._last_logged_progress = current_progress_int
         

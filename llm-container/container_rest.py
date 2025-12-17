@@ -2429,11 +2429,15 @@ def _sentence_tag_stream(word_stream):
     
     IMPORTANT: This processes words incrementally with minimal buffering (1 token lookahead),
     allowing tokens to be sent to TTS as they're generated.
+    
+    CRITICAL: Punctuation-only tokens (like trailing quotes) are merged with the previous sentence
+    to prevent TTS artifacts from standalone punctuation.
     """
     sentence_buffer = ""
     sentence_open = False
     prev_word = None
     buffered_word = None  # One-token lookahead buffer for multi-token abbreviations
+    pending_sentence_end = False  # Track if we detected sentence-ending punctuation but haven't closed yet (for trailing punctuation)
     
     # Abbreviation expansions (abbrev -> full text)
     abbrev_expansions = {
@@ -2458,7 +2462,7 @@ def _sentence_tag_stream(word_stream):
     
     def yield_word(word_to_yield):
         """Helper to yield a word, expanding abbreviations if needed"""
-        nonlocal sentence_buffer, sentence_open
+        nonlocal sentence_buffer, sentence_open, pending_sentence_end
         
         word_stripped = word_to_yield.strip()
         
@@ -2478,6 +2482,7 @@ def _sentence_tag_stream(word_stream):
         # Normal word processing
         if not sentence_open:
             sentence_open = True
+            pending_sentence_end = False  # Reset flag when starting new sentence
             yield "<sentence_start>"
         
         # Check if this is a single-token abbreviation that should be expanded
@@ -2508,15 +2513,11 @@ def _sentence_tag_stream(word_stream):
                 sentence_ending_punct = punct
                 break
         
-        # If sentence ending detected, close current sentence and start new one
-        # This allows TTS to start processing first sentence while LLM generates subsequent ones
+        # If sentence ending detected, mark it but don't close yet - wait to see if next token is trailing punctuation
+        # This allows trailing quotes/punctuation to be grouped with the sentence
         if word_ends_with_punct and sentence_open:
-            # Close current sentence
-                yield "<sentence_end>"
-                sentence_buffer = ""
-                sentence_open = False
-            # Note: Don't immediately start new sentence - wait for next word
-            # This prevents empty sentences if stream ends
+            pending_sentence_end = True  # Mark that we should close after checking next token
+            # Don't close yet - will be handled in main loop after checking next token
     
     # Process the word stream
     for word in word_stream:
@@ -2525,6 +2526,30 @@ def _sentence_tag_stream(word_stream):
             continue
         
         word_stripped = word.strip()
+        
+        # CRITICAL FIX: If we detected sentence-ending punctuation in previous word,
+        # check if current token is trailing punctuation-only. If so, include it in current sentence before closing.
+        # This prevents trailing quotes/punctuation from becoming separate sentences.
+        if pending_sentence_end and sentence_open:
+            # Check if this token is only punctuation (no alphanumeric characters)
+            is_punctuation_only = word_stripped and not any(c.isalnum() for c in word_stripped)
+            if is_punctuation_only:
+                # This is trailing punctuation - add it to current sentence, then close
+                yield word
+                sentence_buffer += word
+                yield "<sentence_end>"
+                sentence_buffer = ""
+                sentence_open = False
+                pending_sentence_end = False
+                prev_word = word
+                continue
+            else:
+                # Next token is actual content - close previous sentence and start new one
+                yield "<sentence_end>"
+                sentence_buffer = ""
+                sentence_open = False
+                pending_sentence_end = False
+                # Fall through to process this word as start of new sentence
         
         # If we have a buffered word, check if current word completes a multi-token abbreviation
         if buffered_word:
@@ -2583,8 +2608,8 @@ def _sentence_tag_stream(word_stream):
         for item in yield_word(buffered_word):
             yield item
     
-    # Close any remaining sentence
-    if sentence_open:
+    # Close any remaining sentence (including if we detected sentence-ending punctuation but stream ended)
+    if sentence_open or pending_sentence_end:
         yield "<sentence_end>"
 
 
