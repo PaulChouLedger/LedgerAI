@@ -419,7 +419,8 @@ class CircularProgressWidget(QWidget):
                 ("listener ready", 0.95),               # 95% - Listener ready
                 ("listener is now READY", 0.98),         # 98% - Listener fully ready
                 
-                # CRITICAL: Audio setup happens RIGHT BEFORE welcome - set to 100%
+                # CRITICAL: Whisper model warm-up completion = 100% (happens right before welcome)
+                ("Model warmed up|✅ Model warmed up|Model warmed up.*first transcription", 1.0),  # 100% - Whisper ready (before welcome)
                 ("Audio.*Detected.*architecture|Detected ARM architecture|🔧.*detected.*architecture|using latency.*high.*stability", 1.0),  # 100% - Stream setup (before welcome)
                 ("Playing welcome prompt|🔊 Playing welcome", 1.0),  # 100% - Welcome about to play
                 # "Setup complete" - only match when it includes "listener ready" to ensure it's the real completion
