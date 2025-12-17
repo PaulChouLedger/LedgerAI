@@ -515,7 +515,7 @@ print(f"   - Batch size: {training_args.per_device_train_batch_size}")
 print(f"   - Gradient accumulation: {training_args.gradient_accumulation_steps}")
 print(f"   - Effective batch size: {training_args.per_device_train_batch_size * training_args.gradient_accumulation_steps}")
 print(f"   - Epochs: {training_args.num_train_epochs} (increased from 2 to 10 - model needs more training to learn extraction patterns)")
-print(f"   - Learning rate: {training_args.learning_rate} (increased from 8e-7 to 1e-6 - faster learning while preventing overfitting)")
+print(f"   - Learning rate: {training_args.learning_rate} (reduced from 1e-6 to 8e-7 - slower learning prevents memorization)")
 print(f"   - Weight decay: {training_args.weight_decay} (increased from 0.5 - more aggressive regularization)")
 print(f"   - Gradient clipping: max_norm={training_args.max_grad_norm} (prevents training instability)")
 # Calculate approximate trainable parameters
