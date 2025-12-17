@@ -253,13 +253,16 @@ class TranscriptionOverlayWidget(QWidget):
     def __init__(self, parent, window_size):
         super().__init__(parent)
         self.setAttribute(Qt.WA_TransparentForMouseEvents, True)
-        # Ensure widget is visible and can be painted
+        # Ensure widget is transparent and can be painted
+        self.setAttribute(Qt.WA_TranslucentBackground, True)
         self.setAttribute(Qt.WA_OpaquePaintEvent, False)
-        self.setAttribute(Qt.WA_NoSystemBackground, False)
         self.parent_gui = parent
         self.window_size = window_size
         self.current_text = ""
         self.max_lines = 3  # Show last 3 lines of transcription
+        
+        # Set transparent background for the widget itself
+        self.setStyleSheet("background: transparent;")
         
         print(f"[TranscriptionOverlay] 🔧 Initializing transcription overlay widget")
         
@@ -268,29 +271,53 @@ class TranscriptionOverlayWidget(QWidget):
         self.transcription_text.setReadOnly(True)
         self.transcription_text.setFrameShape(QTextEdit.NoFrame)
         
-        # Styling for transcription display - more visible with border
+        # Styling for transcription display - fully transparent background with subtle border
+        # White text with semi-transparent border for visibility without blocking content
         self.transcription_text.setStyleSheet("""
             QTextEdit {
-                background-color: rgba(0, 0, 0, 0.9);
+                background-color: rgba(0, 0, 0, 0.0);
                 color: #ffffff;
-                border: 2px solid rgba(255, 255, 255, 0.5);
-                border-radius: 10px;
-                padding: 12px;
+                border: 2px solid rgba(255, 255, 255, 0.25);
+                border-radius: 15px;
+                padding: 12px 16px;
                 font-family: 'Arial', sans-serif;
-                font-size: 14pt;
+                font-size: 15pt;
                 font-weight: 500;
             }
         """)
-        print(f"[TranscriptionOverlay] 🎨 Styling applied: background=rgba(0,0,0,0.9), color=white, border=2px white")
+        print(f"[TranscriptionOverlay] 🎨 Styling applied: transparent background, subtle border")
         
-        # Position above Aura eye, within button inner perimeter
-        # Aura eye center is at 540px, so above it would be around 400-450px
-        # Buttons are at radius 450px, inner edge ~400px from center
-        # So max width should be ~750px to fit within inner perimeter with margins
-        overlay_height = 120
-        overlay_y = 420  # Above center (540), positioned above Aura eye
-        overlay_width = 750  # Fits within button inner perimeter (~400px radius * 2 - margins)
-        overlay_x = (window_size - overlay_width) // 2  # Centered horizontally
+        # Strategic positioning to avoid aura eye and buttons
+        # Layout analysis:
+        # - Screen: 1080x1080, center at (540, 540)
+        # - Aura eye: centered, roughly 300-400px radius
+        # - Buttons: at radius 430px from center, size 140x140, at angles 0°, 60°, 120°, 180°, 240°, 300°
+        # 
+        # Calculate button positions to find safe zones:
+        # Button at angle θ: x = 540 + 430*cos(θ), y = 540 + 430*sin(θ)
+        # Button extends ±70px in each direction
+        #
+        # Safe zones (areas with no buttons):
+        # - Bottom-left: x < 200, y > 850 (clear of all buttons)
+        # - Bottom-right: x > 880, y > 850 (clear of all buttons)
+        # - Top area: y < 150 (but might be too close to top button)
+        
+        overlay_height = 160  # Taller for more text
+        overlay_width = 400   # Width for readable text
+        
+        # Calculate safe bottom-left position
+        # Bottom button (180°) is at: x=540, y=540+430=970, extends to y=1040
+        # Bottom-left button (240°) is at: x≈325, y≈168 (actually top-left area!)
+        # So bottom-left corner (x<200, y>850) is safe
+        
+        # Use bottom-left corner (most readable, doesn't interfere)
+        overlay_x = 40   # Left margin, well clear of any buttons
+        overlay_y = window_size - overlay_height - 40  # Bottom margin, above bottom button area
+        
+        # Alternative positions (uncomment to use):
+        # Bottom-right corner:
+        # overlay_x = window_size - overlay_width - 40
+        # overlay_y = window_size - overlay_height - 40
         
         self.setGeometry(overlay_x, overlay_y, overlay_width, overlay_height)
         self.transcription_text.setGeometry(0, 0, overlay_width, overlay_height)
