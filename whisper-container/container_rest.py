@@ -167,24 +167,6 @@ MODEL_MAPPING = {
 model_repo = MODEL_MAPPING.get(MODEL_NAME, f"models--Systran--faster-{MODEL_NAME.replace('.', '-')}")
 model_cache_path = f"/root/.cache/huggingface/hub/{model_repo}"
 
-# Clean up unused models to save space (only keep the requested model)
-# This ensures that when the default changes via git pull, old models are removed
-cache_base = "/root/.cache/huggingface/hub"
-if os.path.exists(cache_base):
-    import shutil
-    all_models = [d for d in os.listdir(cache_base) if d.startswith("models--")]
-    for model_dir in all_models:
-        model_full_path = os.path.join(cache_base, model_dir)
-        # Only remove if it's not the model we need
-        if model_dir != model_repo and os.path.isdir(model_full_path):
-            # Check if it's a Whisper model (not other HuggingFace models)
-            if any(whisper_keyword in model_dir.lower() for whisper_keyword in ["whisper", "distil"]):
-                try:
-                    print(f"[Whisper] 🗑️  Removing unused model: {model_dir}")
-                    shutil.rmtree(model_full_path)
-                except Exception as e:
-                    print(f"[Whisper] ⚠️  Could not remove {model_dir}: {e}")
-
 # Check if model exists in cache
 if os.path.exists(model_cache_path):
     print(f"[Whisper] ✅ Model found in cache: {MODEL_NAME}")
@@ -205,9 +187,6 @@ except Exception as e:
         print(f"[Whisper] ❌ GPU model loading failed: {e2}")
         print(f"[Whisper] 💥 FATAL: GPU required - no CPU fallback available")
         raise RuntimeError("GPU initialization failed - GPU is required for this container")
-
-# Track actual model being used
-ACTUAL_MODEL_NAME = MODEL_NAME
 
 # Timing statistics tracking
 timing_stats = {
@@ -441,8 +420,7 @@ def health():
     if timing_stats["total_requests"] == 0:
         return jsonify({
             "status": "healthy",
-            "model": ACTUAL_MODEL_NAME,
-            "requested_model": MODEL_NAME,
+            "model": MODEL_NAME,
             "compute_type": COMPUTE_TYPE,
             "beam_size": BEAM_SIZE,
             "requests_processed": 0,
@@ -456,8 +434,7 @@ def health():
     
     return jsonify({
         "status": "healthy",
-        "model": ACTUAL_MODEL_NAME,
-        "requested_model": MODEL_NAME,
+        "model": MODEL_NAME,
         "compute_type": COMPUTE_TYPE,
         "beam_size": BEAM_SIZE,
         "requests_processed": timing_stats["total_requests"],
@@ -469,17 +446,6 @@ def health():
             "max_transcription_time": round(timing_stats["max_transcription_time"], 3),
             "overall_efficiency_rtf": round(overall_efficiency, 2)
         }
-    })
-
-@app.route("/model/info", methods=["GET"])
-def model_info():
-    """Get information about available models and current model"""
-    available_models = list(MODEL_MAPPING.keys())
-    return jsonify({
-        "current_model": ACTUAL_MODEL_NAME,
-        "requested_model": MODEL_NAME,
-        "available_models": available_models,
-        "model_mapping": MODEL_MAPPING
     })
 
 @app.route("/add_medical_term", methods=["POST"])
