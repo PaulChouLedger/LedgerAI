@@ -444,11 +444,11 @@ class CircularProgressWidget(QWidget):
         # Center of screen (same as aura eye)
         center_x, center_y = 540, 540
         
-        # Progress ring parameters - hug the aura eye closely, 20% smaller diameter
-        # Original: 350px radius, new: 280px radius (20% reduction)
-        # Match white perimeter: 8px thickness, white with 30% opacity (77/255)
-        ring_radius = 280  # 20% smaller - closer to aura eye
-        ring_thickness = 8  # Match white perimeter thickness
+        # Progress ring parameters - hug the aura eye closely
+        # Decreased diameter by 20%: 280px * 0.8 = 224px radius
+        # Increased thickness by 20%: 8px * 1.2 = 9.6px, rounded to 10px
+        ring_radius = 224  # 20% smaller diameter (was 280, now 224)
+        ring_thickness = 10  # 20% thicker (was 8, now 10)
         
         # White color matching the perimeter (30% opacity)
         white_color = QColor(255, 255, 255, 77)  # Same as white perimeter
