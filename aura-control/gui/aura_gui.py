@@ -455,14 +455,14 @@ class CircularProgressWidget(QWidget):
         max_progress = 0.0
         detected_milestones = []
         
-            for step_text, progress_value in steps:
-                if re.search(step_text.lower(), log_content.lower(), re.IGNORECASE):
-                    detected_milestones.append((step_text, progress_value))
-                    max_progress = max(max_progress, progress_value)
-                    # Log 100% milestone only once when first detected
-                    if progress_value >= 1.0 and not hasattr(self, '_100_percent_logged'):
-                        print(f"[CircularProgress] ✅ Reached 100% - initialization complete")
-                        self._100_percent_logged = True
+        for step_text, progress_value in steps:
+            if re.search(step_text.lower(), log_content.lower(), re.IGNORECASE):
+                detected_milestones.append((step_text, progress_value))
+                max_progress = max(max_progress, progress_value)
+                # Log 100% milestone only once when first detected
+                if progress_value >= 1.0 and not hasattr(self, '_100_percent_logged'):
+                    print(f"[CircularProgress] ✅ Reached 100% - initialization complete")
+                    self._100_percent_logged = True
         
         # SAFETY: Prevent false positives for 100% milestones
         
