@@ -415,7 +415,17 @@ def ssml_wrap(text):
     if INSERT_BREAKS:
         text = re.sub(r"([,;])", r"\1<break time='300ms'/>", text)
     if INSERT_SENTENCE_PAUSE:
-        text = re.sub(r"([.?!])", r"\1<break time='600ms'/>", text)
+        # Add longer pauses for numbered list items (e.g., "1.", "2.", "3.")
+        # Pattern matches: one or more digits followed by period
+        # This gives numbered items a longer pause (900ms) for more natural speech between list items
+        # Replace numbered list patterns first (e.g., "1.", "2.", "10.") with longer pause
+        text = re.sub(r"(\d+\.)", r"\1<break time='900ms'/>", text)
+        # Add standard pauses for other sentence endings
+        # Only add breaks to periods that don't already have a break immediately after them
+        text = re.sub(r"([.?!])(?!<break)", r"\1<break time='600ms'/>", text)
+        # Clean up: if we accidentally added both breaks, keep only the longer one
+        text = re.sub(r"<break time='600ms'/><break time='900ms'/>", r"<break time='900ms'/>", text)
+        text = re.sub(r"<break time='900ms'/><break time='600ms'/>", r"<break time='900ms'/>", text)
     for word in EMPHASIZE_WORDS:
         text = re.sub(rf"\b({word})\b", r"<emphasis>\1</emphasis>", text, flags=re.IGNORECASE)
     emotion = detect_emotion(text)
@@ -457,6 +467,10 @@ except ImportError:
         text = re.sub(r'([,.!?:;])([a-zA-Z])', r'\1 \2', text)  # word,word -> word, word
         text = re.sub(r'([a-zA-Z0-9])(\()', r'\1 \2', text)  # word(word -> word (word
         text = re.sub(r'(\))([a-zA-Z0-9])', r'\1 \2', text)  # word)word -> word) word
+        
+        # Fix missing spaces before numbered list items (e.g., "text1." -> "text 1.")
+        # Matches patterns like "text1.", "text2.", "are:1.", etc.
+        text = re.sub(r'([a-zA-Z0-9:;,])(\d+\.)', r'\1 \2', text)  # text1. -> text 1.
         
         # Normalize multiple spaces
         text = re.sub(r' {2,}', ' ', text)
