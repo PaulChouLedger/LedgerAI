@@ -511,74 +511,86 @@ class AuraGUI(QMainWindow):
             _transcription_overlay_enabled = True
     
     def create_circular_buttons(self):
-        """Create 6 buttons equally spaced around the circular edge"""
-        # Button configurations: (text, icon, function, color)
+        """Create 6 buttons equally spaced around the circular edge - iPhone-style with bigger, multicolored icons"""
+        # Button configurations: (text, icon, function, color, hover_color, pressed_color)
+        # Using vibrant iPhone-inspired colors
         button_configs = [
-            ("↑", "Upload", self._handle_upload, "#4D94D9"),      # Upload files - Muted blue
-            ("⚙", "Settings", self._handle_settings, "#4D94D9"),  # Settings - Muted blue
-            ("📊", "Analytics", self._handle_analytics, "#4D94D9"), # Analytics - Muted blue
-            ("🎤", "Voice", self._handle_voice, "#4D94D9"),        # Voice control - Muted blue
-            ("📱", "Mobile", self._handle_mobile, "#4D94D9"),     # Mobile sync - Muted blue
-            ("ℹ", "Info", self._handle_info, "#4D94D9")          # Information - Muted blue
+            ("↑", "Upload", self._handle_upload, "#007AFF", "#0051D5", "#003D9E"),      # iOS Blue
+            ("⚙", "Settings", self._handle_settings, "#8E8E93", "#6E6E73", "#4E4E53"),  # iOS Gray
+            ("📊", "Analytics", self._handle_analytics, "#34C759", "#28A745", "#1E7E34"), # iOS Green
+            ("🎤", "Voice", self._handle_voice, "#FF3B30", "#D32F2F", "#B71C1C"),        # iOS Red
+            ("📱", "Mobile", self._handle_mobile, "#AF52DE", "#9C27B0", "#7B1FA2"),     # iOS Purple
+            ("ℹ", "Info", self._handle_info, "#FF9500", "#F57C00", "#E65100")          # iOS Orange
         ]
         
         # Calculate positions for 6 buttons around a circle
         # Move buttons further inward to avoid interfering with red border
-        # Edge radius is 540px, button radius is 50px, border is 8-12px, so: 540 - 20 - 50 - 20 = 450px
-        radius = 450  # Distance from center to button (further from edge to avoid border interference)
+        # Edge radius is 540px, button radius is now 70px (for 140px button), border is 8-12px
+        # Adjusted radius: 540 - 20 - 70 - 20 = 430px
+        radius = 430  # Distance from center to button (adjusted for larger buttons)
         center_x = 540  # Center of 1080x1080 screen
         center_y = 540
         
         self.buttons = []
+        button_size = 140  # Bigger iPhone-style buttons (was 100)
         
-        for i, (text, tooltip, handler, color) in enumerate(button_configs):
+        for i, (text, tooltip, handler, color, hover_color, pressed_color) in enumerate(button_configs):
             # Calculate angle for this button (0° to 300° in 60° increments)
             angle = math.radians(i * 60)  # 0, 60, 120, 180, 240, 300 degrees
             
-            # Calculate position
-            x = center_x + radius * math.cos(angle) - 50  # -50 to center the 100px button
-            y = center_y + radius * math.sin(angle) - 50
+            # Calculate position (centered on button)
+            x = center_x + radius * math.cos(angle) - (button_size // 2)
+            y = center_y + radius * math.sin(angle) - (button_size // 2)
             
             # Create button
             btn = QPushButton(text)
-            btn.setFixedSize(100, 100)  # Bigger buttons
+            btn.setFixedSize(button_size, button_size)
             btn.setToolTip(tooltip)
             btn.move(int(x), int(y))
+            
+            # iPhone-style styling with vibrant colors and modern gradients
             btn.setStyleSheet(f"""
                 QPushButton {{
-                    /* Muted radial gradient with softer center */
-                    background: qradialgradient(cx:0.5, cy:0.5, radius:0.8,
-                        fx:0.5, fy:0.5,
-                        stop:0 #E6E6E6, stop:0.6 {color}, stop:1 {color});
-                    color: #1A1A1A;
-                    font-size: 36px;
+                    /* Vibrant radial gradient - iPhone app icon style */
+                    background: qradialgradient(cx:0.5, cy:0.5, radius:1.0,
+                        fx:0.4, fy:0.4,
+                        stop:0 rgba(255, 255, 255, 0.3),
+                        stop:0.5 {color},
+                        stop:1 {color});
+                    color: #FFFFFF;
+                    font-size: 56px;
                     font-weight: bold;
-                    border-radius: 50px;
-                    /* Subtle border */
-                    border: 2px solid rgba(0, 0, 0, 0.2);
+                    border-radius: {button_size // 2}px;
+                    /* Modern subtle border */
+                    border: 3px solid rgba(255, 255, 255, 0.2);
                     padding: 0px;
                 }}
                 QPushButton:hover {{
-                    /* Slightly brighter on hover */
-                    background: qradialgradient(cx:0.5, cy:0.5, radius:0.8,
-                        fx:0.5, fy:0.5,
-                        stop:0 #F2F2F2, stop:0.5 #99BBE6, stop:1 {color});
-                    border: 2px solid rgba(255, 255, 255, 0.3);
+                    /* Brighter on hover - iPhone press effect */
+                    background: qradialgradient(cx:0.5, cy:0.5, radius:1.0,
+                        fx:0.4, fy:0.4,
+                        stop:0 rgba(255, 255, 255, 0.4),
+                        stop:0.5 {hover_color},
+                        stop:1 {hover_color});
+                    border: 3px solid rgba(255, 255, 255, 0.35);
+                    transform: scale(1.05);
                 }}
                 QPushButton:pressed {{
-                    /* Darker when pressed */
-                    background: qradialgradient(cx:0.5, cy:0.5, radius:0.8,
-                        fx:0.5, fy:0.5,
-                        stop:0 {color}, stop:1 #002040);
-                    border: 2px solid rgba(0, 0, 0, 0.4);
+                    /* Darker when pressed - iPhone press feedback */
+                    background: qradialgradient(cx:0.5, cy:0.5, radius:1.0,
+                        fx:0.4, fy:0.4,
+                        stop:0 rgba(255, 255, 255, 0.2),
+                        stop:0.5 {pressed_color},
+                        stop:1 {pressed_color});
+                    border: 3px solid rgba(255, 255, 255, 0.25);
                 }}
             """)
             
-            # Add depth shadow effect (dark shadow for depth, not colored glow)
+            # Enhanced shadow effect - iPhone-style depth
             shadow_effect = QGraphicsDropShadowEffect()
-            shadow_effect.setBlurRadius(20)  # Moderate blur for soft shadow
-            shadow_effect.setColor(QColor(0, 0, 0, 100))  # Dark shadow with transparency
-            shadow_effect.setOffset(0, 3)  # Slight downward offset for depth
+            shadow_effect.setBlurRadius(30)  # Larger blur for more depth
+            shadow_effect.setColor(QColor(0, 0, 0, 150))  # Darker shadow with more opacity
+            shadow_effect.setOffset(0, 5)  # More pronounced offset for depth
             btn.setGraphicsEffect(shadow_effect)
             
             # Connect handler
@@ -750,25 +762,38 @@ class AuraGUI(QMainWindow):
                 # Update global state
                 set_microphone_muted(True)
                 
-                # Update button to RED to show muted state
+                # Update button to RED to show muted state - iPhone-style
                 if voice_btn:
                     voice_btn.setStyleSheet(f"""
                         QPushButton {{
-                            background: qradialgradient(cx:0.5, cy:0.5, radius:0.8,
-                                fx:0.5, fy:0.5,
-                                stop:0 #FFE6E6, stop:0.6 #DC143C, stop:1 #DC143C);
+                            /* Vibrant red for muted state */
+                            background: qradialgradient(cx:0.5, cy:0.5, radius:1.0,
+                                fx:0.4, fy:0.4,
+                                stop:0 rgba(255, 255, 255, 0.3),
+                                stop:0.5 #FF3B30,
+                                stop:1 #FF3B30);
                             color: #FFFFFF;
-                            font-size: 36px;
+                            font-size: 56px;
                             font-weight: bold;
-                            border-radius: 50px;
-                            border: 3px solid #FF0000;
+                            border-radius: 70px;
+                            border: 3px solid rgba(255, 255, 255, 0.2);
                             padding: 0px;
                         }}
                         QPushButton:hover {{
-                            background: qradialgradient(cx:0.5, cy:0.5, radius:0.8,
-                                fx:0.5, fy:0.5,
-                                stop:0 #FFE6E6, stop:0.6 #FF1744, stop:1 #FF1744);
-                            border: 3px solid #FF4444;
+                            background: qradialgradient(cx:0.5, cy:0.5, radius:1.0,
+                                fx:0.4, fy:0.4,
+                                stop:0 rgba(255, 255, 255, 0.4),
+                                stop:0.5 #D32F2F,
+                                stop:1 #D32F2F);
+                            border: 3px solid rgba(255, 255, 255, 0.35);
+                        }}
+                        QPushButton:pressed {{
+                            background: qradialgradient(cx:0.5, cy:0.5, radius:1.0,
+                                fx:0.4, fy:0.4,
+                                stop:0 rgba(255, 255, 255, 0.2),
+                                stop:0.5 #B71C1C,
+                                stop:1 #B71C1C);
+                            border: 3px solid rgba(255, 255, 255, 0.25);
                         }}
                     """)
             else:
@@ -776,24 +801,38 @@ class AuraGUI(QMainWindow):
                 # Update global state
                 set_microphone_muted(False)
                 
-                # Update button to BLUE (normal state)
+                # Update button to RED (normal active state) - iPhone-style
                 if voice_btn:
                     voice_btn.setStyleSheet(f"""
                         QPushButton {{
-                            background: qradialgradient(cx:0.5, cy:0.5, radius:0.8,
-                                fx:0.5, fy:0.5,
-                                stop:0 #E6E6E6, stop:0.6 #4D94D9, stop:1 #4D94D9);
-                            color: #1A1A1A;
-                            font-size: 36px;
+                            /* Vibrant red for active voice state */
+                            background: qradialgradient(cx:0.5, cy:0.5, radius:1.0,
+                                fx:0.4, fy:0.4,
+                                stop:0 rgba(255, 255, 255, 0.3),
+                                stop:0.5 #FF3B30,
+                                stop:1 #FF3B30);
+                            color: #FFFFFF;
+                            font-size: 56px;
                             font-weight: bold;
-                            border-radius: 50px;
-                            border: 2px solid rgba(0, 0, 0, 0.2);
+                            border-radius: 70px;
+                            border: 3px solid rgba(255, 255, 255, 0.2);
                             padding: 0px;
                         }}
                         QPushButton:hover {{
-                            background: qradialgradient(cx:0.5, cy:0.5, radius:0.8,
-                                fx:0.5, fy:0.5,
-                                stop:0 #F0F0F0, stop:0.6 #5EA5E8, stop:1 #5EA5E8);
+                            background: qradialgradient(cx:0.5, cy:0.5, radius:1.0,
+                                fx:0.4, fy:0.4,
+                                stop:0 rgba(255, 255, 255, 0.4),
+                                stop:0.5 #D32F2F,
+                                stop:1 #D32F2F);
+                            border: 3px solid rgba(255, 255, 255, 0.35);
+                        }}
+                        QPushButton:pressed {{
+                            background: qradialgradient(cx:0.5, cy:0.5, radius:1.0,
+                                fx:0.4, fy:0.4,
+                                stop:0 rgba(255, 255, 255, 0.2),
+                                stop:0.5 #B71C1C,
+                                stop:1 #B71C1C);
+                            border: 3px solid rgba(255, 255, 255, 0.25);
                         }}
                     """)
                 

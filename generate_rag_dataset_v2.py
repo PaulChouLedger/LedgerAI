@@ -345,7 +345,7 @@ def generate_contextual_sentence(domain: str = "business") -> str:
 QUERY_TEMPLATES = [
     # Entity extraction queries
     {"type": "entity", "template": "who are the {role} of {company}?", "domain": "business"},
-    {"type": "entity", "template": "who is the {role} at {company}?", "domain": "business"},
+    {"type": "entity", "template": "who are the {role} at {company}?", "domain": "business"},
     
     # List extraction queries
     {"type": "list", "template": "what are the {items} of {entity}?", "domain": "general"},
