@@ -384,19 +384,9 @@ class TranscriptionOverlayWidget(QWidget):
         self.transcription_text.clear()
     
     def paintEvent(self, event):
-        """Custom paint event to draw a clean border without dots"""
+        """Custom paint event - completely transparent, no border"""
         super().paintEvent(event)
-        
-        # Draw a smooth border around the text area
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing, True)
-        painter.setPen(QPen(QColor(255, 255, 255, 64), 2, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
-        painter.setBrush(Qt.NoBrush)
-        
-        # Draw border around text widget area
-        text_rect = self.transcription_text.geometry()
-        painter.drawRoundedRect(text_rect, 15, 15)
-        painter.end()
+        # No border drawing - completely transparent overlay
 
 class AuraGUI(QMainWindow):
     def __init__(self):
@@ -605,48 +595,65 @@ class AuraGUI(QMainWindow):
             btn.setToolTip(tooltip)
             btn.move(int(x), int(y))
             
-            # iPhone-style styling with vibrant colors and modern gradients - high quality rendering
+            # iPhone-style styling with enhanced depth gradients - 3D effect
+            # Convert color to RGB for depth calculations
+            base_color = QColor(color)
+            # Create lighter highlight (top-left light source)
+            highlight_r = min(255, base_color.red() + 60)
+            highlight_g = min(255, base_color.green() + 60)
+            highlight_b = min(255, base_color.blue() + 60)
+            highlight_color = f"rgb({highlight_r}, {highlight_g}, {highlight_b})"
+            # Create darker shadow (bottom-right shadow)
+            shadow_r = max(0, base_color.red() - 40)
+            shadow_g = max(0, base_color.green() - 40)
+            shadow_b = max(0, base_color.blue() - 40)
+            shadow_color = f"rgb({shadow_r}, {shadow_g}, {shadow_b})"
+            
             btn.setStyleSheet(f"""
                 QPushButton {{
-                    /* High-quality solid gradient - no dark shadows */
-                    background: qradialgradient(cx:0.5, cy:0.5, radius:0.9,
-                        fx:0.45, fy:0.45,
-                        stop:0 rgba(255, 255, 255, 0.25),
-                        stop:0.3 {color},
-                        stop:1 {color});
+                    /* Enhanced 3D depth gradient - light from top-left, shadow at bottom-right */
+                    background: qradialgradient(cx:0.35, cy:0.35, radius:1.2,
+                        fx:0.3, fy:0.3,
+                        stop:0 rgba(255, 255, 255, 0.4),
+                        stop:0.2 {highlight_color},
+                        stop:0.5 {color},
+                        stop:0.8 {color},
+                        stop:1 {shadow_color});
                     color: #FFFFFF;
                     font-size: 56px;
                     font-weight: bold;
                     border-radius: {button_size // 2}px;
-                    /* Clean border - no dots */
                     border: none;
                     padding: 0px;
                 }}
                 QPushButton:hover {{
-                    /* Brighter on hover - iPhone press effect */
-                    background: qradialgradient(cx:0.5, cy:0.5, radius:0.9,
-                        fx:0.45, fy:0.45,
-                        stop:0 rgba(255, 255, 255, 0.35),
-                        stop:0.3 {hover_color},
-                        stop:1 {hover_color});
+                    /* Brighter on hover with enhanced depth */
+                    background: qradialgradient(cx:0.35, cy:0.35, radius:1.2,
+                        fx:0.3, fy:0.3,
+                        stop:0 rgba(255, 255, 255, 0.5),
+                        stop:0.2 {highlight_color},
+                        stop:0.5 {hover_color},
+                        stop:0.8 {hover_color},
+                        stop:1 {shadow_color});
                     border: none;
                 }}
                 QPushButton:pressed {{
-                    /* Darker when pressed - iPhone press feedback */
-                    background: qradialgradient(cx:0.5, cy:0.5, radius:0.9,
-                        fx:0.45, fy:0.45,
-                        stop:0 rgba(255, 255, 255, 0.15),
+                    /* Pressed state - inverted depth (pushed in effect) */
+                    background: qradialgradient(cx:0.65, cy:0.65, radius:1.2,
+                        fx:0.7, fy:0.7,
+                        stop:0 {shadow_color},
                         stop:0.3 {pressed_color},
-                        stop:1 {pressed_color});
+                        stop:0.7 {pressed_color},
+                        stop:1 rgba(0, 0, 0, 0.3));
                     border: none;
                 }}
             """)
             
-            # High-quality shadow effect - smooth, no artifacts
+            # Enhanced shadow effect for depth - matches 3D gradient
             shadow_effect = QGraphicsDropShadowEffect()
-            shadow_effect.setBlurRadius(25)  # Smooth blur
-            shadow_effect.setColor(QColor(0, 0, 0, 120))  # Softer shadow
-            shadow_effect.setOffset(0, 4)  # Subtle offset
+            shadow_effect.setBlurRadius(30)  # Larger blur for more depth
+            shadow_effect.setColor(QColor(0, 0, 0, 150))  # Darker shadow for depth
+            shadow_effect.setOffset(0, 6)  # More pronounced offset (bottom-right shadow)
             btn.setGraphicsEffect(shadow_effect)
             
             # Enable high-quality rendering attributes
