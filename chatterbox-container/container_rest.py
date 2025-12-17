@@ -14,6 +14,7 @@ import numpy as np
 import soundfile as sf
 from dotenv import load_dotenv
 import logging
+import threading
 
 # Suppress verbose logging
 logging.getLogger('werkzeug').setLevel(logging.WARNING)
@@ -173,6 +174,10 @@ perth_ok = check_and_fix_perth_module()
 # Initialize Chatterbox TTS (lazy loading)
 _chatterbox_tts = None
 _chatterbox_voice_embedding = None
+_initialization_lock = threading.Lock()
+_initialization_in_progress = False
+_initialization_error = None
+
 VOICE_CACHE_DIR = "/app/voice_cache"
 VOICE_SAMPLES_DIR = "/app/voice_samples"
 
@@ -180,9 +185,39 @@ os.makedirs(VOICE_CACHE_DIR, exist_ok=True)
 os.makedirs(VOICE_SAMPLES_DIR, exist_ok=True)
 
 def get_chatterbox_tts():
-    """Lazy load Chatterbox TTS"""
-    global _chatterbox_tts
-    if _chatterbox_tts is None:
+    """Lazy load Chatterbox TTS with thread-safe initialization"""
+    global _chatterbox_tts, _initialization_in_progress, _initialization_error
+    
+    # If already initialized, return it
+    if _chatterbox_tts is not None:
+        return _chatterbox_tts
+    
+    # Use lock to prevent multiple simultaneous initialization attempts
+    with _initialization_lock:
+        # Double-check after acquiring lock (another thread might have initialized it)
+        if _chatterbox_tts is not None:
+            return _chatterbox_tts
+        
+        # If initialization failed previously, raise the error
+        if _initialization_error is not None:
+            raise RuntimeError(f"ChatterboxTTS initialization previously failed: {_initialization_error}")
+        
+        # If initialization is in progress, wait a bit and check again
+        if _initialization_in_progress:
+            print("[Chatterbox] ⏳ Initialization already in progress, waiting...")
+            import time
+            for i in range(30):  # Wait up to 30 seconds
+                time.sleep(1)
+                if _chatterbox_tts is not None:
+                    return _chatterbox_tts
+                if _initialization_error is not None:
+                    raise RuntimeError(f"ChatterboxTTS initialization failed: {_initialization_error}")
+            raise RuntimeError("ChatterboxTTS initialization timed out (waited 30 seconds)")
+        
+        # Mark initialization as in progress
+        _initialization_in_progress = True
+        
+        try:
         try:
             print("[Chatterbox] 🔄 Attempting to import ChatterboxTTS...")
             # Try different import paths
@@ -254,11 +289,17 @@ def get_chatterbox_tts():
                 )
             
             print(f"[Chatterbox] ✅ ChatterboxTTS initialized successfully")
+            return _chatterbox_tts
         except Exception as e:
             print(f"[Chatterbox] ❌ Failed to initialize ChatterboxTTS: {e}")
             import traceback
             traceback.print_exc()
+            _initialization_error = str(e)
+            _initialization_in_progress = False
             raise
+        finally:
+            _initialization_in_progress = False
+    
     return _chatterbox_tts
 
 def get_voice_embedding(voice_sample_path):
