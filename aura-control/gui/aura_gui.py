@@ -382,156 +382,149 @@ class CircularProgressWidget(QWidget):
         """Simple milestone detection - just return the percentage for the highest milestone found"""
         try:
             debug_log_path = os.path.expanduser("~/LedgerAI/data/aura_init_debug.log")
-            if not os.path.exists(debug_log_path):
-                return 0.0
-            
-            # Read file fresh each time - always read full file to catch all messages
-            with open(debug_log_path, 'r', encoding='utf-8', errors='ignore') as f:
-                content = f.read()
-        else:
+            if os.path.exists(debug_log_path):
+                # Read file fresh each time - always read full file to catch all messages
+                with open(debug_log_path, 'r', encoding='utf-8', errors='ignore') as f:
+                    content = f.read()
+            else:
+                content = ""
+        except Exception:
             content = ""
             
-    # Include in-memory debug messages (in case file is missing or incomplete)
-    log_sources = [content]
-    try:
-        from core.main import get_debug_log_text
-        extra = get_debug_log_text()
-        if extra:
-            log_sources.append(extra)
-    except Exception:
-        pass
+        # Include in-memory debug messages (in case file is missing or incomplete)
+        log_sources = [content]
+        try:
+            from core.main import get_debug_log_text
+            extra = get_debug_log_text()
+            if extra:
+                log_sources.append(extra)
+        except Exception:
+            pass
 
-    log_content = "\n".join(part for part in log_sources if part)
+        log_content = "\n".join(part for part in log_sources if part)
 
-    # SIMPLE: Explicit percentages for each milestone - ordered from early to late
-    import re
-    steps = [
+        # SIMPLE: Explicit percentages for each milestone - ordered from early to late
+        import re
+        steps = [
+            # Early setup
+            ("Welcome setup completed", 0.05),      # 5% - Welcome dialog done
+            ("TTS initialized", 0.10),              # 10% - TTS ready
+            ("Starting.*containers", 0.15),         # 15% - Containers starting
+            ("Rebuilding containers", 0.20),        # 20% - Rebuilding (if needed)
+            ("Containers rebuilt", 0.25),           # 25% - Rebuild complete
             
-            # SIMPLE: Explicit percentages for each milestone - ordered from early to late
-            import re
-            steps = [
-                # Early setup
-                ("Welcome setup completed", 0.05),      # 5% - Welcome dialog done
-                ("TTS initialized", 0.10),              # 10% - TTS ready
-                ("Starting.*containers", 0.15),         # 15% - Containers starting
-                ("Rebuilding containers", 0.20),        # 20% - Rebuilding (if needed)
-                ("Containers rebuilt", 0.25),           # 25% - Rebuild complete
-                
-                # Container readiness
-                ("Whisper.*ready|whisper.*respond", 0.30),  # 30% - Whisper ready
-                ("LLM.*ready|llm.*respond", 0.40),          # 40% - LLM container responding
-                ("Model loaded after", 0.50),               # 50% - Model loaded
-                ("simple_loaded.*true", 0.55),              # 55% - Model confirmed loaded
-                
-                # Warm-ups
-                ("Testing LLM", 0.60),                   # 60% - LLM test starting
-                ("LLM warm-up complete", 0.70),         # 70% - LLM warm-up done
-                
-                # RAG
-                ("RAG initialization", 0.75),            # 75% - RAG starting
-                ("RAG container initialized", 0.80),     # 80% - RAG ready
-                
-                # Listener
-                ("Listener.*initializing", 0.85),        # 85% - Listener starting
-                ("listen\\(\\) function called|🎧 listen", 0.90),  # 90% - Listener function called
-                ("listener ready", 0.95),               # 95% - Listener ready
-                ("listener is now READY", 0.98),         # 98% - Listener fully ready
-                
-                # CRITICAL: These milestones happen right before welcome - set to 100%
-                # Order matters - most specific/latest first
-                # "Audio.*Detected.*architecture" happens RIGHT AFTER Whisper warm-up completes
-                # This is the most reliable signal that warm-up is done and welcome is imminent
-                ("Audio.*Detected.*architecture|Detected ARM architecture|🔧.*detected.*architecture|using latency.*high.*stability", 1.0),  # 100% - Happens right after Whisper warm-up
-                ("Playing welcome prompt|🔊 Playing welcome", 1.0),  # 100% - Welcome about to play
-                (".*Model warmed up.*first transcription|Whisper.*Model warmed up|Model warmed up.*fast|✅.*Model warmed up", 1.0),  # 100% - Whisper ready (may not be in log)
-                # "Setup complete" - only match when it includes "listener ready" to ensure it's the real completion
-                ("Setup complete, listener ready|✅ Setup complete, listener ready", 1.0),  # 100% - All done (specific pattern)
-            ]
+            # Container readiness
+            ("Whisper.*ready|whisper.*respond", 0.30),  # 30% - Whisper ready
+            ("LLM.*ready|llm.*respond", 0.40),          # 40% - LLM container responding
+            ("Model loaded after", 0.50),               # 50% - Model loaded
+            ("simple_loaded.*true", 0.55),              # 55% - Model confirmed loaded
             
-            # RESPECT MILESTONE PERCENTAGES: Each milestone sets its specific percentage
-            # Find the highest milestone that matches
-            max_progress = 0.0
-            detected_milestones = []
+            # Warm-ups
+            ("Testing LLM", 0.60),                   # 60% - LLM test starting
+            ("LLM warm-up complete", 0.70),         # 70% - LLM warm-up done
             
-            for step_text, progress_value in steps:
-                if re.search(step_text.lower(), log_content.lower(), re.IGNORECASE):
-                    detected_milestones.append((step_text, progress_value))
-                    max_progress = max(max_progress, progress_value)
-                    # Debug: log when 100% milestone is detected
-                    if progress_value >= 1.0:
-                        print(f"[CircularProgress] 🎯 100% milestone detected: '{step_text[:50]}...' → {int(progress_value * 100)}%")
-                        # Show a sample of the matching line
-                        for line in content.split('\n'):
-                            if re.search(step_text.lower(), line.lower(), re.IGNORECASE):
-                                print(f"[CircularProgress] 🔍 Matching line: {line[:80]}...")
-                                break
+            # RAG
+            ("RAG initialization", 0.75),            # 75% - RAG starting
+            ("RAG container initialized", 0.80),     # 80% - RAG ready
             
-            # SAFETY: Prevent false positives for 100% milestones
+            # Listener
+            ("Listener.*initializing", 0.85),        # 85% - Listener starting
+            ("listen\\(\\) function called|🎧 listen", 0.90),  # 90% - Listener function called
+            ("listener ready", 0.95),               # 95% - Listener ready
+            ("listener is now READY", 0.98),         # 98% - Listener fully ready
             
-            # 1. "Setup complete" should only trigger 100% if we have listener/audio setup
-            # This prevents early false matches
-            if max_progress >= 1.0:
-                # Check if "Setup complete" was matched
-                has_setup_complete_match = any(
-                    "setup complete" in step.lower() for step, _ in detected_milestones if _ >= 1.0
-                )
-                
-                if has_setup_complete_match:
-                    # Verify we have legitimate completion signals
-                    has_listener = any(re.search(p.lower(), log_content.lower()) for p in [
-                        "listener.*initializing", "listen\\(\\) function called", "🎧 listen",
-                        "listener ready", "listener is now READY"
-                    ])
-                    has_audio_setup = any(re.search(p.lower(), log_content.lower()) for p in [
-                        "audio.*detected.*architecture", "detected arm architecture",
-                        "🔧.*detected.*architecture", "using latency.*high.*stability"
-                    ])
-                    has_welcome = re.search("playing welcome prompt|🔊 playing welcome", log_content.lower(), re.IGNORECASE)
-                    
-                    # If "Setup complete" matched but no listener/audio/welcome, it's a false positive
-                    if not (has_listener or has_audio_setup or has_welcome):
-                        # Find the next highest legitimate milestone
-                        legitimate_progress = 0.0
-                        for step_text, progress_value in steps:
-                            if progress_value < 1.0:  # Skip 100% milestones
-                                if re.search(step_text.lower(), log_content.lower(), re.IGNORECASE):
-                                    legitimate_progress = max(legitimate_progress, progress_value)
-                        max_progress = legitimate_progress
-                        print(f"[CircularProgress] ⚠️ False 'Setup complete' match - using {int(max_progress * 100)}% instead")
+            # CRITICAL: These milestones happen right before welcome - set to 100%
+            # Order matters - most specific/latest first
+            # "Audio.*Detected.*architecture" happens RIGHT AFTER Whisper warm-up completes
+            # This is the most reliable signal that warm-up is done and welcome is imminent
+            ("Audio.*Detected.*architecture|Detected ARM architecture|🔧.*detected.*architecture|using latency.*high.*stability", 1.0),  # 100% - Happens right after Whisper warm-up
+            ("Playing welcome prompt|🔊 Playing welcome", 1.0),  # 100% - Welcome about to play
+            (".*Model warmed up.*first transcription|Whisper.*Model warmed up|Model warmed up.*fast|✅.*Model warmed up", 1.0),  # 100% - Whisper ready (may not be in log)
+            # "Setup complete" - only match when it includes "listener ready" to ensure it's the real completion
+            ("Setup complete, listener ready|✅ Setup complete, listener ready", 1.0),  # 100% - All done (specific pattern)
+        ]
+        
+        # RESPECT MILESTONE PERCENTAGES: Each milestone sets its specific percentage
+        # Find the highest milestone that matches
+        max_progress = 0.0
+        detected_milestones = []
+        
+        for step_text, progress_value in steps:
+            if re.search(step_text.lower(), log_content.lower(), re.IGNORECASE):
+                detected_milestones.append((step_text, progress_value))
+                max_progress = max(max_progress, progress_value)
+                # Debug: log when 100% milestone is detected
+                if progress_value >= 1.0:
+                    print(f"[CircularProgress] 🎯 100% milestone detected: '{step_text[:50]}...' → {int(progress_value * 100)}%")
+                    # Show a sample of the matching line
+                    for line in log_content.split('\n'):
+                        if re.search(step_text.lower(), line.lower(), re.IGNORECASE):
+                            print(f"[CircularProgress] 🔍 Matching line: {line[:80]}...")
+                            break
+        
+        # SAFETY: Prevent false positives for 100% milestones
+        
+        # 1. "Setup complete" should only trigger 100% if we have listener/audio setup
+        # This prevents early false matches
+        if max_progress >= 1.0:
+            # Check if "Setup complete" was matched
+            has_setup_complete_match = any(
+                "setup complete" in step.lower() for step, _ in detected_milestones if _ >= 1.0
+            )
             
-            # FALLBACK: Jump to 100% when we see signals that welcome is imminent
-            # "Audio.*Detected.*architecture" appears in log RIGHT AFTER Whisper warm-up
-            # This is the most reliable trigger since "Model warmed up" may not be in log
-            if max_progress < 1.0 and max_progress >= 0.70:
-                # Check for audio architecture detection (happens right after Whisper warm-up)
-                has_audio_setup = re.search("audio.*detected.*architecture|detected arm architecture|🔧.*detected.*architecture|using latency.*high.*stability", log_content.lower(), re.IGNORECASE)
-                # Also check for welcome message (backup)
+            if has_setup_complete_match:
+                # Verify we have legitimate completion signals
+                has_listener = any(re.search(p.lower(), log_content.lower()) for p in [
+                    "listener.*initializing", "listen\\(\\) function called", "🎧 listen",
+                    "listener ready", "listener is now READY"
+                ])
+                has_audio_setup = any(re.search(p.lower(), log_content.lower()) for p in [
+                    "audio.*detected.*architecture", "detected arm architecture",
+                    "🔧.*detected.*architecture", "using latency.*high.*stability"
+                ])
                 has_welcome = re.search("playing welcome prompt|🔊 playing welcome", log_content.lower(), re.IGNORECASE)
                 
-                if has_audio_setup or has_welcome:
-                    max_progress = 1.0
-                    trigger = "Audio setup" if has_audio_setup else "Welcome"
-                    if not hasattr(self, '_fallback_triggered'):
-                        print(f"[CircularProgress] 🎯 Fallback: '{trigger}' detected → jumping to 100% (welcome NOW)")
-                        self._fallback_triggered = True
+                # If "Setup complete" matched but no listener/audio/welcome, it's a false positive
+                if not (has_listener or has_audio_setup or has_welcome):
+                    # Find the next highest legitimate milestone
+                    legitimate_progress = 0.0
+                    for step_text, progress_value in steps:
+                        if progress_value < 1.0:  # Skip 100% milestones
+                            if re.search(step_text.lower(), log_content.lower(), re.IGNORECASE):
+                                legitimate_progress = max(legitimate_progress, progress_value)
+                    max_progress = legitimate_progress
+                    print(f"[CircularProgress] ⚠️ False 'Setup complete' match - using {int(max_progress * 100)}% instead")
+        
+        # FALLBACK: Jump to 100% when we see signals that welcome is imminent
+        # "Audio.*Detected.*architecture" appears in log RIGHT AFTER Whisper warm-up
+        # This is the most reliable trigger since "Model warmed up" may not be in log
+        if max_progress < 1.0 and max_progress >= 0.70:
+            # Check for audio architecture detection (happens right after Whisper warm-up)
+            has_audio_setup = re.search("audio.*detected.*architecture|detected arm architecture|🔧.*detected.*architecture|using latency.*high.*stability", log_content.lower(), re.IGNORECASE)
+            # Also check for welcome message (backup)
+            has_welcome = re.search("playing welcome prompt|🔊 playing welcome", log_content.lower(), re.IGNORECASE)
             
-            # Log detected milestones for debugging (only log when milestone changes or progress changes significantly)
-            if detected_milestones:
-                latest_milestone = detected_milestones[-1]  # Most recent milestone
-                # Only log if this is a new milestone or progress changed significantly
-                current_progress_int = int(max_progress * 100)
-                if (not hasattr(self, '_last_logged_milestone') or 
-                    self._last_logged_milestone != latest_milestone[0] or
-                    not hasattr(self, '_last_logged_progress') or
-                    abs(self._last_logged_progress - current_progress_int) >= 5):  # Log if progress changed by 5%+
-                    print(f"[CircularProgress] 🎯 Milestone: '{latest_milestone[0]}' → {current_progress_int}%")
-                    self._last_logged_milestone = latest_milestone[0]
-                    self._last_logged_progress = current_progress_int
-            
-            return max_progress
-        except Exception as e:
-            print(f"[CircularProgress] ⚠️ Error reading milestone progress: {e}")
-            return 0.0
+            if has_audio_setup or has_welcome:
+                max_progress = 1.0
+                trigger = "Audio setup" if has_audio_setup else "Welcome"
+                if not hasattr(self, '_fallback_triggered'):
+                    print(f"[CircularProgress] 🎯 Fallback: '{trigger}' detected → jumping to 100% (welcome NOW)")
+                    self._fallback_triggered = True
+        
+        # Log detected milestones for debugging (only log when milestone changes or progress changes significantly)
+        if detected_milestones:
+            latest_milestone = detected_milestones[-1]  # Most recent milestone
+            # Only log if this is a new milestone or progress changed significantly
+            current_progress_int = int(max_progress * 100)
+            if (not hasattr(self, '_last_logged_milestone') or 
+                self._last_logged_milestone != latest_milestone[0] or
+                not hasattr(self, '_last_logged_progress') or
+                abs(self._last_logged_progress - current_progress_int) >= 5):  # Log if progress changed by 5%+
+                print(f"[CircularProgress] 🎯 Milestone: '{latest_milestone[0]}' → {current_progress_int}%")
+                self._last_logged_milestone = latest_milestone[0]
+                self._last_logged_progress = current_progress_int
+        
+        return max_progress
     
     def set_progress(self, value):
         """Set progress manually (0.0 to 1.0)"""
