@@ -1381,16 +1381,6 @@ class AIModelSettingsDialog(BaseAuraDialog):
             QComboBox { background-color: rgba(44,44,46,0.8); color: #ffffff; padding: 8px; border: none; border-radius: 10px; min-height: 36px; }
             QComboBox QAbstractItemView { background-color: #2d2d2d; color: #ffffff; selection-background-color: #4D94D9; }
         """)
-        # Add available Whisper models
-        self.whisper_combo.addItems([
-            "distil-whisper/distil-large-v3.5-ct2",
-            "distil-small.en",
-            "small.en",
-            "medium.en",
-            "base.en",
-            "large-v3-turbo",
-            "distil-large-v3"
-        ])
         whisper_row.addWidget(whisper_label)
         whisper_row.addWidget(self.whisper_combo, 1)
         layout.addLayout(whisper_row)
@@ -1515,6 +1505,9 @@ class AIModelSettingsDialog(BaseAuraDialog):
         
         self.memory_toggle.toggled.connect(on_memory_toggled)
         
+        # Populate Whisper models from available models in whisper-container directory
+        self._populate_whisper_models()
+        
         # Initialize Whisper model selector from state
         try:
             from core.state import get_whisper_model
@@ -1523,7 +1516,7 @@ class AIModelSettingsDialog(BaseAuraDialog):
             if idx >= 0:
                 self.whisper_combo.setCurrentIndex(idx)
             else:
-                # If model not in list, add it and select it
+                # If model not in list, add it and select it (in case it's downloaded at runtime)
                 self.whisper_combo.insertItem(0, current_model)
                 self.whisper_combo.setCurrentIndex(0)
         except Exception as e:
@@ -1639,6 +1632,91 @@ class AIModelSettingsDialog(BaseAuraDialog):
         self.fade_out.finished.connect(lambda: event.accept())
         self.fade_out.start()
         event.ignore()
+    
+    def _populate_whisper_models(self):
+        """Populate Whisper model combo box with available models from whisper-container directory"""
+        try:
+            self.whisper_combo.clear()
+            workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+            whisper_dir = os.path.join(workspace_root, 'whisper-container')
+            
+            # Model directory name to model name mapping (inverse of MODEL_MAPPING in container_rest.py)
+            model_dir_to_name = {
+                "models--Systran--faster-distil-whisper-small.en": "distil-small.en",
+                "models--Systran--faster-small-whisper.en": "small.en",
+                "models--Systran--faster-medium-whisper.en": "medium.en",
+                "models--Systran--faster-base-whisper.en": "base.en",
+                "models--mobiuslabsgmbh--faster-whisper-large-v3-turbo": "large-v3-turbo",
+                "models--Systran--faster-distil-whisper-large-v3": "distil-large-v3",
+                "models--distil-whisper--distil-large-v3.5-ct2": "distil-whisper/distil-large-v3.5-ct2"
+            }
+            
+            available_models = set()
+            
+            # Check for model directories in whisper-container directory
+            if os.path.exists(whisper_dir):
+                for item in os.listdir(whisper_dir):
+                    item_path = os.path.join(whisper_dir, item)
+                    # Check if it's a directory and matches a known model pattern
+                    if os.path.isdir(item_path):
+                        # Check for exact match
+                        if item in model_dir_to_name:
+                            model_name = model_dir_to_name[item]
+                            available_models.add(model_name)
+                            print(f"[ModelSettings] Found Whisper model in directory: {model_name} (from {item})")
+                        # Also check for nested snapshots directory (e.g., models--Systran--faster-distil-whisper-small.en/snapshots/...)
+                        elif item.startswith("models--"):
+                            # Try to find the base model name
+                            for dir_name, model_name in model_dir_to_name.items():
+                                if item.startswith(dir_name):
+                                    available_models.add(model_name)
+                                    print(f"[ModelSettings] Found Whisper model directory: {model_name} (from {item})")
+                                    break
+            
+            # Try to query running container for available models
+            try:
+                import requests
+                response = requests.get("http://localhost:5000/model/info", timeout=1)
+                if response.status_code == 200:
+                    data = response.json()
+                    # Add available models from container
+                    if "available_models" in data:
+                        container_models = data["available_models"]
+                        available_models.update(container_models)
+                        print(f"[ModelSettings] Found models from running container: {container_models}")
+            except Exception as e:
+                # Container might not be running, that's okay
+                pass
+            
+            # Always include fallback model (distil-small.en) as it's always available at runtime
+            available_models.add("distil-small.en")
+            
+            # Sort models with default first, then alphabetically
+            default_model = "distil-small.en"
+            fallback_model = "distil-small.en"
+            
+            sorted_models = []
+            if default_model in available_models:
+                sorted_models.append(default_model)
+                available_models.remove(default_model)
+            # Add remaining models alphabetically
+            sorted_models.extend(sorted(available_models))
+            
+            if sorted_models:
+                self.whisper_combo.addItems(sorted_models)
+                print(f"[ModelSettings] Loaded {len(sorted_models)} Whisper models: {sorted_models}")
+            else:
+                # Fallback: if no models found, at least show the fallback
+                self.whisper_combo.addItem("distil-small.en")
+                print(f"[ModelSettings] ⚠️ No Whisper models found, using fallback only")
+                
+        except Exception as e:
+            print(f"[ModelSettings] ⚠️ Error populating Whisper models: {e}")
+            import traceback
+            traceback.print_exc()
+            # Fallback: always show at least the fallback model
+            self.whisper_combo.clear()
+            self.whisper_combo.addItem("distil-small.en")
     
     def _populate_models(self):
         try:

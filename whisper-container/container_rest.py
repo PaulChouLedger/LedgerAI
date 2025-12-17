@@ -36,14 +36,14 @@ def get_medical_prompt():
 # ============================================================================
 
 # === Model Selection ===
-DEFAULT_MODEL = "distil-whisper/distil-large-v3.5-ct2"  # Best accuracy/speed balance (1.5x faster than turbo, better short-form accuracy)
-FALLBACK_MODEL = "distil-small.en"  # Fallback if default model not found (fastest, lower accuracy)
+DEFAULT_MODEL = "distil-small.en"  # Fastest, lower accuracy (default)
+FALLBACK_MODEL = "distil-small.en"  # Fallback if default model not found (same as default)
 MODEL_NAME = os.environ.get("WHISPER_MODEL", DEFAULT_MODEL)
 # Options: "distil-small.en", "small.en", "medium.en", "base.en", "large-v3-turbo", "distil-large-v3", "distil-whisper/distil-large-v3.5-ct2"
 # Accuracy: distil-small < small < medium < distil-large-v3 < distil-large-v3.5 ≈ large-v3-turbo
 # Latency: distil-small (fastest) < small < medium < distil-large-v3 < distil-large-v3.5 < large-v3-turbo (slowest)
 # Memory: Smaller models use less GPU memory
-# Recommendation: "distil-whisper/distil-large-v3.5-ct2" for best accuracy/speed balance (default), "distil-small.en" for fastest
+# Recommendation: "distil-small.en" for fastest (default), "distil-whisper/distil-large-v3.5-ct2" for best accuracy/speed balance
 
 CACHE_DIR = "/app/cache/whisper"  # Model cache directory (internal use)
 
