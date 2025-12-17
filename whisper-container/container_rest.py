@@ -465,5 +465,62 @@ def get_medical_terms():
         "prompt_type": "medical" if "medical" in INITIAL_PROMPT.lower() else "generic"
     })
 
+@app.route("/models/available", methods=["GET"])
+def get_available_models():
+    """Get list of available Whisper models baked into the container"""
+    hub_cache_dir = "/root/.cache/huggingface/hub"
+    available_models = []
+    
+    # Reverse mapping: directory name -> model name
+    dir_to_model = {
+        "models--Systran--faster-distil-whisper-small.en": "distil-small.en",
+        "models--Systran--faster-small-whisper.en": "small.en",
+        "models--Systran--faster-medium-whisper.en": "medium.en",
+        "models--Systran--faster-base-whisper.en": "base.en",
+        "models--mobiuslabsgmbh--faster-whisper-large-v3-turbo": "large-v3-turbo",
+        "models--Systran--faster-distil-whisper-large-v3": "distil-large-v3",
+        "models--distil-whisper--distil-large-v3.5-ct2": "distil-whisper/distil-large-v3.5-ct2"
+    }
+    
+    # Scan the hub cache directory for baked-in models
+    if os.path.exists(hub_cache_dir):
+        try:
+            for item in os.listdir(hub_cache_dir):
+                # Check if this directory matches a known model pattern
+                if item in dir_to_model:
+                    model_dir = os.path.join(hub_cache_dir, item)
+                    # Verify it's actually a directory (models are stored as directories)
+                    if os.path.isdir(model_dir):
+                        # Check if it has content (snapshots subdirectory for Systran models, or direct content for distil-whisper)
+                        has_content = False
+                        if os.path.exists(os.path.join(model_dir, "snapshots")):
+                            # Systran models have snapshots/ subdirectory
+                            snapshots_dir = os.path.join(model_dir, "snapshots")
+                            if os.path.isdir(snapshots_dir) and os.listdir(snapshots_dir):
+                                has_content = True
+                        else:
+                            # Direct content (like distil-whisper models)
+                            if os.listdir(model_dir):
+                                has_content = True
+                        
+                        if has_content:
+                            model_name = dir_to_model[item]
+                            available_models.append(model_name)
+                            print(f"[Models] Found baked-in model: {model_name} (from {item})")
+        except Exception as e:
+            print(f"[Models] ⚠️ Error scanning models: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    # Always include distil-small.en as it's the default fallback
+    if "distil-small.en" not in available_models:
+        available_models.append("distil-small.en")
+    
+    return jsonify({
+        "available_models": sorted(available_models),
+        "current_model": MODEL_NAME,
+        "model_cache_dir": hub_cache_dir
+    })
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
