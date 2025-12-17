@@ -11,6 +11,8 @@ RUN apt-get update && apt-get install -y \
     git \
     libsndfile1 \
     ffmpeg \
+    libsoxr0 \
+    libsoxr-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Upgrade pip, setuptools, and wheel (fixes Python 3.12 compatibility issues)
@@ -134,10 +136,12 @@ RUN pip3 install --index-url https://pypi.org/simple \
 RUN python3 -c "import torch; v=torch.__version__; cuda=hasattr(torch.version, 'cuda') and torch.version.cuda is not None; print(f'After deps: {v}, CUDA: {cuda}'); assert cuda, f'PyTorch lost after deps install! Version: {v}'"
 
 # Install resemble-perth WITH dependencies (needed for PerthImplicitWatermarker)
+# soxr is required for PerthImplicitWatermarker (libsoxr-dev installed above)
 # Use constraints to prevent PyTorch installation
 RUN pip3 install --index-url https://pypi.org/simple \
     --constraint /tmp/constraints.txt \
-    resemble-perth==1.0.1
+    resemble-perth==1.0.1 \
+    soxr
 
 # Install other Chatterbox dependencies (these shouldn't pull in PyTorch)
 # CRITICAL: Use --no-deps and install dependencies manually to prevent PyTorch installation
