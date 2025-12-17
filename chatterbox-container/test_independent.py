@@ -267,7 +267,7 @@ def test_synthesize(text="Hello, this is a test of the Chatterbox TTS container.
         response = requests.post(
             f"{CHATTERBOX_URL}/synthesize",
             json=payload,
-            timeout=60
+            timeout=600  # 10 minutes - model initialization can take several minutes
         )
         elapsed_time = time.time() - start_time
         

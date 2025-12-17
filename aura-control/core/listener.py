@@ -561,13 +561,8 @@ def warmup_whisper():
             timeout=10
         )
         print("[Whisper] ✅ Model warmed up - first transcription will be fast!")
-        # Also write to debug log for progress bar detection
-        try:
-            from main import _debug_log
-            _debug_log("[Whisper] ✅ Model warmed up - first transcription will be fast!")
-            print("[CircularProgress] 📝 Written 'Model warmed up' to debug log")
-        except Exception as e:
-            print(f"[CircularProgress] ⚠️ Could not write to debug log: {e}")
+        # Note: This message is printed to stdout, which may be captured in the debug log
+        # The progress bar will detect it via pattern matching in the log file
     except Exception as e:
         print(f"[Whisper] ⚠️ Warmup failed: {e}")
 

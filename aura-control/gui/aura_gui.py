@@ -386,17 +386,31 @@ class CircularProgressWidget(QWidget):
             if not os.path.exists(debug_log_path):
                 return 0.0
             
+            # Read file fresh each time (no caching) to catch latest messages
             with open(debug_log_path, 'r', encoding='utf-8', errors='ignore') as f:
-                content = f.read()
-            
-            # Debug: Check if Whisper warm-up message is in the log
-            if "model warmed up" in content.lower():
-                print(f"[CircularProgress] 🔍 Found 'model warmed up' in log - checking patterns...")
-                # Show the actual line that contains it
-                for line in content.split('\n'):
-                    if "model warmed up" in line.lower():
-                        print(f"[CircularProgress] 🔍 Log line: {line[:100]}")
-                        break
+                # Seek to end and read backwards a bit, then read full file
+                # This helps catch messages that were just written
+                try:
+                    f.seek(0, 2)  # Seek to end
+                    file_size = f.tell()
+                    # Read last 10KB to catch recent messages quickly
+                    if file_size > 10000:
+                        f.seek(file_size - 10000)
+                        recent_content = f.read()
+                        # Also check if key messages are in recent content
+                        if "model warmed up" in recent_content.lower() or "detected.*architecture" in recent_content.lower():
+                            # Re-read full file to get complete context
+                            f.seek(0)
+                            content = f.read()
+                        else:
+                            content = recent_content
+                    else:
+                        f.seek(0)
+                        content = f.read()
+                except:
+                    # Fallback: just read the whole file
+                    f.seek(0)
+                    content = f.read()
             
             # SIMPLE: Explicit percentages for each milestone - ordered from early to late
             import re
@@ -448,7 +462,12 @@ class CircularProgressWidget(QWidget):
                     max_progress = max(max_progress, progress_value)
                     # Debug: log when 100% milestone is detected
                     if progress_value >= 1.0:
-                        print(f"[CircularProgress] 🎯 100% milestone detected: '{step_text}' → {int(progress_value * 100)}%")
+                        print(f"[CircularProgress] 🎯 100% milestone detected: '{step_text[:50]}...' → {int(progress_value * 100)}%")
+                        # Show a sample of the matching line
+                        for line in content.split('\n'):
+                            if re.search(step_text.lower(), line.lower(), re.IGNORECASE):
+                                print(f"[CircularProgress] 🔍 Matching line: {line[:80]}...")
+                                break
             
             # SAFETY: Prevent false positives for 100% milestones
             

@@ -202,17 +202,30 @@ def get_chatterbox_tts():
         if _initialization_error is not None:
             raise RuntimeError(f"ChatterboxTTS initialization previously failed: {_initialization_error}")
         
-        # If initialization is in progress, wait a bit and check again
+        # If initialization is in progress, wait until it completes or fails
         if _initialization_in_progress:
             print("[Chatterbox] ⏳ Initialization already in progress, waiting...")
+            print("[Chatterbox] 💡 This may take several minutes (loading large models into GPU memory)...")
             import time
-            for i in range(30):  # Wait up to 30 seconds
-                time.sleep(1)
+            wait_start = time.time()
+            max_wait = 600  # Wait up to 10 minutes (model loading can be slow, especially on first load)
+            check_interval = 2  # Check every 2 seconds
+            
+            while time.time() - wait_start < max_wait:
+                time.sleep(check_interval)
                 if _chatterbox_tts is not None:
+                    elapsed = time.time() - wait_start
+                    print(f"[Chatterbox] ✅ Initialization completed (waited {elapsed:.1f} seconds)")
                     return _chatterbox_tts
                 if _initialization_error is not None:
                     raise RuntimeError(f"ChatterboxTTS initialization failed: {_initialization_error}")
-            raise RuntimeError("ChatterboxTTS initialization timed out (waited 30 seconds)")
+                
+                # Show progress every 30 seconds
+                elapsed = time.time() - wait_start
+                if int(elapsed) % 30 == 0 and int(elapsed) > 0:
+                    print(f"[Chatterbox] ⏳ Still waiting for initialization... ({int(elapsed)}s / {max_wait}s)")
+            
+            raise RuntimeError(f"ChatterboxTTS initialization timed out (waited {max_wait} seconds)")
         
         # Mark initialization as in progress
         _initialization_in_progress = True
@@ -285,8 +298,12 @@ def get_chatterbox_tts():
                 
                 if 'device' in params:
                     print(f"[Chatterbox] 🔄 Calling ChatterboxTTS.from_pretrained(device={device})...")
+                    print("[Chatterbox] ⏳ This may take 1-5 minutes (loading models into GPU memory)...")
+                    import time
+                    init_start = time.time()
                     _chatterbox_tts = ChatterboxTTS.from_pretrained(device=device)
-                    print("[Chatterbox] ✅ from_pretrained(device=...) returned")
+                    init_elapsed = time.time() - init_start
+                    print(f"[Chatterbox] ✅ from_pretrained(device=...) returned (took {init_elapsed:.1f} seconds)")
                 else:
                     print("[Chatterbox] 🔄 Calling ChatterboxTTS.from_pretrained()...")
                     _chatterbox_tts = ChatterboxTTS.from_pretrained()
