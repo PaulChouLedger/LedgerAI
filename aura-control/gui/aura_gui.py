@@ -305,19 +305,27 @@ class CircularProgressWidget(QWidget):
         
         elapsed = time.time() - self.start_time
         
-        # Base progress on time (0-90% of estimated duration, slower start)
-        # Start slower to avoid appearing 90% done immediately
-        time_progress = min(0.9, (elapsed / self.estimated_duration) * 0.9)
+        # Base progress on time - more gradual, linear progression
+        # Don't cap at 90% - let it continue to 100% as initialization progresses
+        time_progress = min(1.0, elapsed / self.estimated_duration)
         
-        # Try to get progress from debug log milestones (more conservative)
+        # Try to get progress from debug log milestones (more conservative, gradual)
         milestone_progress = self._get_milestone_progress()
         
-        # Use the higher of the two, but cap at 0.9 until setup is complete
-        self.progress = min(0.9, max(time_progress, milestone_progress))
+        # Use milestone progress if available, otherwise use time-based
+        # Milestone progress is more accurate, but don't let it jump ahead too fast
+        if milestone_progress > 0:
+            # Use milestone but smooth it with time to avoid sudden jumps
+            self.progress = min(1.0, max(time_progress * 0.7, milestone_progress * 0.9))
+        else:
+            # No milestones yet, use time-based only
+            self.progress = time_progress
         
         # Ensure progress starts at 0 and grows gradually
-        if elapsed < 0.5:  # First 0.5 seconds, start very low
-            self.progress = min(self.progress, elapsed * 0.1)
+        if elapsed < 1.0:  # First second, start very gradually
+            self.progress = min(self.progress, elapsed * 0.2)
+        elif elapsed < 3.0:  # First 3 seconds, gradual ramp
+            self.progress = min(self.progress, 0.2 + (elapsed - 1.0) * 0.15)
         
         self.update()
     
@@ -331,16 +339,16 @@ class CircularProgressWidget(QWidget):
             with open(debug_log_path, 'r', encoding='utf-8', errors='ignore') as f:
                 content = f.read()
             
-            # Key milestones and their progress values (more conservative, gradual)
+            # Key milestones and their progress values (more gradual, spread out)
             milestones = [
-                ("Loading config", 0.05),
-                ("Starting services", 0.15),
-                ("Container", 0.25),
-                ("Model loaded", 0.45),
-                ("LLM warm-up", 0.60),
-                ("RAG", 0.75),
-                ("Listener", 0.85),
-                ("Setup complete", 0.95),
+                ("Loading config", 0.10),
+                ("Starting services", 0.20),
+                ("Container", 0.30),
+                ("Model loaded", 0.50),
+                ("LLM warm-up", 0.65),
+                ("RAG", 0.80),
+                ("Listener", 0.90),
+                ("Setup complete", 0.98),
             ]
             
             # Find the highest milestone reached
@@ -369,10 +377,10 @@ class CircularProgressWidget(QWidget):
         # Center of screen (same as aura eye)
         center_x, center_y = 540, 540
         
-        # Progress ring parameters - hug the aura eye closely
-        # Aura eye is roughly 300-400px radius, so place ring just outside it
+        # Progress ring parameters - hug the aura eye closely, 20% smaller diameter
+        # Original: 350px radius, new: 280px radius (20% reduction)
         # Match white perimeter: 8px thickness, white with 30% opacity (77/255)
-        ring_radius = 350  # Close to aura eye edge
+        ring_radius = 280  # 20% smaller - closer to aura eye
         ring_thickness = 8  # Match white perimeter thickness
         
         # White color matching the perimeter (30% opacity)
@@ -752,16 +760,14 @@ class AuraGUI(QMainWindow):
             btn.setToolTip(tooltip)
             btn.move(int(x), int(y))
             
-            # iPhone-style styling with clean iOS 3D effect - no dark shadows
-            # Simple gradient: bright white highlight at top-left fading to base color
+            # iPhone-style styling - clean, high-quality iOS graphics
             btn.setStyleSheet(f"""
                 QPushButton {{
-                    /* Clean iOS-style 3D effect - bright highlight, no dark shadows */
-                    background: qradialgradient(cx:0.3, cy:0.3, radius:1.0,
-                        fx:0.25, fy:0.25,
-                        stop:0 rgba(255, 255, 255, 0.6),
-                        stop:0.2 rgba(255, 255, 255, 0.3),
-                        stop:0.4 {color},
+                    /* Clean iOS-style solid color with subtle highlight */
+                    background: qradialgradient(cx:0.5, cy:0.5, radius:0.9,
+                        fx:0.45, fy:0.45,
+                        stop:0 rgba(255, 255, 255, 0.2),
+                        stop:0.5 {color},
                         stop:1 {color});
                     color: #FFFFFF;
                     font-size: 56px;
@@ -771,31 +777,30 @@ class AuraGUI(QMainWindow):
                     padding: 0px;
                 }}
                 QPushButton:hover {{
-                    /* Brighter on hover - enhanced highlight */
-                    background: qradialgradient(cx:0.3, cy:0.3, radius:1.0,
-                        fx:0.25, fy:0.25,
-                        stop:0 rgba(255, 255, 255, 0.7),
-                        stop:0.2 rgba(255, 255, 255, 0.4),
-                        stop:0.4 {hover_color},
+                    /* Brighter on hover */
+                    background: qradialgradient(cx:0.5, cy:0.5, radius:0.9,
+                        fx:0.45, fy:0.45,
+                        stop:0 rgba(255, 255, 255, 0.3),
+                        stop:0.5 {hover_color},
                         stop:1 {hover_color});
                     border: none;
                 }}
                 QPushButton:pressed {{
-                    /* Pressed state - reduced highlight */
-                    background: qradialgradient(cx:0.3, cy:0.3, radius:1.0,
-                        fx:0.25, fy:0.25,
-                        stop:0 rgba(255, 255, 255, 0.2),
-                        stop:0.3 {pressed_color},
+                    /* Darker when pressed */
+                    background: qradialgradient(cx:0.5, cy:0.5, radius:0.9,
+                        fx:0.45, fy:0.45,
+                        stop:0 rgba(255, 255, 255, 0.1),
+                        stop:0.5 {pressed_color},
                         stop:1 {pressed_color});
                     border: none;
                 }}
             """)
             
-            # Enhanced shadow effect for depth - matches 3D gradient
+            # Clean iOS-style shadow effect
             shadow_effect = QGraphicsDropShadowEffect()
-            shadow_effect.setBlurRadius(30)  # Larger blur for more depth
-            shadow_effect.setColor(QColor(0, 0, 0, 150))  # Darker shadow for depth
-            shadow_effect.setOffset(0, 6)  # More pronounced offset (bottom-right shadow)
+            shadow_effect.setBlurRadius(20)  # Moderate blur
+            shadow_effect.setColor(QColor(0, 0, 0, 100))  # Subtle shadow
+            shadow_effect.setOffset(0, 3)  # Subtle offset
             btn.setGraphicsEffect(shadow_effect)
             
             # Enable high-quality rendering attributes
