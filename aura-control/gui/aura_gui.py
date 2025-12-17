@@ -389,6 +389,10 @@ class CircularProgressWidget(QWidget):
             with open(debug_log_path, 'r', encoding='utf-8', errors='ignore') as f:
                 content = f.read()
             
+            # Debug: Check if Whisper warm-up message is in the log
+            if "model warmed up" in content.lower():
+                print(f"[CircularProgress] 🔍 Found 'model warmed up' in log - checking patterns...")
+            
             # SIMPLE: Explicit percentages for each milestone - ordered from early to late
             import re
             steps = [
@@ -420,7 +424,8 @@ class CircularProgressWidget(QWidget):
                 ("listener is now READY", 0.98),         # 98% - Listener fully ready
                 
                 # CRITICAL: Whisper model warm-up completion = 100% (happens right before welcome)
-                ("Model warmed up|✅ Model warmed up|Model warmed up.*first transcription", 1.0),  # 100% - Whisper ready (before welcome)
+                # Match various formats of the warm-up message
+                ("Whisper.*Model warmed up|Model warmed up.*first transcription|✅ Model warmed up", 1.0),  # 100% - Whisper ready (before welcome)
                 ("Audio.*Detected.*architecture|Detected ARM architecture|🔧.*detected.*architecture|using latency.*high.*stability", 1.0),  # 100% - Stream setup (before welcome)
                 ("Playing welcome prompt|🔊 Playing welcome", 1.0),  # 100% - Welcome about to play
                 # "Setup complete" - only match when it includes "listener ready" to ensure it's the real completion
@@ -436,6 +441,9 @@ class CircularProgressWidget(QWidget):
                 if re.search(step_text.lower(), content.lower(), re.IGNORECASE):
                     detected_milestones.append((step_text, progress_value))
                     max_progress = max(max_progress, progress_value)
+                    # Debug: log when 100% milestone is detected
+                    if progress_value >= 1.0:
+                        print(f"[CircularProgress] 🎯 100% milestone detected: '{step_text}' → {int(progress_value * 100)}%")
             
             # SAFETY: Prevent false positives for 100% milestones
             
