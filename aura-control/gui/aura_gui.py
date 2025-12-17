@@ -388,6 +388,24 @@ class CircularProgressWidget(QWidget):
             # Read file fresh each time - always read full file to catch all messages
             with open(debug_log_path, 'r', encoding='utf-8', errors='ignore') as f:
                 content = f.read()
+        else:
+            content = ""
+            
+    # Include in-memory debug messages (in case file is missing or incomplete)
+    log_sources = [content]
+    try:
+        from core.main import get_debug_log_text
+        extra = get_debug_log_text()
+        if extra:
+            log_sources.append(extra)
+    except Exception:
+        pass
+
+    log_content = "\n".join(part for part in log_sources if part)
+
+    # SIMPLE: Explicit percentages for each milestone - ordered from early to late
+    import re
+    steps = [
             
             # SIMPLE: Explicit percentages for each milestone - ordered from early to late
             import re
@@ -436,7 +454,7 @@ class CircularProgressWidget(QWidget):
             detected_milestones = []
             
             for step_text, progress_value in steps:
-                if re.search(step_text.lower(), content.lower(), re.IGNORECASE):
+                if re.search(step_text.lower(), log_content.lower(), re.IGNORECASE):
                     detected_milestones.append((step_text, progress_value))
                     max_progress = max(max_progress, progress_value)
                     # Debug: log when 100% milestone is detected
@@ -460,15 +478,15 @@ class CircularProgressWidget(QWidget):
                 
                 if has_setup_complete_match:
                     # Verify we have legitimate completion signals
-                    has_listener = any(re.search(p.lower(), content.lower()) for p in [
+                    has_listener = any(re.search(p.lower(), log_content.lower()) for p in [
                         "listener.*initializing", "listen\\(\\) function called", "🎧 listen",
                         "listener ready", "listener is now READY"
                     ])
-                    has_audio_setup = any(re.search(p.lower(), content.lower()) for p in [
+                    has_audio_setup = any(re.search(p.lower(), log_content.lower()) for p in [
                         "audio.*detected.*architecture", "detected arm architecture",
                         "🔧.*detected.*architecture", "using latency.*high.*stability"
                     ])
-                    has_welcome = re.search("playing welcome prompt|🔊 playing welcome", content.lower(), re.IGNORECASE)
+                    has_welcome = re.search("playing welcome prompt|🔊 playing welcome", log_content.lower(), re.IGNORECASE)
                     
                     # If "Setup complete" matched but no listener/audio/welcome, it's a false positive
                     if not (has_listener or has_audio_setup or has_welcome):
@@ -476,7 +494,7 @@ class CircularProgressWidget(QWidget):
                         legitimate_progress = 0.0
                         for step_text, progress_value in steps:
                             if progress_value < 1.0:  # Skip 100% milestones
-                                if re.search(step_text.lower(), content.lower(), re.IGNORECASE):
+                                if re.search(step_text.lower(), log_content.lower(), re.IGNORECASE):
                                     legitimate_progress = max(legitimate_progress, progress_value)
                         max_progress = legitimate_progress
                         print(f"[CircularProgress] ⚠️ False 'Setup complete' match - using {int(max_progress * 100)}% instead")
@@ -486,9 +504,9 @@ class CircularProgressWidget(QWidget):
             # This is the most reliable trigger since "Model warmed up" may not be in log
             if max_progress < 1.0 and max_progress >= 0.70:
                 # Check for audio architecture detection (happens right after Whisper warm-up)
-                has_audio_setup = re.search("audio.*detected.*architecture|detected arm architecture|🔧.*detected.*architecture|using latency.*high.*stability", content.lower(), re.IGNORECASE)
+                has_audio_setup = re.search("audio.*detected.*architecture|detected arm architecture|🔧.*detected.*architecture|using latency.*high.*stability", log_content.lower(), re.IGNORECASE)
                 # Also check for welcome message (backup)
-                has_welcome = re.search("playing welcome prompt|🔊 playing welcome", content.lower(), re.IGNORECASE)
+                has_welcome = re.search("playing welcome prompt|🔊 playing welcome", log_content.lower(), re.IGNORECASE)
                 
                 if has_audio_setup or has_welcome:
                     max_progress = 1.0
@@ -1312,69 +1330,8 @@ class AuraGUI(QMainWindow):
         elif _transcribing:
             # Keep aura eye fully visible during transcription
             self.opacity_effect.setOpacity(1.0)
-            
-            # Border is now drawn via paintEvent - no need to show/hide widget
-            
-            # Get real-time voice frequency from audio analysis
-            try:
-                from listener import get_transcription_frequency
-                voice_freq = get_transcription_frequency()
-                # voice_freq is 0.0 to 1.0 based on amplitude and pitch
-            except ImportError:
-                voice_freq = 0.5  # Moderate default
-            except Exception as e:
-                voice_freq = 0.5  # Fallback
-            
-            # Create organic pulsation based on voice characteristics
-            # Use multiple sine waves at different frequencies for natural feel
-            
-            # Primary pulse (follows voice frequency closely) - VERY FAST for speech dynamics
-            primary_speed = 0.4 + (voice_freq * 1.0)  # 0.4 to 1.4 range (4x faster than original)
-            self.border_pulse_phase += primary_speed
-            primary_pulse = (math.sin(self.border_pulse_phase) + 1) / 2
-            
-            # Secondary pulse (adds organic variation) - VERY FAST
-            if not hasattr(self, 'secondary_phase'):
-                self.secondary_phase = 0.0
-            self.secondary_phase += 0.25  # Much faster
-            secondary_pulse = (math.sin(self.secondary_phase) + 1) / 2
-            
-            # Tertiary pulse (micro variations for organic feel) - VERY FAST
-            if not hasattr(self, 'tertiary_phase'):
-                self.tertiary_phase = 0.0
-            self.tertiary_phase += 0.45  # Much faster
-            tertiary_pulse = (math.sin(self.tertiary_phase * 1.7) + 1) / 2
-            
-            # Combine pulses with voice frequency weighting
-            # Higher voice frequency = more influence from primary pulse
-            combined_pulse = (
-                primary_pulse * (0.7 + voice_freq * 0.2) +      # 70-90% primary (highly responsive)
-                secondary_pulse * (0.2 - voice_freq * 0.05) +   # 20-15% secondary  
-                tertiary_pulse * 0.1                             # 10% micro variation
-            )
-            
-            # Calculate border width based on combined pulse and voice intensity
-            # Make it MUCH more dynamic and thicker
-            base_width = 10  # Increased from 6
-            max_variation = 15  # Increased from 10 for dramatic pulsation
-            self.border_width = int(base_width + combined_pulse * max_variation * (0.7 + voice_freq))
-            
-            # Wider range for more dramatic effect
-            self.border_width = max(10, min(self.border_width, 25))
-            
-            # Calculate opacity variation - consistent visibility
-            border_opacity = 0.6 + combined_pulse * 0.3  # 0.6 to 0.9 opacity (more visible)
-            
-            # Debug logging (occasional)
-            # Update red border state and trigger overlay repaint
-            self.red_border_width = int(self.border_width)
-            self.red_border_opacity = border_opacity
-            self.show_red_border = True
-            # Ensure border overlay is visible and on top
-            if hasattr(self, 'border_overlay'):
-                self.border_overlay.show()
-            self.border_overlay.raise_()  # Keep on top every frame
-            self.border_overlay.update()  # Trigger overlay paintEvent
+            # Show solid red border (VAD stays triggered during natural conversation)
+            self._set_red_border_solid(width=14, opacity=0.92)
             
         # State 1: TTS playing - dramatic pulsation (priority after transcribing)
         elif _tts_playing:
@@ -1496,6 +1453,16 @@ class AuraGUI(QMainWindow):
                     self.border_widget.raise_()
             except:
                 pass
+
+    def _set_red_border_solid(self, width=12, opacity=0.9):
+        """Show a solid red border for transcription/VAD states."""
+        self.red_border_width = width
+        self.red_border_opacity = opacity
+        self.show_red_border = True
+        if hasattr(self, 'border_overlay'):
+            self.border_overlay.show()
+            self.border_overlay.raise_()
+            self.border_overlay.update()
     
     def _animate_aura_eye_tts(self, tts_frequency):
         """Highly organic TTS pulsation - smooth, speech-like, breathing feel"""

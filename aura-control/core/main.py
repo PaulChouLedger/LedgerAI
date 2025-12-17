@@ -7,6 +7,7 @@ import os
 import signal
 import sys
 import requests
+from collections import deque
 from dotenv import dotenv_values   # 👈 load host .env
 
 # Add the parent directories to Python path for imports
@@ -58,7 +59,8 @@ HOST_ENV = dotenv_values(dotenv_path)
 DEBUG_LOG_PATH = os.path.expanduser("~/LedgerAI/data/aura_init_debug.log")
 _debug_log_file = None
 _debug_log_enabled = False
-_debug_log_lock = threading.Lock()
+_debug_log_lock = threading.RLock()
+_debug_log_messages = deque(maxlen=200)
 
 def init_debug_log():
     """Initialize debug log file for GUI overlay"""
@@ -79,19 +81,28 @@ def _debug_log(message):
     """Write message to debug log file for GUI overlay"""
     global _debug_log_file, _debug_log_enabled
     if _debug_log_enabled and _debug_log_file:
-        try:
-            _debug_log_file.write(message + '\n')
-            _debug_log_file.flush()  # Ensure immediate write
-        except Exception:
-            pass  # Silently fail - don't break initialization
+        with _debug_log_lock:
+            try:
+                _debug_log_file.write(message + '\n')
+                _debug_log_file.flush()  # Ensure immediate write
+                _debug_log_messages.append(message)
+            except Exception:
+                pass  # Silently fail - don't break initialization
 
 def log_debug_message(message):
     """Thread-safe helper to write arbitrary messages into the GUI debug log."""
     if not _debug_log_enabled:
         return
 
+    _debug_log(message)
+
+
+def get_debug_log_text():
+    """Return the recent debug log messages collected in memory."""
     with _debug_log_lock:
-        _debug_log(message)
+        if not _debug_log_messages:
+            return ""
+        return "\n".join(_debug_log_messages)
 
 def close_debug_log():
     """Close debug log file after initialization"""
