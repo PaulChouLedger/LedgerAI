@@ -353,24 +353,29 @@ class CircularProgressWidget(QWidget):
         
         # GRADUAL INCREMENTS: Quickly animate towards milestone percentage for smooth visual progress
         if milestone_progress > self.progress:
-            # Calculate increment - faster when far from target, slower when close
+            # Calculate increment - MUCH FASTER to reduce delay
             distance = milestone_progress - self.progress
             
-            # If we're very close (< 2%), move quickly to finish
-            if distance < 0.02:
+            # If we're very close (< 1%), move directly to finish
+            if distance < 0.01:
                 increment = distance  # Move directly to target when very close
-            # If we're close (< 10%), move at 50% speed per update
-            elif distance < 0.10:
-                increment = distance * 0.5  # Fast when close
-            # If we're far, move at 30% speed per update for smooth animation
+            # If we're close (< 5%), move at 80% speed per update (very fast)
+            elif distance < 0.05:
+                increment = distance * 0.8  # Very fast when close
+            # If we're moderately far (< 15%), move at 60% speed per update
+            elif distance < 0.15:
+                increment = distance * 0.6  # Fast when moderately far
+            # If we're far, move at 50% speed per update (faster than before)
             else:
-                increment = distance * 0.3  # Smooth but quick when far
+                increment = distance * 0.5  # Fast when far (was 0.3)
             
             self.progress = min(1.0, self.progress + increment)
             
-            # Log when we reach significant milestones
-            if int(self.progress * 100) != int((self.progress - increment) * 100):
-                print(f"[CircularProgress] 📊 Progress: {int(self.progress * 100)}% (target: {int(milestone_progress * 100)}%)")
+            # Log when we reach significant milestones (every 5% change)
+            current_pct = int(self.progress * 100)
+            prev_pct = int((self.progress - increment) * 100)
+            if current_pct != prev_pct and current_pct % 5 == 0:  # Log every 5%
+                print(f"[CircularProgress] 📊 Progress: {current_pct}% (target: {int(milestone_progress * 100)}%)")
         elif milestone_progress == 0 and self.progress == 0:
             # Very slow initial progress if no milestones detected yet
             elapsed = time.time() - self.start_time
