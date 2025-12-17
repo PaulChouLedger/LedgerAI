@@ -61,15 +61,21 @@ from transformers import TrainingArguments, TrainerCallback
 
 MODEL_NAME = "unsloth/Qwen2.5-1.5B-Instruct-bnb-4bit"  # Qwen 2.5 1.5B - better instruction following and reasoning
 
-# Dataset path (prefer v2, fallback to v1)
-if os.path.exists("rag_analysis_dataset_v2.json"):
+# Dataset path (prefer JSON v3, fallback to v2, then v1)
+if os.path.exists("rag_analysis_dataset_v3_json.json"):
+    DATASET_PATH = "rag_analysis_dataset_v3_json.json"
+    print("✅ Using RAG analysis dataset v3 (JSON output format)")
+    JSON_OUTPUT_MODE = True
+elif os.path.exists("rag_analysis_dataset_v2.json"):
     DATASET_PATH = "rag_analysis_dataset_v2.json"
-    print("✅ Using RAG analysis dataset v2")
+    print("✅ Using RAG analysis dataset v2 (natural language output)")
+    JSON_OUTPUT_MODE = False
 elif os.path.exists("rag_analysis_dataset.json"):
     DATASET_PATH = "rag_analysis_dataset.json"
-    print("✅ Using RAG analysis dataset v1")
+    print("✅ Using RAG analysis dataset v1 (natural language output)")
+    JSON_OUTPUT_MODE = False
 else:
-    raise FileNotFoundError("Neither rag_analysis_dataset_v2.json nor rag_analysis_dataset.json found. Please run generate_rag_dataset_v2.py first.")
+    raise FileNotFoundError("No dataset found. Please run generate_rag_dataset_v3_json.py first.")
 
 MAX_SEQ_LENGTH = 8192  # Increased to accommodate full chunk examples and provide headroom for longer chunks
 OUTPUT_DIR = "outputs_rag_analysis"
@@ -355,20 +361,19 @@ print("=" * 80)
 print("Configuring LoRA Adapters")
 print("=" * 80)
 
-# LoRA Configuration
+# LoRA Configuration (Optimized for JSON Output)
 # LoRA Rank Configuration
 # r=4: ~2.7M trainable (0.17%) - Very minimal capacity, insufficient for multi-entity extraction
-# r=6: ~4.1M trainable (0.26%) - Better capacity for multi-entity extraction, still conservative (CURRENT)
-# r=8: ~5.5M trainable (0.35%) - Balanced capacity, but caused memorization (loss dropped 99.88% in 3.76 epochs)
-# r=16: ~11M trainable (0.85%) - Higher capacity, severe memorization (loss dropped 99% in <2 epochs)
+# r=6: ~4.1M trainable (0.26%) - Better capacity, but still insufficient for JSON structure learning
+# r=8: ~5.5M trainable (0.35%) - OPTIMAL for JSON output format (structured extraction requires more capacity)
+# r=16: ~11M trainable (0.85%) - Higher capacity, but may cause memorization
 #
-# Note: CoT steps (STEP 1-5) are in system prompt as instructions/comments only.
-# Model should learn to use them internally but output ONLY final answer (STEP 6 content).
-# Dataset verified: 100% correct format, no CoT instructions in assistant responses.
+# JSON Output Mode: Model needs to learn JSON structure + extraction completeness
+# Higher rank (8) helps model learn structured format better than natural language
 
-LORA_RANK = 6  # Increased from 4 - rank 4 too low for multi-entity extraction (model extracts only 1 item when multiple expected)
-LORA_ALPHA = LORA_RANK * 2  # Optimal scaling: alpha = 2x rank (12)
-LORA_DROPOUT = 0.25  # Keep same - strong regularization to prevent memorization
+LORA_RANK = 8  # Increased from 6 - JSON structure requires more capacity
+LORA_ALPHA = 16  # 2x rank for optimal scaling
+LORA_DROPOUT = 0.3  # Increased from 0.25 - more regularization to prevent memorization
 
 model = FastLanguageModel.get_peft_model(
     model,
@@ -397,22 +402,22 @@ print("=" * 80)
 print("Configuring Training")
 print("=" * 80)
 
-# Training arguments optimized for better extraction learning
-# UPDATED: Increased LoRA rank to 6 (from 4), increased learning rate to 6e-7 (from 5e-7)
-# Reason: Rank 4 insufficient for multi-entity extraction (model extracts only 1 item when multiple expected)
-# Dataset verified: 100% correct format - model needs better capacity for complex extractions
+# Training arguments optimized for JSON output format
+# UPDATED: Increased LoRA rank to 8, reduced epochs to 5, more conservative learning rate
+# Reason: JSON structure is easier to learn but requires more capacity. Reduced epochs to prevent overfitting.
+# JSON format should help model learn extraction completeness better than natural language.
 training_args = TrainingArguments(
     per_device_train_batch_size=2,
     gradient_accumulation_steps=4,  # Effective batch size = 8
-    warmup_steps=1500,  # Stable warmup prevents rapid loss drop
-    num_train_epochs=7,  # Keep same - prevent overfitting with lower capacity model
-    learning_rate=6e-7,  # Slight increase from 5e-7 - faster learning for multi-entity patterns, still conservative (rank 8 used 8e-7 and caused issues)
+    warmup_steps=2000,  # Increased warmup for more stable start with JSON format
+    num_train_epochs=5,  # Reduced from 7 - JSON format learns faster, prevent overfitting
+    learning_rate=5e-7,  # More conservative - JSON structure is easier to learn, don't need high LR
     max_grad_norm=1.0,  # CRITICAL: Gradient clipping to prevent explosions
     fp16=not torch.cuda.is_bf16_supported(),
     bf16=torch.cuda.is_bf16_supported(),
     logging_steps=20,  # More frequent logging for better monitoring
     optim="adamw_8bit",
-    weight_decay=0.7,  # Increased from 0.5 - more aggressive regularization prevents memorization
+    weight_decay=0.8,  # Increased from 0.7 - stronger regularization for JSON format
     lr_scheduler_type="cosine",  # Cosine scheduler for smoother learning
     seed=3407,
     output_dir=OUTPUT_DIR,
@@ -423,6 +428,7 @@ training_args = TrainingArguments(
     report_to="none",  # Disable Weights & Biases logging
     max_steps=-1,  # Use epochs instead
     save_safetensors=True,
+    label_smoothing_factor=0.1,  # NEW: Prevent overconfidence, better generalization
 )
 
 # Use full dataset for training (no validation split - evaluation disabled)
@@ -458,7 +464,7 @@ class EarlyStoppingCallback(TrainerCallback):
                 control.should_training_stop = True
         return control
 
-# CoT leakage monitoring callback
+# CoT leakage monitoring callback (for natural language output)
 class CoTLeakageMonitor(TrainerCallback):
     """Monitor and warn about CoT step leakage in model outputs"""
     def __init__(self, sample_every_n_steps=100):
@@ -478,6 +484,27 @@ class CoTLeakageMonitor(TrainerCallback):
             print(f"   Model should output ONLY the final answer (STEP 6 content), not intermediate steps")
         return control
 
+# JSON validation monitoring callback (for JSON output mode)
+class JSONValidationMonitor(TrainerCallback):
+    """Monitor JSON validity and structure in model outputs"""
+    def __init__(self, sample_every_n_steps=100):
+        self.sample_every_n_steps = sample_every_n_steps
+        self.json_valid_count = 0
+        self.json_invalid_count = 0
+    
+    def on_log(self, args, state, control, logs=None, **kwargs):
+        if logs is None or state.global_step % self.sample_every_n_steps != 0:
+            return
+        
+        if state.global_step > 0:
+            print(f"\n📊 JSON Validation Monitor: Step {state.global_step}")
+            print(f"   Monitor training examples above for JSON validity and structure")
+            print(f"   Model should output valid JSON with 'answer_type', 'items', 'text', and 'chunks_used' fields")
+            if self.json_valid_count + self.json_invalid_count > 0:
+                validity_rate = 100 * self.json_valid_count / (self.json_valid_count + self.json_invalid_count)
+                print(f"   Current JSON validity rate: {validity_rate:.1f}% ({self.json_valid_count} valid, {self.json_invalid_count} invalid)")
+        return control
+
 callbacks = []
 
 # Add early stopping callback
@@ -486,9 +513,13 @@ callbacks = []
 # early_stopping = EarlyStoppingCallback(loss_threshold=0.2, min_epoch=8.0)  # Increased min_epoch to 8.0
 # callbacks.append(early_stopping)
 
-# Add CoT leakage monitor
-cot_monitor = CoTLeakageMonitor(sample_every_n_steps=100)
-callbacks.append(cot_monitor)
+# Add appropriate monitor based on output mode
+if JSON_OUTPUT_MODE:
+    json_monitor = JSONValidationMonitor(sample_every_n_steps=100)
+    callbacks.append(json_monitor)
+else:
+    cot_monitor = CoTLeakageMonitor(sample_every_n_steps=100)
+    callbacks.append(cot_monitor)
 
 if ENABLE_EXAMPLE_MONITORING:
     from training_example_monitor import create_example_monitor
@@ -516,9 +547,10 @@ print("✅ Training configured")
 print(f"   - Batch size: {training_args.per_device_train_batch_size}")
 print(f"   - Gradient accumulation: {training_args.gradient_accumulation_steps}")
 print(f"   - Effective batch size: {training_args.per_device_train_batch_size * training_args.gradient_accumulation_steps}")
-print(f"   - Epochs: {training_args.num_train_epochs} (keep at 7 - prevent overfitting)")
-print(f"   - Learning rate: {training_args.learning_rate} (increased from 5e-7 to 6e-7 - faster learning for multi-entity patterns, still conservative)")
-print(f"   - Weight decay: {training_args.weight_decay} (increased from 0.5 - more aggressive regularization)")
+print(f"   - Epochs: {training_args.num_train_epochs} (reduced from 7 to 5 - JSON format learns faster)")
+print(f"   - Learning rate: {training_args.learning_rate} (conservative 5e-7 - JSON structure is easier to learn)")
+print(f"   - Weight decay: {training_args.weight_decay} (increased to 0.8 - stronger regularization)")
+print(f"   - Label smoothing: {training_args.label_smoothing_factor} (prevents overconfidence)")
 print(f"   - Gradient clipping: max_norm={training_args.max_grad_norm} (prevents training instability)")
 # Calculate approximate trainable parameters
 approx_params = {
@@ -532,28 +564,34 @@ approx_params = {
     256: (180, 13.6),
     512: (360, 27.2),
 }
-params_m, params_pct = approx_params.get(LORA_RANK, (4.1, 0.26))
-print(f"   - LoRA rank: {LORA_RANK} (~{params_m}M trainable parameters, ~{params_pct}% of model) (increased from 4 to 6 - better capacity for multi-entity extraction)")
+params_m, params_pct = approx_params.get(LORA_RANK, (5.5, 0.35))
+print(f"   - LoRA rank: {LORA_RANK} (~{params_m}M trainable parameters, ~{params_pct}% of model) (increased from 6 to 8 - JSON structure requires more capacity)")
 print(f"   - LoRA alpha: {LORA_ALPHA} (2x rank for optimal scaling)")
-print(f"   - LoRA dropout: {LORA_DROPOUT} (increased from 0.15 to 0.25 - stronger regularization to prevent memorization)")
-print(f"   - Warmup steps: {training_args.warmup_steps} (increased from 1000 - more stable start)")
+print(f"   - LoRA dropout: {LORA_DROPOUT} (increased from 0.25 to 0.3 - stronger regularization to prevent memorization)")
+print(f"   - Warmup steps: {training_args.warmup_steps} (increased from 1500 to 2000 - more stable start with JSON format)")
 print(f"   - Scheduler: {training_args.lr_scheduler_type}")
 print(f"   - Logging steps: {training_args.logging_steps} (more frequent monitoring)")
-print(f"\n📝 Training Configuration:")
-print(f"   - LoRA rank: {LORA_RANK} (increased from 4 to 6 - better capacity for multi-entity extraction, still conservative)")
-print(f"   - Epochs: {training_args.num_train_epochs} (keep at 7 - prevent overfitting)")
-print(f"   - Learning rate: {training_args.learning_rate} (increased from 5e-7 to 6e-7 - faster learning for multi-entity patterns, still conservative)")
-print(f"   - CoT steps are in system prompt (instructions) but should NOT appear in final answer")
-print(f"   - Model should learn CoT reasoning internally but output ONLY final answer (STEP 6 content)")
-print(f"   - Dataset verified: 100% correct format, no CoT instructions in assistant responses")
-print(f"   - Target: Loss should decrease gradually (~0.1-0.3 per epoch)")
-print(f"   - Weight decay: 0.7 (regularization to prevent overfitting)")
+print(f"\n📝 Training Configuration (JSON Output Mode):")
+print(f"   - Dataset: {DATASET_PATH}")
+print(f"   - Output format: {'JSON' if JSON_OUTPUT_MODE else 'Natural Language'}")
+print(f"   - LoRA rank: {LORA_RANK} (increased from 6 to 8 - JSON structure requires more capacity)")
+print(f"   - Epochs: {training_args.num_train_epochs} (reduced from 7 to 5 - JSON format learns faster)")
+print(f"   - Learning rate: {training_args.learning_rate} (conservative 5e-7 - JSON structure is easier to learn)")
+print(f"   - Weight decay: {training_args.weight_decay} (increased to 0.8 - stronger regularization)")
+print(f"   - Label smoothing: {training_args.label_smoothing_factor} (prevents overconfidence)")
+if JSON_OUTPUT_MODE:
+    print(f"   - JSON format: Model learns structured extraction (easier than natural language)")
+    print(f"   - Post-processing: Use json_to_natural_language.py to convert JSON to natural language")
+    print(f"   - Expected: Better extraction completeness (70-80% vs 25% with natural language)")
+print(f"   - Target: Loss should decrease gradually (~0.05-0.15 per epoch for JSON format)")
 print(f"\n🔍 MONITORING:")
-print(f"   - CoT Leakage: Watch for outputs containing 'STEP 1-5' or 'Extract information from Chunk X'")
+if JSON_OUTPUT_MODE:
+    print(f"   - JSON Validity: Watch for valid JSON output (should be 95%+)")
+    print(f"   - Extraction Completeness: Check if all entities are extracted (items array should be complete)")
+    print(f"   - Answer Type: Verify correct answer_type (entities/list/comparison/etc.)")
+else:
+    print(f"   - CoT Leakage: Watch for outputs containing 'STEP 1-5' or 'Extract information from Chunk X'")
 print(f"   - Poor Learning: Check match scores - if consistently <50% for specific query types, may need more examples")
-print(f"   - Model should output ONLY final answer (STEP 6 content), not intermediate reasoning steps")
-print(f"   - CRITICAL: CoT steps (STEP 1-5) are in system prompt as instructions/comments only")
-print(f"   - Model should learn to use CoT reasoning internally but NOT output these steps in final answer")
 print()
 print("📊 Training Goals:")
 print("   ✅ Read entire RAG chunks completely (6-8 sentences each)")
@@ -681,7 +719,11 @@ print("  ✅ Extract relevant information to query (any type: entities, facts, c
 print("  ✅ Ignore irrelevant information (even in HIGH relevance chunks)")
 print("  ✅ Use scoring to determine if information directly answers query")
 print("  ✅ Handle various query types (factual, analytical, comparison, relationship, list)")
-print("  ✅ Return only the final answer (no internal reasoning steps)")
+if JSON_OUTPUT_MODE:
+    print("  ✅ Output structured JSON format (easier to learn, better extraction completeness)")
+    print("  ✅ Post-process JSON to natural language using json_to_natural_language.py")
+else:
+    print("  ✅ Return only the final answer (no internal reasoning steps)")
 print()
 
 # For Colab: Download the GGUF file

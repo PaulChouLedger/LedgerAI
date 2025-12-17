@@ -92,9 +92,9 @@ WORD_BOUNDARY_CHARS = [' ', '.', ',', '!', '?', ':', ';', '-', '(', ')', '[', ']
 SENTENCE_ENDINGS = ('.', '!', '?')
 
 # === Response Generation Config ===
-MAX_TOKENS_RAG_MODE = 400  # Max tokens when using RAG context (allows concise answer + follow-up question)
-MAX_TOKENS_RAG_MODE_LIST = 500  # Max tokens for list questions (allows complete list + follow-up question)
-MAX_TOKENS_DIRECT_MODE = 400  # Max tokens for direct conversation (allows concise answer + follow-up question)
+MAX_TOKENS_RAG_MODE = 250  # Max tokens when using RAG context (enforces concise 2-3 sentence answers)
+MAX_TOKENS_RAG_MODE_LIST = 350  # Max tokens for list questions (allows complete list but still concise)
+MAX_TOKENS_DIRECT_MODE = 250  # Max tokens for direct conversation (enforces concise 2-3 sentence answers)
 
 # === Debug Mode: Show LLM Reasoning ===
 # Set SHOW_REASONING_DEBUG=true to make LLM show its reasoning step-by-step in the output (visible chain-of-thought)
@@ -1075,7 +1075,9 @@ JSON array only:"""
                     "Use ONLY information from the context above. Do not invent facts.\n"
                     "If information is missing, say 'I don't have that information'.\n\n"
                     f"Answer: {prompt}\n\n"
-                    "Provide a clear, step-by-step response. Be conversational and friendly."
+                    "CRITICAL: Keep your response VERY SHORT - maximum 2-3 sentences. "
+                    "Provide a clear, concise step-by-step response with only essential information. "
+                    "Be conversational and friendly. If more detail is needed, the user will ask."
                     f"{question_instruction}"
                 )
             else:
@@ -1118,7 +1120,10 @@ JSON array only:"""
                     # Only add question instruction if not a conversational query
                     question_instruction = "" if is_conversational else "\n6. MANDATORY: End your response with a brief, natural question. This is REQUIRED. Examples: 'Would you like more information about this?' or 'Is there anything else I can help you with?'\n"
                     response_length_guideline = (
-                        "- Keep responses short (2-3 sentences).\n"
+                        "- CRITICAL: Keep responses VERY SHORT - maximum 2-3 sentences total.\n"
+                        "- Provide only the essential information needed to answer the question.\n"
+                        "- Do NOT provide lengthy explanations, multiple examples, or extensive background.\n"
+                        "- If the user wants more details, they will ask - offer to provide more information in your closing question.\n"
                         f"{question_instruction}"
                     )
                 
@@ -1163,7 +1168,9 @@ JSON array only:"""
                     "4. If the context does NOT contain relevant information (e.g., context is about unrelated topics, or only mentions keywords but doesn't answer the query):\n"
                     "   - Use your general knowledge to provide a helpful answer.\n"
                     "   - Be clear and informative based on common knowledge.\n"
-                    "5. Format your answer naturally.\n"
+                    "   - Keep it BRIEF - provide only essential information, not lengthy explanations.\n"
+                    "5. Format your answer naturally and concisely.\n"
+                    "6. REMEMBER: Maximum 2-3 sentences. If more detail is needed, the user will ask.\n"
                     )
                 
                 # No examples - LLM must use only the RAG context provided
@@ -1190,10 +1197,11 @@ JSON array only:"""
                     )
                 else:
                     user_content = (
-                        f"Answer this question:\n"
+                        f"Answer this question BRIEFLY (2-3 sentences maximum):\n"
                         f"- If the 'Knowledge context' sections above contain relevant information that answers the query, use that information.\n"
                         f"- If the context does NOT contain relevant information (e.g., it's about unrelated topics or only mentions keywords without answering), use your general knowledge to provide a helpful answer.\n"
-                        f"- Be helpful and informative - use context when available, but don't hesitate to use general knowledge when the context isn't relevant.\n\n"
+                        f"- Provide ONLY essential information - no lengthy explanations or multiple examples.\n"
+                        f"- If more detail is needed, the user will ask.\n\n"
                         f"Question: {prompt}"
                     )
                 
@@ -1235,8 +1243,10 @@ JSON array only:"""
                     "You are Aura Vision, an AI agent created by Ledger AI Quantum Corporation. "
                     "You act as a proactive AI agent guiding users to better outcomes through gentle guidance.\n\n"
                     f"{memory_note}"
-                    "Provide a clear, step-by-step response (numbered steps). Keep each step concise and actionable. "
-                    "Be conversational and friendly, like Siri or Alexa.\n\n"
+                    "CRITICAL: Keep your response VERY SHORT - maximum 2-3 sentences or a brief numbered list (3-4 steps max). "
+                    "Provide only essential steps. Keep each step concise and actionable. "
+                    "Be conversational and friendly, like Siri or Alexa. "
+                    "If more detail is needed, the user will ask.\n\n"
                     "Always end your response with a brief, natural question (do not include 'follow up' or 'follow-up' in the question text). Examples: "
                     "'Would you like more information about this?' or 'Is there anything else I can help you with?'"
                 )
@@ -1271,9 +1281,11 @@ JSON array only:"""
                     "IMPORTANT: Use the conversation memory provided above to answer the user's question. "
                     "If the memory contains relevant information, provide that information in your response. "
                     "If you notice a misspelling or typo, briefly acknowledge it but still answer the actual question asked.\n\n"
-                    "Keep your response SHORT and conversational, like Siri or Alexa - aim for 2-3 sentences total. "
-                    "Get straight to the point with essential information. Avoid lengthy explanations, excessive background details, or multiple examples. "
-                    "Be concise but complete enough to answer the question. Be friendly, helpful, and conversational.\n\n"
+                    "CRITICAL: Keep your response VERY SHORT - maximum 2-3 sentences total. "
+                    "Get straight to the point with ONLY the essential information needed to answer the question. "
+                    "DO NOT provide lengthy explanations, multiple examples, extensive background, or detailed elaborations. "
+                    "If the user wants more information, they will ask - you can offer to provide more details in your closing question. "
+                    "Be concise, informative, friendly, and conversational.\n\n"
                     "MANDATORY: Your response MUST end with a brief, natural question. "
                     "This is REQUIRED - do not skip it. Examples: 'Would you like more information about this?' "
                     "or 'Is there anything else I can help you with?' or 'Need more details on this?' "
@@ -1948,8 +1960,9 @@ JSON array only:"""
         system_prompt = (
             "You are Aura Vision, an AI agent created by Ledger AI Quantum Corporation. "
             "You act as a proactive AI agent guiding users to better outcomes through gentle guidance.\n\n"
-            "Keep your response SHORT and conversational, like Siri or Alexa - aim for 2-3 sentences total. "
-            "Be friendly, helpful, and concise. Get straight to the point with essential information. "
+            "CRITICAL: Keep your response VERY SHORT - maximum 2-3 sentences total. "
+            "Provide ONLY essential information - no lengthy explanations, multiple examples, or extensive background. "
+            "If the user wants more details, they will ask. Be friendly, helpful, and concise. "
             "Avoid lengthy explanations, excessive background details, or multiple examples.\n\n"
             "MANDATORY: Your response MUST end with a brief, natural question. "
             "This is REQUIRED - do not skip it. Examples: 'Would you like more information about this?' "

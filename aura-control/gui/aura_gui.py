@@ -937,47 +937,57 @@ class AuraGUI(QMainWindow):
             btn.setToolTip(tooltip)
             btn.move(int(x), int(y))
             
-            # iPhone-style styling - clean, high-quality iOS graphics
+            # 3D pop-out styling - buttons appear to rise from screen using gradient depth
             btn.setStyleSheet(f"""
                 QPushButton {{
-                    /* Clean iOS-style solid color with subtle highlight */
-                    background: qradialgradient(cx:0.5, cy:0.5, radius:0.9,
-                        fx:0.45, fy:0.45,
-                        stop:0 rgba(255, 255, 255, 0.2),
-                        stop:0.5 {color},
-                        stop:1 {color});
+                    /* Strong 3D gradient: very bright top, darker bottom for dramatic depth */
+                    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                        stop:0 rgba(255, 255, 255, 0.5),
+                        stop:0.2 rgba(255, 255, 255, 0.3),
+                        stop:0.4 {color},
+                        stop:0.6 {color},
+                        stop:0.8 {color},
+                        stop:1 rgba(0, 0, 0, 0.4));
                     color: #FFFFFF;
                     font-size: 56px;
                     font-weight: bold;
                     border-radius: {button_size // 2}px;
-                    border: none;
+                    border: 3px solid rgba(255, 255, 255, 0.4);
                     padding: 0px;
                 }}
                 QPushButton:hover {{
-                    /* Brighter on hover */
-                    background: qradialgradient(cx:0.5, cy:0.5, radius:0.9,
-                        fx:0.45, fy:0.45,
-                        stop:0 rgba(255, 255, 255, 0.3),
-                        stop:0.5 {hover_color},
-                        stop:1 {hover_color});
-                    border: none;
+                    /* Enhanced 3D effect on hover - even brighter highlight */
+                    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                        stop:0 rgba(255, 255, 255, 0.6),
+                        stop:0.2 rgba(255, 255, 255, 0.4),
+                        stop:0.4 {hover_color},
+                        stop:0.6 {hover_color},
+                        stop:0.8 {hover_color},
+                        stop:1 rgba(0, 0, 0, 0.3));
+                    border: 3px solid rgba(255, 255, 255, 0.5);
                 }}
                 QPushButton:pressed {{
-                    /* Darker when pressed */
-                    background: qradialgradient(cx:0.5, cy:0.5, radius:0.9,
-                        fx:0.45, fy:0.45,
-                        stop:0 rgba(255, 255, 255, 0.1),
-                        stop:0.5 {pressed_color},
-                        stop:1 {pressed_color});
-                    border: none;
+                    /* Inverted gradient when pressed - appears pushed in */
+                    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                        stop:0 rgba(0, 0, 0, 0.3),
+                        stop:0.2 {pressed_color},
+                        stop:0.4 {pressed_color},
+                        stop:0.6 {pressed_color},
+                        stop:0.8 rgba(255, 255, 255, 0.2),
+                        stop:1 rgba(255, 255, 255, 0.3));
+                    border: 3px solid rgba(0, 0, 0, 0.4);
                 }}
             """)
             
-            # Clean iOS-style shadow effect
+            # Subtle colored shadow for 3D pop-out (no black shadow)
             shadow_effect = QGraphicsDropShadowEffect()
-            shadow_effect.setBlurRadius(20)  # Moderate blur
-            shadow_effect.setColor(QColor(0, 0, 0, 100))  # Subtle shadow
-            shadow_effect.setOffset(0, 3)  # Subtle offset
+            shadow_effect.setBlurRadius(35)  # Large blur for soft depth
+            # Create colored shadow matching button color (not black)
+            shadow_color = QColor()
+            shadow_color.setNamedColor(color)  # Parse hex color string
+            shadow_color.setAlpha(100)  # Subtle colored shadow
+            shadow_effect.setColor(shadow_color)
+            shadow_effect.setOffset(0, 8)  # Offset downward for 3D pop-out effect
             btn.setGraphicsEffect(shadow_effect)
             
             # Enable high-quality rendering attributes
