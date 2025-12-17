@@ -386,31 +386,9 @@ class CircularProgressWidget(QWidget):
             if not os.path.exists(debug_log_path):
                 return 0.0
             
-            # Read file fresh each time (no caching) to catch latest messages
+            # Read file fresh each time - always read full file to catch all messages
             with open(debug_log_path, 'r', encoding='utf-8', errors='ignore') as f:
-                # Seek to end and read backwards a bit, then read full file
-                # This helps catch messages that were just written
-                try:
-                    f.seek(0, 2)  # Seek to end
-                    file_size = f.tell()
-                    # Read last 10KB to catch recent messages quickly
-                    if file_size > 10000:
-                        f.seek(file_size - 10000)
-                        recent_content = f.read()
-                        # Also check if key messages are in recent content
-                        if "model warmed up" in recent_content.lower() or "detected.*architecture" in recent_content.lower():
-                            # Re-read full file to get complete context
-                            f.seek(0)
-                            content = f.read()
-                        else:
-                            content = recent_content
-                    else:
-                        f.seek(0)
-                        content = f.read()
-                except:
-                    # Fallback: just read the whole file
-                    f.seek(0)
-                    content = f.read()
+                content = f.read()
             
             # SIMPLE: Explicit percentages for each milestone - ordered from early to late
             import re
@@ -501,6 +479,14 @@ class CircularProgressWidget(QWidget):
                                     legitimate_progress = max(legitimate_progress, progress_value)
                         max_progress = legitimate_progress
                         print(f"[CircularProgress] ⚠️ False 'Setup complete' match - using {int(max_progress * 100)}% instead")
+            
+            # FALLBACK: If we're at 70%+ and welcome is about to play, jump to 100%
+            # This handles cases where messages aren't in the debug log
+            if max_progress < 1.0 and max_progress >= 0.70:
+                has_welcome = re.search("playing welcome prompt|🔊 playing welcome", content.lower(), re.IGNORECASE)
+                if has_welcome:
+                    max_progress = 1.0
+                    print(f"[CircularProgress] 🎯 Fallback: Welcome detected at {int(max_progress * 100)}% → jumping to 100%")
             
             # Log detected milestones for debugging (only log when milestone changes or progress changes significantly)
             if detected_milestones:
