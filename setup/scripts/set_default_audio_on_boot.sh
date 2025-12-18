@@ -41,12 +41,64 @@ EOF
         # Set PulseAudio default sink to UACDemoV1.0 (if PulseAudio is available)
         if command -v pactl >/dev/null 2>&1; then
             # Find the PulseAudio sink for UACDemoV1.0 or UACDemoV10
-            # List all sinks and look for UACDemo in the description (but not XVF3800/microphone)
-            SINK_NAME=$(pactl list sinks 2>/dev/null | grep -B 5 -A 10 -E "UACDemoV1\.0|UACDemoV10|UACDemo" | grep -v "XVF3800" | grep "^Name:" | head -1 | sed 's/^Name: //' | tr -d ' ')
+            # Use awk to properly parse sink blocks and match by description or card number
+            SINK_NAME=$(pactl list sinks 2>/dev/null | awk -v card="$CARD_NUM" '
+                BEGIN { in_sink=0; sink_name=""; sink_desc=""; sink_card=""; match_found=0 }
+                /^Sink #/ { 
+                    # Process previous sink if we found a match
+                    if (in_sink && sink_name != "" && match_found) {
+                        print sink_name
+                        exit
+                    }
+                    # Start new sink block
+                    in_sink=1
+                    sink_name=""
+                    sink_desc=""
+                    sink_card=""
+                    match_found=0
+                }
+                /^[[:space:]]*Name:[[:space:]]*/ && in_sink { 
+                    sink_name=$2
+                }
+                /^[[:space:]]*Description:[[:space:]]*/ && in_sink { 
+                    # Get everything after "Description: "
+                    sink_desc=substr($0, index($0, "Description:") + 13)
+                }
+                /^[[:space:]]*alsa.card =/ && in_sink { 
+                    gsub(/"/, "", $3)
+                    sink_card=$3
+                }
+                # Check if this sink matches our criteria (after we have the name)
+                in_sink && sink_name != "" {
+                    # Match if description contains UACDemo (but not XVF3800) OR card number matches
+                    if ((sink_desc ~ /UACDemo/ && sink_desc !~ /XVF3800/) || 
+                        (sink_card == card && sink_desc !~ /XVF3800/)) {
+                        match_found=1
+                    }
+                }
+                /^$/ && in_sink {
+                    # End of sink block - check if we found a match
+                    if (match_found && sink_name != "") {
+                        print sink_name
+                        exit
+                    }
+                    in_sink=0
+                }
+                END {
+                    # Process last sink if needed
+                    if (in_sink && match_found && sink_name != "") {
+                        print sink_name
+                    }
+                }
+            ')
             
-            # If not found by UACDemo, try to find by card number
+            # Fallback: Simple method if awk didn't work
             if [ -z "$SINK_NAME" ]; then
-                SINK_NAME=$(pactl list sinks 2>/dev/null | grep -B 5 -A 10 "card $CARD_NUM" | grep -v "XVF3800" | grep "^Name:" | head -1 | sed 's/^Name: //' | tr -d ' ')
+                # Look for sink name that contains UACDemoV1.0 in the name itself
+                SINK_NAME=$(pactl list sinks 2>/dev/null | awk '
+                    /^[[:space:]]*Name:/ { sink_name=$2 }
+                    /UACDemo/ && !/XVF3800/ && sink_name != "" { print sink_name; exit }
+                ')
             fi
             
             if [ -n "$SINK_NAME" ]; then
@@ -72,4 +124,3 @@ else
 fi
 
 exit 0
-
