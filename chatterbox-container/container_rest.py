@@ -299,11 +299,25 @@ def get_chatterbox_tts():
                 if 'device' in params:
                     print(f"[Chatterbox] 🔄 Calling ChatterboxTTS.from_pretrained(device={device})...")
                     print("[Chatterbox] ⏳ This may take 1-5 minutes (loading models into GPU memory)...")
+                    if device == "cpu":
+                        print("[Chatterbox] ⚠️  WARNING: Using CPU - synthesis will be VERY slow (10-30x slower than GPU)")
                     import time
                     init_start = time.time()
                     _chatterbox_tts = ChatterboxTTS.from_pretrained(device=device)
                     init_elapsed = time.time() - init_start
                     print(f"[Chatterbox] ✅ from_pretrained(device=...) returned (took {init_elapsed:.1f} seconds)")
+                    
+                    # Verify device after loading
+                    if hasattr(_chatterbox_tts, 'device'):
+                        actual_device = str(_chatterbox_tts.device)
+                        print(f"[Chatterbox] 🔍 Model device: {actual_device}")
+                        if actual_device != device:
+                            print(f"[Chatterbox] ⚠️  Device mismatch: requested {device}, got {actual_device}")
+                    elif hasattr(_chatterbox_tts, 'model') and hasattr(_chatterbox_tts.model, 'device'):
+                        actual_device = str(_chatterbox_tts.model.device)
+                        print(f"[Chatterbox] 🔍 Model device: {actual_device}")
+                        if actual_device != device:
+                            print(f"[Chatterbox] ⚠️  Device mismatch: requested {device}, got {actual_device}")
                 else:
                     print("[Chatterbox] 🔄 Calling ChatterboxTTS.from_pretrained()...")
                     _chatterbox_tts = ChatterboxTTS.from_pretrained()
@@ -416,9 +430,18 @@ def health():
         # Check if source directory exists
         source_exists = os.path.exists("/app/chatterbox")
         
+        # Better device detection
+        import torch
         device = "unknown"
         if _chatterbox_tts:
-            import torch
+            # Check if model is on GPU
+            if hasattr(_chatterbox_tts, 'device'):
+                device = str(_chatterbox_tts.device)
+            elif hasattr(_chatterbox_tts, 'model') and hasattr(_chatterbox_tts.model, 'device'):
+                device = str(_chatterbox_tts.model.device)
+            else:
+                device = "cuda" if torch.cuda.is_available() else "cpu"
+        else:
             device = "cuda" if torch.cuda.is_available() else "cpu"
         
         return jsonify({
@@ -451,8 +474,20 @@ def synthesize():
         
         print(f"[Chatterbox] 💬 Synthesizing: '{text[:50]}...'")
         
+        # Track timing
+        import time
+        synthesis_start = time.time()
+        
         # Get Chatterbox instance
         chatterbox = get_chatterbox_tts()
+        
+        # Verify device
+        import torch
+        if torch.cuda.is_available():
+            print(f"[Chatterbox] 🚀 CUDA available: {torch.cuda.get_device_name(0)}")
+            print(f"[Chatterbox] 🚀 CUDA memory: {torch.cuda.memory_allocated(0)/1024**3:.2f}GB allocated")
+        else:
+            print("[Chatterbox] ⚠️  CUDA not available - using CPU (will be slow!)")
         
         # Handle voice cloning if voice sample provided
         voice_embedding = None
@@ -469,6 +504,7 @@ def synthesize():
         
         # Generate audio
         try:
+            gen_start = time.time()
             if hasattr(chatterbox, 'generate'):
                 sig = inspect.signature(chatterbox.generate)
                 params = sig.parameters
@@ -499,6 +535,9 @@ def synthesize():
                     audio = chatterbox.synthesize(text)
             else:
                 return jsonify({'error': 'ChatterboxTTS has no generate or synthesize method'}), 500
+            
+            gen_elapsed = time.time() - gen_start
+            print(f"[Chatterbox] ⏱️  Generation took {gen_elapsed:.2f} seconds")
                 
         except Exception as e:
             print(f"[Chatterbox] ❌ Synthesis error: {e}")
@@ -539,31 +578,54 @@ def synthesize():
         if audio.dtype != np.float32:
             audio = audio.astype(np.float32)
         
-        # Normalize amplitude to [-1, 1] range
+        # Validate audio is not empty
+        if len(audio) == 0:
+            print("[Chatterbox] ❌ Audio is empty!")
+            return jsonify({'error': 'Generated audio is empty'}), 500
+        
+        # Normalize amplitude to [-1, 1] range (but preserve relative levels)
         max_val = np.max(np.abs(audio))
-        if max_val > 1.0:
+        if max_val == 0:
+            print("[Chatterbox] ❌ Audio is all zeros!")
+            return jsonify({'error': 'Generated audio contains no sound'}), 500
+        elif max_val > 1.0:
             audio = audio / max_val
-        elif max_val == 0:
-            print("[Chatterbox] ⚠️  Audio is all zeros!")
+            print(f"[Chatterbox] ✅ Audio normalized (was {max_val:.3f}, now 1.0)")
+        elif max_val < 0.01:
+            print(f"[Chatterbox] ⚠️  Audio is very quiet (max: {max_val:.6f}) - amplifying...")
+            # Amplify quiet audio
+            audio = audio / max_val * 0.95  # Normalize to 95% to avoid clipping
+            print(f"[Chatterbox] ✅ Audio amplified to 95%")
         else:
-            print(f"[Chatterbox] ✅ Audio normalized, max amplitude: {max_val}")
+            print(f"[Chatterbox] ✅ Audio levels OK (max: {max_val:.3f})")
         
         # Get sample rate from model if available, otherwise use default
-        sample_rate = 22050  # Chatterbox default
+        sample_rate = 24000  # Chatterbox typically uses 24kHz, not 22kHz
         if hasattr(chatterbox, 'sr'):
-            sample_rate = chatterbox.sr
+            sample_rate = int(chatterbox.sr)
             print(f"[Chatterbox] 📊 Using model sample rate: {sample_rate}")
         elif hasattr(chatterbox, 'sample_rate'):
-            sample_rate = chatterbox.sample_rate
+            sample_rate = int(chatterbox.sample_rate)
             print(f"[Chatterbox] 📊 Using model sample rate: {sample_rate}")
+        elif hasattr(chatterbox, 'config') and hasattr(chatterbox.config, 'sample_rate'):
+            sample_rate = int(chatterbox.config.sample_rate)
+            print(f"[Chatterbox] 📊 Using config sample rate: {sample_rate}")
         else:
-            print(f"[Chatterbox] 📊 Using default sample rate: {sample_rate}")
+            print(f"[Chatterbox] 📊 Using default sample rate: {sample_rate} (if audio sounds wrong, model may use different rate)")
+        
+        # Validate audio statistics
+        audio_duration = len(audio) / sample_rate
+        print(f"[Chatterbox] 📊 Audio stats: {len(audio)} samples, {audio_duration:.2f}s duration, {sample_rate}Hz")
+        print(f"[Chatterbox] 📊 Audio range: [{np.min(audio):.3f}, {np.max(audio):.3f}]")
         
         # Save to temporary file
         temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.wav')
         try:
-            sf.write(temp_file.name, audio, sample_rate)
+            # Use soundfile with explicit format
+            sf.write(temp_file.name, audio, sample_rate, format='WAV', subtype='PCM_16')
+            total_elapsed = time.time() - synthesis_start
             print(f"[Chatterbox] ✅ Audio saved to {temp_file.name} ({len(audio)/sample_rate:.2f}s)")
+            print(f"[Chatterbox] ⏱️  Total synthesis time: {total_elapsed:.2f} seconds")
             
             return send_file(
                 temp_file.name,
@@ -656,28 +718,25 @@ if __name__ == '__main__':
             traceback.print_exc()
             sys.exit(1)
         
-        # Try to import Chatterbox at startup (non-blocking - Flask will start anyway)
-        print("[Chatterbox] 🔍 Pre-loading ChatterboxTTS in background thread (non-blocking)...", flush=True)
+        # Pre-load ChatterboxTTS at startup (blocking - ensures model is ready)
+        # This prevents the 446s delay on first request
+        print("[Chatterbox] 🔍 Pre-loading ChatterboxTTS at startup...", flush=True)
+        print("[Chatterbox] ⏳ This will take 1-5 minutes but ensures fast synthesis requests...", flush=True)
         
-        def preload_chatterbox():
-            """Pre-load ChatterboxTTS in background thread"""
-            try:
-                import time
-                time.sleep(2)  # Give Flask a moment to start
-                print("[Chatterbox] 🔄 Background thread: Starting ChatterboxTTS initialization...", flush=True)
-                get_chatterbox_tts()
-                print("[Chatterbox] ✅ Background thread: ChatterboxTTS pre-loaded successfully", flush=True)
-            except Exception as e:
-                print(f"[Chatterbox] ⚠️ Background thread: Pre-loading failed (will retry on first request): {e}", flush=True)
-                import traceback
-                traceback.print_exc()
-                print("[Chatterbox] 💡 Container will start but synthesis may fail until Chatterbox loads", flush=True)
-        
-        # Start pre-loading in background thread
-        import threading
-        preload_thread = threading.Thread(target=preload_chatterbox, daemon=True)
-        preload_thread.start()
-        print("[Chatterbox] ✅ Background pre-loading thread started - Flask will start immediately", flush=True)
+        try:
+            import time
+            preload_start = time.time()
+            print("[Chatterbox] 🔄 Starting ChatterboxTTS initialization...", flush=True)
+            get_chatterbox_tts()
+            preload_elapsed = time.time() - preload_start
+            print(f"[Chatterbox] ✅ ChatterboxTTS pre-loaded successfully (took {preload_elapsed:.1f} seconds)", flush=True)
+            print("[Chatterbox] ✅ Model is ready - synthesis requests will be fast now", flush=True)
+        except Exception as e:
+            print(f"[Chatterbox] ⚠️ Pre-loading failed: {e}", flush=True)
+            import traceback
+            traceback.print_exc()
+            print("[Chatterbox] 💡 Container will start but synthesis will be slow on first request", flush=True)
+            print("[Chatterbox] 💡 Model will load on first synthesis request", flush=True)
         
         print("[Chatterbox] 🌐 Starting Flask server on 0.0.0.0:11437...", flush=True)
         print("[Chatterbox] ✅ Flask server is running - ready for requests", flush=True)

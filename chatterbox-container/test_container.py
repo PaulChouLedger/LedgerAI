@@ -35,10 +35,14 @@ def test_health():
         print(f"❌ Error: {e}")
         return False
 
-def test_synthesize(text="Hello, this is a test of Chatterbox TTS.", voice_sample=None):
+def test_synthesize(text="Hello, this is a test of Chatterbox TTS.", voice_sample=None, output_name="test_output.wav"):
     """Test synthesis endpoint"""
     print(f"\nTesting synthesis endpoint...")
-    print(f"   Text: '{text}'")
+    text_preview = text[:80] + "..." if len(text) > 80 else text
+    print(f"   Text: '{text_preview}'")
+    
+    import time
+    start_time = time.time()
     
     try:
         payload = {
@@ -48,34 +52,72 @@ def test_synthesize(text="Hello, this is a test of Chatterbox TTS.", voice_sampl
         if voice_sample:
             payload["voice_sample"] = voice_sample
         
+        # Use longer timeout for first request (model might still be loading)
+        timeout = 600 if not voice_sample else 120  # 10 min for first, 2 min for voice cloning
+        
         response = requests.post(
             f"{CHATTERBOX_URL}/synthesize",
             json=payload,
-            timeout=60
+            timeout=timeout
         )
+        
+        elapsed = time.time() - start_time
         
         if response.status_code == 200:
             # Save audio file
-            output_file = "test_output.wav"
+            output_file = output_name
             with open(output_file, 'wb') as f:
                 f.write(response.content)
+            
+            # Validate audio file
+            file_size = len(response.content)
+            file_size_kb = file_size / 1024
+            
+            # Try to read audio file to validate it
+            try:
+                import soundfile as sf
+                with sf.SoundFile(output_file) as f:
+                    duration = len(f) / f.samplerate
+                    sample_rate = f.samplerate
+                    channels = f.channels
+                audio_valid = True
+            except Exception as e:
+                audio_valid = False
+                duration = None
+                sample_rate = None
+                channels = None
+            
             print(f"✅ Synthesis successful")
             print(f"   Audio saved to: {output_file}")
-            print(f"   File size: {len(response.content)} bytes")
-            return True
+            print(f"   File size: {file_size:,} bytes ({file_size_kb:.1f} KB)")
+            print(f"   Latency: {elapsed:.2f} seconds")
+            if audio_valid:
+                print(f"   Audio valid: {duration:.2f}s, {sample_rate}Hz, {channels} channel(s)")
+            else:
+                print(f"   ⚠️  Audio file may be corrupted (could not read)")
+            return True, elapsed
         else:
+            elapsed = time.time() - start_time
             print(f"❌ Synthesis failed: HTTP {response.status_code}")
+            print(f"   Latency: {elapsed:.2f} seconds")
             try:
                 error_data = response.json()
                 print(f"   Error: {error_data.get('error')}")
             except:
                 print(f"   Response: {response.text[:200]}")
-            return False
+            return False, elapsed
+    except requests.exceptions.Timeout:
+        elapsed = time.time() - start_time
+        print(f"❌ Synthesis timed out after {elapsed:.2f} seconds")
+        print(f"   This may indicate the model is still loading or using CPU (very slow)")
+        return False, elapsed
     except Exception as e:
+        elapsed = time.time() - start_time
         print(f"❌ Error: {e}")
+        print(f"   Latency: {elapsed:.2f} seconds")
         import traceback
         traceback.print_exc()
-        return False
+        return False, elapsed
 
 def test_voice_embedding(voice_sample_path):
     """Test voice embedding extraction"""
@@ -133,19 +175,29 @@ def main():
         sys.exit(1)
     
     # Test synthesis
-    if not test_synthesize():
+    success, latency = test_synthesize("Hello, this is a test of the Chatterbox TTS container....", output_name="test_output_basic_synthesis.wav")
+    if not success:
         print("\n❌ Synthesis test failed")
         sys.exit(1)
+    
+    latencies = [latency]
     
     # Test with voice cloning if sample exists
     workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
     voice_sample = os.path.join(workspace_root, "assets", "voice_samples", "sample.wav")
     if os.path.exists(voice_sample):
         test_voice_embedding(voice_sample)
-        test_synthesize("Hello, this is a test with voice cloning.", "sample.wav")
+        success, latency = test_synthesize("Hello, this is a test with voice cloning enabled....", "sample.wav", output_name="test_output_voice_cloning_synthesis.wav")
+        if success:
+            latencies.append(latency)
     else:
         print(f"\n⚠️  Voice sample not found at: {voice_sample}")
         print(f"   Skipping voice cloning tests")
+    
+    # Print summary
+    if latencies:
+        avg_latency = sum(latencies) / len(latencies)
+        print(f"\n⏱️  Average latency: {avg_latency:.2f} seconds")
     
     print("\n" + "=" * 60)
     print("  ✅ All tests passed!")
