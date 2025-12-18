@@ -1,377 +1,400 @@
-# ChatterboxTTS Voice Cloning Guide
+# Chatterbox Voice Cloning Guide
 
-This guide explains how to clone a voice for ChatterboxTTS using samples from ElevenLabs or other sources.
+## Ideal Voice Sample Requirements
 
-## Overview
+For **zero-shot voice cloning** (what we use), Chatterbox TTS requires:
 
-ChatterboxTTS supports **zero-shot voice cloning** using a reference audio sample. This allows you to:
-- Clone voices from ElevenLabs samples
-- Use your own voice recordings
-- Create custom voices for AuraVision
+### Minimum Requirements
+- **Duration:** At least **5 seconds** of clear speech
+- **Format:** WAV, MP3, OGG, or M4A (WAV preferred)
+- **Sample Rate:** 16kHz, 22.05kHz, or 44.1kHz
+- **Quality:** Clean audio with minimal background noise
 
-### How Voice Cloning Works
+### Recommended Specifications
+- **Duration:** **10-30 seconds** (more is better, but 5s minimum)
+- **Format:** **WAV** (uncompressed, best quality)
+- **Sample Rate:** **16kHz or 22.05kHz** (matches TTS output)
+- **Channels:** **Mono** (single channel)
+- **Bit Depth:** 16-bit or 24-bit
 
-**Key Points:**
-- ✅ **No model training required** - ChatterboxTTS uses zero-shot cloning
-- ✅ **Real-time processing** - Voice is cloned on-the-fly from the reference sample
-- ⚠️ **Latency trade-off** - Voice cloning adds ~50-100ms latency vs default voice
-- ✅ **Sub-200ms total latency** - Even with cloning, ChatterboxTTS maintains low latency
+### Content Guidelines
+- **Clear speech:** Natural, conversational tone
+- **No background noise:** Record in quiet environment
+- **No music or effects:** Pure voice only
+- **Variety:** Include different phonemes and intonations
+- **Natural pacing:** Not too fast, not too slow
 
-**How it works:**
-1. You provide a reference audio sample (5+ seconds)
-2. ChatterboxTTS processes the sample in real-time (no pre-training)
-3. The voice characteristics are extracted and applied to new text
-4. Speech is generated with the cloned voice characteristics
+## Recording the Ideal Sample
 
-**Latency:**
-- Default voice (no cloning): ~100-150ms
-- With voice cloning: ~150-250ms (adds ~50-100ms overhead)
-- Still faster than ElevenLabs API calls (which require internet)
+### Option 1: Record with Your Microphone
 
-## Requirements
-
-1. **Audio Sample Requirements:**
-   - Format: WAV file (recommended) or MP3
-   - Duration: At least 5 seconds of clear speech
-   - Quality: High quality, minimal background noise
-   - Content: Natural speech (not singing or distorted audio)
-
-2. **ChatterboxTTS Installation:**
-   ```bash
-   # Install setuptools first (fixes distutils compatibility)
-   pip install setuptools
-   
-   # Then install chatterbox-tts
-   pip install chatterbox-tts
-   ```
-   
-   **If installation fails:** See [CHATTERBOX_INSTALLATION_FIX.md](CHATTERBOX_INSTALLATION_FIX.md) for troubleshooting.
-
-## Method 1: Using ElevenLabs Samples
-
-> **Quick start:** See [USING_ELEVENLABS_SAMPLES.md](USING_ELEVENLABS_SAMPLES.md) for the recommended approach using the generation script.
-
-### Step 1: Generate Voice Sample from ElevenLabs
-
-1. **Using ElevenLabs API:**
-   ```python
-   from elevenlabs.client import ElevenLabs
-   from pydub import AudioSegment
-   from io import BytesIO
-   import os
-   
-   # Initialize ElevenLabs client
-   client = ElevenLabs(api_key=YOUR_API_KEY)
-   
-   # Generate a sample (at least 5 seconds of text)
-   text = "Hello, this is a voice sample for ChatterboxTTS voice cloning. " \
-          "This sample should be at least five seconds long to work properly."
-   
-   # Generate audio
-   audio_stream = client.text_to_speech.convert(
-       voice_id=YOUR_VOICE_ID,
-       text=text,
-       output_format="mp3_44100_128"
-   )
-   
-   # Save as WAV
-   audio_bytes = b"".join(audio_stream)
-   audio = AudioSegment.from_mp3(BytesIO(audio_bytes))
-   
-   # Save to voice samples directory
-   output_path = "assets/voice_samples/elevenlabs_clone.wav"
-   os.makedirs(os.path.dirname(output_path), exist_ok=True)
-   audio.export(output_path, format="wav")
-   print(f"✅ Voice sample saved to: {output_path}")
-   ```
-
-2. **Using ElevenLabs Web Interface:**
-   - Go to https://elevenlabs.io
-   - Select your voice
-   - Generate a sample with at least 5 seconds of text
-   - Download as WAV or MP3
-   - Convert to WAV if needed: `ffmpeg -i input.mp3 output.wav`
-
-### Step 2: Place Sample in Correct Location
-
-Place your voice sample in one of these locations:
-
-1. **Default location (recommended):**
-   ```
-   assets/voice_samples/sample.wav
-   ```
-
-2. **Custom location:**
-   - Set `CHATTERBOX_VOICE_SAMPLE` in your `.env` file:
-     ```
-     CHATTERBOX_VOICE_SAMPLE=/path/to/your/voice_sample.wav
-     ```
-
-### Step 3: Verify Voice Cloning
-
-1. **Enable ChatterboxTTS:**
-   - Open Settings → TTS Engine → Toggle to "Chatterbox"
-
-2. **Test the voice:**
-   - Ask AuraVision a question
-   - The response should use the cloned voice from your sample
-
-## Method 2: Using Your Own Voice Recording
-
-### Recording Tips
-
-1. **Environment:**
-   - Quiet room with minimal background noise
-   - Use a good quality microphone
-   - Record at 44.1kHz or 48kHz sample rate
-
-2. **Content:**
-   - Speak naturally and clearly
-   - Include varied intonation
-   - At least 5-10 seconds of speech
-   - Avoid background music or effects
-
-3. **Processing:**
-   ```bash
-   # Convert to WAV if needed
-   ffmpeg -i input.mp3 -ar 44100 -ac 1 output.wav
-   
-   # Normalize audio levels
-   ffmpeg -i input.wav -af "loudnorm=I=-16:TP=-1.5:LRA=11" output.wav
-   ```
-
-### Place Recording
-
-Save your recording to:
-```
-assets/voice_samples/my_voice.wav
-```
-
-Then set in `.env`:
-```
-CHATTERBOX_VOICE_SAMPLE=assets/voice_samples/my_voice.wav
-```
-
-## Configuration
-
-### Environment Variables
-
-Add to your `.env` file:
+Use the XVF3800 microphone array to record a high-quality sample:
 
 ```bash
-# Optional: Path to voice cloning sample
-CHATTERBOX_VOICE_SAMPLE=assets/voice_samples/sample.wav
+# Record a 10-15 second sample
+cd ~/LedgerAI
+python3 -c "
+import sounddevice as sd
+import soundfile as sf
+import numpy as np
+
+# Find XVF3800 device
+devices = sd.query_devices()
+device_idx = None
+for i, d in enumerate(devices):
+    if 'XVF3800' in d['name']:
+        device_idx = i
+        print(f'Found: {d[\"name\"]} (index {i})')
+        break
+
+if device_idx is None:
+    print('XVF3800 not found')
+    exit(1)
+
+# Record 15 seconds at 16kHz, mono
+print('Recording 15 seconds... Speak clearly!')
+audio = sd.rec(int(15 * 16000), samplerate=16000, channels=1, device=device_idx)
+sd.wait()
+
+# Save as WAV
+sf.write('assets/voice_samples/voice_clone_sample.wav', audio, 16000)
+print('✅ Saved to assets/voice_samples/voice_clone_sample.wav')
+"
 ```
 
-### Voice Cloning Toggle
+### Option 2: Use Existing High-Quality Recording
 
-Voice cloning can be enabled/disabled in settings:
-- **Enabled (default)**: Uses voice sample for cloning (adds ~50-100ms latency)
-- **Disabled**: Uses ChatterboxTTS default voice (lower latency)
+If you have a professional recording:
 
-**To toggle:**
-- Settings → TTS Engine → Voice Cloning toggle (when ChatterboxTTS is enabled)
-- Or programmatically via `state.set_chatterbox_voice_cloning_enabled(False)`
+```bash
+# Convert to proper format if needed
+ffmpeg -i input.wav \
+  -ar 16000 \          # Resample to 16kHz
+  -ac 1 \              # Convert to mono
+  -sample_fmt s16 \    # 16-bit
+  assets/voice_samples/voice_clone_sample.wav
+```
 
-### Default Behavior
+### Option 3: Extract from Existing Audio
 
-- If `CHATTERBOX_VOICE_SAMPLE` is not set, ChatterboxTTS checks for:
-  - `assets/voice_samples/sample.wav` (default location)
-- If no sample is found, ChatterboxTTS uses its default voice
-- Voice cloning is automatically enabled when a valid sample is found AND cloning is enabled
-- You can disable voice cloning for lower latency even if a sample exists
+Extract a clean segment from existing audio:
 
-## Troubleshooting
+```bash
+# Extract 10 seconds starting at 5 seconds
+ffmpeg -i assets/voice_samples/sample.wav \
+  -ss 5 -t 10 \        # Start at 5s, duration 10s
+  -ar 16000 \
+  -ac 1 \
+  assets/voice_samples/voice_clone_sample.wav
+```
 
-### Voice Cloning Not Working
+## Sample Scripts
 
-1. **Check file path:**
-   ```python
-   import os
-   print(f"Sample exists: {os.path.exists('assets/voice_samples/sample.wav')}")
-   ```
+### Script 1: Record Voice Clone Sample
 
-2. **Verify audio format:**
-   - Must be WAV format
-   - Sample rate: 16kHz, 22.05kHz, 44.1kHz, or 48kHz
-   - Channels: Mono or Stereo (will be converted automatically)
-
-3. **Check audio duration:**
-   - Minimum 5 seconds required
-   - Longer samples (10-30 seconds) work better
-
-4. **Check logs:**
-   - Look for `[Speaker] 🎭 Using voice cloning from: ...` in logs
-   - If you see `⚠️ Voice cloning not available`, the API may not support it
-
-### Improving Voice Quality
-
-1. **Better source audio:**
-   - Use high-quality recordings
-   - Ensure clear speech without distortion
-   - Remove background noise
-
-2. **Longer samples:**
-   - 10-30 seconds work better than minimum 5 seconds
-   - Include varied speech patterns
-
-3. **Multiple samples:**
-   - Currently supports single sample
-   - Future versions may support multiple samples
-
-## Advanced Usage
-
-### Programmatic Voice Cloning
-
-You can also clone voices programmatically:
+Create `setup/scripts/record_voice_clone_sample.py`:
 
 ```python
-from chatterbox import ChatterboxTTS
-import torchaudio as ta
+#!/usr/bin/env python3
+"""
+Record a voice cloning sample for Chatterbox TTS
+Records 10-15 seconds of clear speech
+"""
+import sounddevice as sd
+import soundfile as sf
+import numpy as np
+import sys
+import os
 
-# Initialize model
-model = ChatterboxTTS.from_pretrained(
-    device="cuda" if torch.cuda.is_available() else "cpu"
-)
+# Add workspace root to path
+workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+sys.path.insert(0, workspace_root)
 
-# Generate with voice cloning
-text = "Hello, this is a test of voice cloning."
-audio_prompt = "assets/voice_samples/sample.wav"
+SAMPLE_RATE = 16000
+DURATION = 15  # seconds
+OUTPUT_FILE = os.path.join(workspace_root, "assets", "voice_samples", "voice_clone_sample.wav")
 
-wav = model.generate(
-    text,
-    audio_prompt_path=audio_prompt,
-    exaggeration=0.6  # Emotion intensity: 0.3 (monotone) to 0.7 (expressive)
-)
+def find_xvf3800():
+    """Find XVF3800 device"""
+    devices = sd.query_devices()
+    for i, d in enumerate(devices):
+        if 'XVF3800' in d['name']:
+            return i, d['name']
+    return None, None
 
-# Save output
-ta.save("output.wav", wav.squeeze(0).cpu(), model.sr)
+def main():
+    print("=" * 70)
+    print("  Chatterbox Voice Cloning Sample Recorder")
+    print("=" * 70)
+    print()
+    
+    # Find device
+    device_idx, device_name = find_xvf3800()
+    if device_idx is None:
+        print("❌ XVF3800 microphone not found")
+        print("   Available devices:")
+        for i, d in enumerate(sd.query_devices()):
+            print(f"   {i}: {d['name']}")
+        return
+    
+    print(f"✅ Found microphone: {device_name} (index {device_idx})")
+    print()
+    print("📝 Instructions:")
+    print("   1. Speak clearly and naturally")
+    print("   2. Include variety: different words, intonations")
+    print("   3. Avoid background noise")
+    print("   4. Duration: 10-15 seconds")
+    print()
+    print("💡 Suggested script:")
+    print("   'Hello, my name is [Your Name]. I'm recording this sample")
+    print("   for voice cloning. This audio will be used to create")
+    print("   a personalized text-to-speech voice that sounds like me.'")
+    print()
+    
+    input("Press ENTER when ready to record...")
+    
+    print()
+    print("🎤 Recording 15 seconds...")
+    print("   (Speak now!)")
+    print()
+    
+    try:
+        # Record
+        audio = sd.rec(
+            int(DURATION * SAMPLE_RATE),
+            samplerate=SAMPLE_RATE,
+            channels=1,
+            device=device_idx,
+            dtype='float32'
+        )
+        sd.wait()
+        
+        # Check if we got audio
+        if np.max(np.abs(audio)) < 0.01:
+            print("⚠️  Audio level very low - check microphone")
+            return
+        
+        # Normalize (but don't clip)
+        max_val = np.max(np.abs(audio))
+        if max_val > 0.95:
+            print(f"⚠️  Audio may be clipping (max: {max_val:.3f})")
+        else:
+            # Normalize to 90% to avoid clipping
+            audio = audio / max_val * 0.9
+        
+        # Save
+        os.makedirs(os.path.dirname(OUTPUT_FILE), exist_ok=True)
+        sf.write(OUTPUT_FILE, audio, SAMPLE_RATE)
+        
+        # Get file info
+        file_size = os.path.getsize(OUTPUT_FILE)
+        duration = len(audio) / SAMPLE_RATE
+        
+        print()
+        print("=" * 70)
+        print("✅ Recording saved!")
+        print("=" * 70)
+        print(f"   File: {OUTPUT_FILE}")
+        print(f"   Duration: {duration:.2f} seconds")
+        print(f"   Size: {file_size / 1024:.1f} KB")
+        print(f"   Sample Rate: {SAMPLE_RATE} Hz")
+        print(f"   Channels: Mono")
+        print()
+        print("💡 Next steps:")
+        print(f"   1. Test: python3 chatterbox-container/test_container.py")
+        print(f"   2. Set in .env: CHATTERBOX_VOICE_SAMPLE={OUTPUT_FILE}")
+        print(f"   3. Or use default location: assets/voice_samples/voice_clone_sample.wav")
+        print()
+        
+    except KeyboardInterrupt:
+        print("\n⚠️  Recording cancelled")
+    except Exception as e:
+        print(f"\n❌ Error: {e}")
+        import traceback
+        traceback.print_exc()
+
+if __name__ == '__main__':
+    main()
 ```
 
-### Emotion Control
+### Script 2: Validate Voice Sample
 
-The `exaggeration` parameter controls emotional intensity:
-- `0.3`: Monotone, neutral
-- `0.5`: Natural, balanced (default)
-- `0.6`: More expressive
-- `0.7`: Highly expressive
+Create `setup/scripts/validate_voice_sample.py`:
+
+```python
+#!/usr/bin/env python3
+"""
+Validate a voice cloning sample for Chatterbox TTS
+Checks duration, format, quality, etc.
+"""
+import soundfile as sf
+import numpy as np
+import sys
+import os
+
+def validate_sample(file_path):
+    """Validate voice cloning sample"""
+    print("=" * 70)
+    print("  Voice Sample Validation")
+    print("=" * 70)
+    print()
+    
+    if not os.path.exists(file_path):
+        print(f"❌ File not found: {file_path}")
+        return False
+    
+    try:
+        # Read audio file
+        audio, sample_rate = sf.read(file_path)
+        
+        # Get file info
+        file_size = os.path.getsize(file_path)
+        duration = len(audio) / sample_rate
+        
+        # Check channels
+        if len(audio.shape) > 1:
+            channels = audio.shape[1]
+            # Convert to mono if stereo
+            if channels > 1:
+                audio = np.mean(audio, axis=1)
+                print("⚠️  Stereo detected - will use mono conversion")
+        else:
+            channels = 1
+        
+        print(f"📄 File: {file_path}")
+        print(f"   Size: {file_size / 1024:.1f} KB")
+        print(f"   Duration: {duration:.2f} seconds")
+        print(f"   Sample Rate: {sample_rate} Hz")
+        print(f"   Channels: {channels}")
+        print()
+        
+        # Validate requirements
+        checks = []
+        
+        # Duration check
+        if duration >= 5:
+            print(f"✅ Duration: {duration:.2f}s (>= 5s minimum)")
+            checks.append(True)
+        else:
+            print(f"❌ Duration: {duration:.2f}s (need >= 5s)")
+            checks.append(False)
+        
+        # Sample rate check
+        valid_rates = [16000, 22050, 44100, 48000]
+        if sample_rate in valid_rates:
+            print(f"✅ Sample Rate: {sample_rate} Hz (supported)")
+            checks.append(True)
+        else:
+            print(f"⚠️  Sample Rate: {sample_rate} Hz (recommended: 16kHz, 22.05kHz, or 44.1kHz)")
+            checks.append(True)  # Not critical, will be resampled
+        
+        # Audio level check
+        max_amplitude = np.max(np.abs(audio))
+        if max_amplitude > 0.01:
+            print(f"✅ Audio Level: {max_amplitude:.3f} (has signal)")
+            checks.append(True)
+        else:
+            print(f"❌ Audio Level: {max_amplitude:.3f} (too quiet!)")
+            checks.append(False)
+        
+        if max_amplitude > 0.95:
+            print(f"⚠️  Warning: Audio may be clipping (max: {max_amplitude:.3f})")
+        
+        # Noise check (simple RMS check)
+        rms = np.sqrt(np.mean(audio**2))
+        if rms > 0.05:
+            print(f"✅ RMS Level: {rms:.3f} (good signal level)")
+        elif rms > 0.01:
+            print(f"⚠️  RMS Level: {rms:.3f} (acceptable but quiet)")
+        else:
+            print(f"❌ RMS Level: {rms:.3f} (too quiet, may be noise)")
+        
+        print()
+        print("=" * 70)
+        if all(checks):
+            print("✅ Sample is VALID for voice cloning!")
+            print("=" * 70)
+            return True
+        else:
+            print("⚠️  Sample has issues - may not work well")
+            print("=" * 70)
+            return False
+            
+    except Exception as e:
+        print(f"❌ Error reading file: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+if __name__ == '__main__':
+    if len(sys.argv) < 2:
+        # Default to sample.wav
+        workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+        file_path = os.path.join(workspace_root, "assets", "voice_samples", "sample.wav")
+    else:
+        file_path = sys.argv[1]
+    
+    validate_sample(file_path)
+```
+
+## Current Samples
+
+Your current samples in `assets/voice_samples/`:
+- `sample.wav` - Default sample (check duration/quality)
+- `audio1.wav`, `startup.wav`, etc. - Various samples
+
+## Recommended Approach
+
+1. **Check existing samples:**
+   ```bash
+   python3 setup/scripts/validate_voice_sample.py assets/voice_samples/sample.wav
+   ```
+
+2. **Record a new ideal sample:**
+   ```bash
+   python3 setup/scripts/record_voice_clone_sample.py
+   ```
+
+3. **Use the best sample:**
+   - Set in `.env`: `CHATTERBOX_VOICE_SAMPLE=assets/voice_samples/voice_clone_sample.wav`
+   - Or replace `sample.wav` with your ideal sample
 
 ## Best Practices
 
-1. **Sample Quality:**
-   - Use the highest quality source audio available
-   - Prefer WAV over MP3 for better quality
-   - Normalize audio levels before using
+1. **Record in quiet environment** - Minimize background noise
+2. **Use good microphone** - XVF3800 is excellent for this
+3. **Speak naturally** - Don't over-enunciate or speak too slowly
+4. **Include variety** - Different words, sentences, intonations
+5. **10-15 seconds ideal** - More than minimum, but not too long
+6. **Test the sample** - Use `test_container.py` to verify it works
 
-2. **Sample Length:**
-   - 10-20 seconds is optimal
-   - Too short (<5s): May not clone well
-   - Too long (>60s): Unnecessary, may slow processing
-
-3. **Content Selection:**
-   - Use natural conversational speech
-   - Include varied intonation and emotion
-   - Avoid technical jargon or unusual pronunciations
-
-4. **Testing:**
-   - Test with various text types
-   - Compare with original ElevenLabs voice
-   - Adjust if quality doesn't match expectations
-
-## Example: Complete Workflow
+## Testing Your Sample
 
 ```bash
-# 1. Generate sample from ElevenLabs
-python setup/scripts/generate_cached_prompts.py
+# Test with the container
+cd chatterbox-container
+python3 test_container.py
 
-# 2. Or download from ElevenLabs web interface
-# Save to: assets/voice_samples/elevenlabs_clone.wav
+# Or test manually
+curl -X POST http://localhost:11437/synthesize \
+  -H "Content-Type: application/json" \
+  -d '{
+    "text": "Hello, this is a test of voice cloning",
+    "voice_sample": "voice_clone_sample.wav",
+    "exaggeration": 0.6
+  }' \
+  --output test_cloned.wav
 
-# 3. Configure in .env (optional if using default location)
-echo "CHATTERBOX_VOICE_SAMPLE=assets/voice_samples/elevenlabs_clone.wav" >> .env
-
-# 4. Enable ChatterboxTTS in Settings
-# Settings → TTS Engine → Toggle to "Chatterbox"
-
-# 5. Test voice cloning
-# Ask AuraVision a question and verify the voice matches your sample
+aplay test_cloned.wav
 ```
 
-## Latency Comparison
+## Summary
 
-### TTS Engine Latency Breakdown
+**Ideal Sample:**
+- ✅ **10-15 seconds** of clear speech
+- ✅ **WAV format**, 16kHz, mono
+- ✅ **Clean audio** (no background noise)
+- ✅ **Natural speech** (variety of words/intonations)
+- ✅ **Good audio levels** (not too quiet, not clipping)
 
-| Engine | Mode | Latency | Notes |
-|--------|------|---------|-------|
-| **ChatterboxTTS** | Default voice | ~100-150ms | Fastest, no internet needed |
-| **ChatterboxTTS** | Cached voice embedding | ~100-150ms | **Same as default!** Pre-processed once |
-| **ChatterboxTTS** | Real-time voice cloning | ~150-250ms | Adds ~50-100ms for real-time processing |
-| **ElevenLabs** | Cloud API | ~200-500ms | Network latency + API processing |
-
-**Speed Comparison:**
-- ChatterboxTTS (Cached) is **2-5x faster** than ElevenLabs
-- ChatterboxTTS (Real-time) is **1.5-3x faster** than ElevenLabs
-- See [TTS_LATENCY_COMPARISON.md](TTS_LATENCY_COMPARISON.md) for detailed analysis
-
-**Key Insight:** When voice embedding caching is available, cloned voices have **the same latency as the default voice** (~100-150ms) because the voice characteristics are pre-processed and cached. Only real-time cloning (when caching isn't available) adds latency.
-
-### Voice Embedding Caching (Reduces Latency!)
-
-**Good News:** The system automatically caches voice embeddings to eliminate real-time processing overhead!
-
-**How it works:**
-1. **First use:** Voice sample is processed once and voice embedding is extracted (~50-100ms overhead)
-2. **Caching:** Voice embedding is saved to disk (`data/voice_cache/`)
-3. **Subsequent uses:** Cached embedding is loaded instantly (no processing overhead)
-4. **Result:** Cloned voice has **same latency as default voice** (~100-150ms)
-
-**Cache invalidation:**
-- Cache is automatically invalidated if the voice sample file changes
-- Cache key is based on file path, modification time, and file size
-- Old caches are automatically replaced when voice sample is updated
-
-### Why Real-Time Cloning Adds Latency
-
-When voice embedding caching is **not available** (e.g., API doesn't support it), real-time cloning requires:
-1. Loading and processing the reference audio sample each time
-2. Extracting voice characteristics from the sample
-3. Applying those characteristics during synthesis
-
-This adds approximately **50-100ms** compared to using the default voice or cached embedding.
-
-### When to Use Voice Cloning
-
-**Enable voice cloning when:**
-- ✅ You want a specific voice (e.g., cloned from ElevenLabs)
-- ✅ Voice quality/identity is more important than absolute lowest latency
-- ✅ You're okay with ~150-250ms total latency
-
-**Disable voice cloning when:**
-- ✅ You want the lowest possible latency (~100-150ms)
-- ✅ Default ChatterboxTTS voice is acceptable
-- ✅ You're prioritizing speed over voice customization
-
-### Performance Tips
-
-1. **For lowest latency:** Disable voice cloning, use ChatterboxTTS default voice
-2. **For best voice quality:** Enable voice cloning with a high-quality 10-20 second sample
-3. **Balance:** Use voice cloning but keep sample file small (<5MB) for faster loading
-
-## Notes
-
-- Voice cloning requires ChatterboxTTS to be enabled (not ElevenLabs)
-- Voice cloning can be toggled on/off in Settings (when ChatterboxTTS is enabled)
-- The cloned voice is used for all TTS output when enabled
-- Voice cloning adds ~50-100ms latency vs default voice
-- Quality depends on source audio quality and sample length
-- Zero-shot cloning means no model training needed - it's real-time
-- Some ChatterboxTTS versions may have different APIs - check the library documentation
-
-## Support
-
-For issues or questions:
-1. Check ChatterboxTTS documentation: https://github.com/resemble-ai/chatterbox
-2. Verify your audio sample meets requirements
-3. Check application logs for error messages
-4. Ensure ChatterboxTTS is properly installed: `pip install chatterbox-tts`
-
+The code says "at least 5 seconds" but **10-15 seconds is ideal** for better voice cloning quality.
