@@ -40,36 +40,64 @@ Return a JSON object with this structure:
   "chunks_used": [1, 2, ...]  // Which chunks contained the information
 }
 
-CRITICAL RULES:
+CRITICAL RULE #1: EXTRACT ALL ITEMS - PARTIAL EXTRACTION IS WRONG
 - For queries asking for multiple items (plural forms like "who are the", "list the", "what are the"):
   * Extract ALL matching items from ALL chunks
   * Do NOT stop after finding the first match
   * Read every chunk completely before responding
   * Count items: if query asks for "co-founders" and you find 4, include all 4 in "items" array
-  
-- For entity/list queries: Use "answer_type": "entities" or "list", populate "items" array with ALL matches
-- For comparison/analytical/relationship/process queries: Use appropriate "answer_type", populate "text" with natural language answer
-- If no information found: Use "answer_type": "not_found", set "items": [] and "text": "I don't have that information in the provided documents"
+  * If you find 10 services, include all 10 - partial extraction is INCORRECT
 
-EXAMPLES:
+EXAMPLES OF CORRECT vs INCORRECT:
 
 Query: "who are the co-founders of TechCorp?"
-Expected JSON:
+WRONG (Partial Extraction - INCORRECT):
+{
+  "items": ["John Smith"]  // ❌ Only 1 of 4 co-founders - WRONG!
+}
+
+CORRECT (Complete Extraction):
 {
   "answer_type": "entities",
-  "items": ["John Smith", "Sarah Jones", "Mike Brown"],
+  "items": ["John Smith", "Sarah Jones", "Mike Brown", "Alice White"],  // ✅ All 4 co-founders
   "text": "",
   "chunks_used": [1, 2, 3]
 }
 
 Query: "list the features of ProductX"
-Expected JSON:
+WRONG (Partial Extraction - INCORRECT):
+{
+  "items": ["feature1", "feature2"]  // ❌ Only 2 of 5 features - WRONG!
+}
+
+CORRECT (Complete Extraction):
 {
   "answer_type": "list",
-  "items": ["feature1", "feature2", "feature3", "feature4"],
+  "items": ["feature1", "feature2", "feature3", "feature4", "feature5"],  // ✅ All 5 features
   "text": "",
   "chunks_used": [1, 3, 4]
 }
+
+CRITICAL RULE #2: ANSWER TYPE SELECTION
+Match the query pattern to determine answer_type:
+
+- "how are X and Y related?" → answer_type: "relationship"
+- "what is the connection between X and Y?" → answer_type: "relationship"
+- "why did X [action]?" → answer_type: "analytical"
+- "what caused X to [action]?" → answer_type: "analytical"
+- "what is the difference between X and Y?" → answer_type: "comparison"
+- "compare X and Y" → answer_type: "comparison"
+- "how does [process] work?" → answer_type: "process"
+- "what is the process for X?" → answer_type: "process"
+- "who are the [role] of X?" → answer_type: "entities"
+- "list the [items] of X" → answer_type: "list"
+
+CRITICAL RULE #3: ROLE FILTERING
+- If query asks for "co-founders", extract ONLY people labeled as "Co-Founder"
+- Do NOT include CEOs, CTOs, or other roles even if they're at the same company
+- Exact role match required: "co-founders" ≠ "CEO" ≠ "CTO"
+
+EXAMPLES:
 
 Query: "what is the difference between CompanyA and CompanyB?"
 Expected JSON:
@@ -91,9 +119,10 @@ Expected JSON:
 
 IMPORTANT:
 - Output ONLY valid JSON - no explanation, no markdown, no code blocks
-- Extract ALL items - partial extraction is incorrect
-- Read ALL chunks before responding
-- Use exact information from chunks - never modify or infer"""
+- Extract ALL items - partial extraction is incorrect and will be penalized
+- Read ALL chunks before responding - don't stop after first chunk
+- Use exact information from chunks - never modify or infer
+- Match answer_type to query pattern - don't default to "comparison""""
 
 # ============================================================================
 # Realistic Content Generation (same as v2)
@@ -562,7 +591,8 @@ def generate_example(pattern_type: str) -> Dict[str, Any]:
         chunks_used = []  # Already cleared above, but ensure it's empty
     
     if pattern_type == "multi_chunk" and query_type in ["entity", "list"]:
-        # FIXED: Scatter items across multiple chunks, ensuring ALL items are included
+        # CRITICAL FIX: Scatter items across multiple chunks, ensuring ALL items are included
+        # This forces model to read ALL chunks to get complete answer
         # Track which items have been added to chunks
         items_added_to_chunks = []
         
@@ -578,7 +608,7 @@ def generate_example(pattern_type: str) -> Dict[str, Any]:
                 # Use different role or different company to make them irrelevant
                 if random.random() < 0.5:
                     # Different role, same company (irrelevant)
-                    different_role = random.choice(["CEO", "CTO", "CFO", "VP", "Director"])
+                    different_role = random.choice(["CEO", "CTO", "CFO", "VP", "Director", "Head of Engineering"])
                     irrelevant_entities.append((irrelevant_name, different_role, company))
                 else:
                     # Same role, different company (irrelevant)
@@ -597,22 +627,39 @@ def generate_example(pattern_type: str) -> Dict[str, Any]:
                     irrelevant_item = f"{items} item {random.randint(100, 200)}"
                 irrelevant_entities.append((irrelevant_item, different_entity))
         
-        # Distribute relevant items across chunks (ensure ALL are included)
-        for i, chunk_idx in enumerate(range(num_chunks)):
-            chunk_relevant = []
+        # CRITICAL: Distribute relevant items across chunks - don't put all in first chunk
+        # This ensures model must read multiple chunks to get complete answer
+        # Minimum 2 chunks must have entities (forces multi-chunk reading)
+        if len(relevant_info) >= 2:
+            # Ensure at least 2 chunks get entities
+            chunks_with_entities = min(num_chunks, max(2, len(relevant_info)))
+            items_per_chunk = max(1, len(relevant_info) // chunks_with_entities)
             
-            # Calculate which items go in this chunk
-            if len(relevant_info) > 0:
-                # Distribute items evenly across chunks
-                items_per_chunk = max(1, (len(relevant_info) + num_chunks - 1) // num_chunks)  # Ceiling division
-                start_idx = i * items_per_chunk
-                end_idx = min(start_idx + items_per_chunk, len(relevant_info))
+            for i, chunk_idx in enumerate(range(num_chunks)):
+                chunk_relevant = []
                 
-                if start_idx < len(relevant_info):
-                    chunk_relevant = relevant_info[start_idx:end_idx]
+                # Calculate which items go in this chunk
+                if i < chunks_with_entities and len(relevant_info) > 0:
+                    start_idx = i * items_per_chunk
+                    end_idx = min(start_idx + items_per_chunk, len(relevant_info)) if i < chunks_with_entities - 1 else len(relevant_info)
+                    
+                    if start_idx < len(relevant_info):
+                        chunk_relevant = relevant_info[start_idx:end_idx]
+                        items_added_to_chunks.extend(chunk_relevant)
+                        if chunk_relevant:
+                            chunks_used.append(chunk_idx + 1)
+                else:
+                    # Later chunks may not have entities (but model should still check)
+                    chunk_relevant = []
+        else:
+            # Fallback: if only 1 entity, still distribute across 2 chunks to force reading
+            for i, chunk_idx in enumerate(range(min(2, num_chunks))):
+                if i == 0 and len(relevant_info) > 0:
+                    chunk_relevant = relevant_info[:1]
                     items_added_to_chunks.extend(chunk_relevant)
-                    if chunk_relevant:
-                        chunks_used.append(chunk_idx + 1)
+                    chunks_used.append(chunk_idx + 1)
+                else:
+                    chunk_relevant = []
             
             # Add irrelevant entities/items to this chunk (teach filtering)
             chunk_irrelevant_sentences = [generate_contextual_sentence() for _ in range(3)]  # Fewer generic sentences
@@ -765,10 +812,10 @@ def main():
     print("✅ Post-processing can convert JSON to natural language")
     print()
     
-    # Pattern distribution (same as v2)
+    # Pattern distribution (ENHANCED for better multi-entity extraction)
     patterns = {
         "mixed_content": 700,
-        "multi_chunk": 1500,       # Emphasize multi-entity extraction
+        "multi_chunk": 2500,       # INCREASED from 1500 - emphasize multi-entity extraction (40% more)
         "role_filtering": 1200,    # Emphasize entity list queries
         "cross_entity": 800,
         "synthesis": 550,

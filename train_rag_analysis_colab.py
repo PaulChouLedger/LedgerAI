@@ -61,21 +61,52 @@ from transformers import TrainingArguments, TrainerCallback
 
 MODEL_NAME = "unsloth/Qwen2.5-1.5B-Instruct-bnb-4bit"  # Qwen 2.5 1.5B - better instruction following and reasoning
 
+# Get script directory for relative path resolution
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__)) if '__file__' in globals() else os.getcwd()
+
 # Dataset path (prefer JSON v3, fallback to v2, then v1)
-if os.path.exists("rag_analysis_dataset_v3_json.json"):
-    DATASET_PATH = "rag_analysis_dataset_v3_json.json"
-    print("✅ Using RAG analysis dataset v3 (JSON output format)")
-    JSON_OUTPUT_MODE = True
-elif os.path.exists("rag_analysis_dataset_v2.json"):
-    DATASET_PATH = "rag_analysis_dataset_v2.json"
-    print("✅ Using RAG analysis dataset v2 (natural language output)")
-    JSON_OUTPUT_MODE = False
-elif os.path.exists("rag_analysis_dataset.json"):
-    DATASET_PATH = "rag_analysis_dataset.json"
-    print("✅ Using RAG analysis dataset v1 (natural language output)")
-    JSON_OUTPUT_MODE = False
+# Check in script directory first, then current working directory
+dataset_candidates = [
+    ("rag_analysis_dataset_v3_json.json", True),
+    ("rag_analysis_dataset_v2.json", False),
+    ("rag_analysis_dataset.json", False),
+]
+
+DATASET_PATH = None
+JSON_OUTPUT_MODE = False
+
+for filename, is_json in dataset_candidates:
+    # Try script directory first
+    script_path = os.path.join(SCRIPT_DIR, filename)
+    cwd_path = filename
+    
+    if os.path.exists(script_path):
+        DATASET_PATH = script_path
+        JSON_OUTPUT_MODE = is_json
+        if filename == "rag_analysis_dataset_v3_json.json":
+            print("✅ Using RAG analysis dataset v3 (JSON output format)")
+        elif filename == "rag_analysis_dataset_v2.json":
+            print("✅ Using RAG analysis dataset v2 (natural language output)")
+        else:
+            print(f"✅ Using RAG analysis dataset v1 (natural language output)")
+        break
+    elif os.path.exists(cwd_path):
+        DATASET_PATH = cwd_path
+        JSON_OUTPUT_MODE = is_json
+        if filename == "rag_analysis_dataset_v3_json.json":
+            print("✅ Using RAG analysis dataset v3 (JSON output format)")
+        elif filename == "rag_analysis_dataset_v2.json":
+            print("✅ Using RAG analysis dataset v2 (natural language output)")
 else:
-    raise FileNotFoundError("No dataset found. Please run generate_rag_dataset_v3_json.py first.")
+            print(f"✅ Using RAG analysis dataset v1 (natural language output)")
+        break
+
+if DATASET_PATH is None:
+    raise FileNotFoundError(
+        f"No dataset found. Please run generate_rag_dataset_v3_json.py first.\n"
+        f"Checked in: {SCRIPT_DIR} and {os.getcwd()}\n"
+        f"Looking for: rag_analysis_dataset_v3_json.json, rag_analysis_dataset_v2.json, or rag_analysis_dataset.json"
+    )
 
 MAX_SEQ_LENGTH = 8192  # Increased to accommodate full chunk examples and provide headroom for longer chunks
 OUTPUT_DIR = "outputs_rag_analysis"
@@ -146,6 +177,54 @@ QUERY TYPE HANDLING (applied during Step 4 - Evaluate Relevance):
 - Analytical queries: Extract reasoning, causation, or explanation
 - Process queries: Extract step-by-step information
 - List queries: Extract ALL items that match the query criteria - read ALL chunks completely before responding
+
+ANSWER_TYPE MAPPING (CRITICAL - Use this to determine the correct answer_type in JSON output):
+When outputting JSON, you MUST select the correct answer_type based on the query pattern:
+
+1. "entities" - Use for queries asking about specific people, roles, or named entities:
+   - "who are the [role] of [company]?" → answer_type: "entities"
+   - "who are the co-founders of X?" → answer_type: "entities"
+   - "who are the executives at Y?" → answer_type: "entities"
+   - "who are the founders of Z?" → answer_type: "entities"
+   - Output format: {"answer_type": "entities", "items": ["Name1", "Name2", ...], "text": "", "chunks_used": [...]}
+
+2. "list" - Use for queries asking for lists of items, services, features, benefits, capabilities, components:
+   - "what services does X offer?" → answer_type: "list"
+   - "what are the features of Y?" → answer_type: "list"
+   - "list the benefits of Z" → answer_type: "list"
+   - "what capabilities does A have?" → answer_type: "list"
+   - Output format: {"answer_type": "list", "items": ["item1", "item2", ...], "text": "", "chunks_used": [...]}
+
+3. "comparison" - Use for queries asking about differences or comparisons between entities:
+   - "what is the difference between X and Y?" → answer_type: "comparison"
+   - "compare X and Y" → answer_type: "comparison"
+   - "how do X and Y differ?" → answer_type: "comparison"
+   - Output format: {"answer_type": "comparison", "items": [], "text": "comparison explanation...", "chunks_used": [...]}
+
+4. "relationship" - Use for queries asking about connections, relationships, or how entities are related:
+   - "how are X and Y related?" → answer_type: "relationship"
+   - "what is the connection between X and Y?" → answer_type: "relationship"
+   - "what is the relationship between X and Y?" → answer_type: "relationship"
+   - Output format: {"answer_type": "relationship", "items": [], "text": "relationship description...", "chunks_used": [...]}
+
+5. "analytical" - Use for queries asking "why" or about causes/reasons:
+   - "why did X [action]?" → answer_type: "analytical"
+   - "what caused X to [action]?" → answer_type: "analytical"
+   - "why did X change?" → answer_type: "analytical"
+   - Output format: {"answer_type": "analytical", "items": [], "text": "because [explanation]...", "chunks_used": [...]}
+
+6. "process" - Use for queries asking "how does [process] work?" or about processes:
+   - "how does the [process] work?" → answer_type: "process"
+   - "what is the process for X?" → answer_type: "process"
+   - "how does the framework work?" → answer_type: "process"
+   - Output format: {"answer_type": "process", "items": [], "text": "process description...", "chunks_used": [...]}
+
+7. "not_found" - Use ONLY when NO relevant information exists in ANY chunk:
+   - If query asks for information that doesn't exist in chunks → answer_type: "not_found"
+   - If query asks for wrong role/company (e.g., "co-founders" but only "CEO" exists) → answer_type: "not_found"
+   - Output format: {"answer_type": "not_found", "items": [], "text": "I don't have that information in the provided documents", "chunks_used": []}
+
+CRITICAL: Match the query pattern to determine answer_type BEFORE extracting information. The answer_type determines the output structure.
 
 CRITICAL OUTPUT REQUIREMENT:
 - You MUST output ONLY the final answer (STEP 6/STEP 7 content)
@@ -518,8 +597,8 @@ if JSON_OUTPUT_MODE:
     json_monitor = JSONValidationMonitor(sample_every_n_steps=100)
     callbacks.append(json_monitor)
 else:
-    cot_monitor = CoTLeakageMonitor(sample_every_n_steps=100)
-    callbacks.append(cot_monitor)
+cot_monitor = CoTLeakageMonitor(sample_every_n_steps=100)
+callbacks.append(cot_monitor)
 
 if ENABLE_EXAMPLE_MONITORING:
     from training_example_monitor import create_example_monitor
@@ -591,7 +670,7 @@ if JSON_OUTPUT_MODE:
     print(f"   - Extraction Completeness: Check if all entities are extracted (items array should be complete)")
     print(f"   - Answer Type: Verify correct answer_type (entities/list/comparison/etc.)")
 else:
-    print(f"   - CoT Leakage: Watch for outputs containing 'STEP 1-5' or 'Extract information from Chunk X'")
+print(f"   - CoT Leakage: Watch for outputs containing 'STEP 1-5' or 'Extract information from Chunk X'")
 print(f"   - Poor Learning: Check match scores - if consistently <50% for specific query types, may need more examples")
 print()
 print("📊 Training Goals:")
@@ -724,7 +803,7 @@ if JSON_OUTPUT_MODE:
     print("  ✅ Output structured JSON format (easier to learn, better extraction completeness)")
     print("  ✅ Post-process JSON to natural language using json_to_natural_language.py")
 else:
-    print("  ✅ Return only the final answer (no internal reasoning steps)")
+print("  ✅ Return only the final answer (no internal reasoning steps)")
 print()
 
 # For Colab: Download the GGUF file

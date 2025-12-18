@@ -14,6 +14,8 @@ class PasswordKeyboard(BaseAuraDialog):
     
     def __init__(self, parent=None, initial_text="", title="Enter Password"):
         self.current_text = initial_text
+        self.shift_active = False  # Track shift state
+        self.letter_buttons = []  # Store letter buttons for shift toggle
         # Initialize base dialog with proper centering
         super().__init__(parent, title=title, size=(1080, 1080), modal=True)
         
@@ -112,13 +114,15 @@ class PasswordKeyboard(BaseAuraDialog):
             btn.clicked.connect(lambda checked, k=key: self.add_character(k))
             keyboard_layout.addWidget(btn, 0, col_idx)
         
-        # Add QWERTY rows
+        # Add QWERTY rows - store buttons for shift toggle
         for row_idx, row in enumerate([keys_row2, keys_row3, keys_row4], start=1):
             for col_idx, key in enumerate(row):
                 btn = QPushButton(key.upper())
                 btn.setStyleSheet(button_style)
                 btn.clicked.connect(lambda checked, k=key: self.add_character(k))
                 keyboard_layout.addWidget(btn, row_idx, col_idx)
+                # Store letter buttons for shift toggle
+                self.letter_buttons.append((btn, key))
         
         # Add special characters row
         for col_idx, key in enumerate(keys_row5):
@@ -129,17 +133,42 @@ class PasswordKeyboard(BaseAuraDialog):
         
         # Action buttons row
         action_row = 5
+        # Shift button
+        self.shift_btn = QPushButton("⇧ Shift")
+        shift_style = """
+            QPushButton {
+                background-color: rgba(142, 142, 147, 0.4);
+                color: #ffffff;
+                font-size: 11pt;
+                font-weight: bold;
+                padding: 8px;
+                border-radius: 8px;
+                border: 2px solid rgba(142, 142, 147, 0.6);
+                min-height: 40px;
+                max-height: 40px;
+            }
+            QPushButton:hover {
+                background-color: rgba(142, 142, 147, 0.6);
+            }
+            QPushButton:pressed {
+                background-color: rgba(142, 142, 147, 0.8);
+            }
+        """
+        self.shift_btn.setStyleSheet(shift_style)
+        self.shift_btn.clicked.connect(self.toggle_shift)
+        keyboard_layout.addWidget(self.shift_btn, action_row, 0, 1, 2)
+        
         # Backspace
         backspace_btn = QPushButton("←")
         backspace_btn.setStyleSheet(button_style.replace("0.3", "0.4"))
         backspace_btn.clicked.connect(self.backspace)
-        keyboard_layout.addWidget(backspace_btn, action_row, 0, 1, 2)
+        keyboard_layout.addWidget(backspace_btn, action_row, 2, 1, 2)
         
         # Space
         space_btn = QPushButton("Space")
         space_btn.setStyleSheet(button_style)
         space_btn.clicked.connect(lambda: self.add_character(' '))
-        keyboard_layout.addWidget(space_btn, action_row, 2, 1, 3)
+        keyboard_layout.addWidget(space_btn, action_row, 4, 1, 2)
         
         # Clear
         clear_btn = QPushButton("Clear")
@@ -160,7 +189,7 @@ class PasswordKeyboard(BaseAuraDialog):
             }
         """)
         clear_btn.clicked.connect(self.clear_all)
-        keyboard_layout.addWidget(clear_btn, action_row, 5, 1, 2)
+        keyboard_layout.addWidget(clear_btn, action_row, 6, 1, 2)
         
         keyboard_widget.setLayout(keyboard_layout)
         main_layout.addWidget(keyboard_widget)
@@ -219,12 +248,73 @@ class PasswordKeyboard(BaseAuraDialog):
         # Show as asterisks for security
         return "*" * len(self.current_text)
     
+    def toggle_shift(self):
+        """Toggle shift state and update button labels"""
+        self.shift_active = not self.shift_active
+        
+        # Update shift button appearance
+        if self.shift_active:
+            self.shift_btn.setStyleSheet("""
+                QPushButton {
+                    background-color: rgba(0, 122, 255, 0.6);
+                    color: #ffffff;
+                    font-size: 11pt;
+                    font-weight: bold;
+                    padding: 8px;
+                    border-radius: 8px;
+                    border: 2px solid rgba(0, 122, 255, 0.9);
+                    min-height: 40px;
+                    max-height: 40px;
+                }
+                QPushButton:hover {
+                    background-color: rgba(0, 122, 255, 0.8);
+                }
+                QPushButton:pressed {
+                    background-color: rgba(0, 122, 255, 1.0);
+                }
+            """)
+        else:
+            self.shift_btn.setStyleSheet("""
+                QPushButton {
+                    background-color: rgba(142, 142, 147, 0.4);
+                    color: #ffffff;
+                    font-size: 11pt;
+                    font-weight: bold;
+                    padding: 8px;
+                    border-radius: 8px;
+                    border: 2px solid rgba(142, 142, 147, 0.6);
+                    min-height: 40px;
+                    max-height: 40px;
+                }
+                QPushButton:hover {
+                    background-color: rgba(142, 142, 147, 0.6);
+                }
+                QPushButton:pressed {
+                    background-color: rgba(142, 142, 147, 0.8);
+                }
+            """)
+        
+        # Update letter button labels
+        for btn, key in self.letter_buttons:
+            if self.shift_active:
+                btn.setText(key.upper())
+            else:
+                btn.setText(key.lower())
+    
     def add_character(self, char: str):
         """Add a character to the input"""
         # WiFi passwords can be up to 63 characters
         if len(self.current_text) < 63:
-            self.current_text += char
+            # Use uppercase if shift is active, otherwise use the char as provided
+            if char.isalpha():
+                char_to_add = char.upper() if self.shift_active else char.lower()
+            else:
+                char_to_add = char
+            self.current_text += char_to_add
             self.update_display()
+            # Auto-disable shift after adding a character (like iOS)
+            if self.shift_active:
+                self.toggle_shift()
     
     def backspace(self):
         """Remove last character"""
