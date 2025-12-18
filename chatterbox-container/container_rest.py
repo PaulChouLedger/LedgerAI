@@ -376,22 +376,22 @@ def get_voice_embedding(voice_sample_path):
         with open(cache_path, 'rb') as f:
             return pickle.load(f)
     
-        # Extract embedding
-        try:
-            chatterbox = get_chatterbox_tts()
-            
-            # Try different methods to extract voice embedding
-            print(f"[Chatterbox] 🔧 Attempting to extract voice embedding...")
-            if hasattr(chatterbox, 'extract_voice_embedding'):
-                print(f"[Chatterbox] 🔧 Using extract_voice_embedding() method")
-                embedding = chatterbox.extract_voice_embedding(voice_sample_path)
-            elif hasattr(chatterbox, 'get_voice_embedding'):
-                print(f"[Chatterbox] 🔧 Using get_voice_embedding() method")
-                embedding = chatterbox.get_voice_embedding(voice_sample_path)
-            else:
-                # Use audio file directly (Chatterbox will load it)
-                print(f"[Chatterbox] 🔧 No embedding extraction method - will use file path directly")
-                embedding = voice_sample_path
+    # Extract embedding
+    try:
+        chatterbox = get_chatterbox_tts()
+        
+        # Try different methods to extract voice embedding
+        print(f"[Chatterbox] 🔧 Attempting to extract voice embedding...")
+        if hasattr(chatterbox, 'extract_voice_embedding'):
+            print(f"[Chatterbox] 🔧 Using extract_voice_embedding() method")
+            embedding = chatterbox.extract_voice_embedding(voice_sample_path)
+        elif hasattr(chatterbox, 'get_voice_embedding'):
+            print(f"[Chatterbox] 🔧 Using get_voice_embedding() method")
+            embedding = chatterbox.get_voice_embedding(voice_sample_path)
+        else:
+            # Use audio file directly (Chatterbox will load it)
+            print(f"[Chatterbox] 🔧 No embedding extraction method - will use file path directly")
+            embedding = voice_sample_path
         
         # Cache embedding
         if embedding is not None and not isinstance(embedding, str):
