@@ -216,12 +216,16 @@ def main():
     
     if voice_sample and os.path.exists(voice_sample):
         # Test voice embedding extraction
-        # Note: container expects path inside /app/voice_samples, so use just filename
+        # Use container path (container will check /app/voice_samples/)
         container_sample_path = f"/app/voice_samples/{voice_sample_name}"
+        print(f"\n📋 Testing voice embedding with container path: {container_sample_path}")
         test_voice_embedding(container_sample_path)
         
         # Test synthesis with voice cloning
-        test_text = "Hello, this is a test with voice cloning enabled using the audio3 sample."
+        test_text = "Hello, this is a test with voice cloning enabled using the audio3 sample. This should sound like the voice in the audio3 recording."
+        print(f"\n🎭 Testing voice cloning synthesis...")
+        print(f"   Using sample: {voice_sample_name}")
+        print(f"   Container will look in: /app/voice_samples/{voice_sample_name}")
         success, latency = test_synthesize(
             test_text, 
             voice_sample_name,  # Container will look in /app/voice_samples/
@@ -229,6 +233,9 @@ def main():
         )
         if success:
             latencies.append(latency)
+            print(f"\n💡 Voice cloning test completed")
+            print(f"   Compare test_output_voice_cloning_audio3.wav with audio3.wav")
+            print(f"   They should sound similar if voice cloning is working")
     else:
         print(f"\n⚠️  No voice sample found for cloning test")
         print(f"   Checked:")

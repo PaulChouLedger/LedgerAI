@@ -360,8 +360,12 @@ def get_voice_embedding(voice_sample_path):
     """Get or create voice embedding from sample"""
     global _chatterbox_voice_embedding
     
+    print(f"[Chatterbox] 🔍 Looking for voice sample: {voice_sample_path}")
     if not os.path.exists(voice_sample_path):
+        print(f"[Chatterbox] ⚠️  Voice sample not found: {voice_sample_path}")
         return None
+    
+    print(f"[Chatterbox] ✅ Voice sample found: {voice_sample_path}")
     
     # Check cache
     cache_key = os.path.basename(voice_sample_path).replace('.wav', '.pkl')
@@ -372,18 +376,22 @@ def get_voice_embedding(voice_sample_path):
         with open(cache_path, 'rb') as f:
             return pickle.load(f)
     
-    # Extract embedding
-    try:
-        chatterbox = get_chatterbox_tts()
-        
-        # Try different methods to extract voice embedding
-        if hasattr(chatterbox, 'extract_voice_embedding'):
-            embedding = chatterbox.extract_voice_embedding(voice_sample_path)
-        elif hasattr(chatterbox, 'get_voice_embedding'):
-            embedding = chatterbox.get_voice_embedding(voice_sample_path)
-        else:
-            # Use audio file directly
-            embedding = voice_sample_path
+        # Extract embedding
+        try:
+            chatterbox = get_chatterbox_tts()
+            
+            # Try different methods to extract voice embedding
+            print(f"[Chatterbox] 🔧 Attempting to extract voice embedding...")
+            if hasattr(chatterbox, 'extract_voice_embedding'):
+                print(f"[Chatterbox] 🔧 Using extract_voice_embedding() method")
+                embedding = chatterbox.extract_voice_embedding(voice_sample_path)
+            elif hasattr(chatterbox, 'get_voice_embedding'):
+                print(f"[Chatterbox] 🔧 Using get_voice_embedding() method")
+                embedding = chatterbox.get_voice_embedding(voice_sample_path)
+            else:
+                # Use audio file directly (Chatterbox will load it)
+                print(f"[Chatterbox] 🔧 No embedding extraction method - will use file path directly")
+                embedding = voice_sample_path
         
         # Cache embedding
         if embedding is not None and not isinstance(embedding, str):
@@ -491,47 +499,121 @@ def synthesize():
         
         # Handle voice cloning if voice sample provided
         voice_embedding = None
+        voice_sample_path_used = None
+        
         if voice_sample:
-            if os.path.exists(voice_sample):
-                voice_embedding = get_voice_embedding(voice_sample)
-                print(f"[Chatterbox] 🎭 Using voice cloning from: {voice_sample}")
-            else:
-                # Try in voice_samples directory
-                sample_path = os.path.join(VOICE_SAMPLES_DIR, voice_sample)
+            # Try multiple paths: direct path, voice_samples directory, prompts directory
+            possible_paths = [
+                voice_sample,  # Direct path (absolute or relative)
+                os.path.join(VOICE_SAMPLES_DIR, voice_sample),  # In voice_samples directory
+                os.path.join("/app/prompts", voice_sample),  # In prompts directory (if mounted)
+            ]
+            
+            # Also try with just the filename if a full path was provided
+            if os.path.sep in voice_sample:
+                possible_paths.append(os.path.basename(voice_sample))
+            
+            for sample_path in possible_paths:
                 if os.path.exists(sample_path):
                     voice_embedding = get_voice_embedding(sample_path)
+                    voice_sample_path_used = sample_path
                     print(f"[Chatterbox] 🎭 Using voice cloning from: {sample_path}")
+                    break
+            
+            if voice_embedding is None:
+                print(f"[Chatterbox] ⚠️  Voice sample '{voice_sample}' not found in any location")
+                print(f"[Chatterbox]    Checked paths:")
+                for path in possible_paths:
+                    exists = os.path.exists(path)
+                    print(f"[Chatterbox]      {'✅' if exists else '❌'} {path}")
+                print(f"[Chatterbox]    Falling back to default voice (no cloning)")
+            elif isinstance(voice_embedding, str):
+                # If embedding is just a path string, use it directly as audio_prompt_path
+                voice_sample_path_used = voice_embedding
+                print(f"[Chatterbox] 🎭 Will use audio_prompt_path for voice cloning")
         
         # Generate audio
         try:
             gen_start = time.time()
+            
+            # Debug: Print available methods and parameters
+            print(f"[Chatterbox] 🔍 Available methods: generate={hasattr(chatterbox, 'generate')}, synthesize={hasattr(chatterbox, 'synthesize')}")
+            
             if hasattr(chatterbox, 'generate'):
                 sig = inspect.signature(chatterbox.generate)
-                params = sig.parameters
+                params = list(sig.parameters.keys())
+                print(f"[Chatterbox] 🔍 generate() parameters: {params}")
                 
-                if voice_embedding:
-                    # Try different parameter names
-                    if 'voice_embedding' in params:
+                if voice_embedding or voice_sample_path_used:
+                    # Try audio_prompt_path first (most common in Chatterbox)
+                    if voice_sample_path_used and 'audio_prompt_path' in params:
+                        print(f"[Chatterbox] 🎭 VOICE CLONING: Using audio_prompt_path='{voice_sample_path_used}'")
+                        audio = chatterbox.generate(text, audio_prompt_path=voice_sample_path_used, exaggeration=exaggeration)
+                    # Try audio_prompt (alternative name)
+                    elif voice_sample_path_used and 'audio_prompt' in params:
+                        print(f"[Chatterbox] 🎭 VOICE CLONING: Using audio_prompt='{voice_sample_path_used}'")
+                        audio = chatterbox.generate(text, audio_prompt=voice_sample_path_used, exaggeration=exaggeration)
+                    # Try voice_embedding (if we have an embedding object)
+                    elif voice_embedding and not isinstance(voice_embedding, str) and 'voice_embedding' in params:
+                        print(f"[Chatterbox] 🎭 VOICE CLONING: Using voice_embedding object")
                         audio = chatterbox.generate(text, voice_embedding=voice_embedding, exaggeration=exaggeration)
-                    elif 'audio_prompt' in params:
-                        audio = chatterbox.generate(text, audio_prompt=voice_embedding, exaggeration=exaggeration)
+                    # Last resort: try passing path as audio_prompt even if parameter name differs
+                    elif voice_sample_path_used:
+                        print(f"[Chatterbox] ⚠️  Trying voice cloning with path as positional/kwarg...")
+                        try:
+                            # Try common parameter variations
+                            audio = chatterbox.generate(text, audio_prompt_path=voice_sample_path_used, exaggeration=exaggeration)
+                            print(f"[Chatterbox] ✅ Voice cloning succeeded with audio_prompt_path")
+                        except TypeError:
+                            try:
+                                audio = chatterbox.generate(text, audio_prompt=voice_sample_path_used, exaggeration=exaggeration)
+                                print(f"[Chatterbox] ✅ Voice cloning succeeded with audio_prompt")
+                            except TypeError:
+                                print(f"[Chatterbox] ❌ Voice cloning failed - parameter not recognized")
+                                print(f"[Chatterbox]    Available parameters: {params}")
+                                print(f"[Chatterbox]    Falling back to default voice")
+                                audio = chatterbox.generate(text, exaggeration=exaggeration)
                     else:
+                        print(f"[Chatterbox] ⚠️  No voice sample path available, using default voice")
                         audio = chatterbox.generate(text, exaggeration=exaggeration)
                 else:
+                    print(f"[Chatterbox] 🔊 Using default voice (no voice cloning)")
                     audio = chatterbox.generate(text, exaggeration=exaggeration)
                     
             elif hasattr(chatterbox, 'synthesize'):
                 sig = inspect.signature(chatterbox.synthesize)
-                params = sig.parameters
+                params = list(sig.parameters.keys())
+                print(f"[Chatterbox] 🔍 synthesize() parameters: {params}")
                 
-                if voice_embedding:
-                    if 'voice_embedding' in params:
+                if voice_embedding or voice_sample_path_used:
+                    # Try audio_prompt_path first (most common in Chatterbox)
+                    if voice_sample_path_used and 'audio_prompt_path' in params:
+                        print(f"[Chatterbox] 🎭 VOICE CLONING: Using audio_prompt_path='{voice_sample_path_used}'")
+                        audio = chatterbox.synthesize(text, audio_prompt_path=voice_sample_path_used)
+                    # Try audio_prompt (alternative name)
+                    elif voice_sample_path_used and 'audio_prompt' in params:
+                        print(f"[Chatterbox] 🎭 VOICE CLONING: Using audio_prompt='{voice_sample_path_used}'")
+                        audio = chatterbox.synthesize(text, audio_prompt=voice_sample_path_used)
+                    # Try voice_embedding (if we have an embedding object)
+                    elif voice_embedding and not isinstance(voice_embedding, str) and 'voice_embedding' in params:
+                        print(f"[Chatterbox] 🎭 VOICE CLONING: Using voice_embedding object")
                         audio = chatterbox.synthesize(text, voice_embedding=voice_embedding)
-                    elif 'audio_prompt_path' in params:
-                        audio = chatterbox.synthesize(text, audio_prompt_path=voice_sample if os.path.exists(voice_sample) else sample_path)
+                    # Last resort: try passing path
+                    elif voice_sample_path_used:
+                        print(f"[Chatterbox] ⚠️  Trying voice cloning with path...")
+                        try:
+                            audio = chatterbox.synthesize(text, audio_prompt_path=voice_sample_path_used)
+                            print(f"[Chatterbox] ✅ Voice cloning succeeded")
+                        except TypeError:
+                            print(f"[Chatterbox] ❌ Voice cloning failed - parameter not recognized")
+                            print(f"[Chatterbox]    Available parameters: {params}")
+                            print(f"[Chatterbox]    Falling back to default voice")
+                            audio = chatterbox.synthesize(text)
                     else:
+                        print(f"[Chatterbox] ⚠️  No voice sample path available, using default voice")
                         audio = chatterbox.synthesize(text)
                 else:
+                    print(f"[Chatterbox] 🔊 Using default voice (no voice cloning)")
                     audio = chatterbox.synthesize(text)
             else:
                 return jsonify({'error': 'ChatterboxTTS has no generate or synthesize method'}), 500
