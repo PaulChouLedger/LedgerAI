@@ -361,36 +361,36 @@ def main():
         display_hardware_config(config)
     except ImportError as e:
         # Fallback if import fails
-        print("\n" + "="*70)
-        print("[Hardware] Current XVF3800 DSP Configuration:")
-        print("="*70)
-        try:
-            # Load hardware config from listener's saved state
-            import json
-            config_path = os.path.expanduser("~/LedgerAI/data/xvf3800_config.json")
-            if os.path.exists(config_path):
-                with open(config_path, 'r') as f:
-                    config = json.load(f)
-                
-                # Display config
-                agc_status = "✅ ON" if config.get('config', {}).get('PP_AGCONOFF', 0) == 1 else "❌ OFF"
-                agc_target = config.get('config', {}).get('PP_AGCDESIREDLEVEL', 0.0)
-                agc_gain = config.get('config', {}).get('PP_AGCMAXGAIN', 0.0)
-                hpf_status = "✅ ON" if config.get('config', {}).get('AEC_HPFONOFF', 0) == 1 else "❌ OFF"
-                ec_status = "✅ ON" if config.get('config', {}).get('PP_ECHOONOFF', 0) == 1 else "❌ OFF"
-                
+    print("\n" + "="*70)
+    print("[Hardware] Current XVF3800 DSP Configuration:")
+    print("="*70)
+    try:
+        # Load hardware config from listener's saved state
+        import json
+        config_path = os.path.expanduser("~/LedgerAI/data/xvf3800_config.json")
+        if os.path.exists(config_path):
+            with open(config_path, 'r') as f:
+                config = json.load(f)
+            
+            # Display config
+            agc_status = "✅ ON" if config.get('config', {}).get('PP_AGCONOFF', 0) == 1 else "❌ OFF"
+            agc_target = config.get('config', {}).get('PP_AGCDESIREDLEVEL', 0.0)
+            agc_gain = config.get('config', {}).get('PP_AGCMAXGAIN', 0.0)
+            hpf_status = "✅ ON" if config.get('config', {}).get('AEC_HPFONOFF', 0) == 1 else "❌ OFF"
+            ec_status = "✅ ON" if config.get('config', {}).get('PP_ECHOONOFF', 0) == 1 else "❌ OFF"
+            
                 print(f"  Hardware AGC:           {agc_status} (target={agc_target:.2f}, max={agc_gain:.1f}x linear)")
-                print(f"  High-Pass Filter:       {hpf_status}")
-                print(f"  Echo Cancellation:      {ec_status}")
-                print(f"\n  ℹ️  This test uses whatever hardware settings are currently active.")
-                print(f"  ℹ️  Results only valid for THESE settings!")
-                if model_vad:
-                    print(f"  ℹ️  Using VAD-controlled recording (matches production pipeline)")
-            else:
-                print(f"  ⚠️  No saved config found - using current hardware state")
-        except Exception as e:
-            print(f"  ⚠️  Could not load config: {e}")
-        print("="*70 + "\n")
+            print(f"  High-Pass Filter:       {hpf_status}")
+            print(f"  Echo Cancellation:      {ec_status}")
+            print(f"\n  ℹ️  This test uses whatever hardware settings are currently active.")
+            print(f"  ℹ️  Results only valid for THESE settings!")
+            if model_vad:
+                print(f"  ℹ️  Using VAD-controlled recording (matches production pipeline)")
+        else:
+            print(f"  ⚠️  No saved config found - using current hardware state")
+    except Exception as e:
+        print(f"  ⚠️  Could not load config: {e}")
+    print("="*70 + "\n")
     
     try:
         # Find microphone

@@ -93,8 +93,9 @@ SENTENCE_ENDINGS = ('.', '!', '?')
 
 # === Response Generation Config ===
 MAX_TOKENS_RAG_MODE = 250  # Max tokens when using RAG context (enforces concise 2-3 sentence answers)
-MAX_TOKENS_RAG_MODE_LIST = 350  # Max tokens for list questions (allows complete list but still concise)
-MAX_TOKENS_DIRECT_MODE = 250  # Max tokens for direct conversation (enforces concise 2-3 sentence answers)
+MAX_TOKENS_RAG_MODE_LIST = 600  # Max tokens for list questions (allows complete longer lists without truncation)
+MAX_TOKENS_DIRECT_MODE = 600  # Max tokens for direct conversation (allows longer responses including lists)
+MAX_TOKENS_DIRECT_MODE_LIST = 600  # Max tokens for list questions in direct mode (same as RAG list mode)
 
 # === Debug Mode: Show LLM Reasoning ===
 # Set SHOW_REASONING_DEBUG=true to make LLM show its reasoning step-by-step in the output (visible chain-of-thought)
@@ -1926,6 +1927,11 @@ JSON array only:"""
     instruction_keywords = ['how to', 'how do i', 'steps', 'step by step', 'instructions', 'guide me', 'walk me through', 'show me how']
     is_instruction_request = any(keyword in prompt.lower() for keyword in instruction_keywords)
     
+    # Detect if this is a list request (same logic as RAG mode)
+    list_keywords = ['who are', 'who were', 'list all', 'list the', 'what are the', 'what are', 'what were', 'name all', 'name the']
+    list_indicators = ['co-founders', 'founders', 'employees', 'members', 'team', 'people', 'individuals']
+    is_list_request_direct = any(keyword in prompt.lower() for keyword in list_keywords) or any(indicator in prompt.lower() for indicator in list_indicators)
+    
     # Check if this is a conversational phrase (thank you, goodbye, etc.) - skip follow-up question
     normalized_prompt_fallback = prompt.lower()
     conversational_phrases_fallback = [
@@ -2021,10 +2027,11 @@ JSON array only:"""
     
     # Reduced debug logging for performance
 
-    # Use standard max_tokens - matches LLM_NUM_PREDICT_DEFAULT
+    # Use higher token limit for list questions to ensure all items are included
     # Don't wrap the iterator - let base_container's debug_iterator handle logging
     # The base class already wraps it with debug logging
-    return llm_chat_simple(messages, max_tokens=MAX_TOKENS_DIRECT_MODE, stream=stream)
+    max_tokens_limit = MAX_TOKENS_DIRECT_MODE_LIST if is_list_request_direct else MAX_TOKENS_DIRECT_MODE
+    return llm_chat_simple(messages, max_tokens=max_tokens_limit, stream=stream)
 
 
 def _embed_texts(texts: List[str]) -> List[List[float]]:
