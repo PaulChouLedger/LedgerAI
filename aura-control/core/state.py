@@ -52,6 +52,7 @@ _wake_word_model_path = None  # Optional path to custom model file
 _wake_word_engine = "openwakeword"  # Wake word engine: "openwakeword"
 _tts_engine = "elevenlabs"  # TTS engine: "chatterbox" or "elevenlabs"
 _chatterbox_voice_cloning_enabled = True  # Enable voice cloning for ChatterboxTTS (adds ~50-100ms latency)
+_whisper_model_set_via_gui = False  # Track if whisper_model was explicitly set via GUI
 
 def _get_whisper_model_default_from_container_rest():
     """Read the default Whisper model from container_rest.py (single source of truth)"""
@@ -79,9 +80,9 @@ def _get_whisper_model_default_from_container_rest():
         print(f"[State] ⚠️ Could not read default from container_rest.py: {e}")
         return "distil-small.en"  # Safe fallback
 
-# Whisper model default comes from container_rest.py (single source of truth)
+# Whisper model: Initially defaults from container_rest.py, then uses GUI selection from app_settings.json
 _whisper_model_default = _get_whisper_model_default_from_container_rest()
-_whisper_model = _whisper_model_default  # Always uses container_rest.py default (not persisted)
+_whisper_model = _whisper_model_default  # Will be overridden by app_settings.json if present, otherwise uses container_rest.py default
 
 def _save_settings_to_disk():
     """Save current settings to disk"""
@@ -99,6 +100,11 @@ def _save_settings_to_disk():
         }
         if _wake_word_model_path:
             settings_data["wake_word_model_path"] = _wake_word_model_path
+        # Only save whisper_model if it was explicitly set via GUI
+        # This allows GUI selection to persist and override container default
+        # If not set via GUI, we don't save it, so it always uses container_rest.py default
+        if _whisper_model_set_via_gui:
+            settings_data["whisper_model"] = _whisper_model
         with open(_settings_file, "w") as f:
             json.dump(settings_data, f, indent=2)
     except Exception as e:
@@ -106,7 +112,7 @@ def _save_settings_to_disk():
 
 def _load_settings_from_disk():
     """Load settings from disk, creating default file if it doesn't exist"""
-    global _llm_mode, _llm_model, _wake_word_enabled, _wake_word_sensitivity, _wake_word_model_path, _wake_word_engine, _tts_engine, _chatterbox_voice_cloning_enabled, _whisper_model
+    global _llm_mode, _llm_model, _wake_word_enabled, _wake_word_sensitivity, _wake_word_model_path, _wake_word_engine, _tts_engine, _chatterbox_voice_cloning_enabled, _whisper_model, _whisper_model_default, _whisper_model_set_via_gui
     try:
         import json
         with open(_settings_file, "r") as f:
@@ -119,14 +125,29 @@ def _load_settings_from_disk():
             _wake_word_engine = data.get("wake_word_engine", _wake_word_engine)
             _tts_engine = data.get("tts_engine", _tts_engine)
             _chatterbox_voice_cloning_enabled = data.get("chatterbox_voice_cloning_enabled", _chatterbox_voice_cloning_enabled)
-            # whisper_model is always read from container_rest.py (not persisted in JSON)
-            _whisper_model = _whisper_model_default
+            # whisper_model: Use GUI selection from app_settings.json if present, otherwise default from container_rest.py
+            _whisper_model_default = _get_whisper_model_default_from_container_rest()
+            if "whisper_model" in data:
+                # GUI selection exists in JSON - use it
+                _whisper_model = data["whisper_model"]
+                _whisper_model_set_via_gui = True
+            else:
+                # No GUI selection - use container_rest.py default
+                _whisper_model = _whisper_model_default
+                _whisper_model_set_via_gui = False
     except FileNotFoundError:
         # File doesn't exist - use defaults and create it
+        _whisper_model_default = _get_whisper_model_default_from_container_rest()
+        _whisper_model = _whisper_model_default
+        _whisper_model_set_via_gui = False
         _save_settings_to_disk()
         print(f"[State] 📝 Created default settings file: {_settings_file}")
     except Exception as e:
         print(f"[State] ⚠️ Failed to load settings: {e}")
+        # On error, use container_rest.py default
+        _whisper_model_default = _get_whisper_model_default_from_container_rest()
+        _whisper_model = _whisper_model_default
+        _whisper_model_set_via_gui = False
 
 # Load settings on import
 _load_settings_from_disk()
@@ -220,24 +241,36 @@ def set_chatterbox_voice_cloning_enabled(enabled: bool):
 
 # === Whisper Model Settings ===
 def get_whisper_model() -> str:
-    """Return Whisper model name from container_rest.py (single source of truth).
+    """Return Whisper model name.
     
-    Model is always read from whisper-container/container_rest.py MODEL_NAME default.
-    Not persisted in app_settings.json - always uses container default.
+    Priority:
+    1. GUI selection from app_settings.json (if set)
+    2. Default from container_rest.py (if no GUI selection)
     """
-    # Always return the default from container_rest.py (re-read in case it changed)
-    global _whisper_model_default
-    _whisper_model_default = _get_whisper_model_default_from_container_rest()
-    return _whisper_model_default
+    global _whisper_model, _whisper_model_default
+    # If _whisper_model is None or not set, use container_rest.py default
+    if _whisper_model is None:
+        _whisper_model_default = _get_whisper_model_default_from_container_rest()
+        _whisper_model = _whisper_model_default
+    return _whisper_model
 
 def set_whisper_model(model: str):
-    """Set Whisper model name (deprecated - model is always read from container_rest.py).
+    """Set Whisper model name (saves to app_settings.json).
     
-    This function is kept for compatibility but does nothing.
-    To change the model, edit whisper-container/container_rest.py MODEL_NAME default.
+    After setting via GUI, this value will be used as the default.
+    If not set, defaults to container_rest.py MODEL_NAME.
     """
-    # No-op: whisper model is always read from container_rest.py
-    pass
+    global _whisper_model, _whisper_model_set_via_gui, _whisper_model_default
+    if model and model.strip():
+        _whisper_model = model.strip()
+        _whisper_model_set_via_gui = True  # Mark as set via GUI
+        _save_settings_to_disk()
+    else:
+        # If empty/None, reset to container_rest.py default and remove from JSON
+        _whisper_model_default = _get_whisper_model_default_from_container_rest()
+        _whisper_model = _whisper_model_default
+        _whisper_model_set_via_gui = False  # Mark as not set via GUI (will use container default)
+        _save_settings_to_disk()
 
 
 # === Listener restart trigger ===
