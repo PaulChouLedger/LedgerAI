@@ -104,12 +104,21 @@ EOF
                     fi
                     
                     # Verify sink exists and get its index
-                    SINK_INDEX=$(pactl list sinks short 2>/dev/null | grep "[[:space:]]$SINK_NAME$" | awk '{print $1}')
+                    # The short format is: INDEX SINK_NAME DRIVER FORMAT STATE
+                    # Use awk to match the exact sink name in column 2
+                    SINK_INDEX=$(pactl list sinks short 2>/dev/null | awk -v name="$SINK_NAME" '$2 == name {print $1; exit}')
+                    
+                    if [ -z "$SINK_INDEX" ]; then
+                        # Try alternative: match sink name anywhere in the line (in case format differs)
+                        SINK_INDEX=$(pactl list sinks short 2>/dev/null | grep -F "$SINK_NAME" | awk '{print $1}' | head -1)
+                    fi
                     
                     if [ -z "$SINK_INDEX" ]; then
                         echo "[Audio] ⚠️  Sink '$SINK_NAME' not found in PulseAudio" >&2
                         echo "[Audio]    Available sinks:" >&2
                         pactl list sinks short 2>/dev/null | head -5 | sed 's/^/[Audio]      /' >&2
+                        echo "[Audio]    Note: This is optional - ALSA default is already set" >&2
+                        echo "[Audio]    ALSA playback (aplay, speaker.py) will work regardless" >&2
                     else
                         echo "[Audio] 🔍 Sink found at index: $SINK_INDEX" >&2
                         
