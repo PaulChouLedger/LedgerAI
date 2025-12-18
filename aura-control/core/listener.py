@@ -460,7 +460,14 @@ def display_hardware_config(state):
     if config.get('PP_AGCONOFF', 0) == 1:
         print(f"  AGC:                    ✅ ENABLED")
         print(f"    Target Level:         {config.get('PP_AGCDESIREDLEVEL', 0):.2f} RMS")
-        print(f"    Max Gain:             {config.get('PP_AGCMAXGAIN', 0):.0f} linear")
+        max_gain = config.get('PP_AGCMAXGAIN', 0)
+        if max_gain > 0:
+            # Calculate dB: 20 * log10(linear_gain)
+            import math
+            max_gain_db = 20 * math.log10(max_gain)
+            print(f"    Max Gain:             {max_gain:.1f}x linear (~{max_gain_db:.1f} dB)")
+        else:
+            print(f"    Max Gain:             {max_gain:.1f}x linear")
     else:
         print(f"  AGC:                    ❌ DISABLED")
     

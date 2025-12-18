@@ -75,6 +75,7 @@ Your noise has RMS ~0.02 and Peak ~0.10, while speech has RMS ~0.10 and Peak ~0.
 """
 
 import os
+import sys
 import io
 import time
 import torch
@@ -378,41 +379,24 @@ def load_xvf3800_config():
         print(f"[Config] ⚠️ Could not load config: {e}")
         return {}
 
-def display_hardware_config(state):
-    """Display current hardware configuration"""
-    if not state:
-        print("\n[Hardware] ⚠️  No saved configuration found")
-        print("[Hardware] 💡 Run: sudo python3 scripts/tune_xvf3800.py [preset]\n")
-        return
-    
-    preset = state.get('preset', 'unknown')
-    config = state.get('config', {})
-    
-    print("\n" + "="*70)
-    print(f"  📊 HARDWARE CONFIGURATION: {preset.upper()}")
-    print("="*70)
-    
-    # AGC
-    if config.get('PP_AGCONOFF', 0) == 1:
-        print(f"  AGC:                    ✅ ENABLED")
-        print(f"    Target Level:         {config.get('PP_AGCDESIREDLEVEL', 0):.2f} RMS")
-        print(f"    Max Gain:             {config.get('PP_AGCMAXGAIN', 0):.0f} linear")
-    else:
-        print(f"  AGC:                    ❌ DISABLED")
-    
-    # High-pass Filter
-    hpf_labels = {0: "OFF", 1: "70 Hz", 2: "125 Hz", 3: "150 Hz", 4: "180 Hz"}
-    hpf_val = config.get('AEC_HPFONOFF', 0)
-    hpf_label = hpf_labels.get(hpf_val, str(hpf_val))
-    print(f"  High-Pass Filter:       {hpf_label}")
-    
-    # Echo Cancellation
-    if config.get('PP_ECHOONOFF', 0) == 1:
-        print(f"  Echo Cancellation:      ✅ ENABLED")
-    else:
-        print(f"  Echo Cancellation:      ❌ DISABLED")
-    
-    print("="*70 + "\n")
+# Import display_hardware_config from listener.py (single source of truth)
+# Add path to aura-control/core so we can import listener
+_script_dir = os.path.dirname(os.path.abspath(__file__))
+_workspace_root = os.path.abspath(os.path.join(_script_dir, '..', '..'))
+_core_path = os.path.join(_workspace_root, 'aura-control', 'core')
+if _core_path not in sys.path:
+    sys.path.insert(0, _core_path)
+
+try:
+    from listener import display_hardware_config
+except ImportError as e:
+    # Fallback if import fails
+    def display_hardware_config(state):
+        """Fallback display function if listener import fails"""
+        print(f"[Hardware] ⚠️  Could not import display_hardware_config from listener: {e}")
+        if state:
+            preset = state.get('preset', 'unknown')
+            print(f"[Hardware] Configuration preset: {preset}")
 
 # === Transcribe ===
 def transcribe(audio):
