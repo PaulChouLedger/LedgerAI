@@ -1645,6 +1645,15 @@ else
     fi
 fi
 
+# Download Whisper models for whisper-container
+print_info "Downloading Whisper models for whisper-container..."
+if [ -n "$VENV_DIR" ] && [ -d "$VENV_DIR" ]; then
+    PYTHON_CMD="$VENV_DIR/bin/python3"
+else
+    PYTHON_CMD="python3"
+fi
+cd "$LEDGERAI_DIR/whisper-container" && $PYTHON_CMD download_model_simple.py || true
+
 print_info "Data directories ready"
 
 echo ""

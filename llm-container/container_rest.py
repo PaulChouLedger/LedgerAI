@@ -1075,9 +1075,11 @@ JSON array only:"""
                     "You act as a proactive AI agent guiding users to better outcomes through gentle guidance.\n\n"
                     "CRITICAL RULES:\n"
                     "- Only provide logical, factual responses. Avoid hallucination at all costs.\n"
+                    "- CRITICAL: Before responding, check if the query is an incomplete sentence (starts with 'and', 'but', 'or', 'so', 'then', 'also', 'make sure', 'ensure', etc.) or an instruction rather than a question. If so, ask for clarification instead of answering.\n"
                     "- If the user's query is unclear, nonsensical, or doesn't make logical sense, DO NOT force it into a response.\n"
-                    "- Instead, politely ask the user to clarify or repeat their question.\n"
-                    "- Never invent facts, names, dates, or details that aren't in the provided context.\n\n"
+                    "- Instead, politely ask the user to clarify or repeat their question. Example: 'I'm not sure I understand. Could you please rephrase your question or provide more context?'\n"
+                    "- Never invent facts, names, dates, or details that aren't in the provided context.\n"
+                    "- CRITICAL: DO NOT treat instructions or incomplete sentences as questions. If the query is an instruction or incomplete, ask for clarification rather than making up an answer.\n\n"
                     "Use ONLY information from the context above. Do not invent facts.\n"
                     "If information is missing, say 'I don't have that information'.\n\n"
                     f"Answer: {prompt}\n\n"
@@ -1086,6 +1088,21 @@ JSON array only:"""
                     "Be conversational and friendly. If more detail is needed, the user will ask."
                     f"{question_instruction}"
                 )
+                # Build user message for instruction requests
+                if SHOW_REASONING_DEBUG:
+                    user_content = (
+                        f"Show your reasoning, then provide your answer.\n\n"
+                        f"Question: {prompt}"
+                    )
+                else:
+                    user_content = (
+                        f"Answer this question BRIEFLY (2-3 sentences maximum):\n"
+                        f"- If the 'Knowledge context' sections above contain relevant information that answers the query, use that information.\n"
+                        f"- If the context does NOT contain relevant information (e.g., it's about unrelated topics or only mentions keywords without answering), use your general knowledge to provide a helpful answer.\n"
+                        f"- Provide ONLY essential information - no lengthy explanations or multiple examples.\n"
+                        f"- If more detail is needed, the user will ask.\n\n"
+                        f"Question: {prompt}"
+                    )
             else:
                 # Add warning if memory RAG failed
                 memory_warning = ""

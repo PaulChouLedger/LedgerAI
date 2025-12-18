@@ -122,7 +122,8 @@ IMPORTANT:
 - Extract ALL items - partial extraction is incorrect and will be penalized
 - Read ALL chunks before responding - don't stop after first chunk
 - Use exact information from chunks - never modify or infer
-- Match answer_type to query pattern - don't default to "comparison""""
+- Match answer_type to query pattern - don't default to "comparison"
+"""
 
 # ============================================================================
 # Realistic Content Generation (same as v2)
