@@ -41,69 +41,46 @@ EOF
         # Set PulseAudio default sink to UACDemoV1.0 (if PulseAudio is available)
         if command -v pactl >/dev/null 2>&1; then
             # Find the PulseAudio sink for UACDemoV1.0 or UACDemoV10
-            # Use awk to properly parse sink blocks and match by description or card number
-            # Note: We use printf instead of print to avoid extra newlines
-            SINK_NAME=$(pactl list sinks 2>/dev/null | awk -v card="$CARD_NUM" '
-                BEGIN { in_sink=0; sink_name=""; sink_desc=""; sink_card=""; match_found=0 }
-                /^Sink #/ { 
-                    # Process previous sink if we found a match
-                    if (in_sink && sink_name != "" && match_found) {
-                        printf "%s", sink_name
-                        exit
-                    }
-                    # Start new sink block
-                    in_sink=1
-                    sink_name=""
-                    sink_desc=""
-                    sink_card=""
-                    match_found=0
-                }
-                /^[[:space:]]*Name:[[:space:]]*/ && in_sink { 
-                    # Extract sink name (second field, trim whitespace)
-                    sink_name=$2
-                    gsub(/^[[:space:]]+|[[:space:]]+$/, "", sink_name)
-                }
-                /^[[:space:]]*Description:[[:space:]]*/ && in_sink { 
-                    # Get everything after "Description: "
-                    sink_desc=substr($0, index($0, "Description:") + 13)
-                    gsub(/^[[:space:]]+|[[:space:]]+$/, "", sink_desc)
-                }
-                /^[[:space:]]*alsa.card =/ && in_sink { 
-                    gsub(/"/, "", $3)
-                    sink_card=$3
-                    gsub(/^[[:space:]]+|[[:space:]]+$/, "", sink_card)
-                }
-                # Check if this sink matches our criteria (after we have the name)
-                in_sink && sink_name != "" {
-                    # Match if description contains UACDemo (but not XVF3800) OR card number matches
-                    if ((sink_desc ~ /UACDemo/ && sink_desc !~ /XVF3800/) || 
-                        (sink_card == card && sink_desc !~ /XVF3800/)) {
-                        match_found=1
-                    }
-                }
-                /^$/ && in_sink {
-                    # End of sink block - check if we found a match
-                    if (match_found && sink_name != "") {
-                        printf "%s", sink_name
-                        exit
-                    }
-                    in_sink=0
-                }
-                END {
-                    # Process last sink if needed
-                    if (in_sink && match_found && sink_name != "") {
-                        printf "%s", sink_name
-                    }
+            # Use the simpler "short" format which is more reliable
+            SINK_NAME=$(pactl list sinks short 2>/dev/null | awk '
+                $2 ~ /UACDemo/ && $2 !~ /XVF3800/ { 
+                    print $2
+                    exit
                 }
             ' | head -1 | tr -d '\n\r' | xargs)
             
-            # Fallback: Simple method if awk didn't work
+            # Fallback: Parse full sink list if short format didn't work
             if [ -z "$SINK_NAME" ]; then
-                # Look for sink name that contains UACDemoV1.0 in the name itself
-                SINK_NAME=$(pactl list sinks 2>/dev/null | awk '
-                    /^[[:space:]]*Name:/ { sink_name=$2 }
-                    /UACDemo/ && !/XVF3800/ && sink_name != "" { printf "%s", sink_name; exit }
-                ' | tr -d '\n\r' | xargs)
+                SINK_NAME=$(pactl list sinks 2>/dev/null | awk -v card="$CARD_NUM" '
+                    BEGIN { in_sink=0; sink_name=""; sink_desc=""; sink_card="" }
+                    /^Sink #/ { 
+                        # Start new sink block
+                        in_sink=1
+                        sink_name=""
+                        sink_desc=""
+                        sink_card=""
+                    }
+                    /^[[:space:]]*Name:[[:space:]]*/ && in_sink { 
+                        sink_name=$2
+                    }
+                    /^[[:space:]]*Description:[[:space:]]*/ && in_sink { 
+                        sink_desc=substr($0, index($0, "Description:") + 13)
+                    }
+                    /^[[:space:]]*alsa.card =/ && in_sink { 
+                        gsub(/"/, "", $3)
+                        sink_card=$3
+                    }
+                    /^$/ && in_sink {
+                        # End of sink block - check if this matches
+                        if (sink_name != "" && 
+                            ((sink_desc ~ /UACDemo/ && sink_desc !~ /XVF3800/) || 
+                             (sink_card == card && sink_desc !~ /XVF3800/))) {
+                            print sink_name
+                            exit
+                        }
+                        in_sink=0
+                    }
+                ' | head -1 | tr -d '\n\r' | xargs)
             fi
             
             # Clean up sink name (remove any extra whitespace/newlines)
