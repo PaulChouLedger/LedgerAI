@@ -133,7 +133,7 @@ def _load_settings_from_disk():
                 _whisper_model_set_via_gui = True
             else:
                 # No GUI selection - use container_rest.py default
-            _whisper_model = _whisper_model_default
+                _whisper_model = _whisper_model_default
                 _whisper_model_set_via_gui = False
     except FileNotFoundError:
         # File doesn't exist - use defaults and create it
@@ -250,7 +250,7 @@ def get_whisper_model() -> str:
     global _whisper_model, _whisper_model_default
     # If _whisper_model is None or not set, use container_rest.py default
     if _whisper_model is None:
-    _whisper_model_default = _get_whisper_model_default_from_container_rest()
+        _whisper_model_default = _get_whisper_model_default_from_container_rest()
         _whisper_model = _whisper_model_default
     return _whisper_model
 

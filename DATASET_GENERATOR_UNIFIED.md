@@ -81,3 +81,4 @@ If you were using `generate_rag_dataset_complete.py`:
 - ✅ **No action needed** - `generate_rag_dataset_v2.py` now does everything
 - ✅ Just run `generate_rag_dataset_v2.py` directly
 - ✅ Output format is identical (6-step CoT system prompt + final answer only)
+
