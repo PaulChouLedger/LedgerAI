@@ -42,12 +42,13 @@ EOF
         if command -v pactl >/dev/null 2>&1; then
             # Find the PulseAudio sink for UACDemoV1.0 or UACDemoV10
             # Use awk to properly parse sink blocks and match by description or card number
+            # Note: We use printf instead of print to avoid extra newlines
             SINK_NAME=$(pactl list sinks 2>/dev/null | awk -v card="$CARD_NUM" '
                 BEGIN { in_sink=0; sink_name=""; sink_desc=""; sink_card=""; match_found=0 }
                 /^Sink #/ { 
                     # Process previous sink if we found a match
                     if (in_sink && sink_name != "" && match_found) {
-                        print sink_name
+                        printf "%s", sink_name
                         exit
                     }
                     # Start new sink block
@@ -58,15 +59,19 @@ EOF
                     match_found=0
                 }
                 /^[[:space:]]*Name:[[:space:]]*/ && in_sink { 
+                    # Extract sink name (second field, trim whitespace)
                     sink_name=$2
+                    gsub(/^[[:space:]]+|[[:space:]]+$/, "", sink_name)
                 }
                 /^[[:space:]]*Description:[[:space:]]*/ && in_sink { 
                     # Get everything after "Description: "
                     sink_desc=substr($0, index($0, "Description:") + 13)
+                    gsub(/^[[:space:]]+|[[:space:]]+$/, "", sink_desc)
                 }
                 /^[[:space:]]*alsa.card =/ && in_sink { 
                     gsub(/"/, "", $3)
                     sink_card=$3
+                    gsub(/^[[:space:]]+|[[:space:]]+$/, "", sink_card)
                 }
                 # Check if this sink matches our criteria (after we have the name)
                 in_sink && sink_name != "" {
@@ -79,7 +84,7 @@ EOF
                 /^$/ && in_sink {
                     # End of sink block - check if we found a match
                     if (match_found && sink_name != "") {
-                        print sink_name
+                        printf "%s", sink_name
                         exit
                     }
                     in_sink=0
@@ -87,22 +92,26 @@ EOF
                 END {
                     # Process last sink if needed
                     if (in_sink && match_found && sink_name != "") {
-                        print sink_name
+                        printf "%s", sink_name
                     }
                 }
-            ')
+            ' | head -1 | tr -d '\n\r' | xargs)
             
             # Fallback: Simple method if awk didn't work
             if [ -z "$SINK_NAME" ]; then
                 # Look for sink name that contains UACDemoV1.0 in the name itself
                 SINK_NAME=$(pactl list sinks 2>/dev/null | awk '
                     /^[[:space:]]*Name:/ { sink_name=$2 }
-                    /UACDemo/ && !/XVF3800/ && sink_name != "" { print sink_name; exit }
-                ')
+                    /UACDemo/ && !/XVF3800/ && sink_name != "" { printf "%s", sink_name; exit }
+                ' | tr -d '\n\r' | xargs)
             fi
             
+            # Clean up sink name (remove any extra whitespace/newlines)
+            SINK_NAME=$(echo -n "$SINK_NAME" | tr -d '\n\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+            
             if [ -n "$SINK_NAME" ]; then
-                echo "[Audio] 🔍 Found PulseAudio sink: $SINK_NAME" >&2
+                # Debug: Show sink name (with quotes to see any hidden characters)
+                echo "[Audio] 🔍 Found PulseAudio sink: '$SINK_NAME'" >&2
                 
                 # Check if PulseAudio is running
                 if ! pactl info >/dev/null 2>&1; then
@@ -110,34 +119,46 @@ EOF
                     echo "[Audio]    Try: pulseaudio --start" >&2
                 else
                     # Check if sink is suspended and resume it first
-                    SINK_STATE=$(pactl list sinks 2>/dev/null | grep -A 1 "^[[:space:]]*Name: $SINK_NAME" | grep "^[[:space:]]*State:" | awk '{print $2}')
+                    SINK_STATE=$(pactl list sinks 2>/dev/null | grep -A 5 "^[[:space:]]*Name: $SINK_NAME" | grep "^[[:space:]]*State:" | awk '{print $2}')
                     if [ "$SINK_STATE" = "SUSPENDED" ]; then
                         echo "[Audio] 🔄 Resuming suspended sink..." >&2
                         pactl suspend-sink "$SINK_NAME" 0 2>/dev/null || true
                         sleep 0.5  # Give it a moment to resume
                     fi
                     
-                    # Set as default sink (capture error output for debugging)
-                    ERROR_OUTPUT=$(pactl set-default-sink "$SINK_NAME" 2>&1)
-                    EXIT_CODE=$?
+                    # Verify sink exists and get its index
+                    SINK_INDEX=$(pactl list sinks short 2>/dev/null | grep "[[:space:]]$SINK_NAME$" | awk '{print $1}')
                     
-                    if [ $EXIT_CODE -eq 0 ]; then
-                        # Verify it was set
-                        CURRENT_DEFAULT=$(pactl info 2>/dev/null | grep "Default Sink:" | sed 's/Default Sink: //')
-                        if [ "$CURRENT_DEFAULT" = "$SINK_NAME" ]; then
+                    if [ -z "$SINK_INDEX" ]; then
+                        echo "[Audio] ⚠️  Sink '$SINK_NAME' not found in PulseAudio" >&2
+                        echo "[Audio]    Available sinks:" >&2
+                        pactl list sinks short 2>/dev/null | head -5 | sed 's/^/[Audio]      /' >&2
+                    else
+                        echo "[Audio] 🔍 Sink found at index: $SINK_INDEX" >&2
+                        
+                        # Try using sink index instead of name (more reliable)
+                        if pactl set-default-sink "$SINK_INDEX" 2>/dev/null; then
+                            CURRENT_DEFAULT=$(pactl info 2>/dev/null | grep "Default Sink:" | sed 's/Default Sink: //' | tr -d '\n\r')
                             DEVICE_NAME=$(aplay -l 2>/dev/null | grep -E "UACDemoV1\.0|UACDemoV10" | sed -n 's/.*card [0-9]*: \([^,]*\).*/\1/p' | head -1)
                             echo "[Audio] ✅ Set PulseAudio default sink to $SINK_NAME ($DEVICE_NAME)" >&2
                         else
-                            echo "[Audio] ⚠️  Command succeeded but default sink is: $CURRENT_DEFAULT" >&2
-                            echo "[Audio]    Expected: $SINK_NAME" >&2
+                            # Fallback: Try with sink name directly
+                            ERROR_OUTPUT=$(pactl set-default-sink "$SINK_NAME" 2>&1)
+                            EXIT_CODE=$?
+                            
+                            if [ $EXIT_CODE -eq 0 ]; then
+                                CURRENT_DEFAULT=$(pactl info 2>/dev/null | grep "Default Sink:" | sed 's/Default Sink: //' | tr -d '\n\r')
+                                DEVICE_NAME=$(aplay -l 2>/dev/null | grep -E "UACDemoV1\.0|UACDemoV10" | sed -n 's/.*card [0-9]*: \([^,]*\).*/\1/p' | head -1)
+                                echo "[Audio] ✅ Set PulseAudio default sink to $SINK_NAME ($DEVICE_NAME)" >&2
+                            else
+                                echo "[Audio] ⚠️  Failed to set PulseAudio default sink" >&2
+                                if [ -n "$ERROR_OUTPUT" ]; then
+                                    echo "[Audio]    Error: $ERROR_OUTPUT" >&2
+                                fi
+                                echo "[Audio]    Note: This is optional - ALSA default is already set" >&2
+                                echo "[Audio]    ALSA playback (aplay, speaker.py) will work regardless" >&2
+                            fi
                         fi
-                    else
-                        echo "[Audio] ⚠️  Failed to set PulseAudio default sink" >&2
-                        if [ -n "$ERROR_OUTPUT" ]; then
-                            echo "[Audio]    Error: $ERROR_OUTPUT" >&2
-                        fi
-                        echo "[Audio]    Try: pulseaudio --kill && pulseaudio --start" >&2
-                        echo "[Audio]    Or manually: pactl set-default-sink '$SINK_NAME'" >&2
                     fi
                 fi
             else
