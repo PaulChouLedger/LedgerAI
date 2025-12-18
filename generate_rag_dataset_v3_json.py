@@ -651,6 +651,9 @@ def generate_example(pattern_type: str) -> Dict[str, Any]:
         relevant_info = items_added_to_chunks
     else:
         # Standard distribution (single chunk or non-entity/list queries)
+        # Track which items are actually added to chunks
+        items_added_to_chunks = []
+        
         # Generate irrelevant entities/items to teach filtering
         irrelevant_entities = []
         if query_type == "entity" and relevant_info:
@@ -679,17 +682,21 @@ def generate_example(pattern_type: str) -> Dict[str, Any]:
                 irrelevant_entities.append((irrelevant_item, different_entity))
         
         for i in range(num_chunks):
-            chunk_relevant = relevant_info if i == 0 and relevant_info else []
-            chunk_irrelevant_sentences = [generate_contextual_sentence() for _ in range(3)]
-            
-            if chunk_relevant:
+            # FIXED: Put ALL relevant items in first chunk (or distribute if many items)
+            if i == 0 and relevant_info:
+                chunk_relevant = relevant_info  # Put ALL items in first chunk
+                items_added_to_chunks.extend(relevant_info)
                 chunks_used.append(i + 1)
+            else:
+                chunk_relevant = []
+            
+            chunk_irrelevant_sentences = [generate_contextual_sentence() for _ in range(3)]
             
             chunk_sentences = []
             if query_type == "entity" and chunk_relevant:
                 role = context.get("role", "leaders")
                 company = context.get("company", generate_random_company())
-                # Add relevant entities
+                # Add ALL relevant entities
                 for name in chunk_relevant:
                     chunk_sentences.append(generate_entity_sentence(name, role, company))
                 # Add irrelevant entities to teach filtering
@@ -698,7 +705,7 @@ def generate_example(pattern_type: str) -> Dict[str, Any]:
             elif query_type == "list" and chunk_relevant:
                 items = context.get("items", "features")
                 entity = context.get("entity") or context.get("company") or generate_random_company()
-                # Add relevant items
+                # Add ALL relevant items
                 for item in chunk_relevant:
                     chunk_sentences.append(generate_company_feature_sentence(entity, item))
                 # Add irrelevant items to teach filtering
@@ -715,8 +722,13 @@ def generate_example(pattern_type: str) -> Dict[str, Any]:
                 "score": round(relevance_score, 2),
                 "file": "document.pdf"
             })
+        
+        # CRITICAL FIX: Only include items that were actually added to chunks in expected answer
+        if items_added_to_chunks:
+            relevant_info = items_added_to_chunks
     
     # Generate JSON response
+    # Note: relevant_info has been updated to only include items actually added to chunks
     response = generate_json_response(query, relevant_info, query_type, context, chunks_used)
     
     # Format as training example

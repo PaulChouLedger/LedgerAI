@@ -143,7 +143,7 @@ print = debug_print
 print(f"[Aura] 📋 Loading config from: {dotenv_path}")
 
 # === Whisper Container Configuration ===
-# Whisper model is configured via app_settings.json (not .env - that's only for API keys)
+# Whisper model is always read from whisper-container/container_rest.py MODEL_NAME default (single source of truth)
 from state import get_whisper_model
 WHISPER_MODEL = get_whisper_model()
 WHISPER_DESCRIPTION = f"faster-whisper with {WHISPER_MODEL}"

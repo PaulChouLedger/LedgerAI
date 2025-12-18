@@ -81,7 +81,7 @@ def _get_whisper_model_default_from_container_rest():
 
 # Whisper model default comes from container_rest.py (single source of truth)
 _whisper_model_default = _get_whisper_model_default_from_container_rest()
-_whisper_model = _whisper_model_default  # Will be overridden by saved settings if exists
+_whisper_model = _whisper_model_default  # Always uses container_rest.py default (not persisted)
 
 def _save_settings_to_disk():
     """Save current settings to disk"""
@@ -95,8 +95,7 @@ def _save_settings_to_disk():
             "wake_word_sensitivity": _wake_word_sensitivity,
             "wake_word_engine": _wake_word_engine,
             "tts_engine": _tts_engine,
-            "chatterbox_voice_cloning_enabled": _chatterbox_voice_cloning_enabled,
-            "whisper_model": _whisper_model
+            "chatterbox_voice_cloning_enabled": _chatterbox_voice_cloning_enabled
         }
         if _wake_word_model_path:
             settings_data["wake_word_model_path"] = _wake_word_model_path
@@ -107,7 +106,7 @@ def _save_settings_to_disk():
 
 def _load_settings_from_disk():
     """Load settings from disk, creating default file if it doesn't exist"""
-    global _llm_mode, _llm_model, _wake_word_enabled, _wake_word_sensitivity, _wake_word_model_path, _wake_word_engine, _tts_engine, _chatterbox_voice_cloning_enabled, _whisper_model, _whisper_model_default
+    global _llm_mode, _llm_model, _wake_word_enabled, _wake_word_sensitivity, _wake_word_model_path, _wake_word_engine, _tts_engine, _chatterbox_voice_cloning_enabled, _whisper_model
     try:
         import json
         with open(_settings_file, "r") as f:
@@ -120,9 +119,8 @@ def _load_settings_from_disk():
             _wake_word_engine = data.get("wake_word_engine", _wake_word_engine)
             _tts_engine = data.get("tts_engine", _tts_engine)
             _chatterbox_voice_cloning_enabled = data.get("chatterbox_voice_cloning_enabled", _chatterbox_voice_cloning_enabled)
-            # If whisper_model not in JSON, default to container_rest.py default (single source of truth)
-            # Once set via GUI, it will persist in JSON and be used
-            _whisper_model = data.get("whisper_model", _whisper_model_default)
+            # whisper_model is always read from container_rest.py (not persisted in JSON)
+            _whisper_model = _whisper_model_default
     except FileNotFoundError:
         # File doesn't exist - use defaults and create it
         _save_settings_to_disk()
@@ -222,18 +220,24 @@ def set_chatterbox_voice_cloning_enabled(enabled: bool):
 
 # === Whisper Model Settings ===
 def get_whisper_model() -> str:
-    """Return Whisper model name (e.g., 'distil-whisper/distil-large-v3.5-ct2')."""
-    return _whisper_model
+    """Return Whisper model name from container_rest.py (single source of truth).
+    
+    Model is always read from whisper-container/container_rest.py MODEL_NAME default.
+    Not persisted in app_settings.json - always uses container default.
+    """
+    # Always return the default from container_rest.py (re-read in case it changed)
+    global _whisper_model_default
+    _whisper_model_default = _get_whisper_model_default_from_container_rest()
+    return _whisper_model_default
 
 def set_whisper_model(model: str):
-    """Set Whisper model name.
+    """Set Whisper model name (deprecated - model is always read from container_rest.py).
     
-    Options: "distil-small.en", "small.en", "medium.en", "base.en", 
-             "large-v3-turbo", "distil-large-v3", "distil-whisper/distil-large-v3.5-ct2"
+    This function is kept for compatibility but does nothing.
+    To change the model, edit whisper-container/container_rest.py MODEL_NAME default.
     """
-    global _whisper_model, _whisper_model_default
-    _whisper_model = model or _whisper_model_default
-    _save_settings_to_disk()
+    # No-op: whisper model is always read from container_rest.py
+    pass
 
 
 # === Listener restart trigger ===

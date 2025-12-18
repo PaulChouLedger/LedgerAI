@@ -1372,19 +1372,6 @@ class AIModelSettingsDialog(BaseAuraDialog):
         memory_row.addWidget(self.memory_toggle, 1)
         layout.addLayout(memory_row)
         
-        # Whisper Model selector
-        whisper_row = QHBoxLayout(); whisper_row.setSpacing(12)
-        whisper_label = QLabel("Whisper Model:")
-        whisper_label.setStyleSheet("color: #ffffff; font-size: 14px;")
-        self.whisper_combo = QComboBox()
-        self.whisper_combo.setStyleSheet("""
-            QComboBox { background-color: rgba(44,44,46,0.8); color: #ffffff; padding: 8px; border: none; border-radius: 10px; min-height: 36px; }
-            QComboBox QAbstractItemView { background-color: #2d2d2d; color: #ffffff; selection-background-color: #4D94D9; }
-        """)
-        whisper_row.addWidget(whisper_label)
-        whisper_row.addWidget(self.whisper_combo, 1)
-        layout.addLayout(whisper_row)
-        
         # Add stretch at bottom to center content and ensure nothing gets cut off
         layout.addStretch(2)
         self.setLayout(layout)
@@ -1505,43 +1492,6 @@ class AIModelSettingsDialog(BaseAuraDialog):
         
         self.memory_toggle.toggled.connect(on_memory_toggled)
         
-        # Populate Whisper models from available models in whisper-container directory
-        self._populate_whisper_models()
-        
-        # Initialize Whisper model selector from state
-        try:
-            from core.state import get_whisper_model
-            current_model = get_whisper_model()
-            idx = self.whisper_combo.findText(current_model)
-            if idx >= 0:
-                self.whisper_combo.setCurrentIndex(idx)
-            else:
-                # If model not in list, add it and select it (in case it's downloaded at runtime)
-                self.whisper_combo.insertItem(0, current_model)
-                self.whisper_combo.setCurrentIndex(0)
-        except Exception as e:
-            print(f"[ModelSettings] Error loading Whisper model: {e}")
-        
-        # Connect Whisper model selector
-        def on_whisper_model_changed():
-            try:
-                selected_model = self.whisper_combo.currentText()
-                from core.state import set_whisper_model
-                set_whisper_model(selected_model)
-                print(f"[ModelSettings] Whisper model changed to: {selected_model}")
-                
-                # Automatically restart Whisper container to apply changes
-                self._restart_whisper_container(selected_model)
-            except Exception as e:
-                print(f"[ModelSettings] Error saving Whisper model: {e}")
-                QMessageBox.warning(
-                    self,
-                    "Error",
-                    f"Failed to save Whisper model setting: {e}"
-                )
-        
-        self.whisper_combo.currentIndexChanged.connect(on_whisper_model_changed)
-        
         # Connect mode buttons - ensure mutual exclusivity and immediate UI update
         def on_generic_clicked():
             # Update button states immediately (before any async operations)
@@ -1627,56 +1577,6 @@ class AIModelSettingsDialog(BaseAuraDialog):
         self.fade_out.start()
         event.ignore()
     
-    def _populate_whisper_models(self):
-        """Populate Whisper model combo box with available models from container"""
-        try:
-            self.whisper_combo.clear()
-            available_models = []
-            
-            # Query the running container for available baked-in models
-            try:
-                import requests
-                response = requests.get("http://localhost:5000/models/available", timeout=2)
-                if response.status_code == 200:
-                    data = response.json()
-                    if "available_models" in data:
-                        available_models = data["available_models"]
-                        print(f"[ModelSettings] Found {len(available_models)} models from container: {available_models}")
-                    else:
-                        print(f"[ModelSettings] ⚠️ Container response missing 'available_models' field")
-                else:
-                    print(f"[ModelSettings] ⚠️ Container returned status {response.status_code}")
-            except requests.exceptions.ConnectionError:
-                print(f"[ModelSettings] ⚠️ Whisper container not running - cannot query available models")
-            except requests.exceptions.Timeout:
-                print(f"[ModelSettings] ⚠️ Whisper container request timed out")
-            except Exception as e:
-                print(f"[ModelSettings] ⚠️ Error querying container for models: {e}")
-                import traceback
-                traceback.print_exc()
-            
-            # Fallback: if container query failed, use default model only
-            if not available_models:
-                print(f"[ModelSettings] ⚠️ No models from container, using fallback: distil-small.en")
-                available_models = ["distil-small.en"]
-            
-            # Add models to combo box (already sorted from container)
-            if available_models:
-                self.whisper_combo.addItems(available_models)
-                print(f"[ModelSettings] ✅ Loaded {len(available_models)} Whisper models: {available_models}")
-            else:
-                # Final fallback: at least show the default model
-                self.whisper_combo.addItem("distil-small.en")
-                print(f"[ModelSettings] ⚠️ No models available, using fallback only")
-                
-        except Exception as e:
-            print(f"[ModelSettings] ⚠️ Error populating Whisper models: {e}")
-            import traceback
-            traceback.print_exc()
-            # Fallback: always show at least the fallback model
-            self.whisper_combo.clear()
-            self.whisper_combo.addItem("distil-small.en")
-    
     def _populate_models(self):
         try:
             self.model_combo.clear()
@@ -1744,69 +1644,6 @@ class AIModelSettingsDialog(BaseAuraDialog):
             else: QMessageBox.warning(self, "Restart Failed", result.stderr or result.stdout or "Unknown error")
         except Exception as e:
             QMessageBox.warning(self, "Error", f"Failed to restart container: {e}")
-    
-    def _restart_whisper_container(self, model_name: str):
-        """Restart Whisper container when model changes"""
-        try:
-            workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-            setup_dir = os.path.join(workspace_root, 'setup')
-            service = "whisper"
-            
-            print(f"[ModelSettings] 🔄 Restarting Whisper container with model: {model_name}")
-            
-            # Set WHISPER_MODEL environment variable so docker-compose uses the new value
-            import subprocess
-            import os as os_module
-            env = os_module.environ.copy()
-            env["WHISPER_MODEL"] = model_name
-            
-            # Stop and start (not just restart) to ensure new env var is picked up
-            # Stop first
-            stop_result = subprocess.run(
-                ["docker", "compose", "stop", service],
-                cwd=setup_dir,
-                capture_output=True,
-                text=True,
-                timeout=30
-            )
-            
-            # Start with new environment variable
-            result = subprocess.run(
-                ["docker", "compose", "up", "-d", service],
-                cwd=setup_dir,
-                env=env,
-                capture_output=True,
-                text=True,
-                timeout=60
-            )
-            
-            if result.returncode == 0:
-                print(f"[ModelSettings] ✅ Whisper container restarted successfully with model: {model_name}")
-                QMessageBox.information(
-                    self,
-                    "Whisper Model Changed",
-                    f"Whisper model set to: {model_name}\n\n"
-                    "The Whisper container has been restarted and the new model is now active."
-                )
-            else:
-                error_msg = result.stderr or result.stdout or "Unknown error"
-                print(f"[ModelSettings] ⚠️ Whisper container restart failed: {error_msg}")
-                QMessageBox.warning(
-                    self,
-                    "Restart Failed",
-                    f"Whisper model was saved, but container restart failed:\n\n{error_msg}\n\n"
-                    "Please restart the container manually or restart Aura."
-                )
-        except Exception as e:
-            print(f"[ModelSettings] ⚠️ Error restarting Whisper container: {e}")
-            import traceback
-            traceback.print_exc()
-            QMessageBox.warning(
-                self,
-                "Error",
-                f"Whisper model was saved, but failed to restart container:\n\n{str(e)}\n\n"
-                "Please restart the container manually or restart Aura."
-            )
     
     # Override on_mode_clicked and on_model_changed to persist even if import fails
     def _save_mode_locally(self, mode_now: str):
