@@ -10,15 +10,18 @@ natural language responses to users.
 """
 
 import json
-from typing import Dict, Any, Optional
+import re
+from typing import Dict, Any, Optional, List
 
-def json_to_natural_language(json_output: str, query: Optional[str] = None) -> str:
+def json_to_natural_language(json_output: str, query: Optional[str] = None, 
+                            chunks: Optional[List[Dict[str, Any]]] = None) -> str:
     """
     Convert JSON output to natural language for user display.
     
     Args:
         json_output: JSON string from model output
         query: Original query (optional, for context)
+        chunks: Original chunks provided to model (optional, for post-processing fix)
     
     Returns:
         Natural language response
@@ -26,6 +29,10 @@ def json_to_natural_language(json_output: str, query: Optional[str] = None) -> s
     try:
         # Try to parse JSON
         data = json.loads(json_output.strip())
+        
+        # Post-processing fix: Re-extract entities if model incorrectly outputs "not_found"
+        if chunks and query:
+            data = fix_not_found_with_chunks(data, chunks, query)
         
         # Handle not_found case
         if data.get("answer_type") == "not_found":
@@ -120,6 +127,115 @@ def extract_json_from_output(model_output: str) -> Optional[Dict[str, Any]]:
             pass
     
     return None
+
+def re_extract_entities_from_chunks(chunks: List[Dict[str, Any]], query: str) -> List[str]:
+    """
+    Fallback entity extraction from chunks when model outputs "not_found" but chunks exist.
+    Uses regex patterns to extract entity names from chunk text.
+    
+    Args:
+        chunks: List of chunk dicts with 'text' field
+        query: Original query (to determine what to extract)
+    
+    Returns:
+        List of extracted entity names
+    """
+    entities = set()
+    
+    # Detect query type from query text
+    is_entity_query = any(phrase in query.lower() for phrase in [
+        "who are the", "who is the", "list the", "what are the"
+    ])
+    
+    if not is_entity_query:
+        return []
+    
+    # Extract role from query (leaders, members, directors, etc.)
+    role_pattern = r"(leaders|members|directors|managers|executives|founders|co-founders)"
+    role_match = re.search(role_pattern, query.lower())
+    role = role_match.group(1) if role_match else None
+    
+    # Extract company from query if present
+    # Pattern: "of CompanyName" or "at CompanyName"
+    company_pattern = r"(?:of|at)\s+([A-Z][a-zA-Z]+(?:[A-Z][a-zA-Z]+)*)"
+    company_match = re.search(company_pattern, query)
+    company = company_match.group(1) if company_match else None
+    
+    # Entity extraction patterns (similar to training monitor)
+    entity_patterns = [
+        # Pattern: "Name serves as role at Company"
+        rf"([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\s+serves\s+as\s+{role}",
+        # Pattern: "As role of Company, Name is responsible"
+        rf"as\s+{role}[^,]*,\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\s+is",
+        # Pattern: "Name holds the position of role at Company"
+        rf"([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\s+holds\s+the\s+position\s+of\s+{role}",
+        # Pattern: "In their role as role at Company, Name has been"
+        rf"in\s+their\s+role\s+as\s+{role}[^,]*,\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\s+has",
+    ]
+    
+    for chunk in chunks:
+        chunk_text = chunk.get("text", "")
+        if not chunk_text:
+            continue
+        
+        # Try each pattern
+        for pattern in entity_patterns:
+            matches = re.finditer(pattern, chunk_text, re.IGNORECASE)
+            for match in matches:
+                # Get the name (first or second group depending on pattern)
+                name = match.group(1) if match.lastindex >= 1 else None
+                if name and len(name.split()) >= 2:  # Full name (first + last)
+                    # Filter out common false positives
+                    false_positives = {'smart systems', 'data systems', 'cloud systems', 
+                                     'ai systems', 'tech systems', 'leading strategic'}
+                    if name.lower() not in false_positives:
+                        entities.add(name)
+    
+    return sorted(list(entities))
+
+def fix_not_found_with_chunks(json_data: Dict[str, Any], chunks: Optional[List[Dict[str, Any]]] = None, 
+                              query: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Post-processing fix: If model outputs "not_found" but chunks were provided,
+    attempt to re-extract entities from chunks.
+    
+    Args:
+        json_data: Parsed JSON from model output
+        chunks: Original chunks that were provided to model (optional)
+        query: Original query (optional)
+    
+    Returns:
+        Fixed JSON data (may be unchanged if no fix needed)
+    """
+    # Only fix if answer_type is "not_found"
+    if json_data.get("answer_type") != "not_found":
+        return json_data
+    
+    # Only fix if chunks were provided and query suggests entity extraction
+    if not chunks or not query:
+        return json_data
+    
+    # Check if query is asking for entities
+    is_entity_query = any(phrase in query.lower() for phrase in [
+        "who are the", "who is the", "list the", "what are the"
+    ])
+    
+    if not is_entity_query:
+        return json_data
+    
+    # Attempt to re-extract entities
+    extracted_entities = re_extract_entities_from_chunks(chunks, query)
+    
+    if extracted_entities:
+        # Fix the response
+        json_data["answer_type"] = "entities" if "who" in query.lower() else "list"
+        json_data["items"] = extracted_entities
+        json_data["text"] = ""
+        # Update chunks_used if not already set
+        if not json_data.get("chunks_used"):
+            json_data["chunks_used"] = list(range(1, len(chunks) + 1))
+    
+    return json_data
 
 # ============================================================================
 # Example Usage

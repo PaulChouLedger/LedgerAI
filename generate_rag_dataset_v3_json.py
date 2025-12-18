@@ -547,10 +547,19 @@ def generate_example(pattern_type: str) -> Dict[str, Any]:
         relevant_info.append(generate_contextual_sentence())
         relevant_info.append(generate_contextual_sentence())
     
+    # CRITICAL FIX: For "not_found" pattern, clear relevant_info so chunks don't contain matching entities
+    # This ensures model learns: "if entities are in chunks, extract them; if not, say not_found"
+    if pattern_type == "not_found":
+        relevant_info = []  # Clear relevant info - chunks should NOT contain matching entities
+        chunks_used = []     # No chunks should be marked as used
+    
     # Generate chunks with relevant info distributed
     num_chunks = random.randint(3, 5)
     chunks = []
-    chunks_used = []
+    if pattern_type != "not_found":
+        chunks_used = []  # Only initialize if not already cleared above
+    else:
+        chunks_used = []  # Already cleared above, but ensure it's empty
     
     if pattern_type == "multi_chunk" and query_type in ["entity", "list"]:
         # Scatter items across multiple chunks
