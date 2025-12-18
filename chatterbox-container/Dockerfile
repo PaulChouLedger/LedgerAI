@@ -357,6 +357,7 @@ RUN pip3 install --index-url https://pypi.org/simple \
 
 # Copy application files
 COPY container_rest.py /app/container_rest.py
+COPY test_voice_cloning_api.py /app/test_voice_cloning_api.py
 
 # Create directories for voice samples and cache
 RUN mkdir -p /app/voice_samples /app/voice_cache
