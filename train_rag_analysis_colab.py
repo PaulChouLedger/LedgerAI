@@ -97,7 +97,7 @@ for filename, is_json in dataset_candidates:
             print("✅ Using RAG analysis dataset v3 (JSON output format)")
         elif filename == "rag_analysis_dataset_v2.json":
             print("✅ Using RAG analysis dataset v2 (natural language output)")
-else:
+        else:
             print(f"✅ Using RAG analysis dataset v1 (natural language output)")
         break
 
@@ -597,8 +597,8 @@ if JSON_OUTPUT_MODE:
     json_monitor = JSONValidationMonitor(sample_every_n_steps=100)
     callbacks.append(json_monitor)
 else:
-cot_monitor = CoTLeakageMonitor(sample_every_n_steps=100)
-callbacks.append(cot_monitor)
+    cot_monitor = CoTLeakageMonitor(sample_every_n_steps=100)
+    callbacks.append(cot_monitor)
 
 if ENABLE_EXAMPLE_MONITORING:
     from training_example_monitor import create_example_monitor
@@ -670,8 +670,8 @@ if JSON_OUTPUT_MODE:
     print(f"   - Extraction Completeness: Check if all entities are extracted (items array should be complete)")
     print(f"   - Answer Type: Verify correct answer_type (entities/list/comparison/etc.)")
 else:
-print(f"   - CoT Leakage: Watch for outputs containing 'STEP 1-5' or 'Extract information from Chunk X'")
-print(f"   - Poor Learning: Check match scores - if consistently <50% for specific query types, may need more examples")
+    print(f"   - CoT Leakage: Watch for outputs containing 'STEP 1-5' or 'Extract information from Chunk X'")
+    print(f"   - Poor Learning: Check match scores - if consistently <50% for specific query types, may need more examples")
 print()
 print("📊 Training Goals:")
 print("   ✅ Read entire RAG chunks completely (6-8 sentences each)")
@@ -803,7 +803,7 @@ if JSON_OUTPUT_MODE:
     print("  ✅ Output structured JSON format (easier to learn, better extraction completeness)")
     print("  ✅ Post-process JSON to natural language using json_to_natural_language.py")
 else:
-print("  ✅ Return only the final answer (no internal reasoning steps)")
+    print("  ✅ Return only the final answer (no internal reasoning steps)")
 print()
 
 # For Colab: Download the GGUF file

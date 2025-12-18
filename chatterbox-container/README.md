@@ -14,10 +14,21 @@ Docker container for Chatterbox-TTS that installs from source to avoid dependenc
 
 ### Build the container:
 
+**Recommended: Use the build script** (uses pre-built PyTorch image, avoids source compilation):
+
 ```bash
 cd chatterbox-container
-docker build -t chatterbox-tts .
+./build.sh
 ```
+
+**Or build manually:**
+
+```bash
+cd chatterbox-container
+docker build --network=host --shm-size=8g -t chatterbox-tts:latest .
+```
+
+> **⚠️ Important for Jetson users:** If you're using jetson-containers and getting PyTorch build failures, see [BUILD_WITH_JETSON_CONTAINERS.md](BUILD_WITH_JETSON_CONTAINERS.md) for solutions. The Dockerfile already uses a pre-built PyTorch image, so you should build directly with Docker instead of using jetson-containers' PyTorch compilation.
 
 ### Run the container:
 
@@ -155,9 +166,27 @@ curl -X POST http://localhost:11437/synthesize \
 
 ## Troubleshooting
 
-### Build fails
+### Build fails with jetson-containers (PyTorch compilation error)
+
+If you see errors like:
+```
+ninja: build stopped: subcommand failed.
+The command '/bin/sh -c /tmp/pytorch/install.sh || /tmp/pytorch/build.sh' returned a non-zero code: 1
+```
+
+**Solution:** Don't use jetson-containers to build PyTorch from source. Use the build script instead:
+```bash
+cd chatterbox-container
+./build.sh
+```
+
+See [BUILD_WITH_JETSON_CONTAINERS.md](BUILD_WITH_JETSON_CONTAINERS.md) for detailed troubleshooting.
+
+### Build fails (general)
 - Ensure you have NVIDIA Docker runtime installed
-- Check CUDA version compatibility (12.1)
+- Check CUDA version compatibility (12.8)
+- Ensure sufficient disk space (~10-15GB free)
+- Try skipping model download: `SKIP_MODEL_DOWNLOAD=1 ./build.sh`
 
 ### Import errors
 - Verify Chatterbox cloned correctly: `docker exec chatterbox-tts ls /tmp/chatterbox`
