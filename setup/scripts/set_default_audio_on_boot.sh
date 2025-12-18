@@ -102,16 +102,48 @@ EOF
             fi
             
             if [ -n "$SINK_NAME" ]; then
-                # Set as default sink
-                if pactl set-default-sink "$SINK_NAME" 2>/dev/null; then
-                    DEVICE_NAME=$(aplay -l 2>/dev/null | grep -E "UACDemoV1\.0|UACDemoV10" | sed -n 's/.*card [0-9]*: \([^,]*\).*/\1/p' | head -1)
-                    echo "[Audio] ✅ Set PulseAudio default sink to $SINK_NAME ($DEVICE_NAME)" >&2
+                echo "[Audio] 🔍 Found PulseAudio sink: $SINK_NAME" >&2
+                
+                # Check if PulseAudio is running
+                if ! pactl info >/dev/null 2>&1; then
+                    echo "[Audio] ⚠️  PulseAudio is not running - cannot set default sink" >&2
+                    echo "[Audio]    Try: pulseaudio --start" >&2
                 else
-                    echo "[Audio] ⚠️  Failed to set PulseAudio default sink (may need PulseAudio restart)" >&2
+                    # Check if sink is suspended and resume it first
+                    SINK_STATE=$(pactl list sinks 2>/dev/null | grep -A 1 "^[[:space:]]*Name: $SINK_NAME" | grep "^[[:space:]]*State:" | awk '{print $2}')
+                    if [ "$SINK_STATE" = "SUSPENDED" ]; then
+                        echo "[Audio] 🔄 Resuming suspended sink..." >&2
+                        pactl suspend-sink "$SINK_NAME" 0 2>/dev/null || true
+                        sleep 0.5  # Give it a moment to resume
+                    fi
+                    
+                    # Set as default sink (capture error output for debugging)
+                    ERROR_OUTPUT=$(pactl set-default-sink "$SINK_NAME" 2>&1)
+                    EXIT_CODE=$?
+                    
+                    if [ $EXIT_CODE -eq 0 ]; then
+                        # Verify it was set
+                        CURRENT_DEFAULT=$(pactl info 2>/dev/null | grep "Default Sink:" | sed 's/Default Sink: //')
+                        if [ "$CURRENT_DEFAULT" = "$SINK_NAME" ]; then
+                            DEVICE_NAME=$(aplay -l 2>/dev/null | grep -E "UACDemoV1\.0|UACDemoV10" | sed -n 's/.*card [0-9]*: \([^,]*\).*/\1/p' | head -1)
+                            echo "[Audio] ✅ Set PulseAudio default sink to $SINK_NAME ($DEVICE_NAME)" >&2
+                        else
+                            echo "[Audio] ⚠️  Command succeeded but default sink is: $CURRENT_DEFAULT" >&2
+                            echo "[Audio]    Expected: $SINK_NAME" >&2
+                        fi
+                    else
+                        echo "[Audio] ⚠️  Failed to set PulseAudio default sink" >&2
+                        if [ -n "$ERROR_OUTPUT" ]; then
+                            echo "[Audio]    Error: $ERROR_OUTPUT" >&2
+                        fi
+                        echo "[Audio]    Try: pulseaudio --kill && pulseaudio --start" >&2
+                        echo "[Audio]    Or manually: pactl set-default-sink '$SINK_NAME'" >&2
+                    fi
                 fi
             else
                 echo "[Audio] ⚠️  Could not find PulseAudio sink for UACDemoV1.0" >&2
                 echo "[Audio]    PulseAudio may not be running or device not yet available" >&2
+                echo "[Audio]    Debug: Run 'pactl list sinks | grep -A 5 UACDemo' to see available sinks" >&2
             fi
         else
             echo "[Audio] ℹ️  PulseAudio (pactl) not available - skipping PulseAudio default sink setup" >&2
