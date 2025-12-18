@@ -10,10 +10,12 @@ AURA_HOME="${HOME:-/home/ledger}"
 # Wait a bit for audio devices to be ready (they may not be immediately available on boot)
 sleep 2
 
-# Check if UACDemoV1.0 audio device exists
+# Check if UACDemoV1.0 or UACDemoV10 audio device exists
+# Handle both variants: "UACDemoV1.0" and "UACDemoV10" (with/without dot)
 # Redirect stderr and handle failures gracefully
-if aplay -l 2>/dev/null | grep -q "UACDemoV1.0" 2>/dev/null; then
-    CARD_NUM=$(aplay -l 2>/dev/null | grep "UACDemoV1.0" | sed -n 's/.*card \([0-9]*\):.*/\1/p' | head -1)
+if aplay -l 2>/dev/null | grep -qE "UACDemoV1\.0|UACDemoV10" 2>/dev/null; then
+    # Try UACDemoV1.0 first, then UACDemoV10 (without dot)
+    CARD_NUM=$(aplay -l 2>/dev/null | grep -E "UACDemoV1\.0|UACDemoV10" | sed -n 's/.*card \([0-9]*\):.*/\1/p' | head -1)
     
     if [ -n "$CARD_NUM" ]; then
         # Set ALSA default output card (output only, not input - won't interfere with microphone)
@@ -29,7 +31,8 @@ if aplay -l 2>/dev/null | grep -q "UACDemoV1.0" 2>/dev/null; then
 defaults.pcm.card $CARD_NUM
 defaults.ctl.card $CARD_NUM
 EOF
-            echo "[Audio] ✅ Set ALSA default output card to $CARD_NUM (UACDemoV1.0)" >&2
+            DEVICE_NAME=$(aplay -l 2>/dev/null | grep -E "UACDemoV1\.0|UACDemoV10" | sed -n 's/.*card [0-9]*: \([^,]*\).*/\1/p' | head -1)
+            echo "[Audio] ✅ Set ALSA default output card to $CARD_NUM ($DEVICE_NAME)" >&2
             echo "[Audio]    Created minimal .asoundrc (output only, won't affect microphone)" >&2
         else
             echo "[Audio] ✅ ALSA default output card already set to $CARD_NUM" >&2
@@ -37,9 +40,9 @@ EOF
         
         # Set PulseAudio default sink to UACDemoV1.0 (if PulseAudio is available)
         if command -v pactl >/dev/null 2>&1; then
-            # Find the PulseAudio sink for UACDemoV1.0
+            # Find the PulseAudio sink for UACDemoV1.0 or UACDemoV10
             # List all sinks and look for UACDemo in the description (but not XVF3800/microphone)
-            SINK_NAME=$(pactl list sinks 2>/dev/null | grep -B 5 -A 10 "UACDemo" | grep -v "XVF3800" | grep "^Name:" | head -1 | sed 's/^Name: //' | tr -d ' ')
+            SINK_NAME=$(pactl list sinks 2>/dev/null | grep -B 5 -A 10 -E "UACDemoV1\.0|UACDemoV10|UACDemo" | grep -v "XVF3800" | grep "^Name:" | head -1 | sed 's/^Name: //' | tr -d ' ')
             
             # If not found by UACDemo, try to find by card number
             if [ -z "$SINK_NAME" ]; then
@@ -49,7 +52,8 @@ EOF
             if [ -n "$SINK_NAME" ]; then
                 # Set as default sink
                 if pactl set-default-sink "$SINK_NAME" 2>/dev/null; then
-                    echo "[Audio] ✅ Set PulseAudio default sink to $SINK_NAME (UACDemoV1.0)" >&2
+                    DEVICE_NAME=$(aplay -l 2>/dev/null | grep -E "UACDemoV1\.0|UACDemoV10" | sed -n 's/.*card [0-9]*: \([^,]*\).*/\1/p' | head -1)
+                    echo "[Audio] ✅ Set PulseAudio default sink to $SINK_NAME ($DEVICE_NAME)" >&2
                 else
                     echo "[Audio] ⚠️  Failed to set PulseAudio default sink (may need PulseAudio restart)" >&2
                 fi
