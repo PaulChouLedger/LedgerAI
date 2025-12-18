@@ -214,6 +214,7 @@ _batch_timer = None  # Timer for delayed flush
 _batch_started = False  # Track if we've sent the first batch (for low-latency start)
 _llm_request_start_time = None  # Track when LLM request started for accurate latency measurement
 _sentence_enqueue_time = None  # Track when sentence was enqueued for latency measurement
+pending_initials = None  # Global variable to store pending initials for merging with names
 TTS_TOKEN_LIMIT = 200  # Max tokens before forcing sentence split (hardcoded)
 USE_SSML = True
 INSERT_BREAKS = True
