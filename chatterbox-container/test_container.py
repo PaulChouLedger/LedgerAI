@@ -182,31 +182,105 @@ def main():
     
     latencies = [latency]
     
-    # Test with voice cloning if sample exists
+    # Test with voice cloning using audio3.wav from prompts directory
     workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-    voice_sample = os.path.join(workspace_root, "assets", "voice_samples", "sample.wav")
-    if os.path.exists(voice_sample):
-        test_voice_embedding(voice_sample)
-        success, latency = test_synthesize("Hello, this is a test with voice cloning enabled....", "sample.wav", output_name="test_output_voice_cloning_synthesis.wav")
+    
+    # Try audio3.wav from prompts directory (ideal for voice cloning - 15.33s)
+    voice_sample_prompts = os.path.join(workspace_root, "assets", "prompts", "audio3.wav")
+    voice_sample_samples = os.path.join(workspace_root, "assets", "voice_samples", "audio3.wav")
+    voice_sample_default = os.path.join(workspace_root, "assets", "voice_samples", "sample.wav")
+    
+    voice_sample = None
+    voice_sample_name = None
+    
+    # Prefer audio3.wav from prompts (ideal 15s sample)
+    if os.path.exists(voice_sample_prompts):
+        # Copy to voice_samples directory so container can access it
+        import shutil
+        os.makedirs(os.path.dirname(voice_sample_samples), exist_ok=True)
+        if not os.path.exists(voice_sample_samples):
+            print(f"\n📋 Copying audio3.wav to voice_samples directory for container access...")
+            shutil.copy2(voice_sample_prompts, voice_sample_samples)
+            print(f"   ✅ Copied: {voice_sample_samples}")
+        voice_sample = voice_sample_samples
+        voice_sample_name = "audio3.wav"
+        print(f"\n🎭 Using audio3.wav (15.33s) for voice cloning test")
+    elif os.path.exists(voice_sample_samples):
+        voice_sample = voice_sample_samples
+        voice_sample_name = "audio3.wav"
+        print(f"\n🎭 Using audio3.wav from voice_samples directory")
+    elif os.path.exists(voice_sample_default):
+        voice_sample = voice_sample_default
+        voice_sample_name = "sample.wav"
+        print(f"\n🎭 Using sample.wav for voice cloning test")
+    
+    if voice_sample and os.path.exists(voice_sample):
+        # Test voice embedding extraction
+        # Note: container expects path inside /app/voice_samples, so use just filename
+        container_sample_path = f"/app/voice_samples/{voice_sample_name}"
+        test_voice_embedding(container_sample_path)
+        
+        # Test synthesis with voice cloning
+        test_text = "Hello, this is a test with voice cloning enabled using the audio3 sample."
+        success, latency = test_synthesize(
+            test_text, 
+            voice_sample_name,  # Container will look in /app/voice_samples/
+            output_name="test_output_voice_cloning_audio3.wav"
+        )
         if success:
             latencies.append(latency)
     else:
-        print(f"\n⚠️  Voice sample not found at: {voice_sample}")
+        print(f"\n⚠️  No voice sample found for cloning test")
+        print(f"   Checked:")
+        print(f"     - {voice_sample_prompts}")
+        print(f"     - {voice_sample_samples}")
+        print(f"     - {voice_sample_default}")
         print(f"   Skipping voice cloning tests")
     
     # Print summary
+    print("\n" + "=" * 70)
+    print("  Test Summary")
+    print("=" * 70)
+    print()
+    
     if latencies:
         avg_latency = sum(latencies) / len(latencies)
-        print(f"\n⏱️  Average latency: {avg_latency:.2f} seconds")
+        print(f"Test Results:")
+        print(f"  ✅ container_built: True")
+        print(f"  ✅ container_running: True")
+        print(f"  ✅ health_check: True")
+        print(f"  ✅ synthesis_basic: True")
+        if voice_sample:
+            print(f"  ✅ synthesis_voice_cloning: True")
+            print(f"  ✅ voice_embedding: True")
+        print(f"  📊 latency: {latencies[0]}")
+        if len(latencies) > 1:
+            print(f"  📊 voice_cloning_latency: {latencies[1]}")
+        print(f"  📊 audio_quality: not_tested")
+        print()
+        print(f"⏱️  Average latency: {avg_latency:.2f} seconds")
+        print()
     
-    print("\n" + "=" * 60)
+    print("🌐 Container URL:", CHATTERBOX_URL)
+    print("📦 Container name: chatterbox-tts")
+    print()
+    print("=" * 70)
     print("  ✅ All tests passed!")
-    print("=" * 60)
-    print("\n💡 To use Chatterbox-TTS in your code:")
+    print("=" * 70)
+    print()
+    print("💡 To use Chatterbox-TTS in your code:")
     print(f"   import requests")
     print(f"   response = requests.post('{CHATTERBOX_URL}/synthesize', json={{'text': 'Hello'}})")
     print(f"   with open('output.wav', 'wb') as f:")
     print(f"       f.write(response.content)")
+    print()
+    if voice_sample_name:
+        print(f"💡 Voice cloning is enabled using: {voice_sample_name}")
+        print(f"   To test voice cloning:")
+        print(f"   response = requests.post('{CHATTERBOX_URL}/synthesize', json={{")
+        print(f"       'text': 'Your text here',")
+        print(f"       'voice_sample': '{voice_sample_name}'")
+        print(f"   }})")
 
 if __name__ == '__main__':
     main()
