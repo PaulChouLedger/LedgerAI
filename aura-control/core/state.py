@@ -107,7 +107,7 @@ def _save_settings_to_disk():
 
 def _load_settings_from_disk():
     """Load settings from disk, creating default file if it doesn't exist"""
-    global _llm_mode, _llm_model, _wake_word_enabled, _wake_word_sensitivity, _wake_word_model_path, _wake_word_engine, _tts_engine, _chatterbox_voice_cloning_enabled, _whisper_model
+    global _llm_mode, _llm_model, _wake_word_enabled, _wake_word_sensitivity, _wake_word_model_path, _wake_word_engine, _tts_engine, _chatterbox_voice_cloning_enabled, _whisper_model, _whisper_model_default
     try:
         import json
         with open(_settings_file, "r") as f:
@@ -120,7 +120,9 @@ def _load_settings_from_disk():
             _wake_word_engine = data.get("wake_word_engine", _wake_word_engine)
             _tts_engine = data.get("tts_engine", _tts_engine)
             _chatterbox_voice_cloning_enabled = data.get("chatterbox_voice_cloning_enabled", _chatterbox_voice_cloning_enabled)
-            _whisper_model = data.get("whisper_model", _whisper_model)
+            # If whisper_model not in JSON, default to container_rest.py default (single source of truth)
+            # Once set via GUI, it will persist in JSON and be used
+            _whisper_model = data.get("whisper_model", _whisper_model_default)
     except FileNotFoundError:
         # File doesn't exist - use defaults and create it
         _save_settings_to_disk()

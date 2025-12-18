@@ -562,34 +562,83 @@ def generate_example(pattern_type: str) -> Dict[str, Any]:
         chunks_used = []  # Already cleared above, but ensure it's empty
     
     if pattern_type == "multi_chunk" and query_type in ["entity", "list"]:
-        # Scatter items across multiple chunks
-        items_per_chunk = max(1, len(relevant_info) // min(len(relevant_info), max(2, num_chunks)))
+        # FIXED: Scatter items across multiple chunks, ensuring ALL items are included
+        # Track which items have been added to chunks
+        items_added_to_chunks = []
+        
+        # Generate irrelevant entities/items to teach filtering
+        irrelevant_entities = []
+        if query_type == "entity":
+            role = context.get("role", "leaders")
+            company = context.get("company", generate_random_company())
+            # Generate 2-4 irrelevant entities (different role or different company)
+            num_irrelevant = random.randint(2, 4)
+            for _ in range(num_irrelevant):
+                irrelevant_name = generate_random_name()
+                # Use different role or different company to make them irrelevant
+                if random.random() < 0.5:
+                    # Different role, same company (irrelevant)
+                    different_role = random.choice(["CEO", "CTO", "CFO", "VP", "Director"])
+                    irrelevant_entities.append((irrelevant_name, different_role, company))
+                else:
+                    # Same role, different company (irrelevant)
+                    different_company = generate_random_company()
+                    irrelevant_entities.append((irrelevant_name, role, different_company))
+        elif query_type == "list":
+            items = context.get("items", "features")
+            entity = context.get("entity") or context.get("company") or generate_random_company()
+            # Generate 2-4 irrelevant items (different entity)
+            num_irrelevant = random.randint(2, 4)
+            different_entity = generate_random_company()
+            for _ in range(num_irrelevant):
+                if items in ["features", "benefits", "components", "advantages", "capabilities", "services"]:
+                    irrelevant_item = f"{items[:-1] if items.endswith('s') else items} {random.randint(100, 200)}"
+                else:
+                    irrelevant_item = f"{items} item {random.randint(100, 200)}"
+                irrelevant_entities.append((irrelevant_item, different_entity))
+        
+        # Distribute relevant items across chunks (ensure ALL are included)
         for i, chunk_idx in enumerate(range(num_chunks)):
             chunk_relevant = []
-            if i < len(relevant_info):
-                # Distribute items across chunks
+            
+            # Calculate which items go in this chunk
+            if len(relevant_info) > 0:
+                # Distribute items evenly across chunks
+                items_per_chunk = max(1, (len(relevant_info) + num_chunks - 1) // num_chunks)  # Ceiling division
                 start_idx = i * items_per_chunk
                 end_idx = min(start_idx + items_per_chunk, len(relevant_info))
-                chunk_relevant = relevant_info[start_idx:end_idx]
-                if chunk_relevant:
-                    chunks_used.append(chunk_idx + 1)
+                
+                if start_idx < len(relevant_info):
+                    chunk_relevant = relevant_info[start_idx:end_idx]
+                    items_added_to_chunks.extend(chunk_relevant)
+                    if chunk_relevant:
+                        chunks_used.append(chunk_idx + 1)
             
-            chunk_irrelevant = [generate_contextual_sentence() for _ in range(5)]
+            # Add irrelevant entities/items to this chunk (teach filtering)
+            chunk_irrelevant_sentences = [generate_contextual_sentence() for _ in range(3)]  # Fewer generic sentences
             
             # Create sentences for this chunk
             chunk_sentences = []
             if query_type == "entity":
                 role = context.get("role", "leaders")
                 company = context.get("company", generate_random_company())
+                # Add relevant entities
                 for name in chunk_relevant:
                     chunk_sentences.append(generate_entity_sentence(name, role, company))
+                # Add irrelevant entities (different role/company)
+                for irrelevant_name, irrelevant_role, irrelevant_company in irrelevant_entities[:random.randint(1, 2)]:
+                    chunk_sentences.append(generate_entity_sentence(irrelevant_name, irrelevant_role, irrelevant_company))
             elif query_type == "list":
                 items = context.get("items", "features")
                 entity = context.get("entity") or context.get("company") or generate_random_company()
+                # Add relevant items
                 for item in chunk_relevant:
                     chunk_sentences.append(generate_company_feature_sentence(entity, item))
+                # Add irrelevant items (different entity)
+                for irrelevant_item, irrelevant_entity in irrelevant_entities[:random.randint(1, 2)]:
+                    chunk_sentences.append(generate_company_feature_sentence(irrelevant_entity, irrelevant_item))
             
-            chunk_text = create_realistic_chunk(chunk_sentences, chunk_irrelevant)
+            chunk_text = create_realistic_chunk(chunk_sentences, chunk_irrelevant_sentences)
             relevance_score = 0.85 if chunk_relevant else random.uniform(0.3, 0.6)
             
             chunks.append({
@@ -597,11 +646,41 @@ def generate_example(pattern_type: str) -> Dict[str, Any]:
                 "score": round(relevance_score, 2),
                 "file": "document.pdf"
             })
+        
+        # CRITICAL FIX: Only include items that were actually added to chunks in expected answer
+        relevant_info = items_added_to_chunks
     else:
-        # Standard distribution
+        # Standard distribution (single chunk or non-entity/list queries)
+        # Generate irrelevant entities/items to teach filtering
+        irrelevant_entities = []
+        if query_type == "entity" and relevant_info:
+            role = context.get("role", "leaders")
+            company = context.get("company", generate_random_company())
+            # Generate 2-3 irrelevant entities
+            num_irrelevant = random.randint(2, 3)
+            for _ in range(num_irrelevant):
+                irrelevant_name = generate_random_name()
+                if random.random() < 0.5:
+                    different_role = random.choice(["CEO", "CTO", "CFO", "VP", "Director"])
+                    irrelevant_entities.append((irrelevant_name, different_role, company))
+                else:
+                    different_company = generate_random_company()
+                    irrelevant_entities.append((irrelevant_name, role, different_company))
+        elif query_type == "list" and relevant_info:
+            items = context.get("items", "features")
+            entity = context.get("entity") or context.get("company") or generate_random_company()
+            num_irrelevant = random.randint(2, 3)
+            different_entity = generate_random_company()
+            for _ in range(num_irrelevant):
+                if items in ["features", "benefits", "components", "advantages", "capabilities", "services"]:
+                    irrelevant_item = f"{items[:-1] if items.endswith('s') else items} {random.randint(100, 200)}"
+                else:
+                    irrelevant_item = f"{items} item {random.randint(100, 200)}"
+                irrelevant_entities.append((irrelevant_item, different_entity))
+        
         for i in range(num_chunks):
             chunk_relevant = relevant_info if i == 0 and relevant_info else []
-            chunk_irrelevant = [generate_contextual_sentence() for _ in range(5)]
+            chunk_irrelevant_sentences = [generate_contextual_sentence() for _ in range(3)]
             
             if chunk_relevant:
                 chunks_used.append(i + 1)
@@ -610,17 +689,25 @@ def generate_example(pattern_type: str) -> Dict[str, Any]:
             if query_type == "entity" and chunk_relevant:
                 role = context.get("role", "leaders")
                 company = context.get("company", generate_random_company())
+                # Add relevant entities
                 for name in chunk_relevant:
                     chunk_sentences.append(generate_entity_sentence(name, role, company))
+                # Add irrelevant entities to teach filtering
+                for irrelevant_name, irrelevant_role, irrelevant_company in irrelevant_entities[:random.randint(1, 2)]:
+                    chunk_sentences.append(generate_entity_sentence(irrelevant_name, irrelevant_role, irrelevant_company))
             elif query_type == "list" and chunk_relevant:
                 items = context.get("items", "features")
                 entity = context.get("entity") or context.get("company") or generate_random_company()
+                # Add relevant items
                 for item in chunk_relevant:
                     chunk_sentences.append(generate_company_feature_sentence(entity, item))
+                # Add irrelevant items to teach filtering
+                for irrelevant_item, irrelevant_entity in irrelevant_entities[:random.randint(1, 2)]:
+                    chunk_sentences.append(generate_company_feature_sentence(irrelevant_entity, irrelevant_item))
             elif chunk_relevant:
                 chunk_sentences = chunk_relevant
             
-            chunk_text = create_realistic_chunk(chunk_sentences, chunk_irrelevant)
+            chunk_text = create_realistic_chunk(chunk_sentences, chunk_irrelevant_sentences)
             relevance_score = 0.85 if chunk_relevant else random.uniform(0.3, 0.6)
             
             chunks.append({
