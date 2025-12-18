@@ -38,11 +38,6 @@ _elevenlabs_client = None
 _chatterbox_tts = None
 _chatterbox_voice_embedding = None  # Cached voice embedding for faster synthesis
 
-# Voice embedding cache path (for faster synthesis)
-VOICE_EMBEDDING_CACHE_DIR = os.path.join(workspace_root, "data", "voice_cache")
-os.makedirs(VOICE_EMBEDDING_CACHE_DIR, exist_ok=True)
-_chatterbox_voice_embedding = None  # Cached voice embedding for faster synthesis
-
 def _get_elevenlabs_client():
     """Lazy load ElevenLabs client (only when needed)"""
     global _elevenlabs_client
@@ -230,6 +225,14 @@ RATE = "100%"
 # Early chunking disabled - we respect LLM's sentence boundaries only
 EARLY_CHUNKING_ENABLED = False
 PITCH = "100%"
+
+# === ElevenLabs Voice Settings ===
+# Expression and voice quality parameters (0.0-1.0 range)
+ELEVEN_STABILITY = 0.5          # Lower = more expressive/variable, Higher = more stable/consistent
+ELEVEN_SIMILARITY_BOOST = 0.0   # How closely to match original voice (0.0 = default)
+ELEVEN_STYLE = 0.0              # Style exaggeration (higher = more dramatic)
+ELEVEN_USE_SPEAKER_BOOST = False  # Enhance speaker clarity
+ELEVEN_OPTIMIZE_STREAMING_LATENCY = True  # Optimize for low latency
 
 # Sentence-based TTS: Use LLM sentence tags to control TTS boundaries
 # This ensures sentences are spoken as complete units, preserving meaning
@@ -610,102 +613,6 @@ def _flush_batch_if_ready():
             _batch_timer = None
             print(f"[Speaker] 📦 Flushed batch ({total_chunks} chunks, {total_words} words) after timeout")
 
-def merge_initials_with_names(text):
-    """Post-process text to merge initials with names that might have been split"""
-    # Look for patterns like "J.K." followed by "Rowling." in the same text
-    # This handles cases where the LLM already merged them but they're in separate sentences
-    
-    # Pattern: initials at end of sentence, followed by name at start of next sentence
-    # Example: "written by J.K." + "Rowling." -> "written by J.K. Rowling."
-    
-    # Find all initials patterns
-    initials_pattern = r'\b[A-Z]\.(?:[A-Z]\.)*'
-    initials_matches = re.findall(initials_pattern, text)
-    
-    for initials in initials_matches:
-        # Look for this initials pattern at the end of a sentence
-        pattern = re.escape(initials) + r'\s*$'
-        if re.search(pattern, text):
-            # This text ends with initials, might need to be merged with next chunk
-            # We'll handle this in the buffer logic above
-            pass
-    
-    return text
-
-# Global variable to store pending initials
-pending_initials = None
-
-def check_for_initials_merge(text):
-    """Check if this text should be merged with pending initials"""
-    global pending_initials
-    
-    if pending_initials:
-        # Check if current text is a name that should be merged
-        if (text.endswith('.') and 
-            len(text) > 2 and 
-            len(text.split()) == 1 and 
-            text[0].isupper() and 
-            not text.lower() in ['the.', 'and.', 'or.', 'but.', 'for.', 'nor.', 'yet.', 'so.']):
-            
-            # Merge the pending initials with this name
-            merged_text = pending_initials + " " + text
-            pending_initials = None
-            return merged_text
-    
-    # Check if this text ends with initials
-    initials_pattern = r'\b[A-Z]\.(?:[A-Z]\.)*\s*$'
-    if re.search(initials_pattern, text):
-        pending_initials = text
-        return None  # Don't enqueue this yet, wait for the name
-    
-    pending_initials = None
-    return text
-
-def analyze_audio_frequency(audio_chunk):
-    """Analyze audio chunk to extract dominant frequency for GUI pulsation"""
-    try:
-        # Convert bytes to numpy array (assuming 16-bit PCM)
-        audio_data = np.frombuffer(audio_chunk, dtype=np.int16)
-        
-        # Skip if audio is too short
-        if len(audio_data) < 100:
-            return 0.15  # Default speed
-            
-        # Apply FFT to get frequency spectrum
-        fft = np.fft.fft(audio_data)
-        freqs = np.fft.fftfreq(len(audio_data), 1/PCM_SAMPLE_RATE)
-        
-        # Get magnitude spectrum
-        magnitude = np.abs(fft)
-        
-        # Find dominant frequency (excluding DC component)
-        positive_freqs = freqs[:len(freqs)//2]
-        positive_magnitude = magnitude[:len(magnitude)//2]
-        
-        # Find peak frequency
-        peak_idx = np.argmax(positive_magnitude[1:]) + 1  # Skip DC
-        dominant_freq = positive_freqs[peak_idx]
-        
-        # Normalize frequency to GUI pulsation speed (0.1 to 0.5)
-        # Human speech is typically 85-255 Hz, map to 0.1-0.5 speed
-        normalized_speed = 0.1 + (dominant_freq / 255) * 0.4
-        normalized_speed = max(0.1, min(0.5, normalized_speed))  # Clamp to range
-        
-        print(f"[Audio Analysis] 🎵 Freq: {dominant_freq:.1f}Hz -> Speed: {normalized_speed:.3f}")
-        return normalized_speed
-        
-    except Exception as e:
-        print(f"[Audio Analysis] ❌ Error analyzing frequency: {e}")
-        return 0.15  # Default speed
-
-def update_gui_frequency(frequency_speed):
-    """Update GUI with current audio frequency for pulsation"""
-    try:
-        from gui.aura_gui import set_tts_frequency
-        set_tts_frequency(frequency_speed)
-    except ImportError:
-        pass  # GUI not available
-
 # === TTS audio generation (supports both engines) ===
 def _is_network_error(exception):
     """Check if exception is a network/DNS error that might be retryable"""
@@ -872,11 +779,11 @@ def _generate_tts_audio(text):
                 voice_id=ELEVEN_VOICE_ID,
                 output_format=PCM_FORMAT,
                 voice_settings={
-                    "stability": 0.5,
-                    "similarity_boost": 0.0,
-                    "style": 0.0,
-                    "use_speaker_boost": False,
-                    "optimize_streaming_latency": True
+                    "stability": ELEVEN_STABILITY,
+                    "similarity_boost": ELEVEN_SIMILARITY_BOOST,
+                    "style": ELEVEN_STYLE,
+                    "use_speaker_boost": ELEVEN_USE_SPEAKER_BOOST,
+                    "optimize_streaming_latency": ELEVEN_OPTIMIZE_STREAMING_LATENCY
                 }
             )
             # Successfully got stream - yield chunks
