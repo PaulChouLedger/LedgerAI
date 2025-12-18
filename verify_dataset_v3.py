@@ -17,9 +17,9 @@ def extract_entities_from_chunk(chunk_text: str, query: str) -> List[str]:
     """Extract entity names from chunk text (similar to training monitor)"""
     entities = set()
     
-    # Check if query is asking for entities
+    # Check if query is asking for entities (not list items)
     is_entity_query = any(phrase in query.lower() for phrase in [
-        "who are the", "who is the", "list the", "what are the"
+        "who are the", "who is the"
     ])
     
     if not is_entity_query:
@@ -35,21 +35,37 @@ def extract_entities_from_chunk(chunk_text: str, query: str) -> List[str]:
     company_match = re.search(company_pattern, query)
     company = company_match.group(1) if company_match else None
     
-    # Entity extraction patterns
+    # Entity extraction patterns (person names only)
     name_patterns = [
         r'([A-Z][a-z]+ [A-Z][a-z]+) serves as',
         r'As [^,]+, ([A-Z][a-z]+ [A-Z][a-z]+)',
         r'([A-Z][a-z]+ [A-Z][a-z]+) holds the position',
         r'([A-Z][a-z]+ [A-Z][a-z]+) is (?:executive|manager|director|founder|co-founder|leader|member)',
+        r'([A-Z][a-z]+ [A-Z][a-z]+) serves as [^,]+ at',
+        r'In their role as [^,]+, ([A-Z][a-z]+ [A-Z][a-z]+)',
     ]
     
     for pattern in name_patterns:
         matches = re.findall(pattern, chunk_text, re.IGNORECASE)
-        entities.update(matches)
+        # Filter: must be a person name (two capitalized words, not common phrases)
+        for match in matches:
+            if len(match.split()) == 2:
+                # Check it's not a common phrase
+                false_positives = {
+                    'reducing dependence', 'leading strategic', 'improving customer',
+                    'increasing market', 'changing market', 'emerging business',
+                    'improved efficiency', 'enhanced security', 'scalable infrastructure'
+                }
+                if match.lower() not in false_positives:
+                    entities.add(match)
     
-    # Simple pattern: Capitalized First Last name
+    # Simple pattern: Capitalized First Last name (with context check)
     simple_names = re.findall(r'\b([A-Z][a-z]+ [A-Z][a-z]+)\b', chunk_text)
-    false_positives = {'Smart Systems', 'Data Systems', 'Cloud Systems', 'AI Systems', 'Tech Systems'}
+    false_positives = {
+        'Smart Systems', 'Data Systems', 'Cloud Systems', 'AI Systems', 'Tech Systems',
+        'Reducing Dependence', 'Leading Strategic', 'Improving Customer',
+        'Increasing Market', 'Changing Market', 'Emerging Business'
+    }
     for name in simple_names:
         if name not in false_positives and len(name.split()) == 2:
             name_lower = name.lower()
@@ -92,14 +108,20 @@ def verify_not_found_examples(dataset: List[Dict[str, Any]]) -> Dict[str, Any]:
                     continue
                 query = query_match.group(1).strip()
                 
-                # Extract chunks
-                chunk_pattern = r'\[Chunk (\d+)\] Score: ([\d.]+).*?FULL CHUNK TEXT: [\'"](.+?)[\'"]'
+                # Extract chunks (use lookahead to find end of chunk, not just quote)
+                chunk_pattern = r'\[Chunk (\d+)\] Score: ([\d.]+).*?FULL CHUNK TEXT: (.+?)(?=\[Chunk \d+\]|$)'
                 chunks = re.findall(chunk_pattern, user_msg, re.DOTALL)
                 
                 # Check each chunk for entities
                 found_entities = []
                 for chunk_num, chunk_score, chunk_text in chunks:
-                    chunk_text_clean = chunk_text.replace("\\'", "'").replace('\\"', '"')
+                    # Remove quotes if present at start/end
+                    chunk_text_clean = chunk_text.strip()
+                    if chunk_text_clean.startswith("'") or chunk_text_clean.startswith('"'):
+                        chunk_text_clean = chunk_text_clean[1:]
+                    if chunk_text_clean.endswith("'") or chunk_text_clean.endswith('"'):
+                        chunk_text_clean = chunk_text_clean[:-1]
+                    chunk_text_clean = chunk_text_clean.replace("\\'", "'").replace('\\"', '"')
                     entities = extract_entities_from_chunk(chunk_text_clean, query)
                     if entities:
                         found_entities.extend(entities)
@@ -151,8 +173,8 @@ def verify_multi_entity_examples(dataset: List[Dict[str, Any]]) -> Dict[str, Any
                     continue
                 query = query_match.group(1).strip()
                 
-                # Extract chunks
-                chunk_pattern = r'\[Chunk (\d+)\] Score: ([\d.]+).*?FULL CHUNK TEXT: [\'"](.+?)[\'"]'
+                # Extract chunks (use lookahead to find end of chunk, not just quote)
+                chunk_pattern = r'\[Chunk (\d+)\] Score: ([\d.]+).*?FULL CHUNK TEXT: (.+?)(?=\[Chunk \d+\]|$)'
                 chunks = re.findall(chunk_pattern, user_msg, re.DOTALL)
                 
                 # Check if entities are distributed across chunks
@@ -164,12 +186,25 @@ def verify_multi_entity_examples(dataset: List[Dict[str, Any]]) -> Dict[str, Any
                     if entities:
                         entities_per_chunk[chunk_num] = entities
                 
-                # Check if all expected items are found in chunks
-                found_items = set()
-                for chunk_entities in entities_per_chunk.values():
-                    found_items.update(chunk_entities)
+                # For list queries, check if items are mentioned in chunks (not just entities)
+                if answer_type == "list":
+                    # List items might be mentioned differently (e.g., "feature 30" vs "offers feature 30")
+                    found_items = set()
+                    chunk_texts = [chunk[2].replace("\\'", "'").replace('\\"', '"') for chunk in chunks]
+                    for item in items:
+                        item_lower = item.lower()
+                        for chunk_text in chunk_texts:
+                            if item_lower in chunk_text.lower():
+                                found_items.add(item)
+                                break
+                    missing_items = set(items) - found_items
+                else:
+                    # For entity queries, check entities
+                    found_items = set()
+                    for chunk_entities in entities_per_chunk.values():
+                        found_items.update(chunk_entities)
+                    missing_items = set(items) - found_items
                 
-                missing_items = set(items) - found_items
                 if missing_items:
                     issues.append({
                         "index": i,
