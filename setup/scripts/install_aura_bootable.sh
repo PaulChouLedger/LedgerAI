@@ -894,6 +894,38 @@ fi
 
 echo ""
 
+# ============================================================================
+# Step 5.6: Install default audio output service
+# ============================================================================
+print_step "5.6. Installing default audio output service..."
+
+AUDIO_SERVICE_FILE="$LEDGERAI_DIR/setup/scripts/set-default-audio.service"
+SYSTEMD_AUDIO_SERVICE="/etc/systemd/system/set-default-audio.service"
+
+if [ -f "$AUDIO_SERVICE_FILE" ]; then
+    # Remove existing service file or symlink if it exists
+    if [ -L "$SYSTEMD_AUDIO_SERVICE" ] || [ -f "$SYSTEMD_AUDIO_SERVICE" ]; then
+        sudo rm -f "$SYSTEMD_AUDIO_SERVICE"
+    fi
+    
+    # Create symlink to git repository file
+    AUDIO_SERVICE_FILE_ABS="$(cd "$(dirname "$AUDIO_SERVICE_FILE")" && pwd)/$(basename "$AUDIO_SERVICE_FILE")"
+    sudo ln -s "$AUDIO_SERVICE_FILE_ABS" "$SYSTEMD_AUDIO_SERVICE"
+    
+    # Reload systemd
+    sudo systemctl daemon-reload
+    
+    # Enable service
+    sudo systemctl enable set-default-audio.service
+    
+    print_info "✅ Default audio output service installed and enabled"
+    print_info "   Service will set ALSA and PulseAudio defaults to UACDemoV1.0 on boot"
+else
+    print_warning "Default audio service file not found: $AUDIO_SERVICE_FILE"
+fi
+
+echo ""
+
 echo ""
 
 # ============================================================================
@@ -1398,8 +1430,8 @@ fi
 cat > "$AURA_SERVICE_FILE" << EOF
 [Unit]
 Description=Aura Voice Assistant
-After=network.target docker.service display-manager.service xvf3800-tuning.service
-Wants=docker.service display-manager.service xvf3800-tuning.service
+After=network.target docker.service display-manager.service xvf3800-tuning.service set-default-audio.service
+Wants=docker.service display-manager.service xvf3800-tuning.service set-default-audio.service
 Requires=docker.service
 
 [Service]
@@ -1419,8 +1451,7 @@ ExecStartPre=/bin/bash -c 'SOCKET=\$(ls /tmp/.X11-unix/ 2>/dev/null | grep "^X" 
 ExecStartPre=/bin/bash -c 'SOCKET=\$(ls /tmp/.X11-unix/ 2>/dev/null | grep "^X" | head -1); if [ -n "\$SOCKET" ]; then NUM=\$(echo "\$SOCKET" | sed "s/X//"); export DISPLAY=:\$NUM; else export DISPLAY=:0; fi; gsettings set org.gnome.desktop.screensaver lock-enabled false 2>/dev/null || true'
 ExecStartPre=/bin/bash -c 'SOCKET=\$(ls /tmp/.X11-unix/ 2>/dev/null | grep "^X" | head -1); if [ -n "\$SOCKET" ]; then NUM=\$(echo "\$SOCKET" | sed "s/X//"); export DISPLAY=:\$NUM; else export DISPLAY=:0; fi; gsettings set org.gnome.desktop.lockdown disable-lock-screen true 2>/dev/null || true'
 ExecStartPre=/bin/bash -c 'SOCKET=\$(ls /tmp/.X11-unix/ 2>/dev/null | grep "^X" | head -1); if [ -n "\$SOCKET" ]; then NUM=\$(echo "\$SOCKET" | sed "s/X//"); export DISPLAY=:\$NUM; else export DISPLAY=:0; fi; gsettings set org.gnome.desktop.screensaver idle-activation-enabled false 2>/dev/null || true'
-# Set default audio output (UACDemoV1.0) on every boot - ALSA and PulseAudio
-ExecStartPre=$LEDGERAI_DIR/setup/scripts/set_default_audio_on_boot.sh
+# Audio defaults are now handled by set-default-audio.service (runs before this service)
 ExecStartPre=/bin/sleep 5
 ExecStart=$VENV_DIR/bin/python3 -u $LEDGERAI_DIR/aura-control/core/main.py
 Restart=always
