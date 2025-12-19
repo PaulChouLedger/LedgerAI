@@ -896,18 +896,18 @@ if __name__ == '__main__':
         print("[Chatterbox] 🔍 Pre-loading ChatterboxTTS at startup...", flush=True)
         print("[Chatterbox] ⏳ This will take 1-5 minutes but ensures fast synthesis requests...", flush=True)
         
-            try:
-                import time
+        try:
+            import time
             preload_start = time.time()
             print("[Chatterbox] 🔄 Starting ChatterboxTTS initialization...", flush=True)
-                get_chatterbox_tts()
+            get_chatterbox_tts()
             preload_elapsed = time.time() - preload_start
             print(f"[Chatterbox] ✅ ChatterboxTTS pre-loaded successfully (took {preload_elapsed:.1f} seconds)", flush=True)
             print("[Chatterbox] ✅ Model is ready - synthesis requests will be fast now", flush=True)
-            except Exception as e:
+        except Exception as e:
             print(f"[Chatterbox] ⚠️ Pre-loading failed: {e}", flush=True)
-                import traceback
-                traceback.print_exc()
+            import traceback
+            traceback.print_exc()
             print("[Chatterbox] 💡 Container will start but synthesis will be slow on first request", flush=True)
             print("[Chatterbox] 💡 Model will load on first synthesis request", flush=True)
         
