@@ -929,9 +929,9 @@ echo ""
 echo ""
 
 # ============================================================================
-# Step 5.6: Install XVF3800 firmware
+# Step 5.7: Install XVF3800 firmware
 # ============================================================================
-print_step "5.6. Installing XVF3800 firmware..."
+print_step "5.7. Installing XVF3800 firmware..."
 
 # Install dfu-util (required for firmware flashing)
 print_info "Installing dfu-util..."
