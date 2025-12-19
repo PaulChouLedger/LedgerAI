@@ -207,7 +207,6 @@ def get_chatterbox_tts():
         if _initialization_in_progress:
             print("[Chatterbox] ⏳ Initialization already in progress, waiting...")
             print("[Chatterbox] 💡 This may take several minutes (loading large models into GPU memory)...")
-            import time
             wait_start = time.time()
             max_wait = 600  # Wait up to 10 minutes (model loading can be slow, especially on first load)
             check_interval = 2  # Check every 2 seconds
@@ -574,7 +573,6 @@ def synthesize():
         print(f"[Chatterbox] 💬 Synthesizing: '{text[:50]}...'")
         
         # Track timing
-        import time
         synthesis_start = time.time()
         
         # Get Chatterbox instance
@@ -897,7 +895,6 @@ if __name__ == '__main__':
         print("[Chatterbox] ⏳ This will take 1-5 minutes but ensures fast synthesis requests...", flush=True)
         
         try:
-            import time
             preload_start = time.time()
             print("[Chatterbox] 🔄 Starting ChatterboxTTS initialization...", flush=True)
             get_chatterbox_tts()
