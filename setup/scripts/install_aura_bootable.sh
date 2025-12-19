@@ -908,9 +908,19 @@ if [ -f "$AUDIO_SERVICE_FILE" ]; then
         sudo rm -f "$SYSTEMD_AUDIO_SERVICE"
     fi
     
-    # Create symlink to git repository file
-    AUDIO_SERVICE_FILE_ABS="$(cd "$(dirname "$AUDIO_SERVICE_FILE")" && pwd)/$(basename "$AUDIO_SERVICE_FILE")"
-    sudo ln -s "$AUDIO_SERVICE_FILE_ABS" "$SYSTEMD_AUDIO_SERVICE"
+    # Create a copy with user substituted (not symlink, since we need to customize User=)
+    TEMP_AUDIO_SERVICE="/tmp/set-default-audio.service"
+    cp "$AUDIO_SERVICE_FILE" "$TEMP_AUDIO_SERVICE"
+    
+    # Substitute user in the service file
+    sed -i "s|User=ledger|User=$AURA_USER|g" "$TEMP_AUDIO_SERVICE"
+    sed -i "s|User=aura|User=$AURA_USER|g" "$TEMP_AUDIO_SERVICE"
+    sed -i "s|Group=ledger|Group=$AURA_USER|g" "$TEMP_AUDIO_SERVICE"
+    sed -i "s|Group=aura|Group=$AURA_USER|g" "$TEMP_AUDIO_SERVICE"
+    
+    # Copy to systemd
+    sudo cp "$TEMP_AUDIO_SERVICE" "$SYSTEMD_AUDIO_SERVICE"
+    rm -f "$TEMP_AUDIO_SERVICE"
     
     # Reload systemd
     sudo systemctl daemon-reload
@@ -920,6 +930,7 @@ if [ -f "$AUDIO_SERVICE_FILE" ]; then
     
     print_info "✅ Default audio output service installed and enabled"
     print_info "   Service will set ALSA and PulseAudio defaults to UACDemoV1.0 on boot"
+    print_info "   Service runs as user: $AURA_USER"
 else
     print_warning "Default audio service file not found: $AUDIO_SERVICE_FILE"
 fi

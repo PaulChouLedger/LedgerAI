@@ -2,7 +2,7 @@
 # Automatically sets ALSA and PulseAudio default output to UACDemoV1.0 on boot
 #
 # This service file is FULLY DYNAMIC - no modifications needed!
-# - Paths resolved using systemd %h (home directory) and common locations
+# - Paths resolved using common locations (ledger, aura users)
 # - Can be updated via git pull without any changes!
 #
 # To install (first time only):
@@ -22,18 +22,21 @@
 
 [Unit]
 Description=Set Default Audio Output (UACDemoV1.0)
-# Wait for USB subsystem, ALSA, and PulseAudio to be ready
-After=sys-subsystem-usb-devices.target sound.target pulseaudio.service
+# Wait for USB subsystem and ALSA to be ready
+After=sys-subsystem-usb-devices.target sound.target
 Wants=sys-subsystem-usb-devices.target sound.target
-# Start PulseAudio if it's not running (user service)
-After=pulseaudio.service pulseaudio.socket
+# Note: PulseAudio may run as user service - script handles this
 
 [Service]
 Type=oneshot
 RemainAfterExit=yes
+# Run as ledger user (change to your username if different)
+# PulseAudio requires running as the user who owns the session
+User=ledger
+Group=ledger
 # Wait for audio devices to be available, then run the script
 # The script handles: ALSA .asoundrc and PulseAudio default sink
-ExecStart=/bin/bash -c 'for i in {1..30}; do if aplay -l 2>/dev/null | grep -qE "UACDemoV1\.0|UACDemoV10"; then break; fi; sleep 1; done; sleep 2; for dir in "%h/LedgerAI" "/home/ledger/LedgerAI" "/home/aura/LedgerAI"; do if [ -f "$$dir/setup/scripts/set_default_audio_on_boot.sh" ]; then cd "$$dir" && bash setup/scripts/set_default_audio_on_boot.sh; exit $$?; fi; done; echo "Error: Could not find LedgerAI directory or set_default_audio_on_boot.sh"; exit 1'
+ExecStart=/bin/bash -c 'for i in {1..30}; do if aplay -l 2>/dev/null | grep -qE "UACDemoV1\.0|UACDemoV10"; then break; fi; sleep 1; done; sleep 2; for dir in "/home/ledger/LedgerAI" "/home/aura/LedgerAI"; do if [ -f "$$dir/setup/scripts/set_default_audio_on_boot.sh" ]; then cd "$$dir" && bash setup/scripts/set_default_audio_on_boot.sh; exit $$?; fi; done; echo "Error: Could not find LedgerAI directory or set_default_audio_on_boot.sh"; exit 1'
 StandardOutput=journal
 StandardError=journal
 

@@ -2,7 +2,7 @@
 # Test voice cloning with ChatterboxTTS
 
 CHATTERBOX_URL="${CHATTERBOX_URL:-http://localhost:11437}"
-VOICE_SAMPLE="${1:-welcome.wav}"  # Default to welcome.wav
+VOICE_SAMPLE="${1:-audio2.wav}"  # Default to audio2.wav from prompts directory
 TEXT="${2:-Hello, this is a test of voice cloning with ChatterboxTTS.}"  # Default test text
 
 echo "="*70
