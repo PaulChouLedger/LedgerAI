@@ -10,6 +10,7 @@ import io
 import json
 import tempfile
 import inspect
+import time
 import numpy as np
 import soundfile as sf
 from dotenv import load_dotenv
@@ -301,11 +302,45 @@ def get_chatterbox_tts():
                     print("[Chatterbox] ⏳ This may take 1-5 minutes (loading models into GPU memory)...")
                     if device == "cpu":
                         print("[Chatterbox] ⚠️  WARNING: Using CPU - synthesis will be VERY slow (10-30x slower than GPU)")
-                    import time
                     init_start = time.time()
-                    _chatterbox_tts = ChatterboxTTS.from_pretrained(device=device)
-                    init_elapsed = time.time() - init_start
-                    print(f"[Chatterbox] ✅ from_pretrained(device=...) returned (took {init_elapsed:.1f} seconds)")
+                    
+                    # Retry logic for CAS service errors
+                    max_retries = 3
+                    retry_delay = 5  # seconds
+                    last_error = None
+                    _chatterbox_tts = None
+                    
+                    for attempt in range(1, max_retries + 1):
+                        try:
+                            _chatterbox_tts = ChatterboxTTS.from_pretrained(device=device)
+                            init_elapsed = time.time() - init_start
+                            print(f"[Chatterbox] ✅ from_pretrained(device=...) returned (took {init_elapsed:.1f} seconds)")
+                            break  # Success, exit retry loop
+                        except Exception as e:
+                            last_error = e
+                            error_str = str(e)
+                            
+                            # Check if it's a CAS service error
+                            is_cas_error = "CAS service" in error_str or "cas" in error_str.lower() or "ReqwestMiddleware" in error_str
+                            
+                            if is_cas_error and attempt < max_retries:
+                                print(f"[Chatterbox] ⚠️  CAS service error (attempt {attempt}/{max_retries}): {error_str[:200]}")
+                                print(f"[Chatterbox] 💡 This is a network/API error - ChatterboxTTS is trying to access remote model files")
+                                print(f"[Chatterbox] 💡 Retrying in {retry_delay} seconds...")
+                                print(f"[Chatterbox] 💡 Troubleshooting:")
+                                print(f"[Chatterbox]    - Check internet connectivity")
+                                print(f"[Chatterbox]    - Verify CAS service is accessible")
+                                print(f"[Chatterbox]    - Check firewall/proxy settings")
+                                print(f"[Chatterbox]    - Ensure sufficient disk space")
+                                time.sleep(retry_delay)
+                                retry_delay *= 2  # Exponential backoff
+                            else:
+                                # Not a CAS error or last attempt - re-raise
+                                raise
+                    
+                    if _chatterbox_tts is None:
+                        # This shouldn't happen, but just in case
+                        raise RuntimeError(f"Failed to initialize after {max_retries} attempts: {last_error}")
                     
                     # Verify device after loading
                     if hasattr(_chatterbox_tts, 'device'):
@@ -320,8 +355,37 @@ def get_chatterbox_tts():
                             print(f"[Chatterbox] ⚠️  Device mismatch: requested {device}, got {actual_device}")
                 else:
                     print("[Chatterbox] 🔄 Calling ChatterboxTTS.from_pretrained()...")
-                    _chatterbox_tts = ChatterboxTTS.from_pretrained()
-                    print("[Chatterbox] ✅ from_pretrained() returned")
+                    
+                    # Retry logic for CAS service errors
+                    max_retries = 3
+                    retry_delay = 5  # seconds
+                    last_error = None
+                    _chatterbox_tts = None
+                    
+                    for attempt in range(1, max_retries + 1):
+                        try:
+                            _chatterbox_tts = ChatterboxTTS.from_pretrained()
+                            print("[Chatterbox] ✅ from_pretrained() returned")
+                            break  # Success, exit retry loop
+                        except Exception as e:
+                            last_error = e
+                            error_str = str(e)
+                            
+                            # Check if it's a CAS service error
+                            is_cas_error = "CAS service" in error_str or "cas" in error_str.lower() or "ReqwestMiddleware" in error_str
+                            
+                            if is_cas_error and attempt < max_retries:
+                                print(f"[Chatterbox] ⚠️  CAS service error (attempt {attempt}/{max_retries}): {error_str[:200]}")
+                                print(f"[Chatterbox] 💡 Retrying in {retry_delay} seconds...")
+                                time.sleep(retry_delay)
+                                retry_delay *= 2  # Exponential backoff
+                            else:
+                                # Not a CAS error or last attempt - re-raise
+                                raise
+                    
+                    if _chatterbox_tts is None:
+                        raise RuntimeError(f"Failed to initialize after {max_retries} attempts: {last_error}")
+                    
                     # If device parameter not available, try to move model to device manually
                     if hasattr(_chatterbox_tts, 'to'):
                         print(f"[Chatterbox] 🔄 Moving model to device {device}...")
@@ -333,13 +397,40 @@ def get_chatterbox_tts():
                 print("[Chatterbox] ⚠️  Initialization interrupted")
                 raise
             except Exception as e:
-                print(f"[Chatterbox] ❌ from_pretrained() failed: {e}")
+                error_str = str(e)
+                print(f"[Chatterbox] ❌ from_pretrained() failed: {error_str}")
                 import traceback
                 traceback.print_exc()
+                
+                # Provide specific guidance for CAS errors
+                if "CAS service" in error_str or "cas" in error_str.lower() or "ReqwestMiddleware" in error_str:
+                    print("\n" + "="*70)
+                    print("[Chatterbox] 🔍 CAS SERVICE ERROR DIAGNOSTICS")
+                    print("="*70)
+                    print("[Chatterbox] ❌ ChatterboxTTS failed to access CAS (Content Addressable Storage) service")
+                    print("[Chatterbox]")
+                    print("[Chatterbox] 💡 Possible causes:")
+                    print("[Chatterbox]    1. Network connectivity issues")
+                    print("[Chatterbox]    2. CAS service is down or unreachable")
+                    print("[Chatterbox]    3. Firewall/proxy blocking requests")
+                    print("[Chatterbox]    4. Rate limiting or authentication issues")
+                    print("[Chatterbox]")
+                    print("[Chatterbox] 🔧 Troubleshooting steps:")
+                    print("[Chatterbox]    1. Check internet connectivity: ping 8.8.8.8")
+                    print("[Chatterbox]    2. Verify DNS resolution works")
+                    print("[Chatterbox]    3. Check if you can access HuggingFace: curl https://huggingface.co")
+                    print("[Chatterbox]    4. Review firewall/proxy settings")
+                    print("[Chatterbox]    5. Check if models are cached locally (may work offline)")
+                    print("[Chatterbox]    6. Try again later (service may be temporarily down)")
+                    print("[Chatterbox]")
+                    print("[Chatterbox] 📝 Note: ChatterboxTTS requires network access to download/verify models")
+                    print("[Chatterbox]    If models are already cached, it may still need CAS for verification")
+                    print("="*70 + "\n")
+                
                 raise RuntimeError(
                     f"Could not initialize ChatterboxTTS using from_pretrained(). "
-                    f"Error: {e}. "
-                    f"Please check container logs for details."
+                    f"Error: {error_str}. "
+                    f"Please check container logs for details and troubleshooting steps."
                 )
             
             print(f"[Chatterbox] ✅ ChatterboxTTS initialized successfully")
@@ -805,18 +896,18 @@ if __name__ == '__main__':
         print("[Chatterbox] 🔍 Pre-loading ChatterboxTTS at startup...", flush=True)
         print("[Chatterbox] ⏳ This will take 1-5 minutes but ensures fast synthesis requests...", flush=True)
         
-        try:
-            import time
+            try:
+                import time
             preload_start = time.time()
             print("[Chatterbox] 🔄 Starting ChatterboxTTS initialization...", flush=True)
-            get_chatterbox_tts()
+                get_chatterbox_tts()
             preload_elapsed = time.time() - preload_start
             print(f"[Chatterbox] ✅ ChatterboxTTS pre-loaded successfully (took {preload_elapsed:.1f} seconds)", flush=True)
             print("[Chatterbox] ✅ Model is ready - synthesis requests will be fast now", flush=True)
-        except Exception as e:
+            except Exception as e:
             print(f"[Chatterbox] ⚠️ Pre-loading failed: {e}", flush=True)
-            import traceback
-            traceback.print_exc()
+                import traceback
+                traceback.print_exc()
             print("[Chatterbox] 💡 Container will start but synthesis will be slow on first request", flush=True)
             print("[Chatterbox] 💡 Model will load on first synthesis request", flush=True)
         

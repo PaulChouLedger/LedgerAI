@@ -556,16 +556,16 @@ def generate_example(pattern_type: str = "mixed_content") -> Dict[str, Any]:
     """Generate a single training example with realistic content"""
     
     # Select query template
-    # ENHANCED: For multi_chunk and role_filtering patterns, prioritize list/entity queries
+    # PRIORITY FIX: For multi_chunk, role_filtering, and cross_entity patterns, prioritize list/entity queries
     # These patterns are specifically designed to teach complete multi-entity extraction
-    if pattern_type in ["multi_chunk", "role_filtering"]:
-        # 70% chance of list/entity queries for these patterns
+    if pattern_type in ["multi_chunk", "role_filtering", "cross_entity"]:
+        # 80% chance of list/entity queries for these patterns (INCREASED from 70%)
         list_entity_templates = [t for t in QUERY_TEMPLATES if t["type"] in ["list", "entity"]]
         other_templates = [t for t in QUERY_TEMPLATES if t["type"] not in ["list", "entity"]]
-        if random.random() < 0.70 and list_entity_templates:
+        if random.random() < 0.80 and list_entity_templates:
             template = random.choice(list_entity_templates)
         else:
-    template = random.choice(QUERY_TEMPLATES)
+            template = random.choice(QUERY_TEMPLATES)
     else:
         template = random.choice(QUERY_TEMPLATES)
     
@@ -595,11 +595,15 @@ def generate_example(pattern_type: str = "mixed_content") -> Dict[str, Any]:
             # Generate entity names and sentences about them
             role = context.get("role", "leaders")
             company = context.get("company", generate_random_company())
-            # ENHANCED: For entity queries, ensure we generate 3-4 entities (not just 2)
+            # PRIORITY FIX: For entity queries, ensure we generate 3-4 entities (not just 2)
             # This forces model to extract multiple entities, not just first match
-            if pattern_type in ["multi_chunk", "role_filtering"]:
+            # Evaluation showed 96% entity extraction failure - need more entities per query
+            if pattern_type in ["multi_chunk", "role_filtering", "cross_entity"]:
                 # For multi-chunk patterns, generate more entities to force complete extraction
                 num_relevant_items = random.randint(3, 4)
+            else:
+                # Even for single-chunk, generate 2-3 entities to teach completeness
+                num_relevant_items = random.randint(2, 3)
             for _ in range(num_relevant_items):
                 name = generate_random_name()
                 relevant_info.append(name)
@@ -618,10 +622,14 @@ def generate_example(pattern_type: str = "mixed_content") -> Dict[str, Any]:
                 "services": ["consulting", "implementation support", "training programs", "maintenance", "custom development"]
             }
             items_list = list_items.get(items_type, ["feature A", "feature B", "feature C"])
-            # ENHANCED: For list queries, ensure we generate 3-4 items (not just 2)
+            # PRIORITY FIX: For list queries, ensure we generate 3-4 items (not just 2)
+            # Evaluation showed 89% list incompleteness - need more items per query
             # This forces model to extract ALL items, not stop after first match
-            if pattern_type in ["multi_chunk", "mixed_content"]:
+            if pattern_type in ["multi_chunk", "mixed_content", "role_filtering"]:
                 num_relevant_items = random.randint(3, 4)
+            else:
+                # Even for single-chunk, generate 2-3 items to teach completeness
+                num_relevant_items = random.randint(2, 3)
             selected_items = random.sample(items_list, min(num_relevant_items, len(items_list)))
             for item in selected_items:
                 relevant_info.append(item)
@@ -842,18 +850,21 @@ def main():
     print()
     
     # Pattern distribution (6250 examples total)
-    # ENHANCED: Increased multi_chunk and role_filtering to emphasize multi-entity extraction
-    # Reduced other patterns to maintain 6250 total
+    # PRIORITY FIXES BASED ON EVALUATION:
+    # 1. Reduced "not_found" from 8.8% to 4% (<10% target)
+    # 2. Increased entity extraction examples (role_filtering + cross_entity = 2500, was 2000)
+    # 3. Increased multi-chunk examples for list completeness (multi_chunk = 1800, was 1500)
+    # 4. Added emphasis on entity extraction and list completeness
     patterns = {
-        "mixed_content": 700,      # 11.2% - Extract relevant, ignore irrelevant (reduced from 900)
-        "multi_chunk": 1500,       # 24.0% - Extract from multiple chunks (INCREASED from 1200 - more multi-entity examples)
-        "role_filtering": 1200,    # 19.2% - Filter by role/entity (INCREASED from 900 - more entity list queries)
-        "cross_entity": 800,       # 12.8% - Filter by specific entity (reduced from 900)
-        "synthesis": 550,          # 8.8% - Combine info from chunks (reduced from 600)
-        "not_found": 550,          # 8.8% - Recognize missing info (reduced from 600)
-        "comparison": 400,         # 6.4% - Compare entities (reduced from 450)
-        "relationship": 400,        # 6.4% - Extract relationships (reduced from 450)
-        "analytical": 150,         # 2.4% - Analytical queries (reduced from 250)
+        "mixed_content": 600,      # 9.6% - Extract relevant, ignore irrelevant
+        "multi_chunk": 1800,       # 28.8% - Extract from multiple chunks (INCREASED - more list/entity completeness)
+        "role_filtering": 1400,    # 22.4% - Filter by role/entity (INCREASED - more entity extraction)
+        "cross_entity": 1100,      # 17.6% - Filter by specific entity (INCREASED - more entity extraction)
+        "synthesis": 500,          # 8.0% - Combine info from chunks
+        "not_found": 250,          # 4.0% - Recognize missing info (REDUCED from 8.8% to <5%)
+        "comparison": 350,         # 5.6% - Compare entities
+        "relationship": 350,       # 5.6% - Extract relationships
+        "analytical": 200,         # 3.2% - Analytical queries (INCREASED for better coverage)
     }
     
     dataset = []

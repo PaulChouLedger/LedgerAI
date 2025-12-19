@@ -136,7 +136,7 @@ EOF
                                 CURRENT_DEFAULT=$(pactl info 2>/dev/null | grep "Default Sink:" | sed 's/Default Sink: //' | tr -d '\n\r')
                                 DEVICE_NAME=$(aplay -l 2>/dev/null | grep -E "UACDemoV1\.0|UACDemoV10" | sed -n 's/.*card [0-9]*: \([^,]*\).*/\1/p' | head -1)
                                 echo "[Audio] ✅ Set PulseAudio default sink to $SINK_NAME ($DEVICE_NAME)" >&2
-                            else
+                else
                                 echo "[Audio] ⚠️  Failed to set PulseAudio default sink" >&2
                                 if [ -n "$ERROR_OUTPUT" ]; then
                                     echo "[Audio]    Error: $ERROR_OUTPUT" >&2

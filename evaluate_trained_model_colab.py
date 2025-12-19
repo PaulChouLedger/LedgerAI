@@ -325,7 +325,7 @@ def generate_prediction(model, tokenizer, prompt: str, max_new_tokens: int = 200
         traceback.print_exc()
         return None
 
-def load_dataset(dataset_path: str = "rag_analysis_dataset_v2.json"):
+def load_dataset(dataset_path: str = "rag_analysis_dataset_v3_json.json"):
     """Load evaluation dataset"""
     if not os.path.exists(dataset_path):
         print(f"❌ Dataset not found: {dataset_path}")
@@ -735,7 +735,7 @@ def main():
     
     # Configuration
     MODEL_PATH = os.getenv("MODEL_PATH", None)  # Set in Colab: os.environ["MODEL_PATH"] = "./outputs_rag_analysis"
-    DATASET_PATH = os.getenv("DATASET_PATH", "rag_analysis_dataset_v2.json")
+    DATASET_PATH = os.getenv("DATASET_PATH", "rag_analysis_dataset_v3_json.json")
     NUM_EVAL_EXAMPLES = int(os.getenv("NUM_EVAL_EXAMPLES", "100"))  # Evaluate on subset
     VERBOSE = os.getenv("VERBOSE", "false").lower() == "true"
     

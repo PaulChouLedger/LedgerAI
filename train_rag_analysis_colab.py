@@ -444,14 +444,19 @@ print("=" * 80)
 # LoRA Rank Configuration
 # r=4: ~2.7M trainable (0.17%) - Very minimal capacity, insufficient for multi-entity extraction
 # r=6: ~4.1M trainable (0.26%) - Better capacity, but still insufficient for JSON structure learning
-# r=8: ~5.5M trainable (0.35%) - OPTIMAL for JSON output format (structured extraction requires more capacity)
+# r=8: ~5.5M trainable (0.35%) - Good for JSON structure, but insufficient for entity extraction
+# r=12: ~8.2M trainable (0.50%) - OPTIMAL for entity extraction and list completeness (PRIORITY FIX)
 # r=16: ~11M trainable (0.85%) - Higher capacity, but may cause memorization
 #
-# JSON Output Mode: Model needs to learn JSON structure + extraction completeness
-# Higher rank (8) helps model learn structured format better than natural language
+# PRIORITY FIX: Evaluation showed 96% entity extraction failure - increased rank to 12
+# Entity extraction and list completeness require more model capacity than JSON structure alone
 
-LORA_RANK = 8  # Increased from 6 - JSON structure requires more capacity
-LORA_ALPHA = 16  # 2x rank for optimal scaling
+# PRIORITY FIX: Increased LoRA rank from 8 to 12 for better entity/list extraction
+# Evaluation showed 96% entity extraction failure - needs more model capacity
+# r=12: ~8.2M trainable (0.50%) - Better capacity for complex extraction tasks
+# r=16: ~11M trainable (0.85%) - Higher capacity, but may cause memorization
+LORA_RANK = 12  # Increased from 8 - entity extraction and list completeness require more capacity
+LORA_ALPHA = 24  # 2x rank for optimal scaling
 LORA_DROPOUT = 0.3  # Increased from 0.25 - more regularization to prevent memorization
 
 model = FastLanguageModel.get_peft_model(
@@ -644,8 +649,8 @@ approx_params = {
     256: (180, 13.6),
     512: (360, 27.2),
 }
-params_m, params_pct = approx_params.get(LORA_RANK, (5.5, 0.35))
-print(f"   - LoRA rank: {LORA_RANK} (~{params_m}M trainable parameters, ~{params_pct}% of model) (increased from 6 to 8 - JSON structure requires more capacity)")
+params_m, params_pct = approx_params.get(LORA_RANK, (8.2, 0.50))
+print(f"   - LoRA rank: {LORA_RANK} (~{params_m}M trainable parameters, ~{params_pct}% of model) (PRIORITY FIX: increased from 8 to 12 - entity extraction requires more capacity)")
 print(f"   - LoRA alpha: {LORA_ALPHA} (2x rank for optimal scaling)")
 print(f"   - LoRA dropout: {LORA_DROPOUT} (increased from 0.25 to 0.3 - stronger regularization to prevent memorization)")
 print(f"   - Warmup steps: {training_args.warmup_steps} (increased from 1500 to 2000 - more stable start with JSON format)")
@@ -654,7 +659,7 @@ print(f"   - Logging steps: {training_args.logging_steps} (more frequent monitor
 print(f"\n📝 Training Configuration (JSON Output Mode):")
 print(f"   - Dataset: {DATASET_PATH}")
 print(f"   - Output format: {'JSON' if JSON_OUTPUT_MODE else 'Natural Language'}")
-print(f"   - LoRA rank: {LORA_RANK} (increased from 6 to 8 - JSON structure requires more capacity)")
+print(f"   - LoRA rank: {LORA_RANK} (PRIORITY FIX: increased from 8 to 12 - entity extraction and list completeness require more capacity)")
 print(f"   - Epochs: {training_args.num_train_epochs} (reduced from 7 to 5 - JSON format learns faster)")
 print(f"   - Learning rate: {training_args.learning_rate} (conservative 5e-7 - JSON structure is easier to learn)")
 print(f"   - Weight decay: {training_args.weight_decay} (increased to 0.8 - stronger regularization)")

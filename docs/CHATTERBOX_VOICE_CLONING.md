@@ -30,7 +30,7 @@ For **zero-shot voice cloning** (what we use), Chatterbox TTS requires:
 
 Use the XVF3800 microphone array to record a high-quality sample:
 
-```bash
+   ```bash
 # Record a 10-15 second sample
 cd ~/LedgerAI
 python3 -c "

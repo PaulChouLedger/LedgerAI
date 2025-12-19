@@ -1,0 +1,3188 @@
+{
+  "analysis": {
+    "total_examples": 100,
+    "match_scores": {
+      "mean": 86.12278331756592,
+      "median": 82.05936050415039,
+      "std": 11.262075416899622,
+      "min": 57.65553283691406,
+      "max": 100.00001525878906
+    },
+    "raw_match_scores": {
+      "mean": 86.12278331756592
+    },
+    "cleaning_impact": {
+      "avg_improvement": 0.0,
+      "examples_improved": 0,
+      "improvement_percentage": 0.0
+    },
+    "score_distribution": {
+      "excellent (\u226590%)": 40,
+      "good (70-89%)": 54,
+      "fair (50-69%)": 6,
+      "poor (<50%)": 0
+    },
+    "cot_leakage": {
+      "total_with_leakage": 0,
+      "percentage": 0.0,
+      "common_patterns": {}
+    },
+    "list_completeness": {
+      "total_list_queries": 65,
+      "incomplete_list_queries": 58,
+      "incomplete_percentage": 89.23076923076924,
+      "avg_completeness_score": 0.20987179487179486,
+      "min_completeness_score": 0.0
+    }
+  },
+  "recommendations": [
+    "\u2705 EXCELLENT: Mean match score \u2265 85% - Model performing well",
+    "\u2705 Good: CoT leakage < 10%"
+  ],
+  "sample_results": [
+    {
+      "query": "what services does CatalystAlliance offer?",
+      "expected": "{\"answer_type\": \"list\", \"items\": [\"service 92\", \"service 4\", \"service 5\", \"service 53\"], \"text\": \"\", \"chunks_used\": [1]}",
+      "prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "cleaned_prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "match_score": 81.87657928466797,
+      "raw_match_score": 81.87657928466797,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": false,
+        "completeness_score": 0.0,
+        "missing_items": [
+          "\"text\": \"\"",
+          "\"service 5\"",
+          "\"service 53\"]",
+          "\"service 4\"",
+          "{\"answer_type\": \"list\"",
+          "\"chunks_used\": [1]}",
+          "\"items\": [\"service 92\""
+        ],
+        "extra_items": [
+          "\"text\": \"i don't have that information in the provided documents\"",
+          "{\"answer_type\": \"not_found\"",
+          "\"items\": []",
+          "\"chunks_used\": []}"
+        ],
+        "answer_count": 4,
+        "expected_count": 7
+      }
+    },
+    {
+      "query": "what is the process for diversify?",
+      "expected": "{\"answer_type\": \"process\", \"items\": [], \"text\": \"Change management initiatives have been launched to support organizational transformation efforts. Customer satisfaction scores have remained consisten...",
+      "prediction": "{\n  \"answer_type\": \"not_found\",\n  \"items\": [],\n  \"text\": \"I don't have that information in the provided documents\",\n  \"chunks_used\": []\n}",
+      "cleaned_prediction": "{\n\"answer_type\": \"not_found\",\n\"items\": [],\n\"text\": \"I don't have that information in the provided documents\",\n\"chunks_used\": []\n}",
+      "match_score": 65.92332458496094,
+      "raw_match_score": 65.92332458496094,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": false,
+        "complete": true,
+        "completeness_score": 1.0,
+        "missing_items": [],
+        "extra_items": []
+      }
+    },
+    {
+      "query": "what are the features of transformation?",
+      "expected": "{\"answer_type\": \"list\", \"items\": [\"feature 30\", \"feature 49\", \"feature 92\", \"feature 97\"], \"text\": \"\", \"chunks_used\": [1]}",
+      "prediction": "{\n  \"answer_type\": \"not_found\",\n  \"items\": [],\n  \"text\": \"I don't have that information in the provided documents.\",\n  \"chunks_used\": []\n}",
+      "cleaned_prediction": "{\n\"answer_type\": \"not_found\",\n\"items\": [],\n\"text\": \"I don't have that information in the provided documents.\",\n\"chunks_used\": []\n}",
+      "match_score": 83.90249633789062,
+      "raw_match_score": 83.90249633789062,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": false,
+        "completeness_score": 0.0,
+        "missing_items": [
+          "\"text\": \"\"",
+          "\"feature 92\"",
+          "\"feature 49\"",
+          "{\"answer_type\": \"list\"",
+          "\"feature 97\"]",
+          "\"chunks_used\": [1]}",
+          "\"items\": [\"feature 30\""
+        ],
+        "extra_items": [
+          "\"text\": \"i don't have that information in the provided documents.\"",
+          "\"chunks_used\": []\n}",
+          "{\n\"answer_type\": \"not_found\"",
+          "\"items\": []"
+        ],
+        "answer_count": 4,
+        "expected_count": 7
+      }
+    },
+    {
+      "query": "who are the leaders at ApexTechnologies?",
+      "expected": "{\"answer_type\": \"entities\", \"items\": [\"Casey Martinez\", \"Hayden Martinez\", \"Logan Jackson\"], \"text\": \"\", \"chunks_used\": [1, 2, 3]}",
+      "prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "cleaned_prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "match_score": 78.63072204589844,
+      "raw_match_score": 78.63072204589844,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": false,
+        "completeness_score": 0.0,
+        "missing_items": [
+          "\"text\": \"\"",
+          "\"hayden martinez\"",
+          "{\"answer_type\": \"entities\"",
+          "3]}",
+          "\"logan jackson\"]",
+          "\"chunks_used\": [1",
+          "\"items\": [\"casey martinez\""
+        ],
+        "extra_items": [
+          "\"text\": \"i don't have that information in the provided documents\"",
+          "{\"answer_type\": \"not_found\"",
+          "\"items\": []",
+          "\"chunks_used\": []}"
+        ],
+        "answer_count": 4,
+        "expected_count": 7
+      }
+    },
+    {
+      "query": "how are machine learning and DigitalGroup related?",
+      "expected": "{\"answer_type\": \"relationship\", \"items\": [], \"text\": \"Through their strategic partnership, machine learning and DigitalGroup have created synergies that benefit their respective customer bases.\", \"chu...",
+      "prediction": "{\n  \"answer_type\": \"not_found\",\n  \"items\": [],\n  \"text\": \"I don't have that information in the provided documents\",\n  \"chunks_used\": []\n}",
+      "cleaned_prediction": "{\n\"answer_type\": \"not_found\",\n\"items\": [],\n\"text\": \"I don't have that information in the provided documents\",\n\"chunks_used\": []\n}",
+      "match_score": 80.52996063232422,
+      "raw_match_score": 80.52996063232422,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": false,
+        "complete": true,
+        "completeness_score": 1.0,
+        "missing_items": [],
+        "extra_items": []
+      }
+    },
+    {
+      "query": "who are the leaders at CatalystEnterprises?",
+      "expected": "{\"answer_type\": \"entities\", \"items\": [\"Emery Jones\", \"Alex Martin\"], \"text\": \"\", \"chunks_used\": [1]}",
+      "prediction": "{\n  \"answer_type\": \"not_found\",\n  \"items\": [],\n  \"text\": \"I don't have that information in the provided documents\",\n  \"chunks_used\": []\n}",
+      "cleaned_prediction": "{\n\"answer_type\": \"not_found\",\n\"items\": [],\n\"text\": \"I don't have that information in the provided documents\",\n\"chunks_used\": []\n}",
+      "match_score": 82.06494903564453,
+      "raw_match_score": 82.06494903564453,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": false,
+        "completeness_score": 0.0,
+        "missing_items": [
+          "\"text\": \"\"",
+          "\"alex martin\"]",
+          "{\"answer_type\": \"entities\"",
+          "\"items\": [\"emery jones\"",
+          "\"chunks_used\": [1]}"
+        ],
+        "extra_items": [
+          "\"text\": \"i don't have that information in the provided documents\"",
+          "\"chunks_used\": []\n}",
+          "{\n\"answer_type\": \"not_found\"",
+          "\"items\": []"
+        ],
+        "answer_count": 4,
+        "expected_count": 5
+      }
+    },
+    {
+      "query": "what are the components of IoT?",
+      "expected": "{\"answer_type\": \"list\", \"items\": [\"component 19\", \"component 81\", \"component 82\"], \"text\": \"\", \"chunks_used\": [1, 2, 3]}",
+      "prediction": "{\"answer_type\": \"list\", \"items\": [\"component 176\", \"component 177\", \"component 178\", \"component 179\", \"component 180\"], \"text\": \"\", \"chunks_used\": [1, 4, 5]}",
+      "cleaned_prediction": "{\"answer_type\": \"list\", \"items\": [\"component 176\", \"component 177\", \"component 178\", \"component 179\", \"component 180\"], \"text\": \"\", \"chunks_used\": [1, 4, 5]}",
+      "match_score": 98.28116607666016,
+      "raw_match_score": 98.28116607666016,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": false,
+        "completeness_score": 0.42857142857142855,
+        "missing_items": [
+          "\"items\": [\"component 19\"",
+          "\"component 81\"",
+          "\"component 82\"]",
+          "3]}"
+        ],
+        "extra_items": [
+          "5]}",
+          "\"component 179\"",
+          "\"component 177\"",
+          "\"component 178\"",
+          "\"items\": [\"component 176\"",
+          "\"component 180\"]"
+        ],
+        "answer_count": 9,
+        "expected_count": 7
+      }
+    },
+    {
+      "query": "what services does ZenithCapital offer?",
+      "expected": "{\"answer_type\": \"list\", \"items\": [\"service 92\", \"service 56\", \"service 3\", \"service 100\"], \"text\": \"\", \"chunks_used\": [1, 2, 3, 4]}",
+      "prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "cleaned_prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "match_score": 80.08780670166016,
+      "raw_match_score": 80.08780670166016,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": false,
+        "completeness_score": 0.0,
+        "missing_items": [
+          "\"text\": \"\"",
+          "\"service 100\"]",
+          "\"service 56\"",
+          "{\"answer_type\": \"list\"",
+          "\"chunks_used\": [1",
+          "4]}",
+          "\"service 3\"",
+          "\"items\": [\"service 92\""
+        ],
+        "extra_items": [
+          "\"text\": \"i don't have that information in the provided documents\"",
+          "{\"answer_type\": \"not_found\"",
+          "\"items\": []",
+          "\"chunks_used\": []}"
+        ],
+        "answer_count": 4,
+        "expected_count": 8
+      }
+    },
+    {
+      "query": "what is the process for diversify?",
+      "expected": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "prediction": "{\n  \"answer_type\": \"not_found\",\n  \"items\": [],\n  \"text\": \"I don't have that information in the provided documents\",\n  \"chunks_used\": []\n}",
+      "cleaned_prediction": "{\n\"answer_type\": \"not_found\",\n\"items\": [],\n\"text\": \"I don't have that information in the provided documents\",\n\"chunks_used\": []\n}",
+      "match_score": 100.0,
+      "raw_match_score": 100.0,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": false,
+        "complete": true,
+        "completeness_score": 1.0,
+        "missing_items": [],
+        "extra_items": []
+      }
+    },
+    {
+      "query": "who are the executives of PrimeGroup?",
+      "expected": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "cleaned_prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "match_score": 100.0,
+      "raw_match_score": 100.0,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": true,
+        "completeness_score": 1.0,
+        "missing_items": [],
+        "extra_items": [],
+        "answer_count": 4,
+        "expected_count": 4
+      }
+    },
+    {
+      "query": "what caused the merger?",
+      "expected": "{\"answer_type\": \"analytical\", \"items\": [], \"text\": \"DataCorp chose to expand because strategic opportunities, enabling the organization to adapt to evolving customer needs.\", \"chunks_used\": [1]}",
+      "prediction": "{\n  \"answer_type\": \"analytical\",\n  \"items\": [],\n  \"text\": \"DataCorp chose to expand because strategic opportunities, enabling the organization to adapt to evolving customer needs.\",\n  \"chunks_used\": [...",
+      "cleaned_prediction": "{\n\"answer_type\": \"analytical\",\n\"items\": [],\n\"text\": \"DataCorp chose to expand because strategic opportunities, enabling the organization to adapt to evolving customer needs.\",\n\"chunks_used\": [1]\n}",
+      "match_score": 100.00001525878906,
+      "raw_match_score": 100.00001525878906,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": false,
+        "complete": true,
+        "completeness_score": 1.0,
+        "missing_items": [],
+        "extra_items": []
+      }
+    },
+    {
+      "query": "how does the system work?",
+      "expected": "{\"answer_type\": \"process\", \"items\": [], \"text\": \"Investment in employee development programs has shown positive returns in productivity and retention. Market analysts have observed significant shifts ...",
+      "prediction": "{\n  \"answer_type\": \"process\",\n  \"items\": [],\n  \"text\": \"The IT department has been upgrading infrastructure to support increased computational demands. Cross-functional teams have been collaborating o...",
+      "cleaned_prediction": "{\n\"answer_type\": \"process\",\n\"items\": [],\n\"text\": \"The IT department has been upgrading infrastructure to support increased computational demands. Cross-functional teams have been collaborating on proc...",
+      "match_score": 71.68373107910156,
+      "raw_match_score": 71.68373107910156,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": false,
+        "complete": true,
+        "completeness_score": 1.0,
+        "missing_items": [],
+        "extra_items": []
+      }
+    },
+    {
+      "query": "what features does NexusTechnologies offer?",
+      "expected": "{\"answer_type\": \"list\", \"items\": [\"feature 35\", \"feature 39\"], \"text\": \"\", \"chunks_used\": [1]}",
+      "prediction": "{\n  \"answer_type\": \"not_found\",\n  \"items\": [],\n  \"text\": \"I don't have that information in the provided documents\",\n  \"chunks_used\": []\n}",
+      "cleaned_prediction": "{\n\"answer_type\": \"not_found\",\n\"items\": [],\n\"text\": \"I don't have that information in the provided documents\",\n\"chunks_used\": []\n}",
+      "match_score": 84.42274475097656,
+      "raw_match_score": 84.42274475097656,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": false,
+        "completeness_score": 0.0,
+        "missing_items": [
+          "\"items\": [\"feature 35\"",
+          "\"text\": \"\"",
+          "\"feature 39\"]",
+          "{\"answer_type\": \"list\"",
+          "\"chunks_used\": [1]}"
+        ],
+        "extra_items": [
+          "\"text\": \"i don't have that information in the provided documents\"",
+          "\"chunks_used\": []\n}",
+          "{\n\"answer_type\": \"not_found\"",
+          "\"items\": []"
+        ],
+        "answer_count": 4,
+        "expected_count": 5
+      }
+    },
+    {
+      "query": "what benefits does AuroraInnovations offer?",
+      "expected": "{\"answer_type\": \"list\", \"items\": [\"benefit 26\", \"benefit 56\", \"benefit 11\", \"benefit 13\"], \"text\": \"\", \"chunks_used\": [1]}",
+      "prediction": "{\n  \"answer_type\": \"not_found\",\n  \"items\": [],\n  \"text\": \"I don't have that information in the provided documents\",\n  \"chunks_used\": []\n}",
+      "cleaned_prediction": "{\n\"answer_type\": \"not_found\",\n\"items\": [],\n\"text\": \"I don't have that information in the provided documents\",\n\"chunks_used\": []\n}",
+      "match_score": 81.4738540649414,
+      "raw_match_score": 81.4738540649414,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": false,
+        "completeness_score": 0.0,
+        "missing_items": [
+          "\"benefit 56\"",
+          "\"text\": \"\"",
+          "\"benefit 13\"]",
+          "{\"answer_type\": \"list\"",
+          "\"benefit 11\"",
+          "\"chunks_used\": [1]}",
+          "\"items\": [\"benefit 26\""
+        ],
+        "extra_items": [
+          "\"text\": \"i don't have that information in the provided documents\"",
+          "\"chunks_used\": []\n}",
+          "{\n\"answer_type\": \"not_found\"",
+          "\"items\": []"
+        ],
+        "answer_count": 4,
+        "expected_count": 7
+      }
+    },
+    {
+      "query": "what services does CloudLabs offer?",
+      "expected": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "prediction": "{\n  \"answer_type\": \"not_found\",\n  \"items\": [],\n  \"text\": \"I don't have that information in the provided documents\",\n  \"chunks_used\": []\n}",
+      "cleaned_prediction": "{\n\"answer_type\": \"not_found\",\n\"items\": [],\n\"text\": \"I don't have that information in the provided documents\",\n\"chunks_used\": []\n}",
+      "match_score": 100.0,
+      "raw_match_score": 100.0,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": false,
+        "completeness_score": 0.5,
+        "missing_items": [
+          "{\"answer_type\": \"not_found\"",
+          "\"chunks_used\": []}"
+        ],
+        "extra_items": [
+          "\"chunks_used\": []\n}",
+          "{\n\"answer_type\": \"not_found\""
+        ],
+        "answer_count": 4,
+        "expected_count": 4
+      }
+    },
+    {
+      "query": "how does the process work?",
+      "expected": "{\"answer_type\": \"process\", \"items\": [], \"text\": \"Cloud migration projects are progressing according to schedule with minimal disruption to operations. Project management methodologies have been adopte...",
+      "prediction": "{\n  \"answer_type\": \"not_found\",\n  \"items\": [],\n  \"text\": \"I don't have that information in the provided documents\",\n  \"chunks_used\": []\n}",
+      "cleaned_prediction": "{\n\"answer_type\": \"not_found\",\n\"items\": [],\n\"text\": \"I don't have that information in the provided documents\",\n\"chunks_used\": []\n}",
+      "match_score": 62.63358688354492,
+      "raw_match_score": 62.63358688354492,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": false,
+        "complete": true,
+        "completeness_score": 1.0,
+        "missing_items": [],
+        "extra_items": []
+      }
+    },
+    {
+      "query": "who are the directors of AIInnovations?",
+      "expected": "{\"answer_type\": \"entities\", \"items\": [\"Cameron Williams\", \"Casey Martin\", \"Avery Davis\", \"Morgan Martin\"], \"text\": \"\", \"chunks_used\": [1]}",
+      "prediction": "{\n  \"answer_type\": \"not_found\",\n  \"items\": [],\n  \"text\": \"I don't have that information in the provided documents\",\n  \"chunks_used\": []\n}",
+      "cleaned_prediction": "{\n\"answer_type\": \"not_found\",\n\"items\": [],\n\"text\": \"I don't have that information in the provided documents\",\n\"chunks_used\": []\n}",
+      "match_score": 77.98137664794922,
+      "raw_match_score": 77.98137664794922,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": false,
+        "completeness_score": 0.0,
+        "missing_items": [
+          "\"text\": \"\"",
+          "{\"answer_type\": \"entities\"",
+          "\"items\": [\"cameron williams\"",
+          "\"casey martin\"",
+          "\"morgan martin\"]",
+          "\"avery davis\"",
+          "\"chunks_used\": [1]}"
+        ],
+        "extra_items": [
+          "\"text\": \"i don't have that information in the provided documents\"",
+          "\"chunks_used\": []\n}",
+          "{\n\"answer_type\": \"not_found\"",
+          "\"items\": []"
+        ],
+        "answer_count": 4,
+        "expected_count": 7
+      }
+    },
+    {
+      "query": "what are the benefits of optimization?",
+      "expected": "{\"answer_type\": \"list\", \"items\": [\"benefit 51\", \"benefit 94\"], \"text\": \"\", \"chunks_used\": [1]}",
+      "prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "cleaned_prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "match_score": 83.46589660644531,
+      "raw_match_score": 83.46589660644531,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": false,
+        "completeness_score": 0.0,
+        "missing_items": [
+          "\"text\": \"\"",
+          "\"items\": [\"benefit 51\"",
+          "\"benefit 94\"]",
+          "{\"answer_type\": \"list\"",
+          "\"chunks_used\": [1]}"
+        ],
+        "extra_items": [
+          "\"text\": \"i don't have that information in the provided documents\"",
+          "{\"answer_type\": \"not_found\"",
+          "\"items\": []",
+          "\"chunks_used\": []}"
+        ],
+        "answer_count": 4,
+        "expected_count": 5
+      }
+    },
+    {
+      "query": "list the services related to machine learning.",
+      "expected": "{\"answer_type\": \"list\", \"items\": [\"service 68\", \"service 79\"], \"text\": \"\", \"chunks_used\": [1]}",
+      "prediction": "{\n  \"answer_type\": \"not_found\",\n  \"items\": [],\n  \"text\": \"I don't have that information in the provided documents\",\n  \"chunks_used\": []\n}",
+      "cleaned_prediction": "{\n\"answer_type\": \"not_found\",\n\"items\": [],\n\"text\": \"I don't have that information in the provided documents\",\n\"chunks_used\": []\n}",
+      "match_score": 84.3204116821289,
+      "raw_match_score": 84.3204116821289,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": false,
+        "completeness_score": 0.0,
+        "missing_items": [
+          "\"text\": \"\"",
+          "\"service 79\"]",
+          "{\"answer_type\": \"list\"",
+          "\"chunks_used\": [1]}",
+          "\"items\": [\"service 68\""
+        ],
+        "extra_items": [
+          "\"text\": \"i don't have that information in the provided documents\"",
+          "\"chunks_used\": []\n}",
+          "{\n\"answer_type\": \"not_found\"",
+          "\"items\": []"
+        ],
+        "answer_count": 4,
+        "expected_count": 5
+      }
+    },
+    {
+      "query": "list the features related to growth.",
+      "expected": "{\"answer_type\": \"list\", \"items\": [\"feature 41\", \"feature 55\", \"feature 9\", \"feature 24\"], \"text\": \"\", \"chunks_used\": [1]}",
+      "prediction": "{\n  \"answer_type\": \"not_found\",\n  \"items\": [],\n  \"text\": \"I don't have that information in the provided documents\",\n  \"chunks_used\": []\n}",
+      "cleaned_prediction": "{\n\"answer_type\": \"not_found\",\n\"items\": [],\n\"text\": \"I don't have that information in the provided documents\",\n\"chunks_used\": []\n}",
+      "match_score": 83.10924530029297,
+      "raw_match_score": 83.10924530029297,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": false,
+        "completeness_score": 0.0,
+        "missing_items": [
+          "\"text\": \"\"",
+          "\"feature 24\"]",
+          "\"feature 9\"",
+          "{\"answer_type\": \"list\"",
+          "\"chunks_used\": [1]}",
+          "\"items\": [\"feature 41\"",
+          "\"feature 55\""
+        ],
+        "extra_items": [
+          "\"text\": \"i don't have that information in the provided documents\"",
+          "\"chunks_used\": []\n}",
+          "{\n\"answer_type\": \"not_found\"",
+          "\"items\": []"
+        ],
+        "answer_count": 4,
+        "expected_count": 7
+      }
+    }
+  ],
+  "all_results": [
+    {
+      "query": "what services does CatalystAlliance offer?",
+      "expected": "{\"answer_type\": \"list\", \"items\": [\"service 92\", \"service 4\", \"service 5\", \"service 53\"], \"text\": \"\", \"chunks_used\": [1]}",
+      "prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "cleaned_prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "match_score": 81.87657928466797,
+      "raw_match_score": 81.87657928466797,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": false,
+        "completeness_score": 0.0,
+        "missing_items": [
+          "\"text\": \"\"",
+          "\"service 5\"",
+          "\"service 53\"]",
+          "\"service 4\"",
+          "{\"answer_type\": \"list\"",
+          "\"chunks_used\": [1]}",
+          "\"items\": [\"service 92\""
+        ],
+        "extra_items": [
+          "\"text\": \"i don't have that information in the provided documents\"",
+          "{\"answer_type\": \"not_found\"",
+          "\"items\": []",
+          "\"chunks_used\": []}"
+        ],
+        "answer_count": 4,
+        "expected_count": 7
+      }
+    },
+    {
+      "query": "what is the process for diversify?",
+      "expected": "{\"answer_type\": \"process\", \"items\": [], \"text\": \"Change management initiatives have been launched to support organizational transformation efforts. Customer satisfaction scores have remained consisten...",
+      "prediction": "{\n  \"answer_type\": \"not_found\",\n  \"items\": [],\n  \"text\": \"I don't have that information in the provided documents\",\n  \"chunks_used\": []\n}",
+      "cleaned_prediction": "{\n\"answer_type\": \"not_found\",\n\"items\": [],\n\"text\": \"I don't have that information in the provided documents\",\n\"chunks_used\": []\n}",
+      "match_score": 65.92332458496094,
+      "raw_match_score": 65.92332458496094,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": false,
+        "complete": true,
+        "completeness_score": 1.0,
+        "missing_items": [],
+        "extra_items": []
+      }
+    },
+    {
+      "query": "what are the features of transformation?",
+      "expected": "{\"answer_type\": \"list\", \"items\": [\"feature 30\", \"feature 49\", \"feature 92\", \"feature 97\"], \"text\": \"\", \"chunks_used\": [1]}",
+      "prediction": "{\n  \"answer_type\": \"not_found\",\n  \"items\": [],\n  \"text\": \"I don't have that information in the provided documents.\",\n  \"chunks_used\": []\n}",
+      "cleaned_prediction": "{\n\"answer_type\": \"not_found\",\n\"items\": [],\n\"text\": \"I don't have that information in the provided documents.\",\n\"chunks_used\": []\n}",
+      "match_score": 83.90249633789062,
+      "raw_match_score": 83.90249633789062,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": false,
+        "completeness_score": 0.0,
+        "missing_items": [
+          "\"text\": \"\"",
+          "\"feature 92\"",
+          "\"feature 49\"",
+          "{\"answer_type\": \"list\"",
+          "\"feature 97\"]",
+          "\"chunks_used\": [1]}",
+          "\"items\": [\"feature 30\""
+        ],
+        "extra_items": [
+          "\"text\": \"i don't have that information in the provided documents.\"",
+          "\"chunks_used\": []\n}",
+          "{\n\"answer_type\": \"not_found\"",
+          "\"items\": []"
+        ],
+        "answer_count": 4,
+        "expected_count": 7
+      }
+    },
+    {
+      "query": "who are the leaders at ApexTechnologies?",
+      "expected": "{\"answer_type\": \"entities\", \"items\": [\"Casey Martinez\", \"Hayden Martinez\", \"Logan Jackson\"], \"text\": \"\", \"chunks_used\": [1, 2, 3]}",
+      "prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "cleaned_prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "match_score": 78.63072204589844,
+      "raw_match_score": 78.63072204589844,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": false,
+        "completeness_score": 0.0,
+        "missing_items": [
+          "\"text\": \"\"",
+          "\"hayden martinez\"",
+          "{\"answer_type\": \"entities\"",
+          "3]}",
+          "\"logan jackson\"]",
+          "\"chunks_used\": [1",
+          "\"items\": [\"casey martinez\""
+        ],
+        "extra_items": [
+          "\"text\": \"i don't have that information in the provided documents\"",
+          "{\"answer_type\": \"not_found\"",
+          "\"items\": []",
+          "\"chunks_used\": []}"
+        ],
+        "answer_count": 4,
+        "expected_count": 7
+      }
+    },
+    {
+      "query": "how are machine learning and DigitalGroup related?",
+      "expected": "{\"answer_type\": \"relationship\", \"items\": [], \"text\": \"Through their strategic partnership, machine learning and DigitalGroup have created synergies that benefit their respective customer bases.\", \"chu...",
+      "prediction": "{\n  \"answer_type\": \"not_found\",\n  \"items\": [],\n  \"text\": \"I don't have that information in the provided documents\",\n  \"chunks_used\": []\n}",
+      "cleaned_prediction": "{\n\"answer_type\": \"not_found\",\n\"items\": [],\n\"text\": \"I don't have that information in the provided documents\",\n\"chunks_used\": []\n}",
+      "match_score": 80.52996063232422,
+      "raw_match_score": 80.52996063232422,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": false,
+        "complete": true,
+        "completeness_score": 1.0,
+        "missing_items": [],
+        "extra_items": []
+      }
+    },
+    {
+      "query": "who are the leaders at CatalystEnterprises?",
+      "expected": "{\"answer_type\": \"entities\", \"items\": [\"Emery Jones\", \"Alex Martin\"], \"text\": \"\", \"chunks_used\": [1]}",
+      "prediction": "{\n  \"answer_type\": \"not_found\",\n  \"items\": [],\n  \"text\": \"I don't have that information in the provided documents\",\n  \"chunks_used\": []\n}",
+      "cleaned_prediction": "{\n\"answer_type\": \"not_found\",\n\"items\": [],\n\"text\": \"I don't have that information in the provided documents\",\n\"chunks_used\": []\n}",
+      "match_score": 82.06494903564453,
+      "raw_match_score": 82.06494903564453,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": false,
+        "completeness_score": 0.0,
+        "missing_items": [
+          "\"text\": \"\"",
+          "\"alex martin\"]",
+          "{\"answer_type\": \"entities\"",
+          "\"items\": [\"emery jones\"",
+          "\"chunks_used\": [1]}"
+        ],
+        "extra_items": [
+          "\"text\": \"i don't have that information in the provided documents\"",
+          "\"chunks_used\": []\n}",
+          "{\n\"answer_type\": \"not_found\"",
+          "\"items\": []"
+        ],
+        "answer_count": 4,
+        "expected_count": 5
+      }
+    },
+    {
+      "query": "what are the components of IoT?",
+      "expected": "{\"answer_type\": \"list\", \"items\": [\"component 19\", \"component 81\", \"component 82\"], \"text\": \"\", \"chunks_used\": [1, 2, 3]}",
+      "prediction": "{\"answer_type\": \"list\", \"items\": [\"component 176\", \"component 177\", \"component 178\", \"component 179\", \"component 180\"], \"text\": \"\", \"chunks_used\": [1, 4, 5]}",
+      "cleaned_prediction": "{\"answer_type\": \"list\", \"items\": [\"component 176\", \"component 177\", \"component 178\", \"component 179\", \"component 180\"], \"text\": \"\", \"chunks_used\": [1, 4, 5]}",
+      "match_score": 98.28116607666016,
+      "raw_match_score": 98.28116607666016,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": false,
+        "completeness_score": 0.42857142857142855,
+        "missing_items": [
+          "\"items\": [\"component 19\"",
+          "\"component 81\"",
+          "\"component 82\"]",
+          "3]}"
+        ],
+        "extra_items": [
+          "5]}",
+          "\"component 179\"",
+          "\"component 177\"",
+          "\"component 178\"",
+          "\"items\": [\"component 176\"",
+          "\"component 180\"]"
+        ],
+        "answer_count": 9,
+        "expected_count": 7
+      }
+    },
+    {
+      "query": "what services does ZenithCapital offer?",
+      "expected": "{\"answer_type\": \"list\", \"items\": [\"service 92\", \"service 56\", \"service 3\", \"service 100\"], \"text\": \"\", \"chunks_used\": [1, 2, 3, 4]}",
+      "prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "cleaned_prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "match_score": 80.08780670166016,
+      "raw_match_score": 80.08780670166016,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": false,
+        "completeness_score": 0.0,
+        "missing_items": [
+          "\"text\": \"\"",
+          "\"service 100\"]",
+          "\"service 56\"",
+          "{\"answer_type\": \"list\"",
+          "\"chunks_used\": [1",
+          "4]}",
+          "\"service 3\"",
+          "\"items\": [\"service 92\""
+        ],
+        "extra_items": [
+          "\"text\": \"i don't have that information in the provided documents\"",
+          "{\"answer_type\": \"not_found\"",
+          "\"items\": []",
+          "\"chunks_used\": []}"
+        ],
+        "answer_count": 4,
+        "expected_count": 8
+      }
+    },
+    {
+      "query": "what is the process for diversify?",
+      "expected": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "prediction": "{\n  \"answer_type\": \"not_found\",\n  \"items\": [],\n  \"text\": \"I don't have that information in the provided documents\",\n  \"chunks_used\": []\n}",
+      "cleaned_prediction": "{\n\"answer_type\": \"not_found\",\n\"items\": [],\n\"text\": \"I don't have that information in the provided documents\",\n\"chunks_used\": []\n}",
+      "match_score": 100.0,
+      "raw_match_score": 100.0,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": false,
+        "complete": true,
+        "completeness_score": 1.0,
+        "missing_items": [],
+        "extra_items": []
+      }
+    },
+    {
+      "query": "who are the executives of PrimeGroup?",
+      "expected": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "cleaned_prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "match_score": 100.0,
+      "raw_match_score": 100.0,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": true,
+        "completeness_score": 1.0,
+        "missing_items": [],
+        "extra_items": [],
+        "answer_count": 4,
+        "expected_count": 4
+      }
+    },
+    {
+      "query": "what caused the merger?",
+      "expected": "{\"answer_type\": \"analytical\", \"items\": [], \"text\": \"DataCorp chose to expand because strategic opportunities, enabling the organization to adapt to evolving customer needs.\", \"chunks_used\": [1]}",
+      "prediction": "{\n  \"answer_type\": \"analytical\",\n  \"items\": [],\n  \"text\": \"DataCorp chose to expand because strategic opportunities, enabling the organization to adapt to evolving customer needs.\",\n  \"chunks_used\": [...",
+      "cleaned_prediction": "{\n\"answer_type\": \"analytical\",\n\"items\": [],\n\"text\": \"DataCorp chose to expand because strategic opportunities, enabling the organization to adapt to evolving customer needs.\",\n\"chunks_used\": [1]\n}",
+      "match_score": 100.00001525878906,
+      "raw_match_score": 100.00001525878906,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": false,
+        "complete": true,
+        "completeness_score": 1.0,
+        "missing_items": [],
+        "extra_items": []
+      }
+    },
+    {
+      "query": "how does the system work?",
+      "expected": "{\"answer_type\": \"process\", \"items\": [], \"text\": \"Investment in employee development programs has shown positive returns in productivity and retention. Market analysts have observed significant shifts ...",
+      "prediction": "{\n  \"answer_type\": \"process\",\n  \"items\": [],\n  \"text\": \"The IT department has been upgrading infrastructure to support increased computational demands. Cross-functional teams have been collaborating o...",
+      "cleaned_prediction": "{\n\"answer_type\": \"process\",\n\"items\": [],\n\"text\": \"The IT department has been upgrading infrastructure to support increased computational demands. Cross-functional teams have been collaborating on proc...",
+      "match_score": 71.68373107910156,
+      "raw_match_score": 71.68373107910156,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": false,
+        "complete": true,
+        "completeness_score": 1.0,
+        "missing_items": [],
+        "extra_items": []
+      }
+    },
+    {
+      "query": "what features does NexusTechnologies offer?",
+      "expected": "{\"answer_type\": \"list\", \"items\": [\"feature 35\", \"feature 39\"], \"text\": \"\", \"chunks_used\": [1]}",
+      "prediction": "{\n  \"answer_type\": \"not_found\",\n  \"items\": [],\n  \"text\": \"I don't have that information in the provided documents\",\n  \"chunks_used\": []\n}",
+      "cleaned_prediction": "{\n\"answer_type\": \"not_found\",\n\"items\": [],\n\"text\": \"I don't have that information in the provided documents\",\n\"chunks_used\": []\n}",
+      "match_score": 84.42274475097656,
+      "raw_match_score": 84.42274475097656,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": false,
+        "completeness_score": 0.0,
+        "missing_items": [
+          "\"items\": [\"feature 35\"",
+          "\"text\": \"\"",
+          "\"feature 39\"]",
+          "{\"answer_type\": \"list\"",
+          "\"chunks_used\": [1]}"
+        ],
+        "extra_items": [
+          "\"text\": \"i don't have that information in the provided documents\"",
+          "\"chunks_used\": []\n}",
+          "{\n\"answer_type\": \"not_found\"",
+          "\"items\": []"
+        ],
+        "answer_count": 4,
+        "expected_count": 5
+      }
+    },
+    {
+      "query": "what benefits does AuroraInnovations offer?",
+      "expected": "{\"answer_type\": \"list\", \"items\": [\"benefit 26\", \"benefit 56\", \"benefit 11\", \"benefit 13\"], \"text\": \"\", \"chunks_used\": [1]}",
+      "prediction": "{\n  \"answer_type\": \"not_found\",\n  \"items\": [],\n  \"text\": \"I don't have that information in the provided documents\",\n  \"chunks_used\": []\n}",
+      "cleaned_prediction": "{\n\"answer_type\": \"not_found\",\n\"items\": [],\n\"text\": \"I don't have that information in the provided documents\",\n\"chunks_used\": []\n}",
+      "match_score": 81.4738540649414,
+      "raw_match_score": 81.4738540649414,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": false,
+        "completeness_score": 0.0,
+        "missing_items": [
+          "\"benefit 56\"",
+          "\"text\": \"\"",
+          "\"benefit 13\"]",
+          "{\"answer_type\": \"list\"",
+          "\"benefit 11\"",
+          "\"chunks_used\": [1]}",
+          "\"items\": [\"benefit 26\""
+        ],
+        "extra_items": [
+          "\"text\": \"i don't have that information in the provided documents\"",
+          "\"chunks_used\": []\n}",
+          "{\n\"answer_type\": \"not_found\"",
+          "\"items\": []"
+        ],
+        "answer_count": 4,
+        "expected_count": 7
+      }
+    },
+    {
+      "query": "what services does CloudLabs offer?",
+      "expected": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "prediction": "{\n  \"answer_type\": \"not_found\",\n  \"items\": [],\n  \"text\": \"I don't have that information in the provided documents\",\n  \"chunks_used\": []\n}",
+      "cleaned_prediction": "{\n\"answer_type\": \"not_found\",\n\"items\": [],\n\"text\": \"I don't have that information in the provided documents\",\n\"chunks_used\": []\n}",
+      "match_score": 100.0,
+      "raw_match_score": 100.0,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": false,
+        "completeness_score": 0.5,
+        "missing_items": [
+          "{\"answer_type\": \"not_found\"",
+          "\"chunks_used\": []}"
+        ],
+        "extra_items": [
+          "\"chunks_used\": []\n}",
+          "{\n\"answer_type\": \"not_found\""
+        ],
+        "answer_count": 4,
+        "expected_count": 4
+      }
+    },
+    {
+      "query": "how does the process work?",
+      "expected": "{\"answer_type\": \"process\", \"items\": [], \"text\": \"Cloud migration projects are progressing according to schedule with minimal disruption to operations. Project management methodologies have been adopte...",
+      "prediction": "{\n  \"answer_type\": \"not_found\",\n  \"items\": [],\n  \"text\": \"I don't have that information in the provided documents\",\n  \"chunks_used\": []\n}",
+      "cleaned_prediction": "{\n\"answer_type\": \"not_found\",\n\"items\": [],\n\"text\": \"I don't have that information in the provided documents\",\n\"chunks_used\": []\n}",
+      "match_score": 62.63358688354492,
+      "raw_match_score": 62.63358688354492,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": false,
+        "complete": true,
+        "completeness_score": 1.0,
+        "missing_items": [],
+        "extra_items": []
+      }
+    },
+    {
+      "query": "who are the directors of AIInnovations?",
+      "expected": "{\"answer_type\": \"entities\", \"items\": [\"Cameron Williams\", \"Casey Martin\", \"Avery Davis\", \"Morgan Martin\"], \"text\": \"\", \"chunks_used\": [1]}",
+      "prediction": "{\n  \"answer_type\": \"not_found\",\n  \"items\": [],\n  \"text\": \"I don't have that information in the provided documents\",\n  \"chunks_used\": []\n}",
+      "cleaned_prediction": "{\n\"answer_type\": \"not_found\",\n\"items\": [],\n\"text\": \"I don't have that information in the provided documents\",\n\"chunks_used\": []\n}",
+      "match_score": 77.98137664794922,
+      "raw_match_score": 77.98137664794922,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": false,
+        "completeness_score": 0.0,
+        "missing_items": [
+          "\"text\": \"\"",
+          "{\"answer_type\": \"entities\"",
+          "\"items\": [\"cameron williams\"",
+          "\"casey martin\"",
+          "\"morgan martin\"]",
+          "\"avery davis\"",
+          "\"chunks_used\": [1]}"
+        ],
+        "extra_items": [
+          "\"text\": \"i don't have that information in the provided documents\"",
+          "\"chunks_used\": []\n}",
+          "{\n\"answer_type\": \"not_found\"",
+          "\"items\": []"
+        ],
+        "answer_count": 4,
+        "expected_count": 7
+      }
+    },
+    {
+      "query": "what are the benefits of optimization?",
+      "expected": "{\"answer_type\": \"list\", \"items\": [\"benefit 51\", \"benefit 94\"], \"text\": \"\", \"chunks_used\": [1]}",
+      "prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "cleaned_prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "match_score": 83.46589660644531,
+      "raw_match_score": 83.46589660644531,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": false,
+        "completeness_score": 0.0,
+        "missing_items": [
+          "\"text\": \"\"",
+          "\"items\": [\"benefit 51\"",
+          "\"benefit 94\"]",
+          "{\"answer_type\": \"list\"",
+          "\"chunks_used\": [1]}"
+        ],
+        "extra_items": [
+          "\"text\": \"i don't have that information in the provided documents\"",
+          "{\"answer_type\": \"not_found\"",
+          "\"items\": []",
+          "\"chunks_used\": []}"
+        ],
+        "answer_count": 4,
+        "expected_count": 5
+      }
+    },
+    {
+      "query": "list the services related to machine learning.",
+      "expected": "{\"answer_type\": \"list\", \"items\": [\"service 68\", \"service 79\"], \"text\": \"\", \"chunks_used\": [1]}",
+      "prediction": "{\n  \"answer_type\": \"not_found\",\n  \"items\": [],\n  \"text\": \"I don't have that information in the provided documents\",\n  \"chunks_used\": []\n}",
+      "cleaned_prediction": "{\n\"answer_type\": \"not_found\",\n\"items\": [],\n\"text\": \"I don't have that information in the provided documents\",\n\"chunks_used\": []\n}",
+      "match_score": 84.3204116821289,
+      "raw_match_score": 84.3204116821289,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": false,
+        "completeness_score": 0.0,
+        "missing_items": [
+          "\"text\": \"\"",
+          "\"service 79\"]",
+          "{\"answer_type\": \"list\"",
+          "\"chunks_used\": [1]}",
+          "\"items\": [\"service 68\""
+        ],
+        "extra_items": [
+          "\"text\": \"i don't have that information in the provided documents\"",
+          "\"chunks_used\": []\n}",
+          "{\n\"answer_type\": \"not_found\"",
+          "\"items\": []"
+        ],
+        "answer_count": 4,
+        "expected_count": 5
+      }
+    },
+    {
+      "query": "list the features related to growth.",
+      "expected": "{\"answer_type\": \"list\", \"items\": [\"feature 41\", \"feature 55\", \"feature 9\", \"feature 24\"], \"text\": \"\", \"chunks_used\": [1]}",
+      "prediction": "{\n  \"answer_type\": \"not_found\",\n  \"items\": [],\n  \"text\": \"I don't have that information in the provided documents\",\n  \"chunks_used\": []\n}",
+      "cleaned_prediction": "{\n\"answer_type\": \"not_found\",\n\"items\": [],\n\"text\": \"I don't have that information in the provided documents\",\n\"chunks_used\": []\n}",
+      "match_score": 83.10924530029297,
+      "raw_match_score": 83.10924530029297,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": false,
+        "completeness_score": 0.0,
+        "missing_items": [
+          "\"text\": \"\"",
+          "\"feature 24\"]",
+          "\"feature 9\"",
+          "{\"answer_type\": \"list\"",
+          "\"chunks_used\": [1]}",
+          "\"items\": [\"feature 41\"",
+          "\"feature 55\""
+        ],
+        "extra_items": [
+          "\"text\": \"i don't have that information in the provided documents\"",
+          "\"chunks_used\": []\n}",
+          "{\n\"answer_type\": \"not_found\"",
+          "\"items\": []"
+        ],
+        "answer_count": 4,
+        "expected_count": 7
+      }
+    },
+    {
+      "query": "who are the founders of PrimeCapital?",
+      "expected": "{\"answer_type\": \"entities\", \"items\": [\"Taylor Harris\", \"Casey Thompson\", \"Jordan Martinez\"], \"text\": \"\", \"chunks_used\": [1]}",
+      "prediction": "{\n  \"answer_type\": \"not_found\",\n  \"items\": [],\n  \"text\": \"I don't have that information in the provided documents.\",\n  \"chunks_used\": []\n}",
+      "cleaned_prediction": "{\n\"answer_type\": \"not_found\",\n\"items\": [],\n\"text\": \"I don't have that information in the provided documents.\",\n\"chunks_used\": []\n}",
+      "match_score": 80.5854263305664,
+      "raw_match_score": 80.5854263305664,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": false,
+        "completeness_score": 0.0,
+        "missing_items": [
+          "\"items\": [\"taylor harris\"",
+          "\"text\": \"\"",
+          "{\"answer_type\": \"entities\"",
+          "\"casey thompson\"",
+          "\"jordan martinez\"]",
+          "\"chunks_used\": [1]}"
+        ],
+        "extra_items": [
+          "\"text\": \"i don't have that information in the provided documents.\"",
+          "\"chunks_used\": []\n}",
+          "{\n\"answer_type\": \"not_found\"",
+          "\"items\": []"
+        ],
+        "answer_count": 4,
+        "expected_count": 6
+      }
+    },
+    {
+      "query": "what are the services of innovation?",
+      "expected": "{\"answer_type\": \"list\", \"items\": [\"service 53\", \"service 28\", \"service 23\", \"service 79\"], \"text\": \"\", \"chunks_used\": [1, 2, 3]}",
+      "prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "cleaned_prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "match_score": 80.75114440917969,
+      "raw_match_score": 80.75114440917969,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": false,
+        "completeness_score": 0.0,
+        "missing_items": [
+          "\"text\": \"\"",
+          "\"service 23\"",
+          "\"service 79\"]",
+          "{\"answer_type\": \"list\"",
+          "3]}",
+          "\"chunks_used\": [1",
+          "\"service 28\"",
+          "\"items\": [\"service 53\""
+        ],
+        "extra_items": [
+          "\"text\": \"i don't have that information in the provided documents\"",
+          "{\"answer_type\": \"not_found\"",
+          "\"items\": []",
+          "\"chunks_used\": []}"
+        ],
+        "answer_count": 4,
+        "expected_count": 8
+      }
+    },
+    {
+      "query": "list the benefits related to innovation.",
+      "expected": "{\"answer_type\": \"list\", \"items\": [\"benefit 63\", \"benefit 72\", \"benefit 91\", \"benefit 74\"], \"text\": \"\", \"chunks_used\": [1]}",
+      "prediction": "{\n  \"answer_type\": \"not_found\",\n  \"items\": [],\n  \"text\": \"I don't have that information in the provided documents\",\n  \"chunks_used\": []\n}",
+      "cleaned_prediction": "{\n\"answer_type\": \"not_found\",\n\"items\": [],\n\"text\": \"I don't have that information in the provided documents\",\n\"chunks_used\": []\n}",
+      "match_score": 80.72660064697266,
+      "raw_match_score": 80.72660064697266,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": false,
+        "completeness_score": 0.0,
+        "missing_items": [
+          "\"text\": \"\"",
+          "\"benefit 91\"",
+          "\"benefit 72\"",
+          "{\"answer_type\": \"list\"",
+          "\"benefit 74\"]",
+          "\"items\": [\"benefit 63\"",
+          "\"chunks_used\": [1]}"
+        ],
+        "extra_items": [
+          "\"text\": \"i don't have that information in the provided documents\"",
+          "\"chunks_used\": []\n}",
+          "{\n\"answer_type\": \"not_found\"",
+          "\"items\": []"
+        ],
+        "answer_count": 4,
+        "expected_count": 7
+      }
+    },
+    {
+      "query": "what services does NextAlliance offer?",
+      "expected": "{\"answer_type\": \"list\", \"items\": [\"service 23\", \"service 72\", \"service 93\"], \"text\": \"\", \"chunks_used\": [1, 2, 3]}",
+      "prediction": "{\"answer_type\": \"list\", \"items\": [\"service 116\", \"service 123\", \"service 219\", \"service 234\", \"service 312\"], \"text\": \"\", \"chunks_used\": [1, 3, 4]}",
+      "cleaned_prediction": "{\"answer_type\": \"list\", \"items\": [\"service 116\", \"service 123\", \"service 219\", \"service 234\", \"service 312\"], \"text\": \"\", \"chunks_used\": [1, 3, 4]}",
+      "match_score": 97.98704528808594,
+      "raw_match_score": 97.98704528808594,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": false,
+        "completeness_score": 0.42857142857142855,
+        "missing_items": [
+          "3]}",
+          "\"items\": [\"service 23\"",
+          "\"service 72\"",
+          "\"service 93\"]"
+        ],
+        "extra_items": [
+          "\"service 234\"",
+          "\"service 123\"",
+          "\"service 219\"",
+          "4]}",
+          "\"service 312\"]",
+          "\"items\": [\"service 116\""
+        ],
+        "answer_count": 9,
+        "expected_count": 7
+      }
+    },
+    {
+      "query": "how are SynergyNetworks and TechCorp related?",
+      "expected": "{\"answer_type\": \"relationship\", \"items\": [], \"text\": \"Through their joint venture, SynergyNetworks and TechCorp have created synergies that benefit their respective customer bases.\", \"chunks_used\": [1...",
+      "prediction": "{\n  \"answer_type\": \"relationship\",\n  \"items\": [],\n  \"text\": \"\u901a\u8fc7\u4ed6\u4eec\u7684\u5408\u8d44\u4f01\u4e1a\uff0cSynergyNetworks\u548cTechCorp\u5df2\u7ecf\u521b\u9020\u4e86\u76f8\u4e92\u4fc3\u8fdb\u7684\u534f\u540c\u6548\u5e94\u3002\",\n  \"chunks_used\": [1]\n}",
+      "cleaned_prediction": "{\n\"answer_type\": \"relationship\",\n\"items\": [],\n\"text\": \"\u901a\u8fc7\u4ed6\u4eec\u7684\u5408\u8d44\u4f01\u4e1a\uff0cSynergyNetworks\u548cTechCorp\u5df2\u7ecf\u521b\u9020\u4e86\u76f8\u4e92\u4fc3\u8fdb\u7684\u534f\u540c\u6548\u5e94\u3002\",\n\"chunks_used\": [1]\n}",
+      "match_score": 91.80856323242188,
+      "raw_match_score": 91.80856323242188,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": false,
+        "complete": true,
+        "completeness_score": 1.0,
+        "missing_items": [],
+        "extra_items": []
+      }
+    },
+    {
+      "query": "list the capabilities related to efficiency.",
+      "expected": "{\"answer_type\": \"list\", \"items\": [\"capabilitie 48\", \"capabilitie 86\", \"capabilitie 38\", \"capabilitie 35\"], \"text\": \"\", \"chunks_used\": [1]}",
+      "prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "cleaned_prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "match_score": 80.64155578613281,
+      "raw_match_score": 80.64155578613281,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": false,
+        "completeness_score": 0.0,
+        "missing_items": [
+          "\"text\": \"\"",
+          "\"items\": [\"capabilitie 48\"",
+          "\"capabilitie 86\"",
+          "{\"answer_type\": \"list\"",
+          "\"chunks_used\": [1]}",
+          "\"capabilitie 35\"]",
+          "\"capabilitie 38\""
+        ],
+        "extra_items": [
+          "\"text\": \"i don't have that information in the provided documents\"",
+          "{\"answer_type\": \"not_found\"",
+          "\"items\": []",
+          "\"chunks_used\": []}"
+        ],
+        "answer_count": 4,
+        "expected_count": 7
+      }
+    },
+    {
+      "query": "list the benefits related to cybersecurity.",
+      "expected": "{\"answer_type\": \"list\", \"items\": [\"benefit 4\", \"benefit 34\", \"benefit 37\"], \"text\": \"\", \"chunks_used\": [1]}",
+      "prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "cleaned_prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "match_score": 81.6216049194336,
+      "raw_match_score": 81.6216049194336,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": false,
+        "completeness_score": 0.0,
+        "missing_items": [
+          "\"text\": \"\"",
+          "\"items\": [\"benefit 4\"",
+          "\"benefit 34\"",
+          "{\"answer_type\": \"list\"",
+          "\"chunks_used\": [1]}",
+          "\"benefit 37\"]"
+        ],
+        "extra_items": [
+          "\"text\": \"i don't have that information in the provided documents\"",
+          "{\"answer_type\": \"not_found\"",
+          "\"items\": []",
+          "\"chunks_used\": []}"
+        ],
+        "answer_count": 4,
+        "expected_count": 6
+      }
+    },
+    {
+      "query": "what caused the restructuring?",
+      "expected": "{\"answer_type\": \"analytical\", \"items\": [], \"text\": \"SummitInnovations chose to expand because competitive pressures, enabling the organization to adapt to evolving customer needs.\", \"chunks_used\": [1]...",
+      "prediction": "{\n  \"answer_type\": \"not_found\",\n  \"items\": [],\n  \"text\": \"I don't have that information in the provided documents\",\n  \"chunks_used\": []\n}",
+      "cleaned_prediction": "{\n\"answer_type\": \"not_found\",\n\"items\": [],\n\"text\": \"I don't have that information in the provided documents\",\n\"chunks_used\": []\n}",
+      "match_score": 75.73135375976562,
+      "raw_match_score": 75.73135375976562,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": false,
+        "complete": true,
+        "completeness_score": 1.0,
+        "missing_items": [],
+        "extra_items": []
+      }
+    },
+    {
+      "query": "what are the advantages of SynergyInnovations?",
+      "expected": "{\"answer_type\": \"list\", \"items\": [\"advantage 93\", \"advantage 83\", \"advantage 45\", \"advantage 2\"], \"text\": \"\", \"chunks_used\": [1, 2, 3]}",
+      "prediction": "{\"answer_type\": \"list\", \"items\": [\"advantage 93\", \"advantage 83\", \"advantage 45\", \"advantage 2\"], \"text\": \"\", \"chunks_used\": [1, 2, 3]}",
+      "cleaned_prediction": "{\"answer_type\": \"list\", \"items\": [\"advantage 93\", \"advantage 83\", \"advantage 45\", \"advantage 2\"], \"text\": \"\", \"chunks_used\": [1, 2, 3]}",
+      "match_score": 100.0,
+      "raw_match_score": 100.0,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": true,
+        "completeness_score": 1.0,
+        "missing_items": [],
+        "extra_items": [],
+        "answer_count": 8,
+        "expected_count": 8
+      }
+    },
+    {
+      "query": "what advantages does NextEnterprises offer?",
+      "expected": "{\"answer_type\": \"list\", \"items\": [\"advantage 17\", \"advantage 73\", \"advantage 96\", \"advantage 97\"], \"text\": \"\", \"chunks_used\": [1]}",
+      "prediction": "{\n  \"answer_type\": \"not_found\",\n  \"items\": [],\n  \"text\": \"I don't have that information in the provided documents\",\n  \"chunks_used\": []\n}",
+      "cleaned_prediction": "{\n\"answer_type\": \"not_found\",\n\"items\": [],\n\"text\": \"I don't have that information in the provided documents\",\n\"chunks_used\": []\n}",
+      "match_score": 77.51425170898438,
+      "raw_match_score": 77.51425170898438,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": false,
+        "completeness_score": 0.0,
+        "missing_items": [
+          "\"text\": \"\"",
+          "\"advantage 97\"]",
+          "{\"answer_type\": \"list\"",
+          "\"chunks_used\": [1]}",
+          "\"advantage 73\"",
+          "\"advantage 96\"",
+          "\"items\": [\"advantage 17\""
+        ],
+        "extra_items": [
+          "\"text\": \"i don't have that information in the provided documents\"",
+          "\"chunks_used\": []\n}",
+          "{\n\"answer_type\": \"not_found\"",
+          "\"items\": []"
+        ],
+        "answer_count": 4,
+        "expected_count": 7
+      }
+    },
+    {
+      "query": "what caused the change?",
+      "expected": "{\"answer_type\": \"analytical\", \"items\": [], \"text\": \"because DataVentures's move to expand was a direct response to increasing market demand, demonstrating proactive market leadership.\", \"chunks_used\":...",
+      "prediction": "{\n  \"answer_type\": \"analytical\",\n  \"items\": [],\n  \"text\": \"the reason for the change is that DataVentures's move to expand was a direct response to increased market demand, showcasing its proactive ma...",
+      "cleaned_prediction": "{\n\"answer_type\": \"analytical\",\n\"items\": [],\n\"text\": \"the reason for the change is that DataVentures's move to expand was a direct response to increased market demand, showcasing its proactive market l...",
+      "match_score": 95.07013702392578,
+      "raw_match_score": 95.07013702392578,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": false,
+        "complete": true,
+        "completeness_score": 1.0,
+        "missing_items": [],
+        "extra_items": []
+      }
+    },
+    {
+      "query": "compare AIIndustries and integration.",
+      "expected": "{\"answer_type\": \"comparison\", \"items\": [], \"text\": \"While AIIndustries excels in pricing strategy, integration takes a more comprehensive approach to the market\", \"chunks_used\": [1]}",
+      "prediction": "{\n  \"answer_type\": \"comparison\",\n  \"items\": [],\n  \"text\": \"AIIndustries focuses on price optimization, whereas Integration emphasizes broader market penetration.\",\n  \"chunks_used\": [1]\n}",
+      "cleaned_prediction": "{\n\"answer_type\": \"comparison\",\n\"items\": [],\n\"text\": \"AIIndustries focuses on price optimization, whereas Integration emphasizes broader market penetration.\",\n\"chunks_used\": [1]\n}",
+      "match_score": 94.75,
+      "raw_match_score": 94.75,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": false,
+        "complete": true,
+        "completeness_score": 1.0,
+        "missing_items": [],
+        "extra_items": []
+      }
+    },
+    {
+      "query": "who are the founders at DigitalAlliance?",
+      "expected": "{\"answer_type\": \"entities\", \"items\": [\"Avery Thompson\", \"Jordan Anderson\", \"Quinn Johnson\"], \"text\": \"\", \"chunks_used\": [1, 2, 3]}",
+      "prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "cleaned_prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "match_score": 78.2674331665039,
+      "raw_match_score": 78.2674331665039,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": false,
+        "completeness_score": 0.0,
+        "missing_items": [
+          "\"text\": \"\"",
+          "{\"answer_type\": \"entities\"",
+          "\"items\": [\"avery thompson\"",
+          "\"quinn johnson\"]",
+          "3]}",
+          "\"jordan anderson\"",
+          "\"chunks_used\": [1"
+        ],
+        "extra_items": [
+          "\"text\": \"i don't have that information in the provided documents\"",
+          "{\"answer_type\": \"not_found\"",
+          "\"items\": []",
+          "\"chunks_used\": []}"
+        ],
+        "answer_count": 4,
+        "expected_count": 7
+      }
+    },
+    {
+      "query": "why did collaboration restructure?",
+      "expected": "{\"answer_type\": \"analytical\", \"items\": [], \"text\": \"because collaboration's move to restructure was a direct response to competitive pressures, demonstrating proactive market leadership.\", \"chunks_use...",
+      "prediction": "{\n  \"answer_type\": \"not_found\",\n  \"items\": [],\n  \"text\": \"I don't have that information in the provided documents\",\n  \"chunks_used\": []\n}",
+      "cleaned_prediction": "{\n\"answer_type\": \"not_found\",\n\"items\": [],\n\"text\": \"I don't have that information in the provided documents\",\n\"chunks_used\": []\n}",
+      "match_score": 70.7741928100586,
+      "raw_match_score": 70.7741928100586,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": false,
+        "complete": true,
+        "completeness_score": 1.0,
+        "missing_items": [],
+        "extra_items": []
+      }
+    },
+    {
+      "query": "what is the difference between SynergyAlliance and strategy?",
+      "expected": "{\"answer_type\": \"comparison\", \"items\": [], \"text\": \"The primary distinction between SynergyAlliance and strategy lies in their handling of customer focus\", \"chunks_used\": [1]}",
+      "prediction": "{\n  \"answer_type\": \"comparison\",\n  \"items\": [\"customer focus\"],\n  \"text\": \"The primary distinction between SynergyAlliance and strategy lies in their handling of customer focus\",\n  \"chunks_used\": [1]\n...",
+      "cleaned_prediction": "{\n\"answer_type\": \"comparison\",\n\"items\": [\"customer focus\"],\n\"text\": \"The primary distinction between SynergyAlliance and strategy lies in their handling of customer focus\",\n\"chunks_used\": [1]\n}",
+      "match_score": 98.98159790039062,
+      "raw_match_score": 98.98159790039062,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": false,
+        "completeness_score": 0.4,
+        "missing_items": [
+          "\"chunks_used\": [1]}",
+          "{\"answer_type\": \"comparison\"",
+          "\"items\": []"
+        ],
+        "extra_items": [
+          "\"chunks_used\": [1]\n}",
+          "{\n\"answer_type\": \"comparison\"",
+          "\"items\": [\"customer focus\"]"
+        ],
+        "answer_count": 5,
+        "expected_count": 5
+      }
+    },
+    {
+      "query": "what are the capabilities of automation?",
+      "expected": "{\"answer_type\": \"list\", \"items\": [\"capabilitie 80\", \"capabilitie 29\", \"capabilitie 7\", \"capabilitie 16\"], \"text\": \"\", \"chunks_used\": [1, 2, 3, 4]}",
+      "prediction": "{\"answer_type\": \"list\", \"items\": [\"capabilitie 80\", \"capabilitie 29\", \"capabilitie 7\", \"capabilitie 16\"], \"text\": \"\", \"chunks_used\": [1, 2, 3, 4]}",
+      "cleaned_prediction": "{\"answer_type\": \"list\", \"items\": [\"capabilitie 80\", \"capabilitie 29\", \"capabilitie 7\", \"capabilitie 16\"], \"text\": \"\", \"chunks_used\": [1, 2, 3, 4]}",
+      "match_score": 100.0,
+      "raw_match_score": 100.0,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": true,
+        "completeness_score": 1.0,
+        "missing_items": [],
+        "extra_items": [],
+        "answer_count": 8,
+        "expected_count": 8
+      }
+    },
+    {
+      "query": "list the services related to analytics.",
+      "expected": "{\"answer_type\": \"list\", \"items\": [\"service 69\", \"service 45\", \"service 95\"], \"text\": \"\", \"chunks_used\": [1]}",
+      "prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "cleaned_prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "match_score": 82.05377197265625,
+      "raw_match_score": 82.05377197265625,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": false,
+        "completeness_score": 0.0,
+        "missing_items": [
+          "\"text\": \"\"",
+          "\"service 45\"",
+          "\"items\": [\"service 69\"",
+          "{\"answer_type\": \"list\"",
+          "\"chunks_used\": [1]}",
+          "\"service 95\"]"
+        ],
+        "extra_items": [
+          "\"text\": \"i don't have that information in the provided documents\"",
+          "{\"answer_type\": \"not_found\"",
+          "\"items\": []",
+          "\"chunks_used\": []}"
+        ],
+        "answer_count": 4,
+        "expected_count": 6
+      }
+    },
+    {
+      "query": "compare CatalystIndustries and NextIndustries.",
+      "expected": "{\"answer_type\": \"comparison\", \"items\": [], \"text\": \"CatalystIndustries and NextIndustries differ significantly in their approach to innovation strategy, with each offering unique advantages\", \"chunks_...",
+      "prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "cleaned_prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "match_score": 57.65553283691406,
+      "raw_match_score": 57.65553283691406,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": false,
+        "complete": true,
+        "completeness_score": 1.0,
+        "missing_items": [],
+        "extra_items": []
+      }
+    },
+    {
+      "query": "what components does PinnacleSystems offer?",
+      "expected": "{\"answer_type\": \"list\", \"items\": [\"component 96\", \"component 56\"], \"text\": \"\", \"chunks_used\": [1]}",
+      "prediction": "{\n  \"answer_type\": \"not_found\",\n  \"items\": [],\n  \"text\": \"I don't have that information in the provided documents\",\n  \"chunks_used\": []\n}",
+      "cleaned_prediction": "{\n\"answer_type\": \"not_found\",\n\"items\": [],\n\"text\": \"I don't have that information in the provided documents\",\n\"chunks_used\": []\n}",
+      "match_score": 77.81845092773438,
+      "raw_match_score": 77.81845092773438,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": false,
+        "completeness_score": 0.0,
+        "missing_items": [
+          "\"items\": [\"component 96\"",
+          "\"text\": \"\"",
+          "{\"answer_type\": \"list\"",
+          "\"chunks_used\": [1]}",
+          "\"component 56\"]"
+        ],
+        "extra_items": [
+          "\"text\": \"i don't have that information in the provided documents\"",
+          "\"chunks_used\": []\n}",
+          "{\n\"answer_type\": \"not_found\"",
+          "\"items\": []"
+        ],
+        "answer_count": 4,
+        "expected_count": 5
+      }
+    },
+    {
+      "query": "what are the components of collaboration?",
+      "expected": "{\"answer_type\": \"list\", \"items\": [\"component 56\", \"component 76\", \"component 25\"], \"text\": \"\", \"chunks_used\": [1, 2, 3]}",
+      "prediction": "{\"answer_type\": \"list\", \"items\": [\"component 56\", \"component 76\", \"component 25\"], \"text\": \"\", \"chunks_used\": [1, 2, 3]}",
+      "cleaned_prediction": "{\"answer_type\": \"list\", \"items\": [\"component 56\", \"component 76\", \"component 25\"], \"text\": \"\", \"chunks_used\": [1, 2, 3]}",
+      "match_score": 100.0,
+      "raw_match_score": 100.0,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": true,
+        "completeness_score": 1.0,
+        "missing_items": [],
+        "extra_items": [],
+        "answer_count": 7,
+        "expected_count": 7
+      }
+    },
+    {
+      "query": "what is the connection between CatalystVentures and strategy?",
+      "expected": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "prediction": "{\n  \"answer_type\": \"not_found\",\n  \"items\": [],\n  \"text\": \"I don't have that information in the provided documents\",\n  \"chunks_used\": []\n}",
+      "cleaned_prediction": "{\n\"answer_type\": \"not_found\",\n\"items\": [],\n\"text\": \"I don't have that information in the provided documents\",\n\"chunks_used\": []\n}",
+      "match_score": 100.0,
+      "raw_match_score": 100.0,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": false,
+        "complete": true,
+        "completeness_score": 1.0,
+        "missing_items": [],
+        "extra_items": []
+      }
+    },
+    {
+      "query": "how does the framework work?",
+      "expected": "{\"answer_type\": \"process\", \"items\": [], \"text\": \"Working capital management has been optimized to support growth initiatives while maintaining liquidity. Regulatory changes in the financial sector hav...",
+      "prediction": "{\n  \"answer_type\": \"not_found\",\n  \"items\": [],\n  \"text\": \"I don't have that information in the provided documents\",\n  \"chunks_used\": []\n}",
+      "cleaned_prediction": "{\n\"answer_type\": \"not_found\",\n\"items\": [],\n\"text\": \"I don't have that information in the provided documents\",\n\"chunks_used\": []\n}",
+      "match_score": 62.77849578857422,
+      "raw_match_score": 62.77849578857422,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": false,
+        "complete": true,
+        "completeness_score": 1.0,
+        "missing_items": [],
+        "extra_items": []
+      }
+    },
+    {
+      "query": "who are the members at SynergyWorks?",
+      "expected": "{\"answer_type\": \"entities\", \"items\": [\"Emery Davis\", \"Hayden Rodriguez\", \"Hayden Rodriguez\", \"River Hernandez\"], \"text\": \"\", \"chunks_used\": [1, 2, 3]}",
+      "prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "cleaned_prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "match_score": 77.25334167480469,
+      "raw_match_score": 77.25334167480469,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": false,
+        "completeness_score": 0.0,
+        "missing_items": [
+          "\"text\": \"\"",
+          "{\"answer_type\": \"entities\"",
+          "\"items\": [\"emery davis\"",
+          "\"hayden rodriguez\"",
+          "3]}",
+          "\"chunks_used\": [1",
+          "\"river hernandez\"]"
+        ],
+        "extra_items": [
+          "\"text\": \"i don't have that information in the provided documents\"",
+          "{\"answer_type\": \"not_found\"",
+          "\"items\": []",
+          "\"chunks_used\": []}"
+        ],
+        "answer_count": 4,
+        "expected_count": 7
+      }
+    },
+    {
+      "query": "who are the members at SmartCapital?",
+      "expected": "{\"answer_type\": \"entities\", \"items\": [\"Quinn Miller\", \"Quinn Martin\", \"Taylor Davis\", \"Riley Hernandez\"], \"text\": \"\", \"chunks_used\": [1, 2, 3, 4]}",
+      "prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "cleaned_prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "match_score": 76.10393524169922,
+      "raw_match_score": 76.10393524169922,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": false,
+        "completeness_score": 0.0,
+        "missing_items": [
+          "\"text\": \"\"",
+          "{\"answer_type\": \"entities\"",
+          "\"items\": [\"quinn miller\"",
+          "\"chunks_used\": [1",
+          "4]}",
+          "\"riley hernandez\"]",
+          "\"quinn martin\"",
+          "\"taylor davis\""
+        ],
+        "extra_items": [
+          "\"text\": \"i don't have that information in the provided documents\"",
+          "{\"answer_type\": \"not_found\"",
+          "\"items\": []",
+          "\"chunks_used\": []}"
+        ],
+        "answer_count": 4,
+        "expected_count": 8
+      }
+    },
+    {
+      "query": "what caused the restructuring?",
+      "expected": "{\"answer_type\": \"analytical\", \"items\": [], \"text\": \"NextIndustries chose to expand because strategic opportunities, enabling the organization to adapt to evolving customer needs.\", \"chunks_used\": [1]}",
+      "prediction": "{\n  \"answer_type\": \"analytical\",\n  \"items\": [],\n  \"text\": \"The IT department has been upgrading infrastructure to support increased computational demands.\",\n  \"chunks_used\": [2]\n}",
+      "cleaned_prediction": "{\n\"answer_type\": \"analytical\",\n\"items\": [],\n\"text\": \"The IT department has been upgrading infrastructure to support increased computational demands.\",\n\"chunks_used\": [2]\n}",
+      "match_score": 81.10541534423828,
+      "raw_match_score": 81.10541534423828,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": false,
+        "complete": true,
+        "completeness_score": 1.0,
+        "missing_items": [],
+        "extra_items": []
+      }
+    },
+    {
+      "query": "who are the directors of SynergyEnterprises?",
+      "expected": "{\"answer_type\": \"entities\", \"items\": [\"Sage Brown\", \"Jamie Miller\", \"Taylor Davis\"], \"text\": \"\", \"chunks_used\": [1]}",
+      "prediction": "{\n  \"answer_type\": \"not_found\",\n  \"items\": [],\n  \"text\": \"I don't have that information in the provided documents\",\n  \"chunks_used\": []\n}",
+      "cleaned_prediction": "{\n\"answer_type\": \"not_found\",\n\"items\": [],\n\"text\": \"I don't have that information in the provided documents\",\n\"chunks_used\": []\n}",
+      "match_score": 80.50582122802734,
+      "raw_match_score": 80.50582122802734,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": false,
+        "completeness_score": 0.0,
+        "missing_items": [
+          "\"text\": \"\"",
+          "\"taylor davis\"]",
+          "{\"answer_type\": \"entities\"",
+          "\"items\": [\"sage brown\"",
+          "\"chunks_used\": [1]}",
+          "\"jamie miller\""
+        ],
+        "extra_items": [
+          "\"text\": \"i don't have that information in the provided documents\"",
+          "\"chunks_used\": []\n}",
+          "{\n\"answer_type\": \"not_found\"",
+          "\"items\": []"
+        ],
+        "answer_count": 4,
+        "expected_count": 6
+      }
+    },
+    {
+      "query": "list the components related to cybersecurity.",
+      "expected": "{\"answer_type\": \"list\", \"items\": [\"component 39\", \"component 5\", \"component 53\"], \"text\": \"\", \"chunks_used\": [1, 2, 3]}",
+      "prediction": "{\"answer_type\": \"list\", \"items\": [\"component 67\", \"component 85\", \"component 74\"], \"text\": \"\", \"chunks_used\": [1, 2, 3]}",
+      "cleaned_prediction": "{\"answer_type\": \"list\", \"items\": [\"component 67\", \"component 85\", \"component 74\"], \"text\": \"\", \"chunks_used\": [1, 2, 3]}",
+      "match_score": 99.41165924072266,
+      "raw_match_score": 99.41165924072266,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": false,
+        "completeness_score": 0.5714285714285714,
+        "missing_items": [
+          "\"items\": [\"component 39\"",
+          "\"component 5\"",
+          "\"component 53\"]"
+        ],
+        "extra_items": [
+          "\"component 74\"]",
+          "\"component 85\"",
+          "\"items\": [\"component 67\""
+        ],
+        "answer_count": 7,
+        "expected_count": 7
+      }
+    },
+    {
+      "query": "what benefits does CloudCorp offer?",
+      "expected": "{\"answer_type\": \"list\", \"items\": [\"benefit 72\", \"benefit 53\", \"benefit 32\", \"benefit 93\"], \"text\": \"\", \"chunks_used\": [1, 2, 3, 4]}",
+      "prediction": "{\"answer_type\": \"list\", \"items\": [\"benefit 72\", \"benefit 53\", \"benefit 32\", \"benefit 93\"], \"text\": \"\", \"chunks_used\": [1, 2, 3, 4]}",
+      "cleaned_prediction": "{\"answer_type\": \"list\", \"items\": [\"benefit 72\", \"benefit 53\", \"benefit 32\", \"benefit 93\"], \"text\": \"\", \"chunks_used\": [1, 2, 3, 4]}",
+      "match_score": 100.0,
+      "raw_match_score": 100.0,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": true,
+        "completeness_score": 1.0,
+        "missing_items": [],
+        "extra_items": [],
+        "answer_count": 8,
+        "expected_count": 8
+      }
+    },
+    {
+      "query": "who are the leaders of SummitVentures?",
+      "expected": "{\"answer_type\": \"entities\", \"items\": [\"Logan Miller\"], \"text\": \"\", \"chunks_used\": [1]}",
+      "prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "cleaned_prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "match_score": 85.1800765991211,
+      "raw_match_score": 85.1800765991211,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": false,
+        "completeness_score": 0.0,
+        "missing_items": [
+          "\"text\": \"\"",
+          "\"chunks_used\": [1]}",
+          "\"items\": [\"logan miller\"]",
+          "{\"answer_type\": \"entities\""
+        ],
+        "extra_items": [
+          "\"text\": \"i don't have that information in the provided documents\"",
+          "{\"answer_type\": \"not_found\"",
+          "\"items\": []",
+          "\"chunks_used\": []}"
+        ],
+        "answer_count": 4,
+        "expected_count": 4
+      }
+    },
+    {
+      "query": "list the services related to automation.",
+      "expected": "{\"answer_type\": \"list\", \"items\": [\"service 8\", \"service 43\", \"service 95\"], \"text\": \"\", \"chunks_used\": [1]}",
+      "prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "cleaned_prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "match_score": 82.59014129638672,
+      "raw_match_score": 82.59014129638672,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": false,
+        "completeness_score": 0.0,
+        "missing_items": [
+          "\"text\": \"\"",
+          "\"service 43\"",
+          "\"items\": [\"service 8\"",
+          "{\"answer_type\": \"list\"",
+          "\"chunks_used\": [1]}",
+          "\"service 95\"]"
+        ],
+        "extra_items": [
+          "\"text\": \"i don't have that information in the provided documents\"",
+          "{\"answer_type\": \"not_found\"",
+          "\"items\": []",
+          "\"chunks_used\": []}"
+        ],
+        "answer_count": 4,
+        "expected_count": 6
+      }
+    },
+    {
+      "query": "what is the process for change?",
+      "expected": "{\"answer_type\": \"process\", \"items\": [], \"text\": \"Customer feedback surveys reveal increasing demand for personalized service experiences. Internal audits revealed opportunities for streamlining operat...",
+      "prediction": "{\n  \"answer_type\": \"not_found\",\n  \"items\": [],\n  \"text\": \"I don't have that information in the provided documents\",\n  \"chunks_used\": []\n}",
+      "cleaned_prediction": "{\n\"answer_type\": \"not_found\",\n\"items\": [],\n\"text\": \"I don't have that information in the provided documents\",\n\"chunks_used\": []\n}",
+      "match_score": 68.2901382446289,
+      "raw_match_score": 68.2901382446289,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": false,
+        "complete": true,
+        "completeness_score": 1.0,
+        "missing_items": [],
+        "extra_items": []
+      }
+    },
+    {
+      "query": "list the components related to cloud computing.",
+      "expected": "{\"answer_type\": \"list\", \"items\": [\"component 29\", \"component 86\", \"component 67\"], \"text\": \"\", \"chunks_used\": [1]}",
+      "prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "cleaned_prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "match_score": 76.0903549194336,
+      "raw_match_score": 76.0903549194336,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": false,
+        "completeness_score": 0.0,
+        "missing_items": [
+          "\"text\": \"\"",
+          "\"component 86\"",
+          "\"component 67\"]",
+          "\"items\": [\"component 29\"",
+          "{\"answer_type\": \"list\"",
+          "\"chunks_used\": [1]}"
+        ],
+        "extra_items": [
+          "\"text\": \"i don't have that information in the provided documents\"",
+          "{\"answer_type\": \"not_found\"",
+          "\"items\": []",
+          "\"chunks_used\": []}"
+        ],
+        "answer_count": 4,
+        "expected_count": 6
+      }
+    },
+    {
+      "query": "who are the co-founders at SmartIndustries?",
+      "expected": "{\"answer_type\": \"entities\", \"items\": [\"Casey Johnson\", \"Harper Rodriguez\", \"Taylor Jones\", \"Blake Martin\"], \"text\": \"\", \"chunks_used\": [1]}",
+      "prediction": "{\n  \"answer_type\": \"not_found\",\n  \"items\": [],\n  \"text\": \"I don't have that information in the provided documents\",\n  \"chunks_used\": []\n}",
+      "cleaned_prediction": "{\n\"answer_type\": \"not_found\",\n\"items\": [],\n\"text\": \"I don't have that information in the provided documents\",\n\"chunks_used\": []\n}",
+      "match_score": 78.21745300292969,
+      "raw_match_score": 78.21745300292969,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": false,
+        "completeness_score": 0.0,
+        "missing_items": [
+          "\"text\": \"\"",
+          "\"harper rodriguez\"",
+          "{\"answer_type\": \"entities\"",
+          "\"taylor jones\"",
+          "\"blake martin\"]",
+          "\"chunks_used\": [1]}",
+          "\"items\": [\"casey johnson\""
+        ],
+        "extra_items": [
+          "\"text\": \"i don't have that information in the provided documents\"",
+          "\"chunks_used\": []\n}",
+          "{\n\"answer_type\": \"not_found\"",
+          "\"items\": []"
+        ],
+        "answer_count": 4,
+        "expected_count": 7
+      }
+    },
+    {
+      "query": "why did DigitalCorp restructure?",
+      "expected": "{\"answer_type\": \"analytical\", \"items\": [], \"text\": \"DigitalCorp chose to restructure because technological advancements, enabling the organization to adapt to evolving customer needs.\", \"chunks_used\":...",
+      "prediction": "{\n  \"answer_type\": \"analytical\",\n  \"items\": [],\n  \"text\": \"DigitalCorp chose to restructure because investment patterns showed a strong preference for sustainable and ESG-compliant ventures.\",\n  \"chun...",
+      "cleaned_prediction": "{\n\"answer_type\": \"analytical\",\n\"items\": [],\n\"text\": \"DigitalCorp chose to restructure because investment patterns showed a strong preference for sustainable and ESG-compliant ventures.\",\n\"chunks_used\"...",
+      "match_score": 95.899169921875,
+      "raw_match_score": 95.899169921875,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": false,
+        "complete": true,
+        "completeness_score": 1.0,
+        "missing_items": [],
+        "extra_items": []
+      }
+    },
+    {
+      "query": "how are strategy and cloud computing related?",
+      "expected": "{\"answer_type\": \"relationship\", \"items\": [], \"text\": \"strategy maintains a supplier relationship with cloud computing, facilitating knowledge sharing and collaborative development.\", \"chunks_used\": [1...",
+      "prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "cleaned_prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "match_score": 72.72730255126953,
+      "raw_match_score": 72.72730255126953,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": false,
+        "complete": true,
+        "completeness_score": 1.0,
+        "missing_items": [],
+        "extra_items": []
+      }
+    },
+    {
+      "query": "who are the managers at VertexEnterprises?",
+      "expected": "{\"answer_type\": \"entities\", \"items\": [\"Quinn Garcia\", \"Alex Martin\", \"Emery Moore\"], \"text\": \"\", \"chunks_used\": [1, 2, 3]}",
+      "prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "cleaned_prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "match_score": 79.09266662597656,
+      "raw_match_score": 79.09266662597656,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": false,
+        "completeness_score": 0.0,
+        "missing_items": [
+          "\"text\": \"\"",
+          "\"alex martin\"",
+          "{\"answer_type\": \"entities\"",
+          "\"items\": [\"quinn garcia\"",
+          "3]}",
+          "\"chunks_used\": [1",
+          "\"emery moore\"]"
+        ],
+        "extra_items": [
+          "\"text\": \"i don't have that information in the provided documents\"",
+          "{\"answer_type\": \"not_found\"",
+          "\"items\": []",
+          "\"chunks_used\": []}"
+        ],
+        "answer_count": 4,
+        "expected_count": 7
+      }
+    },
+    {
+      "query": "what services does ApexSolutions offer?",
+      "expected": "{\"answer_type\": \"list\", \"items\": [\"service 17\", \"service 23\", \"service 94\", \"service 3\"], \"text\": \"\", \"chunks_used\": [1, 2, 3, 4]}",
+      "prediction": "{\"answer_type\": \"list\", \"items\": [\"service 18\", \"service 16\", \"service 94\", \"service 24\"], \"text\": \"\", \"chunks_used\": [1, 2, 3, 4]}",
+      "cleaned_prediction": "{\"answer_type\": \"list\", \"items\": [\"service 18\", \"service 16\", \"service 94\", \"service 24\"], \"text\": \"\", \"chunks_used\": [1, 2, 3, 4]}",
+      "match_score": 99.7583236694336,
+      "raw_match_score": 99.7583236694336,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": false,
+        "completeness_score": 0.625,
+        "missing_items": [
+          "\"service 23\"",
+          "\"items\": [\"service 17\"",
+          "\"service 3\"]"
+        ],
+        "extra_items": [
+          "\"items\": [\"service 18\"",
+          "\"service 16\"",
+          "\"service 24\"]"
+        ],
+        "answer_count": 8,
+        "expected_count": 8
+      }
+    },
+    {
+      "query": "what components does GlobalCapital offer?",
+      "expected": "{\"answer_type\": \"list\", \"items\": [\"component 49\", \"component 60\", \"component 37\", \"component 58\"], \"text\": \"\", \"chunks_used\": [1, 2, 3, 4]}",
+      "prediction": "{\"answer_type\": \"list\", \"items\": [\"component 49\", \"component 60\", \"component 37\", \"component 58\"], \"text\": \"\", \"chunks_used\": [1, 2, 3, 4]}",
+      "cleaned_prediction": "{\"answer_type\": \"list\", \"items\": [\"component 49\", \"component 60\", \"component 37\", \"component 58\"], \"text\": \"\", \"chunks_used\": [1, 2, 3, 4]}",
+      "match_score": 100.00001525878906,
+      "raw_match_score": 100.00001525878906,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": true,
+        "completeness_score": 1.0,
+        "missing_items": [],
+        "extra_items": [],
+        "answer_count": 8,
+        "expected_count": 8
+      }
+    },
+    {
+      "query": "who are the members of AINetworks?",
+      "expected": "{\"answer_type\": \"entities\", \"items\": [\"Sage White\", \"Casey Hernandez\", \"Emery Anderson\"], \"text\": \"\", \"chunks_used\": [1, 2, 3]}",
+      "prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "cleaned_prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "match_score": 80.02574920654297,
+      "raw_match_score": 80.02574920654297,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": false,
+        "completeness_score": 0.0,
+        "missing_items": [
+          "\"text\": \"\"",
+          "{\"answer_type\": \"entities\"",
+          "\"casey hernandez\"",
+          "3]}",
+          "\"emery anderson\"]",
+          "\"items\": [\"sage white\"",
+          "\"chunks_used\": [1"
+        ],
+        "extra_items": [
+          "\"text\": \"i don't have that information in the provided documents\"",
+          "{\"answer_type\": \"not_found\"",
+          "\"items\": []",
+          "\"chunks_used\": []}"
+        ],
+        "answer_count": 4,
+        "expected_count": 7
+      }
+    },
+    {
+      "query": "who are the members at DataWorks?",
+      "expected": "{\"answer_type\": \"entities\", \"items\": [\"Jamie Jones\", \"Casey Jackson\", \"Jordan Rodriguez\"], \"text\": \"\", \"chunks_used\": [1, 2, 3]}",
+      "prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "cleaned_prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "match_score": 78.01581573486328,
+      "raw_match_score": 78.01581573486328,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": false,
+        "completeness_score": 0.0,
+        "missing_items": [
+          "\"text\": \"\"",
+          "{\"answer_type\": \"entities\"",
+          "\"items\": [\"jamie jones\"",
+          "3]}",
+          "\"casey jackson\"",
+          "\"chunks_used\": [1",
+          "\"jordan rodriguez\"]"
+        ],
+        "extra_items": [
+          "\"text\": \"i don't have that information in the provided documents\"",
+          "{\"answer_type\": \"not_found\"",
+          "\"items\": []",
+          "\"chunks_used\": []}"
+        ],
+        "answer_count": 4,
+        "expected_count": 7
+      }
+    },
+    {
+      "query": "what is the difference between CatalystLabs and NexusSystems?",
+      "expected": "{\"answer_type\": \"comparison\", \"items\": [], \"text\": \"CatalystLabs prioritizes customer focus more than NexusSystems, which focuses on broader market coverage\", \"chunks_used\": [1]}",
+      "prediction": "{\n  \"answer_type\": \"comparison\",\n  \"items\": [\"customer focus\", \"broader market coverage\"],\n  \"text\": \"CatalystLabs prioritizes customer focus more than NexusSystems, which focuses on broader market co...",
+      "cleaned_prediction": "{\n\"answer_type\": \"comparison\",\n\"items\": [\"customer focus\", \"broader market coverage\"],\n\"text\": \"CatalystLabs prioritizes customer focus more than NexusSystems, which focuses on broader market coverage...",
+      "match_score": 97.46514892578125,
+      "raw_match_score": 97.46514892578125,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": false,
+        "complete": true,
+        "completeness_score": 1.0,
+        "missing_items": [],
+        "extra_items": []
+      }
+    },
+    {
+      "query": "what are the advantages of efficiency?",
+      "expected": "{\"answer_type\": \"list\", \"items\": [\"advantage 77\", \"advantage 70\", \"advantage 39\", \"advantage 100\"], \"text\": \"\", \"chunks_used\": [1, 2, 3]}",
+      "prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "cleaned_prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "match_score": 76.78253936767578,
+      "raw_match_score": 76.78253936767578,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": false,
+        "completeness_score": 0.0,
+        "missing_items": [
+          "\"advantage 70\"",
+          "\"text\": \"\"",
+          "\"advantage 39\"",
+          "\"advantage 100\"]",
+          "{\"answer_type\": \"list\"",
+          "3]}",
+          "\"items\": [\"advantage 77\"",
+          "\"chunks_used\": [1"
+        ],
+        "extra_items": [
+          "\"text\": \"i don't have that information in the provided documents\"",
+          "{\"answer_type\": \"not_found\"",
+          "\"items\": []",
+          "\"chunks_used\": []}"
+        ],
+        "answer_count": 4,
+        "expected_count": 8
+      }
+    },
+    {
+      "query": "what are the features of AuroraIndustries?",
+      "expected": "{\"answer_type\": \"list\", \"items\": [\"feature 70\", \"feature 10\", \"feature 2\"], \"text\": \"\", \"chunks_used\": [1, 2, 3]}",
+      "prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "cleaned_prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "match_score": 81.91646575927734,
+      "raw_match_score": 81.91646575927734,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": false,
+        "completeness_score": 0.0,
+        "missing_items": [
+          "\"items\": [\"feature 70\"",
+          "\"text\": \"\"",
+          "\"feature 10\"",
+          "{\"answer_type\": \"list\"",
+          "3]}",
+          "\"feature 2\"]",
+          "\"chunks_used\": [1"
+        ],
+        "extra_items": [
+          "\"text\": \"i don't have that information in the provided documents\"",
+          "{\"answer_type\": \"not_found\"",
+          "\"items\": []",
+          "\"chunks_used\": []}"
+        ],
+        "answer_count": 4,
+        "expected_count": 7
+      }
+    },
+    {
+      "query": "what is the difference between automation and ZenithGroup?",
+      "expected": "{\"answer_type\": \"comparison\", \"items\": [], \"text\": \"The primary distinction between automation and ZenithGroup lies in their handling of customer focus\", \"chunks_used\": [1]}",
+      "prediction": "{\n  \"answer_type\": \"comparison\",\n  \"items\": [\"customer focus\"],\n  \"text\": \"The primary distinction between automation and ZenithGroup lies in their handling of customer focus\",\n  \"chunks_used\": [1]\n}",
+      "cleaned_prediction": "{\n\"answer_type\": \"comparison\",\n\"items\": [\"customer focus\"],\n\"text\": \"The primary distinction between automation and ZenithGroup lies in their handling of customer focus\",\n\"chunks_used\": [1]\n}",
+      "match_score": 98.94029998779297,
+      "raw_match_score": 98.94029998779297,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": false,
+        "complete": true,
+        "completeness_score": 1.0,
+        "missing_items": [],
+        "extra_items": []
+      }
+    },
+    {
+      "query": "what are the components of DigitalCapital?",
+      "expected": "{\"answer_type\": \"list\", \"items\": [\"component 36\", \"component 77\", \"component 99\"], \"text\": \"\", \"chunks_used\": [1, 2, 3]}",
+      "prediction": "{\"answer_type\": \"list\", \"items\": [\"component 36\", \"component 45\", \"component 89\", \"component 99\"], \"text\": \"\", \"chunks_used\": [1, 3, 4]}",
+      "cleaned_prediction": "{\"answer_type\": \"list\", \"items\": [\"component 36\", \"component 45\", \"component 89\", \"component 99\"], \"text\": \"\", \"chunks_used\": [1, 3, 4]}",
+      "match_score": 99.48975372314453,
+      "raw_match_score": 99.48975372314453,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": false,
+        "completeness_score": 0.7142857142857143,
+        "missing_items": [
+          "\"component 77\"",
+          "3]}"
+        ],
+        "extra_items": [
+          "\"component 45\"",
+          "4]}",
+          "\"component 89\""
+        ],
+        "answer_count": 8,
+        "expected_count": 7
+      }
+    },
+    {
+      "query": "list the components related to analytics.",
+      "expected": "{\"answer_type\": \"list\", \"items\": [\"component 15\", \"component 17\", \"component 50\"], \"text\": \"\", \"chunks_used\": [1, 2, 3]}",
+      "prediction": "{\"answer_type\": \"list\", \"items\": [\"component 28\", \"component 69\", \"component 84\", \"component 91\"], \"text\": \"\", \"chunks_used\": [1, 3, 4]}",
+      "cleaned_prediction": "{\"answer_type\": \"list\", \"items\": [\"component 28\", \"component 69\", \"component 84\", \"component 91\"], \"text\": \"\", \"chunks_used\": [1, 3, 4]}",
+      "match_score": 99.04161834716797,
+      "raw_match_score": 99.04161834716797,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": false,
+        "completeness_score": 0.42857142857142855,
+        "missing_items": [
+          "\"items\": [\"component 15\"",
+          "\"component 50\"]",
+          "\"component 17\"",
+          "3]}"
+        ],
+        "extra_items": [
+          "\"items\": [\"component 28\"",
+          "4]}",
+          "\"component 84\"",
+          "\"component 69\"",
+          "\"component 91\"]"
+        ],
+        "answer_count": 8,
+        "expected_count": 7
+      }
+    },
+    {
+      "query": "what is the connection between AIGroup and SmartServices?",
+      "expected": "{\"answer_type\": \"relationship\", \"items\": [], \"text\": \"AIGroup maintains a strategic partnership with SmartServices, facilitating knowledge sharing and collaborative development.\", \"chunks_used\": [1]}",
+      "prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "cleaned_prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "match_score": 71.93708801269531,
+      "raw_match_score": 71.93708801269531,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": false,
+        "completeness_score": 0.16666666666666666,
+        "missing_items": [
+          "facilitating knowledge sharing",
+          "{\"answer_type\": \"relationship\"",
+          "collaborative development.\"",
+          "\"chunks_used\": [1]}",
+          "\"text\": \"aigroup maintains a strategic partnership with smartservices"
+        ],
+        "extra_items": [
+          "\"text\": \"i don't have that information in the provided documents\"",
+          "{\"answer_type\": \"not_found\"",
+          "\"chunks_used\": []}"
+        ],
+        "answer_count": 4,
+        "expected_count": 6
+      }
+    },
+    {
+      "query": "what is the process for expand?",
+      "expected": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "prediction": "{\n  \"answer_type\": \"not_found\",\n  \"items\": [],\n  \"text\": \"The provided documents do not contain information about the process for expanding.\",\n  \"chunks_used\": []\n}",
+      "cleaned_prediction": "{\n\"answer_type\": \"not_found\",\n\"items\": [],\n\"text\": \"The provided documents do not contain information about the process for expanding.\",\n\"chunks_used\": []\n}",
+      "match_score": 92.7960433959961,
+      "raw_match_score": 92.7960433959961,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": false,
+        "complete": true,
+        "completeness_score": 1.0,
+        "missing_items": [],
+        "extra_items": []
+      }
+    },
+    {
+      "query": "what is the process for expand?",
+      "expected": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "prediction": "{\n  \"answer_type\": \"not_found\",\n  \"items\": [],\n  \"text\": \"I don't have that information in the provided documents\",\n  \"chunks_used\": []\n}",
+      "cleaned_prediction": "{\n\"answer_type\": \"not_found\",\n\"items\": [],\n\"text\": \"I don't have that information in the provided documents\",\n\"chunks_used\": []\n}",
+      "match_score": 100.0,
+      "raw_match_score": 100.0,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": false,
+        "complete": true,
+        "completeness_score": 1.0,
+        "missing_items": [],
+        "extra_items": []
+      }
+    },
+    {
+      "query": "what is the difference between optimization and cybersecurity?",
+      "expected": "{\"answer_type\": \"comparison\", \"items\": [], \"text\": \"optimization focuses on pricing strategy, while cybersecurity emphasizes different aspects of the same domain\", \"chunks_used\": [1]}",
+      "prediction": "{\n  \"answer_type\": \"comparison\",\n  \"items\": [\"pricing strategy\", \"cybersecurity\"],\n  \"text\": \"optimization focuses on pricing strategy, while cybersecurity emphasizes different aspects of the same dom...",
+      "cleaned_prediction": "{\n\"answer_type\": \"comparison\",\n\"items\": [\"pricing strategy\", \"cybersecurity\"],\n\"text\": \"optimization focuses on pricing strategy, while cybersecurity emphasizes different aspects of the same domain\",\n...",
+      "match_score": 97.61441040039062,
+      "raw_match_score": 97.61441040039062,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": false,
+        "complete": true,
+        "completeness_score": 1.0,
+        "missing_items": [],
+        "extra_items": []
+      }
+    },
+    {
+      "query": "who are the leaders at PrimePartners?",
+      "expected": "{\"answer_type\": \"entities\", \"items\": [\"Finley Moore\", \"Taylor Harris\", \"Casey Miller\"], \"text\": \"\", \"chunks_used\": [1]}",
+      "prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "cleaned_prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "match_score": 79.93399047851562,
+      "raw_match_score": 79.93399047851562,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": false,
+        "completeness_score": 0.0,
+        "missing_items": [
+          "\"text\": \"\"",
+          "{\"answer_type\": \"entities\"",
+          "\"items\": [\"finley moore\"",
+          "\"chunks_used\": [1]}",
+          "\"taylor harris\"",
+          "\"casey miller\"]"
+        ],
+        "extra_items": [
+          "\"text\": \"i don't have that information in the provided documents\"",
+          "{\"answer_type\": \"not_found\"",
+          "\"items\": []",
+          "\"chunks_used\": []}"
+        ],
+        "answer_count": 4,
+        "expected_count": 6
+      }
+    },
+    {
+      "query": "what are the advantages of IoT?",
+      "expected": "{\"answer_type\": \"list\", \"items\": [\"advantage 91\", \"advantage 10\", \"advantage 23\"], \"text\": \"\", \"chunks_used\": [1, 2, 3]}",
+      "prediction": "{\"answer_type\": \"list\", \"items\": [\"advantage 78\", \"advantage 87\", \"advantage 11\"], \"text\": \"\", \"chunks_used\": [1, 4, 5]}",
+      "cleaned_prediction": "{\"answer_type\": \"list\", \"items\": [\"advantage 78\", \"advantage 87\", \"advantage 11\"], \"text\": \"\", \"chunks_used\": [1, 4, 5]}",
+      "match_score": 99.40089416503906,
+      "raw_match_score": 99.40089416503906,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": false,
+        "completeness_score": 0.42857142857142855,
+        "missing_items": [
+          "3]}",
+          "\"advantage 23\"]",
+          "\"advantage 10\"",
+          "\"items\": [\"advantage 91\""
+        ],
+        "extra_items": [
+          "\"advantage 87\"",
+          "\"advantage 11\"]",
+          "5]}",
+          "\"items\": [\"advantage 78\""
+        ],
+        "answer_count": 7,
+        "expected_count": 7
+      }
+    },
+    {
+      "query": "who are the executives of FutureEnterprises?",
+      "expected": "{\"answer_type\": \"entities\", \"items\": [\"River Jackson\", \"Taylor Davis\", \"Riley Thomas\"], \"text\": \"\", \"chunks_used\": [1, 2, 3]}",
+      "prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "cleaned_prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "match_score": 78.29518127441406,
+      "raw_match_score": 78.29518127441406,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": false,
+        "completeness_score": 0.0,
+        "missing_items": [
+          "\"text\": \"\"",
+          "{\"answer_type\": \"entities\"",
+          "3]}",
+          "\"chunks_used\": [1",
+          "\"riley thomas\"]",
+          "\"items\": [\"river jackson\"",
+          "\"taylor davis\""
+        ],
+        "extra_items": [
+          "\"text\": \"i don't have that information in the provided documents\"",
+          "{\"answer_type\": \"not_found\"",
+          "\"items\": []",
+          "\"chunks_used\": []}"
+        ],
+        "answer_count": 4,
+        "expected_count": 7
+      }
+    },
+    {
+      "query": "who are the managers at AuroraCorp?",
+      "expected": "{\"answer_type\": \"entities\", \"items\": [\"Kendall Martin\", \"Alex Moore\", \"Sage Thomas\", \"Taylor Anderson\"], \"text\": \"\", \"chunks_used\": [1]}",
+      "prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "cleaned_prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "match_score": 80.34178924560547,
+      "raw_match_score": 80.34178924560547,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": false,
+        "completeness_score": 0.0,
+        "missing_items": [
+          "\"text\": \"\"",
+          "\"items\": [\"kendall martin\"",
+          "{\"answer_type\": \"entities\"",
+          "\"taylor anderson\"]",
+          "\"alex moore\"",
+          "\"chunks_used\": [1]}",
+          "\"sage thomas\""
+        ],
+        "extra_items": [
+          "\"text\": \"i don't have that information in the provided documents\"",
+          "{\"answer_type\": \"not_found\"",
+          "\"items\": []",
+          "\"chunks_used\": []}"
+        ],
+        "answer_count": 4,
+        "expected_count": 7
+      }
+    },
+    {
+      "query": "what is the process for expand?",
+      "expected": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "prediction": "{\n  \"answer_type\": \"not_found\",\n  \"items\": [],\n  \"text\": \"I don't have that information in the provided documents\",\n  \"chunks_used\": []\n}",
+      "cleaned_prediction": "{\n\"answer_type\": \"not_found\",\n\"items\": [],\n\"text\": \"I don't have that information in the provided documents\",\n\"chunks_used\": []\n}",
+      "match_score": 100.0,
+      "raw_match_score": 100.0,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": false,
+        "complete": true,
+        "completeness_score": 1.0,
+        "missing_items": [],
+        "extra_items": []
+      }
+    },
+    {
+      "query": "how are collaboration and CatalystIndustries related?",
+      "expected": "{\"answer_type\": \"relationship\", \"items\": [], \"text\": \"collaboration and CatalystIndustries have established a customer relationship, enabling both parties to leverage complementary strengths.\", \"chunk...",
+      "prediction": "{\n  \"answer_type\": \"relationship\",\n  \"items\": [],\n  \"text\": \"collaboration and CatalystIndustries have established a customer relationship, enabling both parties to leverage complementary strengths.\",...",
+      "cleaned_prediction": "{\n\"answer_type\": \"relationship\",\n\"items\": [],\n\"text\": \"collaboration and CatalystIndustries have established a customer relationship, enabling both parties to leverage complementary strengths.\",\n\"chun...",
+      "match_score": 100.00001525878906,
+      "raw_match_score": 100.00001525878906,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": false,
+        "complete": true,
+        "completeness_score": 1.0,
+        "missing_items": [],
+        "extra_items": []
+      }
+    },
+    {
+      "query": "compare quantum computing and digitalization.",
+      "expected": "{\"answer_type\": \"comparison\", \"items\": [], \"text\": \"quantum computing and digitalization differ significantly in their approach to innovation strategy, with each offering unique advantages\", \"chunks_u...",
+      "prediction": "{\n  \"answer_type\": \"comparison\",\n  \"items\": [],\n  \"text\": \"quantum computing and digitalization differ significantly in their approach to innovation strategy, with each offering unique advantages.\",\n ...",
+      "cleaned_prediction": "{\n\"answer_type\": \"comparison\",\n\"items\": [],\n\"text\": \"quantum computing and digitalization differ significantly in their approach to innovation strategy, with each offering unique advantages.\",\n\"chunks...",
+      "match_score": 99.40740203857422,
+      "raw_match_score": 99.40740203857422,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": false,
+        "complete": true,
+        "completeness_score": 1.0,
+        "missing_items": [],
+        "extra_items": []
+      }
+    },
+    {
+      "query": "who are the leaders at GlobalHoldings?",
+      "expected": "{\"answer_type\": \"entities\", \"items\": [\"Casey Taylor\", \"Quinn Williams\", \"Casey Smith\", \"Finley Martin\"], \"text\": \"\", \"chunks_used\": [1, 2, 3, 4]}",
+      "prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "cleaned_prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "match_score": 75.99262237548828,
+      "raw_match_score": 75.99262237548828,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": false,
+        "completeness_score": 0.0,
+        "missing_items": [
+          "\"text\": \"\"",
+          "{\"answer_type\": \"entities\"",
+          "\"quinn williams\"",
+          "\"items\": [\"casey taylor\"",
+          "\"chunks_used\": [1",
+          "4]}",
+          "\"finley martin\"]",
+          "\"casey smith\""
+        ],
+        "extra_items": [
+          "\"text\": \"i don't have that information in the provided documents\"",
+          "{\"answer_type\": \"not_found\"",
+          "\"items\": []",
+          "\"chunks_used\": []}"
+        ],
+        "answer_count": 4,
+        "expected_count": 8
+      }
+    },
+    {
+      "query": "who are the leaders of CloudVentures?",
+      "expected": "{\"answer_type\": \"entities\", \"items\": [\"Kendall Martinez\"], \"text\": \"\", \"chunks_used\": [1]}",
+      "prediction": "{\n  \"answer_type\": \"not_found\",\n  \"items\": [],\n  \"text\": \"I don't have that information in the provided documents.\",\n  \"chunks_used\": []\n}",
+      "cleaned_prediction": "{\n\"answer_type\": \"not_found\",\n\"items\": [],\n\"text\": \"I don't have that information in the provided documents.\",\n\"chunks_used\": []\n}",
+      "match_score": 86.41695404052734,
+      "raw_match_score": 86.41695404052734,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": false,
+        "completeness_score": 0.0,
+        "missing_items": [
+          "\"text\": \"\"",
+          "\"items\": [\"kendall martinez\"]",
+          "\"chunks_used\": [1]}",
+          "{\"answer_type\": \"entities\""
+        ],
+        "extra_items": [
+          "\"text\": \"i don't have that information in the provided documents.\"",
+          "\"chunks_used\": []\n}",
+          "{\n\"answer_type\": \"not_found\"",
+          "\"items\": []"
+        ],
+        "answer_count": 4,
+        "expected_count": 4
+      }
+    },
+    {
+      "query": "why did optimization restructure?",
+      "expected": "{\"answer_type\": \"analytical\", \"items\": [], \"text\": \"because Motivated by customer feedback, optimization made the strategic move to restructure, positioning itself for future success.\", \"chunks_used\":...",
+      "prediction": "{\"answer_type\": \"analytical\", \"items\": [], \"text\": \"The restructuring was motivated by customer feedback.\", \"chunks_used\": [1, 3]}",
+      "cleaned_prediction": "{\"answer_type\": \"analytical\", \"items\": [], \"text\": \"The restructuring was motivated by customer feedback.\", \"chunks_used\": [1, 3]}",
+      "match_score": 95.59396362304688,
+      "raw_match_score": 95.59396362304688,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": false,
+        "complete": true,
+        "completeness_score": 1.0,
+        "missing_items": [],
+        "extra_items": []
+      }
+    },
+    {
+      "query": "what caused the restructuring?",
+      "expected": "{\"answer_type\": \"analytical\", \"items\": [], \"text\": \"PrimeWorks chose to expand because customer feedback, enabling the organization to adapt to evolving customer needs.\", \"chunks_used\": [1]}",
+      "prediction": "{\n  \"answer_type\": \"analytical\",\n  \"items\": [],\n  \"text\": \"PrimeWorks chose to expand based on customer feedback, allowing them to adjust to changing customer demands.\",\n  \"chunks_used\": [1]\n}",
+      "cleaned_prediction": "{\n\"answer_type\": \"analytical\",\n\"items\": [],\n\"text\": \"PrimeWorks chose to expand based on customer feedback, allowing them to adjust to changing customer demands.\",\n\"chunks_used\": [1]\n}",
+      "match_score": 98.94747924804688,
+      "raw_match_score": 98.94747924804688,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": false,
+        "complete": true,
+        "completeness_score": 1.0,
+        "missing_items": [],
+        "extra_items": []
+      }
+    },
+    {
+      "query": "who are the managers of ZenithWorks?",
+      "expected": "{\"answer_type\": \"entities\", \"items\": [\"Jamie Thompson\", \"Cameron Brown\", \"Jamie Jones\"], \"text\": \"\", \"chunks_used\": [1]}",
+      "prediction": "{\n  \"answer_type\": \"not_found\",\n  \"items\": [],\n  \"text\": \"I don't have that information in the provided documents\",\n  \"chunks_used\": []\n}",
+      "cleaned_prediction": "{\n\"answer_type\": \"not_found\",\n\"items\": [],\n\"text\": \"I don't have that information in the provided documents\",\n\"chunks_used\": []\n}",
+      "match_score": 78.86842346191406,
+      "raw_match_score": 78.86842346191406,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": false,
+        "completeness_score": 0.0,
+        "missing_items": [
+          "\"text\": \"\"",
+          "\"jamie jones\"]",
+          "\"cameron brown\"",
+          "{\"answer_type\": \"entities\"",
+          "\"items\": [\"jamie thompson\"",
+          "\"chunks_used\": [1]}"
+        ],
+        "extra_items": [
+          "\"text\": \"i don't have that information in the provided documents\"",
+          "\"chunks_used\": []\n}",
+          "{\n\"answer_type\": \"not_found\"",
+          "\"items\": []"
+        ],
+        "answer_count": 4,
+        "expected_count": 6
+      }
+    },
+    {
+      "query": "who are the leaders of TechInnovations?",
+      "expected": "{\"answer_type\": \"entities\", \"items\": [\"Taylor White\", \"Emery Anderson\", \"Taylor Anderson\", \"Sage Martinez\"], \"text\": \"\", \"chunks_used\": [1, 2, 3, 4]}",
+      "prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "cleaned_prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "match_score": 78.8215560913086,
+      "raw_match_score": 78.8215560913086,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": false,
+        "completeness_score": 0.0,
+        "missing_items": [
+          "\"text\": \"\"",
+          "{\"answer_type\": \"entities\"",
+          "\"items\": [\"taylor white\"",
+          "\"emery anderson\"",
+          "\"chunks_used\": [1",
+          "4]}",
+          "\"sage martinez\"]",
+          "\"taylor anderson\""
+        ],
+        "extra_items": [
+          "\"text\": \"i don't have that information in the provided documents\"",
+          "{\"answer_type\": \"not_found\"",
+          "\"items\": []",
+          "\"chunks_used\": []}"
+        ],
+        "answer_count": 4,
+        "expected_count": 8
+      }
+    },
+    {
+      "query": "who are the members at VertexWorks?",
+      "expected": "{\"answer_type\": \"entities\", \"items\": [\"Quinn Jackson\", \"Morgan Anderson\", \"Finley Martin\", \"Cameron Martinez\"], \"text\": \"\", \"chunks_used\": [1, 2, 3, 4]}",
+      "prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "cleaned_prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "match_score": 77.65275573730469,
+      "raw_match_score": 77.65275573730469,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": false,
+        "completeness_score": 0.0,
+        "missing_items": [
+          "\"text\": \"\"",
+          "{\"answer_type\": \"entities\"",
+          "\"cameron martinez\"]",
+          "\"items\": [\"quinn jackson\"",
+          "\"chunks_used\": [1",
+          "\"morgan anderson\"",
+          "4]}",
+          "\"finley martin\""
+        ],
+        "extra_items": [
+          "\"text\": \"i don't have that information in the provided documents\"",
+          "{\"answer_type\": \"not_found\"",
+          "\"items\": []",
+          "\"chunks_used\": []}"
+        ],
+        "answer_count": 4,
+        "expected_count": 8
+      }
+    },
+    {
+      "query": "how are growth and analytics related?",
+      "expected": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "prediction": "{\n  \"answer_type\": \"not_found\",\n  \"items\": [],\n  \"text\": \"I don't have that information in the provided documents\",\n  \"chunks_used\": []\n}",
+      "cleaned_prediction": "{\n\"answer_type\": \"not_found\",\n\"items\": [],\n\"text\": \"I don't have that information in the provided documents\",\n\"chunks_used\": []\n}",
+      "match_score": 100.0,
+      "raw_match_score": 100.0,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": false,
+        "complete": true,
+        "completeness_score": 1.0,
+        "missing_items": [],
+        "extra_items": []
+      }
+    },
+    {
+      "query": "what are the services of CloudIndustries?",
+      "expected": "{\"answer_type\": \"list\", \"items\": [\"service 86\", \"service 47\", \"service 47\"], \"text\": \"\", \"chunks_used\": [1, 2, 3]}",
+      "prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "cleaned_prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "match_score": 81.19434356689453,
+      "raw_match_score": 81.19434356689453,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": false,
+        "completeness_score": 0.0,
+        "missing_items": [
+          "\"text\": \"\"",
+          "\"service 47\"]",
+          "{\"answer_type\": \"list\"",
+          "3]}",
+          "\"chunks_used\": [1",
+          "\"items\": [\"service 86\"",
+          "\"service 47\""
+        ],
+        "extra_items": [
+          "\"text\": \"i don't have that information in the provided documents\"",
+          "{\"answer_type\": \"not_found\"",
+          "\"items\": []",
+          "\"chunks_used\": []}"
+        ],
+        "answer_count": 4,
+        "expected_count": 7
+      }
+    },
+    {
+      "query": "what is the connection between machine learning and cloud computing?",
+      "expected": "{\"answer_type\": \"relationship\", \"items\": [], \"text\": \"The supplier relationship connecting machine learning and cloud computing has been instrumental in driving mutual growth and success.\", \"chunks_us...",
+      "prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "cleaned_prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "match_score": 71.7868423461914,
+      "raw_match_score": 71.7868423461914,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": false,
+        "complete": true,
+        "completeness_score": 1.0,
+        "missing_items": [],
+        "extra_items": []
+      }
+    },
+    {
+      "query": "why did analytics grow?",
+      "expected": "{\"answer_type\": \"analytical\", \"items\": [], \"text\": \"because analytics's move to grow was a direct response to customer feedback, demonstrating proactive market leadership.\", \"chunks_used\": [1]}",
+      "prediction": "{\n  \"answer_type\": \"not_found\",\n  \"items\": [],\n  \"text\": \"I don't have that information in the provided documents\",\n  \"chunks_used\": []\n}",
+      "cleaned_prediction": "{\n\"answer_type\": \"not_found\",\n\"items\": [],\n\"text\": \"I don't have that information in the provided documents\",\n\"chunks_used\": []\n}",
+      "match_score": 68.03878784179688,
+      "raw_match_score": 68.03878784179688,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": false,
+        "complete": true,
+        "completeness_score": 1.0,
+        "missing_items": [],
+        "extra_items": []
+      }
+    },
+    {
+      "query": "why did NextServices diversify?",
+      "expected": "{\"answer_type\": \"analytical\", \"items\": [], \"text\": \"NextServices chose to diversify because increasing market demand, enabling the organization to adapt to evolving customer needs.\", \"chunks_used\": [1...",
+      "prediction": "{\n  \"answer_type\": \"not_found\",\n  \"items\": [],\n  \"text\": \"I don't have that information in the provided documents\",\n  \"chunks_used\": []\n}",
+      "cleaned_prediction": "{\n\"answer_type\": \"not_found\",\n\"items\": [],\n\"text\": \"I don't have that information in the provided documents\",\n\"chunks_used\": []\n}",
+      "match_score": 72.3632583618164,
+      "raw_match_score": 72.3632583618164,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": false,
+        "completeness_score": 0.2,
+        "missing_items": [
+          "{\"answer_type\": \"analytical\"",
+          "enabling the organization to adapt to evolving customer needs.\"",
+          "\"chunks_used\": [1]}",
+          "\"text\": \"nextservices chose to diversify because increasing market demand"
+        ],
+        "extra_items": [
+          "\"text\": \"i don't have that information in the provided documents\"",
+          "\"chunks_used\": []\n}",
+          "{\n\"answer_type\": \"not_found\""
+        ],
+        "answer_count": 4,
+        "expected_count": 5
+      }
+    },
+    {
+      "query": "who are the founders of DataCorp?",
+      "expected": "{\"answer_type\": \"entities\", \"items\": [\"Emery Martin\", \"Riley Williams\", \"Dakota Martin\", \"Logan Jones\"], \"text\": \"\", \"chunks_used\": [1, 2, 3, 4]}",
+      "prediction": "{\n  \"answer_type\": \"entities\",\n  \"items\": [\"Emery Martin\", \"Riley Williams\", \"Dakota Martin\", \"Logan Jones\"],\n  \"text\": \"\",\n  \"chunks_used\": [1, 2, 3, 4]\n}",
+      "cleaned_prediction": "{\n\"answer_type\": \"entities\",\n\"items\": [\"Emery Martin\", \"Riley Williams\", \"Dakota Martin\", \"Logan Jones\"],\n\"text\": \"\",\n\"chunks_used\": [1, 2, 3, 4]\n}",
+      "match_score": 100.00001525878906,
+      "raw_match_score": 100.00001525878906,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": false,
+        "completeness_score": 0.75,
+        "missing_items": [
+          "4]}",
+          "{\"answer_type\": \"entities\""
+        ],
+        "extra_items": [
+          "4]\n}",
+          "{\n\"answer_type\": \"entities\""
+        ],
+        "answer_count": 8,
+        "expected_count": 8
+      }
+    },
+    {
+      "query": "what services does AICo offer?",
+      "expected": "{\"answer_type\": \"list\", \"items\": [\"service 6\", \"service 98\", \"service 40\", \"service 75\"], \"text\": \"\", \"chunks_used\": [1, 2, 3, 4]}",
+      "prediction": "{\"answer_type\": \"list\", \"items\": [\"service 6\", \"service 98\", \"service 40\", \"service 75\"], \"text\": \"\", \"chunks_used\": [1, 2, 3, 4]}",
+      "cleaned_prediction": "{\"answer_type\": \"list\", \"items\": [\"service 6\", \"service 98\", \"service 40\", \"service 75\"], \"text\": \"\", \"chunks_used\": [1, 2, 3, 4]}",
+      "match_score": 100.00001525878906,
+      "raw_match_score": 100.00001525878906,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": true,
+        "completeness_score": 1.0,
+        "missing_items": [],
+        "extra_items": [],
+        "answer_count": 8,
+        "expected_count": 8
+      }
+    },
+    {
+      "query": "compare machine learning and strategy.",
+      "expected": "{\"answer_type\": \"comparison\", \"items\": [], \"text\": \"The primary distinction between machine learning and strategy lies in their handling of technology stack\", \"chunks_used\": [1]}",
+      "prediction": "{\n  \"answer_type\": \"comparison\",\n  \"items\": [\"machine learning\", \"strategy\"],\n  \"text\": \"The primary distinction between machine learning and strategy lies in their handling of technology stack\\n\",\n  ...",
+      "cleaned_prediction": "{\n\"answer_type\": \"comparison\",\n\"items\": [\"machine learning\", \"strategy\"],\n\"text\": \"The primary distinction between machine learning and strategy lies in their handling of technology stack\\n\",\n\"chunks_...",
+      "match_score": 96.6129150390625,
+      "raw_match_score": 96.6129150390625,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": false,
+        "complete": true,
+        "completeness_score": 1.0,
+        "missing_items": [],
+        "extra_items": []
+      }
+    },
+    {
+      "query": "what are the features of blockchain?",
+      "expected": "{\"answer_type\": \"list\", \"items\": [\"feature 29\", \"feature 36\", \"feature 16\"], \"text\": \"\", \"chunks_used\": [1]}",
+      "prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "cleaned_prediction": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "match_score": 83.4780502319336,
+      "raw_match_score": 83.4780502319336,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": false,
+        "completeness_score": 0.0,
+        "missing_items": [
+          "\"text\": \"\"",
+          "{\"answer_type\": \"list\"",
+          "\"chunks_used\": [1]}",
+          "\"feature 36\"",
+          "\"items\": [\"feature 29\"",
+          "\"feature 16\"]"
+        ],
+        "extra_items": [
+          "\"text\": \"i don't have that information in the provided documents\"",
+          "{\"answer_type\": \"not_found\"",
+          "\"items\": []",
+          "\"chunks_used\": []}"
+        ],
+        "answer_count": 4,
+        "expected_count": 6
+      }
+    },
+    {
+      "query": "who are the members of CloudWorks?",
+      "expected": "{\"answer_type\": \"entities\", \"items\": [\"Jamie Williams\", \"Harper Miller\", \"Jordan Johnson\"], \"text\": \"\", \"chunks_used\": [1]}",
+      "prediction": "{\n  \"answer_type\": \"not_found\",\n  \"items\": [],\n  \"text\": \"I don't have that information in the provided documents\",\n  \"chunks_used\": []\n}",
+      "cleaned_prediction": "{\n\"answer_type\": \"not_found\",\n\"items\": [],\n\"text\": \"I don't have that information in the provided documents\",\n\"chunks_used\": []\n}",
+      "match_score": 79.06991577148438,
+      "raw_match_score": 79.06991577148438,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": false,
+        "completeness_score": 0.0,
+        "missing_items": [
+          "\"text\": \"\"",
+          "{\"answer_type\": \"entities\"",
+          "\"jordan johnson\"]",
+          "\"harper miller\"",
+          "\"items\": [\"jamie williams\"",
+          "\"chunks_used\": [1]}"
+        ],
+        "extra_items": [
+          "\"text\": \"i don't have that information in the provided documents\"",
+          "\"chunks_used\": []\n}",
+          "{\n\"answer_type\": \"not_found\"",
+          "\"items\": []"
+        ],
+        "answer_count": 4,
+        "expected_count": 6
+      }
+    },
+    {
+      "query": "what caused the expansion?",
+      "expected": "{\"answer_type\": \"analytical\", \"items\": [], \"text\": \"ApexSolutions decided to expand due to technological advancements, which created new opportunities for growth.\", \"chunks_used\": [1]}",
+      "prediction": "{\n  \"answer_type\": \"analytical\",\n  \"items\": [],\n  \"text\": \"ApexSolutions decided to expand due to technological advancements, which created new opportunities for growth.\",\n  \"chunks_used\": [1]}\n}",
+      "cleaned_prediction": "{\n\"answer_type\": \"analytical\",\n\"items\": [],\n\"text\": \"ApexSolutions decided to expand due to technological advancements, which created new opportunities for growth.\",\n\"chunks_used\": [1]}\n}",
+      "match_score": 99.90194702148438,
+      "raw_match_score": 99.90194702148438,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": false,
+        "complete": true,
+        "completeness_score": 1.0,
+        "missing_items": [],
+        "extra_items": []
+      }
+    },
+    {
+      "query": "who are the directors of CatalystEnterprises?",
+      "expected": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "prediction": "{\n  \"answer_type\": \"not_found\",\n  \"items\": [],\n  \"text\": \"I don't have that information in the provided documents\",\n  \"chunks_used\": []\n}",
+      "cleaned_prediction": "{\n\"answer_type\": \"not_found\",\n\"items\": [],\n\"text\": \"I don't have that information in the provided documents\",\n\"chunks_used\": []\n}",
+      "match_score": 100.0,
+      "raw_match_score": 100.0,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": false,
+        "completeness_score": 0.5,
+        "missing_items": [
+          "{\"answer_type\": \"not_found\"",
+          "\"chunks_used\": []}"
+        ],
+        "extra_items": [
+          "\"chunks_used\": []\n}",
+          "{\n\"answer_type\": \"not_found\""
+        ],
+        "answer_count": 4,
+        "expected_count": 4
+      }
+    },
+    {
+      "query": "who are the members of NexusAlliance?",
+      "expected": "{\"answer_type\": \"entities\", \"items\": [\"Jamie Rodriguez\", \"Jamie White\"], \"text\": \"\", \"chunks_used\": [1]}",
+      "prediction": "{\n  \"answer_type\": \"not_found\",\n  \"items\": [],\n  \"text\": \"I don't have that information in the provided documents\",\n  \"chunks_used\": []\n}",
+      "cleaned_prediction": "{\n\"answer_type\": \"not_found\",\n\"items\": [],\n\"text\": \"I don't have that information in the provided documents\",\n\"chunks_used\": []\n}",
+      "match_score": 81.90763092041016,
+      "raw_match_score": 81.90763092041016,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": false,
+        "completeness_score": 0.0,
+        "missing_items": [
+          "\"text\": \"\"",
+          "{\"answer_type\": \"entities\"",
+          "\"items\": [\"jamie rodriguez\"",
+          "\"jamie white\"]",
+          "\"chunks_used\": [1]}"
+        ],
+        "extra_items": [
+          "\"text\": \"i don't have that information in the provided documents\"",
+          "\"chunks_used\": []\n}",
+          "{\n\"answer_type\": \"not_found\"",
+          "\"items\": []"
+        ],
+        "answer_count": 4,
+        "expected_count": 5
+      }
+    },
+    {
+      "query": "why did growth change?",
+      "expected": "{\"answer_type\": \"analytical\", \"items\": [], \"text\": \"because The decision by growth to change was primarily driven by regulatory changes, reflecting changing market conditions.\", \"chunks_used\": [1]}",
+      "prediction": "{\n  \"answer_type\": \"not_found\",\n  \"items\": [],\n  \"text\": \"I don't have that information in the provided documents\",\n  \"chunks_used\": []\n}",
+      "cleaned_prediction": "{\n\"answer_type\": \"not_found\",\n\"items\": [],\n\"text\": \"I don't have that information in the provided documents\",\n\"chunks_used\": []\n}",
+      "match_score": 76.09580993652344,
+      "raw_match_score": 76.09580993652344,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": false,
+        "complete": true,
+        "completeness_score": 1.0,
+        "missing_items": [],
+        "extra_items": []
+      }
+    },
+    {
+      "query": "who are the leaders of PrimeSystems?",
+      "expected": "{\"answer_type\": \"not_found\", \"items\": [], \"text\": \"I don't have that information in the provided documents\", \"chunks_used\": []}",
+      "prediction": "{\n  \"answer_type\": \"not_found\",\n  \"items\": [],\n  \"text\": \"I don't have that information in the provided documents\",\n  \"chunks_used\": []\n}",
+      "cleaned_prediction": "{\n\"answer_type\": \"not_found\",\n\"items\": [],\n\"text\": \"I don't have that information in the provided documents\",\n\"chunks_used\": []\n}",
+      "match_score": 100.0,
+      "raw_match_score": 100.0,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": true,
+        "complete": false,
+        "completeness_score": 0.5,
+        "missing_items": [
+          "{\"answer_type\": \"not_found\"",
+          "\"chunks_used\": []}"
+        ],
+        "extra_items": [
+          "\"chunks_used\": []\n}",
+          "{\n\"answer_type\": \"not_found\""
+        ],
+        "answer_count": 4,
+        "expected_count": 4
+      }
+    },
+    {
+      "query": "what caused the merger?",
+      "expected": "{\"answer_type\": \"analytical\", \"items\": [], \"text\": \"DataSystems chose to expand because strategic opportunities, enabling the organization to adapt to evolving customer needs.\", \"chunks_used\": [1]}",
+      "prediction": "{\n  \"answer_type\": \"analytical\",\n  \"items\": [],\n  \"text\": \"DataSystems chose to expand because strategic opportunities, enabling the organization to adapt to evolving customer needs.\",\n  \"chunks_used\"...",
+      "cleaned_prediction": "{\n\"answer_type\": \"analytical\",\n\"items\": [],\n\"text\": \"DataSystems chose to expand because strategic opportunities, enabling the organization to adapt to evolving customer needs.\",\n\"chunks_used\": [1]\n}",
+      "match_score": 100.0,
+      "raw_match_score": 100.0,
+      "has_cot_leakage": false,
+      "cot_patterns": [],
+      "cleaning_improved": false,
+      "completeness": {
+        "is_list_query": false,
+        "complete": true,
+        "completeness_score": 1.0,
+        "missing_items": [],
+        "extra_items": []
+      }
+    }
+  ]
+}
