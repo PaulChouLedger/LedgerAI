@@ -217,6 +217,12 @@ RUN pip3 install --index-url https://pypi.org/simple \
     --constraint /tmp/constraints.txt \
     spacy==3.6.1 || true
 
+# Install scikit-learn (required by librosa for voice cloning/trim effects)
+# Use constraints to prevent PyTorch installation
+RUN pip3 install --index-url https://pypi.org/simple \
+    --constraint /tmp/constraints.txt \
+    scikit-learn || true
+
 # Clone Chatterbox and install (keep source for editable install)
 RUN git clone https://github.com/resemble-ai/chatterbox.git /app/chatterbox && \
     cd /app/chatterbox && \
