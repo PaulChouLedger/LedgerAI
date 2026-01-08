@@ -391,11 +391,11 @@ try:
     from listener import display_hardware_config
 except ImportError as e:
     # Fallback if import fails
-def display_hardware_config(state):
+    def display_hardware_config(state):
         """Fallback display function if listener import fails"""
         print(f"[Hardware] ⚠️  Could not import display_hardware_config from listener: {e}")
         if state:
-    preset = state.get('preset', 'unknown')
+            preset = state.get('preset', 'unknown')
             print(f"[Hardware] Configuration preset: {preset}")
 
 # === Transcribe ===
