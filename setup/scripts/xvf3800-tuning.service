@@ -45,8 +45,7 @@ Type=oneshot
 RemainAfterExit=yes
 # Wait for USB device, wait for ALSA detection, then run tuning script
 # Tuning script handles: reboot device, configure GPIO/DSP, disable LEDs
-# Use wrapper script to avoid escaping issues and simplify path resolution
-ExecStart=/bin/bash -c 'for dir in "/home/ledger/LedgerAI" "/home/aura/LedgerAI" "$HOME/LedgerAI"; do if [ -f "$dir/setup/scripts/tune_xvf3800_service.sh" ]; then bash "$dir/setup/scripts/tune_xvf3800_service.sh" agc_20_ec; exit $?; fi; done; echo "Error: Could not find tune_xvf3800_service.sh wrapper script"; exit 1'
+ExecStart=/bin/bash -c 'for i in {1..30}; do if lsusb | grep -q "2886:" || lsusb | grep -qi "seeed\|reSpeaker\|XVF3800"; then break; fi; sleep 1; done; sleep 2; for i in {1..10}; do if arecord -l 2>/dev/null | grep -q -i "XVF3800\|reSpeaker"; then break; fi; sleep 1; done; for dir in "%h/LedgerAI" "/home/ledger/LedgerAI" "/home/aura/LedgerAI"; do if [ -f "$$dir/setup/scripts/tune_xvf3800.py" ]; then cd "$$dir" && python3 -B setup/scripts/tune_xvf3800.py agc_20_ec; exit $$?; fi; done; echo "Error: Could not find LedgerAI directory"; exit 1'
 StandardOutput=journal
 StandardError=journal
 
