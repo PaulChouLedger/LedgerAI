@@ -2814,10 +2814,7 @@ def filter_cot_reasoning(generator):
                 discarded.add(item_name.lower())
         return discarded
     
-    # Simple approach: buffer everything until FINAL ANSWER is found, then collect complete answer
-    answer_buffer = []  # Buffer tokens after FINAL ANSWER to collect complete answer
-    collecting_answer = False
-    
+    # Simple approach: buffer everything until FINAL ANSWER is found
     for token in generator:
         token_buffer.append(token)
         text_content = extract_text(token)
@@ -2828,7 +2825,6 @@ def filter_cot_reasoning(generator):
         if not found_final_answer:
             if "FINAL ANSWER:" in text_buffer or "Final Answer:" in text_buffer:
                 found_final_answer = True
-                collecting_answer = True
                 # Extract reasoning section to find DISCARD items
                 marker = "FINAL ANSWER:" if "FINAL ANSWER:" in text_buffer else "Final Answer:"
                 reasoning_text = text_buffer.split(marker)[0]
@@ -2845,98 +2841,95 @@ def filter_cot_reasoning(generator):
                     print(f"[Generic] 🚫 [CoT Reasoning Debug] Items marked DISCARD: {discarded_items}")
                 print(f"{'='*80}\n")
                 
-                # Find token containing FINAL ANSWER and start collecting answer
+                # Find token containing FINAL ANSWER
                 answer_token_idx = None
                 for i, tok in enumerate(token_buffer):
                     tok_text = extract_text(tok)
                     if tok_text and marker in tok_text:
                         answer_token_idx = i
-                        # Extract part after FINAL ANSWER from this token
-                        idx = tok_text.find(marker)
-                        if idx >= 0:
-                            answer_part = tok_text[idx + len(marker):].strip()
-                            if answer_part:
-                                answer_buffer.append(answer_part)
-                        # Add all subsequent tokens from buffer
+                        break
+                
+                if answer_token_idx is not None:
+                    # Extract answer from token containing FINAL ANSWER and all subsequent tokens
+                    # First, get the part after FINAL ANSWER from the token containing it
+                    answer_token = token_buffer[answer_token_idx]
+                    tok_text = extract_text(answer_token)
+                    idx = tok_text.find(marker)
+                    if idx >= 0:
+                        # Start with text after FINAL ANSWER from current token
+                        answer_parts = [tok_text[idx + len(marker):].strip()]
+                        
+                        # Add all subsequent tokens to get complete answer
                         for remaining_token in token_buffer[answer_token_idx + 1:]:
                             tok_text = extract_text(remaining_token)
-                            if tok_text and not (tok_text.startswith('<') and tok_text.endswith('>')):
-                                answer_buffer.append(tok_text)
-                        break
-                continue
+                            if tok_text:
+                                answer_parts.append(tok_text)
+                        
+                        # Join all parts with spaces
+                        answer_text = " ".join(answer_parts).strip()
+                        
+                        # Fix spacing issues (add spaces between concatenated words)
+                        answer_text = re.sub(r'([a-z])([A-Z])', r'\1 \2', answer_text)  # Add space before capital after lowercase
+                        answer_text = re.sub(r'([A-Z][a-z]+)([A-Z][a-z]+)', r'\1 \2', answer_text)  # Add space between words
+                        answer_text = re.sub(r'\s+', ' ', answer_text)  # Normalize spaces
+                        answer_text = answer_text.strip()
+                        
+                        # Filter out DISCARD items
+                        if discarded_items:
+                            for discarded_name in discarded_items:
+                                name_parts = discarded_name.split()
+                                if len(name_parts) > 1:
+                                    pattern = r'\b' + r'\s+'.join([re.escape(part) for part in name_parts]) + r'\b'
+                                else:
+                                    pattern = r'\b' + re.escape(discarded_name) + r'\b'
+                                answer_text = re.sub(pattern, '', answer_text, flags=re.IGNORECASE)
+                            # Clean up extra spaces and commas
+                            answer_text = re.sub(r'\s+', ' ', answer_text)
+                            answer_text = re.sub(r',\s*,', ',', answer_text)
+                            answer_text = re.sub(r',\s*and\s*,', ' and ', answer_text)
+                            answer_text = re.sub(r'^\s*,\s*', '', answer_text)
+                            answer_text = re.sub(r'\s*,\s*$', '', answer_text)
+                            print(f"[Generic] ✂️  [CoT Reasoning Debug] Filtered FINAL ANSWER (removed DISCARD items): {answer_text[:200]}...")
+                        
+                        # Clean up CoT markers
+                        answer_text = re.sub(r'REASONING:\s*', '', answer_text, flags=re.IGNORECASE)
+                        answer_text = re.sub(r'- End of scan\.?\s*', '', answer_text, flags=re.IGNORECASE)
+                        answer_text = re.sub(r'\[(KEEP|DISCARD|Action)\]\s*', '', answer_text, flags=re.IGNORECASE)
+                        answer_text = re.sub(r'- Item:.*?(?=\n|$)', '', answer_text, flags=re.IGNORECASE | re.MULTILINE)
+                        answer_text = re.sub(r'- Evidence:.*?(?=\n|$)', '', answer_text, flags=re.IGNORECASE | re.MULTILINE)
+                        answer_text = re.sub(r'- Action:.*?(?=\n|$)', '', answer_text, flags=re.IGNORECASE | re.MULTILINE)
+                        answer_text = re.sub(r'\d+\.\s*', '', answer_text)  # Remove numbered list markers
+                        answer_text = re.sub(r'\s+', ' ', answer_text).strip()  # Final space normalization
+                        
+                        # Yield answer with sentence tags
+                        if answer_text.strip():
+                            print(f"[Generic] 📝 [CoT Reasoning Debug] Original FINAL ANSWER: {answer_text[:200]}...")
+                            yield "<sentence_start>\n" + answer_text.strip() + "\n<sentence_end>\n"
+                        
+                        # Clear buffers - we've processed everything up to this point
+                        token_buffer = []
+                        text_buffer = ""
+                        continue
             else:
                 # Still buffering - don't yield yet
                 continue
         
-        # After FINAL ANSWER found, continue collecting answer tokens
-        if collecting_answer:
-            tok_text = extract_text(token)
-            if tok_text and not (tok_text.startswith('<') and tok_text.endswith('>')):
-                answer_buffer.append(tok_text)
-            
-            # Check if we have enough answer (look for sentence endings or question marks)
-            # Or if we've collected a reasonable amount (e.g., 20 tokens)
-            if len(answer_buffer) > 0:
-                # Join current answer to check for completion
-                current_answer = " ".join(answer_buffer)
-                # Check for sentence endings
-                if len(answer_buffer) >= 5 and (current_answer.endswith('.') or 
-                                                  current_answer.endswith('?') or 
-                                                  current_answer.endswith('!') or
-                                                  len(answer_buffer) >= 20):
-                    # We have a complete answer, process it
-                    answer_text = " ".join(answer_buffer).strip()
-                    
-                    # Fix spacing issues (add spaces between concatenated words)
-                    answer_text = re.sub(r'([a-z])([A-Z])', r'\1 \2', answer_text)  # Add space before capital after lowercase
-                    answer_text = re.sub(r'([A-Z][a-z]+)([A-Z][a-z]+)', r'\1 \2', answer_text)  # Add space between words
-                    answer_text = re.sub(r'([a-z])([A-Z][a-z]+)', r'\1 \2', answer_text)  # Another pattern for word boundaries
-                    answer_text = re.sub(r'\s+', ' ', answer_text)  # Normalize spaces
-                    answer_text = answer_text.strip()
-                    
-                    # Filter out DISCARD items
-                    if discarded_items:
-                        for discarded_name in discarded_items:
-                            name_parts = discarded_name.split()
-                            if len(name_parts) > 1:
-                                pattern = r'\b' + r'\s+'.join([re.escape(part) for part in name_parts]) + r'\b'
-                            else:
-                                pattern = r'\b' + re.escape(discarded_name) + r'\b'
-                            answer_text = re.sub(pattern, '', answer_text, flags=re.IGNORECASE)
-                        # Clean up extra spaces and commas
-                        answer_text = re.sub(r'\s+', ' ', answer_text)
-                        answer_text = re.sub(r',\s*,', ',', answer_text)
-                        answer_text = re.sub(r',\s*and\s*,', ' and ', answer_text)
-                        answer_text = re.sub(r'^\s*,\s*', '', answer_text)
-                        answer_text = re.sub(r'\s*,\s*$', '', answer_text)
-                        print(f"[Generic] ✂️  [CoT Reasoning Debug] Filtered FINAL ANSWER (removed DISCARD items): {answer_text[:200]}...")
-                    
-                    # Clean up CoT markers
-                    answer_text = re.sub(r'REASONING:\s*', '', answer_text, flags=re.IGNORECASE)
-                    answer_text = re.sub(r'- End of scan\.?\s*', '', answer_text, flags=re.IGNORECASE)
-                    answer_text = re.sub(r'\[(KEEP|DISCARD|Action)\]\s*', '', answer_text, flags=re.IGNORECASE)
-                    answer_text = re.sub(r'- Item:.*?(?=\n|$)', '', answer_text, flags=re.IGNORECASE | re.MULTILINE)
-                    answer_text = re.sub(r'- Evidence:.*?(?=\n|$)', '', answer_text, flags=re.IGNORECASE | re.MULTILINE)
-                    answer_text = re.sub(r'- Action:.*?(?=\n|$)', '', answer_text, flags=re.IGNORECASE | re.MULTILINE)
-                    answer_text = re.sub(r'\d+\.\s*', '', answer_text)  # Remove numbered list markers
-                    answer_text = re.sub(r'\s+', ' ', answer_text).strip()  # Final space normalization
-                    
-                    # Yield answer with sentence tags
-                    if answer_text.strip():
-                        print(f"[Generic] 📝 [CoT Reasoning Debug] Final FINAL ANSWER: {answer_text[:200]}...")
-                        yield "<sentence_start>\n" + answer_text.strip() + "\n<sentence_end>\n"
-                    
-                    # Stop collecting, clear buffers
-                    collecting_answer = False
-                    answer_buffer = []
-                    token_buffer = []
-                    text_buffer = ""
-            continue
-        
-        # After FINAL ANSWER found and processed, skip all remaining tokens
-        if found_final_answer and not collecting_answer:
-            # Skip all remaining tokens - we've already yielded the answer
-            continue
+        # After FINAL ANSWER found, yield remaining tokens (cleaned)
+        if found_final_answer:
+            cleaned = token
+            if cleaned and not (cleaned.startswith('<') and cleaned.endswith('>')):
+                cleaned_text = extract_text(cleaned)
+                cleaned_text = re.sub(r'REASONING:\s*', '', cleaned_text, flags=re.IGNORECASE)
+                cleaned_text = re.sub(r'-?\s*Item:\s*[^\n]*', '', cleaned_text, flags=re.IGNORECASE | re.MULTILINE)
+                cleaned_text = re.sub(r'-?\s*Evidence:\s*[^\n]*', '', cleaned_text, flags=re.IGNORECASE | re.MULTILINE)
+                cleaned_text = re.sub(r'-?\s*Action:\s*\[[^\]]*\]', '', cleaned_text, flags=re.IGNORECASE | re.MULTILINE)
+                cleaned_text = re.sub(r'\[(KEEP|DISCARD|Action)\]\s*', '', cleaned_text, flags=re.IGNORECASE)
+                cleaned_text = re.sub(r'-?\s*End of scan\.?\s*', '', cleaned_text, flags=re.IGNORECASE)
+                cleaned_text = re.sub(r'\s+', ' ', cleaned_text).strip()
+                if cleaned_text and len(cleaned_text) > 3:
+                    yield cleaned_text
+            elif cleaned and (cleaned.startswith('<') and cleaned.endswith('>')):
+                yield cleaned
 
 
 def filter_think_blocks(generator):
