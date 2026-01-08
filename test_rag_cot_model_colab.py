@@ -256,12 +256,62 @@ def test_scenario(model, tokenizer, scenario):
             # Fallback for non-chat templates
             assistant_response = response.strip()
             
-        print(f"\n📝 Model Response:\n{assistant_response[:500]}...")
+        # Extract and print full reasoning section
+        reasoning_section = ""
+        if "REASONING:" in assistant_response:
+            # Find reasoning section
+            reasoning_start = assistant_response.find("REASONING:")
+            final_answer_start = assistant_response.find("FINAL ANSWER:")
+            if final_answer_start > reasoning_start:
+                reasoning_section = assistant_response[reasoning_start:final_answer_start].strip()
+            else:
+                reasoning_section = assistant_response[reasoning_start:].strip()
+        
+        print(f"\n📝 Model Response:")
+        if reasoning_section:
+            print(f"\n{'='*80}")
+            print(f"🧠 FULL REASONING SECTION:")
+            print(f"{'='*80}")
+            print(reasoning_section)
+            print(f"{'='*80}")
+            
+            # Extract DISCARD/KEEP decisions for debugging
+            discard_items = []
+            keep_items = []
+            for line in reasoning_section.split('\n'):
+                if '[DISCARD]' in line or '[ DISCARD]' in line:
+                    # Extract item name before DISCARD
+                    item_match = re.search(r'- Item:\s*([^\n-]+?)(?:\s*-|$)', line, re.IGNORECASE)
+                    if item_match:
+                        item_name = item_match.group(1).strip()
+                        discard_items.append(item_name)
+                elif '[KEEP]' in line or '[ KEEP]' in line:
+                    # Extract item name before KEEP
+                    item_match = re.search(r'- Item:\s*([^\n-]+?)(?:\s*-|$)', line, re.IGNORECASE)
+                    if item_match:
+                        item_name = item_match.group(1).strip()
+                        keep_items.append(item_name)
+            
+            if keep_items:
+                print(f"\n✅ Items marked [KEEP]: {keep_items}")
+            if discard_items:
+                print(f"❌ Items marked [DISCARD]: {discard_items}")
+        else:
+            print(f"{assistant_response[:500]}...")
         
         # Check for CoT
         has_cot, indicators = check_cot_reasoning(assistant_response)
         cot_status = "✅ CoT reasoning detected" if has_cot else "⚠️  Explicit CoT reasoning NOT detected"
         print(f"\n🧠 CoT Reasoning Check:\n   {cot_status} (found indicators: {indicators})")
+        
+        # Print final answer section
+        if "FINAL ANSWER:" in assistant_response:
+            final_answer_section = assistant_response.split("FINAL ANSWER:")[-1].strip()
+            print(f"\n{'='*80}")
+            print(f"📋 FINAL ANSWER SECTION:")
+            print(f"{'='*80}")
+            print(final_answer_section[:1000])  # Print first 1000 chars of final answer
+            print(f"{'='*80}")
         
         
         # CLEAN RESPONSE: The only text that counts is after the FINAL ANSWER header
