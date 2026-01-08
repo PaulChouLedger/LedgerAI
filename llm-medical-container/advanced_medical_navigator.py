@@ -64,7 +64,7 @@ class AdvancedMedicalNavigator:
     LLM_MAX_TOKENS_QUESTIONS = int(os.environ.get('LLM_NUM_PREDICT', '200'))
     LLM_MAX_TOKENS_EMPATHETIC = int(os.environ.get('LLM_MAX_TOKENS_EMPATHETIC', '60'))
     LLM_MAX_TOKENS_CHRONICITY = int(os.environ.get('LLM_MAX_TOKENS_CHRONICITY', '50'))
-    LLM_MAX_TOKENS_SUMMARY = int(os.environ.get('LLM_MAX_TOKENS_SUMMARY', '180'))
+    LLM_MAX_TOKENS_SUMMARY = int(os.environ.get('LLM_MAX_TOKENS_SUMMARY', '400'))
 
     # System prompts - simplified for fine-tuned model
     QUESTION_SYSTEM_PROMPT = (
@@ -89,7 +89,12 @@ class AdvancedMedicalNavigator:
         "what makes it worse, what makes it better, if it spreads, if it's constant or comes and goes, and how severe it is.\n\n"
         "Be natural and conversational. Ask only one question at a time. Do not list multiple questions. "
         "Do not mention frameworks or include instructions in your responses. "
-        "Do not include internal reasoning, acknowledgments, or explanations. Only ask the question."
+        "CRITICAL: Do NOT include any of the following in your response:\n"
+        "- Internal reasoning (e.g., 'This is clinical reasoning to identify...')\n"
+        "- Clinical notes (e.g., 'CLINICAL NOTE:', 'Note:', etc.)\n"
+        "- Explanations of what you're doing\n"
+        "- Acknowledgments or filler text\n\n"
+        "ONLY output the question itself. Nothing else. No reasoning, no notes, no explanations."
     )
 
     EMPATHETIC_SYSTEM_PROMPT = (
@@ -108,15 +113,31 @@ class AdvancedMedicalNavigator:
     )
 
     SUMMARY_SYSTEM_PROMPT = (
-        "You are a clinical assistant. Produce ≤6 bullet points summarising demographics, chief complaint,"
-        " focused OLD CARTS facts, and top ranked differentials with urgency.\n\n"
-        "CRITICAL FORMATTING REQUIREMENTS:\n"
-        "- Always use 'OLD CARTS' (with space, all caps) when referring to the assessment framework\n"
-        "- Do NOT use 'Oldest cart', 'OLDCARTS', 'old carts', or any other variation\n"
-        "- Only include factual information from the provided data\n"
-        "- If information is unclear or missing, state that clearly rather than inventing details\n"
-        "- Do not include clarification questions or confused responses in the summary\n\n"
-        "CRITICAL: Only provide logical, factual responses. Avoid hallucination."
+        "You are a clinical assistant creating a concise medical history summary. "
+        "Format as clear bullet points with proper medical terminology.\n\n"
+        "REQUIRED FORMAT:\n"
+        "• Chief complaint: [complaint]\n"
+        "• Demographics: Age [X], [Sex]\n"
+        "• History of present illness (OLD CARTS): [key findings]\n"
+        "• Associated symptoms: [if any]\n"
+        "• Top differential diagnoses: [condition 1], [condition 2], [condition 3]\n\n"
+        "CRITICAL FORMATTING RULES:\n"
+        "- Use bullet points with '•' symbol\n"
+        "- Start each bullet with a category label followed by a colon\n"
+        "- For OLD CARTS section, list key findings (onset, location, character, etc.) - NOT 'Chief complaint is...'\n"
+        "- Do NOT repeat 'OLD CARTS:' before each finding\n"
+        "- Use 'OLD CARTS' only when referring to the framework itself\n"
+        "- Group OLD CARTS findings under one bullet point\n"
+        "- Include all provided information, but be concise\n"
+        "- Do not include clarification questions or confused responses\n"
+        "- If information is missing, omit that section rather than saying 'Unknown'\n\n"
+        "EXAMPLE FORMAT:\n"
+        "• Chief complaint: Chest pain\n"
+        "• Demographics: Age 37, Male\n"
+        "• History of present illness: Onset 2 days ago, central chest location, pressure character, worsened with exertion, relieved with rest, radiates to left arm and neck\n"
+        "• Associated symptoms: Shortness of breath, nausea\n"
+        "• Top differential diagnoses: Acute Myocardial Infarction, Unstable Angina, Pulmonary Embolism\n\n"
+        "CRITICAL: Only use factual information provided. Do not invent details. Keep format consistent."
     )
 
     GREETING_RESPONSES = (
@@ -448,15 +469,20 @@ class AdvancedMedicalNavigator:
         return False
 
     def _next_oldcarts_question(self, session: "MedicalSession") -> Optional[Dict[str, str]]:
-        if not session.oldcarts_remaining:
-            session.oldcarts_remaining = self._ordered_oldcarts_elements(session)
+        # Always regenerate oldcarts_remaining to ensure it's in sync with answered fields
+        # This prevents re-asking fields that were answered (including after clarifications)
+        session.oldcarts_remaining = self._ordered_oldcarts_elements(session)
         
         if not session.oldcarts_remaining:
             session.stage = "pmh"
             return None
 
         element = None
-        answered = {key for key, value in session.context['hpi'].items() if value and value.strip()}
+        # Get answered fields (exclude confused responses)
+        answered = {
+            key for key, value in session.context['hpi'].items()
+            if value and value.strip() and not self._is_confused_response(value)
+        }
         
         # Check if we have relevance information from training data
         # This would be set if we're using a fine-tuned model that learned skip patterns
@@ -464,10 +490,12 @@ class AdvancedMedicalNavigator:
         
         while session.oldcarts_remaining:
             candidate = session.oldcarts_remaining.pop(0)
+            # Double-check: skip if already answered (safety check)
             if candidate in answered:
-                self._capture_debug(f"[HPI] ⏭️ Skipping {candidate} - already answered")
+                self._capture_debug(f"[HPI] ⏭️ Skipping {candidate} - already answered in hpi context")
                 continue
             if self._is_redundant_question(session, candidate):
+                self._capture_debug(f"[HPI] ⏭️ Skipping {candidate} - redundant question")
                 continue
             
             # Check if this element should be skipped based on chief complaint
@@ -669,6 +697,12 @@ class AdvancedMedicalNavigator:
             # Remove from remaining list if present
             if field in session.oldcarts_remaining:
                 session.oldcarts_remaining = [e for e in session.oldcarts_remaining if e != field]
+                self._capture_debug(f"[HPI] ✅ Removed {field} from oldcarts_remaining list")
+            
+            # Also ensure it's not in the list by regenerating if needed (safety check)
+            # This ensures answered fields are never re-asked
+            if field not in session.context['hpi'] or not session.context['hpi'][field] or not session.context['hpi'][field].strip():
+                self._capture_debug(f"[HPI] ⚠️ Warning: Field {field} was supposed to be stored but isn't in hpi context")
             
             # Update condition scores using LLM reasoning
             self._update_condition_scores_from_answer(session, field, text)
@@ -1346,6 +1380,7 @@ IMPORTANT: Use natural language with pronouns (like "it" or "your symptoms") ins
 Use this as a guide: '{base_question}'
 Do NOT ask about age, demographics, or information already in the context. 
 Do NOT use awkward phrases like 'character of' or 'the {field}'. 
+CRITICAL: Output ONLY the question. No reasoning, no notes, no explanations, no "CLINICAL NOTE:" prefixes.
 Ask only one natural, conversational question about {field}."""
             else:
                 user_prompt = f"""Context of what we already know:
@@ -1355,6 +1390,7 @@ You need to ask about the {field} of the {cc_subject}.
 IMPORTANT: Ask about {field} using natural language. Use this as a guide: '{base_question}' 
 Do NOT ask about age, demographics, or information already in the context. 
 Do NOT use awkward phrases like 'character of' or 'the {field}'. 
+CRITICAL: Output ONLY the question. No reasoning, no notes, no explanations, no "CLINICAL NOTE:" prefixes.
 Ask only one natural, conversational question about {field}."""
         elif section == 'pre_hpi':
             user_prompt = guidance
@@ -1551,14 +1587,43 @@ Ask only one question about {field}."""
         rankings = session.condition_rankings[:3]
         ranking_text = ", ".join(f"{name} ({score:.0%})" for name, score in rankings) if rankings else "No ranked conditions yet"
         
+        # Format HPI data for summary
+        hpi_items = []
+        if hpi_filtered:
+            for key, value in hpi_filtered.items():
+                if key == 'onset':
+                    hpi_items.append(f"Onset: {value}")
+                elif key == 'location':
+                    hpi_items.append(f"Location: {value}")
+                elif key == 'duration':
+                    hpi_items.append(f"Duration: {value}")
+                elif key == 'character':
+                    hpi_items.append(f"Character: {value}")
+                elif key == 'aggravating':
+                    hpi_items.append(f"Aggravating factors: {value}")
+                elif key == 'relieving':
+                    hpi_items.append(f"Relieving factors: {value}")
+                elif key == 'radiation':
+                    hpi_items.append(f"Radiation: {value}")
+                elif key == 'timing':
+                    hpi_items.append(f"Timing: {value}")
+                elif key == 'severity':
+                    hpi_items.append(f"Severity: {value}")
+                elif key == 'associated':
+                    hpi_items.append(f"Associated symptoms: {value}")
+        
+        hpi_summary = ", ".join(hpi_items) if hpi_items else "Not collected"
+        
         user_prompt = (
+            f"Create a clinical summary with the following information:\n\n"
             f"Chief complaint: {pre.get('chief_complaint', 'Not stated')}\n"
             f"Chronicity: {pre.get('chronicity', 'Unknown')}\n"
             f"Age: {pre.get('age', 'Unknown')}\n"
             f"Biological sex: {pre.get('sex', 'Unknown')}\n"
-            f"OLD CARTS responses: {hpi_filtered}\n"
-            f"Top differentials: {ranking_text}\n"
-            "Summarize as bullet points. Use 'OLD CARTS' (not 'Oldest cart' or other variations) when referring to the assessment framework."
+            f"History of present illness (OLD CARTS findings): {hpi_summary}\n"
+            f"Top differential diagnoses: {ranking_text}\n\n"
+            f"Format as clear bullet points following the required format. "
+            f"Group OLD CARTS findings under 'History of present illness' - do NOT list each finding as a separate bullet starting with 'OLD CARTS:'."
         )
         
         response = self.llm_chat_fn(
@@ -1574,11 +1639,12 @@ Ask only one question about {field}."""
     # ----------- Validation / Clarification ----------------------------------
 
     def _clean_llm_response(self, text: Optional[str], fallback: str = "") -> str:
-        """Clean LLM response to extract only the question."""
+        """Clean LLM response to extract only the question, removing all clinical notes and reasoning."""
         if not text:
             return fallback
         cleaned = text.strip()
         
+        # Remove markdown code blocks
         if cleaned.startswith('```'):
             first_newline = cleaned.find('\n')
             if first_newline != -1:
@@ -1588,10 +1654,72 @@ Ask only one question about {field}."""
         
         cleaned = cleaned.strip('"').strip("'")
         
+        # Remove clinical notes, reasoning, and internal comments
+        # Patterns to remove: "CLINICAL NOTE:", "Note:", "Reasoning:", etc.
+        reasoning_prefixes = [
+            r'CLINICAL NOTE:\s*',
+            r'NOTE:\s*',
+            r'Note:\s*',
+            r'REASONING:\s*',
+            r'Reasoning:\s*',
+            r'This is clinical reasoning[^?]*\?',
+            r'This is clinical reasoning[^.]*\.',
+            r'Clinical reasoning[^?]*\?',
+            r'Clinical reasoning[^.]*\.',
+            r'Internal note[^?]*\?',
+            r'Internal note[^.]*\.',
+        ]
+        for pattern in reasoning_prefixes:
+            cleaned = re.sub(pattern, '', cleaned, flags=re.IGNORECASE)
+        
+        # Remove any text before the first question mark if it contains reasoning keywords
+        # Split by newlines first to handle multi-line responses
+        lines = cleaned.split('\n')
+        question_lines = []
+        found_question = False
+        
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+            
+            # Skip lines that are clearly reasoning/notes (before question)
+            if not found_question:
+                reasoning_keywords = [
+                    'clinical note', 'note:', 'reasoning:', 'this is clinical',
+                    'internal reasoning', 'identify the next question',
+                    'to identify', 'clinical reasoning'
+                ]
+                if any(keyword in line.lower() for keyword in reasoning_keywords):
+                    # Check if this line itself contains a question
+                    if '?' in line:
+                        # Extract just the question part after the reasoning
+                        # Try to find the actual question
+                        parts = re.split(r'[?!]', line)
+                        for part in parts:
+                            if part.strip() and any(q_word in part.lower() for q_word in ['how', 'what', 'when', 'where', 'who', 'which', 'are', 'is', 'do', 'can']):
+                                question_lines.append(part.strip() + '?')
+                                found_question = True
+                                break
+                    continue  # Skip this reasoning line
+            
+            # If we found a question, include this line
+            if found_question or '?' in line:
+                question_lines.append(line)
+                found_question = True
+        
+        # Reconstruct cleaned text from question lines
+        if question_lines:
+            cleaned = ' '.join(question_lines)
+        
+        # Split into sentences and find the question
         sentences = re.split(r'(?<=[.!?])\s+', cleaned)
         question = None
         for sentence in sentences:
             sentence = sentence.strip()
+            # Skip sentences that are reasoning/notes
+            if any(keyword in sentence.lower() for keyword in ['clinical note', 'this is clinical', 'to identify', 'clinical reasoning']):
+                continue
             if sentence and sentence.endswith('?'):
                 question = sentence
                 break
@@ -1600,18 +1728,26 @@ Ask only one question about {field}."""
                 break
         
         if question:
+            # Remove any remaining reasoning phrases
             reasoning_phrases = [
                 r'now i have.*?which helps',
                 r'thank you.*?which helps',
                 r'for our records',
                 r'this helps with',
+                r'clinical note.*',
+                r'this is clinical.*',
+                r'to identify.*',
             ]
             for phrase in reasoning_phrases:
                 question = re.sub(phrase, '', question, flags=re.IGNORECASE)
             question = re.sub(r'\s+', ' ', question).strip()
             return question or fallback
         
+        # Last resort: try to extract any question-like content
         cleaned = re.sub(r"^[^A-Za-z0-9]+", "", cleaned)
+        # Remove any remaining reasoning prefixes
+        for pattern in reasoning_prefixes:
+            cleaned = re.sub(pattern, '', cleaned, flags=re.IGNORECASE)
         return cleaned or fallback
 
     def _validate_age_answer(self, text: str) -> Tuple[bool, Optional[str], Optional[str]]:
