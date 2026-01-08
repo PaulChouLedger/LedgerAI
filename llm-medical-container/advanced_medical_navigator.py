@@ -1940,38 +1940,31 @@ Patient's answer: "{answer}"
 Previous answers provided:
 {chr(10).join([f"- {k}: {v}" for k, v in answered_fields.items()])}
 
-Based on your training, determine if the patient's answer is appropriate for this OLD CARTS question. 
+Determine if the patient's answer is appropriate for this OLD CARTS question.
+
+{field_guidance_text}
+
+CRITICAL: If the patient's answer matches ANY of the examples above, it MUST be accepted as appropriate. The examples shown are VALID answers.
 
 Remember from your training:
 - Patients use natural, conversational language - not medical terminology
-- "This morning", "today", "yesterday", "2 days ago" are ALL valid ways to describe when symptoms started (onset)
-- "2 days", "3 hours", "since yesterday", "for a week" are ALL valid ways to describe how long a symptom has been present (duration)
-- "Constant" or "comes and goes" are answers about TIMING (pattern), not duration (time period)
-- "Pressure", "sharp", "dull", "burning", "stabbing", "aching" are ALL valid character descriptions
-- "Feels like pressure", "like a burning", "like pressure" are valid ways patients describe character
-- "Center of chest", "center of my chest", "in my chest" are ALL valid location descriptions
-- "Upper right", "lower left", "right side" are valid abdominal locations
 - Accept answers that directly address the question, even if phrased informally
+- Be lenient - reject ONLY if the answer clearly doesn't answer the question at all
 
 CRITICAL DISTINCTION:
 - Duration (D) = How long the symptom has been present (time period: "2 days", "3 hours", "since yesterday")
 - Timing (T) = Whether it's constant or intermittent (pattern: "constant", "comes and goes", "intermittent")
-- If asked about duration and patient says "constant", gently clarify they're answering about timing pattern, not time period
-
-The answer should:
-- Directly answer what was asked (even if phrased informally)
-- Not be a duplicate of an answer already given for a different field
-- Make logical sense for the question type
+- If asked about duration and patient says "constant", this is answering about timing pattern, not duration
 
 Only reject answers that:
-- Don't answer the question at all (e.g., answering location to an onset question)
+- Don't answer the question at all (e.g., answering location to an onset question when asked about onset)
 - Are clearly confused/clarification requests (e.g., "what do you mean?")
-- Are duplicates of previous answers for different fields
+- Are exact duplicates of previous answers for different fields
 
-CRITICAL: Be lenient - accept natural patient language. Patients don't use medical terminology.
+IMPORTANT: Default to ACCEPTING the answer unless it clearly doesn't make sense for the question. When in doubt, accept it.
 
 Return ONLY valid JSON: {{"appropriate": true/false, "reason": "brief reason"}}
-If not appropriate, also suggest what type of answer would be expected."""
+If not appropriate, provide a brief reason."""
         
         try:
             response = self.llm_chat_fn(
@@ -2010,10 +2003,16 @@ If not appropriate, also suggest what type of answer would be expected."""
                     cleaned = cleaned[start_idx:end_idx]
             
             import json
-            validation_result = json.loads(cleaned)
-            is_appropriate = validation_result.get("appropriate", True)
+            try:
+                validation_result = json.loads(cleaned)
+                is_appropriate = validation_result.get("appropriate", True)
+            except (json.JSONDecodeError, KeyError, TypeError) as json_error:
+                # If JSON parsing fails, default to accepting the answer (lenient approach)
+                self._capture_debug(f"[Validation] ⚠️ JSON parsing error, defaulting to accept: {json_error}")
+                is_appropriate = True
             
-            if not is_appropriate:
+            # Only reject if explicitly marked as inappropriate
+            if is_appropriate is False:
                 reason = validation_result.get("reason", "This doesn't seem to answer the question asked.")
                 # Generate clarification message
                 clarification = self._generate_validation_clarification(field, question, answer, reason)

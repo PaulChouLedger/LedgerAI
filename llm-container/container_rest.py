@@ -690,13 +690,34 @@ def handle_conversation(
                         print(f"[Generic] ⚠️ All memory RAG candidates are questions - skipping injection to prevent hallucination")
                         memory_rag_results = []
                     else:
-                        # Use filtered candidates for LLM scoring
-                        conversations_text = ""
-                        for i, candidate in enumerate(filtered_candidates, 1):
-                            conv_text = candidate.get('text', '')
-                            conversations_text += f"{i}. {conv_text}\n"
+                        # Additional filter: Skip very short or non-actionable statements for "how to" queries
+                        if any(phrase in prompt.lower() for phrase in ['how can', 'how do', 'how to', 'how should', 'what should', 'what can']):
+                            actionable_candidates = []
+                            for candidate in filtered_candidates:
+                                text = candidate.get('text', '').strip()
+                                # Check if it contains actionable advice (has verbs like "improve", "optimize", "reduce", etc.)
+                                actionable_verbs = ['improve', 'optimize', 'reduce', 'increase', 'enhance', 'implement', 'focus', 'consider', 'try', 'use', 'apply', 'develop', 'create', 'build', 'establish']
+                                # Check if it's long enough to contain advice (at least 50 chars) or contains actionable verbs
+                                if len(text) >= 50 or any(verb in text.lower() for verb in actionable_verbs):
+                                    actionable_candidates.append(candidate)
+                                else:
+                                    print(f"[Generic]   [Pre-filter] ❌ Excluded non-actionable statement: '{text[:60]}...'")
+                            
+                            if not actionable_candidates:
+                                print(f"[Generic] ⚠️ All memory RAG candidates are non-actionable statements - skipping injection for 'how to' query")
+                                memory_rag_results = []
+                            else:
+                                # Use actionable candidates for LLM scoring
+                                filtered_candidates = actionable_candidates
                         
-                        scoring_prompt = f"""Rate how well each previous conversation answers the user's question.
+                        # Use filtered candidates for LLM scoring (if we still have candidates)
+                        if filtered_candidates and not memory_rag_results:
+                            conversations_text = ""
+                            for i, candidate in enumerate(filtered_candidates, 1):
+                                conv_text = candidate.get('text', '')
+                                conversations_text += f"{i}. {conv_text}\n"
+                            
+                            scoring_prompt = f"""Rate how well each previous conversation answers the user's question.
 
 User's question: "{prompt}"
 
@@ -716,68 +737,68 @@ Return ONLY a JSON array with exactly {len(filtered_candidates)} scores in order
 Example: [0.8, 0.9, 0.7, 0.6, 0.5]
 
 JSON array only:"""
-                    
-                        try:
-                            # Call LLM for scoring (non-streaming, fast)
-                            scoring_messages = [{"role": "user", "content": scoring_prompt}]
-                            scoring_response = llm_chat_simple(
-                                scoring_messages,
-                                max_tokens=100,  # Reduced from 200 to 100 for faster response
-                                temperature=0.3,
-                                stream=False
-                            )
                             
-                            # Parse LLM response to extract scores
-                            import json
-                            json_match = re.search(r'\[[\d\.,\s]+\]', scoring_response)
-                            if json_match:
-                                scores = json.loads(json_match.group())
-                                print(f"[Generic] ✅ LLM returned {len(scores)} scores")
-                            else:
-                                try:
-                                    scores = json.loads(scoring_response.strip())
-                                except:
-                                    print(f"[Generic] ⚠️ Failed to parse LLM scores, using re-ranked scores as fallback")
+                            try:
+                                # Call LLM for scoring (non-streaming, fast)
+                                scoring_messages = [{"role": "user", "content": scoring_prompt}]
+                                scoring_response = llm_chat_simple(
+                                    scoring_messages,
+                                    max_tokens=100,  # Reduced from 200 to 100 for faster response
+                                    temperature=0.3,
+                                    stream=False
+                                )
+                                
+                                # Parse LLM response to extract scores
+                                import json
+                                json_match = re.search(r'\[[\d\.,\s]+\]', scoring_response)
+                                if json_match:
+                                    scores = json.loads(json_match.group())
+                                    print(f"[Generic] ✅ LLM returned {len(scores)} scores")
+                                else:
+                                    try:
+                                        scores = json.loads(scoring_response.strip())
+                                    except:
+                                        print(f"[Generic] ⚠️ Failed to parse LLM scores, using re-ranked scores as fallback")
+                                        scores = [c.get('score', 0.0) for c in filtered_candidates]
+                                
+                                # Ensure we have the right number of scores
+                                if len(scores) != len(filtered_candidates):
+                                    print(f"[Generic] ⚠️ LLM returned {len(scores)} scores but expected {len(filtered_candidates)}, using re-ranked scores as fallback")
                                     scores = [c.get('score', 0.0) for c in filtered_candidates]
-                            
-                            # Ensure we have the right number of scores
-                            if len(scores) != len(filtered_candidates):
-                                print(f"[Generic] ⚠️ LLM returned {len(scores)} scores but expected {len(filtered_candidates)}, using re-ranked scores as fallback")
-                                scores = [c.get('score', 0.0) for c in filtered_candidates]
-                            
-                            # Update candidates with LLM scores
-                            scored_candidates = []
-                            for i, (candidate, llm_score) in enumerate(zip(filtered_candidates, scores)):
-                                scored_candidates.append({
-                                    **candidate,
-                                    'score': float(llm_score),
-                                    'original_re_ranked_score': candidate.get('score', 0.0),
-                                    'llm_score': float(llm_score)
-                                })
-                                print(f"[Generic]   [{i+1}] LLM score: {llm_score:.3f} (re-ranked: {candidate.get('score', 0.0):.3f}): '{candidate.get('text', '')[:60]}...'")
-                            
-                            # Sort by LLM score (descending)
-                            scored_candidates.sort(key=lambda x: x['score'], reverse=True)
-                            
-                            # Filter by threshold and return top k
-                            # Use higher threshold (0.5) to filter out low-quality results
-                            answer_threshold = max(memory_rag_threshold, 0.5)  # At least 0.5 to ensure quality answers
-                            memory_rag_results = [
-                                r for r in scored_candidates 
-                                if r.get('score', 0) >= answer_threshold
-                            ][:memory_rag_k]
-                        except Exception as e:
-                            print(f"[Generic] ⚠️ LLM scoring failed: {e}, falling back to re-ranked scores")
-                            import traceback
-                            traceback.print_exc()
-                            # Fallback to re-ranked scores (use filtered candidates, not all candidates)
-                            scored_candidates = sorted(filtered_candidates, key=lambda x: x.get('score', 0), reverse=True)
-                            # Use higher threshold for fallback too
-                            answer_threshold = max(memory_rag_threshold, 0.5)
-                            memory_rag_results = [
-                                r for r in scored_candidates 
-                                if r.get('score', 0) >= answer_threshold
-                            ][:memory_rag_k]
+                                
+                                # Update candidates with LLM scores
+                                scored_candidates = []
+                                for i, (candidate, llm_score) in enumerate(zip(filtered_candidates, scores)):
+                                    scored_candidates.append({
+                                        **candidate,
+                                        'score': float(llm_score),
+                                        'original_re_ranked_score': candidate.get('score', 0.0),
+                                        'llm_score': float(llm_score)
+                                    })
+                                    print(f"[Generic]   [{i+1}] LLM score: {llm_score:.3f} (re-ranked: {candidate.get('score', 0.0):.3f}): '{candidate.get('text', '')[:60]}...'")
+                                
+                                # Sort by LLM score (descending)
+                                scored_candidates.sort(key=lambda x: x['score'], reverse=True)
+                                
+                                # Filter by threshold and return top k
+                                # Use higher threshold (0.5) to filter out low-quality results
+                                answer_threshold = max(memory_rag_threshold, 0.5)  # At least 0.5 to ensure quality answers
+                                memory_rag_results = [
+                                    r for r in scored_candidates 
+                                    if r.get('score', 0) >= answer_threshold
+                                ][:memory_rag_k]
+                            except Exception as e:
+                                print(f"[Generic] ⚠️ LLM scoring failed: {e}, falling back to re-ranked scores")
+                                import traceback
+                                traceback.print_exc()
+                                # Fallback to re-ranked scores (use filtered candidates, not all candidates)
+                                scored_candidates = sorted(filtered_candidates, key=lambda x: x.get('score', 0), reverse=True)
+                                # Use higher threshold for fallback too
+                                answer_threshold = max(memory_rag_threshold, 0.5)
+                                memory_rag_results = [
+                                    r for r in scored_candidates 
+                                    if r.get('score', 0) >= answer_threshold
+                                ][:memory_rag_k]
                 
                 if memory_rag_results and len(memory_rag_results) > 0:
                     print(f"[Generic] ✅ Memory RAG found {len(memory_rag_results)} relevant conversations (from {len(memory_rag_candidates)} candidates, threshold={max(memory_rag_threshold, 0.5):.2f}) - will inject context")
@@ -2869,6 +2890,14 @@ def filter_cot_reasoning(generator):
                         answer_text = re.sub(rf'\b{re.escape(filler)}[^.]*\.?\s*', '', answer_text, flags=re.IGNORECASE)
                         answer_text = answer_text.strip()
                 
+                # Clean up CoT markers from initial extraction
+                answer_text = re.sub(r'\[(KEEP|DISCARD|Action|Result)\]', '', answer_text, flags=re.IGNORECASE)
+                answer_text = re.sub(r'- End of scan\.?\s*', '', answer_text, flags=re.IGNORECASE)
+                answer_text = re.sub(r'- Item:.*?(?=\n|$)', '', answer_text, flags=re.IGNORECASE | re.MULTILINE)
+                answer_text = re.sub(r'- Evidence:.*?(?=\n|$)', '', answer_text, flags=re.IGNORECASE | re.MULTILINE)
+                answer_text = re.sub(r'- Action:.*?(?=\n|$)', '', answer_text, flags=re.IGNORECASE | re.MULTILINE)
+                answer_text = re.sub(r'\s+', ' ', answer_text).strip()
+                
                 # Continue collecting tokens after FINAL ANSWER to get complete answer
                 collecting_answer = True
                 answer_buffer = [answer_text] if answer_text else []
@@ -2953,6 +2982,18 @@ def filter_cot_reasoning(generator):
                                 yield word
                         # Yield sentence_end tag last
                         yield "\n<sentence_end>\n"
+                    else:
+                        # Answer is empty after cleaning - provide fallback
+                        print(f"[Generic] ⚠️ [CoT Reasoning Debug] FINAL ANSWER is empty after cleaning - providing fallback response")
+                        fallback_response = "I don't understand. Could you please repeat or rephrase your question?"
+                        yield "<sentence_start>\n"
+                        words = fallback_response.split()
+                        for i, word in enumerate(words):
+                            if i < len(words) - 1:
+                                yield word + " "
+                            else:
+                                yield word
+                        yield "\n<sentence_end>\n"
                     
                     # Stop collecting
                     collecting_answer = False
@@ -2962,6 +3003,117 @@ def filter_cot_reasoning(generator):
         # After FINAL ANSWER processed, skip all remaining tokens
         if found_final_answer and not collecting_answer:
             continue
+    
+    # Handle case where stream ended without FINAL ANSWER or with empty answer
+    if found_final_answer and collecting_answer:
+        # Stream ended while collecting answer - process what we have
+        if len(answer_buffer) > 0:
+            answer_text = " ".join(answer_buffer).strip()
+            
+            # Filter out DISCARD items
+            if discarded_items:
+                for discarded_name in discarded_items:
+                    name_parts = discarded_name.split()
+                    if len(name_parts) > 1:
+                        pattern = r'\b' + r'\s+'.join([re.escape(part) for part in name_parts]) + r'\b'
+                    else:
+                        pattern = r'\b' + re.escape(discarded_name) + r'\b'
+                    answer_text = re.sub(pattern, '', answer_text, flags=re.IGNORECASE)
+                answer_text = re.sub(r'\s+', ' ', answer_text).strip()
+            
+            # Clean up CoT markers
+            answer_text = re.sub(r'\[(KEEP|DISCARD|Action|Result)\]', '', answer_text, flags=re.IGNORECASE)
+            answer_text = re.sub(r'(?m)^- .*$', '', answer_text).strip()
+            answer_text = re.sub(r'REASONING:\s*', '', answer_text, flags=re.IGNORECASE)
+            answer_text = re.sub(r'- End of scan\.?\s*', '', answer_text, flags=re.IGNORECASE)
+            answer_text = re.sub(r'- Item:.*?(?=\n|$)', '', answer_text, flags=re.IGNORECASE | re.MULTILINE)
+            answer_text = re.sub(r'- Evidence:.*?(?=\n|$)', '', answer_text, flags=re.IGNORECASE | re.MULTILINE)
+            answer_text = re.sub(r'- Action:.*?(?=\n|$)', '', answer_text, flags=re.IGNORECASE | re.MULTILINE)
+            answer_text = re.sub(r'\d+\.\s*', '', answer_text)
+            answer_text = re.sub(r'\s+', ' ', answer_text).strip()
+            
+            if answer_text.strip():
+                print(f"[Generic] 📝 [CoT Reasoning Debug] Final FINAL ANSWER (from stream end): {answer_text[:200]}...")
+                yield "<sentence_start>\n"
+                words = answer_text.strip().split()
+                for i, word in enumerate(words):
+                    if i < len(words) - 1:
+                        yield word + " "
+                    else:
+                        yield word
+                yield "\n<sentence_end>\n"
+                return
+            else:
+                # Answer is empty after cleaning - provide fallback
+                print(f"[Generic] ⚠️ [CoT Reasoning Debug] FINAL ANSWER is empty after cleaning (stream ended) - providing fallback response")
+                fallback_response = "I don't understand. Could you please repeat or rephrase your question?"
+                yield "<sentence_start>\n"
+                words = fallback_response.split()
+                for i, word in enumerate(words):
+                    if i < len(words) - 1:
+                        yield word + " "
+                    else:
+                        yield word
+                yield "\n<sentence_end>\n"
+                return
+    
+    # Handle case where FINAL ANSWER was never found but "End of scan" was present
+    if not found_final_answer and ("End of scan" in text_buffer or "- End of scan" in text_buffer):
+        # Try to extract answer after "End of scan" (fallback)
+        if "- End of scan" in text_buffer:
+            answer_text = text_buffer.split("- End of scan")[-1].strip()
+        elif "End of scan" in text_buffer:
+            answer_text = text_buffer.split("End of scan")[-1].strip()
+        else:
+            answer_text = ""
+        
+        # Clean up the answer
+        answer_text = re.sub(r'\[(KEEP|DISCARD|Action|Result)\]', '', answer_text, flags=re.IGNORECASE)
+        answer_text = re.sub(r'(?m)^- .*$', '', answer_text).strip()
+        answer_text = re.sub(r'REASONING:\s*', '', answer_text, flags=re.IGNORECASE)
+        answer_text = re.sub(r'- Item:.*?(?=\n|$)', '', answer_text, flags=re.IGNORECASE | re.MULTILINE)
+        answer_text = re.sub(r'- Evidence:.*?(?=\n|$)', '', answer_text, flags=re.IGNORECASE | re.MULTILINE)
+        answer_text = re.sub(r'- Action:.*?(?=\n|$)', '', answer_text, flags=re.IGNORECASE | re.MULTILINE)
+        answer_text = re.sub(r'\d+\.\s*', '', answer_text)
+        answer_text = re.sub(r'\s+', ' ', answer_text).strip()
+        
+        if answer_text.strip():
+            print(f"[Generic] 📝 [CoT Reasoning Debug] Final FINAL ANSWER (from End of scan fallback): {answer_text[:200]}...")
+            yield "<sentence_start>\n"
+            words = answer_text.strip().split()
+            for i, word in enumerate(words):
+                if i < len(words) - 1:
+                    yield word + " "
+                else:
+                    yield word
+            yield "\n<sentence_end>\n"
+            return
+        else:
+            # Answer is empty after cleaning - provide fallback
+            print(f"[Generic] ⚠️ [CoT Reasoning Debug] FINAL ANSWER is empty after End of scan fallback - providing fallback response")
+            fallback_response = "I don't understand. Could you please repeat or rephrase your question?"
+            yield "<sentence_start>\n"
+            words = fallback_response.split()
+            for i, word in enumerate(words):
+                if i < len(words) - 1:
+                    yield word + " "
+                else:
+                    yield word
+            yield "\n<sentence_end>\n"
+            return
+    
+    # Final fallback: No answer found at all - provide default response
+    if not found_final_answer or (found_final_answer and collecting_answer and len(answer_buffer) == 0):
+        print(f"[Generic] ⚠️ [CoT Reasoning Debug] No FINAL ANSWER found - providing fallback response")
+        fallback_response = "I don't understand. Could you please repeat or rephrase your question?"
+        yield "<sentence_start>\n"
+        words = fallback_response.split()
+        for i, word in enumerate(words):
+            if i < len(words) - 1:
+                yield word + " "
+            else:
+                yield word
+        yield "\n<sentence_end>\n"
 
 
 def filter_think_blocks(generator):
