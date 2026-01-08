@@ -904,7 +904,7 @@ class AdvancedMedicalNavigator:
             return list(self.CATEGORY_TO_SYSTEM.keys())
         
         # Get available categories from default categories
-            available_categories = set(self.CATEGORY_TO_SYSTEM.keys())
+        available_categories = set(self.CATEGORY_TO_SYSTEM.keys())
         
         available_cats_str = ', '.join(sorted(available_categories))
         
