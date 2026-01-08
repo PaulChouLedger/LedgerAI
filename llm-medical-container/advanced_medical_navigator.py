@@ -1392,19 +1392,9 @@ class AdvancedMedicalNavigator:
             # Get base question format for this element (with pronoun if appropriate)
             base_question = self._get_base_question_for_element(field, cc_subject, use_pronoun=use_pronoun)
             
-            # Special handling for location questions when dealing with abdominal pain
-            location_guidance = ""
-            if field == 'location':
-                cc_lower = cc.lower()
-                # Check if chief complaint involves abdomen/stomach/belly
-                abdominal_keywords = ['abdominal', 'abdomen', 'stomach', 'belly', 'tummy', 'gut']
-                if any(keyword in cc_lower for keyword in abdominal_keywords):
-                    location_guidance = (
-                        "\nIMPORTANT: Since this is about abdominal pain, ask for SPECIFIC location details. "
-                        "For example: 'upper right', 'lower right', 'upper left', 'lower left', 'center', "
-                        "'around the belly button', etc. You can mention quadrants (upper right, lower left, etc.) "
-                        "in a patient-friendly way like 'upper right part of your belly' or 'lower right side of your abdomen'."
-                    )
+            # Trust the model's training to ask appropriate questions
+            # The fine-tuned model understands clinical requirements and will naturally
+            # ask for specific details (like quadrants for abdominal pain) when needed
             
             # Build natural guidance based on whether we're using pronouns
             if use_pronoun:
@@ -1900,120 +1890,20 @@ Ask only one question about {field}."""
         """
         Validate that the answer is appropriate for the OLD CARTS field being asked.
         
-        Uses a hybrid approach:
-        1. Fast-path heuristics: Quick checks for obviously valid answers (performance optimization)
-        2. LLM validation: Fine-tuned model validates edge cases using its training knowledge
+        Relies primarily on the fine-tuned model's training knowledge. The model was trained
+        on medical conversations and understands natural patient responses.
         
-        The fine-tuned model should handle most cases naturally, but heuristics provide:
-        - Performance: Avoid LLM calls for obvious cases
-        - Reliability: Catch common patterns that might be missed
-        - Clinical accuracy: Special handling for vague abdominal locations (requires quadrant specificity)
+        Only uses minimal hardcoded checks for clinically critical requirements:
+        - Vague abdominal locations require quadrant specificity (important for differential diagnosis)
         
         Returns: (is_appropriate, clarification_message_if_needed)
         """
-        # Quick heuristic check for common valid responses before LLM validation
-        # This prevents false negatives for obviously valid answers and provides fast-path optimization
-        answer_lower = answer.lower().strip()
-        
-        # For onset field, accept common time-related phrases immediately
-        if field == 'onset':
-            valid_time_phrases = [
-                'this morning', 'today', 'yesterday', 'tomorrow',  # relative times
-                'ago', 'hours ago', 'days ago', 'weeks ago', 'months ago',  # relative durations
-                'last week', 'last month', 'last year',  # relative periods
-                'when i woke up', 'woke up', 'when i got up', 'got up',  # wake-related
-                'earlier', 'just now', 'a few', 'a couple', 'recently',  # vague but valid
-                'morning', 'afternoon', 'evening', 'night',  # time of day
-                'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday',  # days of week
-            ]
-            # Check if answer contains any valid time phrase
-            if any(phrase in answer_lower for phrase in valid_time_phrases):
-                return True, None
-            # Also accept if it starts with a number (e.g., "2 days ago", "3 hours ago")
-            import re
-            if re.match(r'^\d+\s+(hour|day|week|month|minute)', answer_lower):
-                return True, None
-        
-        # For duration field, accept time period phrases immediately
-        # Duration = how long the symptom has been present (e.g., "2 days", "3 hours", "since yesterday")
-        # NOT to be confused with Timing = constant vs intermittent
-        if field == 'duration':
-            # First check if they're answering about timing pattern instead (common confusion)
-            timing_answers = ['constant', 'intermittent', 'comes and goes', 'comes and go', 'goes away', 'doesn\'t go away']
-            if any(timing in answer_lower for timing in timing_answers):
-                # They answered about timing pattern, not duration - clarify the difference
-                clarification = (
-                    "I understand you're saying it's constant. That's helpful, but right now I'm asking about "
-                    "how LONG the symptom has been present (duration). For example: '2 days', '3 hours', "
-                    "'since yesterday', 'for a week'. How long has the chest pain been present?"
-                )
-                self._capture_debug(f"[Validation] ⚠️ Timing answer given for duration question: '{answer}', clarifying difference")
-                return False, clarification
-            
-            valid_duration_phrases = [
-                'days', 'day', 'hours', 'hour', 'weeks', 'week', 'months', 'month',  # time units
-                'minutes', 'minute', 'since', 'for', 'last',  # duration markers
-            ]
-            # Check if answer contains duration indicators
-            if any(phrase in answer_lower for phrase in valid_duration_phrases):
-                return True, None
-            # Also accept if it starts with a number followed by time unit (e.g., "2 days", "3 hours", "last 10 minutes")
-            import re
-            if re.match(r'^\d+\s+(day|days|hour|hours|week|weeks|month|months|minute|minutes)', answer_lower):
-                return True, None
-            # Also accept "last X minutes/hours/days" pattern
-            if re.match(r'^last\s+\d+\s+(day|days|hour|hours|week|weeks|month|months|minute|minutes)', answer_lower):
-                return True, None
-        
-        # For location field, accept common body location phrases immediately
-        if field == 'location':
-            # Check if this is about abdominal pain - need more specific location
-            cc = session.context.get('pre_hpi', {}).get('chief_complaint', '').lower()
-            is_abdominal = any(keyword in cc for keyword in ['abdominal', 'abdomen', 'stomach', 'belly', 'tummy'])
-            
-            if is_abdominal:
-                # For abdominal pain, check if answer is too vague (just "abdomen", "stomach", "belly")
-                vague_abdominal = ['abdomen', 'stomach', 'belly', 'tummy', 'gut', 'my belly', 'my stomach', 'my abdomen']
-                if answer_lower.strip() in vague_abdominal or answer_lower.strip() in [f'in my {v}' for v in vague_abdominal]:
-                    # Too vague - need specific quadrant/location
-                    clarification = (
-                        "I need to know which specific part of your abdomen. For example: "
-                        "'upper right', 'lower right', 'upper left', 'lower left', 'center', "
-                        "'around the belly button', 'right side', 'left side'. Which part of your abdomen?"
-                    )
-                    self._capture_debug(f"[Validation] ⚠️ Vague abdominal location detected: '{answer}', requesting specifics")
-                    return False, clarification
-                
-                # Check for specific abdominal location indicators
-                specific_indicators = [
-                    'upper', 'lower', 'right', 'left', 'quadrant', 'ruq', 'rlq', 'luq', 'llq',
-                    'epigastric', 'umbilical', 'hypogastric', 'flank', 'groin',
-                    'belly button', 'navel', 'center', 'centre', 'middle'
-                ]
-                # Accept if contains specific indicators
-                if any(indicator in answer_lower for indicator in specific_indicators):
-                    return True, None
-            
-            # Common body parts (for non-abdominal or already specific abdominal)
-            body_parts = [
-                'chest', 'abdomen', 'stomach', 'belly', 'head', 'neck', 'throat',
-                'arm', 'arms', 'leg', 'legs', 'hand', 'hands', 'foot', 'feet',
-                'back', 'shoulder', 'shoulders', 'hip', 'hips', 'knee', 'knees',
-                'eye', 'eyes', 'ear', 'ears', 'jaw', 'face', 'forehead',
-            ]
-            # Positional descriptors
-            positional_words = [
-                'center of', 'centre of', 'middle of', 'upper', 'lower',
-                'left side', 'right side', 'left upper', 'right upper',
-                'left lower', 'right lower', 'behind', 'in front of',
-                'in my', 'on my', 'in the', 'on the', 'over my', 'under my'
-            ]
-            # Check if answer contains body part references
-            if any(part in answer_lower for part in body_parts):
-                return True, None
-            # Check if answer contains positional descriptors with body context
-            if any(pos in answer_lower for pos in positional_words):
-                return True, None
+        # Fully trust the fine-tuned model for all validation
+        # The model was trained on medical conversations and understands:
+        # - Natural patient language and phrasing
+        # - When to ask for more specific information
+        # - Clinical requirements (e.g., quadrant specificity for abdominal pain)
+        # - How to distinguish between similar but different concepts (duration vs timing)
         
         if not self.llm_chat_fn:
             # Fallback: basic heuristic check
@@ -2057,6 +1947,8 @@ Remember from your training:
 - "This morning", "today", "yesterday", "2 days ago" are ALL valid ways to describe when symptoms started (onset)
 - "2 days", "3 hours", "since yesterday", "for a week" are ALL valid ways to describe how long a symptom has been present (duration)
 - "Constant" or "comes and goes" are answers about TIMING (pattern), not duration (time period)
+- "Pressure", "sharp", "dull", "burning", "stabbing", "aching" are ALL valid character descriptions
+- "Feels like pressure", "like a burning", "like pressure" are valid ways patients describe character
 - "Center of chest", "center of my chest", "in my chest" are ALL valid location descriptions
 - "Upper right", "lower left", "right side" are valid abdominal locations
 - Accept answers that directly address the question, even if phrased informally
