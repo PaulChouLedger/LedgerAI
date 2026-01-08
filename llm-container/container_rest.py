@@ -1083,6 +1083,10 @@ JSON array only:"""
         list_indicators = ['co-founders', 'founders', 'employees', 'members', 'team', 'people', 'individuals']
         is_list_request = any(keyword in prompt.lower() for keyword in list_keywords) or any(indicator in prompt.lower() for indicator in list_indicators)
         
+        # Detect if query asks for a specific set (should find ALL, not limit to TOP 3)
+        specific_set_indicators = ['co-founders', 'founders', 'co-founder', 'founder', 'all the', 'all of the', 'every']
+        is_specific_set_query = any(indicator in prompt.lower() for indicator in specific_set_indicators)
+        
         if has_rag_context:
             # Dynamic prompt construction with Aura Vision identity
             # IMPORTANT: Include the prompt in the system message (matches working commit 1927b467c106120dd4e1231f600eccdaa5a93f08)
@@ -1149,14 +1153,25 @@ JSON array only:"""
                 # Simplified list instruction
                 list_instruction = ""
                 if is_list_request:
-                    list_instruction = (
-                        "\n📋 LIST QUESTION:\n"
-                        "Read all sections completely. Extract items that directly match the query. "
-                        "CRITICAL: Limit your response to the TOP 3 most relevant items only. "
-                        "Do NOT list more than 3 items. "
-                        "If there are more items available, mention that more information can be provided if needed. "
-                        "Only include information explicitly stated in the context.\n"
-                    )
+                    if is_specific_set_query:
+                        # For specific set queries (like "co-founders"), find ALL items, not just TOP 3
+                        list_instruction = (
+                            "\n📋 LIST QUESTION:\n"
+                            "Read all sections completely. Extract ALL items that directly match the query. "
+                            "CRITICAL: Find and list ALL items that match the query - do NOT limit the number. "
+                            "Read through the entire context carefully to ensure you find every relevant item. "
+                            "Only include information explicitly stated in the context.\n"
+                        )
+                    else:
+                        # For general list queries, limit to TOP 3
+                        list_instruction = (
+                            "\n📋 LIST QUESTION:\n"
+                            "Read all sections completely. Extract items that directly match the query. "
+                            "CRITICAL: Limit your response to the TOP 3 most relevant items only. "
+                            "Do NOT list more than 3 items. "
+                            "If there are more items available, mention that more information can be provided if needed. "
+                            "Only include information explicitly stated in the context.\n"
+                        )
                 
                 # Build response length guideline - simplified
                 if SHOW_REASONING_DEBUG:
@@ -1164,13 +1179,24 @@ JSON array only:"""
                 elif is_list_request:
                     # Only add question instruction if not a conversational query
                     question_instruction = "" if is_conversational else "\n- MANDATORY: End your response with a brief, natural question. This is REQUIRED. Examples: 'Would you like more information about this?' or 'Is there anything else I can help you with?'\n"
-                    response_length_guideline = (
-                        "- CRITICAL: List ONLY the top 3 most relevant items that match the query. "
-                        "Do NOT exceed 3 items. "
-                        "If more items exist, briefly mention that more information is available if needed. "
-                        "Format as a numbered or bulleted list (1-3 items maximum).\n"
-                        f"{question_instruction}"
-                    )
+                    if is_specific_set_query:
+                        # For specific set queries, find ALL items
+                        response_length_guideline = (
+                            "- CRITICAL: List ALL items that match the query. "
+                            "Do NOT limit the number - find every item that matches. "
+                            "Read through the entire context completely to ensure you don't miss any items. "
+                            "Format as a natural list or numbered list.\n"
+                            f"{question_instruction}"
+                        )
+                    else:
+                        # For general list queries, limit to TOP 3
+                        response_length_guideline = (
+                            "- CRITICAL: List ONLY the top 3 most relevant items that match the query. "
+                            "Do NOT exceed 3 items. "
+                            "If more items exist, briefly mention that more information is available if needed. "
+                            "Format as a numbered or bulleted list (1-3 items maximum).\n"
+                            f"{question_instruction}"
+                        )
                 else:
                     # Only add question instruction if not a conversational query
                     question_instruction = "" if is_conversational else "\n6. MANDATORY: End your response with a brief, natural question. This is REQUIRED. Examples: 'Would you like more information about this?' or 'Is there anything else I can help you with?'\n"
@@ -2804,14 +2830,15 @@ def filter_cot_reasoning(generator):
     Only yields content after FINAL ANSWER: marker.
     Also filters out items that were marked [DISCARD] in the reasoning section.
     Works with sentence-tagged token stream.
-    Simplified extraction logic - similar to test script.
+    Extraction logic matches test_rag_cot_model_colab.py exactly.
+    STREAMS tokens incrementally for low TTS latency (doesn't wait for full response).
     """
-    text_buffer = ""  # Accumulate text content (without tags) to find markers
-    token_buffer = []  # Buffer all tokens to preserve structure
+    text_buffer = ""  # Accumulate text for marker detection
+    reasoning_buffer = ""  # Buffer reasoning section to extract DISCARD items
     found_final_answer = False
-    discarded_items = set()  # Track items marked [DISCARD] to filter from final answer
-    collecting_answer = False  # Track if we're collecting answer tokens
-    answer_buffer = []  # Buffer tokens after FINAL ANSWER to collect complete answer
+    discarded_items = set()
+    answer_buffer = []  # Buffer answer tokens for cleaning
+    collecting_answer = False
     
     def extract_text(token):
         """Extract text content from token (removing sentence tags)"""
@@ -2837,34 +2864,46 @@ def filter_cot_reasoning(generator):
                 discarded.add(item_name.lower())
         return discarded
     
-    # Simple approach: buffer everything until FINAL ANSWER is found (filler phrase already yielded upstream)
+    # Stream tokens incrementally - buffer until FINAL ANSWER found, then stream answer
     for token in generator:
-        token_buffer.append(token)
         text_content = extract_text(token)
-        if text_content:
-            text_buffer += text_content + " "
         
-        # Check for FINAL ANSWER marker
         if not found_final_answer:
+            # Still looking for FINAL ANSWER - buffer everything
+            text_buffer += text_content + " " if text_content else ""
+            
+            # Track reasoning section
+            if "REASONING:" in text_buffer or "Reasoning:" in text_buffer:
+                if "REASONING:" in text_buffer:
+                    reasoning_buffer = "REASONING:" + text_buffer.split("REASONING:")[-1]
+                elif "Reasoning:" in text_buffer:
+                    reasoning_buffer = "Reasoning:" + text_buffer.split("Reasoning:")[-1]
+            
+            # Check for FINAL ANSWER marker
             if "FINAL ANSWER:" in text_buffer or "Final Answer:" in text_buffer:
                 found_final_answer = True
-                # Extract reasoning section to find DISCARD items
                 marker = "FINAL ANSWER:" if "FINAL ANSWER:" in text_buffer else "Final Answer:"
-                # Get text before FINAL ANSWER
-                text_before_answer = text_buffer.split(marker)[0]
                 
-                # Extract only the REASONING section (exclude filler phrases before REASONING:)
-                reasoning_text = text_before_answer
-                if "REASONING:" in text_before_answer:
-                    # Only extract from REASONING: onwards
-                    reasoning_text = "REASONING:" + text_before_answer.split("REASONING:")[-1]
-                elif "Reasoning:" in text_before_answer:
-                    # Fallback for lowercase
-                    reasoning_text = "Reasoning:" + text_before_answer.split("Reasoning:")[-1]
+                # Extract reasoning section to find DISCARD items
+                if reasoning_buffer:
+                    # Extract reasoning up to FINAL ANSWER
+                    if marker in reasoning_buffer:
+                        reasoning_text = reasoning_buffer.split(marker)[0]
+                    else:
+                        reasoning_text = reasoning_buffer
+                else:
+                    # Fallback: extract from text_buffer
+                    text_before = text_buffer.split(marker)[0]
+                    if "REASONING:" in text_before:
+                        reasoning_text = "REASONING:" + text_before.split("REASONING:")[-1]
+                    elif "Reasoning:" in text_before:
+                        reasoning_text = "Reasoning:" + text_before.split("Reasoning:")[-1]
+                    else:
+                        reasoning_text = text_before
                 
                 discarded_items = extract_discarded_items(reasoning_text)
                 
-                # DEBUG: Print reasoning section (only the actual REASONING part, not filler phrases)
+                # DEBUG: Print reasoning section
                 print(f"\n{'='*80}")
                 print(f"[Generic] 🧠 [CoT Reasoning Debug] REASONING OUTPUT:")
                 print(f"{'='*80}")
@@ -2875,245 +2914,78 @@ def filter_cot_reasoning(generator):
                     print(f"[Generic] 🚫 [CoT Reasoning Debug] Items marked DISCARD: {discarded_items}")
                 print(f"{'='*80}\n")
                 
-                # Extract answer using same simple logic as test script
-                # Get everything after FINAL ANSWER from text_buffer (matches test script logic)
-                answer_text = text_buffer.split(marker)[-1].strip()
+                # Extract initial answer text from buffer (matches test script)
+                initial_answer = text_buffer.split(marker)[-1].strip()
+                if initial_answer:
+                    # Clean up initial answer
+                    initial_answer = re.sub(r'\[(KEEP|DISCARD|Action|Result)\]', '', initial_answer, flags=re.IGNORECASE)
+                    initial_answer = re.sub(r'(?m)^- .*$', '', initial_answer).strip()
+                    answer_buffer.append(initial_answer)
                 
-                # Remove any filler phrase text that might have been included (shouldn't happen, but safety check)
-                filler_phrases = [
-                    "Give me a moment", "Let me think", "One moment", "Let me search",
-                    "I'll need a second", "Give me a moment to recall"
-                ]
-                for filler in filler_phrases:
-                    if filler.lower() in answer_text.lower():
-                        # Remove filler phrase from answer
-                        answer_text = re.sub(rf'\b{re.escape(filler)}[^.]*\.?\s*', '', answer_text, flags=re.IGNORECASE)
-                        answer_text = answer_text.strip()
-                
-                # Clean up CoT markers from initial extraction
-                answer_text = re.sub(r'\[(KEEP|DISCARD|Action|Result)\]', '', answer_text, flags=re.IGNORECASE)
-                answer_text = re.sub(r'- End of scan\.?\s*', '', answer_text, flags=re.IGNORECASE)
-                answer_text = re.sub(r'- Item:.*?(?=\n|$)', '', answer_text, flags=re.IGNORECASE | re.MULTILINE)
-                answer_text = re.sub(r'- Evidence:.*?(?=\n|$)', '', answer_text, flags=re.IGNORECASE | re.MULTILINE)
-                answer_text = re.sub(r'- Action:.*?(?=\n|$)', '', answer_text, flags=re.IGNORECASE | re.MULTILINE)
-                answer_text = re.sub(r'\s+', ' ', answer_text).strip()
-                
-                # Continue collecting tokens after FINAL ANSWER to get complete answer
                 collecting_answer = True
-                answer_buffer = [answer_text] if answer_text else []
-                
-                # Process any remaining tokens in buffer that come after FINAL ANSWER
-                answer_token_idx = None
-                for i, tok in enumerate(token_buffer):
-                    tok_text = extract_text(tok)
-                    if tok_text and marker in tok_text:
-                        answer_token_idx = i
-                        # Add tokens after FINAL ANSWER marker
-                        for remaining_token in token_buffer[i + 1:]:
-                            tok_text = extract_text(remaining_token)
-                            if tok_text and not (tok_text.startswith('<') and tok_text.endswith('>')):
-                                answer_buffer.append(tok_text)
-                        break
-                
-                # Clear token buffer - we'll collect new tokens in answer_buffer
-                token_buffer = []
-                text_buffer = ""
-                continue
-            else:
-                # Still buffering - don't yield yet
+                # Yield sentence_start immediately (signals TTS to prepare, reduces perceived latency)
+                yield "<sentence_start>\n"
                 continue
         
-        # After FINAL ANSWER found, continue collecting answer tokens
+        # After FINAL ANSWER found, buffer answer tokens (need full answer for proper DISCARD filtering)
         if found_final_answer and collecting_answer:
-            tok_text = extract_text(token)
-            if tok_text and not (tok_text.startswith('<') and tok_text.endswith('>')):
-                answer_buffer.append(tok_text)
-            
-            # Check if we have a complete answer (sentence ending or reasonable length)
-            if len(answer_buffer) > 0:
-                current_answer = " ".join(answer_buffer).strip()
-                # Check for sentence endings or if we've collected enough
-                if (len(answer_buffer) >= 5 and (current_answer.endswith('.') or 
-                                                  current_answer.endswith('?') or 
-                                                  current_answer.endswith('!') or
-                                                  len(answer_buffer) >= 20)):
-                    # Process complete answer
-                    answer_text = " ".join(answer_buffer).strip()
-                    
-                    # Filter out DISCARD items
-                    if discarded_items:
-                        for discarded_name in discarded_items:
-                            name_parts = discarded_name.split()
-                            if len(name_parts) > 1:
-                                pattern = r'\b' + r'\s+'.join([re.escape(part) for part in name_parts]) + r'\b'
-                            else:
-                                pattern = r'\b' + re.escape(discarded_name) + r'\b'
-                            answer_text = re.sub(pattern, '', answer_text, flags=re.IGNORECASE)
-                        # Clean up extra spaces and commas
-                        answer_text = re.sub(r'\s+', ' ', answer_text)
-                        answer_text = re.sub(r',\s*,', ',', answer_text)
-                        answer_text = re.sub(r',\s*and\s*,', ' and ', answer_text)
-                        answer_text = re.sub(r'^\s*,\s*', '', answer_text)
-                        answer_text = re.sub(r'\s*,\s*$', '', answer_text)
-                        print(f"[Generic] ✂️  [CoT Reasoning Debug] Filtered FINAL ANSWER (removed DISCARD items): {answer_text[:200]}...")
-                    
-                    # Clean up CoT markers (same as test script)
-                    answer_text = re.sub(r'\[(KEEP|DISCARD|Action|Result)\]', '', answer_text, flags=re.IGNORECASE)
-                    answer_text = re.sub(r'(?m)^- .*$', '', answer_text).strip()  # Remove bulleted lines
-                    answer_text = re.sub(r'REASONING:\s*', '', answer_text, flags=re.IGNORECASE)
-                    answer_text = re.sub(r'- End of scan\.?\s*', '', answer_text, flags=re.IGNORECASE)
-                    answer_text = re.sub(r'- Item:.*?(?=\n|$)', '', answer_text, flags=re.IGNORECASE | re.MULTILINE)
-                    answer_text = re.sub(r'- Evidence:.*?(?=\n|$)', '', answer_text, flags=re.IGNORECASE | re.MULTILINE)
-                    answer_text = re.sub(r'- Action:.*?(?=\n|$)', '', answer_text, flags=re.IGNORECASE | re.MULTILINE)
-                    answer_text = re.sub(r'\d+\.\s*', '', answer_text)  # Remove numbered list markers
-                    answer_text = re.sub(r'\s+', ' ', answer_text).strip()  # Final space normalization
-                    
-                    # Yield answer with sentence tags (word by word to match TTS expectations)
-                    if answer_text.strip():
-                        print(f"[Generic] 📝 [CoT Reasoning Debug] Final FINAL ANSWER: {answer_text[:200]}...")
-                        # Yield sentence_start tag first
-                        yield "<sentence_start>\n"
-                        # Yield answer word by word
-                        words = answer_text.strip().split()
-                        for i, word in enumerate(words):
-                            if i < len(words) - 1:
-                                yield word + " "
-                            else:
-                                yield word
-                        # Yield sentence_end tag last
-                        yield "\n<sentence_end>\n"
-                    else:
-                        # Answer is empty after cleaning - provide fallback
-                        print(f"[Generic] ⚠️ [CoT Reasoning Debug] FINAL ANSWER is empty after cleaning - providing fallback response")
-                        fallback_response = "I don't understand. Could you please repeat or rephrase your question?"
-                        yield "<sentence_start>\n"
-                        words = fallback_response.split()
-                        for i, word in enumerate(words):
-                            if i < len(words) - 1:
-                                yield word + " "
-                            else:
-                                yield word
-                        yield "\n<sentence_end>\n"
-                    
-                    # Stop collecting
-                    collecting_answer = False
-                    answer_buffer = []
-            continue
-        
-        # After FINAL ANSWER processed, skip all remaining tokens
-        if found_final_answer and not collecting_answer:
+            if text_content:
+                answer_buffer.append(text_content)
             continue
     
-    # Handle case where stream ended without FINAL ANSWER or with empty answer
-    if found_final_answer and collecting_answer:
-        # Stream ended while collecting answer - process what we have
-        if len(answer_buffer) > 0:
-            answer_text = " ".join(answer_buffer).strip()
-            
-            # Filter out DISCARD items
-            if discarded_items:
-                for discarded_name in discarded_items:
-                    name_parts = discarded_name.split()
-                    if len(name_parts) > 1:
-                        pattern = r'\b' + r'\s+'.join([re.escape(part) for part in name_parts]) + r'\b'
-                    else:
-                        pattern = r'\b' + re.escape(discarded_name) + r'\b'
-                    answer_text = re.sub(pattern, '', answer_text, flags=re.IGNORECASE)
-                answer_text = re.sub(r'\s+', ' ', answer_text).strip()
-            
-            # Clean up CoT markers
-            answer_text = re.sub(r'\[(KEEP|DISCARD|Action|Result)\]', '', answer_text, flags=re.IGNORECASE)
-            answer_text = re.sub(r'(?m)^- .*$', '', answer_text).strip()
-            answer_text = re.sub(r'REASONING:\s*', '', answer_text, flags=re.IGNORECASE)
-            answer_text = re.sub(r'- End of scan\.?\s*', '', answer_text, flags=re.IGNORECASE)
-            answer_text = re.sub(r'- Item:.*?(?=\n|$)', '', answer_text, flags=re.IGNORECASE | re.MULTILINE)
-            answer_text = re.sub(r'- Evidence:.*?(?=\n|$)', '', answer_text, flags=re.IGNORECASE | re.MULTILINE)
-            answer_text = re.sub(r'- Action:.*?(?=\n|$)', '', answer_text, flags=re.IGNORECASE | re.MULTILINE)
-            answer_text = re.sub(r'\d+\.\s*', '', answer_text)
-            answer_text = re.sub(r'\s+', ' ', answer_text).strip()
-            
-            if answer_text.strip():
-                print(f"[Generic] 📝 [CoT Reasoning Debug] Final FINAL ANSWER (from stream end): {answer_text[:200]}...")
-                yield "<sentence_start>\n"
-                words = answer_text.strip().split()
-                for i, word in enumerate(words):
-                    if i < len(words) - 1:
-                        yield word + " "
-                    else:
-                        yield word
-                yield "\n<sentence_end>\n"
-                return
-            else:
-                # Answer is empty after cleaning - provide fallback
-                print(f"[Generic] ⚠️ [CoT Reasoning Debug] FINAL ANSWER is empty after cleaning (stream ended) - providing fallback response")
-                fallback_response = "I don't understand. Could you please repeat or rephrase your question?"
-                yield "<sentence_start>\n"
-                words = fallback_response.split()
-                for i, word in enumerate(words):
-                    if i < len(words) - 1:
-                        yield word + " "
-                    else:
-                        yield word
-                yield "\n<sentence_end>\n"
-                return
-    
-    # Handle case where FINAL ANSWER was never found but "End of scan" was present
-    if not found_final_answer and ("End of scan" in text_buffer or "- End of scan" in text_buffer):
-        # Try to extract answer after "End of scan" (fallback)
-        if "- End of scan" in text_buffer:
-            answer_text = text_buffer.split("- End of scan")[-1].strip()
-        elif "End of scan" in text_buffer:
-            answer_text = text_buffer.split("End of scan")[-1].strip()
-        else:
-            answer_text = ""
+    # After stream ends, clean and yield final answer (matches test script extraction)
+    if found_final_answer and answer_buffer:
+        final_answer = " ".join(answer_buffer).strip()
         
-        # Clean up the answer
-        answer_text = re.sub(r'\[(KEEP|DISCARD|Action|Result)\]', '', answer_text, flags=re.IGNORECASE)
-        answer_text = re.sub(r'(?m)^- .*$', '', answer_text).strip()
-        answer_text = re.sub(r'REASONING:\s*', '', answer_text, flags=re.IGNORECASE)
-        answer_text = re.sub(r'- Item:.*?(?=\n|$)', '', answer_text, flags=re.IGNORECASE | re.MULTILINE)
-        answer_text = re.sub(r'- Evidence:.*?(?=\n|$)', '', answer_text, flags=re.IGNORECASE | re.MULTILINE)
-        answer_text = re.sub(r'- Action:.*?(?=\n|$)', '', answer_text, flags=re.IGNORECASE | re.MULTILINE)
-        answer_text = re.sub(r'\d+\.\s*', '', answer_text)
-        answer_text = re.sub(r'\s+', ' ', answer_text).strip()
+        # Cleanup matches test script exactly
+        final_answer = re.sub(r'\[(KEEP|DISCARD|Action|Result)\]', '', final_answer, flags=re.IGNORECASE)
+        final_answer = re.sub(r'(?m)^- .*$', '', final_answer).strip()  # Remove bulleted lines
+        final_answer = re.sub(r'- End of scan\.?\s*', '', final_answer, flags=re.IGNORECASE)
         
-        if answer_text.strip():
-            print(f"[Generic] 📝 [CoT Reasoning Debug] Final FINAL ANSWER (from End of scan fallback): {answer_text[:200]}...")
-            yield "<sentence_start>\n"
-            words = answer_text.strip().split()
+        # Filter DISCARD items from final answer
+        if discarded_items:
+            for discarded_name in discarded_items:
+                name_parts = discarded_name.split()
+                if len(name_parts) > 1:
+                    pattern = r'\b' + r'\s+'.join([re.escape(part) for part in name_parts]) + r'\b'
+                else:
+                    pattern = r'\b' + re.escape(discarded_name) + r'\b'
+                final_answer = re.sub(pattern, '', final_answer, flags=re.IGNORECASE)
+            # Clean up extra spaces and commas after filtering
+            final_answer = re.sub(r'\s+', ' ', final_answer)
+            final_answer = re.sub(r',\s*,', ',', final_answer)
+            final_answer = re.sub(r',\s*and\s*,', ' and ', final_answer)
+            final_answer = re.sub(r'^\s*,\s*', '', final_answer)
+            final_answer = re.sub(r'\s*,\s*$', '', final_answer)
+            if final_answer.strip():
+                print(f"[Generic] ✂️  [CoT Reasoning Debug] Filtered FINAL ANSWER (removed DISCARD items): {final_answer[:200]}...")
+        
+        if final_answer.strip():
+            print(f"[Generic] 📝 [CoT Reasoning Debug] Final FINAL ANSWER: {final_answer[:200]}...")
+            # Yield cleaned answer word by word
+            words = final_answer.strip().split()
             for i, word in enumerate(words):
                 if i < len(words) - 1:
                     yield word + " "
                 else:
                     yield word
             yield "\n<sentence_end>\n"
-            return
         else:
-            # Answer is empty after cleaning - provide fallback
-            print(f"[Generic] ⚠️ [CoT Reasoning Debug] FINAL ANSWER is empty after End of scan fallback - providing fallback response")
-            fallback_response = "I don't understand. Could you please repeat or rephrase your question?"
-            yield "<sentence_start>\n"
-            words = fallback_response.split()
-            for i, word in enumerate(words):
-                if i < len(words) - 1:
-                    yield word + " "
-                else:
-                    yield word
-            yield "\n<sentence_end>\n"
-            return
-    
-    # Final fallback: No answer found at all - provide default response
-    if not found_final_answer or (found_final_answer and collecting_answer and len(answer_buffer) == 0):
-        print(f"[Generic] ⚠️ [CoT Reasoning Debug] No FINAL ANSWER found - providing fallback response")
-        fallback_response = "I don't understand. Could you please repeat or rephrase your question?"
-        yield "<sentence_start>\n"
-        words = fallback_response.split()
-        for i, word in enumerate(words):
-            if i < len(words) - 1:
+            # Empty answer - provide fallback
+            print(f"[Generic] ⚠️ [CoT Reasoning Debug] FINAL ANSWER is empty after cleaning - providing fallback")
+            fallback = "I don't understand. Could you please repeat or rephrase your question?"
+            for word in fallback.split():
                 yield word + " "
-            else:
-                yield word
+            yield "\n<sentence_end>\n"
+    elif not found_final_answer:
+        # No FINAL ANSWER found - provide fallback
+        print(f"[Generic] ⚠️ [CoT Reasoning Debug] No FINAL ANSWER found - providing fallback")
+        fallback = "I don't understand. Could you please repeat or rephrase your question?"
+        yield "<sentence_start>\n"
+        for word in fallback.split():
+            yield word + " "
         yield "\n<sentence_end>\n"
+    
 
 
 def filter_think_blocks(generator):
