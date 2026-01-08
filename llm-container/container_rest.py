@@ -1221,41 +1221,38 @@ JSON array only:"""
                 # No examples - LLM must use only the RAG context provided
                 few_shot_examples = ""
                 
+                # Use CoT format that matches the fine-tuned model training
+                cot_system_prompt = (
+                    "You are a precise data extraction bot.\n"
+                    "1. Start with REASONING:\n"
+                    "2. Scan the context carefully for information relevant to the query.\n"
+                    "3. For each relevant item found, write:\n"
+                    "   - Item: [What you found]\n"
+                    "   - Evidence: \"[Verbatim quote from context]\"\n"
+                    "   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n"
+                    "4. End scan with: - End of scan.\n"
+                    "5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\n"
+                    "RULES:\n"
+                    "- ONLY use information from the Knowledge context above.\n"
+                    "- Do NOT attribute information from this system prompt to the Knowledge context.\n"
+                    "- Do NOT invent, guess, or make up information.\n"
+                    "- If information is missing, say so in FINAL ANSWER.\n"
+                )
+                
                 system_content = (
                     f"{combined_context}\n\n"
-                    "You are Aura Vision, an AI agent created by Ledger AI Quantum Corporation. "
-                    "You act as a proactive AI agent guiding users to better outcomes through gentle guidance.\n\n"
-                    "CRITICAL RULES:\n"
-                    "- Only provide logical, factual responses. Avoid hallucination at all costs.\n"
-                    "- CRITICAL: Before responding, check if the query is an incomplete sentence (starts with 'and', 'but', 'or', 'so', 'then', 'also', 'make sure', 'ensure', etc.) or an instruction rather than a question. If so, ask for clarification instead of answering.\n"
-                    "- If the user's query is unclear, nonsensical, or doesn't make logical sense, DO NOT force it into a response.\n"
-                    "- Instead, politely ask the user to clarify or repeat their question. Example: 'I'm not sure I understand. Could you please rephrase your question or provide more context?'\n"
-                    "- Never invent facts, names, dates, or details that aren't in the provided context.\n"
-                    "- CRITICAL: DO NOT treat instructions or incomplete sentences as questions. If the query is an instruction or incomplete, ask for clarification rather than making up an answer.\n\n"
+                    f"{cot_system_prompt}"
                     f"{memory_warning}"
                     f"{person_instruction}"
                     f"{entity_instruction}"
-                    f"{simple_instructions}"
-                    f"{few_shot_examples}"
+                    f"{list_instruction}"
                     f"{response_length_guideline}"
                 )
                 
-                # Build user message - simplified to prevent hallucination
-                if SHOW_REASONING_DEBUG:
-                    print(f"[Generic] 🔍 DEBUG MODE ENABLED - LLM will show reasoning")
-                    user_content = (
-                        f"Show your reasoning, then provide your answer.\n\n"
-                        f"Question: {prompt}"
-                    )
-                else:
-                    user_content = (
-                        f"Answer this question BRIEFLY (2-3 sentences maximum):\n"
-                        f"- If the 'Knowledge context' sections above contain relevant information that answers the query, use that information.\n"
-                        f"- If the context does NOT contain relevant information (e.g., it's about unrelated topics or only mentions keywords without answering), use your general knowledge to provide a helpful answer.\n"
-                        f"- Provide ONLY essential information - no lengthy explanations or multiple examples.\n"
-                        f"- If more detail is needed, the user will ask.\n\n"
-                        f"Question: {prompt}"
-                    )
+                # Build user message - match training format
+                # Training format: "Knowledge context: ...\n---\nQuestion: ..."
+                # Since context is in system prompt as "Knowledge context:", user message is just the question
+                user_content = f"Question: {prompt}"
                 
             # For chatml format, separate system and user messages
             messages = [

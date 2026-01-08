@@ -997,7 +997,7 @@ class AuraGUI(QMainWindow):
         button_configs = [
             ("↑", "Upload", self._handle_upload, "#0D4D4B", "#0A3D3B", "#082B2A"),      # Deep Teal
             ("⚙", "Settings", self._handle_settings, "#333333", "#2A2A2A", "#1F1F1F"),  # Charcoal Gray
-            ("📊", "Analytics", self._handle_analytics, "#FF7E5F", "#E66D4F", "#CC5C3F"), # Sunset Orange
+            ("💳", "Analytics", self._handle_analytics, "#FF7E5F", "#E66D4F", "#CC5C3F"), # Sunset Orange
             ("🎤", "Voice", self._handle_voice, "#228B22", "#1E7A1E", "#1A691A"),        # Forest Green (active state)
             ("📱", "Mobile", self._handle_mobile, "#B57EDC", "#9D6BC4", "#8558AC"),     # Lavender
             ("ℹ", "Info", self._handle_info, "#FFD700", "#E6C200", "#CCAD00")          # Golden Yellow
