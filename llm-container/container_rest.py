@@ -2847,6 +2847,18 @@ def filter_cot_reasoning(generator):
                 reasoning_text = text_buffer[:text_buffer.find(found_marker)]
                 discarded_items = extract_discarded_items(reasoning_text)
                 
+                # DEBUG: Print reasoning section for debugging accuracy issues
+                print(f"\n{'='*80}")
+                print(f"[Generic] 🧠 [CoT Reasoning Debug] REASONING OUTPUT:")
+                print(f"{'='*80}")
+                # Clean up the reasoning text for better readability
+                clean_reasoning = reasoning_text.replace("<sentence_start>", "").replace("<sentence_end>", "").strip()
+                print(clean_reasoning)
+                print(f"{'='*80}")
+                if discarded_items:
+                    print(f"[Generic] 🚫 [CoT Reasoning Debug] Items marked DISCARD: {discarded_items}")
+                print(f"{'='*80}\n")
+                
                 # Found FINAL ANSWER - find token containing it
                 answer_token_idx = None
                 for i, tok in enumerate(token_buffer):
@@ -2864,6 +2876,9 @@ def filter_cot_reasoning(generator):
                         # Extract only the part after FINAL ANSWER
                         answer_start = idx + len(found_marker)
                         answer_text = tok_text[answer_start:].strip()
+                        
+                        # DEBUG: Log original final answer
+                        print(f"[Generic] 📝 [CoT Reasoning Debug] Original FINAL ANSWER: {answer_text[:200]}...")
                         
                         # Filter out items that were marked DISCARD
                         if discarded_items:
@@ -2886,6 +2901,7 @@ def filter_cot_reasoning(generator):
                             answer_text = re.sub(r',\s*and\s*,', ' and ', answer_text)  # Fix "and" after comma removal
                             answer_text = re.sub(r'^\s*,\s*', '', answer_text)  # Remove leading comma
                             answer_text = re.sub(r'\s*,\s*$', '', answer_text)  # Remove trailing comma
+                            print(f"[Generic] ✂️  [CoT Reasoning Debug] Filtered FINAL ANSWER (removed DISCARD items): {answer_text[:200]}...")
                         
                         # Clean up CoT markers from answer
                         answer_text = re.sub(r'REASONING:\s*', '', answer_text, flags=re.IGNORECASE)
@@ -2939,6 +2955,14 @@ def filter_cot_reasoning(generator):
     
     # Fallback if FINAL ANSWER never found but we have content
     if in_reasoning and not found_final_answer and text_buffer:
+        # DEBUG: Log that FINAL ANSWER was not found
+        print(f"\n{'='*80}")
+        print(f"[Generic] ⚠️  [CoT Reasoning Debug] WARNING: REASONING detected but FINAL ANSWER marker not found!")
+        print(f"{'='*80}")
+        clean_reasoning = text_buffer.replace("<sentence_start>", "").replace("<sentence_end>", "").strip()
+        print(clean_reasoning[:500] + "..." if len(clean_reasoning) > 500 else clean_reasoning)
+        print(f"{'='*80}\n")
+        
         # Try to extract answer from end of buffer (after "End of scan")
         if "- End of scan" in text_buffer or "End of scan" in text_buffer:
             parts = re.split(r'-?\s*End of scan\.?\s*', text_buffer, flags=re.IGNORECASE)
@@ -2951,6 +2975,7 @@ def filter_cot_reasoning(generator):
                 answer_text = re.sub(r'- Evidence:.*?(?=\n|$)', '', answer_text, flags=re.IGNORECASE | re.MULTILINE)
                 answer_text = re.sub(r'- Action:.*?(?=\n|$)', '', answer_text, flags=re.IGNORECASE | re.MULTILINE)
                 if answer_text:
+                    print(f"[Generic] 📝 [CoT Reasoning Debug] Fallback answer extracted: {answer_text[:200]}...")
                     yield answer_text
 
 
