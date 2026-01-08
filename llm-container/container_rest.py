@@ -2427,7 +2427,7 @@ def chat_tts():
                 yield f"{token}\n"
     
     return Response(
-        stream_with_context(filter_think_blocks(generate_response())),
+        stream_with_context(filter_cot_reasoning(filter_think_blocks(generate_response()))),
         mimetype="text/plain",
         headers={
             "Cache-Control": "no-cache",
@@ -2739,6 +2739,219 @@ def _sentence_tag_stream(word_stream):
     # Close any remaining sentence (including if we detected sentence-ending punctuation but stream ended)
     if sentence_open or pending_sentence_end:
         yield "<sentence_end>"
+
+
+def filter_cot_reasoning(generator):
+    """
+    Filter streaming output to buffer and skip CoT REASONING section until FINAL ANSWER is found.
+    Only yields content after FINAL ANSWER: marker.
+    Also filters out items that were marked [DISCARD] in the reasoning section.
+    Works with sentence-tagged token stream.
+    """
+    text_buffer = ""  # Accumulate text content (without tags) to find markers
+    token_buffer = []  # Buffer all tokens to preserve structure
+    in_reasoning = False
+    found_final_answer = False
+    discarded_items = set()  # Track items marked [DISCARD] to filter from final answer
+    answer_markers = ["FINAL ANSWER:", "Final Answer:"]
+    reasoning_markers = ["REASONING:", "Reasoning:"]
+    
+    def extract_text(token):
+        """Extract text content from token (removing sentence tags)"""
+        if not token:
+            return ""
+        # Remove sentence tags and newlines for marker detection
+        text = token.replace("<sentence_start>", "").replace("<sentence_end>", "").replace("\n", " ").strip()
+        return text
+    
+    def extract_discarded_items(reasoning_text):
+        """Extract names/items that were marked [DISCARD] in reasoning section"""
+        discarded = set()
+        # Pattern: - Item: [Name] ... Action: [DISCARD]
+        # Handle both single-line and multi-line formats
+        pattern = r'- Item:\s*([^\n-]+?)(?:\s*- Evidence:.*?)?\s*- Action:\s*\[DISCARD\]'
+        matches = re.findall(pattern, reasoning_text, re.IGNORECASE | re.DOTALL)
+        for match in matches:
+            # Extract the item name (first part, clean it up)
+            item_name = match.strip()
+            # Remove any trailing role/evidence info
+            item_name = re.sub(r'\s*-\s*Role:.*$', '', item_name, flags=re.IGNORECASE)
+            item_name = re.sub(r'\s*-\s*Evidence:.*$', '', item_name, flags=re.IGNORECASE)
+            item_name = item_name.strip()
+            if item_name:
+                discarded.add(item_name.lower())
+        # Also check for simpler pattern: Item: Name ... [DISCARD]
+        pattern2 = r'Item:\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*).*?\[DISCARD\]'
+        matches2 = re.findall(pattern2, reasoning_text, re.IGNORECASE)
+        for match in matches2:
+            if match.strip():
+                discarded.add(match.strip().lower())
+        return discarded
+    
+    for token in generator:
+        # Always add to buffers
+        token_buffer.append(token)
+        text_content = extract_text(token)
+        if text_content:
+            text_buffer += text_content + " "
+        
+        # Check if REASONING marker found (start buffering)
+        if not in_reasoning:
+            for m in reasoning_markers:
+                if m in text_buffer:
+                    in_reasoning = True
+                    # Find where REASONING starts in text buffer
+                    idx = text_buffer.find(m)
+                    if idx > 0:
+                        # Find which tokens correspond to text before REASONING
+                        text_pos = 0
+                        tokens_before = []
+                        for tok in token_buffer:
+                            tok_text = extract_text(tok)
+                            if tok_text:
+                                if text_pos + len(tok_text) <= idx:
+                                    tokens_before.append(tok)
+                                    text_pos += len(tok_text) + 1  # +1 for space
+                                else:
+                                    break
+                        # Yield tokens before REASONING (filler phrases)
+                        for tok in tokens_before:
+                            yield tok
+                        # Keep REASONING and after in buffer
+                        token_buffer = token_buffer[len(tokens_before):]
+                        text_buffer = text_buffer[idx:]
+                    else:
+                        # REASONING at start - clear everything
+                        token_buffer = []
+                        text_buffer = text_buffer[idx:]
+                    break
+            
+            # If we haven't found REASONING yet, pass through immediately (filler phrases)
+            if not in_reasoning:
+                yield token
+                token_buffer = []
+                text_buffer = ""
+                continue
+        
+        # We're in reasoning mode - check for FINAL ANSWER
+        if in_reasoning and not found_final_answer:
+            found_marker = None
+            for m in answer_markers:
+                if m in text_buffer:
+                    found_marker = m
+                    found_final_answer = True
+                    break
+            
+            if found_marker:
+                # First, extract discarded items from reasoning section
+                reasoning_text = text_buffer[:text_buffer.find(found_marker)]
+                discarded_items = extract_discarded_items(reasoning_text)
+                
+                # Found FINAL ANSWER - find token containing it
+                answer_token_idx = None
+                for i, tok in enumerate(token_buffer):
+                    tok_text = extract_text(tok)
+                    if tok_text and found_marker in tok_text:
+                        answer_token_idx = i
+                        break
+                
+                if answer_token_idx is not None:
+                    # Extract answer from token containing FINAL ANSWER
+                    answer_token = token_buffer[answer_token_idx]
+                    tok_text = extract_text(answer_token)
+                    idx = tok_text.find(found_marker)
+                    if idx >= 0:
+                        # Extract only the part after FINAL ANSWER
+                        answer_start = idx + len(found_marker)
+                        answer_text = tok_text[answer_start:].strip()
+                        
+                        # Filter out items that were marked DISCARD
+                        if discarded_items:
+                            # Remove names/items that were discarded from answer
+                            for discarded_name in discarded_items:
+                                # Create pattern to match the discarded name (case-insensitive, word boundaries)
+                                # Handle multi-word names
+                                name_parts = discarded_name.split()
+                                if len(name_parts) > 1:
+                                    # Multi-word name: "will specht"
+                                    pattern = r'\b' + r'\s+'.join([re.escape(part) for part in name_parts]) + r'\b'
+                                else:
+                                    # Single word name
+                                    pattern = r'\b' + re.escape(discarded_name) + r'\b'
+                                # Remove the name and any trailing commas/and/or
+                                answer_text = re.sub(pattern, '', answer_text, flags=re.IGNORECASE)
+                            # Clean up extra spaces and commas
+                            answer_text = re.sub(r'\s+', ' ', answer_text)
+                            answer_text = re.sub(r',\s*,', ',', answer_text)  # Remove double commas
+                            answer_text = re.sub(r',\s*and\s*,', ' and ', answer_text)  # Fix "and" after comma removal
+                            answer_text = re.sub(r'^\s*,\s*', '', answer_text)  # Remove leading comma
+                            answer_text = re.sub(r'\s*,\s*$', '', answer_text)  # Remove trailing comma
+                        
+                        # Clean up CoT markers from answer
+                        answer_text = re.sub(r'REASONING:\s*', '', answer_text, flags=re.IGNORECASE)
+                        answer_text = re.sub(r'- End of scan\.?\s*', '', answer_text, flags=re.IGNORECASE)
+                        answer_text = re.sub(r'\[(KEEP|DISCARD|Action)\]\s*', '', answer_text, flags=re.IGNORECASE)
+                        answer_text = re.sub(r'- Item:.*?(?=\n|$)', '', answer_text, flags=re.IGNORECASE | re.MULTILINE)
+                        answer_text = re.sub(r'- Evidence:.*?(?=\n|$)', '', answer_text, flags=re.IGNORECASE | re.MULTILINE)
+                        answer_text = re.sub(r'- Action:.*?(?=\n|$)', '', answer_text, flags=re.IGNORECASE | re.MULTILINE)
+                        
+                        # Preserve sentence tag structure from original token
+                        if "<sentence_start>" in answer_token:
+                            # Ensure answer has sentence tags
+                            if not answer_text.strip().startswith("<sentence_start>"):
+                                answer_text = "<sentence_start>\n" + answer_text.lstrip()
+                            if "<sentence_end>" not in answer_text and "\n<sentence_end>" not in answer_text:
+                                answer_text = answer_text.rstrip() + "\n<sentence_end>\n"
+                        
+                        # Yield cleaned answer
+                        if answer_text.strip():
+                            yield answer_text
+                        
+                        # Yield remaining tokens after FINAL ANSWER
+                        for remaining_token in token_buffer[answer_token_idx + 1:]:
+                            # Clean CoT markers from remaining tokens
+                            cleaned = remaining_token
+                            if cleaned and not (cleaned.startswith('<') and cleaned.endswith('>')):
+                                cleaned_text = extract_text(cleaned)
+                                cleaned_text = re.sub(r'REASONING:\s*', '', cleaned_text, flags=re.IGNORECASE)
+                                cleaned_text = re.sub(r'- End of scan\.?\s*', '', cleaned_text, flags=re.IGNORECASE)
+                                cleaned_text = re.sub(r'\[(KEEP|DISCARD|Action)\]\s*', '', cleaned_text, flags=re.IGNORECASE)
+                                cleaned_text = re.sub(r'- Item:.*?(?=\n|$)', '', cleaned_text, flags=re.IGNORECASE | re.MULTILINE)
+                                cleaned_text = re.sub(r'- Evidence:.*?(?=\n|$)', '', cleaned_text, flags=re.IGNORECASE | re.MULTILINE)
+                                cleaned_text = re.sub(r'- Action:.*?(?=\n|$)', '', cleaned_text, flags=re.IGNORECASE | re.MULTILINE)
+                                # Reconstruct token with cleaned text
+                                if "<sentence_start>" in cleaned:
+                                    cleaned = "<sentence_start>\n" + cleaned_text + "\n<sentence_end>\n"
+                                else:
+                                    cleaned = cleaned_text
+                            yield cleaned
+                    
+                    token_buffer = []
+                    text_buffer = ""
+                continue
+            
+            # Still in reasoning, keep buffering (don't yield)
+            continue
+        
+        # After FINAL ANSWER found, yield normally
+        if found_final_answer:
+            yield token
+    
+    # Fallback if FINAL ANSWER never found but we have content
+    if in_reasoning and not found_final_answer and text_buffer:
+        # Try to extract answer from end of buffer (after "End of scan")
+        if "- End of scan" in text_buffer or "End of scan" in text_buffer:
+            parts = re.split(r'-?\s*End of scan\.?\s*', text_buffer, flags=re.IGNORECASE)
+            if len(parts) > 1:
+                answer_text = parts[-1].strip()
+                # Clean up CoT markers
+                answer_text = re.sub(r'REASONING:\s*', '', answer_text, flags=re.IGNORECASE)
+                answer_text = re.sub(r'\[(KEEP|DISCARD|Action)\]\s*', '', answer_text, flags=re.IGNORECASE)
+                answer_text = re.sub(r'- Item:.*?(?=\n|$)', '', answer_text, flags=re.IGNORECASE | re.MULTILINE)
+                answer_text = re.sub(r'- Evidence:.*?(?=\n|$)', '', answer_text, flags=re.IGNORECASE | re.MULTILINE)
+                answer_text = re.sub(r'- Action:.*?(?=\n|$)', '', answer_text, flags=re.IGNORECASE | re.MULTILINE)
+                if answer_text:
+                    yield answer_text
 
 
 def filter_think_blocks(generator):
