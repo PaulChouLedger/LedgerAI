@@ -1952,14 +1952,17 @@ Ask only one question about {field}."""
             
             valid_duration_phrases = [
                 'days', 'day', 'hours', 'hour', 'weeks', 'week', 'months', 'month',  # time units
-                'minutes', 'minute', 'since', 'for',  # duration markers
+                'minutes', 'minute', 'since', 'for', 'last',  # duration markers
             ]
             # Check if answer contains duration indicators
             if any(phrase in answer_lower for phrase in valid_duration_phrases):
                 return True, None
-            # Also accept if it starts with a number followed by time unit (e.g., "2 days", "3 hours")
+            # Also accept if it starts with a number followed by time unit (e.g., "2 days", "3 hours", "last 10 minutes")
             import re
             if re.match(r'^\d+\s+(day|days|hour|hours|week|weeks|month|months|minute|minutes)', answer_lower):
+                return True, None
+            # Also accept "last X minutes/hours/days" pattern
+            if re.match(r'^last\s+\d+\s+(day|days|hour|hours|week|weeks|month|months|minute|minutes)', answer_lower):
                 return True, None
         
         # For location field, accept common body location phrases immediately
