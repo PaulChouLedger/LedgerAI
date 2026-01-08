@@ -1273,7 +1273,7 @@ JSON array only:"""
                 # No examples - LLM must use only the RAG context provided
                 few_shot_examples = ""
                 
-                # Use CoT format that matches the fine-tuned model training
+                # Use CoT format that matches the fine-tuned model training (EXACT match with test script)
                 cot_system_prompt = (
                     "You are a precise data extraction bot.\n"
                     "1. Start with REASONING:\n"
@@ -1284,27 +1284,21 @@ JSON array only:"""
                     "   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n"
                     "4. End scan with: - End of scan.\n"
                     "5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\n"
-                    "RULES:\n"
-                    "- ONLY use information from the Knowledge context above.\n"
-                    "- Do NOT attribute information from this system prompt to the Knowledge context.\n"
-                    "- Do NOT invent, guess, or make up information.\n"
-                    "- If information is missing, say so in FINAL ANSWER.\n"
+                    "CRITICAL RULES:\n"
+                    "- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n"
+                    "- FINAL ANSWER must ONLY include items marked [KEEP].\n"
+                    "- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n"
+                    "- Read entire descriptions/chunks completely - titles may appear later in the text.\n"
                 )
                 
-                system_content = (
-                    f"{combined_context}\n\n"
-                    f"{cot_system_prompt}"
-                    f"{memory_warning}"
-                    f"{person_instruction}"
-                    f"{entity_instruction}"
-                    f"{list_instruction}"
-                    f"{response_length_guideline}"
-                )
+                # Build system and user messages - match training format EXACTLY
+                # Training format:
+                #   System: CoT prompt with CRITICAL RULES
+                #   User: "Knowledge context: ...\n---\nQuestion: ..."
+                system_content = cot_system_prompt
                 
-                # Build user message - match training format
-                # Training format: "Knowledge context: ...\n---\nQuestion: ..."
-                # Since context is in system prompt as "Knowledge context:", user message is just the question
-                user_content = f"Question: {prompt}"
+                # User message matches training format exactly
+                user_content = f"Knowledge context: {combined_context}\n---\nQuestion: {prompt}"
                 
             # For chatml format, separate system and user messages
             messages = [
@@ -1328,8 +1322,9 @@ JSON array only:"""
             # Don't wrap the iterator - let base_container's debug_iterator handle logging
             # The base class already wraps it with debug logging
             # Use higher token limit for list questions to ensure all items are included
+            # Use lower temperature (0.05) for RAG queries to match test script and ensure accuracy
             max_tokens_limit = MAX_TOKENS_RAG_MODE_LIST if is_list_request else MAX_TOKENS_RAG_MODE
-            return llm_chat_simple(messages, max_tokens=max_tokens_limit, stream=stream)
+            return llm_chat_simple(messages, max_tokens=max_tokens_limit, temperature=0.05, stream=stream)
         else:
             # No RAG context, use standard prompt with Aura Vision identity
             # Check if memory RAG was attempted but found no useful information
