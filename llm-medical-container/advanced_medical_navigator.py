@@ -690,7 +690,29 @@ class AdvancedMedicalNavigator:
                         },
                     )
             
-            # Store answer (not a confused response)
+            # Validate that the answer is appropriate for the question being asked
+            is_appropriate, validation_message = self._validate_hpi_answer_appropriateness(session, field, text, pending['prompt'])
+            if not is_appropriate:
+                self._capture_debug(f"[HPI] ⚠️ Answer not appropriate for question: '{text}' for field '{field}'")
+                # Don't store inappropriate answers - ask for clarification
+                if field in session.context['hpi']:
+                    del session.context['hpi'][field]  # Remove if it was incorrectly stored
+                
+                # Provide clarification message
+                clarification_msg = validation_message or pending['prompt']
+                session.pending = pending  # Keep the pending state
+                session.messages.append({"role": "assistant", "content": clarification_msg})
+                return self._wrap_response(
+                    session,
+                    clarification_msg,
+                    metadata={
+                        'section': pending['section'],
+                        'field': pending['field'],
+                        'validation_error': True,
+                    },
+                )
+            
+            # Store answer (not a confused response and appropriate for the question)
             session.context['hpi'][field] = text
             self._capture_debug(f"[HPI] ✅ Stored answer for {field}: {text}")
             
@@ -1859,6 +1881,146 @@ Ask only one question about {field}."""
             return True
         
         return False
+    
+    def _validate_hpi_answer_appropriateness(self, session: "MedicalSession", field: str, answer: str, question: str) -> Tuple[bool, Optional[str]]:
+        """
+        Validate that the answer is appropriate for the OLD CARTS field being asked.
+        Returns: (is_appropriate, clarification_message_if_needed)
+        """
+        if not self.llm_chat_fn:
+            # Fallback: basic heuristic check
+            return self._heuristic_answer_validation(session, field, answer)
+        
+        # Use LLM to validate answer appropriateness
+        # Get context of what's already been answered
+        answered_fields = {}
+        for key, value in session.context['hpi'].items():
+            if value and value.strip():
+                answered_fields[key] = value
+        
+        # Build validation prompt
+        validation_prompt = f"""You are a medical assistant validating patient answers.
+
+Question asked: "{question}"
+Field type: {field}
+Patient's answer: "{answer}"
+
+Previous answers provided:
+{chr(10).join([f"- {k}: {v}" for k, v in answered_fields.items()])}
+
+Determine if the patient's answer is appropriate for this question. The answer should:
+- Directly answer what was asked (e.g., "what makes it worse?" should get activities/factors that worsen symptoms, NOT the symptom description itself)
+- Not be a duplicate of an answer already given for a different field
+- Make logical sense for the question type
+
+Examples of inappropriate answers:
+- Answering "pressure" to "what makes it worse?" when "pressure" was already given as the character (what it feels like)
+- Answering a location to a question about aggravating factors
+- Answering the character description to a question about location
+
+Return ONLY valid JSON: {{"appropriate": true/false, "reason": "brief reason"}}
+If not appropriate, also suggest what type of answer would be expected."""
+        
+        try:
+            response = self.llm_chat_fn(
+                [
+                    {"role": "system", "content": "You are a medical assistant. Return only valid JSON. No explanations outside JSON."},
+                    {"role": "user", "content": validation_prompt}
+                ],
+                max_tokens=150,
+                temperature=0.0,
+            )
+            
+            # Parse JSON response
+            cleaned = response.strip()
+            # Remove markdown code blocks if present
+            if cleaned.startswith('```'):
+                first_newline = cleaned.find('\n')
+                if first_newline != -1:
+                    cleaned = cleaned[first_newline+1:]
+                    if cleaned.endswith('```'):
+                        cleaned = cleaned[:-3].strip()
+            
+            # Extract JSON
+            start_idx = cleaned.find('{')
+            if start_idx != -1:
+                brace_count = 0
+                end_idx = start_idx
+                for i in range(start_idx, len(cleaned)):
+                    if cleaned[i] == '{':
+                        brace_count += 1
+                    elif cleaned[i] == '}':
+                        brace_count -= 1
+                        if brace_count == 0:
+                            end_idx = i + 1
+                            break
+                if end_idx > start_idx:
+                    cleaned = cleaned[start_idx:end_idx]
+            
+            import json
+            validation_result = json.loads(cleaned)
+            is_appropriate = validation_result.get("appropriate", True)
+            
+            if not is_appropriate:
+                reason = validation_result.get("reason", "This doesn't seem to answer the question asked.")
+                # Generate clarification message
+                clarification = self._generate_validation_clarification(field, question, answer, reason)
+                self._capture_debug(f"[Validation] ❌ Answer '{answer}' not appropriate for {field}: {reason}")
+                return False, clarification
+            
+            return True, None
+            
+        except Exception as e:
+            self._capture_debug(f"[Validation] ⚠️ LLM validation failed, using heuristic: {e}")
+            # Fallback to heuristic
+            return self._heuristic_answer_validation(session, field, answer)
+    
+    def _heuristic_answer_validation(self, session: "MedicalSession", field: str, answer: str) -> Tuple[bool, Optional[str]]:
+        """Heuristic-based validation as fallback when LLM validation fails."""
+        answer_lower = answer.lower().strip()
+        
+        # Check if answer matches what was already given for another field
+        for other_field, other_value in session.context['hpi'].items():
+            if other_field != field and other_value and other_value.strip():
+                other_lower = other_value.lower().strip()
+                # If answer is very similar to a previous answer, it's likely inappropriate
+                if answer_lower == other_lower and len(answer_lower) > 3:
+                    # Check if fields are different types
+                    if (field in ['character'] and other_field in ['aggravating', 'relieving']) or \
+                       (field in ['aggravating', 'relieving'] and other_field in ['character']):
+                        # Generate clarification based on field
+                        clarification = self._generate_validation_clarification(field, "", answer, "This seems like a repeat of a previous answer.")
+                        return False, clarification  # Likely repeating answer for wrong field
+                    if (field in ['location'] and other_field not in ['location', 'radiation']) or \
+                       (field not in ['location', 'radiation'] and other_field == 'location'):
+                        if answer_lower in other_lower or other_lower in answer_lower:
+                            clarification = self._generate_validation_clarification(field, "", answer, "This doesn't seem to match the question type.")
+                            return False, clarification  # Location answer used for non-location question
+        
+        return True, None
+    
+    def _generate_validation_clarification(self, field: str, question: str, answer: str, reason: str) -> str:
+        """Generate a clarification message when answer is inappropriate."""
+        # Create field-specific clarification prompts
+        field_clarifications = {
+            'aggravating': "I need to know what makes your symptoms worse. For example: activities like walking or exercising, positions like lying down, eating certain foods, etc. What makes it worse?",
+            'relieving': "I need to know what makes your symptoms better. For example: resting, sitting up, taking medication, applying heat or ice, etc. What makes it better?",
+            'location': "I need to know where exactly the symptom is located on your body. For example: 'center of chest', 'upper right abdomen', 'left arm', etc. Where exactly is it located?",
+            'character': "I need to know what the symptom feels like. For example: sharp, dull, pressure, burning, stabbing, aching, etc. What does it feel like?",
+            'radiation': "I need to know if the symptom spreads or radiates to other areas. For example: 'radiates to left arm', 'spreads to jaw', 'goes down my leg', etc. Does it spread or radiate anywhere?",
+            'onset': "I need to know when the symptom started. For example: '2 days ago', 'this morning', 'last week', etc. When did it start?",
+            'duration': "I need to know how long the symptom lasts. For example: 'constant', 'comes and goes', 'lasts 10 minutes', etc. How long does it last?",
+            'timing': "I need to know if the symptom is constant or intermittent. For example: 'constant', 'comes and goes', 'only at night', etc. Is it constant or does it come and go?",
+            'severity': "I need a number on a scale from 1 to 10, where 1 is very mild and 10 is the worst possible. How severe is it?",
+            'associated': "I need to know about any other symptoms you're experiencing. What other symptoms are you having?",
+        }
+        
+        # Use field-specific clarification if available
+        if field in field_clarifications:
+            return field_clarifications[field]
+        
+        # Generic clarification
+        return f"I'm asking about {field}. {reason} Could you please provide a different answer? {question}"
 
     # ----------- Debug helpers ----------------------------------------------
 
