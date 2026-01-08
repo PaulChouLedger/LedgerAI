@@ -2870,7 +2870,12 @@ def filter_cot_reasoning(generator):
         
         if not found_final_answer:
             # Still looking for FINAL ANSWER - buffer everything
-            text_buffer += text_content + " " if text_content else ""
+            # Add token text directly (don't add extra space, tokens might already have spacing)
+            if text_content:
+                text_buffer += text_content
+                # Add space only if token doesn't end with punctuation or space
+                if not text_content.rstrip().endswith(('.', ',', '!', '?', ':', ';', ' ', '\n')):
+                    text_buffer += " "
             
             # Track reasoning section
             if "REASONING:" in text_buffer or "Reasoning:" in text_buffer:
@@ -2879,10 +2884,28 @@ def filter_cot_reasoning(generator):
                 elif "Reasoning:" in text_buffer:
                     reasoning_buffer = "Reasoning:" + text_buffer.split("Reasoning:")[-1]
             
-            # Check for FINAL ANSWER marker
-            if "FINAL ANSWER:" in text_buffer or "Final Answer:" in text_buffer:
+            # Check for FINAL ANSWER marker (handle case where it might be split across tokens)
+            # Also check for variations
+            marker_found = False
+            marker = None
+            if "FINAL ANSWER:" in text_buffer:
+                marker_found = True
+                marker = "FINAL ANSWER:"
+            elif "Final Answer:" in text_buffer:
+                marker_found = True
+                marker = "Final Answer:"
+            elif "FINAL ANSWER" in text_buffer and ":" in text_buffer:
+                # Handle case where colon might be in next token
+                final_pos = text_buffer.find("FINAL ANSWER")
+                if final_pos != -1 and final_pos + len("FINAL ANSWER") < len(text_buffer):
+                    # Check if colon is nearby
+                    remaining = text_buffer[final_pos + len("FINAL ANSWER"):]
+                    if ":" in remaining[:5]:  # Colon within 5 chars
+                        marker_found = True
+                        marker = "FINAL ANSWER:"
+            
+            if marker_found:
                 found_final_answer = True
-                marker = "FINAL ANSWER:" if "FINAL ANSWER:" in text_buffer else "Final Answer:"
                 
                 # Extract reasoning section to find DISCARD items
                 if reasoning_buffer:
@@ -2978,7 +3001,64 @@ def filter_cot_reasoning(generator):
                 yield word + " "
             yield "\n<sentence_end>\n"
     elif not found_final_answer:
-        # No FINAL ANSWER found - provide fallback
+        # No FINAL ANSWER found - debug what we actually received
+        print(f"\n{'='*80}")
+        print(f"[Generic] ⚠️ [CoT Reasoning Debug] No FINAL ANSWER found in model output")
+        print(f"{'='*80}")
+        print(f"[Generic] 📝 Full text buffer (first 2000 chars): {text_buffer[:2000]}")
+        print(f"{'='*80}")
+        print(f"[Generic] 🔍 Checking for markers:")
+        print(f"  - 'FINAL ANSWER:' in buffer: {'FINAL ANSWER:' in text_buffer}")
+        print(f"  - 'Final Answer:' in buffer: {'Final Answer:' in text_buffer}")
+        print(f"  - 'FINAL' in buffer: {'FINAL' in text_buffer}")
+        print(f"  - 'ANSWER' in buffer: {'ANSWER' in text_buffer}")
+        if "REASONING:" in text_buffer or "Reasoning:" in text_buffer:
+            print(f"  - REASONING found: YES")
+            reasoning_snippet = text_buffer.split("REASONING:")[-1] if "REASONING:" in text_buffer else text_buffer.split("Reasoning:")[-1]
+            print(f"  - After REASONING (first 500 chars): {reasoning_snippet[:500]}")
+        else:
+            print(f"  - REASONING found: NO")
+        print(f"{'='*80}\n")
+        
+        # Try fallback extraction (like test script)
+        temp_response = text_buffer.strip()
+        if temp_response.startswith('t'):
+            temp_response = temp_response[1:].strip()
+        
+        clean_response = ""
+        if "FINAL ANSWER:" in temp_response:
+            clean_response = temp_response.split("FINAL ANSWER:")[-1].strip()
+            print(f"[Generic] ✅ Found FINAL ANSWER: using fallback extraction")
+        elif "Final Answer:" in temp_response:
+            clean_response = temp_response.split("Final Answer:")[-1].strip()
+            print(f"[Generic] ✅ Found Final Answer: using fallback extraction")
+        elif "- End of scan." in temp_response:
+            clean_response = temp_response.split("- End of scan.")[-1].strip()
+            print(f"[Generic] ✅ Found End of scan: using fallback extraction")
+        else:
+            # Last resort: try to extract from reasoning
+            blocks = temp_response.split('\n\n')
+            if len(blocks) > 1:
+                clean_response = blocks[-1].strip()
+                print(f"[Generic] ⚠️ Using last block as fallback: {clean_response[:200]}")
+        
+        if clean_response.strip():
+            # Clean up the extracted response
+            clean_response = re.sub(r'\[(KEEP|DISCARD|Action|Result)\]', '', clean_response, flags=re.IGNORECASE)
+            clean_response = re.sub(r'(?m)^- .*$', '', clean_response).strip()
+            if clean_response.strip():
+                print(f"[Generic] 📝 [CoT Reasoning Debug] Extracted answer via fallback: {clean_response[:200]}...")
+                yield "<sentence_start>\n"
+                words = clean_response.strip().split()
+                for i, word in enumerate(words):
+                    if i < len(words) - 1:
+                        yield word + " "
+                    else:
+                        yield word
+                yield "\n<sentence_end>\n"
+                return
+        
+        # Final fallback
         print(f"[Generic] ⚠️ [CoT Reasoning Debug] No FINAL ANSWER found - providing fallback")
         fallback = "I don't understand. Could you please repeat or rephrase your question?"
         yield "<sentence_start>\n"
