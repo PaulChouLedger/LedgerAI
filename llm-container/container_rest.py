@@ -93,9 +93,9 @@ SENTENCE_ENDINGS = ('.', '!', '?')
 
 # === Response Generation Config ===
 MAX_TOKENS_RAG_MODE = 250  # Max tokens when using RAG context (enforces concise 2-3 sentence answers)
-MAX_TOKENS_RAG_MODE_LIST = 300  # Max tokens for list questions (limited to top 3 items)
+MAX_TOKENS_RAG_MODE_LIST = 800  # Increased for CoT reasoning + final answer (reasoning ~400-500 tokens, answer ~100-200 tokens)
 MAX_TOKENS_DIRECT_MODE = 600  # Max tokens for direct conversation (allows longer responses including lists)
-MAX_TOKENS_DIRECT_MODE_LIST = 300  # Max tokens for list questions in direct mode (limited to top 3 items)
+MAX_TOKENS_DIRECT_MODE_LIST = 800  # Increased for CoT reasoning + final answer
 
 # === Debug Mode: Show LLM Reasoning ===
 # Set SHOW_REASONING_DEBUG=true to make LLM show its reasoning step-by-step in the output (visible chain-of-thought)
@@ -2832,6 +2832,9 @@ def filter_cot_reasoning(generator):
     Works with sentence-tagged token stream.
     Extraction logic matches test_rag_cot_model_colab.py exactly.
     STREAMS tokens incrementally for low TTS latency (doesn't wait for full response).
+    
+    IMPORTANT: Only applies CoT filtering if REASONING: is detected. Otherwise, passes through
+    the response directly (for conversational queries that don't use CoT).
     """
     text_buffer = ""  # Accumulate text for marker detection
     reasoning_buffer = ""  # Buffer reasoning section to extract DISCARD items
@@ -2839,6 +2842,8 @@ def filter_cot_reasoning(generator):
     discarded_items = set()
     answer_buffer = []  # Buffer answer tokens for cleaning
     collecting_answer = False
+    is_cot_response = False  # Track if this is a CoT response (has REASONING:)
+    cot_detected = False  # Track if we've detected CoT format
     
     def extract_text(token):
         """Extract text content from token (removing sentence tags)"""
@@ -2864,10 +2869,71 @@ def filter_cot_reasoning(generator):
                 discarded.add(item_name.lower())
         return discarded
     
-    # Stream tokens incrementally - buffer until FINAL ANSWER found, then stream answer
+    def extract_kept_items(reasoning_text):
+        """Extract names/items that were marked [KEEP] in reasoning section"""
+        kept_items = []
+        # Pattern: Item: [Name] ... Action: [KEEP]
+        pattern = r'- Item:\s*([^\n-]+?)(?:\s*-\s*Evidence:.*?)?\s*-\s*Action:\s*\[KEEP\]'
+        matches = re.findall(pattern, reasoning_text, re.IGNORECASE | re.DOTALL)
+        for match in matches:
+            item_name = match.strip()
+            # Remove any trailing role/evidence info
+            item_name = re.sub(r'\s*-\s*Role:.*$', '', item_name, flags=re.IGNORECASE)
+            item_name = re.sub(r'\s*-\s*Evidence:.*$', '', item_name, flags=re.IGNORECASE)
+            item_name = item_name.strip()
+            if item_name:
+                kept_items.append(item_name)
+        return kept_items
+    
+    # Buffer tokens to detect if this is a CoT response
+    token_buffer_list = []  # Store tokens to replay if not CoT
+    detection_buffer = ""  # Text for CoT detection
+    
+    # First pass: detect CoT by buffering initial tokens
+    for token in generator:
+        token_buffer_list.append(token)
+        text_content = extract_text(token)
+        
+        if text_content:
+            detection_buffer += text_content
+            if not text_content.rstrip().endswith(('.', ',', '!', '?', ':', ';', ' ', '\n')):
+                detection_buffer += " "
+        
+        # Check for CoT markers
+        if "REASONING:" in detection_buffer or "Reasoning:" in detection_buffer:
+            is_cot_response = True
+            cot_detected = True
+            print(f"[Generic] 🔍 [CoT Filter] CoT response detected - applying reasoning filter")
+            # Use buffered tokens for CoT processing
+            text_buffer = detection_buffer
+            break
+        elif len(detection_buffer) > 300:
+            # After 300 chars with no CoT markers, assume non-CoT
+            if not any(marker in detection_buffer for marker in ["REASONING:", "Reasoning:", "FINAL ANSWER:", "Final Answer:", "- Item:", "- Evidence:", "- Action:"]):
+                is_cot_response = False
+                cot_detected = True
+                print(f"[Generic] 🔍 [CoT Filter] Non-CoT response detected - passing through directly")
+                # Yield all buffered tokens and continue passing through
+                for buffered_token in token_buffer_list:
+                    yield buffered_token
+                # Pass through remaining tokens
+                for remaining_token in generator:
+                    yield remaining_token
+                return  # Exit early for non-CoT responses
+    
+    # If we get here and CoT was detected, process CoT response
+    if not is_cot_response:
+        # Shouldn't happen, but safety check
+        for token in token_buffer_list:
+            yield token
+        return
+    
+    # CoT response detected - continue processing with remaining tokens
+    # text_buffer already has initial content
     for token in generator:
         text_content = extract_text(token)
         
+        # CoT response - apply filtering logic
         if not found_final_answer:
             # Still looking for FINAL ANSWER - buffer everything
             # Add token text directly (don't add extra space, tokens might already have spacing)
@@ -3036,11 +3102,32 @@ def filter_cot_reasoning(generator):
             clean_response = temp_response.split("- End of scan.")[-1].strip()
             print(f"[Generic] ✅ Found End of scan: using fallback extraction")
         else:
-            # Last resort: try to extract from reasoning
-            blocks = temp_response.split('\n\n')
-            if len(blocks) > 1:
-                clean_response = blocks[-1].strip()
-                print(f"[Generic] ⚠️ Using last block as fallback: {clean_response[:200]}")
+            # Last resort: extract KEEP items from reasoning and construct answer
+            if reasoning_buffer or ("REASONING:" in temp_response or "Reasoning:" in temp_response):
+                reasoning_text = reasoning_buffer if reasoning_buffer else temp_response
+                if "REASONING:" in reasoning_text:
+                    reasoning_text = "REASONING:" + reasoning_text.split("REASONING:")[-1]
+                elif "Reasoning:" in reasoning_text:
+                    reasoning_text = "Reasoning:" + reasoning_text.split("Reasoning:")[-1]
+                
+                kept_items = extract_kept_items(reasoning_text)
+                if kept_items:
+                    # Construct natural answer from kept items
+                    if len(kept_items) == 1:
+                        clean_response = kept_items[0]
+                    elif len(kept_items) == 2:
+                        clean_response = f"{kept_items[0]} and {kept_items[1]}"
+                    else:
+                        # Multiple items: "X, Y, and Z"
+                        items_str = ", ".join(kept_items[:-1]) + f", and {kept_items[-1]}"
+                        clean_response = items_str
+                    print(f"[Generic] ✅ Constructed answer from KEEP items: {clean_response[:200]}...")
+                else:
+                    # Try last block as fallback
+                    blocks = temp_response.split('\n\n')
+                    if len(blocks) > 1:
+                        clean_response = blocks[-1].strip()
+                        print(f"[Generic] ⚠️ Using last block as fallback: {clean_response[:200]}")
         
         if clean_response.strip():
             # Clean up the extracted response
