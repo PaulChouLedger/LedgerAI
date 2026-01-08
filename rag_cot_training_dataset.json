@@ -1,0 +1,1042 @@
+[
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: Fiona Blanco is the Co-Founder of Vertex0. Alice Vance serves as the Lead Counsel.\n---\nQuestion: Who are the co-founders of Vertex0?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: Fiona Blanco\n  - Role: Co-Founder of Vertex0 of Vertex0\n  - Action: [KEEP]\n- End of scan.\n\nFINAL ANSWER:\nThe co-founder of Vertex0 is Fiona Blanco."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: Diana Marsh is the Co-Founder of ApexSolutions1. Hannah Anika serves as the CTO.\n---\nQuestion: Who are the co-founders of ApexSolutions1?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: Diana Marsh\n  - Role: Co-Founder of ApexSolutions1 of ApexSolutions1\n  - Action: [KEEP]\n- End of scan.\n\nFINAL ANSWER:\nThe co-founder of ApexSolutions1 is Diana Marsh."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: Diana Marsh is the Co-Founder of NeoFlow2. Bob Sloan serves as the Advisor.\n---\nQuestion: Who are the co-founders of NeoFlow2?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: Diana Marsh\n  - Role: Co-Founder of NeoFlow2 of NeoFlow2\n  - Action: [KEEP]\n- End of scan.\n\nFINAL ANSWER:\nThe co-founder of NeoFlow2 is Diana Marsh."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: Alice Vance is the Co-Founder of Vertex3. Bob Sloan serves as the CTO.\n---\nQuestion: Who are the co-founders of Vertex3?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: Alice Vance\n  - Role: Co-Founder of Vertex3 of Vertex3\n  - Action: [KEEP]\n- End of scan.\n\nFINAL ANSWER:\nThe co-founder of Vertex3 is Alice Vance."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: Alice Vance is the Co-Founder of NeoFlow4. Charlie Quinn serves as the CEO.\n---\nQuestion: Who are the co-founders of NeoFlow4?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: Alice Vance\n  - Role: Co-Founder of NeoFlow4 of NeoFlow4\n  - Action: [KEEP]\n- End of scan.\n\nFINAL ANSWER:\nThe co-founder of NeoFlow4 is Alice Vance."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: George Silas is the Co-Founder of Vertex5. Alice Vance serves as the Manager.\n---\nQuestion: Who are the co-founders of Vertex5?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: George Silas\n  - Role: Co-Founder of Vertex5 of Vertex5\n  - Action: [KEEP]\n- End of scan.\n\nFINAL ANSWER:\nThe co-founder of Vertex5 is George Silas."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: Fiona Blanco is the Co-Founder of BioGen6. Bob Sloan serves as the Lead Counsel.\n---\nQuestion: Who are the co-founders of BioGen6?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: Fiona Blanco\n  - Role: Co-Founder of BioGen6 of BioGen6\n  - Action: [KEEP]\n- End of scan.\n\nFINAL ANSWER:\nThe co-founder of BioGen6 is Fiona Blanco."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: Bob Sloan is the Co-Founder of NeoFlow7. Edward Yorke serves as the COO.\n---\nQuestion: Who are the co-founders of NeoFlow7?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: Bob Sloan\n  - Role: Co-Founder of NeoFlow7 of NeoFlow7\n  - Action: [KEEP]\n- End of scan.\n\nFINAL ANSWER:\nThe co-founder of NeoFlow7 is Bob Sloan."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: Diana Marsh is the Co-Founder of Vertex8. Hannah Anika serves as the COO.\n---\nQuestion: Who are the co-founders of Vertex8?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: Diana Marsh\n  - Role: Co-Founder of Vertex8 of Vertex8\n  - Action: [KEEP]\n- End of scan.\n\nFINAL ANSWER:\nThe co-founder of Vertex8 is Diana Marsh."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: Fiona Blanco is the Co-Founder of Solaris9. Hannah Anika serves as the CEO.\n---\nQuestion: Who are the co-founders of Solaris9?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: Fiona Blanco\n  - Role: Co-Founder of Solaris9 of Solaris9\n  - Action: [KEEP]\n- End of scan.\n\nFINAL ANSWER:\nThe co-founder of Solaris9 is Fiona Blanco."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: Hannah Anika is the Co-Founder of Vertex10. Edward Yorke serves as the CFO.\n---\nQuestion: Who are the co-founders of Vertex10?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: Hannah Anika\n  - Role: Co-Founder of Vertex10 of Vertex10\n  - Action: [KEEP]\n- End of scan.\n\nFINAL ANSWER:\nThe co-founder of Vertex10 is Hannah Anika."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: Charlie Quinn is the Co-Founder of Vertex11. George Silas serves as the CEO.\n---\nQuestion: Who are the co-founders of Vertex11?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: Charlie Quinn\n  - Role: Co-Founder of Vertex11 of Vertex11\n  - Action: [KEEP]\n- End of scan.\n\nFINAL ANSWER:\nThe co-founder of Vertex11 is Charlie Quinn."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: Fiona Blanco is the Co-Founder of ApexSolutions12. George Silas serves as the Manager.\n---\nQuestion: Who are the co-founders of ApexSolutions12?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: Fiona Blanco\n  - Role: Co-Founder of ApexSolutions12 of ApexSolutions12\n  - Action: [KEEP]\n- End of scan.\n\nFINAL ANSWER:\nThe co-founder of ApexSolutions12 is Fiona Blanco."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: Bob Sloan is the Co-Founder of NeoFlow13. Edward Yorke serves as the COO.\n---\nQuestion: Who are the co-founders of NeoFlow13?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: Bob Sloan\n  - Role: Co-Founder of NeoFlow13 of NeoFlow13\n  - Action: [KEEP]\n- End of scan.\n\nFINAL ANSWER:\nThe co-founder of NeoFlow13 is Bob Sloan."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: Hannah Anika is the Co-Founder of Solaris14. Bob Sloan serves as the Lead Counsel.\n---\nQuestion: Who are the co-founders of Solaris14?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: Hannah Anika\n  - Role: Co-Founder of Solaris14 of Solaris14\n  - Action: [KEEP]\n- End of scan.\n\nFINAL ANSWER:\nThe co-founder of Solaris14 is Hannah Anika."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: Hannah Anika is the Co-Founder of BioGen15. Diana Marsh serves as the Advisor.\n---\nQuestion: Who are the co-founders of BioGen15?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: Hannah Anika\n  - Role: Co-Founder of BioGen15 of BioGen15\n  - Action: [KEEP]\n- End of scan.\n\nFINAL ANSWER:\nThe co-founder of BioGen15 is Hannah Anika."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: Bob Sloan is the Co-Founder of ApexSolutions16. Fiona Blanco serves as the Head of Engineering.\n---\nQuestion: Who are the co-founders of ApexSolutions16?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: Bob Sloan\n  - Role: Co-Founder of ApexSolutions16 of ApexSolutions16\n  - Action: [KEEP]\n- End of scan.\n\nFINAL ANSWER:\nThe co-founder of ApexSolutions16 is Bob Sloan."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: Fiona Blanco is the Co-Founder of NeoFlow17. Diana Marsh serves as the CFO.\n---\nQuestion: Who are the co-founders of NeoFlow17?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: Fiona Blanco\n  - Role: Co-Founder of NeoFlow17 of NeoFlow17\n  - Action: [KEEP]\n- End of scan.\n\nFINAL ANSWER:\nThe co-founder of NeoFlow17 is Fiona Blanco."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: Bob Sloan is the Co-Founder of QuantumLink18. George Silas serves as the CEO.\n---\nQuestion: Who are the co-founders of QuantumLink18?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: Bob Sloan\n  - Role: Co-Founder of QuantumLink18 of QuantumLink18\n  - Action: [KEEP]\n- End of scan.\n\nFINAL ANSWER:\nThe co-founder of QuantumLink18 is Bob Sloan."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: Bob Sloan is the Co-Founder of Solaris19. Hannah Anika serves as the CFO.\n---\nQuestion: Who are the co-founders of Solaris19?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: Bob Sloan\n  - Role: Co-Founder of Solaris19 of Solaris19\n  - Action: [KEEP]\n- End of scan.\n\nFINAL ANSWER:\nThe co-founder of Solaris19 is Bob Sloan."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: George Silas is the Lead Counsel at EmptyCorp0.\n---\nQuestion: Who are the co-founders of EmptyCorp0?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Scanned all chunks for co-founders of EmptyCorp0.\n- No items with \"Co-Founder of EmptyCorp0\" found in context.\n- End of scan.\n\nFINAL ANSWER:\nNo co-founders of EmptyCorp0 are mentioned in the context."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: Hannah Anika is the CFO at EmptyCorp1.\n---\nQuestion: Who are the co-founders of EmptyCorp1?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Scanned all chunks for co-founders of EmptyCorp1.\n- No items with \"Co-Founder of EmptyCorp1\" found in context.\n- End of scan.\n\nFINAL ANSWER:\nNo co-founders of EmptyCorp1 are mentioned in the context."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: Fiona Blanco is the CFO at EmptyCorp2.\n---\nQuestion: Who are the co-founders of EmptyCorp2?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Scanned all chunks for co-founders of EmptyCorp2.\n- No items with \"Co-Founder of EmptyCorp2\" found in context.\n- End of scan.\n\nFINAL ANSWER:\nNo co-founders of EmptyCorp2 are mentioned in the context."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: Edward Yorke is the CEO at EmptyCorp3.\n---\nQuestion: Who are the co-founders of EmptyCorp3?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Scanned all chunks for co-founders of EmptyCorp3.\n- No items with \"Co-Founder of EmptyCorp3\" found in context.\n- End of scan.\n\nFINAL ANSWER:\nNo co-founders of EmptyCorp3 are mentioned in the context."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: Hannah Anika is the Advisor at EmptyCorp4.\n---\nQuestion: Who are the co-founders of EmptyCorp4?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Scanned all chunks for co-founders of EmptyCorp4.\n- No items with \"Co-Founder of EmptyCorp4\" found in context.\n- End of scan.\n\nFINAL ANSWER:\nNo co-founders of EmptyCorp4 are mentioned in the context."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: Sarah Jenkins founded Zenith. Paul Chou is NOT in this document.\n---\nQuestion: Who is the co-founder of Zenith?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Scanned all chunks for co-founders of Zenith.\n- No items with \"Co-Founder of Zenith\" found in context.\n- End of scan.\n\nFINAL ANSWER:\nNo co-founders of Zenith are mentioned in the context."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: Mark Zuckerberg is the Founder of Facebook. He is visiting LedgerAI today to meet with their CEO.\n---\nQuestion: Who are the co-founders of LedgerAI?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: Mark Zuckerberg\n- Evidence: \"Mark Zuckerberg is the Founder of Facebook\"\n- Action: [DISCARD] (Reason: Founder of Facebook, not LedgerAI).\n- End of scan.\nFINAL ANSWER:\nNo co-founders of LedgerAI are mentioned in the context."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: Chunk 1: Silas Sloan is an advisor. Chunk 2: Yolanda Yorke is the Co-Founder and CTO. Chunk 3: Quentin Quinn is the Co-Founder and CEO.\n---\nQuestion: Who are the co-founders?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: Silas Sloan\n- Evidence: \"Silas Sloan is an advisor\"\n- Action: [DISCARD] (Reason: Advisor, not co-founder).\n- Item: Yolanda Yorke\n- Evidence: \"Yolanda Yorke is the Co-Founder and CTO\"\n- Action: [KEEP]\n- Item: Quentin Quinn\n- Evidence: \"Quentin Quinn is the Co-Founder and CEO\"\n- Action: [KEEP]\n- End of scan.\nFINAL ANSWER:\nThe co-founders are Yolanda Yorke and Quentin Quinn."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: Sarah Miller is a world-class engineer. As Co-Founder of StellarCore Inc, she led major projects. She joined TitanAI in 2021 as Head of Engineering.\n---\nQuestion: Who are the co-founders of TitanAI?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: Sarah Miller\n- Evidence: \"As Co-Founder of StellarCore Inc\"\n- Action: [DISCARD] (Reason: Co-founder of StellarCore Inc, not TitanAI).\n- End of scan.\nFINAL ANSWER:\nNo co-founders of TitanAI are mentioned in the context."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: Chunk 1: Victor Stone is the CEO and Co-Founder of CyberTech. Chunk 2: Martha Wayne is the CFO of CyberTech. Chunk 3: Silas Stone is the Co-Founder and CTO of CyberTech.\n---\nQuestion: Who are the co-founders of CyberTech?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: Victor Stone\n- Evidence: \"CEO and Co-Founder of CyberTech\"\n- Action: [KEEP]\n- Item: Martha Wayne\n- Evidence: \"CFO of CyberTech\"\n- Action: [DISCARD] (Reason: CFO, not co-founder).\n- Item: Silas Stone\n- Evidence: \"Co-Founder and CTO of CyberTech\"\n- Action: [KEEP]\n- End of scan.\nFINAL ANSWER:\nThe co-founders of CyberTech are Victor Stone and Silas Stone."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: Robert Queen is a renowned philanthropist. As Co-Founder of Star City Tech, he revolutionized local energy. He provides critical advisory to LedgerAI.\n---\nQuestion: Who are the co-founders of LedgerAI?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: Robert Queen\n- Evidence: \"As Co-Founder of Star City Tech\"\n- Action: [DISCARD] (Reason: Co-founder of Star City Tech, not LedgerAI).\n- End of scan.\nFINAL ANSWER:\nNo co-founders of LedgerAI are mentioned in the context."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: LedgerAI was founded in 2015. Paul Chou is the CEO and Co-Founder of LedgerAI. Bob Carella is the CFO and Co-Founder of LedgerAI. David Lara is the COO and Co-Founder of LedgerAI. Jorge Guinovart is the CMO and Co-Founder of LedgerAI.\n---\nQuestion: Who are the co-founders of LedgerAI?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: Paul Chou\n- Evidence: \"CEO and Co-Founder of LedgerAI\"\n- Action: [KEEP]\n- Item: Bob Carella\n- Evidence: \"CFO and Co-Founder of LedgerAI\"\n- Action: [KEEP]\n- Item: David Lara\n- Evidence: \"COO and Co-Founder of LedgerAI\"\n- Action: [KEEP]\n- Item: Jorge Guinovart\n- Evidence: \"CMO and Co-Founder of LedgerAI\"\n- Action: [KEEP]\n- End of scan.\nFINAL ANSWER:\nThe co-founders of LedgerAI are Paul Chou, Bob Carella, David Lara, and Jorge Guinovart."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: Albert Soler is a top-tier legal strategist. As Co-Founder of Soler Salva LLP, he provides legal advice. Will Specht leads LedgerAI's engineering efforts as Head of Engineering.\n---\nQuestion: Who are the co-founders of LedgerAI?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: Albert Soler\n- Evidence: \"As Co-Founder of Soler Salva LLP\"\n- Action: [DISCARD] (Reason: Co-founder of Soler Salva LLP, not LedgerAI).\n- Item: Will Specht\n- Evidence: \"leads LedgerAI's engineering efforts as Head of Engineering\"\n- Action: [DISCARD] (Reason: Head of Engineering, not co-founder).\n- End of scan.\nFINAL ANSWER:\nNo co-founders of LedgerAI are mentioned in the context."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: Paul Chou is the CEO and Co-Founder of LedgerAI. He graduated from MIT. ... Bob Carella is the CFO and Co-Founder. ... David Lara is the COO and Co-Founder. ... Jorge Guinovart is the CMO and Co-Founder.\n---\nQuestion: Who are the co-founders of LedgerAI?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: Paul Chou | Role: \"CEO and Co-Founder of LedgerAI\" | Action: [KEEP]\n- Item: Bob Carella | Role: \"CFO and Co-Founder\" | Action: [KEEP]\n- Item: David Lara | Role: \"COO and Co-Founder\" | Action: [KEEP]\n- Item: Jorge Guinovart | Role: \"CMO and Co-Founder\" | Action: [KEEP]\n- End of scan.\nFINAL ANSWER:\nThe co-founders of LedgerAI are Paul Chou, Bob Carella, David Lara, and Jorge Guinovart."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: Emily Davis is the Head of Marketing at TechCorp. She is responsible for brand strategy.\n---\nQuestion: Who are the co-founders of TechCorp?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: Emily Davis | Role: \"Head of Marketing at TechCorp\" | Action: [DISCARD] (Reason: Head of Marketing, not Co-Founder).\n- End of scan.\nFINAL ANSWER:\nNo co-founders of TechCorp are mentioned in the context."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: AURA VISION SOLUTIONS 20 Paul Chou is the CEO and Co-Founder of LedgerAI. ... AURA VISION SOLUTIONS 21 Albert Soler is the Legal Advisor and Co-Founder of Soler Salva LLP. ...\n---\nQuestion: Who are the co-founders of LedgerAI?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: Paul Chou\n- Role: CEO and Co-Founder of LedgerAI\n- Action: [KEEP]\n- Item: Albert Soler\n- Role: Legal Advisor and Co-Founder of Soler Salva LLP\n- Action: [DISCARD] (Reason: Co-founder of Soler Salva LLP, not LedgerAI).\n- End of scan.\nFINAL ANSWER:\nThe co-founder of LedgerAI is Paul Chou."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: AURA VISION SOLUTIONS 21 Paul Chou is the CEO and Co-Founder of LedgerAI. ... AURA VISION SOLUTIONS 22 Albert Soler is the Legal Advisor and Co-Founder of Soler Salva LLP. ...\n---\nQuestion: Who are the co-founders of LedgerAI?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: Paul Chou\n- Role: CEO and Co-Founder of LedgerAI\n- Action: [KEEP]\n- Item: Albert Soler\n- Role: Legal Advisor and Co-Founder of Soler Salva LLP\n- Action: [DISCARD] (Reason: Co-founder of Soler Salva LLP, not LedgerAI).\n- End of scan.\nFINAL ANSWER:\nThe co-founder of LedgerAI is Paul Chou."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: AURA VISION SOLUTIONS 22 Paul Chou is the CEO and Co-Founder of LedgerAI. ... AURA VISION SOLUTIONS 23 Albert Soler is the Legal Advisor and Co-Founder of Soler Salva LLP. ...\n---\nQuestion: Who are the co-founders of LedgerAI?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: Paul Chou\n- Role: CEO and Co-Founder of LedgerAI\n- Action: [KEEP]\n- Item: Albert Soler\n- Role: Legal Advisor and Co-Founder of Soler Salva LLP\n- Action: [DISCARD] (Reason: Co-founder of Soler Salva LLP, not LedgerAI).\n- End of scan.\nFINAL ANSWER:\nThe co-founder of LedgerAI is Paul Chou."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: AURA VISION SOLUTIONS 23 Paul Chou is the CEO and Co-Founder of LedgerAI. ... AURA VISION SOLUTIONS 24 Albert Soler is the Legal Advisor and Co-Founder of Soler Salva LLP. ...\n---\nQuestion: Who are the co-founders of LedgerAI?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: Paul Chou\n- Role: CEO and Co-Founder of LedgerAI\n- Action: [KEEP]\n- Item: Albert Soler\n- Role: Legal Advisor and Co-Founder of Soler Salva LLP\n- Action: [DISCARD] (Reason: Co-founder of Soler Salva LLP, not LedgerAI).\n- End of scan.\nFINAL ANSWER:\nThe co-founder of LedgerAI is Paul Chou."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: AURA VISION SOLUTIONS 24 Paul Chou is the CEO and Co-Founder of LedgerAI. ... AURA VISION SOLUTIONS 25 Albert Soler is the Legal Advisor and Co-Founder of Soler Salva LLP. ...\n---\nQuestion: Who are the co-founders of LedgerAI?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: Paul Chou\n- Role: CEO and Co-Founder of LedgerAI\n- Action: [KEEP]\n- Item: Albert Soler\n- Role: Legal Advisor and Co-Founder of Soler Salva LLP\n- Action: [DISCARD] (Reason: Co-founder of Soler Salva LLP, not LedgerAI).\n- End of scan.\nFINAL ANSWER:\nThe co-founder of LedgerAI is Paul Chou."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: Albert Soler is a legal strategist. As Co-Founder of Soler Salva LLP, he provides legal services. Peter Moeller serves as Business Development Lead at LedgerAI.\n---\nDavid Lara is a strategic powerhouse. As Co-Founder and Chief Operating Officer of LedgerAI, he leads operations. Jorge Guinovart is a visionary leader. As Co-Founder and Chief Marketing Officer of LedgerAI, he drives marketing.\n---\nPaul Chou is a renowned leader. As CEO and Co-Founder of LedgerAI, he drives development. Bob Carella is a driving force. As Co-Founder and Chief Financial Officer of LedgerAI, he architects financial strategy.\n---\nQuestion: Who are the co-founders of LedgerAI?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: Albert Soler\n- Role: As Co-Founder of Soler Salva LLP\n- Action: [DISCARD] (Reason: Co-founder of Soler Salva LLP, not LedgerAI).\n- Item: Peter Moeller\n- Role: serves as Business Development Lead at LedgerAI\n- Action: [DISCARD] (Reason: Business Development Lead, not Co-Founder).\n- Item: David Lara\n- Role: As Co-Founder and Chief Operating Officer of LedgerAI\n- Action: [KEEP]\n- Item: Jorge Guinovart\n- Role: As Co-Founder and Chief Marketing Officer of LedgerAI\n- Action: [KEEP]\n- Item: Paul Chou\n- Role: As CEO and Co-Founder of LedgerAI\n- Action: [KEEP]\n- Item: Bob Carella\n- Role: As Co-Founder and Chief Financial Officer of LedgerAI\n- Action: [KEEP]\n- End of scan.\nFINAL ANSWER:\nThe co-founders of LedgerAI are David Lara, Jorge Guinovart, Paul Chou, and Bob Carella."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: Chunk 1: Sarah Miller is the Head of Engineering at TechFlow. She previously worked at Google. Mark Johnson serves as an advisor.\n---\nChunk 2: Alex Chen is the Co-Founder and CTO of TechFlow. He graduated from Stanford. Lisa Wang is the Co-Founder and CFO of TechFlow.\n---\nChunk 3: Tom Brown is the CEO and Co-Founder of TechFlow. He has 20 years of experience.\n---\nQuestion: Who are the co-founders of TechFlow?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: Sarah Miller\n- Role: Head of Engineering at TechFlow\n- Action: [DISCARD] (Reason: Head of Engineering, not Co-Founder).\n- Item: Mark Johnson\n- Role: serves as an advisor\n- Action: [DISCARD]\n- Item: Alex Chen\n- Role: Co-Founder and CTO of TechFlow\n- Action: [KEEP]\n- Item: Lisa Wang\n- Role: Co-Founder and CFO of TechFlow\n- Action: [KEEP]\n- Item: Tom Brown\n- Role: CEO and Co-Founder of TechFlow\n- Action: [KEEP]\n- End of scan.\nFINAL ANSWER:\nThe co-founders of TechFlow are Alex Chen, Lisa Wang, and Tom Brown."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: AURA VISION SOLUTIONS 24 John Doe is the Head of Sales at DataCorp. He manages the sales team.\n---\nAURA VISION SOLUTIONS 23 Jane Smith is the Co-Founder and CEO of DataCorp. She leads the company. Mike Johnson is the Co-Founder and CTO of DataCorp.\n---\nAURA VISION SOLUTIONS 22 Robert Lee is the Co-Founder and COO of DataCorp. He handles operations.\n---\nQuestion: Who are the co-founders of DataCorp?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: John Doe\n- Role: Head of Sales at DataCorp\n- Action: [DISCARD] (Reason: Head of Sales, not Co-Founder).\n- Item: Jane Smith\n- Role: Co-Founder and CEO of DataCorp\n- Action: [KEEP]\n- Item: Mike Johnson\n- Role: Co-Founder and CTO of DataCorp\n- Action: [KEEP]\n- Item: Robert Lee\n- Role: Co-Founder and COO of DataCorp\n- Action: [KEEP]\n- End of scan.\nFINAL ANSWER:\nThe co-founders of DataCorp are Jane Smith, Mike Johnson, and Robert Lee."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: Albert Soler is a top-tier legal strategist. As Co-Founder of Soler Salva LLP, he provides legal advice to LedgerAI.\n---\nDavid Lara is a strategic powerhouse. As Co-Founder and Chief Operating Officer of LedgerAI, he leads operations.\n---\nPaul Chou is a renowned leader. As CEO and Co-Founder of LedgerAI, he drives development.\n---\nQuestion: Who are the co-founders of LedgerAI?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: Albert Soler\n- Role: As Co-Founder of Soler Salva LLP\n- Action: [DISCARD] (Reason: Co-founder of Soler Salva LLP, not LedgerAI).\n- Item: David Lara\n- Role: As Co-Founder and Chief Operating Officer of LedgerAI\n- Action: [KEEP]\n- Item: Paul Chou\n- Role: As CEO and Co-Founder of LedgerAI\n- Action: [KEEP]\n- End of scan.\nFINAL ANSWER:\nThe co-founders of LedgerAI are David Lara and Paul Chou."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: Bob Carella is a driving force in finance. As Co-Founder and Chief Financial Officer of LedgerAI, he architects financial strategy. Jorge Guinovart is a visionary leader. As Co-Founder and Chief Marketing Officer of LedgerAI, he drives marketing.\n---\nQuestion: Who are the co-founders of LedgerAI?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: Bob Carella\n- Role: As Co-Founder and Chief Financial Officer of LedgerAI\n- Action: [KEEP]\n- Item: Jorge Guinovart\n- Role: As Co-Founder and Chief Marketing Officer of LedgerAI\n- Action: [KEEP]\n- End of scan.\nFINAL ANSWER:\nThe co-founders of LedgerAI are Bob Carella and Jorge Guinovart."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: TechCorp was founded in 2015 in San Francisco. The company moved to New York in 2020. The headquarters is now located at 123 Tech Street, New York, NY.\n---\nQuestion: Where is TechCorp's headquarters located?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: Headquarters location\n- Evidence: \"The headquarters is now located at 123 Tech Street, New York, NY\"\n- Action: [KEEP]\n- End of scan.\nFINAL ANSWER:\nTechCorp's headquarters is located at 123 Tech Street, New York, NY."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: Sarah Johnson is the Chief Technology Officer at DataFlow. She has been with the company since 2018. Mark Williams is the Head of Engineering. He joined in 2020.\n---\nQuestion: Who is the CTO of DataFlow?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: Sarah Johnson\n- Evidence: \"Sarah Johnson is the Chief Technology Officer at DataFlow\"\n- Action: [KEEP]\n- Item: Mark Williams\n- Evidence: \"Mark Williams is the Head of Engineering\"\n- Action: [DISCARD] (Reason: Head of Engineering, not CTO).\n- End of scan.\nFINAL ANSWER:\nThe CTO of DataFlow is Sarah Johnson."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: The product launch event is scheduled for March 15, 2024. The conference will be held in Las Vegas. Registration opens on February 1, 2024.\n---\nQuestion: When is the product launch event?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: March 15, 2024\n- Evidence: \"The product launch event is scheduled for March 15, 2024\"\n- Action: [KEEP]\n- Item: February 1, 2024\n- Evidence: \"Registration opens on February 1, 2024\"\n- Action: [DISCARD] (Reason: Registration date, not launch date).\n- End of scan.\nFINAL ANSWER:\nThe product launch event is scheduled for March 15, 2024."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: CloudScale offers three main products: CloudScale Compute, CloudScale Storage, and CloudScale Analytics. The company also provides consulting services.\n---\nQuestion: What products does CloudScale offer?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: CloudScale Compute\n- Evidence: \"CloudScale Compute\"\n- Action: [KEEP]\n- Item: CloudScale Storage\n- Evidence: \"CloudScale Storage\"\n- Action: [KEEP]\n- Item: CloudScale Analytics\n- Evidence: \"CloudScale Analytics\"\n- Action: [KEEP]\n- Item: Consulting services\n- Evidence: \"The company also provides consulting services\"\n- Action: [DISCARD] (Reason: Service, not a product).\n- End of scan.\nFINAL ANSWER:\nCloudScale offers three products: CloudScale Compute, CloudScale Storage, and CloudScale Analytics."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: The company was established in 2010. The current CEO is John Smith, who joined in 2015. The company has 250 employees across 5 offices.\n---\nQuestion: When was the company established?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: 2010\n- Evidence: \"The company was established in 2010\"\n- Action: [KEEP]\n- Item: 2015\n- Evidence: \"who joined in 2015\"\n- Action: [DISCARD] (Reason: CEO join date, not establishment date).\n- End of scan.\nFINAL ANSWER:\nThe company was established in 2010."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: The engineering team consists of 50 developers. The marketing team has 20 members. The sales team includes 30 people. Total employees: 100.\n---\nQuestion: How many employees are in the engineering team?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: 50 developers\n- Evidence: \"The engineering team consists of 50 developers\"\n- Action: [KEEP]\n- Item: 20 members\n- Evidence: \"The marketing team has 20 members\"\n- Action: [DISCARD] (Reason: Marketing team, not engineering).\n- Item: 30 people\n- Evidence: \"The sales team includes 30 people\"\n- Action: [DISCARD] (Reason: Sales team, not engineering).\n- Item: 100\n- Evidence: \"Total employees: 100\"\n- Action: [DISCARD] (Reason: Total employees, not engineering team).\n- End of scan.\nFINAL ANSWER:\nThe engineering team has 50 developers."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: The company's mission is to democratize AI technology. Their vision is to make AI accessible to everyone. The core values include innovation, transparency, and customer focus.\n---\nQuestion: What is the company's mission?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: Mission statement\n- Evidence: \"The company's mission is to democratize AI technology\"\n- Action: [KEEP]\n- Item: Vision statement\n- Evidence: \"Their vision is to make AI accessible to everyone\"\n- Action: [DISCARD] (Reason: Vision, not mission).\n- Item: Core values\n- Evidence: \"The core values include innovation, transparency, and customer focus\"\n- Action: [DISCARD] (Reason: Values, not mission).\n- End of scan.\nFINAL ANSWER:\nThe company's mission is to democratize AI technology."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: The annual revenue for 2023 was $50 million. The company raised $10 million in Series A funding in 2022. Operating expenses totaled $35 million in 2023.\n---\nQuestion: What was the company's revenue in 2023?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: $50 million\n- Evidence: \"The annual revenue for 2023 was $50 million\"\n- Action: [KEEP]\n- Item: $10 million\n- Evidence: \"The company raised $10 million in Series A funding in 2022\"\n- Action: [DISCARD] (Reason: Funding amount from 2022, not 2023 revenue).\n- Item: $35 million\n- Evidence: \"Operating expenses totaled $35 million in 2023\"\n- Action: [DISCARD] (Reason: Expenses, not revenue).\n- End of scan.\nFINAL ANSWER:\nThe company's revenue in 2023 was $50 million."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: The company supports Python, JavaScript, and Go programming languages. The API is available in REST and GraphQL formats. Documentation is available in English, Spanish, and French.\n---\nQuestion: Which programming languages does the company support?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: Python\n- Evidence: \"The company supports Python, JavaScript, and Go programming languages\"\n- Action: [KEEP]\n- Item: JavaScript\n- Evidence: \"The company supports Python, JavaScript, and Go programming languages\"\n- Action: [KEEP]\n- Item: Go\n- Evidence: \"The company supports Python, JavaScript, and Go programming languages\"\n- Action: [KEEP]\n- Item: REST and GraphQL\n- Evidence: \"The API is available in REST and GraphQL formats\"\n- Action: [DISCARD] (Reason: API formats, not programming languages).\n- Item: English, Spanish, French\n- Evidence: \"Documentation is available in English, Spanish, and French\"\n- Action: [DISCARD] (Reason: Documentation languages, not programming languages).\n- End of scan.\nFINAL ANSWER:\nThe company supports Python, JavaScript, and Go programming languages."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: The security team is led by Maria Garcia. The compliance officer is Robert Kim. The data protection officer is Susan Chen.\n---\nQuestion: Who leads the security team?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: Maria Garcia\n- Evidence: \"The security team is led by Maria Garcia\"\n- Action: [KEEP]\n- Item: Robert Kim\n- Evidence: \"The compliance officer is Robert Kim\"\n- Action: [DISCARD] (Reason: Compliance officer, not security team leader).\n- Item: Susan Chen\n- Evidence: \"The data protection officer is Susan Chen\"\n- Action: [DISCARD] (Reason: Data protection officer, not security team leader).\n- End of scan.\nFINAL ANSWER:\nThe security team is led by Maria Garcia."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: The company has offices in San Francisco, New York, London, and Tokyo. The San Francisco office is the headquarters. The New York office opened in 2019.\n---\nQuestion: Where are the company's offices located?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: San Francisco\n- Evidence: \"The company has offices in San Francisco, New York, London, and Tokyo\"\n- Action: [KEEP]\n- Item: New York\n- Evidence: \"The company has offices in San Francisco, New York, London, and Tokyo\"\n- Action: [KEEP]\n- Item: London\n- Evidence: \"The company has offices in San Francisco, New York, London, and Tokyo\"\n- Action: [KEEP]\n- Item: Tokyo\n- Evidence: \"The company has offices in San Francisco, New York, London, and Tokyo\"\n- Action: [KEEP]\n- End of scan.\nFINAL ANSWER:\nThe company has offices in San Francisco, New York, London, and Tokyo."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: Albert Soler is a legal strategist. As Co-Founder of Soler Salva LLP, he provides legal services. Peter Moeller serves as Business Development Lead at LedgerAI.\n---\nDavid Lara is a strategic powerhouse. As Co-Founder and Chief Operating Officer of LedgerAI, he leads operations. Jorge Guinovart is a visionary leader. As Co-Founder and Chief Marketing Officer of LedgerAI, he drives marketing.\n---\nPaul Chou is a renowned leader. As CEO and Co-Founder of LedgerAI, he drives development. Bob Carella is a driving force. As Co-Founder and Chief Financial Officer of LedgerAI, he architects financial strategy.\n---\nQuestion: Who are the co-founders of LedgerAI?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: Albert Soler\n- Evidence: \"As Co-Founder of Soler Salva LLP\"\n- Action: [DISCARD] (Reason: Co-founder of Soler Salva LLP, not LedgerAI).\n- Item: Peter Moeller\n- Evidence: \"serves as Business Development Lead at LedgerAI\"\n- Action: [DISCARD] (Reason: Business Development Lead, not co-founder).\n- Item: David Lara\n- Evidence: \"As Co-Founder and Chief Operating Officer of LedgerAI\"\n- Action: [KEEP]\n- Item: Jorge Guinovart\n- Evidence: \"As Co-Founder and Chief Marketing Officer of LedgerAI\"\n- Action: [KEEP]\n- Item: Paul Chou\n- Evidence: \"As CEO and Co-Founder of LedgerAI\"\n- Action: [KEEP]\n- Item: Bob Carella\n- Evidence: \"As Co-Founder and Chief Financial Officer of LedgerAI\"\n- Action: [KEEP]\n- End of scan.\nFINAL ANSWER:\nThe co-founders of LedgerAI are David Lara, Jorge Guinovart, Paul Chou, and Bob Carella."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: Liam Hugill is a master of influence and engagement. He serves as LedgerAI's Ambassador of Influence and Engagement. He ensures the community remains informed and engaged.\n---\nDavid Lara is a strategic powerhouse. As Co-Founder and Chief Operating Officer of LedgerAI, he leads operations.\n---\nQuestion: Who are the co-founders of LedgerAI?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: Liam Hugill\n- Evidence: \"He serves as LedgerAI's Ambassador of Influence and Engagement\"\n- Action: [DISCARD] (Reason: Ambassador, not co-founder).\n- Item: David Lara\n- Evidence: \"As Co-Founder and Chief Operating Officer of LedgerAI\"\n- Action: [KEEP]\n- End of scan.\nFINAL ANSWER:\nThe co-founder of LedgerAI is David Lara."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: Albert Soler is a top-tier legal strategist. He brings expertise in litigation and business law to LedgerAI as External Counsel & Advisor. As Co-Founder of Soler Salva LLP, he has led high-profile cases.\n---\nPaul Chou is a renowned leader. As CEO and Co-Founder of LedgerAI, he drives development.\n---\nQuestion: Who are the co-founders of LedgerAI?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: Albert Soler\n- Evidence: \"He brings expertise in litigation and business law to LedgerAI as External Counsel & Advisor\"\n- Action: [DISCARD] (Reason: External Counsel, not co-founder of LedgerAI).\n- Item: Paul Chou\n- Evidence: \"As CEO and Co-Founder of LedgerAI\"\n- Action: [KEEP]\n- End of scan.\nFINAL ANSWER:\nThe co-founder of LedgerAI is Paul Chou."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: Acme Corporation was established in 2010 by a group of entrepreneurs. The company was founded by Paul Chou and three other founding members. James Wilson serves as Chief Executive Officer of Acme Corporation. Maria Garcia is the Chief Technology Officer.\n---\nQuestion: Who are the co-founders of Acme Corporation?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: Paul Chou\n- Evidence: \"The company was founded by Paul Chou and three other founding members\"\n- Action: [DISCARD] (Reason: 'Founded by' does not mean 'co-founder'. The context says 'founded by' but does not explicitly state anyone as 'Co-Founder of Acme Corporation').\n- Item: James Wilson\n- Evidence: \"serves as Chief Executive Officer of Acme Corporation\"\n- Action: [DISCARD] (Reason: CEO, not co-founder).\n- Item: Maria Garcia\n- Evidence: \"is the Chief Technology Officer\"\n- Action: [DISCARD] (Reason: CTO, not co-founder).\n- End of scan.\nFINAL ANSWER:\nNo co-founders of Acme Corporation are explicitly mentioned in the context."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: Paul Chou is a renowned leader. As CEO and Co-Founder of LedgerAI, he drives development. Bob Carella is a driving force. As Co-Founder and Chief Financial Officer of LedgerAI, he architects financial strategy. David Lara is a strategic powerhouse. As Co-Founder and Chief Operating Officer of LedgerAI, he leads operations. Jorge Guinovart is a visionary leader. As Co-Founder and Chief Marketing Officer of LedgerAI, he drives marketing.\n---\nQuestion: Who are the co-founders of LedgerAI?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: Paul Chou\n- Evidence: \"As CEO and Co-Founder of LedgerAI\"\n- Action: [KEEP]\n- Item: Bob Carella\n- Evidence: \"As Co-Founder and Chief Financial Officer of LedgerAI\"\n- Action: [KEEP]\n- Item: David Lara\n- Evidence: \"As Co-Founder and Chief Operating Officer of LedgerAI\"\n- Action: [KEEP]\n- Item: Jorge Guinovart\n- Evidence: \"As Co-Founder and Chief Marketing Officer of LedgerAI\"\n- Action: [KEEP]\n- End of scan.\nFINAL ANSWER:\nThe co-founders of LedgerAI are Paul Chou, Bob Carella, David Lara, and Jorge Guinovart."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: CloudScale offers three main products: CloudScale Compute, CloudScale Storage, and CloudScale Analytics. The company also provides consulting services and technical support.\n---\nQuestion: What products does CloudScale offer?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: CloudScale Compute\n- Evidence: \"CloudScale Compute\"\n- Action: [KEEP]\n- Item: CloudScale Storage\n- Evidence: \"CloudScale Storage\"\n- Action: [KEEP]\n- Item: CloudScale Analytics\n- Evidence: \"CloudScale Analytics\"\n- Action: [KEEP]\n- Item: Consulting services\n- Evidence: \"The company also provides consulting services\"\n- Action: [DISCARD] (Reason: Service, not a product).\n- Item: Technical support\n- Evidence: \"technical support\"\n- Action: [DISCARD] (Reason: Service, not a product).\n- End of scan.\nFINAL ANSWER:\nCloudScale offers three products: CloudScale Compute, CloudScale Storage, and CloudScale Analytics."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: TechCorp has offices in San Francisco, New York, London, and Tokyo. The company also has a research facility in Boston.\n---\nQuestion: Where are TechCorp's office locations?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: San Francisco\n- Evidence: \"TechCorp has offices in San Francisco, New York, London, and Tokyo\"\n- Action: [KEEP]\n- Item: New York\n- Evidence: \"TechCorp has offices in San Francisco, New York, London, and Tokyo\"\n- Action: [KEEP]\n- Item: London\n- Evidence: \"TechCorp has offices in San Francisco, New York, London, and Tokyo\"\n- Action: [KEEP]\n- Item: Tokyo\n- Evidence: \"TechCorp has offices in San Francisco, New York, London, and Tokyo\"\n- Action: [KEEP]\n- Item: Boston\n- Evidence: \"The company also has a research facility in Boston\"\n- Action: [DISCARD] (Reason: Research facility, not office location).\n- End of scan.\nFINAL ANSWER:\nTechCorp has offices in San Francisco, New York, London, and Tokyo."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: Albert Soler is a legal strategist. He serves as External Counsel & Advisor at LedgerAI. As Co-Founder of Soler Salva LLP, he provides legal services.\n---\nPeter Moeller is a dynamic leader. He serves as Business Development Lead at LedgerAI. He has over a decade of experience.\n---\nDavid Lara is a strategic powerhouse. As Co-Founder and Chief Operating Officer of LedgerAI, he leads operations. He is also the CEO of Petra Capital.\n---\nJorge Guinovart is a visionary leader. As Co-Founder and Chief Marketing Officer of LedgerAI, he drives marketing. He is also the Founder of AlphaCityAI.\n---\nPaul Chou is a renowned leader. As CEO and Co-Founder of LedgerAI, he drives development. He graduated from MIT.\n---\nBob Carella is a driving force. As Co-Founder and Chief Financial Officer of LedgerAI, he architects financial strategy. He is also the Founder of BobFi.\n---\nQuestion: Who are the co-founders of LedgerAI?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: Albert Soler\n- Evidence: \"He serves as External Counsel & Advisor at LedgerAI\"\n- Action: [DISCARD] (Reason: External Counsel, not co-founder of LedgerAI).\n- Item: Peter Moeller\n- Evidence: \"He serves as Business Development Lead at LedgerAI\"\n- Action: [DISCARD] (Reason: Business Development Lead, not co-founder).\n- Item: David Lara\n- Evidence: \"As Co-Founder and Chief Operating Officer of LedgerAI\"\n- Action: [KEEP]\n- Item: Jorge Guinovart\n- Evidence: \"As Co-Founder and Chief Marketing Officer of LedgerAI\"\n- Action: [KEEP]\n- Item: Paul Chou\n- Evidence: \"As CEO and Co-Founder of LedgerAI\"\n- Action: [KEEP]\n- Item: Bob Carella\n- Evidence: \"As Co-Founder and Chief Financial Officer of LedgerAI\"\n- Action: [KEEP]\n- End of scan.\nFINAL ANSWER:\nThe co-founders of LedgerAI are David Lara, Jorge Guinovart, Paul Chou, and Bob Carella."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: Chunk 1: Will Specht is a technological architect. He leads LedgerAI's engineering efforts as Head of Engineering. He has over 20 years of experience.\n---\nChunk 2: Liam Hugill is a master of influence. He serves as LedgerAI's Ambassador of Influence and Engagement. He ensures the community remains informed.\n---\nChunk 3: David Lara is a strategic powerhouse. As Co-Founder and Chief Operating Officer of LedgerAI, he leads operations.\n---\nChunk 4: Jorge Guinovart is a visionary leader. As Co-Founder and Chief Marketing Officer of LedgerAI, he drives marketing.\n---\nChunk 5: Paul Chou is a renowned leader. As CEO and Co-Founder of LedgerAI, he drives development.\n---\nChunk 6: Bob Carella is a driving force. As Co-Founder and Chief Financial Officer of LedgerAI, he architects financial strategy.\n---\nQuestion: Who are the co-founders of LedgerAI?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: Will Specht\n- Evidence: \"He leads LedgerAI's engineering efforts as Head of Engineering\"\n- Action: [DISCARD] (Reason: Head of Engineering, not co-founder).\n- Item: Liam Hugill\n- Evidence: \"He serves as LedgerAI's Ambassador of Influence and Engagement\"\n- Action: [DISCARD] (Reason: Ambassador, not co-founder).\n- Item: David Lara\n- Evidence: \"As Co-Founder and Chief Operating Officer of LedgerAI\"\n- Action: [KEEP]\n- Item: Jorge Guinovart\n- Evidence: \"As Co-Founder and Chief Marketing Officer of LedgerAI\"\n- Action: [KEEP]\n- Item: Paul Chou\n- Evidence: \"As CEO and Co-Founder of LedgerAI\"\n- Action: [KEEP]\n- Item: Bob Carella\n- Evidence: \"As Co-Founder and Chief Financial Officer of LedgerAI\"\n- Action: [KEEP]\n- End of scan.\nFINAL ANSWER:\nThe co-founders of LedgerAI are David Lara, Jorge Guinovart, Paul Chou, and Bob Carella."
+      }
+    ]
+  }
+]
