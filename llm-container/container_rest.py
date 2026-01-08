@@ -2816,57 +2816,15 @@ def filter_cot_reasoning(generator):
                 discarded.add(item_name.lower())
         return discarded
     
-    # Simple approach: allow filler phrases to pass through, buffer from REASONING until FINAL ANSWER
-    found_reasoning = False
+    # Simple approach: buffer everything until FINAL ANSWER is found (filler phrase already yielded upstream)
     for token in generator:
         token_buffer.append(token)
         text_content = extract_text(token)
         if text_content:
             text_buffer += text_content + " "
         
-        # Check for REASONING marker - start buffering from here
-        if not found_reasoning:
-            if "REASONING:" in text_buffer or "Reasoning:" in text_buffer:
-                found_reasoning = True
-                # Everything before REASONING is filler phrase - let it pass through
-                reasoning_marker = "REASONING:" if "REASONING:" in text_buffer else "Reasoning:"
-                filler_text = text_buffer.split(reasoning_marker)[0]
-                # Yield filler phrase tokens that were already buffered
-                for i, tok in enumerate(token_buffer):
-                    tok_text = extract_text(tok)
-                    if tok_text and reasoning_marker not in tok_text:
-                        # This is part of filler phrase - yield it
-                        if tok.startswith('<') and tok.endswith('>'):
-                            yield tok
-                        elif tok_text and not (tok_text.startswith('<') and tok_text.endswith('>')):
-                            # Yield filler phrase text
-                            if i == 0 or not any(reasoning_marker in extract_text(t) for t in token_buffer[:i]):
-                                yield tok
-                # Clear buffer up to REASONING marker
-                reasoning_token_idx = None
-                for i, tok in enumerate(token_buffer):
-                    tok_text = extract_text(tok)
-                    if tok_text and reasoning_marker in tok_text:
-                        reasoning_token_idx = i
-                        break
-                if reasoning_token_idx is not None:
-                    token_buffer = token_buffer[reasoning_token_idx:]
-                    # Rebuild text_buffer from remaining tokens
-                    text_buffer = ""
-                    for tok in token_buffer:
-                        tok_text = extract_text(tok)
-                        if tok_text:
-                            text_buffer += tok_text + " "
-            else:
-                # Before REASONING - yield filler phrase tokens immediately
-                if token.startswith('<') and token.endswith('>'):
-                    yield token
-                elif text_content and not (text_content.startswith('<') and text_content.endswith('>')):
-                    yield token
-                continue
-        
-        # After REASONING found, check for FINAL ANSWER marker
-        if found_reasoning and not found_final_answer:
+        # Check for FINAL ANSWER marker
+        if not found_final_answer:
             if "FINAL ANSWER:" in text_buffer or "Final Answer:" in text_buffer:
                 found_final_answer = True
                 # Extract reasoning section to find DISCARD items
@@ -2888,6 +2846,17 @@ def filter_cot_reasoning(generator):
                 # Extract answer using same simple logic as test script
                 # Get everything after FINAL ANSWER from text_buffer (matches test script logic)
                 answer_text = text_buffer.split(marker)[-1].strip()
+                
+                # Remove any filler phrase text that might have been included (shouldn't happen, but safety check)
+                filler_phrases = [
+                    "Give me a moment", "Let me think", "One moment", "Let me search",
+                    "I'll need a second", "Give me a moment to recall"
+                ]
+                for filler in filler_phrases:
+                    if filler.lower() in answer_text.lower():
+                        # Remove filler phrase from answer
+                        answer_text = re.sub(rf'\b{re.escape(filler)}[^.]*\.?\s*', '', answer_text, flags=re.IGNORECASE)
+                        answer_text = answer_text.strip()
                 
                 # Continue collecting tokens after FINAL ANSWER to get complete answer
                 collecting_answer = True
@@ -2959,10 +2928,20 @@ def filter_cot_reasoning(generator):
                     answer_text = re.sub(r'\d+\.\s*', '', answer_text)  # Remove numbered list markers
                     answer_text = re.sub(r'\s+', ' ', answer_text).strip()  # Final space normalization
                     
-                    # Yield answer with sentence tags
+                    # Yield answer with sentence tags (word by word to match TTS expectations)
                     if answer_text.strip():
                         print(f"[Generic] 📝 [CoT Reasoning Debug] Final FINAL ANSWER: {answer_text[:200]}...")
-                        yield "<sentence_start>\n" + answer_text.strip() + "\n<sentence_end>\n"
+                        # Yield sentence_start tag first
+                        yield "<sentence_start>\n"
+                        # Yield answer word by word
+                        words = answer_text.strip().split()
+                        for i, word in enumerate(words):
+                            if i < len(words) - 1:
+                                yield word + " "
+                            else:
+                                yield word
+                        # Yield sentence_end tag last
+                        yield "\n<sentence_end>\n"
                     
                     # Stop collecting
                     collecting_answer = False

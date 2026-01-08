@@ -1403,7 +1403,7 @@ class AdvancedMedicalNavigator:
 
 You need to ask about the {field}. 
 IMPORTANT: Use natural language with pronouns (like "it" or "your symptoms") instead of repeating the complaint. 
-Use this as a guide: '{base_question}'{location_guidance}
+Use this as a guide: '{base_question}'
 Do NOT ask about age, demographics, or information already in the context. 
 Do NOT use awkward phrases like 'character of' or 'the {field}'. 
 CRITICAL: Output ONLY the question. No reasoning, no notes, no explanations, no "CLINICAL NOTE:" prefixes.
@@ -1413,7 +1413,7 @@ Ask only one natural, conversational question about {field}."""
 {context_summary}
 
 You need to ask about the {field} of the {cc_subject}. 
-IMPORTANT: Ask about {field} using natural language. Use this as a guide: '{base_question}'{location_guidance}
+IMPORTANT: Ask about {field} using natural language. Use this as a guide: '{base_question}'
 Do NOT ask about age, demographics, or information already in the context. 
 Do NOT use awkward phrases like 'character of' or 'the {field}'. 
 CRITICAL: Output ONLY the question. No reasoning, no notes, no explanations, no "CLINICAL NOTE:" prefixes.
