@@ -2829,10 +2829,21 @@ def filter_cot_reasoning(generator):
                 found_final_answer = True
                 # Extract reasoning section to find DISCARD items
                 marker = "FINAL ANSWER:" if "FINAL ANSWER:" in text_buffer else "Final Answer:"
-                reasoning_text = text_buffer.split(marker)[0]
+                # Get text before FINAL ANSWER
+                text_before_answer = text_buffer.split(marker)[0]
+                
+                # Extract only the REASONING section (exclude filler phrases before REASONING:)
+                reasoning_text = text_before_answer
+                if "REASONING:" in text_before_answer:
+                    # Only extract from REASONING: onwards
+                    reasoning_text = "REASONING:" + text_before_answer.split("REASONING:")[-1]
+                elif "Reasoning:" in text_before_answer:
+                    # Fallback for lowercase
+                    reasoning_text = "Reasoning:" + text_before_answer.split("Reasoning:")[-1]
+                
                 discarded_items = extract_discarded_items(reasoning_text)
                 
-                # DEBUG: Print reasoning section
+                # DEBUG: Print reasoning section (only the actual REASONING part, not filler phrases)
                 print(f"\n{'='*80}")
                 print(f"[Generic] 🧠 [CoT Reasoning Debug] REASONING OUTPUT:")
                 print(f"{'='*80}")
