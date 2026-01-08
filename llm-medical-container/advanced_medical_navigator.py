@@ -109,9 +109,14 @@ class AdvancedMedicalNavigator:
 
     SUMMARY_SYSTEM_PROMPT = (
         "You are a clinical assistant. Produce ≤6 bullet points summarising demographics, chief complaint,"
-        " focused OLDCARTS facts, and top ranked differentials with urgency.\n\n"
-        "CRITICAL: Only provide logical, factual responses. Avoid hallucination. "
-        "If information is unclear or missing, state that clearly rather than inventing details."
+        " focused OLD CARTS facts, and top ranked differentials with urgency.\n\n"
+        "CRITICAL FORMATTING REQUIREMENTS:\n"
+        "- Always use 'OLD CARTS' (with space, all caps) when referring to the assessment framework\n"
+        "- Do NOT use 'Oldest cart', 'OLDCARTS', 'old carts', or any other variation\n"
+        "- Only include factual information from the provided data\n"
+        "- If information is unclear or missing, state that clearly rather than inventing details\n"
+        "- Do not include clarification questions or confused responses in the summary\n\n"
+        "CRITICAL: Only provide logical, factual responses. Avoid hallucination."
     )
 
     GREETING_RESPONSES = (
@@ -480,13 +485,20 @@ class AdvancedMedicalNavigator:
         cc_subject = self._normalize_subject_for_questions(session.context['pre_hpi'].get('chief_complaint'))
         session.last_field = element
 
+        # Determine if we should use pronouns (after first HPI question)
+        answered_hpi_count = len([k for k in session.context['hpi'].keys() if session.context['hpi'][k] and session.context['hpi'][k].strip()])
+        use_pronoun = answered_hpi_count > 0  # Use pronouns after first answer
+
         if element == 'associated':
             # LLM handles associated symptoms naturally
+            guidance = "Ask about any other symptoms the patient might be experiencing. Ask only one question." if use_pronoun else f"Ask about any other symptoms the patient might have along with {cc_subject}. Ask only one question."
             prompt = self._generate_question(
                 session=session,
                 section='hpi',
                 field='associated',
-                guidance=f"Ask about any other symptoms the patient might have along with {cc_subject}. Ask only one question."
+                guidance=guidance,
+                use_pronoun=use_pronoun,
+                cc_subject=cc_subject
             )
             return {
                 'section': 'hpi',
@@ -494,12 +506,15 @@ class AdvancedMedicalNavigator:
                 'prompt': prompt,
             }
 
-        # Generate question naturally using LLM
+        # Generate question naturally using LLM with pronoun awareness
+        guidance = f"Ask about the {element}. Ask only one question, no acknowledgment or reasoning." if use_pronoun else f"Ask about the {element} of {cc_subject}. Ask only one question, no acknowledgment or reasoning."
         prompt = self._generate_question(
             session=session,
             section='hpi',
             field=element,
-            guidance=f"Ask about the {element} of {cc_subject}. Ask only one question, no acknowledgment or reasoning."
+            guidance=guidance,
+            use_pronoun=use_pronoun,
+            cc_subject=cc_subject
         )
         return {
             'section': 'hpi',
@@ -614,19 +629,38 @@ class AdvancedMedicalNavigator:
                 # Don't store confused responses as answers - we'll re-ask the question
                 if field in session.context['hpi']:
                     del session.context['hpi'][field]  # Remove if it was incorrectly stored
-                # Keep the pending question so we can re-ask it
-                # Don't update scores for confused responses
-                # Re-ask the same question with clearer format
-                session.pending = pending  # Keep the same question
-                return self._wrap_response(
-                    session,
-                    pending['prompt'],  # Re-use the same question
-                    metadata={
-                        'section': pending['section'],
-                        'field': pending['field'],
-                        'reasking': True,
-                    },
-                )
+                
+                # Provide clearer clarification for specific fields
+                if field == 'severity':
+                    cc_subject = self._normalize_subject_for_questions(session.context['pre_hpi'].get('chief_complaint'))
+                    answered_hpi_count = len([k for k in session.context['hpi'].keys() if session.context['hpi'][k] and session.context['hpi'][k].strip()])
+                    use_pronoun = answered_hpi_count > 0
+                    symptom_ref = "it" if use_pronoun else cc_subject
+                    
+                    clarification = f"On a scale from 1 to 10, with 1 being very mild and 10 being the worst possible, how severe is {symptom_ref}? Just give me a number between 1 and 10."
+                    session.pending = pending  # Keep the pending state
+                    session.messages.append({"role": "assistant", "content": clarification})
+                    return self._wrap_response(
+                        session,
+                        clarification,
+                        metadata={
+                            'section': pending['section'],
+                            'field': pending['field'],
+                            'clarification': True,
+                        },
+                    )
+                else:
+                    # For other fields, re-ask with the same question
+                    session.pending = pending  # Keep the pending state
+                    return self._wrap_response(
+                        session,
+                        pending['prompt'],  # Re-use the same question
+                        metadata={
+                            'section': pending['section'],
+                            'field': pending['field'],
+                            'reasking': True,
+                        },
+                    )
             
             # Store answer (not a confused response)
             session.context['hpi'][field] = text
@@ -1160,40 +1194,88 @@ class AdvancedMedicalNavigator:
 
 
     def _normalize_subject_for_questions(self, text: Optional[str]) -> str:
+        """Normalize chief complaint to extract core symptom phrase for use in questions."""
         if not text:
-            return 'symptoms'
+            return 'your symptoms'
         subject = text.strip()
         lowered = subject.lower()
+        
+        # Remove common conversational prefixes
         prefixes = [
             "i have ", "i've got ", "i am having ", "i'm having ",
-            "i am ", "i'm ", "my ", "i feel ",
+            "i am ", "i'm ", "my ", "i feel ", "i've been having ",
+            "i've been experiencing ", "i'm experiencing ", "i'm feeling ",
         ]
         for prefix in prefixes:
             if lowered.startswith(prefix):
                 subject = subject[len(prefix):].strip()
                 break
+        
+        # Clean up punctuation and whitespace
         subject = subject.strip(" .,!?:;")
-        if not subject:
-            return 'symptoms'
-        return subject
+        
+        # Extract core symptom if there are multiple clauses
+        # Example: "i am having chest pain pain" -> "chest pain"
+        words = subject.split()
+        if len(words) > 5:
+            # If too long, try to extract the key symptom phrase
+            # Look for common symptom patterns (noun phrases)
+            common_symptoms = ['pain', 'ache', 'discomfort', 'pressure', 'tightness', 
+                             'nausea', 'dizziness', 'shortness', 'breath', 'cough',
+                             'fever', 'headache', 'stomach', 'chest', 'back', 'arm',
+                             'leg', 'joint', 'muscle', 'throat', 'rash', 'swelling']
+            symptom_words = [w for w in words if any(symptom in w.lower() for symptom in common_symptoms)]
+            if symptom_words:
+                # Extract phrase around symptom words
+                indices = [i for i, w in enumerate(words) if any(symptom in w.lower() for symptom in common_symptoms)]
+                if indices:
+                    start = max(0, indices[0] - 1)
+                    end = min(len(words), indices[-1] + 2)
+                    subject = ' '.join(words[start:end])
+        
+        # Remove duplicate words (e.g., "chest pain pain" -> "chest pain")
+        words = subject.split()
+        cleaned_words = []
+        prev_word = None
+        for word in words:
+            if word.lower() != prev_word:
+                cleaned_words.append(word)
+                prev_word = word.lower()
+        subject = ' '.join(cleaned_words) if cleaned_words else 'your symptoms'
+        
+        subject = subject.strip(" .,!?:;")
+        if not subject or len(subject) < 2:
+            return 'your symptoms'
+        return subject.lower()  # Return lowercase for consistent use in questions
     
-    def _get_base_question_for_element(self, element: str, chief_complaint: str) -> str:
-        """Get base question format for OLD CARTS element."""
+    def _get_base_question_for_element(self, element: str, chief_complaint: str, use_pronoun: bool = False) -> str:
+        """Get base question format for OLD CARTS element.
+        
+        Args:
+            element: OLD CARTS element name
+            chief_complaint: Normalized chief complaint
+            use_pronoun: If True, use 'it' instead of repeating chief complaint
+        """
+        # Use pronoun for better natural language after first question
+        symptom_ref = "it" if use_pronoun else chief_complaint
+        
         element_guidance = {
-            'onset': f"When did the {chief_complaint} start?",
-            'location': f"Where exactly is the {chief_complaint} located?",
-            'duration': f"How long has the {chief_complaint} been present?",
-            'character': f"What does the {chief_complaint} feel like? For example, is it sharp, heavy, burning, or pressure?",
-            'aggravating': f"What makes the {chief_complaint} worse?",
-            'relieving': f"What makes the {chief_complaint} better?",
-            'radiation': f"Does the {chief_complaint} spread to other areas?",
-            'timing': f"Is the {chief_complaint} constant or does it come and go?",
-            'severity': f"On a scale from 1 to 10, how severe is the {chief_complaint}?",
-            'associated': f"Are there any other symptoms you're experiencing along with the {chief_complaint}?",
+            'onset': f"When did {symptom_ref} start?" if use_pronoun else f"When did the {chief_complaint} start?",
+            'location': f"Where exactly is {symptom_ref} located?" if use_pronoun else f"Where exactly is the {chief_complaint} located?",
+            'duration': f"How long has {symptom_ref} been present?" if use_pronoun else f"How long has the {chief_complaint} been present?",
+            'character': f"What does {symptom_ref} feel like?" if use_pronoun else f"What does the {chief_complaint} feel like?",
+            'aggravating': f"What makes {symptom_ref} worse?" if use_pronoun else f"What makes the {chief_complaint} worse?",
+            'relieving': f"What makes {symptom_ref} better?" if use_pronoun else f"What makes the {chief_complaint} better?",
+            'radiation': f"Does {symptom_ref} spread to other areas?" if use_pronoun else f"Does the {chief_complaint} spread to other areas?",
+            'timing': f"Is {symptom_ref} constant or does it come and go?" if use_pronoun else f"Is the {chief_complaint} constant or does it come and go?",
+            'severity': f"On a scale from 1 to 10, with 1 being very mild and 10 being the worst possible, how severe is {symptom_ref}?" if use_pronoun else f"On a scale from 1 to 10, with 1 being very mild and 10 being the worst possible, how severe is the {chief_complaint}?",
+            'associated': f"Are there any other symptoms you're experiencing?" if use_pronoun else f"Are there any other symptoms you're experiencing along with the {chief_complaint}?",
         }
-        return element_guidance.get(element, f"Tell me about the {element} of {chief_complaint}.")
+        
+        default = f"Tell me about the {element} of {symptom_ref}." if use_pronoun else f"Tell me about the {element} of {chief_complaint}."
+        return element_guidance.get(element, default)
     
-    def _validate_hpi_question(self, question: str, element: str, chief_complaint: str) -> str:
+    def _validate_hpi_question(self, question: str, element: str, chief_complaint: str, use_pronoun: bool = False) -> str:
         """Validate and fix HPI questions to avoid nonsensical phrasing."""
         question_lower = question.lower()
         
@@ -1201,17 +1283,17 @@ class AdvancedMedicalNavigator:
         if 'old' in question_lower and 'age' not in question_lower and element != 'age':
             # LLM generated wrong question, use base question
             self._capture_debug(f"[LLM] ⚠️ Detected nonsensical question, using base question instead")
-            return self._get_base_question_for_element(element, chief_complaint)
+            return self._get_base_question_for_element(element, chief_complaint, use_pronoun=use_pronoun)
         
         # Check for awkward character phrasing
         if element == 'character' and ('character of' in question_lower or 'the character' in question_lower):
             # LLM generated awkward phrasing for character - use base question
             self._capture_debug(f"[LLM] ⚠️ Detected awkward character question, using base question instead")
-            return self._get_base_question_for_element(element, chief_complaint)
+            return self._get_base_question_for_element(element, chief_complaint, use_pronoun=use_pronoun)
         
         # Check if question is too short or empty
         if not question or len(question) < 10:
-            return self._get_base_question_for_element(element, chief_complaint)
+            return self._get_base_question_for_element(element, chief_complaint, use_pronoun=use_pronoun)
         
         return question
 
@@ -1232,11 +1314,15 @@ class AdvancedMedicalNavigator:
         section: str,
         field: str,
         guidance: str,
+        use_pronoun: bool = False,
+        cc_subject: Optional[str] = None,
     ) -> str:
         if not self.llm_chat_fn:
             return guidance or f"Tell me about {field}."
         
         cc = session.context['pre_hpi'].get('chief_complaint', 'your symptoms') or 'your symptoms'
+        if cc_subject is None:
+            cc_subject = self._normalize_subject_for_questions(cc)
         context_summary = self._build_conversation_context(session)
         
         # Build conversation context
@@ -1247,17 +1333,29 @@ class AdvancedMedicalNavigator:
                 conversation_context.append({"role": msg['role'], "content": msg['content']})
         
         if section == 'hpi':
-            # Get base question format for this element
-            base_question = self._get_base_question_for_element(field, cc)
+            # Get base question format for this element (with pronoun if appropriate)
+            base_question = self._get_base_question_for_element(field, cc_subject, use_pronoun=use_pronoun)
             
-            user_prompt = f"""Context of what we already know:
+            # Build natural guidance based on whether we're using pronouns
+            if use_pronoun:
+                user_prompt = f"""Context of what we already know:
 {context_summary}
 
-You need to ask about the {field} of the {cc}. 
-IMPORTANT: You MUST ask about {field} specifically using this exact format: '{base_question}' 
+You need to ask about the {field}. 
+IMPORTANT: Use natural language with pronouns (like "it" or "your symptoms") instead of repeating the complaint. 
+Use this as a guide: '{base_question}'
 Do NOT ask about age, demographics, or information already in the context. 
-Do NOT use phrases like 'character of' or 'the {field}' - use the natural question format shown above. 
-Ask only one question about {field}."""
+Do NOT use awkward phrases like 'character of' or 'the {field}'. 
+Ask only one natural, conversational question about {field}."""
+            else:
+                user_prompt = f"""Context of what we already know:
+{context_summary}
+
+You need to ask about the {field} of the {cc_subject}. 
+IMPORTANT: Ask about {field} using natural language. Use this as a guide: '{base_question}' 
+Do NOT ask about age, demographics, or information already in the context. 
+Do NOT use awkward phrases like 'character of' or 'the {field}'. 
+Ask only one natural, conversational question about {field}."""
         elif section == 'pre_hpi':
             user_prompt = guidance
         else:
@@ -1279,14 +1377,15 @@ Ask only one question about {field}."""
         
         cleaned = self._clean_llm_response(response)
         if not cleaned:
-            cleaned = guidance or f"Tell me about {field}."
+            # Fall back to base question if LLM doesn't generate good question
+            cleaned = base_question if section == 'hpi' else (guidance or f"Tell me about {field}.")
         
         if not cleaned.endswith('?'):
             cleaned = cleaned.rstrip('.') + '?'
         
         # Quality check: detect nonsensical questions
         if section == 'hpi':
-            cleaned = self._validate_hpi_question(cleaned, field, cc)
+            cleaned = self._validate_hpi_question(cleaned, field, cc_subject, use_pronoun=use_pronoun)
         
         return cleaned
 
@@ -1442,7 +1541,13 @@ Ask only one question about {field}."""
             return "History collection complete."
         
         pre = session.context['pre_hpi']
-        hpi = session.context['hpi']
+        
+        # Filter out confused responses from HPI context before generating summary
+        hpi_filtered = {
+            k: v for k, v in session.context['hpi'].items()
+            if v and v.strip() and not self._is_confused_response(v)
+        }
+        
         rankings = session.condition_rankings[:3]
         ranking_text = ", ".join(f"{name} ({score:.0%})" for name, score in rankings) if rankings else "No ranked conditions yet"
         
@@ -1451,9 +1556,9 @@ Ask only one question about {field}."""
             f"Chronicity: {pre.get('chronicity', 'Unknown')}\n"
             f"Age: {pre.get('age', 'Unknown')}\n"
             f"Biological sex: {pre.get('sex', 'Unknown')}\n"
-            f"OLDCARTS responses: {hpi}\n"
+            f"OLD CARTS responses: {hpi_filtered}\n"
             f"Top differentials: {ranking_text}\n"
-            "Summarise as bullet points."
+            "Summarize as bullet points. Use 'OLD CARTS' (not 'Oldest cart' or other variations) when referring to the assessment framework."
         )
         
         response = self.llm_chat_fn(
@@ -1599,13 +1704,25 @@ Ask only one question about {field}."""
     
     def _is_confused_response(self, text: str) -> bool:
         """Check if user response is a confused/clarification request"""
+        text_lower = text.lower().strip()
         confused_phrases = [
             'what', 'what?', 'huh', 'i don\'t understand', 'clarify',
             'what do you mean', 'what does that mean', 'i don\'t know',
             'not sure', 'unclear', 'confused', 'can you explain',
-            'what are you asking', 'repeat', 'again'
+            'what are you asking', 'repeat', 'again', 'sorry',
+            'could you', 'can you clarify', 'i\'m not sure',
+            'like out of', 'scale of', 'do you mean'
         ]
-        return any(phrase in text.lower() for phrase in confused_phrases)
+        
+        # Check for clarification patterns (e.g., "what do you mean? like out of a scale of 1-10?")
+        if any(phrase in text_lower for phrase in confused_phrases):
+            return True
+        
+        # Check if it's a question asking for clarification (ends with ? and contains clarification words)
+        if text_lower.endswith('?') and any(word in text_lower for word in ['mean', 'asking', 'scale', 'rate', 'score']):
+            return True
+        
+        return False
 
     # ----------- Debug helpers ----------------------------------------------
 
