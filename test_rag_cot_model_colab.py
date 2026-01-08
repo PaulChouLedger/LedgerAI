@@ -36,7 +36,13 @@ SYSTEM_PROMPT = """You are a precise data extraction bot.
    - Evidence: "[Verbatim quote from context]"
    - Action: [KEEP] if it matches the query, otherwise [DISCARD].
 4. End scan with: - End of scan.
-5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."""
+5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.
+
+CRITICAL RULES:
+- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.
+- FINAL ANSWER must ONLY include items marked [KEEP].
+- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.
+- Read entire descriptions/chunks completely - titles may appear later in the text."""
 
 # ============================================================================
 # Test Scenarios

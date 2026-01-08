@@ -1887,6 +1887,29 @@ Ask only one question about {field}."""
         Validate that the answer is appropriate for the OLD CARTS field being asked.
         Returns: (is_appropriate, clarification_message_if_needed)
         """
+        # Quick heuristic check for common valid responses before LLM validation
+        # This prevents false negatives for obviously valid answers
+        answer_lower = answer.lower().strip()
+        
+        # For onset field, accept common time-related phrases immediately
+        if field == 'onset':
+            valid_time_phrases = [
+                'this morning', 'today', 'yesterday', 'tomorrow',  # relative times
+                'ago', 'hours ago', 'days ago', 'weeks ago', 'months ago',  # relative durations
+                'last week', 'last month', 'last year',  # relative periods
+                'when i woke up', 'woke up', 'when i got up', 'got up',  # wake-related
+                'earlier', 'just now', 'a few', 'a couple', 'recently',  # vague but valid
+                'morning', 'afternoon', 'evening', 'night',  # time of day
+                'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday',  # days of week
+            ]
+            # Check if answer contains any valid time phrase
+            if any(phrase in answer_lower for phrase in valid_time_phrases):
+                return True, None
+            # Also accept if it starts with a number (e.g., "2 days ago", "3 hours ago")
+            import re
+            if re.match(r'^\d+\s+(hour|day|week|month|minute)', answer_lower):
+                return True, None
+        
         if not self.llm_chat_fn:
             # Fallback: basic heuristic check
             return self._heuristic_answer_validation(session, field, answer)
@@ -1898,7 +1921,21 @@ Ask only one question about {field}."""
             if value and value.strip():
                 answered_fields[key] = value
         
-        # Build validation prompt
+        # Build validation prompt with field-specific guidance
+        field_guidance = {
+            'onset': "VALID answers include: time-related phrases like 'this morning', 'today', 'yesterday', '2 days ago', 'last week', 'a few hours ago', 'when I woke up', etc. These are ALL acceptable ways to describe when a symptom started.",
+            'location': "VALID answers include: body locations like 'center of chest', 'upper right abdomen', 'left arm', 'behind the eyes', etc.",
+            'character': "VALID answers include: descriptive words like 'sharp', 'dull', 'pressure', 'burning', 'stabbing', 'aching', etc.",
+            'aggravating': "VALID answers include: activities or factors that worsen symptoms like 'walking', 'eating', 'lying down', 'deep breathing', etc.",
+            'relieving': "VALID answers include: activities or factors that improve symptoms like 'resting', 'sitting up', 'taking medication', 'applying heat', etc.",
+            'duration': "VALID answers include: how long symptoms last like 'constant', 'comes and goes', 'lasts 10 minutes', 'all day', etc.",
+            'timing': "VALID answers include: patterns like 'constant', 'intermittent', 'only at night', 'comes and goes', etc.",
+            'severity': "VALID answers include: numbers on a scale of 1-10, or descriptive words like 'mild', 'moderate', 'severe'.",
+            'radiation': "VALID answers include: whether and where symptoms spread like 'yes, to my left arm', 'no', 'radiates to my jaw', etc.",
+        }
+        
+        field_guidance_text = field_guidance.get(field, "The answer should directly answer what was asked.")
+        
         validation_prompt = f"""You are a medical assistant validating patient answers.
 
 Question asked: "{question}"
@@ -1908,8 +1945,12 @@ Patient's answer: "{answer}"
 Previous answers provided:
 {chr(10).join([f"- {k}: {v}" for k, v in answered_fields.items()])}
 
-Determine if the patient's answer is appropriate for this question. The answer should:
-- Directly answer what was asked (e.g., "what makes it worse?" should get activities/factors that worsen symptoms, NOT the symptom description itself)
+Determine if the patient's answer is appropriate for this question. 
+
+{field_guidance_text}
+
+The answer should:
+- Directly answer what was asked
 - Not be a duplicate of an answer already given for a different field
 - Make logical sense for the question type
 
@@ -1917,6 +1958,8 @@ Examples of inappropriate answers:
 - Answering "pressure" to "what makes it worse?" when "pressure" was already given as the character (what it feels like)
 - Answering a location to a question about aggravating factors
 - Answering the character description to a question about location
+
+CRITICAL: For onset field, accept ANY time-related response including: "this morning", "today", "yesterday", "2 days ago", "last week", "a few hours ago", "when I woke up", "earlier", etc. These are ALL valid.
 
 Return ONLY valid JSON: {{"appropriate": true/false, "reason": "brief reason"}}
 If not appropriate, also suggest what type of answer would be expected."""

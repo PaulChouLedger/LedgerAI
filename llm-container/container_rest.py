@@ -93,9 +93,9 @@ SENTENCE_ENDINGS = ('.', '!', '?')
 
 # === Response Generation Config ===
 MAX_TOKENS_RAG_MODE = 250  # Max tokens when using RAG context (enforces concise 2-3 sentence answers)
-MAX_TOKENS_RAG_MODE_LIST = 600  # Max tokens for list questions (allows complete longer lists without truncation)
+MAX_TOKENS_RAG_MODE_LIST = 300  # Max tokens for list questions (limited to top 3 items)
 MAX_TOKENS_DIRECT_MODE = 600  # Max tokens for direct conversation (allows longer responses including lists)
-MAX_TOKENS_DIRECT_MODE_LIST = 600  # Max tokens for list questions in direct mode (same as RAG list mode)
+MAX_TOKENS_DIRECT_MODE_LIST = 300  # Max tokens for list questions in direct mode (limited to top 3 items)
 
 # === Debug Mode: Show LLM Reasoning ===
 # Set SHOW_REASONING_DEBUG=true to make LLM show its reasoning step-by-step in the output (visible chain-of-thought)
@@ -1130,7 +1130,10 @@ JSON array only:"""
                 if is_list_request:
                     list_instruction = (
                         "\n📋 LIST QUESTION:\n"
-                        "Read all sections completely. Extract all items that directly match the query. "
+                        "Read all sections completely. Extract items that directly match the query. "
+                        "CRITICAL: Limit your response to the TOP 3 most relevant items only. "
+                        "Do NOT list more than 3 items. "
+                        "If there are more items available, mention that more information can be provided if needed. "
                         "Only include information explicitly stated in the context.\n"
                     )
                 
@@ -1141,8 +1144,10 @@ JSON array only:"""
                     # Only add question instruction if not a conversational query
                     question_instruction = "" if is_conversational else "\n- MANDATORY: End your response with a brief, natural question. This is REQUIRED. Examples: 'Would you like more information about this?' or 'Is there anything else I can help you with?'\n"
                     response_length_guideline = (
-                        "- List all items that match the query from the context. "
-                        "Format as natural sentences.\n"
+                        "- CRITICAL: List ONLY the top 3 most relevant items that match the query. "
+                        "Do NOT exceed 3 items. "
+                        "If more items exist, briefly mention that more information is available if needed. "
+                        "Format as a numbered or bulleted list (1-3 items maximum).\n"
                         f"{question_instruction}"
                     )
                 else:
@@ -2046,6 +2051,43 @@ JSON array only:"""
         )
     else:
         # For conversational queries (actual questions), include follow-up question
+        # Check if this is a list request and add list-specific instructions
+        list_instruction = ""
+        if is_list_request_direct:
+            list_instruction = (
+                "\n📋 LIST QUESTION DETECTED:\n"
+                "CRITICAL: Limit your response to ONLY the top 3 most relevant items. "
+                "Do NOT exceed 3 items. "
+                "Format as a numbered list (1, 2, 3) or bullet points. "
+                "If more items exist, briefly mention that more information is available if needed. "
+                "Keep each item concise (1-2 sentences per item).\n\n"
+            )
+        
+        # Only add question instruction if not a conversational query
+        question_instruction = "" if is_conversational_fallback else (
+            "\nMANDATORY: Your response MUST end with a brief, natural question. "
+            "This is REQUIRED - do not skip it. Examples: 'Would you like more information about this?' "
+            "or 'Is there anything else I can help you with?' or 'Need more details on this?' "
+            "Do not include the phrase 'follow up' or 'follow-up' in your question - just ask naturally. "
+            "Make it flow naturally with the conversation topic."
+        )
+        
+        response_length_guideline = ""
+        if is_list_request_direct:
+            response_length_guideline = (
+                "CRITICAL: List ONLY the top 3 most relevant items. "
+                "Do NOT exceed 3 items. "
+                "If more items exist, mention that more information is available if needed. "
+                "Keep each item concise (1-2 sentences per item)."
+            )
+        else:
+            response_length_guideline = (
+                "CRITICAL: Keep your response VERY SHORT - maximum 2-3 sentences total. "
+                "Provide ONLY essential information - no lengthy explanations, multiple examples, or extensive background. "
+                "If the user wants more details, they will ask. Be friendly, helpful, and concise. "
+                "Avoid lengthy explanations, excessive background details, or multiple examples."
+            )
+        
         system_prompt = (
             "You are Aura Vision, an AI agent created by Ledger AI Quantum Corporation. "
             "You act as a proactive AI agent guiding users to better outcomes through gentle guidance.\n\n"
@@ -2064,15 +2106,9 @@ JSON array only:"""
             "- CRITICAL: DO NOT create variations of names. If you don't know a specific name, say 'I don't have that information' rather than guessing or creating variations.\n"
             "- CRITICAL: DO NOT treat instructions or incomplete sentences as questions. If the query is an instruction or incomplete, ask for clarification rather than making up an answer.\n"
             "- CRITICAL: DO NOT make up information to answer nonsensical queries. If a query asks for something that doesn't exist (like 'recipe for rest and efforts'), ask for clarification instead of inventing a response.\n\n"
-            "CRITICAL: Keep your response VERY SHORT - maximum 2-3 sentences total. "
-            "Provide ONLY essential information - no lengthy explanations, multiple examples, or extensive background. "
-            "If the user wants more details, they will ask. Be friendly, helpful, and concise. "
-            "Avoid lengthy explanations, excessive background details, or multiple examples.\n\n"
-            "MANDATORY: Your response MUST end with a brief, natural question. "
-            "This is REQUIRED - do not skip it. Examples: 'Would you like more information about this?' "
-            "or 'Is there anything else I can help you with?' or 'Need more details on this?' "
-            "Do not include the phrase 'follow up' or 'follow-up' in your question - just ask naturally. "
-            "Make it flow naturally with the conversation topic. This question is in addition to your 2-3 sentence answer."
+            f"{list_instruction}"
+            f"{response_length_guideline}\n\n"
+            f"{question_instruction}"
         )
     
     # NOTE: Conversation memory should ONLY come from memory container API
@@ -2753,8 +2789,18 @@ def filter_cot_reasoning(generator):
     in_reasoning = False
     found_final_answer = False
     discarded_items = set()  # Track items marked [DISCARD] to filter from final answer
-    answer_markers = ["FINAL ANSWER:", "Final Answer:"]
-    reasoning_markers = ["REASONING:", "Reasoning:"]
+    answer_markers = ["FINAL ANSWER:", "Final Answer:", "FINAL ANSWER", "Final Answer"]
+    reasoning_markers = ["REASONING:", "Reasoning:", "REASONING", "Reasoning"]
+    
+    # Patterns that indicate reasoning content (even without explicit REASONING: marker)
+    reasoning_patterns = [
+        r'^\s*-?\s*Item:\s*',
+        r'^\s*-?\s*Evidence:\s*',
+        r'^\s*-?\s*Action:\s*\[',
+        r'\[KEEP\]',
+        r'\[DISCARD\]',
+        r'End of scan',
+    ]
     
     def extract_text(token):
         """Extract text content from token (removing sentence tags)"""
@@ -2796,7 +2842,9 @@ def filter_cot_reasoning(generator):
             text_buffer += text_content + " "
         
         # Check if REASONING marker found (start buffering)
+        # Also check for reasoning patterns even without explicit marker
         if not in_reasoning:
+            # Check for explicit reasoning markers
             for m in reasoning_markers:
                 if m in text_buffer:
                     in_reasoning = True
@@ -2825,6 +2873,37 @@ def filter_cot_reasoning(generator):
                         token_buffer = []
                         text_buffer = text_buffer[idx:]
                     break
+            
+            # Also check for reasoning patterns (Item:, Evidence:, Action:, etc.)
+            if not in_reasoning:
+                for pattern in reasoning_patterns:
+                    if re.search(pattern, text_buffer, re.IGNORECASE | re.MULTILINE):
+                        in_reasoning = True
+                        # Find where reasoning pattern starts
+                        match = re.search(pattern, text_buffer, re.IGNORECASE | re.MULTILINE)
+                        if match:
+                            idx = match.start()
+                            # Find which tokens correspond to text before reasoning
+                            text_pos = 0
+                            tokens_before = []
+                            for tok in token_buffer:
+                                tok_text = extract_text(tok)
+                                if tok_text:
+                                    if text_pos + len(tok_text) <= idx:
+                                        tokens_before.append(tok)
+                                        text_pos += len(tok_text) + 1
+                                    else:
+                                        break
+                            # Yield tokens before reasoning (filler phrases)
+                            for tok in tokens_before:
+                                yield tok
+                            # Keep reasoning and after in buffer
+                            token_buffer = token_buffer[len(tokens_before):]
+                            text_buffer = text_buffer[idx:]
+                        else:
+                            # Reasoning at start - clear everything
+                            token_buffer = []
+                        break
             
             # If we haven't found REASONING yet, pass through immediately (filler phrases)
             if not in_reasoning:
@@ -2923,24 +3002,34 @@ def filter_cot_reasoning(generator):
                         if answer_text.strip():
                             yield answer_text
                         
-                        # Yield remaining tokens after FINAL ANSWER
+                        # Yield remaining tokens after FINAL ANSWER (with aggressive cleaning)
                         for remaining_token in token_buffer[answer_token_idx + 1:]:
                             # Clean CoT markers from remaining tokens
                             cleaned = remaining_token
                             if cleaned and not (cleaned.startswith('<') and cleaned.endswith('>')):
                                 cleaned_text = extract_text(cleaned)
+                                # Aggressively remove ALL reasoning patterns
                                 cleaned_text = re.sub(r'REASONING:\s*', '', cleaned_text, flags=re.IGNORECASE)
-                                cleaned_text = re.sub(r'- End of scan\.?\s*', '', cleaned_text, flags=re.IGNORECASE)
+                                cleaned_text = re.sub(r'-?\s*Item:\s*[^\n]*', '', cleaned_text, flags=re.IGNORECASE | re.MULTILINE)
+                                cleaned_text = re.sub(r'-?\s*Evidence:\s*[^\n]*', '', cleaned_text, flags=re.IGNORECASE | re.MULTILINE)
+                                cleaned_text = re.sub(r'-?\s*Action:\s*\[[^\]]*\]', '', cleaned_text, flags=re.IGNORECASE | re.MULTILINE)
                                 cleaned_text = re.sub(r'\[(KEEP|DISCARD|Action)\]\s*', '', cleaned_text, flags=re.IGNORECASE)
-                                cleaned_text = re.sub(r'- Item:.*?(?=\n|$)', '', cleaned_text, flags=re.IGNORECASE | re.MULTILINE)
-                                cleaned_text = re.sub(r'- Evidence:.*?(?=\n|$)', '', cleaned_text, flags=re.IGNORECASE | re.MULTILINE)
-                                cleaned_text = re.sub(r'- Action:.*?(?=\n|$)', '', cleaned_text, flags=re.IGNORECASE | re.MULTILINE)
-                                # Reconstruct token with cleaned text
-                                if "<sentence_start>" in cleaned:
-                                    cleaned = "<sentence_start>\n" + cleaned_text + "\n<sentence_end>\n"
-                                else:
-                                    cleaned = cleaned_text
-                            yield cleaned
+                                cleaned_text = re.sub(r'-?\s*End of scan\.?\s*', '', cleaned_text, flags=re.IGNORECASE)
+                                cleaned_text = re.sub(r'^\s*-\s*', '', cleaned_text, flags=re.MULTILINE)  # Remove leading dashes
+                                cleaned_text = re.sub(r'\s+', ' ', cleaned_text)  # Normalize whitespace
+                                cleaned_text = cleaned_text.strip()
+                                
+                                # Only yield if there's actual content (not just reasoning artifacts)
+                                if cleaned_text and len(cleaned_text) > 3:
+                                    # Reconstruct token with cleaned text
+                                    if "<sentence_start>" in cleaned:
+                                        cleaned = "<sentence_start>\n" + cleaned_text + "\n<sentence_end>\n"
+                                    else:
+                                        cleaned = cleaned_text
+                                    yield cleaned
+                            elif cleaned and (cleaned.startswith('<') and cleaned.endswith('>')):
+                                # Sentence tags - yield as-is
+                                yield cleaned
                     
                     token_buffer = []
                     text_buffer = ""
@@ -2949,9 +3038,41 @@ def filter_cot_reasoning(generator):
             # Still in reasoning, keep buffering (don't yield)
             continue
         
-        # After FINAL ANSWER found, yield normally
+        # After FINAL ANSWER found, clean and yield tokens
         if found_final_answer:
-            yield token
+            # Clean reasoning patterns from all tokens after FINAL ANSWER
+            cleaned_token = token
+            if cleaned_token and not (cleaned_token.startswith('<') and cleaned_token.endswith('>')):
+                cleaned_text = extract_text(cleaned_token)
+                # Aggressively remove all reasoning patterns
+                cleaned_text = re.sub(r'REASONING:\s*', '', cleaned_text, flags=re.IGNORECASE)
+                cleaned_text = re.sub(r'-?\s*Item:\s*[^\n]*', '', cleaned_text, flags=re.IGNORECASE | re.MULTILINE)
+                cleaned_text = re.sub(r'-?\s*Evidence:\s*[^\n]*', '', cleaned_text, flags=re.IGNORECASE | re.MULTILINE)
+                cleaned_text = re.sub(r'-?\s*Action:\s*\[[^\]]*\]', '', cleaned_text, flags=re.IGNORECASE | re.MULTILINE)
+                cleaned_text = re.sub(r'\[(KEEP|DISCARD|Action)\]\s*', '', cleaned_text, flags=re.IGNORECASE)
+                cleaned_text = re.sub(r'-?\s*End of scan\.?\s*', '', cleaned_text, flags=re.IGNORECASE)
+                cleaned_text = re.sub(r'\s+', ' ', cleaned_text)  # Normalize whitespace
+                cleaned_text = cleaned_text.strip()
+                
+                # Reconstruct token with cleaned text, preserving sentence tags
+                if "<sentence_start>" in cleaned_token or "<sentence_end>" in cleaned_token:
+                    # Preserve sentence tag structure
+                    if cleaned_text:
+                        if "<sentence_start>" not in cleaned_token:
+                            cleaned_token = "<sentence_start>\n" + cleaned_text + "\n<sentence_end>\n"
+                        else:
+                            # Replace content between tags
+                            cleaned_token = re.sub(r'<sentence_start>\s*(.*?)\s*<sentence_end>', 
+                                                  f'<sentence_start>\n{cleaned_text}\n<sentence_end>', 
+                                                  cleaned_token, flags=re.DOTALL)
+                else:
+                    cleaned_token = cleaned_text if cleaned_text else ""
+            
+            # Only yield if there's actual content (not just reasoning artifacts)
+            if cleaned_token and cleaned_token.strip() and not all(
+                re.search(pattern, cleaned_token, re.IGNORECASE) for pattern in reasoning_patterns[:3]
+            ):
+                yield cleaned_token
     
     # Fallback if FINAL ANSWER never found but we have content
     if in_reasoning and not found_final_answer and text_buffer:
@@ -2968,15 +3089,24 @@ def filter_cot_reasoning(generator):
             parts = re.split(r'-?\s*End of scan\.?\s*', text_buffer, flags=re.IGNORECASE)
             if len(parts) > 1:
                 answer_text = parts[-1].strip()
-                # Clean up CoT markers
+                # Aggressively clean up ALL CoT markers and reasoning patterns
                 answer_text = re.sub(r'REASONING:\s*', '', answer_text, flags=re.IGNORECASE)
                 answer_text = re.sub(r'\[(KEEP|DISCARD|Action)\]\s*', '', answer_text, flags=re.IGNORECASE)
-                answer_text = re.sub(r'- Item:.*?(?=\n|$)', '', answer_text, flags=re.IGNORECASE | re.MULTILINE)
-                answer_text = re.sub(r'- Evidence:.*?(?=\n|$)', '', answer_text, flags=re.IGNORECASE | re.MULTILINE)
-                answer_text = re.sub(r'- Action:.*?(?=\n|$)', '', answer_text, flags=re.IGNORECASE | re.MULTILINE)
-                if answer_text:
+                answer_text = re.sub(r'-?\s*Item:\s*[^\n]*', '', answer_text, flags=re.IGNORECASE | re.MULTILINE)
+                answer_text = re.sub(r'-?\s*Evidence:\s*[^\n]*', '', answer_text, flags=re.IGNORECASE | re.MULTILINE)
+                answer_text = re.sub(r'-?\s*Action:\s*\[[^\]]*\]', '', answer_text, flags=re.IGNORECASE | re.MULTILINE)
+                answer_text = re.sub(r'-?\s*End of scan\.?\s*', '', answer_text, flags=re.IGNORECASE)
+                # Remove any remaining reasoning artifacts
+                answer_text = re.sub(r'^\s*-\s*', '', answer_text, flags=re.MULTILINE)  # Remove leading dashes
+                answer_text = re.sub(r'\s+', ' ', answer_text)  # Normalize whitespace
+                answer_text = answer_text.strip()
+                
+                # Only yield if there's actual content left (not just reasoning artifacts)
+                if answer_text and len(answer_text) > 10:  # Minimum length to ensure it's not just artifacts
                     print(f"[Generic] 📝 [CoT Reasoning Debug] Fallback answer extracted: {answer_text[:200]}...")
-                    yield answer_text
+                    yield "<sentence_start>\n" + answer_text + "\n<sentence_end>\n"
+                else:
+                    print(f"[Generic] ⚠️  [CoT Reasoning Debug] Fallback answer too short or empty after cleaning, not yielding")
 
 
 def filter_think_blocks(generator):

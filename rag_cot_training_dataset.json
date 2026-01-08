@@ -3,7 +3,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -19,7 +19,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -35,7 +35,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -51,7 +51,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -67,7 +67,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -83,7 +83,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -99,7 +99,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -115,7 +115,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -131,7 +131,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -147,7 +147,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -163,7 +163,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -179,7 +179,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -195,7 +195,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -211,7 +211,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -227,7 +227,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -243,7 +243,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -259,7 +259,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -275,7 +275,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -291,7 +291,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -307,7 +307,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -323,7 +323,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -339,7 +339,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -355,7 +355,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -371,7 +371,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -387,7 +387,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -403,7 +403,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -419,7 +419,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -435,7 +435,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -451,7 +451,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -467,7 +467,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -483,7 +483,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -499,7 +499,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -515,7 +515,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -531,7 +531,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -547,7 +547,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -563,7 +563,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -579,7 +579,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -595,7 +595,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -611,7 +611,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -627,7 +627,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -643,7 +643,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -659,7 +659,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -675,7 +675,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -691,7 +691,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -707,7 +707,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -723,7 +723,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -739,7 +739,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -755,7 +755,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -771,7 +771,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -787,7 +787,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -803,7 +803,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -819,7 +819,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -835,7 +835,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -851,7 +851,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -867,7 +867,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -883,7 +883,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -899,7 +899,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -915,7 +915,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -931,7 +931,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -947,7 +947,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -963,7 +963,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -979,7 +979,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -995,7 +995,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -1011,7 +1011,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -1027,7 +1027,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -1043,7 +1043,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -1059,7 +1059,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -1075,7 +1075,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -1091,7 +1091,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -1107,7 +1107,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -1123,7 +1123,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -1139,7 +1139,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -1155,7 +1155,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -1171,7 +1171,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -1187,7 +1187,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -1203,7 +1203,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -1219,7 +1219,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -1235,7 +1235,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -1251,7 +1251,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -1267,7 +1267,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -1283,7 +1283,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -1299,7 +1299,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -1315,7 +1315,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -1331,7 +1331,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -1347,7 +1347,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -1363,7 +1363,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -1379,7 +1379,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -1395,7 +1395,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -1411,7 +1411,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -1427,7 +1427,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -1443,7 +1443,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -1459,7 +1459,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -1475,7 +1475,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -1491,7 +1491,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -1507,7 +1507,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -1523,7 +1523,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -1539,7 +1539,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -1555,7 +1555,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -1571,7 +1571,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -1587,7 +1587,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -1603,7 +1603,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -1619,7 +1619,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -1635,7 +1635,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -1651,7 +1651,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -1667,7 +1667,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -1683,7 +1683,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -1699,7 +1699,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -1715,7 +1715,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -1731,7 +1731,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -1747,7 +1747,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -1763,7 +1763,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -1779,7 +1779,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -1795,7 +1795,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -1811,7 +1811,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -1827,7 +1827,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -1843,7 +1843,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -1859,7 +1859,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -1875,7 +1875,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -1891,7 +1891,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -1907,7 +1907,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -1923,7 +1923,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -1939,7 +1939,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -1955,7 +1955,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -1971,7 +1971,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -1987,7 +1987,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -2003,7 +2003,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -2019,7 +2019,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -2035,7 +2035,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -2051,7 +2051,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
       },
       {
         "role": "user",
@@ -2060,6 +2060,102 @@
       {
         "role": "assistant",
         "content": "REASONING:\n- Item: Jennifer Park\n- Evidence: \"is the President and Co-Founder of CloudScale Technologies\"\n- Action: [KEEP]\n- Item: Mark Thompson\n- Evidence: \"is the Chief Technology Officer at CloudScale Technologies\"\n- Action: [DISCARD] (Reason: CTO, not co-founder).\n- End of scan.\nFINAL ANSWER:\nThe co-founder of CloudScale Technologies is Jennifer Park."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: CloudScale Technologies was launched in 2018. Jennifer Park is the President and Co-Founder of CloudScale Technologies. She has been leading the company since its inception. Mark Thompson is the Chief Technology Officer at CloudScale Technologies. He has been with the company since 2019.\n---\nQuestion: Who are the co-founders of CloudScale Technologies?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: Jennifer Park\n- Evidence: \"Jennifer Park is the President and Co-Founder of CloudScale Technologies\"\n- Action: [KEEP]\n- Item: Mark Thompson\n- Evidence: \"Mark Thompson is the Chief Technology Officer at CloudScale Technologies\"\n- Action: [DISCARD] (Reason: CTO, not co-founder).\n- End of scan.\nFINAL ANSWER:\nThe co-founder of CloudScale Technologies is Jennifer Park."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: TechCorp was founded in 2015. John Smith is the CEO and Co-Founder of TechCorp. Sarah Johnson is the Chief Technology Officer at TechCorp. Michael Brown is the Co-Founder and Chief Operating Officer of TechCorp. Emily Davis is the Head of Marketing. Robert Wilson is an External Advisor. David Martinez is the Co-Founder and Chief Product Officer. Lisa Anderson is the Chief Financial Officer.\n---\nQuestion: Who are the co-founders of TechCorp?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: John Smith\n- Evidence: \"John Smith is the CEO and Co-Founder of TechCorp\"\n- Action: [KEEP]\n- Item: Sarah Johnson\n- Evidence: \"Sarah Johnson is the Chief Technology Officer at TechCorp\"\n- Action: [DISCARD] (Reason: CTO, not co-founder).\n- Item: Michael Brown\n- Evidence: \"Michael Brown is the Co-Founder and Chief Operating Officer of TechCorp\"\n- Action: [KEEP]\n- Item: Emily Davis\n- Evidence: \"Emily Davis is the Head of Marketing\"\n- Action: [DISCARD] (Reason: Head of Marketing, not co-founder).\n- Item: Robert Wilson\n- Evidence: \"Robert Wilson is an External Advisor\"\n- Action: [DISCARD] (Reason: External Advisor, not co-founder).\n- Item: David Martinez\n- Evidence: \"David Martinez is the Co-Founder and Chief Product Officer\"\n- Action: [KEEP]\n- Item: Lisa Anderson\n- Evidence: \"Lisa Anderson is the Chief Financial Officer\"\n- Action: [DISCARD] (Reason: CFO, not co-founder).\n- End of scan.\nFINAL ANSWER:\nThe co-founders of TechCorp are John Smith, Michael Brown, and David Martinez."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: QuantumAI Systems is a leading technology company. Paul Chen is a technology leader with extensive experience in AI and blockchain. As CEO and Co-Founder of QuantumAI Systems, he drives the company's strategic vision. Bob Martinez is a financial expert specializing in enterprise finance and tokenomics. As Co-Founder and Chief Financial Officer of QuantumAI Systems, he architects the company's financial strategy. David Kim is a strategic leader in AI-driven governance and operations. As Co-Founder and Chief Operating Officer of QuantumAI Systems, he leads execution of AI-powered solutions. Jorge Rodriguez is a visionary leader at the intersection of AI and marketing. As Co-Founder and Chief Marketing Officer of QuantumAI Systems, he spearheads global adoption and brand strategy. Will Johnson is a technological architect with over 20 years of experience, leading QuantumAI Systems' engineering efforts as Head of Engineering. Albert Smith is a legal strategist, bringing expertise to QuantumAI Systems as External Counsel.\n---\nQuestion: Who are the co-founders of QuantumAI Systems?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: Paul Chen\n- Evidence: \"As CEO and Co-Founder of QuantumAI Systems\"\n- Action: [KEEP]\n- Item: Bob Martinez\n- Evidence: \"As Co-Founder and Chief Financial Officer of QuantumAI Systems\"\n- Action: [KEEP]\n- Item: David Kim\n- Evidence: \"As Co-Founder and Chief Operating Officer of QuantumAI Systems\"\n- Action: [KEEP]\n- Item: Jorge Rodriguez\n- Evidence: \"As Co-Founder and Chief Marketing Officer of QuantumAI Systems\"\n- Action: [KEEP]\n- Item: Will Johnson\n- Evidence: \"leading QuantumAI Systems' engineering efforts as Head of Engineering\"\n- Action: [DISCARD] (Reason: Head of Engineering, not co-founder).\n- Item: Albert Smith\n- Evidence: \"bringing expertise to QuantumAI Systems as External Counsel\"\n- Action: [DISCARD] (Reason: External Counsel, not co-founder).\n- End of scan.\nFINAL ANSWER:\nThe co-founders of QuantumAI Systems are Paul Chen, Bob Martinez, David Kim, and Jorge Rodriguez."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: TechCorp has offices in San Francisco, New York, London, and Tokyo. The San Francisco office is the headquarters. The New York office opened in 2019. The London office handles European operations. The Tokyo office serves the Asian market.\n---\nQuestion: What are the office locations of TechCorp?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: San Francisco\n- Evidence: \"TechCorp has offices in San Francisco, New York, London, and Tokyo\"\n- Action: [KEEP]\n- Item: New York\n- Evidence: \"TechCorp has offices in San Francisco, New York, London, and Tokyo\"\n- Action: [KEEP]\n- Item: London\n- Evidence: \"TechCorp has offices in San Francisco, New York, London, and Tokyo\"\n- Action: [KEEP]\n- Item: Tokyo\n- Evidence: \"TechCorp has offices in San Francisco, New York, London, and Tokyo\"\n- Action: [KEEP]\n- End of scan.\nFINAL ANSWER:\nTechCorp has offices in San Francisco, New York, London, and Tokyo."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: TechCorp was founded in 2015. John Smith is the CEO and Co-Founder of TechCorp. Sarah Johnson is the Chief Technology Officer at TechCorp. Michael Brown is the Co-Founder and Chief Operating Officer of TechCorp. David Martinez is the Co-Founder and Chief Product Officer.\n---\nQuestion: Who are the co-founders of TechCorp?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: John Smith\n- Evidence: \"John Smith is the CEO and Co-Founder of TechCorp\"\n- Action: [KEEP]\n- Item: Sarah Johnson\n- Evidence: \"Sarah Johnson is the Chief Technology Officer at TechCorp\"\n- Action: [DISCARD] (Reason: CTO, not co-founder).\n- Item: Michael Brown\n- Evidence: \"Michael Brown is the Co-Founder and Chief Operating Officer of TechCorp\"\n- Action: [KEEP]\n- Item: David Martinez\n- Evidence: \"David Martinez is the Co-Founder and Chief Product Officer\"\n- Action: [KEEP]\n- End of scan.\nFINAL ANSWER:\nThe co-founders of TechCorp are John Smith, Michael Brown, and David Martinez."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n- Read entire descriptions/chunks completely - titles may appear later in the text."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: LedgerAI was founded in 2015. Paul Chou is a renowned leader in AI and blockchain. As CEO and Co-Founder of LedgerAI, he drives the company's strategic vision. Bob Carella is a financial expert. As Co-Founder and Chief Financial Officer of LedgerAI, he architects the company's financial strategy. David Lara is a strategic leader. As Co-Founder and Chief Operating Officer of LedgerAI, he leads execution. Jorge Guinovart is a visionary leader. As Co-Founder and Chief Marketing Officer of LedgerAI, he spearheads global adoption. Will Specht is a technological architect, leading LedgerAI's engineering efforts as Head of Engineering. Albert Soler is a legal strategist, bringing expertise to LedgerAI as External Counsel.\n---\nQuestion: Who are the co-founders of LedgerAI?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: Paul Chou\n- Evidence: \"As CEO and Co-Founder of LedgerAI\"\n- Action: [KEEP]\n- Item: Bob Carella\n- Evidence: \"As Co-Founder and Chief Financial Officer of LedgerAI\"\n- Action: [KEEP]\n- Item: David Lara\n- Evidence: \"As Co-Founder and Chief Operating Officer of LedgerAI\"\n- Action: [KEEP]\n- Item: Jorge Guinovart\n- Evidence: \"As Co-Founder and Chief Marketing Officer of LedgerAI\"\n- Action: [KEEP]\n- Item: Will Specht\n- Evidence: \"leading LedgerAI's engineering efforts as Head of Engineering\"\n- Action: [DISCARD] (Reason: Head of Engineering, not co-founder).\n- Item: Albert Soler\n- Evidence: \"bringing expertise to LedgerAI as External Counsel\"\n- Action: [DISCARD] (Reason: External Counsel, not co-founder).\n- End of scan.\nFINAL ANSWER:\nThe co-founders of LedgerAI are Paul Chou, Bob Carella, David Lara, and Jorge Guinovart."
       }
     ]
   }
