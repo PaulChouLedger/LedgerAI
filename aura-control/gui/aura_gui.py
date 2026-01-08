@@ -5,7 +5,7 @@ import sys
 import math
 import time
 from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QPushButton, QVBoxLayout, QWidget, QHBoxLayout, QGraphicsDropShadowEffect, QTextEdit, QScrollBar
-from PyQt5.QtGui import QPixmap, QKeySequence, QColor, QTransform, QPainter, QPen, QFont, QFontMetrics, QLinearGradient
+from PyQt5.QtGui import QPixmap, QKeySequence, QColor, QTransform, QPainter, QPen, QFont, QFontMetrics, QLinearGradient, QConicalGradient
 from PyQt5.QtCore import Qt, QTimer, QPoint, QPropertyAnimation, QEasingCurve, QMetaObject, Q_ARG, pyqtSlot
 
 # Add the parent directories to Python path for imports
@@ -636,7 +636,7 @@ class CircularProgressWidget(QWidget):
         QTimer.singleShot(500, self.hide)
     
     def paintEvent(self, event):
-        """Draw circular progress ring around the aura eye - hugs the eye, matches white perimeter"""
+        """Draw circular progress ring around the aura eye - hugs the eye, matches white perimeter with gradient"""
         if not self.isVisible() or self.progress <= 0:
             return
         
@@ -652,16 +652,29 @@ class CircularProgressWidget(QWidget):
         ring_radius = 222  # 10% larger diameter (was 202, now 222)
         ring_thickness = 11  # 10% thicker (was 10, now 11)
         
-        # White color matching the perimeter (30% opacity)
-        white_color = QColor(255, 255, 255, 77)  # Same as white perimeter
-        
-        # Draw progress ring (filled portion) - grows from top clockwise
+        # Draw progress ring (filled portion) - grows from top clockwise with gradient
         if self.progress > 0:
             # Calculate angle for progress (start at top, go clockwise)
             progress_angle = int(self.progress * 360 * 16)  # Convert to 1/16th degree units
             
-            # Draw progress arc with white color matching perimeter
-            progress_pen = QPen(white_color, ring_thickness, Qt.SolidLine, Qt.RoundCap)
+            # Create conical gradient: dark at start, lighter as progress increases
+            # Gradient center is at the screen center
+            # Start angle is -90° (top, 12 o'clock) since that's where progress starts
+            gradient = QConicalGradient(center_x, center_y, -90)
+            
+            # Dark color at the start (0% progress) - darker gray/white at lower opacity
+            dark_color = QColor(200, 200, 200, 40)  # Darker, lower opacity
+            
+            # Light color at the end (current progress position) - brighter white at higher opacity
+            light_color = QColor(255, 255, 255, 100)  # Lighter, higher opacity
+            
+            # Set gradient stops: dark at start (0.0), light at the current progress position
+            # The gradient transitions smoothly from dark to light along the progress arc
+            gradient.setColorAt(0.0, dark_color)  # Start position (top) - dark
+            gradient.setColorAt(self.progress, light_color)  # End at current progress - light
+            
+            # Create pen with gradient brush
+            progress_pen = QPen(gradient, ring_thickness, Qt.SolidLine, Qt.RoundCap)
             painter.setPen(progress_pen)
             painter.setBrush(Qt.NoBrush)
             
