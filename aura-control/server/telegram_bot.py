@@ -12,11 +12,33 @@ dotenv_path = os.path.join(workspace_root, '.env')
 load_dotenv(dotenv_path)
 
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-# Determine which LLM container to use based on USE_MEDICAL_MODE (default to generic mode)
-USE_MEDICAL_MODE = os.getenv("USE_MEDICAL_MODE", "false").lower() == "true"
 # Both containers use port 11434 (only one runs at a time)
 DEFAULT_PORT = "11434"
 AURA_CHAT_URL = os.getenv("AURA_CHAT_URL", f"http://127.0.0.1:{DEFAULT_PORT}/chat-tg")
+
+# Auto-detect which container is running (more accurate than env var)
+def detect_llm_container_mode():
+    """Detect if medical or generic LLM container is running by checking health endpoint."""
+    try:
+        health_url = f"http://127.0.0.1:{DEFAULT_PORT}/health"
+        response = requests.get(health_url, timeout=2)
+        if response.status_code == 200:
+            health_data = response.json()
+            service_name = health_data.get("service", "").lower()
+            # Check service name from health endpoint
+            if "medical" in service_name:
+                return True  # Medical mode
+            elif "generic" in service_name:
+                return False  # Generic mode
+    except Exception as e:
+        print(f"[Telegram Bot] ⚠️ Could not auto-detect container type: {e}")
+    
+    # Fallback to environment variable if auto-detection fails
+    USE_MEDICAL_MODE_ENV = os.getenv("USE_MEDICAL_MODE", "false").lower() == "true"
+    print(f"[Telegram Bot] ⚠️ Using fallback mode from env: {'Medical' if USE_MEDICAL_MODE_ENV else 'Generic'}")
+    return USE_MEDICAL_MODE_ENV
+
+USE_MEDICAL_MODE = detect_llm_container_mode()
 # Debug info is now always shown in terminal logs (not in Telegram messages)
 
 if not TELEGRAM_BOT_TOKEN or TELEGRAM_BOT_TOKEN == "your_telegram_bot_token":
