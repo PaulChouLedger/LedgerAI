@@ -27,7 +27,7 @@ class BaseLLMContainer:
     LLM_TEMPERATURE_SIMPLE = 0.7
     LLM_TOP_P = 0.95
     LLM_TOP_K = 40
-    LLM_REPEAT_PENALTY = 1.1
+    LLM_REPEAT_PENALTY = 1.2  # Increased to match test script (was 1.1)
     LLM_NUM_PREDICT_DEFAULT = 200
     SIMPLE_N_CTX = 4096
     SIMPLE_CHAT_FORMAT = "qwen"

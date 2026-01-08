@@ -1105,11 +1105,13 @@ JSON array only:"""
                     "  2. Check if key terms in the query are coherent and refer to real concepts (e.g., asking for a recipe for something that doesn't exist)\n"
                     "  3. Check if the query is incomplete, unclear, or contains transcription errors\n"
                     "  4. If the query does NOT make logical sense, DO NOT force it into a response. Instead, politely ask: 'I'm not sure I understand your question. Could you please repeat or rephrase it?'\n"
-                    "- CRITICAL: Before responding, check if the query is an incomplete sentence (starts with 'and', 'but', 'or', 'so', 'then', 'also', 'make sure', 'ensure', etc.) or an instruction rather than a question. If so, ask for clarification instead of answering.\n"
+                    "- CRITICAL: Before responding, check if the query is an incomplete sentence (starts with 'and', 'but', 'or', 'so', 'then', 'also', 'make sure', 'ensure', etc.). If so, ask for clarification instead of answering.\n"
+                    "- IMPORTANT: Commands and instructions like 'Give me X', 'Tell me about Y', 'Show me Z' are VALID requests and should be answered normally using your general knowledge.\n"
                     "- If the user's query is unclear, nonsensical, or doesn't make logical sense, DO NOT force it into a response.\n"
                     "- Instead, politely ask the user to clarify or repeat their question. Example: 'I'm not sure I understand. Could you please rephrase your question or provide more context?'\n"
                     "- Never invent facts, names, dates, or details that aren't in the provided context.\n"
-                    "- CRITICAL: DO NOT treat instructions or incomplete sentences as questions. If the query is an instruction or incomplete, ask for clarification rather than making up an answer.\n"
+                    "- CRITICAL: DO NOT treat incomplete sentences as questions. If the query is incomplete (starts with 'and', 'but', 'or', etc.), ask for clarification rather than making up an answer.\n"
+                    "- IMPORTANT: Valid commands like 'Give me X', 'Tell me about Y' are acceptable and should be answered using general knowledge.\n"
                     "- CRITICAL: DO NOT make up information to answer nonsensical queries. If a query asks for something that doesn't exist (like 'recipe for rest and efforts'), ask for clarification instead of inventing a response.\n\n"
                     "Use ONLY information from the context above. Do not invent facts.\n"
                     "If information is missing, say 'I don't have that information'.\n\n"
@@ -1246,9 +1248,9 @@ JSON array only:"""
                     "   b. Check if key terms in the query are coherent and refer to real concepts (e.g., asking for a recipe for something that doesn't exist)\n"
                     "   c. Check if the query is incomplete, unclear, or contains transcription errors\n"
                     "   d. Check if the query is an incomplete sentence (starts with 'and', 'but', 'or', 'so', 'then', 'also', 'plus', 'make sure', 'ensure', etc.)\n"
-                    "   e. Check if the query is an instruction or command rather than a question\n"
+                    "   e. IMPORTANT: Commands and instructions like 'Give me X', 'Tell me about Y', 'Show me Z' are VALID requests and should be answered normally.\n"
                     "   f. Check if the query is missing context from a previous conversation\n"
-                    "   If the query does NOT make logical sense (e.g., asks for something that doesn't exist), DO NOT force it into a response. Instead, politely ask: 'I'm not sure I understand your question. Could you please repeat or rephrase it?'\n"
+                    "   If the query does NOT make logical sense (e.g., asks for something that doesn't exist, or is truly incomplete), DO NOT force it into a response. Instead, politely ask: 'I'm not sure I understand your question. Could you please repeat or rephrase it?'\n"
                     "3. Check if the context above actually contains information relevant to answering the query.\n"
                     "4. If the context contains relevant information that answers the query:\n"
                     "   - Extract ONLY information that directly answers the query from the context.\n"
@@ -1273,7 +1275,8 @@ JSON array only:"""
                 # No examples - LLM must use only the RAG context provided
                 few_shot_examples = ""
                 
-                # Use CoT format that matches the fine-tuned model training (EXACT match with test script)
+                # Use CoT format ONLY when RAG is triggered (has_rag_context = True)
+                # This matches the user's request: "use CoT when RAG is triggered and use basic LLM conversational mode if RAG not triggered"
                 cot_system_prompt = (
                     "You are a precise data extraction bot.\n"
                     "1. Start with REASONING:\n"
@@ -1323,7 +1326,8 @@ JSON array only:"""
             # The base class already wraps it with debug logging
             # Use higher token limit for list questions to ensure all items are included
             # Use lower temperature (0.05) for RAG queries to match test script and ensure accuracy
-            max_tokens_limit = MAX_TOKENS_RAG_MODE_LIST if is_list_request else MAX_TOKENS_RAG_MODE
+            # Use 2048 tokens to match test script (was 800, might be cutting off reasoning)
+            max_tokens_limit = 2048 if is_list_request else MAX_TOKENS_RAG_MODE
             return llm_chat_simple(messages, max_tokens=max_tokens_limit, temperature=0.05, stream=stream)
         else:
             # No RAG context, use standard prompt with Aura Vision identity
@@ -1359,14 +1363,8 @@ JSON array only:"""
                                    "DO NOT make up or guess information. If you don't have reliable information about what was asked, " \
                                    "say so clearly (e.g., 'I don't have that information in my memory') rather than providing generic or speculative responses.\n\n"
                 
-                # Build structured reasoning instructions for memory-only context
-                reasoning_instructions = (
-                    "\n🧠 REASONING PROCESS:\n"
-                    "1. Think step-by-step - analyze the question and available context systematically\n"
-                    "2. Use only provided information - do not invent facts or guess\n"
-                    "3. If information is missing, state 'unknown' instead of guessing\n"
-                    "4. Structure your response with: Known Facts, Reasoning Steps, Conflicts/Missing Info, Final Answer, Confidence\n"
-                )
+                # NO CoT instructions for non-RAG queries - use basic conversational mode
+                # CoT is ONLY used when RAG is triggered (has_rag_context = True)
                 
                 system_content = (
                     f"{combined_context}\n\n"
@@ -1374,10 +1372,11 @@ JSON array only:"""
                     "You act as a proactive AI agent guiding users to better outcomes through gentle guidance.\n\n"
                     "CRITICAL RULES:\n"
                     "- Only provide logical, factual responses. Avoid hallucination at all costs.\n"
+                    "- IMPORTANT: Commands and instructions like 'Give me X', 'Tell me about Y', 'Show me Z' are VALID requests and should be answered normally using your general knowledge.\n"
                     "- If the user's query is unclear, nonsensical, or doesn't make logical sense, DO NOT force it into a response.\n"
                     "- Instead, politely ask the user to clarify or repeat their question.\n"
-                    "- Never invent facts, names, dates, or details that aren't in the provided context.\n\n"
-                    f"{reasoning_instructions}"
+                    "- For general knowledge questions (recipes, facts, etc.), use your general knowledge to provide helpful answers.\n"
+                    "- Never invent facts, names, dates, or details that aren't in the provided context or common knowledge.\n\n"
                     f"{memory_warning}"
                     "IMPORTANT: Use the conversation memory provided above to answer the user's question. "
                     "If the memory contains relevant information, provide that information in your response. "
@@ -2987,12 +2986,20 @@ def filter_cot_reasoning(generator):
                 
                 discarded_items = extract_discarded_items(reasoning_text)
                 
+                # DEBUG: Print FULL raw response (for debugging)
+                print(f"\n{'='*80}")
+                print(f"[Generic] 📋 [CoT Debug] FULL RAW TEXT BUFFER (first 2000 chars):")
+                print(f"{'='*80}")
+                clean_buffer = text_buffer.replace("<sentence_start>", "").replace("<sentence_end>", "").strip()
+                print(clean_buffer[:2000])
+                print(f"{'='*80}\n")
+                
                 # DEBUG: Print reasoning section
                 print(f"\n{'='*80}")
                 print(f"[Generic] 🧠 [CoT Reasoning Debug] REASONING OUTPUT:")
                 print(f"{'='*80}")
                 clean_reasoning = reasoning_text.replace("<sentence_start>", "").replace("<sentence_end>", "").strip()
-                print(clean_reasoning[:1000])  # Print first 1000 chars
+                print(clean_reasoning[:2000])  # Increased to 2000 chars to see more
                 print(f"{'='*80}")
                 if discarded_items:
                     print(f"[Generic] 🚫 [CoT Reasoning Debug] Items marked DISCARD: {discarded_items}")
@@ -3019,7 +3026,15 @@ def filter_cot_reasoning(generator):
     
     # After stream ends, clean and yield final answer (matches test script extraction)
     if found_final_answer and answer_buffer:
-        final_answer = " ".join(answer_buffer).strip()
+        # DEBUG: Print raw answer buffer before cleaning
+        raw_answer = " ".join(answer_buffer).strip()
+        print(f"\n{'='*80}")
+        print(f"[Generic] 📝 [CoT Debug] RAW ANSWER BUFFER (before cleaning):")
+        print(f"{'='*80}")
+        print(raw_answer[:500])
+        print(f"{'='*80}\n")
+        
+        final_answer = raw_answer
         
         # Cleanup matches test script exactly
         final_answer = re.sub(r'\[(KEEP|DISCARD|Action|Result)\]', '', final_answer, flags=re.IGNORECASE)
