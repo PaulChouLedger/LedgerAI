@@ -217,7 +217,7 @@ def test_rag_scenario(model, tokenizer, scenario):
         else:
             assistant_response = response.strip()
         
-        print(f"\n📝 Model Response:\n{assistant_response[:800]}...")
+        print(f"\n📝 Model Response (first 1200 chars):\n{assistant_response[:1200]}...")
         
         # Check for CoT
         has_cot, indicators = check_cot_reasoning(assistant_response)
@@ -237,11 +237,18 @@ def test_rag_scenario(model, tokenizer, scenario):
         # Extract final answer (if CoT)
         if has_cot:
             if "FINAL ANSWER:" in assistant_response:
-                clean_response = assistant_response.split("FINAL ANSWER:")[-1].strip()
+                final_answer_section = assistant_response.split("FINAL ANSWER:")[-1].strip()
             elif "Final Answer:" in assistant_response:
-                clean_response = assistant_response.split("Final Answer:")[-1].strip()
+                final_answer_section = assistant_response.split("Final Answer:")[-1].strip()
             else:
-                clean_response = assistant_response
+                final_answer_section = assistant_response
+            
+            # Print full FINAL ANSWER section for debugging
+            print(f"\n🔍 Full FINAL ANSWER section (first 800 chars):\n{final_answer_section[:800]}")
+            # Also check if there's more content after (might be truncated)
+            if len(final_answer_section) > 800:
+                print(f"   ... (truncated, total length: {len(final_answer_section)} chars)")
+            clean_response = final_answer_section
         else:
             clean_response = assistant_response
         

@@ -63,8 +63,32 @@ def merge_datasets(rag_cot_dataset, conversational_dataset, ratio=0.5, max_total
         target_rag = len(rag_cot_dataset)
     
     # Sample datasets to match target sizes
+    # Prioritize complex examples (those with longer contexts or multiple chunks)
     if len(rag_cot_dataset) > target_rag:
-        rag_cot_samples = random.sample(rag_cot_dataset, target_rag)
+        # Sort by context length (longer = more complex, prioritize these)
+        def get_context_length(example):
+            messages = example.get("messages", [])
+            user_msg = next((msg for msg in messages if msg.get("role") == "user"), None)
+            if user_msg:
+                content = user_msg.get("content", "")
+                # Count chunks (separated by ---)
+                chunks = content.split("---")
+                return len(content), len(chunks)
+            return 0, 0
+        
+        # Sort by complexity (length, then number of chunks)
+        sorted_rag = sorted(rag_cot_dataset, key=get_context_length, reverse=True)
+        # Take top complex examples first, then random sample from rest
+        complex_count = min(10, target_rag // 2)  # Take top 10 complex examples
+        complex_examples = sorted_rag[:complex_count]
+        remaining = sorted_rag[complex_count:]
+        remaining_needed = target_rag - complex_count
+        if remaining_needed > 0:
+            remaining_samples = random.sample(remaining, min(remaining_needed, len(remaining)))
+            rag_cot_samples = complex_examples + remaining_samples
+        else:
+            rag_cot_samples = complex_examples[:target_rag]
+        print(f"   Prioritized {complex_count} complex examples (longer contexts, multiple chunks)")
     else:
         rag_cot_samples = rag_cot_dataset
     
@@ -131,14 +155,15 @@ if __name__ == "__main__":
     conversational_dataset = load_dataset(conversational_file)
     print()
     
-    # Merge datasets (50/50 ratio, limit to ~270 examples for faster training)
-    # Original: 135 RAG examples
-    # Target: ~270 total (135 RAG + 135 conversational) for balanced 50/50 split
+    # Merge datasets (50/50 ratio, limit to ~280 examples for faster training)
+    # Updated: 140 RAG examples (135 original + 5 new complex examples)
+    # Target: ~280 total (140 RAG + 140 conversational) for balanced 50/50 split
     # This keeps training time reasonable (~1-2 hours instead of 4-5 hours)
-    # Training time scales with dataset size: 135 examples = ~30 min, 270 = ~1 hour, 2135 = ~5 hours
-    max_total = 270  # 2x the RAG dataset size for balanced training
-    print(f"📊 Limiting dataset to {max_total} examples (135 RAG + 135 conversational)")
-    print(f"   This reduces training time from ~5 hours to ~1-2 hours")
+    # Training time scales with dataset size: 135 examples = ~30 min, 280 = ~1-1.5 hours, 2135 = ~5 hours
+    max_total = 280  # 2x the RAG dataset size for balanced training (includes new complex examples)
+    print(f"📊 Limiting dataset to {max_total} examples (140 RAG + 140 conversational)")
+    print(f"   Includes 5 new complex multi-chunk examples to improve extraction accuracy")
+    print(f"   This reduces training time from ~5 hours to ~1-1.5 hours")
     print()
     merged_dataset = merge_datasets(rag_cot_dataset, conversational_dataset, ratio=0.5, max_total_examples=max_total)
     
