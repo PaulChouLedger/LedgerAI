@@ -2850,12 +2850,29 @@ def filter_cot_reasoning(generator):
                         break
                 
                 if answer_token_idx is not None:
-                    # Extract answer from token containing FINAL ANSWER
+                    # Extract answer from token containing FINAL ANSWER and all subsequent tokens
+                    # First, get the part after FINAL ANSWER from the token containing it
                     answer_token = token_buffer[answer_token_idx]
                     tok_text = extract_text(answer_token)
                     idx = tok_text.find(marker)
                     if idx >= 0:
-                        answer_text = tok_text[idx + len(marker):].strip()
+                        # Start with text after FINAL ANSWER from current token
+                        answer_parts = [tok_text[idx + len(marker):].strip()]
+                        
+                        # Add all subsequent tokens to get complete answer
+                        for remaining_token in token_buffer[answer_token_idx + 1:]:
+                            tok_text = extract_text(remaining_token)
+                            if tok_text:
+                                answer_parts.append(tok_text)
+                        
+                        # Join all parts with spaces
+                        answer_text = " ".join(answer_parts).strip()
+                        
+                        # Fix spacing issues (add spaces between concatenated words)
+                        answer_text = re.sub(r'([a-z])([A-Z])', r'\1 \2', answer_text)  # Add space before capital after lowercase
+                        answer_text = re.sub(r'([A-Z][a-z]+)([A-Z][a-z]+)', r'\1 \2', answer_text)  # Add space between words
+                        answer_text = re.sub(r'\s+', ' ', answer_text)  # Normalize spaces
+                        answer_text = answer_text.strip()
                         
                         # Filter out DISCARD items
                         if discarded_items:
@@ -2881,28 +2898,15 @@ def filter_cot_reasoning(generator):
                         answer_text = re.sub(r'- Item:.*?(?=\n|$)', '', answer_text, flags=re.IGNORECASE | re.MULTILINE)
                         answer_text = re.sub(r'- Evidence:.*?(?=\n|$)', '', answer_text, flags=re.IGNORECASE | re.MULTILINE)
                         answer_text = re.sub(r'- Action:.*?(?=\n|$)', '', answer_text, flags=re.IGNORECASE | re.MULTILINE)
+                        answer_text = re.sub(r'\d+\.\s*', '', answer_text)  # Remove numbered list markers
+                        answer_text = re.sub(r'\s+', ' ', answer_text).strip()  # Final space normalization
                         
                         # Yield answer with sentence tags
                         if answer_text.strip():
+                            print(f"[Generic] 📝 [CoT Reasoning Debug] Original FINAL ANSWER: {answer_text[:200]}...")
                             yield "<sentence_start>\n" + answer_text.strip() + "\n<sentence_end>\n"
                         
-                        # Yield remaining tokens after FINAL ANSWER (cleaned)
-                        for remaining_token in token_buffer[answer_token_idx + 1:]:
-                            cleaned = remaining_token
-                            if cleaned and not (cleaned.startswith('<') and cleaned.endswith('>')):
-                                cleaned_text = extract_text(cleaned)
-                                cleaned_text = re.sub(r'REASONING:\s*', '', cleaned_text, flags=re.IGNORECASE)
-                                cleaned_text = re.sub(r'-?\s*Item:\s*[^\n]*', '', cleaned_text, flags=re.IGNORECASE | re.MULTILINE)
-                                cleaned_text = re.sub(r'-?\s*Evidence:\s*[^\n]*', '', cleaned_text, flags=re.IGNORECASE | re.MULTILINE)
-                                cleaned_text = re.sub(r'-?\s*Action:\s*\[[^\]]*\]', '', cleaned_text, flags=re.IGNORECASE | re.MULTILINE)
-                                cleaned_text = re.sub(r'\[(KEEP|DISCARD|Action)\]\s*', '', cleaned_text, flags=re.IGNORECASE)
-                                cleaned_text = re.sub(r'-?\s*End of scan\.?\s*', '', cleaned_text, flags=re.IGNORECASE)
-                                cleaned_text = re.sub(r'\s+', ' ', cleaned_text).strip()
-                                if cleaned_text and len(cleaned_text) > 3:
-                                    yield cleaned_text
-                            elif cleaned and (cleaned.startswith('<') and cleaned.endswith('>')):
-                                yield cleaned
-                        
+                        # Clear buffers - we've processed everything up to this point
                         token_buffer = []
                         text_buffer = ""
                         continue
