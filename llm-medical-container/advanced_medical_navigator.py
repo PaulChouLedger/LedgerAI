@@ -1392,6 +1392,20 @@ class AdvancedMedicalNavigator:
             # Get base question format for this element (with pronoun if appropriate)
             base_question = self._get_base_question_for_element(field, cc_subject, use_pronoun=use_pronoun)
             
+            # Special handling for location questions when dealing with abdominal pain
+            location_guidance = ""
+            if field == 'location':
+                cc_lower = cc.lower()
+                # Check if chief complaint involves abdomen/stomach/belly
+                abdominal_keywords = ['abdominal', 'abdomen', 'stomach', 'belly', 'tummy', 'gut']
+                if any(keyword in cc_lower for keyword in abdominal_keywords):
+                    location_guidance = (
+                        "\nIMPORTANT: Since this is about abdominal pain, ask for SPECIFIC location details. "
+                        "For example: 'upper right', 'lower right', 'upper left', 'lower left', 'center', "
+                        "'around the belly button', etc. You can mention quadrants (upper right, lower left, etc.) "
+                        "in a patient-friendly way like 'upper right part of your belly' or 'lower right side of your abdomen'."
+                    )
+            
             # Build natural guidance based on whether we're using pronouns
             if use_pronoun:
                 user_prompt = f"""Context of what we already know:
@@ -1399,7 +1413,7 @@ class AdvancedMedicalNavigator:
 
 You need to ask about the {field}. 
 IMPORTANT: Use natural language with pronouns (like "it" or "your symptoms") instead of repeating the complaint. 
-Use this as a guide: '{base_question}'
+Use this as a guide: '{base_question}'{location_guidance}
 Do NOT ask about age, demographics, or information already in the context. 
 Do NOT use awkward phrases like 'character of' or 'the {field}'. 
 CRITICAL: Output ONLY the question. No reasoning, no notes, no explanations, no "CLINICAL NOTE:" prefixes.
@@ -1409,7 +1423,7 @@ Ask only one natural, conversational question about {field}."""
 {context_summary}
 
 You need to ask about the {field} of the {cc_subject}. 
-IMPORTANT: Ask about {field} using natural language. Use this as a guide: '{base_question}' 
+IMPORTANT: Ask about {field} using natural language. Use this as a guide: '{base_question}'{location_guidance}
 Do NOT ask about age, demographics, or information already in the context. 
 Do NOT use awkward phrases like 'character of' or 'the {field}'. 
 CRITICAL: Output ONLY the question. No reasoning, no notes, no explanations, no "CLINICAL NOTE:" prefixes.
@@ -1885,10 +1899,20 @@ Ask only one question about {field}."""
     def _validate_hpi_answer_appropriateness(self, session: "MedicalSession", field: str, answer: str, question: str) -> Tuple[bool, Optional[str]]:
         """
         Validate that the answer is appropriate for the OLD CARTS field being asked.
+        
+        Uses a hybrid approach:
+        1. Fast-path heuristics: Quick checks for obviously valid answers (performance optimization)
+        2. LLM validation: Fine-tuned model validates edge cases using its training knowledge
+        
+        The fine-tuned model should handle most cases naturally, but heuristics provide:
+        - Performance: Avoid LLM calls for obvious cases
+        - Reliability: Catch common patterns that might be missed
+        - Clinical accuracy: Special handling for vague abdominal locations (requires quadrant specificity)
+        
         Returns: (is_appropriate, clarification_message_if_needed)
         """
         # Quick heuristic check for common valid responses before LLM validation
-        # This prevents false negatives for obviously valid answers
+        # This prevents false negatives for obviously valid answers and provides fast-path optimization
         answer_lower = answer.lower().strip()
         
         # For onset field, accept common time-related phrases immediately
@@ -1908,6 +1932,56 @@ Ask only one question about {field}."""
             # Also accept if it starts with a number (e.g., "2 days ago", "3 hours ago")
             import re
             if re.match(r'^\d+\s+(hour|day|week|month|minute)', answer_lower):
+                return True, None
+        
+        # For location field, accept common body location phrases immediately
+        if field == 'location':
+            # Check if this is about abdominal pain - need more specific location
+            cc = session.context.get('pre_hpi', {}).get('chief_complaint', '').lower()
+            is_abdominal = any(keyword in cc for keyword in ['abdominal', 'abdomen', 'stomach', 'belly', 'tummy'])
+            
+            if is_abdominal:
+                # For abdominal pain, check if answer is too vague (just "abdomen", "stomach", "belly")
+                vague_abdominal = ['abdomen', 'stomach', 'belly', 'tummy', 'gut', 'my belly', 'my stomach', 'my abdomen']
+                if answer_lower.strip() in vague_abdominal or answer_lower.strip() in [f'in my {v}' for v in vague_abdominal]:
+                    # Too vague - need specific quadrant/location
+                    clarification = (
+                        "I need to know which specific part of your abdomen. For example: "
+                        "'upper right', 'lower right', 'upper left', 'lower left', 'center', "
+                        "'around the belly button', 'right side', 'left side'. Which part of your abdomen?"
+                    )
+                    self._capture_debug(f"[Validation] ⚠️ Vague abdominal location detected: '{answer}', requesting specifics")
+                    return False, clarification
+                
+                # Check for specific abdominal location indicators
+                specific_indicators = [
+                    'upper', 'lower', 'right', 'left', 'quadrant', 'ruq', 'rlq', 'luq', 'llq',
+                    'epigastric', 'umbilical', 'hypogastric', 'flank', 'groin',
+                    'belly button', 'navel', 'center', 'centre', 'middle'
+                ]
+                # Accept if contains specific indicators
+                if any(indicator in answer_lower for indicator in specific_indicators):
+                    return True, None
+            
+            # Common body parts (for non-abdominal or already specific abdominal)
+            body_parts = [
+                'chest', 'abdomen', 'stomach', 'belly', 'head', 'neck', 'throat',
+                'arm', 'arms', 'leg', 'legs', 'hand', 'hands', 'foot', 'feet',
+                'back', 'shoulder', 'shoulders', 'hip', 'hips', 'knee', 'knees',
+                'eye', 'eyes', 'ear', 'ears', 'jaw', 'face', 'forehead',
+            ]
+            # Positional descriptors
+            positional_words = [
+                'center of', 'centre of', 'middle of', 'upper', 'lower',
+                'left side', 'right side', 'left upper', 'right upper',
+                'left lower', 'right lower', 'behind', 'in front of',
+                'in my', 'on my', 'in the', 'on the', 'over my', 'under my'
+            ]
+            # Check if answer contains body part references
+            if any(part in answer_lower for part in body_parts):
+                return True, None
+            # Check if answer contains positional descriptors with body context
+            if any(pos in answer_lower for pos in positional_words):
                 return True, None
         
         if not self.llm_chat_fn:
@@ -1936,7 +2010,7 @@ Ask only one question about {field}."""
         
         field_guidance_text = field_guidance.get(field, "The answer should directly answer what was asked.")
         
-        validation_prompt = f"""You are a medical assistant validating patient answers.
+        validation_prompt = f"""You are a medical assistant conducting a clinical history. You have been trained on medical conversations and understand natural patient responses.
 
 Question asked: "{question}"
 Field type: {field}
@@ -1945,21 +2019,26 @@ Patient's answer: "{answer}"
 Previous answers provided:
 {chr(10).join([f"- {k}: {v}" for k, v in answered_fields.items()])}
 
-Determine if the patient's answer is appropriate for this question. 
+Based on your training, determine if the patient's answer is appropriate for this OLD CARTS question. 
 
-{field_guidance_text}
+Remember from your training:
+- Patients use natural, conversational language - not medical terminology
+- "This morning", "today", "yesterday", "2 days ago" are ALL valid ways to describe when symptoms started
+- "Center of chest", "center of my chest", "in my chest" are ALL valid location descriptions
+- "Upper right", "lower left", "right side" are valid abdominal locations
+- Accept answers that directly address the question, even if phrased informally
 
 The answer should:
-- Directly answer what was asked
+- Directly answer what was asked (even if phrased informally)
 - Not be a duplicate of an answer already given for a different field
 - Make logical sense for the question type
 
-Examples of inappropriate answers:
-- Answering "pressure" to "what makes it worse?" when "pressure" was already given as the character (what it feels like)
-- Answering a location to a question about aggravating factors
-- Answering the character description to a question about location
+Only reject answers that:
+- Don't answer the question at all (e.g., answering location to an onset question)
+- Are clearly confused/clarification requests (e.g., "what do you mean?")
+- Are duplicates of previous answers for different fields
 
-CRITICAL: For onset field, accept ANY time-related response including: "this morning", "today", "yesterday", "2 days ago", "last week", "a few hours ago", "when I woke up", "earlier", etc. These are ALL valid.
+CRITICAL: Be lenient - accept natural patient language. Patients don't use medical terminology.
 
 Return ONLY valid JSON: {{"appropriate": true/false, "reason": "brief reason"}}
 If not appropriate, also suggest what type of answer would be expected."""

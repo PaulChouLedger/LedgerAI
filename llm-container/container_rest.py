@@ -2843,7 +2843,30 @@ def filter_cot_reasoning(generator):
         
         # Check if REASONING marker found (start buffering)
         # Also check for reasoning patterns even without explicit marker
+        # Check both individual token and accumulated buffer for early detection
         if not in_reasoning:
+            # First check the current token for reasoning patterns (early detection)
+            reasoning_detected_in_token = False
+            if text_content:
+                for pattern in reasoning_patterns:
+                    if re.search(pattern, text_content, re.IGNORECASE):
+                        reasoning_detected_in_token = True
+                        in_reasoning = True
+                        # Yield any tokens before this reasoning token
+                        if len(token_buffer) > 1:
+                            tokens_before = token_buffer[:-1]  # All tokens except the current one
+                            for tok in tokens_before:
+                                yield tok
+                        # Keep only the reasoning token in buffer
+                        token_buffer = [token]
+                        text_buffer = text_content + " "
+                        print(f"[Generic] 🔍 [CoT Reasoning Debug] Detected reasoning pattern in token: {text_content[:50]}...")
+                        break
+            
+            # If reasoning was detected in token, skip other checks and continue to reasoning mode
+            if reasoning_detected_in_token:
+                continue
+            
             # Check for explicit reasoning markers
             for m in reasoning_markers:
                 if m in text_buffer:
@@ -3112,13 +3135,37 @@ def filter_cot_reasoning(generator):
 def filter_think_blocks(generator):
     """
     Filter streaming output to remove <think> blocks and detect garbage output.
+    Also filters out any remaining reasoning patterns that might have slipped through.
     Mirrors the medical container behavior for parity.
     """
     accumulated_output = []
     garbage_detected = False
     
+    # Patterns that indicate reasoning content
+    reasoning_patterns = [
+        r'Item:\s*',
+        r'Evidence:\s*',
+        r'Action:\s*\[',
+        r'\[KEEP\]',
+        r'\[DISCARD\]',
+        r'End of scan',
+    ]
+    
     for token in generator:
         if token and token.strip():
+            # Check for reasoning patterns in token (safety net) BEFORE processing
+            text_content = re.sub(r'<sentence_start>|<sentence_end>|\n', '', token)
+            is_reasoning = False
+            for pattern in reasoning_patterns:
+                if re.search(pattern, text_content, re.IGNORECASE):
+                    # Skip this token - it contains reasoning
+                    print(f"[Generic] 🚫 Filtered reasoning pattern from token: {text_content[:100]}...")
+                    is_reasoning = True
+                    break
+            
+            if is_reasoning:
+                continue  # Skip reasoning tokens
+            
             accumulated_output.append(token)
             
             full_output = ''.join(accumulated_output)
