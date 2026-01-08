@@ -30,7 +30,8 @@ sessions: Dict[str, Dict] = {}
 
 def detect_llm_port():
     """Detect which LLM container is running by checking health endpoints"""
-    for port in [11434, 11436]:
+    # Both llm-generic and llm-medical use port 11434 (only one runs at a time)
+    for port in [11434]:
         try:
             response = requests.get(f"http://localhost:{port}/health", timeout=2)
             if response.status_code == 200:

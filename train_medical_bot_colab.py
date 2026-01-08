@@ -183,7 +183,7 @@ STEP 3: Ask their age (REQUIRED - do this THIRD, AFTER chronicity)
 STEP 4: Ask their biological sex (REQUIRED - do this FOURTH, AFTER age)
 STEP 5: THEN and ONLY THEN ask about the symptom using OLD CARTS - one question at a time
 
-CRITICAL: After collecting demographics (age, biological sex), you MUST ONLY ask OLD CARTS questions. 
+CRITICAL: After collecting demographics (age, biological sex), you MUST ONLY ask OLD CARTS questions.
 DO NOT ask about age, biological sex, or demographics again during HPI.
 DO NOT ask questions like "how old is your [symptom]?" - this makes no sense.
 
@@ -250,7 +250,7 @@ has_variants = any(conv.get("variant") in ["american", "british"] for conv in da
 
 # Check if dataset includes clinical reasoning
 sample_messages = sample_conv.get("messages", [])
-has_reasoning = any("CLINICAL REASONING" in msg.get("content", "") or 
+has_reasoning = any("CLINICAL REASONING" in msg.get("content", "") or
                     "more concerning" in msg.get("content", "").lower() or
                     "probability" in msg.get("content", "").lower()
                     for msg in sample_messages)
@@ -266,13 +266,13 @@ has_associated_symptoms = any("Associated Symptom Assessment" in msg.get("conten
                               for msg in sample_messages)
 
 # Check for clarification questions
-has_clarification = any("upper abdomen" in msg.get("content", "").lower() and 
+has_clarification = any("upper abdomen" in msg.get("content", "").lower() and
                         "lower abdomen" in msg.get("content", "").lower() and
                         msg.get("role") == "assistant"
                         for msg in sample_messages)
 
 # Check for skip tags
-has_skip_tags = any(msg.get("metadata", {}).get("skip") for conv in data[:10] 
+has_skip_tags = any(msg.get("metadata", {}).get("skip") for conv in data[:10]
                     for msg in conv.get("messages", []))
 
 # Check for context-aware questions with examples
@@ -352,39 +352,39 @@ prepared_messages = []
 
 for idx, conversation in enumerate(data):
     messages = conversation.get("messages", [])
-    
+
     if not messages:
         continue
-    
+
     # Build messages list with system prompt
     chat_messages = []
-    
+
     # Check if dataset already has a system prompt
     has_system = any(msg.get("role") == "system" for msg in messages)
-    
+
     # Use system prompt from dataset if present, otherwise use fallback
     if not has_system:
         chat_messages.append({
             "role": "system",
             "content": FALLBACK_SYSTEM_PROMPT
         })
-    
+
     # Add all conversation messages (preserve system prompt from dataset if present)
     for msg in messages:
         role = msg.get("role", "").strip()
         content = msg.get("content", "").strip()
-        
+
         if role and content:
             chat_messages.append({
                 "role": role,
                 "content": content
             })
-    
+
     if len(chat_messages) < 2:  # Need at least system + one user/assistant message
         continue
-    
+
     prepared_messages.append(chat_messages)
-    
+
     if (idx + 1) % 100 == 0:
         print(f"  Processed {idx + 1}/{len(data)} conversations...")
 
@@ -432,7 +432,7 @@ for idx, messages in enumerate(prepared_messages):
         add_generation_prompt=False
     )
     formatted_texts.append({"text": text})
-    
+
     if (idx + 1) % 100 == 0:
         print(f"  Formatted {idx + 1}/{len(prepared_messages)} conversations...")
 
@@ -463,7 +463,7 @@ print("=" * 80)
 # r=128: ~90M trainable (6.80%) - Good balance, works on T4/V100
 # r=256: ~180M trainable (13.6%) - Better capacity, needs 16GB+ VRAM (CURRENT)
 # r=512: ~360M trainable (27.2%) - Maximum capacity, needs 24GB+ VRAM
-# 
+#
 # Using r=256 with Qwen2.5-1.5B for good balance of base model reasoning + task adaptation.
 # 1.5B provides better instruction following and reasoning than 0.5B.
 # See BASE_MODEL_SIZE_VS_LORA_RANK.md and UPGRADE_TO_1.5B_RECOMMENDATION.md for details.

@@ -27,7 +27,7 @@ CORS(app)
 # Service configuration
 SERVICE_NAME = "aura-communication"
 LLM_SERVICE_URL = "http://localhost:11434"  # LLM container
-WHISPER_SERVICE_URL = "http://localhost:11436"  # Whisper container
+WHISPER_SERVICE_URL = "http://localhost:5000"  # Whisper container
 
 # Configuration parameters
 RAG_THRESHOLD = float(os.environ.get('RAG_THRESHOLD', '0.3'))
