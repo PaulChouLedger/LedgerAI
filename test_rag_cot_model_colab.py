@@ -261,6 +261,15 @@ def test_scenario(model, tokenizer, scenario):
         else:
             # Fallback for non-chat templates
             assistant_response = response.strip()
+        
+        # DEBUG: Print full raw response (first 2000 chars) to see what model actually generated
+        print(f"\n{'='*80}")
+        print(f"🔍 FULL RAW MODEL RESPONSE (first 2000 chars):")
+        print(f"{'='*80}")
+        print(assistant_response[:2000])
+        if len(assistant_response) > 2000:
+            print(f"... (truncated, total length: {len(assistant_response)} chars)")
+        print(f"{'='*80}\n")
             
         # Extract and print full reasoning section
         reasoning_section = ""
@@ -314,10 +323,43 @@ def test_scenario(model, tokenizer, scenario):
                             keep_items.append(current_item)
                             current_item = None
             
+            # Also check for items without Action lines (incomplete reasoning)
+            items_without_action = []
+            lines = reasoning_section.split('\n')
+            current_item = None
+            item_start_line = None
+            for i, line in enumerate(lines):
+                item_match = re.search(r'- Item:\s*([^\n-]+?)(?:\s*$|\s*-)', line, re.IGNORECASE)
+                if item_match:
+                    # If previous item didn't have action, record it
+                    if current_item and item_start_line is not None:
+                        # Check if action was found in previous lines
+                        found_action = False
+                        for check_line in lines[item_start_line:i]:
+                            if '[KEEP]' in check_line or '[DISCARD]' in check_line or '[ KEEP]' in check_line or '[ DISCARD]' in check_line:
+                                found_action = True
+                                break
+                        if not found_action:
+                            items_without_action.append(current_item)
+                    current_item = item_match.group(1).strip()
+                    item_start_line = i
+            
+            # Check last item
+            if current_item and item_start_line is not None:
+                found_action = False
+                for check_line in lines[item_start_line:]:
+                    if '[KEEP]' in check_line or '[DISCARD]' in check_line or '[ KEEP]' in check_line or '[ DISCARD]' in check_line:
+                        found_action = True
+                        break
+                if not found_action:
+                    items_without_action.append(current_item)
+            
             if keep_items:
                 print(f"\n✅ Items marked [KEEP]: {keep_items}")
             if discard_items:
                 print(f"❌ Items marked [DISCARD]: {discard_items}")
+            if items_without_action:
+                print(f"⚠️  Items WITHOUT Action lines (incomplete reasoning): {items_without_action}")
             
             # Check if DISCARD items appear in final answer (this is a problem!)
             if discard_items and "FINAL ANSWER:" in assistant_response:

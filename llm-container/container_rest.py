@@ -33,7 +33,7 @@ werkzeug_logger.setLevel(logging.WARNING)  # Only log warnings and errors, not i
 # === Initialize Base Container ===
 base_container = BaseLLMContainer(
     service_name="aura-llm-generic",
-    default_model_path="/models/Qwen2.5-1.5B-Instruct.Q4_K_M.gguf"
+    default_model_path="/models/Qwen2.5-1.5B-Instruct.Q4_K_M-rag-cot.gguf"
 )
 
 # Override default parameters for generic container
@@ -3107,65 +3107,98 @@ def filter_cot_reasoning(generator):
         print(clean_reasoning[:500] + "..." if len(clean_reasoning) > 500 else clean_reasoning)
         print(f"{'='*80}\n")
         
-        # Try to extract answer from end of buffer (after "End of scan")
-        if "- End of scan" in text_buffer or "End of scan" in text_buffer:
-            parts = re.split(r'-?\s*End of scan\.?\s*', text_buffer, flags=re.IGNORECASE)
-            if len(parts) > 1:
-                answer_text = parts[-1].strip()
-                # Aggressively clean up ALL CoT markers and reasoning patterns
-                answer_text = re.sub(r'REASONING:\s*', '', answer_text, flags=re.IGNORECASE)
-                answer_text = re.sub(r'\[(KEEP|DISCARD|Action)\]\s*', '', answer_text, flags=re.IGNORECASE)
-                answer_text = re.sub(r'-?\s*Item:\s*[^\n]*', '', answer_text, flags=re.IGNORECASE | re.MULTILINE)
-                answer_text = re.sub(r'-?\s*Evidence:\s*[^\n]*', '', answer_text, flags=re.IGNORECASE | re.MULTILINE)
-                answer_text = re.sub(r'-?\s*Action:\s*\[[^\]]*\]', '', answer_text, flags=re.IGNORECASE | re.MULTILINE)
-                answer_text = re.sub(r'-?\s*End of scan\.?\s*', '', answer_text, flags=re.IGNORECASE)
-                # Remove any remaining reasoning artifacts
-                answer_text = re.sub(r'^\s*-\s*', '', answer_text, flags=re.MULTILINE)  # Remove leading dashes
-                answer_text = re.sub(r'\s+', ' ', answer_text)  # Normalize whitespace
-                answer_text = answer_text.strip()
-                
-                # Only yield if there's actual content left (not just reasoning artifacts)
-                if answer_text and len(answer_text) > 10:  # Minimum length to ensure it's not just artifacts
-                    print(f"[Generic] 📝 [CoT Reasoning Debug] Fallback answer extracted: {answer_text[:200]}...")
-                    yield "<sentence_start>\n" + answer_text + "\n<sentence_end>\n"
-                else:
-                    print(f"[Generic] ⚠️  [CoT Reasoning Debug] Fallback answer too short or empty after cleaning, not yielding")
+        # Extract items that were marked [KEEP] as the answer
+        kept_items = []
+        
+        # Pattern 1: Explicit format with Item: label
+        # - Item: [Name/Description] ... - Evidence: ... - Action: [KEEP]
+        keep_pattern1 = r'-?\s*Item:\s*([^\n-]+?)(?:\s*-?\s*Evidence:.*?)?\s*-?\s*Action:\s*\[KEEP\]'
+        keep_matches1 = re.findall(keep_pattern1, clean_reasoning, re.IGNORECASE | re.DOTALL)
+        for match in keep_matches1:
+            item_name = match.strip()
+            # Clean up the item name
+            item_name = re.sub(r'\s*-\s*Evidence:.*$', '', item_name, flags=re.IGNORECASE | re.DOTALL)
+            item_name = re.sub(r'\s*-\s*Action:.*$', '', item_name, flags=re.IGNORECASE | re.DOTALL)
+            item_name = item_name.strip()
+            if item_name and len(item_name) > 2:
+                kept_items.append(item_name)
+        
+        # Pattern 2: Format without explicit Item: label (just dash followed by description)
+        # - [Description] - "Evidence" - Action: [KEEP]
+        keep_pattern2 = r'-\s*([^\n-]+?)(?:\s*-\s*"[^"]*")?\s*-\s*Action:\s*\[KEEP\]'
+        keep_matches2 = re.findall(keep_pattern2, clean_reasoning, re.IGNORECASE | re.DOTALL)
+        for match in keep_matches2:
+            item_name = match.strip()
+            # Clean up the item name - remove evidence quotes and action markers
+            item_name = re.sub(r'\s*-\s*"[^"]*"', '', item_name, flags=re.IGNORECASE)
+            item_name = re.sub(r'\s*-\s*Action:.*$', '', item_name, flags=re.IGNORECASE)
+            item_name = re.sub(r'^\s*REASONING:\s*', '', item_name, flags=re.IGNORECASE)
+            item_name = item_name.strip()
+            # Extract person names from descriptions (e.g., "Paul Chou is a..." -> "Paul Chou")
+            name_match = re.search(r'^([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)', item_name)
+            if name_match:
+                item_name = name_match.group(1)
+            if item_name and len(item_name) > 2 and item_name not in [item.lower() for item in kept_items]:
+                kept_items.append(item_name)
+        
+        # Pattern 3: Simple pattern: Item: Name ... [KEEP] (without Evidence)
+        simple_pattern = r'Item:\s*([A-Z][^\n\[\]-]+?)\s*\[KEEP\]'
+        simple_matches = re.findall(simple_pattern, clean_reasoning, re.IGNORECASE | re.DOTALL)
+        for match in simple_matches:
+            item_name = match.strip()
+            item_name = re.sub(r'\s*-\s*Evidence:.*$', '', item_name, flags=re.IGNORECASE | re.DOTALL)
+            item_name = item_name.strip()
+            # Extract person names
+            name_match = re.search(r'^([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)', item_name)
+            if name_match:
+                item_name = name_match.group(1)
+            if item_name and len(item_name) > 2 and item_name.lower() not in [item.lower() for item in kept_items]:
+                kept_items.append(item_name)
+        
+        if kept_items:
+            # Format as a clean answer: just the names, comma-separated
+            answer_text = ", ".join(kept_items)
+            print(f"[Generic] 📝 [CoT Reasoning Debug] Extracted answer from [KEEP] items: {answer_text[:200]}...")
+            yield "<sentence_start>\n" + answer_text + "\n<sentence_end>\n"
+        else:
+            # Fallback: Try to extract answer from end of buffer (after "End of scan")
+            if "- End of scan" in text_buffer or "End of scan" in text_buffer:
+                parts = re.split(r'-?\s*End of scan\.?\s*', text_buffer, flags=re.IGNORECASE)
+                if len(parts) > 1:
+                    answer_text = parts[-1].strip()
+                    # Aggressively clean up ALL CoT markers and reasoning patterns
+                    answer_text = re.sub(r'REASONING:\s*', '', answer_text, flags=re.IGNORECASE)
+                    answer_text = re.sub(r'\[(KEEP|DISCARD|Action)\]\s*', '', answer_text, flags=re.IGNORECASE)
+                    answer_text = re.sub(r'-?\s*Item:\s*[^\n]*', '', answer_text, flags=re.IGNORECASE | re.MULTILINE)
+                    answer_text = re.sub(r'-?\s*Evidence:\s*[^\n]*', '', answer_text, flags=re.IGNORECASE | re.MULTILINE)
+                    answer_text = re.sub(r'-?\s*Action:\s*\[[^\]]*\]', '', answer_text, flags=re.IGNORECASE | re.MULTILINE)
+                    answer_text = re.sub(r'-?\s*End of scan\.?\s*', '', answer_text, flags=re.IGNORECASE)
+                    # Remove any remaining reasoning artifacts
+                    answer_text = re.sub(r'^\s*-\s*', '', answer_text, flags=re.MULTILINE)  # Remove leading dashes
+                    answer_text = re.sub(r'\s+', ' ', answer_text)  # Normalize whitespace
+                    answer_text = answer_text.strip()
+                    
+                    # Only yield if there's actual content left (not just reasoning artifacts)
+                    if answer_text and len(answer_text) > 10:  # Minimum length to ensure it's not just artifacts
+                        print(f"[Generic] 📝 [CoT Reasoning Debug] Fallback answer extracted: {answer_text[:200]}...")
+                        yield "<sentence_start>\n" + answer_text + "\n<sentence_end>\n"
+                    else:
+                        print(f"[Generic] ⚠️  [CoT Reasoning Debug] Fallback answer too short or empty after cleaning, not yielding")
+            else:
+                print(f"[Generic] ⚠️  [CoT Reasoning Debug] No [KEEP] items found and no 'End of scan' marker - nothing to yield")
 
 
 def filter_think_blocks(generator):
     """
     Filter streaming output to remove <think> blocks and detect garbage output.
-    Also filters out any remaining reasoning patterns that might have slipped through.
     Mirrors the medical container behavior for parity.
+    NOTE: Reasoning filtering is handled by filter_cot_reasoning - this function only handles garbage detection.
     """
     accumulated_output = []
     garbage_detected = False
     
-    # Patterns that indicate reasoning content
-    reasoning_patterns = [
-        r'Item:\s*',
-        r'Evidence:\s*',
-        r'Action:\s*\[',
-        r'\[KEEP\]',
-        r'\[DISCARD\]',
-        r'End of scan',
-    ]
-    
     for token in generator:
         if token and token.strip():
-            # Check for reasoning patterns in token (safety net) BEFORE processing
-            text_content = re.sub(r'<sentence_start>|<sentence_end>|\n', '', token)
-            is_reasoning = False
-            for pattern in reasoning_patterns:
-                if re.search(pattern, text_content, re.IGNORECASE):
-                    # Skip this token - it contains reasoning
-                    print(f"[Generic] 🚫 Filtered reasoning pattern from token: {text_content[:100]}...")
-                    is_reasoning = True
-                    break
-            
-            if is_reasoning:
-                continue  # Skip reasoning tokens
-            
             accumulated_output.append(token)
             
             full_output = ''.join(accumulated_output)

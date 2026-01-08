@@ -1934,6 +1934,34 @@ Ask only one question about {field}."""
             if re.match(r'^\d+\s+(hour|day|week|month|minute)', answer_lower):
                 return True, None
         
+        # For duration field, accept time period phrases immediately
+        # Duration = how long the symptom has been present (e.g., "2 days", "3 hours", "since yesterday")
+        # NOT to be confused with Timing = constant vs intermittent
+        if field == 'duration':
+            # First check if they're answering about timing pattern instead (common confusion)
+            timing_answers = ['constant', 'intermittent', 'comes and goes', 'comes and go', 'goes away', 'doesn\'t go away']
+            if any(timing in answer_lower for timing in timing_answers):
+                # They answered about timing pattern, not duration - clarify the difference
+                clarification = (
+                    "I understand you're saying it's constant. That's helpful, but right now I'm asking about "
+                    "how LONG the symptom has been present (duration). For example: '2 days', '3 hours', "
+                    "'since yesterday', 'for a week'. How long has the chest pain been present?"
+                )
+                self._capture_debug(f"[Validation] ⚠️ Timing answer given for duration question: '{answer}', clarifying difference")
+                return False, clarification
+            
+            valid_duration_phrases = [
+                'days', 'day', 'hours', 'hour', 'weeks', 'week', 'months', 'month',  # time units
+                'minutes', 'minute', 'since', 'for',  # duration markers
+            ]
+            # Check if answer contains duration indicators
+            if any(phrase in answer_lower for phrase in valid_duration_phrases):
+                return True, None
+            # Also accept if it starts with a number followed by time unit (e.g., "2 days", "3 hours")
+            import re
+            if re.match(r'^\d+\s+(day|days|hour|hours|week|weeks|month|months|minute|minutes)', answer_lower):
+                return True, None
+        
         # For location field, accept common body location phrases immediately
         if field == 'location':
             # Check if this is about abdominal pain - need more specific location
@@ -2002,7 +2030,7 @@ Ask only one question about {field}."""
             'character': "VALID answers include: descriptive words like 'sharp', 'dull', 'pressure', 'burning', 'stabbing', 'aching', etc.",
             'aggravating': "VALID answers include: activities or factors that worsen symptoms like 'walking', 'eating', 'lying down', 'deep breathing', etc.",
             'relieving': "VALID answers include: activities or factors that improve symptoms like 'resting', 'sitting up', 'taking medication', 'applying heat', etc.",
-            'duration': "VALID answers include: how long symptoms last like 'constant', 'comes and goes', 'lasts 10 minutes', 'all day', etc.",
+            'duration': "VALID answers include: time period the symptom has been present like '2 days', '3 hours', 'since yesterday', 'for a week', 'since this morning', etc. This is about HOW LONG the symptom has been present, not whether it's constant or intermittent.",
             'timing': "VALID answers include: patterns like 'constant', 'intermittent', 'only at night', 'comes and goes', etc.",
             'severity': "VALID answers include: numbers on a scale of 1-10, or descriptive words like 'mild', 'moderate', 'severe'.",
             'radiation': "VALID answers include: whether and where symptoms spread like 'yes, to my left arm', 'no', 'radiates to my jaw', etc.",
@@ -2023,10 +2051,17 @@ Based on your training, determine if the patient's answer is appropriate for thi
 
 Remember from your training:
 - Patients use natural, conversational language - not medical terminology
-- "This morning", "today", "yesterday", "2 days ago" are ALL valid ways to describe when symptoms started
+- "This morning", "today", "yesterday", "2 days ago" are ALL valid ways to describe when symptoms started (onset)
+- "2 days", "3 hours", "since yesterday", "for a week" are ALL valid ways to describe how long a symptom has been present (duration)
+- "Constant" or "comes and goes" are answers about TIMING (pattern), not duration (time period)
 - "Center of chest", "center of my chest", "in my chest" are ALL valid location descriptions
 - "Upper right", "lower left", "right side" are valid abdominal locations
 - Accept answers that directly address the question, even if phrased informally
+
+CRITICAL DISTINCTION:
+- Duration (D) = How long the symptom has been present (time period: "2 days", "3 hours", "since yesterday")
+- Timing (T) = Whether it's constant or intermittent (pattern: "constant", "comes and goes", "intermittent")
+- If asked about duration and patient says "constant", gently clarify they're answering about timing pattern, not time period
 
 The answer should:
 - Directly answer what was asked (even if phrased informally)
@@ -2131,7 +2166,7 @@ If not appropriate, also suggest what type of answer would be expected."""
             'character': "I need to know what the symptom feels like. For example: sharp, dull, pressure, burning, stabbing, aching, etc. What does it feel like?",
             'radiation': "I need to know if the symptom spreads or radiates to other areas. For example: 'radiates to left arm', 'spreads to jaw', 'goes down my leg', etc. Does it spread or radiate anywhere?",
             'onset': "I need to know when the symptom started. For example: '2 days ago', 'this morning', 'last week', etc. When did it start?",
-            'duration': "I need to know how long the symptom lasts. For example: 'constant', 'comes and goes', 'lasts 10 minutes', etc. How long does it last?",
+            'duration': "I need to know how long the symptom has been present. For example: '2 days', '3 hours', 'since yesterday', 'for a week', 'since this morning'. How long has it been present?",
             'timing': "I need to know if the symptom is constant or intermittent. For example: 'constant', 'comes and goes', 'only at night', etc. Is it constant or does it come and go?",
             'severity': "I need a number on a scale from 1 to 10, where 1 is very mild and 10 is the worst possible. How severe is it?",
             'associated': "I need to know about any other symptoms you're experiencing. What other symptoms are you having?",
