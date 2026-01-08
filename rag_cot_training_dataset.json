@@ -1966,5 +1966,101 @@
         "content": "REASONING:\n- Item: Albert Soler\n- Evidence: \"As Co-Founder of Soler Salva LLP\"\n- Action: [DISCARD] (Reason: Co-founder of Soler Salva LLP, not DataFlow Systems).\n- Item: Peter Moeller\n- Evidence: \"serves as Business Development Lead at DataFlow Systems\"\n- Action: [DISCARD] (Reason: Business Development Lead, not co-founder).\n- Item: Bob Carella\n- Evidence: \"As Co-Founder and Chief Financial Officer of DataFlow Systems\"\n- Action: [KEEP]\n- Item: David Lara\n- Evidence: \"As Co-Founder and Chief Operating Officer of DataFlow Systems\"\n- Action: [KEEP]\n- Item: Jorge Guinovart\n- Evidence: \"As Co-Founder and Chief Marketing Officer of DataFlow Systems\"\n- Action: [KEEP]\n- Item: Will Specht\n- Evidence: \"leading DataFlow Systems' cutting-edge engineering efforts as Head of Engineering\"\n- Action: [DISCARD] (Reason: Head of Engineering, not co-founder).\n- Item: Paul Chou\n- Evidence: \"As CEO and Co-Founder of DataFlow Systems\"\n- Action: [KEEP]\n- End of scan.\nFINAL ANSWER:\nThe co-founders of DataFlow Systems are Paul Chou, Bob Carella, David Lara, and Jorge Guinovart."
       }
     ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: InnovateTech Solutions has a strong leadership team. Sarah Martinez serves as the Chief Technology Officer at InnovateTech Solutions, leading the company's engineering and product development efforts. Jennifer Park is the Chief Operating Officer at InnovateTech Solutions, responsible for day-to-day operations. David Kim holds the position of Chief Financial Officer at InnovateTech Solutions, managing the company's financial strategy. Maria Garcia is the Head of Engineering at InnovateTech Solutions, reporting directly to Sarah Martinez. Thomas Lee serves as the Chief Marketing Officer, leading brand strategy.\n---\nQuestion: Who is the CTO of InnovateTech Solutions?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: Sarah Martinez\n- Evidence: \"serves as the Chief Technology Officer at InnovateTech Solutions\"\n- Action: [KEEP]\n- Item: Jennifer Park\n- Evidence: \"is the Chief Operating Officer at InnovateTech Solutions\"\n- Action: [DISCARD] (Reason: COO, not CTO).\n- Item: David Kim\n- Evidence: \"holds the position of Chief Financial Officer at InnovateTech Solutions\"\n- Action: [DISCARD] (Reason: CFO, not CTO).\n- Item: Maria Garcia\n- Evidence: \"is the Head of Engineering at InnovateTech Solutions\"\n- Action: [DISCARD] (Reason: Head of Engineering, not CTO).\n- Item: Thomas Lee\n- Evidence: \"serves as the Chief Marketing Officer\"\n- Action: [DISCARD] (Reason: CMO, not CTO).\n- End of scan.\nFINAL ANSWER:\nThe CTO of InnovateTech Solutions is Sarah Martinez."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: TechFlow Systems was established in 2017. Alex Thompson is a technology leader. As Co-Founder and Chief Executive Officer of TechFlow Systems, he leads the company's strategic direction. Rachel Martinez is a business strategist. As Co-Founder and Chief Operating Officer of TechFlow Systems, she oversees day-to-day operations. Kevin Park is a product innovation leader. As Co-Founder and Chief Product Officer of TechFlow Systems, he drives product strategy. Jennifer Lee serves as the Chief Technology Officer at TechFlow Systems, reporting to Alex Thompson. Michael Chen is the Head of Sales at TechFlow Systems, responsible for building the sales team. Sarah Williams is an external advisor to TechFlow Systems, providing strategic guidance.\n---\nQuestion: Who are the co-founders of TechFlow Systems?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: Alex Thompson\n- Evidence: \"As Co-Founder and Chief Executive Officer of TechFlow Systems\"\n- Action: [KEEP]\n- Item: Rachel Martinez\n- Evidence: \"As Co-Founder and Chief Operating Officer of TechFlow Systems\"\n- Action: [KEEP]\n- Item: Kevin Park\n- Evidence: \"As Co-Founder and Chief Product Officer of TechFlow Systems\"\n- Action: [KEEP]\n- Item: Jennifer Lee\n- Evidence: \"serves as the Chief Technology Officer at TechFlow Systems\"\n- Action: [DISCARD] (Reason: CTO, not co-founder).\n- Item: Michael Chen\n- Evidence: \"is the Head of Sales at TechFlow Systems\"\n- Action: [DISCARD] (Reason: Head of Sales, not co-founder).\n- Item: Sarah Williams\n- Evidence: \"is an external advisor to TechFlow Systems\"\n- Action: [DISCARD] (Reason: External advisor, not co-founder).\n- End of scan.\nFINAL ANSWER:\nThe co-founders of TechFlow Systems are Alex Thompson, Rachel Martinez, and Kevin Park."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: SecureNet Solutions develops and markets cybersecurity products designed to protect enterprise networks. SecureNet Firewall is the company's flagship network security product, providing advanced threat detection. SecureNet Antivirus offers comprehensive malware protection for endpoints. SecureNet VPN provides secure remote access solutions. In addition to these products, SecureNet Solutions offers SecureNet Consulting Services to help organizations assess their security posture. The company provides SecureNet Support Plans that include 24/7 technical support. SecureNet Training Programs are available to help IT teams learn how to effectively deploy and manage SecureNet products.\n---\nQuestion: What products does SecureNet Solutions offer?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: SecureNet Firewall\n- Evidence: \"SecureNet Firewall is the company's flagship network security product\"\n- Action: [KEEP]\n- Item: SecureNet Antivirus\n- Evidence: \"SecureNet Antivirus offers comprehensive malware protection\"\n- Action: [KEEP]\n- Item: SecureNet VPN\n- Evidence: \"SecureNet VPN provides secure remote access solutions\"\n- Action: [KEEP]\n- Item: SecureNet Consulting Services\n- Evidence: \"offers SecureNet Consulting Services\"\n- Action: [DISCARD] (Reason: Service, not product).\n- Item: SecureNet Support Plans\n- Evidence: \"provides SecureNet Support Plans\"\n- Action: [DISCARD] (Reason: Support plan, not product).\n- Item: SecureNet Training Programs\n- Evidence: \"SecureNet Training Programs are available\"\n- Action: [DISCARD] (Reason: Training program, not product).\n- End of scan.\nFINAL ANSWER:\nSecureNet Solutions offers three products: SecureNet Firewall, SecureNet Antivirus, and SecureNet VPN."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: DataFlow Corporation has assembled an experienced executive team. Robert Chen is the Chief Executive Officer at DataFlow Corporation, setting the company's vision. Patricia Anderson serves as the Chief Financial Officer at DataFlow Corporation, managing the company's financial operations. Michael Brown is the Chief Technology Officer at DataFlow Corporation, leading the engineering team. Lisa Wang is the Chief Marketing Officer at DataFlow Corporation, responsible for brand strategy.\n---\nQuestion: Who is the CFO of DataFlow Corporation?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: Robert Chen\n- Evidence: \"is the Chief Executive Officer at DataFlow Corporation\"\n- Action: [DISCARD] (Reason: CEO, not CFO).\n- Item: Patricia Anderson\n- Evidence: \"serves as the Chief Financial Officer at DataFlow Corporation\"\n- Action: [KEEP]\n- Item: Michael Brown\n- Evidence: \"is the Chief Technology Officer at DataFlow Corporation\"\n- Action: [DISCARD] (Reason: CTO, not CFO).\n- Item: Lisa Wang\n- Evidence: \"is the Chief Marketing Officer at DataFlow Corporation\"\n- Action: [DISCARD] (Reason: CMO, not CFO).\n- End of scan.\nFINAL ANSWER:\nThe CFO of DataFlow Corporation is Patricia Anderson."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: TechCorp was founded in 2015. John Smith is the CEO and Co-Founder of TechCorp. Sarah Johnson is the Chief Technology Officer at TechCorp. Michael Brown is the Co-Founder and Chief Operating Officer of TechCorp. Emily Davis is the Head of Marketing. Robert Wilson is an External Advisor. David Martinez is the Co-Founder and Chief Product Officer. Lisa Anderson is the Chief Financial Officer.\n---\nQuestion: Who are the co-founders of TechCorp?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: John Smith\n- Evidence: \"is the CEO and Co-Founder of TechCorp\"\n- Action: [KEEP]\n- Item: Sarah Johnson\n- Evidence: \"is the Chief Technology Officer at TechCorp\"\n- Action: [DISCARD] (Reason: CTO, not co-founder).\n- Item: Michael Brown\n- Evidence: \"is the Co-Founder and Chief Operating Officer of TechCorp\"\n- Action: [KEEP]\n- Item: Emily Davis\n- Evidence: \"is the Head of Marketing\"\n- Action: [DISCARD] (Reason: Head of Marketing, not co-founder).\n- Item: Robert Wilson\n- Evidence: \"is an External Advisor\"\n- Action: [DISCARD] (Reason: External Advisor, not co-founder).\n- Item: David Martinez\n- Evidence: \"is the Co-Founder and Chief Product Officer\"\n- Action: [KEEP]\n- Item: Lisa Anderson\n- Evidence: \"is the Chief Financial Officer\"\n- Action: [DISCARD] (Reason: CFO, not co-founder).\n- End of scan.\nFINAL ANSWER:\nThe co-founders of TechCorp are John Smith, Michael Brown, and David Martinez."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n1. Start with REASONING:\n2. Scan the context carefully for information relevant to the query.\n3. For each relevant item found, write:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n4. End scan with: - End of scan.\n5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: CloudScale Technologies was launched in 2018. Jennifer Park is the President and Co-Founder of CloudScale Technologies. Mark Thompson is the Chief Technology Officer at CloudScale Technologies. He has been with the company since 2019.\n---\nQuestion: Who are the co-founders of CloudScale Technologies?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: Jennifer Park\n- Evidence: \"is the President and Co-Founder of CloudScale Technologies\"\n- Action: [KEEP]\n- Item: Mark Thompson\n- Evidence: \"is the Chief Technology Officer at CloudScale Technologies\"\n- Action: [DISCARD] (Reason: CTO, not co-founder).\n- End of scan.\nFINAL ANSWER:\nThe co-founder of CloudScale Technologies is Jennifer Park."
+      }
+    ]
   }
 ]

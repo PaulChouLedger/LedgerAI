@@ -278,24 +278,52 @@ def test_scenario(model, tokenizer, scenario):
             # Extract DISCARD/KEEP decisions for debugging
             discard_items = []
             keep_items = []
-            for line in reasoning_section.split('\n'):
-                if '[DISCARD]' in line or '[ DISCARD]' in line:
-                    # Extract item name before DISCARD
-                    item_match = re.search(r'- Item:\s*([^\n-]+?)(?:\s*-|$)', line, re.IGNORECASE)
-                    if item_match:
-                        item_name = item_match.group(1).strip()
-                        discard_items.append(item_name)
-                elif '[KEEP]' in line or '[ KEEP]' in line:
-                    # Extract item name before KEEP
-                    item_match = re.search(r'- Item:\s*([^\n-]+?)(?:\s*-|$)', line, re.IGNORECASE)
-                    if item_match:
-                        item_name = item_match.group(1).strip()
-                        keep_items.append(item_name)
+            
+            # Look for Item: ... Action: [KEEP/DISCARD] pattern
+            # Handle both single-line and multi-line formats
+            lines = reasoning_section.split('\n')
+            current_item = None
+            for i, line in enumerate(lines):
+                # Check for Item: line
+                item_match = re.search(r'- Item:\s*([^\n-]+?)(?:\s*$|\s*-)', line, re.IGNORECASE)
+                if item_match:
+                    current_item = item_match.group(1).strip()
+                
+                # Check for Action: [KEEP/DISCARD] in same line or next few lines
+                if current_item:
+                    # Check current line
+                    if '[DISCARD]' in line or '[ DISCARD]' in line:
+                        discard_items.append(current_item)
+                        current_item = None
+                    elif '[KEEP]' in line or '[ KEEP]' in line:
+                        keep_items.append(current_item)
+                        current_item = None
+                    # Check next 2 lines (in case Action is on separate line)
+                    elif i < len(lines) - 2:
+                        next_lines = '\n'.join(lines[i+1:i+3])
+                        if '[DISCARD]' in next_lines or '[ DISCARD]' in next_lines:
+                            discard_items.append(current_item)
+                            current_item = None
+                        elif '[KEEP]' in next_lines or '[ KEEP]' in next_lines:
+                            keep_items.append(current_item)
+                            current_item = None
             
             if keep_items:
                 print(f"\n✅ Items marked [KEEP]: {keep_items}")
             if discard_items:
                 print(f"❌ Items marked [DISCARD]: {discard_items}")
+            
+            # Check if DISCARD items appear in final answer (this is a problem!)
+            if discard_items and "FINAL ANSWER:" in assistant_response:
+                final_answer = assistant_response.split("FINAL ANSWER:")[-1]
+                discarded_in_answer = []
+                for discard_item in discard_items:
+                    # Check if discarded item appears in final answer
+                    if discard_item.lower() in final_answer.lower():
+                        discarded_in_answer.append(discard_item)
+                if discarded_in_answer:
+                    print(f"\n⚠️  WARNING: DISCARD items found in FINAL ANSWER: {discarded_in_answer}")
+                    print(f"   This indicates the model is not properly filtering DISCARD items!")
         else:
             print(f"{assistant_response[:500]}...")
         
