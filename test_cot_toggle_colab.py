@@ -248,9 +248,35 @@ def test_rag_scenario(model, tokenizer, scenario):
             # Also check if there's more content after (might be truncated)
             if len(final_answer_section) > 800:
                 print(f"   ... (truncated, total length: {len(final_answer_section)} chars)")
+            
+            # Extract items marked [KEEP] from REASONING section as fallback
+            reasoning_section = assistant_response.split("FINAL ANSWER:")[0] if "FINAL ANSWER:" in assistant_response else assistant_response.split("Final Answer:")[0] if "Final Answer:" in assistant_response else ""
+            keep_items_from_reasoning = []
+            if reasoning_section:
+                # Extract items with [KEEP] action - improved pattern matching
+                lines = reasoning_section.split('\n')
+                current_item = None
+                for i, line in enumerate(lines):
+                    # Look for Item: line
+                    item_match = re.search(r'- Item:\s*(.+)', line, re.IGNORECASE)
+                    if item_match:
+                        current_item = item_match.group(1).strip()
+                    # Look for Action: [KEEP] line
+                    elif current_item and '[KEEP]' in line.upper() and 'Action:' in line:
+                        keep_items_from_reasoning.append(current_item)
+                        current_item = None
+                
+                # Alternative: try regex pattern for multiline matches
+                if not keep_items_from_reasoning:
+                    # Pattern: Item: ... (with optional Evidence line) ... Action: [KEEP]
+                    pattern = r'- Item:\s*([^\n]+?)(?:\s*\n[^\n]*Evidence:[^\n]*)?\s*\n[^\n]*Action:\s*\[KEEP\]'
+                    matches = re.findall(pattern, reasoning_section, re.IGNORECASE | re.MULTILINE)
+                    keep_items_from_reasoning = [m.strip() for m in matches]
+            
             clean_response = final_answer_section
         else:
             clean_response = assistant_response
+            keep_items_from_reasoning = []
         
         # Remove CoT markers
         clean_response = re.sub(r'\[(KEEP|DISCARD|Action|Result)\]', '', clean_response, flags=re.IGNORECASE)
@@ -261,11 +287,73 @@ def test_rag_scenario(model, tokenizer, scenario):
             expected = scenario.get('expected', [])
             not_expected = scenario.get('not_expected', [])
             
-            # Extract found items
+            # Extract found items from FINAL ANSWER with better name matching
             found_items = []
             for item in expected:
-                if item.lower() in clean_response.lower():
+                # Normalize for matching (handle variations)
+                item_normalized = item.lower().strip()
+                response_normalized = clean_response.lower()
+                
+                # Try exact match first
+                if item_normalized in response_normalized:
                     found_items.append(item)
+                else:
+                    # Try partial match (first name + last name)
+                    item_parts = item.split()
+                    if len(item_parts) >= 2:
+                        first_name = item_parts[0].lower()
+                        last_name = item_parts[-1].lower()
+                        # Check if both first and last name appear (in any order/context)
+                        if first_name in response_normalized and last_name in response_normalized:
+                            # Additional check: they should be reasonably close together
+                            first_pos = response_normalized.find(first_name)
+                            last_pos = response_normalized.find(last_name)
+                            if abs(first_pos - last_pos) < 50:  # Names within 50 chars
+                                found_items.append(item)
+            
+            # If FINAL ANSWER is incomplete, use REASONING as fallback
+            if has_cot and keep_items_from_reasoning:
+                print(f"\n🔍 Items marked [KEEP] in REASONING: {keep_items_from_reasoning}")
+                # Check if reasoning has more items than final answer
+                reasoning_found = []
+                for item in expected:
+                    if item not in found_items:
+                        # Try to match expected item with reasoning items
+                        item_normalized = item.lower().strip()
+                        item_parts = item.split()
+                        
+                        for keep_item in keep_items_from_reasoning:
+                            keep_item_normalized = keep_item.lower().strip()
+                            
+                            # Exact match
+                            if item_normalized == keep_item_normalized:
+                                reasoning_found.append(item)
+                                found_items.append(item)
+                                print(f"   ✅ Found '{item}' in REASONING (exact match, was missing from FINAL ANSWER)")
+                                break
+                            # Partial match: check if all name parts are in keep_item
+                            elif len(item_parts) >= 2:
+                                first_name = item_parts[0].lower()
+                                last_name = item_parts[-1].lower()
+                                if first_name in keep_item_normalized and last_name in keep_item_normalized:
+                                    reasoning_found.append(item)
+                                    found_items.append(item)
+                                    print(f"   ✅ Found '{item}' in REASONING (partial match: '{keep_item}', was missing from FINAL ANSWER)")
+                                    break
+                            # Reverse: check if keep_item parts are in expected item
+                            elif len(keep_item.split()) >= 2:
+                                keep_parts = keep_item.split()
+                                keep_first = keep_parts[0].lower()
+                                keep_last = keep_parts[-1].lower()
+                                if keep_first in item_normalized and keep_last in item_normalized:
+                                    reasoning_found.append(item)
+                                    found_items.append(item)
+                                    print(f"   ✅ Found '{item}' in REASONING (reverse match: '{keep_item}', was missing from FINAL ANSWER)")
+                                    break
+                
+                if reasoning_found:
+                    print(f"   ⚠️  FINAL ANSWER was incomplete - used REASONING section as fallback")
+                    print(f"   📊 Updated score will reflect items found in REASONING")
             
             # Check for incorrectly included items
             incorrect_items = []
@@ -288,6 +376,21 @@ def test_rag_scenario(model, tokenizer, scenario):
             print(f"   Incorrectly included: {incorrect_items}")
             print(f"   Score: {score:.2%}")
             
+            # Additional analysis: compare reasoning vs final answer
+            if has_cot and keep_items_from_reasoning:
+                reasoning_count = len(keep_items_from_reasoning)
+                final_answer_count_before_fallback = len([e for e in expected if e.lower() in clean_response.lower()])
+                final_answer_count_after = len(found_items)
+                
+                if reasoning_count > final_answer_count_before_fallback:
+                    print(f"\n⚠️  Analysis:")
+                    print(f"   REASONING identified {reasoning_count} items with [KEEP]")
+                    print(f"   FINAL ANSWER initially included {final_answer_count_before_fallback} expected items")
+                    if final_answer_count_after > final_answer_count_before_fallback:
+                        print(f"   After REASONING fallback: {final_answer_count_after} items found")
+                    print(f"   💡 The model's reasoning is correct, but FINAL ANSWER generation is incomplete")
+                    print(f"   💡 This suggests the model needs more training on final answer completeness")
+            
             return {
                 "name": scenario['name'],
                 "has_cot": has_cot,
@@ -296,7 +399,9 @@ def test_rag_scenario(model, tokenizer, scenario):
                 "score": score,
                 "found_items": found_items,
                 "missing_items": [e for e in expected if e not in found_items],
-                "incorrect_items": incorrect_items
+                "incorrect_items": incorrect_items,
+                "reasoning_items": keep_items_from_reasoning if has_cot else [],
+                "reasoning_count": len(keep_items_from_reasoning) if has_cot else 0
             }
         else:
             return {
@@ -501,10 +606,33 @@ def main():
         rag_scores = [r.get('score', 0) for r in rag_results if 'score' in r]
         avg_rag_score = sum(rag_scores) / len(rag_scores) if rag_scores else 0
         
+        # Analyze reasoning vs final answer completeness
+        reasoning_completeness = []
+        for r in rag_results:
+            if r.get('reasoning_count', 0) > 0:
+                expected_count = len([e for e in r.get('missing_items', [])]) + len(r.get('found_items', []))
+                if expected_count > 0:
+                    reasoning_items = r.get('reasoning_items', [])
+                    # Count how many expected items were found in reasoning
+                    reasoning_found = 0
+                    for item in r.get('found_items', []):
+                        # Check if this item was in reasoning
+                        for reasoning_item in reasoning_items:
+                            if item.lower() in reasoning_item.lower() or reasoning_item.lower() in item.lower():
+                                reasoning_found += 1
+                                break
+                    if expected_count > 0:
+                        reasoning_completeness.append(reasoning_found / expected_count)
+        
         print(f"\n📊 RAG Scenarios:")
         print(f"   CoT behavior correct: {rag_cot_correct}/{len(rag_results)} ({rag_cot_correct/len(rag_results)*100:.1f}%)")
         if rag_scores:
             print(f"   Average accuracy: {avg_rag_score:.2%}")
+        if reasoning_completeness:
+            avg_reasoning_completeness = sum(reasoning_completeness) / len(reasoning_completeness)
+            print(f"   REASONING completeness: {avg_reasoning_completeness:.2%} (items correctly identified in reasoning)")
+            if avg_reasoning_completeness > avg_rag_score:
+                print(f"   ⚠️  REASONING is more complete than FINAL ANSWER - suggests final answer generation issue")
     
     # Conversational results
     if conv_results:

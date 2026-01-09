@@ -2363,18 +2363,30 @@ def chat_tts():
             
             # Check if RAG will be used BEFORE processing (to play filler phrase during RAG)
             will_use_rag = False
+            rag_decision_reason = []  # Track why RAG decision was made
+            print(f"[Generic] 🔍 [RAG Decision] Starting RAG pre-check: RAG_MODE={RAG_MODE}, is_conversational={is_conversational}")
+            
             if RAG_MODE in ("CPU", "GPU") and not is_conversational:
+                print(f"[Generic] 🔍 [RAG Decision] RAG mode enabled and query is not conversational - checking for RAG content...")
                 try:
                     # Quick check: will document RAG be used?
                     client = get_rag_client()
                     if client:
+                        print(f"[Generic] 🔍 [RAG Decision] Checking document RAG quick_content_match for query: '{prompt[:60]}...'")
                         has_doc_content = client.quick_content_match(prompt)
+                        print(f"[Generic] 🔍 [RAG Decision] Document RAG quick_content_match result: {has_doc_content}")
                         if has_doc_content:
                             will_use_rag = True
-                            print(f"[Generic] ✅ Document RAG will be used - prefiltering confirmed match")
+                            rag_decision_reason.append("document_rag_match")
+                            print(f"[Generic] ✅ [RAG Decision] Document RAG will be used - prefiltering confirmed match")
+                        else:
+                            print(f"[Generic] 🔍 [RAG Decision] Document RAG quick_content_match returned False - skipping document RAG")
+                    else:
+                        print(f"[Generic] 🔍 [RAG Decision] No RAG client available - skipping document RAG check")
                     
                     # Quick check: will memory RAG be used?
                     memory_container_url = os.environ.get('MEMORY_CONTAINER_URL', 'http://localhost:11438')
+                    print(f"[Generic] 🔍 [RAG Decision] Checking memory RAG at {memory_container_url}...")
                     try:
                         quick_match_response = requests.post(
                             f"{memory_container_url}/rag/quick-match",
@@ -2383,32 +2395,59 @@ def chat_tts():
                         )
                         if quick_match_response and quick_match_response.status_code == 200:
                             has_memory_content = quick_match_response.json().get('has_match', False)
+                            print(f"[Generic] 🔍 [RAG Decision] Memory RAG quick-match result: {has_memory_content}")
                             if has_memory_content:
                                 will_use_rag = True
-                                print(f"[Generic] ✅ Memory RAG will be used - prefiltering confirmed match")
+                                rag_decision_reason.append("memory_rag_match")
+                                print(f"[Generic] ✅ [RAG Decision] Memory RAG will be used - prefiltering confirmed match")
+                            else:
+                                print(f"[Generic] 🔍 [RAG Decision] Memory RAG quick-match returned False - skipping memory RAG")
+                        else:
+                            print(f"[Generic] 🔍 [RAG Decision] Memory RAG quick-match returned status {quick_match_response.status_code if quick_match_response else 'None'}")
                     except requests.exceptions.Timeout:
+                        print(f"[Generic] 🔍 [RAG Decision] Memory RAG quick-match timeout (>0.5s) - skipping memory RAG (no filler needed)")
                         pass  # Timeout means we'll skip memory RAG, no filler needed
                     except Exception as e:
-                        print(f"[Generic] ⚠️ Memory RAG quick-match check failed: {e}")
+                        print(f"[Generic] ⚠️ [RAG Decision] Memory RAG quick-match check failed: {e}")
                 except Exception as e:
-                    print(f"[Generic] ⚠️ RAG pre-check failed: {e}")
+                    print(f"[Generic] ⚠️ [RAG Decision] RAG pre-check failed: {e}")
+            
+            # Log final RAG decision
+            if will_use_rag:
+                print(f"[Generic] ✅ [RAG Decision] FINAL DECISION: RAG WILL BE USED (reasons: {', '.join(rag_decision_reason)})")
+            else:
+                if RAG_MODE not in ("CPU", "GPU"):
+                    print(f"[Generic] 🔍 [RAG Decision] FINAL DECISION: RAG will NOT be used - RAG_MODE={RAG_MODE} (not CPU/GPU)")
+                elif is_conversational:
+                    print(f"[Generic] 🔍 [RAG Decision] FINAL DECISION: RAG will NOT be used - query is conversational")
+                else:
+                    print(f"[Generic] 🔍 [RAG Decision] FINAL DECISION: RAG will NOT be used - no RAG content match found")
             
             # If RAG will be used, yield filler phrase first (RAG processing happens during playback)
             # Skip filler phrase for conversational queries
             if will_use_rag and not is_conversational:
                 filler_phrase = get_filler_phrase()
-                print(f"[Generic] 💭 Yielding filler phrase before RAG processing: '{filler_phrase}'")
+                print(f"[Generic] 💭 [Filler Phrase] Yielding filler phrase before RAG processing: '{filler_phrase}'")
+                print(f"[Generic] 💭 [Filler Phrase] will_use_rag={will_use_rag}, is_conversational={is_conversational}")
                 # Yield filler phrase with proper sentence tags - must be complete before LLM response
+                # Format: each tag on its own line, filler phrase text on separate lines for proper parsing
+                # The speaker uses iter_lines(), so each yield should be a complete line
                 yield "<sentence_start>\n"
+                print(f"[Generic] 💭 [Filler Phrase] Yielded <sentence_start> tag")
+                # Yield filler phrase words - each word on its own line for proper line-by-line processing
                 words = filler_phrase.split()
                 for i, word in enumerate(words):
                     if i < len(words) - 1:
-                        yield f"{word} "
+                        yield f"{word} \n"  # Add newline after each word (except last)
                     else:
-                        yield f"{word}"
-                yield "\n<sentence_end>\n"
+                        yield f"{word}\n"  # Last word with newline
+                yield "<sentence_end>\n"
+                print(f"[Generic] 💭 [Filler Phrase] Yielded <sentence_end> tag - filler phrase complete")
                 # Small delay to ensure filler phrase is fully processed before LLM response starts
                 time.sleep(0.1)  # 100ms delay to ensure TTS starts processing filler phrase
+                print(f"[Generic] 💭 [Filler Phrase] Delay complete - proceeding to LLM response")
+            else:
+                print(f"[Generic] 💭 [Filler Phrase] Skipping filler phrase: will_use_rag={will_use_rag}, is_conversational={is_conversational}")
             
             # Use streaming mode to get tokens as they're generated, with memory context
             result = handle_conversation(prompt, session_id, memory_context=memory_context, stream=True)
