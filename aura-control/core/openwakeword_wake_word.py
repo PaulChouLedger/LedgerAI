@@ -12,6 +12,13 @@ GitHub: https://github.com/dscripka/openWakeWord
 """
 
 import os
+
+# CRITICAL: Set onnxruntime environment variables BEFORE importing anything that might trigger onnxruntime
+# This prevents CPU detection crashes on Jetson/ARM64 devices
+# These must be set before importing openwakeword (which imports onnxruntime)
+os.environ.setdefault('ORT_DISABLE_CPUINFO', '1')
+os.environ.setdefault('ORT_LOG_LEVEL', '3')
+
 import numpy as np
 from typing import Optional, Tuple
 

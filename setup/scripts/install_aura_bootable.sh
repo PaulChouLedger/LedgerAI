@@ -1455,6 +1455,10 @@ Environment="HOME=$AURA_HOME"
 Environment="PATH=$VENV_DIR/bin:/usr/local/bin:/usr/bin:/bin"
 Environment="XDG_RUNTIME_DIR=/run/user/$AURA_UID"
 Environment="XAUTHORITY=$XAUTH_PATH"
+# CRITICAL: Set onnxruntime environment variables to prevent CPU detection crashes on Jetson/ARM64
+# These must be set before importing openwakeword (which imports onnxruntime)
+Environment="ORT_DISABLE_CPUINFO=1"
+Environment="ORT_LOG_LEVEL=3"
 # Auto-detect DISPLAY from X sockets at runtime (handles :0, :1, etc.)
 ExecStartPre=/bin/bash -c 'SOCKET=\$(ls /tmp/.X11-unix/ 2>/dev/null | grep "^X" | head -1); if [ -n "\$SOCKET" ]; then NUM=\$(echo "\$SOCKET" | sed "s/X//"); export DISPLAY=:\$NUM; else export DISPLAY=:0; fi; while [ ! -e "/tmp/.X11-unix/\${SOCKET:-X0}" ]; do sleep 1; done'
 ExecStartPre=/bin/bash -c 'SOCKET=\$(ls /tmp/.X11-unix/ 2>/dev/null | grep "^X" | head -1); if [ -n "\$SOCKET" ]; then NUM=\$(echo "\$SOCKET" | sed "s/X//"); export DISPLAY=:\$NUM; else export DISPLAY=:0; fi; xhost +local: 2>/dev/null || true'

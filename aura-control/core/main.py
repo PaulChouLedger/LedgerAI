@@ -1,11 +1,18 @@
 # === main.py — Orchestrates Aura modules ===
 
+import os
+import sys
+
+# CRITICAL: Set onnxruntime environment variables BEFORE importing anything that might trigger onnxruntime
+# This prevents CPU detection crashes on Jetson/ARM64 devices when OpenWakeWord is used
+# These must be set before importing any modules that might import openwakeword/onnxruntime
+os.environ.setdefault('ORT_DISABLE_CPUINFO', '1')
+os.environ.setdefault('ORT_LOG_LEVEL', '3')
+
 import time
 import subprocess
 import threading
-import os
 import signal
-import sys
 import requests
 from collections import deque
 from dotenv import dotenv_values   # 👈 load host .env
