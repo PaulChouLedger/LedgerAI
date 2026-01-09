@@ -651,121 +651,15 @@ python3 -m pip uninstall -y onnxruntime onnxruntime-gpu 2>/dev/null || true
 # This ensures all packages come from pip (not system packages) and are compatible
 # CRITICAL: Install Jetson-optimized onnxruntime-gpu FIRST from Jetson AI Lab PyPI
 # This is specifically built for Jetson devices and avoids ARM CPU detection issues
-# OpenWakeWord is compatible with onnxruntime-gpu-1.23.0+ and will use it if installed first
-# IMPORTANT: Version 1.23.2+ fixes the CPU detection crash on JetPack R36.4.4
-# Version 1.23.0 has a bug that causes "Unknown CPU vendor" crash on fresh JetPack R36.4.4 installs
-# We try >=1.23.2 first (fixes the crash), fallback to >=1.23.0 if 1.23.2+ isn't available
-# Note: Jetson PyPI currently only has 1.23.0, so we'll use that with ORT_DISABLE_CPUINFO=1
+# OpenWakeWord is compatible with onnxruntime-gpu-1.23.0 and will use it if installed first
 print_info "Installing onnxruntime-gpu from Jetson AI Lab PyPI (Jetson-optimized)..."
-print_info "   Trying version >=1.23.2 first (fixes CPU detection crash on JetPack R36.4.4)..."
-print_info "   Note: 1.23.2 is an official Microsoft release (Oct 2024) - see https://github.com/microsoft/onnxruntime/releases"
-# CRITICAL: Version 1.23.2 fixes the CPU detection crash that ORT_DISABLE_CPUINFO=1 cannot prevent in 1.23.0
-# Official release: https://github.com/microsoft/onnxruntime/releases/tag/v1.23.2
-# Try multiple sources to find 1.23.2 with ARM64 builds
-ONNXRUNTIME_INSTALLED=false
-# Use PIPESTATUS to check pip exit code (tee always returns 0)
-
-# Strategy 1: Try Jetson PyPI first (preferred - Jetson-optimized)
-print_info "   Attempt 1: Jetson PyPI (Jetson-optimized builds)..."
-pip install --index-url https://pypi.jetson-ai-lab.io/jp6/cu126 "onnxruntime-gpu>=1.23.2" 2>&1 | tee /tmp/onnxruntime_install.log
-PIP_EXIT_CODE=${PIPESTATUS[0]}
-
-if [ "$PIP_EXIT_CODE" -eq 0 ]; then
-    ONNXRUNTIME_INSTALLED=true
-    print_info "✅ Installed onnxruntime-gpu >=1.23.2 from Jetson PyPI (fixes CPU detection crash)"
-else
-    # Check if the error was "no matching distribution" (version not available)
-    if grep -qE "No matching distribution found for onnxruntime-gpu>=1.23.2|Could not find a version that satisfies the requirement onnxruntime-gpu>=1.23.2" /tmp/onnxruntime_install.log 2>/dev/null; then
-        print_warning "⚠️  Version >=1.23.2 not available in Jetson PyPI"
-        
-     
-        # Note: onnxruntime-gpu is a metapackage; we may need to install onnxruntime directly
-        print_info "   Attempt 2: Standard PyPI (official Microsoft release - Oct 2024)..."
-        
-        # Try onnxruntime-gpu first
-        print_info "   Trying onnxruntime-gpu==1.23.2..."
-        pip install "onnxruntime-gpu==1.23.2" 2>&1 | tee -a /tmp/onnxruntime_install.log
-        PIP_EXIT_CODE=${PIPESTATUS[0]}
-        
-        # If that fails, try installing onnxruntime directly (base package)
-        if [ "$PIP_EXIT_CODE" -ne 0 ]; then
-            print_info "   onnxruntime-gpu==1.23.2 not found, trying onnxruntime==1.23.2 (base package)..."
-            pip install "onnxruntime==1.23.2" 2>&1 | tee -a /tmp/onnxruntime_install.log
-            PIP_EXIT_CODE=${PIPESTATUS[0]}
-            if [ "$PIP_EXIT_CODE" -eq 0 ]; then
-                # Install onnxruntime-gpu metapackage to match (will use the 1.23.2 base package)
-                print_info "   Installing onnxruntime-gpu metapackage (will use onnxruntime 1.23.2)..."
-                pip install "onnxruntime-gpu>=1.23.0" 2>&1 | tee -a /tmp/onnxruntime_install.log || true
-            fi
-        fi
-        
-        if [ "$PIP_EXIT_CODE" -eq 0 ]; then
-            # Verify it's actually ARM64 before accepting it
-            export ORT_DISABLE_CPUINFO=1
-            export ORT_LOG_LEVEL=3
-            INSTALLED_PATH=$(python3 -c "import onnxruntime; import os; print(os.path.dirname(onnxruntime.__file__))" 2>/dev/null || echo "")
-            if [ -n "$INSTALLED_PATH" ]; then
-                SO_FILE=$(find "$INSTALLED_PATH" -name "*.so" -type f 2>/dev/null | head -1)
-                if [ -n "$SO_FILE" ] && file "$SO_FILE" 2>/dev/null | grep -qE "ARM|aarch64"; then
-                    ONNXRUNTIME_INSTALLED=true
-                    RUNTIME_VER=$(python3 -c "import onnxruntime; print(onnxruntime.__version__)" 2>/dev/null || echo "unknown")
-                    print_info "✅ Installed onnxruntime $RUNTIME_VER from standard PyPI (ARM64 build verified)"
-                    if [ "$RUNTIME_VER" = "1.23.2" ]; then
-                        print_info "   This version fixes the CPU detection crash"
-                    fi
-                else
-                    print_warning "⚠️  Installed package is not ARM64 - uninstalling and trying fallback"
-                    pip uninstall -y onnxruntime-gpu onnxruntime 2>/dev/null || true
-                    ONNXRUNTIME_INSTALLED=false
-                fi
-            else
-                # If we can't verify, assume it failed and try fallback
-                print_warning "⚠️  Could not verify installation - trying fallback"
-                pip uninstall -y onnxruntime-gpu onnxruntime 2>/dev/null || true
-                ONNXRUNTIME_INSTALLED=false
-            fi
-        fi
-        
-        # Strategy 3: Fallback to Jetson PyPI 1.23.0 (with environment variables)
-        if [ "$ONNXRUNTIME_INSTALLED" = false ]; then
-            print_warning "⚠️  Version >=1.23.2 not available, falling back to 1.23.0 from Jetson PyPI..."
-            print_warning "   Note: 1.23.0 may crash even with ORT_DISABLE_CPUINFO=1 on some devices"
-            print_info "   Environment variables will be set, but may not prevent crashes"
-            pip install --index-url https://pypi.jetson-ai-lab.io/jp6/cu126 "onnxruntime-gpu>=1.23.0" 2>&1 | tee -a /tmp/onnxruntime_install.log
-            PIP_EXIT_CODE=${PIPESTATUS[0]}
-            if [ "$PIP_EXIT_CODE" -eq 0 ]; then
-                ONNXRUNTIME_INSTALLED=true
-                print_warning "⚠️  Installed onnxruntime-gpu 1.23.0 (may crash - consider manual 1.23.2 install)"
-            else
-                print_error "❌ Failed to install onnxruntime-gpu >=1.23.0"
-                print_error "   Check logs: /tmp/onnxruntime_install.log"
-                ONNXRUNTIME_INSTALLED=false
-            fi
-        fi
-    else
-        print_error "❌ Failed to install onnxruntime-gpu >=1.23.2 from Jetson PyPI"
-        print_error "   Check logs: /tmp/onnxruntime_install.log"
-        ONNXRUNTIME_INSTALLED=false
-    fi
-fi
-
-if [ "$ONNXRUNTIME_INSTALLED" = false ]; then
+if ! pip install --extra-index-url https://pypi.jetson-ai-lab.io/jp6/cu126 "onnxruntime-gpu>=1.23.0" 2>&1 | tee /tmp/onnxruntime_install.log; then
     print_error "❌ Failed to install onnxruntime-gpu from Jetson PyPI"
+    print_error "   Check logs: /tmp/onnxruntime_install.log"
     print_error "   OpenWakeWord requires onnxruntime-gpu to function"
     exit 1
 fi
-
 print_info "✅ onnxruntime-gpu installed successfully from Jetson PyPI"
-
-# Verify the installed version
-INSTALLED_VERSION=$(pip show onnxruntime-gpu 2>/dev/null | grep "^Version:" | awk '{print $2}' || echo "unknown")
-print_info "Installed onnxruntime-gpu version: $INSTALLED_VERSION"
-# Also check the actual runtime version (may differ from pip metadata)
-RUNTIME_VERSION=$(python3 -c "import onnxruntime; print(onnxruntime.__version__)" 2>/dev/null || echo "unknown")
-if [ "$RUNTIME_VERSION" != "unknown" ] && [ "$INSTALLED_VERSION" != "$RUNTIME_VERSION" ]; then
-    print_warning "⚠️  Version mismatch: pip shows $INSTALLED_VERSION but runtime reports $RUNTIME_VERSION"
-    print_info "   This may indicate multiple installations or metadata mismatch"
-fi
 
 # IMPORTANT: onnxruntime-gpu==1.23.0 was compiled with NumPy 1.x and is incompatible with NumPy 2.x
 # Check NumPy version and downgrade if needed
@@ -1561,11 +1455,6 @@ Environment="HOME=$AURA_HOME"
 Environment="PATH=$VENV_DIR/bin:/usr/local/bin:/usr/bin:/bin"
 Environment="XDG_RUNTIME_DIR=/run/user/$AURA_UID"
 Environment="XAUTHORITY=$XAUTH_PATH"
-# CRITICAL: Set onnxruntime environment variables to prevent CPU detection crashes on Jetson/ARM64
-# These must be set before importing openwakeword (which imports onnxruntime)
-# Note: ORT_DISABLE_CPUINFO prevents the "Unknown CPU vendor" crash on JetPack R36.4.4
-Environment="ORT_DISABLE_CPUINFO=1"
-Environment="ORT_LOG_LEVEL=3"
 # Auto-detect DISPLAY from X sockets at runtime (handles :0, :1, etc.)
 ExecStartPre=/bin/bash -c 'SOCKET=\$(ls /tmp/.X11-unix/ 2>/dev/null | grep "^X" | head -1); if [ -n "\$SOCKET" ]; then NUM=\$(echo "\$SOCKET" | sed "s/X//"); export DISPLAY=:\$NUM; else export DISPLAY=:0; fi; while [ ! -e "/tmp/.X11-unix/\${SOCKET:-X0}" ]; do sleep 1; done'
 ExecStartPre=/bin/bash -c 'SOCKET=\$(ls /tmp/.X11-unix/ 2>/dev/null | grep "^X" | head -1); if [ -n "\$SOCKET" ]; then NUM=\$(echo "\$SOCKET" | sed "s/X//"); export DISPLAY=:\$NUM; else export DISPLAY=:0; fi; xhost +local: 2>/dev/null || true'

@@ -49,16 +49,30 @@ if [ "${INSTALLED:-false}" != "true" ]; then
     
     # Try onnxruntime-gpu first
     echo "[INFO]   Trying onnxruntime-gpu==1.23.2..."
-    if pip install "onnxruntime-gpu==1.23.2" 2>&1 | tee -a /tmp/onnxruntime_1.23.2_install.log; then
+    pip install "onnxruntime-gpu==1.23.2" 2>&1 | tee -a /tmp/onnxruntime_1.23.2_install.log
+    PIP_EXIT_CODE=${PIPESTATUS[0]}
+    
+    if [ "$PIP_EXIT_CODE" -eq 0 ]; then
         INSTALLED=true
     else
         # If that fails, try installing onnxruntime directly (base package)
+        # This is what the working device has: onnxruntime==1.23.2 (base) + onnxruntime-gpu==1.23.0 (metapackage)
         echo "[INFO]   onnxruntime-gpu==1.23.2 not found, trying onnxruntime==1.23.2 (base package)..."
-        if pip install "onnxruntime==1.23.2" 2>&1 | tee -a /tmp/onnxruntime_1.23.2_install.log; then
+        echo "[INFO]   Note: Working device has onnxruntime==1.23.2 (base) with onnxruntime-gpu==1.23.0 (metapackage)"
+        echo "[INFO]   Checking if onnxruntime==1.23.2 is available on standard PyPI..."
+        pip index versions onnxruntime 2>&1 | grep -E "1.23.2|Available" | head -3 || echo "    Could not query versions"
+        pip install "onnxruntime==1.23.2" 2>&1 | tee -a /tmp/onnxruntime_1.23.2_install.log
+        PIP_EXIT_CODE=${PIPESTATUS[0]}
+        
+        if [ "$PIP_EXIT_CODE" -eq 0 ]; then
             # Install onnxruntime-gpu metapackage to match (will use the 1.23.2 base package)
             echo "[INFO]   Installing onnxruntime-gpu metapackage (will use onnxruntime 1.23.2)..."
             pip install "onnxruntime-gpu>=1.23.0" 2>&1 | tee -a /tmp/onnxruntime_1.23.2_install.log || true
             INSTALLED=true
+        else
+            echo "[WARNING] ⚠️  onnxruntime==1.23.2 also not found on standard PyPI"
+            echo "[INFO]   This suggests 1.23.2 may have been removed or is only available from a different source"
+            INSTALLED=false
         fi
     fi
     
