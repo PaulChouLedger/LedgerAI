@@ -2887,6 +2887,7 @@ def filter_cot_reasoning(generator):
     reasoning_buffer = ""  # Buffer reasoning section to extract DISCARD items
     found_final_answer = False
     discarded_items = set()
+    kept_items = []  # Store KEEP items from reasoning to verify final answer completeness
     answer_buffer = []  # Buffer answer tokens for cleaning
     collecting_answer = False
     is_cot_response = False  # Track if this is a CoT response (has REASONING:)
@@ -2920,16 +2921,43 @@ def filter_cot_reasoning(generator):
         """Extract names/items that were marked [KEEP] in reasoning section"""
         kept_items = []
         # Pattern: Item: [Name] ... Action: [KEEP]
-        pattern = r'- Item:\s*([^\n-]+?)(?:\s*-\s*Evidence:.*?)?\s*-\s*Action:\s*\[KEEP\]'
+        # Handle both formats: "- Item:Name - Evidence:..." and "- Item: Name - Evidence:..."
+        # Use non-greedy match that stops at " - Evidence:" or " - Action:"
+        pattern = r'- Item:\s*([^-]+?)(?:\s*-\s*(?:Evidence|Action):)'
         matches = re.findall(pattern, reasoning_text, re.IGNORECASE | re.DOTALL)
-        for match in matches:
+        
+        # Also check that the Action is [KEEP] by finding full blocks
+        # More robust: find all "- Item: ... - Action: [KEEP]" blocks
+        full_pattern = r'- Item:\s*([^-]+?)\s*-\s*(?:Evidence:[^-]+?-\s*)?Action:\s*\[KEEP\]'
+        full_matches = re.findall(full_pattern, reasoning_text, re.IGNORECASE | re.DOTALL)
+        
+        # Use full_matches (more reliable)
+        for match in full_matches:
             item_name = match.strip()
-            # Remove any trailing role/evidence info
+            # Remove any trailing role/evidence info that might have been captured
             item_name = re.sub(r'\s*-\s*Role:.*$', '', item_name, flags=re.IGNORECASE)
             item_name = re.sub(r'\s*-\s*Evidence:.*$', '', item_name, flags=re.IGNORECASE)
             item_name = item_name.strip()
             if item_name:
                 kept_items.append(item_name)
+        
+        # If no matches found with full pattern, try the simpler pattern and verify Action is KEEP
+        if not kept_items:
+            for match in matches:
+                # Check if this item has Action: [KEEP] after it
+                # Find the position of this match
+                item_match_pos = reasoning_text.find(f"- Item: {match.strip()}")
+                if item_match_pos != -1:
+                    # Look for Action after this item
+                    after_item = reasoning_text[item_match_pos:]
+                    if re.search(r'Action:\s*\[KEEP\]', after_item, re.IGNORECASE):
+                        item_name = match.strip()
+                        item_name = re.sub(r'\s*-\s*Role:.*$', '', item_name, flags=re.IGNORECASE)
+                        item_name = re.sub(r'\s*-\s*Evidence:.*$', '', item_name, flags=re.IGNORECASE)
+                        item_name = item_name.strip()
+                        if item_name and item_name not in kept_items:
+                            kept_items.append(item_name)
+        
         return kept_items
     
     # Buffer tokens to detect if this is a CoT response
@@ -3086,6 +3114,10 @@ def filter_cot_reasoning(generator):
                 
                 discarded_items = extract_discarded_items(reasoning_text)
                 
+                # Extract KEEP items from reasoning to verify final answer completeness
+                # Store at function level so it's accessible when verifying final answer
+                kept_items = extract_kept_items(reasoning_text)
+                
                 # DEBUG: Print FULL raw response (for debugging)
                 print(f"\n{'='*80}")
                 print(f"[Generic] 📋 [CoT Debug] FULL RAW TEXT BUFFER (first 2000 chars):")
@@ -3101,6 +3133,8 @@ def filter_cot_reasoning(generator):
                 clean_reasoning = reasoning_text.replace("<sentence_start>", "").replace("<sentence_end>", "").strip()
                 print(clean_reasoning[:2000])  # Increased to 2000 chars to see more
                 print(f"{'='*80}")
+                if kept_items:
+                    print(f"[Generic] ✅ [CoT Reasoning Debug] Items marked KEEP: {kept_items}")
                 if discarded_items:
                     print(f"[Generic] 🚫 [CoT Reasoning Debug] Items marked DISCARD: {discarded_items}")
                 print(f"{'='*80}\n")
@@ -3140,6 +3174,86 @@ def filter_cot_reasoning(generator):
         final_answer = re.sub(r'\[(KEEP|DISCARD|Action|Result)\]', '', final_answer, flags=re.IGNORECASE)
         final_answer = re.sub(r'(?m)^- .*$', '', final_answer).strip()  # Remove bulleted lines
         final_answer = re.sub(r'- End of scan\.?\s*', '', final_answer, flags=re.IGNORECASE)
+        
+        # Verify final answer includes all KEEP items (extracted earlier when FINAL ANSWER marker was found)
+        # If kept_items wasn't extracted earlier (edge case), try to extract now
+        if not kept_items and (reasoning_buffer or ("REASONING:" in text_buffer or "Reasoning:" in text_buffer)):
+            reasoning_text_for_verification = reasoning_buffer if reasoning_buffer else text_buffer
+            if "REASONING:" in reasoning_text_for_verification:
+                reasoning_text_for_verification = "REASONING:" + reasoning_text_for_verification.split("REASONING:")[-1].split("FINAL ANSWER:")[0]
+            elif "Reasoning:" in reasoning_text_for_verification:
+                reasoning_text_for_verification = "Reasoning:" + reasoning_text_for_verification.split("Reasoning:")[-1].split("FINAL ANSWER:")[0]
+            
+            kept_items = extract_kept_items(reasoning_text_for_verification)
+        
+        # Verify that all KEEP items are included in final answer
+        if kept_items:
+                print(f"[Generic] ✅ [CoT Reasoning Debug] Items marked KEEP in reasoning: {kept_items}")
+                
+                # Verify that all KEEP items are present in final answer
+                final_answer_lower = final_answer.lower()
+                missing_items = []
+                for kept_item in kept_items:
+                    # Check if kept item appears in final answer
+                    # Use fuzzy matching to handle variations (e.g., "Bob Carella" vs "Bob")
+                    item_lower = kept_item.lower()
+                    item_parts = [part for part in item_lower.split() if len(part) > 2]  # Ignore short words like "as", "of", etc.
+                    
+                    # Check if at least 2 parts of multi-word names are present, or single word is present
+                    if len(item_parts) == 1:
+                        # Single word name - check if it appears
+                        if item_parts[0] not in final_answer_lower:
+                            missing_items.append(kept_item)
+                    else:
+                        # Multi-word name - check if at least 2 words appear (or first name + last name)
+                        matching_parts = sum(1 for part in item_parts if part in final_answer_lower)
+                        # Require at least first name and last name (or 2/3 for 3-word names)
+                        min_required = 2 if len(item_parts) <= 2 else 2
+                        if matching_parts < min_required:
+                            missing_items.append(kept_item)
+                        # Special case: Check if both first and last name appear (more reliable)
+                        elif len(item_parts) >= 2:
+                            first_name = item_parts[0]
+                            last_name = item_parts[-1]
+                            if first_name not in final_answer_lower or last_name not in final_answer_lower:
+                                missing_items.append(kept_item)
+                
+                if missing_items:
+                    print(f"[Generic] ⚠️ [CoT Reasoning Debug] Missing KEEP items in FINAL ANSWER: {missing_items}")
+                    print(f"[Generic] 🔧 [CoT Reasoning Debug] Reconstructing answer to include all KEEP items...")
+                    
+                    # Extract items that ARE present in the answer
+                    present_items = [item for item in kept_items if item not in missing_items]
+                    
+                    # Reconstruct answer to include all KEEP items
+                    if len(kept_items) == 1:
+                        reconstructed_answer = kept_items[0]
+                    elif len(kept_items) == 2:
+                        reconstructed_answer = f"{kept_items[0]} and {kept_items[1]}"
+                    else:
+                        # Multiple items: "X, Y, and Z"
+                        items_str = ", ".join(kept_items[:-1]) + f", and {kept_items[-1]}"
+                        reconstructed_answer = items_str
+                    
+                    # Try to preserve the original answer structure if possible
+                    # Extract the question part (e.g., "The co-founders of Ledger AI are")
+                    question_pattern = r'(The\s+(?:co-?founders|founders)\s+(?:of\s+[A-Z][\w\s]+?\s+)?(?:are|is):?\s*)'
+                    match = re.search(question_pattern, final_answer, re.IGNORECASE)
+                    if match:
+                        question_part = match.group(1)
+                        # Reconstruct with original question structure
+                        if len(kept_items) == 1:
+                            final_answer = f"{question_part.rstrip(':').rstrip()} is {kept_items[0]}."
+                        elif len(kept_items) == 2:
+                            final_answer = f"{question_part.rstrip(':').rstrip()} {kept_items[0]} and {kept_items[1]}."
+                        else:
+                            items_str = ", ".join(kept_items[:-1]) + f", and {kept_items[-1]}"
+                            final_answer = f"{question_part.rstrip(':').rstrip()} {items_str}."
+                    else:
+                        # Use reconstructed answer
+                        final_answer = reconstructed_answer
+                    
+                    print(f"[Generic] ✅ [CoT Reasoning Debug] Reconstructed FINAL ANSWER: {final_answer[:200]}...")
         
         # Filter DISCARD items from final answer
         if discarded_items:
