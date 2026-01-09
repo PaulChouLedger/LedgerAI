@@ -2430,19 +2430,24 @@ def chat_tts():
                 print(f"[Generic] 💭 [Filler Phrase] Yielding filler phrase before RAG processing: '{filler_phrase}'")
                 print(f"[Generic] 💭 [Filler Phrase] will_use_rag={will_use_rag}, is_conversational={is_conversational}")
                 # Yield filler phrase with proper sentence tags - must be complete before LLM response
-                # Format: each tag on its own line, filler phrase text on separate lines for proper parsing
-                # The speaker uses iter_lines(), so each yield should be a complete line
+                # Format: each tag on its own line, filler phrase text as complete sentence
+                # The speaker uses iter_lines(), so each yield should be a complete line ending with \n
                 yield "<sentence_start>\n"
                 print(f"[Generic] 💭 [Filler Phrase] Yielded <sentence_start> tag")
-                # Yield filler phrase words - each word on its own line for proper line-by-line processing
+                # Yield filler phrase as complete text (speaker will buffer until <sentence_end>)
+                # Split into words and yield each word on its own line to match LLM response format
                 words = filler_phrase.split()
+                print(f"[Generic] 💭 [Filler Phrase] Splitting into {len(words)} words: {words}")
                 for i, word in enumerate(words):
-                    if i < len(words) - 1:
-                        yield f"{word} \n"  # Add newline after each word (except last)
-                    else:
-                        yield f"{word}\n"  # Last word with newline
+                    word_line = f"{word} \n" if i < len(words) - 1 else f"{word}\n"
+                    yield word_line
+                    print(f"[Generic] 💭 [Filler Phrase] Yielded word {i+1}/{len(words)}: '{word_line.rstrip()}'")
                 yield "<sentence_end>\n"
-                print(f"[Generic] 💭 [Filler Phrase] Yielded <sentence_end> tag - filler phrase complete")
+                print(f"[Generic] 💭 [Filler Phrase] Yielded <sentence_end> tag - filler phrase complete (sent {len(words)} words)")
+                # Flush the yield to ensure it's sent immediately
+                import sys
+                if hasattr(sys.stdout, 'flush'):
+                    sys.stdout.flush()
                 # Small delay to ensure filler phrase is fully processed before LLM response starts
                 time.sleep(0.1)  # 100ms delay to ensure TTS starts processing filler phrase
                 print(f"[Generic] 💭 [Filler Phrase] Delay complete - proceeding to LLM response")
@@ -2921,18 +2926,65 @@ def filter_cot_reasoning(generator):
     # Buffer tokens to detect if this is a CoT response
     token_buffer_list = []  # Store tokens to replay if not CoT
     detection_buffer = ""  # Text for CoT detection
+    current_sentence_tokens = []  # Track tokens in current sentence (for filler phrase detection)
+    in_sentence = False  # Track if we're inside a sentence block
     
     # First pass: detect CoT by buffering initial tokens
+    # IMPORTANT: Pass through complete sentences immediately if they don't contain CoT markers
+    # This ensures filler phrases are sent to TTS immediately
     for token in generator:
-        token_buffer_list.append(token)
-        text_content = extract_text(token)
+        token_clean = token.strip() if token else ""
         
-        if text_content:
-            detection_buffer += text_content
-            if not text_content.rstrip().endswith(('.', ',', '!', '?', ':', ';', ' ', '\n')):
-                detection_buffer += " "
+        # Track sentence boundaries
+        if token_clean == "<sentence_start>":
+            in_sentence = True
+            current_sentence_tokens = [token]
+            token_buffer_list.append(token)
+            continue
+        elif token_clean == "<sentence_end>":
+            if in_sentence:
+                current_sentence_tokens.append(token)
+                # Check if this complete sentence contains CoT markers
+                sentence_text = " ".join(extract_text(t) for t in current_sentence_tokens if extract_text(t))
+                if "REASONING:" in sentence_text or "Reasoning:" in sentence_text:
+                    # This sentence contains CoT markers - buffer it and start CoT processing
+                    is_cot_response = True
+                    cot_detected = True
+                    print(f"[Generic] 🔍 [CoT Filter] CoT response detected in sentence - applying reasoning filter")
+                    # Add all sentence tokens to buffer
+                    for t in current_sentence_tokens:
+                        token_buffer_list.append(t)
+                        text_content = extract_text(t)
+                        if text_content:
+                            detection_buffer += text_content
+                    text_buffer = detection_buffer
+                    in_sentence = False
+                    current_sentence_tokens = []
+                    break
+                else:
+                    # Complete sentence without CoT markers - pass it through immediately (likely filler phrase)
+                    print(f"[Generic] 🔍 [CoT Filter] Passing through complete sentence immediately (no CoT markers): '{sentence_text[:60]}...'")
+                    for t in current_sentence_tokens:
+                        yield t
+                    in_sentence = False
+                    current_sentence_tokens = []
+                    continue
         
-        # Check for CoT markers
+        if in_sentence:
+            # Inside a sentence - buffer tokens
+            current_sentence_tokens.append(token)
+            token_buffer_list.append(token)
+        else:
+            # Outside sentence - buffer for detection
+            token_buffer_list.append(token)
+            text_content = extract_text(token)
+            
+            if text_content:
+                detection_buffer += text_content
+                if not text_content.rstrip().endswith(('.', ',', '!', '?', ':', ';', ' ', '\n')):
+                    detection_buffer += " "
+        
+        # Check for CoT markers in detection buffer
         if "REASONING:" in detection_buffer or "Reasoning:" in detection_buffer:
             is_cot_response = True
             cot_detected = True
