@@ -242,6 +242,34 @@ class RAGClient:
         query_capitalized_words = re.findall(r'\b([A-Z][a-z]+)\b', query)
         query_capitalized_lower = [w.lower() for w in query_capitalized_words if w.lower() not in question_words]
         
+        # Handle lowercase queries (e.g., from speech-to-text)
+        # If no capitalized words found, check for potential name phrases after question words
+        if not query_capitalized_lower and len(key_terms) >= 2:
+            query_lower = query.lower()
+            words = re.findall(r'\b\w+\b', query_lower)
+            
+            # Look for patterns like "who is X Y" or "who X Y" where X and Y could be names
+            for i in range(len(words) - 1):
+                if words[i] in ['who', 'what']:
+                    next_idx = i + 1
+                    if next_idx < len(words) and words[next_idx] == 'is':
+                        next_idx += 1
+                    
+                    if next_idx + 1 < len(words):
+                        potential_name_words = []
+                        for j in range(next_idx, min(next_idx + 3, len(words))):
+                            word = words[j]
+                            # Use same stop_words set from extract_key_terms
+                            stop_words_set = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'are', 'was', 'were'}
+                            if word not in stop_words_set and word not in question_words and len(word) > 2:
+                                potential_name_words.append(word)
+                            else:
+                                break
+                        
+                        if len(potential_name_words) >= 2:
+                            query_capitalized_lower.extend(potential_name_words)
+                            break
+        
         # If we have person names, we need to find at least one in the document
         has_person_name = len(query_names_lower) > 0 or len(query_capitalized_lower) >= 2
         
@@ -444,6 +472,39 @@ class RAGClient:
         query_capitalized_words = re.findall(r'\b([A-Z][a-z]+)\b', query)
         query_capitalized_lower = [w.lower() for w in query_capitalized_words if w.lower() not in question_words]
         
+        # Handle lowercase queries (e.g., from speech-to-text: "do you know who bob carella is?")
+        # If no capitalized words found, check for potential name phrases after question words
+        if not query_capitalized_lower and len(query_terms) >= 2:
+            query_lower = query.lower()
+            words = re.findall(r'\b\w+\b', query_lower)
+            
+            # Look for patterns like "who is X Y" or "who X Y" where X and Y could be names
+            # Find words after "who", "who is", "tell me about", etc.
+            for i in range(len(words) - 1):
+                # Pattern: "who [is] X Y" or "tell me about X Y"
+                if words[i] in ['who', 'what']:
+                    # Get next 1-3 words after "who" or "who is" as potential names
+                    next_idx = i + 1
+                    if next_idx < len(words) and words[next_idx] == 'is':
+                        next_idx += 1
+                    
+                    # Extract 2-3 words that could be a name
+                    if next_idx + 1 < len(words):
+                        potential_name_words = []
+                        for j in range(next_idx, min(next_idx + 3, len(words))):
+                            word = words[j]
+                            # Skip stop words and question words
+                            if word not in stop_words and word not in question_words and len(word) > 2:
+                                potential_name_words.append(word)
+                            else:
+                                break
+                        
+                        # If we found 2+ potential name words, treat them as names
+                        if len(potential_name_words) >= 2:
+                            query_capitalized_lower.extend(potential_name_words)
+                            print(f"[RAG Pre-filter] 🔍 Detected potential names from lowercase query: {potential_name_words}")
+                            break
+        
         # Pre-filter: Only include chunks that have at least one query term match (fuzzy)
         # This prevents irrelevant chunks from being analyzed
         # CRITICAL: For queries with names, require at least one capitalized word (name) match
@@ -514,26 +575,26 @@ class RAGClient:
             keyword_score = keyword_matches / max(len(query_terms), 1) if query_terms else 0
             
             # Check for person name matches (critical for "Who is X?" queries)
+            # Works for both capitalized and lowercase names in query/chunks
             name_match_boost = 0.0
+            text_lower = original_text.lower()
+            
+            # Try to match against extracted capitalized names first (more reliable)
             if query_names:
-                # Extract names from result text (full names)
+                # Extract names from result text (full names) - capitalized only
                 result_names = re.findall(r'\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\b', original_text)
                 result_names_lower = [name.lower() for name in result_names]
-                
-                # Also check for individual name parts in text (handles cases where full name isn't together)
-                # e.g., "John" and "Smith" might appear separately in the text
-                text_lower = original_text.lower()
                 
                 # Check if any query name matches any result name (exact or fuzzy)
                 for query_name in query_names_lower:
                     query_name_words = query_name.split()
                     
-                    # 1. Check for exact full name match
+                    # 1. Check for exact full name match (in extracted capitalized names)
                     if query_name in result_names_lower:
                         name_match_boost = 0.25  # Strong boost for exact name match
                         break
                     
-                    # 2. Check for fuzzy full name match
+                    # 2. Check for fuzzy full name match (in extracted capitalized names)
                     for result_name in result_names_lower:
                         # Check if all query name words appear in result name (fuzzy)
                         if all(self._fuzzy_match_term(word, result_name, threshold=0.75) for word in query_name_words if len(word) > 2):
@@ -542,18 +603,26 @@ class RAGClient:
                     if name_match_boost > 0:
                         break
                     
-                    # 3. Check for partial name matches (individual words from query name appear in text)
-                    # This handles cases like "John worked at..." or "...Smith's role..."
+                    # 3. Check for partial name matches using fuzzy matching on full text (handles lowercase names in chunks)
+                    # This handles cases where names might be lowercase in the chunk
                     if len(query_name_words) >= 2:
-                        # Check if at least 2 name words appear in the text (fuzzy match)
                         matching_words = sum(1 for word in query_name_words if len(word) > 2 and self._fuzzy_match_term(word, text_lower, threshold=0.75))
                         if matching_words >= 2:
                             name_match_boost = 0.15  # Moderate boost for partial name match
                             break
                         elif matching_words == 1 and len(query_name_words) == 2:
-                            # If query has 2 words and 1 matches, still give small boost
                             name_match_boost = 0.10  # Small boost for single word match in 2-word name
                             break
+            
+            # Also handle queries with individual capitalized words (from lowercase queries or partial names)
+            # Use fuzzy matching directly on text - works for both capitalized and lowercase names in chunks
+            if name_match_boost == 0.0 and query_capitalized_lower and len(query_capitalized_lower) >= 2:
+                # Treat 2+ capitalized words as potential name and check if they appear in text (case-insensitive fuzzy)
+                matching_words = sum(1 for word in query_capitalized_lower if len(word) > 2 and self._fuzzy_match_term(word, text_lower, threshold=0.75))
+                if matching_words >= 2:
+                    name_match_boost = 0.15  # Moderate boost - found multiple name words in chunk
+                elif matching_words == 1 and len(query_capitalized_lower) == 2:
+                    name_match_boost = 0.10  # Small boost - found one word of two-word name
             
             # Combined score: 70% semantic, 30% keyword, plus name match boost
             base_score = 0.7 * semantic_score + 0.3 * keyword_score

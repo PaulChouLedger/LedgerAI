@@ -231,6 +231,33 @@ class MemoryRAGClient:
         query_capitalized_words = re.findall(r'\b([A-Z][a-z]+)\b', query)
         query_capitalized_lower = [w.lower() for w in query_capitalized_words if w.lower() not in question_words]
         
+        # Handle lowercase queries (e.g., from speech-to-text: "do you know who bob carella is?")
+        # If no capitalized words found, check for potential name phrases after question words
+        if not query_capitalized_lower and len(query_terms) >= 2:
+            query_lower = query.lower()
+            words = re.findall(r'\b\w+\b', query_lower)
+            
+            # Look for patterns like "who is X Y" or "who X Y" where X and Y could be names
+            for i in range(len(words) - 1):
+                if words[i] in ['who', 'what']:
+                    next_idx = i + 1
+                    if next_idx < len(words) and words[next_idx] == 'is':
+                        next_idx += 1
+                    
+                    if next_idx + 1 < len(words):
+                        potential_name_words = []
+                        for j in range(next_idx, min(next_idx + 3, len(words))):
+                            word = words[j]
+                            if word not in stop_words and word not in question_words and len(word) > 2:
+                                potential_name_words.append(word)
+                            else:
+                                break
+                        
+                        if len(potential_name_words) >= 2:
+                            query_capitalized_lower.extend(potential_name_words)
+                            logger.info(f"[Memory RAG Pre-filter] 🔍 Detected potential names from lowercase query: {potential_name_words}")
+                            break
+        
         # Pre-filter: Only include chunks that have at least one query term match (fuzzy)
         # CRITICAL: For queries with names, require at least one capitalized word (name) match
         logger.info(f"[Memory RAG Pre-filter] 🔍 Starting pre-filter: {len(results)} conversations, query: '{query[:50]}...'")
@@ -288,22 +315,25 @@ class MemoryRAGClient:
             keyword_matches = sum(1 for term in query_terms if self._fuzzy_match_term(term, text, threshold=0.75))
             keyword_score = keyword_matches / max(len(query_terms), 1) if query_terms else 0
             
-            # Check for person name matches
+            # Check for person name matches (critical for "Who is X?" queries)
+            # Works for both capitalized and lowercase names in query/chunks
             name_match_boost = 0.0
+            text_lower = original_text.lower()
+            
+            # Try to match against extracted capitalized names first (more reliable)
             if query_names:
                 result_names = re.findall(r'\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\b', original_text)
                 result_names_lower = [name.lower() for name in result_names]
-                text_lower = original_text.lower()
                 
                 for query_name in query_names_lower:
                     query_name_words = query_name.split()
                     
-                    # 1. Check for exact full name match
+                    # 1. Check for exact full name match (in extracted capitalized names)
                     if query_name in result_names_lower:
                         name_match_boost = 0.25
                         break
                     
-                    # 2. Check for fuzzy full name match
+                    # 2. Check for fuzzy full name match (in extracted capitalized names)
                     for result_name in result_names_lower:
                         if all(self._fuzzy_match_term(word, result_name, threshold=0.75) for word in query_name_words if len(word) > 2):
                             name_match_boost = 0.20
@@ -311,7 +341,7 @@ class MemoryRAGClient:
                     if name_match_boost > 0:
                         break
                     
-                    # 3. Check for partial name matches
+                    # 3. Check for partial name matches using fuzzy matching on full text (handles lowercase names in chunks)
                     if len(query_name_words) >= 2:
                         matching_words = sum(1 for word in query_name_words if len(word) > 2 and self._fuzzy_match_term(word, text_lower, threshold=0.75))
                         if matching_words >= 2:
@@ -320,6 +350,16 @@ class MemoryRAGClient:
                         elif matching_words == 1 and len(query_name_words) == 2:
                             name_match_boost = 0.10
                             break
+            
+            # Also handle queries with individual capitalized words (from lowercase queries or partial names)
+            # Use fuzzy matching directly on text - works for both capitalized and lowercase names in chunks
+            if name_match_boost == 0.0 and query_capitalized_lower and len(query_capitalized_lower) >= 2:
+                # Treat 2+ capitalized words as potential name and check if they appear in text (case-insensitive fuzzy)
+                matching_words = sum(1 for word in query_capitalized_lower if len(word) > 2 and self._fuzzy_match_term(word, text_lower, threshold=0.75))
+                if matching_words >= 2:
+                    name_match_boost = 0.15  # Moderate boost - found multiple name words in chunk
+                elif matching_words == 1 and len(query_capitalized_lower) == 2:
+                    name_match_boost = 0.10  # Small boost - found one word of two-word name
             
             # Combined score: 70% semantic, 30% keyword, plus name match boost
             base_score = 0.7 * semantic_score + 0.3 * keyword_score
