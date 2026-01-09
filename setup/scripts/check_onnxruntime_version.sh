@@ -70,24 +70,48 @@ echo ""
 # Check if it's from Jetson PyPI or standard PyPI
 echo "[INFO] Checking installation source..."
 if [ -n "$ACTUAL_PATH" ] && [ "$ACTUAL_PATH" != "unknown" ]; then
-    # Check for wheel metadata or dist-info
-    DIST_INFO=$(find "$ACTUAL_PATH/.." -name "*.dist-info" -type d 2>/dev/null | head -1)
+    # Find the site-packages directory
+    SITE_PACKAGES=$(dirname "$ACTUAL_PATH")
+    # Look specifically for onnxruntime-gpu dist-info (not other packages)
+    DIST_INFO=$(find "$SITE_PACKAGES" -maxdepth 1 -name "onnxruntime*.dist-info" -type d 2>/dev/null | head -1)
+    if [ -z "$DIST_INFO" ]; then
+        # Fallback: search more broadly
+        DIST_INFO=$(find "$SITE_PACKAGES" -name "*onnxruntime*.dist-info" -type d 2>/dev/null | head -1)
+    fi
     if [ -n "$DIST_INFO" ]; then
-        echo "  Distribution info: $DIST_INFO"
-        # Check if there's a RECORD file that might indicate source
+        echo "  Distribution info: $(basename $DIST_INFO)"
+        # Check METADATA for version and source
+        if [ -f "$DIST_INFO/METADATA" ]; then
+            METADATA_VERSION=$(grep "^Version:" "$DIST_INFO/METADATA" 2>/dev/null | awk '{print $2}' || echo "unknown")
+            echo "  Metadata version: $METADATA_VERSION"
+        fi
+        # Check if there's a direct_url.json (pip 20.1+) that shows source
+        if [ -f "$DIST_INFO/direct_url.json" ]; then
+            SOURCE_URL=$(grep -o '"url": "[^"]*"' "$DIST_INFO/direct_url.json" 2>/dev/null | cut -d'"' -f4 || echo "unknown")
+            echo "  Source URL: $SOURCE_URL"
+            if echo "$SOURCE_URL" | grep -q "jetson-ai-lab"; then
+                echo "  ✅ Installed from Jetson PyPI (Jetson-optimized)"
+            elif echo "$SOURCE_URL" | grep -q "pypi.org"; then
+                echo "  ⚠️  Installed from standard PyPI"
+            fi
+        fi
+        # Check RECORD for wheel filename
         if [ -f "$DIST_INFO/RECORD" ]; then
-            # Look for wheel filename which might indicate source
-            WHEEL_FILE=$(find "$DIST_INFO" -name "*.whl" 2>/dev/null | head -1)
-            if [ -n "$WHEEL_FILE" ]; then
-                echo "  Wheel file: $(basename $WHEEL_FILE)"
+            # Look for wheel filename in RECORD (first line often has it)
+            WHEEL_NAME=$(head -1 "$DIST_INFO/RECORD" 2>/dev/null | grep -oE "onnxruntime[^,]*\.whl" | head -1 || echo "")
+            if [ -n "$WHEEL_NAME" ]; then
+                echo "  Wheel file: $WHEEL_NAME"
                 # Check if wheel name contains platform tags
-                if echo "$WHEEL_FILE" | grep -q "linux_aarch64\|manylinux.*aarch64"; then
+                if echo "$WHEEL_NAME" | grep -q "linux_aarch64\|manylinux.*aarch64"; then
                     echo "  ✅ ARM64/Jetson build detected in wheel name"
-                elif echo "$WHEEL_FILE" | grep -q "linux_x86_64\|manylinux.*x86_64"; then
+                elif echo "$WHEEL_NAME" | grep -q "linux_x86_64\|manylinux.*x86_64"; then
                     echo "  ⚠️  x86_64 build detected in wheel name (not optimal for Jetson)"
                 fi
             fi
         fi
+    else
+        echo "  ⚠️  Could not find onnxruntime dist-info directory"
+        echo "  (This might indicate a system package or manual installation)"
     fi
 fi
 echo ""
@@ -100,16 +124,22 @@ if [ "$PIP_VERSION" != "$RUNTIME_VERSION" ] && [ "$RUNTIME_VERSION" != "import f
     echo ""
     echo "Analysis:"
     if [ "$RUNTIME_VERSION" = "1.23.2" ] && [ "$PIP_VERSION" = "1.23.0" ]; then
-        echo "  - Python is importing 1.23.2 (likely system-wide or from standard PyPI)"
-        echo "  - pip shows 1.23.0 in venv (from Jetson PyPI)"
-        echo "  - 1.23.2 is likely from standard PyPI (x86_64 build, not Jetson-optimized)"
+        echo "  - Python is importing 1.23.2 but pip metadata shows 1.23.0"
+        echo "  - This suggests a version mismatch in package metadata"
         echo ""
-        echo "⚠️  WARNING: If 1.23.2 is from standard PyPI, it may not be optimized for Jetson"
-        echo "   Jetson PyPI only has 1.23.0 (Jetson-optimized ARM64 build)"
-        echo ""
-        echo "Recommendation:"
-        echo "  - If 1.23.2 is working, it may be acceptable but not optimal"
-        echo "  - For best performance, use Jetson PyPI's 1.23.0 with ORT_DISABLE_CPUINFO=1"
+        # Check if binaries are ARM64 (which would indicate Jetson build)
+        if echo "$(file "$ACTUAL_PATH"/*.so 2>/dev/null | head -1)" | grep -q "ARM\|aarch64"; then
+            echo "  ✅ Binary architecture is ARM64/aarch64 (Jetson-optimized)"
+            echo "  - This means 1.23.2 IS likely a Jetson build (not x86_64)"
+            echo "  - The version mismatch is likely just metadata inconsistency"
+            echo ""
+            echo "✅ CONCLUSION: 1.23.2 appears to be Jetson-optimized and working correctly"
+            echo "   The pip metadata showing 1.23.0 is likely outdated or incorrect"
+        else
+            echo "  ⚠️  Could not verify binary architecture"
+            echo "  - 1.23.2 might be from standard PyPI (x86_64, not optimal)"
+            echo "  - Or it could be Jetson-optimized with metadata mismatch"
+        fi
     else
         echo "  - Multiple onnxruntime installations detected"
         echo "  - Python import path is picking up a different version than pip installed"

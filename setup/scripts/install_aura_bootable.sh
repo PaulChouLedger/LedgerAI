@@ -663,8 +663,8 @@ print_info "   Trying version >=1.23.2 first (fixes CPU detection crash on JetPa
 # Standard PyPI may have 1.23.2 but it's built for x86_64, not ARM64/Jetson
 ONNXRUNTIME_INSTALLED=false
 # Use PIPESTATUS to check pip exit code (tee always returns 0)
-# Try Jetson PyPI first (Jetson-optimized builds)
-pip install --index-url https://pypi.jetson-ai-lab.io/jp6/cu126 --extra-index-url https://pypi.org/simple "onnxruntime-gpu>=1.23.2" 2>&1 | tee /tmp/onnxruntime_install.log
+# Try Jetson PyPI ONLY (no fallback to standard PyPI to avoid x86_64 builds)
+pip install --index-url https://pypi.jetson-ai-lab.io/jp6/cu126 "onnxruntime-gpu>=1.23.2" 2>&1 | tee /tmp/onnxruntime_install.log
 PIP_EXIT_CODE=${PIPESTATUS[0]}
 
 if [ "$PIP_EXIT_CODE" -eq 0 ]; then
@@ -677,8 +677,8 @@ else
     # - "Could not find a version that satisfies the requirement onnxruntime-gpu>=1.23.2"
     if grep -qE "No matching distribution found for onnxruntime-gpu>=1.23.2|Could not find a version that satisfies the requirement onnxruntime-gpu>=1.23.2" /tmp/onnxruntime_install.log 2>/dev/null; then
         print_warning "⚠️  Version >=1.23.2 not available in Jetson PyPI, trying >=1.23.0..."
-        # Use Jetson PyPI as primary index (Jetson-optimized), standard PyPI as fallback
-        pip install --index-url https://pypi.jetson-ai-lab.io/jp6/cu126 --extra-index-url https://pypi.org/simple "onnxruntime-gpu>=1.23.0" 2>&1 | tee /tmp/onnxruntime_install.log
+        # Use ONLY Jetson PyPI (no fallback to standard PyPI to avoid x86_64 builds)
+        pip install --index-url https://pypi.jetson-ai-lab.io/jp6/cu126 "onnxruntime-gpu>=1.23.0" 2>&1 | tee /tmp/onnxruntime_install.log
         PIP_EXIT_CODE=${PIPESTATUS[0]}
         if [ "$PIP_EXIT_CODE" -eq 0 ]; then
             ONNXRUNTIME_INSTALLED=true
