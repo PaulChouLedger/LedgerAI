@@ -11,7 +11,7 @@
       },
       {
         "role": "assistant",
-        "content": "REASONING:\n- Item: Fiona Blanco\n  - Role: Co-Founder of Vertex0 of Vertex0\n  - Action: [KEEP]\n- End of scan.\n\nFINAL ANSWER:\nThe co-founder of Vertex0 is Fiona Blanco."
+        "content": "REASONING:\n- Item: Fiona Blanco\n  - Evidence: \"Co-Founder of Vertex0 of Vertex0\"\n  - Action: [KEEP]\n- End of scan.\n\n\n\nFINAL ANSWER:\nThe co-founder of Vertex0 is Fiona Blanco."
       }
     ]
   },
@@ -27,7 +27,7 @@
       },
       {
         "role": "assistant",
-        "content": "REASONING:\n- Item: Diana Marsh\n  - Role: Co-Founder of ApexSolutions1 of ApexSolutions1\n  - Action: [KEEP]\n- End of scan.\n\nFINAL ANSWER:\nThe co-founder of ApexSolutions1 is Diana Marsh."
+        "content": "REASONING:\n- Item: Diana Marsh\n  - Evidence: \"Co-Founder of ApexSolutions1 of ApexSolutions1\"\n  - Action: [KEEP]\n- End of scan.\n\n\n\nFINAL ANSWER:\nThe co-founder of ApexSolutions1 is Diana Marsh."
       }
     ]
   },
@@ -43,7 +43,7 @@
       },
       {
         "role": "assistant",
-        "content": "REASONING:\n- Item: Diana Marsh\n  - Role: Co-Founder of NeoFlow2 of NeoFlow2\n  - Action: [KEEP]\n- End of scan.\n\nFINAL ANSWER:\nThe co-founder of NeoFlow2 is Diana Marsh."
+        "content": "REASONING:\n- Item: Diana Marsh\n  - Evidence: \"Co-Founder of NeoFlow2 of NeoFlow2\"\n  - Action: [KEEP]\n- End of scan.\n\n\n\nFINAL ANSWER:\nThe co-founder of NeoFlow2 is Diana Marsh."
       }
     ]
   },
@@ -59,7 +59,7 @@
       },
       {
         "role": "assistant",
-        "content": "REASONING:\n- Item: Alice Vance\n  - Role: Co-Founder of Vertex3 of Vertex3\n  - Action: [KEEP]\n- End of scan.\n\nFINAL ANSWER:\nThe co-founder of Vertex3 is Alice Vance."
+        "content": "REASONING:\n- Item: Alice Vance\n  - Evidence: \"Co-Founder of Vertex3 of Vertex3\"\n  - Action: [KEEP]\n- End of scan.\n\n\n\nFINAL ANSWER:\nThe co-founder of Vertex3 is Alice Vance."
       }
     ]
   },
@@ -75,7 +75,7 @@
       },
       {
         "role": "assistant",
-        "content": "REASONING:\n- Item: Alice Vance\n  - Role: Co-Founder of NeoFlow4 of NeoFlow4\n  - Action: [KEEP]\n- End of scan.\n\nFINAL ANSWER:\nThe co-founder of NeoFlow4 is Alice Vance."
+        "content": "REASONING:\n- Item: Alice Vance\n  - Evidence: \"Co-Founder of NeoFlow4 of NeoFlow4\"\n  - Action: [KEEP]\n- End of scan.\n\n\n\nFINAL ANSWER:\nThe co-founder of NeoFlow4 is Alice Vance."
       }
     ]
   },
@@ -91,7 +91,7 @@
       },
       {
         "role": "assistant",
-        "content": "REASONING:\n- Item: George Silas\n  - Role: Co-Founder of Vertex5 of Vertex5\n  - Action: [KEEP]\n- End of scan.\n\nFINAL ANSWER:\nThe co-founder of Vertex5 is George Silas."
+        "content": "REASONING:\n- Item: George Silas\n  - Evidence: \"Co-Founder of Vertex5 of Vertex5\"\n  - Action: [KEEP]\n- End of scan.\n\n\n\nFINAL ANSWER:\nThe co-founder of Vertex5 is George Silas."
       }
     ]
   },
@@ -107,7 +107,7 @@
       },
       {
         "role": "assistant",
-        "content": "REASONING:\n- Item: Fiona Blanco\n  - Role: Co-Founder of BioGen6 of BioGen6\n  - Action: [KEEP]\n- End of scan.\n\nFINAL ANSWER:\nThe co-founder of BioGen6 is Fiona Blanco."
+        "content": "REASONING:\n- Item: Fiona Blanco\n  - Evidence: \"Co-Founder of BioGen6 of BioGen6\"\n  - Action: [KEEP]\n- End of scan.\n\n\n\nFINAL ANSWER:\nThe co-founder of BioGen6 is Fiona Blanco."
       }
     ]
   },
@@ -123,7 +123,7 @@
       },
       {
         "role": "assistant",
-        "content": "REASONING:\n- Item: Bob Sloan\n  - Role: Co-Founder of NeoFlow7 of NeoFlow7\n  - Action: [KEEP]\n- End of scan.\n\nFINAL ANSWER:\nThe co-founder of NeoFlow7 is Bob Sloan."
+        "content": "REASONING:\n- Item: Bob Sloan\n  - Evidence: \"Co-Founder of NeoFlow7 of NeoFlow7\"\n  - Action: [KEEP]\n- End of scan.\n\n\n\nFINAL ANSWER:\nThe co-founder of NeoFlow7 is Bob Sloan."
       }
     ]
   },
@@ -139,7 +139,7 @@
       },
       {
         "role": "assistant",
-        "content": "REASONING:\n- Item: Diana Marsh\n  - Role: Co-Founder of Vertex8 of Vertex8\n  - Action: [KEEP]\n- End of scan.\n\nFINAL ANSWER:\nThe co-founder of Vertex8 is Diana Marsh."
+        "content": "REASONING:\n- Item: Diana Marsh\n  - Evidence: \"Co-Founder of Vertex8 of Vertex8\"\n  - Action: [KEEP]\n- End of scan.\n\n\n\nFINAL ANSWER:\nThe co-founder of Vertex8 is Diana Marsh."
       }
     ]
   },
@@ -155,7 +155,7 @@
       },
       {
         "role": "assistant",
-        "content": "REASONING:\n- Item: Fiona Blanco\n  - Role: Co-Founder of Solaris9 of Solaris9\n  - Action: [KEEP]\n- End of scan.\n\nFINAL ANSWER:\nThe co-founder of Solaris9 is Fiona Blanco."
+        "content": "REASONING:\n- Item: Fiona Blanco\n  - Evidence: \"Co-Founder of Solaris9 of Solaris9\"\n  - Action: [KEEP]\n- End of scan.\n\n\n\nFINAL ANSWER:\nThe co-founder of Solaris9 is Fiona Blanco."
       }
     ]
   },
@@ -171,7 +171,7 @@
       },
       {
         "role": "assistant",
-        "content": "REASONING:\n- Item: Hannah Anika\n  - Role: Co-Founder of Vertex10 of Vertex10\n  - Action: [KEEP]\n- End of scan.\n\nFINAL ANSWER:\nThe co-founder of Vertex10 is Hannah Anika."
+        "content": "REASONING:\n- Item: Hannah Anika\n  - Evidence: \"Co-Founder of Vertex10 of Vertex10\"\n  - Action: [KEEP]\n- End of scan.\n\n\n\nFINAL ANSWER:\nThe co-founder of Vertex10 is Hannah Anika."
       }
     ]
   },
@@ -187,7 +187,7 @@
       },
       {
         "role": "assistant",
-        "content": "REASONING:\n- Item: Charlie Quinn\n  - Role: Co-Founder of Vertex11 of Vertex11\n  - Action: [KEEP]\n- End of scan.\n\nFINAL ANSWER:\nThe co-founder of Vertex11 is Charlie Quinn."
+        "content": "REASONING:\n- Item: Charlie Quinn\n  - Evidence: \"Co-Founder of Vertex11 of Vertex11\"\n  - Action: [KEEP]\n- End of scan.\n\n\n\nFINAL ANSWER:\nThe co-founder of Vertex11 is Charlie Quinn."
       }
     ]
   },
@@ -203,7 +203,7 @@
       },
       {
         "role": "assistant",
-        "content": "REASONING:\n- Item: Fiona Blanco\n  - Role: Co-Founder of ApexSolutions12 of ApexSolutions12\n  - Action: [KEEP]\n- End of scan.\n\nFINAL ANSWER:\nThe co-founder of ApexSolutions12 is Fiona Blanco."
+        "content": "REASONING:\n- Item: Fiona Blanco\n  - Evidence: \"Co-Founder of ApexSolutions12 of ApexSolutions12\"\n  - Action: [KEEP]\n- End of scan.\n\n\n\nFINAL ANSWER:\nThe co-founder of ApexSolutions12 is Fiona Blanco."
       }
     ]
   },
@@ -219,7 +219,7 @@
       },
       {
         "role": "assistant",
-        "content": "REASONING:\n- Item: Bob Sloan\n  - Role: Co-Founder of NeoFlow13 of NeoFlow13\n  - Action: [KEEP]\n- End of scan.\n\nFINAL ANSWER:\nThe co-founder of NeoFlow13 is Bob Sloan."
+        "content": "REASONING:\n- Item: Bob Sloan\n  - Evidence: \"Co-Founder of NeoFlow13 of NeoFlow13\"\n  - Action: [KEEP]\n- End of scan.\n\n\n\nFINAL ANSWER:\nThe co-founder of NeoFlow13 is Bob Sloan."
       }
     ]
   },
@@ -235,7 +235,7 @@
       },
       {
         "role": "assistant",
-        "content": "REASONING:\n- Item: Hannah Anika\n  - Role: Co-Founder of Solaris14 of Solaris14\n  - Action: [KEEP]\n- End of scan.\n\nFINAL ANSWER:\nThe co-founder of Solaris14 is Hannah Anika."
+        "content": "REASONING:\n- Item: Hannah Anika\n  - Evidence: \"Co-Founder of Solaris14 of Solaris14\"\n  - Action: [KEEP]\n- End of scan.\n\n\n\nFINAL ANSWER:\nThe co-founder of Solaris14 is Hannah Anika."
       }
     ]
   },
@@ -251,7 +251,7 @@
       },
       {
         "role": "assistant",
-        "content": "REASONING:\n- Item: Hannah Anika\n  - Role: Co-Founder of BioGen15 of BioGen15\n  - Action: [KEEP]\n- End of scan.\n\nFINAL ANSWER:\nThe co-founder of BioGen15 is Hannah Anika."
+        "content": "REASONING:\n- Item: Hannah Anika\n  - Evidence: \"Co-Founder of BioGen15 of BioGen15\"\n  - Action: [KEEP]\n- End of scan.\n\n\n\nFINAL ANSWER:\nThe co-founder of BioGen15 is Hannah Anika."
       }
     ]
   },
@@ -267,7 +267,7 @@
       },
       {
         "role": "assistant",
-        "content": "REASONING:\n- Item: Bob Sloan\n  - Role: Co-Founder of ApexSolutions16 of ApexSolutions16\n  - Action: [KEEP]\n- End of scan.\n\nFINAL ANSWER:\nThe co-founder of ApexSolutions16 is Bob Sloan."
+        "content": "REASONING:\n- Item: Bob Sloan\n  - Evidence: \"Co-Founder of ApexSolutions16 of ApexSolutions16\"\n  - Action: [KEEP]\n- End of scan.\n\n\n\nFINAL ANSWER:\nThe co-founder of ApexSolutions16 is Bob Sloan."
       }
     ]
   },
@@ -283,7 +283,7 @@
       },
       {
         "role": "assistant",
-        "content": "REASONING:\n- Item: Fiona Blanco\n  - Role: Co-Founder of NeoFlow17 of NeoFlow17\n  - Action: [KEEP]\n- End of scan.\n\nFINAL ANSWER:\nThe co-founder of NeoFlow17 is Fiona Blanco."
+        "content": "REASONING:\n- Item: Fiona Blanco\n  - Evidence: \"Co-Founder of NeoFlow17 of NeoFlow17\"\n  - Action: [KEEP]\n- End of scan.\n\n\n\nFINAL ANSWER:\nThe co-founder of NeoFlow17 is Fiona Blanco."
       }
     ]
   },
@@ -299,7 +299,7 @@
       },
       {
         "role": "assistant",
-        "content": "REASONING:\n- Item: Bob Sloan\n  - Role: Co-Founder of QuantumLink18 of QuantumLink18\n  - Action: [KEEP]\n- End of scan.\n\nFINAL ANSWER:\nThe co-founder of QuantumLink18 is Bob Sloan."
+        "content": "REASONING:\n- Item: Bob Sloan\n  - Evidence: \"Co-Founder of QuantumLink18 of QuantumLink18\"\n  - Action: [KEEP]\n- End of scan.\n\n\n\nFINAL ANSWER:\nThe co-founder of QuantumLink18 is Bob Sloan."
       }
     ]
   },
@@ -315,7 +315,7 @@
       },
       {
         "role": "assistant",
-        "content": "REASONING:\n- Item: Bob Sloan\n  - Role: Co-Founder of Solaris19 of Solaris19\n  - Action: [KEEP]\n- End of scan.\n\nFINAL ANSWER:\nThe co-founder of Solaris19 is Bob Sloan."
+        "content": "REASONING:\n- Item: Bob Sloan\n  - Evidence: \"Co-Founder of Solaris19 of Solaris19\"\n  - Action: [KEEP]\n- End of scan.\n\n\n\nFINAL ANSWER:\nThe co-founder of Solaris19 is Bob Sloan."
       }
     ]
   },
@@ -539,7 +539,7 @@
       },
       {
         "role": "assistant",
-        "content": "REASONING:\n- Item: Paul Chou | Role: \"CEO and Co-Founder of LedgerAI\" | Action: [KEEP]\n- Item: Bob Carella | Role: \"CFO and Co-Founder\" | Action: [KEEP]\n- Item: David Lara | Role: \"COO and Co-Founder\" | Action: [KEEP]\n- Item: Jorge Guinovart | Role: \"CMO and Co-Founder\" | Action: [KEEP]\n- End of scan.\nFINAL ANSWER:\nThe co-founders of LedgerAI are Paul Chou, Bob Carella, David Lara, and Jorge Guinovart."
+        "content": "REASONING:\n- Item: Paul Chou | Evidence: \"\"CEO and Co-Founder of LedgerAI\" | Action: [KEEP]\"\n- Item: Bob Carella | Evidence: \"\"CFO and Co-Founder\" | Action: [KEEP]\"\n- Item: David Lara | Evidence: \"\"COO and Co-Founder\" | Action: [KEEP]\"\n- Item: Jorge Guinovart | Evidence: \"\"CMO and Co-Founder\" | Action: [KEEP]\"\n- End of scan.\n\n\nFINAL ANSWER:\nThe co-founders of LedgerAI are Paul Chou, Bob Carella, David Lara, and Jorge Guinovart."
       }
     ]
   },
@@ -555,7 +555,7 @@
       },
       {
         "role": "assistant",
-        "content": "REASONING:\n- Item: Emily Davis | Role: \"Head of Marketing at TechCorp\" | Action: [DISCARD] (Reason: Head of Marketing, not Co-Founder).\n- End of scan.\nFINAL ANSWER:\nNo co-founders of TechCorp are mentioned in the context."
+        "content": "REASONING:\n- Item: Emily Davis | Evidence: \"\"Head of Marketing at TechCorp\" | Action: [DISCARD] (Reason: Head of Marketing, not Co-Founder).\"\n- End of scan.\n\n\nFINAL ANSWER:\nNo co-founders of TechCorp are mentioned in the context."
       }
     ]
   },
@@ -571,7 +571,7 @@
       },
       {
         "role": "assistant",
-        "content": "REASONING:\n- Item: Paul Chou\n- Role: CEO and Co-Founder of LedgerAI\n- Action: [KEEP]\n- Item: Albert Soler\n- Role: Legal Advisor and Co-Founder of Soler Salva LLP\n- Action: [DISCARD] (Reason: Co-founder of Soler Salva LLP, not LedgerAI).\n- End of scan.\nFINAL ANSWER:\nThe co-founder of LedgerAI is Paul Chou."
+        "content": "REASONING:\n- Item: Paul Chou\n- Evidence: \"CEO and Co-Founder of LedgerAI\"\n- Action: [KEEP]\n- Item: Albert Soler\n- Evidence: \"Legal Advisor and Co-Founder of Soler Salva LLP\"\n- Action: [DISCARD] (Reason: Co-founder of Soler Salva LLP, not LedgerAI).\n- End of scan.\n\n\nFINAL ANSWER:\nThe co-founder of LedgerAI is Paul Chou."
       }
     ]
   },
@@ -587,7 +587,7 @@
       },
       {
         "role": "assistant",
-        "content": "REASONING:\n- Item: Paul Chou\n- Role: CEO and Co-Founder of LedgerAI\n- Action: [KEEP]\n- Item: Albert Soler\n- Role: Legal Advisor and Co-Founder of Soler Salva LLP\n- Action: [DISCARD] (Reason: Co-founder of Soler Salva LLP, not LedgerAI).\n- End of scan.\nFINAL ANSWER:\nThe co-founder of LedgerAI is Paul Chou."
+        "content": "REASONING:\n- Item: Paul Chou\n- Evidence: \"CEO and Co-Founder of LedgerAI\"\n- Action: [KEEP]\n- Item: Albert Soler\n- Evidence: \"Legal Advisor and Co-Founder of Soler Salva LLP\"\n- Action: [DISCARD] (Reason: Co-founder of Soler Salva LLP, not LedgerAI).\n- End of scan.\n\n\nFINAL ANSWER:\nThe co-founder of LedgerAI is Paul Chou."
       }
     ]
   },
@@ -603,7 +603,7 @@
       },
       {
         "role": "assistant",
-        "content": "REASONING:\n- Item: Paul Chou\n- Role: CEO and Co-Founder of LedgerAI\n- Action: [KEEP]\n- Item: Albert Soler\n- Role: Legal Advisor and Co-Founder of Soler Salva LLP\n- Action: [DISCARD] (Reason: Co-founder of Soler Salva LLP, not LedgerAI).\n- End of scan.\nFINAL ANSWER:\nThe co-founder of LedgerAI is Paul Chou."
+        "content": "REASONING:\n- Item: Paul Chou\n- Evidence: \"CEO and Co-Founder of LedgerAI\"\n- Action: [KEEP]\n- Item: Albert Soler\n- Evidence: \"Legal Advisor and Co-Founder of Soler Salva LLP\"\n- Action: [DISCARD] (Reason: Co-founder of Soler Salva LLP, not LedgerAI).\n- End of scan.\n\n\nFINAL ANSWER:\nThe co-founder of LedgerAI is Paul Chou."
       }
     ]
   },
@@ -619,7 +619,7 @@
       },
       {
         "role": "assistant",
-        "content": "REASONING:\n- Item: Paul Chou\n- Role: CEO and Co-Founder of LedgerAI\n- Action: [KEEP]\n- Item: Albert Soler\n- Role: Legal Advisor and Co-Founder of Soler Salva LLP\n- Action: [DISCARD] (Reason: Co-founder of Soler Salva LLP, not LedgerAI).\n- End of scan.\nFINAL ANSWER:\nThe co-founder of LedgerAI is Paul Chou."
+        "content": "REASONING:\n- Item: Paul Chou\n- Evidence: \"CEO and Co-Founder of LedgerAI\"\n- Action: [KEEP]\n- Item: Albert Soler\n- Evidence: \"Legal Advisor and Co-Founder of Soler Salva LLP\"\n- Action: [DISCARD] (Reason: Co-founder of Soler Salva LLP, not LedgerAI).\n- End of scan.\n\n\nFINAL ANSWER:\nThe co-founder of LedgerAI is Paul Chou."
       }
     ]
   },
@@ -635,7 +635,7 @@
       },
       {
         "role": "assistant",
-        "content": "REASONING:\n- Item: Paul Chou\n- Role: CEO and Co-Founder of LedgerAI\n- Action: [KEEP]\n- Item: Albert Soler\n- Role: Legal Advisor and Co-Founder of Soler Salva LLP\n- Action: [DISCARD] (Reason: Co-founder of Soler Salva LLP, not LedgerAI).\n- End of scan.\nFINAL ANSWER:\nThe co-founder of LedgerAI is Paul Chou."
+        "content": "REASONING:\n- Item: Paul Chou\n- Evidence: \"CEO and Co-Founder of LedgerAI\"\n- Action: [KEEP]\n- Item: Albert Soler\n- Evidence: \"Legal Advisor and Co-Founder of Soler Salva LLP\"\n- Action: [DISCARD] (Reason: Co-founder of Soler Salva LLP, not LedgerAI).\n- End of scan.\n\n\nFINAL ANSWER:\nThe co-founder of LedgerAI is Paul Chou."
       }
     ]
   },
@@ -651,7 +651,7 @@
       },
       {
         "role": "assistant",
-        "content": "REASONING:\n- Item: Albert Soler\n- Role: As Co-Founder of Soler Salva LLP\n- Action: [DISCARD] (Reason: Co-founder of Soler Salva LLP, not LedgerAI).\n- Item: Peter Moeller\n- Role: serves as Business Development Lead at LedgerAI\n- Action: [DISCARD] (Reason: Business Development Lead, not Co-Founder).\n- Item: David Lara\n- Role: As Co-Founder and Chief Operating Officer of LedgerAI\n- Action: [KEEP]\n- Item: Jorge Guinovart\n- Role: As Co-Founder and Chief Marketing Officer of LedgerAI\n- Action: [KEEP]\n- Item: Paul Chou\n- Role: As CEO and Co-Founder of LedgerAI\n- Action: [KEEP]\n- Item: Bob Carella\n- Role: As Co-Founder and Chief Financial Officer of LedgerAI\n- Action: [KEEP]\n- End of scan.\nFINAL ANSWER:\nThe co-founders of LedgerAI are David Lara, Jorge Guinovart, Paul Chou, and Bob Carella."
+        "content": "REASONING:\n- Item: Albert Soler\n- Evidence: \"As Co-Founder of Soler Salva LLP\"\n- Action: [DISCARD] (Reason: Co-founder of Soler Salva LLP, not LedgerAI).\n- Item: Peter Moeller\n- Evidence: \"serves as Business Development Lead at LedgerAI\"\n- Action: [DISCARD] (Reason: Business Development Lead, not Co-Founder).\n- Item: David Lara\n- Evidence: \"As Co-Founder and Chief Operating Officer of LedgerAI\"\n- Action: [KEEP]\n- Item: Jorge Guinovart\n- Evidence: \"As Co-Founder and Chief Marketing Officer of LedgerAI\"\n- Action: [KEEP]\n- Item: Paul Chou\n- Evidence: \"As CEO and Co-Founder of LedgerAI\"\n- Action: [KEEP]\n- Item: Bob Carella\n- Evidence: \"As Co-Founder and Chief Financial Officer of LedgerAI\"\n- Action: [KEEP]\n- End of scan.\n\n\nFINAL ANSWER:\nThe co-founders of LedgerAI are David Lara, Jorge Guinovart, Paul Chou, and Bob Carella."
       }
     ]
   },
@@ -667,7 +667,7 @@
       },
       {
         "role": "assistant",
-        "content": "REASONING:\n- Item: Sarah Miller\n- Role: Head of Engineering at TechFlow\n- Action: [DISCARD] (Reason: Head of Engineering, not Co-Founder).\n- Item: Mark Johnson\n- Role: serves as an advisor\n- Action: [DISCARD]\n- Item: Alex Chen\n- Role: Co-Founder and CTO of TechFlow\n- Action: [KEEP]\n- Item: Lisa Wang\n- Role: Co-Founder and CFO of TechFlow\n- Action: [KEEP]\n- Item: Tom Brown\n- Role: CEO and Co-Founder of TechFlow\n- Action: [KEEP]\n- End of scan.\nFINAL ANSWER:\nThe co-founders of TechFlow are Alex Chen, Lisa Wang, and Tom Brown."
+        "content": "REASONING:\n- Item: Sarah Miller\n- Evidence: \"Head of Engineering at TechFlow\"\n- Action: [DISCARD] (Reason: Head of Engineering, not Co-Founder).\n- Item: Mark Johnson\n- Evidence: \"serves as an advisor\"\n- Action: [DISCARD]\n- Item: Alex Chen\n- Evidence: \"Co-Founder and CTO of TechFlow\"\n- Action: [KEEP]\n- Item: Lisa Wang\n- Evidence: \"Co-Founder and CFO of TechFlow\"\n- Action: [KEEP]\n- Item: Tom Brown\n- Evidence: \"CEO and Co-Founder of TechFlow\"\n- Action: [KEEP]\n- End of scan.\n\n\nFINAL ANSWER:\nThe co-founders of TechFlow are Alex Chen, Lisa Wang, and Tom Brown."
       }
     ]
   },
@@ -683,7 +683,7 @@
       },
       {
         "role": "assistant",
-        "content": "REASONING:\n- Item: John Doe\n- Role: Head of Sales at DataCorp\n- Action: [DISCARD] (Reason: Head of Sales, not Co-Founder).\n- Item: Jane Smith\n- Role: Co-Founder and CEO of DataCorp\n- Action: [KEEP]\n- Item: Mike Johnson\n- Role: Co-Founder and CTO of DataCorp\n- Action: [KEEP]\n- Item: Robert Lee\n- Role: Co-Founder and COO of DataCorp\n- Action: [KEEP]\n- End of scan.\nFINAL ANSWER:\nThe co-founders of DataCorp are Jane Smith, Mike Johnson, and Robert Lee."
+        "content": "REASONING:\n- Item: John Doe\n- Evidence: \"Head of Sales at DataCorp\"\n- Action: [DISCARD] (Reason: Head of Sales, not Co-Founder).\n- Item: Jane Smith\n- Evidence: \"Co-Founder and CEO of DataCorp\"\n- Action: [KEEP]\n- Item: Mike Johnson\n- Evidence: \"Co-Founder and CTO of DataCorp\"\n- Action: [KEEP]\n- Item: Robert Lee\n- Evidence: \"Co-Founder and COO of DataCorp\"\n- Action: [KEEP]\n- End of scan.\n\n\nFINAL ANSWER:\nThe co-founders of DataCorp are Jane Smith, Mike Johnson, and Robert Lee."
       }
     ]
   },
@@ -699,7 +699,7 @@
       },
       {
         "role": "assistant",
-        "content": "REASONING:\n- Item: Albert Soler\n- Role: As Co-Founder of Soler Salva LLP\n- Action: [DISCARD] (Reason: Co-founder of Soler Salva LLP, not LedgerAI).\n- Item: David Lara\n- Role: As Co-Founder and Chief Operating Officer of LedgerAI\n- Action: [KEEP]\n- Item: Paul Chou\n- Role: As CEO and Co-Founder of LedgerAI\n- Action: [KEEP]\n- End of scan.\nFINAL ANSWER:\nThe co-founders of LedgerAI are David Lara and Paul Chou."
+        "content": "REASONING:\n- Item: Albert Soler\n- Evidence: \"As Co-Founder of Soler Salva LLP\"\n- Action: [DISCARD] (Reason: Co-founder of Soler Salva LLP, not LedgerAI).\n- Item: David Lara\n- Evidence: \"As Co-Founder and Chief Operating Officer of LedgerAI\"\n- Action: [KEEP]\n- Item: Paul Chou\n- Evidence: \"As CEO and Co-Founder of LedgerAI\"\n- Action: [KEEP]\n- End of scan.\n\n\nFINAL ANSWER:\nThe co-founders of LedgerAI are David Lara and Paul Chou."
       }
     ]
   },
@@ -715,7 +715,7 @@
       },
       {
         "role": "assistant",
-        "content": "REASONING:\n- Item: Bob Carella\n- Role: As Co-Founder and Chief Financial Officer of LedgerAI\n- Action: [KEEP]\n- Item: Jorge Guinovart\n- Role: As Co-Founder and Chief Marketing Officer of LedgerAI\n- Action: [KEEP]\n- End of scan.\nFINAL ANSWER:\nThe co-founders of LedgerAI are Bob Carella and Jorge Guinovart."
+        "content": "REASONING:\n- Item: Bob Carella\n- Evidence: \"As Co-Founder and Chief Financial Officer of LedgerAI\"\n- Action: [KEEP]\n- Item: Jorge Guinovart\n- Evidence: \"As Co-Founder and Chief Marketing Officer of LedgerAI\"\n- Action: [KEEP]\n- End of scan.\n\n\nFINAL ANSWER:\nThe co-founders of LedgerAI are Bob Carella and Jorge Guinovart."
       }
     ]
   },
