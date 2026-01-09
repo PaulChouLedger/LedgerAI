@@ -427,14 +427,31 @@ class RAGClient:
             text = result.get('text', '').lower()
             original_text = result.get('text', '')
             
-            # For queries with capitalized words (names), REQUIRE at least one name match
+            # For queries with capitalized words (names), REQUIRE name matches
+            # For multi-word names (2+ words), require at least 2 matches to ensure proper name matching
+            # This ensures chunks about different people are excluded (e.g., "Bob Corella" shouldn't match "Bob Smith")
             has_name_match = False
+            matched_name_words = []
             if query_capitalized_lower:
+                # Check ALL capitalized words (don't break early - need to verify all name parts match)
+                # This is critical for fuzzy matching typos like "Corella" vs "Carella"
                 for cap_word in query_capitalized_lower:
                     if self._fuzzy_match_term(cap_word, text, threshold=0.75):
+                        matched_name_words.append(cap_word)
+                
+                # For multi-word names (2+ words), require at least 2 matches
+                # This ensures both first and last name match (handles typos like "Corella" vs "Carella")
+                if len(query_capitalized_lower) >= 2:
+                    if len(matched_name_words) >= 2:
                         has_name_match = True
-                        print(f"[RAG Pre-filter] ✅ Name match: '{cap_word}' in '{original_text[:60]}...'")
-                        break
+                        print(f"[RAG Pre-filter] ✅ Name match: {len(matched_name_words)}/{len(query_capitalized_lower)} name words fuzzy matched: {matched_name_words} in '{original_text[:60]}...'")
+                    else:
+                        print(f"[RAG Pre-filter] ❌ Insufficient name matches: only {len(matched_name_words)}/{len(query_capitalized_lower)} words matched (expected at least 2) in '{original_text[:60]}...'")
+                else:
+                    # Single word name - just need one match
+                    has_name_match = len(matched_name_words) > 0
+                    if has_name_match:
+                        print(f"[RAG Pre-filter] ✅ Name match: '{matched_name_words[0]}' fuzzy matched in '{original_text[:60]}...'")
             
             # If query has names but chunk has no name match, exclude it
             if query_capitalized_lower and not has_name_match:

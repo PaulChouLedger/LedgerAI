@@ -1,5 +1,11 @@
 # === container_rest.py — Aura Generic Conversational Container ===
 # Provides general conversation with RAG-powered knowledge
+#
+# Model: Qwen2.5-1.5B-Instruct with CoT Toggle Capability
+# The model is fine-tuned to conditionally use Chain of Thought reasoning:
+# - WITH CoT: When RAG context is provided (uses CoT system prompt)
+# - WITHOUT CoT: For conversational queries (uses conversational system prompt)
+# The model automatically toggles based on which system prompt is used, matching the training dataset format
 
 from flask import Flask, request, jsonify, stream_with_context, Response
 import os, threading, atexit, time
@@ -33,7 +39,7 @@ werkzeug_logger.setLevel(logging.WARNING)  # Only log warnings and errors, not i
 # === Initialize Base Container ===
 base_container = BaseLLMContainer(
     service_name="aura-llm-generic",
-    default_model_path="/models/Qwen2.5-1.5B-Instruct.Q4_K_M-rag-cot.gguf"
+    default_model_path="/models/Qwen2.5-1.5B-Instruct.Q4_K_M-rag-cot-toggle.gguf"
 )
 
 # Override default parameters for generic container
@@ -1276,7 +1282,10 @@ JSON array only:"""
                 few_shot_examples = ""
                 
                 # Use CoT format ONLY when RAG is triggered (has_rag_context = True)
-                # This matches the user's request: "use CoT when RAG is triggered and use basic LLM conversational mode if RAG not triggered"
+                # The model is trained with toggle capability:
+                # - WITH CoT when this CoT system prompt is used (RAG queries)
+                # - WITHOUT CoT when conversational system prompt is used (non-RAG queries)
+                # This matches the training dataset format exactly
                 cot_system_prompt = (
                     "You are a precise data extraction bot.\n"
                     "1. Start with REASONING:\n"

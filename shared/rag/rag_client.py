@@ -519,17 +519,31 @@ class RAGClient:
             # Show chunk preview for debugging (reduced verbosity)
             print(f"[RAG Pre-filter] 📄 Chunk {i}/{len(results)} (score: {semantic_score:.3f}): '{original_text[:100]}...'")
             
-            # For queries with capitalized words (names), REQUIRE at least one name match
-            # This ensures chunks about different people are excluded
+            # For queries with capitalized words (names), REQUIRE name matches
+            # For multi-word names (2+ words), require at least 2 matches to ensure proper name matching
+            # This ensures chunks about different people are excluded (e.g., "Bob Corella" shouldn't match "Bob Smith")
             has_name_match = False
-            matched_name_word = None
+            matched_name_words = []
             if query_capitalized_lower:
+                # Check ALL capitalized words (don't break early - need to verify all name parts match)
+                # This is critical for fuzzy matching typos like "Corella" vs "Carella"
                 for cap_word in query_capitalized_lower:
                     if self._fuzzy_match_term(cap_word, text, threshold=0.75):
+                        matched_name_words.append(cap_word)
+                
+                # For multi-word names (2+ words), require at least 2 matches
+                # This ensures both first and last name match (handles typos like "Corella" vs "Carella")
+                if len(query_capitalized_lower) >= 2:
+                    if len(matched_name_words) >= 2:
                         has_name_match = True
-                        matched_name_word = cap_word
-                        print(f"[RAG Pre-filter] ✅ Name match: '{cap_word}' found in chunk text")
-                        break
+                        print(f"[RAG Pre-filter] ✅ Name match: {len(matched_name_words)}/{len(query_capitalized_lower)} name words fuzzy matched: {matched_name_words}")
+                    else:
+                        print(f"[RAG Pre-filter] ❌ Insufficient name matches: only {len(matched_name_words)}/{len(query_capitalized_lower)} words matched (expected at least 2)")
+                else:
+                    # Single word name - just need one match
+                    has_name_match = len(matched_name_words) > 0
+                    if has_name_match:
+                        print(f"[RAG Pre-filter] ✅ Name match: '{matched_name_words[0]}' fuzzy matched in chunk text")
             
             # If query has names but chunk has no name match, exclude it
             # This prevents chunks about different people from being included
@@ -552,7 +566,9 @@ class RAGClient:
                     print(f"[RAG Pre-filter] ❌ EXCLUDED: No query term matches found (terms: {query_terms})")
                     continue
             
-            print(f"[RAG Pre-filter] ✅ INCLUDED: Chunk passed pre-filter (matched: {matched_name_word or matched_term})")
+            # Show what matched for debugging
+            match_info = ', '.join(matched_name_words) if matched_name_words else matched_term
+            print(f"[RAG Pre-filter] ✅ INCLUDED: Chunk passed pre-filter (matched: {match_info})")
             filtered_results.append(result)
         
         if not filtered_results:
