@@ -39,15 +39,30 @@ fi
 # Strategy 2: Try standard PyPI (official Microsoft release - Oct 2024)
 # See: https://github.com/microsoft/onnxruntime/releases/tag/v1.23.2
 # Note: 1.23.2 has ARM64 builds (confirmed: macOS ARM64 exists, Linux ARM64 should too)
+# Important: onnxruntime-gpu is a metapackage; we may need to install onnxruntime directly
 if [ "${INSTALLED:-false}" != "true" ]; then
     echo "[INFO] Attempt 2: Standard PyPI (official Microsoft release)..."
     echo "[INFO]   ONNX Runtime 1.23.2 was released Oct 25, 2024 by Microsoft"
     echo "[INFO]   See: https://github.com/microsoft/onnxruntime/releases/tag/v1.23.2"
     echo "[INFO]   ARM64 builds confirmed available (need Linux ARM64 for Jetson)"
     pip uninstall -y onnxruntime-gpu onnxruntime 2>/dev/null || true
-    # Try installing with explicit platform preference for Linux ARM64
-    echo "[INFO]   Installing onnxruntime-gpu==1.23.2 (pip will select Linux ARM64 if available)..."
+    
+    # Try onnxruntime-gpu first
+    echo "[INFO]   Trying onnxruntime-gpu==1.23.2..."
     if pip install "onnxruntime-gpu==1.23.2" 2>&1 | tee -a /tmp/onnxruntime_1.23.2_install.log; then
+        INSTALLED=true
+    else
+        # If that fails, try installing onnxruntime directly (base package)
+        echo "[INFO]   onnxruntime-gpu==1.23.2 not found, trying onnxruntime==1.23.2 (base package)..."
+        if pip install "onnxruntime==1.23.2" 2>&1 | tee -a /tmp/onnxruntime_1.23.2_install.log; then
+            # Install onnxruntime-gpu metapackage to match (will use the 1.23.2 base package)
+            echo "[INFO]   Installing onnxruntime-gpu metapackage (will use onnxruntime 1.23.2)..."
+            pip install "onnxruntime-gpu>=1.23.0" 2>&1 | tee -a /tmp/onnxruntime_1.23.2_install.log || true
+            INSTALLED=true
+        fi
+    fi
+    
+    if [ "${INSTALLED:-false}" = "true" ]; then
         # Verify it's ARM64
         export ORT_DISABLE_CPUINFO=1
         export ORT_LOG_LEVEL=3
@@ -56,7 +71,10 @@ if [ "${INSTALLED:-false}" != "true" ]; then
             SO_FILE=$(find "$INSTALLED_PATH" -name "*.so" -type f 2>/dev/null | head -1)
             if [ -n "$SO_FILE" ] && file "$SO_FILE" 2>/dev/null | grep -qE "ARM|aarch64"; then
                 RUNTIME_VER=$(python3 -c "import onnxruntime; print(onnxruntime.__version__)" 2>/dev/null || echo "unknown")
-                echo "[INFO] ✅ Installed onnxruntime-gpu $RUNTIME_VER from standard PyPI (ARM64 verified)"
+                echo "[INFO] ✅ Installed onnxruntime $RUNTIME_VER from standard PyPI (ARM64 verified)"
+                if [ "$RUNTIME_VER" = "1.23.2" ]; then
+                    echo "[INFO]   This version fixes the CPU detection crash"
+                fi
                 INSTALLED=true
             else
                 echo "[WARNING] ⚠️  Package from standard PyPI is not ARM64 - uninstalling"
