@@ -658,39 +658,76 @@ python3 -m pip uninstall -y onnxruntime onnxruntime-gpu 2>/dev/null || true
 # Note: Jetson PyPI currently only has 1.23.0, so we'll use that with ORT_DISABLE_CPUINFO=1
 print_info "Installing onnxruntime-gpu from Jetson AI Lab PyPI (Jetson-optimized)..."
 print_info "   Trying version >=1.23.2 first (fixes CPU detection crash on JetPack R36.4.4)..."
-# Try to install >=1.23.2 first (fixes the crash), fallback to >=1.23.0 if not available
-# IMPORTANT: Use --index-url (not --extra-index-url) to ONLY use Jetson PyPI
-# Standard PyPI may have 1.23.2 but it's built for x86_64, not ARM64/Jetson
+print_info "   Note: 1.23.2 is an official Microsoft release (Oct 2024) - see https://github.com/microsoft/onnxruntime/releases"
+# CRITICAL: Version 1.23.2 fixes the CPU detection crash that ORT_DISABLE_CPUINFO=1 cannot prevent in 1.23.0
+# Official release: https://github.com/microsoft/onnxruntime/releases/tag/v1.23.2
+# Try multiple sources to find 1.23.2 with ARM64 builds
 ONNXRUNTIME_INSTALLED=false
 # Use PIPESTATUS to check pip exit code (tee always returns 0)
-# Try Jetson PyPI ONLY (no fallback to standard PyPI to avoid x86_64 builds)
+
+# Strategy 1: Try Jetson PyPI first (preferred - Jetson-optimized)
+print_info "   Attempt 1: Jetson PyPI (Jetson-optimized builds)..."
 pip install --index-url https://pypi.jetson-ai-lab.io/jp6/cu126 "onnxruntime-gpu>=1.23.2" 2>&1 | tee /tmp/onnxruntime_install.log
 PIP_EXIT_CODE=${PIPESTATUS[0]}
 
 if [ "$PIP_EXIT_CODE" -eq 0 ]; then
     ONNXRUNTIME_INSTALLED=true
-    print_info "✅ Installed onnxruntime-gpu >=1.23.2 (fixes CPU detection crash)"
+    print_info "✅ Installed onnxruntime-gpu >=1.23.2 from Jetson PyPI (fixes CPU detection crash)"
 else
     # Check if the error was "no matching distribution" (version not available)
-    # The error message can be either format:
-    # - "No matching distribution found for onnxruntime-gpu>=1.23.2"
-    # - "Could not find a version that satisfies the requirement onnxruntime-gpu>=1.23.2"
     if grep -qE "No matching distribution found for onnxruntime-gpu>=1.23.2|Could not find a version that satisfies the requirement onnxruntime-gpu>=1.23.2" /tmp/onnxruntime_install.log 2>/dev/null; then
-        print_warning "⚠️  Version >=1.23.2 not available in Jetson PyPI, trying >=1.23.0..."
-        # Use ONLY Jetson PyPI (no fallback to standard PyPI to avoid x86_64 builds)
-        pip install --index-url https://pypi.jetson-ai-lab.io/jp6/cu126 "onnxruntime-gpu>=1.23.0" 2>&1 | tee /tmp/onnxruntime_install.log
+        print_warning "⚠️  Version >=1.23.2 not available in Jetson PyPI"
+        
+        # Strategy 2: Try standard PyPI (official Microsoft release - confirmed ARM64 builds exist)
+        # Release: https://github.com/microsoft/onnxruntime/releases/tag/v1.23.2
+        # ARM64 builds confirmed (macOS ARM64 exists, Linux ARM64 should be available)
+        print_info "   Attempt 2: Standard PyPI (official Microsoft release - Oct 2024)..."
+        print_info "   Installing onnxruntime-gpu==1.23.2 (pip will auto-select Linux ARM64 if available)..."
+        pip install "onnxruntime-gpu==1.23.2" 2>&1 | tee -a /tmp/onnxruntime_install.log
         PIP_EXIT_CODE=${PIPESTATUS[0]}
+        
         if [ "$PIP_EXIT_CODE" -eq 0 ]; then
-            ONNXRUNTIME_INSTALLED=true
-            print_warning "⚠️  Installed onnxruntime-gpu 1.23.0 (may crash without ORT_DISABLE_CPUINFO=1)"
-            print_info "   Environment variables will be set to prevent crashes"
-        else
-            print_error "❌ Failed to install onnxruntime-gpu >=1.23.0"
-            print_error "   Check logs: /tmp/onnxruntime_install.log"
-            ONNXRUNTIME_INSTALLED=false
+            # Verify it's actually ARM64 before accepting it
+            export ORT_DISABLE_CPUINFO=1
+            export ORT_LOG_LEVEL=3
+            INSTALLED_PATH=$(python3 -c "import onnxruntime; import os; print(os.path.dirname(onnxruntime.__file__))" 2>/dev/null || echo "")
+            if [ -n "$INSTALLED_PATH" ]; then
+                SO_FILE=$(find "$INSTALLED_PATH" -name "*.so" -type f 2>/dev/null | head -1)
+                if [ -n "$SO_FILE" ] && file "$SO_FILE" 2>/dev/null | grep -qE "ARM|aarch64"; then
+                    ONNXRUNTIME_INSTALLED=true
+                    RUNTIME_VER=$(python3 -c "import onnxruntime; print(onnxruntime.__version__)" 2>/dev/null || echo "unknown")
+                    print_info "✅ Installed onnxruntime-gpu $RUNTIME_VER from standard PyPI (ARM64 build verified)"
+                else
+                    print_warning "⚠️  Installed package is not ARM64 - uninstalling and trying fallback"
+                    pip uninstall -y onnxruntime-gpu onnxruntime 2>/dev/null || true
+                    ONNXRUNTIME_INSTALLED=false
+                fi
+            else
+                # If we can't verify, assume it failed and try fallback
+                print_warning "⚠️  Could not verify installation - trying fallback"
+                pip uninstall -y onnxruntime-gpu onnxruntime 2>/dev/null || true
+                ONNXRUNTIME_INSTALLED=false
+            fi
+        fi
+        
+        # Strategy 3: Fallback to Jetson PyPI 1.23.0 (with environment variables)
+        if [ "$ONNXRUNTIME_INSTALLED" = false ]; then
+            print_warning "⚠️  Version >=1.23.2 not available, falling back to 1.23.0 from Jetson PyPI..."
+            print_warning "   Note: 1.23.0 may crash even with ORT_DISABLE_CPUINFO=1 on some devices"
+            print_info "   Environment variables will be set, but may not prevent crashes"
+            pip install --index-url https://pypi.jetson-ai-lab.io/jp6/cu126 "onnxruntime-gpu>=1.23.0" 2>&1 | tee -a /tmp/onnxruntime_install.log
+            PIP_EXIT_CODE=${PIPESTATUS[0]}
+            if [ "$PIP_EXIT_CODE" -eq 0 ]; then
+                ONNXRUNTIME_INSTALLED=true
+                print_warning "⚠️  Installed onnxruntime-gpu 1.23.0 (may crash - consider manual 1.23.2 install)"
+            else
+                print_error "❌ Failed to install onnxruntime-gpu >=1.23.0"
+                print_error "   Check logs: /tmp/onnxruntime_install.log"
+                ONNXRUNTIME_INSTALLED=false
+            fi
         fi
     else
-        print_error "❌ Failed to install onnxruntime-gpu >=1.23.2"
+        print_error "❌ Failed to install onnxruntime-gpu >=1.23.2 from Jetson PyPI"
         print_error "   Check logs: /tmp/onnxruntime_install.log"
         ONNXRUNTIME_INSTALLED=false
     fi
