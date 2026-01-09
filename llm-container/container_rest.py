@@ -1094,223 +1094,47 @@ JSON array only:"""
         is_specific_set_query = any(indicator in prompt.lower() for indicator in specific_set_indicators)
         
         if has_rag_context:
-            # Dynamic prompt construction with Aura Vision identity
-            # IMPORTANT: Include the prompt in the system message (matches working commit 1927b467c106120dd4e1231f600eccdaa5a93f08)
-            if is_instruction_request:
-                # Simplified instruction request handling
-                # Only add question instruction if not a conversational query
-                question_instruction = "" if is_conversational else "\n\nAlways end your response with a brief, natural question (do not include 'follow up' or 'follow-up' in the question text). Examples: 'Would you like more information about this?' or 'Is there anything else I can help you with?'"
-                system_content = (
-                    f"{combined_context}\n\n"
-                    "You are Aura Vision, an AI agent created by Ledger AI Quantum Corporation. "
-                    "You act as a proactive AI agent guiding users to better outcomes through gentle guidance.\n\n"
-                    "CRITICAL RULES:\n"
-                    "- Only provide logical, factual responses. Avoid hallucination at all costs.\n"
-                    "- CRITICAL QUERY VALIDATION: Before responding, you MUST first evaluate if the query makes logical sense:\n"
-                    "  1. Check if the query contains nonsensical combinations (e.g., 'recipe for rest and efforts' - 'rest and efforts' is not a real recipe name)\n"
-                    "  2. Check if key terms in the query are coherent and refer to real concepts (e.g., asking for a recipe for something that doesn't exist)\n"
-                    "  3. Check if the query is incomplete, unclear, or contains transcription errors\n"
-                    "  4. If the query does NOT make logical sense, DO NOT force it into a response. Instead, politely ask: 'I'm not sure I understand your question. Could you please repeat or rephrase it?'\n"
-                    "- CRITICAL: Before responding, check if the query is an incomplete sentence (starts with 'and', 'but', 'or', 'so', 'then', 'also', 'make sure', 'ensure', etc.). If so, ask for clarification instead of answering.\n"
-                    "- IMPORTANT: Commands and instructions like 'Give me X', 'Tell me about Y', 'Show me Z' are VALID requests and should be answered normally using your general knowledge.\n"
-                    "- If the user's query is unclear, nonsensical, or doesn't make logical sense, DO NOT force it into a response.\n"
-                    "- Instead, politely ask the user to clarify or repeat their question. Example: 'I'm not sure I understand. Could you please rephrase your question or provide more context?'\n"
-                    "- Never invent facts, names, dates, or details that aren't in the provided context.\n"
-                    "- CRITICAL: DO NOT treat incomplete sentences as questions. If the query is incomplete (starts with 'and', 'but', 'or', etc.), ask for clarification rather than making up an answer.\n"
-                    "- IMPORTANT: Valid commands like 'Give me X', 'Tell me about Y' are acceptable and should be answered using general knowledge.\n"
-                    "- CRITICAL: DO NOT make up information to answer nonsensical queries. If a query asks for something that doesn't exist (like 'recipe for rest and efforts'), ask for clarification instead of inventing a response.\n\n"
-                    "Use ONLY information from the context above. Do not invent facts.\n"
-                    "If information is missing, say 'I don't have that information'.\n\n"
-                    f"Answer: {prompt}\n\n"
-                    "CRITICAL: Keep your response VERY SHORT - maximum 2-3 sentences. "
-                    "Provide a clear, concise step-by-step response with only essential information. "
-                    "Be conversational and friendly. If more detail is needed, the user will ask."
-                    f"{question_instruction}"
-                )
-                # Build user message for instruction requests
-                if SHOW_REASONING_DEBUG:
-                    user_content = (
-                        f"Show your reasoning, then provide your answer.\n\n"
-                        f"Question: {prompt}"
-                    )
-                else:
-                    user_content = (
-                        f"Answer this question BRIEFLY (2-3 sentences maximum):\n"
-                        f"- If the 'Knowledge context' sections above contain relevant information that answers the query, use that information.\n"
-                        f"- If the context does NOT contain relevant information (e.g., it's about unrelated topics or only mentions keywords without answering), use your general knowledge to provide a helpful answer.\n"
-                        f"- Provide ONLY essential information - no lengthy explanations or multiple examples.\n"
-                        f"- If more detail is needed, the user will ask.\n\n"
-                        f"Question: {prompt}"
-                    )
-            else:
-                # Add warning if memory RAG failed
-                memory_warning = ""
-                if memory_rag_failed:
-                    memory_warning = "\n⚠️ IMPORTANT: Conversation memory context is unavailable (memory container may be rebuilding index). " \
-                                   "Only provide information you are certain about from the provided context. " \
-                                   "Do NOT make up or guess information about people, places, or facts. " \
-                                   "If you don't have reliable information, say so rather than speculating.\n\n"
-                
-                # Extract person names from query for explicit instruction
-                query_person_names = re.findall(r'\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\b', prompt)
-                person_instruction = ""
-                if query_person_names:
-                    person_list = ", ".join(query_person_names)
-                    person_instruction = f"\n⚠️ Only use information about {person_list} from the context. Do not confuse with other people.\n"
-                
-                # Simplified list instruction
-                list_instruction = ""
-                if is_list_request:
-                    if is_specific_set_query:
-                        # For specific set queries (like "co-founders"), find ALL items, not just TOP 3
-                        list_instruction = (
-                            "\n📋 LIST QUESTION:\n"
-                            "Read all sections completely. Extract ALL items that directly match the query. "
-                            "CRITICAL: Find and list ALL items that match the query - do NOT limit the number. "
-                            "Read through the entire context carefully to ensure you find every relevant item. "
-                            "Only include information explicitly stated in the context.\n"
-                        )
-                    else:
-                        # For general list queries, limit to TOP 3
-                        list_instruction = (
-                            "\n📋 LIST QUESTION:\n"
-                            "Read all sections completely. Extract items that directly match the query. "
-                            "CRITICAL: Limit your response to the TOP 3 most relevant items only. "
-                            "Do NOT list more than 3 items. "
-                            "If there are more items available, mention that more information can be provided if needed. "
-                            "Only include information explicitly stated in the context.\n"
-                        )
-                
-                # Build response length guideline - simplified
-                if SHOW_REASONING_DEBUG:
-                    response_length_guideline = "- Show your reasoning process.\n"
-                elif is_list_request:
-                    # Only add question instruction if not a conversational query
-                    question_instruction = "" if is_conversational else "\n- MANDATORY: End your response with a brief, natural question. This is REQUIRED. Examples: 'Would you like more information about this?' or 'Is there anything else I can help you with?'\n"
-                    if is_specific_set_query:
-                        # For specific set queries, find ALL items
-                        response_length_guideline = (
-                            "- CRITICAL: List ALL items that match the query. "
-                            "Do NOT limit the number - find every item that matches. "
-                            "Read through the entire context completely to ensure you don't miss any items. "
-                            "Format as a natural list or numbered list.\n"
-                            f"{question_instruction}"
-                        )
-                    else:
-                        # For general list queries, limit to TOP 3
-                        response_length_guideline = (
-                            "- CRITICAL: List ONLY the top 3 most relevant items that match the query. "
-                            "Do NOT exceed 3 items. "
-                            "If more items exist, briefly mention that more information is available if needed. "
-                            "Format as a numbered or bulleted list (1-3 items maximum).\n"
-                            f"{question_instruction}"
-                        )
-                else:
-                    # Only add question instruction if not a conversational query
-                    question_instruction = "" if is_conversational else "\n6. MANDATORY: End your response with a brief, natural question. This is REQUIRED. Examples: 'Would you like more information about this?' or 'Is there anything else I can help you with?'\n"
-                    response_length_guideline = (
-                        "- CRITICAL: Keep responses VERY SHORT - maximum 2-3 sentences total.\n"
-                        "- Provide only the essential information needed to answer the question.\n"
-                        "- Do NOT provide lengthy explanations, multiple examples, or extensive background.\n"
-                        "- If the user wants more details, they will ask - offer to provide more information in your closing question.\n"
-                        f"{question_instruction}"
-                    )
-                
-                # Simplified reasoning - only for debug mode
-                reasoning_instructions = ""
-                if SHOW_REASONING_DEBUG:
-                    reasoning_instructions = (
-                        "\n🧠 REASONING:\n"
-                        "Use only information from the context. Do not invent facts.\n"
-                    )
-                
-                rag_scoring_instructions = ""  # Removed for simplicity
-                
-                # Ultra-simplified RAG instructions - prevent hallucination
-                # Check if query asks about a specific entity (company, person, etc.)
-                query_has_entity = any(word in prompt.lower() for word in ['of ', 'at ', 'from '])
-                entity_instruction = ""
-                if query_has_entity:
-                    # Extract entity name from query for explicit instruction
-                    # Handle abbreviations with periods (e.g., "Ledger A.I." not "Ledger A")
-                    # Match entity name including periods and common abbreviations
-                    entity_match = re.search(r'\bof\s+([A-Z][A-Za-z]*(?:\s+[A-Z][A-Za-z.]*)*)', prompt)
-                    if entity_match:
-                        entity_name = entity_match.group(1).strip()
-                        # Normalize entity name variations (e.g., "Ledger A.I." = "LedgerAI" = "Ledger AI")
-                        entity_name_normalized = entity_name.replace('.', '').replace(' ', '').lower()
-                        entity_instruction = (
-                            f"\n⚠️ CRITICAL: The query asks about '{entity_name}'. "
-                            f"Extract information where the text explicitly states relationships to '{entity_name}' or its variations (e.g., '{entity_name.replace('.', '')}', '{entity_name.replace('.', ' ')}'). "
-                            f"DO NOT exclude information due to minor name variations (spaces, periods, capitalization). "
-                            f"Only exclude information about clearly different entities.\n"
-                        )
-                
-                simple_instructions = (
-                    "\nINSTRUCTIONS:\n"
-                    "1. Read all sections (separated by '---') completely from start to finish.\n"
-                    "2. CRITICAL QUERY VALIDATION: Before responding, you MUST first evaluate if the query makes logical sense:\n"
-                    "   a. Check if the query contains nonsensical combinations (e.g., 'recipe for rest and efforts' - 'rest and efforts' is not a real recipe name)\n"
-                    "   b. Check if key terms in the query are coherent and refer to real concepts (e.g., asking for a recipe for something that doesn't exist)\n"
-                    "   c. Check if the query is incomplete, unclear, or contains transcription errors\n"
-                    "   d. Check if the query is an incomplete sentence (starts with 'and', 'but', 'or', 'so', 'then', 'also', 'plus', 'make sure', 'ensure', etc.)\n"
-                    "   e. IMPORTANT: Commands and instructions like 'Give me X', 'Tell me about Y', 'Show me Z' are VALID requests and should be answered normally.\n"
-                    "   f. Check if the query is missing context from a previous conversation\n"
-                    "   If the query does NOT make logical sense (e.g., asks for something that doesn't exist, or is truly incomplete), DO NOT force it into a response. Instead, politely ask: 'I'm not sure I understand your question. Could you please repeat or rephrase it?'\n"
-                    "3. Check if the context above actually contains information relevant to answering the query.\n"
-                    "4. If the context contains relevant information that answers the query:\n"
-                    "   - Extract ONLY information that directly answers the query from the context.\n"
-                    "   - For relationship queries (co-founders, employees, etc.): ONLY include people whose relationship is explicitly stated as being TO the entity mentioned in the query.\n"
-                    "   - DO NOT invent, guess, hallucinate, or use information not in the context.\n"
-                    "   - CRITICAL: DO NOT invent product names, company names, or entity names. Only use names that are EXPLICITLY written in the context above.\n"
-                    "   - CRITICAL: DO NOT create variations of names (e.g., if context says 'AuraVision', do NOT say 'Ledger Vision' or any other variation). Use EXACTLY the names as written in the context.\n"
-                    "   - CRITICAL: If a name is not in the context, do NOT make up a similar-sounding name. Say 'I don't have that information' instead.\n"
-                    "   - Only provide logical, factual responses based on the provided context.\n"
-                    "5. If the context does NOT contain relevant information (e.g., context is about unrelated topics, or only mentions keywords but doesn't answer the query):\n"
-                    "   - Use your general knowledge ONLY if the query is clear and logical.\n"
-                    "   - CRITICAL: Even with general knowledge, DO NOT invent specific product names, company names, or entity names that aren't common public knowledge.\n"
-                    "   - If the query is unclear or doesn't make sense, ask for clarification instead of guessing.\n"
-                    "   - Be clear and informative based on common knowledge, but only if the query is well-formed.\n"
-                    "   - Keep it BRIEF - provide only essential information, not lengthy explanations.\n"
-                    "6. Format your answer naturally and concisely.\n"
-                    "7. REMEMBER: Maximum 2-3 sentences. If more detail is needed, the user will ask.\n"
-                    "8. ANTI-HALLUCINATION RULE: Never make up facts, names, dates, or details. If you don't know something, say so clearly rather than inventing information.\n"
-                    "9. CRITICAL ANTI-HALLUCINATION: Never invent product names, company names, or entity names. Only use names that are EXPLICITLY written in the context. If a name is not in the context, say 'I don't have that information' rather than guessing or creating variations.\n"
-                    )
-                
-                # No examples - LLM must use only the RAG context provided
-                few_shot_examples = ""
-                
-                # Use CoT format ONLY when RAG is triggered (has_rag_context = True)
-                # The model is trained with toggle capability:
-                # - WITH CoT when this CoT system prompt is used (RAG queries)
-                # - WITHOUT CoT when conversational system prompt is used (non-RAG queries)
-                # This matches the training dataset format exactly
-                cot_system_prompt = (
-                    "You are a precise data extraction bot.\n"
-                    "1. Start with REASONING:\n"
-                    "2. Scan the context carefully for information relevant to the query.\n"
-                    "3. For each relevant item found, write:\n"
-                    "   - Item: [What you found]\n"
-                    "   - Evidence: \"[Verbatim quote from context]\"\n"
-                    "   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n"
-                    "4. End scan with: - End of scan.\n"
-                    "5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\n"
-                    "CRITICAL RULES:\n"
-                    "- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n"
-                    "- FINAL ANSWER must ONLY include items marked [KEEP].\n"
-                    "- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n"
-                    "- Read entire descriptions/chunks completely - titles may appear later in the text.\n"
-                )
-                
-                # Build system and user messages - match training format EXACTLY
-                # Training format:
-                #   System: CoT prompt with CRITICAL RULES
-                #   User: "Knowledge context: ...\n---\nQuestion: ..."
-                system_content = cot_system_prompt
-                
-                # User message matches training format exactly
-                user_content = f"Knowledge context: {combined_context}\n---\nQuestion: {prompt}"
+            # ALL RAG queries should use CoT - this is the toggle logic:
+            # - WITH RAG → CoT prompt (extraction/reasoning)
+            # - WITHOUT RAG → Conversational prompt (base model behavior)
+            # The model was trained with this toggle capability
+            # Use CoT format for ALL RAG queries regardless of query type
+            
+            # Use CoT format ONLY when RAG is triggered (has_rag_context = True)
+            # The model is trained with toggle capability:
+            # - WITH CoT when this CoT system prompt is used (RAG queries)
+            # - WITHOUT CoT when conversational system prompt is used (non-RAG queries)
+            # This matches the training dataset format exactly - MUST include all scanning rules
+            cot_system_prompt = (
+                "You are a precise data extraction bot.\n"
+                "1. Start with REASONING:\n"
+                "2. Scan the context carefully for information relevant to the query.\n"
+                "3. For each relevant item found, write:\n"
+                "   - Item: [What you found]\n"
+                "   - Evidence: \"[Verbatim quote from context]\"\n"
+                "   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n"
+                "4. End scan with: - End of scan.\n"
+                "5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\n"
+                "CRITICAL RULES:\n"
+                "- Items marked [DISCARD] must NEVER appear in FINAL ANSWER - this is ABSOLUTE and MANDATORY.\n"
+                "- FINAL ANSWER must ONLY include items marked [KEEP] - no exceptions.\n"
+                "- If you mark an item [DISCARD] in reasoning, it is FORBIDDEN to mention it in FINAL ANSWER.\n"
+                "- Before writing FINAL ANSWER, verify: ONLY include items that were marked [KEEP] in REASONING.\n"
+                "- Read entire descriptions/chunks completely - titles may appear later in the text.\n"
+                "- SCAN ALL CHUNKS COMPLETELY - read each chunk from start to finish before moving to next.\n"
+                "- IMPORTANT: Identify ALL relevant items in REASONING before making any decisions. Do NOT stop after finding some matches - scan completely and list EVERY item that could be relevant.\n"
+                "- Extract Evidence from the EXACT ITEM MENTION that matches the query - find where the item is explicitly mentioned in relation to what you're looking for, not from descriptions or unrelated text.\n"
+                "- IMPORTANT: Do NOT include headers (like 'AURA VISION...'), page numbers, or metadata in Evidence. Extract ONLY the exact quote that shows the role or information.\n"
+            )
+            
+            # Build system and user messages - match training format EXACTLY
+            # Training format:
+            #   System: CoT prompt with CRITICAL RULES
+            #   User: "Knowledge context: ...\n---\nQuestion: ..."
+            system_content = cot_system_prompt
+            
+            # User message matches training format exactly
+            user_content = f"Knowledge context: {combined_context}\n---\nQuestion: {prompt}"
                 
             # For chatml format, separate system and user messages
             messages = [
@@ -2022,9 +1846,10 @@ JSON array only:"""
     is_list_request_direct = any(keyword in prompt.lower() for keyword in list_keywords) or any(indicator in prompt.lower() for indicator in list_indicators)
     
     # Check if this is a conversational phrase (thank you, goodbye, etc.) - skip follow-up question
+    # IMPORTANT: Only match EXACT phrases, not partial matches (e.g., "me" in "give me" should not match)
     normalized_prompt_fallback = prompt.lower()
     conversational_phrases_fallback = [
-        'thank you', 'thanks', 'thank', 'thanks a lot', 'thank you very much',
+        'thank you', 'thanks', 'thanks a lot', 'thank you very much',
         'goodbye', 'bye', 'see you', 'see ya', 'farewell',
         'you\'re welcome', 'no problem', 'my pleasure', 'anytime',
         'hello', 'hi', 'hey', 'greetings',
@@ -2033,7 +1858,12 @@ JSON array only:"""
         'yes', 'yeah', 'yep', 'no', 'nope',
         'please', 'excuse me', 'sorry', 'pardon'
     ]
-    is_conversational_fallback = any(phrase in normalized_prompt_fallback for phrase in conversational_phrases_fallback)
+    # Use word boundaries to avoid partial matches (e.g., "me" matching "make" or "chocolate")
+    import re
+    is_conversational_fallback = any(
+        re.search(r'\b' + re.escape(phrase) + r'\b', normalized_prompt_fallback) 
+        for phrase in conversational_phrases_fallback
+    )
     
     # Exclude information-seeking questions from being marked as conversational
     information_seeking_patterns_fallback = [
@@ -2076,28 +1906,18 @@ JSON array only:"""
             f"{question_instruction}"
         )
     elif is_conversational_fallback:
-        # For non-conversational phrases (thank you, goodbye, etc.), just respond naturally without follow-up question
+        # For simple conversational phrases (thank you, goodbye, hello, etc.), use simple prompt
+        # This matches the training dataset format for conversational examples
         system_prompt = (
             "You are Aura Vision, an AI agent created by Ledger AI Quantum Corporation. "
             "You act as a proactive AI agent guiding users to better outcomes through gentle guidance.\n\n"
             "CRITICAL RULES:\n"
             "- Only provide logical, factual responses. Avoid hallucination at all costs.\n"
-            "- CRITICAL QUERY VALIDATION: Before responding, you MUST first evaluate if the query makes logical sense:\n"
-            "  1. Check if the query contains nonsensical combinations (e.g., 'recipe for rest and efforts' - 'rest and efforts' is not a real recipe name)\n"
-            "  2. Check if key terms in the query are coherent and refer to real concepts (e.g., asking for a recipe for something that doesn't exist)\n"
-            "  3. Check if the query is incomplete, unclear, or contains transcription errors\n"
-            "  4. If the query does NOT make logical sense, DO NOT force it into a response. Instead, politely ask: 'I'm not sure I understand your question. Could you please repeat or rephrase it?'\n"
-            "- CRITICAL: Before responding, check if the query is an incomplete sentence (starts with 'and', 'but', 'or', 'so', 'then', 'also', 'make sure', 'ensure', etc.) or an instruction rather than a question. If so, ask for clarification instead of answering.\n"
-            "- If the user's query is unclear, nonsensical, or doesn't make logical sense, DO NOT force it into a response.\n"
-            "- Instead, politely ask the user to clarify or repeat their question. Example: 'I'm not sure I understand. Could you please rephrase your question or provide more context?'\n"
-            "- Never invent facts, names, dates, or details.\n"
-            "- CRITICAL: DO NOT invent product names, company names, or entity names. Only use names that you know from common public knowledge.\n"
-            "- CRITICAL: DO NOT create variations of names. If you don't know a specific name, say 'I don't have that information' rather than guessing or creating variations.\n"
-            "- CRITICAL: DO NOT treat instructions or incomplete sentences as questions. If the query is an instruction or incomplete, ask for clarification rather than making up an answer.\n"
-            "- CRITICAL: DO NOT make up information to answer nonsensical queries. If a query asks for something that doesn't exist (like 'recipe for rest and efforts'), ask for clarification instead of inventing a response.\n\n"
-            "Keep your response SHORT and natural - 1-2 sentences maximum. "
-            "Be friendly, helpful, and conversational. Respond naturally to the user's phrase. "
-            "Do NOT add a follow-up question - just respond appropriately to what they said."
+            "- IMPORTANT: Commands and instructions like 'Give me X', 'Tell me about Y', 'Show me Z' are VALID requests and should be answered normally using your general knowledge.\n"
+            "- For general knowledge questions (recipes, facts, etc.), use your general knowledge to provide helpful answers.\n"
+            "- Keep responses VERY SHORT - maximum 2-3 sentences total.\n"
+            "- Be conversational, friendly, and natural.\n"
+            "- Always end your response with a brief, natural question. Examples: 'Would you like more information about this?' or 'Is there anything else I can help you with?'"
         )
     else:
         # For conversational queries (actual questions), include follow-up question
@@ -2177,8 +1997,11 @@ JSON array only:"""
     # Use higher token limit for list questions to ensure all items are included
     # Don't wrap the iterator - let base_container's debug_iterator handle logging
     # The base class already wraps it with debug logging
+    # Use higher temperature (0.7) for conversational queries to allow more natural responses
+    # RAG queries use 0.05 for accuracy, but conversational queries need more creativity
     max_tokens_limit = MAX_TOKENS_DIRECT_MODE_LIST if is_list_request_direct else MAX_TOKENS_DIRECT_MODE
-    return llm_chat_simple(messages, max_tokens=max_tokens_limit, stream=stream)
+    conversational_temperature = 0.7  # Higher temperature for conversational queries (matches training default)
+    return llm_chat_simple(messages, max_tokens=max_tokens_limit, temperature=conversational_temperature, stream=stream)
 
 
 def _embed_texts(texts: List[str]) -> List[List[float]]:
