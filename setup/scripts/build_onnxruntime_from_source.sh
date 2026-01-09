@@ -130,7 +130,7 @@ if [ -d "$BUILD_DIR" ]; then
             echo "⚠️  No v1.23.x tag found, using latest main branch"
             git checkout main
             git pull
-        }
+        fi
     }
     git submodule update --init --recursive
 else
@@ -153,7 +153,7 @@ else
         else
             echo "⚠️  No v1.23.x tag found, using latest main branch"
             git checkout main
-        }
+        fi
     }
     # Update submodules for the checked out version
     git submodule update --init --recursive
