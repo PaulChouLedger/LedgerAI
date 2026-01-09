@@ -652,14 +652,20 @@ python3 -m pip uninstall -y onnxruntime onnxruntime-gpu 2>/dev/null || true
 # CRITICAL: Install Jetson-optimized onnxruntime-gpu FIRST from Jetson AI Lab PyPI
 # This is specifically built for Jetson devices and avoids ARM CPU detection issues
 # OpenWakeWord is compatible with onnxruntime-gpu-1.23.0+ and will use it if installed first
-# Note: >=1.23.0 allows pip to install the latest compatible version (1.23.0, 1.23.1, 1.23.2, etc.)
-# Version 1.23.2+ fixes the CPU detection crash on JetPack R36.4.4
+# IMPORTANT: Version 1.23.2+ fixes the CPU detection crash on JetPack R36.4.4
+# Version 1.23.0 has a bug that causes "Unknown CPU vendor" crash on fresh JetPack R36.4.4 installs
+# We use >=1.23.2 to ensure the fix is installed, but fallback to >=1.23.0 if 1.23.2+ isn't available
 print_info "Installing onnxruntime-gpu from Jetson AI Lab PyPI (Jetson-optimized)..."
-if ! pip install --extra-index-url https://pypi.jetson-ai-lab.io/jp6/cu126 "onnxruntime-gpu>=1.23.0" 2>&1 | tee /tmp/onnxruntime_install.log; then
-    print_error "❌ Failed to install onnxruntime-gpu from Jetson PyPI"
-    print_error "   Check logs: /tmp/onnxruntime_install.log"
-    print_error "   OpenWakeWord requires onnxruntime-gpu to function"
-    exit 1
+print_info "   Preferring version >=1.23.2 (fixes CPU detection crash on JetPack R36.4.4)..."
+# Try to install >=1.23.2 first (fixes the crash), fallback to >=1.23.0 if not available
+if ! pip install --extra-index-url https://pypi.jetson-ai-lab.io/jp6/cu126 "onnxruntime-gpu>=1.23.2" 2>&1 | tee /tmp/onnxruntime_install.log; then
+    print_warning "⚠️  Version >=1.23.2 not available, trying >=1.23.0..."
+    if ! pip install --extra-index-url https://pypi.jetson-ai-lab.io/jp6/cu126 "onnxruntime-gpu>=1.23.0" 2>&1 | tee /tmp/onnxruntime_install.log; then
+        print_error "❌ Failed to install onnxruntime-gpu from Jetson PyPI"
+        print_error "   Check logs: /tmp/onnxruntime_install.log"
+        print_error "   OpenWakeWord requires onnxruntime-gpu to function"
+        exit 1
+    fi
 fi
 print_info "✅ onnxruntime-gpu installed successfully from Jetson PyPI"
 
