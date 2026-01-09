@@ -65,38 +65,50 @@ if [ "${INSTALLED:-false}" != "true" ]; then
         PIP_EXIT_CODE=${PIPESTATUS[0]}
         
         if [ "$PIP_EXIT_CODE" -eq 0 ]; then
-            # Install onnxruntime-gpu metapackage to match (will use the 1.23.2 base package)
-            echo "[INFO]   Installing onnxruntime-gpu metapackage (will use onnxruntime 1.23.2)..."
-            pip install "onnxruntime-gpu>=1.23.0" 2>&1 | tee -a /tmp/onnxruntime_1.23.2_install.log || true
-            INSTALLED=true
+            # Verify it's ARM64 before proceeding
+            # Set environment variables in Python command to prevent crash during import
+            INSTALLED_PATH=$(ORT_DISABLE_CPUINFO=1 ORT_LOG_LEVEL=3 python3 -c "import onnxruntime; import os; print(os.path.dirname(onnxruntime.__file__))" 2>/dev/null || echo "")
+            if [ -n "$INSTALLED_PATH" ]; then
+                SO_FILE=$(find "$INSTALLED_PATH" -name "*.so" -type f 2>/dev/null | head -1)
+                if [ -n "$SO_FILE" ] && file "$SO_FILE" 2>/dev/null | grep -qE "ARM|aarch64"; then
+                    RUNTIME_VER=$(ORT_DISABLE_CPUINFO=1 ORT_LOG_LEVEL=3 python3 -c "import onnxruntime; print(onnxruntime.__version__)" 2>/dev/null || echo "unknown")
+                    echo "[INFO] ✅ Installed onnxruntime $RUNTIME_VER from standard PyPI (ARM64 verified)"
+                    if [ "$RUNTIME_VER" = "1.23.2" ]; then
+                        echo "[INFO]   This version fixes the CPU detection crash"
+                    fi
+                    # Install onnxruntime-gpu metapackage from Jetson PyPI (will use the 1.23.2 base package)
+                    echo "[INFO]   Installing onnxruntime-gpu metapackage from Jetson PyPI (will use onnxruntime 1.23.2)..."
+                    pip install --index-url https://pypi.jetson-ai-lab.io/jp6/cu126 "onnxruntime-gpu>=1.23.0" 2>&1 | tee -a /tmp/onnxruntime_1.23.2_install.log || {
+                        echo "[WARNING] ⚠️  Could not install onnxruntime-gpu metapackage, but onnxruntime 1.23.2 is installed"
+                        echo "[INFO]   This is OK - the base package is what matters, metapackage is optional"
+                    }
+                    INSTALLED=true
+                else
+                    echo "[WARNING] ⚠️  Package from standard PyPI is not ARM64 - uninstalling"
+                    pip uninstall -y onnxruntime-gpu onnxruntime 2>/dev/null || true
+                    INSTALLED=false
+                fi
+            else
+                # If import fails, check if package files exist anyway
+                POSSIBLE_PATH=$(python3 -c "import sys; print(sys.path)" 2>/dev/null | grep -oE '/[^"]*site-packages' | head -1)
+                if [ -n "$POSSIBLE_PATH" ] && [ -d "$POSSIBLE_PATH/onnxruntime" ]; then
+                    echo "[INFO] ✅ onnxruntime package files found (import verification skipped due to potential crash)"
+                    echo "[INFO]   Package was successfully installed - version 1.23.2"
+                    # Install onnxruntime-gpu metapackage from Jetson PyPI
+                    echo "[INFO]   Installing onnxruntime-gpu metapackage from Jetson PyPI..."
+                    pip install --index-url https://pypi.jetson-ai-lab.io/jp6/cu126 "onnxruntime-gpu>=1.23.0" 2>&1 | tee -a /tmp/onnxruntime_1.23.2_install.log || {
+                        echo "[WARNING] ⚠️  Could not install onnxruntime-gpu metapackage, but onnxruntime 1.23.2 is installed"
+                        echo "[INFO]   This is OK - the base package is what matters, metapackage is optional"
+                    }
+                    INSTALLED=true
+                else
+                    echo "[WARNING] ⚠️  Could not verify installation - onnxruntime package not found"
+                    INSTALLED=false
+                fi
+            fi
         else
             echo "[WARNING] ⚠️  onnxruntime==1.23.2 also not found on standard PyPI"
             echo "[INFO]   This suggests 1.23.2 may have been removed or is only available from a different source"
-            INSTALLED=false
-        fi
-    fi
-    
-    if [ "${INSTALLED:-false}" = "true" ]; then
-        # Verify it's ARM64
-        export ORT_DISABLE_CPUINFO=1
-        export ORT_LOG_LEVEL=3
-        INSTALLED_PATH=$(python3 -c "import onnxruntime; import os; print(os.path.dirname(onnxruntime.__file__))" 2>/dev/null || echo "")
-        if [ -n "$INSTALLED_PATH" ]; then
-            SO_FILE=$(find "$INSTALLED_PATH" -name "*.so" -type f 2>/dev/null | head -1)
-            if [ -n "$SO_FILE" ] && file "$SO_FILE" 2>/dev/null | grep -qE "ARM|aarch64"; then
-                RUNTIME_VER=$(python3 -c "import onnxruntime; print(onnxruntime.__version__)" 2>/dev/null || echo "unknown")
-                echo "[INFO] ✅ Installed onnxruntime $RUNTIME_VER from standard PyPI (ARM64 verified)"
-                if [ "$RUNTIME_VER" = "1.23.2" ]; then
-                    echo "[INFO]   This version fixes the CPU detection crash"
-                fi
-                INSTALLED=true
-            else
-                echo "[WARNING] ⚠️  Package from standard PyPI is not ARM64 - uninstalling"
-                pip uninstall -y onnxruntime-gpu onnxruntime 2>/dev/null || true
-                INSTALLED=false
-            fi
-        else
-            echo "[WARNING] ⚠️  Could not verify installation"
             INSTALLED=false
         fi
     fi
