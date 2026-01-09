@@ -30,10 +30,11 @@ RUN python3 -c "from sentence_transformers import SentenceTransformer; SentenceT
     echo "✅ all-distilroberta-v1 model pre-downloaded into image cache"
 
 # Copy models (cached - these are large and rarely change)
-# Both 1.5B and 3B models are available - switch via SIMPLE_MODEL_PATH environment variable
-# Default: 1.5B RAG CoT fine-tuned model (faster, optimized for RAG with Chain of Thought)
+# Dual-model architecture:
+# 1. Base model for conversational queries (no RAG)
+COPY models/Qwen2.5-1.5B-Instruct.Q4_K_M_base.gguf /models/Qwen2.5-1.5B-Instruct.Q4_K_M_base.gguf
+# 2. CoT-trained model for RAG queries (with Chain of Thought reasoning)
 COPY models/Qwen2.5-1.5B-Instruct.Q4_K_M-rag-cot.gguf /models/Qwen2.5-1.5B-Instruct.Q4_K_M-rag-cot.gguf
-#COPY models/qwen2.5-3b-instruct-q4_k_m.gguf /models/qwen2.5-3b-instruct-q4_k_m.gguf
 # === GENERIC CONVERSATIONAL CONTAINER ===
 # This container provides general conversation with RAG-powered knowledge:
 # - General conversational responses
@@ -50,8 +51,12 @@ COPY conversation_manager.py ./
 # Models already copied above (cached layer)
 
 # === Environment defaults (can be overridden by .env or -e) ===
-ENV SIMPLE_MODEL_PATH=/models/Qwen2.5-1.5B-Instruct.Q4_K_M-rag-cot.gguf
-# To switch to 3B model, override with: /models/qwen2.5-3b-instruct-q4_k_m.gguf
+# Base model for conversational queries (loaded at startup)
+ENV BASE_MODEL_PATH=/models/Qwen2.5-1.5B-Instruct.Q4_K_M_base.gguf
+# CoT model for RAG queries (loaded lazily on first RAG query)
+ENV COT_MODEL_PATH=/models/Qwen2.5-1.5B-Instruct.Q4_K_M-rag-cot.gguf
+# Legacy support: SIMPLE_MODEL_PATH points to base model
+ENV SIMPLE_MODEL_PATH=/models/Qwen2.5-1.5B-Instruct.Q4_K_M_base.gguf
 ENV SIMPLE_CHAT_FORMAT=chatml
 ENV SIMPLE_N_CTX=8192
 ENV LLM_STOP=<|im_end|>

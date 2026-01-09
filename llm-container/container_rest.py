@@ -1,11 +1,14 @@
 # === container_rest.py — Aura Generic Conversational Container ===
 # Provides general conversation with RAG-powered knowledge
 #
-# Model: Qwen2.5-1.5B-Instruct with CoT Toggle Capability
-# The model is fine-tuned to conditionally use Chain of Thought reasoning:
-# - WITH CoT: When RAG context is provided (uses CoT system prompt)
-# - WITHOUT CoT: For conversational queries (uses conversational system prompt)
-# The model automatically toggles based on which system prompt is used, matching the training dataset format
+# Dual-Model Architecture:
+# - Base Model (Qwen2.5-1.5B-Instruct.Q4_K_M.gguf): Used for conversational queries (no RAG)
+#   - Natural, friendly responses using general knowledge
+#   - Loaded at startup for fast conversational responses
+# - CoT-Trained Model (Qwen2.5-1.5B-Instruct.Q4_K_M-rag-cot.gguf): Used for RAG queries (with Chain of Thought)
+#   - Structured extraction and reasoning for document-based queries
+#   - Loaded lazily on first RAG query to save memory
+# - Model selection is automatic based on RAG context detection
 
 from flask import Flask, request, jsonify, stream_with_context, Response
 import os, threading, atexit, time
@@ -36,10 +39,25 @@ app = Flask(__name__)
 werkzeug_logger = logging.getLogger('werkzeug')
 werkzeug_logger.setLevel(logging.WARNING)  # Only log warnings and errors, not info requests
 
-# === Initialize Base Container ===
+# === Dual-Model Configuration ===
+# Base model for conversational queries (no RAG)
+# Can be overridden by BASE_MODEL_PATH environment variable
+BASE_MODEL_PATH = os.getenv('BASE_MODEL_PATH', "/models/Qwen2.5-1.5B-Instruct.Q4_K_M_base.gguf")
+# CoT-trained model for RAG queries (with Chain of Thought reasoning)
+# Can be overridden by COT_MODEL_PATH environment variable
+COT_MODEL_PATH = os.getenv('COT_MODEL_PATH', "/models/Qwen2.5-1.5B-Instruct.Q4_K_M-rag-cot.gguf")
+
+# === Initialize Base Container for Base Model ===
 base_container = BaseLLMContainer(
     service_name="aura-llm-generic",
-    default_model_path="/models/Qwen2.5-1.5B-Instruct.Q4_K_M-rag-cot-toggle.gguf"
+    default_model_path=BASE_MODEL_PATH
+)
+
+# === Initialize CoT Model Container ===
+# Separate container for CoT-trained model (loaded lazily when needed)
+cot_container = BaseLLMContainer(
+    service_name="aura-llm-generic-cot",
+    default_model_path=COT_MODEL_PATH
 )
 
 # Override default parameters for generic container
@@ -116,10 +134,25 @@ if SHOW_REASONING_DEBUG:
     print(f"[Generic] 🔍 SHOW_REASONING_DEBUG is ENABLED - Qwen2.5 will show step-by-step reasoning in response")
 
 # Use base class model resolution
-SIMPLE_MODEL_PATH = base_container.resolve_model_path()
+# If BASE_MODEL_PATH env var is set, use that; otherwise resolve from settings/defaults
+if os.getenv('BASE_MODEL_PATH'):
+    SIMPLE_MODEL_PATH = BASE_MODEL_PATH
+    base_container.model_path = BASE_MODEL_PATH
+else:
+    SIMPLE_MODEL_PATH = base_container.resolve_model_path()
+    BASE_MODEL_PATH = SIMPLE_MODEL_PATH  # Update to resolved path
 
-# Reference to LLM instance (will be set by base_container.load_model())
-llm_simple = None
+# If COT_MODEL_PATH env var is set, use that; otherwise resolve from settings/defaults
+if os.getenv('COT_MODEL_PATH'):
+    COT_MODEL_PATH_RESOLVED = COT_MODEL_PATH
+    cot_container.model_path = COT_MODEL_PATH
+else:
+    COT_MODEL_PATH_RESOLVED = cot_container.resolve_model_path()
+    COT_MODEL_PATH = COT_MODEL_PATH_RESOLVED  # Update to resolved path
+
+# Reference to LLM instances (will be set by container.load_model())
+llm_simple = None  # Base model for conversational queries
+llm_cot = None     # CoT-trained model for RAG queries
 
 # === Conversation Memory / Activation Config ===
 # === Health Check Endpoint ===
@@ -131,17 +164,70 @@ def extract_llm_response_content(response) -> str:
     """Extract text content from LLM response"""
     return base_container.extract_llm_response_content(response)
 
-def llm_chat_simple(messages, max_tokens=None, temperature=None, stream=False, **kwargs):
-    """Wrapper for LLM chat completion"""
-    # Check if model is loaded before calling
-    if not base_container._model_loaded or base_container.llm_simple is None:
-        print(f"[Generic] ⚠️ ERROR: Model not loaded! _model_loaded={base_container._model_loaded}, llm_simple={base_container.llm_simple is not None}")
-        if stream:
-            return iter([])
-        return ""
+def llm_chat_simple(messages, max_tokens=None, temperature=None, stream=False, use_cot_model=False, **kwargs):
+    """
+    Wrapper for LLM chat completion with dual-model support
+    
+    Args:
+        messages: List of message dicts with 'role' and 'content'
+        max_tokens: Maximum tokens to generate
+        temperature: Sampling temperature
+        stream: Whether to stream the response
+        use_cot_model: If True, use CoT-trained model (for RAG queries). If False, use base model (for conversational queries).
+        **kwargs: Additional generation parameters
+    """
+    # Select appropriate model based on use_cot_model flag
+    if use_cot_model:
+        # Use CoT-trained model for RAG queries
+        # Lazy load CoT model if not already loaded
+        if not cot_container._model_loaded or cot_container.llm_simple is None:
+            print(f"[Generic] 📦 Lazy loading CoT model: {COT_MODEL_PATH_RESOLVED}")
+            try:
+                from llama_cpp import Llama
+                n_gpu_layers = -1  # -1 = offload all layers to GPU
+                cot_container.model_path = COT_MODEL_PATH_RESOLVED
+                cot_container.llm_simple = Llama(
+                    model_path=COT_MODEL_PATH_RESOLVED,
+                    n_ctx=SIMPLE_N_CTX,
+                    n_threads=N_THREADS,
+                    n_batch=N_BATCH,
+                    n_gpu_layers=n_gpu_layers,
+                    cache_prompt=CACHE_PROMPT,
+                    chat_format=SIMPLE_CHAT_FORMAT,
+                    use_mlock=True,
+                    use_mmap=True,
+                    verbose=False
+                )
+                cot_container._model_loaded = True
+                global llm_cot
+                llm_cot = cot_container.llm_simple
+                print(f"[Generic] ✅ CoT model loaded: {COT_MODEL_PATH_RESOLVED}")
+            except Exception as e:
+                print(f"[Generic] ❌ Failed to load CoT model: {e}")
+                import traceback
+                traceback.print_exc()
+                # Fallback to base model
+                use_cot_model = False
+        
+        if not cot_container._model_loaded or cot_container.llm_simple is None:
+            print(f"[Generic] ⚠️ CoT model not available, falling back to base model")
+            use_cot_model = False
+    
+    # Use base model for conversational queries or as fallback
+    if not use_cot_model:
+        if not base_container._model_loaded or base_container.llm_simple is None:
+            print(f"[Generic] ⚠️ ERROR: Base model not loaded! _model_loaded={base_container._model_loaded}, llm_simple={base_container.llm_simple is not None}")
+            if stream:
+                return iter([])
+            return ""
+        # Use base model
+        container = base_container
+    else:
+        # Use CoT model
+        container = cot_container
     
     # Reduced debug logging for performance
-    result = base_container.llm_chat_simple(messages, max_tokens, temperature, stream, **kwargs)
+    result = container.llm_chat_simple(messages, max_tokens, temperature, stream, **kwargs)
     return result
 
 # === RAG Chunk Filtering ===
@@ -1160,8 +1246,9 @@ JSON array only:"""
             # Use higher token limit for list questions to ensure all items are included
             # Use lower temperature (0.05) for RAG queries to match test script and ensure accuracy
             # Use 2048 tokens to match test script (was 800, might be cutting off reasoning)
+            # Use CoT-trained model for RAG queries (use_cot_model=True)
             max_tokens_limit = 2048 if is_list_request else MAX_TOKENS_RAG_MODE
-            return llm_chat_simple(messages, max_tokens=max_tokens_limit, temperature=0.05, stream=stream)
+            return llm_chat_simple(messages, max_tokens=max_tokens_limit, temperature=0.05, stream=stream, use_cot_model=True)
         else:
             # No RAG context, use standard prompt with Aura Vision identity
             # Check if memory RAG was attempted but found no useful information
@@ -1256,8 +1343,9 @@ JSON array only:"""
                 
                 # Then yield from actual LLM response
                 # Use higher token limit for list questions to ensure all items are included
+                # This is inside RAG context block, so use CoT model (use_cot_model=True)
                 max_tokens_limit = MAX_TOKENS_RAG_MODE_LIST if is_list_request else MAX_TOKENS_RAG_MODE
-                llm_response = llm_chat_simple(messages, max_tokens=max_tokens_limit, stream=True)
+                llm_response = llm_chat_simple(messages, max_tokens=max_tokens_limit, stream=True, use_cot_model=True)
                 
                 # Always filter structured format to extract only Final Answer for TTS
                 # The LLM may output structured format (Known Facts, Reasoning Steps, Final Answer, Confidence)
@@ -1833,7 +1921,7 @@ JSON array only:"""
         # The base class already wraps it with debug logging
         # Use higher token limit for list questions to ensure all items are included
         max_tokens_limit = MAX_TOKENS_RAG_MODE_LIST if is_list_request else MAX_TOKENS_RAG_MODE
-        return llm_chat_simple(messages, max_tokens=max_tokens_limit, stream=stream)
+        return llm_chat_simple(messages, max_tokens=max_tokens_limit, stream=stream, use_cot_model=False)
 
     # Fallback to direct LLM conversation without external context
     # Detect if user is asking for instructions/steps
@@ -3327,8 +3415,8 @@ if __name__ == "__main__":
     print("[Generic] 🚀 Starting Aura Generic LLM Container...")
     print(f"[Generic] 🔍 SHOW_REASONING_DEBUG = {SHOW_REASONING_DEBUG} (from environment)")
     
-    # Load model with GPU acceleration using base class
-    print(f"[Generic] 📦 Loading model: {SIMPLE_MODEL_PATH}")
+    # Load base model with GPU acceleration (for conversational queries)
+    print(f"[Generic] 📦 Loading base model (conversational): {SIMPLE_MODEL_PATH}")
     # Offload all layers to GPU for maximum acceleration (set to 0 to disable GPU)
     # For Jetson, offloading all layers typically provides best performance
     n_gpu_layers = -1  # -1 = offload all layers to GPU, 0 = CPU only
@@ -3351,7 +3439,10 @@ if __name__ == "__main__":
     )
     base_container._model_loaded = True
     llm_simple = base_container.llm_simple  # Set global reference
-    print(f"[Generic] ✅ Model loaded: {SIMPLE_MODEL_PATH}")
+    print(f"[Generic] ✅ Base model loaded: {SIMPLE_MODEL_PATH}")
+    
+    # CoT model will be loaded lazily when first RAG query is received
+    print(f"[Generic] 📦 CoT model (RAG queries) will be loaded lazily: {COT_MODEL_PATH_RESOLVED}")
     
     # Pre-initialize RAG client at container startup (reduces first-query latency)
     if RAG_MODE in ("CPU", "GPU"):
