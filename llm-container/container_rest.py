@@ -135,20 +135,36 @@ if SHOW_REASONING_DEBUG:
 
 # Use base class model resolution
 # If BASE_MODEL_PATH env var is set, use that; otherwise resolve from settings/defaults
+print(f"[Generic] 🔍 [Model Resolution] Resolving base model path...")
 if os.getenv('BASE_MODEL_PATH'):
     SIMPLE_MODEL_PATH = BASE_MODEL_PATH
     base_container.model_path = BASE_MODEL_PATH
+    print(f"[Generic] 🔍 [Model Resolution] Using BASE_MODEL_PATH from environment: {BASE_MODEL_PATH}")
 else:
     SIMPLE_MODEL_PATH = base_container.resolve_model_path()
     BASE_MODEL_PATH = SIMPLE_MODEL_PATH  # Update to resolved path
+    print(f"[Generic] 🔍 [Model Resolution] Resolved base model path: {SIMPLE_MODEL_PATH}")
+    # Verify model file exists
+    if os.path.isfile(SIMPLE_MODEL_PATH):
+        print(f"[Generic] ✅ [Model Resolution] Base model file exists: {SIMPLE_MODEL_PATH}")
+    else:
+        print(f"[Generic] ⚠️ [Model Resolution] Base model file NOT FOUND: {SIMPLE_MODEL_PATH}")
 
 # If COT_MODEL_PATH env var is set, use that; otherwise resolve from settings/defaults
+print(f"[Generic] 🔍 [Model Resolution] Resolving CoT model path...")
 if os.getenv('COT_MODEL_PATH'):
     COT_MODEL_PATH_RESOLVED = COT_MODEL_PATH
     cot_container.model_path = COT_MODEL_PATH
+    print(f"[Generic] 🔍 [Model Resolution] Using COT_MODEL_PATH from environment: {COT_MODEL_PATH}")
 else:
     COT_MODEL_PATH_RESOLVED = cot_container.resolve_model_path()
     COT_MODEL_PATH = COT_MODEL_PATH_RESOLVED  # Update to resolved path
+    print(f"[Generic] 🔍 [Model Resolution] Resolved CoT model path: {COT_MODEL_PATH_RESOLVED}")
+    # Verify model file exists
+    if os.path.isfile(COT_MODEL_PATH_RESOLVED):
+        print(f"[Generic] ✅ [Model Resolution] CoT model file exists: {COT_MODEL_PATH_RESOLVED}")
+    else:
+        print(f"[Generic] ⚠️ [Model Resolution] CoT model file NOT FOUND: {COT_MODEL_PATH_RESOLVED}")
 
 # Reference to LLM instances (will be set by container.load_model())
 llm_simple = None  # Base model for conversational queries
@@ -220,11 +236,39 @@ def llm_chat_simple(messages, max_tokens=None, temperature=None, stream=False, u
             if stream:
                 return iter([])
             return ""
-        # Use base model
+        # Use base model for conversational queries
         container = base_container
+        model_path = base_container.model_path or SIMPLE_MODEL_PATH or BASE_MODEL_PATH
+        print(f"[Generic] 🤖 [Model Selection] ✅ Using BASE MODEL (conversational query, no RAG)")
+        print(f"[Generic] 🤖 [Model Selection]    Model path: {model_path}")
+        print(f"[Generic] 🤖 [Model Selection]    Model loaded: {base_container._model_loaded}")
+        print(f"[Generic] 🤖 [Model Selection]    Container: base_container")
     else:
-        # Use CoT model
+        # Use CoT model for RAG queries
         container = cot_container
+        model_path = cot_container.model_path or COT_MODEL_PATH_RESOLVED or COT_MODEL_PATH
+        print(f"[Generic] 🤖 [Model Selection] ✅ Using COT MODEL (RAG query with reasoning)")
+        print(f"[Generic] 🤖 [Model Selection]    Model path: {model_path}")
+        print(f"[Generic] 🤖 [Model Selection]    Model loaded: {cot_container._model_loaded}")
+        print(f"[Generic] 🤖 [Model Selection]    Container: cot_container")
+    
+    # Log model selection decision
+    print(f"[Generic] 🤖 [Model Selection] Decision: use_cot_model={use_cot_model}, selected_model_path={model_path}")
+    
+    # Verify model file exists
+    if model_path and os.path.exists(model_path):
+        print(f"[Generic] ✅ [Model Selection] Model file exists: {model_path}")
+    elif model_path:
+        print(f"[Generic] ⚠️ [Model Selection] WARNING: Model file NOT FOUND: {model_path}")
+        print(f"[Generic] ⚠️ [Model Selection] This may cause errors or fallback behavior!")
+    
+    # Debug: Log first part of messages to verify system prompt
+    if messages and len(messages) > 0:
+        first_message = messages[0]
+        if isinstance(first_message, dict) and 'content' in first_message:
+            system_preview = first_message['content'][:300] if len(first_message['content']) > 300 else first_message['content']
+            print(f"[Generic] 🤖 [Model Selection] System prompt preview: {system_preview}...")
+            print(f"[Generic] 🤖 [Model Selection] System prompt length: {len(first_message['content'])} chars")
     
     # Reduced debug logging for performance
     result = container.llm_chat_simple(messages, max_tokens, temperature, stream, **kwargs)
@@ -542,9 +586,11 @@ def handle_conversation(
         If stream=False: Complete response string
         If stream=True: Generator that yields tokens as they're generated
     """
-    
     # Try RAG first for knowledge queries (CPU or GPU) if enabled
     # Skip RAG for simple conversational queries to reduce latency
+    # NOTE: re module is imported at top level (line 18) - reference it explicitly to avoid shadowing
+    # Access via globals() to ensure we get the top-level import, not a shadowed version
+    re_module = globals().get('re', __import__('re'))
     rag_context = ""
     if RAG_MODE in ("CPU", "GPU"):
         print(f"[Generic] 🔍 RAG_MODE={RAG_MODE} - checking if query should use RAG...")
@@ -842,7 +888,8 @@ JSON array only:"""
                                 
                                 # Parse LLM response to extract scores
                                 import json
-                                json_match = re.search(r'\[[\d\.,\s]+\]', scoring_response)
+                                # Use re_module from globals() to avoid shadowing issues
+                                json_match = re_module.search(r'\[[\d\.,\s]+\]', scoring_response)
                                 if json_match:
                                     scores = json.loads(json_match.group())
                                     print(f"[Generic] ✅ LLM returned {len(scores)} scores")
@@ -971,7 +1018,8 @@ JSON array only:"""
                             entity_names = []
                             of_pattern = r'\bof\s+([A-Z][A-Za-z]*(?:\s+[A-Z][A-Za-z]*)*)\b'
                             at_pattern = r'\bat\s+([A-Z][A-Za-z]*(?:\s+[A-Z][A-Za-z]*)*)\b'
-                            matches = re.findall(of_pattern, prompt) + re.findall(at_pattern, prompt)
+                            # Use re_module from globals() to avoid shadowing issues
+                            matches = re_module.findall(of_pattern, prompt, re_module.IGNORECASE) + re_module.findall(at_pattern, prompt, re_module.IGNORECASE)
                             entity_names.extend(matches)
                             entity_names = list(set([e for e in entity_names if len(e) > 2]))
                             
@@ -1210,7 +1258,21 @@ JSON array only:"""
                 "- SCAN ALL CHUNKS COMPLETELY - read each chunk from start to finish before moving to next.\n"
                 "- IMPORTANT: Identify ALL relevant items in REASONING before making any decisions. Do NOT stop after finding some matches - scan completely and list EVERY item that could be relevant.\n"
                 "- Extract Evidence from the EXACT ITEM MENTION that matches the query - find where the item is explicitly mentioned in relation to what you're looking for, not from descriptions or unrelated text.\n"
-                "- IMPORTANT: Do NOT include headers (like 'AURA VISION...'), page numbers, or metadata in Evidence. Extract ONLY the exact quote that shows the role or information.\n"
+                "- IMPORTANT: Do NOT include headers (like 'AURA VISION...'), page numbers, or metadata in Evidence. Extract ONLY the exact quote that shows the role or information.\n\n"
+                "CO-FOUNDER IDENTIFICATION RULES (CRITICAL):\n"
+                "- If evidence contains \"Co-Founder\" OR \"co-founder\" OR \"Co-Founder and [Role]\", the person IS a co-founder.\n"
+                "- If evidence says \"As Co-Founder and Chief Operating Officer\", this person IS a co-founder - mark [KEEP].\n"
+                "- If evidence says \"As Co-Founder and [Any Role]\", this person IS a co-founder - mark [KEEP].\n"
+                "- If evidence says \"CEO and Co-Founder\", this person IS a co-founder - mark [KEEP].\n"
+                "- If evidence does NOT mention \"Co-Founder\" or \"co-founder\", the person is NOT a co-founder (unless explicitly stated as \"founder\").\n"
+                "- Example: \"As Co-Founder and Chief Operating Officer\" → [KEEP] (co-founder confirmed).\n"
+                "- Example: \"serves as Chief Operating Officer\" → [DISCARD] (no co-founder mention).\n\n"
+                "FINAL ANSWER COMPLETENESS (CRITICAL):\n"
+                "- FINAL ANSWER must include EVERY item marked [KEEP] in REASONING.\n"
+                "- Count how many items you marked [KEEP] - ALL of them must appear in FINAL ANSWER.\n"
+                "- If you marked 4 items [KEEP], FINAL ANSWER must include all 4 items.\n"
+                "- Before writing FINAL ANSWER, list all [KEEP] items and ensure each one is included.\n"
+                "- If an item is marked [KEEP] in REASONING but missing from FINAL ANSWER, your answer is incomplete.\n"
             )
             
             # Build system and user messages - match training format EXACTLY
@@ -2055,7 +2117,8 @@ JSON array only:"""
             "- Only provide logical, factual responses. Avoid hallucination at all costs.\n"
             "- IMPORTANT: Commands and instructions like 'Give me X', 'Tell me about Y', 'Show me Z', 'I need X', 'I want X' are VALID requests and should be answered normally using your general knowledge.\n"
             "- For general knowledge questions (recipes, facts, etc.), use your general knowledge to provide helpful answers.\n"
-            "- If the user's query is unclear, nonsensical, or doesn't make logical sense (e.g., asking for a recipe for something that doesn't exist like 'recipe for rest and efforts'), DO NOT force it into a response. Instead, politely ask: 'I'm not sure I understand. Could you please rephrase your question or provide more context?'\n"
+            "- If the user's query has a minor transcription error (e.g., 'recipe or chocolate cookies' likely means 'recipe for chocolate cookies'), interpret it naturally and answer helpfully.\n"
+            "- If the user's query is truly unclear or nonsensical (e.g., asking for something that doesn't exist), politely ask for clarification.\n"
             "- Never invent facts, names, dates, or details.\n"
             "- CRITICAL: DO NOT invent product names, company names, or entity names. Only use names that you know from common public knowledge or that are explicitly mentioned in conversation.\n"
             "- CRITICAL: DO NOT create variations of names. If you don't know a specific name, say 'I don't have that information' rather than guessing or creating variations.\n"
@@ -2089,7 +2152,16 @@ JSON array only:"""
     # RAG queries use 0.05 for accuracy, but conversational queries need more creativity
     max_tokens_limit = MAX_TOKENS_DIRECT_MODE_LIST if is_list_request_direct else MAX_TOKENS_DIRECT_MODE
     conversational_temperature = 0.7  # Higher temperature for conversational queries (matches training default)
-    return llm_chat_simple(messages, max_tokens=max_tokens_limit, temperature=conversational_temperature, stream=stream)
+    
+    # Debug: Log model selection and system prompt for conversational queries
+    print(f"[Generic] 🤖 [Conversational Query] Calling llm_chat_simple with use_cot_model=False (base model)")
+    print(f"[Generic] 🤖 [Conversational Query] Query: '{prompt[:100]}...'")
+    print(f"[Generic] 🤖 [Conversational Query] System prompt preview: {system_prompt[:300]}...")
+    print(f"[Generic] 🤖 [Conversational Query] Temperature: {conversational_temperature}, Max tokens: {max_tokens_limit}")
+    print(f"[Generic] 🤖 [Conversational Query] Messages structure: system + user")
+    print(f"[Generic] 🤖 [Conversational Query] User message: '{messages[1]['content'][:100]}...'")
+    
+    return llm_chat_simple(messages, max_tokens=max_tokens_limit, temperature=conversational_temperature, stream=stream, use_cot_model=False)
 
 
 def _embed_texts(texts: List[str]) -> List[List[float]]:
@@ -3415,34 +3487,78 @@ if __name__ == "__main__":
     print("[Generic] 🚀 Starting Aura Generic LLM Container...")
     print(f"[Generic] 🔍 SHOW_REASONING_DEBUG = {SHOW_REASONING_DEBUG} (from environment)")
     
+    # Verify base model file exists before loading
+    print(f"[Generic] 🔍 [Startup] Verifying base model file exists: {SIMPLE_MODEL_PATH}")
+    if not os.path.isfile(SIMPLE_MODEL_PATH):
+        print(f"[Generic] ⚠️ [Startup] WARNING: Base model file NOT FOUND: {SIMPLE_MODEL_PATH}")
+        print(f"[Generic] ⚠️ [Startup] This will cause errors when trying to use base model for conversational queries!")
+        print(f"[Generic] ⚠️ [Startup] Expected base model for natural conversational responses")
+        print(f"[Generic] ⚠️ [Startup] Falling back to resolved path...")
+        # Try to resolve model path again
+        resolved_path = base_container.resolve_model_path()
+        if resolved_path != SIMPLE_MODEL_PATH and os.path.isfile(resolved_path):
+            print(f"[Generic] ✅ [Startup] Found fallback model: {resolved_path}")
+            SIMPLE_MODEL_PATH = resolved_path
+            BASE_MODEL_PATH = resolved_path
+            base_container.model_path = resolved_path
+        else:
+            print(f"[Generic] ❌ [Startup] ERROR: No valid base model found! Resolved path: {resolved_path}")
+            print(f"[Generic] ❌ [Startup] File exists: {os.path.isfile(resolved_path) if resolved_path else False}")
+    else:
+        print(f"[Generic] ✅ [Startup] Base model file exists: {SIMPLE_MODEL_PATH}")
+        # Get file size for verification
+        try:
+            file_size = os.path.getsize(SIMPLE_MODEL_PATH)
+            file_size_mb = file_size / (1024 * 1024)
+            print(f"[Generic] ✅ [Startup] Base model file size: {file_size_mb:.2f} MB")
+        except Exception as e:
+            print(f"[Generic] ⚠️ [Startup] Could not get file size: {e}")
+    
     # Load base model with GPU acceleration (for conversational queries)
-    print(f"[Generic] 📦 Loading base model (conversational): {SIMPLE_MODEL_PATH}")
+    print(f"[Generic] 📦 [Startup] Loading base model (conversational): {SIMPLE_MODEL_PATH}")
     # Offload all layers to GPU for maximum acceleration (set to 0 to disable GPU)
     # For Jetson, offloading all layers typically provides best performance
     n_gpu_layers = -1  # -1 = offload all layers to GPU, 0 = CPU only
-    print(f"[Generic] 🚀 GPU acceleration: {n_gpu_layers} layers offloaded to GPU")
+    print(f"[Generic] 🚀 [Startup] GPU acceleration: {n_gpu_layers} layers offloaded to GPU")
     
     # Override base class load_model to add GPU support
     from llama_cpp import Llama
     base_container.model_path = SIMPLE_MODEL_PATH
-    base_container.llm_simple = Llama(
-        model_path=SIMPLE_MODEL_PATH,
-        n_ctx=SIMPLE_N_CTX,
-        n_threads=N_THREADS,
-        n_batch=N_BATCH,
-        n_gpu_layers=n_gpu_layers,  # Enable GPU acceleration
-        cache_prompt=CACHE_PROMPT,
-        chat_format=SIMPLE_CHAT_FORMAT,
-        use_mlock=True,
-        use_mmap=True,
-        verbose=False
-    )
-    base_container._model_loaded = True
-    llm_simple = base_container.llm_simple  # Set global reference
-    print(f"[Generic] ✅ Base model loaded: {SIMPLE_MODEL_PATH}")
+    try:
+        base_container.llm_simple = Llama(
+            model_path=SIMPLE_MODEL_PATH,
+            n_ctx=SIMPLE_N_CTX,
+            n_threads=N_THREADS,
+            n_batch=N_BATCH,
+            n_gpu_layers=n_gpu_layers,  # Enable GPU acceleration
+            cache_prompt=CACHE_PROMPT,
+            chat_format=SIMPLE_CHAT_FORMAT,
+            use_mlock=True,
+            use_mmap=True,
+            verbose=False
+        )
+        base_container._model_loaded = True
+        llm_simple = base_container.llm_simple  # Set global reference
+        print(f"[Generic] ✅ [Startup] Base model loaded successfully: {SIMPLE_MODEL_PATH}")
+        print(f"[Generic] ✅ [Startup] Base model will be used for conversational queries (natural responses)")
+    except Exception as e:
+        print(f"[Generic] ❌ [Startup] ERROR: Failed to load base model: {e}")
+        import traceback
+        traceback.print_exc()
+        base_container._model_loaded = False
     
     # CoT model will be loaded lazily when first RAG query is received
-    print(f"[Generic] 📦 CoT model (RAG queries) will be loaded lazily: {COT_MODEL_PATH_RESOLVED}")
+    print(f"[Generic] 📦 [Startup] CoT model (RAG queries) will be loaded lazily: {COT_MODEL_PATH_RESOLVED}")
+    if os.path.isfile(COT_MODEL_PATH_RESOLVED):
+        try:
+            file_size = os.path.getsize(COT_MODEL_PATH_RESOLVED)
+            file_size_mb = file_size / (1024 * 1024)
+            print(f"[Generic] ✅ [Startup] CoT model file exists: {COT_MODEL_PATH_RESOLVED} ({file_size_mb:.2f} MB)")
+        except Exception as e:
+            print(f"[Generic] ⚠️ [Startup] Could not get CoT model file size: {e}")
+    else:
+        print(f"[Generic] ⚠️ [Startup] WARNING: CoT model file NOT FOUND: {COT_MODEL_PATH_RESOLVED}")
+        print(f"[Generic] ⚠️ [Startup] CoT model will fail to load when first RAG query is received!")
     
     # Pre-initialize RAG client at container startup (reduces first-query latency)
     if RAG_MODE in ("CPU", "GPU"):
