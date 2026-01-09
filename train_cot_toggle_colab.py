@@ -292,7 +292,7 @@ TRAINING_ARGS = TrainingArguments(
     per_device_train_batch_size=1,  # Match original: smaller batch size
     gradient_accumulation_steps=8,  # Match original: effective batch size = 8
     warmup_steps=50,  # Match original: shorter warmup to prevent early memorization
-    num_train_epochs=15,  # Match original: more epochs but with lower LR (slower learning)
+    num_train_epochs=10,  # Reduced from 15: prevent overfitting/memorization with larger dataset
     learning_rate=2e-5,  # Match original: LOWER learning rate prevents memorization (was 2e-4, too high!)
     weight_decay=0.25,  # Match original: HIGHER weight decay for stronger regularization (was 0.01, too low!)
     fp16=not torch.cuda.is_bf16_supported(),

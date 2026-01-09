@@ -295,17 +295,10 @@ def main():
     print(f"   ✅ Loaded {len(rag_cot_dataset)} RAG+CoT examples")
     print()
     
-    # Step 2: Ensure format consistency
-    print("🔧 Step 2: Ensuring format consistency...")
-    fixed_count = ensure_evidence_format(rag_cot_dataset)
-    if fixed_count > 0:
-        print(f"   ✅ Fixed {fixed_count} examples (converted to Evidence: format)")
-        # Save fixed dataset
-        with open(RAG_COT_DATASET_FILE, 'w', encoding='utf-8') as f:
-            json.dump(rag_cot_dataset, f, indent=2, ensure_ascii=False)
-        print(f"   ✅ Saved fixed RAG dataset")
-    else:
-        print(f"   ✅ All examples already use correct format")
+    # Step 2: Keep original format (don't modify working dataset)
+    print("🔧 Step 2: Preserving original format...")
+    print(f"   ✅ Keeping original format (no modifications)")
+    print(f"   ✅ This is the working dataset that achieved 96% accuracy")
     print()
     
     # Step 3: Load or generate conversational dataset
