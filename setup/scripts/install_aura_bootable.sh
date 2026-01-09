@@ -654,19 +654,54 @@ python3 -m pip uninstall -y onnxruntime onnxruntime-gpu 2>/dev/null || true
 # OpenWakeWord is compatible with onnxruntime-gpu-1.23.0+ and will use it if installed first
 # IMPORTANT: Version 1.23.2+ fixes the CPU detection crash on JetPack R36.4.4
 # Version 1.23.0 has a bug that causes "Unknown CPU vendor" crash on fresh JetPack R36.4.4 installs
-# We use >=1.23.2 to ensure the fix is installed, but fallback to >=1.23.0 if 1.23.2+ isn't available
+# We try >=1.23.2 first (fixes the crash), fallback to >=1.23.0 if 1.23.2+ isn't available
+# Note: Jetson PyPI currently only has 1.23.0, so we'll use that with ORT_DISABLE_CPUINFO=1
 print_info "Installing onnxruntime-gpu from Jetson AI Lab PyPI (Jetson-optimized)..."
-print_info "   Preferring version >=1.23.2 (fixes CPU detection crash on JetPack R36.4.4)..."
+print_info "   Trying version >=1.23.2 first (fixes CPU detection crash on JetPack R36.4.4)..."
 # Try to install >=1.23.2 first (fixes the crash), fallback to >=1.23.0 if not available
-if ! pip install --extra-index-url https://pypi.jetson-ai-lab.io/jp6/cu126 "onnxruntime-gpu>=1.23.2" 2>&1 | tee /tmp/onnxruntime_install.log; then
-    print_warning "⚠️  Version >=1.23.2 not available, trying >=1.23.0..."
-    if ! pip install --extra-index-url https://pypi.jetson-ai-lab.io/jp6/cu126 "onnxruntime-gpu>=1.23.0" 2>&1 | tee /tmp/onnxruntime_install.log; then
-        print_error "❌ Failed to install onnxruntime-gpu from Jetson PyPI"
+# IMPORTANT: Use --index-url (not --extra-index-url) to ONLY use Jetson PyPI
+# Standard PyPI may have 1.23.2 but it's built for x86_64, not ARM64/Jetson
+ONNXRUNTIME_INSTALLED=false
+# Use PIPESTATUS to check pip exit code (tee always returns 0)
+# Try Jetson PyPI first (Jetson-optimized builds)
+pip install --index-url https://pypi.jetson-ai-lab.io/jp6/cu126 --extra-index-url https://pypi.org/simple "onnxruntime-gpu>=1.23.2" 2>&1 | tee /tmp/onnxruntime_install.log
+PIP_EXIT_CODE=${PIPESTATUS[0]}
+
+if [ "$PIP_EXIT_CODE" -eq 0 ]; then
+    ONNXRUNTIME_INSTALLED=true
+    print_info "✅ Installed onnxruntime-gpu >=1.23.2 (fixes CPU detection crash)"
+else
+    # Check if the error was "no matching distribution" (version not available)
+    # The error message can be either format:
+    # - "No matching distribution found for onnxruntime-gpu>=1.23.2"
+    # - "Could not find a version that satisfies the requirement onnxruntime-gpu>=1.23.2"
+    if grep -qE "No matching distribution found for onnxruntime-gpu>=1.23.2|Could not find a version that satisfies the requirement onnxruntime-gpu>=1.23.2" /tmp/onnxruntime_install.log 2>/dev/null; then
+        print_warning "⚠️  Version >=1.23.2 not available in Jetson PyPI, trying >=1.23.0..."
+        # Use Jetson PyPI as primary index (Jetson-optimized), standard PyPI as fallback
+        pip install --index-url https://pypi.jetson-ai-lab.io/jp6/cu126 --extra-index-url https://pypi.org/simple "onnxruntime-gpu>=1.23.0" 2>&1 | tee /tmp/onnxruntime_install.log
+        PIP_EXIT_CODE=${PIPESTATUS[0]}
+        if [ "$PIP_EXIT_CODE" -eq 0 ]; then
+            ONNXRUNTIME_INSTALLED=true
+            print_warning "⚠️  Installed onnxruntime-gpu 1.23.0 (may crash without ORT_DISABLE_CPUINFO=1)"
+            print_info "   Environment variables will be set to prevent crashes"
+        else
+            print_error "❌ Failed to install onnxruntime-gpu >=1.23.0"
+            print_error "   Check logs: /tmp/onnxruntime_install.log"
+            ONNXRUNTIME_INSTALLED=false
+        fi
+    else
+        print_error "❌ Failed to install onnxruntime-gpu >=1.23.2"
         print_error "   Check logs: /tmp/onnxruntime_install.log"
-        print_error "   OpenWakeWord requires onnxruntime-gpu to function"
-        exit 1
+        ONNXRUNTIME_INSTALLED=false
     fi
 fi
+
+if [ "$ONNXRUNTIME_INSTALLED" = false ]; then
+    print_error "❌ Failed to install onnxruntime-gpu from Jetson PyPI"
+    print_error "   OpenWakeWord requires onnxruntime-gpu to function"
+    exit 1
+fi
+
 print_info "✅ onnxruntime-gpu installed successfully from Jetson PyPI"
 
 # Verify the installed version
