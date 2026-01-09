@@ -651,7 +651,9 @@ python3 -m pip uninstall -y onnxruntime onnxruntime-gpu 2>/dev/null || true
 # This ensures all packages come from pip (not system packages) and are compatible
 # CRITICAL: Install Jetson-optimized onnxruntime-gpu FIRST from Jetson AI Lab PyPI
 # This is specifically built for Jetson devices and avoids ARM CPU detection issues
-# OpenWakeWord is compatible with onnxruntime-gpu-1.23.0 and will use it if installed first
+# OpenWakeWord is compatible with onnxruntime-gpu-1.23.0+ and will use it if installed first
+# Note: >=1.23.0 allows pip to install the latest compatible version (1.23.0, 1.23.1, 1.23.2, etc.)
+# Version 1.23.2+ fixes the CPU detection crash on JetPack R36.4.4
 print_info "Installing onnxruntime-gpu from Jetson AI Lab PyPI (Jetson-optimized)..."
 if ! pip install --extra-index-url https://pypi.jetson-ai-lab.io/jp6/cu126 "onnxruntime-gpu>=1.23.0" 2>&1 | tee /tmp/onnxruntime_install.log; then
     print_error "❌ Failed to install onnxruntime-gpu from Jetson PyPI"
@@ -660,6 +662,16 @@ if ! pip install --extra-index-url https://pypi.jetson-ai-lab.io/jp6/cu126 "onnx
     exit 1
 fi
 print_info "✅ onnxruntime-gpu installed successfully from Jetson PyPI"
+
+# Verify the installed version
+INSTALLED_VERSION=$(pip show onnxruntime-gpu 2>/dev/null | grep "^Version:" | awk '{print $2}' || echo "unknown")
+print_info "Installed onnxruntime-gpu version: $INSTALLED_VERSION"
+# Also check the actual runtime version (may differ from pip metadata)
+RUNTIME_VERSION=$(python3 -c "import onnxruntime; print(onnxruntime.__version__)" 2>/dev/null || echo "unknown")
+if [ "$RUNTIME_VERSION" != "unknown" ] && [ "$INSTALLED_VERSION" != "$RUNTIME_VERSION" ]; then
+    print_warning "⚠️  Version mismatch: pip shows $INSTALLED_VERSION but runtime reports $RUNTIME_VERSION"
+    print_info "   This may indicate multiple installations or metadata mismatch"
+fi
 
 # IMPORTANT: onnxruntime-gpu==1.23.0 was compiled with NumPy 1.x and is incompatible with NumPy 2.x
 # Check NumPy version and downgrade if needed
@@ -1457,6 +1469,7 @@ Environment="XDG_RUNTIME_DIR=/run/user/$AURA_UID"
 Environment="XAUTHORITY=$XAUTH_PATH"
 # CRITICAL: Set onnxruntime environment variables to prevent CPU detection crashes on Jetson/ARM64
 # These must be set before importing openwakeword (which imports onnxruntime)
+# Note: ORT_DISABLE_CPUINFO prevents the "Unknown CPU vendor" crash on JetPack R36.4.4
 Environment="ORT_DISABLE_CPUINFO=1"
 Environment="ORT_LOG_LEVEL=3"
 # Auto-detect DISPLAY from X sockets at runtime (handles :0, :1, etc.)
