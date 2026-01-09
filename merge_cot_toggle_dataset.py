@@ -40,13 +40,17 @@ def merge_datasets(rag_cot_dataset, conversational_dataset, ratio=0.5, max_total
     print()
     
     # Calculate target sizes
+    # CRITICAL: Use ALL RAG examples (they are all important after simplifying the prompt)
     if max_total_examples:
-        # Limit total size while maintaining ratio
-        target_rag = int(max_total_examples * ratio)
-        target_conv = max_total_examples - target_rag
-        # Don't exceed available examples
-        target_rag = min(target_rag, len(rag_cot_dataset))
+        # Always use all RAG examples, then fill remaining with conversational
+        target_rag = len(rag_cot_dataset)  # Use all RAG examples
+        target_conv = max_total_examples - target_rag  # Fill remaining with conversational
+        # Don't exceed available conversational examples
         target_conv = min(target_conv, len(conversational_dataset))
+        # If we can't fit all RAG examples within max_total, adjust
+        if target_rag + target_conv > max_total_examples:
+            # This shouldn't happen, but if it does, reduce conversational
+            target_conv = max_total_examples - target_rag
     else:
         total_examples = len(rag_cot_dataset) + len(conversational_dataset)
         target_rag = int(total_examples * ratio)
@@ -64,8 +68,25 @@ def merge_datasets(rag_cot_dataset, conversational_dataset, ratio=0.5, max_total
     
     # Sample datasets to match target sizes
     # Prioritize complex examples (those with longer contexts or multiple chunks)
+    # CRITICAL: Prioritize anti-hallucination examples first
     if len(rag_cot_dataset) > target_rag:
-        # Sort by context length (longer = more complex, prioritize these)
+        # First, identify and prioritize anti-hallucination examples
+        anti_halluc_examples = []
+        other_examples = []
+        for example in rag_cot_dataset:
+            messages = example.get("messages", [])
+            system_msg = next((msg for msg in messages if msg.get("role") == "system"), None)
+            user_msg = next((msg for msg in messages if msg.get("role") == "user"), None)
+            # Check if it's an anti-hallucination example (LedgerAI test scenario)
+            is_anti_halluc = False
+            if user_msg and "LedgerAI" in user_msg.get("content", "") and "co-founders" in user_msg.get("content", "").lower():
+                is_anti_halluc = True
+            if is_anti_halluc:
+                anti_halluc_examples.append(example)
+            else:
+                other_examples.append(example)
+        
+        # Sort other examples by complexity (length, then number of chunks)
         def get_context_length(example):
             messages = example.get("messages", [])
             user_msg = next((msg for msg in messages if msg.get("role") == "user"), None)
@@ -76,19 +97,26 @@ def merge_datasets(rag_cot_dataset, conversational_dataset, ratio=0.5, max_total
                 return len(content), len(chunks)
             return 0, 0
         
-        # Sort by complexity (length, then number of chunks)
-        sorted_rag = sorted(rag_cot_dataset, key=get_context_length, reverse=True)
-        # Take top complex examples first, then random sample from rest
-        complex_count = min(10, target_rag // 2)  # Take top 10 complex examples
-        complex_examples = sorted_rag[:complex_count]
-        remaining = sorted_rag[complex_count:]
-        remaining_needed = target_rag - complex_count
-        if remaining_needed > 0:
-            remaining_samples = random.sample(remaining, min(remaining_needed, len(remaining)))
-            rag_cot_samples = complex_examples + remaining_samples
+        sorted_other = sorted(other_examples, key=get_context_length, reverse=True)
+        
+        # Prioritize anti-hallucination examples first, then complex examples
+        needed_after_anti_halluc = max(0, target_rag - len(anti_halluc_examples))
+        if needed_after_anti_halluc > 0:
+            complex_count = min(10, needed_after_anti_halluc // 2)
+            complex_examples = sorted_other[:complex_count]
+            remaining = sorted_other[complex_count:]
+            remaining_needed = needed_after_anti_halluc - complex_count
+            if remaining_needed > 0:
+                remaining_samples = random.sample(remaining, min(remaining_needed, len(remaining)))
+                rag_cot_samples = anti_halluc_examples + complex_examples + remaining_samples
+            else:
+                rag_cot_samples = anti_halluc_examples + complex_examples[:needed_after_anti_halluc]
         else:
-            rag_cot_samples = complex_examples[:target_rag]
-        print(f"   Prioritized {complex_count} complex examples (longer contexts, multiple chunks)")
+            rag_cot_samples = anti_halluc_examples[:target_rag]
+        
+        if anti_halluc_examples:
+            print(f"   Prioritized {len(anti_halluc_examples)} anti-hallucination examples (LedgerAI test scenario)")
+        print(f"   Prioritized {min(10, (target_rag - len(anti_halluc_examples)) // 2)} complex examples (longer contexts, multiple chunks)")
     else:
         rag_cot_samples = rag_cot_dataset
     

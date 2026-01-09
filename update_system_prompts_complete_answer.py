@@ -7,7 +7,7 @@ Adds explicit rule about including ALL [KEEP] items in FINAL ANSWER
 
 import json
 
-# Updated system prompt with explicit ALL items rule
+# Updated system prompt with explicit ALL items rule and complete scanning
 UPDATED_SYSTEM_PROMPT = """You are a precise data extraction bot.
 1. Start with REASONING:
 2. Scan the context carefully for information relevant to the query.
@@ -23,7 +23,9 @@ CRITICAL RULES:
 - FINAL ANSWER must ONLY include items marked [KEEP].
 - If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.
 - Read entire descriptions/chunks completely - titles may appear later in the text.
-- CRITICAL: FINAL ANSWER must include ALL items marked [KEEP] in your reasoning - do not omit any [KEEP] items from the FINAL ANSWER."""
+- CRITICAL: FINAL ANSWER must include ALL items marked [KEEP] in your reasoning - do not omit any [KEEP] items from the FINAL ANSWER.
+- CRITICAL: Scan the ENTIRE context from start to finish - do not stop scanning early. Items may appear in any chunk.
+- CRITICAL ANTI-HALLUCINATION: You MUST extract information EXACTLY as written in the context. NEVER invent, guess, or create names, titles, or information. ONLY use information that is EXPLICITLY stated in the context. If a name is not in the context, you CANNOT use it."""
 
 if __name__ == "__main__":
     print("=" * 80)
@@ -48,9 +50,23 @@ if __name__ == "__main__":
             if msg.get("role") == "system":
                 # Check if it's a CoT system prompt (has REASONING:)
                 if "REASONING:" in msg.get("content", "") or "Start with REASONING" in msg.get("content", ""):
-                    # Update to include ALL items rule
+                    # Update to include ALL items rule and complete scanning rule
                     old_content = msg.get("content", "")
+                    needs_update = False
+                    
+                    # Check if missing complete scanning rule
+                    if "Scan the ENTIRE context" not in old_content and "do not stop scanning early" not in old_content:
+                        needs_update = True
+                    
+                    # Check if missing ALL items rule
                     if "FINAL ANSWER must include ALL" not in old_content:
+                        needs_update = True
+                    
+                    # Check if missing anti-hallucination rule
+                    if "ANTI-HALLUCINATION" not in old_content and "NEVER invent" not in old_content and "EXACTLY as written" not in old_content:
+                        needs_update = True
+                    
+                    if needs_update:
                         msg["content"] = UPDATED_SYSTEM_PROMPT
                         updated_count += 1
     
