@@ -132,7 +132,13 @@ if [ -d "$BUILD_DIR" ]; then
             git pull
         fi
     }
-    git submodule update --init --recursive
+    # Reset working directory to match checked out version
+    echo "[INFO] Resetting working directory to match checked out version..."
+    git reset --hard HEAD
+    git clean -fd
+    # Update submodules
+    echo "[INFO] Updating submodules..."
+    git submodule update --init --recursive --force
 else
     echo "[INFO] Cloning repository (this may take a few minutes)..."
     # Clone without depth to allow tag checkout
@@ -155,21 +161,67 @@ else
             git checkout main
         fi
     }
+    # Reset working directory to match checked out version
+    echo "[INFO] Resetting working directory to match checked out version..."
+    git reset --hard HEAD
+    git clean -fd
     # Update submodules for the checked out version
-    git submodule update --init --recursive
+    echo "[INFO] Updating submodules..."
+    git submodule update --init --recursive --force
 fi
 
 cd "$BUILD_DIR"
 echo "[INFO] Repository at: $(pwd)"
-echo "[INFO] Current commit: $(git rev-parse HEAD)"
-echo "[INFO] Current tag/branch: $(git describe --tags --exact-match 2>/dev/null || git branch --show-current || echo 'detached HEAD')"
-echo "[INFO] Verifying CMakeLists.txt exists..."
-if [ ! -f "CMakeLists.txt" ]; then
-    echo "❌ ERROR: CMakeLists.txt not found in repository root"
-    echo "   Repository may not have cloned correctly"
-    exit 1
+echo "[INFO] Current commit: $(git rev-parse HEAD 2>/dev/null || echo 'unknown')"
+CURRENT_REF=$(git describe --tags --exact-match 2>/dev/null || git branch --show-current 2>/dev/null || echo 'detached HEAD')
+echo "[INFO] Current tag/branch: $CURRENT_REF"
+
+# Verify we're on the right version
+if [ "$CURRENT_REF" != "v${ONNXRUNTIME_VERSION}" ] && [ "$CURRENT_REF" != "detached HEAD" ]; then
+    echo "[WARNING] ⚠️  Not on expected version tag v${ONNXRUNTIME_VERSION}"
+    echo "   Current: $CURRENT_REF"
+    echo "   Attempting to checkout v${ONNXRUNTIME_VERSION}..."
+    git checkout "v${ONNXRUNTIME_VERSION}" 2>/dev/null || {
+        echo "[WARNING] Could not checkout v${ONNXRUNTIME_VERSION}, continuing with current state"
+    }
 fi
-echo "[INFO] ✅ CMakeLists.txt found"
+
+echo "[INFO] Verifying repository structure..."
+if [ ! -f "CMakeLists.txt" ]; then
+    echo "⚠️  CMakeLists.txt not found in current directory"
+    echo "[INFO] Checking repository contents..."
+    echo "[INFO] Top-level files/directories:"
+    ls -la | head -15
+    echo ""
+    echo "[INFO] Searching for CMakeLists.txt..."
+    CMAKE_FILE=$(find . -maxdepth 3 -name "CMakeLists.txt" -type f 2>/dev/null | head -1)
+    if [ -n "$CMAKE_FILE" ]; then
+        echo "[INFO] Found CMakeLists.txt at: $CMAKE_FILE"
+        CMAKE_DIR=$(cd "$(dirname "$CMAKE_FILE")" && pwd)
+        if [ "$CMAKE_DIR" != "$BUILD_DIR" ]; then
+            echo "[WARNING] CMakeLists.txt is in subdirectory: $CMAKE_DIR"
+            echo "[INFO] This may indicate the repository structure changed"
+            echo "[INFO] Will use: $CMAKE_DIR as source directory"
+            BUILD_DIR="$CMAKE_DIR"
+            cd "$BUILD_DIR"
+        fi
+    else
+        echo "❌ ERROR: CMakeLists.txt not found anywhere in repository"
+        echo ""
+        echo "Diagnostics:"
+        echo "  - Repository exists: $([ -d "$BUILD_DIR" ] && echo 'yes' || echo 'no')"
+        echo "  - Is git repo: $([ -d "$BUILD_DIR/.git" ] && echo 'yes' || echo 'no')"
+        echo "  - Files in root: $(ls -1 "$BUILD_DIR" 2>/dev/null | wc -l)"
+        echo ""
+        echo "Possible solutions:"
+        echo "  1. Remove and re-clone: rm -rf $BUILD_DIR"
+        echo "  2. Check if repository structure changed"
+        echo "  3. Verify git checkout completed: cd $BUILD_DIR && git status"
+        exit 1
+    fi
+else
+    echo "[INFO] ✅ CMakeLists.txt found"
+fi
 echo ""
 
 # Check if virtual environment exists
