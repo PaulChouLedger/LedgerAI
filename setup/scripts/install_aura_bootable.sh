@@ -649,91 +649,17 @@ python3 -m pip uninstall -y onnxruntime onnxruntime-gpu 2>/dev/null || true
 
 # Install OpenWakeWord dependencies first to avoid numpy/pandas binary incompatibility
 # This ensures all packages come from pip (not system packages) and are compatible
-# CRITICAL: Install onnxruntime-gpu from Jetson AI Lab PyPI (preferred) or standard PyPI (fallback)
-# Jetson PyPI provides Jetson-optimized builds, but if it's down, we fall back to standard PyPI
-# OpenWakeWord is compatible with onnxruntime-gpu-1.23.0+ and will use it if installed first
-ONNXRUNTIME_INSTALLED=false
-
-# Strategy 1: Try Jetson PyPI first (preferred - Jetson-optimized)
+# CRITICAL: Install Jetson-optimized onnxruntime-gpu FIRST from Jetson AI Lab PyPI
+# This is specifically built for Jetson devices and avoids ARM CPU detection issues
+# OpenWakeWord is compatible with onnxruntime-gpu-1.23.0 and will use it if installed first
 print_info "Installing onnxruntime-gpu from Jetson AI Lab PyPI (Jetson-optimized)..."
-print_info "   Attempting to connect to Jetson PyPI..."
-if pip install --extra-index-url https://pypi.jetson-ai-lab.io/jp6/cu126 "onnxruntime-gpu>=1.23.0" 2>&1 | tee /tmp/onnxruntime_install.log; then
-    PIP_EXIT_CODE=${PIPESTATUS[0]}
-    if [ "$PIP_EXIT_CODE" -eq 0 ]; then
-        ONNXRUNTIME_INSTALLED=true
-        print_info "✅ onnxruntime-gpu installed successfully from Jetson PyPI"
-    fi
-fi
-
-# Strategy 2: If Jetson PyPI failed (down or unavailable), try standard PyPI
-if [ "$ONNXRUNTIME_INSTALLED" = false ]; then
-    # Check if the error was due to Jetson PyPI being unavailable
-    if grep -qE "Could not find a version|No matching distribution|Connection.*refused|Name or service not known|Temporary failure|timeout" /tmp/onnxruntime_install.log 2>/dev/null; then
-        print_warning "⚠️  Jetson PyPI appears to be unavailable (may be down)"
-        print_info "   Falling back to standard PyPI (onnxruntime 1.23.2)..."
-    else
-        print_warning "⚠️  Failed to install from Jetson PyPI, trying standard PyPI..."
-    fi
-    
-    # Try installing onnxruntime==1.23.2 from standard PyPI (fixes CPU detection crash)
-    print_info "   Attempting to install onnxruntime==1.23.2 from standard PyPI..."
-    pip install "onnxruntime==1.23.2" 2>&1 | tee -a /tmp/onnxruntime_install.log
-    PIP_EXIT_CODE=${PIPESTATUS[0]}
-    
-    if [ "$PIP_EXIT_CODE" -eq 0 ]; then
-        # Verify it's ARM64
-        export ORT_DISABLE_CPUINFO=1
-        export ORT_LOG_LEVEL=3
-        INSTALLED_PATH=$(ORT_DISABLE_CPUINFO=1 ORT_LOG_LEVEL=3 python3 -c "import onnxruntime; import os; print(os.path.dirname(onnxruntime.__file__))" 2>/dev/null || echo "")
-        if [ -n "$INSTALLED_PATH" ]; then
-            SO_FILE=$(find "$INSTALLED_PATH" -name "*.so" -type f 2>/dev/null | head -1)
-            if [ -n "$SO_FILE" ] && file "$SO_FILE" 2>/dev/null | grep -qE "ARM|aarch64"; then
-                RUNTIME_VER=$(ORT_DISABLE_CPUINFO=1 ORT_LOG_LEVEL=3 python3 -c "import onnxruntime; print(onnxruntime.__version__)" 2>/dev/null || echo "unknown")
-                print_info "✅ Installed onnxruntime $RUNTIME_VER from standard PyPI (ARM64 verified)"
-                if [ "$RUNTIME_VER" = "1.23.2" ]; then
-                    print_info "   This version fixes the CPU detection crash"
-                fi
-                # Try to install onnxruntime-gpu metapackage from Jetson PyPI (optional)
-                print_info "   Attempting to install onnxruntime-gpu metapackage from Jetson PyPI (optional)..."
-                pip install --index-url https://pypi.jetson-ai-lab.io/jp6/cu126 "onnxruntime-gpu>=1.23.0" 2>&1 | tee -a /tmp/onnxruntime_install.log || {
-                    print_warning "⚠️  Could not install onnxruntime-gpu metapackage (Jetson PyPI may still be down)"
-                    print_info "   This is OK - the base onnxruntime package is what matters"
-                }
-                ONNXRUNTIME_INSTALLED=true
-            else
-                print_warning "⚠️  Package from standard PyPI is not ARM64 - uninstalling"
-                pip uninstall -y onnxruntime-gpu onnxruntime 2>/dev/null || true
-                ONNXRUNTIME_INSTALLED=false
-            fi
-        else
-            # If import fails, check if package files exist anyway
-            POSSIBLE_PATH=$(python3 -c "import sys; print(sys.path)" 2>/dev/null | grep -oE '/[^"]*site-packages' | head -1)
-            if [ -n "$POSSIBLE_PATH" ] && [ -d "$POSSIBLE_PATH/onnxruntime" ]; then
-                print_info "✅ onnxruntime package files found (import verification skipped)"
-                print_info "   Package was successfully installed - version 1.23.2"
-                # Try to install metapackage (optional)
-                pip install --index-url https://pypi.jetson-ai-lab.io/jp6/cu126 "onnxruntime-gpu>=1.23.0" 2>&1 | tee -a /tmp/onnxruntime_install.log || true
-                ONNXRUNTIME_INSTALLED=true
-            else
-                print_warning "⚠️  Could not verify installation"
-                ONNXRUNTIME_INSTALLED=false
-            fi
-        fi
-    fi
-fi
-
-# Final check: if still not installed, exit with error
-if [ "$ONNXRUNTIME_INSTALLED" = false ]; then
-    print_error "❌ Failed to install onnxruntime-gpu from any source"
+if ! pip install --extra-index-url https://pypi.jetson-ai-lab.io/jp6/cu126 "onnxruntime-gpu>=1.23.0" 2>&1 | tee /tmp/onnxruntime_install.log; then
+    print_error "❌ Failed to install onnxruntime-gpu from Jetson PyPI"
     print_error "   Check logs: /tmp/onnxruntime_install.log"
     print_error "   OpenWakeWord requires onnxruntime-gpu to function"
-    print_error ""
-    print_error "   Possible solutions:"
-    print_error "   1. Check if Jetson PyPI is back online: https://pypi.jetson-ai-lab.io"
-    print_error "   2. Try installing manually: pip install onnxruntime==1.23.2"
-    print_error "   3. Copy onnxruntime from a working device"
     exit 1
 fi
+print_info "✅ onnxruntime-gpu installed successfully from Jetson PyPI"
 
 # IMPORTANT: onnxruntime-gpu==1.23.0 was compiled with NumPy 1.x and is incompatible with NumPy 2.x
 # Check NumPy version and downgrade if needed
