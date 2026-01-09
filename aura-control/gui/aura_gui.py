@@ -1921,6 +1921,8 @@ class AuraGUI(QMainWindow):
             self.red_border_width = 10
             self.red_border_opacity = 0.8
             self.show_red_border = True
+            self.border_overlay.raise_()
+            self.border_overlay.update()
             self.update()
         else:
             print("[AuraGUI] ⚫ Wake word state cleared")
@@ -1929,6 +1931,29 @@ class AuraGUI(QMainWindow):
                 self.show_red_border = False
             self.update()
         print(f"[AuraGUI] 🔴 State: wake_word_detected={_wake_word_detected}, transcribing={_transcribing}, tts_playing={_tts_playing}")
+    
+    @pyqtSlot(bool)
+    def _update_vad_active_waiting_state(self, active):
+        """Thread-safe method to update VAD active waiting state (must be called from GUI thread)"""
+        global _vad_active_waiting
+        _vad_active_waiting = active
+        if active:
+            print("[AuraGUI] 🎤 VAD active - waiting for speech (solid red border)")
+            # Show solid red border immediately (no pulsation)
+            self.red_border_width = 10
+            self.red_border_opacity = 0.8  # Solid, visible red
+            self.show_red_border = True
+            # Immediately update border overlay to show red LED
+            self.border_overlay.raise_()
+            self.border_overlay.update()
+            self.update()  # Trigger main window repaint
+        else:
+            print("[AuraGUI] ⚫ VAD inactive - returning to normal state")
+            # Only clear if not transcribing and not wake word detected
+            if not _transcribing and not _wake_word_detected:
+                self.show_red_border = False
+            self.update()
+        print(f"[AuraGUI] 🔴 State: vad_active_waiting={_vad_active_waiting}, transcribing={_transcribing}, tts_playing={_tts_playing}")
     
     def closeEvent(self, event):
         """Handle application close event"""
@@ -2044,11 +2069,16 @@ def set_wake_word_detected(active):
 def set_vad_active_waiting(active):
     """Set VAD active waiting state - solid red edge when VAD is active and waiting for speech (thread-safe)"""
     global _vad_active_waiting, _window
-    _vad_active_waiting = active
-    if active:
-        print("[AuraGUI] 🎤 VAD active - waiting for speech (solid red border)")
+    if _window:
+        # Use Qt's thread-safe mechanism to update GUI from any thread
+        # This ensures immediate GUI update without waiting for animation timer
+        QMetaObject.invokeMethod(_window, "_update_vad_active_waiting_state",
+                                Qt.QueuedConnection,
+                                Q_ARG(bool, active))
     else:
-        print("[AuraGUI] ⚫ VAD inactive - returning to normal state")
+        # GUI not initialized yet, just set flag
+        _vad_active_waiting = active
+        print("[AuraGUI] ⚠️ Window not initialized, cannot update VAD active waiting state")
 
 def set_tts_playing(active):
     """Set TTS state - aura eye pulsation when AI is speaking"""
