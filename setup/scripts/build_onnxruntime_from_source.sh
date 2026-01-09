@@ -118,27 +118,58 @@ echo "[STEP] 2. Cloning onnxruntime repository..."
 if [ -d "$BUILD_DIR" ]; then
     echo "[INFO] Build directory exists, updating..."
     cd "$BUILD_DIR"
-    git fetch --tags
-    git checkout "v${ONNXRUNTIME_VERSION}" || {
-        echo "⚠️  Version tag v${ONNXRUNTIME_VERSION} not found, using latest"
-        git checkout main
+    git fetch --all --tags
+    git checkout "v${ONNXRUNTIME_VERSION}" 2>/dev/null || {
+        echo "⚠️  Version tag v${ONNXRUNTIME_VERSION} not found, checking available tags..."
+        git fetch --tags
+        LATEST_TAG=$(git tag | grep "^v1.23" | sort -V | tail -1)
+        if [ -n "$LATEST_TAG" ]; then
+            echo "[INFO] Using closest tag: $LATEST_TAG"
+            git checkout "$LATEST_TAG"
+        else
+            echo "⚠️  No v1.23.x tag found, using latest main branch"
+            git checkout main
+            git pull
+        }
     }
     git submodule update --init --recursive
 else
-    echo "[INFO] Cloning repository..."
-    git clone --recursive --depth 1 --branch "v${ONNXRUNTIME_VERSION}" "$ONNXRUNTIME_REPO" "$BUILD_DIR" || {
-        echo "⚠️  Branch v${ONNXRUNTIME_VERSION} not found, cloning main branch..."
-        git clone --recursive "$ONNXRUNTIME_REPO" "$BUILD_DIR"
-        cd "$BUILD_DIR"
-        git checkout "v${ONNXRUNTIME_VERSION}" 2>/dev/null || {
-            echo "⚠️  Tag not found, using latest commit"
+    echo "[INFO] Cloning repository (this may take a few minutes)..."
+    # Clone without depth to allow tag checkout
+    git clone --recursive "$ONNXRUNTIME_REPO" "$BUILD_DIR" || {
+        echo "❌ Failed to clone repository"
+        exit 1
+    }
+    cd "$BUILD_DIR"
+    echo "[INFO] Checking out version v${ONNXRUNTIME_VERSION}..."
+    git fetch --tags
+    git checkout "v${ONNXRUNTIME_VERSION}" 2>/dev/null || {
+        echo "⚠️  Version tag v${ONNXRUNTIME_VERSION} not found, checking available tags..."
+        LATEST_TAG=$(git tag | grep "^v1.23" | sort -V | tail -1)
+        if [ -n "$LATEST_TAG" ]; then
+            echo "[INFO] Using closest tag: $LATEST_TAG"
+            git checkout "$LATEST_TAG"
+            ONNXRUNTIME_VERSION=$(echo "$LATEST_TAG" | sed 's/^v//')
+        else
+            echo "⚠️  No v1.23.x tag found, using latest main branch"
+            git checkout main
         }
     }
+    # Update submodules for the checked out version
+    git submodule update --init --recursive
 fi
 
 cd "$BUILD_DIR"
 echo "[INFO] Repository at: $(pwd)"
 echo "[INFO] Current commit: $(git rev-parse HEAD)"
+echo "[INFO] Current tag/branch: $(git describe --tags --exact-match 2>/dev/null || git branch --show-current || echo 'detached HEAD')"
+echo "[INFO] Verifying CMakeLists.txt exists..."
+if [ ! -f "CMakeLists.txt" ]; then
+    echo "❌ ERROR: CMakeLists.txt not found in repository root"
+    echo "   Repository may not have cloned correctly"
+    exit 1
+fi
+echo "[INFO] ✅ CMakeLists.txt found"
 echo ""
 
 # Check if virtual environment exists
@@ -154,13 +185,32 @@ fi
 # Install Python build dependencies
 echo ""
 echo "[STEP] 4. Installing Python build dependencies..."
-pip install --upgrade pip setuptools wheel numpy protobuf
+echo "[INFO] Installing build tools..."
+pip install --upgrade pip setuptools wheel protobuf
+
+# Install numpy compatible with onnxruntime (need <2.0 for 1.23.0)
+echo "[INFO] Installing numpy <2.0 (required for onnxruntime 1.23.0)..."
+pip install "numpy<2.0,>=1.21.0" || {
+    echo "⚠️  Failed to install compatible numpy version"
+    echo "   Continuing with existing numpy..."
+}
 
 # Configure build
 echo ""
 echo "[STEP] 5. Configuring build..."
-mkdir -p build
-cd build
+echo "[INFO] Creating build directory..."
+mkdir -p "$BUILD_DIR/build"
+cd "$BUILD_DIR/build"
+echo "[INFO] Build directory: $(pwd)"
+echo "[INFO] Source directory: $BUILD_DIR"
+echo "[INFO] Verifying source directory..."
+if [ ! -f "$BUILD_DIR/CMakeLists.txt" ]; then
+    echo "❌ ERROR: CMakeLists.txt not found in source directory"
+    echo "   Source: $BUILD_DIR"
+    exit 1
+fi
+echo "[INFO] ✅ Source directory verified"
+echo ""
 
 # Determine CUDA architecture (Jetson-specific)
 JETSON_MODEL=$(cat /proc/device-tree/model 2>/dev/null | tr -d '\0' || echo "unknown")
@@ -242,7 +292,10 @@ if [ -d "/usr/lib/aarch64-linux-gnu" ]; then
     CMAKE_ARGS+=(-Donnxruntime_CUDNN_HOME=/usr/lib/aarch64-linux-gnu)
 fi
 
-cmake .. "${CMAKE_ARGS[@]}" 2>&1 | tee /tmp/onnxruntime_cmake.log || {
+echo "[INFO] Running CMake configuration..."
+echo "[INFO] Source path: $BUILD_DIR"
+echo "[INFO] Build path: $(pwd)"
+cmake "$BUILD_DIR" "${CMAKE_ARGS[@]}" 2>&1 | tee /tmp/onnxruntime_cmake.log || {
     echo "❌ CMake configuration failed"
     echo "   Check logs: /tmp/onnxruntime_cmake.log"
     echo ""
@@ -250,6 +303,7 @@ cmake .. "${CMAKE_ARGS[@]}" 2>&1 | tee /tmp/onnxruntime_cmake.log || {
     echo "  1. CUDA not found - install CUDA toolkit"
     echo "  2. CMake version too old - need >= 3.18"
     echo "  3. Missing dependencies - check error messages above"
+    echo "  4. Source directory issue - verify CMakeLists.txt exists"
     exit 1
 }
 
@@ -288,19 +342,37 @@ ninja install 2>&1 | tee /tmp/onnxruntime_install.log || {
 # Install Python package
 echo ""
 echo "[STEP] 8. Installing Python package..."
-cd "$BUILD_DIR"
-pip install -e . --no-build-isolation 2>&1 | tee /tmp/onnxruntime_pip_install.log || {
-    echo "⚠️  pip install -e failed, trying alternative method..."
-    # Alternative: copy built files
-    PYTHON_SITE_PACKAGES=$($PYTHON_EXECUTABLE -c "import site; print(site.getsitepackages()[0] if hasattr(site, 'getsitepackages') and site.getsitepackages() else site.USER_SITE)")
-    if [ -n "$PYTHON_SITE_PACKAGES" ]; then
-        echo "[INFO] Copying built package to: $PYTHON_SITE_PACKAGES"
-        cp -r "$INSTALL_PREFIX/lib/python*/site-packages/onnxruntime" "$PYTHON_SITE_PACKAGES/" 2>/dev/null || {
-            echo "⚠️  Could not copy package files automatically"
-            echo "   You may need to manually install the package"
+cd "$BUILD_DIR/build"
+
+# First try installing the built wheel if it exists
+if [ -f "dist/onnxruntime_gpu-${ONNXRUNTIME_VERSION}-*.whl" ] || [ -f "dist/onnxruntime-${ONNXRUNTIME_VERSION}-*.whl" ]; then
+    echo "[INFO] Found built wheel, installing..."
+    pip install dist/onnxruntime*.whl 2>&1 | tee /tmp/onnxruntime_pip_install.log || {
+        echo "⚠️  Wheel installation failed, trying build_python..."
+    }
+else
+    echo "[INFO] Building Python package..."
+    # Build Python package using cmake --build
+    cmake --build . --target onnxruntime_python 2>&1 | tee /tmp/onnxruntime_pip_install.log || {
+        echo "⚠️  Python package build failed, trying pip install -e..."
+        cd "$BUILD_DIR"
+        pip install -e . --no-build-isolation 2>&1 | tee -a /tmp/onnxruntime_pip_install.log || {
+            echo "⚠️  pip install -e failed, trying alternative method..."
+            # Alternative: copy built files
+            PYTHON_SITE_PACKAGES=$($PYTHON_EXECUTABLE -c "import site; print(site.getsitepackages()[0] if hasattr(site, 'getsitepackages') and site.getsitepackages() else site.USER_SITE)" 2>/dev/null || echo "")
+            if [ -n "$PYTHON_SITE_PACKAGES" ] && [ -d "$INSTALL_PREFIX/lib" ]; then
+                echo "[INFO] Copying built package to: $PYTHON_SITE_PACKAGES"
+                find "$INSTALL_PREFIX/lib" -name "onnxruntime" -type d | head -1 | while read pkg_dir; do
+                    if [ -d "$pkg_dir" ]; then
+                        cp -r "$pkg_dir" "$PYTHON_SITE_PACKAGES/" 2>/dev/null && echo "[INFO] ✅ Copied package files" || {
+                            echo "⚠️  Could not copy package files automatically"
+                        }
+                    fi
+                done
+            fi
         }
-    fi
-}
+    }
+fi
 
 # Verify installation
 echo ""
@@ -308,17 +380,61 @@ echo "[STEP] 9. Verifying installation..."
 export ORT_DISABLE_CPUINFO=1
 export ORT_LOG_LEVEL=3
 
+# Check what version pip shows
+PIP_VERSION=$(pip show onnxruntime 2>/dev/null | grep "^Version:" | awk '{print $2}' || echo "")
+if [ -z "$PIP_VERSION" ]; then
+    echo "[ERROR] ❌ onnxruntime package not found in pip"
+    echo "   Build may have failed - check logs above"
+    exit 1
+fi
+
+echo "[INFO] Installed version (from pip): $PIP_VERSION"
+echo "[INFO] Expected version: $ONNXRUNTIME_VERSION"
+
+# Check if this is the version we built or an existing installation
+if [ "$PIP_VERSION" != "$ONNXRUNTIME_VERSION" ]; then
+    echo "[WARNING] ⚠️  Version mismatch detected!"
+    echo "   Expected: $ONNXRUNTIME_VERSION"
+    echo "   Found: $PIP_VERSION"
+    echo "   This may be an existing installation, not the newly built version"
+    echo ""
+    echo "   To use the newly built version:"
+    echo "   1. Uninstall existing: pip uninstall -y onnxruntime onnxruntime-gpu"
+    echo "   2. Reinstall from build: pip install $BUILD_DIR/build/dist/onnxruntime*.whl"
+    echo ""
+    read -p "Continue verification anyway? (y/N): " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        exit 1
+    fi
+fi
+
+# Try to import
+echo "[INFO] Testing import (with ORT_DISABLE_CPUINFO=1)..."
 if ORT_DISABLE_CPUINFO=1 ORT_LOG_LEVEL=3 python3 -c "import onnxruntime; print(f'✅ onnxruntime imported successfully'); print(f'Version: {onnxruntime.__version__}')" 2>&1; then
     INSTALLED_VERSION=$(ORT_DISABLE_CPUINFO=1 ORT_LOG_LEVEL=3 python3 -c "import onnxruntime; print(onnxruntime.__version__)" 2>/dev/null || echo "unknown")
-    echo "[INFO] ✅ onnxruntime installed successfully"
+    INSTALLED_LOCATION=$(python3 -c "import onnxruntime; import os; print(os.path.dirname(onnxruntime.__file__))" 2>/dev/null || echo "unknown")
+    echo "[INFO] ✅ onnxruntime installed and importable"
     echo "[INFO]    Version: $INSTALLED_VERSION"
-    echo "[INFO]    Location: $(python3 -c 'import onnxruntime; import os; print(os.path.dirname(onnxruntime.__file__))' 2>/dev/null || echo 'unknown')"
+    echo "[INFO]    Location: $INSTALLED_LOCATION"
+    
+    # Check if location matches our build
+    if echo "$INSTALLED_LOCATION" | grep -q "$BUILD_DIR\|$INSTALL_PREFIX"; then
+        echo "[INFO] ✅ Package location matches build directory"
+    else
+        echo "[WARNING] ⚠️  Package location doesn't match build directory"
+        echo "   This may be an existing installation, not the newly built version"
+    fi
 else
     echo "[WARNING] ⚠️  Import test failed (may crash due to CPU detection)"
     echo "[INFO]    Checking if package files exist..."
     if pip show onnxruntime 2>/dev/null | grep -q "Version:"; then
         echo "[INFO] ✅ Package is installed (import may crash but package exists)"
-        pip show onnxruntime
+        echo "[INFO]    Version: $PIP_VERSION"
+        echo "[INFO]    Location: $(pip show onnxruntime | grep '^Location:' | awk '{print $2}')"
+        echo ""
+        echo "   Note: Import failed, but package is installed."
+        echo "   This may work at runtime with ORT_DISABLE_CPUINFO=1 set in your environment."
     else
         echo "[ERROR] ❌ Package installation verification failed"
         exit 1
@@ -327,18 +443,43 @@ fi
 
 echo ""
 echo "=========================================="
-echo "  Build Complete!"
+echo "  Build Summary"
 echo "=========================================="
 echo ""
-echo "✅ onnxruntime-gpu has been built from source"
+if [ -f "$BUILD_DIR/build/build.ninja" ] || [ -f "$BUILD_DIR/build/Makefile" ]; then
+    echo "✅ Build configuration completed"
+    if [ -f "$BUILD_DIR/build/onnxruntime/libonnxruntime.so" ] || [ -d "$BUILD_DIR/build/onnxruntime" ]; then
+        echo "✅ Build artifacts found"
+    else
+        echo "⚠️  Build artifacts not found - build may have failed"
+    fi
+else
+    echo "⚠️  Build configuration may not have completed"
+fi
+
+if pip show onnxruntime 2>/dev/null | grep -q "Version:"; then
+    INSTALLED_VER=$(pip show onnxruntime | grep "^Version:" | awk '{print $2}')
+    echo "✅ Package installed: onnxruntime $INSTALLED_VER"
+    if [ "$INSTALLED_VER" = "$ONNXRUNTIME_VERSION" ]; then
+        echo "✅ Version matches expected: $ONNXRUNTIME_VERSION"
+    else
+        echo "⚠️  Version mismatch: expected $ONNXRUNTIME_VERSION, got $INSTALLED_VER"
+    fi
+else
+    echo "❌ Package not found in pip"
+fi
+
 echo ""
 echo "Build artifacts:"
-echo "   Build directory: $BUILD_DIR"
+echo "   Source directory: $BUILD_DIR"
+echo "   Build directory: $BUILD_DIR/build"
 echo "   Install prefix: $INSTALL_PREFIX"
 echo ""
-echo "To clean up build files (optional):"
+echo "To clean up build files (optional, saves ~5-10GB):"
 echo "   rm -rf $BUILD_DIR"
 echo "   # Keep $INSTALL_PREFIX if you want to reuse the installation"
 echo ""
 echo "Note: The built package should work with ORT_DISABLE_CPUINFO=1 set"
+echo "   Add to your environment or systemd service:"
+echo "   export ORT_DISABLE_CPUINFO=1"
 echo ""

@@ -539,7 +539,7 @@
       },
       {
         "role": "assistant",
-        "content": "REASONING:\n- Item: Paul Chou | Evidence: \"\"CEO and Co-Founder of LedgerAI\" | Action: [KEEP]\"\n- Item: Bob Carella | Evidence: \"\"CFO and Co-Founder\" | Action: [KEEP]\"\n- Item: David Lara | Evidence: \"\"COO and Co-Founder\" | Action: [KEEP]\"\n- Item: Jorge Guinovart | Evidence: \"\"CMO and Co-Founder\" | Action: [KEEP]\"\n- End of scan.\n\n\nFINAL ANSWER:\nThe co-founders of LedgerAI are Paul Chou, Bob Carella, David Lara, and Jorge Guinovart."
+        "content": "REASONING:\n- Item: Paul Chou\n\n  - Evidence: \"CEO and Co-Founder of LedgerAI\"\n\n  - Action: [KEEP]\n- Item: Bob Carella\n\n  - Evidence: \"CFO and Co-Founder\"\n\n  - Action: [KEEP]\n- Item: David Lara\n\n  - Evidence: \"COO and Co-Founder\"\n\n  - Action: [KEEP]\n- Item: Jorge Guinovart\n\n  - Evidence: \"CMO and Co-Founder\"\n\n  - Action: [KEEP]\n- End of scan.\n\n\nFINAL ANSWER:\nThe co-founders of LedgerAI are Paul Chou, Bob Carella, David Lara, and Jorge Guinovart."
       }
     ]
   },
@@ -555,7 +555,7 @@
       },
       {
         "role": "assistant",
-        "content": "REASONING:\n- Item: Emily Davis | Evidence: \"\"Head of Marketing at TechCorp\" | Action: [DISCARD] (Reason: Head of Marketing, not Co-Founder).\"\n- End of scan.\n\n\nFINAL ANSWER:\nNo co-founders of TechCorp are mentioned in the context."
+        "content": "REASONING:\n- Item: Emily Davis\n\n  - Evidence: \"Head of Marketing at TechCorp\"\n\n  - Action: [DISCARD] (Reason: Head of Marketing, not Co-Founder).\n- End of scan.\n\n\nFINAL ANSWER:\nNo co-founders of TechCorp are mentioned in the context."
       }
     ]
   },
