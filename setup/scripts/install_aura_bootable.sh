@@ -1832,6 +1832,76 @@ echo ""
 echo "=========================================="
 
 # ============================================================================
+# Pre-Step: Check .env configuration before power mode (may trigger reboot)
+# ============================================================================
+# Check if .env file needs configuration before proceeding to power mode step
+# This is important because after reboot, Aura will start automatically via systemd
+ENV_FILE="$LEDGERAI_DIR/.env"
+ENV_NEEDS_CONFIG=false
+
+if [ -f "$ENV_FILE" ]; then
+    # Check if .env has placeholder/empty values for required keys
+    # Check if ELEVENLABS_API_KEY is empty, has placeholder, or only whitespace
+    ELEVENLABS_KEY_VALUE=$(grep "^ELEVENLABS_API_KEY=" "$ENV_FILE" 2>/dev/null | cut -d'=' -f2- | tr -d '[:space:]' || echo "")
+    if [ -z "$ELEVENLABS_KEY_VALUE" ] || [ "$ELEVENLABS_KEY_VALUE" = "your_api_key_here" ]; then
+        ENV_NEEDS_CONFIG=true
+    fi
+else
+    ENV_NEEDS_CONFIG=true
+fi
+
+if [ "$ENV_NEEDS_CONFIG" = true ]; then
+    echo ""
+    print_warning "⚠️  IMPORTANT: Configure .env file before power mode setup"
+    print_warning "⚠️  After reboot, Aura will start automatically and needs API keys configured"
+    echo ""
+    print_info "Current .env location: $ENV_FILE"
+    echo ""
+    print_info "Required API keys:"
+    echo "  - ELEVENLABS_API_KEY (required for TTS/voice)"
+    echo "  - TELEGRAM_BOT_TOKEN (optional)"
+    echo "  - GITHUB_TOKEN (optional)"
+    echo ""
+    print_info "You can configure .env now by:"
+    echo "  1. Opening in editor: nano $ENV_FILE"
+    echo "  2. Or use interactive config: cd $LEDGERAI_DIR && ./aura_config.sh"
+    echo "  3. Copy/paste your API keys into the file"
+    echo ""
+    print_warning "⚠️  After configuring .env, press ENTER to continue with power mode setup"
+    print_warning "⚠️  Or type 'skip' and press ENTER to skip .env configuration (not recommended)"
+    echo ""
+    read -p "Press ENTER to continue (or type 'skip'): " user_input
+    
+    if [ "$user_input" != "skip" ]; then
+        # Give user instructions to edit the file
+        print_info "Opening .env file for editing..."
+        print_info "After editing, save and close the editor (nano: Ctrl+X, then Y, then Enter)"
+        echo ""
+        read -p "Press ENTER when ready to edit .env file... " dummy
+        ${EDITOR:-nano} "$ENV_FILE" || {
+            print_warning "Editor not available, you can edit manually: nano $ENV_FILE"
+            read -p "Press ENTER after you've edited the .env file... " dummy
+        }
+        
+        # Verify if they actually configured it
+        ELEVENLABS_KEY_VALUE=$(grep "^ELEVENLABS_API_KEY=" "$ENV_FILE" 2>/dev/null | cut -d'=' -f2- | tr -d '[:space:]' || echo "")
+        if [ -z "$ELEVENLABS_KEY_VALUE" ] || [ "$ELEVENLABS_KEY_VALUE" = "your_api_key_here" ]; then
+            print_warning "⚠️  ELEVENLABS_API_KEY still appears to be empty or unconfigured"
+            read -p "Continue anyway? (yes/no): " continue_anyway
+            if [ "$continue_anyway" != "yes" ] && [ "$continue_anyway" != "y" ]; then
+                print_warning "Installation paused. Configure .env file and re-run the installation script."
+                exit 0
+            fi
+        else
+            print_info "✅ .env file appears to be configured"
+        fi
+    else
+        print_warning "⚠️  Skipping .env configuration - remember to configure it before running Aura!"
+    fi
+    echo ""
+fi
+
+# ============================================================================
 # Step 15: Configure Jetson MAXN Power Mode (LAST STEP - may trigger reboot)
 # ============================================================================
 print_step "15. Configuring Jetson MAXN Power Mode (final step - may trigger reboot)..."

@@ -686,14 +686,152 @@ def test_scenario(model, tokenizer, scenario, model_type='transformers'):
         
         missing = [n for n in expected if n not in correctly_found]
         
-        # Calculate score
+        # ========================================================================
+        # CRITICAL: Check for DISCARD violations and reasoning errors
+        # ========================================================================
+        
+        # Extract DISCARD items from reasoning section
+        reasoning_section = ""
+        final_answer_section_for_check = clean_response if clean_response else assistant_response
+        
+        if "FINAL ANSWER:" in assistant_response:
+            parts = assistant_response.split("FINAL ANSWER:", 1)
+            reasoning_section = parts[0].strip()
+            final_answer_section_for_check = parts[1].strip() if len(parts) > 1 else ""
+        elif "Final Answer:" in assistant_response:
+            parts = assistant_response.split("Final Answer:", 1)
+            reasoning_section = parts[0].strip()
+            final_answer_section_for_check = parts[1].strip() if len(parts) > 1 else ""
+        else:
+            # No FINAL ANSWER marker - entire response is reasoning (problem)
+            reasoning_section = assistant_response
+            final_answer_section_for_check = ""
+        
+        # Extract DISCARD items from reasoning using better pattern matching
+        discard_items_from_reasoning = []
+        lines = reasoning_section.split('\n')
+        current_item = None
+        
+        for i, line in enumerate(lines):
+            line_stripped = line.strip()
+            # Check for Item line
+            if '- Item:' in line or 'Item:' in line:
+                # Extract item name
+                item_match = re.search(r'[-\s]*Item:\s*([^\n-]+?)(?:\s*[-]|\s*Evidence|\s*$)', line, re.IGNORECASE)
+                if item_match:
+                    current_item = item_match.group(1).strip()
+                    # Clean up item (remove trailing punctuation)
+                    current_item = re.sub(r'[.,;:]$', '', current_item).strip()
+            # Check for Action line with DISCARD
+            elif current_item and '[DISCARD]' in line and '[KEEP]' not in line:
+                if current_item and current_item not in discard_items_from_reasoning:
+                    discard_items_from_reasoning.append(current_item)
+                current_item = None
+            # Check for Action line with KEEP
+            elif current_item and '[KEEP]' in line:
+                current_item = None
+            # Reset on end markers
+            elif 'End of scan' in line or 'FINAL ANSWER' in line:
+                current_item = None
+        
+        # Check if any DISCARD items appear in FINAL ANSWER (violation)
+        discard_violations = []
+        if final_answer_section_for_check and discard_items_from_reasoning:
+            for discard_item in discard_items_from_reasoning:
+                # Check if discard item (or key parts) appears in final answer
+                item_lower = discard_item.lower()
+                final_answer_lower = final_answer_section_for_check.lower()
+                
+                # Split item into parts for better matching
+                item_parts = [p for p in item_lower.split() if len(p) > 2]  # Words > 2 chars
+                
+                if len(item_parts) >= 2:
+                    # Multi-word item: check if significant parts appear together
+                    # Look for both first and last significant word
+                    first_part = item_parts[0]
+                    last_part = item_parts[-1]
+                    if first_part in final_answer_lower and last_part in final_answer_lower:
+                        # Check if they appear close together (within 50 chars suggests same entity)
+                        first_idx = final_answer_lower.find(first_part)
+                        last_idx = final_answer_lower.find(last_part)
+                        if first_idx != -1 and last_idx != -1 and abs(first_idx - last_idx) < 50:
+                            # Additional check: make sure it's not part of an expected item
+                            is_part_of_expected = False
+                            for exp in expected:
+                                if item_lower in exp.lower() or exp.lower() in item_lower:
+                                    is_part_of_expected = True
+                                    break
+                            if not is_part_of_expected:
+                                discard_violations.append(discard_item)
+                elif len(item_parts) == 1 and len(item_parts[0]) > 3:
+                    # Single word item - check if it appears as standalone word
+                    if re.search(rf'\b{re.escape(item_parts[0])}\b', final_answer_section_for_check, re.IGNORECASE):
+                        # But check it's not part of an expected item
+                        is_part_of_expected = False
+                        for exp in expected:
+                            if item_parts[0] in exp.lower() or exp.lower() in item_parts[0]:
+                                is_part_of_expected = True
+                                break
+                        if not is_part_of_expected and item_parts[0] not in ['the', 'and', 'or', 'are', 'is', 'was', 'were', 'no', 'not']:
+                            discard_violations.append(discard_item)
+        
+        # Check for missing [KEEP]/[DISCARD] actions in reasoning
+        has_action_markers = '[KEEP]' in reasoning_section or '[DISCARD]' in reasoning_section
+        has_items = '- Item:' in reasoning_section or 'Item:' in reasoning_section
+        missing_actions = has_items and not has_action_markers and "REASONING" in reasoning_section
+        
+        # Check for reasoning errors (e.g., item marked as DISCARD when evidence shows it should be KEEP)
+        reasoning_errors = []
+        
+        # General check: look for items marked as DISCARD where evidence contains query keywords
+        # This catches cases like "CEO and Co-Founder" marked as DISCARD for co-founder queries
+        if "co-founder" in scenario.get('query', '').lower() or "founder" in scenario.get('query', '').lower():
+            # Look for items marked as DISCARD where evidence contains "Co-Founder"
+            item_pattern = r'- Item:\s*([^\n-]+?)\s*-?\s*Evidence[^\n]*?([^\n]*)\s*-?\s*Action:\s*\[DISCARD\]'
+            matches = re.findall(item_pattern, reasoning_section, re.IGNORECASE | re.MULTILINE | re.DOTALL)
+            for item_name, evidence in matches:
+                item_name = item_name.strip()
+                evidence_text = evidence.strip()
+                # Check if evidence contains "Co-Founder" or "co-founder" but action is DISCARD
+                if ("Co-Founder" in evidence_text or "co-founder" in evidence_text or "Co-Founder" in evidence_text) and item_name:
+                    # Additional check: make sure it's not a false positive (e.g., "not a co-founder")
+                    if "not" not in evidence_text.lower()[:50] and "no" not in evidence_text.lower()[:50]:
+                        reasoning_errors.append(f"{item_name} incorrectly marked as [DISCARD] despite evidence showing Co-Founder")
+        
+        # Specific check for Paul Chou (hardcoded for this common error)
+        if "Paul Chou" in reasoning_section:
+            # Check if Paul Chou was marked as DISCARD
+            paul_discard_pattern = r'Paul Chou.*?\[DISCARD\]'
+            if re.search(paul_discard_pattern, reasoning_section, re.IGNORECASE | re.DOTALL):
+                # Check if evidence says he's Co-Founder
+                paul_section_start = reasoning_section.find("Paul Chou")
+                if paul_section_start != -1:
+                    paul_section = reasoning_section[max(0, paul_section_start-100):paul_section_start+600]
+                    # Check if evidence contains "Co-Founder" or "CEO and Co-Founder"
+                    if ("Co-Founder" in paul_section or "co-founder" in paul_section) and "CEO" in paul_section:
+                        # Additional check: make sure it's not a negative statement
+                        paul_evidence = re.search(r'Evidence[^\n]*?([^\n]{50,300})', paul_section, re.IGNORECASE | re.DOTALL)
+                        if paul_evidence:
+                            evidence_text = paul_evidence.group(1)
+                            if "CEO and Co-Founder" in evidence_text or ("CEO" in evidence_text and "Co-Founder" in evidence_text):
+                                reasoning_errors.append("Paul Chou incorrectly marked as [DISCARD] despite being 'CEO and Co-Founder' - he IS a co-founder")
+        
+        # Calculate base score
         if not expected:
-            score = 100.0 if not incorrectly_included else 0.0
+            score = 100.0 if not incorrectly_included and not discard_violations else 0.0
         else:
             # Weighted score: correct - 0.5 * incorrect
             points = len(correctly_found) / len(expected) * 100
             penalty = (len(incorrectly_included) / max(1, len(found_items))) * 50
             score = max(0, points - penalty)
+        
+        # Apply penalties for violations
+        if discard_violations:
+            score = max(0, score - (len(discard_violations) * 25))  # Penalty: -25% per violation
+        if missing_actions:
+            score = max(0, score - 35)  # Penalty: -35% for missing actions
+        if reasoning_errors:
+            score = max(0, score - (len(reasoning_errors) * 20))  # Penalty: -20% per reasoning error
         
         expected_label = "Expected" if answer_type == 'text' else f"Expected {answer_type.title()}"
         print(f"\n✅ {expected_label}: {expected}")
@@ -707,7 +845,49 @@ def test_scenario(model, tokenizer, scenario, model_type='transformers'):
         if incorrectly_included:
             print(f"   ❌ Incorrectly Included: {incorrectly_included}")
         
+        # Report DISCARD violations
+        if discard_violations:
+            print(f"\n   ❌ DISCARD VIOLATION: {len(discard_violations)} [DISCARD] item(s) appear in FINAL ANSWER!")
+            for violation in discard_violations[:5]:  # Show first 5
+                print(f"      - '{violation}' was marked [DISCARD] in reasoning but appears in FINAL ANSWER")
+            print(f"      💡 This is a critical error - model is not respecting DISCARD rules")
+        
+        # Report missing actions
+        if missing_actions:
+            print(f"\n   ❌ REASONING FORMAT ERROR: Reasoning has items but missing [KEEP]/[DISCARD] actions!")
+            print(f"      - Items found in reasoning but no Action markers")
+            print(f"      - This indicates the model is not following the expected reasoning format")
+        
+        # Report reasoning errors
+        if reasoning_errors:
+            print(f"\n   ❌ REASONING LOGIC ERROR: {len(reasoning_errors)} error(s) detected!")
+            for error in reasoning_errors[:3]:  # Show first 3
+                print(f"      - {error}")
+            print(f"      💡 Model's reasoning is incorrect despite correct FINAL ANSWER")
+        
         print(f"   📈 Score: {score:.2f}%")
+        
+        # Additional diagnostic for "No Co-Founders" test
+        if len(expected) == 0 and "no" in scenario.get('query', '').lower() and ("co-founders" in scenario.get('query', '').lower() or "founder" in scenario.get('query', '').lower()):
+            # This is a "no co-founders" test - FINAL ANSWER should say no co-founders, not list CEO/CTO
+            not_expected_in_answer = [name for name in not_expected if name.lower() in final_answer_section_for_check.lower()]
+            if not_expected_in_answer:
+                print(f"\n   ❌ INCORRECT FINAL ANSWER: Query asks for co-founders (none exist), but FINAL ANSWER lists CEO/CTO!")
+                print(f"      - FINAL ANSWER should state: 'No co-founders' or similar")
+                print(f"      - Instead contains: {not_expected_in_answer}")
+                print(f"      - FINAL ANSWER excerpt: {final_answer_section_for_check[:250]}...")
+                score = max(0, score - 40)  # Heavy penalty for wrong answer structure
+        
+        # Additional diagnostic for benefits query
+        if "benefits" in scenario.get('query', '').lower() and "localized" in scenario.get('query', '').lower():
+            # Benefits query should extract benefits, not drawbacks
+            if any(drawback in final_answer_section_for_check.lower() for drawback in ["delayed decision-making", "reactive governance", "lack of predictive"]):
+                print(f"\n   ❌ INCORRECT CONTENT: Query asks for BENEFITS of localized AI but FINAL ANSWER contains DRAWBACKS!")
+                print(f"      - Query: {scenario.get('query', '')}")
+                print(f"      - FINAL ANSWER should list benefits (On-Premises, data never leaves, etc.)")
+                print(f"      - Instead contains drawbacks (Delayed decision-making, Reactive, etc.)")
+                print(f"      - FINAL ANSWER excerpt: {final_answer_section_for_check[:300]}...")
+                score = max(0, score - 50)  # Heavy penalty for completely wrong content
         
         return {
             "name": scenario['name'],
@@ -716,7 +896,10 @@ def test_scenario(model, tokenizer, scenario, model_type='transformers'):
             "correct": correctly_found,
             "missing": missing,
             "incorrect": incorrectly_included,
-            "answer_type": answer_type
+            "answer_type": answer_type,
+            "discard_violations": discard_violations if 'discard_violations' in locals() else [],
+            "missing_actions": missing_actions if 'missing_actions' in locals() else False,
+            "reasoning_errors": reasoning_errors if 'reasoning_errors' in locals() else []
         }
         
     except Exception as e:
@@ -947,16 +1130,37 @@ def run_tests():
     total_score = 0
     cot_count = 0
     
+    total_discard_violations = 0
+    total_missing_actions = 0
+    total_reasoning_errors = 0
+    
     for r in results:
         print(f"\n{r['name']}:")
         print(f"   CoT Reasoning: {'✅' if r['has_cot'] else '❌'}")
         print(f"   Score: {r['score']:.2f}%")
+        
+        # Show detailed results
         if r['correct']:
             print(f"   ✅ Found: {r['correct']}")
         if r['missing']:
             print(f"   ⚠️  Missing: {r['missing']}")
         if r['incorrect']:
             print(f"   ❌ Incorrect: {r['incorrect']}")
+        
+        # Show violations and errors
+        discard_viols = r.get('discard_violations', [])
+        if discard_viols:
+            total_discard_violations += len(discard_viols)
+            print(f"   ⚠️  DISCARD Violation: {len(discard_viols)} [DISCARD] item(s) in FINAL ANSWER: {discard_viols[:3]}")
+        
+        if r.get('missing_actions', False):
+            total_missing_actions += 1
+            print(f"   ⚠️  Missing Actions: Reasoning has items but no [KEEP]/[DISCARD] actions")
+        
+        reasoning_errs = r.get('reasoning_errors', [])
+        if reasoning_errs:
+            total_reasoning_errors += len(reasoning_errs)
+            print(f"   ⚠️  Reasoning Error: {len(reasoning_errs)} error(s) detected")
             
         total_score += r['score']
         if r['has_cot']:
@@ -977,6 +1181,28 @@ def run_tests():
     print(f"Overall Results:")
     print(f"   Average Score: {avg_score:.2f}%")
     print(f"   CoT Reasoning: {cot_count}/{len(results)} ({cot_pct:.1f}%)")
+    
+    # Report violations and errors
+    print(f"\n   Critical Issues:")
+    if total_discard_violations > 0:
+        print(f"   ❌ DISCARD Violations: {total_discard_violations} total (should be 0)")
+        print(f"      - Items marked [DISCARD] in reasoning appear in FINAL ANSWER")
+        print(f"      - This violates the core DISCARD rule")
+    else:
+        print(f"   ✅ DISCARD Violations: 0 (correct!)")
+    
+    if total_missing_actions > 0:
+        print(f"   ❌ Missing Actions: {total_missing_actions} test(s) missing [KEEP]/[DISCARD] in reasoning")
+        print(f"      - Model not following expected reasoning format")
+    else:
+        print(f"   ✅ Reasoning Format: All tests have [KEEP]/[DISCARD] actions")
+    
+    if total_reasoning_errors > 0:
+        print(f"   ❌ Reasoning Errors: {total_reasoning_errors} logic error(s) detected")
+        print(f"      - Model's reasoning is incorrect (e.g., marking Co-Founder as DISCARD)")
+    else:
+        print(f"   ✅ Reasoning Logic: No errors detected")
+    
     if len(type_scores) > 1:
         print(f"\n   Breakdown by Query Type:")
         for qtype, scores in type_scores.items():
@@ -984,14 +1210,35 @@ def run_tests():
             print(f"      {qtype.title()}: {avg_type_score:.2f}% ({len(scores)} tests)")
     print(f"{'='*80}")
     
-    if avg_score > 80 and cot_pct > 75:
-        print("\n✅ Model shows strong accuracy and CoT reasoning!")
-    else:
-        print("\n❌ Model needs more training. Consider:")
-        print("   - Increasing training epochs (30-40)")
-        print("   - Adding more training examples (15-20 total)")
-        print("   - Adjusting learning rate")
-        print("   - Fixing input truncation (LedgerAI test failed due to truncation)")
+    # Enhanced recommendations based on violations
+    print(f"\n⚠️  Model performance summary:")
+    print(f"   ✅ Accuracy: {'Good' if avg_score > 80 else 'Needs improvement'}")
+    print(f"   ✅ CoT Reasoning: {'Present' if cot_pct > 75 else 'Missing'}")
+    if total_discard_violations > 0:
+        print(f"   ❌ DISCARD Enforcement: {total_discard_violations} violations (should be 0)")
+        print(f"      💡 Model is not respecting DISCARD rules - needs retraining")
+    if total_missing_actions > 0:
+        print(f"   ❌ Reasoning Format: {total_missing_actions} test(s) missing [KEEP]/[DISCARD] actions")
+        print(f"      💡 Model not following expected format - needs more training examples")
+    if total_reasoning_errors > 0:
+        print(f"   ❌ Reasoning Logic: {total_reasoning_errors} error(s) detected")
+        print(f"      💡 Model's reasoning is incorrect - needs better training examples")
+    
+    print(f"\n💡 Recommendations:")
+    if total_discard_violations > 0:
+        print(f"   - Focus on DISCARD enforcement in training dataset")
+        print(f"   - Add examples emphasizing: items marked [DISCARD] must NEVER appear in FINAL ANSWER")
+        print(f"   - Verify system prompt includes explicit DISCARD rules")
+    if total_missing_actions > 0:
+        print(f"   - Add training examples showing proper [KEEP]/[DISCARD] action format")
+        print(f"   - Ensure all reasoning examples have explicit Action markers")
+    if total_reasoning_errors > 0:
+        print(f"   - Add more explicit examples for complex cases (e.g., 'CEO and Co-Founder')")
+        print(f"   - Emphasize: read complete descriptions - titles may appear later in text")
+    if avg_score < 80:
+        print(f"   - Increase training epochs (30-40) for better learning")
+        print(f"   - Add more diverse training examples")
+        print(f"   - Verify training dataset has no violations")
 
 if __name__ == "__main__":
     run_tests()
