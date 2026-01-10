@@ -43,8 +43,7 @@ After=multi-user.target
 
 [Service]
 Type=oneshot
-ExecStart=$NVPMODEL_PATH -m 0
-ExecStart=$JETSON_CLOCKS_PATH
+ExecStart=/bin/sh -c "$NVPMODEL_PATH -m 0; $JETSON_CLOCKS_PATH"
 RemainAfterExit=yes
 
 [Install]

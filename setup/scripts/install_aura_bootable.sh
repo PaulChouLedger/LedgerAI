@@ -1843,16 +1843,38 @@ if [ -f /etc/nv_tegra_release ] || [ -f /proc/device-tree/model ] && grep -q "Je
     
     # Check if nvpmodel command exists
     if command -v nvpmodel >/dev/null 2>&1; then
-        print_info "Setting MAXN power mode (mode 0)..."
-        if sudo nvpmodel -m 0; then
-                print_info "✅ MAXN power mode configured successfully"
+        # Check current power mode first
+        CURRENT_MODE_BEFORE=$(sudo nvpmodel -q 2>/dev/null | grep -oP "NV Power Mode: \K[0-9]+" || echo "unknown")
+        
+        if [ "$CURRENT_MODE_BEFORE" != "0" ]; then
+            print_info "Setting MAXN power mode (mode 0)..."
+            print_info "Current power mode: $CURRENT_MODE_BEFORE (target: 0 = MAXN)"
+            
+            # Try to set power mode non-interactively
+            # Answer "no" to avoid immediate reboot during installation
+            # The systemd service will set it properly on boot (when no prompt is needed)
+            if echo "no" | sudo nvpmodel -m 0 >/dev/null 2>&1; then
+                # Check if mode actually changed
+                sleep 1
+                CURRENT_MODE_AFTER=$(sudo nvpmodel -q 2>/dev/null | grep -oP "NV Power Mode: \K[0-9]+" || echo "unknown")
+                if [ "$CURRENT_MODE_AFTER" = "0" ]; then
+                    print_info "✅ MAXN power mode configured successfully"
+                else
+                    print_warning "⚠️  Power mode change requires reboot - will be set by systemd service on next boot"
+                fi
             else
-                print_warning "⚠️  Failed to set nvpmodel - continuing anyway"
+                # If it fails, the mode change will be handled by systemd service on reboot
+                print_warning "⚠️  Power mode change requires reboot - will be set by systemd service on next boot"
+            fi
+        else
+            print_info "✅ MAXN power mode already set (mode 0)"
         fi
         
         # Verify current power mode
         CURRENT_MODE=$(sudo nvpmodel -q 2>/dev/null | grep -oP "NV Power Mode: \K[0-9]+" || echo "unknown")
-        print_info "Current power mode: $CURRENT_MODE (0 = MAXN)"
+        if [ "$CURRENT_MODE" != "0" ]; then
+            print_info "Current power mode: $CURRENT_MODE (will be set to 0 on next boot via systemd service)"
+        fi
     else
         print_warning "⚠️  nvpmodel command not found - power mode configuration skipped"
     fi
@@ -1895,6 +1917,9 @@ if [ -f /etc/nv_tegra_release ] || [ -f /proc/device-tree/model ] && grep -q "Je
             
             if [ -n "$NVPMODEL_CMD" ]; then
                 # Create service with both nvpmodel and jetson_clocks
+                # Use /bin/sh -c to run both commands in sequence
+                # Note: nvpmodel may require reboot, but when run from systemd at boot,
+                # it should work without prompts since we're already in the boot process
                 sudo tee "$JETSON_POWER_SERVICE" >/dev/null << EOFPOWER
 [Unit]
 Description=Set Jetson to MAXN Power Mode
@@ -1902,8 +1927,7 @@ After=multi-user.target
 
 [Service]
 Type=oneshot
-ExecStart=$NVPMODEL_CMD -m 0
-ExecStart=$JETSON_CLOCKS_CMD
+ExecStart=/bin/sh -c "$NVPMODEL_CMD -m 0; $JETSON_CLOCKS_CMD"
 RemainAfterExit=yes
 
 [Install]

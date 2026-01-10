@@ -1,0 +1,1615 @@
+====================================================================================================
+DISCARD VIOLATIONS REPORT
+====================================================================================================
+
+Found 28 examples with DISCARD violations
+These need to be fixed manually in rag_cot_training_dataset.json
+
+
+====================================================================================================
+VIOLATION #63 - Example Index: 63
+====================================================================================================
+
+📋 Query: When is the product launch event?
+
+📊 Summary:
+   • Total [DISCARD] items in REASONING: 1
+   • Total [KEEP] items in REASONING: 1
+   • DISCARD items that appear in FINAL ANSWER: 1
+
+❌ DISCARD Items (should NOT be in FINAL ANSWER):
+     ❌ VIOLATION: February 1, 2024
+
+✅ KEEP Items (should be in FINAL ANSWER):
+   • March 15, 2024
+
+📝 REASONING Section (first 500 chars):
+----------------------------------------------------------------------------------------------------
+REASONING:
+- Item: March 15, 2024
+  - Evidence: "The product launch event is scheduled for March 15, 2024"
+  - Action: [KEEP]
+- Item: February 1, 2024
+  - Evidence: "Registration opens on February 1, 2024"
+  - Action: [DISCARD] (Reason: Registration date, not launch date).
+- End of scan.
+----------------------------------------------------------------------------------------------------
+
+❌ FINAL ANSWER (contains DISCARD items):
+----------------------------------------------------------------------------------------------------
+The product launch event is scheduled for March 15, 2024.
+----------------------------------------------------------------------------------------------------
+
+🔍 Violating Items Found in FINAL ANSWER:
+   • 'February 1, 2024' appears near: ...e product launch event is scheduled for March 15, 2024....
+
+💡 FIX REQUIRED:
+   Remove the following items from FINAL ANSWER:
+   - February 1, 2024
+
+   Ensure FINAL ANSWER only contains [KEEP] items:
+   + March 15, 2024
+
+
+====================================================================================================
+VIOLATION #68 - Example Index: 68
+====================================================================================================
+
+📋 Query: What was the company's revenue in 2023?
+
+📊 Summary:
+   • Total [DISCARD] items in REASONING: 2
+   • Total [KEEP] items in REASONING: 1
+   • DISCARD items that appear in FINAL ANSWER: 2
+
+❌ DISCARD Items (should NOT be in FINAL ANSWER):
+     ❌ VIOLATION: $10 million
+     ❌ VIOLATION: $35 million
+
+✅ KEEP Items (should be in FINAL ANSWER):
+   • $50 million
+
+📝 REASONING Section (first 500 chars):
+----------------------------------------------------------------------------------------------------
+REASONING:
+- Item: $50 million
+  - Evidence: "The annual revenue for 2023 was $50 million"
+  - Action: [KEEP]
+- Item: $10 million
+  - Evidence: "The company raised $10 million in Series A funding in 2022"
+  - Action: [DISCARD] (Reason: Funding amount from 2022, not 2023 revenue).
+- Item: $35 million
+  - Evidence: "Operating expenses totaled $35 million in 2023"
+  - Action: [DISCARD] (Reason: Expenses, not revenue).
+- End of scan.
+----------------------------------------------------------------------------------------------------
+
+❌ FINAL ANSWER (contains DISCARD items):
+----------------------------------------------------------------------------------------------------
+The company's revenue in 2023 was $50 million.
+----------------------------------------------------------------------------------------------------
+
+🔍 Violating Items Found in FINAL ANSWER:
+   • '$10 million' appears near: ...The company's revenue in 2023 was $50 million....
+   • '$35 million' appears near: ...The company's revenue in 2023 was $50 million....
+
+💡 FIX REQUIRED:
+   Remove the following items from FINAL ANSWER:
+   - $10 million
+   - $35 million
+
+   Ensure FINAL ANSWER only contains [KEEP] items:
+   + $50 million
+
+
+====================================================================================================
+VIOLATION #82 - Example Index: 82
+====================================================================================================
+
+📋 Query: What products does DataFlow Analytics offer?
+
+📊 Summary:
+   • Total [DISCARD] items in REASONING: 3
+   • Total [KEEP] items in REASONING: 3
+   • DISCARD items that appear in FINAL ANSWER: 3
+
+❌ DISCARD Items (should NOT be in FINAL ANSWER):
+     ❌ VIOLATION: DataFlow Consulting Services
+     ❌ VIOLATION: DataFlow Support Plans
+     ❌ VIOLATION: DataFlow Training Programs
+
+✅ KEEP Items (should be in FINAL ANSWER):
+   • DataFlow Enterprise
+   • DataFlow Cloud
+   • DataFlow Mobile
+
+📝 REASONING Section (first 500 chars):
+----------------------------------------------------------------------------------------------------
+REASONING:
+- Item: DataFlow Enterprise
+  - Evidence: "DataFlow Enterprise, a powerful analytics platform"
+  - Action: [KEEP]
+- Item: DataFlow Cloud
+  - Evidence: "DataFlow Cloud provides scalable cloud-based analytics infrastructure"
+  - Action: [KEEP]
+- Item: DataFlow Mobile
+  - Evidence: "DataFlow Mobile is the company's mobile application"
+  - Action: [KEEP]
+- Item: DataFlow Consulting Services
+  - Evidence: "DataFlow Consulting Services, which provides expert guidance"
+  - Action: [DISCARD] 
+----------------------------------------------------------------------------------------------------
+
+❌ FINAL ANSWER (contains DISCARD items):
+----------------------------------------------------------------------------------------------------
+DataFlow Analytics offers three products: DataFlow Enterprise, DataFlow Cloud, and DataFlow Mobile.
+----------------------------------------------------------------------------------------------------
+
+🔍 Violating Items Found in FINAL ANSWER:
+   • 'DataFlow Consulting Services' appears near: ...DataFlow Analytics offers three products: DataFlow Enterpr...
+   • 'DataFlow Support Plans' appears near: ...DataFlow Analytics offers three products: DataFlow Enterpr...
+   • 'DataFlow Training Programs' appears near: ...DataFlow Analytics offers three products: DataFlow Enterpr...
+
+💡 FIX REQUIRED:
+   Remove the following items from FINAL ANSWER:
+   - DataFlow Consulting Services
+   - DataFlow Support Plans
+   - DataFlow Training Programs
+
+   Ensure FINAL ANSWER only contains [KEEP] items:
+   + DataFlow Enterprise
+   + DataFlow Cloud
+   + DataFlow Mobile
+
+
+====================================================================================================
+VIOLATION #83 - Example Index: 83
+====================================================================================================
+
+📋 Query: Where are GlobalTech Solutions' office locations?
+
+📊 Summary:
+   • Total [DISCARD] items in REASONING: 1
+   • Total [KEEP] items in REASONING: 5
+   • DISCARD items that appear in FINAL ANSWER: 1
+
+❌ DISCARD Items (should NOT be in FINAL ANSWER):
+     ❌ VIOLATION: Temporary project offices
+
+✅ KEEP Items (should be in FINAL ANSWER):
+   • San Francisco, California
+   • New York, New York
+   • London, United Kingdom
+   • Bangalore, India
+   • Tokyo, Japan
+
+📝 REASONING Section (first 500 chars):
+----------------------------------------------------------------------------------------------------
+REASONING:
+- Item: San Francisco, California
+  - Evidence: "headquarters is located in San Francisco, California"
+  - Action: [KEEP]
+- Item: New York, New York
+  - Evidence: "maintains a significant presence in New York, New York"
+  - Action: [KEEP]
+- Item: London, United Kingdom
+  - Evidence: "The London, United Kingdom office handles European operations"
+  - Action: [KEEP]
+- Item: Bangalore, India
+  - Evidence: "development center in Bangalore, India"
+  - Action: [KEEP]
+- Item: Tokyo, Japan
+  
+----------------------------------------------------------------------------------------------------
+
+❌ FINAL ANSWER (contains DISCARD items):
+----------------------------------------------------------------------------------------------------
+GlobalTech Solutions has offices in San Francisco, California; New York, New York; London, United Kingdom; Bangalore, India; and Tokyo, Japan.
+----------------------------------------------------------------------------------------------------
+
+🔍 Violating Items Found in FINAL ANSWER:
+   • 'Temporary project offices' appears near: ...GlobalTech Solutions has offices in San Francisco, California; New York, New York;...
+
+💡 FIX REQUIRED:
+   Remove the following items from FINAL ANSWER:
+   - Temporary project offices
+
+   Ensure FINAL ANSWER only contains [KEEP] items:
+   + San Francisco, California
+   + New York, New York
+   + London, United Kingdom
+   + Bangalore, India
+   + Tokyo, Japan
+
+
+====================================================================================================
+VIOLATION #85 - Example Index: 85
+====================================================================================================
+
+📋 Query: When was Quantum Innovations established?
+
+📊 Summary:
+   • Total [DISCARD] items in REASONING: 4
+   • Total [KEEP] items in REASONING: 1
+   • DISCARD items that appear in FINAL ANSWER: 1
+
+❌ DISCARD Items (should NOT be in FINAL ANSWER):
+     ❌ VIOLATION: January 2016
+     ✅ OK: 2018
+     ✅ OK: 2020
+     ✅ OK: 2022
+
+✅ KEEP Items (should be in FINAL ANSWER):
+   • 2016
+
+📝 REASONING Section (first 500 chars):
+----------------------------------------------------------------------------------------------------
+REASONING:
+- Item: 2016
+  - Evidence: "Quantum Innovations was established in 2016"
+  - Action: [KEEP]
+- Item: January 2016
+  - Evidence: "began operations in January 2016"
+  - Action: [DISCARD] (Reason: Operations start date, not establishment year).
+- Item: 2018
+  - Evidence: "In 2018, Quantum Innovations expanded"
+  - Action: [DISCARD] (Reason: Expansion date, not establishment).
+- Item: 2020
+  - Evidence: "reached profitability in 2020"
+  - Action: [DISCARD] (Reason: Profitability date, not 
+----------------------------------------------------------------------------------------------------
+
+❌ FINAL ANSWER (contains DISCARD items):
+----------------------------------------------------------------------------------------------------
+Quantum Innovations was established in 2016.
+----------------------------------------------------------------------------------------------------
+
+🔍 Violating Items Found in FINAL ANSWER:
+   • 'January 2016' appears near: ...Quantum Innovations was established in 2016....
+
+💡 FIX REQUIRED:
+   Remove the following items from FINAL ANSWER:
+   - January 2016
+
+   Ensure FINAL ANSWER only contains [KEEP] items:
+   + 2016
+
+
+====================================================================================================
+VIOLATION #86 - Example Index: 86
+====================================================================================================
+
+📋 Query: What is GreenTech Solutions' mission statement?
+
+📊 Summary:
+   • Total [DISCARD] items in REASONING: 4
+   • Total [KEEP] items in REASONING: 1
+   • DISCARD items that appear in FINAL ANSWER: 3
+
+❌ DISCARD Items (should NOT be in FINAL ANSWER):
+     ❌ VIOLATION: creating sustainable technology solutions
+     ❌ VIOLATION: future where clean energy is accessible to everyone
+     ✅ OK: sustainability, innovation, and social responsibility
+     ❌ VIOLATION: world powered entirely by renewable energy sources by 2050
+
+✅ KEEP Items (should be in FINAL ANSWER):
+   • accelerate the transition to renewable energy through innovative technology
+
+📝 REASONING Section (first 500 chars):
+----------------------------------------------------------------------------------------------------
+REASONING:
+- Item: accelerate the transition to renewable energy through innovative technology
+  - Evidence: "The company's mission is to accelerate the transition to renewable energy through innovative technology"
+  - Action: [KEEP]
+- Item: creating sustainable technology solutions
+  - Evidence: "committed to creating sustainable technology solutions"
+  - Action: [DISCARD] (Reason: Commitment, not mission statement).
+- Item: future where clean energy is accessible to everyone
+  - Evidence: "env
+----------------------------------------------------------------------------------------------------
+
+❌ FINAL ANSWER (contains DISCARD items):
+----------------------------------------------------------------------------------------------------
+GreenTech Solutions' mission is to accelerate the transition to renewable energy through innovative technology.
+----------------------------------------------------------------------------------------------------
+
+🔍 Violating Items Found in FINAL ANSWER:
+   • 'creating sustainable technology solutions' appears near: ...transition to renewable energy through innovative technology....
+   • 'creating sustainable technology solutions' appears near: ...GreenTech Solutions' mission is to accelerate the transition to renew...
+   • 'future where clean energy is accessible to everyone' appears near: ...sion is to accelerate the transition to renewable energy through innovative technology....
+   • 'world powered entirely by renewable energy sources by 2050' appears near: ...tions' mission is to accelerate the transition to renewable energy through innovative technology....
+   • 'world powered entirely by renewable energy sources by 2050' appears near: ...sion is to accelerate the transition to renewable energy through innovative technology....
+
+💡 FIX REQUIRED:
+   Remove the following items from FINAL ANSWER:
+   - creating sustainable technology solutions
+   - future where clean energy is accessible to everyone
+   - world powered entirely by renewable energy sources by 2050
+
+   Ensure FINAL ANSWER only contains [KEEP] items:
+   + accelerate the transition to renewable energy through innovative technology
+
+
+====================================================================================================
+VIOLATION #87 - Example Index: 87
+====================================================================================================
+
+📋 Query: What was FinTech Dynamics' annual revenue in 2023?
+
+📊 Summary:
+   • Total [DISCARD] items in REASONING: 4
+   • Total [KEEP] items in REASONING: 1
+   • DISCARD items that appear in FINAL ANSWER: 4
+
+❌ DISCARD Items (should NOT be in FINAL ANSWER):
+     ❌ VIOLATION: $63 million
+     ❌ VIOLATION: $22 million
+     ❌ VIOLATION: $45 million
+     ❌ VIOLATION: $40 million
+
+✅ KEEP Items (should be in FINAL ANSWER):
+   • $85 million
+
+📝 REASONING Section (first 500 chars):
+----------------------------------------------------------------------------------------------------
+REASONING:
+- Item: $85 million
+  - Evidence: "annual revenue reached $85 million"
+  - Action: [KEEP]
+- Item: $63 million
+  - Evidence: "previous year's revenue of $63 million"
+  - Action: [DISCARD] (Reason: Previous year revenue, not 2023).
+- Item: $22 million
+  - Evidence: "quarterly revenue for Q4 2023 was $22 million"
+  - Action: [DISCARD] (Reason: Quarterly revenue, not annual).
+- Item: $45 million
+  - Evidence: "operating expenses for 2023 totaled $45 million"
+  - Action: [DISCARD] (Reason:
+----------------------------------------------------------------------------------------------------
+
+❌ FINAL ANSWER (contains DISCARD items):
+----------------------------------------------------------------------------------------------------
+FinTech Dynamics' annual revenue in 2023 was $85 million.
+----------------------------------------------------------------------------------------------------
+
+🔍 Violating Items Found in FINAL ANSWER:
+   • '$63 million' appears near: ...FinTech Dynamics' annual revenue in 2023 was $85 million....
+   • '$22 million' appears near: ...FinTech Dynamics' annual revenue in 2023 was $85 million....
+   • '$45 million' appears near: ...FinTech Dynamics' annual revenue in 2023 was $85 million....
+   • '$40 million' appears near: ...FinTech Dynamics' annual revenue in 2023 was $85 million....
+
+💡 FIX REQUIRED:
+   Remove the following items from FINAL ANSWER:
+   - $63 million
+   - $22 million
+   - $45 million
+   - $40 million
+
+   Ensure FINAL ANSWER only contains [KEEP] items:
+   + $85 million
+
+
+====================================================================================================
+VIOLATION #91 - Example Index: 91
+====================================================================================================
+
+📋 Query: What products does SecureNet Solutions offer?
+
+📊 Summary:
+   • Total [DISCARD] items in REASONING: 3
+   • Total [KEEP] items in REASONING: 4
+   • DISCARD items that appear in FINAL ANSWER: 3
+
+❌ DISCARD Items (should NOT be in FINAL ANSWER):
+     ❌ VIOLATION: SecureNet Consulting Services
+     ❌ VIOLATION: SecureNet Support Plans
+     ❌ VIOLATION: SecureNet Training Programs
+
+✅ KEEP Items (should be in FINAL ANSWER):
+   • SecureNet Firewall
+   • SecureNet Antivirus
+   • SecureNet VPN
+   • SecureNet Cloud Security
+
+📝 REASONING Section (first 500 chars):
+----------------------------------------------------------------------------------------------------
+REASONING:
+- Item: SecureNet Firewall
+  - Evidence: "SecureNet Firewall is the company's flagship network security product"
+  - Action: [KEEP]
+- Item: SecureNet Antivirus
+  - Evidence: "SecureNet Antivirus offers comprehensive malware protection"
+  - Action: [KEEP]
+- Item: SecureNet VPN
+  - Evidence: "SecureNet VPN provides secure remote access solutions"
+  - Action: [KEEP]
+- Item: SecureNet Cloud Security
+  - Evidence: "SecureNet Cloud Security, a cloud-based security platform"
+  - Action: [KEE
+----------------------------------------------------------------------------------------------------
+
+❌ FINAL ANSWER (contains DISCARD items):
+----------------------------------------------------------------------------------------------------
+SecureNet Solutions offers four products: SecureNet Firewall, SecureNet Antivirus, SecureNet VPN, and SecureNet Cloud Security.
+----------------------------------------------------------------------------------------------------
+
+🔍 Violating Items Found in FINAL ANSWER:
+   • 'SecureNet Consulting Services' appears near: ...SecureNet Solutions offers four products: SecureNet Firewal...
+   • 'SecureNet Support Plans' appears near: ...SecureNet Solutions offers four products: SecureNet Firewal...
+   • 'SecureNet Training Programs' appears near: ...SecureNet Solutions offers four products: SecureNet Firewal...
+
+💡 FIX REQUIRED:
+   Remove the following items from FINAL ANSWER:
+   - SecureNet Consulting Services
+   - SecureNet Support Plans
+   - SecureNet Training Programs
+
+   Ensure FINAL ANSWER only contains [KEEP] items:
+   + SecureNet Firewall
+   + SecureNet Antivirus
+   + SecureNet VPN
+   + SecureNet Cloud Security
+
+
+====================================================================================================
+VIOLATION #106 - Example Index: 106
+====================================================================================================
+
+📋 Query: When was SecureNet Solutions established?
+
+📊 Summary:
+   • Total [DISCARD] items in REASONING: 5
+   • Total [KEEP] items in REASONING: 1
+   • DISCARD items that appear in FINAL ANSWER: 1
+
+❌ DISCARD Items (should NOT be in FINAL ANSWER):
+     ❌ VIOLATION: March 2014
+     ✅ OK: 2017
+     ✅ OK: 2019
+     ✅ OK: 2021
+     ✅ OK: 2015
+
+✅ KEEP Items (should be in FINAL ANSWER):
+   • 2014
+
+📝 REASONING Section (first 500 chars):
+----------------------------------------------------------------------------------------------------
+REASONING:
+- Item: 2014
+  - Evidence: "SecureNet Solutions was established in 2014"
+  - Action: [KEEP]
+- Item: March 2014
+  - Evidence: "began operations in March 2014"
+  - Action: [DISCARD] (Reason: Operations start date, not establishment year).
+- Item: 2017
+  - Evidence: "In 2017, SecureNet Solutions expanded"
+  - Action: [DISCARD] (Reason: Expansion date, not establishment).
+- Item: 2019
+  - Evidence: "reached profitability in 2019"
+  - Action: [DISCARD] (Reason: Profitability date, not esta
+----------------------------------------------------------------------------------------------------
+
+❌ FINAL ANSWER (contains DISCARD items):
+----------------------------------------------------------------------------------------------------
+SecureNet Solutions was established in 2014.
+----------------------------------------------------------------------------------------------------
+
+🔍 Violating Items Found in FINAL ANSWER:
+   • 'March 2014' appears near: ...SecureNet Solutions was established in 2014....
+
+💡 FIX REQUIRED:
+   Remove the following items from FINAL ANSWER:
+   - March 2014
+
+   Ensure FINAL ANSWER only contains [KEEP] items:
+   + 2014
+
+
+====================================================================================================
+VIOLATION #108 - Example Index: 108
+====================================================================================================
+
+📋 Query: What is CleanTech Innovations' mission statement?
+
+📊 Summary:
+   • Total [DISCARD] items in REASONING: 4
+   • Total [KEEP] items in REASONING: 1
+   • DISCARD items that appear in FINAL ANSWER: 3
+
+❌ DISCARD Items (should NOT be in FINAL ANSWER):
+     ❌ VIOLATION: developing sustainable energy solutions that reduce carbon emissions
+     ❌ VIOLATION: future where clean energy is the primary source of power
+     ✅ OK: sustainability, innovation, environmental responsibility, and social impact
+     ❌ VIOLATION: carbon-neutral energy ecosystem by 2040
+
+✅ KEEP Items (should be in FINAL ANSWER):
+   • accelerate the global transition to renewable energy through innovative technology and accessible solutions
+
+📝 REASONING Section (first 500 chars):
+----------------------------------------------------------------------------------------------------
+REASONING:
+- Item: accelerate the global transition to renewable energy through innovative technology and accessible solutions
+  - Evidence: "The company's mission is to accelerate the global transition to renewable energy through innovative technology and accessible solutions"
+  - Action: [KEEP]
+- Item: developing sustainable energy solutions that reduce carbon emissions
+  - Evidence: "committed to developing sustainable energy solutions that reduce carbon emissions"
+  - Action: [DISCARD] (Reas
+----------------------------------------------------------------------------------------------------
+
+❌ FINAL ANSWER (contains DISCARD items):
+----------------------------------------------------------------------------------------------------
+CleanTech Innovations' mission is to accelerate the global transition to renewable energy through innovative technology and accessible solutions.
+----------------------------------------------------------------------------------------------------
+
+🔍 Violating Items Found in FINAL ANSWER:
+   • 'developing sustainable energy solutions that reduce carbon emissions' appears near: ... to accelerate the global transition to renewable energy through innovative technology and accessible solu...
+   • 'developing sustainable energy solutions that reduce carbon emissions' appears near: ...ergy through innovative technology and accessible solutions....
+   • 'future where clean energy is the primary source of power' appears near: ...CleanTech Innovations' mission is to accelerate the glo...
+   • 'future where clean energy is the primary source of power' appears near: ... to accelerate the global transition to renewable energy through innovative technology and accessible solu...
+   • 'carbon-neutral energy ecosystem by 2040' appears near: ... to accelerate the global transition to renewable energy through innovative technology and accessible solu...
+
+💡 FIX REQUIRED:
+   Remove the following items from FINAL ANSWER:
+   - developing sustainable energy solutions that reduce carbon emissions
+   - future where clean energy is the primary source of power
+   - carbon-neutral energy ecosystem by 2040
+
+   Ensure FINAL ANSWER only contains [KEEP] items:
+   + accelerate the global transition to renewable energy through innovative technology and accessible solutions
+
+
+====================================================================================================
+VIOLATION #109 - Example Index: 109
+====================================================================================================
+
+📋 Query: What was CloudScale Systems' annual revenue in 2024?
+
+📊 Summary:
+   • Total [DISCARD] items in REASONING: 5
+   • Total [KEEP] items in REASONING: 1
+   • DISCARD items that appear in FINAL ANSWER: 5
+
+❌ DISCARD Items (should NOT be in FINAL ANSWER):
+     ❌ VIOLATION: $88 million
+     ❌ VIOLATION: $35 million
+     ❌ VIOLATION: $68 million
+     ❌ VIOLATION: $57 million
+     ❌ VIOLATION: $280 million
+
+✅ KEEP Items (should be in FINAL ANSWER):
+   • $125 million
+
+📝 REASONING Section (first 500 chars):
+----------------------------------------------------------------------------------------------------
+REASONING:
+- Item: $125 million
+  - Evidence: "annual revenue reached $125 million"
+  - Action: [KEEP]
+- Item: $88 million
+  - Evidence: "previous year's revenue of $88 million"
+  - Action: [DISCARD] (Reason: Previous year revenue, not 2024).
+- Item: $35 million
+  - Evidence: "quarterly revenue for Q4 2024 was $35 million"
+  - Action: [DISCARD] (Reason: Quarterly revenue, not annual).
+- Item: $68 million
+  - Evidence: "operating expenses for 2024 totaled $68 million"
+  - Action: [DISCARD] (Reaso
+----------------------------------------------------------------------------------------------------
+
+❌ FINAL ANSWER (contains DISCARD items):
+----------------------------------------------------------------------------------------------------
+CloudScale Systems' annual revenue in 2024 was $125 million.
+----------------------------------------------------------------------------------------------------
+
+🔍 Violating Items Found in FINAL ANSWER:
+   • '$88 million' appears near: ...oudScale Systems' annual revenue in 2024 was $125 million....
+   • '$35 million' appears near: ...oudScale Systems' annual revenue in 2024 was $125 million....
+   • '$68 million' appears near: ...oudScale Systems' annual revenue in 2024 was $125 million....
+   • '$57 million' appears near: ...oudScale Systems' annual revenue in 2024 was $125 million....
+   • '$280 million' appears near: ...oudScale Systems' annual revenue in 2024 was $125 million....
+
+💡 FIX REQUIRED:
+   Remove the following items from FINAL ANSWER:
+   - $88 million
+   - $35 million
+   - $68 million
+   - $57 million
+   - $280 million
+
+   Ensure FINAL ANSWER only contains [KEEP] items:
+   + $125 million
+
+
+====================================================================================================
+VIOLATION #111 - Example Index: 111
+====================================================================================================
+
+📋 Query: What products does AnalyticsPro Solutions offer?
+
+📊 Summary:
+   • Total [DISCARD] items in REASONING: 3
+   • Total [KEEP] items in REASONING: 3
+   • DISCARD items that appear in FINAL ANSWER: 3
+
+❌ DISCARD Items (should NOT be in FINAL ANSWER):
+     ❌ VIOLATION: AnalyticsPro Consulting Services
+     ❌ VIOLATION: AnalyticsPro Support Plans
+     ❌ VIOLATION: AnalyticsPro Training Programs
+
+✅ KEEP Items (should be in FINAL ANSWER):
+   • AnalyticsPro Enterprise
+   • AnalyticsPro Cloud
+   • AnalyticsPro Mobile
+
+📝 REASONING Section (first 500 chars):
+----------------------------------------------------------------------------------------------------
+REASONING:
+- Item: AnalyticsPro Enterprise
+  - Evidence: "AnalyticsPro Enterprise is the company's flagship analytics platform"
+  - Action: [KEEP]
+- Item: AnalyticsPro Cloud
+  - Evidence: "AnalyticsPro Cloud offers scalable cloud-based analytics infrastructure"
+  - Action: [KEEP]
+- Item: AnalyticsPro Mobile
+  - Evidence: "AnalyticsPro Mobile is the company's mobile application"
+  - Action: [KEEP]
+- Item: AnalyticsPro Consulting Services
+  - Evidence: "offers AnalyticsPro Consulting Services"
+  -
+----------------------------------------------------------------------------------------------------
+
+❌ FINAL ANSWER (contains DISCARD items):
+----------------------------------------------------------------------------------------------------
+AnalyticsPro Solutions offers three products: AnalyticsPro Enterprise, AnalyticsPro Cloud, and AnalyticsPro Mobile.
+----------------------------------------------------------------------------------------------------
+
+🔍 Violating Items Found in FINAL ANSWER:
+   • 'AnalyticsPro Consulting Services' appears near: ...AnalyticsPro Solutions offers three products: AnalyticsPro Ent...
+   • 'AnalyticsPro Support Plans' appears near: ...AnalyticsPro Solutions offers three products: AnalyticsPro Ent...
+   • 'AnalyticsPro Training Programs' appears near: ...AnalyticsPro Solutions offers three products: AnalyticsPro Ent...
+
+💡 FIX REQUIRED:
+   Remove the following items from FINAL ANSWER:
+   - AnalyticsPro Consulting Services
+   - AnalyticsPro Support Plans
+   - AnalyticsPro Training Programs
+
+   Ensure FINAL ANSWER only contains [KEEP] items:
+   + AnalyticsPro Enterprise
+   + AnalyticsPro Cloud
+   + AnalyticsPro Mobile
+
+
+====================================================================================================
+VIOLATION #112 - Example Index: 112
+====================================================================================================
+
+📋 Query: Where are TechGlobal Solutions' office locations?
+
+📊 Summary:
+   • Total [DISCARD] items in REASONING: 1
+   • Total [KEEP] items in REASONING: 5
+   • DISCARD items that appear in FINAL ANSWER: 1
+
+❌ DISCARD Items (should NOT be in FINAL ANSWER):
+     ❌ VIOLATION: Temporary project offices
+
+✅ KEEP Items (should be in FINAL ANSWER):
+   • San Francisco, California
+   • New York, New York
+   • London, United Kingdom
+   • Bangalore, India
+   • Tokyo, Japan
+
+📝 REASONING Section (first 500 chars):
+----------------------------------------------------------------------------------------------------
+REASONING:
+- Item: San Francisco, California
+  - Evidence: "headquarters is located in San Francisco, California"
+  - Action: [KEEP]
+- Item: New York, New York
+  - Evidence: "maintains a significant presence in New York, New York"
+  - Action: [KEEP]
+- Item: London, United Kingdom
+  - Evidence: "The London, United Kingdom office handles European operations"
+  - Action: [KEEP]
+- Item: Bangalore, India
+  - Evidence: "development center in Bangalore, India"
+  - Action: [KEEP]
+- Item: Tokyo, Japan
+  
+----------------------------------------------------------------------------------------------------
+
+❌ FINAL ANSWER (contains DISCARD items):
+----------------------------------------------------------------------------------------------------
+TechGlobal Solutions has offices in San Francisco, California; New York, New York; London, United Kingdom; Bangalore, India; and Tokyo, Japan.
+----------------------------------------------------------------------------------------------------
+
+🔍 Violating Items Found in FINAL ANSWER:
+   • 'Temporary project offices' appears near: ...TechGlobal Solutions has offices in San Francisco, California; New York, New York;...
+
+💡 FIX REQUIRED:
+   Remove the following items from FINAL ANSWER:
+   - Temporary project offices
+
+   Ensure FINAL ANSWER only contains [KEEP] items:
+   + San Francisco, California
+   + New York, New York
+   + London, United Kingdom
+   + Bangalore, India
+   + Tokyo, Japan
+
+
+====================================================================================================
+VIOLATION #115 - Example Index: 115
+====================================================================================================
+
+📋 Query: When was DataFlow Analytics established?
+
+📊 Summary:
+   • Total [DISCARD] items in REASONING: 4
+   • Total [KEEP] items in REASONING: 1
+   • DISCARD items that appear in FINAL ANSWER: 1
+
+❌ DISCARD Items (should NOT be in FINAL ANSWER):
+     ❌ VIOLATION: April 2017
+     ✅ OK: 2019
+     ✅ OK: 2021
+     ✅ OK: 2023
+
+✅ KEEP Items (should be in FINAL ANSWER):
+   • 2017
+
+📝 REASONING Section (first 500 chars):
+----------------------------------------------------------------------------------------------------
+REASONING:
+- Item: 2017
+  - Evidence: "DataFlow Analytics was established in 2017"
+  - Action: [KEEP]
+- Item: April 2017
+  - Evidence: "began operations in April 2017"
+  - Action: [DISCARD] (Reason: Operations start date, not establishment year).
+- Item: 2019
+  - Evidence: "In 2019, DataFlow Analytics expanded"
+  - Action: [DISCARD] (Reason: Expansion date, not establishment).
+- Item: 2021
+  - Evidence: "reached profitability in 2021"
+  - Action: [DISCARD] (Reason: Profitability date, not establ
+----------------------------------------------------------------------------------------------------
+
+❌ FINAL ANSWER (contains DISCARD items):
+----------------------------------------------------------------------------------------------------
+DataFlow Analytics was established in 2017.
+----------------------------------------------------------------------------------------------------
+
+🔍 Violating Items Found in FINAL ANSWER:
+   • 'April 2017' appears near: ...DataFlow Analytics was established in 2017....
+
+💡 FIX REQUIRED:
+   Remove the following items from FINAL ANSWER:
+   - April 2017
+
+   Ensure FINAL ANSWER only contains [KEEP] items:
+   + 2017
+
+
+====================================================================================================
+VIOLATION #116 - Example Index: 116
+====================================================================================================
+
+📋 Query: What was SecureNet Solutions' annual revenue in 2023?
+
+📊 Summary:
+   • Total [DISCARD] items in REASONING: 4
+   • Total [KEEP] items in REASONING: 1
+   • DISCARD items that appear in FINAL ANSWER: 4
+
+❌ DISCARD Items (should NOT be in FINAL ANSWER):
+     ❌ VIOLATION: $73 million
+     ❌ VIOLATION: $26 million
+     ❌ VIOLATION: $52 million
+     ❌ VIOLATION: $43 million
+
+✅ KEEP Items (should be in FINAL ANSWER):
+   • $95 million
+
+📝 REASONING Section (first 500 chars):
+----------------------------------------------------------------------------------------------------
+REASONING:
+- Item: $95 million
+  - Evidence: "annual revenue reached $95 million"
+  - Action: [KEEP]
+- Item: $73 million
+  - Evidence: "previous year's revenue of $73 million"
+  - Action: [DISCARD] (Reason: Previous year revenue, not 2023).
+- Item: $26 million
+  - Evidence: "quarterly revenue for Q4 2023 was $26 million"
+  - Action: [DISCARD] (Reason: Quarterly revenue, not annual).
+- Item: $52 million
+  - Evidence: "operating expenses for 2023 totaled $52 million"
+  - Action: [DISCARD] (Reason:
+----------------------------------------------------------------------------------------------------
+
+❌ FINAL ANSWER (contains DISCARD items):
+----------------------------------------------------------------------------------------------------
+SecureNet Solutions' annual revenue in 2023 was $95 million.
+----------------------------------------------------------------------------------------------------
+
+🔍 Violating Items Found in FINAL ANSWER:
+   • '$73 million' appears near: ...cureNet Solutions' annual revenue in 2023 was $95 million....
+   • '$26 million' appears near: ...cureNet Solutions' annual revenue in 2023 was $95 million....
+   • '$52 million' appears near: ...cureNet Solutions' annual revenue in 2023 was $95 million....
+   • '$43 million' appears near: ...cureNet Solutions' annual revenue in 2023 was $95 million....
+
+💡 FIX REQUIRED:
+   Remove the following items from FINAL ANSWER:
+   - $73 million
+   - $26 million
+   - $52 million
+   - $43 million
+
+   Ensure FINAL ANSWER only contains [KEEP] items:
+   + $95 million
+
+
+====================================================================================================
+VIOLATION #117 - Example Index: 117
+====================================================================================================
+
+📋 Query: What is HealthTech Innovations' mission statement?
+
+📊 Summary:
+   • Total [DISCARD] items in REASONING: 4
+   • Total [KEEP] items in REASONING: 1
+   • DISCARD items that appear in FINAL ANSWER: 3
+
+❌ DISCARD Items (should NOT be in FINAL ANSWER):
+     ❌ VIOLATION: improving healthcare outcomes through technology
+     ❌ VIOLATION: future where advanced technology enables personalized healthcare
+     ✅ OK: innovation, accessibility, patient-centered care, and technological excellence
+     ❌ VIOLATION: world where healthcare is personalized, accessible, and effective by 2030
+
+✅ KEEP Items (should be in FINAL ANSWER):
+   • make quality healthcare accessible to everyone through innovative technology solutions
+
+📝 REASONING Section (first 500 chars):
+----------------------------------------------------------------------------------------------------
+REASONING:
+- Item: make quality healthcare accessible to everyone through innovative technology solutions
+  - Evidence: "The company's mission is to make quality healthcare accessible to everyone through innovative technology solutions"
+  - Action: [KEEP]
+- Item: improving healthcare outcomes through technology
+  - Evidence: "committed to improving healthcare outcomes through technology"
+  - Action: [DISCARD] (Reason: Commitment, not mission statement).
+- Item: future where advanced technology e
+----------------------------------------------------------------------------------------------------
+
+❌ FINAL ANSWER (contains DISCARD items):
+----------------------------------------------------------------------------------------------------
+HealthTech Innovations' mission is to make quality healthcare accessible to everyone through innovative technology solutions.
+----------------------------------------------------------------------------------------------------
+
+🔍 Violating Items Found in FINAL ANSWER:
+   • 'improving healthcare outcomes through technology' appears near: ...ealthTech Innovations' mission is to make quality healthcare accessible to everyone through innovative technol...
+   • 'improving healthcare outcomes through technology' appears near: ...to make quality healthcare accessible to everyone through innovative technology solutions....
+   • 'improving healthcare outcomes through technology' appears near: ...lthcare accessible to everyone through innovative technology solutions....
+   • 'future where advanced technology enables personalized healthcare' appears near: ...lthcare accessible to everyone through innovative technology solutions....
+   • 'future where advanced technology enables personalized healthcare' appears near: ...ealthTech Innovations' mission is to make quality healthcare accessible to everyone through innovative technol...
+   • 'world where healthcare is personalized, accessible, and effective by 2030' appears near: ...ealthTech Innovations' mission is to make quality healthcare accessible to everyone through innovative technol...
+
+💡 FIX REQUIRED:
+   Remove the following items from FINAL ANSWER:
+   - improving healthcare outcomes through technology
+   - future where advanced technology enables personalized healthcare
+   - world where healthcare is personalized, accessible, and effective by 2030
+
+   Ensure FINAL ANSWER only contains [KEEP] items:
+   + make quality healthcare accessible to everyone through innovative technology solutions
+
+
+====================================================================================================
+VIOLATION #119 - Example Index: 119
+====================================================================================================
+
+📋 Query: What products does CloudScale Innovations offer?
+
+📊 Summary:
+   • Total [DISCARD] items in REASONING: 2
+   • Total [KEEP] items in REASONING: 3
+   • DISCARD items that appear in FINAL ANSWER: 2
+
+❌ DISCARD Items (should NOT be in FINAL ANSWER):
+     ❌ VIOLATION: CloudScale Consulting Services
+     ❌ VIOLATION: CloudScale Support Plans
+
+✅ KEEP Items (should be in FINAL ANSWER):
+   • CloudScale Compute
+   • CloudScale Storage
+   • CloudScale Network
+
+📝 REASONING Section (first 500 chars):
+----------------------------------------------------------------------------------------------------
+REASONING:
+- Item: CloudScale Compute
+  - Evidence: "CloudScale Compute is the company's flagship cloud computing platform"
+  - Action: [KEEP]
+- Item: CloudScale Storage
+  - Evidence: "CloudScale Storage offers enterprise-grade cloud storage solutions"
+  - Action: [KEEP]
+- Item: CloudScale Network
+  - Evidence: "CloudScale Network provides software-defined networking capabilities"
+  - Action: [KEEP]
+- Item: CloudScale Consulting Services
+  - Evidence: "offers CloudScale Consulting Services"
+  - 
+----------------------------------------------------------------------------------------------------
+
+❌ FINAL ANSWER (contains DISCARD items):
+----------------------------------------------------------------------------------------------------
+CloudScale Innovations offers three products: CloudScale Compute, CloudScale Storage, and CloudScale Network.
+----------------------------------------------------------------------------------------------------
+
+🔍 Violating Items Found in FINAL ANSWER:
+   • 'CloudScale Consulting Services' appears near: ...CloudScale Innovations offers three products: CloudScale Com...
+   • 'CloudScale Support Plans' appears near: ...CloudScale Innovations offers three products: CloudScale Com...
+
+💡 FIX REQUIRED:
+   Remove the following items from FINAL ANSWER:
+   - CloudScale Consulting Services
+   - CloudScale Support Plans
+
+   Ensure FINAL ANSWER only contains [KEEP] items:
+   + CloudScale Compute
+   + CloudScale Storage
+   + CloudScale Network
+
+
+====================================================================================================
+VIOLATION #121 - Example Index: 121
+====================================================================================================
+
+📋 Query: What products does DataFlow Analytics offer?
+
+📊 Summary:
+   • Total [DISCARD] items in REASONING: 2
+   • Total [KEEP] items in REASONING: 3
+   • DISCARD items that appear in FINAL ANSWER: 2
+
+❌ DISCARD Items (should NOT be in FINAL ANSWER):
+     ❌ VIOLATION: DataFlow Consulting Services
+     ❌ VIOLATION: DataFlow Support Plans
+
+✅ KEEP Items (should be in FINAL ANSWER):
+   • DataFlow Enterprise
+   • DataFlow Cloud
+   • DataFlow Mobile
+
+📝 REASONING Section (first 500 chars):
+----------------------------------------------------------------------------------------------------
+REASONING:
+- Item: DataFlow Enterprise
+  - Evidence: "DataFlow Enterprise is the company's flagship analytics platform"
+  - Action: [KEEP]
+- Item: DataFlow Cloud
+  - Evidence: "DataFlow Cloud offers scalable cloud-based analytics infrastructure"
+  - Action: [KEEP]
+- Item: DataFlow Mobile
+  - Evidence: "DataFlow Mobile is the company's mobile application"
+  - Action: [KEEP]
+- Item: DataFlow Consulting Services
+  - Evidence: "offers DataFlow Consulting Services"
+  - Action: [DISCARD] (Reason: Serv
+----------------------------------------------------------------------------------------------------
+
+❌ FINAL ANSWER (contains DISCARD items):
+----------------------------------------------------------------------------------------------------
+DataFlow Analytics offers three products: DataFlow Enterprise, DataFlow Cloud, and DataFlow Mobile.
+----------------------------------------------------------------------------------------------------
+
+🔍 Violating Items Found in FINAL ANSWER:
+   • 'DataFlow Consulting Services' appears near: ...DataFlow Analytics offers three products: DataFlow Enterpr...
+   • 'DataFlow Support Plans' appears near: ...DataFlow Analytics offers three products: DataFlow Enterpr...
+
+💡 FIX REQUIRED:
+   Remove the following items from FINAL ANSWER:
+   - DataFlow Consulting Services
+   - DataFlow Support Plans
+
+   Ensure FINAL ANSWER only contains [KEEP] items:
+   + DataFlow Enterprise
+   + DataFlow Cloud
+   + DataFlow Mobile
+
+
+====================================================================================================
+VIOLATION #124 - Example Index: 124
+====================================================================================================
+
+📋 Query: When was SecureNet Solutions established?
+
+📊 Summary:
+   • Total [DISCARD] items in REASONING: 8
+   • Total [KEEP] items in REASONING: 1
+   • DISCARD items that appear in FINAL ANSWER: 1
+
+❌ DISCARD Items (should NOT be in FINAL ANSWER):
+     ❌ VIOLATION: March 2014
+     ✅ OK: 2016
+     ✅ OK: 2017
+     ✅ OK: 2019
+     ✅ OK: 2020
+     ✅ OK: 2022
+     ✅ OK: 2023
+     ✅ OK: 2024
+
+✅ KEEP Items (should be in FINAL ANSWER):
+   • 2014
+
+📝 REASONING Section (first 500 chars):
+----------------------------------------------------------------------------------------------------
+REASONING:
+- Item: 2014
+  - Evidence: "SecureNet Solutions was established in 2014"
+  - Action: [KEEP]
+- Item: March 2014
+  - Evidence: "began operations in March 2014"
+  - Action: [DISCARD] (Reason: Operations start date, not establishment year).
+- Item: 2016
+  - Evidence: "launched its flagship product in 2016"
+  - Action: [DISCARD] (Reason: Product launch date, not establishment).
+- Item: 2017
+  - Evidence: "secured Series A funding in 2017"
+  - Action: [DISCARD] (Reason: Funding date, not es
+----------------------------------------------------------------------------------------------------
+
+❌ FINAL ANSWER (contains DISCARD items):
+----------------------------------------------------------------------------------------------------
+SecureNet Solutions was established in 2014.
+----------------------------------------------------------------------------------------------------
+
+🔍 Violating Items Found in FINAL ANSWER:
+   • 'March 2014' appears near: ...SecureNet Solutions was established in 2014....
+
+💡 FIX REQUIRED:
+   Remove the following items from FINAL ANSWER:
+   - March 2014
+
+   Ensure FINAL ANSWER only contains [KEEP] items:
+   + 2014
+
+
+====================================================================================================
+VIOLATION #125 - Example Index: 125
+====================================================================================================
+
+📋 Query: What is HealthTech Innovations' mission statement?
+
+📊 Summary:
+   • Total [DISCARD] items in REASONING: 4
+   • Total [KEEP] items in REASONING: 1
+   • DISCARD items that appear in FINAL ANSWER: 3
+
+❌ DISCARD Items (should NOT be in FINAL ANSWER):
+     ❌ VIOLATION: transforming healthcare through the power of technology
+     ✅ OK: innovation, accessibility, patient-centered care, technological excellence, and social responsibility
+     ❌ VIOLATION: future where advanced technology enables personalized healthcare
+     ❌ VIOLATION: world where healthcare is personalized, accessible, and effective for everyone by 2030
+
+✅ KEEP Items (should be in FINAL ANSWER):
+   • make quality healthcare accessible to everyone through innovative technology solutions that break down traditional barriers to healthcare access
+
+📝 REASONING Section (first 500 chars):
+----------------------------------------------------------------------------------------------------
+REASONING:
+- Item: make quality healthcare accessible to everyone through innovative technology solutions that break down traditional barriers to healthcare access
+  - Evidence: "The company's mission is to make quality healthcare accessible to everyone through innovative technology solutions that break down traditional barriers to healthcare access"
+  - Action: [KEEP]
+- Item: transforming healthcare through the power of technology
+  - Evidence: "committed to transforming healthcare through the 
+----------------------------------------------------------------------------------------------------
+
+❌ FINAL ANSWER (contains DISCARD items):
+----------------------------------------------------------------------------------------------------
+HealthTech Innovations' mission is to make quality healthcare accessible to everyone through innovative technology solutions that break down traditional barriers to healthcare access.
+----------------------------------------------------------------------------------------------------
+
+🔍 Violating Items Found in FINAL ANSWER:
+   • 'transforming healthcare through the power of technology' appears near: ...ealthTech Innovations' mission is to make quality healthcare accessible to everyone through innovative technol...
+   • 'transforming healthcare through the power of technology' appears near: ...to make quality healthcare accessible to everyone through innovative technology solutions that break down t...
+   • 'transforming healthcare through the power of technology' appears near: ...lthcare accessible to everyone through innovative technology solutions that break down traditional barriers to...
+   • 'future where advanced technology enables personalized healthcare' appears near: ...lthcare accessible to everyone through innovative technology solutions that break down traditional barriers to...
+   • 'future where advanced technology enables personalized healthcare' appears near: ...ealthTech Innovations' mission is to make quality healthcare accessible to everyone through innovative technol...
+   • 'world where healthcare is personalized, accessible, and effective for everyone by 2030' appears near: ...ealthTech Innovations' mission is to make quality healthcare accessible to everyone through innovative technol...
+   • 'world where healthcare is personalized, accessible, and effective for everyone by 2030' appears near: ...ssion is to make quality healthcare accessible to everyone through innovative technology solutions that brea...
+
+💡 FIX REQUIRED:
+   Remove the following items from FINAL ANSWER:
+   - transforming healthcare through the power of technology
+   - future where advanced technology enables personalized healthcare
+   - world where healthcare is personalized, accessible, and effective for everyone by 2030
+
+   Ensure FINAL ANSWER only contains [KEEP] items:
+   + make quality healthcare accessible to everyone through innovative technology solutions that break down traditional barriers to healthcare access
+
+
+====================================================================================================
+VIOLATION #126 - Example Index: 126
+====================================================================================================
+
+📋 Query: What was CloudScale Systems' annual revenue in 2024?
+
+📊 Summary:
+   • Total [DISCARD] items in REASONING: 6
+   • Total [KEEP] items in REASONING: 1
+   • DISCARD items that appear in FINAL ANSWER: 6
+
+❌ DISCARD Items (should NOT be in FINAL ANSWER):
+     ❌ VIOLATION: $28 million
+     ❌ VIOLATION: $68 million
+     ❌ VIOLATION: $57 million
+     ❌ VIOLATION: $280 million
+     ❌ VIOLATION: $88 million
+     ❌ VIOLATION: $35 million
+
+✅ KEEP Items (should be in FINAL ANSWER):
+   • $125 million
+
+📝 REASONING Section (first 500 chars):
+----------------------------------------------------------------------------------------------------
+REASONING:
+- Item: $28 million
+  - Evidence: "quarterly revenue for Q1 2024 was $28 million"
+  - Action: [DISCARD] (Reason: Quarterly revenue, not annual).
+- Item: $68 million
+  - Evidence: "operating expenses for 2024 totaled $68 million"
+  - Action: [DISCARD] (Reason: Expenses, not revenue).
+- Item: $57 million
+  - Evidence: "net profit for 2024 was $57 million"
+  - Action: [DISCARD] (Reason: Profit, not revenue).
+- Item: $280 million
+  - Evidence: "total assets at the end of 2024 were valued 
+----------------------------------------------------------------------------------------------------
+
+❌ FINAL ANSWER (contains DISCARD items):
+----------------------------------------------------------------------------------------------------
+CloudScale Systems' annual revenue in 2024 was $125 million.
+----------------------------------------------------------------------------------------------------
+
+🔍 Violating Items Found in FINAL ANSWER:
+   • '$28 million' appears near: ...oudScale Systems' annual revenue in 2024 was $125 million....
+   • '$68 million' appears near: ...oudScale Systems' annual revenue in 2024 was $125 million....
+   • '$57 million' appears near: ...oudScale Systems' annual revenue in 2024 was $125 million....
+   • '$280 million' appears near: ...oudScale Systems' annual revenue in 2024 was $125 million....
+   • '$88 million' appears near: ...oudScale Systems' annual revenue in 2024 was $125 million....
+   • '$35 million' appears near: ...oudScale Systems' annual revenue in 2024 was $125 million....
+
+💡 FIX REQUIRED:
+   Remove the following items from FINAL ANSWER:
+   - $28 million
+   - $68 million
+   - $57 million
+   - $280 million
+   - $88 million
+   - $35 million
+
+   Ensure FINAL ANSWER only contains [KEEP] items:
+   + $125 million
+
+
+====================================================================================================
+VIOLATION #129 - Example Index: 129
+====================================================================================================
+
+📋 Query: What products does AnalyticsPro Solutions offer?
+
+📊 Summary:
+   • Total [DISCARD] items in REASONING: 2
+   • Total [KEEP] items in REASONING: 3
+   • DISCARD items that appear in FINAL ANSWER: 2
+
+❌ DISCARD Items (should NOT be in FINAL ANSWER):
+     ❌ VIOLATION: AnalyticsPro Consulting Services
+     ❌ VIOLATION: AnalyticsPro Support Plans
+
+✅ KEEP Items (should be in FINAL ANSWER):
+   • AnalyticsPro Enterprise
+   • AnalyticsPro Cloud
+   • AnalyticsPro Mobile
+
+📝 REASONING Section (first 500 chars):
+----------------------------------------------------------------------------------------------------
+REASONING:
+- Item: AnalyticsPro Enterprise
+  - Evidence: "AnalyticsPro Enterprise is the company's flagship analytics platform"
+  - Action: [KEEP]
+- Item: AnalyticsPro Cloud
+  - Evidence: "AnalyticsPro Cloud offers scalable cloud-based analytics infrastructure"
+  - Action: [KEEP]
+- Item: AnalyticsPro Mobile
+  - Evidence: "AnalyticsPro Mobile is the company's mobile application"
+  - Action: [KEEP]
+- Item: AnalyticsPro Consulting Services
+  - Evidence: "offers AnalyticsPro Consulting Services"
+  -
+----------------------------------------------------------------------------------------------------
+
+❌ FINAL ANSWER (contains DISCARD items):
+----------------------------------------------------------------------------------------------------
+AnalyticsPro Solutions offers three products: AnalyticsPro Enterprise, AnalyticsPro Cloud, and AnalyticsPro Mobile.
+----------------------------------------------------------------------------------------------------
+
+🔍 Violating Items Found in FINAL ANSWER:
+   • 'AnalyticsPro Consulting Services' appears near: ...AnalyticsPro Solutions offers three products: AnalyticsPro Ent...
+   • 'AnalyticsPro Support Plans' appears near: ...AnalyticsPro Solutions offers three products: AnalyticsPro Ent...
+
+💡 FIX REQUIRED:
+   Remove the following items from FINAL ANSWER:
+   - AnalyticsPro Consulting Services
+   - AnalyticsPro Support Plans
+
+   Ensure FINAL ANSWER only contains [KEEP] items:
+   + AnalyticsPro Enterprise
+   + AnalyticsPro Cloud
+   + AnalyticsPro Mobile
+
+
+====================================================================================================
+VIOLATION #132 - Example Index: 132
+====================================================================================================
+
+📋 Query: What was FinTech Dynamics' annual revenue in 2023?
+
+📊 Summary:
+   • Total [DISCARD] items in REASONING: 6
+   • Total [KEEP] items in REASONING: 1
+   • DISCARD items that appear in FINAL ANSWER: 6
+
+❌ DISCARD Items (should NOT be in FINAL ANSWER):
+     ❌ VIOLATION: $18 million
+     ❌ VIOLATION: $45 million
+     ❌ VIOLATION: $40 million
+     ❌ VIOLATION: $180 million
+     ❌ VIOLATION: $63 million
+     ❌ VIOLATION: $22 million
+
+✅ KEEP Items (should be in FINAL ANSWER):
+   • $85 million
+
+📝 REASONING Section (first 500 chars):
+----------------------------------------------------------------------------------------------------
+REASONING:
+- Item: $18 million
+  - Evidence: "quarterly revenue for Q1 2023 was $18 million"
+  - Action: [DISCARD] (Reason: Quarterly revenue, not annual).
+- Item: $45 million
+  - Evidence: "operating expenses for 2023 totaled $45 million"
+  - Action: [DISCARD] (Reason: Expenses, not revenue).
+- Item: $40 million
+  - Evidence: "net profit for 2023 was $40 million"
+  - Action: [DISCARD] (Reason: Profit, not revenue).
+- Item: $180 million
+  - Evidence: "total assets at the end of 2023 were valued 
+----------------------------------------------------------------------------------------------------
+
+❌ FINAL ANSWER (contains DISCARD items):
+----------------------------------------------------------------------------------------------------
+FinTech Dynamics' annual revenue in 2023 was $85 million.
+----------------------------------------------------------------------------------------------------
+
+🔍 Violating Items Found in FINAL ANSWER:
+   • '$18 million' appears near: ...FinTech Dynamics' annual revenue in 2023 was $85 million....
+   • '$45 million' appears near: ...FinTech Dynamics' annual revenue in 2023 was $85 million....
+   • '$40 million' appears near: ...FinTech Dynamics' annual revenue in 2023 was $85 million....
+   • '$180 million' appears near: ...FinTech Dynamics' annual revenue in 2023 was $85 million....
+   • '$63 million' appears near: ...FinTech Dynamics' annual revenue in 2023 was $85 million....
+   • '$22 million' appears near: ...FinTech Dynamics' annual revenue in 2023 was $85 million....
+
+💡 FIX REQUIRED:
+   Remove the following items from FINAL ANSWER:
+   - $18 million
+   - $45 million
+   - $40 million
+   - $180 million
+   - $63 million
+   - $22 million
+
+   Ensure FINAL ANSWER only contains [KEEP] items:
+   + $85 million
+
+
+====================================================================================================
+VIOLATION #135 - Example Index: 135
+====================================================================================================
+
+📋 Query: What is CleanTech Innovations' mission statement?
+
+📊 Summary:
+   • Total [DISCARD] items in REASONING: 4
+   • Total [KEEP] items in REASONING: 1
+   • DISCARD items that appear in FINAL ANSWER: 3
+
+❌ DISCARD Items (should NOT be in FINAL ANSWER):
+     ❌ VIOLATION: developing sustainable energy solutions that reduce carbon emissions
+     ✅ OK: sustainability, innovation, environmental responsibility, social impact, and technological excellence
+     ❌ VIOLATION: future where clean energy is the primary source of power
+     ❌ VIOLATION: carbon-neutral energy ecosystem by 2040
+
+✅ KEEP Items (should be in FINAL ANSWER):
+   • accelerate the global transition to renewable energy through innovative technology and accessible solutions that make clean energy available to everyone
+
+📝 REASONING Section (first 500 chars):
+----------------------------------------------------------------------------------------------------
+REASONING:
+- Item: accelerate the global transition to renewable energy through innovative technology and accessible solutions that make clean energy available to everyone
+  - Evidence: "The company's mission is to accelerate the global transition to renewable energy through innovative technology and accessible solutions that make clean energy available to everyone"
+  - Action: [KEEP]
+- Item: developing sustainable energy solutions that reduce carbon emissions
+  - Evidence: "committed to develop
+----------------------------------------------------------------------------------------------------
+
+❌ FINAL ANSWER (contains DISCARD items):
+----------------------------------------------------------------------------------------------------
+CleanTech Innovations' mission is to accelerate the global transition to renewable energy through innovative technology and accessible solutions that make clean energy available to everyone.
+----------------------------------------------------------------------------------------------------
+
+🔍 Violating Items Found in FINAL ANSWER:
+   • 'developing sustainable energy solutions that reduce carbon emissions' appears near: ... to accelerate the global transition to renewable energy through innovative technology and accessible solu...
+   • 'developing sustainable energy solutions that reduce carbon emissions' appears near: ...ergy through innovative technology and accessible solutions that make clean energy available to everyone....
+   • 'developing sustainable energy solutions that reduce carbon emissions' appears near: ...gh innovative technology and accessible solutions that make clean energy available to everyone....
+   • 'future where clean energy is the primary source of power' appears near: ...CleanTech Innovations' mission is to accelerate the glo...
+   • 'future where clean energy is the primary source of power' appears near: ... to accelerate the global transition to renewable energy through innovative technology and accessible solu...
+   • 'carbon-neutral energy ecosystem by 2040' appears near: ... to accelerate the global transition to renewable energy through innovative technology and accessible solu...
+
+💡 FIX REQUIRED:
+   Remove the following items from FINAL ANSWER:
+   - developing sustainable energy solutions that reduce carbon emissions
+   - future where clean energy is the primary source of power
+   - carbon-neutral energy ecosystem by 2040
+
+   Ensure FINAL ANSWER only contains [KEEP] items:
+   + accelerate the global transition to renewable energy through innovative technology and accessible solutions that make clean energy available to everyone
+
+
+====================================================================================================
+VIOLATION #141 - Example Index: 141
+====================================================================================================
+
+📋 Query: What products does SecureNet Solutions offer?
+
+📊 Summary:
+   • Total [DISCARD] items in REASONING: 3
+   • Total [KEEP] items in REASONING: 3
+   • DISCARD items that appear in FINAL ANSWER: 3
+
+❌ DISCARD Items (should NOT be in FINAL ANSWER):
+     ❌ VIOLATION: SecureNet Consulting Services
+     ❌ VIOLATION: SecureNet Support Plans
+     ❌ VIOLATION: SecureNet Training Programs
+
+✅ KEEP Items (should be in FINAL ANSWER):
+   • SecureNet Firewall
+   • SecureNet Antivirus
+   • SecureNet VPN
+
+📝 REASONING Section (first 500 chars):
+----------------------------------------------------------------------------------------------------
+REASONING:
+- Item: SecureNet Firewall
+  - Evidence: "SecureNet Firewall is the company's flagship network security product"
+  - Action: [KEEP]
+- Item: SecureNet Antivirus
+  - Evidence: "SecureNet Antivirus offers comprehensive malware protection"
+  - Action: [KEEP]
+- Item: SecureNet VPN
+  - Evidence: "SecureNet VPN provides secure remote access solutions"
+  - Action: [KEEP]
+- Item: SecureNet Consulting Services
+  - Evidence: "offers SecureNet Consulting Services"
+  - Action: [DISCARD] (Reason: S
+----------------------------------------------------------------------------------------------------
+
+❌ FINAL ANSWER (contains DISCARD items):
+----------------------------------------------------------------------------------------------------
+SecureNet Solutions offers three products: SecureNet Firewall, SecureNet Antivirus, and SecureNet VPN.
+----------------------------------------------------------------------------------------------------
+
+🔍 Violating Items Found in FINAL ANSWER:
+   • 'SecureNet Consulting Services' appears near: ...SecureNet Solutions offers three products: SecureNet Firewa...
+   • 'SecureNet Support Plans' appears near: ...SecureNet Solutions offers three products: SecureNet Firewa...
+   • 'SecureNet Training Programs' appears near: ...SecureNet Solutions offers three products: SecureNet Firewa...
+
+💡 FIX REQUIRED:
+   Remove the following items from FINAL ANSWER:
+   - SecureNet Consulting Services
+   - SecureNet Support Plans
+   - SecureNet Training Programs
+
+   Ensure FINAL ANSWER only contains [KEEP] items:
+   + SecureNet Firewall
+   + SecureNet Antivirus
+   + SecureNet VPN
+
+
+====================================================================================================
+VIOLATION #163 - Example Index: 163
+====================================================================================================
+
+📋 Query: When was InnovateCorp established?
+
+📊 Summary:
+   • Total [DISCARD] items in REASONING: 5
+   • Total [KEEP] items in REASONING: 1
+   • DISCARD items that appear in FINAL ANSWER: 1
+
+❌ DISCARD Items (should NOT be in FINAL ANSWER):
+     ❌ VIOLATION: January 2018
+     ✅ OK: 2020
+     ✅ OK: 2022
+     ✅ OK: 2023
+     ✅ OK: 2024
+
+✅ KEEP Items (should be in FINAL ANSWER):
+   • 2018
+
+📝 REASONING Section (first 500 chars):
+----------------------------------------------------------------------------------------------------
+REASONING:
+- Item: 2018
+  - Evidence: "InnovateCorp was originally established in 2018"
+  - Action: [KEEP]
+- Item: January 2018
+  - Evidence: "began operations in January 2018"
+  - Action: [DISCARD] (Reason: Operations start date, not establishment year).
+- Item: 2020
+  - Evidence: "achieving profitability in 2020"
+  - Action: [DISCARD] (Reason: Profitability date, not establishment).
+- Item: 2022
+  - Evidence: "moved to its current headquarters location in 2022"
+  - Action: [DISCARD] (Reason: M
+----------------------------------------------------------------------------------------------------
+
+❌ FINAL ANSWER (contains DISCARD items):
+----------------------------------------------------------------------------------------------------
+InnovateCorp was established in 2018.
+----------------------------------------------------------------------------------------------------
+
+🔍 Violating Items Found in FINAL ANSWER:
+   • 'January 2018' appears near: ...InnovateCorp was established in 2018....
+
+💡 FIX REQUIRED:
+   Remove the following items from FINAL ANSWER:
+   - January 2018
+
+   Ensure FINAL ANSWER only contains [KEEP] items:
+   + 2018
+
+
+====================================================================================================
+VIOLATION #166 - Example Index: 166
+====================================================================================================
+
+📋 Query: What was the company's revenue in Q4 2023?
+
+📊 Summary:
+   • Total [DISCARD] items in REASONING: 5
+   • Total [KEEP] items in REASONING: 1
+   • DISCARD items that appear in FINAL ANSWER: 5
+
+❌ DISCARD Items (should NOT be in FINAL ANSWER):
+     ❌ VIOLATION: $35 million
+     ❌ VIOLATION: $38 million
+     ❌ VIOLATION: $39 million
+     ❌ VIOLATION: $32 million
+     ❌ VIOLATION: $13 million
+
+✅ KEEP Items (should be in FINAL ANSWER):
+   • $45 million
+
+📝 REASONING Section (first 500 chars):
+----------------------------------------------------------------------------------------------------
+REASONING:
+- Item: $45 million
+  - Evidence: "The company's revenue for Q4 2023 was $45 million"
+  - Action: [KEEP]
+- Item: $35 million
+  - Evidence: "The company's revenue for Q1 2023 was $35 million"
+  - Action: [DISCARD] (Reason: Q1 2023 revenue, not Q4 2023).
+- Item: $38 million
+  - Evidence: "The revenue for Q2 2023 was $38 million"
+  - Action: [DISCARD] (Reason: Q2 2023 revenue, not Q4 2023).
+- Item: $39 million
+  - Evidence: "The revenue for Q3 2023 was $39 million"
+  - Action: [DISCARD] 
+----------------------------------------------------------------------------------------------------
+
+❌ FINAL ANSWER (contains DISCARD items):
+----------------------------------------------------------------------------------------------------
+The company's revenue in Q4 2023 was $45 million.
+----------------------------------------------------------------------------------------------------
+
+🔍 Violating Items Found in FINAL ANSWER:
+   • '$35 million' appears near: ...The company's revenue in Q4 2023 was $45 million....
+   • '$38 million' appears near: ...The company's revenue in Q4 2023 was $45 million....
+   • '$39 million' appears near: ...The company's revenue in Q4 2023 was $45 million....
+   • '$32 million' appears near: ...The company's revenue in Q4 2023 was $45 million....
+   • '$13 million' appears near: ...The company's revenue in Q4 2023 was $45 million....
+
+💡 FIX REQUIRED:
+   Remove the following items from FINAL ANSWER:
+   - $35 million
+   - $38 million
+   - $39 million
+   - $32 million
+   - $13 million
+
+   Ensure FINAL ANSWER only contains [KEEP] items:
+   + $45 million
+
+
+====================================================================================================
+VIOLATION #170 - Example Index: 170
+====================================================================================================
+
+📋 Query: What was the company's customer acquisition cost in Q4 2023?
+
+📊 Summary:
+   • Total [DISCARD] items in REASONING: 4
+   • Total [KEEP] items in REASONING: 1
+   • DISCARD items that appear in FINAL ANSWER: 1
+
+❌ DISCARD Items (should NOT be in FINAL ANSWER):
+     ❌ VIOLATION: $3,200 per customer
+     ✅ OK: 7.1:1
+     ✅ OK: $8.5 million
+     ✅ OK: 115%
+
+✅ KEEP Items (should be in FINAL ANSWER):
+   • $450 per customer
+
+📝 REASONING Section (first 500 chars):
+----------------------------------------------------------------------------------------------------
+REASONING:
+- Item: $450 per customer
+  - Evidence: "The company's customer acquisition cost (CAC) for Q4 2023 was $450 per customer"
+  - Action: [KEEP]
+- Item: $3,200 per customer
+  - Evidence: "Customer lifetime value (LTV) increased to $3,200 per customer"
+  - Action: [DISCARD] (Reason: Customer lifetime value, not acquisition cost).
+- Item: 7.1:1
+  - Evidence: "The LTV to CAC ratio improved to 7.1:1"
+  - Action: [DISCARD] (Reason: Ratio, not acquisition cost).
+- Item: $8.5 million
+  - Evidenc
+----------------------------------------------------------------------------------------------------
+
+❌ FINAL ANSWER (contains DISCARD items):
+----------------------------------------------------------------------------------------------------
+The company's customer acquisition cost in Q4 2023 was $450 per customer.
+----------------------------------------------------------------------------------------------------
+
+🔍 Violating Items Found in FINAL ANSWER:
+   • '$3,200 per customer' appears near: ...The company's customer acquisition cost in Q4 2023 was $450 per customer...
+
+💡 FIX REQUIRED:
+   Remove the following items from FINAL ANSWER:
+   - $3,200 per customer
+
+   Ensure FINAL ANSWER only contains [KEEP] items:
+   + $450 per customer
+
+
+====================================================================================================
+SUMMARY
+====================================================================================================
+
+Total violations found: 28
+
+Example indices to fix: [63, 68, 82, 83, 85, 86, 87, 91, 106, 108, 109, 111, 112, 115, 116, 117, 119, 121, 124, 125, 126, 129, 132, 135, 141, 163, 166, 170]
+
+To fix:
+1. Open rag_cot_training_dataset.json
+2. For each example index listed above, find the example
+3. Remove [DISCARD] items from FINAL ANSWER
+4. Ensure FINAL ANSWER only contains [KEEP] items
+5. If all items are [DISCARD], FINAL ANSWER should be minimal
+
