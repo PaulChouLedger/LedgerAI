@@ -1895,6 +1895,19 @@ if [ "$ENV_NEEDS_CONFIG" = true ]; then
         else
             print_info "✅ .env file appears to be configured"
         fi
+        
+        # Offer to reboot now (since we're about to configure power mode which may also trigger reboot)
+        echo ""
+        print_info "✅ .env file configured successfully!"
+        print_warning "⚠️  Next step will configure Jetson power mode (may trigger reboot)"
+        echo ""
+        read -p "Reboot now to apply .env configuration? (yes/no) [no]: " reboot_now
+        if [ "$reboot_now" = "yes" ] || [ "$reboot_now" = "y" ]; then
+            print_info "Rebooting now..."
+            print_info "After reboot, run the installation script again to complete power mode setup"
+            sudo reboot
+            exit 0
+        fi
     else
         print_warning "⚠️  Skipping .env configuration - remember to configure it before running Aura!"
     fi
@@ -1919,22 +1932,26 @@ if [ -f /etc/nv_tegra_release ] || [ -f /proc/device-tree/model ] && grep -q "Je
         if [ "$CURRENT_MODE_BEFORE" != "0" ]; then
             print_info "Setting MAXN power mode (mode 0)..."
             print_info "Current power mode: $CURRENT_MODE_BEFORE (target: 0 = MAXN)"
-            
-            # Try to set power mode non-interactively
-            # Answer "no" to avoid immediate reboot during installation
-            # The systemd service will set it properly on boot (when no prompt is needed)
-            if echo "no" | sudo nvpmodel -m 0 >/dev/null 2>&1; then
-                # Check if mode actually changed
-                sleep 1
-                CURRENT_MODE_AFTER=$(sudo nvpmodel -q 2>/dev/null | grep -oP "NV Power Mode: \K[0-9]+" || echo "unknown")
-                if [ "$CURRENT_MODE_AFTER" = "0" ]; then
-                    print_info "✅ MAXN power mode configured successfully"
-                else
-                    print_warning "⚠️  Power mode change requires reboot - will be set by systemd service on next boot"
-                fi
+            print_warning "⚠️  Power mode change requires a reboot to take effect"
+            echo ""
+            print_info "nvpmodel will prompt to reboot. We recommend:"
+            print_info "  1. Answer 'no' to the reboot prompt (we'll reboot after service setup)"
+            print_info "  2. The mode will be configured for the next boot"
+            print_info "  3. We'll create a systemd service to ensure it persists"
+            echo ""
+            read -p "Set power mode to MAXN now? (yes/no) [yes]: " set_power_mode
+            if [ -z "$set_power_mode" ] || [ "$set_power_mode" = "yes" ] || [ "$set_power_mode" = "y" ]; then
+                # Set the power mode interactively
+                # NOTE: If user answers "yes" to reboot prompt, system will reboot immediately
+                #       and installation won't complete. So we'll answer "no" here and set it up
+                #       to be configured by the systemd service, OR we can skip this and document manual setup
+                print_info "⚠️  IMPORTANT: nvpmodel requires a reboot to change power mode"
+                print_info "   We'll configure it after creating the systemd service"
+                print_info "   (Answering 'no' to nvpmodel's reboot prompt won't set the mode)"
+                print_info "   The systemd service will handle this on boot"
             else
-                # If it fails, the mode change will be handled by systemd service on reboot
-                print_warning "⚠️  Power mode change requires reboot - will be set by systemd service on next boot"
+                print_warning "⚠️  Skipping power mode configuration"
+                print_info "   You can set it manually later with: sudo nvpmodel -m 0"
             fi
         else
             print_info "✅ MAXN power mode already set (mode 0)"
@@ -1987,9 +2004,9 @@ if [ -f /etc/nv_tegra_release ] || [ -f /proc/device-tree/model ] && grep -q "Je
             
             if [ -n "$NVPMODEL_CMD" ]; then
                 # Create service with both nvpmodel and jetson_clocks
-                # Use /bin/sh -c to run both commands in sequence
-                # Note: nvpmodel may require reboot, but when run from systemd at boot,
-                # it should work without prompts since we're already in the boot process
+                # Note: nvpmodel -m 0 sets the mode for the NEXT boot, not the current one
+                # So this service ensures the mode stays set on future reboots
+                # We pipe "no" to avoid prompts (mode is set but reboot prompt is answered no)
                 sudo tee "$JETSON_POWER_SERVICE" >/dev/null << EOFPOWER
 [Unit]
 Description=Set Jetson to MAXN Power Mode
@@ -1997,7 +2014,7 @@ After=multi-user.target
 
 [Service]
 Type=oneshot
-ExecStart=/bin/sh -c "$NVPMODEL_CMD -m 0; $JETSON_CLOCKS_CMD"
+ExecStart=/bin/sh -c "echo 'no' | $NVPMODEL_CMD -m 0 >/dev/null 2>&1 || true; $JETSON_CLOCKS_CMD"
 RemainAfterExit=yes
 
 [Install]
@@ -2031,8 +2048,26 @@ EOFPOWER
     
     print_info ""
     print_warning "⚠️  Power mode configuration complete"
-    print_warning "⚠️  If the system reboots now, all installation steps have completed successfully"
-    print_info "   After reboot, Aura will start automatically via systemd service"
+    echo ""
+    print_warning "⚠️  IMPORTANT: To set power mode to MAXN, run this command after reboot:"
+    print_info "   sudo nvpmodel -m 0"
+    print_info "   (Answer 'yes' when prompted to reboot - this is required to set the mode)"
+    print_info ""
+    print_info "   The systemd service will ensure jetson_clocks runs on every boot"
+    echo ""
+    read -p "Reboot now? (yes/no) [yes]: " reboot_final
+    if [ -z "$reboot_final" ] || [ "$reboot_final" = "yes" ] || [ "$reboot_final" = "y" ]; then
+        print_info "Rebooting now..."
+        print_info "After reboot:"
+        print_info "  1. Set power mode: sudo nvpmodel -m 0 (answer 'yes' to reboot prompt)"
+        print_info "  2. Aura will start automatically via systemd service"
+        print_info "  3. Check power mode with: sudo nvpmodel -q"
+        sudo reboot
+        exit 0
+    else
+        print_warning "⚠️  Remember to reboot and set power mode manually"
+        print_info "   After reboot, run: sudo nvpmodel -m 0"
+    fi
 else
     print_info "Not running on Jetson device - skipping power mode configuration"
 fi

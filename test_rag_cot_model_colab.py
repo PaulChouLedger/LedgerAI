@@ -313,7 +313,7 @@ def test_scenario(model, tokenizer, scenario, model_type='transformers'):
                 output = model.create_chat_completion(
                     messages=enhanced_messages,
                     max_tokens=GGUF_MAX_TOKENS,  # Maximum tokens for complete reasoning + FINAL ANSWER
-                    temperature=0.01,  # Very low temperature for deterministic extraction
+                    temperature=0,  # Temperature=0 for fully deterministic inference (greedy decoding)
                     top_p=0.95,
                     repeat_penalty=1.2,
                     stop=None,  # Use None instead of [] - some llama_cpp versions handle this differently
@@ -327,7 +327,7 @@ def test_scenario(model, tokenizer, scenario, model_type='transformers'):
                     output = model.create_chat_completion(
                         messages=enhanced_messages,
                         max_tokens=GGUF_MAX_TOKENS,
-                        temperature=0.01,
+                        temperature=0,  # Temperature=0 for fully deterministic inference
                         top_p=0.95,
                         repeat_penalty=1.2,
                         stream=False
@@ -342,7 +342,7 @@ def test_scenario(model, tokenizer, scenario, model_type='transformers'):
                     output = model(
                         formatted_prompt,
                         max_tokens=GGUF_MAX_TOKENS,
-                        temperature=0.01,
+                        temperature=0,  # Temperature=0 for fully deterministic inference
                         top_p=0.95,
                         repeat_penalty=1.2,
                         stop=None,  # Try None instead of []
@@ -359,7 +359,7 @@ def test_scenario(model, tokenizer, scenario, model_type='transformers'):
                 output = model(
                     formatted_prompt,
                     max_tokens=GGUF_MAX_TOKENS,
-                    temperature=0.01,
+                    temperature=0,  # Temperature=0 for fully deterministic inference
                     top_p=0.95,
                     repeat_penalty=1.2,
                     stop=None,  # Try None instead of []
@@ -426,8 +426,8 @@ def test_scenario(model, tokenizer, scenario, model_type='transformers'):
                 outputs = model.generate(
                     **inputs,
                     max_new_tokens=2048,
-                    temperature=0.05,
-                    do_sample=True,
+                    temperature=0,  # Temperature=0 for fully deterministic inference
+                    do_sample=False,  # Disable sampling for greedy decoding (temperature=0 requires do_sample=False)
                     top_p=0.95,
                     pad_token_id=tokenizer.eos_token_id,
                     eos_token_id=tokenizer.eos_token_id,

@@ -141,7 +141,7 @@ if os.getenv('BASE_MODEL_PATH'):
     base_container.model_path = BASE_MODEL_PATH
     print(f"[Generic] 🔍 [Model Resolution] Using BASE_MODEL_PATH from environment: {BASE_MODEL_PATH}")
 else:
-    SIMPLE_MODEL_PATH = base_container.resolve_model_path()
+SIMPLE_MODEL_PATH = base_container.resolve_model_path()
     BASE_MODEL_PATH = SIMPLE_MODEL_PATH  # Update to resolved path
     print(f"[Generic] 🔍 [Model Resolution] Resolved base model path: {SIMPLE_MODEL_PATH}")
     # Verify model file exists
@@ -231,11 +231,11 @@ def llm_chat_simple(messages, max_tokens=None, temperature=None, stream=False, u
     
     # Use base model for conversational queries or as fallback
     if not use_cot_model:
-        if not base_container._model_loaded or base_container.llm_simple is None:
+    if not base_container._model_loaded or base_container.llm_simple is None:
             print(f"[Generic] ⚠️ ERROR: Base model not loaded! _model_loaded={base_container._model_loaded}, llm_simple={base_container.llm_simple is not None}")
-            if stream:
-                return iter([])
-            return ""
+        if stream:
+            return iter([])
+        return ""
         # Use base model for conversational queries
         container = base_container
         model_path = base_container.model_path or SIMPLE_MODEL_PATH or BASE_MODEL_PATH
@@ -794,34 +794,34 @@ def handle_conversation(
                         # Check if it's a question: starts with question word/phrase, ends with "?", or is a question-like pattern
                         is_question = False
                         text_lower = text.lower().strip()
-                        
-                        # Check if it ends with "?"
-                        if text.endswith('?'):
-                            first_word = text_lower.split()[0] if text_lower.split() else ""
-                            if first_word in question_words:
-                                is_question = True
-                        
-                        # Check if it starts with question words/phrases (even without "?")
-                        if text_lower.split():
-                            first_word = text_lower.split()[0]
-                            first_two_words = ' '.join(text_lower.split()[:2]) if len(text_lower.split()) >= 2 else first_word
                             
-                            # Check for question phrases like "for the", "or the", "who are", etc.
-                            if first_two_words in question_phrases or first_word in question_words:
+                            # Check if it ends with "?"
+                            if text.endswith('?'):
+                                first_word = text_lower.split()[0] if text_lower.split() else ""
+                                if first_word in question_words:
+                                    is_question = True
+                            
+                            # Check if it starts with question words/phrases (even without "?")
+                            if text_lower.split():
+                                first_word = text_lower.split()[0]
+                                first_two_words = ' '.join(text_lower.split()[:2]) if len(text_lower.split()) >= 2 else first_word
+                                
+                                # Check for question phrases like "for the", "or the", "who are", etc.
+                                if first_two_words in question_phrases or first_word in question_words:
+                                    is_question = True
+                            
+                            # Check for question patterns: "for the X", "or the X" (common transcription errors)
+                            # Also check if text contains "co-founder" or similar with "for the"/"or the" prefix (common in transcriptions)
+                            if text_lower.startswith('for the ') or text_lower.startswith('or the '):
                                 is_question = True
-                        
-                        # Check for question patterns: "for the X", "or the X" (common transcription errors)
-                        # Also check if text contains "co-founder" or similar with "for the"/"or the" prefix (common in transcriptions)
-                        if text_lower.startswith('for the ') or text_lower.startswith('or the '):
-                            is_question = True
-                        elif 'co-founder' in text_lower and (text_lower.startswith('for ') or text_lower.startswith('or ')):
-                                is_question = True
-                        
-                        # Only include if it's NOT a question (has actual information)
-                        if not is_question:
-                            filtered_candidates.append(candidate)
-                        else:
-                            print(f"[Generic]   [Pre-filter] ❌ Excluded question: '{text[:60]}...'")
+                            elif 'co-founder' in text_lower and (text_lower.startswith('for ') or text_lower.startswith('or ')):
+                                    is_question = True
+                            
+                            # Only include if it's NOT a question (has actual information)
+                            if not is_question:
+                                filtered_candidates.append(candidate)
+                            else:
+                                print(f"[Generic]   [Pre-filter] ❌ Excluded question: '{text[:60]}...'")
                     
                     # If all candidates were questions, skip LLM scoring and don't inject
                     if not filtered_candidates:
@@ -850,12 +850,12 @@ def handle_conversation(
                         
                         # Use filtered candidates for LLM scoring (if we still have candidates)
                         if filtered_candidates and not memory_rag_results:
-                            conversations_text = ""
-                            for i, candidate in enumerate(filtered_candidates, 1):
-                                conv_text = candidate.get('text', '')
-                                conversations_text += f"{i}. {conv_text}\n"
-                            
-                            scoring_prompt = f"""Rate how well each previous conversation answers the user's question.
+                        conversations_text = ""
+                        for i, candidate in enumerate(filtered_candidates, 1):
+                            conv_text = candidate.get('text', '')
+                            conversations_text += f"{i}. {conv_text}\n"
+                        
+                        scoring_prompt = f"""Rate how well each previous conversation answers the user's question.
 
 User's question: "{prompt}"
 
@@ -875,69 +875,69 @@ Return ONLY a JSON array with exactly {len(filtered_candidates)} scores in order
 Example: [0.8, 0.9, 0.7, 0.6, 0.5]
 
 JSON array only:"""
+                    
+                        try:
+                            # Call LLM for scoring (non-streaming, fast)
+                            scoring_messages = [{"role": "user", "content": scoring_prompt}]
+                            scoring_response = llm_chat_simple(
+                                scoring_messages,
+                                max_tokens=100,  # Reduced from 200 to 100 for faster response
+                                temperature=0.3,
+                                stream=False
+                            )
                             
-                            try:
-                                # Call LLM for scoring (non-streaming, fast)
-                                scoring_messages = [{"role": "user", "content": scoring_prompt}]
-                                scoring_response = llm_chat_simple(
-                                    scoring_messages,
-                                    max_tokens=100,  # Reduced from 200 to 100 for faster response
-                                    temperature=0.3,
-                                    stream=False
-                                )
-                                
-                                # Parse LLM response to extract scores
-                                import json
+                            # Parse LLM response to extract scores
+                            import json
                                 # Use re_module from globals() to avoid shadowing issues
                                 json_match = re_module.search(r'\[[\d\.,\s]+\]', scoring_response)
-                                if json_match:
-                                    scores = json.loads(json_match.group())
-                                    print(f"[Generic] ✅ LLM returned {len(scores)} scores")
-                                else:
-                                    try:
-                                        scores = json.loads(scoring_response.strip())
-                                    except:
-                                        print(f"[Generic] ⚠️ Failed to parse LLM scores, using re-ranked scores as fallback")
-                                        scores = [c.get('score', 0.0) for c in filtered_candidates]
-                                
-                                # Ensure we have the right number of scores
-                                if len(scores) != len(filtered_candidates):
-                                    print(f"[Generic] ⚠️ LLM returned {len(scores)} scores but expected {len(filtered_candidates)}, using re-ranked scores as fallback")
+                            if json_match:
+                                scores = json.loads(json_match.group())
+                                print(f"[Generic] ✅ LLM returned {len(scores)} scores")
+                            else:
+                                try:
+                                    scores = json.loads(scoring_response.strip())
+                                except:
+                                    print(f"[Generic] ⚠️ Failed to parse LLM scores, using re-ranked scores as fallback")
                                     scores = [c.get('score', 0.0) for c in filtered_candidates]
-                                
-                                # Update candidates with LLM scores
-                                scored_candidates = []
-                                for i, (candidate, llm_score) in enumerate(zip(filtered_candidates, scores)):
-                                    scored_candidates.append({
-                                        **candidate,
-                                        'score': float(llm_score),
-                                        'original_re_ranked_score': candidate.get('score', 0.0),
-                                        'llm_score': float(llm_score)
-                                    })
-                                    print(f"[Generic]   [{i+1}] LLM score: {llm_score:.3f} (re-ranked: {candidate.get('score', 0.0):.3f}): '{candidate.get('text', '')[:60]}...'")
-                                
-                                # Sort by LLM score (descending)
-                                scored_candidates.sort(key=lambda x: x['score'], reverse=True)
-                                
-                                # Filter by threshold and return top k
-                                # Use higher threshold (0.5) to filter out low-quality results
-                                answer_threshold = max(memory_rag_threshold, 0.5)  # At least 0.5 to ensure quality answers
-                                memory_rag_results = [
-                                    r for r in scored_candidates 
-                                    if r.get('score', 0) >= answer_threshold
-                                ][:memory_rag_k]
-                            except Exception as e:
-                                print(f"[Generic] ⚠️ LLM scoring failed: {e}, falling back to re-ranked scores")
-                                import traceback
-                                traceback.print_exc()
-                                # Fallback to re-ranked scores (use filtered candidates, not all candidates)
-                                scored_candidates = sorted(filtered_candidates, key=lambda x: x.get('score', 0), reverse=True)
-                                # Use higher threshold for fallback too
-                                answer_threshold = max(memory_rag_threshold, 0.5)
-                                memory_rag_results = [
-                                    r for r in scored_candidates 
-                                    if r.get('score', 0) >= answer_threshold
-                                ][:memory_rag_k]
+                            
+                            # Ensure we have the right number of scores
+                            if len(scores) != len(filtered_candidates):
+                                print(f"[Generic] ⚠️ LLM returned {len(scores)} scores but expected {len(filtered_candidates)}, using re-ranked scores as fallback")
+                                scores = [c.get('score', 0.0) for c in filtered_candidates]
+                            
+                            # Update candidates with LLM scores
+                            scored_candidates = []
+                            for i, (candidate, llm_score) in enumerate(zip(filtered_candidates, scores)):
+                                scored_candidates.append({
+                                    **candidate,
+                                    'score': float(llm_score),
+                                    'original_re_ranked_score': candidate.get('score', 0.0),
+                                    'llm_score': float(llm_score)
+                                })
+                                print(f"[Generic]   [{i+1}] LLM score: {llm_score:.3f} (re-ranked: {candidate.get('score', 0.0):.3f}): '{candidate.get('text', '')[:60]}...'")
+                            
+                            # Sort by LLM score (descending)
+                            scored_candidates.sort(key=lambda x: x['score'], reverse=True)
+                            
+                            # Filter by threshold and return top k
+                            # Use higher threshold (0.5) to filter out low-quality results
+                            answer_threshold = max(memory_rag_threshold, 0.5)  # At least 0.5 to ensure quality answers
+                            memory_rag_results = [
+                                r for r in scored_candidates 
+                                if r.get('score', 0) >= answer_threshold
+                            ][:memory_rag_k]
+                        except Exception as e:
+                            print(f"[Generic] ⚠️ LLM scoring failed: {e}, falling back to re-ranked scores")
+                            import traceback
+                            traceback.print_exc()
+                            # Fallback to re-ranked scores (use filtered candidates, not all candidates)
+                            scored_candidates = sorted(filtered_candidates, key=lambda x: x.get('score', 0), reverse=True)
+                            # Use higher threshold for fallback too
+                            answer_threshold = max(memory_rag_threshold, 0.5)
+                            memory_rag_results = [
+                                r for r in scored_candidates 
+                                if r.get('score', 0) >= answer_threshold
+                            ][:memory_rag_k]
                 
                 if memory_rag_results and len(memory_rag_results) > 0:
                     print(f"[Generic] ✅ Memory RAG found {len(memory_rag_results)} relevant conversations (from {len(memory_rag_candidates)} candidates, threshold={max(memory_rag_threshold, 0.5):.2f}) - will inject context")
@@ -1240,39 +1240,71 @@ JSON array only:"""
             # - WITHOUT CoT when conversational system prompt is used (non-RAG queries)
             # This matches the training dataset format exactly - MUST include all scanning rules
             cot_system_prompt = (
-                "You are a precise data extraction bot.\n"
+                "You are a precise data extraction bot that can extract and reason about ANY item from context based on the query.\n\n"
+                "EXTRACTION PROCESS:\n"
                 "1. Start with REASONING:\n"
-                "2. Scan the context carefully for information relevant to the query.\n"
+                "2. Scan ALL chunks completely from start to finish - do NOT stop after finding some matches.\n"
                 "3. For each relevant item found, write:\n"
                 "   - Item: [What you found]\n"
                 "   - Evidence: \"[Verbatim quote from context]\"\n"
                 "   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n"
                 "4. End scan with: - End of scan.\n"
                 "5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\n"
-                "CRITICAL RULES:\n"
+                "CRITICAL SCANNING RULES:\n"
+                "- SCAN ALL CHUNKS COMPLETELY - read each chunk from start to finish before moving to next chunk.\n"
+                "- Do NOT stop after finding some matches - you must scan through the ENTIRE context completely.\n"
+                "- Identify ALL relevant items in REASONING before making any decisions - list EVERY item that could be relevant.\n"
+                "- Continue scanning even after finding matches - there may be multiple items to extract (e.g., 4 co-founders, 5 office locations, 3 products, not just 1).\n"
+                "- Read entire descriptions/chunks completely - relevant information may appear later in the text.\n"
+                "- Items can appear anywhere in the context - do not assume they are at the beginning.\n\n"
+                "CRITICAL DISCARD RULES:\n"
                 "- Items marked [DISCARD] must NEVER appear in FINAL ANSWER - this is ABSOLUTE and MANDATORY.\n"
                 "- FINAL ANSWER must ONLY include items marked [KEEP] - no exceptions.\n"
                 "- If you mark an item [DISCARD] in reasoning, it is FORBIDDEN to mention it in FINAL ANSWER.\n"
                 "- Before writing FINAL ANSWER, verify: ONLY include items that were marked [KEEP] in REASONING.\n"
-                "- Read entire descriptions/chunks completely - titles may appear later in the text.\n"
-                "- SCAN ALL CHUNKS COMPLETELY - read each chunk from start to finish before moving to next.\n"
-                "- IMPORTANT: Identify ALL relevant items in REASONING before making any decisions. Do NOT stop after finding some matches - scan completely and list EVERY item that could be relevant.\n"
-                "- Extract Evidence from the EXACT ITEM MENTION that matches the query - find where the item is explicitly mentioned in relation to what you're looking for, not from descriptions or unrelated text.\n"
-                "- IMPORTANT: Do NOT include headers (like 'AURA VISION...'), page numbers, or metadata in Evidence. Extract ONLY the exact quote that shows the role or information.\n\n"
-                "CO-FOUNDER IDENTIFICATION RULES (CRITICAL):\n"
-                "- If evidence contains \"Co-Founder\" OR \"co-founder\" OR \"Co-Founder and [Role]\", the person IS a co-founder.\n"
-                "- If evidence says \"As Co-Founder and Chief Operating Officer\", this person IS a co-founder - mark [KEEP].\n"
-                "- If evidence says \"As Co-Founder and [Any Role]\", this person IS a co-founder - mark [KEEP].\n"
-                "- If evidence says \"CEO and Co-Founder\", this person IS a co-founder - mark [KEEP].\n"
-                "- If evidence does NOT mention \"Co-Founder\" or \"co-founder\", the person is NOT a co-founder (unless explicitly stated as \"founder\").\n"
-                "- Example: \"As Co-Founder and Chief Operating Officer\" → [KEEP] (co-founder confirmed).\n"
-                "- Example: \"serves as Chief Operating Officer\" → [DISCARD] (no co-founder mention).\n\n"
+                "- If an item is marked [DISCARD], it must NOT appear in FINAL ANSWER - double-check before writing.\n"
+                "- Even if a [DISCARD] item is related or similar to the query, do NOT include it in FINAL ANSWER.\n\n"
+                "QUERY INTENT UNDERSTANDING (CRITICAL):\n"
+                "- Understand what the query is asking for - extract ONLY items that match the query intent.\n"
+                "- If query asks for \"benefits\", extract ONLY benefits - mark drawbacks/limitations as [DISCARD].\n"
+                "- If query asks for \"drawbacks\" or \"limitations\", extract ONLY drawbacks - mark benefits as [DISCARD].\n"
+                "- If query asks for \"products\", extract ONLY products - mark services/plans as [DISCARD].\n"
+                "- If query asks for \"locations\", extract ONLY locations - mark other information as [DISCARD].\n"
+                "- If query asks for \"people with role X\", find people with that EXACT role - mark other roles as [DISCARD].\n"
+                "- If query asks for \"annual revenue\", extract ONLY annual revenue - mark quarterly/monthly/expenses/profit as [DISCARD].\n"
+                "- If query asks for \"technologies\" or \"programming languages\", extract ONLY technologies/languages - mark protocols/APIs/documentation languages as [DISCARD].\n"
+                "- If query asks for \"co-founders\", extract ONLY co-founders - mark other roles (CEO without co-founder, CTO, etc.) as [DISCARD].\n"
+                "- Drawbacks are NOT benefits - if query asks for benefits, drawbacks must be marked [DISCARD] and NOT included in FINAL ANSWER.\n"
+                "- Services are NOT products - if query asks for products, services must be marked [DISCARD] and NOT included in FINAL ANSWER.\n"
+                "- Read the query carefully and match the INTENT, not just keywords.\n\n"
+                "MULTIPLE ATTRIBUTES/ROLES HANDLING:\n"
+                "- Items (especially people, products, services) can have MULTIPLE attributes - read the ENTIRE description.\n"
+                "- If someone has \"Attribute A AND Attribute B\", they have BOTH attributes - check if EITHER matches the query.\n"
+                "- Example: \"Co-Founder and Chief Financial Officer\" means the person IS BOTH a co-founder AND the CFO.\n"
+                "- For a CFO query: \"Co-Founder and Chief Financial Officer\" → [KEEP] (person IS the CFO).\n"
+                "- For a co-founder query: \"Co-Founder and Chief Financial Officer\" → [KEEP] (person IS a co-founder).\n"
+                "- For a CFO query: \"CEO and Co-Founder\" → [DISCARD] (person is CEO, not CFO).\n"
+                "- For a co-founder query: \"CEO and Co-Founder\" → [KEEP] (person IS a co-founder).\n"
+                "- CRITICAL: Read the FULL description - do not ignore attributes because other attributes are mentioned.\n"
+                "- Check ALL attributes in the description to see if ANY match the query.\n"
+                "- If an item has multiple attributes and the query asks for one of them, mark [KEEP] if that attribute is present.\n\n"
                 "FINAL ANSWER COMPLETENESS (CRITICAL):\n"
                 "- FINAL ANSWER must include EVERY item marked [KEEP] in REASONING.\n"
                 "- Count how many items you marked [KEEP] - ALL of them must appear in FINAL ANSWER.\n"
-                "- If you marked 4 items [KEEP], FINAL ANSWER must include all 4 items.\n"
+                "- If you marked 4 items [KEEP], FINAL ANSWER must include all 4 items - do NOT stop at 1 or 2.\n"
                 "- Before writing FINAL ANSWER, list all [KEEP] items and ensure each one is included.\n"
                 "- If an item is marked [KEEP] in REASONING but missing from FINAL ANSWER, your answer is incomplete.\n"
+                "- The FINAL ANSWER should be comprehensive and include ALL extracted items that match the query.\n\n"
+                "EVIDENCE EXTRACTION RULES:\n"
+                "- Extract Evidence from the EXACT ITEM MENTION that matches the query - find where the item is explicitly mentioned in relation to what you're looking for.\n"
+                "- Do NOT include headers (like 'AURA VISION...'), page numbers, metadata, or unrelated text in Evidence.\n"
+                "- Extract ONLY the exact quote that shows the item or information relevant to the query.\n"
+                "- Read the complete description - the relevant information may appear later in the text.\n"
+                "- The Evidence should clearly show why the item matches (or doesn't match) the query.\n\n"
+                "EMPTY RESULTS HANDLING:\n"
+                "- If NO items match the query after scanning all chunks, mark all relevant items as [DISCARD] and state \"No [items] are explicitly mentioned in the context\" or similar in FINAL ANSWER.\n"
+                "- Do NOT include [DISCARD] items in FINAL ANSWER, even if nothing matches the query.\n"
+                "- FINAL ANSWER should clearly indicate when no matching items are found.\n"
             )
             
             # Build system and user messages - match training format EXACTLY
@@ -2094,11 +2126,11 @@ JSON array only:"""
     elif is_conversational_fallback:
             # For simple conversational phrases (thank you, goodbye, hello, etc.), use simple prompt
             # This matches the training dataset format for conversational examples
-            system_prompt = (
-                "You are Aura Vision, an AI agent created by Ledger AI Quantum Corporation. "
-                "You act as a proactive AI agent guiding users to better outcomes through gentle guidance.\n\n"
-                "CRITICAL RULES:\n"
-                "- Only provide logical, factual responses. Avoid hallucination at all costs.\n"
+        system_prompt = (
+            "You are Aura Vision, an AI agent created by Ledger AI Quantum Corporation. "
+            "You act as a proactive AI agent guiding users to better outcomes through gentle guidance.\n\n"
+            "CRITICAL RULES:\n"
+            "- Only provide logical, factual responses. Avoid hallucination at all costs.\n"
                 "- IMPORTANT: Commands and instructions like 'Give me X', 'Tell me about Y', 'Show me Z' are VALID requests and should be answered normally using your general knowledge.\n"
                 "- For general knowledge questions (recipes, facts, etc.), use your general knowledge to provide helpful answers.\n"
                 "- TTS OPTIMIZATION (CRITICAL): Spell out ALL abbreviations for better speech synthesis:\n"
@@ -2116,7 +2148,7 @@ JSON array only:"""
                 "- Keep responses VERY SHORT - maximum 2-3 sentences total.\n"
                 "- Be conversational, friendly, and natural.\n"
                 "- Always end your response with a brief, natural question. Examples: 'Would you like more information about this?' or 'Is there anything else I can help you with?'"
-            )
+        )
     else:
         # For conversational queries (actual questions), include follow-up question
         # Check if this is a list request and add list-specific instructions
@@ -3585,20 +3617,20 @@ if __name__ == "__main__":
     from llama_cpp import Llama
     base_container.model_path = SIMPLE_MODEL_PATH
     try:
-        base_container.llm_simple = Llama(
-            model_path=SIMPLE_MODEL_PATH,
-            n_ctx=SIMPLE_N_CTX,
-            n_threads=N_THREADS,
-            n_batch=N_BATCH,
-            n_gpu_layers=n_gpu_layers,  # Enable GPU acceleration
-            cache_prompt=CACHE_PROMPT,
-            chat_format=SIMPLE_CHAT_FORMAT,
-            use_mlock=True,
-            use_mmap=True,
-            verbose=False
-        )
-        base_container._model_loaded = True
-        llm_simple = base_container.llm_simple  # Set global reference
+    base_container.llm_simple = Llama(
+        model_path=SIMPLE_MODEL_PATH,
+        n_ctx=SIMPLE_N_CTX,
+        n_threads=N_THREADS,
+        n_batch=N_BATCH,
+        n_gpu_layers=n_gpu_layers,  # Enable GPU acceleration
+        cache_prompt=CACHE_PROMPT,
+        chat_format=SIMPLE_CHAT_FORMAT,
+        use_mlock=True,
+        use_mmap=True,
+        verbose=False
+    )
+    base_container._model_loaded = True
+    llm_simple = base_container.llm_simple  # Set global reference
         print(f"[Generic] ✅ [Startup] Base model loaded successfully: {SIMPLE_MODEL_PATH}")
         print(f"[Generic] ✅ [Startup] Base model will be used for conversational queries (natural responses)")
     except Exception as e:
