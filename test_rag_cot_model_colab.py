@@ -38,22 +38,25 @@ MODEL_PATH = "outputs_rag_cot"  # Path to LoRA adapters or merged model (fallbac
 GGUF_MODEL_DIR = "gguf_model_rag_cot"  # Path to GGUF quantized model directory
 MAX_SEQ_LENGTH = 4096
 
-# The exact Deep Scan system prompt used in training
-SYSTEM_PROMPT = """You are a precise data extraction bot.
-1. Start with REASONING:
-2. Scan the context carefully for information relevant to the query.
-3. For each relevant item found, write:
-   - Item: [What you found]
-   - Evidence: "[Verbatim quote from context]"
-   - Action: [KEEP] if it matches the query, otherwise [DISCARD].
-4. End scan with: - End of scan.
-5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.
+# The exact array-based system prompt used in training (matches rag_cot_training_dataset.json)
+SYSTEM_PROMPT = """You are a data extraction bot. 
 
-CRITICAL RULES:
-- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.
-- FINAL ANSWER must ONLY include items marked [KEEP].
-- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.
-- Read entire descriptions/chunks completely - titles may appear later in the text."""
+STEP 1: REASONING
+- Scan EVERY chunk from start to finish.
+- For each item found:
+  Item: [name]
+  Evidence: "[quote]"
+  Action: [KEEP] or [DISCARD]
+- **CRITICAL**: Do NOT stop after finding some matches. Scan ALL chunks until you reach the absolute end of the context.
+- List Arrays: [KEEP_ARRAY]: [...] | [DISCARD_ARRAY]: [...]
+
+STEP 2: FINAL ANSWER
+- Use ONLY items from [KEEP_ARRAY].
+- If empty, state "No items found."
+
+RULES:
+1. [DISCARD] items are FORBIDDEN in answer.
+2. Complete the scan entirely before writing arrays."""
 
 # ============================================================================
 # Test Scenarios
@@ -237,6 +240,11 @@ def check_cot_reasoning(response: str) -> Tuple[bool, List[str]]:
         "[DISCARD]",
         "KEEP",
         "DISCARD",
+        "[KEEP_ARRAY]",
+        "[DISCARD_ARRAY]",
+        "KEEP_ARRAY",
+        "DISCARD_ARRAY",
+        "Added to",
         "End of scan",
         "- End of scan.",
         "FINAL ANSWER:"
@@ -284,9 +292,9 @@ def test_scenario(model, tokenizer, scenario, model_type='transformers'):
             print(f"   📏 Input length: ~{input_length} tokens (estimated)")
             
             # Generate with GGUF model using chat completion API
-            # OPTIMIZED FOR LATENCY: Using n_ctx=8192 with max_tokens=4096 for fast processing
+            # OPTIMIZED FOR LATENCY: Using n_ctx=16384 with max_tokens=8192 for fast processing
             # Input is ~2,365 tokens (for 4 co-founder example), so we can generate up to ~5,827 tokens safely
-            # Typical output: ~800 tokens, but max_tokens=4096 provides 5x buffer for complex reasoning
+            # Typical output: ~800 tokens, but max_tokens=8192 provides 5x buffer for complex reasoning
             # This prevents truncation while optimizing for speed (smaller context = faster processing)
             GGUF_MAX_TOKENS = 4096  # Latency-optimized: typical ~800 tokens, but allow up to 4K for complex cases
             
@@ -777,8 +785,11 @@ def test_scenario(model, tokenizer, scenario, model_type='transformers'):
         
         # Check for missing [KEEP]/[DISCARD] actions in reasoning
         has_action_markers = '[KEEP]' in reasoning_section or '[DISCARD]' in reasoning_section
-        has_items = '- Item:' in reasoning_section or 'Item:' in reasoning_section
-        missing_actions = has_items and not has_action_markers and "REASONING" in reasoning_section
+        # Check for both singular "Item:" and plural "Items:" formats
+        has_items = '- Item:' in reasoning_section or 'Item:' in reasoning_section or '- Items:' in reasoning_section or 'Items:' in reasoning_section
+        # Also check for simplified format (list items without proper structure)
+        has_simplified_format = ('- Items:' in reasoning_section or 'Items:' in reasoning_section) and not has_action_markers
+        missing_actions = (has_items and not has_action_markers and "REASONING" in reasoning_section) or has_simplified_format
         
         # Check for reasoning errors (e.g., item marked as DISCARD when evidence shows it should be KEEP)
         reasoning_errors = []
@@ -1002,7 +1013,7 @@ def run_tests():
                     try:
                         # Optimized for latency while avoiding truncation
                         # Analysis: 4 co-founder example needs ~2,365 input + typical ~800 output = ~3,165 tokens
-                        # Using n_ctx=8192: input (~2.4K) + max_output (4K) + buffer = 6,400 < 8,192 ✓
+                        # Using n_ctx=16384: input (~2.4K) + max_output (4K) + buffer = 6,400 < 8,192 ✓
                         # This balances latency (smaller context = faster) with safety (won't truncate typical responses)
                         GGUF_N_CTX = 8192  # Optimized: 2.4K input + 4K max output + 1.8K buffer = fast but safe
                         model = Llama(

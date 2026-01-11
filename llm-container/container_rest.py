@@ -141,7 +141,7 @@ if os.getenv('BASE_MODEL_PATH'):
     base_container.model_path = BASE_MODEL_PATH
     print(f"[Generic] 🔍 [Model Resolution] Using BASE_MODEL_PATH from environment: {BASE_MODEL_PATH}")
 else:
-SIMPLE_MODEL_PATH = base_container.resolve_model_path()
+    SIMPLE_MODEL_PATH = base_container.resolve_model_path()
     BASE_MODEL_PATH = SIMPLE_MODEL_PATH  # Update to resolved path
     print(f"[Generic] 🔍 [Model Resolution] Resolved base model path: {SIMPLE_MODEL_PATH}")
     # Verify model file exists
@@ -1239,23 +1239,57 @@ JSON array only:"""
             # - WITH CoT when this CoT system prompt is used (RAG queries)
             # - WITHOUT CoT when conversational system prompt is used (non-RAG queries)
             # This matches the training dataset format exactly - MUST include all scanning rules
-            cot_system_prompt = (
-                "You are a precise data extraction bot that can extract and reason about ANY item from context based on the query.\n\n"
-                "EXTRACTION PROCESS:\n"
-                "1. Start with REASONING:\n"
-                "2. Scan ALL chunks completely from start to finish - do NOT stop after finding some matches.\n"
-                "3. For each relevant item found, write:\n"
-                "   - Item: [What you found]\n"
-                "   - Evidence: \"[Verbatim quote from context]\"\n"
-                "   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n"
-                "4. End scan with: - End of scan.\n"
-                "5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\n"
-                "CRITICAL SCANNING RULES:\n"
-                "- SCAN ALL CHUNKS COMPLETELY - read each chunk from start to finish before moving to next chunk.\n"
-                "- Do NOT stop after finding some matches - you must scan through the ENTIRE context completely.\n"
-                "- Identify ALL relevant items in REASONING before making any decisions - list EVERY item that could be relevant.\n"
-                "- Continue scanning even after finding matches - there may be multiple items to extract (e.g., 4 co-founders, 5 office locations, 3 products, not just 1).\n"
-                "- Read entire descriptions/chunks completely - relevant information may appear later in the text.\n"
+            cot_system_prompt = """You are a data extraction bot. 
+
+STEP 1: REASONING
+- Scan EVERY chunk from start to finish.
+- For each item found:
+  Item: [name]
+  Evidence: "[quote]"
+  Action: [KEEP] or [DISCARD]
+- **CRITICAL**: Do NOT stop after finding some matches. Scan ALL chunks until you reach the absolute end of the context.
+- List Arrays: [KEEP_ARRAY]: [...] | [DISCARD_ARRAY]: [...]
+
+STEP 2: FINAL ANSWER
+- Use ONLY items from [KEEP_ARRAY].
+- If empty, state "No items found."
+
+RULES:
+1. [DISCARD] items are FORBIDDEN in answer.
+2. Complete the scan entirely before writing arrays.""".\n"
+                "   - Write \"End of scan.\" after scanning all chunks completely.\n"
+                "   - List the arrays: [KEEP_ARRAY]: [...] and [DISCARD_ARRAY]: [...]\n\n"
+                "STEP 2: Build FINAL ANSWER:\n"
+                "   - Use ONLY items from [KEEP_ARRAY]\n"
+                "   - NEVER use items from [DISCARD_ARRAY]\n"
+                "   - Include ALL items from [KEEP_ARRAY] in FINAL ANSWER\n"
+                "   - If [KEEP_ARRAY] is empty, state \"No [query items] found in the context.\"\n\n"
+                "CRITICAL RULES - DO NOT VIOLATE:\n\n"
+                "RULE 1 - COMPLETE SCANNING AND EXTRACTION (MOST IMPORTANT):\n"
+                "You MUST scan EVERY chunk from start to finish.\n"
+                "You MUST FIND and EXTRACT ALL items from the context.\n"
+                "Do NOT stop after finding one match - continue scanning until you find ALL items.\n"
+                "You must scan ALL chunks completely and extract ALL relevant items.\n"
+                "Before ending scan, verify: Did you find ALL matching items?\n"
+                "If the query asks for multiple items (e.g., \"co-founders\", \"benefits\", \"locations\"), extract ALL of them, not just some.\n\n"
+                "RULE 2 - ARRAY SEPARATION (MOST IMPORTANT):\n"
+                "Items in [DISCARD_ARRAY] are FORBIDDEN in FINAL ANSWER.\n"
+                "FINAL ANSWER uses ONLY [KEEP_ARRAY].\n"
+                "NEVER include items from [DISCARD_ARRAY] in FINAL ANSWER.\n\n"
+                "RULE 3 - ARRAY COMPLETENESS:\n"
+                "All [KEEP] items must be in [KEEP_ARRAY].\n"
+                "All [DISCARD] items must be in [DISCARD_ARRAY].\n"
+                "FINAL ANSWER must include ALL items from [KEEP_ARRAY].\n\n"
+                "RULE 4 - QUERY MATCHING:\n"
+                "Read the query word by word to understand what is being asked.\n"
+                "Extract ONLY items that match what the query asks for.\n"
+                "If the query asks for X, extract only X. Do NOT extract Y if query asks for X.\n"
+                "Opposites or different categories should be marked [DISCARD] and added to [DISCARD_ARRAY].\n\n"
+                "RULE 5 - MULTIPLE ATTRIBUTES:\n"
+                "Some items can have multiple attributes or roles.\n"
+                "Read the ENTIRE description completely before deciding.\n"
+                "If the item has the attribute that matches the query, mark [KEEP] and add to [KEEP_ARRAY].\n"
+                "If the item does NOT have the attribute that matches the query, mark [DISCARD] and add to [DISCARD_ARRAY]."
                 "- Items can appear anywhere in the context - do not assume they are at the beginning.\n\n"
                 "CRITICAL DISCARD RULES:\n"
                 "- Items marked [DISCARD] must NEVER appear in FINAL ANSWER - this is ABSOLUTE and MANDATORY.\n"

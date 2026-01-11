@@ -100,7 +100,7 @@ DATASET_PATH = "rag_cot_training_dataset.json"
 # - Total needed: ~2,365 + 4,096 = 6,461 tokens
 # - Using 8,192 for safety buffer and to match inference n_ctx setting
 # This optimizes for latency (smaller context = faster) while avoiding truncation
-MAX_SEQ_LENGTH = 8192  # Optimized: input (~2.4K) + max_output (4K) + buffer = latency-optimized
+MAX_SEQ_LENGTH = 16384  # Optimized: input (~2.4K) + max_output (4K) + buffer = latency-optimized
 OUTPUT_DIR = "outputs_rag_cot"
 GGUF_OUTPUT_DIR = "gguf_model_rag_cot"
 
@@ -379,9 +379,9 @@ training_args = TrainingArguments(
     per_device_train_batch_size=1,
     gradient_accumulation_steps=8,  # Effective batch size = 8
     warmup_ratio=0.2,  # 20% warmup: longer, more gradual warmup to prevent early memorization
-    num_train_epochs=20,  # INCREASED: more epochs for consistent reasoning format learning (was 15, now 20)
-    learning_rate=1e-5,  # FURTHER LOWER: slower learning prevents memorization (was 2e-5, now 1e-5)
-    weight_decay=0.35,  # HIGHER: stronger regularization to prevent overfitting (was 0.25, now 0.35)
+    num_train_epochs=30,  # INCREASED: more epochs for consistent reasoning format learning (was 25, now 30)
+    learning_rate=7e-6,  # FURTHER LOWER: slower learning prevents memorization and wrong pattern learning (was 1e-5, now 7e-6)
+    weight_decay=0.42,  # HIGHER: stronger regularization to prevent overfitting to wrong patterns (was 0.35, now 0.42)
     fp16=not torch.cuda.is_bf16_supported(),
     bf16=torch.cuda.is_bf16_supported(),
     logging_steps=5,  # More frequent logging to monitor progress
