@@ -2495,9 +2495,21 @@ def chat_tts():
                         if msg_type == 'token':
                             token_count = getattr(generate_response, '_token_count', 0) + 1
                             generate_response._token_count = token_count
-                            if not (msg_data.startswith('<') and msg_data.endswith('>')):
-                                full_response_text += msg_data
-                            yield f"{msg_data}\n"
+                            # Handle both string and dict tokens (llama-cpp returns dicts)
+                            if isinstance(msg_data, dict):
+                                # Extract text from llama-cpp streaming response
+                                token_text = msg_data.get('choices', [{}])[0].get('delta', {}).get('content', '')
+                                if not token_text:
+                                    token_text = msg_data.get('choices', [{}])[0].get('text', '')
+                                if not token_text:
+                                    token_text = str(msg_data)
+                            else:
+                                token_text = str(msg_data)
+                            
+                            if token_text:
+                                if not (token_text.startswith('<') and token_text.endswith('>')):
+                                    full_response_text += token_text
+                                yield f"{token_text}\n"
                         elif msg_type == 'done':
                             break
                         elif msg_type == 'error':
