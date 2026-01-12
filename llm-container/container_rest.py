@@ -62,7 +62,7 @@ cot_container = BaseLLMContainer(
 
 # Override default parameters for generic container
 base_container.LLM_NUM_PREDICT_DEFAULT = 800  # Increased for comprehensive responses
-base_container.SIMPLE_N_CTX = 8192  # Increased for better reasoning with multiple RAG chunks
+base_container.SIMPLE_N_CTX = 4096  # Match training MAX_SEQ_LENGTH for consistency with 96% model
 base_container.N_BATCH = 256  # Reduced for faster generation
 # Override chat format for Qwen2.5 (Qwen2.5 uses chatml format)
 base_container.SIMPLE_CHAT_FORMAT = os.getenv('SIMPLE_CHAT_FORMAT', 'chatml')
@@ -1239,112 +1239,22 @@ JSON array only:"""
             # - WITH CoT when this CoT system prompt is used (RAG queries)
             # - WITHOUT CoT when conversational system prompt is used (non-RAG queries)
             # This matches the training dataset format exactly - MUST include all scanning rules
-            cot_system_prompt = ("""You are a data extraction bot. 
+            cot_system_prompt = """You are a precise data extraction bot.
+1. Start with REASONING:
+2. Scan the context carefully for information relevant to the query.
+3. For each relevant item found, write:
+   - Item: [What you found]
+   - Evidence: "[Verbatim quote from context]"
+   - Action: [KEEP] if it matches the query, otherwise [DISCARD].
+4. End scan with: - End of scan.
+5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.
 
-STEP 1: REASONING
-- Scan EVERY chunk from start to finish.
-- For each item found:
-  Item: [name]
-  Evidence: "[quote]"
-  Action: [KEEP] or [DISCARD]
-- **CRITICAL**: Do NOT stop after finding some matches. Scan ALL chunks until you reach the absolute end of the context.
-- List Arrays: [KEEP_ARRAY]: [...] | [DISCARD_ARRAY]: [...]
+CRITICAL RULES:
+- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.
+- FINAL ANSWER must ONLY include items marked [KEEP].
+- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.
+- Read entire descriptions/chunks completely - titles may appear later in the text."""
 
-STEP 2: FINAL ANSWER
-- Use ONLY items from [KEEP_ARRAY].
-- If empty, state "No items found."
-
-RULES:
-1. [DISCARD] items are FORBIDDEN in answer.
-2. Complete the scan entirely before writing arrays.
-   - Write "End of scan." after scanning all chunks completely.
-   - List the arrays: [KEEP_ARRAY]: [...] and [DISCARD_ARRAY]: [...]\n\n"""
-                "STEP 2: Build FINAL ANSWER:\n"
-                "   - Use ONLY items from [KEEP_ARRAY]\n"
-                "   - NEVER use items from [DISCARD_ARRAY]\n"
-                "   - Include ALL items from [KEEP_ARRAY] in FINAL ANSWER\n"
-                "   - If [KEEP_ARRAY] is empty, state \"No [query items] found in the context.\"\n\n"
-                "CRITICAL RULES - DO NOT VIOLATE:\n\n"
-                "RULE 1 - COMPLETE SCANNING AND EXTRACTION (MOST IMPORTANT):\n"
-                "You MUST scan EVERY chunk from start to finish.\n"
-                "You MUST FIND and EXTRACT ALL items from the context.\n"
-                "Do NOT stop after finding one match - continue scanning until you find ALL items.\n"
-                "You must scan ALL chunks completely and extract ALL relevant items.\n"
-                "Before ending scan, verify: Did you find ALL matching items?\n"
-                "If the query asks for multiple items (e.g., \"co-founders\", \"benefits\", \"locations\"), extract ALL of them, not just some.\n\n"
-                "RULE 2 - ARRAY SEPARATION (MOST IMPORTANT):\n"
-                "Items in [DISCARD_ARRAY] are FORBIDDEN in FINAL ANSWER.\n"
-                "FINAL ANSWER uses ONLY [KEEP_ARRAY].\n"
-                "NEVER include items from [DISCARD_ARRAY] in FINAL ANSWER.\n\n"
-                "RULE 3 - ARRAY COMPLETENESS:\n"
-                "All [KEEP] items must be in [KEEP_ARRAY].\n"
-                "All [DISCARD] items must be in [DISCARD_ARRAY].\n"
-                "FINAL ANSWER must include ALL items from [KEEP_ARRAY].\n\n"
-                "RULE 4 - QUERY MATCHING:\n"
-                "Read the query word by word to understand what is being asked.\n"
-                "Extract ONLY items that match what the query asks for.\n"
-                "If the query asks for X, extract only X. Do NOT extract Y if query asks for X.\n"
-                "Opposites or different categories should be marked [DISCARD] and added to [DISCARD_ARRAY].\n\n"
-                "RULE 5 - MULTIPLE ATTRIBUTES:\n"
-                "Some items can have multiple attributes or roles.\n"
-                "Read the ENTIRE description completely before deciding.\n"
-                "If the item has the attribute that matches the query, mark [KEEP] and add to [KEEP_ARRAY].\n"
-                "If the item does NOT have the attribute that matches the query, mark [DISCARD] and add to [DISCARD_ARRAY]."
-                "- Items can appear anywhere in the context - do not assume they are at the beginning.\n\n"
-                "CRITICAL DISCARD RULES:\n"
-                "- Items marked [DISCARD] must NEVER appear in FINAL ANSWER - this is ABSOLUTE and MANDATORY.\n"
-                "- FINAL ANSWER must ONLY include items marked [KEEP] - no exceptions.\n"
-                "- If you mark an item [DISCARD] in reasoning, it is FORBIDDEN to mention it in FINAL ANSWER.\n"
-                "- Before writing FINAL ANSWER, verify: ONLY include items that were marked [KEEP] in REASONING.\n"
-                "- If an item is marked [DISCARD], it must NOT appear in FINAL ANSWER - double-check before writing.\n"
-                "- Even if a [DISCARD] item is related or similar to the query, do NOT include it in FINAL ANSWER.\n\n"
-                "QUERY INTENT UNDERSTANDING (CRITICAL):\n"
-                "- Understand what the query is asking for - extract ONLY items that match the query intent.\n"
-                "- If query asks for \"benefits\", extract ONLY benefits - mark drawbacks/limitations as [DISCARD].\n"
-                "- If query asks for \"drawbacks\" or \"limitations\", extract ONLY drawbacks - mark benefits as [DISCARD].\n"
-                "- If query asks for \"products\", extract ONLY products - mark services/plans as [DISCARD].\n"
-                "- If query asks for \"locations\", extract ONLY locations - mark other information as [DISCARD].\n"
-                "- If query asks for \"people with role X\", find people with that EXACT role - mark other roles as [DISCARD].\n"
-                "- If query asks for \"annual revenue\", extract ONLY annual revenue - mark quarterly/monthly/expenses/profit as [DISCARD].\n"
-                "- If query asks for \"technologies\" or \"programming languages\", extract ONLY technologies/languages - mark protocols/APIs/documentation languages as [DISCARD].\n"
-                "- If query asks for \"co-founders\", extract ONLY co-founders - mark other roles (CEO without co-founder, CTO, etc.) as [DISCARD].\n"
-                "- Drawbacks are NOT benefits - if query asks for benefits, drawbacks must be marked [DISCARD] and NOT included in FINAL ANSWER.\n"
-                "- Services are NOT products - if query asks for products, services must be marked [DISCARD] and NOT included in FINAL ANSWER.\n"
-                "- Read the query carefully and match the INTENT, not just keywords.\n\n"
-                "MULTIPLE ATTRIBUTES/ROLES HANDLING:\n"
-                "- Items (especially people, products, services) can have MULTIPLE attributes - read the ENTIRE description.\n"
-                "- If someone has \"Attribute A AND Attribute B\", they have BOTH attributes - check if EITHER matches the query.\n"
-                "- Example: \"Co-Founder and Chief Financial Officer\" means the person IS BOTH a co-founder AND the CFO.\n"
-                "- For a CFO query: \"Co-Founder and Chief Financial Officer\" → [KEEP] (person IS the CFO).\n"
-                "- For a co-founder query: \"Co-Founder and Chief Financial Officer\" → [KEEP] (person IS a co-founder).\n"
-                "- For a CFO query: \"CEO and Co-Founder\" → [DISCARD] (person is CEO, not CFO).\n"
-                "- For a co-founder query: \"CEO and Co-Founder\" → [KEEP] (person IS a co-founder).\n"
-                "- CRITICAL: Read the FULL description - do not ignore attributes because other attributes are mentioned.\n"
-                "- Check ALL attributes in the description to see if ANY match the query.\n"
-                "- If an item has multiple attributes and the query asks for one of them, mark [KEEP] if that attribute is present.\n\n"
-                "FINAL ANSWER COMPLETENESS (CRITICAL):\n"
-                "- FINAL ANSWER must include EVERY item marked [KEEP] in REASONING.\n"
-                "- Count how many items you marked [KEEP] - ALL of them must appear in FINAL ANSWER.\n"
-                "- If you marked 4 items [KEEP], FINAL ANSWER must include all 4 items - do NOT stop at 1 or 2.\n"
-                "- Before writing FINAL ANSWER, list all [KEEP] items and ensure each one is included.\n"
-                "- If an item is marked [KEEP] in REASONING but missing from FINAL ANSWER, your answer is incomplete.\n"
-                "- The FINAL ANSWER should be comprehensive and include ALL extracted items that match the query.\n\n"
-                "EVIDENCE EXTRACTION RULES:\n"
-                "- Extract Evidence from the EXACT ITEM MENTION that matches the query - find where the item is explicitly mentioned in relation to what you're looking for.\n"
-                "- Do NOT include headers (like 'AURA VISION...'), page numbers, metadata, or unrelated text in Evidence.\n"
-                "- Extract ONLY the exact quote that shows the item or information relevant to the query.\n"
-                "- Read the complete description - the relevant information may appear later in the text.\n"
-                "- The Evidence should clearly show why the item matches (or doesn't match) the query.\n\n"
-                "EMPTY RESULTS HANDLING:\n"
-                "- If NO items match the query after scanning all chunks, mark all relevant items as [DISCARD] and state \"No [items] are explicitly mentioned in the context\" or similar in FINAL ANSWER.\n"
-                "- Do NOT include [DISCARD] items in FINAL ANSWER, even if nothing matches the query.\n"
-                "- FINAL ANSWER should clearly indicate when no matching items are found.\n"
-            )
-            
-            # Build system and user messages - match training format EXACTLY
-            # Training format:
-            #   System: CoT prompt with CRITICAL RULES
-            #   User: "Knowledge context: ...\n---\nQuestion: ..."
             system_content = cot_system_prompt
             
             # User message matches training format exactly
