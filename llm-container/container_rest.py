@@ -2454,9 +2454,10 @@ def chat_tts():
                 def process_in_background():
                     try:
                         result = handle_conversation(prompt, session_id, memory_context=memory_context, stream=True)
-                        # Collect all tokens from the generator
+                        # Apply CoT filtering (adds sentence tags, filters DISCARD items)
                         if hasattr(result, '__iter__') and not isinstance(result, str):
-                            for token in result:
+                            filtered_result = filter_cot_reasoning(result)
+                            for token in filtered_result:
                                 result_queue.put(('token', token))
                         else:
                             result_queue.put(('result', result))
@@ -2488,28 +2489,22 @@ def chat_tts():
                         yield f"{word}"
                 yield "\n<sentence_end>\n"
                 
-                # Now yield tokens from background processing
+                # Now yield tokens from background processing (already filtered by filter_cot_reasoning)
                 while True:
                     try:
                         msg_type, msg_data = result_queue.get(timeout=60)  # 60 second timeout
                         if msg_type == 'token':
                             token_count = getattr(generate_response, '_token_count', 0) + 1
                             generate_response._token_count = token_count
-                            # Handle both string and dict tokens (llama-cpp returns dicts)
-                            if isinstance(msg_data, dict):
-                                # Extract text from llama-cpp streaming response
-                                token_text = msg_data.get('choices', [{}])[0].get('delta', {}).get('content', '')
-                                if not token_text:
-                                    token_text = msg_data.get('choices', [{}])[0].get('text', '')
-                                if not token_text:
-                                    token_text = str(msg_data)
-                            else:
-                                token_text = str(msg_data)
+                            # Tokens are already filtered by filter_cot_reasoning (strings with sentence tags)
+                            token_text = str(msg_data) if msg_data else ""
                             
                             if token_text:
-                                if not (token_text.startswith('<') and token_text.endswith('>')):
+                                # Track response text (excluding sentence tags)
+                                if not (token_text.strip().startswith('<') and token_text.strip().endswith('>')):
                                     full_response_text += token_text
-                                yield f"{token_text}\n"
+                                # Yield as-is (filter already added proper formatting)
+                                yield token_text
                         elif msg_type == 'done':
                             break
                         elif msg_type == 'error':
