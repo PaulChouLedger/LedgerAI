@@ -1364,7 +1364,11 @@ JSON array only:"""
                     "- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n"
                     "- FINAL ANSWER must ONLY include items marked [KEEP].\n"
                     "- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n"
-                    "- Read entire descriptions/chunks completely - titles may appear later in the text.\n"
+                    "- Read entire descriptions/chunks completely - titles may appear later in the text.\n\n"
+                    "CO-FOUNDER DISAMBIGUATION:\n"
+                    "- For 'co-founders of [COMPANY]' queries, ONLY include people who are explicitly 'Co-Founder of [COMPANY]'.\n"
+                    "- If someone is 'Co-Founder of [OTHER_COMPANY]' (different company), mark [DISCARD].\n"
+                    "- Roles like 'External Counsel', 'Advisor', 'Ambassador', 'Head of', 'Lead' are NOT co-founders - mark [DISCARD].\n"
                 )
                 
                 # Build system and user messages - match training format EXACTLY
@@ -2435,44 +2439,46 @@ def chat_tts():
             if any(pattern in normalized_prompt for pattern in information_seeking_patterns):
                 is_conversational = False
             
-            # Check if RAG will be used BEFORE processing (to play filler phrase during RAG)
-            will_use_rag = False
-            if RAG_MODE in ("CPU", "GPU") and not is_conversational:
-                try:
-                    # Quick check: will document RAG be used?
-                    client = get_rag_client()
-                    if client:
-                        has_doc_content = client.quick_content_match(prompt)
-                        if has_doc_content:
-                            will_use_rag = True
-                            print(f"[Generic] ✅ Document RAG will be used - prefiltering confirmed match")
-                    
-                    # Quick check: will memory RAG be used?
-                    memory_container_url = os.environ.get('MEMORY_CONTAINER_URL', 'http://localhost:11438')
-                    try:
-                        quick_match_response = requests.post(
-                            f"{memory_container_url}/rag/quick-match",
-                            json={"query": prompt},
-                            timeout=0.5
-                        )
-                        if quick_match_response and quick_match_response.status_code == 200:
-                            has_memory_content = quick_match_response.json().get('has_match', False)
-                            if has_memory_content:
-                                will_use_rag = True
-                                print(f"[Generic] ✅ Memory RAG will be used - prefiltering confirmed match")
-                    except requests.exceptions.Timeout:
-                        pass  # Timeout means we'll skip memory RAG, no filler needed
-                    except Exception as e:
-                        print(f"[Generic] ⚠️ Memory RAG quick-match check failed: {e}")
-                except Exception as e:
-                    print(f"[Generic] ⚠️ RAG pre-check failed: {e}")
+            # For non-conversational queries:
+            # 1. Start RAG processing immediately in background
+            # 2. Wait 2 seconds, then yield filler phrase
+            # 3. Continue with RAG/LLM response (which may already be ready)
+            FILLER_DELAY_SECONDS = 2.0
             
-            # If RAG will be used, yield filler phrase first (RAG processing happens during playback)
-            # Skip filler phrase for conversational queries
-            if will_use_rag and not is_conversational:
+            if not is_conversational:
+                import queue
+                result_queue = queue.Queue()
+                processing_started = time.time()
+                
+                # Start RAG/LLM processing in background thread
+                def process_in_background():
+                    try:
+                        result = handle_conversation(prompt, session_id, memory_context=memory_context, stream=True)
+                        # Collect all tokens from the generator
+                        if hasattr(result, '__iter__') and not isinstance(result, str):
+                            for token in result:
+                                result_queue.put(('token', token))
+                        else:
+                            result_queue.put(('result', result))
+                        result_queue.put(('done', None))
+                    except Exception as e:
+                        result_queue.put(('error', str(e)))
+                
+                # Start background processing immediately
+                bg_thread = threading.Thread(target=process_in_background, daemon=True)
+                bg_thread.start()
+                print(f"[Generic] 🚀 Started RAG/LLM processing in background thread")
+                
+                # Wait for filler delay (RAG processes in parallel)
+                elapsed = time.time() - processing_started
+                remaining_delay = max(0, FILLER_DELAY_SECONDS - elapsed)
+                if remaining_delay > 0:
+                    print(f"[Generic] ⏱️ Waiting {remaining_delay:.2f}s before filler phrase (RAG processing in parallel)...")
+                    time.sleep(remaining_delay)
+                
+                # Yield filler phrase
                 filler_phrase = get_filler_phrase()
-                print(f"[Generic] 💭 Yielding filler phrase before RAG processing: '{filler_phrase}'")
-                # Yield filler phrase with proper sentence tags - must be complete before LLM response
+                print(f"[Generic] 💭 Yielding filler phrase: '{filler_phrase}'")
                 yield "<sentence_start>\n"
                 words = filler_phrase.split()
                 for i, word in enumerate(words):
@@ -2481,10 +2487,55 @@ def chat_tts():
                     else:
                         yield f"{word}"
                 yield "\n<sentence_end>\n"
-                # Small delay to ensure filler phrase is fully processed before LLM response starts
-                time.sleep(0.1)  # 100ms delay to ensure TTS starts processing filler phrase
+                
+                # Now yield tokens from background processing
+                while True:
+                    try:
+                        msg_type, msg_data = result_queue.get(timeout=60)  # 60 second timeout
+                        if msg_type == 'token':
+                            token_count = getattr(generate_response, '_token_count', 0) + 1
+                            generate_response._token_count = token_count
+                            if not (msg_data.startswith('<') and msg_data.endswith('>')):
+                                full_response_text += msg_data
+                            yield f"{msg_data}\n"
+                        elif msg_type == 'done':
+                            break
+                        elif msg_type == 'error':
+                            print(f"[Generic] ⚠️ Background processing error: {msg_data}")
+                            break
+                        elif msg_type == 'result':
+                            # Non-streaming result
+                            full_response_text = str(msg_data)
+                            yield "<sentence_start>\n"
+                            for word in str(msg_data).split():
+                                yield f"{word} "
+                            yield "\n<sentence_end>\n"
+                            break
+                    except queue.Empty:
+                        print(f"[Generic] ⚠️ Timeout waiting for background processing")
+                        break
+                
+                # Wait for background thread to finish
+                bg_thread.join(timeout=5)
+                
+                processing_time = time.time() - processing_started
+                print(f"[Generic] ✅ Total processing time: {processing_time:.2f}s (filler played at {FILLER_DELAY_SECONDS}s)")
+                
+                # Store response in memory
+                if full_response_text.strip():
+                    try:
+                        conversation_orchestrator._store_in_memory(
+                            full_response_text.strip(),
+                            session_id=session_id,
+                            role="assistant"
+                        )
+                        print(f"[Generic] 💾 Stored assistant response in conversation memory")
+                    except Exception as e:
+                        print(f"[Generic] ⚠️ Failed to store response in memory: {e}")
+                
+                return  # Exit generator - we've handled everything
             
-            # Use streaming mode to get tokens as they're generated, with memory context
+            # For conversational queries (no filler), process directly
             result = handle_conversation(prompt, session_id, memory_context=memory_context, stream=True)
             
             # Check if result is a generator (streaming)
