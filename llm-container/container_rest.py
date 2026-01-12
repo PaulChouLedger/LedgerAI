@@ -2980,8 +2980,22 @@ def filter_cot_reasoning(generator):
         """Extract text content from token (removing sentence tags)"""
         if not token:
             return ""
-        # Remove sentence tags and newlines for marker detection
-        text = token.replace("<sentence_start>", "").replace("<sentence_end>", "").replace("\n", " ").strip()
+        
+        # Handle dict tokens from llama-cpp streaming
+        if isinstance(token, dict):
+            # llama-cpp streaming format: {'choices': [{'delta': {'content': 'text'}}]}
+            try:
+                content = token.get('choices', [{}])[0].get('delta', {}).get('content', '')
+                if not content:
+                    content = token.get('choices', [{}])[0].get('text', '')
+                if content:
+                    return content.replace("<sentence_start>", "").replace("<sentence_end>", "").replace("\n", " ").strip()
+                return ""
+            except (KeyError, IndexError, TypeError):
+                return ""
+        
+        # Handle string tokens
+        text = str(token).replace("<sentence_start>", "").replace("<sentence_end>", "").replace("\n", " ").strip()
         return text
     
     def extract_discarded_items(reasoning_text):
