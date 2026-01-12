@@ -3040,9 +3040,9 @@ def filter_cot_reasoning(generator):
         text_content = extract_text(token)
         
         if text_content:
+            # Don't add spaces during detection - tokens like "RE"+"ASON"+"ING"+":"
+            # need to concatenate to "REASONING:" for proper marker detection
             detection_buffer += text_content
-            if not text_content.rstrip().endswith(('.', ',', '!', '?', ':', ';', ' ', '\n')):
-                detection_buffer += " "
         
         # Check for CoT markers
         if "REASONING:" in detection_buffer or "Reasoning:" in detection_buffer:
@@ -3057,20 +3057,35 @@ def filter_cot_reasoning(generator):
             if not any(marker in detection_buffer for marker in ["REASONING:", "Reasoning:", "FINAL ANSWER:", "Final Answer:", "- Item:", "- Evidence:", "- Action:"]):
                 is_cot_response = False
                 cot_detected = True
-                print(f"[Generic] 🔍 [CoT Filter] Non-CoT response detected - passing through directly")
-                # Yield all buffered tokens and continue passing through
+                print(f"[Generic] 🔍 [CoT Filter] Non-CoT response detected - passing through with sentence tags")
+                
+                # For non-CoT responses, wrap with sentence tags and extract text from dict tokens
+                yield "<sentence_start>\n"
+                
+                # Yield buffered tokens (converted to text)
                 for buffered_token in token_buffer_list:
-                    yield buffered_token
-                # Pass through remaining tokens
+                    text = extract_text(buffered_token)
+                    if text:
+                        yield text + " "
+                
+                # Pass through remaining tokens (converted to text)
                 for remaining_token in generator:
-                    yield remaining_token
+                    text = extract_text(remaining_token)
+                    if text:
+                        yield text + " "
+                
+                yield "\n<sentence_end>\n"
                 return  # Exit early for non-CoT responses
     
     # If we get here and CoT was detected, process CoT response
     if not is_cot_response:
-        # Shouldn't happen, but safety check
+        # Shouldn't happen, but safety check - wrap with sentence tags
+        yield "<sentence_start>\n"
         for token in token_buffer_list:
-            yield token
+            text = extract_text(token)
+            if text:
+                yield text + " "
+        yield "\n<sentence_end>\n"
         return
     
     # CoT response detected - continue processing with remaining tokens
