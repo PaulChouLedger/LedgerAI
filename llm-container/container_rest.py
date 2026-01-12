@@ -2972,7 +2972,7 @@ def filter_cot_reasoning(generator):
     cot_detected = False  # Track if we've detected CoT format
     
     def extract_text(token):
-        """Extract text content from token (removing sentence tags)"""
+        """Extract text content from token (removing sentence tags, preserving spaces)"""
         if not token:
             return ""
         
@@ -2984,14 +2984,17 @@ def filter_cot_reasoning(generator):
                 if not content:
                     content = token.get('choices', [{}])[0].get('text', '')
                 if content:
-                    return content.replace("<sentence_start>", "").replace("<sentence_end>", "").replace("\n", " ").strip()
+                    # Remove sentence tags but PRESERVE spaces (don't strip!)
+                    # This is critical for proper text reconstruction
+                    text = content.replace("<sentence_start>", "").replace("<sentence_end>", "").replace("\n", " ")
+                    return text if text.strip() else ""  # Return empty if only whitespace
                 return ""
             except (KeyError, IndexError, TypeError):
                 return ""
         
-        # Handle string tokens
-        text = str(token).replace("<sentence_start>", "").replace("<sentence_end>", "").replace("\n", " ").strip()
-        return text
+        # Handle string tokens - preserve spaces for proper text reconstruction
+        text = str(token).replace("<sentence_start>", "").replace("<sentence_end>", "").replace("\n", " ")
+        return text if text.strip() else ""  # Return empty if only whitespace
     
     def extract_discarded_items(reasoning_text):
         """Extract names/items that were marked [DISCARD] in reasoning section"""
@@ -3044,8 +3047,16 @@ def filter_cot_reasoning(generator):
             is_cot_response = True
             cot_detected = True
             print(f"[Generic] 🔍 [CoT Filter] CoT response detected - applying reasoning filter")
-            # Use buffered tokens for CoT processing
-            text_buffer = detection_buffer
+            # Rebuild text_buffer WITH proper spacing from buffered tokens
+            # (detection_buffer has no spaces, which breaks text readability)
+            text_buffer = ""
+            for buffered_token in token_buffer_list:
+                buffered_text = extract_text(buffered_token)
+                if buffered_text:
+                    text_buffer += buffered_text
+                    # Add space after tokens that don't end with punctuation
+                    if not buffered_text.rstrip().endswith(('.', ',', '!', '?', ':', ';', ' ', '\n')):
+                        text_buffer += " "
             break
         elif len(detection_buffer) > 300:
             # After 300 chars with no CoT markers, assume non-CoT
