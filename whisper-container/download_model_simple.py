@@ -42,24 +42,20 @@ print(f"📥 Downloading Whisper Models for Docker Build")
 print("=" * 70)
 print()
 
-# Check if faster-whisper is available
+# Check if huggingface_hub is available
 try:
-    from faster_whisper import WhisperModel
-    print("✅ faster-whisper found")
+    from huggingface_hub import snapshot_download
+    print("✅ huggingface_hub found")
 except ImportError:
-    print("⚠️  faster-whisper not installed. Installing...")
-    os.system("pip3 install faster-whisper")
-    from faster_whisper import WhisperModel
-
-# Use default cache directory
-cache_dir = os.path.expanduser("~/.cache/huggingface/hub")
+    print("⚠️  huggingface_hub not installed. Installing...")
+    os.system("pip3 install huggingface_hub")
+    from huggingface_hub import snapshot_download
 
 # Download each model
 downloaded_models = []
 for i, model_config in enumerate(MODELS, 1):
     model_name = model_config["name"]
     target_dir = model_config["target_dir"]
-    cache_name = model_config["cache_name"]
     description = model_config["description"]
     
     print()
@@ -70,44 +66,24 @@ for i, model_config in enumerate(MODELS, 1):
     print("=" * 70)
     print()
     
-    expected_cache = os.path.join(cache_dir, cache_name)
-    
     print(f"🔄 Downloading model (this may take several minutes)...")
-    print(f"   Model will be cached at: {expected_cache}")
     print()
     
-    # Download model
-    model = WhisperModel(
-        model_name,
-        device="cpu",  # CPU is fine for download
-        compute_type="int8",
-        download_root=cache_dir
-    )
-    
-    print()
-    print("✅ Model downloaded successfully!")
-    print()
-    
-    # Copy to target directory
-    if os.path.exists(expected_cache):
-        print(f"📋 Copying model from cache to: {target_dir}")
-        
-        # Remove existing directory if it exists
-        if target_dir.exists():
-            print(f"   Removing existing directory...")
-            shutil.rmtree(target_dir)
-        
-        # Copy entire directory structure
-        shutil.copytree(expected_cache, target_dir)
-        
-        print(f"✅ Model copied successfully!")
+    # Download model using huggingface_hub
+    try:
+        download_path = snapshot_download(
+            repo_id=model_name,
+            local_dir=target_dir,
+            local_dir_use_symlinks=False
+        )
+        print()
+        print(f"✅ Model downloaded to: {download_path}")
         downloaded_models.append({
-            "name": cache_name,
+            "name": model_name,
             "target_dir": target_dir
         })
-    else:
-        print(f"❌ Error: Model not found in cache at {expected_cache}")
-        print(f"   Check cache directory: {cache_dir}")
+    except Exception as e:
+        print(f"❌ Error downloading model: {e}")
         sys.exit(1)
 
 # Summary

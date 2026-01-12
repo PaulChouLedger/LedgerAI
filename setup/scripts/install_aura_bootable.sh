@@ -643,6 +643,7 @@ print_step "3.5. Installing wake word detection engine..."
 # We need to remove it and install onnxruntime-gpu instead
 # Also check for system-wide packages (accessible via --system-site-packages)
 print_info "Removing any existing onnxruntime packages (venv and system-wide)..."
+# Force removal of both CPU and GPU versions to ensure a clean state
 pip uninstall -y onnxruntime onnxruntime-gpu 2>/dev/null || true
 # Also try system-wide uninstall (in case packages were installed with --user or sudo)
 python3 -m pip uninstall -y onnxruntime onnxruntime-gpu 2>/dev/null || true
@@ -652,14 +653,21 @@ python3 -m pip uninstall -y onnxruntime onnxruntime-gpu 2>/dev/null || true
 # CRITICAL: Install Jetson-optimized onnxruntime-gpu FIRST from Jetson AI Lab PyPI
 # This is specifically built for Jetson devices and avoids ARM CPU detection issues
 # OpenWakeWord is compatible with onnxruntime-gpu-1.23.0 and will use it if installed first
-print_info "Installing onnxruntime-gpu from Jetson AI Lab PyPI (Jetson-optimized)..."
-if ! pip install --extra-index-url https://pypi.jetson-ai-lab.io/jp6/cu126 "onnxruntime-gpu>=1.23.0" 2>&1 | tee /tmp/onnxruntime_install.log; then
+print_info "Installing onnxruntime-gpu 1.23.0 from Jetson AI Lab PyPI (Jetson-optimized)..."
+# Pin to 1.23.0 as it is the most stable version for JetPack 6.1 on ARM64
+if ! pip install --extra-index-url https://pypi.jetson-ai-lab.io/jp6/cu126 "onnxruntime-gpu==1.23.0" 2>&1 | tee /tmp/onnxruntime_install.log; then
     print_error "❌ Failed to install onnxruntime-gpu from Jetson PyPI"
     print_error "   Check logs: /tmp/onnxruntime_install.log"
     print_error "   OpenWakeWord requires onnxruntime-gpu to function"
     exit 1
 fi
-print_info "✅ onnxruntime-gpu installed successfully from Jetson PyPI"
+print_info "✅ onnxruntime-gpu 1.23.0 installed successfully from Jetson PyPI"
+
+# DOUBLE CHECK: Ensure onnxruntime (CPU) was not pulled in somehow
+if pip list | grep -q "^onnxruntime "; then
+    print_warning "⚠️  Found CPU-only onnxruntime alongside GPU version. Removing it..."
+    pip uninstall -y onnxruntime 2>/dev/null || true
+fi
 
 # IMPORTANT: onnxruntime-gpu==1.23.0 was compiled with NumPy 1.x and is incompatible with NumPy 2.x
 # Check NumPy version and downgrade if needed

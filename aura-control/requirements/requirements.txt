@@ -41,6 +41,7 @@ urllib3>=1.26.0
 
 # Environment Configuration
 python-dotenv>=1.0.0
+huggingface_hub>=0.20.0
 
 # Text-to-Speech
 elevenlabs>=0.2.0
