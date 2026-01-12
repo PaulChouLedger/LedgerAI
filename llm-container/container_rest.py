@@ -923,7 +923,9 @@ JSON array only:"""
                 print(f"[Generic] 📋 Using top {len(sorted_results)} chunks (max {max_chunks}) for LLM reasoning")
                 
                 # Build RAG context - let LLM reason through all chunks
-                MAX_CHARS_PER_RESULT = 1800 if is_list_query else 1200
+                # Use 3000 chars for all queries - important info can appear anywhere in a chunk
+                # (e.g., education info for David Lara appears late in his bio)
+                MAX_CHARS_PER_RESULT = 3000
                 rag_chunks = []
                 
                 # Process chunks - let LLM reason through them internally
@@ -1032,7 +1034,7 @@ JSON array only:"""
             try:
                 print(f"[Generic] 🔍 Memory RAG injection: '{prompt[:50]}...'")
                 memory_chunks = []
-                MAX_CHARS_PER_RESULT = 1200  # Same as document RAG
+                MAX_CHARS_PER_RESULT = 3000  # Same as document RAG - important info can appear anywhere
                 
                 # Get threshold for filtering (same as document RAG)
                 try:
