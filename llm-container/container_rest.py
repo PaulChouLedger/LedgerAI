@@ -5,7 +5,7 @@
 # - Base Model (Qwen2.5-1.5B-Instruct.Q4_K_M.gguf): Used for conversational queries (no RAG)
 #   - Natural, friendly responses using general knowledge
 #   - Loaded at startup for fast conversational responses
-# - CoT-Trained Model (Qwen2.5-1.5B-Instruct.Q4_K_M-rag-cot.gguf): Used for RAG queries (with Chain of Thought)
+# - CoT-Trained Model (Qwen2.5-1.5B-Instruct.Q8_0-rag-cot.gguf): Used for RAG queries (with Chain of Thought)
 #   - Structured extraction and reasoning for document-based queries
 #   - Loaded lazily on first RAG query to save memory
 # - Model selection is automatic based on RAG context detection
@@ -45,7 +45,7 @@ werkzeug_logger.setLevel(logging.WARNING)  # Only log warnings and errors, not i
 BASE_MODEL_PATH = os.getenv('BASE_MODEL_PATH', "/models/Qwen2.5-1.5B-Instruct.Q4_K_M_base.gguf")
 # CoT-trained model for RAG queries (with Chain of Thought reasoning)
 # Can be overridden by COT_MODEL_PATH environment variable
-COT_MODEL_PATH = os.getenv('COT_MODEL_PATH', "/models/Qwen2.5-1.5B-Instruct.Q4_K_M-rag-cot.gguf")
+COT_MODEL_PATH = os.getenv('COT_MODEL_PATH', "/models/Qwen2.5-1.5B-Instruct.Q8_0-rag-cot.gguf")
 
 # === Initialize Base Container for Base Model ===
 base_container = BaseLLMContainer(
@@ -141,7 +141,7 @@ if os.getenv('BASE_MODEL_PATH'):
     base_container.model_path = BASE_MODEL_PATH
     print(f"[Generic] 🔍 [Model Resolution] Using BASE_MODEL_PATH from environment: {BASE_MODEL_PATH}")
 else:
-    SIMPLE_MODEL_PATH = base_container.resolve_model_path()
+SIMPLE_MODEL_PATH = base_container.resolve_model_path()
     BASE_MODEL_PATH = SIMPLE_MODEL_PATH  # Update to resolved path
     print(f"[Generic] 🔍 [Model Resolution] Resolved base model path: {SIMPLE_MODEL_PATH}")
     # Verify model file exists
@@ -231,11 +231,11 @@ def llm_chat_simple(messages, max_tokens=None, temperature=None, stream=False, u
     
     # Use base model for conversational queries or as fallback
     if not use_cot_model:
-        if not base_container._model_loaded or base_container.llm_simple is None:
+    if not base_container._model_loaded or base_container.llm_simple is None:
             print(f"[Generic] ⚠️ ERROR: Base model not loaded! _model_loaded={base_container._model_loaded}, llm_simple={base_container.llm_simple is not None}")
-            if stream:
-                return iter([])
-            return ""
+        if stream:
+            return iter([])
+        return ""
         # Use base model for conversational queries
         container = base_container
         model_path = base_container.model_path or SIMPLE_MODEL_PATH or BASE_MODEL_PATH
@@ -794,14 +794,14 @@ def handle_conversation(
                         # Check if it's a question: starts with question word/phrase, ends with "?", or is a question-like pattern
                         is_question = False
                         text_lower = text.lower().strip()
-                        
-                        # Check if it ends with "?"
-                        if text.endswith('?'):
-                            first_word = text_lower.split()[0] if text_lower.split() else ""
-                            if first_word in question_words:
-                                is_question = True
-                        
-                        # Check if it starts with question words/phrases (even without "?")
+                            
+                            # Check if it ends with "?"
+                            if text.endswith('?'):
+                                first_word = text_lower.split()[0] if text_lower.split() else ""
+                                if first_word in question_words:
+                                    is_question = True
+                            
+                            # Check if it starts with question words/phrases (even without "?")
                             if text_lower.split():
                                 first_word = text_lower.split()[0]
                                 first_two_words = ' '.join(text_lower.split()[:2]) if len(text_lower.split()) >= 2 else first_word
@@ -850,12 +850,12 @@ def handle_conversation(
                         
                         # Use filtered candidates for LLM scoring (if we still have candidates)
                         if filtered_candidates and not memory_rag_results:
-                            conversations_text = ""
-                            for i, candidate in enumerate(filtered_candidates, 1):
-                                conv_text = candidate.get('text', '')
-                                conversations_text += f"{i}. {conv_text}\n"
-                            
-                            scoring_prompt = f"""Rate how well each previous conversation answers the user's question.
+                        conversations_text = ""
+                        for i, candidate in enumerate(filtered_candidates, 1):
+                            conv_text = candidate.get('text', '')
+                            conversations_text += f"{i}. {conv_text}\n"
+                        
+                        scoring_prompt = f"""Rate how well each previous conversation answers the user's question.
 
 User's question: "{prompt}"
 
@@ -875,69 +875,69 @@ Return ONLY a JSON array with exactly {len(filtered_candidates)} scores in order
 Example: [0.8, 0.9, 0.7, 0.6, 0.5]
 
 JSON array only:"""
+                    
+                        try:
+                            # Call LLM for scoring (non-streaming, fast)
+                            scoring_messages = [{"role": "user", "content": scoring_prompt}]
+                            scoring_response = llm_chat_simple(
+                                scoring_messages,
+                                max_tokens=100,  # Reduced from 200 to 100 for faster response
+                                temperature=0.3,
+                                stream=False
+                            )
                             
-                            try:
-                                # Call LLM for scoring (non-streaming, fast)
-                                scoring_messages = [{"role": "user", "content": scoring_prompt}]
-                                scoring_response = llm_chat_simple(
-                                    scoring_messages,
-                                    max_tokens=100,  # Reduced from 200 to 100 for faster response
-                                    temperature=0.3,
-                                    stream=False
-                                )
-                                
-                                # Parse LLM response to extract scores
-                                import json
+                            # Parse LLM response to extract scores
+                            import json
                                 # Use re_module from globals() to avoid shadowing issues
                                 json_match = re_module.search(r'\[[\d\.,\s]+\]', scoring_response)
-                                if json_match:
-                                    scores = json.loads(json_match.group())
-                                    print(f"[Generic] ✅ LLM returned {len(scores)} scores")
-                                else:
-                                    try:
-                                        scores = json.loads(scoring_response.strip())
-                                    except:
-                                        print(f"[Generic] ⚠️ Failed to parse LLM scores, using re-ranked scores as fallback")
-                                        scores = [c.get('score', 0.0) for c in filtered_candidates]
-                                
-                                # Ensure we have the right number of scores
-                                if len(scores) != len(filtered_candidates):
-                                    print(f"[Generic] ⚠️ LLM returned {len(scores)} scores but expected {len(filtered_candidates)}, using re-ranked scores as fallback")
+                            if json_match:
+                                scores = json.loads(json_match.group())
+                                print(f"[Generic] ✅ LLM returned {len(scores)} scores")
+                            else:
+                                try:
+                                    scores = json.loads(scoring_response.strip())
+                                except:
+                                    print(f"[Generic] ⚠️ Failed to parse LLM scores, using re-ranked scores as fallback")
                                     scores = [c.get('score', 0.0) for c in filtered_candidates]
-                                
-                                # Update candidates with LLM scores
-                                scored_candidates = []
-                                for i, (candidate, llm_score) in enumerate(zip(filtered_candidates, scores)):
-                                    scored_candidates.append({
-                                        **candidate,
-                                        'score': float(llm_score),
-                                        'original_re_ranked_score': candidate.get('score', 0.0),
-                                        'llm_score': float(llm_score)
-                                    })
-                                    print(f"[Generic]   [{i+1}] LLM score: {llm_score:.3f} (re-ranked: {candidate.get('score', 0.0):.3f}): '{candidate.get('text', '')[:60]}...'")
-                                
-                                # Sort by LLM score (descending)
-                                scored_candidates.sort(key=lambda x: x['score'], reverse=True)
-                                
-                                # Filter by threshold and return top k
-                                # Use higher threshold (0.5) to filter out low-quality results
-                                answer_threshold = max(memory_rag_threshold, 0.5)  # At least 0.5 to ensure quality answers
-                                memory_rag_results = [
-                                    r for r in scored_candidates 
-                                    if r.get('score', 0) >= answer_threshold
-                                ][:memory_rag_k]
-                            except Exception as e:
-                                print(f"[Generic] ⚠️ LLM scoring failed: {e}, falling back to re-ranked scores")
-                                import traceback
-                                traceback.print_exc()
-                                # Fallback to re-ranked scores (use filtered candidates, not all candidates)
-                                scored_candidates = sorted(filtered_candidates, key=lambda x: x.get('score', 0), reverse=True)
-                                # Use higher threshold for fallback too
-                                answer_threshold = max(memory_rag_threshold, 0.5)
-                                memory_rag_results = [
-                                    r for r in scored_candidates 
-                                    if r.get('score', 0) >= answer_threshold
-                                ][:memory_rag_k]
+                            
+                            # Ensure we have the right number of scores
+                            if len(scores) != len(filtered_candidates):
+                                print(f"[Generic] ⚠️ LLM returned {len(scores)} scores but expected {len(filtered_candidates)}, using re-ranked scores as fallback")
+                                scores = [c.get('score', 0.0) for c in filtered_candidates]
+                            
+                            # Update candidates with LLM scores
+                            scored_candidates = []
+                            for i, (candidate, llm_score) in enumerate(zip(filtered_candidates, scores)):
+                                scored_candidates.append({
+                                    **candidate,
+                                    'score': float(llm_score),
+                                    'original_re_ranked_score': candidate.get('score', 0.0),
+                                    'llm_score': float(llm_score)
+                                })
+                                print(f"[Generic]   [{i+1}] LLM score: {llm_score:.3f} (re-ranked: {candidate.get('score', 0.0):.3f}): '{candidate.get('text', '')[:60]}...'")
+                            
+                            # Sort by LLM score (descending)
+                            scored_candidates.sort(key=lambda x: x['score'], reverse=True)
+                            
+                            # Filter by threshold and return top k
+                            # Use higher threshold (0.5) to filter out low-quality results
+                            answer_threshold = max(memory_rag_threshold, 0.5)  # At least 0.5 to ensure quality answers
+                            memory_rag_results = [
+                                r for r in scored_candidates 
+                                if r.get('score', 0) >= answer_threshold
+                            ][:memory_rag_k]
+                        except Exception as e:
+                            print(f"[Generic] ⚠️ LLM scoring failed: {e}, falling back to re-ranked scores")
+                            import traceback
+                            traceback.print_exc()
+                            # Fallback to re-ranked scores (use filtered candidates, not all candidates)
+                            scored_candidates = sorted(filtered_candidates, key=lambda x: x.get('score', 0), reverse=True)
+                            # Use higher threshold for fallback too
+                            answer_threshold = max(memory_rag_threshold, 0.5)
+                            memory_rag_results = [
+                                r for r in scored_candidates 
+                                if r.get('score', 0) >= answer_threshold
+                            ][:memory_rag_k]
                 
                 if memory_rag_results and len(memory_rag_results) > 0:
                     print(f"[Generic] ✅ Memory RAG found {len(memory_rag_results)} relevant conversations (from {len(memory_rag_candidates)} candidates, threshold={max(memory_rag_threshold, 0.5):.2f}) - will inject context")
@@ -3561,20 +3561,20 @@ if __name__ == "__main__":
     from llama_cpp import Llama
     base_container.model_path = SIMPLE_MODEL_PATH
     try:
-        base_container.llm_simple = Llama(
-            model_path=SIMPLE_MODEL_PATH,
-            n_ctx=SIMPLE_N_CTX,
-            n_threads=N_THREADS,
-            n_batch=N_BATCH,
-            n_gpu_layers=n_gpu_layers,  # Enable GPU acceleration
-            cache_prompt=CACHE_PROMPT,
-            chat_format=SIMPLE_CHAT_FORMAT,
-            use_mlock=True,
-            use_mmap=True,
-            verbose=False
-        )
-        base_container._model_loaded = True
-        llm_simple = base_container.llm_simple  # Set global reference
+    base_container.llm_simple = Llama(
+        model_path=SIMPLE_MODEL_PATH,
+        n_ctx=SIMPLE_N_CTX,
+        n_threads=N_THREADS,
+        n_batch=N_BATCH,
+        n_gpu_layers=n_gpu_layers,  # Enable GPU acceleration
+        cache_prompt=CACHE_PROMPT,
+        chat_format=SIMPLE_CHAT_FORMAT,
+        use_mlock=True,
+        use_mmap=True,
+        verbose=False
+    )
+    base_container._model_loaded = True
+    llm_simple = base_container.llm_simple  # Set global reference
         print(f"[Generic] ✅ [Startup] Base model loaded successfully: {SIMPLE_MODEL_PATH}")
         print(f"[Generic] ✅ [Startup] Base model will be used for conversational queries (natural responses)")
     except Exception as e:

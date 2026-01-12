@@ -549,10 +549,13 @@ def run_tests():
     if os.path.exists(GGUF_MODEL_DIR):
         gguf_files = glob.glob(os.path.join(GGUF_MODEL_DIR, "*.gguf"))
         if gguf_files:
-            # Prefer Q4_K_M quantization
-            for f in gguf_files:
-                if "Q4_K_M" in f or "q4_k_m" in f:
-                    gguf_model_path = f
+            # Prefer Q8_0 (best accuracy for production - 91.03%)
+            for quant in ["Q8_0", "q8_0", "Q6_K", "q6_k", "Q5_K_M", "q5_k_m", "Q4_K_M", "q4_k_m"]:
+                for f in gguf_files:
+                    if quant in f:
+                        gguf_model_path = f
+                        break
+                if gguf_model_path:
                     break
             if not gguf_model_path:
                 gguf_model_path = gguf_files[0]
