@@ -2467,8 +2467,14 @@ def chat_tts():
                 except Exception as e:
                     print(f"[Generic] ⚠️ RAG pre-check failed: {e}")
             
-            # NOTE: Filler phrase is now yielded in the outer wrapper (generate_response_with_filler)
-            # to bypass the CoT filter. The filler needs to be sent to TTS immediately, not buffered.
+            # If RAG will be used, yield filler phrase first
+            # The CoT filter will pass through content before REASONING: marker
+            if will_use_rag and not is_conversational:
+                filler_phrase = get_filler_phrase()
+                print(f"[Generic] 💭 Yielding filler phrase before RAG processing: '{filler_phrase}'")
+                # Yield filler phrase as plain text - CoT filter will pass it through
+                # since it appears before REASONING: marker
+                yield filler_phrase + " "
             
             # Use streaming mode to get tokens as they're generated, with memory context
             result = handle_conversation(prompt, session_id, memory_context=memory_context, stream=True)
@@ -2911,7 +2917,8 @@ def filter_cot_reasoning(generator):
         """Extract names/items that were marked [DISCARD] in reasoning section"""
         discarded = set()
         # Simple pattern: Item: [Name] ... Action: [DISCARD]
-        pattern = r'- Item:\s*([^\n-]+?)(?:\s*-\s*Evidence:.*?)?\s*-\s*Action:\s*\[DISCARD\]'
+        # Handle variations: [DISCARD], [ DISCARD], [DISCARD ], [ DISCARD ]
+        pattern = r'- Item:\s*([^\n-]+?)(?:\s*-\s*Evidence:.*?)?\s*-\s*Action:\s*\[\s*DISCARD\s*\]'
         matches = re.findall(pattern, reasoning_text, re.IGNORECASE | re.DOTALL)
         for match in matches:
             item_name = match.strip()
@@ -2927,7 +2934,8 @@ def filter_cot_reasoning(generator):
         """Extract names/items that were marked [KEEP] in reasoning section"""
         kept_items = []
         # Pattern: Item: [Name] ... Action: [KEEP]
-        pattern = r'- Item:\s*([^\n-]+?)(?:\s*-\s*Evidence:.*?)?\s*-\s*Action:\s*\[KEEP\]'
+        # Handle variations: [KEEP], [ KEEP], [KEEP ], [ KEEP ]
+        pattern = r'- Item:\s*([^\n-]+?)(?:\s*-\s*Evidence:.*?)?\s*-\s*Action:\s*\[\s*KEEP\s*\]'
         matches = re.findall(pattern, reasoning_text, re.IGNORECASE | re.DOTALL)
         for match in matches:
             item_name = match.strip()
