@@ -1364,11 +1364,7 @@ JSON array only:"""
                     "- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n"
                     "- FINAL ANSWER must ONLY include items marked [KEEP].\n"
                     "- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n"
-                    "- Read entire descriptions/chunks completely - titles may appear later in the text.\n\n"
-                    "CO-FOUNDER DISAMBIGUATION:\n"
-                    "- For 'co-founders of [COMPANY]' queries, ONLY include people who are explicitly 'Co-Founder of [COMPANY]'.\n"
-                    "- If someone is 'Co-Founder of [OTHER_COMPANY]' (different company), mark [DISCARD].\n"
-                    "- Roles like 'External Counsel', 'Advisor', 'Ambassador', 'Head of', 'Lead' are NOT co-founders - mark [DISCARD].\n"
+                    "- Read entire descriptions/chunks completely - titles may appear later in the text.\n"
                 )
                 
                 # Build system and user messages - match training format EXACTLY
@@ -2439,47 +2435,44 @@ def chat_tts():
             if any(pattern in normalized_prompt for pattern in information_seeking_patterns):
                 is_conversational = False
             
-            # For non-conversational queries:
-            # 1. Start RAG processing immediately in background
-            # 2. Wait 2 seconds, then yield filler phrase
-            # 3. Continue with RAG/LLM response (which may already be ready)
-            FILLER_DELAY_SECONDS = 2.0
-            
-            if not is_conversational:
-                import queue
-                result_queue = queue.Queue()
-                processing_started = time.time()
-                
-                # Start RAG/LLM processing in background thread
-                def process_in_background():
+            # Check if RAG will be used BEFORE processing (to play filler phrase during RAG)
+            will_use_rag = False
+            if RAG_MODE in ("CPU", "GPU") and not is_conversational:
+                try:
+                    # Quick check: will document RAG be used?
+                    client = get_rag_client()
+                    if client:
+                        has_doc_content = client.quick_content_match(prompt)
+                        if has_doc_content:
+                            will_use_rag = True
+                            print(f"[Generic] ✅ Document RAG will be used - prefiltering confirmed match")
+                    
+                    # Quick check: will memory RAG be used?
+                    memory_container_url = os.environ.get('MEMORY_CONTAINER_URL', 'http://localhost:11438')
                     try:
-                        result = handle_conversation(prompt, session_id, memory_context=memory_context, stream=True)
-                        # Apply CoT filtering (adds sentence tags, filters DISCARD items)
-                        if hasattr(result, '__iter__') and not isinstance(result, str):
-                            filtered_result = filter_cot_reasoning(result)
-                            for token in filtered_result:
-                                result_queue.put(('token', token))
-                        else:
-                            result_queue.put(('result', result))
-                        result_queue.put(('done', None))
+                        quick_match_response = requests.post(
+                            f"{memory_container_url}/rag/quick-match",
+                            json={"query": prompt},
+                            timeout=0.5
+                        )
+                        if quick_match_response and quick_match_response.status_code == 200:
+                            has_memory_content = quick_match_response.json().get('has_match', False)
+                            if has_memory_content:
+                                will_use_rag = True
+                                print(f"[Generic] ✅ Memory RAG will be used - prefiltering confirmed match")
+                    except requests.exceptions.Timeout:
+                        pass  # Timeout means we'll skip memory RAG, no filler needed
                     except Exception as e:
-                        result_queue.put(('error', str(e)))
-                
-                # Start background processing immediately
-                bg_thread = threading.Thread(target=process_in_background, daemon=True)
-                bg_thread.start()
-                print(f"[Generic] 🚀 Started RAG/LLM processing in background thread")
-                
-                # Wait for filler delay (RAG processes in parallel)
-                elapsed = time.time() - processing_started
-                remaining_delay = max(0, FILLER_DELAY_SECONDS - elapsed)
-                if remaining_delay > 0:
-                    print(f"[Generic] ⏱️ Waiting {remaining_delay:.2f}s before filler phrase (RAG processing in parallel)...")
-                    time.sleep(remaining_delay)
-                
-                # Yield filler phrase
+                        print(f"[Generic] ⚠️ Memory RAG quick-match check failed: {e}")
+                except Exception as e:
+                    print(f"[Generic] ⚠️ RAG pre-check failed: {e}")
+            
+            # If RAG will be used, yield filler phrase first (RAG processing happens during playback)
+            # Skip filler phrase for conversational queries
+            if will_use_rag and not is_conversational:
                 filler_phrase = get_filler_phrase()
-                print(f"[Generic] 💭 Yielding filler phrase: '{filler_phrase}'")
+                print(f"[Generic] 💭 Yielding filler phrase before RAG processing: '{filler_phrase}'")
+                # Yield filler phrase with proper sentence tags - must be complete before LLM response
                 yield "<sentence_start>\n"
                 words = filler_phrase.split()
                 for i, word in enumerate(words):
@@ -2488,61 +2481,10 @@ def chat_tts():
                     else:
                         yield f"{word}"
                 yield "\n<sentence_end>\n"
-                
-                # Now yield tokens from background processing (already filtered by filter_cot_reasoning)
-                while True:
-                    try:
-                        msg_type, msg_data = result_queue.get(timeout=60)  # 60 second timeout
-                        if msg_type == 'token':
-                            token_count = getattr(generate_response, '_token_count', 0) + 1
-                            generate_response._token_count = token_count
-                            # Tokens are already filtered by filter_cot_reasoning (strings with sentence tags)
-                            token_text = str(msg_data) if msg_data else ""
-                            
-                            if token_text:
-                                # Track response text (excluding sentence tags)
-                                if not (token_text.strip().startswith('<') and token_text.strip().endswith('>')):
-                                    full_response_text += token_text
-                                # Yield as-is (filter already added proper formatting)
-                                yield token_text
-                        elif msg_type == 'done':
-                            break
-                        elif msg_type == 'error':
-                            print(f"[Generic] ⚠️ Background processing error: {msg_data}")
-                            break
-                        elif msg_type == 'result':
-                            # Non-streaming result
-                            full_response_text = str(msg_data)
-                            yield "<sentence_start>\n"
-                            for word in str(msg_data).split():
-                                yield f"{word} "
-                            yield "\n<sentence_end>\n"
-                            break
-                    except queue.Empty:
-                        print(f"[Generic] ⚠️ Timeout waiting for background processing")
-                        break
-                
-                # Wait for background thread to finish
-                bg_thread.join(timeout=5)
-                
-                processing_time = time.time() - processing_started
-                print(f"[Generic] ✅ Total processing time: {processing_time:.2f}s (filler played at {FILLER_DELAY_SECONDS}s)")
-                
-                # Store response in memory
-                if full_response_text.strip():
-                    try:
-                        conversation_orchestrator._store_in_memory(
-                            full_response_text.strip(),
-                            session_id=session_id,
-                            role="assistant"
-                        )
-                        print(f"[Generic] 💾 Stored assistant response in conversation memory")
-                    except Exception as e:
-                        print(f"[Generic] ⚠️ Failed to store response in memory: {e}")
-                
-                return  # Exit generator - we've handled everything
+                # Small delay to ensure filler phrase is fully processed before LLM response starts
+                time.sleep(0.1)  # 100ms delay to ensure TTS starts processing filler phrase
             
-            # For conversational queries (no filler), process directly
+            # Use streaming mode to get tokens as they're generated, with memory context
             result = handle_conversation(prompt, session_id, memory_context=memory_context, stream=True)
             
             # Check if result is a generator (streaming)
@@ -2971,39 +2913,13 @@ def filter_cot_reasoning(generator):
     is_cot_response = False  # Track if this is a CoT response (has REASONING:)
     cot_detected = False  # Track if we've detected CoT format
     
-    def extract_text(token, strip_spaces=False):
-        """
-        Extract text content from token (removing sentence tags).
-        
-        Args:
-            token: The token to extract text from
-            strip_spaces: If True, strip whitespace (for marker detection).
-                          If False, preserve spaces (for text reconstruction).
-        """
+    def extract_text(token):
+        """Extract text content from token (removing sentence tags)"""
         if not token:
             return ""
-        
-        # Handle dict tokens from llama-cpp streaming
-        if isinstance(token, dict):
-            # llama-cpp streaming format: {'choices': [{'delta': {'content': 'text'}}]}
-            try:
-                content = token.get('choices', [{}])[0].get('delta', {}).get('content', '')
-                if not content:
-                    content = token.get('choices', [{}])[0].get('text', '')
-                if content:
-                    text = content.replace("<sentence_start>", "").replace("<sentence_end>", "").replace("\n", " ")
-                    if strip_spaces:
-                        return text.strip()
-                    return text if text.strip() else ""  # Return empty if only whitespace
-                return ""
-            except (KeyError, IndexError, TypeError):
-                return ""
-        
-        # Handle string tokens
-        text = str(token).replace("<sentence_start>", "").replace("<sentence_end>", "").replace("\n", " ")
-        if strip_spaces:
-            return text.strip()
-        return text if text.strip() else ""  # Return empty if only whitespace
+        # Remove sentence tags and newlines for marker detection
+        text = token.replace("<sentence_start>", "").replace("<sentence_end>", "").replace("\n", " ").strip()
+        return text
     
     def extract_discarded_items(reasoning_text):
         """Extract names/items that were marked [DISCARD] in reasoning section"""
@@ -3044,74 +2960,56 @@ def filter_cot_reasoning(generator):
     # First pass: detect CoT by buffering initial tokens
     for token in generator:
         token_buffer_list.append(token)
-        # Use strip_spaces=True for detection to get "REASONING:" not " RE ASON ING :"
-        text_content = extract_text(token, strip_spaces=True)
+        text_content = extract_text(token)
         
         if text_content:
-            # Concatenate stripped text for marker detection
             detection_buffer += text_content
+            if not text_content.rstrip().endswith(('.', ',', '!', '?', ':', ';', ' ', '\n')):
+                detection_buffer += " "
         
         # Check for CoT markers
         if "REASONING:" in detection_buffer or "Reasoning:" in detection_buffer:
             is_cot_response = True
             cot_detected = True
             print(f"[Generic] 🔍 [CoT Filter] CoT response detected - applying reasoning filter")
-            # Rebuild text_buffer from buffered tokens with preserved spacing
-            # Tokens include their natural spacing (e.g., " ASON", " ING")
-            text_buffer = ""
-            for buffered_token in token_buffer_list:
-                # preserve spaces for readable text
-                buffered_text = extract_text(buffered_token, strip_spaces=False)
-                if buffered_text:
-                    text_buffer += buffered_text
+            # Use buffered tokens for CoT processing
+            text_buffer = detection_buffer
             break
         elif len(detection_buffer) > 300:
             # After 300 chars with no CoT markers, assume non-CoT
             if not any(marker in detection_buffer for marker in ["REASONING:", "Reasoning:", "FINAL ANSWER:", "Final Answer:", "- Item:", "- Evidence:", "- Action:"]):
                 is_cot_response = False
                 cot_detected = True
-                print(f"[Generic] 🔍 [CoT Filter] Non-CoT response detected - passing through with sentence tags")
-                
-                # For non-CoT responses, wrap with sentence tags and extract text from dict tokens
-                yield "<sentence_start>\n"
-                
-                # Yield buffered tokens (tokens include natural spacing)
+                print(f"[Generic] 🔍 [CoT Filter] Non-CoT response detected - passing through directly")
+                # Yield all buffered tokens and continue passing through
                 for buffered_token in token_buffer_list:
-                    text = extract_text(buffered_token, strip_spaces=False)
-                    if text:
-                        yield text
-                
+                    yield buffered_token
                 # Pass through remaining tokens
                 for remaining_token in generator:
-                    text = extract_text(remaining_token, strip_spaces=False)
-                    if text:
-                        yield text
-                
-                yield "\n<sentence_end>\n"
+                    yield remaining_token
                 return  # Exit early for non-CoT responses
     
     # If we get here and CoT was detected, process CoT response
     if not is_cot_response:
-        # Shouldn't happen, but safety check - wrap with sentence tags
-        yield "<sentence_start>\n"
+        # Shouldn't happen, but safety check
         for token in token_buffer_list:
-            text = extract_text(token, strip_spaces=False)
-            if text:
-                yield text
-        yield "\n<sentence_end>\n"
+            yield token
         return
     
     # CoT response detected - continue processing with remaining tokens
     # text_buffer already has initial content
     for token in generator:
-        text_content = extract_text(token, strip_spaces=False)
+        text_content = extract_text(token)
         
         # CoT response - apply filtering logic
         if not found_final_answer:
             # Still looking for FINAL ANSWER - buffer everything
-            # Tokens already include their spacing - just concatenate directly
+            # Add token text directly (don't add extra space, tokens might already have spacing)
             if text_content:
                 text_buffer += text_content
+                # Add space only if token doesn't end with punctuation or space
+                if not text_content.rstrip().endswith(('.', ',', '!', '?', ':', ';', ' ', '\n')):
+                    text_buffer += " "
             
             # Track reasoning section
             if "REASONING:" in text_buffer or "Reasoning:" in text_buffer:
