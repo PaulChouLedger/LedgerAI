@@ -2467,22 +2467,8 @@ def chat_tts():
                 except Exception as e:
                     print(f"[Generic] ⚠️ RAG pre-check failed: {e}")
             
-            # If RAG will be used, yield filler phrase first (RAG processing happens during playback)
-            # Skip filler phrase for conversational queries
-            if will_use_rag and not is_conversational:
-                filler_phrase = get_filler_phrase()
-                print(f"[Generic] 💭 Yielding filler phrase before RAG processing: '{filler_phrase}'")
-                # Yield filler phrase with proper sentence tags - must be complete before LLM response
-                yield "<sentence_start>\n"
-                words = filler_phrase.split()
-                for i, word in enumerate(words):
-                    if i < len(words) - 1:
-                        yield f"{word} "
-                    else:
-                        yield f"{word}"
-                yield "\n<sentence_end>\n"
-                # Small delay to ensure filler phrase is fully processed before LLM response starts
-                time.sleep(0.1)  # 100ms delay to ensure TTS starts processing filler phrase
+            # NOTE: Filler phrase is now yielded in the outer wrapper (generate_response_with_filler)
+            # to bypass the CoT filter. The filler needs to be sent to TTS immediately, not buffered.
             
             # Use streaming mode to get tokens as they're generated, with memory context
             result = handle_conversation(prompt, session_id, memory_context=memory_context, stream=True)
@@ -2972,8 +2958,20 @@ def filter_cot_reasoning(generator):
             is_cot_response = True
             cot_detected = True
             print(f"[Generic] 🔍 [CoT Filter] CoT response detected - applying reasoning filter")
-            # Use buffered tokens for CoT processing
-            text_buffer = detection_buffer
+            
+            # IMPORTANT: Yield any content that appears BEFORE REASONING: (e.g., filler phrase)
+            # This content should be passed through to TTS immediately, not filtered
+            reasoning_marker = "REASONING:" if "REASONING:" in detection_buffer else "Reasoning:"
+            pre_reasoning_content = detection_buffer.split(reasoning_marker)[0].strip()
+            if pre_reasoning_content:
+                print(f"[Generic] 💭 [CoT Filter] Yielding pre-reasoning content: '{pre_reasoning_content[:50]}...'")
+                yield "<sentence_start>\n"
+                for word in pre_reasoning_content.split():
+                    yield f"{word} "
+                yield "\n<sentence_end>\n"
+            
+            # Use only the REASONING part for CoT processing
+            text_buffer = reasoning_marker + detection_buffer.split(reasoning_marker)[-1]
             break
         elif len(detection_buffer) > 300:
             # After 300 chars with no CoT markers, assume non-CoT
