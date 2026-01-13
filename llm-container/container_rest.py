@@ -2971,8 +2971,15 @@ def filter_cot_reasoning(generator):
     is_cot_response = False  # Track if this is a CoT response (has REASONING:)
     cot_detected = False  # Track if we've detected CoT format
     
-    def extract_text(token):
-        """Extract text content from token (removing sentence tags, preserving spaces)"""
+    def extract_text(token, strip_spaces=False):
+        """
+        Extract text content from token (removing sentence tags).
+        
+        Args:
+            token: The token to extract text from
+            strip_spaces: If True, strip whitespace (for marker detection).
+                          If False, preserve spaces (for text reconstruction).
+        """
         if not token:
             return ""
         
@@ -2984,16 +2991,18 @@ def filter_cot_reasoning(generator):
                 if not content:
                     content = token.get('choices', [{}])[0].get('text', '')
                 if content:
-                    # Remove sentence tags but PRESERVE spaces (don't strip!)
-                    # This is critical for proper text reconstruction
                     text = content.replace("<sentence_start>", "").replace("<sentence_end>", "").replace("\n", " ")
+                    if strip_spaces:
+                        return text.strip()
                     return text if text.strip() else ""  # Return empty if only whitespace
                 return ""
             except (KeyError, IndexError, TypeError):
                 return ""
         
-        # Handle string tokens - preserve spaces for proper text reconstruction
+        # Handle string tokens
         text = str(token).replace("<sentence_start>", "").replace("<sentence_end>", "").replace("\n", " ")
+        if strip_spaces:
+            return text.strip()
         return text if text.strip() else ""  # Return empty if only whitespace
     
     def extract_discarded_items(reasoning_text):
@@ -3035,11 +3044,11 @@ def filter_cot_reasoning(generator):
     # First pass: detect CoT by buffering initial tokens
     for token in generator:
         token_buffer_list.append(token)
-        text_content = extract_text(token)
+        # Use strip_spaces=True for detection to get "REASONING:" not " RE ASON ING :"
+        text_content = extract_text(token, strip_spaces=True)
         
         if text_content:
-            # Don't add spaces during detection - tokens like "RE"+"ASON"+"ING"+":"
-            # need to concatenate to "REASONING:" for proper marker detection
+            # Concatenate stripped text for marker detection
             detection_buffer += text_content
         
         # Check for CoT markers
@@ -3047,16 +3056,14 @@ def filter_cot_reasoning(generator):
             is_cot_response = True
             cot_detected = True
             print(f"[Generic] 🔍 [CoT Filter] CoT response detected - applying reasoning filter")
-            # Rebuild text_buffer WITH proper spacing from buffered tokens
-            # (detection_buffer has no spaces, which breaks text readability)
+            # Rebuild text_buffer from buffered tokens with preserved spacing
+            # Tokens include their natural spacing (e.g., " ASON", " ING")
             text_buffer = ""
             for buffered_token in token_buffer_list:
-                buffered_text = extract_text(buffered_token)
+                # preserve spaces for readable text
+                buffered_text = extract_text(buffered_token, strip_spaces=False)
                 if buffered_text:
                     text_buffer += buffered_text
-                    # Add space after tokens that don't end with punctuation
-                    if not buffered_text.rstrip().endswith(('.', ',', '!', '?', ':', ';', ' ', '\n')):
-                        text_buffer += " "
             break
         elif len(detection_buffer) > 300:
             # After 300 chars with no CoT markers, assume non-CoT
@@ -3068,17 +3075,17 @@ def filter_cot_reasoning(generator):
                 # For non-CoT responses, wrap with sentence tags and extract text from dict tokens
                 yield "<sentence_start>\n"
                 
-                # Yield buffered tokens (converted to text)
+                # Yield buffered tokens (tokens include natural spacing)
                 for buffered_token in token_buffer_list:
-                    text = extract_text(buffered_token)
+                    text = extract_text(buffered_token, strip_spaces=False)
                     if text:
-                        yield text + " "
+                        yield text
                 
-                # Pass through remaining tokens (converted to text)
+                # Pass through remaining tokens
                 for remaining_token in generator:
-                    text = extract_text(remaining_token)
+                    text = extract_text(remaining_token, strip_spaces=False)
                     if text:
-                        yield text + " "
+                        yield text
                 
                 yield "\n<sentence_end>\n"
                 return  # Exit early for non-CoT responses
@@ -3088,26 +3095,23 @@ def filter_cot_reasoning(generator):
         # Shouldn't happen, but safety check - wrap with sentence tags
         yield "<sentence_start>\n"
         for token in token_buffer_list:
-            text = extract_text(token)
+            text = extract_text(token, strip_spaces=False)
             if text:
-                yield text + " "
+                yield text
         yield "\n<sentence_end>\n"
         return
     
     # CoT response detected - continue processing with remaining tokens
     # text_buffer already has initial content
     for token in generator:
-        text_content = extract_text(token)
+        text_content = extract_text(token, strip_spaces=False)
         
         # CoT response - apply filtering logic
         if not found_final_answer:
             # Still looking for FINAL ANSWER - buffer everything
-            # Add token text directly (don't add extra space, tokens might already have spacing)
+            # Tokens already include their spacing - just concatenate directly
             if text_content:
                 text_buffer += text_content
-                # Add space only if token doesn't end with punctuation or space
-                if not text_content.rstrip().endswith(('.', ',', '!', '?', ':', ';', ' ', '\n')):
-                    text_buffer += " "
             
             # Track reasoning section
             if "REASONING:" in text_buffer or "Reasoning:" in text_buffer:
