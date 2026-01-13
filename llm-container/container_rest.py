@@ -2916,18 +2916,24 @@ def filter_cot_reasoning(generator):
     def extract_discarded_items(reasoning_text):
         """Extract names/items that were marked [DISCARD] in reasoning section"""
         discarded = set()
-        # Simple pattern: Item: [Name] ... Action: [DISCARD]
-        # Handle variations: [DISCARD], [ DISCARD], [DISCARD ], [ DISCARD ]
-        pattern = r'- Item:\s*([^\n-]+?)(?:\s*-\s*Evidence:.*?)?\s*-\s*Action:\s*\[\s*DISCARD\s*\]'
-        matches = re.findall(pattern, reasoning_text, re.IGNORECASE | re.DOTALL)
+        # Match complete item blocks: - Item: [Name] ... - Action: [ACTION]
+        # Use non-greedy matching to stop at the next "- Item:" or end
+        pattern = r'- Item:\s*([^-]+?)\s*-\s*(?:Evidence:[^-]*?)?\s*-\s*Action:\s*(\[[^\]]+\])'
+        matches = re.finditer(pattern, reasoning_text, re.IGNORECASE | re.DOTALL)
+        
         for match in matches:
-            item_name = match.strip()
-            # Remove any trailing role/evidence info
-            item_name = re.sub(r'\s*-\s*Role:.*$', '', item_name, flags=re.IGNORECASE)
-            item_name = re.sub(r'\s*-\s*Evidence:.*$', '', item_name, flags=re.IGNORECASE)
-            item_name = item_name.strip()
-            if item_name:
-                discarded.add(item_name.lower())
+            item_name = match.group(1).strip()
+            action = match.group(2)
+            
+            # Only extract if action is [DISCARD]
+            if re.search(r'\[\s*DISCARD\s*\]', action, re.IGNORECASE):
+                # Clean up item name
+                item_name = re.sub(r'^["\']|["\']$', '', item_name)  # Remove quotes
+                item_name = item_name.strip()
+                if item_name:
+                    discarded.add(item_name.lower())
+                    # Debug: log what we're extracting
+                    print(f"[Generic] 🔍 [CoT Filter] Extracted DISCARD item: '{item_name}' (action: '{action}')")
         return discarded
     
     def extract_kept_items(reasoning_text):
