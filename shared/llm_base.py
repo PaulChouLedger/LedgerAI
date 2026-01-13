@@ -168,7 +168,9 @@ class BaseLLMContainer:
             **kwargs
         }
         
-        generation_params["stop"] = []
+        # Default stop tokens to empty list if not provided (can be overridden via kwargs)
+        if "stop" not in generation_params:
+            generation_params["stop"] = []
         
         with self.llm_lock:
             try:

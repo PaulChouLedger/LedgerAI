@@ -1402,7 +1402,7 @@ JSON array only:"""
             # Use 2048 tokens to match test script (was 800, might be cutting off reasoning)
             max_tokens_limit = 2048 if is_list_request else MAX_TOKENS_RAG_MODE
             # Use CoT model for RAG queries (dual-model architecture)
-            return llm_chat_simple(messages, max_tokens=max_tokens_limit, temperature=0, stream=stream, use_cot_model=True)
+            return llm_chat_simple(messages, max_tokens=max_tokens_limit, temperature=0, stream=stream, use_cot_model=True, stop=["<|im_end|>"])
         else:
             # No RAG context, use standard prompt with Aura Vision identity
             # Check if memory RAG was attempted but found no useful information
