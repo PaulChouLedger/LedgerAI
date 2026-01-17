@@ -62,6 +62,8 @@ KEEP/DISCARD:
 
 MATCHING (PREVENTS HALLUCINATION):
 - Entity/attribute must be EXPLICITLY stated in evidence - the query term must appear.
+- If query term appears verbatim in evidence → [KEEP] (regardless of other roles/info mentioned).
+- If query term does NOT appear verbatim in evidence → [DISCARD].
 - Similar entities are NOT matches unless explicitly stated (e.g., "Founder" ≠ "Co-Founder").
 - DO NOT assume relationships - only use explicitly stated information.
 
