@@ -7,6 +7,502 @@
       },
       {
         "role": "user",
+        "content": "Knowledge context: Paul Chou is the CEO and Co-Founder of LedgerAI. Bob Carella is Co-Founder and Chief Financial Officer of LedgerAI. David Lara is Co-Founder and Chief Operating Officer of LedgerAI. Jorge Guinovart is Co-Founder and Chief Marketing Officer of LedgerAI. Will Specht is Head of Engineering at LedgerAI. Peter Moeller is Business Development Lead at LedgerAI. Liam Hugill is Ambassador at LedgerAI.\n---\nQuestion: Who are the co-founders of LedgerAI?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: Paul Chou\n  - Evidence: \"Paul Chou is the CEO and Co-Founder of LedgerAI\"\n  - Action: [KEEP] (Reason: Evidence explicitly states \"Co-Founder\".)\n- Item: Bob Carella\n  - Evidence: \"Bob Carella is Co-Founder and Chief Financial Officer of LedgerAI\"\n  - Action: [KEEP] (Reason: Evidence explicitly states \"Co-Founder\". ALL co-founders must be [KEEP] regardless of their other roles.)\n- Item: David Lara\n  - Evidence: \"David Lara is Co-Founder and Chief Operating Officer of LedgerAI\"\n  - Action: [KEEP] (Reason: Evidence explicitly states \"Co-Founder\".)\n- Item: Jorge Guinovart\n  - Evidence: \"Jorge Guinovart is Co-Founder and Chief Marketing Officer of LedgerAI\"\n  - Action: [KEEP] (Reason: Evidence explicitly states \"Co-Founder\".)\n- Item: Will Specht\n  - Evidence: \"Will Specht is Head of Engineering at LedgerAI\"\n  - Action: [DISCARD] (Reason: Evidence says \"Head of Engineering\", not \"co-founder\". Query term \"co-founder\" must appear verbatim in evidence.)\n- Item: Peter Moeller\n  - Evidence: \"Peter Moeller is Business Development Lead at LedgerAI\"\n  - Action: [DISCARD] (Reason: Evidence says \"Business Development Lead\", not \"co-founder\". Query term \"co-founder\" must appear verbatim in evidence.)\n- Item: Liam Hugill\n  - Evidence: \"Liam Hugill is Ambassador at LedgerAI\"\n  - Action: [DISCARD] (Reason: Evidence says \"Ambassador\", not \"co-founder\". Query term \"co-founder\" must appear verbatim in evidence.)\n- End of scan.\n\nFINAL ANSWER:\nThe co-founders of LedgerAI are Paul Chou, Bob Carella, David Lara, and Jorge Guinovart."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n\nALWAYS START WITH REASONING:\nBegin every response with \"REASONING:\" - this is MANDATORY.\n\n1. REASONING: For each relevant item found in the context:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n\n2. End scan with: - End of scan.\n\n3. FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES (APPLY TO ALL QUERIES):\n\nEVIDENCE:\n- Evidence MUST be EXACT verbatim quote from context - do NOT paraphrase or fabricate.\n- You MUST evaluate ALL relevant items in the context before ending the scan.\n\nKEEP/DISCARD:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- FINAL ANSWER must include ALL items marked [KEEP] - do not omit any.\n\nMATCHING (PREVENTS HALLUCINATION):\n- Entity/attribute must be EXPLICITLY stated in evidence - the query term must appear.\n- Similar entities are NOT matches unless explicitly stated (e.g., \"Founder\" \u2260 \"Co-Founder\").\n- DO NOT assume relationships - only use explicitly stated information.\n\nEMPTY RESULTS:\n- If ALL items are marked [DISCARD], FINAL ANSWER must indicate no matches found.\n\nOUTPUT FORMAT:\n- FINAL ANSWER should include ONLY the requested information, not extra words or role titles."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: Sarah Johnson is the Chief Technology Officer at DataFlow. Mark Williams is Head of Engineering. Robert Kim is the Chief Financial Officer.\n---\nQuestion: Who is the CTO of DataFlow?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: Sarah Johnson\n  - Evidence: \"Sarah Johnson is the Chief Technology Officer at DataFlow\"\n  - Action: [KEEP] (Reason: Evidence explicitly states \"Chief Technology Officer\" (CTO).)\n- Item: Mark Williams\n  - Evidence: \"Mark Williams is Head of Engineering\"\n  - Action: [DISCARD] (Reason: Evidence says \"Head of Engineering\", not \"CTO\".)\n- Item: Robert Kim\n  - Evidence: \"Robert Kim is the Chief Financial Officer\"\n  - Action: [DISCARD] (Reason: Evidence says \"Chief Financial Officer\" (CFO), not CTO.)\n- End of scan.\n\nFINAL ANSWER:\nSarah Johnson."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n\nALWAYS START WITH REASONING:\nBegin every response with \"REASONING:\" - this is MANDATORY.\n\n1. REASONING: For each relevant item found in the context:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n\n2. End scan with: - End of scan.\n\n3. FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES (APPLY TO ALL QUERIES):\n\nEVIDENCE:\n- Evidence MUST be EXACT verbatim quote from context - do NOT paraphrase or fabricate.\n- You MUST evaluate ALL relevant items in the context before ending the scan.\n\nKEEP/DISCARD:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- FINAL ANSWER must include ALL items marked [KEEP] - do not omit any.\n\nMATCHING (PREVENTS HALLUCINATION):\n- Entity/attribute must be EXPLICITLY stated in evidence - the query term must appear.\n- Similar entities are NOT matches unless explicitly stated (e.g., \"Founder\" \u2260 \"Co-Founder\").\n- DO NOT assume relationships - only use explicitly stated information.\n\nEMPTY RESULTS:\n- If ALL items are marked [DISCARD], FINAL ANSWER must indicate no matches found.\n\nOUTPUT FORMAT:\n- FINAL ANSWER should include ONLY the requested information, not extra words or role titles."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: The annual revenue for 2023 was $50 million. The company raised $10 million in Series A funding in 2022. Operating expenses totaled $35 million in 2023.\n---\nQuestion: What was the annual revenue?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: $50 million\n  - Evidence: \"The annual revenue for 2023 was $50 million\"\n  - Action: [KEEP] (Reason: Evidence explicitly states \"annual revenue\".)\n- Item: $10 million\n  - Evidence: \"The company raised $10 million in Series A funding in 2022\"\n  - Action: [DISCARD] (Reason: Evidence says \"funding\", not \"revenue\".)\n- Item: $35 million\n  - Evidence: \"Operating expenses totaled $35 million in 2023\"\n  - Action: [DISCARD] (Reason: Evidence says \"expenses\", not \"revenue\".)\n- End of scan.\n\nFINAL ANSWER:\nThe annual revenue was $50 million."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n\nALWAYS START WITH REASONING:\nBegin every response with \"REASONING:\" - this is MANDATORY.\n\n1. REASONING: For each relevant item found in the context:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n\n2. End scan with: - End of scan.\n\n3. FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES (APPLY TO ALL QUERIES):\n\nEVIDENCE:\n- Evidence MUST be EXACT verbatim quote from context - do NOT paraphrase or fabricate.\n- You MUST evaluate ALL relevant items in the context before ending the scan.\n\nKEEP/DISCARD:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- FINAL ANSWER must include ALL items marked [KEEP] - do not omit any.\n\nMATCHING (PREVENTS HALLUCINATION):\n- Entity/attribute must be EXPLICITLY stated in evidence - the query term must appear.\n- Similar entities are NOT matches unless explicitly stated (e.g., \"Founder\" \u2260 \"Co-Founder\").\n- DO NOT assume relationships - only use explicitly stated information.\n\nEMPTY RESULTS:\n- If ALL items are marked [DISCARD], FINAL ANSWER must indicate no matches found.\n\nOUTPUT FORMAT:\n- FINAL ANSWER should include ONLY the requested information, not extra words or role titles."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: CloudScale supports Python, JavaScript, and Go programming languages. The API is available in REST and GraphQL formats. Documentation is available in English, Spanish, and French.\n---\nQuestion: What programming languages does CloudScale support?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: Python\n  - Evidence: \"CloudScale supports Python, JavaScript, and Go programming languages\"\n  - Action: [KEEP] (Reason: Evidence explicitly states \"programming languages\" and includes \"Python\".)\n- Item: JavaScript\n  - Evidence: \"CloudScale supports Python, JavaScript, and Go programming languages\"\n  - Action: [KEEP] (Reason: Evidence explicitly states \"programming languages\" and includes \"JavaScript\".)\n- Item: Go\n  - Evidence: \"CloudScale supports Python, JavaScript, and Go programming languages\"\n  - Action: [KEEP] (Reason: Evidence explicitly states \"programming languages\" and includes \"Go\".)\n- Item: REST\n  - Evidence: \"The API is available in REST and GraphQL formats\"\n  - Action: [DISCARD] (Reason: Evidence says \"API formats\", not \"programming languages\". Query asks for programming languages specifically.)\n- Item: GraphQL\n  - Evidence: \"The API is available in REST and GraphQL formats\"\n  - Action: [DISCARD] (Reason: Evidence says \"API formats\", not \"programming languages\". Query asks for programming languages specifically.)\n- Item: English\n  - Evidence: \"Documentation is available in English, Spanish, and French\"\n  - Action: [DISCARD] (Reason: Evidence says \"Documentation\" languages, not \"programming\" languages. Query asks for programming languages, not spoken/documentation languages.)\n- Item: Spanish\n  - Evidence: \"Documentation is available in English, Spanish, and French\"\n  - Action: [DISCARD] (Reason: Evidence says \"Documentation\" languages, not \"programming\" languages.)\n- Item: French\n  - Evidence: \"Documentation is available in English, Spanish, and French\"\n  - Action: [DISCARD] (Reason: Evidence says \"Documentation\" languages, not \"programming\" languages. Documentation languages are NOT programming languages.)\n- End of scan.\n\nFINAL ANSWER:\nCloudScale supports Python, JavaScript, and Go."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n\nALWAYS START WITH REASONING:\nBegin every response with \"REASONING:\" - this is MANDATORY.\n\n1. REASONING: For each relevant item found in the context:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n\n2. End scan with: - End of scan.\n\n3. FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES (APPLY TO ALL QUERIES):\n\nEVIDENCE:\n- Evidence MUST be EXACT verbatim quote from context - do NOT paraphrase or fabricate.\n- You MUST evaluate ALL relevant items in the context before ending the scan.\n\nKEEP/DISCARD:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- FINAL ANSWER must include ALL items marked [KEEP] - do not omit any.\n\nMATCHING (PREVENTS HALLUCINATION):\n- Entity/attribute must be EXPLICITLY stated in evidence - the query term must appear.\n- Similar entities are NOT matches unless explicitly stated (e.g., \"Founder\" \u2260 \"Co-Founder\").\n- DO NOT assume relationships - only use explicitly stated information.\n\nEMPTY RESULTS:\n- If ALL items are marked [DISCARD], FINAL ANSWER must indicate no matches found.\n\nOUTPUT FORMAT:\n- FINAL ANSWER should include ONLY the requested information, not extra words or role titles."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: Alex Chen is Vice President of Product at InnovateCorp. Sarah Kim is Co-Founder and CEO of InnovateCorp. Michael Park is Director of Engineering at InnovateCorp. Lisa Wang is Co-Founder and CTO of InnovateCorp.\n---\nQuestion: Who are the co-founders of InnovateCorp?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: Alex Chen\n  - Evidence: \"Alex Chen is Vice President of Product at InnovateCorp\"\n  - Action: [DISCARD] (Reason: Evidence says \"Vice President\", not \"co-founder\". Query term \"co-founder\" must appear verbatim in evidence.)\n- Item: Sarah Kim\n  - Evidence: \"Sarah Kim is Co-Founder and CEO of InnovateCorp\"\n  - Action: [KEEP] (Reason: Evidence explicitly states \"Co-Founder\".)\n- Item: Michael Park\n  - Evidence: \"Michael Park is Director of Engineering at InnovateCorp\"\n  - Action: [DISCARD] (Reason: Evidence says \"Director of Engineering\", not \"co-founder\". Query term \"co-founder\" must appear verbatim in evidence.)\n- Item: Lisa Wang\n  - Evidence: \"Lisa Wang is Co-Founder and CTO of InnovateCorp\"\n  - Action: [KEEP] (Reason: Evidence explicitly states \"Co-Founder\".)\n- End of scan.\n\nFINAL ANSWER:\nThe co-founders of InnovateCorp are Sarah Kim and Lisa Wang."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n\nALWAYS START WITH REASONING:\nBegin every response with \"REASONING:\" - this is MANDATORY.\n\n1. REASONING: For each relevant item found in the context:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n\n2. End scan with: - End of scan.\n\n3. FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES (APPLY TO ALL QUERIES):\n\nEVIDENCE:\n- Evidence MUST be EXACT verbatim quote from context - do NOT paraphrase or fabricate.\n- You MUST evaluate ALL relevant items in the context before ending the scan.\n\nKEEP/DISCARD:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- FINAL ANSWER must include ALL items marked [KEEP] - do not omit any.\n\nMATCHING (PREVENTS HALLUCINATION):\n- Entity/attribute must be EXPLICITLY stated in evidence - the query term must appear.\n- Similar entities are NOT matches unless explicitly stated (e.g., \"Founder\" \u2260 \"Co-Founder\").\n- DO NOT assume relationships - only use explicitly stated information.\n\nEMPTY RESULTS:\n- If ALL items are marked [DISCARD], FINAL ANSWER must indicate no matches found.\n\nOUTPUT FORMAT:\n- FINAL ANSWER should include ONLY the requested information, not extra words or role titles."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: The company offers three subscription tiers: Basic ($9/month), Pro ($29/month), and Enterprise ($99/month). The Basic plan includes 10GB storage. The Pro plan includes 100GB storage and priority support. The Enterprise plan includes unlimited storage and dedicated account manager.\n---\nQuestion: What are the subscription tiers offered by the company?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: Basic\n  - Evidence: \"The company offers three subscription tiers: Basic ($9/month), Pro ($29/month), and Enterprise ($99/month)\"\n  - Action: [KEEP] (Reason: Evidence explicitly states \"subscription tiers\" and includes \"Basic\".)\n- Item: Pro\n  - Evidence: \"The company offers three subscription tiers: Basic ($9/month), Pro ($29/month), and Enterprise ($99/month)\"\n  - Action: [KEEP] (Reason: Evidence explicitly states \"subscription tiers\" and includes \"Pro\".)\n- Item: Enterprise\n  - Evidence: \"The company offers three subscription tiers: Basic ($9/month), Pro ($29/month), and Enterprise ($99/month)\"\n  - Action: [KEEP] (Reason: Evidence explicitly states \"subscription tiers\" and includes \"Enterprise\".)\n- End of scan.\n\nFINAL ANSWER:\nThe subscription tiers are Basic, Pro, and Enterprise."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n\nALWAYS START WITH REASONING:\nBegin every response with \"REASONING:\" - this is MANDATORY.\n\n1. REASONING: For each relevant item found in the context:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n\n2. End scan with: - End of scan.\n\n3. FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES (APPLY TO ALL QUERIES):\n\nEVIDENCE:\n- Evidence MUST be EXACT verbatim quote from context - do NOT paraphrase or fabricate.\n- You MUST evaluate ALL relevant items in the context before ending the scan.\n\nKEEP/DISCARD:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- FINAL ANSWER must include ALL items marked [KEEP] - do not omit any.\n\nMATCHING (PREVENTS HALLUCINATION):\n- Entity/attribute must be EXPLICITLY stated in evidence - the query term must appear.\n- Similar entities are NOT matches unless explicitly stated (e.g., \"Founder\" \u2260 \"Co-Founder\").\n- DO NOT assume relationships - only use explicitly stated information.\n\nEMPTY RESULTS:\n- If ALL items are marked [DISCARD], FINAL ANSWER must indicate no matches found.\n\nOUTPUT FORMAT:\n- FINAL ANSWER should include ONLY the requested information, not extra words or role titles."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: The corporate headquarters is located at 500 Innovation Drive, Austin, Texas. The company has regional offices in Seattle, Boston, and Miami. The Seattle office opened in 2018. The Boston office opened in 2020.\n---\nQuestion: Where is the headquarters located?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: 500 Innovation Drive, Austin, Texas\n  - Evidence: \"The corporate headquarters is located at 500 Innovation Drive, Austin, Texas\"\n  - Action: [KEEP] (Reason: Evidence explicitly states \"headquarters\".)\n- Item: Seattle\n  - Evidence: \"The company has regional offices in Seattle\"\n  - Action: [DISCARD] (Reason: Evidence says \"regional offices\", not \"headquarters\". Query asks for \"headquarters\" specifically. Query term \"headquarters\" must appear verbatim in evidence.)\n- Item: Boston\n  - Evidence: \"The company has regional offices in Boston\"\n  - Action: [DISCARD] (Reason: Evidence says \"regional offices\", not \"headquarters\". Query asks for \"headquarters\" specifically.)\n- Item: Miami\n  - Evidence: \"The company has regional offices in Miami\"\n  - Action: [DISCARD] (Reason: Evidence says \"regional offices\", not \"headquarters\". Query asks for \"headquarters\" specifically.)\n- End of scan.\n\nFINAL ANSWER:\nThe headquarters is located at 500 Innovation Drive, Austin, Texas."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n\nALWAYS START WITH REASONING:\nBegin every response with \"REASONING:\" - this is MANDATORY.\n\n1. REASONING: For each relevant item found in the context:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n\n2. End scan with: - End of scan.\n\n3. FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES (APPLY TO ALL QUERIES):\n\nEVIDENCE:\n- Evidence MUST be EXACT verbatim quote from context - do NOT paraphrase or fabricate.\n- You MUST evaluate ALL relevant items in the context before ending the scan.\n\nKEEP/DISCARD:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- FINAL ANSWER must include ALL items marked [KEEP] - do not omit any.\n\nMATCHING (PREVENTS HALLUCINATION):\n- Entity/attribute must be EXPLICITLY stated in evidence - the query term must appear.\n- Similar entities are NOT matches unless explicitly stated (e.g., \"Founder\" \u2260 \"Co-Founder\").\n- DO NOT assume relationships - only use explicitly stated information.\n\nEMPTY RESULTS:\n- If ALL items are marked [DISCARD], FINAL ANSWER must indicate no matches found.\n\nOUTPUT FORMAT:\n- FINAL ANSWER should include ONLY the requested information, not extra words or role titles."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: Robert Martinez is the Chief Financial Officer at DataSystems. He oversees all financial operations and reporting. Jennifer Lee is the VP of Sales. David Kim is the Chief Operating Officer.\n---\nQuestion: Who is the CFO of DataSystems?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: Robert Martinez\n  - Evidence: \"Robert Martinez is the Chief Financial Officer at DataSystems\"\n  - Action: [KEEP] (Reason: Evidence explicitly states \"Chief Financial Officer\" (CFO).)\n- Item: Jennifer Lee\n  - Evidence: \"Jennifer Lee is the VP of Sales\"\n  - Action: [DISCARD] (Reason: Evidence says \"VP of Sales\", not \"CFO\".)\n- Item: David Kim\n  - Evidence: \"David Kim is the Chief Operating Officer\"\n  - Action: [DISCARD] (Reason: Evidence says \"Chief Operating Officer\" (COO), not CFO.)\n- End of scan.\n\nFINAL ANSWER:\nRobert Martinez."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n\nALWAYS START WITH REASONING:\nBegin every response with \"REASONING:\" - this is MANDATORY.\n\n1. REASONING: For each relevant item found in the context:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n\n2. End scan with: - End of scan.\n\n3. FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES (APPLY TO ALL QUERIES):\n\nEVIDENCE:\n- Evidence MUST be EXACT verbatim quote from context - do NOT paraphrase or fabricate.\n- You MUST evaluate ALL relevant items in the context before ending the scan.\n\nKEEP/DISCARD:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- FINAL ANSWER must include ALL items marked [KEEP] - do not omit any.\n\nMATCHING (PREVENTS HALLUCINATION):\n- Entity/attribute must be EXPLICITLY stated in evidence - the query term must appear.\n- Similar entities are NOT matches unless explicitly stated (e.g., \"Founder\" \u2260 \"Co-Founder\").\n- DO NOT assume relationships - only use explicitly stated information.\n\nEMPTY RESULTS:\n- If ALL items are marked [DISCARD], FINAL ANSWER must indicate no matches found.\n\nOUTPUT FORMAT:\n- FINAL ANSWER should include ONLY the requested information, not extra words or role titles."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: The sales team has 25 account executives focused on enterprise clients. The marketing team includes 15 specialists handling digital campaigns. The customer support team consists of 40 representatives providing 24/7 assistance.\n---\nQuestion: What is the size of the sales team?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: 25 account executives\n  - Evidence: \"The sales team has 25 account executives focused on enterprise clients\"\n  - Action: [KEEP] (Reason: Evidence explicitly states \"sales team\" and \"25 account executives\".)\n- Item: 15 specialists\n  - Evidence: \"The marketing team includes 15 specialists\"\n  - Action: [DISCARD] (Reason: Evidence says \"marketing team\", not \"sales team\".)\n- Item: 40 representatives\n  - Evidence: \"The customer support team consists of 40 representatives\"\n  - Action: [DISCARD] (Reason: Evidence says \"customer support team\", not \"sales team\".)\n- End of scan.\n\nFINAL ANSWER:\nThe sales team has 25 account executives."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n\nALWAYS START WITH REASONING:\nBegin every response with \"REASONING:\" - this is MANDATORY.\n\n1. REASONING: For each relevant item found in the context:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n\n2. End scan with: - End of scan.\n\n3. FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES (APPLY TO ALL QUERIES):\n\nEVIDENCE:\n- Evidence MUST be EXACT verbatim quote from context - do NOT paraphrase or fabricate.\n- You MUST evaluate ALL relevant items in the context before ending the scan.\n\nKEEP/DISCARD:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- FINAL ANSWER must include ALL items marked [KEEP] - do not omit any.\n\nMATCHING (PREVENTS HALLUCINATION):\n- Entity/attribute must be EXPLICITLY stated in evidence - the query term must appear.\n- Similar entities are NOT matches unless explicitly stated (e.g., \"Founder\" \u2260 \"Co-Founder\").\n- DO NOT assume relationships - only use explicitly stated information.\n\nEMPTY RESULTS:\n- If ALL items are marked [DISCARD], FINAL ANSWER must indicate no matches found.\n\nOUTPUT FORMAT:\n- FINAL ANSWER should include ONLY the requested information, not extra words or role titles."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: The company was acquired in 2019. The product launched in March 2021. The Series B funding round closed in June 2022. The IPO occurred in September 2023.\n---\nQuestion: When was the product launched?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: 2019\n  - Evidence: \"The company was acquired in 2019\"\n  - Action: [DISCARD] (Reason: Evidence says \"acquired\", not \"launched\". Query asks for product launch date only.)\n- Item: March 2021\n  - Evidence: \"The product launched in March 2021\"\n  - Action: [KEEP] (Reason: Evidence explicitly states \"launched\".)\n- Item: June 2022\n  - Evidence: \"The Series B funding round closed in June 2022\"\n  - Action: [DISCARD] (Reason: Evidence says \"funding round closed\", not \"launched\". Query asks for product launch date only.)\n- Item: September 2023\n  - Evidence: \"The IPO occurred in September 2023\"\n  - Action: [DISCARD] (Reason: Evidence says \"IPO occurred\", not \"launched\". Query asks for product launch date only.)\n- End of scan.\n\nFINAL ANSWER:\nThe product was launched in March 2021."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n\nALWAYS START WITH REASONING:\nBegin every response with \"REASONING:\" - this is MANDATORY.\n\n1. REASONING: For each relevant item found in the context:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n\n2. End scan with: - End of scan.\n\n3. FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES (APPLY TO ALL QUERIES):\n\nEVIDENCE:\n- Evidence MUST be EXACT verbatim quote from context - do NOT paraphrase or fabricate.\n- You MUST evaluate ALL relevant items in the context before ending the scan.\n\nKEEP/DISCARD:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- FINAL ANSWER must include ALL items marked [KEEP] - do not omit any.\n\nMATCHING (PREVENTS HALLUCINATION):\n- Entity/attribute must be EXPLICITLY stated in evidence - the query term must appear.\n- Similar entities are NOT matches unless explicitly stated (e.g., \"Founder\" \u2260 \"Co-Founder\").\n- DO NOT assume relationships - only use explicitly stated information.\n\nEMPTY RESULTS:\n- If ALL items are marked [DISCARD], FINAL ANSWER must indicate no matches found.\n\nOUTPUT FORMAT:\n- FINAL ANSWER should include ONLY the requested information, not extra words or role titles."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: The platform supports integration with Salesforce, HubSpot, Zendesk, and Slack. Custom integrations are available through the API. The platform also connects with Microsoft Teams and Google Workspace.\n---\nQuestion: What integrations does the platform support?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: Salesforce\n  - Evidence: \"The platform supports integration with Salesforce, HubSpot, Zendesk, and Slack\"\n  - Action: [KEEP] (Reason: Evidence explicitly states \"integration\" and includes \"Salesforce\".)\n- Item: HubSpot\n  - Evidence: \"The platform supports integration with Salesforce, HubSpot, Zendesk, and Slack\"\n  - Action: [KEEP] (Reason: Evidence explicitly states \"integration\" and includes \"HubSpot\".)\n- Item: Zendesk\n  - Evidence: \"The platform supports integration with Salesforce, HubSpot, Zendesk, and Slack\"\n  - Action: [KEEP] (Reason: Evidence explicitly states \"integration\" and includes \"Zendesk\".)\n- Item: Slack\n  - Evidence: \"The platform supports integration with Salesforce, HubSpot, Zendesk, and Slack\"\n  - Action: [KEEP] (Reason: Evidence explicitly states \"integration\" and includes \"Slack\".)\n- Item: Microsoft Teams\n  - Evidence: \"The platform also connects with Microsoft Teams\"\n  - Action: [KEEP] (Reason: Evidence states \"connects with\" which indicates integration.)\n- Item: Google Workspace\n  - Evidence: \"The platform also connects with Google Workspace\"\n  - Action: [KEEP] (Reason: Evidence states \"connects with\" which indicates integration.)\n- End of scan.\n\nFINAL ANSWER:\nThe platform supports integrations with Salesforce, HubSpot, Zendesk, Slack, Microsoft Teams, and Google Workspace."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n\nALWAYS START WITH REASONING:\nBegin every response with \"REASONING:\" - this is MANDATORY.\n\n1. REASONING: For each relevant item found in the context:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n\n2. End scan with: - End of scan.\n\n3. FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES (APPLY TO ALL QUERIES):\n\nEVIDENCE:\n- Evidence MUST be EXACT verbatim quote from context - do NOT paraphrase or fabricate.\n- You MUST evaluate ALL relevant items in the context before ending the scan.\n\nKEEP/DISCARD:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- FINAL ANSWER must include ALL items marked [KEEP] - do not omit any.\n\nMATCHING (PREVENTS HALLUCINATION):\n- Entity/attribute must be EXPLICITLY stated in evidence - the query term must appear.\n- Similar entities are NOT matches unless explicitly stated (e.g., \"Founder\" \u2260 \"Co-Founder\").\n- DO NOT assume relationships - only use explicitly stated information.\n\nEMPTY RESULTS:\n- If ALL items are marked [DISCARD], FINAL ANSWER must indicate no matches found.\n\nOUTPUT FORMAT:\n- FINAL ANSWER should include ONLY the requested information, not extra words or role titles."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: Paul Chou is the CEO and Co-Founder of LedgerAI, driving the development of AI-powered business intelligence. Bob Carella is Co-Founder and Chief Financial Officer of LedgerAI, architecting the company's financial strategy. David Lara is Co-Founder and Chief Operating Officer of LedgerAI, leading the execution of AI-powered intelligence solutions. Jorge Guinovart is Co-Founder and Chief Marketing Officer of LedgerAI, spearheading global adoption. Will Specht is Head of Engineering at LedgerAI, leading the engineering efforts. Peter Moeller is Business Development Lead at LedgerAI, serving in business development. Liam Hugill is Ambassador of Influence and Engagement at LedgerAI, helping build the global community. Albert Soler is External Counsel & Advisor at LedgerAI, bringing legal expertise.\n---\nQuestion: Who are the co-founders of LedgerAI?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: Paul Chou\n  - Evidence: \"Paul Chou is the CEO and Co-Founder of LedgerAI\"\n  - Action: [KEEP] (Reason: Evidence explicitly states \"Co-Founder\".)\n- Item: Bob Carella\n  - Evidence: \"Bob Carella is Co-Founder and Chief Financial Officer of LedgerAI\"\n  - Action: [KEEP] (Reason: Evidence explicitly states \"Co-Founder\".)\n- Item: David Lara\n  - Evidence: \"David Lara is Co-Founder and Chief Operating Officer of LedgerAI\"\n  - Action: [KEEP] (Reason: Evidence explicitly states \"Co-Founder\".)\n- Item: Jorge Guinovart\n  - Evidence: \"Jorge Guinovart is Co-Founder and Chief Marketing Officer of LedgerAI\"\n  - Action: [KEEP] (Reason: Evidence explicitly states \"Co-Founder\".)\n- Item: Will Specht\n  - Evidence: \"Will Specht is Head of Engineering at LedgerAI\"\n  - Action: [DISCARD] (Reason: Evidence says \"Head of Engineering\", not \"co-founder\". Query term \"co-founder\" must appear verbatim in evidence.)\n- Item: Peter Moeller\n  - Evidence: \"Peter Moeller is Business Development Lead at LedgerAI\"\n  - Action: [DISCARD] (Reason: Evidence says \"Business Development Lead\", not \"co-founder\". Query term \"co-founder\" must appear verbatim in evidence. DO NOT assume Business Development Lead means co-founder.)\n- Item: Liam Hugill\n  - Evidence: \"Liam Hugill is Ambassador of Influence and Engagement at LedgerAI\"\n  - Action: [DISCARD] (Reason: Evidence says \"Ambassador\", not \"co-founder\". Query term \"co-founder\" must appear verbatim in evidence. DO NOT assume Ambassador means co-founder.)\n- Item: Albert Soler\n  - Evidence: \"Albert Soler is External Counsel & Advisor at LedgerAI\"\n  - Action: [DISCARD] (Reason: Evidence says \"External Counsel & Advisor\", not \"co-founder\". Query term \"co-founder\" must appear verbatim in evidence.)\n- End of scan.\n\nFINAL ANSWER:\nThe co-founders of LedgerAI are Paul Chou, Bob Carella, David Lara, and Jorge Guinovart."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n\nALWAYS START WITH REASONING:\nBegin every response with \"REASONING:\" - this is MANDATORY.\n\n1. REASONING: For each relevant item found in the context:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n\n2. End scan with: - End of scan.\n\n3. FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES (APPLY TO ALL QUERIES):\n\nEVIDENCE:\n- Evidence MUST be EXACT verbatim quote from context - do NOT paraphrase or fabricate.\n- You MUST evaluate ALL relevant items in the context before ending the scan.\n\nKEEP/DISCARD:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- FINAL ANSWER must include ALL items marked [KEEP] - do not omit any.\n\nMATCHING (PREVENTS HALLUCINATION):\n- Entity/attribute must be EXPLICITLY stated in evidence - the query term must appear.\n- Similar entities are NOT matches unless explicitly stated (e.g., \"Founder\" \u2260 \"Co-Founder\").\n- DO NOT assume relationships - only use explicitly stated information.\n\nEMPTY RESULTS:\n- If ALL items are marked [DISCARD], FINAL ANSWER must indicate no matches found.\n\nOUTPUT FORMAT:\n- FINAL ANSWER should include ONLY the requested information, not extra words or role titles."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: John Smith is the CEO and Co-Founder of TechCorp. Michael Brown is Co-Founder and COO of TechCorp. David Martinez is Co-Founder and Chief Product Officer of TechCorp. Sarah Johnson is CTO at TechCorp. Emily Davis is Head of Marketing at TechCorp. Robert Wilson is Business Development Lead at TechCorp. Lisa Anderson is Ambassador of Community Engagement at TechCorp.\n---\nQuestion: Who are the co-founders of TechCorp?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: John Smith\n  - Evidence: \"John Smith is the CEO and Co-Founder of TechCorp\"\n  - Action: [KEEP] (Reason: Evidence explicitly states \"Co-Founder\".)\n- Item: Michael Brown\n  - Evidence: \"Michael Brown is Co-Founder and COO of TechCorp\"\n  - Action: [KEEP] (Reason: Evidence explicitly states \"Co-Founder\".)\n- Item: David Martinez\n  - Evidence: \"David Martinez is Co-Founder and Chief Product Officer of TechCorp\"\n  - Action: [KEEP] (Reason: Evidence explicitly states \"Co-Founder\".)\n- Item: Sarah Johnson\n  - Evidence: \"Sarah Johnson is CTO at TechCorp\"\n  - Action: [DISCARD] (Reason: Evidence says \"CTO\", not \"co-founder\". Query term \"co-founder\" must appear verbatim in evidence.)\n- Item: Emily Davis\n  - Evidence: \"Emily Davis is Head of Marketing at TechCorp\"\n  - Action: [DISCARD] (Reason: Evidence says \"Head of Marketing\", not \"co-founder\". Query term \"co-founder\" must appear verbatim in evidence.)\n- Item: Robert Wilson\n  - Evidence: \"Robert Wilson is Business Development Lead at TechCorp\"\n  - Action: [DISCARD] (Reason: Evidence says \"Business Development Lead\", not \"co-founder\". Query term \"co-founder\" must appear verbatim in evidence. DO NOT assume Business Development Lead means co-founder.)\n- Item: Lisa Anderson\n  - Evidence: \"Lisa Anderson is Ambassador of Community Engagement at TechCorp\"\n  - Action: [DISCARD] (Reason: Evidence says \"Ambassador\", not \"co-founder\". Query term \"co-founder\" must appear verbatim in evidence. DO NOT assume Ambassador means co-founder.)\n- End of scan.\n\nFINAL ANSWER:\nThe co-founders of TechCorp are John Smith, Michael Brown, and David Martinez."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n\nALWAYS START WITH REASONING:\nBegin every response with \"REASONING:\" - this is MANDATORY.\n\n1. REASONING: For each relevant item found in the context:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n\n2. End scan with: - End of scan.\n\n3. FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES (APPLY TO ALL QUERIES):\n\nEVIDENCE:\n- Evidence MUST be EXACT verbatim quote from context - do NOT paraphrase or fabricate.\n- You MUST evaluate ALL relevant items in the context before ending the scan.\n\nKEEP/DISCARD:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- FINAL ANSWER must include ALL items marked [KEEP] - do not omit any.\n\nMATCHING (PREVENTS HALLUCINATION):\n- Entity/attribute must be EXPLICITLY stated in evidence - the query term must appear.\n- Similar entities are NOT matches unless explicitly stated (e.g., \"Founder\" \u2260 \"Co-Founder\").\n- DO NOT assume relationships - only use explicitly stated information.\n\nEMPTY RESULTS:\n- If ALL items are marked [DISCARD], FINAL ANSWER must indicate no matches found.\n\nOUTPUT FORMAT:\n- FINAL ANSWER should include ONLY the requested information, not extra words or role titles."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: The headquarters is now located at 123 Tech Street, New York, NY. The company also has offices in London. The company also has offices in Tokyo. The San Francisco office opened in 2019.\n---\nQuestion: Where is the headquarters of the company?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: 123 Tech Street, New York, NY\n  - Evidence: \"The headquarters is now located at 123 Tech Street, New York, NY\"\n  - Action: [KEEP] (Reason: Evidence explicitly states \"headquarters\".)\n- Item: London\n  - Evidence: \"The company also has offices in London\"\n  - Action: [DISCARD] (Reason: Evidence says \"offices\", not \"headquarters\". Query asks for \"headquarters\" specifically, not offices. Query term \"headquarters\" must appear verbatim in evidence.)\n- Item: Tokyo\n  - Evidence: \"The company also has offices in Tokyo\"\n  - Action: [DISCARD] (Reason: Evidence says \"offices\", not \"headquarters\". Query asks for \"headquarters\" specifically, not offices. Query term \"headquarters\" must appear verbatim in evidence.)\n- Item: San Francisco\n  - Evidence: \"The San Francisco office opened in 2019\"\n  - Action: [DISCARD] (Reason: Evidence says \"office\", not \"headquarters\". Query asks for \"headquarters\" specifically, not offices.)\n- End of scan.\n\nFINAL ANSWER:\nThe headquarters is located at 123 Tech Street, New York, NY."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n\nALWAYS START WITH REASONING:\nBegin every response with \"REASONING:\" - this is MANDATORY.\n\n1. REASONING: For each relevant item found in the context:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n\n2. End scan with: - End of scan.\n\n3. FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES (APPLY TO ALL QUERIES):\n\nEVIDENCE:\n- Evidence MUST be EXACT verbatim quote from context - do NOT paraphrase or fabricate.\n- You MUST evaluate ALL relevant items in the context before ending the scan.\n\nKEEP/DISCARD:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- FINAL ANSWER must include ALL items marked [KEEP] - do not omit any.\n\nMATCHING (PREVENTS HALLUCINATION):\n- Entity/attribute must be EXPLICITLY stated in evidence - the query term must appear.\n- Similar entities are NOT matches unless explicitly stated (e.g., \"Founder\" \u2260 \"Co-Founder\").\n- DO NOT assume relationships - only use explicitly stated information.\n\nEMPTY RESULTS:\n- If ALL items are marked [DISCARD], FINAL ANSWER must indicate no matches found.\n\nOUTPUT FORMAT:\n- FINAL ANSWER should include ONLY the requested information, not extra words or role titles."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: Sarah Johnson is the Chief Technology Officer at DataFlow. She leads the engineering team and oversees all technical decisions.\n---\nQuestion: Who is the CTO of DataFlow?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: Sarah Johnson\n  - Evidence: \"Sarah Johnson is the Chief Technology Officer at DataFlow\"\n  - Action: [KEEP] (Reason: Evidence explicitly states \"Chief Technology Officer\" (CTO).)\n- End of scan.\n\nFINAL ANSWER:\nSarah Johnson."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n\nALWAYS START WITH REASONING:\nBegin every response with \"REASONING:\" - this is MANDATORY.\n\n1. REASONING: For each relevant item found in the context:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n\n2. End scan with: - End of scan.\n\n3. FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES (APPLY TO ALL QUERIES):\n\nEVIDENCE:\n- Evidence MUST be EXACT verbatim quote from context - do NOT paraphrase or fabricate.\n- You MUST evaluate ALL relevant items in the context before ending the scan.\n\nKEEP/DISCARD:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- FINAL ANSWER must include ALL items marked [KEEP] - do not omit any.\n\nMATCHING (PREVENTS HALLUCINATION):\n- Entity/attribute must be EXPLICITLY stated in evidence - the query term must appear.\n- Similar entities are NOT matches unless explicitly stated (e.g., \"Founder\" \u2260 \"Co-Founder\").\n- DO NOT assume relationships - only use explicitly stated information.\n\nEMPTY RESULTS:\n- If ALL items are marked [DISCARD], FINAL ANSWER must indicate no matches found.\n\nOUTPUT FORMAT:\n- FINAL ANSWER should include ONLY the requested information, not extra words or role titles."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: The annual revenue for 2023 was $50 million. The company raised $10 million in Series A funding in 2022.\n---\nQuestion: What was the annual revenue?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: $50 million\n  - Evidence: \"The annual revenue for 2023 was $50 million\"\n  - Action: [KEEP] (Reason: Evidence explicitly states \"annual revenue\".)\n- Item: $10 million\n  - Evidence: \"The company raised $10 million in Series A funding in 2022\"\n  - Action: [DISCARD] (Reason: Evidence says \"funding\", not \"revenue\".)\n- End of scan.\n\nFINAL ANSWER:\nThe annual revenue was $50 million."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n\nALWAYS START WITH REASONING:\nBegin every response with \"REASONING:\" - this is MANDATORY.\n\n1. REASONING: For each relevant item found in the context:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n\n2. End scan with: - End of scan.\n\n3. FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES (APPLY TO ALL QUERIES):\n\nEVIDENCE:\n- Evidence MUST be EXACT verbatim quote from context - do NOT paraphrase or fabricate.\n- You MUST evaluate ALL relevant items in the context before ending the scan.\n\nKEEP/DISCARD:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- FINAL ANSWER must include ALL items marked [KEEP] - do not omit any.\n\nMATCHING (PREVENTS HALLUCINATION):\n- Entity/attribute must be EXPLICITLY stated in evidence - the query term must appear.\n- Similar entities are NOT matches unless explicitly stated (e.g., \"Founder\" \u2260 \"Co-Founder\").\n- DO NOT assume relationships - only use explicitly stated information.\n\nEMPTY RESULTS:\n- If ALL items are marked [DISCARD], FINAL ANSWER must indicate no matches found.\n\nOUTPUT FORMAT:\n- FINAL ANSWER should include ONLY the requested information, not extra words or role titles."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: Acme Corporation was established in 2010 by a group of entrepreneurs. James Wilson serves as the Chief Executive Officer of Acme Corporation. Maria Garcia is the Chief Technology Officer of Acme Corporation. Thomas Lee is the Head of Sales.\n---\nQuestion: Who are the co-founders of Acme Corporation?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: James Wilson\n  - Evidence: \"James Wilson serves as the Chief Executive Officer of Acme Corporation\"\n  - Action: [DISCARD] (Reason: Evidence says \"CEO\", not \"co-founder\". Query term \"co-founder\" must appear verbatim in evidence.)\n- Item: Maria Garcia\n  - Evidence: \"Maria Garcia is the Chief Technology Officer of Acme Corporation\"\n  - Action: [DISCARD] (Reason: Evidence says \"CTO\", not \"co-founder\". Query term \"co-founder\" must appear verbatim in evidence. DO NOT assume CTO means co-founder.)\n- Item: Thomas Lee\n  - Evidence: \"Thomas Lee is the Head of Sales\"\n  - Action: [DISCARD] (Reason: Evidence says \"Head of Sales\", not \"co-founder\". Query term \"co-founder\" must appear verbatim in evidence.)\n- End of scan.\n\nFINAL ANSWER:\nNo co-founders are explicitly stated for Acme Corporation."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n\nALWAYS START WITH REASONING:\nBegin every response with \"REASONING:\" - this is MANDATORY.\n\n1. REASONING: For each relevant item found in the context:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n\n2. End scan with: - End of scan.\n\n3. FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES (APPLY TO ALL QUERIES):\n\nEVIDENCE:\n- Evidence MUST be EXACT verbatim quote from context - do NOT paraphrase or fabricate.\n- You MUST evaluate ALL relevant items in the context before ending the scan.\n\nKEEP/DISCARD:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- FINAL ANSWER must include ALL items marked [KEEP] - do not omit any.\n\nMATCHING (PREVENTS HALLUCINATION):\n- Entity/attribute must be EXPLICITLY stated in evidence - the query term must appear.\n- Similar entities are NOT matches unless explicitly stated (e.g., \"Founder\" \u2260 \"Co-Founder\").\n- DO NOT assume relationships - only use explicitly stated information.\n\nEMPTY RESULTS:\n- If ALL items are marked [DISCARD], FINAL ANSWER must indicate no matches found.\n\nOUTPUT FORMAT:\n- FINAL ANSWER should include ONLY the requested information, not extra words or role titles."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: TechCorp was established in 2015. The company moved to New York in 2020. Registration opens on February 1, 2024. The product launch event is scheduled for March 15, 2024.\n---\nQuestion: When was TechCorp established?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: 2015\n  - Evidence: \"TechCorp was established in 2015\"\n  - Action: [KEEP] (Reason: Evidence explicitly states \"established in 2015\".)\n- Item: 2020\n  - Evidence: \"The company moved to New York in 2020\"\n  - Action: [DISCARD] (Reason: Evidence says \"moved\", not \"established\". Query asks for establishment date only.)\n- Item: February 1, 2024\n  - Evidence: \"Registration opens on February 1, 2024\"\n  - Action: [DISCARD] (Reason: Evidence says \"Registration opens\", not \"established\". Query asks for establishment date only.)\n- Item: March 15, 2024\n  - Evidence: \"The product launch event is scheduled for March 15, 2024\"\n  - Action: [DISCARD] (Reason: Evidence says \"product launch event\", not \"established\". Query asks for establishment date only.)\n- End of scan.\n\nFINAL ANSWER:\nTechCorp was established in 2015."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n\nALWAYS START WITH REASONING:\nBegin every response with \"REASONING:\" - this is MANDATORY.\n\n1. REASONING: For each relevant item found in the context:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n\n2. End scan with: - End of scan.\n\n3. FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES (APPLY TO ALL QUERIES):\n\nEVIDENCE:\n- Evidence MUST be EXACT verbatim quote from context - do NOT paraphrase or fabricate.\n- You MUST evaluate ALL relevant items in the context before ending the scan.\n\nKEEP/DISCARD:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- FINAL ANSWER must include ALL items marked [KEEP] - do not omit any.\n\nMATCHING (PREVENTS HALLUCINATION):\n- Entity/attribute must be EXPLICITLY stated in evidence - the query term must appear.\n- Similar entities are NOT matches unless explicitly stated (e.g., \"Founder\" \u2260 \"Co-Founder\").\n- DO NOT assume relationships - only use explicitly stated information.\n\nEMPTY RESULTS:\n- If ALL items are marked [DISCARD], FINAL ANSWER must indicate no matches found.\n\nOUTPUT FORMAT:\n- FINAL ANSWER should include ONLY the requested information, not extra words or role titles."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: TechCorp has offices in San Francisco, New York, London, and Tokyo. The San Francisco office is the headquarters. The New York office opened in 2019. The London office opened in 2020. The Tokyo office opened in 2021.\n---\nQuestion: Where are TechCorp's offices located?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: San Francisco\n  - Evidence: \"TechCorp has offices in San Francisco, New York, London, and Tokyo\"\n  - Action: [KEEP] (Reason: Evidence explicitly states \"offices in San Francisco\".)\n- Item: New York\n  - Evidence: \"TechCorp has offices in San Francisco, New York, London, and Tokyo\"\n  - Action: [KEEP] (Reason: Evidence explicitly states \"offices in New York\".)\n- Item: London\n  - Evidence: \"TechCorp has offices in San Francisco, New York, London, and Tokyo\"\n  - Action: [KEEP] (Reason: Evidence explicitly states \"offices in London\".)\n- Item: Tokyo\n  - Evidence: \"TechCorp has offices in San Francisco, New York, London, and Tokyo\"\n  - Action: [KEEP] (Reason: Evidence explicitly states \"offices in Tokyo\".)\n- End of scan.\n\nFINAL ANSWER:\nTechCorp's offices are located in San Francisco, New York, London, and Tokyo."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n\nALWAYS START WITH REASONING:\nBegin every response with \"REASONING:\" - this is MANDATORY.\n\n1. REASONING: For each relevant item found in the context:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n\n2. End scan with: - End of scan.\n\n3. FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES (APPLY TO ALL QUERIES):\n\nEVIDENCE:\n- Evidence MUST be EXACT verbatim quote from context - do NOT paraphrase or fabricate.\n- You MUST evaluate ALL relevant items in the context before ending the scan.\n\nKEEP/DISCARD:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- FINAL ANSWER must include ALL items marked [KEEP] - do not omit any.\n\nMATCHING (PREVENTS HALLUCINATION):\n- Entity/attribute must be EXPLICITLY stated in evidence - the query term must appear.\n- Similar entities are NOT matches unless explicitly stated (e.g., \"Founder\" \u2260 \"Co-Founder\").\n- DO NOT assume relationships - only use explicitly stated information.\n\nEMPTY RESULTS:\n- If ALL items are marked [DISCARD], FINAL ANSWER must indicate no matches found.\n\nOUTPUT FORMAT:\n- FINAL ANSWER should include ONLY the requested information, not extra words or role titles."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: Sarah Johnson is the Chief Technology Officer at DataFlow. She leads the engineering team and oversees all technical decisions. Mark Williams is Head of Engineering and reports to Sarah. Robert Kim is the Chief Financial Officer.\n---\nQuestion: Who is the CTO of DataFlow?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: Sarah Johnson\n  - Evidence: \"Sarah Johnson is the Chief Technology Officer at DataFlow\"\n  - Action: [KEEP] (Reason: Evidence explicitly states \"Chief Technology Officer\" (CTO).)\n- Item: Mark Williams\n  - Evidence: \"Mark Williams is Head of Engineering\"\n  - Action: [DISCARD] (Reason: Evidence says \"Head of Engineering\", not \"CTO\".)\n- Item: Robert Kim\n  - Evidence: \"Robert Kim is the Chief Financial Officer\"\n  - Action: [DISCARD] (Reason: Evidence says \"Chief Financial Officer\" (CFO), not CTO.)\n- End of scan.\n\nFINAL ANSWER:\nSarah Johnson."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n\nALWAYS START WITH REASONING:\nBegin every response with \"REASONING:\" - this is MANDATORY.\n\n1. REASONING: For each relevant item found in the context:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n\n2. End scan with: - End of scan.\n\n3. FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES (APPLY TO ALL QUERIES):\n\nEVIDENCE:\n- Evidence MUST be EXACT verbatim quote from context - do NOT paraphrase or fabricate.\n- You MUST evaluate ALL relevant items in the context before ending the scan.\n\nKEEP/DISCARD:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- FINAL ANSWER must include ALL items marked [KEEP] - do not omit any.\n\nMATCHING (PREVENTS HALLUCINATION):\n- Entity/attribute must be EXPLICITLY stated in evidence - the query term must appear.\n- Similar entities are NOT matches unless explicitly stated (e.g., \"Founder\" \u2260 \"Co-Founder\").\n- DO NOT assume relationships - only use explicitly stated information.\n\nEMPTY RESULTS:\n- If ALL items are marked [DISCARD], FINAL ANSWER must indicate no matches found.\n\nOUTPUT FORMAT:\n- FINAL ANSWER should include ONLY the requested information, not extra words or role titles."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: The engineering team consists of 50 developers working on core products. The marketing team has 20 members focused on brand awareness. The sales team includes 30 people handling customer relationships.\n---\nQuestion: What is the size of the engineering team?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: 50 developers\n  - Evidence: \"The engineering team consists of 50 developers working on core products\"\n  - Action: [KEEP] (Reason: Evidence explicitly states \"engineering team\" and \"50 developers\".)\n- Item: 20 members\n  - Evidence: \"The marketing team has 20 members\"\n  - Action: [DISCARD] (Reason: Evidence says \"marketing team\", not \"engineering team\".)\n- Item: 30 people\n  - Evidence: \"The sales team includes 30 people\"\n  - Action: [DISCARD] (Reason: Evidence says \"sales team\", not \"engineering team\".)\n- End of scan.\n\nFINAL ANSWER:\nThe engineering team consists of 50 developers."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n\nALWAYS START WITH REASONING:\nBegin every response with \"REASONING:\" - this is MANDATORY.\n\n1. REASONING: For each relevant item found in the context:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n\n2. End scan with: - End of scan.\n\n3. FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES (APPLY TO ALL QUERIES):\n\nEVIDENCE:\n- Evidence MUST be EXACT verbatim quote from context - do NOT paraphrase or fabricate.\n- You MUST evaluate ALL relevant items in the context before ending the scan.\n\nKEEP/DISCARD:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- FINAL ANSWER must include ALL items marked [KEEP] - do not omit any.\n\nMATCHING (PREVENTS HALLUCINATION):\n- Entity/attribute must be EXPLICITLY stated in evidence - the query term must appear.\n- Similar entities are NOT matches unless explicitly stated (e.g., \"Founder\" \u2260 \"Co-Founder\").\n- DO NOT assume relationships - only use explicitly stated information.\n\nEMPTY RESULTS:\n- If ALL items are marked [DISCARD], FINAL ANSWER must indicate no matches found.\n\nOUTPUT FORMAT:\n- FINAL ANSWER should include ONLY the requested information, not extra words or role titles."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: Peter Moeller is a dynamic leader in business development, strategic growth, and integrated marketing, serving as Business Development Lead at LedgerAI. He has built a reputation for accelerating business expansion and optimizing market positioning. David Lara is a strategic powerhouse who serves as Co-Founder and Chief Operating Officer of LedgerAI. Liam Hugill serves as LedgerAI's Ambassador of Influence and Engagement, helping build the global community.\n---\nQuestion: Who are the co-founders of LedgerAI?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: Peter Moeller\n  - Evidence: \"serving as Business Development Lead at LedgerAI\"\n  - Action: [DISCARD] (Reason: Evidence says \"Business Development Lead\", not \"co-founder\". Query term \"co-founder\" must appear verbatim in evidence.)\n- Item: David Lara\n  - Evidence: \"serves as Co-Founder and Chief Operating Officer of LedgerAI\"\n  - Action: [KEEP] (Reason: Evidence explicitly states \"Co-Founder\".)\n- Item: Liam Hugill\n  - Evidence: \"serves as LedgerAI's Ambassador of Influence and Engagement\"\n  - Action: [DISCARD] (Reason: Evidence says \"Ambassador\", not \"co-founder\". Query term \"co-founder\" must appear verbatim in evidence.)\n- End of scan.\n\nFINAL ANSWER:\nThe co-founders of LedgerAI are David Lara."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n\nALWAYS START WITH REASONING:\nBegin every response with \"REASONING:\" - this is MANDATORY.\n\n1. REASONING: For each relevant item found in the context:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n\n2. End scan with: - End of scan.\n\n3. FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES (APPLY TO ALL QUERIES):\n\nEVIDENCE:\n- Evidence MUST be EXACT verbatim quote from context - do NOT paraphrase or fabricate.\n- You MUST evaluate ALL relevant items in the context before ending the scan.\n\nKEEP/DISCARD:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- FINAL ANSWER must include ALL items marked [KEEP] - do not omit any.\n\nMATCHING (PREVENTS HALLUCINATION):\n- Entity/attribute must be EXPLICITLY stated in evidence - the query term must appear.\n- Similar entities are NOT matches unless explicitly stated (e.g., \"Founder\" \u2260 \"Co-Founder\").\n- DO NOT assume relationships - only use explicitly stated information.\n\nEMPTY RESULTS:\n- If ALL items are marked [DISCARD], FINAL ANSWER must indicate no matches found.\n\nOUTPUT FORMAT:\n- FINAL ANSWER should include ONLY the requested information, not extra words or role titles."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: The headquarters is now located at 123 Tech Street, New York, NY. The company has offices in London, Tokyo, and San Francisco. The London office opened in 2019, and the Tokyo office opened in 2021. The San Francisco office is the largest regional office.\n---\nQuestion: Where is the headquarters of the company?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: 123 Tech Street, New York, NY\n  - Evidence: \"The headquarters is now located at 123 Tech Street, New York, NY\"\n  - Action: [KEEP] (Reason: Evidence explicitly states \"headquarters\".)\n- Item: London\n  - Evidence: \"The company has offices in London\"\n  - Action: [DISCARD] (Reason: Evidence says \"offices\", not \"headquarters\". Query asks for \"headquarters\" specifically, not offices.)\n- Item: Tokyo\n  - Evidence: \"The company has offices in Tokyo\"\n  - Action: [DISCARD] (Reason: Evidence says \"offices\", not \"headquarters\". Query asks for \"headquarters\" specifically, not offices.)\n- Item: San Francisco\n  - Evidence: \"The San Francisco office is the largest regional office\"\n  - Action: [DISCARD] (Reason: Evidence says \"office\", not \"headquarters\". Query asks for \"headquarters\" specifically, not offices.)\n- End of scan.\n\nFINAL ANSWER:\nThe headquarters is located at 123 Tech Street, New York, NY."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n\nALWAYS START WITH REASONING:\nBegin every response with \"REASONING:\" - this is MANDATORY.\n\n1. REASONING: For each relevant item found in the context:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n\n2. End scan with: - End of scan.\n\n3. FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES (APPLY TO ALL QUERIES):\n\nEVIDENCE:\n- Evidence MUST be EXACT verbatim quote from context - do NOT paraphrase or fabricate.\n- You MUST evaluate ALL relevant items in the context before ending the scan.\n\nKEEP/DISCARD:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- FINAL ANSWER must include ALL items marked [KEEP] - do not omit any.\n\nMATCHING (PREVENTS HALLUCINATION):\n- Entity/attribute must be EXPLICITLY stated in evidence - the query term must appear.\n- Similar entities are NOT matches unless explicitly stated (e.g., \"Founder\" \u2260 \"Co-Founder\").\n- DO NOT assume relationships - only use explicitly stated information.\n\nEMPTY RESULTS:\n- If ALL items are marked [DISCARD], FINAL ANSWER must indicate no matches found.\n\nOUTPUT FORMAT:\n- FINAL ANSWER should include ONLY the requested information, not extra words or role titles."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: James Wilson is the Founder of TechCorp, having established the company in 2010. Maria Garcia serves as Co-Founder and Chief Technology Officer. Robert Lee is the Head of Engineering and has been with the company since 2015.\n---\nQuestion: Who are the co-founders of TechCorp?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: James Wilson\n  - Evidence: \"James Wilson is the Founder of TechCorp\"\n  - Action: [DISCARD] (Reason: Evidence says \"Founder\" (singular), not \"co-founder\". Query asks for \"co-founders\" (plural/co-), so \"Founder\" is NOT a match. Query term \"co-founder\" must appear verbatim in evidence.)\n- Item: Maria Garcia\n  - Evidence: \"serves as Co-Founder and Chief Technology Officer\"\n  - Action: [KEEP] (Reason: Evidence explicitly states \"Co-Founder\".)\n- Item: Robert Lee\n  - Evidence: \"is the Head of Engineering\"\n  - Action: [DISCARD] (Reason: Evidence says \"Head of Engineering\", not \"co-founder\". Query term \"co-founder\" must appear verbatim in evidence.)\n- End of scan.\n\nFINAL ANSWER:\nThe co-founders of TechCorp are Maria Garcia."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n\nALWAYS START WITH REASONING:\nBegin every response with \"REASONING:\" - this is MANDATORY.\n\n1. REASONING: For each relevant item found in the context:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n\n2. End scan with: - End of scan.\n\n3. FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES (APPLY TO ALL QUERIES):\n\nEVIDENCE:\n- Evidence MUST be EXACT verbatim quote from context - do NOT paraphrase or fabricate.\n- You MUST evaluate ALL relevant items in the context before ending the scan.\n\nKEEP/DISCARD:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- FINAL ANSWER must include ALL items marked [KEEP] - do not omit any.\n\nMATCHING (PREVENTS HALLUCINATION):\n- Entity/attribute must be EXPLICITLY stated in evidence - the query term must appear.\n- Similar entities are NOT matches unless explicitly stated (e.g., \"Founder\" \u2260 \"Co-Founder\").\n- DO NOT assume relationships - only use explicitly stated information.\n\nEMPTY RESULTS:\n- If ALL items are marked [DISCARD], FINAL ANSWER must indicate no matches found.\n\nOUTPUT FORMAT:\n- FINAL ANSWER should include ONLY the requested information, not extra words or role titles."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: Paul Chou is the CEO and Co-Founder of LedgerAI. Bob Carella is Co-Founder and Chief Financial Officer of LedgerAI. David Lara is Co-Founder and Chief Operating Officer of LedgerAI. Jorge Guinovart is Co-Founder and Chief Marketing Officer of LedgerAI. Will Specht is Head of Engineering at LedgerAI. Peter Moeller is Business Development Lead at LedgerAI.\n---\nQuestion: Who are the co-founders of LedgerAI?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: Paul Chou\n  - Evidence: \"Paul Chou is the CEO and Co-Founder of LedgerAI\"\n  - Action: [KEEP]\n- Item: Bob Carella\n  - Evidence: \"Bob Carella is Co-Founder and Chief Financial Officer of LedgerAI\"\n  - Action: [KEEP]\n- Item: David Lara\n  - Evidence: \"David Lara is Co-Founder and Chief Operating Officer of LedgerAI\"\n  - Action: [KEEP]\n- Item: Jorge Guinovart\n  - Evidence: \"Jorge Guinovart is Co-Founder and Chief Marketing Officer of LedgerAI\"\n  - Action: [KEEP]\n- Item: Will Specht\n  - Evidence: \"Will Specht is Head of Engineering at LedgerAI\"\n  - Action: [DISCARD] (Reason: Head of Engineering, not co-founder.)\n- Item: Peter Moeller\n  - Evidence: \"Peter Moeller is Business Development Lead at LedgerAI\"\n  - Action: [DISCARD] (Reason: Business Development Lead, not co-founder.)\n- End of scan.\n\nFINAL ANSWER:\nThe co-founders of LedgerAI are Paul Chou, Bob Carella, David Lara, and Jorge Guinovart."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n\nALWAYS START WITH REASONING:\nBegin every response with \"REASONING:\" - this is MANDATORY.\n\n1. REASONING: For each relevant item found in the context:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n\n2. End scan with: - End of scan.\n\n3. FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES (APPLY TO ALL QUERIES):\n\nEVIDENCE:\n- Evidence MUST be EXACT verbatim quote from context - do NOT paraphrase or fabricate.\n- You MUST evaluate ALL relevant items in the context before ending the scan.\n\nKEEP/DISCARD:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- FINAL ANSWER must include ALL items marked [KEEP] - do not omit any.\n\nMATCHING (PREVENTS HALLUCINATION):\n- Entity/attribute must be EXPLICITLY stated in evidence - the query term must appear.\n- Similar entities are NOT matches unless explicitly stated (e.g., \"Founder\" \u2260 \"Co-Founder\").\n- DO NOT assume relationships - only use explicitly stated information.\n\nEMPTY RESULTS:\n- If ALL items are marked [DISCARD], FINAL ANSWER must indicate no matches found.\n\nOUTPUT FORMAT:\n- FINAL ANSWER should include ONLY the requested information, not extra words or role titles."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: John Smith is CEO and Co-Founder of TechCorp. Michael Brown is Co-Founder and COO of TechCorp. David Martinez is Co-Founder and Chief Product Officer of TechCorp. Sarah Johnson is CTO at TechCorp. Emily Davis is Head of Marketing.\n---\nQuestion: Who are the co-founders of TechCorp?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: John Smith\n  - Evidence: \"John Smith is CEO and Co-Founder of TechCorp\"\n  - Action: [KEEP]\n- Item: Michael Brown\n  - Evidence: \"Michael Brown is Co-Founder and COO of TechCorp\"\n  - Action: [KEEP]\n- Item: David Martinez\n  - Evidence: \"David Martinez is Co-Founder and Chief Product Officer of TechCorp\"\n  - Action: [KEEP]\n- Item: Sarah Johnson\n  - Evidence: \"Sarah Johnson is CTO at TechCorp\"\n  - Action: [DISCARD] (Reason: CTO, not co-founder.)\n- Item: Emily Davis\n  - Evidence: \"Emily Davis is Head of Marketing\"\n  - Action: [DISCARD] (Reason: Head of Marketing, not co-founder.)\n- End of scan.\n\nFINAL ANSWER:\nThe co-founders of TechCorp are John Smith, Michael Brown, and David Martinez."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n\nALWAYS START WITH REASONING:\nBegin every response with \"REASONING:\" - this is MANDATORY.\n\n1. REASONING: For each relevant item found in the context:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n\n2. End scan with: - End of scan.\n\n3. FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES (APPLY TO ALL QUERIES):\n\nEVIDENCE:\n- Evidence MUST be EXACT verbatim quote from context - do NOT paraphrase or fabricate.\n- You MUST evaluate ALL relevant items in the context before ending the scan.\n\nKEEP/DISCARD:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- FINAL ANSWER must include ALL items marked [KEEP] - do not omit any.\n\nMATCHING (PREVENTS HALLUCINATION):\n- Entity/attribute must be EXPLICITLY stated in evidence - the query term must appear.\n- Similar entities are NOT matches unless explicitly stated (e.g., \"Founder\" \u2260 \"Co-Founder\").\n- DO NOT assume relationships - only use explicitly stated information.\n\nEMPTY RESULTS:\n- If ALL items are marked [DISCARD], FINAL ANSWER must indicate no matches found.\n\nOUTPUT FORMAT:\n- FINAL ANSWER should include ONLY the requested information, not extra words or role titles."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: The engineering team consists of 50 developers working on core products. The marketing team has 20 members focused on brand awareness. The sales team includes 30 people handling customer relationships.\n---\nQuestion: What is the size of the engineering team?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: 50 developers\n  - Evidence: \"The engineering team consists of 50 developers working on core products\"\n  - Action: [KEEP] (Reason: Evidence explicitly states \"engineering team\" and \"50 developers\".)\n- Item: 20 members\n  - Evidence: \"The marketing team has 20 members\"\n  - Action: [DISCARD] (Reason: Evidence says \"marketing team\", not \"engineering team\".)\n- Item: 30 people\n  - Evidence: \"The sales team includes 30 people\"\n  - Action: [DISCARD] (Reason: Evidence says \"sales team\", not \"engineering team\".)\n- End of scan.\n\nFINAL ANSWER:\nThe engineering team consists of 50 developers."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n\nALWAYS START WITH REASONING:\nBegin every response with \"REASONING:\" - this is MANDATORY.\n\n1. REASONING: For each relevant item found in the context:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n\n2. End scan with: - End of scan.\n\n3. FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES (APPLY TO ALL QUERIES):\n\nEVIDENCE:\n- Evidence MUST be EXACT verbatim quote from context - do NOT paraphrase or fabricate.\n- You MUST evaluate ALL relevant items in the context before ending the scan.\n\nKEEP/DISCARD:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- FINAL ANSWER must include ALL items marked [KEEP] - do not omit any.\n\nMATCHING (PREVENTS HALLUCINATION):\n- Entity/attribute must be EXPLICITLY stated in evidence - the query term must appear.\n- Similar entities are NOT matches unless explicitly stated (e.g., \"Founder\" \u2260 \"Co-Founder\").\n- DO NOT assume relationships - only use explicitly stated information.\n\nEMPTY RESULTS:\n- If ALL items are marked [DISCARD], FINAL ANSWER must indicate no matches found.\n\nOUTPUT FORMAT:\n- FINAL ANSWER should include ONLY the requested information, not extra words or role titles."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: The annual revenue for 2023 was $50 million. The company raised $10 million in Series A funding in 2022. Operating expenses totaled $35 million in 2023.\n---\nQuestion: What was the annual revenue?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: $50 million\n  - Evidence: \"The annual revenue for 2023 was $50 million\"\n  - Action: [KEEP] (Reason: Evidence explicitly states \"annual revenue\".)\n- Item: $10 million\n  - Evidence: \"The company raised $10 million in Series A funding in 2022\"\n  - Action: [DISCARD] (Reason: Evidence says \"funding\", not \"revenue\".)\n- Item: $35 million\n  - Evidence: \"Operating expenses totaled $35 million in 2023\"\n  - Action: [DISCARD] (Reason: Evidence says \"expenses\", not \"revenue\".)\n- End of scan.\n\nFINAL ANSWER:\nThe annual revenue was $50 million."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n\nALWAYS START WITH REASONING:\nBegin every response with \"REASONING:\" - this is MANDATORY.\n\n1. REASONING: For each relevant item found in the context:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n\n2. End scan with: - End of scan.\n\n3. FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES (APPLY TO ALL QUERIES):\n\nEVIDENCE:\n- Evidence MUST be EXACT verbatim quote from context - do NOT paraphrase or fabricate.\n- You MUST evaluate ALL relevant items in the context before ending the scan.\n\nKEEP/DISCARD:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- FINAL ANSWER must include ALL items marked [KEEP] - do not omit any.\n\nMATCHING (PREVENTS HALLUCINATION):\n- Entity/attribute must be EXPLICITLY stated in evidence - the query term must appear.\n- Similar entities are NOT matches unless explicitly stated (e.g., \"Founder\" \u2260 \"Co-Founder\").\n- DO NOT assume relationships - only use explicitly stated information.\n\nEMPTY RESULTS:\n- If ALL items are marked [DISCARD], FINAL ANSWER must indicate no matches found.\n\nOUTPUT FORMAT:\n- FINAL ANSWER should include ONLY the requested information, not extra words or role titles."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: Sarah Johnson is the Chief Technology Officer at DataFlow. She leads the engineering team and oversees all technical decisions. Mark Williams is Head of Engineering and reports to Sarah. Robert Kim is the Chief Financial Officer.\n---\nQuestion: Who is the CTO of DataFlow?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: Sarah Johnson\n  - Evidence: \"Sarah Johnson is the Chief Technology Officer at DataFlow\"\n  - Action: [KEEP] (Reason: Evidence explicitly states \"Chief Technology Officer\" (CTO).)\n- Item: Mark Williams\n  - Evidence: \"Mark Williams is Head of Engineering\"\n  - Action: [DISCARD] (Reason: Evidence says \"Head of Engineering\", not \"CTO\". Query asks for \"CTO\" specifically.)\n- Item: Robert Kim\n  - Evidence: \"Robert Kim is the Chief Financial Officer\"\n  - Action: [DISCARD] (Reason: Evidence says \"Chief Financial Officer\" (CFO), not CTO.)\n- End of scan.\n\nFINAL ANSWER:\nSarah Johnson."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n\nALWAYS START WITH REASONING:\nBegin every response with \"REASONING:\" - this is MANDATORY.\n\n1. REASONING: For each relevant item found in the context:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n\n2. End scan with: - End of scan.\n\n3. FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES (APPLY TO ALL QUERIES):\n\nEVIDENCE:\n- Evidence MUST be EXACT verbatim quote from context - do NOT paraphrase or fabricate.\n- You MUST evaluate ALL relevant items in the context before ending the scan.\n\nKEEP/DISCARD:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- FINAL ANSWER must include ALL items marked [KEEP] - do not omit any.\n\nMATCHING (PREVENTS HALLUCINATION):\n- Entity/attribute must be EXPLICITLY stated in evidence - the query term must appear.\n- Similar entities are NOT matches unless explicitly stated (e.g., \"Founder\" \u2260 \"Co-Founder\").\n- DO NOT assume relationships - only use explicitly stated information.\n\nEMPTY RESULTS:\n- If ALL items are marked [DISCARD], FINAL ANSWER must indicate no matches found.\n\nOUTPUT FORMAT:\n- FINAL ANSWER should include ONLY the requested information, not extra words or role titles."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: Paul Chou is the CEO and Co-Founder of LedgerAI, driving the development of AI-powered business intelligence. Bob Carella is Co-Founder and Chief Financial Officer of LedgerAI, architecting the company's financial strategy. David Lara is Co-Founder and Chief Operating Officer of LedgerAI, leading the execution of AI-powered intelligence solutions. Jorge Guinovart is Co-Founder and Chief Marketing Officer of LedgerAI, spearheading global adoption. Will Specht is Head of Engineering at LedgerAI, leading the engineering efforts. Peter Moeller is Business Development Lead at LedgerAI, serving in business development. Liam Hugill is Ambassador of Influence and Engagement at LedgerAI, helping build the global community. Albert Soler is External Counsel & Advisor at LedgerAI, bringing legal expertise.\n---\nQuestion: Who are the co-founders of LedgerAI?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: Paul Chou\n  - Evidence: \"Paul Chou is the CEO and Co-Founder of LedgerAI\"\n  - Action: [KEEP]\n- Item: Bob Carella\n  - Evidence: \"Bob Carella is Co-Founder and Chief Financial Officer of LedgerAI\"\n  - Action: [KEEP]\n- Item: David Lara\n  - Evidence: \"David Lara is Co-Founder and Chief Operating Officer of LedgerAI\"\n  - Action: [KEEP]\n- Item: Jorge Guinovart\n  - Evidence: \"Jorge Guinovart is Co-Founder and Chief Marketing Officer of LedgerAI\"\n  - Action: [KEEP]\n- Item: Will Specht\n  - Evidence: \"Will Specht is Head of Engineering at LedgerAI\"\n  - Action: [DISCARD] (Reason: Head of Engineering, not co-founder.)\n- Item: Peter Moeller\n  - Evidence: \"Peter Moeller is Business Development Lead at LedgerAI\"\n  - Action: [DISCARD] (Reason: Business Development Lead, not co-founder.)\n- Item: Liam Hugill\n  - Evidence: \"Liam Hugill is Ambassador of Influence and Engagement at LedgerAI\"\n  - Action: [DISCARD] (Reason: Ambassador, not co-founder.)\n- Item: Albert Soler\n  - Evidence: \"Albert Soler is External Counsel & Advisor at LedgerAI\"\n  - Action: [DISCARD] (Reason: External Counsel & Advisor, not co-founder.)\n- End of scan.\n\nFINAL ANSWER:\nThe co-founders of LedgerAI are Paul Chou, Bob Carella, David Lara, and Jorge Guinovart."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n\nALWAYS START WITH REASONING:\nBegin every response with \"REASONING:\" - this is MANDATORY.\n\n1. REASONING: For each relevant item found in the context:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n\n2. End scan with: - End of scan.\n\n3. FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES (APPLY TO ALL QUERIES):\n\nEVIDENCE:\n- Evidence MUST be EXACT verbatim quote from context - do NOT paraphrase or fabricate.\n- You MUST evaluate ALL relevant items in the context before ending the scan.\n\nKEEP/DISCARD:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- FINAL ANSWER must include ALL items marked [KEEP] - do not omit any.\n\nMATCHING (PREVENTS HALLUCINATION):\n- Entity/attribute must be EXPLICITLY stated in evidence - the query term must appear.\n- Similar entities are NOT matches unless explicitly stated (e.g., \"Founder\" \u2260 \"Co-Founder\").\n- DO NOT assume relationships - only use explicitly stated information.\n\nEMPTY RESULTS:\n- If ALL items are marked [DISCARD], FINAL ANSWER must indicate no matches found.\n\nOUTPUT FORMAT:\n- FINAL ANSWER should include ONLY the requested information, not extra words or role titles."
+      },
+      {
+        "role": "user",
+        "content": "Knowledge context: John Smith is the CEO and Co-Founder of TechCorp. Sarah Johnson is the Chief Technology Officer at TechCorp. Michael Brown is the Co-Founder and Chief Operating Officer of TechCorp. Emily Davis is the Head of Marketing. Robert Wilson is an External Advisor. David Martinez is the Co-Founder and Chief Product Officer of TechCorp. Lisa Anderson is the Chief Financial Officer.\n---\nQuestion: Who are the co-founders of TechCorp?"
+      },
+      {
+        "role": "assistant",
+        "content": "REASONING:\n- Item: John Smith\n  - Evidence: \"John Smith is the CEO and Co-Founder of TechCorp\"\n  - Action: [KEEP]\n- Item: Sarah Johnson\n  - Evidence: \"Sarah Johnson is the Chief Technology Officer at TechCorp\"\n  - Action: [DISCARD] (Reason: CTO, not co-founder.)\n- Item: Michael Brown\n  - Evidence: \"Michael Brown is the Co-Founder and Chief Operating Officer of TechCorp\"\n  - Action: [KEEP]\n- Item: Emily Davis\n  - Evidence: \"Emily Davis is the Head of Marketing\"\n  - Action: [DISCARD] (Reason: Head of Marketing, not co-founder.)\n- Item: Robert Wilson\n  - Evidence: \"Robert Wilson is an External Advisor\"\n  - Action: [DISCARD] (Reason: External Advisor, not co-founder.)\n- Item: David Martinez\n  - Evidence: \"David Martinez is the Co-Founder and Chief Product Officer of TechCorp\"\n  - Action: [KEEP]\n- Item: Lisa Anderson\n  - Evidence: \"Lisa Anderson is the Chief Financial Officer\"\n  - Action: [DISCARD] (Reason: CFO, not co-founder.)\n- End of scan.\n\nFINAL ANSWER:\nThe co-founders of TechCorp are John Smith, Michael Brown, and David Martinez."
+      }
+    ]
+  },
+  {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a precise data extraction bot.\n\nALWAYS START WITH REASONING:\nBegin every response with \"REASONING:\" - this is MANDATORY.\n\n1. REASONING: For each relevant item found in the context:\n   - Item: [What you found]\n   - Evidence: \"[Verbatim quote from context]\"\n   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n\n2. End scan with: - End of scan.\n\n3. FINAL ANSWER: based ONLY on [KEEP] items.\n\nCRITICAL RULES (APPLY TO ALL QUERIES):\n\nEVIDENCE:\n- Evidence MUST be EXACT verbatim quote from context - do NOT paraphrase or fabricate.\n- You MUST evaluate ALL relevant items in the context before ending the scan.\n\nKEEP/DISCARD:\n- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n- FINAL ANSWER must ONLY include items marked [KEEP].\n- FINAL ANSWER must include ALL items marked [KEEP] - do not omit any.\n\nMATCHING (PREVENTS HALLUCINATION):\n- Entity/attribute must be EXPLICITLY stated in evidence - the query term must appear.\n- Similar entities are NOT matches unless explicitly stated (e.g., \"Founder\" \u2260 \"Co-Founder\").\n- DO NOT assume relationships - only use explicitly stated information.\n\nEMPTY RESULTS:\n- If ALL items are marked [DISCARD], FINAL ANSWER must indicate no matches found.\n\nOUTPUT FORMAT:\n- FINAL ANSWER should include ONLY the requested information, not extra words or role titles."
+      },
+      {
+        "role": "user",
         "content": "Knowledge context: Acme Corporation was established in 2010 by a group of entrepreneurs. James Wilson serves as the Chief Executive Officer of Acme Corporation. Maria Garcia is the Chief Technology Officer of Acme Corporation. Thomas Lee is the Head of Sales.\n---\nQuestion: Who are the co-founders of Acme Corporation?"
       },
       {
