@@ -48,6 +48,8 @@ import json
 import os
 import shutil
 import torch
+import subprocess
+import sys
 from datasets import Dataset
 from unsloth import FastLanguageModel
 from trl import SFTTrainer
@@ -587,6 +589,52 @@ print(f"✅ Model saved to {OUTPUT_DIR}")
 
 # Save in GGUF format for deployment
 print(f"Converting to GGUF format in {GGUF_OUTPUT_DIR}...")
+
+# Pre-install llama.cpp to avoid Unsloth's broken build process
+print("Pre-installing llama.cpp (workaround for Unsloth build issues)...")
+try:
+    if not os.path.exists("llama.cpp"):
+        print("   Cloning llama.cpp repository...")
+        subprocess.check_call([
+            "git", "clone", "--depth", "1", 
+            "https://github.com/ggerganov/llama.cpp.git"
+        ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        print("   ✅ llama.cpp cloned")
+    else:
+        print("   ✅ llama.cpp already exists")
+    
+    # Build llama.cpp with correct CMake options (without deprecated LLAMA_CURL)
+    llama_cpp_build = os.path.join("llama.cpp", "build")
+    if not os.path.exists(os.path.join(llama_cpp_build, "bin", "quantize")):
+        print("   Building llama.cpp (this may take a few minutes)...")
+        current_dir = os.getcwd()
+        os.chdir("llama.cpp")
+        try:
+            # Build with CMake (correct options, no deprecated LLAMA_CURL)
+            subprocess.check_call([
+                "cmake", "-B", "build", 
+                "-DCMAKE_BUILD_TYPE=Release",
+                "-DBUILD_SHARED_LIBS=OFF"
+            ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            subprocess.check_call([
+                "cmake", "--build", "build", "--config", "Release", "-j"
+            ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            os.chdir(current_dir)
+            print("   ✅ llama.cpp built successfully")
+        except Exception as build_err:
+            os.chdir(current_dir)
+            print(f"   ⚠️  llama.cpp build failed: {build_err}")
+            print("   Will let Unsloth try its own build (may fail)")
+    else:
+        print("   ✅ llama.cpp already built")
+        
+except Exception as e:
+    print(f"   ⚠️  Pre-installation failed: {e}")
+    print("   Will let Unsloth try its own build (may fail)")
+
+# Convert to GGUF using Unsloth
+# If llama.cpp is pre-built, Unsloth will use it instead of trying to build
+try:
 model.save_pretrained_gguf(
     GGUF_OUTPUT_DIR,
     tokenizer,
@@ -605,6 +653,20 @@ if gguf_files:
     print(f"✅ GGUF model saved as: {new_filename}")
 else:
     print(f"✅ GGUF model saved to {GGUF_OUTPUT_DIR}")
+        
+except RuntimeError as e:
+    error_msg = str(e)
+    if "llama.cpp" in error_msg or "FAILED building" in error_msg or "CMake failed" in error_msg:
+        print(f"\n   ⚠️  GGUF conversion failed: llama.cpp build issue")
+        print(f"   This is a known issue with Unsloth's automatic llama.cpp installation")
+        print(f"   The model is saved in HuggingFace format and can be converted later")
+        print(f"   Model saved at: {OUTPUT_DIR}/")
+    else:
+        print(f"\n   ❌ GGUF conversion failed: {e}")
+        print(f"   Model is still saved in HuggingFace format at: {OUTPUT_DIR}/")
+except Exception as e:
+    print(f"\n   ❌ Unexpected error during GGUF conversion: {e}")
+    print(f"   Model is still saved in HuggingFace format at: {OUTPUT_DIR}/")
 
 print()
 print("=" * 80)

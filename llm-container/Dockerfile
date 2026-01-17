@@ -34,7 +34,7 @@ RUN python3 -c "from sentence_transformers import SentenceTransformer; SentenceT
 # 1. Base model for conversational queries (no RAG)
 COPY models/Qwen2.5-1.5B-Instruct.Q4_K_M_base.gguf /models/Qwen2.5-1.5B-Instruct.Q4_K_M_base.gguf
 # 2. CoT-trained model for RAG queries (with Chain of Thought reasoning)
-COPY models/Qwen2.5-1.5B-Instruct.Q8_0-rag-cot.gguf /models/Qwen2.5-1.5B-Instruct.Q8_0-rag-cot.gguf
+COPY models/Qwen2.5-1.5B-Instruct.Q4_K_M-rag-cot.gguf /models/Qwen2.5-1.5B-Instruct.Q4_K_M-rag-cot.gguf
 # === GENERIC CONVERSATIONAL CONTAINER ===
 # This container provides general conversation with RAG-powered knowledge:
 # - General conversational responses
@@ -54,7 +54,7 @@ COPY conversation_manager.py ./
 # Base model for conversational queries (loaded at startup)
 ENV BASE_MODEL_PATH=/models/Qwen2.5-1.5B-Instruct.Q4_K_M_base.gguf
 # CoT model for RAG queries (loaded lazily on first RAG query)
-ENV COT_MODEL_PATH=/models/Qwen2.5-1.5B-Instruct.Q8_0-rag-cot.gguf
+ENV COT_MODEL_PATH=/models/Qwen2.5-1.5B-Instruct.Q4_K_M-rag-cot.gguf
 # Legacy support: SIMPLE_MODEL_PATH points to base model
 ENV SIMPLE_MODEL_PATH=/models/Qwen2.5-1.5B-Instruct.Q4_K_M_base.gguf
 ENV SIMPLE_CHAT_FORMAT=chatml

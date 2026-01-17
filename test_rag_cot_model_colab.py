@@ -21,13 +21,9 @@ try:
 except ImportError:
     HAS_LLAMA_CPP = False
 
-# Try to import unsloth
-try:
-    from unsloth import FastLanguageModel
-    HAS_UNSLOTH = True
-except ImportError:
-    HAS_UNSLOTH = False
-    from transformers import AutoModelForCausalLM, AutoTokenizer
+# Note: This script ONLY uses GGUF models via llama-cpp-python (matches production)
+# Unsloth and HuggingFace imports are NOT needed for GGUF testing
+# Unsloth requires GPU and is not used in this script, so we skip importing it
 
 # ============================================================================
 # Configuration
@@ -35,25 +31,45 @@ except ImportError:
 
 MODEL_PATH = "outputs_rag_cot"  # Path to LoRA adapters or merged model
 GGUF_MODEL_DIR = "gguf_model_rag_cot"  # Path to GGUF quantized model directory
-MAX_SEQ_LENGTH = 4096  # Match training script
-GGUF_N_CTX = 4096  # Match training MAX_SEQ_LENGTH for consistency
+MAX_SEQ_LENGTH = 8192  # Match training script (updated from 4096)
+GGUF_N_CTX = 8192  # Match training MAX_SEQ_LENGTH for consistency
 
-# The exact Deep Scan system prompt used in training
+# The exact system prompt used in training (MUST MATCH train_rag_cot_colab.py)
 SYSTEM_PROMPT = """You are a precise data extraction bot.
-1. Start with REASONING:
-2. Scan the context carefully for information relevant to the query.
-3. For each relevant item found, write:
+
+ALWAYS START WITH REASONING:
+Begin every response with "REASONING:" - this is MANDATORY.
+
+1. REASONING: For each relevant item found in the context:
    - Item: [What you found]
    - Evidence: "[Verbatim quote from context]"
    - Action: [KEEP] if it matches the query, otherwise [DISCARD].
-4. End scan with: - End of scan.
-5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.
 
-CRITICAL RULES:
+2. End scan with: - End of scan.
+
+3. FINAL ANSWER: based ONLY on [KEEP] items.
+
+CRITICAL RULES (APPLY TO ALL QUERIES):
+
+EVIDENCE:
+- Evidence MUST be EXACT verbatim quote from context - do NOT paraphrase or fabricate.
+- You MUST evaluate ALL relevant items in the context before ending the scan.
+
+KEEP/DISCARD:
 - Items marked [DISCARD] must NEVER appear in FINAL ANSWER.
 - FINAL ANSWER must ONLY include items marked [KEEP].
-- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.
-- Read entire descriptions/chunks completely - titles may appear later in the text."""
+- FINAL ANSWER must include ALL items marked [KEEP] - do not omit any.
+
+MATCHING (PREVENTS HALLUCINATION):
+- Entity/attribute must be EXPLICITLY stated in evidence - the query term must appear.
+- Similar entities are NOT matches unless explicitly stated (e.g., "Founder" ≠ "Co-Founder").
+- DO NOT assume relationships - only use explicitly stated information.
+
+EMPTY RESULTS:
+- If ALL items are marked [DISCARD], FINAL ANSWER must indicate no matches found.
+
+OUTPUT FORMAT:
+- FINAL ANSWER should include ONLY the requested information, not extra words or role titles."""
 
 # ============================================================================
 # Test Scenarios
@@ -231,16 +247,27 @@ def test_scenario(model, tokenizer, scenario, model_type="hf"):
             estimated_tokens = len(user_prompt.split()) + len(SYSTEM_PROMPT.split())
             print(f"   📏 Input length: ~{estimated_tokens} tokens (estimated)")
             
+            # Debug: Print first 200 chars of prompt to verify format
+            if hasattr(model, 'tokenize'):
+                # Try to see what the model sees
+                debug_prompt = f"{SYSTEM_PROMPT}\n\n{user_prompt}"
+                print(f"   🔍 Debug - Prompt preview (first 200 chars): {debug_prompt[:200]}...")
+            
             response = model.create_chat_completion(
                 messages=messages,
                 max_tokens=2048,
-                temperature=0.05,
-                top_p=0.95,
-                repeat_penalty=1.2,
-                stop=["<|im_end|>"]
+                temperature=0.0,  # Use 0.0 for deterministic output to test if model works
+                top_p=1.0,  # Disable top_p sampling
+                repeat_penalty=1.1,  # Lower repeat penalty
+                stop=["<|im_end|>", "\n\n\n"]  # Add more stop sequences
             )
             
             assistant_response = response['choices'][0]['message']['content'].strip()
+            
+            # Debug: Check if response looks valid
+            if len(assistant_response) < 10 or not any(c.isalpha() for c in assistant_response[:50]):
+                print(f"   ⚠️  WARNING: Response appears corrupted or too short")
+                print(f"   🔍 Raw response (first 500 chars): {assistant_response[:500]}")
             
         else:
             # HuggingFace/Unsloth model
@@ -255,7 +282,7 @@ def test_scenario(model, tokenizer, scenario, model_type="hf"):
                     formatted_prompt, 
                     return_tensors="pt",
                     truncation=True,
-                    max_length=4096
+                    max_length=MAX_SEQ_LENGTH
                 ).to(model.device)
             else:
                 prompt_text = f"{SYSTEM_PROMPT}\n\n{user_prompt}"
@@ -545,20 +572,27 @@ def run_tests():
     model_type = None  # 'gguf' or 'hf'
     
     # Priority 1: Check for GGUF model (matches production deployment)
+    # IMPORTANT: We ONLY support Q4_K_M here. Fail fast if not found.
     gguf_model_path = None
     if os.path.exists(GGUF_MODEL_DIR):
         gguf_files = glob.glob(os.path.join(GGUF_MODEL_DIR, "*.gguf"))
         if gguf_files:
-            # Prefer Q8_0 (best accuracy for production - 91.03%)
-            for quant in ["Q8_0", "q8_0", "Q6_K", "q6_k", "Q5_K_M", "q5_k_m", "Q4_K_M", "q4_k_m"]:
-                for f in gguf_files:
-                    if quant in f:
-                        gguf_model_path = f
-                        break
-                if gguf_model_path:
-                    break
-            if not gguf_model_path:
-                gguf_model_path = gguf_files[0]
+            q4_candidates = [
+                f for f in gguf_files
+                if ("Q4_K_M" in os.path.basename(f)) or ("q4_k_m" in os.path.basename(f))
+            ]
+            if len(q4_candidates) == 1:
+                gguf_model_path = q4_candidates[0]
+            elif len(q4_candidates) > 1:
+                raise RuntimeError(
+                    f"Multiple Q4_K_M GGUF files found in {GGUF_MODEL_DIR}: {q4_candidates}. "
+                    "Keep exactly one to avoid ambiguity."
+                )
+            else:
+                raise FileNotFoundError(
+                    f"Q4_K_M GGUF not found in {GGUF_MODEL_DIR}. "
+                    "This test script is configured to ONLY use Q4_K_M and will not fall back."
+                )
     
     print(f"\n================================================================================")
     print(f"Loading Model (Production-Matching Priority)")
@@ -585,35 +619,78 @@ def run_tests():
         print(f"✅ GGUF model loaded successfully")
         print(f"   Context window: {GGUF_N_CTX} tokens (matches training MAX_SEQ_LENGTH)")
         
-    # Fallback to HuggingFace/Unsloth
-    elif os.path.exists(MODEL_PATH):
-        print(f"\n⚠️  Loading HuggingFace model (NOT production - use for comparison only)")
-        print(f"   Path: {MODEL_PATH}")
-        
-        if HAS_UNSLOTH:
-            model, tokenizer = FastLanguageModel.from_pretrained(
-                model_name=MODEL_PATH,
-                max_seq_length=MAX_SEQ_LENGTH,
-                dtype=None,
-                load_in_4bit=True,
-            )
-            FastLanguageModel.for_inference(model)
-        else:
-            tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH)
-            model = AutoModelForCausalLM.from_pretrained(
-                MODEL_PATH,
-                torch_dtype=torch.float16,
-                device_map="auto"
-            )
-        model_type = "hf"
-        print(f"✅ HuggingFace model loaded successfully")
-        print(f"   Max sequence length: {MAX_SEQ_LENGTH}")
+    # No fallback to HuggingFace/Unsloth allowed per requirement
     else:
-        print(f"❌ ERROR: No model found!")
-        print(f"   Checked: {GGUF_MODEL_DIR}/*.gguf and {MODEL_PATH}")
-        return
+        raise RuntimeError(
+            "Failed to load required Q4_K_M GGUF model via llama-cpp-python. "
+            f"HAS_LLAMA_CPP={HAS_LLAMA_CPP}, GGUF_MODEL_DIR exists={os.path.exists(GGUF_MODEL_DIR)}. "
+            "This script is configured to ONLY use Q4_K_M GGUF and will not fall back."
+        )
     
     print(f"\n   Model type: {model_type.upper()}")
+    
+    # Quick verification test: Can the model produce coherent output?
+    print(f"\n{'='*80}")
+    print("Model Verification Test")
+    print(f"{'='*80}")
+    try:
+        simple_test = model.create_chat_completion(
+            messages=[{"role": "user", "content": "Say 'Hello, I am working correctly.'"}],
+            max_tokens=50,
+            temperature=0.0
+        )
+        simple_response = simple_test['choices'][0]['message']['content'].strip()
+        print(f"   Simple test response: {simple_response[:200]}")
+        if len(simple_response) > 5 and any(c.isalpha() for c in simple_response):
+            print(f"   ✅ Model appears to be working (produced coherent output)")
+        else:
+            print(f"   ⚠️  WARNING: Model output may be corrupted or model not properly trained")
+            print(f"   Response length: {len(simple_response)}, Contains text: {any(c.isalpha() for c in simple_response)}")
+    except Exception as e:
+        print(f"   ❌ Model verification failed: {e}")
+        import traceback
+        traceback.print_exc()
+    
+    # Test if model was fine-tuned for CoT: Try a simple RAG example
+    print(f"\n{'='*80}")
+    print("CoT Fine-Tuning Verification Test")
+    print(f"{'='*80}")
+    try:
+        cot_test_messages = [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": "Knowledge context: John Smith is the CEO of TechCorp. Sarah Johnson is the CTO.\n---\nQuestion: Who is the CEO of TechCorp?"}
+        ]
+        cot_test = model.create_chat_completion(
+            messages=cot_test_messages,
+            max_tokens=512,  # Increased from 200 to allow full CoT format (REASONING + Evidence + FINAL ANSWER)
+            temperature=0.0
+        )
+        cot_response = cot_test['choices'][0]['message']['content'].strip()
+        print(f"   CoT test response (first 500 chars):\n{cot_response[:500]}")
+        
+        # Check if it follows the CoT format
+        has_reasoning = "REASONING" in cot_response or "reasoning" in cot_response
+        has_evidence = "Evidence" in cot_response or "evidence" in cot_response
+        has_final_answer = "FINAL ANSWER" in cot_response or "final answer" in cot_response.lower()
+        mentions_john = "John" in cot_response or "john" in cot_response.lower()
+        
+        print(f"\n   CoT Format Check:")
+        print(f"      Has REASONING section: {'✅' if has_reasoning else '❌'}")
+        print(f"      Has Evidence: {'✅' if has_evidence else '❌'}")
+        print(f"      Has FINAL ANSWER: {'✅' if has_final_answer else '❌'}")
+        print(f"      Mentions correct answer (John): {'✅' if mentions_john else '❌'}")
+        
+        if has_reasoning and has_final_answer and mentions_john:
+            print(f"   ✅ Model appears to be fine-tuned for CoT")
+        elif has_reasoning or has_final_answer:
+            print(f"   ⚠️  Model partially follows CoT format but may not be properly fine-tuned")
+        else:
+            print(f"   ❌ Model does NOT appear to be fine-tuned for CoT - may be base model")
+            print(f"   ⚠️  WARNING: The converted model might be the base Qwen model, not the fine-tuned one!")
+    except Exception as e:
+        print(f"   ❌ CoT verification test failed: {e}")
+        import traceback
+        traceback.print_exc()
 
     # Run tests
     scenarios = get_test_scenarios()

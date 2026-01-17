@@ -106,7 +106,7 @@ class BaseLLMContainer:
             self.llm_simple = Llama(
                 model_path=self.model_path,
                 n_ctx=self.SIMPLE_N_CTX,
-                n_threads=self.N_THREADS,
+                n_threads=1,  # Use 1 thread for deterministic output (temperature=0 alone isn't enough)
                 n_batch=self.N_BATCH,
                 n_gpu_layers=n_gpu_layers,
                 chat_format=self.SIMPLE_CHAT_FORMAT,

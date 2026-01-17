@@ -28,6 +28,8 @@ import shutil
 import random
 import numpy as np
 import torch
+import subprocess
+import sys
 from datasets import Dataset
 from unsloth import FastLanguageModel
 from trl import SFTTrainer
@@ -80,22 +82,50 @@ print()
 MODEL_NAME = "unsloth/Qwen2.5-1.5B-Instruct-bnb-4bit"  # Qwen 2.5 1.5B - better instruction following and reasoning
 
 # Dataset path
-DATASET_PATH = "rag_cot_training_dataset.json"
+# Use 100% verbatim dataset (ensures no hallucination)
+DATASET_PATH = "rag_cot_training_dataset_100percent.json"  # 100% verbatim evidence (94 examples, 29 co-founder)
 
-MAX_SEQ_LENGTH = 4096
+MAX_SEQ_LENGTH = 8192  # Increased: handle longer contexts (LedgerAI test was ~1171 tokens, need buffer)
 OUTPUT_DIR = "outputs_rag_cot"
 GGUF_OUTPUT_DIR = "gguf_model_rag_cot"
+EXPECTED_GGUF_FILENAME = "Qwen2.5-1.5B-Instruct.Q4_K_M-rag-cot.gguf"  # Test script expects this exact name
 
 # System prompt is included in the dataset, but we have a fallback just in case
 FALLBACK_SYSTEM_PROMPT = """You are a precise data extraction bot.
-1. Start with REASONING:
-2. Scan the context carefully for information relevant to the query.
-3. For each relevant item found, write:
+
+ALWAYS START WITH REASONING:
+Begin every response with "REASONING:" - this is MANDATORY.
+
+1. REASONING: For each relevant item found in the context:
    - Item: [What you found]
    - Evidence: "[Verbatim quote from context]"
    - Action: [KEEP] if it matches the query, otherwise [DISCARD].
-4. End scan with: - End of scan.
-5. Provide the FINAL ANSWER: based ONLY on [KEEP] items."""
+
+2. End scan with: - End of scan.
+
+3. FINAL ANSWER: based ONLY on [KEEP] items.
+
+CRITICAL RULES (APPLY TO ALL QUERIES):
+
+EVIDENCE:
+- Evidence MUST be EXACT verbatim quote from context - do NOT paraphrase or fabricate.
+- You MUST evaluate ALL relevant items in the context before ending the scan.
+
+KEEP/DISCARD:
+- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.
+- FINAL ANSWER must ONLY include items marked [KEEP].
+- FINAL ANSWER must include ALL items marked [KEEP] - do not omit any.
+
+MATCHING (PREVENTS HALLUCINATION):
+- Entity/attribute must be EXPLICITLY stated in evidence - the query term must appear.
+- Similar entities are NOT matches unless explicitly stated (e.g., "Founder" ≠ "Co-Founder").
+- DO NOT assume relationships - only use explicitly stated information.
+
+EMPTY RESULTS:
+- If ALL items are marked [DISCARD], FINAL ANSWER must indicate no matches found.
+
+OUTPUT FORMAT:
+- FINAL ANSWER should include ONLY the requested information, not extra words or role titles."""
 
 # ============================================================================
 # GPU Check
@@ -273,11 +303,12 @@ print("Configuring LoRA Adapters")
 print("=" * 80)
 
 # LoRA Configuration
-# Reduced rank to prevent memorization: r=128 instead of 256
-# Lower capacity forces model to learn general patterns, not memorize examples
+# Higher capacity: more parameters for better pattern learning and complex extraction
+# 256 gives good balance - high enough for complex extraction, not so high it overfits bad patterns
 
-LORA_RANK = 128  # Reduced: prevents memorization, encourages generalization
-LORA_ALPHA = LORA_RANK * 2  # Optimal scaling: alpha = 2x rank (256)
+LORA_RANK = 256  # High capacity: better extraction, role matching, and format adherence
+LORA_ALPHA = LORA_RANK * 2  # Optimal scaling: alpha = 2x rank (512)
+# Note: Using fixed dataset with verbatim evidence is more important than increasing LoRA further
 
 model = FastLanguageModel.get_peft_model(
     model,
@@ -307,14 +338,14 @@ print("Configuring Training")
 print("=" * 80)
 
 # Training arguments optimized for Unsloth and CoT reasoning
-# Anti-memorization settings: lower LR, higher weight decay, fewer epochs
+# Balanced: enough training to learn patterns, but prevent overfitting
 training_args = TrainingArguments(
     per_device_train_batch_size=1,
     gradient_accumulation_steps=8,  # Effective batch size = 8
-    warmup_steps=50,  # Shorter warmup to prevent early memorization
-    num_train_epochs=15,  # Reduced: prevent memorization, focus on pattern learning
-    learning_rate=2e-5,  # LOWER: slower learning prevents memorization
-    weight_decay=0.25,  # HIGHER: stronger regularization to prevent overfitting
+    warmup_steps=75,  # Slightly longer warmup for better learning
+    num_train_epochs=30,  # Increased: enforce strict format and learn from fixed verbatim dataset (was 25)
+    learning_rate=3e-5,  # Slightly higher: better learning while preventing memorization (was 2e-5)
+    weight_decay=0.2,  # Slightly lower: less aggressive regularization (was 0.25)
     fp16=not torch.cuda.is_bf16_supported(),
     bf16=torch.cuda.is_bf16_supported(),
     logging_steps=5,  # More frequent logging to monitor progress
@@ -349,21 +380,24 @@ print("✅ Training configured")
 print(f"   - Batch size: {training_args.per_device_train_batch_size}")
 print(f"   - Gradient accumulation: {training_args.gradient_accumulation_steps}")
 print(f"   - Effective batch size: {training_args.per_device_train_batch_size * training_args.gradient_accumulation_steps}")
-print(f"   - Epochs: {training_args.num_train_epochs} (reduced to prevent memorization)")
-print(f"   - Learning rate: {training_args.learning_rate} (LOWER to prevent memorization)")
-print(f"   - Weight decay: {training_args.weight_decay} (HIGHER regularization)")
-print(f"   - Warmup steps: {training_args.warmup_steps} (shorter to prevent early memorization)")
-print(f"   ⚠️  ANTI-MEMORIZATION SETTINGS:")
-print(f"      ✅ Lower learning rate (2e-5 vs 5e-5)")
-print(f"      ✅ Higher weight decay (0.25 vs 0.15)")
-print(f"      ✅ Fewer epochs (15 vs 25)")
-print(f"      ✅ Lower LoRA rank (128 vs 256)")
-print(f"      ✅ LoRA dropout (0.1)")
-print(f"      → Forces model to learn patterns, not memorize examples")
+print(f"   - Epochs: {training_args.num_train_epochs} (increased to enforce strict CoT format)")
+print(f"   - Learning rate: {training_args.learning_rate} (balanced for learning)")
+print(f"   - Weight decay: {training_args.weight_decay} (regularization)")
+print(f"   - Warmup steps: {training_args.warmup_steps}")
+print(f"   - Max sequence length: {MAX_SEQ_LENGTH} (increased to handle longer contexts)")
+print(f"   ⚠️  TRAINING IMPROVEMENTS:")
+print(f"      ✅ Using FIXED dataset with verbatim evidence (critical for accuracy)")
+print(f"      ✅ Increased epochs (30 vs 15) - enforce strict CoT format on ALL queries")
+print(f"      ✅ Increased learning rate (3e-5 vs 2e-5) - better learning")
+print(f"      ✅ Increased LoRA rank (256 vs 128) - high capacity for complex extraction")
+print(f"      ✅ Increased sequence length (8192 vs 4096) - handle longer contexts")
+print(f"      ✅ LoRA dropout (0.1) - prevents overfitting despite higher capacity")
+print(f"      → Better extraction, role matching, format adherence, and verbatim evidence")
 # Calculate approximate trainable parameters
 approx_params = {
     64: (45, 3.4),
     128: (90, 6.8),
+    192: (135, 10.2),  # Interpolated
     256: (180, 13.6),
     512: (360, 27.2),
 }
@@ -406,88 +440,158 @@ model.save_pretrained(OUTPUT_DIR)
 tokenizer.save_pretrained(OUTPUT_DIR)
 print(f"✅ Model saved to {OUTPUT_DIR}")
 
-# Save in GGUF format for deployment
+# Save in GGUF format for deployment (same simple approach as medical bot)
 print(f"Converting to GGUF format in {GGUF_OUTPUT_DIR}...")
+os.makedirs(GGUF_OUTPUT_DIR, exist_ok=True)
+
+# Pre-install llama.cpp to avoid Unsloth's broken build process
+print("Pre-installing llama.cpp (workaround for Unsloth build issues)...")
 try:
-    # Ensure output directory exists
-    os.makedirs(GGUF_OUTPUT_DIR, exist_ok=True)
+    if not os.path.exists("llama.cpp"):
+        print("   Cloning llama.cpp repository...")
+        subprocess.check_call([
+            "git", "clone", "--depth", "1", 
+            "https://github.com/ggerganov/llama.cpp.git"
+        ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        print("   ✅ llama.cpp cloned")
+    else:
+        print("   ✅ llama.cpp already exists")
     
-    # Convert to GGUF
+    # Build llama.cpp with correct CMake options (without deprecated LLAMA_CURL)
+    llama_cpp_build = os.path.join("llama.cpp", "build")
+    if not os.path.exists(os.path.join(llama_cpp_build, "bin", "quantize")):
+        print("   Building llama.cpp (this may take a few minutes)...")
+        current_dir = os.getcwd()
+        os.chdir("llama.cpp")
+        try:
+            # Build with CMake (correct options, no deprecated LLAMA_CURL)
+            subprocess.check_call([
+                "cmake", "-B", "build", 
+                "-DCMAKE_BUILD_TYPE=Release",
+                "-DBUILD_SHARED_LIBS=OFF"
+            ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            subprocess.check_call([
+                "cmake", "--build", "build", "--config", "Release", "-j"
+            ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            os.chdir(current_dir)
+            print("   ✅ llama.cpp built successfully")
+        except Exception as build_err:
+            os.chdir(current_dir)
+            print(f"   ⚠️  llama.cpp build failed: {build_err}")
+            print("   Will let Unsloth try its own build (may fail)")
+    else:
+        print("   ✅ llama.cpp already built")
+        
+except Exception as e:
+    print(f"   ⚠️  Pre-installation failed: {e}")
+    print("   Will let Unsloth try its own build (may fail)")
+
+# Convert to GGUF using Unsloth (same method as medical bot training)
+# If llama.cpp is pre-built, Unsloth will use it instead of trying to build
+try:
     model.save_pretrained_gguf(
         GGUF_OUTPUT_DIR,
         tokenizer,
         quantization_method="q4_k_m"  # Q4_K_M quantization for good balance
     )
     
-    # Wait a moment for file system to sync
+    # Find and rename GGUF file (Unsloth sometimes saves to root directory)
     import time
-    time.sleep(2)
+    time.sleep(3)  # Wait for file system sync
     
-    # Check for GGUF files (may be in subdirectory or root)
+    # Check output directory first
     gguf_files = []
     if os.path.exists(GGUF_OUTPUT_DIR):
-        # Check in output directory
         gguf_files = [f for f in os.listdir(GGUF_OUTPUT_DIR) if f.endswith(".gguf")]
-        # Also check subdirectories
-        for root, dirs, files in os.walk(GGUF_OUTPUT_DIR):
-            for file in files:
-                if file.endswith(".gguf"):
-                    full_path = os.path.join(root, file)
-                    rel_path = os.path.relpath(full_path, GGUF_OUTPUT_DIR)
-                    if rel_path not in gguf_files:
-                        gguf_files.append(rel_path)
     
-    # Also check root directory (in case it saved there)
+    # Also check root directory (Unsloth sometimes saves there)
     root_gguf_files = [f for f in os.listdir(".") if f.endswith(".gguf")]
     if root_gguf_files:
-        print(f"⚠️  Found GGUF files in root directory: {root_gguf_files}")
+        print(f"   Found GGUF file(s) in root directory: {root_gguf_files}")
         # Move them to output directory
         for root_file in root_gguf_files:
             dest = os.path.join(GGUF_OUTPUT_DIR, root_file)
             if not os.path.exists(dest):
                 shutil.move(root_file, dest)
-                print(f"   Moved {root_file} to {GGUF_OUTPUT_DIR}")
-        # Re-check output directory
-        gguf_files = [f for f in os.listdir(GGUF_OUTPUT_DIR) if f.endswith(".gguf")]
+                print(f"      Moved {root_file} to {GGUF_OUTPUT_DIR}")
+                gguf_files.append(root_file)
     
     if gguf_files:
-        # Use the first GGUF file found
-        if len(gguf_files) == 1:
-            original_file = os.path.join(GGUF_OUTPUT_DIR, gguf_files[0])
+        # Find Q4_K_M file (should be the quantized one)
+        q4_files = [f for f in gguf_files if "q4_k_m" in f.lower()]
+        if q4_files:
+            original_file = os.path.join(GGUF_OUTPUT_DIR, q4_files[0])
         else:
-            # If multiple, prefer one with model name
-            preferred = [f for f in gguf_files if "qwen" in f.lower() or "1.5b" in f.lower()]
-            if preferred:
-                original_file = os.path.join(GGUF_OUTPUT_DIR, preferred[0])
-            else:
-                original_file = os.path.join(GGUF_OUTPUT_DIR, gguf_files[0])
+            # Use first file found
+            original_file = os.path.join(GGUF_OUTPUT_DIR, gguf_files[0])
         
-        # Extract base name and add "-rag-cot" before .gguf extension
-        base_name = os.path.splitext(os.path.basename(original_file))[0]
-        new_filename = f"{base_name}-rag-cot.gguf"
-        new_file = os.path.join(GGUF_OUTPUT_DIR, new_filename)
-        
-        # Only rename if different
+        # Rename to expected filename
+        new_file = os.path.join(GGUF_OUTPUT_DIR, EXPECTED_GGUF_FILENAME)
         if original_file != new_file:
             if os.path.exists(new_file):
-                os.remove(new_file)  # Remove old file if exists
+                os.remove(new_file)
             shutil.move(original_file, new_file)
-            print(f"✅ GGUF model saved as: {new_filename}")
+            print(f"✅ GGUF model saved as: {EXPECTED_GGUF_FILENAME}")
         else:
-            print(f"✅ GGUF model saved as: {os.path.basename(original_file)}")
+            print(f"✅ GGUF model saved as: {EXPECTED_GGUF_FILENAME}")
     else:
-        print(f"⚠️  No GGUF files found in {GGUF_OUTPUT_DIR}")
-        print(f"   GGUF conversion may have failed or saved to a different location")
-        print(f"   You can manually convert using:")
-        print(f"   from unsloth import FastLanguageModel")
-        print(f"   model.save_pretrained_gguf('{GGUF_OUTPUT_DIR}', tokenizer, quantization_method='q4_k_m')")
+        print(f"⚠️  No GGUF files found after conversion")
+        print(f"   Checked: {GGUF_OUTPUT_DIR} and root directory")
+        print(f"   Conversion may have completed but file location unknown")
         
+except RuntimeError as e:
+    error_msg = str(e)
+    if "llama.cpp" in error_msg or "FAILED building" in error_msg or "CMake failed" in error_msg:
+        print(f"\n   ⚠️  GGUF conversion failed: llama.cpp build issue")
+        print(f"   This is a known issue with Unsloth's automatic llama.cpp installation")
+        print(f"   The model is saved in HuggingFace format and can be converted later")
+        print(f"\n   💡 Solutions:")
+        print(f"   1. Try the converter script in a fresh runtime (may work):")
+        print(f"      !python convert_rag_cot_to_gguf_simple.py")
+        print(f"   2. Or wait for Unsloth to update their llama.cpp build process")
+        print(f"   3. Or convert manually using llama.cpp directly")
+    else:
+        print(f"\n   ❌ GGUF conversion failed: {e}")
+        print(f"   Model is still saved in HuggingFace format at: {OUTPUT_DIR}/")
 except Exception as e:
-    print(f"⚠️  Error during GGUF conversion: {e}")
-    import traceback
-    traceback.print_exc()
+    print(f"\n   ❌ Unexpected error during GGUF conversion: {e}")
     print(f"   Model is still saved in HuggingFace format at: {OUTPUT_DIR}/")
-    print(f"   You can manually convert later or use the HuggingFace format directly")
+
+# Final verification
+print()
+print("=" * 80)
+print("GGUF Conversion Verification")
+print("=" * 80)
+
+expected_gguf = os.path.join(GGUF_OUTPUT_DIR, "Qwen2.5-1.5B-Instruct.Q4_K_M-rag-cot.gguf")
+if os.path.exists(expected_gguf):
+    file_size_mb = os.path.getsize(expected_gguf) / (1024 * 1024)
+    print(f"✅ SUCCESS: Expected GGUF file found!")
+    print(f"   File: {os.path.basename(expected_gguf)}")
+    print(f"   Size: {file_size_mb:.2f} MB")
+    print(f"   Location: {expected_gguf}")
+else:
+    # Check for any Q4_K_M GGUF file
+    all_gguf = []
+    if os.path.exists(GGUF_OUTPUT_DIR):
+        for f in os.listdir(GGUF_OUTPUT_DIR):
+            if f.endswith(".gguf") and "q4_k_m" in f.lower():
+                all_gguf.append(f)
+    
+    if all_gguf:
+        print(f"⚠️  Found Q4_K_M GGUF but with different name:")
+        for f in all_gguf:
+            print(f"   - {f}")
+        print(f"   Expected: Qwen2.5-1.5B-Instruct.Q4_K_M-rag-cot.gguf")
+        print(f"   You may need to rename it manually or update the test script")
+    else:
+        print(f"❌ FAILED: No Q4_K_M GGUF file found!")
+        print(f"   Expected: {expected_gguf}")
+        print(f"\n   💡 Convert using the simple converter script (recommended):")
+        print(f"      !python convert_rag_cot_to_gguf_simple.py")
+        print(f"   ")
+        print(f"   This script uses the exact same method as this training script.")
+        print(f"   It will load the model and convert it to GGUF format.")
 
 print()
 print("=" * 80)
@@ -495,7 +599,13 @@ print("🎉 Fine-tuning Complete!")
 print("=" * 80)
 print(f"Your RAG CoT model is ready:")
 print(f"  - HuggingFace format: {OUTPUT_DIR}/")
-print(f"  - GGUF format: {GGUF_OUTPUT_DIR}/")
+expected_gguf_path = os.path.join(GGUF_OUTPUT_DIR, EXPECTED_GGUF_FILENAME)
+if os.path.exists(expected_gguf_path):
+    file_size_mb = os.path.getsize(expected_gguf_path) / (1024 * 1024)
+    print(f"  - GGUF format: {expected_gguf_path} ({file_size_mb:.1f} MB) ✅")
+else:
+    print(f"  - GGUF format: Not converted yet")
+    print(f"    💡 Convert using: !python convert_rag_cot_to_gguf_simple.py")
 print()
 print("The model has been trained to:")
 print("  ✅ Use Chain of Thought reasoning when processing RAG chunks")

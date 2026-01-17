@@ -5,7 +5,7 @@
 # - Base Model (Q4_K_M_base): Used for conversational queries (no RAG)
 #   - Natural, friendly responses using general knowledge
 #   - Loaded at startup for fast conversational responses
-# - CoT Model (Q8_0-rag-cot): Used for RAG queries (with Chain of Thought)
+# - CoT Model (Q4_K_M-rag-cot): Used for RAG queries (with Chain of Thought)
 #   - Structured extraction and reasoning for document-based queries
 #   - Loaded lazily on first RAG query to save memory
 # - Model selection is automatic based on RAG context detection
@@ -43,7 +43,7 @@ werkzeug_logger.setLevel(logging.WARNING)  # Only log warnings and errors, not i
 # Base model for conversational queries (no RAG)
 BASE_MODEL_PATH = os.getenv('BASE_MODEL_PATH', "/models/Qwen2.5-1.5B-Instruct.Q4_K_M_base.gguf")
 # CoT-trained model for RAG queries (with Chain of Thought reasoning)
-COT_MODEL_PATH = os.getenv('COT_MODEL_PATH', "/models/Qwen2.5-1.5B-Instruct.Q8_0-rag-cot.gguf")
+COT_MODEL_PATH = os.getenv('COT_MODEL_PATH', "/models/Qwen2.5-1.5B-Instruct.Q4_K_M-rag-cot.gguf")
 
 print(f"[Generic] 🔧 Dual-Model Configuration:")
 print(f"[Generic]    BASE_MODEL_PATH: {BASE_MODEL_PATH}")
