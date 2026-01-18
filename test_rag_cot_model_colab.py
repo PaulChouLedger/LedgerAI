@@ -54,6 +54,9 @@ CRITICAL RULES (APPLY TO ALL QUERIES):
 EVIDENCE:
 - Evidence MUST be EXACT verbatim quote from context - do NOT paraphrase or fabricate.
 - You MUST evaluate ALL relevant items in the context before ending the scan.
+- Read through the ENTIRE context completely - do NOT stop scanning early.
+- Scan systematically through all chunks, paragraphs, and sections.
+- In complex contexts with many entities, scan ALL entities before ending.
 
 KEEP/DISCARD:
 - Items marked [DISCARD] must NEVER appear in FINAL ANSWER.
