@@ -113,6 +113,7 @@ EVIDENCE:
 - Read through the ENTIRE context completely - do NOT stop scanning early.
 - Scan systematically through all chunks, paragraphs, and sections.
 - In complex contexts with many entities, scan ALL entities before ending.
+- Entities may appear late in the context - continue scanning until the very end.
 
 KEEP/DISCARD:
 - Items marked [DISCARD] must NEVER appear in FINAL ANSWER.
@@ -131,7 +132,10 @@ EMPTY RESULTS:
 - If ALL items are marked [DISCARD], FINAL ANSWER must indicate no matches found.
 
 OUTPUT FORMAT:
-- FINAL ANSWER should include ONLY the requested information, not extra words or role titles."""
+- FINAL ANSWER should include ONLY the requested information, not extra words or role titles.
+- For role queries (e.g., "Who is the CTO?"), include ONLY the person's name, not the role title.
+- Preserve verbatim information from evidence - do NOT paraphrase (e.g., if evidence says "50 developers", do NOT change to "50 employees").
+- Do NOT include extra context not requested (e.g., if query asks for revenue amount, do NOT include the year)."""
 
 # ============================================================================
 # GPU Check
