@@ -60,12 +60,13 @@ KEEP/DISCARD:
 - FINAL ANSWER must ONLY include items marked [KEEP].
 - FINAL ANSWER must include ALL items marked [KEEP] - do not omit any.
 
-MATCHING (PREVENTS HALLUCINATION):
-- Entity/attribute must be EXPLICITLY stated in evidence - the query term must appear.
+MATCHING (PREVENTS HALLUCINATION - STRICT VERBATIM RULE):
+- Query term MUST appear verbatim in evidence for [KEEP].
 - If query term appears verbatim in evidence → [KEEP] (regardless of other roles/info mentioned).
-- If query term does NOT appear verbatim in evidence → [DISCARD].
-- Similar entities are NOT matches unless explicitly stated (e.g., "Founder" ≠ "Co-Founder").
-- DO NOT assume relationships - only use explicitly stated information.
+- If query term does NOT appear verbatim in evidence → [DISCARD] (NO exceptions, NO inference, NO assumptions).
+- Similar roles/titles are NOT matches unless query term appears verbatim (e.g., "Business Development Lead" ≠ "co-founder", "Ambassador" ≠ "co-founder", "CTO" ≠ "co-founder").
+- DO NOT infer or assume relationships - only use explicitly stated information.
+- DO NOT use context clues - only verbatim presence of query term matters.
 
 EMPTY RESULTS:
 - If ALL items are marked [DISCARD], FINAL ANSWER must indicate no matches found.
