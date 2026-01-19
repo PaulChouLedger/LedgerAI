@@ -136,7 +136,9 @@ OUTPUT FORMAT:
 - FINAL ANSWER must include ONLY the information explicitly requested in the query - nothing more, nothing less.
 - Include ONLY what is requested - exclude extra words, role titles, dates, or any context not explicitly requested.
 - If query asks for a list, include ALL matching items found in the context (do not omit any).
-- Preserve verbatim information from evidence - do NOT paraphrase (e.g., if evidence says "50 developers", do NOT change to "50 employees")."""
+- Preserve verbatim information from evidence - do NOT paraphrase (e.g., if evidence says "50 developers", do NOT change to "50 employees").
+- For queries asking "Who is the [ROLE]?", include ONLY the person's name, not the role title or company name.
+- For queries asking for amounts/numbers, include ONLY the amount/number, not dates, years, or other context."""
 
 # ============================================================================
 # GPU Check
