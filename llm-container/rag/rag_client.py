@@ -439,14 +439,29 @@ class RAGClient:
                     if self._fuzzy_match_term(cap_word, text, threshold=0.75):
                         matched_name_words.append(cap_word)
                 
-                # For multi-word names (2+ words), require at least 2 matches
+                # For multi-word names (2+ words), require at least 2 matches OR 1 strong match (last name)
                 # This ensures both first and last name match (handles typos like "Corella" vs "Carella")
+                # BUT also allows single strong matches (e.g., "Rafael" vs "Raphael" - last name "Cabello" matches)
                 if len(query_capitalized_lower) >= 2:
                     if len(matched_name_words) >= 2:
                         has_name_match = True
                         print(f"[RAG Pre-filter] ✅ Name match: {len(matched_name_words)}/{len(query_capitalized_lower)} name words fuzzy matched: {matched_name_words} in '{original_text[:60]}...'")
+                    elif len(matched_name_words) == 1:
+                        # Single match: check if it's the last name (usually more distinctive) OR if it's a strong match
+                        matched_word = matched_name_words[0]
+                        # Last name is typically the last word in the query
+                        is_last_name = matched_word == query_capitalized_lower[-1]
+                        # Check if it's a strong fuzzy match (high similarity)
+                        matched_word_idx = query_capitalized_lower.index(matched_word)
+                        # Re-check with higher threshold to ensure strong match
+                        strong_match = self._fuzzy_match_term(matched_word, text, threshold=0.85)
+                        if is_last_name or strong_match:
+                            has_name_match = True
+                            print(f"[RAG Pre-filter] ✅ Name match (single strong): '{matched_word}' matched ({'last name' if is_last_name else 'strong match'}) in '{original_text[:60]}...'")
+                        else:
+                            print(f"[RAG Pre-filter] ❌ Insufficient name matches: only 1/{len(query_capitalized_lower)} words matched (weak match) in '{original_text[:60]}...'")
                     else:
-                        print(f"[RAG Pre-filter] ❌ Insufficient name matches: only {len(matched_name_words)}/{len(query_capitalized_lower)} words matched (expected at least 2) in '{original_text[:60]}...'")
+                        print(f"[RAG Pre-filter] ❌ Insufficient name matches: only {len(matched_name_words)}/{len(query_capitalized_lower)} words matched (expected at least 1) in '{original_text[:60]}...'")
                 else:
                     # Single word name - just need one match
                     has_name_match = len(matched_name_words) > 0

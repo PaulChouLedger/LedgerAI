@@ -727,34 +727,34 @@ def handle_conversation(
                         # Check if it's a question: starts with question word/phrase, ends with "?", or is a question-like pattern
                         is_question = False
                         text_lower = text.lower().strip()
-                        
-                        # Check if it ends with "?"
-                        if text.endswith('?'):
-                            first_word = text_lower.split()[0] if text_lower.split() else ""
-                            if first_word in question_words:
-                                is_question = True
-                        
-                        # Check if it starts with question words/phrases (even without "?")
-                        if text_lower.split():
-                            first_word = text_lower.split()[0]
-                            first_two_words = ' '.join(text_lower.split()[:2]) if len(text_lower.split()) >= 2 else first_word
                             
-                            # Check for question phrases like "for the", "or the", "who are", etc.
-                            if first_two_words in question_phrases or first_word in question_words:
+                            # Check if it ends with "?"
+                            if text.endswith('?'):
+                                first_word = text_lower.split()[0] if text_lower.split() else ""
+                                if first_word in question_words:
+                                    is_question = True
+                            
+                            # Check if it starts with question words/phrases (even without "?")
+                            if text_lower.split():
+                                first_word = text_lower.split()[0]
+                                first_two_words = ' '.join(text_lower.split()[:2]) if len(text_lower.split()) >= 2 else first_word
+                                
+                                # Check for question phrases like "for the", "or the", "who are", etc.
+                                if first_two_words in question_phrases or first_word in question_words:
+                                    is_question = True
+                            
+                            # Check for question patterns: "for the X", "or the X" (common transcription errors)
+                            # Also check if text contains "co-founder" or similar with "for the"/"or the" prefix (common in transcriptions)
+                            if text_lower.startswith('for the ') or text_lower.startswith('or the '):
                                 is_question = True
-                        
-                        # Check for question patterns: "for the X", "or the X" (common transcription errors)
-                        # Also check if text contains "co-founder" or similar with "for the"/"or the" prefix (common in transcriptions)
-                        if text_lower.startswith('for the ') or text_lower.startswith('or the '):
-                            is_question = True
-                        elif 'co-founder' in text_lower and (text_lower.startswith('for ') or text_lower.startswith('or ')):
-                                is_question = True
-                        
-                        # Only include if it's NOT a question (has actual information)
-                        if not is_question:
-                            filtered_candidates.append(candidate)
-                        else:
-                            print(f"[Generic]   [Pre-filter] ❌ Excluded question: '{text[:60]}...'")
+                            elif 'co-founder' in text_lower and (text_lower.startswith('for ') or text_lower.startswith('or ')):
+                                    is_question = True
+                            
+                            # Only include if it's NOT a question (has actual information)
+                            if not is_question:
+                                filtered_candidates.append(candidate)
+                            else:
+                                print(f"[Generic]   [Pre-filter] ❌ Excluded question: '{text[:60]}...'")
                     
                     # If all candidates were questions, skip LLM scoring and don't inject
                     if not filtered_candidates:
@@ -783,12 +783,12 @@ def handle_conversation(
                         
                         # Use filtered candidates for LLM scoring (if we still have candidates)
                         if filtered_candidates and not memory_rag_results:
-                            conversations_text = ""
-                            for i, candidate in enumerate(filtered_candidates, 1):
-                                conv_text = candidate.get('text', '')
-                                conversations_text += f"{i}. {conv_text}\n"
-                            
-                            scoring_prompt = f"""Rate how well each previous conversation answers the user's question.
+                        conversations_text = ""
+                        for i, candidate in enumerate(filtered_candidates, 1):
+                            conv_text = candidate.get('text', '')
+                            conversations_text += f"{i}. {conv_text}\n"
+                        
+                        scoring_prompt = f"""Rate how well each previous conversation answers the user's question.
 
 User's question: "{prompt}"
 
@@ -808,68 +808,68 @@ Return ONLY a JSON array with exactly {len(filtered_candidates)} scores in order
 Example: [0.8, 0.9, 0.7, 0.6, 0.5]
 
 JSON array only:"""
+                    
+                        try:
+                            # Call LLM for scoring (non-streaming, fast)
+                            scoring_messages = [{"role": "user", "content": scoring_prompt}]
+                            scoring_response = llm_chat_simple(
+                                scoring_messages,
+                                max_tokens=100,  # Reduced from 200 to 100 for faster response
+                                temperature=0.3,
+                                stream=False
+                            )
                             
-                            try:
-                                # Call LLM for scoring (non-streaming, fast)
-                                scoring_messages = [{"role": "user", "content": scoring_prompt}]
-                                scoring_response = llm_chat_simple(
-                                    scoring_messages,
-                                    max_tokens=100,  # Reduced from 200 to 100 for faster response
-                                    temperature=0.3,
-                                    stream=False
-                                )
-                                
-                                # Parse LLM response to extract scores
-                                import json
-                                json_match = re.search(r'\[[\d\.,\s]+\]', scoring_response)
-                                if json_match:
-                                    scores = json.loads(json_match.group())
-                                    print(f"[Generic] ✅ LLM returned {len(scores)} scores")
-                                else:
-                                    try:
-                                        scores = json.loads(scoring_response.strip())
-                                    except:
-                                        print(f"[Generic] ⚠️ Failed to parse LLM scores, using re-ranked scores as fallback")
-                                        scores = [c.get('score', 0.0) for c in filtered_candidates]
-                                
-                                # Ensure we have the right number of scores
-                                if len(scores) != len(filtered_candidates):
-                                    print(f"[Generic] ⚠️ LLM returned {len(scores)} scores but expected {len(filtered_candidates)}, using re-ranked scores as fallback")
+                            # Parse LLM response to extract scores
+                            import json
+                            json_match = re.search(r'\[[\d\.,\s]+\]', scoring_response)
+                            if json_match:
+                                scores = json.loads(json_match.group())
+                                print(f"[Generic] ✅ LLM returned {len(scores)} scores")
+                            else:
+                                try:
+                                    scores = json.loads(scoring_response.strip())
+                                except:
+                                    print(f"[Generic] ⚠️ Failed to parse LLM scores, using re-ranked scores as fallback")
                                     scores = [c.get('score', 0.0) for c in filtered_candidates]
-                                
-                                # Update candidates with LLM scores
-                                scored_candidates = []
-                                for i, (candidate, llm_score) in enumerate(zip(filtered_candidates, scores)):
-                                    scored_candidates.append({
-                                        **candidate,
-                                        'score': float(llm_score),
-                                        'original_re_ranked_score': candidate.get('score', 0.0),
-                                        'llm_score': float(llm_score)
-                                    })
-                                    print(f"[Generic]   [{i+1}] LLM score: {llm_score:.3f} (re-ranked: {candidate.get('score', 0.0):.3f}): '{candidate.get('text', '')[:60]}...'")
-                                
-                                # Sort by LLM score (descending)
-                                scored_candidates.sort(key=lambda x: x['score'], reverse=True)
-                                
-                                # Filter by threshold and return top k
-                                # Use higher threshold (0.5) to filter out low-quality results
-                                answer_threshold = max(memory_rag_threshold, 0.5)  # At least 0.5 to ensure quality answers
-                                memory_rag_results = [
-                                    r for r in scored_candidates 
-                                    if r.get('score', 0) >= answer_threshold
-                                ][:memory_rag_k]
-                            except Exception as e:
-                                print(f"[Generic] ⚠️ LLM scoring failed: {e}, falling back to re-ranked scores")
-                                import traceback
-                                traceback.print_exc()
-                                # Fallback to re-ranked scores (use filtered candidates, not all candidates)
-                                scored_candidates = sorted(filtered_candidates, key=lambda x: x.get('score', 0), reverse=True)
-                                # Use higher threshold for fallback too
-                                answer_threshold = max(memory_rag_threshold, 0.5)
-                                memory_rag_results = [
-                                    r for r in scored_candidates 
-                                    if r.get('score', 0) >= answer_threshold
-                                ][:memory_rag_k]
+                            
+                            # Ensure we have the right number of scores
+                            if len(scores) != len(filtered_candidates):
+                                print(f"[Generic] ⚠️ LLM returned {len(scores)} scores but expected {len(filtered_candidates)}, using re-ranked scores as fallback")
+                                scores = [c.get('score', 0.0) for c in filtered_candidates]
+                            
+                            # Update candidates with LLM scores
+                            scored_candidates = []
+                            for i, (candidate, llm_score) in enumerate(zip(filtered_candidates, scores)):
+                                scored_candidates.append({
+                                    **candidate,
+                                    'score': float(llm_score),
+                                    'original_re_ranked_score': candidate.get('score', 0.0),
+                                    'llm_score': float(llm_score)
+                                })
+                                print(f"[Generic]   [{i+1}] LLM score: {llm_score:.3f} (re-ranked: {candidate.get('score', 0.0):.3f}): '{candidate.get('text', '')[:60]}...'")
+                            
+                            # Sort by LLM score (descending)
+                            scored_candidates.sort(key=lambda x: x['score'], reverse=True)
+                            
+                            # Filter by threshold and return top k
+                            # Use higher threshold (0.5) to filter out low-quality results
+                            answer_threshold = max(memory_rag_threshold, 0.5)  # At least 0.5 to ensure quality answers
+                            memory_rag_results = [
+                                r for r in scored_candidates 
+                                if r.get('score', 0) >= answer_threshold
+                            ][:memory_rag_k]
+                        except Exception as e:
+                            print(f"[Generic] ⚠️ LLM scoring failed: {e}, falling back to re-ranked scores")
+                            import traceback
+                            traceback.print_exc()
+                            # Fallback to re-ranked scores (use filtered candidates, not all candidates)
+                            scored_candidates = sorted(filtered_candidates, key=lambda x: x.get('score', 0), reverse=True)
+                            # Use higher threshold for fallback too
+                            answer_threshold = max(memory_rag_threshold, 0.5)
+                            memory_rag_results = [
+                                r for r in scored_candidates 
+                                if r.get('score', 0) >= answer_threshold
+                            ][:memory_rag_k]
                 
                 if memory_rag_results and len(memory_rag_results) > 0:
                     print(f"[Generic] ✅ Memory RAG found {len(memory_rag_results)} relevant conversations (from {len(memory_rag_candidates)} candidates, threshold={max(memory_rag_threshold, 0.5):.2f}) - will inject context")
@@ -1230,8 +1230,8 @@ JSON array only:"""
                 if is_list_request:
                     if is_specific_set_query:
                         # For specific set queries (like "co-founders"), find ALL items, not just TOP 3
-                        list_instruction = (
-                            "\n📋 LIST QUESTION:\n"
+                    list_instruction = (
+                        "\n📋 LIST QUESTION:\n"
                             "Read all sections completely. Extract ALL items that directly match the query. "
                             "CRITICAL: Find and list ALL items that match the query - do NOT limit the number. "
                             "Read through the entire context carefully to ensure you find every relevant item. "
@@ -1245,8 +1245,8 @@ JSON array only:"""
                             "CRITICAL: Limit your response to the TOP 3 most relevant items only. "
                             "Do NOT list more than 3 items. "
                             "If there are more items available, mention that more information can be provided if needed. "
-                            "Only include information explicitly stated in the context.\n"
-                        )
+                        "Only include information explicitly stated in the context.\n"
+                    )
                 
                 # Build response length guideline - simplified
                 if SHOW_REASONING_DEBUG:
@@ -1256,7 +1256,7 @@ JSON array only:"""
                     question_instruction = "" if is_conversational else "\n- MANDATORY: End your response with a brief, natural question. This is REQUIRED. Examples: 'Would you like more information about this?' or 'Is there anything else I can help you with?'\n"
                     if is_specific_set_query:
                         # For specific set queries, find ALL items
-                        response_length_guideline = (
+                    response_length_guideline = (
                             "- CRITICAL: List ALL items that match the query. "
                             "Do NOT limit the number - find every item that matches. "
                             "Read through the entire context completely to ensure you don't miss any items. "
@@ -1270,8 +1270,8 @@ JSON array only:"""
                             "Do NOT exceed 3 items. "
                             "If more items exist, briefly mention that more information is available if needed. "
                             "Format as a numbered or bulleted list (1-3 items maximum).\n"
-                            f"{question_instruction}"
-                        )
+                        f"{question_instruction}"
+                    )
                 else:
                     # Only add question instruction if not a conversational query
                     question_instruction = "" if is_conversational else "\n6. MANDATORY: End your response with a brief, natural question. This is REQUIRED. Examples: 'Would you like more information about this?' or 'Is there anything else I can help you with?'\n"
@@ -2500,9 +2500,10 @@ def chat_tts():
             if will_use_rag and not is_conversational:
                 filler_phrase = get_filler_phrase()
                 print(f"[Generic] 💭 Yielding filler phrase before RAG processing: '{filler_phrase}'")
-                # Yield filler phrase as plain text - CoT filter will pass it through
-                # since it appears before REASONING: marker
-                yield filler_phrase + " "
+                # Yield filler phrase with sentence tags to prevent token errors
+                yield "<sentence_start>\n"
+                yield filler_phrase
+                yield "\n<sentence_end>\n"
             
             # Use streaming mode to get tokens as they're generated, with memory context
             result = handle_conversation(prompt, session_id, memory_context=memory_context, stream=True)
@@ -2928,6 +2929,7 @@ def filter_cot_reasoning(generator):
     reasoning_buffer = ""  # Buffer reasoning section to extract DISCARD items
     found_final_answer = False
     discarded_items = set()
+    kept_items = []  # Store KEEP items from reasoning (ensure all are included in final answer)
     answer_buffer = []  # Buffer answer tokens for cleaning
     collecting_answer = False
     is_cot_response = False  # Track if this is a CoT response (has REASONING:)
@@ -2967,18 +2969,21 @@ def filter_cot_reasoning(generator):
     def extract_kept_items(reasoning_text):
         """Extract names/items that were marked [KEEP] in reasoning section"""
         kept_items = []
-        # Pattern: Item: [Name] ... Action: [KEEP]
-        # Handle variations: [KEEP], [ KEEP], [KEEP ], [ KEEP ]
-        pattern = r'- Item:\s*([^\n-]+?)(?:\s*-\s*Evidence:.*?)?\s*-\s*Action:\s*\[\s*KEEP\s*\]'
-        matches = re.findall(pattern, reasoning_text, re.IGNORECASE | re.DOTALL)
+        # Pattern: - Item: [Name] - Evidence: ... - Action: [KEEP]
+        # Handle variations: [KEEP], [ KEEP], [KEEP ], [ KEEP ], and spacing variations
+        # Match format: "- Item:Bob Carella - Evidence:"..." - Action:[ KEEP]"
+        pattern = r'- Item:\s*([^-]+?)(?:\s*-\s*Evidence:[^-]*?)?\s*-\s*Action:\s*\[\s*KEEP\s*\]'
+        matches = re.finditer(pattern, reasoning_text, re.IGNORECASE | re.DOTALL)
         for match in matches:
-            item_name = match.strip()
-            # Remove any trailing role/evidence info
+            item_name = match.group(1).strip()
+            # Clean up item name - remove quotes, evidence fragments, etc.
+            item_name = re.sub(r'^["\']|["\']$', '', item_name)  # Remove quotes
             item_name = re.sub(r'\s*-\s*Role:.*$', '', item_name, flags=re.IGNORECASE)
             item_name = re.sub(r'\s*-\s*Evidence:.*$', '', item_name, flags=re.IGNORECASE)
             item_name = item_name.strip()
             if item_name:
                 kept_items.append(item_name)
+                print(f"[Generic] 🔍 [CoT Filter] Extracted KEEP item: '{item_name}'")
         return kept_items
     
     # Buffer tokens to detect if this is a CoT response
@@ -3099,6 +3104,7 @@ def filter_cot_reasoning(generator):
                         reasoning_text = text_before
                 
                 discarded_items = extract_discarded_items(reasoning_text)
+                kept_items = extract_kept_items(reasoning_text)  # Extract KEEP items (update outer scope variable)
                 
                 # DEBUG: Print FULL raw response (for debugging)
                 print(f"\n{'='*80}")
@@ -3117,6 +3123,8 @@ def filter_cot_reasoning(generator):
                 print(f"{'='*80}")
                 if discarded_items:
                     print(f"[Generic] 🚫 [CoT Reasoning Debug] Items marked DISCARD: {discarded_items}")
+                if kept_items:
+                    print(f"[Generic] ✅ [CoT Reasoning Debug] Items marked KEEP: {kept_items}")
                 print(f"{'='*80}\n")
                 
                 # Extract initial answer text from buffer (matches test script)
@@ -3155,7 +3163,8 @@ def filter_cot_reasoning(generator):
         final_answer = re.sub(r'(?m)^- .*$', '', final_answer).strip()  # Remove bulleted lines
         final_answer = re.sub(r'- End of scan\.?\s*', '', final_answer, flags=re.IGNORECASE)
         
-        # Filter DISCARD items from final answer
+        # CRITICAL: Ensure ALL KEEP items are included and ALL DISCARD items are removed
+        # Step 1: Remove ALL DISCARD items from final answer
         if discarded_items:
             for discarded_name in discarded_items:
                 name_parts = discarded_name.split()
@@ -3172,6 +3181,65 @@ def filter_cot_reasoning(generator):
             final_answer = re.sub(r'\s*,\s*$', '', final_answer)
             if final_answer.strip():
                 print(f"[Generic] ✂️  [CoT Reasoning Debug] Filtered FINAL ANSWER (removed DISCARD items): {final_answer[:200]}...")
+        
+        # Step 2: Ensure ALL KEEP items are included in final answer
+        if kept_items:
+            # Extract all names from final answer (case-insensitive)
+            final_answer_lower = final_answer.lower()
+            missing_items = []
+            for kept_item in kept_items:
+                kept_lower = kept_item.lower()
+                # Check if item appears in final answer (handle variations)
+                item_parts = kept_lower.split()
+                if len(item_parts) > 1:
+                    # Multi-word name: check if all parts appear together
+                    pattern = r'\b' + r'\s+'.join([re.escape(part) for part in item_parts]) + r'\b'
+                    if not re.search(pattern, final_answer_lower):
+                        missing_items.append(kept_item)
+                else:
+                    # Single word: simple check
+                    if kept_lower not in final_answer_lower:
+                        missing_items.append(kept_item)
+            
+            if missing_items:
+                print(f"[Generic] ⚠️  [CoT Reasoning Debug] Missing KEEP items in final answer: {missing_items}")
+                # Add missing items to final answer
+                # Extract existing names from answer to preserve order
+                existing_names = []
+                for kept_item in kept_items:
+                    kept_lower = kept_item.lower()
+                    item_parts = kept_lower.split()
+                    if len(item_parts) > 1:
+                        pattern = r'\b' + r'\s+'.join([re.escape(part) for part in item_parts]) + r'\b'
+                        if re.search(pattern, final_answer_lower):
+                            existing_names.append(kept_item)
+                
+                # Combine existing and missing items
+                all_items = existing_names + missing_items
+                
+                # Reconstruct answer with all KEEP items
+                if len(all_items) == 1:
+                    final_answer = all_items[0]
+                elif len(all_items) == 2:
+                    final_answer = f"{all_items[0]} and {all_items[1]}"
+                else:
+                    # Multiple items: "X, Y, and Z"
+                    items_str = ", ".join(all_items[:-1]) + f", and {all_items[-1]}"
+                    # Try to preserve original answer structure if it has a prefix
+                    if ":" in final_answer or "are" in final_answer.lower():
+                        # Extract prefix (e.g., "The co-founders of Ledger AI are:")
+                        prefix_match = re.match(r'^([^:]+:?\s*)', final_answer)
+                        if prefix_match:
+                            prefix = prefix_match.group(1)
+                            final_answer = prefix + items_str
+                        else:
+                            final_answer = items_str
+                    else:
+                        final_answer = items_str
+                
+                print(f"[Generic] ✅ [CoT Reasoning Debug] Added missing KEEP items: {final_answer[:200]}...")
+            else:
+                print(f"[Generic] ✅ [CoT Reasoning Debug] All KEEP items present in final answer")
         
         if final_answer.strip():
             print(f"[Generic] 📝 [CoT Reasoning Debug] Final FINAL ANSWER: {final_answer[:200]}...")
