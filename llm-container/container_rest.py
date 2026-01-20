@@ -560,7 +560,7 @@ def handle_conversation(
                           'what am i', 'when am i', 'where am i', 'tell me about me']
         is_personal_query = any(keyword in normalized_prompt for keyword in personal_keywords)
         
-        # Skip RAG and filler phrases for simple conversational responses (thank you, goodbye, etc.)
+        # Determine if query is conversational (for response formatting only, not RAG triggering)
         conversational_phrases = [
             'thank you', 'thanks', 'thank', 'thanks a lot', 'thank you very much',
             'goodbye', 'bye', 'see you', 'see ya', 'farewell',
@@ -573,24 +573,8 @@ def handle_conversation(
         ]
         is_conversational = any(phrase in normalized_prompt for phrase in conversational_phrases)
         
-        # Exclude information-seeking questions from being marked as conversational
-        # These are actual queries that should use RAG and end with follow-up questions
-        information_seeking_patterns = [
-            'do you know', 'who is', 'who are', 'who was', 'who were',
-            'what is', 'what are', 'what was', 'what were',
-            'where is', 'where are', 'where was', 'where were',
-            'when is', 'when are', 'when was', 'when were',
-            'why is', 'why are', 'why was', 'why were',
-            'how is', 'how are', 'how was', 'how were',
-            'tell me about', 'tell me who', 'tell me what', 'tell me where',
-            'can you tell me', 'could you tell me', 'would you tell me'
-        ]
-        # If query contains information-seeking patterns, it's NOT conversational
-        if any(pattern in normalized_prompt for pattern in information_seeking_patterns):
-            is_conversational = False
-        
-        # Only use RAG if search actually returns results (require actual relevance, not just substring match)
-        # This ensures RAG is only used when there's actually relevant content to inject
+        # SIMPLIFIED: Use quick_content_match as primary RAG trigger (fast substring/fuzzy match)
+        # This is more reliable than pattern matching - if content exists, use RAG
         rag_client = None
         rag_context = ""
         rag_results = []
@@ -598,19 +582,21 @@ def handle_conversation(
         memory_rag_results = []  # Results from memory container
         memory_rag_failed = False  # Track if memory RAG failed (timeout, error, etc.)
         
+        # Only skip RAG for personal queries or simple conversational phrases (not information-seeking)
         if not is_personal_query and not is_conversational:
             # Detect if query is asking for "what else" or additional information
             is_followup_query = any(phrase in prompt.lower() for phrase in ['what else', 'anything else', 'more about', 'additional', 'other'])
             
             # Parallelize document RAG and memory RAG searches for better latency
             def search_document_rag():
-                """Search document RAG in parallel"""
+                """Search document RAG in parallel - uses quick_content_match as primary trigger"""
                 try:
                     client = get_rag_client()
                     if client:
+                        # SIMPLIFIED: Use quick_content_match as primary trigger (fast substring/fuzzy match)
                         has_content = client.quick_content_match(prompt)
                         if has_content:
-                            print(f"[Generic] 🔍 Query may match RAG content - performing search...")
+                            print(f"[Generic] 🔍 quick_content_match found relevant content - performing RAG search...")
                             if hasattr(client, '_cpu_chunks') and client._cpu_chunks:
                                 print(f"[Generic] 📊 RAG index: {len(client._cpu_chunks)} chunks available")
                             elif hasattr(client, '_cpu_index') and client._cpu_index:
@@ -628,7 +614,7 @@ def handle_conversation(
                                 print(f"[Generic] 🔍 RAG search returned no results above threshold - skipping RAG injection")
                             return client, results
                         else:
-                            print(f"[Generic] 🔍 Query doesn't match RAG content - skipping RAG (faster response)")
+                            print(f"[Generic] 🔍 quick_content_match: no relevant content found - skipping RAG (faster response)")
                     return None, []
                 except Exception as e:
                     print(f"[Generic] ⚠️ RAG check failed: {e}")
@@ -2434,7 +2420,7 @@ def chat_tts():
     def generate_response():
         full_response_text = ""  # Accumulate full response for memory storage
         try:
-            # Check if this is a simple conversational phrase (skip RAG and filler phrases)
+            # Determine if query is conversational (for response formatting only, not RAG triggering)
             normalized_prompt = prompt.lower()
             conversational_phrases = [
                 'thank you', 'thanks', 'thank', 'thanks a lot', 'thank you very much',
@@ -2448,34 +2434,22 @@ def chat_tts():
             ]
             is_conversational = any(phrase in normalized_prompt for phrase in conversational_phrases)
             
-            # Exclude information-seeking questions from being marked as conversational
-            information_seeking_patterns = [
-                'do you know', 'who is', 'who are', 'who was', 'who were',
-                'what is', 'what are', 'what was', 'what were',
-                'where is', 'where are', 'where was', 'where were',
-                'when is', 'when are', 'when was', 'when were',
-                'why is', 'why are', 'why was', 'why were',
-                'how is', 'how are', 'how was', 'how were',
-                'tell me about', 'tell me who', 'tell me what', 'tell me where',
-                'can you tell me', 'could you tell me', 'would you tell me'
-            ]
-            # If query contains information-seeking patterns, it's NOT conversational
-            if any(pattern in normalized_prompt for pattern in information_seeking_patterns):
-                is_conversational = False
-            
-            # Check if RAG will be used BEFORE processing (to play filler phrase during RAG)
+            # SIMPLIFIED: Use quick_content_match as primary RAG trigger (fast substring/fuzzy match)
+            # This is more reliable than pattern matching - if content exists, use RAG
             will_use_rag = False
-            if RAG_MODE in ("CPU", "GPU") and not is_conversational:
+            if RAG_MODE in ("CPU", "GPU"):
                 try:
-                    # Quick check: will document RAG be used?
+                    # Quick check: does document RAG have relevant content?
                     client = get_rag_client()
                     if client:
                         has_doc_content = client.quick_content_match(prompt)
                         if has_doc_content:
                             will_use_rag = True
-                            print(f"[Generic] ✅ Document RAG will be used - prefiltering confirmed match")
+                            print(f"[Generic] ✅ Document RAG will be used - quick_content_match found relevant content")
+                        else:
+                            print(f"[Generic] 🔍 Document RAG quick_content_match: no relevant content found")
                     
-                    # Quick check: will memory RAG be used?
+                    # Quick check: does memory RAG have relevant content?
                     memory_container_url = os.environ.get('MEMORY_CONTAINER_URL', 'http://localhost:11438')
                     try:
                         quick_match_response = requests.post(
@@ -2487,7 +2461,7 @@ def chat_tts():
                             has_memory_content = quick_match_response.json().get('has_match', False)
                             if has_memory_content:
                                 will_use_rag = True
-                                print(f"[Generic] ✅ Memory RAG will be used - prefiltering confirmed match")
+                                print(f"[Generic] ✅ Memory RAG will be used - quick_match found relevant content")
                     except requests.exceptions.Timeout:
                         pass  # Timeout means we'll skip memory RAG, no filler needed
                     except Exception as e:
@@ -2495,7 +2469,7 @@ def chat_tts():
                 except Exception as e:
                     print(f"[Generic] ⚠️ RAG pre-check failed: {e}")
             
-            # If RAG will be used, yield filler phrase first
+            # If RAG will be used, yield filler phrase first (unless it's a simple conversational phrase)
             # The CoT filter will pass through content before REASONING: marker
             if will_use_rag and not is_conversational:
                 filler_phrase = get_filler_phrase()

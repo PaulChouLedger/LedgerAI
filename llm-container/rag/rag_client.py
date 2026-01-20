@@ -687,11 +687,29 @@ class RAGClient:
         # Expand query for better retrieval
         expanded_query = self._expand_query(query)
         
+        # Detect if query contains names (for name queries, search more candidates)
+        import re
+        query_names = re.findall(r'\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\b', query)
+        query_capitalized_words = re.findall(r'\b([A-Z][a-z]+)\b', query)
+        question_words = {'who', 'what', 'where', 'when', 'why', 'how', 'which', 'whose', 'whom', 'do', 'does', 'did', 'is', 'are', 'was', 'were', 'can', 'could', 'will', 'would', 'should', 'may', 'might'}
+        query_capitalized_lower = [w.lower() for w in query_capitalized_words if w.lower() not in question_words]
+        has_name_query = len(query_names) > 0 or (len(query_capitalized_lower) >= 1 and any(len(w) > 3 for w in query_capitalized_lower))
+        
+        # For name queries, search many more candidates and use very low threshold
+        # This ensures we find chunks that mention the person even if they're not semantically similar
+        if has_name_query:
+            search_k = max(k * 10, 100)  # Search 10x more candidates for name queries (or at least 100)
+            search_threshold = 0.0  # No threshold for name queries - we'll filter by name matching instead
+            print(f"[RAG Client] 🔍 Name query detected - searching {search_k} candidates with threshold={search_threshold}")
+        else:
+            search_k = k * 2  # Normal queries: 2x candidates
+            search_threshold = threshold * 0.8  # Slightly lower threshold for re-ranking
+        
         # Search with expanded query (but use original for embedding)
         if self.use_gpu:
-            results = self._search_gpu(expanded_query, k * 2, threshold * 0.8)  # Get more candidates for re-ranking
+            results = self._search_gpu(expanded_query, search_k, search_threshold)
         else:
-            results = self._search_cpu(expanded_query, k * 2, threshold * 0.8)  # Get more candidates for re-ranking
+            results = self._search_cpu(expanded_query, search_k, search_threshold)
         
         # Re-rank results if enabled (includes pre-filtering)
         if rerank and results:
