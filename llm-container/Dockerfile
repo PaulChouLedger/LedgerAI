@@ -53,7 +53,7 @@ COPY conversation_manager.py ./
 # === Environment defaults (can be overridden by .env or -e) ===
 # Base model for conversational queries (loaded at startup)
 ENV BASE_MODEL_PATH=/models/Qwen2.5-1.5B-Instruct.Q4_K_M_base.gguf
-# CoT model for RAG queries (loaded lazily on first RAG query)
+# CoT model for RAG queries (pre-loaded at startup to eliminate latency)
 ENV COT_MODEL_PATH=/models/Qwen2.5-1.5B-Instruct.Q4_K_M-rag-cot.gguf
 # Legacy support: SIMPLE_MODEL_PATH points to base model
 ENV SIMPLE_MODEL_PATH=/models/Qwen2.5-1.5B-Instruct.Q4_K_M_base.gguf

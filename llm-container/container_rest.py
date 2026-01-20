@@ -7,7 +7,7 @@
 #   - Loaded at startup for fast conversational responses
 # - CoT Model (Q4_K_M-rag-cot): Used for RAG queries (with Chain of Thought)
 #   - Structured extraction and reasoning for document-based queries
-#   - Loaded lazily on first RAG query to save memory
+#   - Pre-loaded at startup to eliminate first-query latency
 # - Model selection is automatic based on RAG context detection
 
 from flask import Flask, request, jsonify, stream_with_context, Response
@@ -55,7 +55,7 @@ base_container = BaseLLMContainer(
     default_model_path=BASE_MODEL_PATH
 )
 
-# === Initialize CoT Container (for RAG queries - loaded lazily) ===
+# === Initialize CoT Container (for RAG queries - pre-loaded at startup) ===
 cot_container = BaseLLMContainer(
     service_name="aura-llm-generic-cot",
     default_model_path=COT_MODEL_PATH
@@ -174,9 +174,9 @@ def llm_chat_simple(messages, max_tokens=None, temperature=None, stream=False, u
     if use_cot_model:
         container = cot_container
         model_name = "CoT (RAG)"
-        # Ensure CoT model is loaded (lazy loading with GPU support)
+        # CoT model should be pre-loaded at startup (check if it failed to load)
         if not container._model_loaded or container.llm_simple is None:
-            print(f"[Generic] 🔄 Lazy-loading CoT model for RAG query: {COT_MODEL_PATH}")
+            print(f"[Generic] ⚠️ CoT model not loaded! Attempting emergency load: {COT_MODEL_PATH}")
             from llama_cpp import Llama
             n_gpu_layers = -1  # Offload all layers to GPU
             container.model_path = COT_MODEL_PATH
@@ -193,7 +193,7 @@ def llm_chat_simple(messages, max_tokens=None, temperature=None, stream=False, u
                 verbose=False
             )
             container._model_loaded = True
-            print(f"[Generic] ✅ CoT model loaded: {COT_MODEL_PATH}")
+            print(f"[Generic] ✅ CoT model emergency-loaded: {COT_MODEL_PATH}")
     else:
         container = base_container
         model_name = "Base (Conversational)"
@@ -794,7 +794,7 @@ Return ONLY a JSON array with exactly {len(filtered_candidates)} scores in order
 Example: [0.8, 0.9, 0.7, 0.6, 0.5]
 
 JSON array only:"""
-                    
+                            
                             try:
                                 # Call LLM for scoring (non-streaming, fast)
                                 scoring_messages = [{"role": "user", "content": scoring_prompt}]
@@ -2946,6 +2946,8 @@ def filter_cot_reasoning(generator):
         # Pattern: - Item: [Name] - Evidence: ... - Action: [KEEP]
         # Handle variations: [KEEP], [ KEEP], [KEEP ], [ KEEP ], and spacing variations
         # Match format: "- Item:Bob Carella - Evidence:"..." - Action:[ KEEP]"
+        # Improved pattern to handle cases where items might be on same line or have different spacing
+        # Use more flexible matching: allow for optional spaces, handle cases where Evidence might be missing
         pattern = r'- Item:\s*([^-]+?)(?:\s*-\s*Evidence:[^-]*?)?\s*-\s*Action:\s*\[\s*KEEP\s*\]'
         matches = re.finditer(pattern, reasoning_text, re.IGNORECASE | re.DOTALL)
         for match in matches:
@@ -2954,10 +2956,24 @@ def filter_cot_reasoning(generator):
             item_name = re.sub(r'^["\']|["\']$', '', item_name)  # Remove quotes
             item_name = re.sub(r'\s*-\s*Role:.*$', '', item_name, flags=re.IGNORECASE)
             item_name = re.sub(r'\s*-\s*Evidence:.*$', '', item_name, flags=re.IGNORECASE)
+            # Also remove any trailing " -" that might be part of the pattern
+            item_name = re.sub(r'\s*-\s*$', '', item_name)
             item_name = item_name.strip()
             if item_name:
                 kept_items.append(item_name)
                 print(f"[Generic] 🔍 [CoT Filter] Extracted KEEP item: '{item_name}'")
+        
+        # If no matches found with standard pattern, try alternative pattern (items might be formatted differently)
+        if not kept_items:
+            # Alternative: look for "Item:Name - Action:[KEEP]" without Evidence
+            alt_pattern = r'Item:\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s*-\s*Action:\s*\[\s*KEEP\s*\]'
+            alt_matches = re.finditer(alt_pattern, reasoning_text, re.IGNORECASE)
+            for match in alt_matches:
+                item_name = match.group(1).strip()
+                if item_name and item_name not in kept_items:
+                    kept_items.append(item_name)
+                    print(f"[Generic] 🔍 [CoT Filter] Extracted KEEP item (alt pattern): '{item_name}'")
+        
         return kept_items
     
     # Buffer tokens to detect if this is a CoT response
@@ -2980,16 +2996,27 @@ def filter_cot_reasoning(generator):
             cot_detected = True
             print(f"[Generic] 🔍 [CoT Filter] CoT response detected - applying reasoning filter")
             
-            # IMPORTANT: Yield any content that appears BEFORE REASONING: (e.g., filler phrase)
-            # This content should be passed through to TTS immediately, not filtered
+            # IMPORTANT: Suppress model-generated filler phrases if we already yielded one
+            # The filler phrase should play DURING RAG processing, not after
             reasoning_marker = "REASONING:" if "REASONING:" in detection_buffer else "Reasoning:"
             pre_reasoning_content = detection_buffer.split(reasoning_marker)[0].strip()
             if pre_reasoning_content:
-                print(f"[Generic] 💭 [CoT Filter] Yielding pre-reasoning content: '{pre_reasoning_content[:50]}...'")
-                yield "<sentence_start>\n"
-                for word in pre_reasoning_content.split():
-                    yield f"{word} "
-                yield "\n<sentence_end>\n"
+                # Check if this looks like a filler phrase (common patterns)
+                filler_patterns = [
+                    'let me think', 'give me a moment', 'let me recall', 'let me check',
+                    'one moment', 'just a second', 'hold on', 'thinking'
+                ]
+                is_filler_phrase = any(pattern in pre_reasoning_content.lower() for pattern in filler_patterns)
+                if is_filler_phrase:
+                    print(f"[Generic] 💭 [CoT Filter] Suppressing model-generated filler phrase: '{pre_reasoning_content[:50]}...' (we already yielded one before RAG)")
+                    # Don't yield - we already yielded filler phrase before RAG started
+                else:
+                    # Not a filler phrase - yield it (might be important context)
+                    print(f"[Generic] 💭 [CoT Filter] Yielding pre-reasoning content: '{pre_reasoning_content[:50]}...'")
+                    yield "<sentence_start>\n"
+                    for word in pre_reasoning_content.split():
+                        yield f"{word} "
+                    yield "\n<sentence_end>\n"
             
             # Use only the REASONING part for CoT processing
             text_buffer = reasoning_marker + detection_buffer.split(reasoning_marker)[-1]
@@ -3498,7 +3525,24 @@ if __name__ == "__main__":
     base_container._model_loaded = True
     llm_simple = base_container.llm_simple  # Set global reference
     print(f"[Generic] ✅ BASE model loaded: {BASE_MODEL_PATH}")
-    print(f"[Generic] 💡 CoT model ({COT_MODEL_PATH}) will be lazy-loaded on first RAG query")
+    
+    # Pre-load CoT model at startup (eliminates first-query latency)
+    print(f"[Generic] 📦 Loading CoT model (RAG queries): {COT_MODEL_PATH}")
+    cot_container.model_path = COT_MODEL_PATH
+    cot_container.llm_simple = Llama(
+        model_path=COT_MODEL_PATH,
+        n_ctx=cot_container.SIMPLE_N_CTX,
+        n_threads=N_THREADS,
+        n_batch=cot_container.N_BATCH,
+        n_gpu_layers=n_gpu_layers,  # Enable GPU acceleration
+        cache_prompt=CACHE_PROMPT,
+        chat_format=cot_container.SIMPLE_CHAT_FORMAT,
+        use_mlock=True,
+        use_mmap=True,
+        verbose=False
+    )
+    cot_container._model_loaded = True
+    print(f"[Generic] ✅ CoT model loaded: {COT_MODEL_PATH}")
     
     # Pre-initialize RAG client at container startup (reduces first-query latency)
     if RAG_MODE in ("CPU", "GPU"):
