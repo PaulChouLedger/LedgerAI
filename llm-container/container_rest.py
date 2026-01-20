@@ -727,34 +727,34 @@ def handle_conversation(
                         # Check if it's a question: starts with question word/phrase, ends with "?", or is a question-like pattern
                         is_question = False
                         text_lower = text.lower().strip()
-                            
-                            # Check if it ends with "?"
-                            if text.endswith('?'):
-                                first_word = text_lower.split()[0] if text_lower.split() else ""
-                                if first_word in question_words:
-                                    is_question = True
-                            
-                            # Check if it starts with question words/phrases (even without "?")
-                            if text_lower.split():
-                                first_word = text_lower.split()[0]
-                                first_two_words = ' '.join(text_lower.split()[:2]) if len(text_lower.split()) >= 2 else first_word
-                                
-                                # Check for question phrases like "for the", "or the", "who are", etc.
-                                if first_two_words in question_phrases or first_word in question_words:
-                                    is_question = True
-                            
-                            # Check for question patterns: "for the X", "or the X" (common transcription errors)
-                            # Also check if text contains "co-founder" or similar with "for the"/"or the" prefix (common in transcriptions)
-                            if text_lower.startswith('for the ') or text_lower.startswith('or the '):
+                        
+                        # Check if it ends with "?"
+                        if text.endswith('?'):
+                            first_word = text_lower.split()[0] if text_lower.split() else ""
+                            if first_word in question_words:
                                 is_question = True
-                            elif 'co-founder' in text_lower and (text_lower.startswith('for ') or text_lower.startswith('or ')):
-                                    is_question = True
+                        
+                        # Check if it starts with question words/phrases (even without "?")
+                        if text_lower.split():
+                            first_word = text_lower.split()[0]
+                            first_two_words = ' '.join(text_lower.split()[:2]) if len(text_lower.split()) >= 2 else first_word
                             
-                            # Only include if it's NOT a question (has actual information)
-                            if not is_question:
-                                filtered_candidates.append(candidate)
-                            else:
-                                print(f"[Generic]   [Pre-filter] ❌ Excluded question: '{text[:60]}...'")
+                            # Check for question phrases like "for the", "or the", "who are", etc.
+                            if first_two_words in question_phrases or first_word in question_words:
+                                is_question = True
+                        
+                        # Check for question patterns: "for the X", "or the X" (common transcription errors)
+                        # Also check if text contains "co-founder" or similar with "for the"/"or the" prefix (common in transcriptions)
+                        if text_lower.startswith('for the ') or text_lower.startswith('or the '):
+                            is_question = True
+                        elif 'co-founder' in text_lower and (text_lower.startswith('for ') or text_lower.startswith('or ')):
+                            is_question = True
+                        
+                        # Only include if it's NOT a question (has actual information)
+                        if not is_question:
+                            filtered_candidates.append(candidate)
+                        else:
+                            print(f"[Generic]   [Pre-filter] ❌ Excluded question: '{text[:60]}...'")
                     
                     # If all candidates were questions, skip LLM scoring and don't inject
                     if not filtered_candidates:
@@ -783,12 +783,12 @@ def handle_conversation(
                         
                         # Use filtered candidates for LLM scoring (if we still have candidates)
                         if filtered_candidates and not memory_rag_results:
-                        conversations_text = ""
-                        for i, candidate in enumerate(filtered_candidates, 1):
-                            conv_text = candidate.get('text', '')
-                            conversations_text += f"{i}. {conv_text}\n"
-                        
-                        scoring_prompt = f"""Rate how well each previous conversation answers the user's question.
+                            conversations_text = ""
+                            for i, candidate in enumerate(filtered_candidates, 1):
+                                conv_text = candidate.get('text', '')
+                                conversations_text += f"{i}. {conv_text}\n"
+                            
+                            scoring_prompt = f"""Rate how well each previous conversation answers the user's question.
 
 User's question: "{prompt}"
 
@@ -809,67 +809,67 @@ Example: [0.8, 0.9, 0.7, 0.6, 0.5]
 
 JSON array only:"""
                     
-                        try:
-                            # Call LLM for scoring (non-streaming, fast)
-                            scoring_messages = [{"role": "user", "content": scoring_prompt}]
-                            scoring_response = llm_chat_simple(
-                                scoring_messages,
-                                max_tokens=100,  # Reduced from 200 to 100 for faster response
-                                temperature=0.3,
-                                stream=False
-                            )
-                            
-                            # Parse LLM response to extract scores
-                            import json
-                            json_match = re.search(r'\[[\d\.,\s]+\]', scoring_response)
-                            if json_match:
-                                scores = json.loads(json_match.group())
-                                print(f"[Generic] ✅ LLM returned {len(scores)} scores")
-                            else:
-                                try:
-                                    scores = json.loads(scoring_response.strip())
-                                except:
-                                    print(f"[Generic] ⚠️ Failed to parse LLM scores, using re-ranked scores as fallback")
+                            try:
+                                # Call LLM for scoring (non-streaming, fast)
+                                scoring_messages = [{"role": "user", "content": scoring_prompt}]
+                                scoring_response = llm_chat_simple(
+                                    scoring_messages,
+                                    max_tokens=100,  # Reduced from 200 to 100 for faster response
+                                    temperature=0.3,
+                                    stream=False
+                                )
+                                
+                                # Parse LLM response to extract scores
+                                import json
+                                json_match = re.search(r'\[[\d\.,\s]+\]', scoring_response)
+                                if json_match:
+                                    scores = json.loads(json_match.group())
+                                    print(f"[Generic] ✅ LLM returned {len(scores)} scores")
+                                else:
+                                    try:
+                                        scores = json.loads(scoring_response.strip())
+                                    except:
+                                        print(f"[Generic] ⚠️ Failed to parse LLM scores, using re-ranked scores as fallback")
+                                        scores = [c.get('score', 0.0) for c in filtered_candidates]
+                                
+                                # Ensure we have the right number of scores
+                                if len(scores) != len(filtered_candidates):
+                                    print(f"[Generic] ⚠️ LLM returned {len(scores)} scores but expected {len(filtered_candidates)}, using re-ranked scores as fallback")
                                     scores = [c.get('score', 0.0) for c in filtered_candidates]
-                            
-                            # Ensure we have the right number of scores
-                            if len(scores) != len(filtered_candidates):
-                                print(f"[Generic] ⚠️ LLM returned {len(scores)} scores but expected {len(filtered_candidates)}, using re-ranked scores as fallback")
-                                scores = [c.get('score', 0.0) for c in filtered_candidates]
-                            
-                            # Update candidates with LLM scores
-                            scored_candidates = []
-                            for i, (candidate, llm_score) in enumerate(zip(filtered_candidates, scores)):
-                                scored_candidates.append({
-                                    **candidate,
-                                    'score': float(llm_score),
-                                    'original_re_ranked_score': candidate.get('score', 0.0),
-                                    'llm_score': float(llm_score)
-                                })
-                                print(f"[Generic]   [{i+1}] LLM score: {llm_score:.3f} (re-ranked: {candidate.get('score', 0.0):.3f}): '{candidate.get('text', '')[:60]}...'")
-                            
-                            # Sort by LLM score (descending)
-                            scored_candidates.sort(key=lambda x: x['score'], reverse=True)
-                            
-                            # Filter by threshold and return top k
-                            # Use higher threshold (0.5) to filter out low-quality results
-                            answer_threshold = max(memory_rag_threshold, 0.5)  # At least 0.5 to ensure quality answers
-                            memory_rag_results = [
-                                r for r in scored_candidates 
-                                if r.get('score', 0) >= answer_threshold
-                            ][:memory_rag_k]
-                        except Exception as e:
-                            print(f"[Generic] ⚠️ LLM scoring failed: {e}, falling back to re-ranked scores")
-                            import traceback
-                            traceback.print_exc()
-                            # Fallback to re-ranked scores (use filtered candidates, not all candidates)
-                            scored_candidates = sorted(filtered_candidates, key=lambda x: x.get('score', 0), reverse=True)
-                            # Use higher threshold for fallback too
-                            answer_threshold = max(memory_rag_threshold, 0.5)
-                            memory_rag_results = [
-                                r for r in scored_candidates 
-                                if r.get('score', 0) >= answer_threshold
-                            ][:memory_rag_k]
+                                
+                                # Update candidates with LLM scores
+                                scored_candidates = []
+                                for i, (candidate, llm_score) in enumerate(zip(filtered_candidates, scores)):
+                                    scored_candidates.append({
+                                        **candidate,
+                                        'score': float(llm_score),
+                                        'original_re_ranked_score': candidate.get('score', 0.0),
+                                        'llm_score': float(llm_score)
+                                    })
+                                    print(f"[Generic]   [{i+1}] LLM score: {llm_score:.3f} (re-ranked: {candidate.get('score', 0.0):.3f}): '{candidate.get('text', '')[:60]}...'")
+                                
+                                # Sort by LLM score (descending)
+                                scored_candidates.sort(key=lambda x: x['score'], reverse=True)
+                                
+                                # Filter by threshold and return top k
+                                # Use higher threshold (0.5) to filter out low-quality results
+                                answer_threshold = max(memory_rag_threshold, 0.5)  # At least 0.5 to ensure quality answers
+                                memory_rag_results = [
+                                    r for r in scored_candidates 
+                                    if r.get('score', 0) >= answer_threshold
+                                ][:memory_rag_k]
+                            except Exception as e:
+                                print(f"[Generic] ⚠️ LLM scoring failed: {e}, falling back to re-ranked scores")
+                                import traceback
+                                traceback.print_exc()
+                                # Fallback to re-ranked scores (use filtered candidates, not all candidates)
+                                scored_candidates = sorted(filtered_candidates, key=lambda x: x.get('score', 0), reverse=True)
+                                # Use higher threshold for fallback too
+                                answer_threshold = max(memory_rag_threshold, 0.5)
+                                memory_rag_results = [
+                                    r for r in scored_candidates 
+                                    if r.get('score', 0) >= answer_threshold
+                                ][:memory_rag_k]
                 
                 if memory_rag_results and len(memory_rag_results) > 0:
                     print(f"[Generic] ✅ Memory RAG found {len(memory_rag_results)} relevant conversations (from {len(memory_rag_candidates)} candidates, threshold={max(memory_rag_threshold, 0.5):.2f}) - will inject context")
@@ -1230,8 +1230,8 @@ JSON array only:"""
                 if is_list_request:
                     if is_specific_set_query:
                         # For specific set queries (like "co-founders"), find ALL items, not just TOP 3
-                    list_instruction = (
-                        "\n📋 LIST QUESTION:\n"
+                        list_instruction = (
+                            "\n📋 LIST QUESTION:\n"
                             "Read all sections completely. Extract ALL items that directly match the query. "
                             "CRITICAL: Find and list ALL items that match the query - do NOT limit the number. "
                             "Read through the entire context carefully to ensure you find every relevant item. "
@@ -1256,7 +1256,7 @@ JSON array only:"""
                     question_instruction = "" if is_conversational else "\n- MANDATORY: End your response with a brief, natural question. This is REQUIRED. Examples: 'Would you like more information about this?' or 'Is there anything else I can help you with?'\n"
                     if is_specific_set_query:
                         # For specific set queries, find ALL items
-                    response_length_guideline = (
+                        response_length_guideline = (
                             "- CRITICAL: List ALL items that match the query. "
                             "Do NOT limit the number - find every item that matches. "
                             "Read through the entire context completely to ensure you don't miss any items. "

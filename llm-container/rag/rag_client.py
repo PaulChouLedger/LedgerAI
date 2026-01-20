@@ -152,9 +152,9 @@ class RAGClient:
                     self._rebuild_cpu_index()
                     print(f"[RAG Client] ✅ Index built on startup with {len(self._cpu_chunks)} chunks")
                 else:
-                # Create empty index
-                import faiss
-                self._cpu_index = faiss.IndexFlatL2(self._embedding_dim)
+                    # Create empty index
+                    import faiss
+                    self._cpu_index = faiss.IndexFlatL2(self._embedding_dim)
                 
         except Exception as e:
             print(f"[RAG Client] ❌ Failed to load CPU index: {e}")
