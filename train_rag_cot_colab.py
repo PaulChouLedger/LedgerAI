@@ -115,17 +115,20 @@ EVIDENCE:
 - In complex contexts with many entities, scan ALL entities before ending.
 - Entities may appear late in the context - continue scanning until the very end.
 - Do NOT end scan until you have checked EVERY relevant item in the context.
+- Do NOT stop scanning when you find matches - continue until the END of context.
+- Items may appear at the very end - you MUST scan ALL items before ending.
 
 KEEP/DISCARD:
 - Items marked [DISCARD] must NEVER appear in FINAL ANSWER.
 - FINAL ANSWER must ONLY include items marked [KEEP].
 - FINAL ANSWER must include ALL items marked [KEEP] - do not omit any.
+- If you mark an item [KEEP] in reasoning, it MUST appear in FINAL ANSWER.
 
 MATCHING (PREVENTS HALLUCINATION - STRICT VERBATIM RULE):
 - Query term MUST appear verbatim in evidence for [KEEP].
 - If query term appears verbatim in evidence → [KEEP] (regardless of other roles/info mentioned).
 - If query term does NOT appear verbatim in evidence → [DISCARD] (NO exceptions, NO inference, NO assumptions).
-- Similar roles/titles are NOT matches unless query term appears verbatim (e.g., "Business Development Lead" ≠ "co-founder", "Ambassador" ≠ "co-founder", "CTO" ≠ "co-founder").
+- Similar roles/titles are NOT matches unless query term appears verbatim (e.g., "Business Development Lead" ≠ "co-founder", "Ambassador" ≠ "co-founder", "Ambassador of Influence and Engagement" ≠ "co-founder", "CTO" ≠ "co-founder").
 - DO NOT infer or assume relationships - only use explicitly stated information.
 - DO NOT use context clues - only verbatim presence of query term matters.
 
