@@ -451,6 +451,20 @@ class RAGClient:
             text = result.get('text', '').lower()
             original_text = result.get('text', '')
             
+            # DEBUG: For name queries, show what name words appear in the chunk
+            if query_capitalized_lower:
+                chunk_name_words = []
+                for cap_word in query_capitalized_lower:
+                    # Check if word appears in chunk (exact or fuzzy)
+                    if cap_word in text:
+                        chunk_name_words.append(f"{cap_word}(exact)")
+                    elif self._fuzzy_match_term(cap_word, text, threshold=0.65):
+                        chunk_name_words.append(f"{cap_word}(fuzzy)")
+                if chunk_name_words:
+                    print(f"[RAG Pre-filter] 🔍 Chunk contains name words: {chunk_name_words} in '{original_text[:60]}...'")
+                else:
+                    print(f"[RAG Pre-filter] 🔍 Chunk does NOT contain any name words from query in '{original_text[:60]}...'")
+            
             # For queries with capitalized words (names), REQUIRE name matches
             # For multi-word names (2+ words), require at least 2 matches to ensure proper name matching
             # This ensures chunks about different people are excluded (e.g., "Bob Corella" shouldn't match "Bob Smith")
@@ -458,10 +472,15 @@ class RAGClient:
             matched_name_words = []
             if query_capitalized_lower:
                 # Check ALL capitalized words (don't break early - need to verify all name parts match)
-                # This is critical for fuzzy matching typos like "Corella" vs "Carella"
+                # Use lower threshold for name matching to handle spelling variations like "Raphael" vs "Rafael"
                 for cap_word in query_capitalized_lower:
+                    # Try with standard threshold first
                     if self._fuzzy_match_term(cap_word, text, threshold=0.75):
                         matched_name_words.append(cap_word)
+                    # If no match, try with lower threshold (handles name variations)
+                    elif self._fuzzy_match_term(cap_word, text, threshold=0.70):
+                        matched_name_words.append(cap_word)
+                        print(f"[RAG Pre-filter] 🔍 Name word matched with lower threshold: '{cap_word}'")
                 
                 # For multi-word names (2+ words), require at least 2 matches OR 1 strong match (last name)
                 # This ensures both first and last name match (handles typos like "Corella" vs "Carella")
@@ -483,9 +502,31 @@ class RAGClient:
                             has_name_match = True
                             print(f"[RAG Pre-filter] ✅ Name match (single strong): '{matched_word}' matched ({'last name' if is_last_name else 'strong match'}) in '{original_text[:60]}...'")
                         else:
-                            print(f"[RAG Pre-filter] ❌ Insufficient name matches: only 1/{len(query_capitalized_lower)} words matched (weak match) in '{original_text[:60]}...'")
+                            # For last name, be more lenient - if it matches at all, allow it
+                            if is_last_name:
+                                has_name_match = True
+                                print(f"[RAG Pre-filter] ✅ Name match (last name lenient): '{matched_word}' matched in '{original_text[:60]}...'")
+                            else:
+                                print(f"[RAG Pre-filter] ❌ Insufficient name matches: only 1/{len(query_capitalized_lower)} words matched (weak match) in '{original_text[:60]}...'")
                     else:
-                        print(f"[RAG Pre-filter] ❌ Insufficient name matches: only {len(matched_name_words)}/{len(query_capitalized_lower)} words matched (expected at least 1) in '{original_text[:60]}...'")
+                        # No matches at 0.75 or 0.70 - try even lower threshold for name variations
+                        # This handles cases like "Raphael" vs "Rafael" where similarity might be lower
+                        for cap_word in query_capitalized_lower:
+                            if self._fuzzy_match_term(cap_word, text, threshold=0.65):  # Very lenient for name variations
+                                matched_name_words.append(cap_word)
+                                print(f"[RAG Pre-filter] 🔍 Name word matched with very low threshold: '{cap_word}'")
+                        
+                        if len(matched_name_words) >= 1:
+                            # If we found at least one match (even with low threshold), check if it's the last name
+                            matched_word = matched_name_words[0]
+                            is_last_name = matched_word == query_capitalized_lower[-1]
+                            if is_last_name or len(matched_name_words) >= 2:
+                                has_name_match = True
+                                print(f"[RAG Pre-filter] ✅ Name match (lenient threshold): {len(matched_name_words)}/{len(query_capitalized_lower)} name words matched: {matched_name_words} in '{original_text[:60]}...'")
+                            else:
+                                print(f"[RAG Pre-filter] ❌ Insufficient name matches: only {len(matched_name_words)}/{len(query_capitalized_lower)} words matched (expected at least 1) in '{original_text[:60]}...'")
+                        else:
+                            print(f"[RAG Pre-filter] ❌ Insufficient name matches: only {len(matched_name_words)}/{len(query_capitalized_lower)} words matched (expected at least 1) in '{original_text[:60]}...'")
                 else:
                     # Single word name - use lower threshold for fuzzy matching (handles spelling variations like "Raphael" vs "Rafael")
                     # For single-word names, we're more lenient since there's no last name to confirm
