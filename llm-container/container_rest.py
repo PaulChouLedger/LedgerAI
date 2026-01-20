@@ -3187,6 +3187,7 @@ def filter_cot_reasoning(generator):
             # Extract all names from final answer (case-insensitive)
             final_answer_lower = final_answer.lower()
             missing_items = []
+            print(f"[Generic] 🔍 [CoT Reasoning Debug] Checking {len(kept_items)} KEEP items against final answer: '{final_answer[:200]}...'")
             for kept_item in kept_items:
                 kept_lower = kept_item.lower()
                 # Check if item appears in final answer (handle variations)
@@ -3194,28 +3195,51 @@ def filter_cot_reasoning(generator):
                 if len(item_parts) > 1:
                     # Multi-word name: check if all parts appear together
                     pattern = r'\b' + r'\s+'.join([re.escape(part) for part in item_parts]) + r'\b'
-                    if not re.search(pattern, final_answer_lower):
+                    found = re.search(pattern, final_answer_lower)
+                    if not found:
                         missing_items.append(kept_item)
+                        print(f"[Generic] ⚠️  [CoT Reasoning Debug] Missing: '{kept_item}' (pattern: {pattern})")
+                    else:
+                        print(f"[Generic] ✅ [CoT Reasoning Debug] Found: '{kept_item}' in final answer")
                 else:
                     # Single word: simple check
                     if kept_lower not in final_answer_lower:
                         missing_items.append(kept_item)
+                        print(f"[Generic] ⚠️  [CoT Reasoning Debug] Missing: '{kept_item}' (single word)")
+                    else:
+                        print(f"[Generic] ✅ [CoT Reasoning Debug] Found: '{kept_item}' in final answer")
             
             if missing_items:
                 print(f"[Generic] ⚠️  [CoT Reasoning Debug] Missing KEEP items in final answer: {missing_items}")
                 # Add missing items to final answer
-                # Extract existing names from answer to preserve order
+                # Extract existing names from answer to preserve order (check ALL kept_items, not just multi-word)
                 existing_names = []
                 for kept_item in kept_items:
                     kept_lower = kept_item.lower()
                     item_parts = kept_lower.split()
                     if len(item_parts) > 1:
+                        # Multi-word name: check if all parts appear together
                         pattern = r'\b' + r'\s+'.join([re.escape(part) for part in item_parts]) + r'\b'
                         if re.search(pattern, final_answer_lower):
                             existing_names.append(kept_item)
+                    else:
+                        # Single word: simple check
+                        if kept_lower in final_answer_lower:
+                            existing_names.append(kept_item)
                 
-                # Combine existing and missing items
-                all_items = existing_names + missing_items
+                # Combine existing and missing items, maintaining order from kept_items
+                # Build all_items in the order they appear in kept_items
+                all_items_ordered = []
+                for item in kept_items:  # Use kept_items order (as extracted from reasoning)
+                    if item in existing_names or item in missing_items:
+                        all_items_ordered.append(item)
+                
+                # If we still have missing items not in all_items_ordered, add them
+                for item in missing_items:
+                    if item not in all_items_ordered:
+                        all_items_ordered.append(item)
+                
+                all_items = all_items_ordered
                 
                 # Reconstruct answer with all KEEP items
                 if len(all_items) == 1:

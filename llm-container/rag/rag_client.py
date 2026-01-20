@@ -217,6 +217,7 @@ class RAGClient:
         """
         Check if a term fuzzy matches any word in the text.
         Handles transcription errors by using fuzzy string matching.
+        Also handles common name spelling variations (e.g., "Raphael" vs "Rafael").
         
         Args:
             term: Term to search for
@@ -235,10 +236,33 @@ class RAGClient:
         if term_lower in text_words:
             return True
         
+        # Handle common name spelling variations (e.g., "Raphael" vs "Rafael")
+        # These are common variations that should match even if similarity is slightly below threshold
+        common_name_variations = {
+            'raphael': ['rafael', 'raphael'],
+            'rafael': ['raphael', 'rafael'],
+            'michael': ['michael', 'micheal'],
+            'micheal': ['michael', 'micheal'],
+            'stephen': ['stephen', 'steven'],
+            'steven': ['stephen', 'steven'],
+            'catherine': ['catherine', 'katherine'],
+            'katherine': ['catherine', 'katherine'],
+        }
+        
+        # Check if term is a known name variation
+        if term_lower in common_name_variations:
+            variations = common_name_variations[term_lower]
+            for variation in variations:
+                if variation in text_words:
+                    return True
+        
         # Then try fuzzy match for transcription errors
         for word in text_words:
             # Only fuzzy match words of similar length (avoid false positives)
-            if abs(len(word) - len(term_lower)) <= 2:
+            # For names (4+ chars), allow length difference of up to 2 chars
+            # For shorter words, require exact length match
+            max_length_diff = 2 if len(term_lower) >= 4 else 1
+            if abs(len(word) - len(term_lower)) <= max_length_diff:
                 similarity = SequenceMatcher(None, term_lower, word).ratio()
                 if similarity >= threshold:
                     return True
@@ -463,10 +487,21 @@ class RAGClient:
                     else:
                         print(f"[RAG Pre-filter] ❌ Insufficient name matches: only {len(matched_name_words)}/{len(query_capitalized_lower)} words matched (expected at least 1) in '{original_text[:60]}...'")
                 else:
-                    # Single word name - just need one match
-                    has_name_match = len(matched_name_words) > 0
-                    if has_name_match:
+                    # Single word name - use lower threshold for fuzzy matching (handles spelling variations like "Raphael" vs "Rafael")
+                    # For single-word names, we're more lenient since there's no last name to confirm
+                    if len(matched_name_words) > 0:
+                        has_name_match = True
                         print(f"[RAG Pre-filter] ✅ Name match: '{matched_name_words[0]}' fuzzy matched in '{original_text[:60]}...'")
+                    else:
+                        # Try with lower threshold for single-word names (handles common spelling variations)
+                        for cap_word in query_capitalized_lower:
+                            if self._fuzzy_match_term(cap_word, text, threshold=0.70):  # Lower threshold for single-word names
+                                has_name_match = True
+                                matched_name_words.append(cap_word)
+                                print(f"[RAG Pre-filter] ✅ Name match (lower threshold): '{cap_word}' fuzzy matched in '{original_text[:60]}...'")
+                                break
+                        if not has_name_match:
+                            print(f"[RAG Pre-filter] ❌ No name match found for '{query_capitalized_lower[0]}' in '{original_text[:60]}...'")
             
             # If query has names but chunk has no name match, exclude it
             if query_capitalized_lower and not has_name_match:
