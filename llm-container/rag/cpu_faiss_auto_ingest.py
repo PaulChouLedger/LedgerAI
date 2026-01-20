@@ -35,7 +35,15 @@ try:
     PDF_SUPPORT = True
 except ImportError:
     PDF_SUPPORT = False
-    print("[Auto-Ingest] ⚠️ PDF support not available. Install PyPDF2")
+    print("[Auto-Ingest] ⚠️ PDF support (PyPDF2) not available. Install PyPDF2")
+
+# Try PyMuPDF (fitz) as a more robust PDF extraction fallback
+try:
+    import fitz  # PyMuPDF
+    PYMUPDF_SUPPORT = True
+except ImportError:
+    PYMUPDF_SUPPORT = False
+    print("[Auto-Ingest] ⚠️ PyMuPDF support not available. Install PyMuPDF for better PDF extraction: pip install PyMuPDF")
 
 try:
     import docx
@@ -250,19 +258,50 @@ class CPUFAISSAutoIngest:
                 return ""
         
         elif suffix == '.pdf':
-            if not PDF_SUPPORT:
-                print(f"[Auto-Ingest] ⚠️ PDF support not available for {file_path.name}")
+            if not PDF_SUPPORT and not PYMUPDF_SUPPORT:
+                print(f"[Auto-Ingest] ⚠️ PDF support not available for {file_path.name}. Install PyPDF2 or PyMuPDF")
                 return ""
-            try:
-                text = ""
-                with open(file_path, 'rb') as file:
-                    pdf_reader = PyPDF2.PdfReader(file)
-                    for page in pdf_reader.pages:
-                        text += page.extract_text() + "\n"
-                return text.strip()
-            except Exception as e:
-                print(f"[Auto-Ingest] ❌ PDF error {file_path.name}: {e}")
-                return ""
+            
+            # Try PyMuPDF first (more robust)
+            if PYMUPDF_SUPPORT:
+                try:
+                    doc = fitz.open(file_path)
+                    text = ""
+                    for page in doc:
+                        text += page.get_text() + "\n"
+                    doc.close()
+                    extracted_text = text.strip()
+                    if extracted_text:
+                        print(f"[Auto-Ingest] ✅ Extracted {len(extracted_text)} chars from {file_path.name} using PyMuPDF")
+                        return extracted_text
+                    else:
+                        print(f"[Auto-Ingest] ⚠️ PyMuPDF extracted empty text from {file_path.name}, trying PyPDF2...")
+                except Exception as e:
+                    print(f"[Auto-Ingest] ⚠️ PyMuPDF error for {file_path.name}: {e}, trying PyPDF2...")
+            
+            # Fallback to PyPDF2
+            if PDF_SUPPORT:
+                try:
+                    text = ""
+                    with open(file_path, 'rb') as file:
+                        pdf_reader = PyPDF2.PdfReader(file)
+                        num_pages = len(pdf_reader.pages)
+                        for i, page in enumerate(pdf_reader.pages):
+                            page_text = page.extract_text()
+                            text += page_text + "\n"
+                    extracted_text = text.strip()
+                    if extracted_text:
+                        print(f"[Auto-Ingest] ✅ Extracted {len(extracted_text)} chars from {file_path.name} using PyPDF2 ({num_pages} pages)")
+                        return extracted_text
+                    else:
+                        print(f"[Auto-Ingest] ⚠️ PyPDF2 extracted empty text from {file_path.name} ({num_pages} pages) - PDF may be image-based or encrypted")
+                        return ""
+                except Exception as e:
+                    print(f"[Auto-Ingest] ❌ PyPDF2 error for {file_path.name}: {e}")
+                    return ""
+            
+            print(f"[Auto-Ingest] ❌ No PDF extraction method available for {file_path.name}")
+            return ""
         
         elif suffix == '.docx':
             if not DOCX_SUPPORT:
@@ -375,7 +414,13 @@ class CPUFAISSAutoIngest:
             content = self._extract_text_from_file(file_path)
             
             if not content.strip():
-                print(f"[Auto-Ingest] ⚠️ Empty content extracted from {file_path.name}")
+                print(f"[Auto-Ingest] ⚠️ Empty content extracted from {file_path.name} - file may be image-based, encrypted, or corrupted")
+                print(f"[Auto-Ingest] 💡 This file will not be indexed. Check if the PDF has text layers or requires OCR.")
+                # Remove from state if it's marked as processed but has empty content
+                # This allows retrying with better extraction methods later
+                if original_name in self.state.get("processed_files", {}):
+                    print(f"[Auto-Ingest] 🔄 Removing {file_path.name} from processed state to allow retry")
+                    del self.state["processed_files"][original_name]
                 return False
             
             # Extract document name from filename
