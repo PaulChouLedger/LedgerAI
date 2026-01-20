@@ -2964,53 +2964,40 @@ def filter_cot_reasoning(generator):
     def extract_kept_items(reasoning_text):
         """Extract names/items that were marked [KEEP] in reasoning section"""
         kept_items = []
-        # Pattern: - Item: [Name] - Evidence: ... - Action: [KEEP]
-        # Handle variations: [KEEP], [ KEEP], [KEEP ], [ KEEP ], and spacing variations
-        # Match format: "- Item:Bob Carella - Evidence:"..." - Action:[ KEEP]"
-        # Improved pattern: match Item name, then skip to Action (handles Evidence with dashes/quotes)
-        # Use lookahead to find Action:[KEEP] after Item name
-        pattern = r'- Item:\s*([^-]+?)\s*-\s*(?:Evidence:[^A]*?)?Action:\s*\[\s*KEEP\s*\]'
-        matches = re.finditer(pattern, reasoning_text, re.IGNORECASE | re.DOTALL)
-        for match in matches:
-            item_name = match.group(1).strip()
-            # Clean up item name - remove quotes, evidence fragments, etc.
-            item_name = re.sub(r'^["\']|["\']$', '', item_name)  # Remove quotes
-            item_name = re.sub(r'\s*-\s*Role:.*$', '', item_name, flags=re.IGNORECASE)
-            item_name = re.sub(r'\s*-\s*Evidence:.*$', '', item_name, flags=re.IGNORECASE)
-            # Also remove any trailing " -" that might be part of the pattern
-            item_name = re.sub(r'\s*-\s*$', '', item_name)
-            item_name = item_name.strip()
-            if item_name:
-                kept_items.append(item_name)
-                print(f"[Generic] 🔍 [CoT Filter] Extracted KEEP item: '{item_name}'")
+        # Strategy: Split by " - Item:" to get individual item segments, then check each for Action:[KEEP]
+        # This is more robust than regex matching and handles Evidence sections with dashes/quotes
+        segments = re.split(r'\s*-\s*Item:', reasoning_text, flags=re.IGNORECASE)
+        for segment in segments[1:]:  # Skip first segment (before first Item)
+            # Check if this segment has Action:[KEEP]
+            if re.search(r'Action:\s*\[\s*KEEP\s*\]', segment, re.IGNORECASE):
+                # Extract name (everything before " - Evidence:" or " - Action:")
+                # Use non-greedy match to stop at first occurrence
+                name_match = re.match(r'^([^-]+?)(?:\s*-\s*(?:Evidence|Action):)', segment, re.IGNORECASE)
+                if name_match:
+                    item_name = name_match.group(1).strip()
+                    # Clean up item name
+                    item_name = re.sub(r'^["\']|["\']$', '', item_name)  # Remove quotes
+                    item_name = re.sub(r'\s*-\s*Role:.*$', '', item_name, flags=re.IGNORECASE)
+                    item_name = item_name.strip()
+                    if item_name and item_name not in kept_items:
+                        kept_items.append(item_name)
+                        print(f"[Generic] 🔍 [CoT Filter] Extracted KEEP item: '{item_name}'")
         
-        # If no matches found with standard pattern, try alternative patterns
+        # Fallback: If still no items, try regex pattern matching (for edge cases)
         if not kept_items:
-            # Alternative 1: look for "Item:Name - Action:[KEEP]" without Evidence
-            alt_pattern = r'Item:\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s*-\s*Action:\s*\[\s*KEEP\s*\]'
-            alt_matches = re.finditer(alt_pattern, reasoning_text, re.IGNORECASE)
-            for match in alt_matches:
+            # Pattern: - Item: [Name] - Evidence: ... - Action: [KEEP]
+            pattern = r'- Item:\s*([^-]+?)(?:(?!\s*-\s*Item:).)*?-\s*Action:\s*\[\s*KEEP\s*\]'
+            matches = re.finditer(pattern, reasoning_text, re.IGNORECASE | re.DOTALL)
+            for match in matches:
                 item_name = match.group(1).strip()
+                item_name = re.sub(r'^["\']|["\']$', '', item_name)
+                item_name = re.sub(r'\s*-\s*Role:.*$', '', item_name, flags=re.IGNORECASE)
+                item_name = re.sub(r'\s*-\s*Evidence:.*$', '', item_name, flags=re.IGNORECASE)
+                item_name = re.sub(r'\s*-\s*$', '', item_name)
+                item_name = item_name.strip()
                 if item_name and item_name not in kept_items:
                     kept_items.append(item_name)
-                    print(f"[Generic] 🔍 [CoT Filter] Extracted KEEP item (alt pattern 1): '{item_name}'")
-        
-        # Alternative 2: Split by " - Item:" and check each segment for Action:[KEEP]
-        if not kept_items:
-            # Split reasoning into item segments
-            segments = re.split(r'\s*-\s*Item:', reasoning_text, flags=re.IGNORECASE)
-            for segment in segments[1:]:  # Skip first segment (before first Item)
-                # Check if this segment has Action:[KEEP]
-                if re.search(r'Action:\s*\[\s*KEEP\s*\]', segment, re.IGNORECASE):
-                    # Extract name (everything before " - Evidence:" or " - Action:")
-                    name_match = re.match(r'^([^-]+?)(?:\s*-\s*(?:Evidence|Action):)', segment, re.IGNORECASE)
-                    if name_match:
-                        item_name = name_match.group(1).strip()
-                        item_name = re.sub(r'^["\']|["\']$', '', item_name)
-                        item_name = item_name.strip()
-                        if item_name and item_name not in kept_items:
-                            kept_items.append(item_name)
-                            print(f"[Generic] 🔍 [CoT Filter] Extracted KEEP item (alt pattern 2): '{item_name}'")
+                    print(f"[Generic] 🔍 [CoT Filter] Extracted KEEP item (regex fallback): '{item_name}'")
         
         return kept_items
     
@@ -3162,8 +3149,32 @@ def filter_cot_reasoning(generator):
                 print(f"{'='*80}")
                 if discarded_items:
                     print(f"[Generic] 🚫 [CoT Reasoning Debug] Items marked DISCARD: {discarded_items}")
+                else:
+                    print(f"[Generic] 🚫 [CoT Reasoning Debug] No DISCARD items found")
                 if kept_items:
-                    print(f"[Generic] ✅ [CoT Reasoning Debug] Items marked KEEP: {kept_items}")
+                    print(f"[Generic] ✅ [CoT Reasoning Debug] Items marked KEEP ({len(kept_items)}): {kept_items}")
+                else:
+                    print(f"[Generic] ⚠️  [CoT Reasoning Debug] WARNING: No KEEP items extracted! This may indicate extraction failure.")
+                    # Fallback: try to extract all items with KEEP action using simpler pattern
+                    print(f"[Generic] 🔄 [CoT Reasoning Debug] Attempting fallback extraction...")
+                    # Look for all "Action:[KEEP]" occurrences and extract preceding Item names
+                    keep_matches = list(re.finditer(r'Action:\s*\[\s*KEEP\s*\]', clean_reasoning, re.IGNORECASE))
+                    print(f"[Generic] 🔍 [CoT Reasoning Debug] Found {len(keep_matches)} Action:[KEEP] markers")
+                    for i, keep_match in enumerate(keep_matches):
+                        # Find the preceding "Item:" before this KEEP action
+                        text_before = clean_reasoning[:keep_match.start()]
+                        # Find the last "Item:" before this KEEP
+                        item_match = list(re.finditer(r'- Item:\s*([^-]+?)(?:\s*-\s*(?:Evidence|Action):)', text_before, re.IGNORECASE))
+                        if item_match:
+                            last_item = item_match[-1]
+                            item_name = last_item.group(1).strip()
+                            item_name = re.sub(r'^["\']|["\']$', '', item_name)
+                            item_name = item_name.strip()
+                            if item_name and item_name not in kept_items:
+                                kept_items.append(item_name)
+                                print(f"[Generic] 🔍 [CoT Filter] Fallback extracted KEEP item: '{item_name}'")
+                    if kept_items:
+                        print(f"[Generic] ✅ [CoT Reasoning Debug] Fallback extraction found {len(kept_items)} KEEP items: {kept_items}")
                 print(f"{'='*80}\n")
                 
                 # Extract initial answer text from buffer (matches test script)
@@ -3267,16 +3278,22 @@ def filter_cot_reasoning(generator):
                             existing_names.append(kept_item)
                 
                 # Combine existing and missing items, maintaining order from kept_items
+                # CRITICAL: Include ALL items from kept_items (they were marked KEEP, so they must be in final answer)
                 # Build all_items in the order they appear in kept_items
                 all_items_ordered = []
+                # First, add all items from kept_items in order (ensures all KEEP items are included)
                 for item in kept_items:  # Use kept_items order (as extracted from reasoning)
-                    if item in existing_names or item in missing_items:
-                        all_items_ordered.append(item)
-                
-                # If we still have missing items not in all_items_ordered, add them
-                for item in missing_items:
                     if item not in all_items_ordered:
                         all_items_ordered.append(item)
+                
+                # Verify: all kept_items should be in all_items_ordered
+                if len(all_items_ordered) != len(kept_items):
+                    print(f"[Generic] ⚠️  [CoT Reasoning Debug] WARNING: all_items_ordered ({len(all_items_ordered)}) != kept_items ({len(kept_items)})")
+                    # Force add any missing items
+                    for item in kept_items:
+                        if item not in all_items_ordered:
+                            all_items_ordered.append(item)
+                            print(f"[Generic] 🔧 [CoT Reasoning Debug] Force-added missing item: '{item}'")
                 
                 all_items = all_items_ordered
                 
