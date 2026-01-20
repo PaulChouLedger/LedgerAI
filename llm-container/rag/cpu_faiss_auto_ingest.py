@@ -638,8 +638,28 @@ class CPUFAISSAutoIngest:
                 if file_path.name in self.state.get("processed_files", {}):
                     print(f"[Auto-Ingest] 🔄 Removing {file_path.name} from processed state for reprocessing")
                     del self.state["processed_files"][file_path.name]
+                # Also remove from embeddings so it gets fully reprocessed
+                # Remove chunks from this file
+                if self.metadata and self.chunks:
+                    file_name = file_path.name
+                    indices_to_remove = []
+                    for i, meta in enumerate(self.metadata):
+                        if isinstance(meta, dict):
+                            meta_file_path = meta.get("file_path", "")
+                            doc_name = meta.get("document_name", "")
+                            if (meta_file_path and Path(meta_file_path).name == file_name) or \
+                               (doc_name == file_name or doc_name == file_path.stem):
+                                indices_to_remove.append(i)
+                    # Remove in reverse order to maintain indices
+                    for i in reversed(indices_to_remove):
+                        if i < len(self.chunks) and i < len(self.metadata):
+                            del self.chunks[i]
+                            del self.metadata[i]
+                    if indices_to_remove:
+                        print(f"[Auto-Ingest] 🗑️ Removed {len(indices_to_remove)} chunks from {file_path.name} for reprocessing")
         
         # Process all input files (will skip if already processed and unchanged)
+        # Files with suspicious chunk counts have been removed from state, so they'll be reprocessed
         for file_path in input_files:
             try:
                 if self._process_file(file_path):
