@@ -582,8 +582,18 @@ def handle_conversation(
         memory_rag_results = []  # Results from memory container
         memory_rag_failed = False  # Track if memory RAG failed (timeout, error, etc.)
         
-        # Only skip RAG for personal queries or simple conversational phrases (not information-seeking)
-        if not is_personal_query and not is_conversational:
+        # Skip RAG only for personal queries or truly simple conversational phrases (greetings, acknowledgments)
+        # Don't skip RAG for information-seeking queries like "Do you know...", "Tell me about...", "Who is..."
+        # These are conversational in form but information-seeking in intent
+        is_information_seeking = any(phrase in normalized_prompt for phrase in [
+            'do you know', 'tell me about', 'tell me', 'who is', 'what is', 'where is', 
+            'when is', 'how is', 'why is', 'can you tell', 'explain', 'describe'
+        ])
+        simple_conversational_only = is_conversational and not is_information_seeking
+        
+        # Only skip RAG for personal queries or simple conversational phrases (greetings, etc.)
+        # Always use RAG for information-seeking queries if content exists
+        if not is_personal_query and (not simple_conversational_only or is_information_seeking):
             # Detect if query is asking for "what else" or additional information
             is_followup_query = any(phrase in prompt.lower() for phrase in ['what else', 'anything else', 'more about', 'additional', 'other'])
             
@@ -2434,8 +2444,15 @@ def chat_tts():
             ]
             is_conversational = any(phrase in normalized_prompt for phrase in conversational_phrases)
             
+            # Check if query is information-seeking (should use RAG even if conversational in form)
+            is_information_seeking = any(phrase in normalized_prompt for phrase in [
+                'do you know', 'tell me about', 'tell me', 'who is', 'what is', 'where is', 
+                'when is', 'how is', 'why is', 'can you tell', 'explain', 'describe'
+            ])
+            
             # SIMPLIFIED: Use quick_content_match as primary RAG trigger (fast substring/fuzzy match)
             # This is more reliable than pattern matching - if content exists, use RAG
+            # Allow RAG for information-seeking queries even if they're conversational in form
             will_use_rag = False
             if RAG_MODE in ("CPU", "GPU"):
                 try:
@@ -2444,8 +2461,12 @@ def chat_tts():
                     if client:
                         has_doc_content = client.quick_content_match(prompt)
                         if has_doc_content:
-                            will_use_rag = True
-                            print(f"[Generic] ✅ Document RAG will be used - quick_content_match found relevant content")
+                            # Use RAG if content exists, even for conversational information-seeking queries
+                            if not is_conversational or is_information_seeking:
+                                will_use_rag = True
+                                print(f"[Generic] ✅ Document RAG will be used - quick_content_match found relevant content")
+                            else:
+                                print(f"[Generic] 🔍 Document RAG found content but skipping (simple conversational query)")
                         else:
                             print(f"[Generic] 🔍 Document RAG quick_content_match: no relevant content found")
                     
@@ -2946,9 +2967,9 @@ def filter_cot_reasoning(generator):
         # Pattern: - Item: [Name] - Evidence: ... - Action: [KEEP]
         # Handle variations: [KEEP], [ KEEP], [KEEP ], [ KEEP ], and spacing variations
         # Match format: "- Item:Bob Carella - Evidence:"..." - Action:[ KEEP]"
-        # Improved pattern to handle cases where items might be on same line or have different spacing
-        # Use more flexible matching: allow for optional spaces, handle cases where Evidence might be missing
-        pattern = r'- Item:\s*([^-]+?)(?:\s*-\s*Evidence:[^-]*?)?\s*-\s*Action:\s*\[\s*KEEP\s*\]'
+        # Improved pattern: match Item name, then skip to Action (handles Evidence with dashes/quotes)
+        # Use lookahead to find Action:[KEEP] after Item name
+        pattern = r'- Item:\s*([^-]+?)\s*-\s*(?:Evidence:[^A]*?)?Action:\s*\[\s*KEEP\s*\]'
         matches = re.finditer(pattern, reasoning_text, re.IGNORECASE | re.DOTALL)
         for match in matches:
             item_name = match.group(1).strip()
@@ -2963,16 +2984,33 @@ def filter_cot_reasoning(generator):
                 kept_items.append(item_name)
                 print(f"[Generic] 🔍 [CoT Filter] Extracted KEEP item: '{item_name}'")
         
-        # If no matches found with standard pattern, try alternative pattern (items might be formatted differently)
+        # If no matches found with standard pattern, try alternative patterns
         if not kept_items:
-            # Alternative: look for "Item:Name - Action:[KEEP]" without Evidence
+            # Alternative 1: look for "Item:Name - Action:[KEEP]" without Evidence
             alt_pattern = r'Item:\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s*-\s*Action:\s*\[\s*KEEP\s*\]'
             alt_matches = re.finditer(alt_pattern, reasoning_text, re.IGNORECASE)
             for match in alt_matches:
                 item_name = match.group(1).strip()
                 if item_name and item_name not in kept_items:
                     kept_items.append(item_name)
-                    print(f"[Generic] 🔍 [CoT Filter] Extracted KEEP item (alt pattern): '{item_name}'")
+                    print(f"[Generic] 🔍 [CoT Filter] Extracted KEEP item (alt pattern 1): '{item_name}'")
+        
+        # Alternative 2: Split by " - Item:" and check each segment for Action:[KEEP]
+        if not kept_items:
+            # Split reasoning into item segments
+            segments = re.split(r'\s*-\s*Item:', reasoning_text, flags=re.IGNORECASE)
+            for segment in segments[1:]:  # Skip first segment (before first Item)
+                # Check if this segment has Action:[KEEP]
+                if re.search(r'Action:\s*\[\s*KEEP\s*\]', segment, re.IGNORECASE):
+                    # Extract name (everything before " - Evidence:" or " - Action:")
+                    name_match = re.match(r'^([^-]+?)(?:\s*-\s*(?:Evidence|Action):)', segment, re.IGNORECASE)
+                    if name_match:
+                        item_name = name_match.group(1).strip()
+                        item_name = re.sub(r'^["\']|["\']$', '', item_name)
+                        item_name = item_name.strip()
+                        if item_name and item_name not in kept_items:
+                            kept_items.append(item_name)
+                            print(f"[Generic] 🔍 [CoT Filter] Extracted KEEP item (alt pattern 2): '{item_name}'")
         
         return kept_items
     

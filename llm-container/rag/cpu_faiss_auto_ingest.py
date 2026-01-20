@@ -423,6 +423,16 @@ class CPUFAISSAutoIngest:
                     del self.state["processed_files"][original_name]
                 return False
             
+            # Check if we got a reasonable amount of text (at least 100 characters for PDFs)
+            min_chars = 100 if file_path.suffix.lower() == '.pdf' else 50
+            if len(content.strip()) < min_chars:
+                print(f"[Auto-Ingest] ⚠️ Very little content extracted from {file_path.name}: {len(content.strip())} chars (expected at least {min_chars})")
+                print(f"[Auto-Ingest] 💡 This may indicate a PDF extraction issue. Removing from state for retry with better extraction.")
+                if original_name in self.state.get("processed_files", {}):
+                    print(f"[Auto-Ingest] 🔄 Removing {file_path.name} from processed state to allow retry")
+                    del self.state["processed_files"][original_name]
+                return False
+            
             # Extract document name from filename
             doc_name = file_path.stem
             
@@ -569,6 +579,30 @@ class CPUFAISSAutoIngest:
             for file_path in input_files:
                 print(f"[Auto-Ingest]   - {file_path.name}")
         
+        # Count chunks per file from metadata
+        chunks_per_file = {}
+        if self.metadata:
+            for meta in self.metadata:
+                if isinstance(meta, dict):
+                    file_path = meta.get("file_path", "")
+                    doc_name = meta.get("document_name", "")
+                    if file_path:
+                        file_name = Path(file_path).name
+                    elif doc_name:
+                        # Try to match document name to file name
+                        file_name = doc_name
+                        # Check if it needs .pdf extension
+                        for input_file in input_files:
+                            if input_file.stem == doc_name or input_file.name == doc_name:
+                                file_name = input_file.name
+                                break
+                    else:
+                        continue
+                    
+                    if file_name not in chunks_per_file:
+                        chunks_per_file[file_name] = 0
+                    chunks_per_file[file_name] += 1
+        
         # Check for missing files (in input but not in embeddings)
         # A file is "missing" if it's in input but not in embeddings (regardless of state)
         # This handles cases where embeddings were deleted or state is out of sync
@@ -578,12 +612,32 @@ class CPUFAISSAutoIngest:
             if file_name not in files_in_embeddings:
                 missing_files.append(file_path)
         
+        # Check for files with suspiciously low chunk counts (likely extraction failures)
+        # PDFs should have more than 5 chunks, other documents more than 1
+        suspicious_files = []
+        for file_path in input_files:
+            file_name = file_path.name
+            chunk_count = chunks_per_file.get(file_name, 0)
+            if chunk_count > 0:  # File exists in embeddings
+                min_expected_chunks = 5 if file_path.suffix.lower() == '.pdf' else 1
+                if chunk_count < min_expected_chunks:
+                    suspicious_files.append((file_path, chunk_count, min_expected_chunks))
+        
         if missing_files:
             print(f"[Auto-Ingest] ⚠️ Found {len(missing_files)} file(s) in input but missing from embeddings:")
             for file_path in missing_files:
                 in_state = file_path.name in files_in_state
                 status = "in state but missing from embeddings" if in_state else "not in state or embeddings"
                 print(f"[Auto-Ingest]   - {file_path.name} ({status}) - will be processed")
+        
+        if suspicious_files:
+            print(f"[Auto-Ingest] ⚠️ Found {len(suspicious_files)} file(s) with suspiciously low chunk counts (likely extraction failures):")
+            for file_path, chunk_count, min_expected in suspicious_files:
+                print(f"[Auto-Ingest]   - {file_path.name}: {chunk_count} chunks (expected at least {min_expected}) - will be re-processed")
+                # Force reprocessing by removing from state
+                if file_path.name in self.state.get("processed_files", {}):
+                    print(f"[Auto-Ingest] 🔄 Removing {file_path.name} from processed state for reprocessing")
+                    del self.state["processed_files"][file_path.name]
         
         # Process all input files (will skip if already processed and unchanged)
         for file_path in input_files:
