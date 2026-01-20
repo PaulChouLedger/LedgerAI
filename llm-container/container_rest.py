@@ -63,13 +63,13 @@ cot_container = BaseLLMContainer(
 
 # Override default parameters for base container (conversational)
 base_container.LLM_NUM_PREDICT_DEFAULT = 800  # Increased for comprehensive responses
-base_container.SIMPLE_N_CTX = 2048  # Reduced context for faster inference
+base_container.SIMPLE_N_CTX = 8192  # Match training MAX_SEQ_LENGTH (was 2048, causing truncation)
 base_container.N_BATCH = 256  # Reduced for faster generation
 base_container.SIMPLE_CHAT_FORMAT = os.getenv('SIMPLE_CHAT_FORMAT', 'chatml')
 
 # Override default parameters for CoT container (RAG queries)
 cot_container.LLM_NUM_PREDICT_DEFAULT = 2048  # Higher for CoT reasoning + final answer
-cot_container.SIMPLE_N_CTX = 2048  # Reduced context for faster inference
+cot_container.SIMPLE_N_CTX = 8192  # Match training MAX_SEQ_LENGTH (was 2048, causing truncation)
 cot_container.N_BATCH = 256  # Same batch size
 cot_container.SIMPLE_CHAT_FORMAT = os.getenv('SIMPLE_CHAT_FORMAT', 'chatml')
 
@@ -1350,21 +1350,49 @@ JSON array only:"""
                 
                 # Use CoT format ONLY when RAG is triggered (has_rag_context = True)
                 # This matches the user's request: "use CoT when RAG is triggered and use basic LLM conversational mode if RAG not triggered"
+                # IMPORTANT: This prompt MUST match the training prompt exactly (from test_rag_cot_model_colab.py)
                 cot_system_prompt = (
-                    "You are a precise data extraction bot.\n"
-                    "1. Start with REASONING:\n"
-                    "2. Scan the context carefully for information relevant to the query.\n"
-                    "3. For each relevant item found, write:\n"
+                    "You are a precise data extraction bot.\n\n"
+                    "ALWAYS START WITH REASONING:\n"
+                    "Begin every response with \"REASONING:\" - this is MANDATORY.\n\n"
+                    "1. REASONING: For each relevant item found in the context:\n"
                     "   - Item: [What you found]\n"
                     "   - Evidence: \"[Verbatim quote from context]\"\n"
-                    "   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n"
-                    "4. End scan with: - End of scan.\n"
-                    "5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\n"
-                    "CRITICAL RULES:\n"
+                    "   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n\n"
+                    "2. End scan with: - End of scan.\n\n"
+                    "3. FINAL ANSWER: based ONLY on [KEEP] items.\n\n"
+                    "CRITICAL RULES (APPLY TO ALL QUERIES):\n\n"
+                    "EVIDENCE:\n"
+                    "- Evidence MUST be EXACT verbatim quote from context - do NOT paraphrase or fabricate.\n"
+                    "- You MUST evaluate ALL relevant items in the context before ending the scan.\n"
+                    "- Read through the ENTIRE context completely - do NOT stop scanning early.\n"
+                    "- Scan systematically through all chunks, paragraphs, and sections.\n"
+                    "- In complex contexts with many entities, scan ALL entities before ending.\n"
+                    "- Entities may appear late in the context - continue scanning until the very end.\n"
+                    "- Do NOT end scan until you have checked EVERY relevant item in the context.\n"
+                    "- Do NOT stop scanning when you find matches - continue until the END of context.\n"
+                    "- Items may appear at the very end - you MUST scan ALL items before ending.\n\n"
+                    "KEEP/DISCARD:\n"
                     "- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n"
                     "- FINAL ANSWER must ONLY include items marked [KEEP].\n"
-                    "- If you mark an item [DISCARD] in reasoning, do NOT mention it in FINAL ANSWER.\n"
-                    "- Read entire descriptions/chunks completely - titles may appear later in the text.\n"
+                    "- FINAL ANSWER must include ALL items marked [KEEP] - do not omit any.\n"
+                    "- If you mark an item [KEEP] in reasoning, it MUST appear in FINAL ANSWER.\n\n"
+                    "MATCHING (PREVENTS HALLUCINATION - STRICT VERBATIM RULE):\n"
+                    "- Query term MUST appear verbatim in evidence for [KEEP].\n"
+                    "- If query term appears verbatim in evidence → [KEEP] (regardless of other roles/info mentioned).\n"
+                    "- If query term does NOT appear verbatim in evidence → [DISCARD] (NO exceptions, NO inference, NO assumptions).\n"
+                    "- Similar roles/titles are NOT matches unless query term appears verbatim (e.g., \"Business Development Lead\" ≠ \"co-founder\", \"Ambassador\" ≠ \"co-founder\", \"Ambassador of Influence and Engagement\" ≠ \"co-founder\", \"CTO\" ≠ \"co-founder\").\n"
+                    "- DO NOT infer or assume relationships - only use explicitly stated information.\n"
+                    "- DO NOT use context clues - only verbatim presence of query term matters.\n\n"
+                    "EMPTY RESULTS:\n"
+                    "- If ALL items are marked [DISCARD], FINAL ANSWER must indicate no matches found.\n\n"
+                    "OUTPUT FORMAT:\n"
+                    "- FINAL ANSWER must include ONLY the information explicitly requested in the query - nothing more, nothing less.\n"
+                    "- Include ONLY what is requested - exclude extra words, role titles, dates, or any context not explicitly requested.\n"
+                    "- If query asks for a list, include ALL matching items found in the context (do not omit any).\n"
+                    "- Preserve verbatim information from evidence - do NOT paraphrase (e.g., if evidence says \"50 developers\", do NOT change to \"50 employees\").\n"
+                    "- For queries asking \"Who is the [ROLE]?\", include ONLY the person's name, not the role title or company name.\n"
+                    "- For queries asking for amounts/numbers, include ONLY the amount/number, not dates, years, or other context."
                 )
                 
                 # Build system and user messages - match training format EXACTLY
