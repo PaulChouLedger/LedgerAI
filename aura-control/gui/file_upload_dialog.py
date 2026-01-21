@@ -22,9 +22,9 @@ class RAGFilesDialog(BaseAuraDialog):
     """Dialog showing files actively being used by RAG"""
     
     def __init__(self, parent=None):
-        super().__init__(parent, title="📚 RAG Files Status", size=(1080, 1080), modal=True)
-        # Initialize file item mapping
+        # Initialize attributes before calling super().__init__() which calls _setup_ui()
         self.file_item_map = {}
+        super().__init__(parent, title="📚 RAG Files Status", size=(1080, 1080), modal=True)
     
     def _setup_ui(self):
         """Setup UI - called by BaseAuraDialog"""
