@@ -591,6 +591,29 @@ def handle_conversation(
         ])
         simple_conversational_only = is_conversational and not is_information_seeking
         
+        # Check if RAG will be used BEFORE doing the search (for filler phrase timing)
+        will_use_rag = False
+        if not is_personal_query and (not simple_conversational_only or is_information_seeking):
+            # Quick check: does document RAG have relevant content?
+            try:
+                client = get_rag_client()
+                if client:
+                    has_content = client.quick_content_match(prompt)
+                    if has_content:
+                        will_use_rag = True
+                        print(f"[Generic] ✅ Document RAG will be used - quick_content_match found relevant content")
+            except Exception as e:
+                print(f"[Generic] ⚠️ RAG pre-check failed: {e}")
+        
+        # If streaming and RAG will be used, yield filler phrase IMMEDIATELY (before RAG search)
+        if stream and will_use_rag and not is_conversational:
+            filler_phrase = get_filler_phrase()
+            print(f"[Generic] 💭 Yielding filler phrase IMMEDIATELY before RAG search: '{filler_phrase}'")
+            # Yield filler phrase with sentence tags
+            yield "<sentence_start>\n"
+            yield filler_phrase
+            yield "\n<sentence_end>\n"
+        
         # Only skip RAG for personal queries or simple conversational phrases (greetings, etc.)
         # Always use RAG for information-seeking queries if content exists
         if not is_personal_query and (not simple_conversational_only or is_information_seeking):
@@ -1426,7 +1449,12 @@ JSON array only:"""
             # Use 2048 tokens to match test script (was 800, might be cutting off reasoning)
             max_tokens_limit = 2048 if is_list_request else MAX_TOKENS_RAG_MODE
             # Use CoT model for RAG queries (dual-model architecture)
-            return llm_chat_simple(messages, max_tokens=max_tokens_limit, temperature=0, stream=stream, use_cot_model=True, stop=["<|im_end|>"])
+            llm_response = llm_chat_simple(messages, max_tokens=max_tokens_limit, temperature=0, stream=stream, use_cot_model=True, stop=["<|im_end|>"])
+            if stream:
+                # Yield from LLM response generator
+                yield from llm_response
+            else:
+                return llm_response
         else:
             # No RAG context, use standard prompt with Aura Vision identity
             # Check if memory RAG was attempted but found no useful information
@@ -2098,7 +2126,11 @@ JSON array only:"""
         # The base class already wraps it with debug logging
         # Use higher token limit for list questions to ensure all items are included
         max_tokens_limit = MAX_TOKENS_RAG_MODE_LIST if is_list_request else MAX_TOKENS_RAG_MODE
-        return llm_chat_simple(messages, max_tokens=max_tokens_limit, stream=stream)
+        llm_response = llm_chat_simple(messages, max_tokens=max_tokens_limit, stream=stream)
+    if stream:
+        yield from llm_response
+    else:
+        return llm_response
 
     # Fallback to direct LLM conversation without external context
     # Detect if user is asking for instructions/steps
@@ -2270,7 +2302,11 @@ JSON array only:"""
     # Don't wrap the iterator - let base_container's debug_iterator handle logging
     # The base class already wraps it with debug logging
     max_tokens_limit = MAX_TOKENS_DIRECT_MODE_LIST if is_list_request_direct else MAX_TOKENS_DIRECT_MODE
-    return llm_chat_simple(messages, max_tokens=max_tokens_limit, stream=stream)
+    llm_response = llm_chat_simple(messages, max_tokens=max_tokens_limit, stream=stream)
+    if stream:
+        yield from llm_response
+    else:
+        return llm_response
 
 
 def _embed_texts(texts: List[str]) -> List[List[float]]:

@@ -281,10 +281,10 @@ class CPUFAISSAutoIngest:
             
             # Fallback to PyPDF2
             if PDF_SUPPORT:
-                try:
-                    text = ""
-                    with open(file_path, 'rb') as file:
-                        pdf_reader = PyPDF2.PdfReader(file)
+            try:
+                text = ""
+                with open(file_path, 'rb') as file:
+                    pdf_reader = PyPDF2.PdfReader(file)
                         num_pages = len(pdf_reader.pages)
                         for i, page in enumerate(pdf_reader.pages):
                             page_text = page.extract_text()
@@ -296,12 +296,12 @@ class CPUFAISSAutoIngest:
                     else:
                         print(f"[Auto-Ingest] ⚠️ PyPDF2 extracted empty text from {file_path.name} ({num_pages} pages) - PDF may be image-based or encrypted")
                         return ""
-                except Exception as e:
+            except Exception as e:
                     print(f"[Auto-Ingest] ❌ PyPDF2 error for {file_path.name}: {e}")
                     return ""
             
             print(f"[Auto-Ingest] ❌ No PDF extraction method available for {file_path.name}")
-            return ""
+                return ""
         
         elif suffix == '.docx':
             if not DOCX_SUPPORT:
