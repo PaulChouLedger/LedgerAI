@@ -2498,10 +2498,10 @@ def chat_tts():
                         if has_doc_content:
                             # Use RAG if content exists, even for conversational information-seeking queries
                             if not is_conversational or is_information_seeking:
-                                will_use_rag = True
+                            will_use_rag = True
                                 print(f"[Generic] ✅ [RAG Decision] Document RAG will be used - quick_content_match found relevant content")
                                 print(f"[Generic] ✅ [RAG Decision] will_use_rag=True (is_conversational={is_conversational}, is_information_seeking={is_information_seeking})")
-                            else:
+                        else:
                                 print(f"[Generic] 🔍 [RAG Decision] Document RAG found content but skipping (simple conversational query)")
                         else:
                             print(f"[Generic] 🔍 [RAG Decision] Document RAG quick_content_match: no relevant content found")
@@ -3019,15 +3019,17 @@ def filter_cot_reasoning(generator):
     def extract_kept_items(reasoning_text):
         """Extract names/items that were marked [KEEP] in reasoning section"""
         kept_items = []
-        # Strategy: Split by " - Item:" to get individual item segments, then check each for Action:[KEEP]
+        # Strategy: Split by both " - Item:" and "Item:" (with or without dash) to handle all formats
         # This is more robust than regex matching and handles Evidence sections with dashes/quotes
-        segments = re.split(r'\s*-\s*Item:', reasoning_text, flags=re.IGNORECASE)
-        for segment in segments[1:]:  # Skip first segment (before first Item)
+        # Handle both formats: "- Item:" and "Item:" (without dash, like "Item:Liam Hugill")
+        segments = re.split(r'\s*-\s*Item:|\bItem:', reasoning_text, flags=re.IGNORECASE)
+        print(f"[Generic] 🔍 [CoT Filter] Split reasoning into {len(segments)} segments")
+        for i, segment in enumerate(segments[1:], 1):  # Skip first segment (before first Item)
             # Check if this segment has Action:[KEEP]
             if re.search(r'Action:\s*\[\s*KEEP\s*\]', segment, re.IGNORECASE):
-                # Extract name (everything before " - Evidence:" or " - Action:")
+                # Extract name (everything before " - Evidence:" or " - Action:" or just "Evidence:" or "Action:")
                 # Use non-greedy match to stop at first occurrence
-                name_match = re.match(r'^([^-]+?)(?:\s*-\s*(?:Evidence|Action):)', segment, re.IGNORECASE)
+                name_match = re.match(r'^([^-]+?)(?:\s*-\s*(?:Evidence|Action):|(?:Evidence|Action):)', segment, re.IGNORECASE)
                 if name_match:
                     item_name = name_match.group(1).strip()
                     # Clean up item name
@@ -3036,7 +3038,11 @@ def filter_cot_reasoning(generator):
                     item_name = item_name.strip()
                     if item_name and item_name not in kept_items:
                         kept_items.append(item_name)
-                        print(f"[Generic] 🔍 [CoT Filter] Extracted KEEP item: '{item_name}'")
+                        print(f"[Generic] 🔍 [CoT Filter] Extracted KEEP item: '{item_name}' (segment {i})")
+                    else:
+                        print(f"[Generic] ⚠️ [CoT Filter] Skipped empty/duplicate item name from segment {i}: '{item_name}'")
+                else:
+                    print(f"[Generic] ⚠️ [CoT Filter] No name match found in segment {i} (has KEEP): '{segment[:100]}...'")
         
         # Fallback: If still no items, try regex pattern matching (for edge cases)
         if not kept_items:
@@ -3346,8 +3352,8 @@ def filter_cot_reasoning(generator):
                     print(f"[Generic] ⚠️  [CoT Reasoning Debug] WARNING: all_items_ordered ({len(all_items_ordered)}) != kept_items ({len(kept_items)})")
                     # Force add any missing items
                     for item in kept_items:
-                        if item not in all_items_ordered:
-                            all_items_ordered.append(item)
+                    if item not in all_items_ordered:
+                        all_items_ordered.append(item)
                             print(f"[Generic] 🔧 [CoT Reasoning Debug] Force-added missing item: '{item}'")
                 
                 all_items = all_items_ordered

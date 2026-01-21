@@ -65,7 +65,15 @@ from transformers import TrainingArguments
 # Configuration
 # ============================================================================
 
-MODEL_NAME = "unsloth/Qwen2.5-1.5B-Instruct-bnb-4bit"  # Qwen 2.5 1.5B - better instruction following and reasoning
+#
+# Model selection
+# ---------------
+# Recommended default for Colab A100 (especially 80GB): 14B gives a large reasoning lift
+# over 1.5B while still being easy to fine-tune with LoRA.
+#
+# Note: This script uses Unsloth 4-bit loading + LoRA (QLoRA-style).
+# If you switch to a different base model, prefer an Unsloth *-bnb-4bit* checkpoint.
+MODEL_NAME = "unsloth/Qwen2.5-14B-Instruct-bnb-4bit"
 
 # Dataset Priority (highest to lowest):
 # 1. medical_sft_dataset_complex.json - LATEST & MOST ADVANCED
@@ -470,7 +478,11 @@ print("=" * 80)
 # 1.5B provides better instruction following and reasoning than 0.5B.
 # See BASE_MODEL_SIZE_VS_LORA_RANK.md and UPGRADE_TO_1.5B_RECOMMENDATION.md for details.
 
-LORA_RANK = 256  # Good balance for 1.5B model
+# LoRA rank guidance:
+# - 1.5B: r=256 is reasonable.
+# - 7B/14B: start with r=128 (better generalization on small datasets; plenty of capacity).
+# - 32B+: start with r=64–128 unless you have a large dataset.
+LORA_RANK = 128
 LORA_ALPHA = LORA_RANK * 2  # Optimal scaling: alpha = 2x rank (512)
 
 model = FastLanguageModel.get_peft_model(
@@ -503,10 +515,13 @@ print("=" * 80)
 # Training arguments optimized for Unsloth and medical conversations
 # Enhanced for clinical reasoning and OLD CARTS framework adherence
 training_args = TrainingArguments(
+    # A100 80GB can handle more, but keep defaults conservative and stable.
     per_device_train_batch_size=2,
     gradient_accumulation_steps=4,  # Effective batch size = 8
     warmup_steps=75,  # Increased warmup for better clinical reasoning learning
-    num_train_epochs=10,  # Increased to 10 for better element identification and condition matching
+    # With the current dataset (often ~100 conversations), 10 epochs can overfit quickly on 14B+.
+    # Start with 3 epochs; increase only if you expand the dataset meaningfully.
+    num_train_epochs=3,
     learning_rate=1.5e-4,  # Slightly lower for more stable learning
     fp16=not torch.cuda.is_bf16_supported(),
     bf16=torch.cuda.is_bf16_supported(),
