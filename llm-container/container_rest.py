@@ -2498,10 +2498,10 @@ def chat_tts():
                         if has_doc_content:
                             # Use RAG if content exists, even for conversational information-seeking queries
                             if not is_conversational or is_information_seeking:
-                            will_use_rag = True
+                                will_use_rag = True
                                 print(f"[Generic] ✅ [RAG Decision] Document RAG will be used - quick_content_match found relevant content")
                                 print(f"[Generic] ✅ [RAG Decision] will_use_rag=True (is_conversational={is_conversational}, is_information_seeking={is_information_seeking})")
-                        else:
+                            else:
                                 print(f"[Generic] 🔍 [RAG Decision] Document RAG found content but skipping (simple conversational query)")
                         else:
                             print(f"[Generic] 🔍 [RAG Decision] Document RAG quick_content_match: no relevant content found")
