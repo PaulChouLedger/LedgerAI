@@ -602,6 +602,12 @@ def handle_conversation(
                     if has_content:
                         will_use_rag = True
                         print(f"[Generic] ✅ Document RAG will be used - quick_content_match found relevant content")
+                    else:
+                        # For information-seeking queries (e.g., "Who is X?"), still run semantic RAG search.
+                        # quick_content_match is a fast substring/fuzzy check and can miss content.
+                        if is_information_seeking:
+                            will_use_rag = True
+                            print(f"[Generic] ✅ Document RAG will be used - information-seeking query (forcing semantic search despite quick_content_match=False)")
             except Exception as e:
                 print(f"[Generic] ⚠️ RAG pre-check failed: {e}")
         
@@ -622,14 +628,18 @@ def handle_conversation(
                     if client:
                         # SIMPLIFIED: Use quick_content_match as primary trigger (fast substring/fuzzy match)
                         has_content = client.quick_content_match(prompt)
-                        if has_content:
-                            print(f"[Generic] 🔍 quick_content_match found relevant content - performing RAG search...")
+                        if has_content or is_information_seeking:
+                            if has_content:
+                                print(f"[Generic] 🔍 quick_content_match found relevant content - performing RAG search...")
+                            else:
+                                print(f"[Generic] 🔍 quick_content_match=False but information-seeking query - performing semantic RAG search anyway...")
                             if hasattr(client, '_cpu_chunks') and client._cpu_chunks:
                                 print(f"[Generic] 📊 RAG index: {len(client._cpu_chunks)} chunks available")
                             elif hasattr(client, '_cpu_index') and client._cpu_index:
                                 index_size = client._cpu_index.ntotal if hasattr(client._cpu_index, 'ntotal') else 0
                                 print(f"[Generic] 📊 RAG index: {index_size} vectors available")
-                            results = client.search(query=prompt)
+                            # Use a permissive threshold for info-seeking so semantic retrieval + pre-filter can decide.
+                            results = client.search(query=prompt, threshold=0.0 if is_information_seeking else None)
                             if results and len(results) > 0:
                                 try:
                                     from rag.rag_client import RAG_SEARCH_THRESHOLD
@@ -892,6 +902,15 @@ JSON array only:"""
         should_use_rag = (rag_results and len(rag_results) > 0) or (memory_rag_results and len(memory_rag_results) > 0)
         should_use_memory_rag = (memory_rag_results and len(memory_rag_results) > 0)
         print(f"[Generic] 🔍 Query analysis: is_personal={is_personal_query}, is_conversational={is_conversational}, should_use_rag={should_use_rag}, should_use_memory_rag={should_use_memory_rag}")
+
+        # Prevent hallucination for information-seeking queries when we have no evidence in RAG.
+        if (not should_use_rag) and is_information_seeking and RAG_MODE in ("CPU", "GPU") and not is_personal_query:
+            no_evidence_msg = (
+                "I couldn’t find anything about that in the documents I have indexed. "
+                "If you upload a document that mentions it (or re-upload the correct file), I can answer from it."
+            )
+            print("[Generic] 🚫 No RAG evidence for information-seeking query - returning no-evidence response (prevent hallucination)")
+            return iter([no_evidence_msg]) if stream else no_evidence_msg
         
         if should_use_rag and rag_results:
             try:
@@ -2505,6 +2524,11 @@ def chat_tts():
                                 print(f"[Generic] 🔍 [RAG Decision] Document RAG found content but skipping (simple conversational query)")
                         else:
                             print(f"[Generic] 🔍 [RAG Decision] Document RAG quick_content_match: no relevant content found")
+                            # For information-seeking queries (e.g., "Who is X?"), still run semantic RAG search.
+                            # quick_content_match is a fast substring/fuzzy check and can miss content.
+                            if is_information_seeking:
+                                will_use_rag = True
+                                print(f"[Generic] ✅ [RAG Decision] will_use_rag=True (information-seeking: forcing semantic RAG search despite quick_content_match=False)")
                     else:
                         print(f"[Generic] ⚠️ [RAG Decision] RAG client not available")
                     
@@ -2984,6 +3008,7 @@ def filter_cot_reasoning(generator):
     collecting_answer = False
     is_cot_response = False  # Track if this is a CoT response (has REASONING:)
     cot_detected = False  # Track if we've detected CoT format
+    passthrough_sentence_block = False  # If True, pass through tags/text immediately (no buffering)
     
     def extract_text(token):
         """Extract text content from token (removing sentence tags)"""
@@ -3068,6 +3093,20 @@ def filter_cot_reasoning(generator):
     
     # First pass: detect CoT by buffering initial tokens
     for token in generator:
+        # If the upstream pipeline yields a pre-wrapped sentence (e.g., filler phrase),
+        # pass it through immediately so TTS can start while we do RAG/model work.
+        # This avoids the CoT detector buffering the filler until REASONING appears.
+        if isinstance(token, str):
+            if "<sentence_start>" in token:
+                passthrough_sentence_block = True
+                yield token
+                continue
+            if passthrough_sentence_block:
+                yield token
+                if "<sentence_end>" in token:
+                    passthrough_sentence_block = False
+                continue
+
         token_buffer_list.append(token)
         text_content = extract_text(token)
         
@@ -3273,6 +3312,28 @@ def filter_cot_reasoning(generator):
         final_answer = re.sub(r'\[(KEEP|DISCARD|Action|Result)\]', '', final_answer, flags=re.IGNORECASE)
         final_answer = re.sub(r'(?m)^- .*$', '', final_answer).strip()  # Remove bulleted lines
         final_answer = re.sub(r'- End of scan\.?\s*', '', final_answer, flags=re.IGNORECASE)
+        # If the model "bleeds" extra sections into FINAL ANSWER, hard-truncate them.
+        # We've seen outputs like: "<final>. REASONING: ... DISCARD ... Final Answer: ... University of Arizona."
+        # For TTS, we only want the first FINAL ANSWER span.
+        trunc_markers = [
+            r'\bREASONING:\b',
+            r'\bReasoning:\b',
+            r'\bFINAL ANSWER:\b',
+            r'\bFinal Answer:\b',
+            r'\bFinal answer:\b',
+            r'\bSEARCH CONTINUES\b',
+            r'\bDISCARD\b\s*Final\s*Answer\b',
+        ]
+        for m in trunc_markers:
+            mm = re.search(m, final_answer)
+            if mm:
+                final_answer = final_answer[:mm.start()].strip()
+                break
+        # Clean up trailing punctuation/whitespace after truncation
+        final_answer = re.sub(r'\s+', ' ', final_answer).strip()
+        final_answer = re.sub(r'\s+\.', '.', final_answer)
+        final_answer = re.sub(r'\s+,', ',', final_answer)
+        final_answer = final_answer.strip(" \t\n\r")
         
         # CRITICAL: Ensure ALL KEEP items are included and ALL DISCARD items are removed
         # Step 1: Remove ALL DISCARD items from final answer
