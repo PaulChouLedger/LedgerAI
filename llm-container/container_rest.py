@@ -606,7 +606,8 @@ def handle_conversation(
                 print(f"[Generic] ⚠️ RAG pre-check failed: {e}")
         
         # If streaming and RAG will be used, yield filler phrase IMMEDIATELY (before RAG search)
-        if stream and will_use_rag and not is_conversational:
+        # Always yield for information-seeking queries, even if conversational in form
+        if stream and will_use_rag and (not is_conversational or is_information_seeking):
             filler_phrase = get_filler_phrase()
             print(f"[Generic] 💭 Yielding filler phrase IMMEDIATELY before RAG search: '{filler_phrase}'")
             # Yield filler phrase with sentence tags
