@@ -3008,7 +3008,12 @@ def filter_cot_reasoning(generator):
     collecting_answer = False
     is_cot_response = False  # Track if this is a CoT response (has REASONING:)
     cot_detected = False  # Track if we've detected CoT format
-    passthrough_sentence_block = False  # If True, pass through tags/text immediately (no buffering)
+    # Some upstream paths may yield a filler phrase sentence before the model starts emitting CoT.
+    # We want that ONE filler sentence to pass through immediately for TTS latency, but we must
+    # NOT pass through the model's own sentence-tagged REASONING lines.
+    preface_sentence_active = False
+    preface_sentence_parts = []
+    preface_sentence_used = False
     
     def extract_text(token):
         """Extract text content from token (removing sentence tags)"""
@@ -3093,18 +3098,47 @@ def filter_cot_reasoning(generator):
     
     # First pass: detect CoT by buffering initial tokens
     for token in generator:
-        # If the upstream pipeline yields a pre-wrapped sentence (e.g., filler phrase),
-        # pass it through immediately so TTS can start while we do RAG/model work.
-        # This avoids the CoT detector buffering the filler until REASONING appears.
-        if isinstance(token, str):
-            if "<sentence_start>" in token:
-                passthrough_sentence_block = True
-                yield token
+        # Special-case: allow exactly one *preface* sentence (our injected filler phrase)
+        # to pass through immediately before CoT detection buffers the stream.
+        if isinstance(token, str) and not preface_sentence_used:
+            if token.strip() == "<sentence_start>":
+                preface_sentence_active = True
+                preface_sentence_parts = [token]
                 continue
-            if passthrough_sentence_block:
-                yield token
-                if "<sentence_end>" in token:
-                    passthrough_sentence_block = False
+            if preface_sentence_active:
+                preface_sentence_parts.append(token)
+                if token.strip() == "<sentence_end>":
+                    # Decide whether to pass this preface sentence through immediately
+                    preface_text = "".join(
+                        t for t in preface_sentence_parts
+                        if isinstance(t, str) and t.strip() not in ("<sentence_start>", "<sentence_end>")
+                    )
+                    preface_text_l = preface_text.lower()
+                    # Must NOT contain CoT markers
+                    contains_cot_marker = ("reasoning:" in preface_text_l) or ("final answer" in preface_text_l)
+                    filler_patterns = [
+                        "let me think", "give me a moment", "let me recall", "let me check",
+                        "one moment", "just a second", "hold on", "thinking",
+                        "i'll need a moment", "i will need a moment", "give me a moment to",
+                        "let me look that up", "let me search", "let me find",
+                    ]
+                    looks_like_filler = any(p in preface_text_l for p in filler_patterns)
+
+                    if looks_like_filler and not contains_cot_marker:
+                        for t in preface_sentence_parts:
+                            yield t
+                        preface_sentence_used = True
+                    else:
+                        # Not a filler phrase (or it contains CoT markers) → treat as normal stream
+                        for t in preface_sentence_parts:
+                            token_buffer_list.append(t)
+                            tc = extract_text(t)
+                            if tc:
+                                detection_buffer += tc
+                                if not tc.rstrip().endswith(('.', ',', '!', '?', ':', ';', ' ', '\n')):
+                                    detection_buffer += " "
+                    preface_sentence_active = False
+                    preface_sentence_parts = []
                 continue
 
         token_buffer_list.append(token)
