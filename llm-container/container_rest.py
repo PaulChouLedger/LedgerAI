@@ -2128,10 +2128,13 @@ JSON array only:"""
         # Use higher token limit for list questions to ensure all items are included
         max_tokens_limit = MAX_TOKENS_RAG_MODE_LIST if is_list_request else MAX_TOKENS_RAG_MODE
         llm_response = llm_chat_simple(messages, max_tokens=max_tokens_limit, stream=stream)
-    if stream:
-        yield from llm_response
+        if stream:
+            yield from llm_response
+        else:
+            return llm_response
     else:
-        return llm_response
+        # No RAG context - will fall through to fallback section below
+        pass
 
     # Fallback to direct LLM conversation without external context
     # Detect if user is asking for instructions/steps
@@ -2527,17 +2530,8 @@ def chat_tts():
                 except Exception as e:
                     print(f"[Generic] ⚠️ RAG pre-check failed: {e}")
             
-            # If RAG will be used, yield filler phrase first (unless it's a simple conversational phrase)
-            # The CoT filter will pass through content before REASONING: marker
-            if will_use_rag and not is_conversational:
-                filler_phrase = get_filler_phrase()
-                print(f"[Generic] 💭 Yielding filler phrase before RAG processing: '{filler_phrase}'")
-                # Yield filler phrase with sentence tags to prevent token errors
-                yield "<sentence_start>\n"
-                yield filler_phrase
-                yield "\n<sentence_end>\n"
-            
             # Use streaming mode to get tokens as they're generated, with memory context
+            # The filler phrase will be yielded by handle_conversation() BEFORE the RAG search
             result = handle_conversation(prompt, session_id, memory_context=memory_context, stream=True)
             
             # Check if result is a generator (streaming)
