@@ -213,15 +213,17 @@ def llm_chat_simple(messages, max_tokens=None, temperature=None, stream=False, u
 def hard_stop_after_first_final_answer(stream_iter):
     """
     Hard-stop a streaming LLM iterator once we have produced the FIRST complete sentence
-    after the first occurrence of 'FINAL ANSWER:'.
+    after the first occurrence of 'FINAL ANSWER:' (case-insensitive, handles variations).
     
     This prevents the model from continuing and emitting a second/hallucinated answer
     (or re-starting REASONING) after it already produced a correct final answer.
     
     Works on a chunk stream (strings or dict chunks) as returned by llm_chat_simple().
     """
+    import re
     seen_final_answer_marker = False
     final_answer_text = ""
+    accumulated_text = ""  # Track all text seen so far for pattern matching
 
     def _extract_text_from_chunk(chunk) -> str:
         # Match _normalize_stream_chunks behavior, but keep it local to avoid import order issues.
@@ -236,16 +238,26 @@ def hard_stop_after_first_final_answer(stream_iter):
             return chunk
         return str(chunk)
 
+    # Case-insensitive pattern to match "FINAL ANSWER:" variations (with or without colon after "ANSWER")
+    # Examples: "FINAL ANSWER:", "Final Answer:", "Final ANSWER:", "FINAL ANSWER" (no colon)
+    final_answer_pattern = re.compile(r'final\s+answer\s*:?', re.IGNORECASE)
+
     for chunk in stream_iter:
         text = _extract_text_from_chunk(chunk)
+        accumulated_text += text if text else ""
+        
         if not seen_final_answer_marker:
-            # Look for FIRST "FINAL ANSWER:" in the stream.
-            if text and ("FINAL ANSWER:" in text or "Final Answer:" in text):
-                seen_final_answer_marker = True
-                # Start collecting from the marker onward (include current chunk so downstream can still see it)
-                marker = "FINAL ANSWER:" if "FINAL ANSWER:" in text else "Final Answer:"
-                after = text.split(marker, 1)[-1]
-                final_answer_text += after
+            # Look for FIRST "FINAL ANSWER" marker (case-insensitive, handles variations)
+            if text:
+                # Check if this chunk contains the marker
+                match = final_answer_pattern.search(accumulated_text)
+                if match:
+                    seen_final_answer_marker = True
+                    # Extract text after the marker
+                    marker_end = match.end()
+                    after = accumulated_text[marker_end:].lstrip()
+                    final_answer_text += after
+                    print(f"[Generic] 🛑 [Hard Stop] FINAL ANSWER marker detected at position {marker_end}, starting collection")
         else:
             if text:
                 final_answer_text += text
@@ -259,7 +271,7 @@ def hard_stop_after_first_final_answer(stream_iter):
             stripped = final_answer_text.strip()
             if len(stripped) >= 8 and any(p in stripped for p in (".", "?", "!")):
                 # Stop at the earliest sentence-ending punctuation.
-                # We don't try to yield the truncated part here; filter_cot_reasoning will extract/clean anyway.
+                print(f"[Generic] 🛑 [Hard Stop] Stopping stream after first complete sentence: '{stripped[:100]}...'")
                 break
 
 # === RAG Chunk Filtering ===
