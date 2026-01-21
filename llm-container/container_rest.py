@@ -533,10 +533,31 @@ def validate_query(prompt: str) -> tuple:
     
     # Check for queries starting with fragments (common transcription errors)
     # These indicate the question word was cut off: "or the co-founders" instead of "who are the co-founders"
-    fragment_starters = ['or ', 'and ', 'the ', 'a ', 'an ', 'of ', 'in ', 'on ', 'at ', 'to ', 'for ', 'with ', 'by ']
-    if any(prompt_lower.startswith(frag) for frag in fragment_starters):
+    #
+    # NOTE: Some valid questions legitimately start with a preposition, e.g.:
+    # - "on what chain is the ledger token on?"
+    # - "in which year was X founded?"
+    # - "of what does it consist?"
+    #
+    # We only treat a leading preposition as a fragment if it's NOT immediately followed by a question word.
+    fragment_starters = ['or ', 'and ', 'the ', 'a ', 'an ', 'at ', 'to ', 'for ', 'with ', 'by ']
+    preposition_starters = ['of ', 'in ', 'on ']
+    starts_with_fragment = any(prompt_lower.startswith(frag) for frag in fragment_starters)
+    starts_with_preposition = any(prompt_lower.startswith(prep) for prep in preposition_starters)
+    if starts_with_fragment:
         print(f"[Generic] ⚠️ Query validation failed: starts with fragment - '{prompt[:50]}...'")
         return False, "I'm sorry, I didn't understand your question. Can you repeat it?"
+    if starts_with_preposition:
+        # Allow "on what ...", "in which ...", "of what ..." etc.
+        second_word = prompt_lower.split(maxsplit=2)[1] if len(prompt_lower.split()) >= 2 else ""
+        allowed_after_preposition = {
+            "who", "what", "where", "when", "why", "how", "which", "whose", "whom",
+            "do", "does", "did", "is", "are", "was", "were", "can", "could", "will",
+            "would", "should", "may", "might",
+        }
+        if second_word not in allowed_after_preposition:
+            print(f"[Generic] ⚠️ Query validation failed: starts with fragment-like preposition - '{prompt[:50]}...'")
+            return False, "I'm sorry, I didn't understand your question. Can you repeat it?"
     
     # Check for queries that are just noun phrases without question words
     # Valid question words
