@@ -670,10 +670,22 @@ def handle_conversation(
         for contraction, expansion in contractions_map.items():
             normalized_prompt = normalized_prompt.replace(contraction, expansion)
         
-        # Skip RAG for personal/conversational queries (day, schedule, how are you, etc.)
-        personal_keywords = ['my day', 'my schedule', 'my calendar', 'how are you', 'how am i', 
-                          'what am i', 'when am i', 'where am i', 'tell me about me']
-        is_personal_query = any(keyword in normalized_prompt for keyword in personal_keywords)
+        # RAG bypass (everyday-language / small-talk).
+        # Keep this list small and obvious; everything else relies on quick_content_match.
+        rag_bypass_phrases = [
+            # greetings / small talk
+            "how are you", "how's it going", "how is it going", "how are things", "how's everything",
+            "good morning", "good afternoon", "good evening", "hello", "hi", "hey",
+            # acknowledgements
+            "thank you", "thanks", "appreciate it", "got it", "ok", "okay", "alright",
+            "yes", "yeah", "yep", "no", "nope",
+            # personal/scheduling (these are not doc-RAG questions)
+            "my day", "my schedule", "my calendar", "tell me about me",
+            # closings
+            "bye", "goodbye", "see you", "see ya",
+        ]
+        bypass_hit = next((p for p in rag_bypass_phrases if p in normalized_prompt), None)
+        is_personal_query = bool(bypass_hit)
         
         # Determine if query is conversational (for response formatting only, not RAG triggering)
         conversational_phrases = [
@@ -697,32 +709,23 @@ def handle_conversation(
         memory_rag_results = []  # Results from memory container
         memory_rag_failed = False  # Track if memory RAG failed (timeout, error, etc.)
         
-        # Skip RAG only for personal queries or truly simple conversational phrases (greetings, acknowledgments)
-        # Don't skip RAG for information-seeking queries like "Do you know...", "Tell me about...", "Who is..."
-        # These are conversational in form but information-seeking in intent
-        is_information_seeking = any(phrase in normalized_prompt for phrase in [
-            'do you know', 'tell me about', 'tell me', 'who is', 'what is', 'where is', 
-            'when is', 'how is', 'why is', 'can you tell', 'explain', 'describe'
-        ])
-        simple_conversational_only = is_conversational and not is_information_seeking
-        
         # Check if RAG will be used BEFORE doing the search (for filler phrase timing)
+        # Deterministic rule:
+        #   bypass_hit -> no RAG
+        #   else quick_content_match -> RAG
         will_use_rag = False
-        if not is_personal_query and (not simple_conversational_only or is_information_seeking):
-            # Quick check: does document RAG have relevant content?
+        if bypass_hit:
+            print(f"[Generic] ⏭️ RAG bypass: matched everyday-language phrase '{bypass_hit}'")
+        else:
             try:
                 client = get_rag_client()
                 if client:
                     has_content = client.quick_content_match(prompt)
                     if has_content:
                         will_use_rag = True
-                        print(f"[Generic] ✅ Document RAG will be used - quick_content_match found relevant content")
+                        print(f"[Generic] ✅ Document RAG will be used (quick_content_match=True)")
                     else:
-                        # For information-seeking queries (e.g., "Who is X?"), still run semantic RAG search.
-                        # quick_content_match is a fast substring/fuzzy check and can miss content.
-                        if is_information_seeking:
-                            will_use_rag = True
-                            print(f"[Generic] ✅ Document RAG will be used - information-seeking query (forcing semantic search despite quick_content_match=False)")
+                        print(f"[Generic] 🔍 Document RAG quick_content_match: no relevant content found")
             except Exception as e:
                 print(f"[Generic] ⚠️ RAG pre-check failed: {e}")
         
@@ -731,30 +734,25 @@ def handle_conversation(
         # Only skip RAG for personal queries or simple conversational phrases (greetings, etc.)
         # Always use RAG for information-seeking queries if content exists
         # NOTE: Filler phrase is no longer yielded here - it's yielded in generate_response() before this function is called
-        if not is_personal_query and (not simple_conversational_only or is_information_seeking):
+        if not bypass_hit:
             # Detect if query is asking for "what else" or additional information
             is_followup_query = any(phrase in prompt.lower() for phrase in ['what else', 'anything else', 'more about', 'additional', 'other'])
             
             # Parallelize document RAG and memory RAG searches for better latency
             def search_document_rag():
-                """Search document RAG in parallel - uses quick_content_match as primary trigger"""
+                """Search document RAG in parallel - uses quick_content_match as the only trigger"""
                 try:
                     client = get_rag_client()
                     if client:
-                        # SIMPLIFIED: Use quick_content_match as primary trigger (fast substring/fuzzy match)
                         has_content = client.quick_content_match(prompt)
-                        if has_content or is_information_seeking:
-                            if has_content:
-                                print(f"[Generic] 🔍 quick_content_match found relevant content - performing RAG search...")
-                            else:
-                                print(f"[Generic] 🔍 quick_content_match=False but information-seeking query - performing semantic RAG search anyway...")
+                        if has_content:
+                            print(f"[Generic] 🔍 quick_content_match=True - performing RAG search...")
                             if hasattr(client, '_cpu_chunks') and client._cpu_chunks:
                                 print(f"[Generic] 📊 RAG index: {len(client._cpu_chunks)} chunks available")
                             elif hasattr(client, '_cpu_index') and client._cpu_index:
                                 index_size = client._cpu_index.ntotal if hasattr(client._cpu_index, 'ntotal') else 0
                                 print(f"[Generic] 📊 RAG index: {index_size} vectors available")
-                            # Use a permissive threshold for info-seeking so semantic retrieval + pre-filter can decide.
-                            results = client.search(query=prompt, threshold=0.0 if is_information_seeking else None)
+                            results = client.search(query=prompt)
                             if results and len(results) > 0:
                                 try:
                                     from rag.rag_client import RAG_SEARCH_THRESHOLD
@@ -766,7 +764,7 @@ def handle_conversation(
                                 print(f"[Generic] 🔍 RAG search returned no results above threshold - skipping RAG injection")
                             return client, results
                         else:
-                            print(f"[Generic] 🔍 quick_content_match: no relevant content found - skipping RAG (faster response)")
+                            print(f"[Generic] 🔍 quick_content_match=False - skipping document RAG")
                     return None, []
                 except Exception as e:
                     print(f"[Generic] ⚠️ RAG check failed: {e}")
@@ -2610,19 +2608,39 @@ def chat_tts():
                 'please', 'excuse me', 'sorry', 'pardon'
             ]
             is_conversational = any(phrase in normalized_prompt for phrase in conversational_phrases)
-            
-            # Check if query is information-seeking (should use RAG even if conversational in form)
-            is_information_seeking = any(phrase in normalized_prompt for phrase in [
-                'do you know', 'tell me about', 'tell me', 'who is', 'what is', 'where is', 
-                'when is', 'how is', 'why is', 'can you tell', 'explain', 'describe'
-            ])
-            
-            # SIMPLIFIED: Use quick_content_match as primary RAG trigger (fast substring/fuzzy match)
-            # This is more reliable than pattern matching - if content exists, use RAG
-            # Allow RAG for information-seeking queries even if they're conversational in form
+
+            # ------------------------------------------------------------------
+            # RAG decision (simplified + predictable)
+            # ------------------------------------------------------------------
+            # Goal:
+            # - Remove brittle "rules" (conversational vs info-seeking heuristics) from RAG gating.
+            # - Keep a small everyday-language bypass list (e.g., "how are you") that *never* uses RAG.
+            # - Otherwise, use ONLY a quick substring/fuzzy check to decide if RAG should run.
+            #
+            # This makes behavior deterministic:
+            #   bypass_hit -> no RAG
+            #   else quick_content_match -> RAG
+            #   else -> no RAG
+            rag_bypass_phrases = [
+                # greetings / small talk
+                "how are you", "how's it going", "how is it going", "how are things", "how's everything",
+                "good morning", "good afternoon", "good evening", "hello", "hi", "hey",
+                # acknowledgements
+                "thank you", "thanks", "appreciate it", "got it", "ok", "okay", "alright",
+                "yes", "yeah", "yep", "no", "nope",
+                # closings
+                "bye", "goodbye", "see you", "see ya",
+            ]
+            bypass_hit = next((p for p in rag_bypass_phrases if p in normalized_prompt), None)
+
+            # SIMPLIFIED: Use quick_content_match as the primary RAG trigger (fast substring/fuzzy match).
             will_use_rag = False
-            print(f"[Generic] 🔍 [RAG Decision] Starting RAG decision check - RAG_MODE={RAG_MODE}, is_conversational={is_conversational}, is_information_seeking={is_information_seeking}")
-            if RAG_MODE in ("CPU", "GPU"):
+            print(f"[Generic] 🔍 [RAG Decision] Starting RAG decision check - RAG_MODE={RAG_MODE}, bypass_hit={bool(bypass_hit)}")
+
+            if bypass_hit:
+                will_use_rag = False
+                print(f"[Generic] ⏭️ [RAG Decision] Bypassing RAG due to everyday-language match: '{bypass_hit}'")
+            elif RAG_MODE in ("CPU", "GPU"):
                 try:
                     # Quick check: does document RAG have relevant content?
                     client = get_rag_client()
@@ -2630,20 +2648,10 @@ def chat_tts():
                         has_doc_content = client.quick_content_match(prompt)
                         print(f"[Generic] 🔍 [RAG Decision] quick_content_match result: {has_doc_content}")
                         if has_doc_content:
-                            # Use RAG if content exists, even for conversational information-seeking queries
-                            if not is_conversational or is_information_seeking:
-                                will_use_rag = True
-                                print(f"[Generic] ✅ [RAG Decision] Document RAG will be used - quick_content_match found relevant content")
-                                print(f"[Generic] ✅ [RAG Decision] will_use_rag=True (is_conversational={is_conversational}, is_information_seeking={is_information_seeking})")
-                            else:
-                                print(f"[Generic] 🔍 [RAG Decision] Document RAG found content but skipping (simple conversational query)")
+                            will_use_rag = True
+                            print(f"[Generic] ✅ [RAG Decision] Document RAG will be used (quick_content_match=True)")
                         else:
                             print(f"[Generic] 🔍 [RAG Decision] Document RAG quick_content_match: no relevant content found")
-                            # For information-seeking queries (e.g., "Who is X?"), still run semantic RAG search.
-                            # quick_content_match is a fast substring/fuzzy check and can miss content.
-                            if is_information_seeking:
-                                will_use_rag = True
-                                print(f"[Generic] ✅ [RAG Decision] will_use_rag=True (information-seeking: forcing semantic RAG search despite quick_content_match=False)")
                     else:
                         print(f"[Generic] ⚠️ [RAG Decision] RAG client not available")
                     
@@ -2669,9 +2677,11 @@ def chat_tts():
             
             # Yield filler phrase IMMEDIATELY after detecting RAG will be used (before calling handle_conversation)
             # This ensures it plays while RAG search happens in the background
-            print(f"[Generic] 🔍 [Filler Phrase] Checking if filler phrase should be yielded - will_use_rag={will_use_rag}, is_conversational={is_conversational}, is_information_seeking={is_information_seeking}")
+            print(f"[Generic] 🔍 [Filler Phrase] Checking if filler phrase should be yielded - will_use_rag={will_use_rag}, is_conversational={is_conversational}, bypass_hit={bool(bypass_hit)}")
             filler_phrase_yielded = False
-            if will_use_rag and (not is_conversational or is_information_seeking):
+            # Simplified: if we're going to do any RAG, emit a filler phrase to cover retrieval latency.
+            # (We skip only when bypass_hit is true, since we didn't run RAG.)
+            if will_use_rag:
                 filler_phrase = get_filler_phrase()
                 print(f"[Generic] ✅ [Filler Phrase] DECISION: Yielding filler phrase IMMEDIATELY after RAG detection")
                 print(f"[Generic] 💭 [Filler Phrase] Filler phrase: '{filler_phrase}'")
@@ -2686,7 +2696,7 @@ def chat_tts():
                 filler_phrase_yielded = True
                 print(f"[Generic] ✅ [Filler Phrase] Filler phrase yield complete")
             else:
-                print(f"[Generic] ⏭️ [Filler Phrase] Skipping filler phrase - will_use_rag={will_use_rag}, is_conversational={is_conversational}, is_information_seeking={is_information_seeking}")
+                print(f"[Generic] ⏭️ [Filler Phrase] Skipping filler phrase - will_use_rag={will_use_rag}, is_conversational={is_conversational}, bypass_hit={bool(bypass_hit)}")
             
             # Use streaming mode to get tokens as they're generated, with memory context
             # The filler phrase was already yielded above, handle_conversation() will skip its own
@@ -3320,12 +3330,14 @@ def filter_cot_reasoning(generator):
     
     # CoT response detected - continue processing with remaining tokens
     # text_buffer already has initial content
+    # CRITICAL: Do NOT replay buffered tokens - they contain REASONING section which should be suppressed
+    # Only process NEW tokens from generator (everything after detection buffer)
     for token in generator:
         text_content = extract_text(token)
         
         # CoT response - apply filtering logic
         if not found_final_answer:
-            # Still looking for FINAL ANSWER - buffer everything
+            # Still looking for FINAL ANSWER - buffer everything but DO NOT YIELD
             # Add token text directly (don't add extra space, tokens might already have spacing)
             if text_content:
                 text_buffer += text_content
