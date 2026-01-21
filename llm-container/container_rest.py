@@ -605,18 +605,11 @@ def handle_conversation(
             except Exception as e:
                 print(f"[Generic] ⚠️ RAG pre-check failed: {e}")
         
-        # If streaming and RAG will be used, yield filler phrase IMMEDIATELY (before RAG search)
-        # Always yield for information-seeking queries, even if conversational in form
-        if stream and will_use_rag and (not is_conversational or is_information_seeking):
-            filler_phrase = get_filler_phrase()
-            print(f"[Generic] 💭 Yielding filler phrase IMMEDIATELY before RAG search: '{filler_phrase}'")
-            # Yield filler phrase with sentence tags
-            yield "<sentence_start>\n"
-            yield filler_phrase
-            yield "\n<sentence_end>\n"
-        
+        # Filler phrase is now yielded in generate_response() BEFORE calling handle_conversation()
+        # This ensures it plays immediately while RAG search happens
         # Only skip RAG for personal queries or simple conversational phrases (greetings, etc.)
         # Always use RAG for information-seeking queries if content exists
+        # NOTE: Filler phrase is no longer yielded here - it's yielded in generate_response() before this function is called
         if not is_personal_query and (not simple_conversational_only or is_information_seeking):
             # Detect if query is asking for "what else" or additional information
             is_followup_query = any(phrase in prompt.lower() for phrase in ['what else', 'anything else', 'more about', 'additional', 'other'])
@@ -2530,8 +2523,18 @@ def chat_tts():
                 except Exception as e:
                     print(f"[Generic] ⚠️ RAG pre-check failed: {e}")
             
+            # Yield filler phrase IMMEDIATELY after detecting RAG will be used (before calling handle_conversation)
+            # This ensures it plays while RAG search happens in the background
+            if will_use_rag and (not is_conversational or is_information_seeking):
+                filler_phrase = get_filler_phrase()
+                print(f"[Generic] 💭 Yielding filler phrase IMMEDIATELY after RAG detection: '{filler_phrase}'")
+                # Yield filler phrase with sentence tags
+                yield "<sentence_start>\n"
+                yield filler_phrase
+                yield "\n<sentence_end>\n"
+            
             # Use streaming mode to get tokens as they're generated, with memory context
-            # The filler phrase will be yielded by handle_conversation() BEFORE the RAG search
+            # The filler phrase was already yielded above, handle_conversation() will skip its own
             result = handle_conversation(prompt, session_id, memory_context=memory_context, stream=True)
             
             # Check if result is a generator (streaming)

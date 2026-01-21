@@ -586,22 +586,30 @@ class CPUFAISSAutoIngest:
                 if isinstance(meta, dict):
                     file_path = meta.get("file_path", "")
                     doc_name = meta.get("document_name", "")
+                    file_name = None
+                    
                     if file_path:
                         file_name = Path(file_path).name
                     elif doc_name:
                         # Try to match document name to file name
-                        file_name = doc_name
-                        # Check if it needs .pdf extension
+                        # Check all possible matches
                         for input_file in input_files:
-                            if input_file.stem == doc_name or input_file.name == doc_name:
+                            if (input_file.stem == doc_name or 
+                                input_file.name == doc_name or
+                                input_file.name.lower() == doc_name.lower() or
+                                input_file.stem.lower() == doc_name.lower()):
                                 file_name = input_file.name
                                 break
+                        # If no match found, use doc_name as-is
+                        if not file_name:
+                            file_name = doc_name
                     else:
                         continue
                     
-                    if file_name not in chunks_per_file:
+                    if file_name and file_name not in chunks_per_file:
                         chunks_per_file[file_name] = 0
-                    chunks_per_file[file_name] += 1
+                    if file_name:
+                        chunks_per_file[file_name] += 1
         
         # Check for missing files (in input but not in embeddings)
         # A file is "missing" if it's in input but not in embeddings (regardless of state)
@@ -615,12 +623,16 @@ class CPUFAISSAutoIngest:
         # Check for files with suspiciously low chunk counts (likely extraction failures)
         # PDFs should have more than 5 chunks, other documents more than 1
         suspicious_files = []
+        print(f"[Auto-Ingest] 🔍 Checking chunk counts: {chunks_per_file}")
         for file_path in input_files:
             file_name = file_path.name
             chunk_count = chunks_per_file.get(file_name, 0)
+            print(f"[Auto-Ingest] 🔍 Checking {file_name}: {chunk_count} chunks")
             if chunk_count > 0:  # File exists in embeddings
                 min_expected_chunks = 5 if file_path.suffix.lower() == '.pdf' else 1
+                print(f"[Auto-Ingest] 🔍 {file_name}: {chunk_count} chunks, min expected: {min_expected_chunks}")
                 if chunk_count < min_expected_chunks:
+                    print(f"[Auto-Ingest] ⚠️ {file_name} is suspicious: {chunk_count} < {min_expected_chunks}")
                     suspicious_files.append((file_path, chunk_count, min_expected_chunks))
         
         if missing_files:
@@ -658,11 +670,18 @@ class CPUFAISSAutoIngest:
                     if indices_to_remove:
                         print(f"[Auto-Ingest] 🗑️ Removed {len(indices_to_remove)} chunks from {file_path.name} for reprocessing")
         
+        # Track suspicious files to force reprocessing
+        suspicious_file_names = {fp.name for fp, _, _ in suspicious_files} if suspicious_files else set()
+        
         # Process all input files (will skip if already processed and unchanged)
         # Files with suspicious chunk counts have been removed from state, so they'll be reprocessed
         for file_path in input_files:
             try:
-                if self._process_file(file_path):
+                # Force reprocessing for suspicious files
+                force = file_path.name in suspicious_file_names
+                if force:
+                    print(f"[Auto-Ingest] 🔄 Force reprocessing {file_path.name} (suspiciously low chunk count)")
+                if self._process_file(file_path, force=force):
                     processed_count += 1
                 else:
                     skipped_count += 1
