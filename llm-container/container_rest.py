@@ -3342,6 +3342,16 @@ def filter_cot_reasoning(generator):
             if marker_found:
                 found_final_answer = True
                 
+                # Emit SECOND filler phrase BEFORE CoT filter processing begins (extraction/debug logging)
+                # This plays while the filter extracts DISCARD/KEEP items and logs debug output
+                if not cot_filler_emitted:
+                    cot_filler_emitted = True
+                    cot_filler = get_cot_filler_phrase()
+                    print(f"[Generic] 💭 [CoT Filter] Emitting CoT filler phrase (before extraction): '{cot_filler}'")
+                    yield "<sentence_start>\n"
+                    yield f"{cot_filler}\n"
+                    yield "<sentence_end>\n"
+                
                 # Extract reasoning section to find DISCARD items
                 if reasoning_buffer:
                     # Extract reasoning up to FINAL ANSWER
@@ -3652,15 +3662,8 @@ def filter_cot_reasoning(generator):
         
         if final_answer.strip():
             print(f"[Generic] 📝 [CoT Reasoning Debug] Final FINAL ANSWER: {final_answer[:200]}...")
-            # Emit a SECOND filler phrase right before final-answer filtering/output (once per response).
-            # This is intentionally late (after CoT is confirmed) to cover the "filtering" gap.
-            if not cot_filler_emitted:
-                cot_filler_emitted = True
-                cot_filler = get_cot_filler_phrase()
-                print(f"[Generic] 💭 [CoT Filter] Emitting CoT filler phrase (late): '{cot_filler}'")
-                yield "<sentence_start>\n"
-                yield f"{cot_filler}\n"
-                yield "<sentence_end>\n"
+            # Note: Second filler phrase is now emitted earlier (before CoT extraction/debug logging)
+            # to play during the filtering phase
 
             # Now emit the actual final answer
             if not final_sentence_started:

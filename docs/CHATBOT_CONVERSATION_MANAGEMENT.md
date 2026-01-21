@@ -538,7 +538,7 @@ if wake_word_enabled:
 4. **Display**: Configuration displayed in console on listener startup
 
 **Configuration Parameters**:
-- **AGC Target**: `PP_AGCDESIREDLEVEL` (0.05 = recommended)
+- **AGC Target**: `PP_AGCDESIREDLEVEL` (0.12 = recommended)
 - **AGC Max Gain**: `PP_AGCMAXGAIN` (1000 = 30dB)
 - **HPF Setting**: `AEC_HPFONOFF` (1 = 70Hz recommended)
 - **Echo Cancellation**: `PP_ECHOONOFF` (1 = ON, 0 = OFF)
