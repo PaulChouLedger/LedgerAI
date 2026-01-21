@@ -525,7 +525,7 @@ if wake_word_enabled:
 - **Echo Cancellation**: Cancels feedback from speakers (optional)
 
 **Configuration Presets**:
-- **`balanced_beam`** ⭐ RECOMMENDED: HPF 70Hz + AGC (0.12 RMS, 30dB) - Best for fan noise
+- **`balanced_beam`** ⭐ RECOMMENDED: HPF 70Hz + AGC (0.05 RMS, 30dB) - Best for fan noise
 - **`agc_20_ec`** (Default): HPF 70Hz + AGC (0.096 RMS) + Echo Cancellation
 - **`ultra_sensitive`**: AGC (0.10 RMS, 45dB) - Far-field optimized
 - **`far_field`**: Optimized for 8-16 feet distance
@@ -538,7 +538,7 @@ if wake_word_enabled:
 4. **Display**: Configuration displayed in console on listener startup
 
 **Configuration Parameters**:
-- **AGC Target**: `PP_AGCDESIREDLEVEL` (0.12 = recommended)
+- **AGC Target**: `PP_AGCDESIREDLEVEL` (0.05 = recommended)
 - **AGC Max Gain**: `PP_AGCMAXGAIN` (1000 = 30dB)
 - **HPF Setting**: `AEC_HPFONOFF` (1 = 70Hz recommended)
 - **Echo Cancellation**: `PP_ECHOONOFF` (1 = ON, 0 = OFF)
