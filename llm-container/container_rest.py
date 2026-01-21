@@ -3464,6 +3464,11 @@ def filter_cot_reasoning(generator):
                 # otherwise the speaker will buffer in silence while we filter.
                 continue
         
+        # CRITICAL: If we haven't found FINAL ANSWER yet, continue to next token (suppress all REASONING tokens)
+        # This ensures REASONING section is NEVER yielded - only FINAL ANSWER content is yielded
+        if not found_final_answer:
+            continue
+        
         # After FINAL ANSWER found, buffer answer tokens (need enough text to clean/truncate safely).
         # CRITICAL: Stop collecting as soon as we see the model start emitting ANY new sections.
         # This prevents leaks like "... andREASONING: I" (no whitespace before REASONING).
