@@ -209,6 +209,59 @@ def llm_chat_simple(messages, max_tokens=None, temperature=None, stream=False, u
     result = container.llm_chat_simple(messages, max_tokens, temperature, stream, **kwargs)
     return result
 
+
+def hard_stop_after_first_final_answer(stream_iter):
+    """
+    Hard-stop a streaming LLM iterator once we have produced the FIRST complete sentence
+    after the first occurrence of 'FINAL ANSWER:'.
+    
+    This prevents the model from continuing and emitting a second/hallucinated answer
+    (or re-starting REASONING) after it already produced a correct final answer.
+    
+    Works on a chunk stream (strings or dict chunks) as returned by llm_chat_simple().
+    """
+    seen_final_answer_marker = False
+    final_answer_text = ""
+
+    def _extract_text_from_chunk(chunk) -> str:
+        # Match _normalize_stream_chunks behavior, but keep it local to avoid import order issues.
+        if isinstance(chunk, dict):
+            if 'choices' in chunk and len(chunk['choices']) > 0:
+                delta = chunk['choices'][0].get('delta', {})
+                return delta.get('content', '') or ''
+            if 'content' in chunk:
+                return chunk.get('content', '') or ''
+            return ''
+        if isinstance(chunk, str):
+            return chunk
+        return str(chunk)
+
+    for chunk in stream_iter:
+        text = _extract_text_from_chunk(chunk)
+        if not seen_final_answer_marker:
+            # Look for FIRST "FINAL ANSWER:" in the stream.
+            if text and ("FINAL ANSWER:" in text or "Final Answer:" in text):
+                seen_final_answer_marker = True
+                # Start collecting from the marker onward (include current chunk so downstream can still see it)
+                marker = "FINAL ANSWER:" if "FINAL ANSWER:" in text else "Final Answer:"
+                after = text.split(marker, 1)[-1]
+                final_answer_text += after
+        else:
+            if text:
+                final_answer_text += text
+
+        # Always yield the original chunk unchanged.
+        yield chunk
+
+        # If we're in FINAL ANSWER collection, stop after the first complete sentence.
+        # Heuristic: end at first '.', '?', or '!' after we've accumulated some non-trivial content.
+        if seen_final_answer_marker:
+            stripped = final_answer_text.strip()
+            if len(stripped) >= 8 and any(p in stripped for p in (".", "?", "!")):
+                # Stop at the earliest sentence-ending punctuation.
+                # We don't try to yield the truncated part here; filter_cot_reasoning will extract/clean anyway.
+                break
+
 # === RAG Chunk Filtering ===
 # Cache for sentence transformer model (lazy loading)
 _semantic_model = None
@@ -1575,10 +1628,18 @@ JSON array only:"""
             # Use 2048 tokens to match test script (was 800, might be cutting off reasoning)
             max_tokens_limit = 2048 if is_list_request else MAX_TOKENS_RAG_MODE
             # Use CoT model for RAG queries (dual-model architecture)
-            llm_response = llm_chat_simple(messages, max_tokens=max_tokens_limit, temperature=0, stream=stream, use_cot_model=True, stop=["<|im_end|>"])
+            llm_response = llm_chat_simple(
+                messages,
+                max_tokens=max_tokens_limit,
+                temperature=0,
+                stream=stream,
+                use_cot_model=True,
+                stop=["<|im_end|>"],
+            )
             if stream:
-                # Yield from LLM response generator
-                yield from llm_response
+                # HARD STOP: once the model emits its first FINAL ANSWER sentence, stop generation.
+                # This prevents "second FINAL ANSWER" hallucinations and saves tokens/latency.
+                yield from hard_stop_after_first_final_answer(llm_response)
             else:
                 return llm_response
         else:
@@ -2706,8 +2767,61 @@ def chat_tts():
             # Check if result is a generator (streaming)
             if hasattr(result, '__iter__') and not isinstance(result, str):
                 print(f"[Generic] 🔍 [Stream] Processing stream from handle_conversation()")
-                # Reduced debug logging for performance
+                # Special-case: some internal generators (e.g., validate_query() clarification)
+                # already yield sentence tags (<sentence_start>/<sentence_end>). If we run those through
+                # _word_stream_from_chunks + _sentence_tag_stream we can swallow or distort them,
+                # resulting in a silent 0-token output. Detect and pass through directly.
                 normalized_chunks = _normalize_stream_chunks(result)
+                normalized_chunks = iter(normalized_chunks)
+                first_chunk = None
+                try:
+                    first_chunk = next(normalized_chunks)
+                except StopIteration:
+                    first_chunk = None
+
+                def _chain_first(first, rest_iter):
+                    if first is not None:
+                        yield first
+                    for x in rest_iter:
+                        yield x
+
+                if isinstance(first_chunk, str) and "<sentence_start>" in first_chunk:
+                    print("[Generic] ✅ [Stream] Detected pre-tagged sentence stream (passthrough)")
+                    token_count = 0
+                    full_response_text = ""
+                    for chunk in _chain_first(first_chunk, normalized_chunks):
+                        if not chunk:
+                            continue
+                        token_count += 1
+                        # Accumulate non-control text for memory storage
+                        stripped = chunk.strip()
+                        if stripped and stripped not in ("<sentence_start>", "<sentence_end>"):
+                            full_response_text += stripped + " "
+                        yield chunk if chunk.endswith("\n") else (chunk + "\n")
+                    if token_count == 0:
+                        print("[Generic] ⚠️ WARNING: No tokens yielded from pre-tagged stream!")
+                        # Fallback: speak a generic clarification
+                        yield "<sentence_start>\n"
+                        yield "I'm sorry, I didn't catch that. Can you repeat your question?\n"
+                        yield "<sentence_end>\n"
+                    print(f"[Generic] ✅ Streamed response complete (yielded {token_count} tokens)")
+                    if full_response_text.strip():
+                        try:
+                            conversation_orchestrator._store_in_memory(
+                                full_response_text.strip(),
+                                {
+                                    "session_id": session_id,
+                                    "timestamp": time.time(),
+                                    "type": "assistant_response",
+                                },
+                            )
+                            print(f"[Generic] 💾 Stored assistant response in conversation memory")
+                        except Exception as e:
+                            print(f"[Generic] ⚠️ Failed to store assistant response in memory (continuing): {e}")
+                    return
+
+                # Normal path: word/sentence streaming for raw model output
+                normalized_chunks = _chain_first(first_chunk, normalized_chunks)
                 word_stream = _word_stream_from_chunks(normalized_chunks)
                 sentence_stream = _sentence_tag_stream(word_stream)
                 token_count = 0
@@ -2729,19 +2843,25 @@ def chat_tts():
                             full_response_text += token
                         yield f"{token}\n"
                 except StopIteration:
-                    # Yield empty sentence tags so speaker knows stream ended
+                    # Instead of yielding empty tags (silent), speak a clarification.
                     yield "<sentence_start>\n"
+                    yield "I'm sorry, I didn't catch that. Can you repeat your question?\n"
                     yield "<sentence_end>\n"
                 except Exception as e:
                     print(f"[Generic] ⚠️ ERROR iterating sentence_stream: {e}")
                     import traceback
                     traceback.print_exc()
-                    # Yield empty sentence tags so speaker knows stream ended
+                    # Speak a clarification instead of silence
                     yield "<sentence_start>\n"
+                    yield "I'm sorry, I didn't catch that. Can you repeat your question?\n"
                     yield "<sentence_end>\n"
                 
                 if token_count == 0:
                     print(f"[Generic] ⚠️ WARNING: No tokens yielded from sentence_stream!")
+                    # Speak a clarification (belt-and-suspenders)
+                    yield "<sentence_start>\n"
+                    yield "I'm sorry, I didn't catch that. Can you repeat your question?\n"
+                    yield "<sentence_end>\n"
                 
                 print(f"[Generic] ✅ Streamed response complete (yielded {token_count} tokens)")
                 
@@ -3450,8 +3570,10 @@ def filter_cot_reasoning(generator):
                         print(f"[Generic] ✅ [CoT Reasoning Debug] Fallback extraction found {len(kept_items)} KEEP items: {kept_items}")
                 print(f"{'='*80}\n")
                 
-                # Extract initial answer text from buffer (matches test script)
-                initial_answer = text_buffer.split(marker)[-1].strip()
+                # Extract initial answer text from buffer.
+                # IMPORTANT: use the FIRST occurrence of the marker so later leaked "FINAL ANSWER:" blocks
+                # (or post-answer REASONING) can't override the correct answer.
+                initial_answer = text_buffer.split(marker, 1)[-1].strip()
                 if initial_answer:
                     # Clean up initial answer
                     initial_answer = re.sub(r'\[(KEEP|DISCARD|Action|Result)\]', '', initial_answer, flags=re.IGNORECASE)
