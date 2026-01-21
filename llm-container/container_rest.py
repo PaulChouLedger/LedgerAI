@@ -2536,12 +2536,14 @@ def chat_tts():
                 filler_phrase = get_filler_phrase()
                 print(f"[Generic] ✅ [Filler Phrase] DECISION: Yielding filler phrase IMMEDIATELY after RAG detection")
                 print(f"[Generic] 💭 [Filler Phrase] Filler phrase: '{filler_phrase}'")
-                print(f"[Generic] 💭 [Filler Phrase] Yielding <sentence_start> tag")
+                # IMPORTANT: Stream protocol is line-delimited. Each yielded chunk must end with '\n'
+                # and tags should NOT be prefixed by a newline, otherwise the speaker parser can miss text.
+                print(f"[Generic] 💭 [Filler Phrase] Yielding <sentence_start> tag (line-delimited)")
                 yield "<sentence_start>\n"
-                print(f"[Generic] 💭 [Filler Phrase] Yielding filler phrase text: '{filler_phrase}'")
-                yield filler_phrase
-                print(f"[Generic] 💭 [Filler Phrase] Yielding <sentence_end> tag")
-                yield "\n<sentence_end>\n"
+                print(f"[Generic] 💭 [Filler Phrase] Yielding filler phrase text (line-delimited): '{filler_phrase}'")
+                yield f"{filler_phrase}\n"
+                print(f"[Generic] 💭 [Filler Phrase] Yielding <sentence_end> tag (line-delimited)")
+                yield "<sentence_end>\n"
                 filler_phrase_yielded = True
                 print(f"[Generic] ✅ [Filler Phrase] Filler phrase yield complete")
             else:
