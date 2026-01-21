@@ -505,6 +505,59 @@ def get_filler_phrase() -> str:
     return random.choice(filler_phrases)
 
 # === Conversational Logic ===
+def validate_query(prompt: str) -> tuple:
+    """
+    Validate query to detect malformed/incomplete transcriptions.
+    
+    Returns:
+        (is_valid, error_message)
+        - is_valid: True if query is valid, False if it's malformed
+        - error_message: Clarification message if invalid, None if valid
+    """
+    if not prompt or len(prompt.strip()) < 3:
+        return False, "I'm sorry, I didn't understand your question. Can you repeat it?"
+    
+    prompt_lower = prompt.lower().strip()
+    
+    # Check for queries starting with fragments (common transcription errors)
+    # These indicate the question word was cut off: "or the co-founders" instead of "who are the co-founders"
+    fragment_starters = ['or ', 'and ', 'the ', 'a ', 'an ', 'of ', 'in ', 'on ', 'at ', 'to ', 'for ', 'with ', 'by ']
+    if any(prompt_lower.startswith(frag) for frag in fragment_starters):
+        print(f"[Generic] ⚠️ Query validation failed: starts with fragment - '{prompt[:50]}...'")
+        return False, "I'm sorry, I didn't understand your question. Can you repeat it?"
+    
+    # Check for queries that are just noun phrases without question words
+    # Valid question words
+    question_words = ['who', 'what', 'where', 'when', 'why', 'how', 'which', 'whose', 'whom', 
+                      'do', 'does', 'did', 'is', 'are', 'was', 'were', 'can', 'could', 'will', 
+                      'would', 'should', 'may', 'might', 'tell', 'explain', 'describe', 'list', 
+                      'show', 'give', 'find', 'search']
+    
+    # Check if query contains any question words
+    has_question_word = any(prompt_lower.startswith(qw + ' ') or ' ' + qw + ' ' in prompt_lower 
+                           for qw in question_words)
+    
+    # Check for imperative patterns (valid commands)
+    imperative_patterns = ['tell me', 'show me', 'give me', 'find', 'search', 'list', 'explain']
+    has_imperative = any(prompt_lower.startswith(imp) for imp in imperative_patterns)
+    
+    # If no question word and no imperative, and it's a short phrase, likely malformed
+    if not has_question_word and not has_imperative:
+        # Allow very short conversational phrases (greetings, etc.)
+        conversational_short = any(phrase in prompt_lower for phrase in [
+            'hello', 'hi', 'hey', 'thanks', 'thank you', 'bye', 'goodbye', 'ok', 'okay', 'yes', 'no'
+        ])
+        if not conversational_short and len(prompt.split()) <= 5:
+            # Short phrase without question word or imperative - likely fragment
+            print(f"[Generic] ⚠️ Query validation failed: no question word/imperative, short phrase - '{prompt[:50]}...'")
+            return False, "I'm sorry, I didn't understand your question. Can you repeat it?"
+    
+    # Check for queries that are just punctuation or very short
+    if len(prompt.strip()) <= 2 or prompt.strip() in ['.', '?', '!', ',', ';', ':']:
+        return False, "I'm sorry, I didn't understand your question. Can you repeat it?"
+    
+    return True, None
+
 def handle_conversation(
     prompt: str, session_id: str, memory_context: Optional[str] = None, stream: bool = False
 ):
@@ -521,6 +574,19 @@ def handle_conversation(
         If stream=False: Complete response string
         If stream=True: Generator that yields tokens as they're generated
     """
+    
+    # Validate query before processing (catch malformed transcriptions)
+    is_valid, error_message = validate_query(prompt)
+    if not is_valid:
+        print(f"[Generic] 🚫 Query validation failed - returning clarification message")
+        if stream:
+            def clarification_response():
+                yield "<sentence_start>\n"
+                yield f"{error_message}\n"
+                yield "<sentence_end>\n"
+            return clarification_response()
+        else:
+            return error_message
     
     # Try RAG first for knowledge queries (CPU or GPU) if enabled
     # Skip RAG for simple conversational queries to reduce latency
@@ -3325,8 +3391,22 @@ def filter_cot_reasoning(generator):
                 continue
         
         # After FINAL ANSWER found, buffer answer tokens (need full answer for proper DISCARD filtering)
+        # CRITICAL: Stop collecting if model outputs a second REASONING or FINAL ANSWER (indicates model is repeating/confused)
         if found_final_answer and collecting_answer:
+            # Check if a new REASONING or FINAL ANSWER marker appears (model is repeating itself)
             if text_content:
+                # Build current answer text to check for markers
+                current_answer = " ".join(answer_buffer + [text_content]).lower()
+                # Check for subsequent markers that indicate model is repeating
+                if any(marker in current_answer for marker in [
+                    "reasoning: i will", "reasoning: i'll", "reasoning: the",
+                    "final answer: the", "final answer: i", "final answer: i'm",
+                    "i'm sorry, but i don't", "i don't have specific information"
+                ]):
+                    print(f"[Generic] ⚠️ [CoT Filter] Detected subsequent REASONING/FINAL ANSWER marker - stopping answer collection")
+                    # Stop collecting - we have enough of the answer
+                    collecting_answer = False
+                    continue
                 answer_buffer.append(text_content)
             continue
     
@@ -3349,24 +3429,41 @@ def filter_cot_reasoning(generator):
         # If the model "bleeds" extra sections into FINAL ANSWER, hard-truncate them.
         # We've seen outputs like: "<final>. REASONING: ... DISCARD ... Final Answer: ... University of Arizona."
         # For TTS, we only want the first FINAL ANSWER span.
+        # CRITICAL: Find the FIRST occurrence of any truncation marker and cut everything after it
         trunc_markers = [
-            r'\bREASONING:\b',
-            r'\bReasoning:\b',
-            r'\bFINAL ANSWER:\b',
-            r'\bFinal Answer:\b',
-            r'\bFinal answer:\b',
-            r'\bSEARCH CONTINUES\b',
-            r'\bDISCARD\b\s*Final\s*Answer\b',
+            r'\bREASONING:\s*I\s+will',  # "REASONING: I will..." (common pattern after first answer)
+            r'\bREASONING:\s*[A-Z]',      # "REASONING: [Any capital letter]"
+            r'\bReasoning:\s*[A-Z]',      # "Reasoning: [Any capital letter]"
+            r'\bFINAL\s+ANSWER:\s*[A-Z]', # "FINAL ANSWER: [Any capital letter]" (second FINAL ANSWER)
+            r'\bFinal\s+Answer:\s*[A-Z]', # "Final Answer: [Any capital letter]"
+            r'\bFinal\s+answer:\s*[A-Z]', # "Final answer: [Any capital letter]"
+            r'\bSEARCH\s+CONTINUES',      # "SEARCH CONTINUES"
+            r'\bEND\s+OF\s+SCAN',         # "END OF SCAN" (if it appears after first answer)
+            r'\bDISCARD\b\s*Final\s*Answer', # "DISCARD Final Answer"
+            r"I'm\s+sorry,\s+but\s+I\s+don't", # Apology after hallucination
+            r"I\s+don't\s+have\s+specific\s+information", # "I don't have specific information..."
         ]
-        for m in trunc_markers:
-            mm = re.search(m, final_answer)
-            if mm:
-                final_answer = final_answer[:mm.start()].strip()
-                break
+        
+        # Find the earliest truncation marker
+        earliest_pos = len(final_answer)
+        for pattern in trunc_markers:
+            matches = list(re.finditer(pattern, final_answer, re.IGNORECASE))
+            for match in matches:
+                if match.start() < earliest_pos:
+                    earliest_pos = match.start()
+        
+        # If we found a truncation marker, cut everything after it
+        if earliest_pos < len(final_answer):
+            print(f"[Generic] ✂️  [CoT Filter] Truncating at position {earliest_pos} (found marker after first answer)")
+            final_answer = final_answer[:earliest_pos].strip()
+        
         # Clean up trailing punctuation/whitespace after truncation
         final_answer = re.sub(r'\s+', ' ', final_answer).strip()
         final_answer = re.sub(r'\s+\.', '.', final_answer)
         final_answer = re.sub(r'\s+,', ',', final_answer)
+        # Remove trailing incomplete sentences (common after truncation)
+        final_answer = re.sub(r'\s+-\s*$', '', final_answer)  # Remove trailing " -"
+        final_answer = re.sub(r'\s+\.\.\.\s*$', '', final_answer)  # Remove trailing "..."
         final_answer = final_answer.strip(" \t\n\r")
         
         # CRITICAL: Ensure ALL KEEP items are included and ALL DISCARD items are removed
