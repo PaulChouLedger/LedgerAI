@@ -3109,6 +3109,7 @@ def filter_cot_reasoning(generator):
     preface_sentence_parts = []
     preface_sentence_used = False
     cot_filler_emitted = False
+    final_sentence_started = False  # ensure we only emit <sentence_start> once for final answer
     
     def extract_text(token):
         """Extract text content from token (removing sentence tags)"""
@@ -3249,16 +3250,6 @@ def filter_cot_reasoning(generator):
             is_cot_response = True
             cot_detected = True
             print(f"[Generic] 🔍 [CoT Filter] CoT response detected - applying reasoning filter")
-
-            # Optional: emit a second filler phrase right as CoT begins (before FINAL ANSWER filtering).
-            # This improves perceived latency during long REASONING sections.
-            if not cot_filler_emitted:
-                cot_filler_emitted = True
-                cot_filler = get_cot_filler_phrase()
-                print(f"[Generic] 💭 [CoT Filter] Emitting CoT filler phrase: '{cot_filler}'")
-                yield "<sentence_start>\n"
-                yield f"{cot_filler}\n"
-                yield "<sentence_end>\n"
             
             # IMPORTANT: Suppress model-generated filler phrases if we already yielded one
             # The filler phrase should play DURING RAG processing, not after
@@ -3425,8 +3416,9 @@ def filter_cot_reasoning(generator):
                     answer_buffer.append(initial_answer)
                 
                 collecting_answer = True
-                # Yield sentence_start immediately (signals TTS to prepare, reduces perceived latency)
-                yield "<sentence_start>\n"
+                # IMPORTANT: do NOT yield <sentence_start> here.
+                # We only emit <sentence_start> right before we output the cleaned final answer,
+                # otherwise the speaker will buffer in silence while we filter.
                 continue
         
         # After FINAL ANSWER found, buffer answer tokens (need enough text to clean/truncate safely).
@@ -3660,6 +3652,20 @@ def filter_cot_reasoning(generator):
         
         if final_answer.strip():
             print(f"[Generic] 📝 [CoT Reasoning Debug] Final FINAL ANSWER: {final_answer[:200]}...")
+            # Emit a SECOND filler phrase right before final-answer filtering/output (once per response).
+            # This is intentionally late (after CoT is confirmed) to cover the "filtering" gap.
+            if not cot_filler_emitted:
+                cot_filler_emitted = True
+                cot_filler = get_cot_filler_phrase()
+                print(f"[Generic] 💭 [CoT Filter] Emitting CoT filler phrase (late): '{cot_filler}'")
+                yield "<sentence_start>\n"
+                yield f"{cot_filler}\n"
+                yield "<sentence_end>\n"
+
+            # Now emit the actual final answer
+            if not final_sentence_started:
+                final_sentence_started = True
+                yield "<sentence_start>\n"
             # Yield cleaned answer word by word
             words = final_answer.strip().split()
             for i, word in enumerate(words):

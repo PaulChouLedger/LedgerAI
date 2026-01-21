@@ -151,7 +151,7 @@ The XVF3800 USB 4-Mic Array includes hardware DSP processing that occurs before 
 
 1. **`balanced_beam`** ⭐ RECOMMENDED
    - HPF: 70 Hz (removes fan noise)
-   - AGC: Enabled (target: 0.08 RMS, max gain: 30dB)
+   - AGC: Enabled (target: 0.12 RMS, max gain: 30dB)
    - AGC Time: 0.5 seconds
    - Echo Cancellation: OFF
    - **Best for**: Jetson NX with fan noise
@@ -208,7 +208,7 @@ sudo systemctl restart xvf3800-tuning.service
 
 **AGC (Automatic Gain Control)**:
 - `PP_AGCONOFF`: Enable/disable AGC (0=OFF, 1=ON)
-- `PP_AGCDESIREDLEVEL`: Target RMS level (0.08 = recommended)
+- `PP_AGCDESIREDLEVEL`: Target RMS level (0.12 = recommended)
 - `PP_AGCMAXGAIN`: Maximum gain in linear units (1000 = 30dB)
 - `PP_AGCTIME`: Attack time in seconds (0.5 = fast response)
 
@@ -237,7 +237,7 @@ sudo systemctl restart xvf3800-tuning.service
   "config": {
     "AEC_HPFONOFF": 1,
     "PP_AGCONOFF": 1,
-    "PP_AGCDESIREDLEVEL": 0.08,
+    "PP_AGCDESIREDLEVEL": 0.12,
     "PP_AGCMAXGAIN": 1000,
     "PP_AGCTIME": 0.5,
     "PP_ECHOONOFF": 0
