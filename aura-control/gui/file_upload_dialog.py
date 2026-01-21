@@ -22,8 +22,6 @@ class RAGFilesDialog(BaseAuraDialog):
     """Dialog showing files actively being used by RAG"""
     
     def __init__(self, parent=None):
-        # Initialize attributes before calling super().__init__() which calls _setup_ui()
-        self.file_item_map = {}
         super().__init__(parent, title="📚 RAG Files Status", size=(1080, 1080), modal=True)
     
     def _setup_ui(self):
@@ -100,7 +98,7 @@ class RAGFilesDialog(BaseAuraDialog):
         self.remove_btn.clicked.connect(self._remove_selected_file)
         layout.addWidget(self.remove_btn)
         
-        # Load RAG files (file_item_map is initialized in __init__)
+        # Load RAG files
         self._load_rag_files()
         
         # Close button - centered and wider
@@ -140,8 +138,7 @@ class RAGFilesDialog(BaseAuraDialog):
     
     def _load_rag_files(self):
         """Load files that are actively being used by RAG"""
-        # Clear existing mapping and list
-        self.file_item_map.clear()
+        # Clear existing list
         self.file_list.clear()
         
         workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
@@ -289,9 +286,9 @@ class RAGFilesDialog(BaseAuraDialog):
                 item = QListWidgetItem(item_text)
                 item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable)  # Selectable
                 item.setToolTip(filename)  # Show full filename on hover
+                # Store filename as item data (QListWidgetItem is not hashable, so can't use as dict key)
+                item.setData(Qt.UserRole, filename)
                 self.file_list.addItem(item)
-                # Store mapping from item to filename
-                self.file_item_map[item] = filename
             
             # Add summary - compact format (not selectable)
             summary_item = QListWidgetItem(f"\n📊 {len(files_in_rag)} file(s), {total_chunks} chunk(s)")
@@ -403,7 +400,8 @@ class RAGFilesDialog(BaseAuraDialog):
         """Handle file selection - enable/disable remove button"""
         selected_items = self.file_list.selectedItems()
         # Enable remove button only if a file (not summary) is selected
-        if selected_items and selected_items[0] in self.file_item_map:
+        # Check if item has filename data (file items have it, summary items don't)
+        if selected_items and selected_items[0].data(Qt.UserRole):
             self.remove_btn.setEnabled(True)
         else:
             self.remove_btn.setEnabled(False)
@@ -415,11 +413,11 @@ class RAGFilesDialog(BaseAuraDialog):
             return
         
         selected_item = selected_items[0]
-        if selected_item not in self.file_item_map:
-            # Selected item is not a file (e.g., summary)
+        # Get filename from item data
+        filename = selected_item.data(Qt.UserRole)
+        if not filename:
+            # Selected item is not a file (e.g., summary) - no filename data
             return
-        
-        filename = self.file_item_map[selected_item]
         
         # Confirm deletion
         reply = QMessageBox.question(
@@ -454,8 +452,6 @@ class RAGFilesDialog(BaseAuraDialog):
             self._trigger_ingestion_for_file_removal(filename)
             
             # Reload file list
-            self.file_list.clear()
-            self.file_item_map.clear()
             self._load_rag_files()
             
             # Clear selection
