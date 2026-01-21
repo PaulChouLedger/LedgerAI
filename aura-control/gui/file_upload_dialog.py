@@ -23,6 +23,8 @@ class RAGFilesDialog(BaseAuraDialog):
     
     def __init__(self, parent=None):
         super().__init__(parent, title="📚 RAG Files Status", size=(1080, 1080), modal=True)
+        # Initialize file item mapping
+        self.file_item_map = {}
     
     def _setup_ui(self):
         """Setup UI - called by BaseAuraDialog"""
@@ -48,10 +50,11 @@ class RAGFilesDialog(BaseAuraDialog):
         desc.setStyleSheet("color: #8e8e93; font-size: 11px; margin: 3px;")  # Shorter text, smaller font
         layout.addWidget(desc)
         
-        # File list (read-only, no selection)
+        # File list (selectable for deletion)
         self.file_list = QListWidget()
-        self.file_list.setSelectionMode(QListWidget.NoSelection)
-        self.file_list.setMaximumHeight(500)  # Limit height to ensure buttons fit within white perimeter
+        self.file_list.setSelectionMode(QListWidget.SingleSelection)
+        self.file_list.setMaximumHeight(450)  # Reduced to make room for remove button
+        self.file_list.itemSelectionChanged.connect(self._on_file_selected)
         self.file_list.setStyleSheet("""
             QListWidget {
                 background-color: rgba(44, 44, 46, 0.8);
@@ -69,7 +72,35 @@ class RAGFilesDialog(BaseAuraDialog):
         """)
         layout.addWidget(self.file_list)
         
-        # Load RAG files
+        # Remove button (hidden until file is selected)
+        self.remove_btn = QPushButton("🗑️ Remove Selected File")
+        self.remove_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #FF3B30;
+                color: white;
+                font-size: 14px;
+                font-weight: 600;
+                padding: 12px 30px;
+                border-radius: 15px;
+                border: none;
+                min-width: 200px;
+            }
+            QPushButton:hover {
+                background-color: #D70015;
+            }
+            QPushButton:pressed {
+                background-color: #B00012;
+            }
+            QPushButton:disabled {
+                background-color: rgba(142, 142, 147, 0.3);
+                color: rgba(142, 142, 147, 0.5);
+            }
+        """)
+        self.remove_btn.setEnabled(False)
+        self.remove_btn.clicked.connect(self._remove_selected_file)
+        layout.addWidget(self.remove_btn)
+        
+        # Load RAG files (file_item_map is initialized in __init__)
         self._load_rag_files()
         
         # Close button - centered and wider
@@ -109,6 +140,10 @@ class RAGFilesDialog(BaseAuraDialog):
     
     def _load_rag_files(self):
         """Load files that are actively being used by RAG"""
+        # Clear existing mapping and list
+        self.file_item_map.clear()
+        self.file_list.clear()
+        
         workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
         embeddings_dir = os.path.join(workspace_root, 'data', 'embeddings')
         input_dir = os.path.join(workspace_root, 'data', 'input')
@@ -250,17 +285,22 @@ class RAGFilesDialog(BaseAuraDialog):
                 max_filename_len = 30  # Reduced for better fit
                 display_filename = filename if len(filename) <= max_filename_len else filename[:max_filename_len-3] + "..."
                 # Compact item text
-                item_text = f"{icon} {display_filename}{size_str} - {chunks}"
+                item_text = f"{icon} {display_filename}{size_str} - {chunks} chunks"
                 item = QListWidgetItem(item_text)
-                item.setFlags(Qt.NoItemFlags)  # Read-only
+                item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable)  # Selectable
                 item.setToolTip(filename)  # Show full filename on hover
                 self.file_list.addItem(item)
+                # Store mapping from item to filename
+                self.file_item_map[item] = filename
             
-            # Add summary - compact format
+            # Add summary - compact format (not selectable)
             summary_item = QListWidgetItem(f"\n📊 {len(files_in_rag)} file(s), {total_chunks} chunk(s)")
             summary_item.setFlags(Qt.NoItemFlags)
             summary_item.setForeground(QColor(142, 142, 147))  # Gray color
             self.file_list.addItem(summary_item)
+            
+            # Store files dict for later use
+            self.files_in_rag = files_in_rag
         else:
             # No files in RAG
             no_files_item = QListWidgetItem("📭 No files currently in RAG system")
@@ -358,6 +398,137 @@ class RAGFilesDialog(BaseAuraDialog):
             QMessageBox.critical(self, "Error", f"Failed to trigger ingestion: {e}")
             import traceback
             traceback.print_exc()
+    
+    def _on_file_selected(self):
+        """Handle file selection - enable/disable remove button"""
+        selected_items = self.file_list.selectedItems()
+        # Enable remove button only if a file (not summary) is selected
+        if selected_items and selected_items[0] in self.file_item_map:
+            self.remove_btn.setEnabled(True)
+        else:
+            self.remove_btn.setEnabled(False)
+    
+    def _remove_selected_file(self):
+        """Remove the selected file from RAG system"""
+        selected_items = self.file_list.selectedItems()
+        if not selected_items:
+            return
+        
+        selected_item = selected_items[0]
+        if selected_item not in self.file_item_map:
+            # Selected item is not a file (e.g., summary)
+            return
+        
+        filename = self.file_item_map[selected_item]
+        
+        # Confirm deletion
+        reply = QMessageBox.question(
+            self,
+            "Confirm Deletion",
+            f"Are you sure you want to remove '{filename}' from the RAG system?\n\n"
+            "This will:\n"
+            "• Delete the file from data/input/\n"
+            "• Remove its chunks from embeddings\n"
+            "• Update the RAG index",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No
+        )
+        
+        if reply != QMessageBox.Yes:
+            return
+        
+        try:
+            workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+            input_dir = os.path.join(workspace_root, 'data', 'input')
+            file_path = os.path.join(input_dir, filename)
+            
+            # Delete the file
+            if os.path.exists(file_path):
+                os.remove(file_path)
+                print(f"[RAGFilesDialog] ✅ Deleted file: {file_path}")
+            else:
+                print(f"[RAGFilesDialog] ⚠️ File not found: {file_path}")
+            
+            # Trigger ingestion to remove chunks from embeddings
+            # The ingestion system will detect the missing file and remove its chunks
+            self._trigger_ingestion_for_file_removal(filename)
+            
+            # Reload file list
+            self.file_list.clear()
+            self.file_item_map.clear()
+            self._load_rag_files()
+            
+            # Clear selection
+            self.remove_btn.setEnabled(False)
+            
+            QMessageBox.information(
+                self,
+                "File Removed",
+                f"✅ '{filename}' has been removed from the RAG system.\n\n"
+                "The file and its embeddings are being removed in the background."
+            )
+            
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Failed to remove file: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    def _trigger_ingestion_for_file_removal(self, removed_filename):
+        """Trigger ingestion after file removal to clean up embeddings"""
+        try:
+            import requests
+            
+            # Get RAG_MODE from settings file first, then fall back to environment variable
+            RAG_MODE = None
+            try:
+                settings_path = os.path.expanduser("~/LedgerAI/data/app_settings.json")
+                if os.path.exists(settings_path):
+                    import json
+                    with open(settings_path, 'r') as f:
+                        settings = json.load(f)
+                        RAG_MODE = settings.get('rag_mode', '').upper()
+            except:
+                pass
+            
+            # Fall back to environment variable if not in settings
+            if not RAG_MODE:
+                RAG_MODE = os.environ.get('RAG_MODE', 'CPU').upper()
+            
+            # Trigger ingestion based on RAG_MODE
+            # The ingestion system will detect missing files and remove their chunks
+            if RAG_MODE == 'CPU':
+                # CPU mode: Use CPU FAISS in LLM container
+                response = requests.post("http://localhost:11434/cpu-faiss/ingest", timeout=30)
+                if response.status_code == 200:
+                    print(f"[RAGFilesDialog] ✅ Triggered ingestion to remove chunks for {removed_filename}")
+                else:
+                    print(f"[RAGFilesDialog] ⚠️ Failed to trigger ingestion: HTTP {response.status_code}")
+            else:
+                # GPU mode: Use RAG container
+                response = requests.post("http://localhost:11435/rag/ingest", timeout=30)
+                if response.status_code == 200:
+                    # Also trigger rebuild and reload
+                    workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+                    host_script = os.path.join(workspace_root, 'setup', 'scripts', 'rebuild_embeddings_host.py')
+                    import subprocess
+                    subprocess.run(
+                        ["python3", host_script],
+                        capture_output=True,
+                        text=True,
+                        timeout=120,
+                        cwd=workspace_root
+                    )
+                    # Reload RAG
+                    reload_response = requests.post("http://localhost:11435/rag/reload", timeout=10)
+                    if reload_response.status_code == 200:
+                        print(f"[RAGFilesDialog] ✅ Triggered ingestion and reload to remove chunks for {removed_filename}")
+                    else:
+                        print(f"[RAGFilesDialog] ⚠️ Failed to reload RAG: HTTP {reload_response.status_code}")
+                else:
+                    print(f"[RAGFilesDialog] ⚠️ Failed to trigger ingestion: HTTP {response.status_code}")
+                    
+        except Exception as e:
+            print(f"[RAGFilesDialog] ⚠️ Error triggering ingestion: {e}")
 
 def get_local_ip():
     """Get the local IP address"""
