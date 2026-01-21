@@ -504,6 +504,18 @@ def get_filler_phrase() -> str:
     ]
     return random.choice(filler_phrases)
 
+# === Secondary Filler (CoT/Filtering Phase) ===
+def get_cot_filler_phrase() -> str:
+    """Get a short filler phrase to play when CoT mode starts (before FINAL ANSWER filtering)."""
+    import random
+    filler_phrases = [
+        "Okay—processing that now.",
+        "Got it. One more second while I extract the answer.",
+        "Alright—pulling the exact answer from the context.",
+        "One moment—finalizing the answer.",
+    ]
+    return random.choice(filler_phrases)
+
 # === Conversational Logic ===
 def validate_query(prompt: str) -> tuple:
     """
@@ -554,6 +566,22 @@ def validate_query(prompt: str) -> tuple:
     
     # Check for queries that are just punctuation or very short
     if len(prompt.strip()) <= 2 or prompt.strip() in ['.', '?', '!', ',', ';', ':']:
+        return False, "I'm sorry, I didn't understand your question. Can you repeat it?"
+
+    # Catch incomplete questions that end in a dangling preposition (common STT truncation)
+    # Examples:
+    # - "Did Bob Parella work for?"
+    # - "Who did he work with?"
+    dangling_patterns = [
+        r'\b(work|worked|working)\s+for\??\s*$',   # "work for?"
+        r'\b(go|went|going)\s+to\??\s*$',          # "go to?"
+        r'\b(live|lived|living)\s+in\??\s*$',      # "live in?"
+        r'\b(born)\s+in\??\s*$',                   # "born in?"
+        r'\b(graduate|graduated)\s+from\??\s*$',   # "graduated from?"
+        r'\b(about)\??\s*$',                       # "... about?"
+    ]
+    if any(re.search(pat, prompt_lower) for pat in dangling_patterns):
+        print(f"[Generic] ⚠️ Query validation failed: dangling/incomplete ending - '{prompt[:60]}...'")
         return False, "I'm sorry, I didn't understand your question. Can you repeat it?"
     
     return True, None
@@ -3080,6 +3108,7 @@ def filter_cot_reasoning(generator):
     preface_sentence_active = False
     preface_sentence_parts = []
     preface_sentence_used = False
+    cot_filler_emitted = False
     
     def extract_text(token):
         """Extract text content from token (removing sentence tags)"""
@@ -3220,6 +3249,16 @@ def filter_cot_reasoning(generator):
             is_cot_response = True
             cot_detected = True
             print(f"[Generic] 🔍 [CoT Filter] CoT response detected - applying reasoning filter")
+
+            # Optional: emit a second filler phrase right as CoT begins (before FINAL ANSWER filtering).
+            # This improves perceived latency during long REASONING sections.
+            if not cot_filler_emitted:
+                cot_filler_emitted = True
+                cot_filler = get_cot_filler_phrase()
+                print(f"[Generic] 💭 [CoT Filter] Emitting CoT filler phrase: '{cot_filler}'")
+                yield "<sentence_start>\n"
+                yield f"{cot_filler}\n"
+                yield "<sentence_end>\n"
             
             # IMPORTANT: Suppress model-generated filler phrases if we already yielded one
             # The filler phrase should play DURING RAG processing, not after
@@ -3390,24 +3429,28 @@ def filter_cot_reasoning(generator):
                 yield "<sentence_start>\n"
                 continue
         
-        # After FINAL ANSWER found, buffer answer tokens (need full answer for proper DISCARD filtering)
-        # CRITICAL: Stop collecting if model outputs a second REASONING or FINAL ANSWER (indicates model is repeating/confused)
+        # After FINAL ANSWER found, buffer answer tokens (need enough text to clean/truncate safely).
+        # CRITICAL: Stop collecting as soon as we see the model start emitting ANY new sections.
+        # This prevents leaks like "... andREASONING: I" (no whitespace before REASONING).
         if found_final_answer and collecting_answer:
-            # Check if a new REASONING or FINAL ANSWER marker appears (model is repeating itself)
             if text_content:
-                # Build current answer text to check for markers
-                current_answer = " ".join(answer_buffer + [text_content]).lower()
-                # Check for subsequent markers that indicate model is repeating
-                if any(marker in current_answer for marker in [
-                    "reasoning: i will", "reasoning: i'll", "reasoning: the",
-                    "final answer: the", "final answer: i", "final answer: i'm",
-                    "i'm sorry, but i don't", "i don't have specific information"
-                ]):
-                    print(f"[Generic] ⚠️ [CoT Filter] Detected subsequent REASONING/FINAL ANSWER marker - stopping answer collection")
-                    # Stop collecting - we have enough of the answer
+                next_piece = text_content
+                # Fast, robust marker detection (case-insensitive; catches attached markers like "andREASONING:")
+                probe = ("".join(answer_buffer) + next_piece)
+                probe_l = probe.lower()
+                if (
+                    "reasoning:" in probe_l
+                    or "final answer:" in probe_l
+                    or "final_answer:" in probe_l
+                    or "end of scan" in probe_l
+                    or "search continues" in probe_l
+                    or "i'm sorry, but i don't" in probe_l
+                    or "i don't have specific information" in probe_l
+                ):
+                    print("[Generic] ⚠️ [CoT Filter] Detected post-answer marker/leak while collecting; stopping collection")
                     collecting_answer = False
                     continue
-                answer_buffer.append(text_content)
+                answer_buffer.append(next_piece)
             continue
     
     # After stream ends, clean and yield final answer (matches test script extraction)
@@ -3430,15 +3473,22 @@ def filter_cot_reasoning(generator):
         # We've seen outputs like: "<final>. REASONING: ... DISCARD ... Final Answer: ... University of Arizona."
         # For TTS, we only want the first FINAL ANSWER span.
         # CRITICAL: Find the FIRST occurrence of any truncation marker and cut everything after it
+        # Must catch REASONING even when attached to previous word (e.g., "andREASONING:")
+        # Remove word boundaries (\b) from REASONING patterns to catch attached instances
         trunc_markers = [
-            r'\bREASONING:\s*I\s+will',  # "REASONING: I will..." (common pattern after first answer)
-            r'\bREASONING:\s*[A-Z]',      # "REASONING: [Any capital letter]"
-            r'\bReasoning:\s*[A-Z]',      # "Reasoning: [Any capital letter]"
-            r'\bFINAL\s+ANSWER:\s*[A-Z]', # "FINAL ANSWER: [Any capital letter]" (second FINAL ANSWER)
-            r'\bFinal\s+Answer:\s*[A-Z]', # "Final Answer: [Any capital letter]"
-            r'\bFinal\s+answer:\s*[A-Z]', # "Final answer: [Any capital letter]"
-            r'\bSEARCH\s+CONTINUES',      # "SEARCH CONTINUES"
-            r'\bEND\s+OF\s+SCAN',         # "END OF SCAN" (if it appears after first answer)
+            r'REASONING:\s*I\s+will',     # "REASONING: I will..." (common pattern after first answer)
+            r'REASONING:\s*I\b',          # "REASONING: I" (without "will")
+            r'REASONING:\s*[A-Z]',        # "REASONING: [Any capital letter]" (no word boundary - catches attached)
+            r'REASONING:',                 # "REASONING:" (catch any occurrence, even attached like "andREASONING:")
+            r'Reasoning:\s*I\s+will',     # "Reasoning: I will..."
+            r'Reasoning:\s*I\b',           # "Reasoning: I"
+            r'Reasoning:\s*[A-Z]',         # "Reasoning: [Any capital letter]"
+            r'Reasoning:',                  # "Reasoning:" (catch any occurrence)
+            r'\bFINAL\s+ANSWER:\s*[A-Z]',  # "FINAL ANSWER: [Any capital letter]" (second FINAL ANSWER)
+            r'\bFinal\s+Answer:\s*[A-Z]',  # "Final Answer: [Any capital letter]"
+            r'\bFinal\s+answer:\s*[A-Z]',  # "Final answer: [Any capital letter]"
+            r'\bSEARCH\s+CONTINUES',       # "SEARCH CONTINUES"
+            r'\bEND\s+OF\s+SCAN',          # "END OF SCAN" (if it appears after first answer)
             r'\bDISCARD\b\s*Final\s*Answer', # "DISCARD Final Answer"
             r"I'm\s+sorry,\s+but\s+I\s+don't", # Apology after hallucination
             r"I\s+don't\s+have\s+specific\s+information", # "I don't have specific information..."
@@ -3453,9 +3503,43 @@ def filter_cot_reasoning(generator):
                     earliest_pos = match.start()
         
         # If we found a truncation marker, cut everything after it
+        # BUT: Don't cut mid-sentence - find the last sentence boundary before the marker
         if earliest_pos < len(final_answer):
-            print(f"[Generic] ✂️  [CoT Filter] Truncating at position {earliest_pos} (found marker after first answer)")
-            final_answer = final_answer[:earliest_pos].strip()
+            print(f"[Generic] ✂️  [CoT Filter] Found truncation marker at position {earliest_pos}")
+            # Find the last sentence-ending punctuation before the marker
+            # Look for . ! ? followed by space or end of string, within last 200 chars before marker
+            search_start = max(0, earliest_pos - 200)
+            text_before_marker = final_answer[search_start:earliest_pos]
+            
+            # Find last sentence boundary (period, exclamation, question mark)
+            sentence_end_match = None
+            for punct in ['.', '!', '?']:
+                # Look for punctuation followed by space or end
+                pattern = re.escape(punct) + r'(?:\s+|$)'
+                matches = list(re.finditer(pattern, text_before_marker))
+                if matches:
+                    last_match = matches[-1]
+                    if sentence_end_match is None or last_match.end() > sentence_end_match.end():
+                        sentence_end_match = last_match
+            
+            if sentence_end_match:
+                # Truncate at the sentence boundary (adjust for search_start offset)
+                truncate_at = search_start + sentence_end_match.end()
+                print(f"[Generic] ✂️  [CoT Filter] Truncating at sentence boundary (position {truncate_at}) instead of mid-sentence")
+                final_answer = final_answer[:truncate_at].strip()
+            else:
+                # No sentence boundary found - truncate at marker but try to clean up
+                print(f"[Generic] ✂️  [CoT Filter] Truncating at position {earliest_pos} (no sentence boundary found)")
+                final_answer = final_answer[:earliest_pos].strip()
+                # Remove trailing incomplete phrases (common after truncation)
+                final_answer = re.sub(r'\s+from\s+the\s*\.?\s*$', '', final_answer, flags=re.IGNORECASE)
+                final_answer = re.sub(r'\s+at\s+the\s*\.?\s*$', '', final_answer, flags=re.IGNORECASE)
+                final_answer = re.sub(r'\s+in\s+the\s*\.?\s*$', '', final_answer, flags=re.IGNORECASE)
+                final_answer = re.sub(r'\s+to\s+the\s*\.?\s*$', '', final_answer, flags=re.IGNORECASE)
+                final_answer = re.sub(r'\s+the\s*\.?\s*$', '', final_answer, flags=re.IGNORECASE)
+                final_answer = re.sub(r'\s+\.\s*$', '', final_answer)  # Remove trailing period if sentence incomplete
+                # If we truncated right after a conjunction, drop it ("... and")
+                final_answer = re.sub(r'\b(and|or)\s*$', '', final_answer, flags=re.IGNORECASE).strip()
         
         # Clean up trailing punctuation/whitespace after truncation
         final_answer = re.sub(r'\s+', ' ', final_answer).strip()

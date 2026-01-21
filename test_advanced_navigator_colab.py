@@ -34,6 +34,7 @@ import os
 import glob
 from typing import List, Dict, Optional, Tuple
 import torch
+from pathlib import Path
 
 # Try to import Unsloth (for HuggingFace format models)
 try:
@@ -51,6 +52,14 @@ except ImportError:
     TRANSFORMERS_AVAILABLE = False
     print("⚠️  Transformers not available.")
 
+# Try to import PEFT (needed to load LoRA adapters saved by training)
+try:
+    from peft import PeftModel
+    PEFT_AVAILABLE = True
+except ImportError:
+    PEFT_AVAILABLE = False
+    print("⚠️  peft not available. If you only have LoRA adapters in outputs/, loading may fail.")
+
 # Try to import llama_cpp (for GGUF format models)
 try:
     from llama_cpp import Llama
@@ -65,16 +74,48 @@ except ImportError:
 
 def load_model():
     """Load fine-tuned model (tries multiple formats)."""
-    # Try Unsloth format
+    outputs_dir = Path("outputs")
+
+    # If outputs/ contains LoRA adapters (common for QLoRA/Unsloth), load base model + attach adapters.
+    adapter_cfg = outputs_dir / "adapter_config.json"
+    if adapter_cfg.exists():
+        if not (UNSLOTH_AVAILABLE and PEFT_AVAILABLE):
+            raise RuntimeError(
+                "outputs/ appears to be LoRA adapters (adapter_config.json found), but required "
+                f"libraries are missing: UNSLOTH_AVAILABLE={UNSLOTH_AVAILABLE}, PEFT_AVAILABLE={PEFT_AVAILABLE}. "
+                "Install: !pip install unsloth peft transformers accelerate bitsandbytes"
+            )
+
+        with adapter_cfg.open("r", encoding="utf-8") as f:
+            cfg = json.load(f)
+        base_model_name = cfg.get("base_model_name_or_path") or cfg.get("model_name_or_path")
+        if not base_model_name:
+            raise RuntimeError("adapter_config.json is missing base_model_name_or_path; cannot load base model.")
+
+        print(f"📦 Loading base model for adapters: {base_model_name}")
+        base_model, tokenizer = FastLanguageModel.from_pretrained(
+            model_name=base_model_name,
+            max_seq_length=2048,
+            dtype=None,
+            load_in_4bit=True,
+        )
+
+        print("🧩 Attaching LoRA adapters from outputs/ ...")
+        model = PeftModel.from_pretrained(base_model, str(outputs_dir))
+        model_type = "unsloth"
+        print("✅ Loaded base model + LoRA adapters")
+        return model, tokenizer, model_type
+
+    # Try Unsloth/HF format from outputs/ (works only if outputs/ is a merged full model)
     if UNSLOTH_AVAILABLE:
         try:
-            if os.path.exists("outputs/"):
+            if outputs_dir.exists():
                 print("📦 Loading Unsloth model from outputs/...")
                 model, tokenizer = FastLanguageModel.from_pretrained(
                     model_name="outputs/",
                     max_seq_length=2048,
                     dtype=None,
-                    load_in_4bit=False,
+                    load_in_4bit=True,
                 )
                 model_type = "unsloth"
                 print("✅ Loaded Unsloth model")
