@@ -3352,8 +3352,8 @@ def filter_cot_reasoning(generator):
                     print(f"[Generic] ⚠️  [CoT Reasoning Debug] WARNING: all_items_ordered ({len(all_items_ordered)}) != kept_items ({len(kept_items)})")
                     # Force add any missing items
                     for item in kept_items:
-                    if item not in all_items_ordered:
-                        all_items_ordered.append(item)
+                        if item not in all_items_ordered:
+                            all_items_ordered.append(item)
                             print(f"[Generic] 🔧 [CoT Reasoning Debug] Force-added missing item: '{item}'")
                 
                 all_items = all_items_ordered
