@@ -1285,10 +1285,16 @@ def speak_llm_response(prompt, context=""):
                     last_sentence_text = combined
                 sentence_batch.clear()
         
-        for line in response.iter_lines(decode_unicode=True):
+        # IMPORTANT: Use a very small chunk_size so early short lines (like filler phrases)
+        # are yielded immediately instead of being buffered until larger chunks arrive.
+        for line in response.iter_lines(decode_unicode=True, chunk_size=1):
             token = line.rstrip("\r\n")
             if not token:
                 continue
+
+            # Debug: log every received line (helps diagnose missing filler phrase)
+            # Keep it lightweight but explicit.
+            print(f"[Speaker] 📥 Received line: {repr(token)}")
 
             # Debug: Log all control tags
             if token.startswith('<') and token.endswith('>'):
