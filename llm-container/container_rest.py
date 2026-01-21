@@ -2487,21 +2487,26 @@ def chat_tts():
             # This is more reliable than pattern matching - if content exists, use RAG
             # Allow RAG for information-seeking queries even if they're conversational in form
             will_use_rag = False
+            print(f"[Generic] 🔍 [RAG Decision] Starting RAG decision check - RAG_MODE={RAG_MODE}, is_conversational={is_conversational}, is_information_seeking={is_information_seeking}")
             if RAG_MODE in ("CPU", "GPU"):
                 try:
                     # Quick check: does document RAG have relevant content?
                     client = get_rag_client()
                     if client:
                         has_doc_content = client.quick_content_match(prompt)
+                        print(f"[Generic] 🔍 [RAG Decision] quick_content_match result: {has_doc_content}")
                         if has_doc_content:
                             # Use RAG if content exists, even for conversational information-seeking queries
                             if not is_conversational or is_information_seeking:
                                 will_use_rag = True
-                                print(f"[Generic] ✅ Document RAG will be used - quick_content_match found relevant content")
+                                print(f"[Generic] ✅ [RAG Decision] Document RAG will be used - quick_content_match found relevant content")
+                                print(f"[Generic] ✅ [RAG Decision] will_use_rag=True (is_conversational={is_conversational}, is_information_seeking={is_information_seeking})")
                             else:
-                                print(f"[Generic] 🔍 Document RAG found content but skipping (simple conversational query)")
+                                print(f"[Generic] 🔍 [RAG Decision] Document RAG found content but skipping (simple conversational query)")
                         else:
-                            print(f"[Generic] 🔍 Document RAG quick_content_match: no relevant content found")
+                            print(f"[Generic] 🔍 [RAG Decision] Document RAG quick_content_match: no relevant content found")
+                    else:
+                        print(f"[Generic] ⚠️ [RAG Decision] RAG client not available")
                     
                     # Quick check: does memory RAG have relevant content?
                     memory_container_url = os.environ.get('MEMORY_CONTAINER_URL', 'http://localhost:11438')
@@ -2525,31 +2530,45 @@ def chat_tts():
             
             # Yield filler phrase IMMEDIATELY after detecting RAG will be used (before calling handle_conversation)
             # This ensures it plays while RAG search happens in the background
+            print(f"[Generic] 🔍 [Filler Phrase] Checking if filler phrase should be yielded - will_use_rag={will_use_rag}, is_conversational={is_conversational}, is_information_seeking={is_information_seeking}")
+            filler_phrase_yielded = False
             if will_use_rag and (not is_conversational or is_information_seeking):
                 filler_phrase = get_filler_phrase()
-                print(f"[Generic] 💭 Yielding filler phrase IMMEDIATELY after RAG detection: '{filler_phrase}'")
-                # Yield filler phrase with sentence tags
+                print(f"[Generic] ✅ [Filler Phrase] DECISION: Yielding filler phrase IMMEDIATELY after RAG detection")
+                print(f"[Generic] 💭 [Filler Phrase] Filler phrase: '{filler_phrase}'")
+                print(f"[Generic] 💭 [Filler Phrase] Yielding <sentence_start> tag")
                 yield "<sentence_start>\n"
+                print(f"[Generic] 💭 [Filler Phrase] Yielding filler phrase text: '{filler_phrase}'")
                 yield filler_phrase
+                print(f"[Generic] 💭 [Filler Phrase] Yielding <sentence_end> tag")
                 yield "\n<sentence_end>\n"
+                filler_phrase_yielded = True
+                print(f"[Generic] ✅ [Filler Phrase] Filler phrase yield complete")
+            else:
+                print(f"[Generic] ⏭️ [Filler Phrase] Skipping filler phrase - will_use_rag={will_use_rag}, is_conversational={is_conversational}, is_information_seeking={is_information_seeking}")
             
             # Use streaming mode to get tokens as they're generated, with memory context
             # The filler phrase was already yielded above, handle_conversation() will skip its own
+            print(f"[Generic] 🔍 [Stream] Calling handle_conversation() with stream=True (filler_phrase_yielded={filler_phrase_yielded})")
             result = handle_conversation(prompt, session_id, memory_context=memory_context, stream=True)
             
             # Check if result is a generator (streaming)
             if hasattr(result, '__iter__') and not isinstance(result, str):
+                print(f"[Generic] 🔍 [Stream] Processing stream from handle_conversation()")
                 # Reduced debug logging for performance
                 normalized_chunks = _normalize_stream_chunks(result)
                 word_stream = _word_stream_from_chunks(normalized_chunks)
                 sentence_stream = _sentence_tag_stream(word_stream)
                 token_count = 0
                 try:
+                    print(f"[Generic] 🔍 [Stream] Getting first token from sentence_stream...")
                     first_token = next(sentence_stream)
                     token_count += 1
+                    print(f"[Generic] ✅ [Stream] First token received: '{first_token[:50]}...' (type: {type(first_token)})")
                     # Yield the first token
                     if not (first_token.startswith('<') and first_token.endswith('>')):
                         full_response_text += first_token
+                    print(f"[Generic] 💭 [Stream] Yielding first token: '{first_token[:50]}...'")
                     yield f"{first_token}\n"
                     # Continue with rest
                     for token in sentence_stream:

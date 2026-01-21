@@ -243,10 +243,28 @@ class RAGFilesDialog(BaseAuraDialog):
                 import traceback
                 traceback.print_exc()
         
-        # Display files
+        # Display files - only show files that exist in BOTH embeddings AND input directory
         if files_in_rag:
+            # Filter to only show files that actually exist in input directory
+            existing_files = {}
+            missing_files = []
+            for filename, chunks in files_in_rag.items():
+                file_path = os.path.join(input_dir, filename)
+                if os.path.exists(file_path):
+                    existing_files[filename] = chunks
+                else:
+                    missing_files.append(filename)
+                    print(f"[RAGFilesDialog] ⚠️ File in embeddings but missing from input: {filename}")
+            
             # Sort by chunk count (descending)
-            sorted_files = sorted(files_in_rag.items(), key=lambda x: x[1], reverse=True)
+            sorted_files = sorted(existing_files.items(), key=lambda x: x[1], reverse=True)
+            
+            # Show warning if there are missing files
+            if missing_files:
+                warning_item = QListWidgetItem(f"⚠️ {len(missing_files)} file(s) in embeddings but missing from input directory")
+                warning_item.setFlags(Qt.NoItemFlags)
+                warning_item.setForeground(QColor(255, 193, 7))  # Yellow
+                self.file_list.addItem(warning_item)
             
             for filename, chunks in sorted_files:
                 file_ext = os.path.splitext(filename)[1].lower()
@@ -290,14 +308,16 @@ class RAGFilesDialog(BaseAuraDialog):
                 item.setData(Qt.UserRole, filename)
                 self.file_list.addItem(item)
             
-            # Add summary - compact format (not selectable)
-            summary_item = QListWidgetItem(f"\n📊 {len(files_in_rag)} file(s), {total_chunks} chunk(s)")
+            # Update summary to only count existing files
+            existing_total_chunks = sum(existing_files.values())
+            summary_item = QListWidgetItem(f"\n📊 {len(existing_files)} file(s), {existing_total_chunks} chunk(s)")
             summary_item.setFlags(Qt.NoItemFlags)
             summary_item.setForeground(QColor(142, 142, 147))  # Gray color
             self.file_list.addItem(summary_item)
             
             # Store files dict for later use
-            self.files_in_rag = files_in_rag
+            self.files_in_rag = existing_files
+            
         else:
             # No files in RAG
             no_files_item = QListWidgetItem("📭 No files currently in RAG system")
