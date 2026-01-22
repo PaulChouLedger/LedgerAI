@@ -67,7 +67,7 @@ TTS (Speech Synthesis)
    - Filters noise bursts
 
 4. **Audio Normalization**:
-   - Target RMS: 0.18 (optimal for Whisper)
+   - Target RMS: 0.22 (optimal for Whisper)
    - Soft limiting (prevents clipping)
    - Sends to Whisper container
 
@@ -321,7 +321,7 @@ if response.json().get("response"):
 **Audio Processing**:
 - **Same Pipeline**: Uses same audio processing as VAD
 - **Shared Function**: `read_audio_frame()` for consistency
-- **Normalization**: Same target RMS (0.18) as VAD
+- **Normalization**: Same target RMS (0.22) as VAD
 - **Channel Extraction**: Channel 0 (beamformed output)
 
 **Frame Processing**:
@@ -468,7 +468,7 @@ if wake_word_enabled:
 1. **Check Initialization**: Look for "✅ OpenWakeWord initialized" in logs
 2. **Verify Model**: Check `data/models/wake_words/` for custom models
 3. **Check Threshold**: Lower threshold for more sensitivity (default: 0.01)
-4. **Audio Levels**: Verify audio normalization (RMS ~0.18)
+4. **Audio Levels**: Verify audio normalization (RMS ~0.22)
 5. **Device Selection**: Ensure correct microphone device selected
 
 **False Positives**:
@@ -538,7 +538,7 @@ if wake_word_enabled:
 4. **Display**: Configuration displayed in console on listener startup
 
 **Configuration Parameters**:
-- **AGC Target**: `PP_AGCDESIREDLEVEL` (0.18 = recommended)
+- **AGC Target**: `PP_AGCDESIREDLEVEL` (0.22 = recommended)
 - **AGC Max Gain**: `PP_AGCMAXGAIN` (1000 = 30dB)
 - **HPF Setting**: `AEC_HPFONOFF` (1 = 70Hz recommended)
 - **Echo Cancellation**: `PP_ECHOONOFF` (1 = ON, 0 = OFF)
@@ -550,7 +550,7 @@ if wake_word_enabled:
 ### Software Processing
 
 **1. Audio Normalization**:
-- Target RMS: 0.18 (optimal for Whisper)
+- Target RMS: 0.22 (optimal for Whisper)
 - Calculates gain factor
 - Applies gain with soft clipping
 

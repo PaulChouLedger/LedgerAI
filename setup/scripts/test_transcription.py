@@ -116,13 +116,15 @@ SPEECH_PEAK_MIN = 0.0025
 SPEECH_HIGH_FREQ_MAX = 0.08
 
 # === Audio Normalization (for optimal Whisper transcription) ===
-ENABLE_AUDIO_NORMALIZATION = False  # Disabled - using hardware AGC only (target: 0.18 RMS)
-TARGET_RMS_FOR_WHISPER = 0.18      # Target RMS level for Whisper
+ENABLE_AUDIO_NORMALIZATION = False  # Disabled - using hardware AGC only (target: 0.22 RMS)
+TARGET_RMS_FOR_WHISPER = 0.22      # Target RMS level for Whisper
 
 # === Soft Clipping Prevention ===
 ENABLE_SOFT_LIMITER = False      # Prevent clipping from near-field speech
 LIMITER_THRESHOLD = 0.95        # Start limiting above this peak level
 LIMITER_KNEE = 0.05             # Soft knee width for smooth limiting
+LIMITER_ATTACK_TIME = 0.003     # Attack time: 3ms (fast response to catch transients)
+LIMITER_RELEASE_TIME = 0.100   # Release time: 100ms (smooth return to normal)
 
 # === VAD Thresholds (can be lowered with beamforming) ===
 # With beamforming enabled, audio is cleaner so you can use lower thresholds for better responsiveness
@@ -246,55 +248,66 @@ def normalize_audio_for_whisper(audio_data, target_rms=TARGET_RMS_FOR_WHISPER):
     
     return normalized
 
+# Global state for limiter envelope follower (persists across calls)
+_limiter_envelope = 0.0
+
 def soft_limit(audio_data):
     """
     Apply soft limiting to prevent clipping from near-field speech
     
-    Uses a smooth tanh-based limiter that:
-    - Passes audio below threshold unchanged
-    - Gradually compresses audio above threshold
-    - Prevents hard clipping (peak = 1.0)
+    Uses a smooth tanh-based limiter with attack/release time constants:
+    - Fast attack (3ms) to catch transients before clipping
+    - Smooth release (100ms) to avoid artifacts
+    - Soft knee compression for natural sound
     
     This allows AGC to boost far-field speech without clipping near-field.
     """
+    global _limiter_envelope
+    
     if not ENABLE_SOFT_LIMITER:
         return audio_data
     
-    peak = np.max(np.abs(audio_data))
+    # Calculate attack and release coefficients
+    # Attack: fast response (3ms) to catch transients
+    # Release: slower return (100ms) for smooth operation
+    attack_coeff = np.exp(-1.0 / (LIMITER_ATTACK_TIME * SAMPLE_RATE))
+    release_coeff = np.exp(-1.0 / (LIMITER_RELEASE_TIME * SAMPLE_RATE))
     
-    # No limiting needed if below threshold
-    if peak <= LIMITER_THRESHOLD:
-        return audio_data
+    # Process sample-by-sample with envelope follower
+    limited = np.zeros_like(audio_data)
     
-    # Apply soft knee compression using tanh
-    # This creates a smooth transition from linear to compressed
-    def soft_knee_compress(x, threshold, knee):
-        """Soft knee compression with smooth transition"""
-        # Linear region (below threshold - knee)
-        linear_threshold = threshold - knee
+    for i, sample in enumerate(audio_data):
+        # Calculate instantaneous level
+        abs_sample = np.abs(sample)
         
-        # For samples below linear threshold, pass through unchanged
-        if np.abs(x) <= linear_threshold:
-            return x
-        
-        # For samples in knee region, apply smooth compression
-        sign = np.sign(x)
-        abs_x = np.abs(x)
-        
-        if abs_x <= threshold:
-            # Smooth transition zone
-            ratio = (abs_x - linear_threshold) / knee
-            compressed = linear_threshold + knee * np.tanh(ratio)
-            return sign * compressed
+        # Envelope follower: attack fast, release slow
+        if abs_sample > _limiter_envelope:
+            # Attack: fast response to peaks
+            _limiter_envelope = abs_sample + (_limiter_envelope - abs_sample) * attack_coeff
         else:
-            # Above threshold - strong compression
-            excess = abs_x - threshold
-            compressed = threshold + LIMITER_KNEE * np.tanh(excess / LIMITER_KNEE)
-            return sign * compressed
-    
-    # Vectorize the compression function
-    vectorized_compress = np.vectorize(soft_knee_compress)
-    limited = vectorized_compress(audio_data, LIMITER_THRESHOLD, LIMITER_KNEE)
+            # Release: slow return to normal
+            _limiter_envelope = abs_sample + (_limiter_envelope - abs_sample) * release_coeff
+        
+        # Calculate gain reduction based on envelope
+        if _limiter_envelope <= LIMITER_THRESHOLD:
+            # No limiting needed
+            limited[i] = sample
+        else:
+            # Apply soft knee compression
+            linear_threshold = LIMITER_THRESHOLD - LIMITER_KNEE
+            excess = _limiter_envelope - LIMITER_THRESHOLD
+            
+            if _limiter_envelope <= LIMITER_THRESHOLD + LIMITER_KNEE:
+                # In knee region - smooth transition
+                ratio = (_limiter_envelope - linear_threshold) / LIMITER_KNEE
+                compressed_level = linear_threshold + LIMITER_KNEE * np.tanh(ratio)
+            else:
+                # Above threshold - strong compression
+                compressed_level = LIMITER_THRESHOLD + LIMITER_KNEE * np.tanh(excess / LIMITER_KNEE)
+            
+            # Apply gain reduction (ratio of compressed level to envelope)
+            gain_reduction = compressed_level / _limiter_envelope if _limiter_envelope > 0 else 1.0
+            limited[i] = sample * gain_reduction
     
     return limited.astype(np.float32)
 
@@ -561,7 +574,7 @@ def listen():
         print("[Filter]    Set ENABLE_ADVANCED_FILTER = True to enable multi-feature filtering")
     
     if ENABLE_SOFT_LIMITER:
-        print(f"\n[Limiter] 🎚️  SOFT LIMITER: ENABLED (threshold={LIMITER_THRESHOLD}, knee={LIMITER_KNEE})")
+        print(f"\n[Limiter] 🎚️  SOFT LIMITER: ENABLED (threshold={LIMITER_THRESHOLD}, knee={LIMITER_KNEE}, attack={LIMITER_ATTACK_TIME*1000:.1f}ms, release={LIMITER_RELEASE_TIME*1000:.1f}ms)")
         print("[Limiter]   Prevents near-field clipping while preserving far-field AGC")
     
     print("="*70 + "\n")
