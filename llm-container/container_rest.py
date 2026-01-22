@@ -3405,6 +3405,8 @@ def filter_cot_reasoning(generator):
                         "one moment", "just a second", "hold on", "thinking",
                         "i'll need a moment", "i will need a moment", "give me a moment to",
                         "let me look that up", "let me search", "let me find",
+                        "let me gather", "let me process", "gather the relevant", "process that question",
+                        "one moment, let me", "give me a moment to process", "let me think about that",
                     ]
                     looks_like_filler = any(p in preface_text_l for p in filler_patterns)
 
@@ -3453,22 +3455,11 @@ def filter_cot_reasoning(generator):
                 reasoning_marker = "REASONING:"  # Fallback
             pre_reasoning_content = detection_buffer.split(reasoning_marker)[0].strip()
             if pre_reasoning_content:
-                # Check if this looks like a filler phrase (common patterns)
-                filler_patterns = [
-                    'let me think', 'give me a moment', 'let me recall', 'let me check',
-                    'one moment', 'just a second', 'hold on', 'thinking'
-                ]
-                is_filler_phrase = any(pattern in pre_reasoning_content.lower() for pattern in filler_patterns)
-                if is_filler_phrase:
-                    print(f"[Generic] 💭 [CoT Filter] Suppressing model-generated filler phrase: '{pre_reasoning_content[:50]}...' (we already yielded one before RAG)")
-                    # Don't yield - we already yielded filler phrase before RAG started
-                else:
-                    # Not a filler phrase - yield it (might be important context)
-                    print(f"[Generic] 💭 [CoT Filter] Yielding pre-reasoning content: '{pre_reasoning_content[:50]}...'")
-                    yield "<sentence_start>\n"
-                    for word in pre_reasoning_content.split():
-                        yield f"{word} "
-                    yield "\n<sentence_end>\n"
+                # For CoT responses, suppress ALL pre-reasoning content
+                # The model should start with REASONING:, not output answers first
+                # Any content before REASONING: is likely hallucinated or incorrect
+                print(f"[Generic] 💭 [CoT Filter] Suppressing pre-reasoning content: '{pre_reasoning_content[:50]}...' (CoT responses must start with REASONING:)")
+                # Don't yield - suppress everything before REASONING:
             
             # Use only the REASONING part for CoT processing
             text_buffer = reasoning_marker + detection_buffer.split(reasoning_marker)[-1]
