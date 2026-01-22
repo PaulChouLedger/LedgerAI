@@ -103,13 +103,13 @@ LENGTH_PENALTY = 1.0    # Prevents cutting off words
 1. **Hardware DSP**: XVF3800 processes audio (beamforming, AGC, HPF)
 2. **PortAudio Capture**: `listener.py` captures audio stream
 3. **VAD Detection**: Silero VAD detects speech segments
-4. **Audio Normalization**: Normalized to optimal RMS (0.12) for Whisper
+4. **Audio Normalization**: Normalized to optimal RMS (0.18) for Whisper
 5. **Soft Limiting**: Prevents clipping from near-field speech
 6. **HTTP Request**: Audio sent to `http://localhost:5000/transcribe`
 
 ### Audio Normalization Logic
 
-**Function**: `normalize_audio_for_whisper(audio_data, target_rms=0.12)`
+**Function**: `normalize_audio_for_whisper(audio_data, target_rms=0.18)`
 
 **Process**:
 1. Calculates current RMS
@@ -151,7 +151,7 @@ The XVF3800 USB 4-Mic Array includes hardware DSP processing that occurs before 
 
 1. **`balanced_beam`** ⭐ RECOMMENDED
    - HPF: 70 Hz (removes fan noise)
-   - AGC: Enabled (target: 0.12 RMS, max gain: 2.0x linear = ~6.0 dB)
+   - AGC: Enabled (target: 0.18 RMS, max gain: 3.0x linear = ~9.5 dB)
    - AGC Time: 0.5 seconds
    - Echo Cancellation: OFF
    - **Best for**: Jetson NX with fan noise
@@ -208,7 +208,7 @@ sudo systemctl restart xvf3800-tuning.service
 
 **AGC (Automatic Gain Control)**:
 - `PP_AGCONOFF`: Enable/disable AGC (0=OFF, 1=ON)
-- `PP_AGCDESIREDLEVEL`: Target RMS level (0.12 = recommended)
+- `PP_AGCDESIREDLEVEL`: Target RMS level (0.18 = recommended)
 - `PP_AGCMAXGAIN`: Maximum gain in linear units (1000 = 30dB)
 - `PP_AGCTIME`: Attack time in seconds (0.5 = fast response)
 
@@ -237,7 +237,7 @@ sudo systemctl restart xvf3800-tuning.service
   "config": {
     "AEC_HPFONOFF": 1,
     "PP_AGCONOFF": 1,
-    "PP_AGCDESIREDLEVEL": 0.12,
+    "PP_AGCDESIREDLEVEL": 0.18,
     "PP_AGCMAXGAIN": 1000,
     "PP_AGCTIME": 0.5,
     "PP_ECHOONOFF": 0
@@ -262,7 +262,7 @@ sudo systemctl restart xvf3800-tuning.service
 **Software Processing** (after hardware):
 1. **PortAudio Capture**: Receives processed audio from hardware
 2. **Channel Extraction**: Selects channel 0 (beamformed output)
-3. **Normalization**: Adjusts to optimal RMS (0.12) for Whisper
+3. **Normalization**: Adjusts to optimal RMS (0.18) for Whisper
 4. **Soft Limiting**: Prevents clipping from near-field speech
 5. **Advanced Filter**: Validates speech characteristics
 
@@ -319,7 +319,7 @@ sudo systemctl restart xvf3800-tuning.service
    - Uses same audio pipeline as VAD
    - Frame size: 1280 samples (80ms at 16kHz)
    - Buffering: Accumulates frames until enough samples
-   - Normalization: Same as main transcription (target RMS: 0.12)
+   - Normalization: Same as main transcription (target RMS: 0.18)
 
 2. **Model Prediction**:
    - Input: int16 audio array (1280 samples)
@@ -429,7 +429,7 @@ if wake_word_enabled:
 **Wake Word Not Detecting**:
 - Check model is loaded: Look for "✅ OpenWakeWord initialized" in logs
 - Verify threshold: Lower threshold for more sensitivity
-- Check audio normalization: Ensure RMS ~0.12
+- Check audio normalization: Ensure RMS ~0.18
 - Verify device selection: Correct microphone device
 
 **False Positives**:

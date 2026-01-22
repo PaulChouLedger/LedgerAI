@@ -312,7 +312,7 @@ TTS_VOLUME=100              # 0-100%
 **Audio**:
 - PCM Sample Rate: 22050 Hz
 - Format: PCM 22050 (mono)
-- Target RMS: 0.12 (for normalization, if used)
+- Target RMS: 0.18 (for normalization, if used)
 
 **Batching**:
 - Max Words: 50
