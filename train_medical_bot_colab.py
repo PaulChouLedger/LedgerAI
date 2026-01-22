@@ -713,8 +713,10 @@ if any(conv.get("variant") in ["american", "british"] for conv in data[:10]):
     print("  ✅ Handle both American and British English")
 print()
 
-# For Colab: Download the GGUF file
-from google.colab import files
+# For Colab: Save to Google Drive (more reliable for large files) or download
+print("=" * 80)
+print("📥 Model Download Options")
+print("=" * 80)
 
 gguf_files = [f for f in os.listdir(GGUF_OUTPUT_DIR) if f.endswith(".gguf")]
 if gguf_files:
@@ -722,12 +724,69 @@ if gguf_files:
     medical_file = [f for f in gguf_files if "-medical" in f]
     if medical_file:
         gguf_file = os.path.join(GGUF_OUTPUT_DIR, medical_file[0])
+        gguf_filename = medical_file[0]
     else:
         gguf_file = os.path.join(GGUF_OUTPUT_DIR, gguf_files[0])
-    print(f"Downloading: {gguf_file}")
-    files.download(gguf_file)
+        gguf_filename = gguf_files[0]
+    
+    file_size_gb = os.path.getsize(gguf_file) / (1024 ** 3)
+    print(f"📦 Model file: {gguf_filename}")
+    print(f"📊 Size: {file_size_gb:.2f} GB")
+    print()
+    
+    # Try Google Drive first (more reliable for large files)
+    try:
+        from google.colab import drive
+        drive.mount('/content/drive', force_remount=False)
+        
+        # Create directory in Drive
+        drive_model_dir = '/content/drive/MyDrive/LedgerAI_Models'
+        os.makedirs(drive_model_dir, exist_ok=True)
+        
+        # Copy to Drive
+        drive_dest = os.path.join(drive_model_dir, gguf_filename)
+        print(f"💾 Copying to Google Drive: {drive_dest}")
+        print("   (This may take several minutes for large models...)")
+        shutil.copy2(gguf_file, drive_dest)
+        print(f"✅ Model saved to Google Drive: {drive_dest}")
+        print()
+        print("📥 To download from Drive:")
+        print("   1. Go to https://drive.google.com")
+        print(f"   2. Navigate to: My Drive > LedgerAI_Models")
+        print(f"   3. Download: {gguf_filename}")
+        print()
+        print("   OR use the download link below (if available):")
+        print(f"   https://drive.google.com/drive/folders/YOUR_FOLDER_ID")
+        
+    except Exception as e:
+        print(f"⚠️  Google Drive save failed: {e}")
+        print("   Falling back to direct download...")
+        print()
+        
+        # Fallback: Direct download (may timeout for very large files)
+        try:
+            from google.colab import files
+            print(f"📥 Downloading directly: {gguf_filename}")
+            print("   ⚠️  WARNING: For large files (>5GB), this may timeout.")
+            print("   💡 If download fails, use Google Drive method above.")
+            print()
+            files.download(gguf_file)
+        except Exception as download_err:
+            print(f"❌ Direct download also failed: {download_err}")
+            print()
+            print("💡 ALTERNATIVE SOLUTIONS:")
+            print("   1. Use Google Drive (mount drive and copy manually):")
+            print(f"      !cp {gguf_file} /content/drive/MyDrive/")
+            print("   2. Use gdown or wget with a shareable link")
+            print("   3. Compress the file first:")
+            print(f"      !tar -czf {gguf_filename}.tar.gz -C {GGUF_OUTPUT_DIR} {gguf_filename}")
+            print(f"      !files.download('{gguf_filename}.tar.gz')")
+            print("   4. Split into smaller chunks:")
+            print(f"      !split -b 2G {gguf_file} {gguf_filename}.part")
+            print("      (then download each .part file separately)")
 else:
     print("⚠️  No GGUF files found to download")
+    print(f"   Checked directory: {GGUF_OUTPUT_DIR}")
 
 print("=" * 80)
 

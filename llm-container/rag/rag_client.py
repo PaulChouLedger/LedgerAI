@@ -284,33 +284,58 @@ class RAGClient:
         if not query or not query.strip():
             return False
         
-        # Extract key terms from query (remove common stop words and conversational words)
+        # Extract ONLY key terms (skip all everyday words)
+        # Focus on: capitalized names, important nouns, technical terms
+        import re
+        
+        # Comprehensive stop words list (all everyday/conversational words)
         stop_words = {
             # Articles and prepositions
-            'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by',
+            'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'from',
             # Pronouns
-            'i', 'you', 'he', 'she', 'it', 'we', 'they', 'me', 'him', 'her', 'us', 'them',
+            'i', 'you', 'he', 'she', 'it', 'we', 'they', 'me', 'him', 'her', 'us', 'them', 'your', 'my', 'his', 'her', 'its', 'our', 'their',
             # Common verbs
-            'is', 'are', 'was', 'were', 'do', 'does', 'did', 'have', 'has', 'had', 'be', 'been', 'being',
+            'is', 'are', 'was', 'were', 'do', 'does', 'did', 'have', 'has', 'had', 'be', 'been', 'being', 'get', 'got', 'gets',
             # Question words
             'how', 'what', 'when', 'where', 'why', 'which', 'who', 'whom', 'whose',
             # Modal verbs
             'can', 'could', 'should', 'would', 'may', 'might', 'must', 'will', 'shall',
-            # Conversational words (common in queries but not content-specific)
+            # Conversational words (ALL query framing words)
             'tell', 'me', 'about', 'know', 'knows', 'show', 'give', 'find', 'search', 'explain', 'describe',
-            'list', 'say', 'says', 'said', 'talk', 'talks', 'discuss', 'discusses'
+            'list', 'say', 'says', 'said', 'talk', 'talks', 'discuss', 'discusses', 'please', 'help',
+            # Temporal/contextual words (common but not content-specific)
+            'last', 'next', 'this', 'that', 'these', 'those', 'previous', 'current', 'recent', 'past', 'future',
+            'today', 'yesterday', 'tomorrow', 'week', 'month', 'year', 'time', 'times'
         }
-        query_lower = query.lower()
-        # Extract words (2+ characters) that aren't stop words
-        import re
-        words = re.findall(r'\b\w{2,}\b', query_lower)
-        key_terms = [w for w in words if w not in stop_words]
+        
+        # First, extract capitalized names (highest priority - these are always key terms)
+        # Multi-word names: "Bob Carella", "Liam Hugill", "Paul Chou"
+        capitalized_names = re.findall(r'\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\b', query)
+        # Single capitalized words (likely names): "Liam", "Bob", "Paul"
+        single_capitalized = re.findall(r'\b([A-Z][a-z]+)\b', query)
+        # Filter out question words from single capitalized
+        question_words = {'who', 'what', 'where', 'when', 'why', 'how', 'which', 'whose', 'whom'}
+        single_capitalized = [w for w in single_capitalized if w.lower() not in question_words]
+        
+        # Combine all names (multi-word first, then single)
+        key_terms = [name.lower() for name in capitalized_names] + [name.lower() for name in single_capitalized]
+        
+        # If we found names, use only those (names are specific enough)
+        if key_terms:
+            print(f"[RAG Client] 🔍 Extracted key terms (names only): {key_terms}")
+        else:
+            # No names found - extract other key terms (nouns, technical terms)
+            # Extract words (3+ characters) that aren't stop words
+            query_lower = query.lower()
+            words = re.findall(r'\b\w{3,}\b', query_lower)  # Minimum 3 chars to avoid very short words
+            key_terms = [w for w in words if w not in stop_words]
+            # Sort by length (longest first) - prioritize specific terms
+            key_terms = sorted(key_terms, key=len, reverse=True)
+            print(f"[RAG Client] 🔍 Extracted key terms (no names found): {key_terms}")
         
         if not key_terms:
+            print(f"[RAG Client] ⚠️ No key terms extracted from query: '{query}'")
             return False
-        
-        # Sort key terms by length (longest first) - prioritize specific terms like "vasopressin" over generic ones
-        key_terms = sorted(key_terms, key=len, reverse=True)
         
         # Quick substring/fuzzy match against RAG chunks
         if self.use_gpu:
@@ -357,12 +382,25 @@ class RAGClient:
                     chunk_text = str(chunk).lower()
                 
                 # First check if the primary (longest/most specific) term matches
-                # This is the most important check - if "vasopressin" isn't in the docs, don't use RAG
+                # This is the most important check - if "Liam" or "Bob Carella" isn't in the docs, don't use RAG
+                # Handle both single-word terms (e.g., "liam") and multi-word terms (e.g., "bob carella")
                 if primary_term:
-                    if primary_term in chunk_text:
-                        found_primary_match = True
-                    elif self._fuzzy_match_term(primary_term, chunk_text, threshold=0.75):
-                        found_primary_match = True
+                    # For multi-word terms (names like "bob carella"), check if all words appear in chunk
+                    if ' ' in primary_term:
+                        # Multi-word term: check if all words appear (in order, but allow some flexibility)
+                        words = primary_term.split()
+                        # Check if all words appear in chunk (allows some word order flexibility)
+                        if all(word in chunk_text for word in words):
+                            found_primary_match = True
+                        # Also try fuzzy match for transcription errors
+                        elif self._fuzzy_match_term(primary_term, chunk_text, threshold=0.75):
+                            found_primary_match = True
+                    else:
+                        # Single-word term: simple substring or fuzzy match
+                        if primary_term in chunk_text:
+                            found_primary_match = True
+                        elif self._fuzzy_match_term(primary_term, chunk_text, threshold=0.75):
+                            found_primary_match = True
                 
                 # Also check other key terms (for queries with multiple specific terms)
                 if len(key_terms) > 1:

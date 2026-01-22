@@ -1151,21 +1151,18 @@ class SimpleMedicalNavigator:
         
         # Ask LLM to evaluate ALL conditions using its trained medical knowledge
         system_prompt = (
-            "You are a medical expert with extensive training in clinical reasoning. "
-            "You MUST return ONLY valid JSON. No explanations, no text before or after the JSON.\n\n"
-            "CRITICAL FORMAT REQUIREMENTS:\n"
-            "- Output ONLY valid JSON (no explanations, no text before or after)\n"
-            "- JSON must be an object with ALL condition names as keys and numeric scores as values\n"
-            "- Example format: {\"Acute Appendicitis\": 0.2, \"Nephrolithiasis (Kidney Stones)\": -0.1, \"Acute Cholecystitis\": 0.0}\n"
-            "- Each condition must be a key in the JSON object with its score change as the value\n"
-            "- Scores must be between -0.3 and +0.3 (numeric values only)\n"
-            "- Do NOT use any other format - only JSON object with condition names as keys and numeric values\n\n"
-            "CRITICAL: Only include ACTUAL MEDICAL CONDITIONS in your response. Use your medical knowledge to distinguish "
-            "between real diagnoses and location/symptom descriptors. Only include real medical diagnoses.\n\n"
-            "Based on the patient's answer, evaluate how it affects the likelihood of EACH condition. "
-            "Use your trained medical knowledge. Consider: classic presentations, anatomical locations, symptom patterns. "
-            "Positive values (+0.2 to +0.3) = condition MORE likely. Negative values (-0.2 to -0.3) = condition LESS likely. "
-            "Neutral = small changes (-0.1 to +0.1)."
+            "You are a medical expert. Return ONLY valid JSON with condition names as keys and score changes as values.\n\n"
+            "SCORING:\n"
+            "- +0.2 to +0.3 = condition MORE likely\n"
+            "- -0.2 to -0.3 = condition LESS likely\n"
+            "- 0.0 = neutral/no change\n"
+            "- -0.1 to +0.1 = minimal change\n\n"
+            "CRITICAL RULES:\n"
+            "1. When answer suggests GERD (burning, worse with eating, after eating, better with antacids/cold) → GERD/esophageal: +0.2 to +0.3, Cardiac: -0.2 to -0.3\n"
+            "2. When answer suggests cardiac (crushing, pressure, radiating, worse with exertion) → Cardiac: +0.2 to +0.3, GERD/esophageal: -0.2 to -0.3\n"
+            "3. ALWAYS use negative scores when answers make conditions less likely - do NOT use 0.0 for conditions that become less likely\n"
+            "4. Most answers should result in score changes - avoid all 0.0 unless truly neutral\n\n"
+            "Return ONLY JSON. Example: {\"Condition1\": 0.2, \"Condition2\": -0.2, \"Condition3\": 0.0}"
         )
         
         # Build context including any previous location information for combined answers
@@ -1177,17 +1174,33 @@ class SimpleMedicalNavigator:
                 # This is a combined answer (original + clarification)
                 location_context = f"\nNote: This location answer combines the original answer with clarification."
         
+        # Analyze the answer to determine what it suggests
+        answer_lower = answer.lower()
+        is_gerd_like = any(phrase in answer_lower for phrase in ['burning', 'worse with eating', 'after eating', 'better with antacid', 'better with cold', 'acid', 'reflux'])
+        is_cardiac_like = any(phrase in answer_lower for phrase in ['crushing', 'pressure', 'heavy', 'radiating', 'worse with exertion', 'worse with exercise', 'better with rest', 'nitroglycerin'])
+        is_neutral = any(phrase in answer_lower for phrase in ['center', 'middle', 'central', 'sternum', 'chest']) and element == 'location'
+        
+        # Build focused prompt based on what the answer suggests
+        if is_gerd_like and element in ['character', 'aggravating', 'relieving', 'timing', 'onset']:
+            guidance = f"Answer '{answer}' STRONGLY suggests GERD/esophageal issues. You MUST increase GERD/esophageal conditions by +0.2 to +0.3 and decrease cardiac conditions by -0.2 to -0.3. Do NOT return 0.0 for these conditions."
+        elif is_cardiac_like and element in ['character', 'aggravating', 'relieving', 'radiation']:
+            guidance = f"Answer '{answer}' STRONGLY suggests cardiac issues. You MUST increase cardiac conditions by +0.2 to +0.3 and decrease GERD/esophageal conditions by -0.2 to -0.3. Do NOT return 0.0 for these conditions."
+        elif 'after eating' in answer_lower or 'worse with eating' in answer_lower:
+            guidance = f"Answer '{answer}' STRONGLY suggests GERD/esophageal (triggered by eating). You MUST increase GERD/esophageal by +0.2 to +0.3 and decrease cardiac by -0.2 to -0.3. Do NOT return 0.0."
+        elif is_neutral:
+            guidance = f"Answer '{answer}' is neutral (applies to multiple conditions). You may use 0.0 for most conditions, but consider small adjustments based on current rankings."
+        else:
+            guidance = f"Evaluate how answer '{answer}' affects each condition. Use +0.2 to +0.3 if more likely, -0.2 to -0.3 if less likely, 0.0 only if truly neutral. Most informative answers should result in score changes."
+        
         user_prompt = (
             f"Chief complaint: {chief_complaint}\n"
             f"OLD CARTS element: {element}\n"
             f"Patient's answer: '{answer}'{location_context}\n\n"
-            f"All conditions to evaluate ({len(all_conditions)} total):\n"
-            f"{', '.join(all_conditions)}\n\n"
-            f"Return ONLY valid JSON with ALL {len(all_conditions)} conditions as keys and their score changes as values.\n"
-            f"Format: {{\"condition_name\": score_change, \"condition_name\": score_change, ...}}\n"
-            f"Example (not actual conditions): {{\"Condition1\": 0.2, \"Condition2\": -0.1, \"Condition3\": 0.0}}\n\n"
-            f"CRITICAL: Return ONLY the JSON object. No explanations, no text before or after. "
-            f"Every condition listed above must be a key in the JSON with a numeric score between -0.3 and +0.3."
+            f"{guidance}\n\n"
+            f"All conditions ({len(all_conditions)}): {', '.join(all_conditions)}\n\n"
+            f"Return JSON with ALL conditions as keys and score changes (-0.3 to +0.3) as values.\n"
+            f"Example: {{\"Condition1\": 0.2, \"Condition2\": -0.2, \"Condition3\": 0.0}}\n\n"
+            f"CRITICAL: Return ONLY JSON. Every condition must have a score. Use negative scores when answers make conditions less likely."
         )
         
         # Show what we're evaluating
@@ -1247,6 +1260,53 @@ class SimpleMedicalNavigator:
                 try:
                     score_changes = json.loads(cleaned)
                     if isinstance(score_changes, dict):
+                        # Check if all scores are 0.0 (model being too conservative)
+                        all_zero = all(abs(float(v)) < 0.01 for v in score_changes.values())
+                        
+                        # Determine if 0.0 is appropriate (neutral answers like "center of chest" are legitimately neutral)
+                        answer_lower = answer.lower()
+                        is_neutral_location = element == 'location' and any(phrase in answer_lower for phrase in ['center', 'middle', 'central', 'sternum'])
+                        is_neutral_duration = element == 'duration' and any(phrase in answer_lower for phrase in ['few hours', 'few days', 'hours', 'days'])
+                        is_neutral_severity = element == 'severity' and answer.strip().isdigit() and 4 <= int(answer.strip()) <= 6
+                        
+                        # Only apply fallback if answer should have impact but model returned all 0.0
+                        if all_zero and len(score_changes) > 0 and not (is_neutral_location or is_neutral_duration or is_neutral_severity):
+                            print(f"[Scoring] ⚠️  All scores are 0.0 but answer should have impact. Applying heuristic fallback...")
+                            # Apply heuristic-based scoring as fallback
+                            
+                            # Heuristic: if answer suggests GERD pattern
+                            if any(phrase in answer_lower for phrase in ['after eating', 'worse with eating', 'burning', 'acid', 'reflux', 'better with antacid', 'better with cold']):
+                                for cond in all_conditions:
+                                    if any(term in cond.lower() for term in ['gerd', 'esophageal', 'esophagitis']):
+                                        score_changes[cond] = 0.2
+                                    elif any(term in cond.lower() for term in ['cardiac', 'myocardial', 'angina', 'heart']):
+                                        score_changes[cond] = -0.2
+                            
+                            # Heuristic: if answer suggests cardiac pattern
+                            elif any(phrase in answer_lower for phrase in ['crushing', 'pressure', 'heavy', 'radiating', 'worse with exertion', 'worse with exercise', 'better with rest', 'nitroglycerin']):
+                                for cond in all_conditions:
+                                    if any(term in cond.lower() for term in ['cardiac', 'myocardial', 'angina', 'heart']):
+                                        score_changes[cond] = 0.2
+                                    elif any(term in cond.lower() for term in ['gerd', 'esophageal', 'esophagitis']):
+                                        score_changes[cond] = -0.2
+                            
+                            # For other answers that should have impact, apply small changes
+                            else:
+                                # If answer is informative but model returned 0.0, apply minimal changes
+                                if answer and len(answer.strip()) > 3:
+                                    # Check current top conditions to maintain context
+                                    current_top = sorted(self.condition_scores.items(), key=lambda x: x[1], reverse=True)[:3]
+                                    top_condition_names = [c[0].lower() for c in current_top]
+                                    
+                                    # Small boost to current top conditions if answer doesn't contradict
+                                    for cond in all_conditions:
+                                        if any(term in cond.lower() for term in top_condition_names):
+                                            score_changes[cond] = 0.1
+                            
+                            print(f"[Scoring] 🔧 Applied heuristic fallback scores")
+                        elif all_zero and (is_neutral_location or is_neutral_duration or is_neutral_severity):
+                            print(f"[Scoring] ℹ️  All scores are 0.0 - this is appropriate for a neutral answer (e.g., central location applies to multiple conditions)")
+                        
                         print(f"[Scoring] ✅ Successfully parsed JSON with {len(score_changes)} condition scores")
                         # Apply score changes to all conditions
                         updated_count = 0
@@ -1474,6 +1534,96 @@ def generate_context_aware_question(navigator, element: str, symptom: str, top_c
         'severity': f"On a scale of 1 to 10, with 10 being the worst imaginable, how severe is {symptom}? For example, mild (1-3), moderate (4-6), or severe (7-10)?",
     }
     return questions.get(element, f"Can you tell me more about {symptom}?")
+
+def generate_final_summary(navigator, messages: List[Dict]):
+    """Generate final summary with likely conditions, urgency levels, and next steps."""
+    if not navigator.condition_rankings:
+        return
+    
+    # Get top 5 conditions for summary
+    top_conditions = navigator.condition_rankings[:5]
+    if not top_conditions:
+        return
+    
+    # Build context summary
+    context_summary = navigator._build_conversation_context()
+    
+    # Create prompt for final summary
+    conditions_text = "\n".join([f"  {i+1}. {cond}: {score*100:.1f}%" for i, (cond, score) in enumerate(top_conditions)])
+    
+    summary_prompt = f"""Based on the following medical history and condition rankings, provide a comprehensive clinical assessment:
+
+{context_summary}
+
+Top Likely Conditions (with probability scores):
+{conditions_text}
+
+CRITICAL INSTRUCTIONS:
+1. Analyze the SYMPTOM PATTERN, not just the probability scores
+2. Recognize when symptoms clearly point to one diagnosis over others
+3. Example: Burning pain + worse with eating + better with cold water/antacids + after eating = GERD/esophageal, NOT cardiac
+4. Example: Crushing pain + radiating to arm + worse with exertion = Cardiac, NOT GERD
+5. If symptoms clearly point to one diagnosis, explain why other high-scoring conditions are LESS likely despite their scores
+
+Please provide:
+1. A clinical summary analyzing the SYMPTOM PATTERN and what it suggests
+2. For each condition, classify urgency as one of:
+   - EMERGENT: Requires immediate emergency department evaluation (life-threatening)
+   - URGENT: Requires prompt medical attention within 24-48 hours (serious but not immediately life-threatening)
+   - SELF-LIMITED: Can be managed at home or with routine care (mild, resolving conditions)
+3. Specific next steps/recommendations based on the urgency level
+
+Format your response as:
+SUMMARY:
+[Clinical analysis of symptom pattern - what the symptoms suggest, not just listing conditions]
+
+LIKELY CONDITIONS (in order of clinical likelihood based on symptom pattern):
+1. [Most Likely Condition] ([urgency level])
+   - Reasoning: [Why this condition matches the symptom pattern - be specific about which symptoms support this]
+   - Why other conditions are less likely: [Explain why other high-scoring conditions don't fit the pattern]
+   - Next Steps: [Specific recommendations]
+
+2. [Second Most Likely Condition] ([urgency level])
+   - Reasoning: [Why this condition is possible but less likely than #1]
+   - Next Steps: [Specific recommendations]
+
+[Continue for top 3-5 conditions, but prioritize based on symptom pattern, not just scores]
+
+IMPORTANT: 
+- Analyze symptom patterns, not just probability scores
+- If symptoms clearly point to GERD (burning, worse with eating, better with antacids), GERD should be #1 even if cardiac scores are high
+- If symptoms clearly point to cardiac (crushing, radiating, worse with exertion), cardiac should be #1
+- Be specific about urgency levels. If ANY condition is EMERGENT, clearly state that immediate emergency care is needed."""
+    
+    try:
+        summary_response = navigator.llm_chat(
+            messages + [{"role": "user", "content": summary_prompt}],
+            max_tokens=800,
+            temperature=0.3
+        )
+        
+        print("\n" + "="*80)
+        print("📋 FINAL ASSESSMENT & RECOMMENDATIONS")
+        print("="*80)
+        print(summary_response.strip())
+        print("="*80)
+        
+        # Add to messages
+        messages.append({"role": "assistant", "content": summary_response.strip()})
+    except Exception as e:
+        print(f"\n⚠️  Error generating final summary: {e}")
+        # Fallback: simple summary
+        print("\n" + "="*80)
+        print("📋 FINAL ASSESSMENT & RECOMMENDATIONS")
+        print("="*80)
+        print("\nTop Likely Conditions:")
+        for i, (cond, score) in enumerate(top_conditions[:3], 1):
+            print(f"  {i}. {cond}: {score*100:.1f}%")
+        print("\n⚠️  IMPORTANT: Based on your symptoms, please consult with a healthcare provider.")
+        print("   If you are experiencing severe chest pain, difficulty breathing, or other")
+        print("   life-threatening symptoms, seek immediate emergency medical attention.")
+        print("="*80)
+
 
 def ask_intelligent_followups(navigator, messages: List[Dict]):
     """Ask associated symptom questions based on top 3 conditions (matches training data format)."""
@@ -1814,7 +1964,7 @@ def run_interactive_test(model, tokenizer, model_type):
                     # Score with combined answer
                     navigator.update_condition_scores_from_answer(element, combined_answer)
                     last_question_element = None
-                    continue  # Skip to next iteration to ask next question
+                    # Don't continue here - fall through to generate next question immediately
                 
                 # Use LLM to determine if clarification is needed for any OLD CARTS element
                 chief_complaint = navigator.conversation_context['pre_hpi'].get('chief_complaint', '')
@@ -1834,7 +1984,9 @@ def run_interactive_test(model, tokenizer, model_type):
                     hpi[element] = user_input
                     navigator.update_condition_scores_from_answer(element, user_input)
                     last_question_element = None
-                    continue  # Skip to next iteration to ask next question
+                    last_question_type = None  # Reset so question generation runs
+                    print(f"[Debug] Processed {element} answer, falling through to generate next question")
+                    # Don't continue here - fall through to generate next question immediately
             else:
                 # If we couldn't detect the element, but we asked a question, try to use tracked element
                 if last_question_element and last_question_element not in hpi:
@@ -1844,16 +1996,108 @@ def run_interactive_test(model, tokenizer, model_type):
                         navigator.update_condition_scores_from_answer(last_question_element, user_input)
                     last_question_element = None
         
+        # SIMPLIFIED FLOW: Ask question → Receive answer → Validate → Next question
         # Generate next question based on what's missing
-        # Check what we still need to collect
-        # IMPORTANT: Check stage first to avoid asking questions that were just answered
-        # If we just answered a demographic question, skip directly to asking the next one
-        if demographic_answered:
+        # Check stage to determine what question to ask next
+        
+        # If we're in HPI stage, ask HPI questions (regardless of demographic_answered flag)
+        if stage == "hpi":
+            # All demographics collected - ask HPI questions
+            # Determine which OLD CARTS element to ask about next
+            hpi = navigator.conversation_context['hpi']
+            # Only include elements that are actually answered (not confused responses)
+            answered_elements = {k: v for k, v in hpi.items() if v and v.strip()}
+            
+            # Check for skip tags - elements that should be skipped based on chief complaint
+            skipped_elements = getattr(navigator, 'skipped_elements', set())
+            remaining_elements = [e for e in oldcarts_elements 
+                                if e not in answered_elements and e not in skipped_elements]
+            
+            if not remaining_elements:
+                # All relevant OLD CARTS collected (some may have been skipped)
+                print("\n✅ All relevant OLD CARTS elements collected!")
+                if skipped_elements:
+                    print(f"   (Skipped irrelevant elements: {', '.join(skipped_elements)})")
+                navigator._print_rankings()
+                
+                # Check if we should ask intelligent follow-up questions
+                if not getattr(navigator, 'followups_asked', False):
+                    ask_intelligent_followups(navigator, messages)
+                    navigator.followups_asked = True
+                
+                # Generate final summary with likely conditions, urgency, and next steps
+                generate_final_summary(navigator, messages)
+                
+                print("\n👋 Conversation complete. Type 'reset' to start over or 'quit' to exit.")
+                continue
+            
+            # Ask about the next element in order
+            next_element = remaining_elements[0]
+            last_question_element = next_element  # Track which element we're asking about
+            print(f"[Debug] Asking about element: {next_element}, tracking as last_question_element")
+            
+            # Check if this element should be skipped (model learned from skip tags)
+            if should_skip_oldcarts_element(navigator, next_element):
+                print(f"[Skip] {next_element} is not relevant for this chief complaint - skipping")
+                skipped_elements.add(next_element)
+                navigator.skipped_elements = skipped_elements
+                continue  # Skip to next element
+            
+            # Build context and generate question
+            context_summary = navigator._build_conversation_context()
+            raw_cc = navigator.conversation_context['pre_hpi'].get('chief_complaint', 'symptoms')
+            chief_complaint = raw_cc.lower()
+            prefixes = ["i have ", "i've got ", "i am having ", "i'm having ", "i am ", "i'm ", "my ", "i feel "]
+            for prefix in prefixes:
+                if chief_complaint.startswith(prefix):
+                    chief_complaint = chief_complaint[len(prefix):].strip()
+                    break
+            chief_complaint = chief_complaint.strip(" .,!?:;")
+            if not chief_complaint:
+                chief_complaint = "symptoms"
+            
+            # Get top 3 conditions for context-aware question examples
+            top_3_conditions = [cond for cond, _ in navigator.condition_rankings[:3]] if navigator.condition_rankings else []
+            
+            # Generate context-aware questions with examples from top 3 conditions
+            base_question = generate_context_aware_question(
+                navigator, next_element, chief_complaint, top_3_conditions, raw_cc
+            )
+            
+            # Generate question using LLM
+            hpi_prompt = (
+                f"Context of what we already know:\n{context_summary}\n\n"
+                f"You need to ask about the {next_element} of the {chief_complaint}. "
+                f"IMPORTANT: You MUST ask about {next_element} specifically using this exact format: '{base_question}' "
+                f"Do NOT ask about age, demographics, or information already in the context. "
+                f"Do NOT use phrases like 'character of' or 'the {next_element}' - use the natural question format shown above. "
+                f"Ask only one question about {next_element}."
+            )
+            response = navigator.llm_chat(
+                messages + [{"role": "user", "content": hpi_prompt}],
+                max_tokens=120,
+                temperature=0.4
+            )
+            
+            # Clean up response
+            response = response.strip()
+            if 'age' in response.lower() and 'old' in response.lower() and next_element != 'age':
+                response = base_question
+            elif next_element == 'character' and ('character of' in response.lower() or 'the character' in response.lower()):
+                response = base_question
+            elif not response or len(response) < 10:
+                response = base_question
+            
+            last_question_type = "hpi"
+            print(f"🤖 Assistant: {response}")
+            messages.append({"role": "assistant", "content": response})
+            continue  # Continue to next iteration to wait for answer
+        
+        # Handle demographic questions
+        elif demographic_answered:
             # We just stored a demographic answer, so skip to the next question based on stage
             if stage == "age":
                 # Just answered chronicity, now ask age
-                if stage != "age":
-                    stage = "age"
                 age_system = "You are a medical assistant. Generate ONLY a question asking the patient their age. Do NOT repeat or echo any previous answers. Do NOT acknowledge previous responses. Ask ONLY the age question in second person format."
                 age_prompt = "Ask the patient their age using second person (e.g., 'How old are you?' or 'What is your age?'). Ask only the question, no acknowledgment or reasoning. Do NOT use third person like 'the patient's age'. IMPORTANT: Do NOT repeat or echo any previous user answers."
                 response = navigator.llm_chat(
@@ -1867,10 +2111,11 @@ def run_interactive_test(model, tokenizer, model_type):
                 elif 'patient' in response.lower() and ('age' in response.lower() or 'old' in response.lower()):
                     response = "How old are you?"
                 last_question_type = "age"
+                print(f"🤖 Assistant: {response}")
+                messages.append({"role": "assistant", "content": response})
+                continue
             elif stage == "sex":
                 # Just answered age, now ask sex
-                if stage != "sex":
-                    stage = "sex"
                 sex_system = "You are a medical assistant. Generate ONLY a question asking the patient their biological sex. Do NOT repeat or echo any previous answers. Do NOT acknowledge previous responses. Ask ONLY the sex question in second person format."
                 sex_prompt = "Ask the patient their biological sex using second person (e.g., 'What is your biological sex?' or 'Are you male or female?'). Ask only the question, no acknowledgment or reasoning. Do NOT use third person like 'the patient' or 'is the patient male'. IMPORTANT: Do NOT repeat or echo any previous user answers."
                 response = navigator.llm_chat(
@@ -1884,18 +2129,9 @@ def run_interactive_test(model, tokenizer, model_type):
                 elif 'patient' in response.lower() and ('male' in response.lower() or 'sex' in response.lower() or 'female' in response.lower()):
                     response = "What is your biological sex?"
                 last_question_type = "sex"
-                # Reset the previous question type now that we've asked the next question
-                if 'age' in pre_hpi:
-                    print(f"[Debug] Asked sex question, set last_question_type to: {last_question_type}")
-                # We asked a demographic question, print it and continue
                 print(f"🤖 Assistant: {response}")
                 messages.append({"role": "assistant", "content": response})
-                continue  # Skip to next iteration to wait for answer
-            # If stage is "hpi", continue to HPI questions below (handled in else block)
-            elif stage == "hpi":
-                # Just answered sex, now proceed to HPI questions
-                # Don't ask any demographic questions - go straight to HPI
-                pass  # Fall through to HPI question logic below
+                continue
         elif stage == "chronicity" or 'chronicity' not in pre_hpi:
             # Ask chronicity question
             if stage != "chronicity":
@@ -1963,130 +2199,22 @@ def run_interactive_test(model, tokenizer, model_type):
             print(f"🤖 Assistant: {response}")
             messages.append({"role": "assistant", "content": response})
             continue
+        # If we reach here, something went wrong - should not happen with proper flow
         else:
-            # All demographics collected - ask HPI questions
-            # Determine which OLD CARTS element to ask about next
-            hpi = navigator.conversation_context['hpi']
-            # Only include elements that are actually answered (not confused responses)
-            answered_elements = {k: v for k, v in hpi.items() if v and v.strip()}
-            
-            # Check for skip tags - elements that should be skipped based on chief complaint
-            skipped_elements = getattr(navigator, 'skipped_elements', set())
-            remaining_elements = [e for e in oldcarts_elements 
-                                if e not in answered_elements and e not in skipped_elements]
-            
-            if not remaining_elements:
-                # All relevant OLD CARTS collected (some may have been skipped)
-                print("\n✅ All relevant OLD CARTS elements collected!")
-                if skipped_elements:
-                    print(f"   (Skipped irrelevant elements: {', '.join(skipped_elements)})")
-                navigator._print_rankings()
-                
-                # Check if we should ask intelligent follow-up questions
-                if not getattr(navigator, 'followups_asked', False):
-                    ask_intelligent_followups(navigator, messages)
-                    navigator.followups_asked = True
-                
-                print("\n👋 Conversation complete. Type 'reset' to start over or 'quit' to exit.")
-                continue
-            
-            # Ask about the next element in order
-            next_element = remaining_elements[0]
-            last_question_element = next_element  # Track which element we're asking about
-            print(f"[Debug] Asking about element: {next_element}, tracking as last_question_element")
-            
-            # Check if this element should be skipped (model learned from skip tags)
-            # The fine-tuned model should naturally skip irrelevant questions, but we can help with heuristics
-            if should_skip_oldcarts_element(navigator, next_element):
-                print(f"[Skip] {next_element} is not relevant for this chief complaint - skipping")
-                skipped_elements.add(next_element)
-                navigator.skipped_elements = skipped_elements
-                # Don't ask the question, continue to next element
-                continue
-            
-            # Build context and specific guidance
-            context_summary = navigator._build_conversation_context()
-            raw_cc = navigator.conversation_context['pre_hpi'].get('chief_complaint', 'symptoms')
-            
-            # Normalize chief complaint (remove "I have", "I'm having", etc.)
-            chief_complaint = raw_cc.lower()
-            prefixes = ["i have ", "i've got ", "i am having ", "i'm having ", "i am ", "i'm ", "my ", "i feel "]
-            for prefix in prefixes:
-                if chief_complaint.startswith(prefix):
-                    chief_complaint = chief_complaint[len(prefix):].strip()
-                    break
-            chief_complaint = chief_complaint.strip(" .,!?:;")
-            if not chief_complaint:
-                chief_complaint = "symptoms"
-            
-            # Get top 3 conditions for context-aware question examples
-            top_3_conditions = [cond for cond, _ in navigator.condition_rankings[:3]] if navigator.condition_rankings else []
-            
-            # Generate context-aware questions with examples from top 3 conditions
-            base_question = generate_context_aware_question(
-                navigator, next_element, chief_complaint, top_3_conditions, raw_cc
-            )
-            
-            # Check if we're re-asking due to confusion
-            is_reasking = last_question_element == next_element and next_element in hpi
-            
-            if is_reasking:
-                # Re-asking the same question - use base question directly with clarification
-                response = base_question
-                print(f"[Info] Re-asking {next_element} question with clearer format")
+            print(f"[Error] Unexpected state: stage={stage}, demographic_answered={demographic_answered}, last_question_type={last_question_type}")
+            print(f"[Error] pre_hpi keys: {list(pre_hpi.keys())}")
+            # Try to recover by checking what's missing
+            if stage == "hpi":
+                # Should have been caught by first if statement
+                print("[Error] Stage is hpi but didn't match first condition - this is a bug")
+            elif 'chronicity' not in pre_hpi:
+                stage = "chronicity"
+            elif 'age' not in pre_hpi:
+                stage = "age"
+            elif 'sex' not in pre_hpi:
+                stage = "sex"
             else:
-                # Use base question directly - LLM can rephrase naturally but must ask about the correct element
-                hpi_prompt = (
-                    f"Context of what we already know:\n{context_summary}\n\n"
-                    f"You need to ask about the {next_element} of the {chief_complaint}. "
-                    f"IMPORTANT: You MUST ask about {next_element} specifically using this exact format: '{base_question}' "
-                    f"Do NOT ask about age, demographics, or information already in the context. "
-                    f"Do NOT use phrases like 'character of' or 'the {next_element}' - use the natural question format shown above. "
-                    f"Ask only one question about {next_element}."
-                )
-                response = navigator.llm_chat(
-                    messages + [{"role": "user", "content": hpi_prompt}],
-                    max_tokens=120,
-                    temperature=0.4
-                )
-                
-                # Clean up response - remove any weird phrasing
-                response = response.strip()
-                
-                # Check if model returned a skip tag (learned from training data)
-                # The fine-tuned model may naturally output skip tags for irrelevant questions
-                if "[SKIP:" in response:
-                    skip_match = re.search(r"\[SKIP:([^\]]+)\]", response)
-                    if skip_match:
-                        skipped_element_abbr = skip_match.group(1).upper()
-                        # Map abbreviation to full element name
-                        abbr_to_element = {
-                            'O': 'onset', 'L': 'location', 'D': 'duration', 'C': 'character',
-                            'A': 'aggravating', 'R': 'radiation', 'T': 'timing', 'S': 'severity'
-                        }
-                        skipped_element = abbr_to_element.get(skipped_element_abbr, skipped_element_abbr.lower())
-                        if skipped_element == next_element:
-                            print(f"[Skip] Model returned skip tag [SKIP:{skipped_element_abbr}] for {next_element} - skipping this element")
-                            skipped_elements = getattr(navigator, 'skipped_elements', set())
-                            skipped_elements.add(next_element)
-                            navigator.skipped_elements = skipped_elements
-                            continue  # Skip this element and move to next
-                
-                # If response seems wrong or doesn't match expected format, use base question directly
-                if 'age' in response.lower() and 'old' in response.lower() and next_element != 'age':
-                    print(f"[Warning] LLM generated wrong question, using base question instead")
-                    response = base_question
-                elif next_element == 'character' and ('character of' in response.lower() or 'the character' in response.lower()):
-                    # LLM generated awkward phrasing for character - use base question
-                    print(f"[Warning] LLM generated awkward character question, using base question instead")
-                    response = base_question
-                elif not response or len(response) < 10:
-                    response = base_question
-            
-            last_question_type = "hpi"
-            print(f"🤖 Assistant: {response}")
-            messages.append({"role": "assistant", "content": response})
-            continue  # Continue to next iteration to wait for answer
+                stage = "hpi"
 
 # ============================================================================
 # Main

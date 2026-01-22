@@ -596,6 +596,29 @@ def validate_query(prompt: str) -> tuple:
     
     prompt_lower = prompt.lower().strip()
     
+    # Normalize contractions BEFORE checking for question words
+    # This ensures "what's" is recognized as "what is" for validation
+    contractions_map = {
+        "what's": "what is",
+        "who's": "who is",
+        "where's": "where is",
+        "when's": "when is",
+        "why's": "why is",
+        "how's": "how is",
+        "which's": "which is",
+        "there's": "there is",
+        "here's": "here is",
+        "it's": "it is",
+        "i'm": "i am",
+        "you're": "you are",
+        "we're": "we are",
+        "they're": "they are",
+        "he's": "he is",
+        "she's": "she is",
+    }
+    for contraction, expansion in contractions_map.items():
+        prompt_lower = prompt_lower.replace(contraction, expansion)
+    
     # Check for queries starting with fragments (common transcription errors)
     # These indicate the question word was cut off: "or the co-founders" instead of "who are the co-founders"
     #
@@ -632,8 +655,13 @@ def validate_query(prompt: str) -> tuple:
                       'show', 'give', 'find', 'search']
     
     # Check if query contains any question words
-    has_question_word = any(prompt_lower.startswith(qw + ' ') or ' ' + qw + ' ' in prompt_lower 
-                           for qw in question_words)
+    # After contraction normalization, check for question words at start or with word boundaries
+    # Use word boundary regex to catch question words at start, middle, or end
+    import re
+    has_question_word = any(
+        re.search(r'\b' + re.escape(qw) + r'\b', prompt_lower)  # Word boundary match
+        for qw in question_words
+    )
     
     # Check for imperative patterns (valid commands)
     imperative_patterns = ['tell me', 'show me', 'give me', 'find', 'search', 'list', 'explain']
@@ -735,22 +763,10 @@ def handle_conversation(
         for contraction, expansion in contractions_map.items():
             normalized_prompt = normalized_prompt.replace(contraction, expansion)
         
-        # RAG bypass (everyday-language / small-talk).
-        # Keep this list small and obvious; everything else relies on quick_content_match.
-        rag_bypass_phrases = [
-            # greetings / small talk
-            "how are you", "how's it going", "how is it going", "how are things", "how's everything",
-            "good morning", "good afternoon", "good evening", "hello", "hi", "hey",
-            # acknowledgements
-            "thank you", "thanks", "appreciate it", "got it", "ok", "okay", "alright",
-            "yes", "yeah", "yep", "no", "nope",
-            # personal/scheduling (these are not doc-RAG questions)
-            "my day", "my schedule", "my calendar", "tell me about me",
-            # closings
-            "bye", "goodbye", "see you", "see ya",
-        ]
-        bypass_hit = next((p for p in rag_bypass_phrases if p in normalized_prompt), None)
-        is_personal_query = bool(bypass_hit)
+        # No bypass phrases - all queries use quick_content_match to determine RAG usage
+        # quick_content_match extracts only key terms (names, important nouns) and skips everyday words
+        bypass_hit = None
+        is_personal_query = False
         
         # Determine if query is conversational (for response formatting only, not RAG triggering)
         conversational_phrases = [
@@ -775,31 +791,41 @@ def handle_conversation(
         memory_rag_failed = False  # Track if memory RAG failed (timeout, error, etc.)
         
         # Check if RAG will be used BEFORE doing the search (for filler phrase timing)
-        # Deterministic rule:
-        #   bypass_hit -> no RAG
-        #   else quick_content_match -> RAG
+        # PRIMARY DECISION: Use quick_content_match first, only bypass if no content AND clear everyday phrase
         will_use_rag = False
-        if bypass_hit:
-            print(f"[Generic] ⏭️ RAG bypass: matched everyday-language phrase '{bypass_hit}'")
-        else:
+        try:
+            client = get_rag_client()
+            if client:
+                has_content = client.quick_content_match(prompt)
+                if has_content:
+                    will_use_rag = True
+                    print(f"[Generic] ✅ Document RAG will be used (quick_content_match=True)")
+                else:
+                    print(f"[Generic] 🔍 Document RAG quick_content_match: no relevant content found")
+        except Exception as e:
+            print(f"[Generic] ⚠️ RAG pre-check failed: {e}")
+        
+        # Filler phrase is now yielded in generate_response() BEFORE calling handle_conversation()
+        # This ensures it plays immediately while RAG search happens
+        # Use RAG if quick_content_match found content (extracts only key terms, skips everyday words)
+        # NOTE: Filler phrase is no longer yielded here - it's yielded in generate_response() before this function is called
+        # Check if RAG should be used - quick_content_match is the only decision maker
+        should_use_rag_for_search = False
+        if RAG_MODE in ("CPU", "GPU"):
             try:
                 client = get_rag_client()
                 if client:
                     has_content = client.quick_content_match(prompt)
                     if has_content:
-                        will_use_rag = True
-                        print(f"[Generic] ✅ Document RAG will be used (quick_content_match=True)")
+                        should_use_rag_for_search = True
+                        print(f"[Generic] 🔍 quick_content_match=True - performing RAG search...")
                     else:
-                        print(f"[Generic] 🔍 Document RAG quick_content_match: no relevant content found")
+                        should_use_rag_for_search = False
+                        print(f"[Generic] 🔍 quick_content_match=False - skipping RAG (no key terms found in documents)")
             except Exception as e:
-                print(f"[Generic] ⚠️ RAG pre-check failed: {e}")
+                print(f"[Generic] ⚠️ RAG check failed in handle_conversation: {e}")
         
-        # Filler phrase is now yielded in generate_response() BEFORE calling handle_conversation()
-        # This ensures it plays immediately while RAG search happens
-        # Only skip RAG for personal queries or simple conversational phrases (greetings, etc.)
-        # Always use RAG for information-seeking queries if content exists
-        # NOTE: Filler phrase is no longer yielded here - it's yielded in generate_response() before this function is called
-        if not bypass_hit:
+        if should_use_rag_for_search:
             # Detect if query is asking for "what else" or additional information
             is_followup_query = any(phrase in prompt.lower() for phrase in ['what else', 'anything else', 'more about', 'additional', 'other'])
             
@@ -1631,12 +1657,13 @@ JSON array only:"""
             # Use 2048 tokens to match test script (was 800, might be cutting off reasoning)
             max_tokens_limit = 2048 if is_list_request else MAX_TOKENS_RAG_MODE
             # Use CoT model for RAG queries (dual-model architecture)
+            # Only use CoT model if RAG found content (quick_content_match=True)
             llm_response = llm_chat_simple(
                 messages,
                 max_tokens=max_tokens_limit,
                 temperature=0,
                 stream=stream,
-                use_cot_model=True,
+                use_cot_model=True,  # RAG found content - use CoT model
                 stop=["<|im_end|>"],
             )
             if stream:
@@ -1654,6 +1681,14 @@ JSON array only:"""
                 memory_note = "\n⚠️ IMPORTANT: No useful information was found in conversation memory (only questions were found, no actual answers). DO NOT make up or guess information. If you don't have reliable information about what was asked, say so clearly rather than providing generic or speculative responses.\n\n"
             
             if is_instruction_request:
+                # Only require question for informational queries, not conversational ones
+                question_instruction_memory = "" if is_conversational else (
+                    "\n\nMANDATORY: Always end your response with a brief, natural question that ends with a question mark (?). "
+                    "The very last sentence of your response must be a question ending with '?'. "
+                    "Do not include 'follow up' or 'follow-up' in the question text. "
+                    "Examples: 'Would you like more information about this?' or 'Is there anything else I can help you with?' "
+                    "CRITICAL: The last character of your entire response must be a question mark (?)."
+                )
                 system_content = (
                     f"{combined_context}\n\n"
                     "You are Aura Vision, an AI agent created by Ledger AI Quantum Corporation. "
@@ -1662,9 +1697,8 @@ JSON array only:"""
                     "CRITICAL: Keep your response VERY SHORT - maximum 2-3 sentences or a brief numbered list (3-4 steps max). "
                     "Provide only essential steps. Keep each step concise and actionable. "
                     "Be conversational and friendly, like Siri or Alexa. "
-                    "If more detail is needed, the user will ask.\n\n"
-                    "Always end your response with a brief, natural question (do not include 'follow up' or 'follow-up' in the question text). Examples: "
-                    "'Would you like more information about this?' or 'Is there anything else I can help you with?'"
+                    "If more detail is needed, the user will ask."
+                    f"{question_instruction_memory}"
                 )
             else:
                 # Add warning if memory RAG failed or no useful information found
@@ -1682,6 +1716,16 @@ JSON array only:"""
                 # NO CoT instructions for non-RAG queries - use basic conversational mode
                 # CoT is ONLY used when RAG is triggered (has_rag_context = True)
                 
+                # Only require question for informational queries, not conversational ones
+                question_instruction_no_memory = "" if is_conversational else (
+                    "\n\nMANDATORY: Your response MUST end with a brief, natural question that ends with a question mark (?). "
+                    "This is REQUIRED - the very last sentence of your response must be a question ending with '?'. "
+                    "Examples: 'Would you like more information about this?' "
+                    "or 'Is there anything else I can help you with?' or 'Need more details on this?' "
+                    "Do not include the phrase 'follow up' or 'follow-up' in your question - just ask naturally. "
+                    "Make it flow naturally with the conversation topic. This question is in addition to your 2-3 sentence answer. "
+                    "CRITICAL: The last character of your entire response must be a question mark (?)."
+                )
                 system_content = (
                     f"{combined_context}\n\n"
                     "You are Aura Vision, an AI agent created by Ledger AI Quantum Corporation. "
@@ -1701,12 +1745,8 @@ JSON array only:"""
                     "Get straight to the point with ONLY the essential information needed to answer the question. "
                     "DO NOT provide lengthy explanations, multiple examples, extensive background, or detailed elaborations. "
                     "If the user wants more information, they will ask - you can offer to provide more details in your closing question. "
-                    "Be concise, informative, friendly, and conversational.\n\n"
-                    "MANDATORY: Your response MUST end with a brief, natural question. "
-                    "This is REQUIRED - do not skip it. Examples: 'Would you like more information about this?' "
-                    "or 'Is there anything else I can help you with?' or 'Need more details on this?' "
-                    "Do not include the phrase 'follow up' or 'follow-up' in your question - just ask naturally. "
-                    "Make it flow naturally with the conversation topic. This question is in addition to your 2-3 sentence answer."
+                    "Be concise, informative, friendly, and conversational."
+                    f"{question_instruction_no_memory}"
                 )
         
         # When only memory context (no RAG), use separate user message
@@ -2429,11 +2469,13 @@ JSON array only:"""
         
         # Only add question instruction if not a conversational query
         question_instruction = "" if is_conversational_fallback else (
-            "\nMANDATORY: Your response MUST end with a brief, natural question. "
-            "This is REQUIRED - do not skip it. Examples: 'Would you like more information about this?' "
+            "\nMANDATORY: Your response MUST end with a brief, natural question that ends with a question mark (?). "
+            "This is REQUIRED - the very last sentence of your response must be a question ending with '?'. "
+            "Do not skip it. Examples: 'Would you like more information about this?' "
             "or 'Is there anything else I can help you with?' or 'Need more details on this?' "
             "Do not include the phrase 'follow up' or 'follow-up' in your question - just ask naturally. "
-            "Make it flow naturally with the conversation topic."
+            "Make it flow naturally with the conversation topic. "
+            "CRITICAL: The last character of your entire response must be a question mark (?)."
         )
         
         response_length_guideline = ""
@@ -2685,28 +2727,14 @@ def chat_tts():
             #   bypass_hit -> no RAG
             #   else quick_content_match -> RAG
             #   else -> no RAG
-            rag_bypass_phrases = [
-                # greetings / small talk
-                "how are you", "how's it going", "how is it going", "how are things", "how's everything",
-                "good morning", "good afternoon", "good evening", "hello", "hi", "hey",
-                # acknowledgements
-                "thank you", "thanks", "appreciate it", "got it", "ok", "okay", "alright",
-                "yes", "yeah", "yep", "no", "nope",
-                # closings
-                "bye", "goodbye", "see you", "see ya",
-            ]
-            bypass_hit = next((p for p in rag_bypass_phrases if p in normalized_prompt), None)
-
-            # SIMPLIFIED: Use quick_content_match as the primary RAG trigger (fast substring/fuzzy match).
+            # PRIMARY DECISION: Use quick_content_match to determine if RAG should be used
+            # quick_content_match extracts only key terms (names, important nouns) and skips everyday words
             will_use_rag = False
-            print(f"[Generic] 🔍 [RAG Decision] Starting RAG decision check - RAG_MODE={RAG_MODE}, bypass_hit={bool(bypass_hit)}")
+            print(f"[Generic] 🔍 [RAG Decision] Starting RAG decision check - RAG_MODE={RAG_MODE}")
 
-            if bypass_hit:
-                will_use_rag = False
-                print(f"[Generic] ⏭️ [RAG Decision] Bypassing RAG due to everyday-language match: '{bypass_hit}'")
-            elif RAG_MODE in ("CPU", "GPU"):
+            if RAG_MODE in ("CPU", "GPU"):
                 try:
-                    # Quick check: does document RAG have relevant content?
+                    # PRIMARY: Quick substring match on all RAG documents (extracts only key terms, skips everyday words)
                     client = get_rag_client()
                     if client:
                         has_doc_content = client.quick_content_match(prompt)
@@ -2715,6 +2743,7 @@ def chat_tts():
                             will_use_rag = True
                             print(f"[Generic] ✅ [RAG Decision] Document RAG will be used (quick_content_match=True)")
                         else:
+                            will_use_rag = False
                             print(f"[Generic] 🔍 [RAG Decision] Document RAG quick_content_match: no relevant content found")
                     else:
                         print(f"[Generic] ⚠️ [RAG Decision] RAG client not available")
@@ -2741,10 +2770,9 @@ def chat_tts():
             
             # Yield filler phrase IMMEDIATELY after detecting RAG will be used (before calling handle_conversation)
             # This ensures it plays while RAG search happens in the background
-            print(f"[Generic] 🔍 [Filler Phrase] Checking if filler phrase should be yielded - will_use_rag={will_use_rag}, is_conversational={is_conversational}, bypass_hit={bool(bypass_hit)}")
+            print(f"[Generic] 🔍 [Filler Phrase] Checking if filler phrase should be yielded - will_use_rag={will_use_rag}")
             filler_phrase_yielded = False
-            # Simplified: if we're going to do any RAG, emit a filler phrase to cover retrieval latency.
-            # (We skip only when bypass_hit is true, since we didn't run RAG.)
+            # If we're going to do RAG, emit a filler phrase to cover retrieval latency
             if will_use_rag:
                 filler_phrase = get_filler_phrase()
                 print(f"[Generic] ✅ [Filler Phrase] DECISION: Yielding filler phrase IMMEDIATELY after RAG detection")
