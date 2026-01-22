@@ -1733,9 +1733,10 @@ def run_interactive_test(model, tokenizer, model_type):
             pre_hpi['sex'] = user_input
             stage = "hpi"
             demographic_answered = True
+            last_question_type = None  # Reset so we don't ask sex again
             print(f"[Debug] Stored sex: {user_input}, set stage to: {stage}, demographic_answered: {demographic_answered}")
-            # Don't reset last_question_type here - let it be reset when we ask HPI questions
             # Don't score sex - it's demographic, not OLD CARTS
+            # Continue to HPI questions below
         elif last_question_type == "hpi":
             # HPI answers - use tracked element or detect from question
             hpi = navigator.conversation_context['hpi']
@@ -1891,6 +1892,10 @@ def run_interactive_test(model, tokenizer, model_type):
                 messages.append({"role": "assistant", "content": response})
                 continue  # Skip to next iteration to wait for answer
             # If stage is "hpi", continue to HPI questions below (handled in else block)
+            elif stage == "hpi":
+                # Just answered sex, now proceed to HPI questions
+                # Don't ask any demographic questions - go straight to HPI
+                pass  # Fall through to HPI question logic below
         elif stage == "chronicity" or 'chronicity' not in pre_hpi:
             # Ask chronicity question
             if stage != "chronicity":
@@ -1925,9 +1930,9 @@ def run_interactive_test(model, tokenizer, model_type):
                 # LLM used third person, use correct second person format
                 response = "How old are you?"
             last_question_type = "age"
-        elif (stage == "sex" or 'sex' not in pre_hpi) and not demographic_answered and last_question_type != "sex":
+        elif (stage == "sex" or ('sex' not in pre_hpi and stage != "hpi")) and not demographic_answered and last_question_type != "sex" and stage != "hpi":
             # Ask sex question - use second person format matching training data
-            # Only ask if we didn't just answer a demographic question AND we haven't already asked
+            # Only ask if we didn't just answer a demographic question AND we haven't already asked AND stage is not hpi
             if stage != "sex":
                 stage = "sex"  # Set stage if not already set
             # Use explicit system prompt to prevent echoing user answers

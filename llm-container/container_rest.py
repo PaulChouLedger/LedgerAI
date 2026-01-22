@@ -1640,9 +1640,9 @@ JSON array only:"""
                 stop=["<|im_end|>"],
             )
             if stream:
-                # HARD STOP: once the model emits its first FINAL ANSWER sentence, stop generation.
-                # This prevents "second FINAL ANSWER" hallucinations and saves tokens/latency.
-                yield from hard_stop_after_first_final_answer(llm_response)
+                # Let CoT filter handle stopping after first FINAL ANSWER (it has logic to detect post-answer markers)
+                # The hard stop was cutting off too early and preventing proper CoT filtering
+                yield from llm_response
             else:
                 return llm_response
         else:
@@ -3612,9 +3612,11 @@ def filter_cot_reasoning(generator):
                     or "i'm sorry, but i don't" in probe_l
                     or "i don't have specific information" in probe_l
                 ):
-                    print("[Generic] ⚠️ [CoT Filter] Detected post-answer marker/leak while collecting; stopping collection")
+                    print("[Generic] ⚠️ [CoT Filter] Detected post-answer marker/leak while collecting; stopping stream to prevent hallucination")
                     collecting_answer = False
-                    continue
+                    # Stop the generator entirely - don't process any more tokens
+                    # This prevents the model from continuing and generating a second answer
+                    break
                 answer_buffer.append(next_piece)
             continue
     
