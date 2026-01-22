@@ -650,24 +650,24 @@ except Exception as e:
 # Convert to GGUF using Unsloth
 # If llama.cpp is pre-built, Unsloth will use it instead of trying to build
 try:
-model.save_pretrained_gguf(
-    GGUF_OUTPUT_DIR,
-    tokenizer,
-    quantization_method="q4_k_m"  # Q4_K_M quantization for good balance
-)
+    model.save_pretrained_gguf(
+        GGUF_OUTPUT_DIR,
+        tokenizer,
+        quantization_method="q4_k_m"  # Q4_K_M quantization for good balance
+    )
 
-# Rename GGUF file to append "-medical" to filename
-gguf_files = [f for f in os.listdir(GGUF_OUTPUT_DIR) if f.endswith(".gguf")]
-if gguf_files:
-    original_file = os.path.join(GGUF_OUTPUT_DIR, gguf_files[0])
-    # Extract base name and add "-medical" before .gguf extension
-    base_name = os.path.splitext(gguf_files[0])[0]
-    new_filename = f"{base_name}-medical.gguf"
-    new_file = os.path.join(GGUF_OUTPUT_DIR, new_filename)
-    shutil.move(original_file, new_file)
-    print(f"✅ GGUF model saved as: {new_filename}")
-else:
-    print(f"✅ GGUF model saved to {GGUF_OUTPUT_DIR}")
+    # Rename GGUF file to append "-medical" to filename
+    gguf_files = [f for f in os.listdir(GGUF_OUTPUT_DIR) if f.endswith(".gguf")]
+    if gguf_files:
+        original_file = os.path.join(GGUF_OUTPUT_DIR, gguf_files[0])
+        # Extract base name and add "-medical" before .gguf extension
+        base_name = os.path.splitext(gguf_files[0])[0]
+        new_filename = f"{base_name}-medical.gguf"
+        new_file = os.path.join(GGUF_OUTPUT_DIR, new_filename)
+        shutil.move(original_file, new_file)
+        print(f"✅ GGUF model saved as: {new_filename}")
+    else:
+        print(f"✅ GGUF model saved to {GGUF_OUTPUT_DIR}")
         
 except RuntimeError as e:
     error_msg = str(e)

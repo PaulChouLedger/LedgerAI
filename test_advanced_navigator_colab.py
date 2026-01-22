@@ -149,6 +149,9 @@ def load_model():
                 model = Llama(
                     model_path=gguf_files[0],
                     n_ctx=2048,
+                    n_threads=4,
+                    n_batch=256,
+                    chat_format="chatml",  # Required for Qwen models
                     verbose=False,
                 )
                 model_type = "gguf"
@@ -204,27 +207,14 @@ def generate_response(model, tokenizer, messages: List[Dict], model_type: str, m
         return response.strip()
     
     elif model_type == "gguf":
-        prompt = ""
-        for msg in messages:
-            role = msg["role"]
-            content = msg["content"]
-            if role == "system":
-                prompt += f"System: {content}\n\n"
-            elif role == "user":
-                prompt += f"User: {content}\n\n"
-            elif role == "assistant":
-                prompt += f"Assistant: {content}\n\n"
-        
-        prompt += "Assistant: "
-        
-        response = model(
-            prompt,
+        # Use create_chat_completion for proper chat format handling (matches RAG CoT test script)
+        response = model.create_chat_completion(
+            messages=messages,
             max_tokens=max_tokens,
             temperature=temperature,
-            stop=["User:", "System:", "\n\n"],
+            stop=["<|im_end|>", "\n\n\n"]
         )
-        
-        return response["choices"][0]["text"].strip()
+        return response["choices"][0]["message"]["content"].strip()
     
     return ""
 
@@ -455,81 +445,81 @@ class SimpleMedicalNavigator:
                             break
                 if end_idx > start_idx:
                     single_json = cleaned[start_idx:end_idx]
-            try:
+                    try:
                         parsed = json.loads(single_json)
-                if isinstance(parsed, dict) and 'categories' in parsed:
-                    parsed_categories = parsed['categories']
-                    if isinstance(parsed_categories, list):
-                        valid_cats = [cat for cat in parsed_categories if cat in available_categories]
-                        if valid_cats:
-                            # If likely multi-system complaint but too few categories, ask LLM to expand
-                            cc_lower = chief_complaint.lower()
-                            multi_system_complaints = ['chest pain', 'abdominal pain', 'shortness of breath', 'sob']
-                            needs_multi = any(ms in cc_lower for ms in multi_system_complaints)
-                            if needs_multi and len(valid_cats) < 2:
-                                expand_prompt = (
-                                    f"Chief complaint: '{chief_complaint}'\n\n"
-                                    "Your previous answer included too few categories for this complaint, which often spans multiple organ systems.\n"
-                                    "Reconsider and return JSON with ALL plausible categories from the provided list."
-                                )
-                                try:
-                                    retry = self.llm_chat(
-                                        [
-                                            {"role": "system", "content": system_prompt},
-                                            {"role": "user", "content": expand_prompt},
-                                        ],
-                                        max_tokens=200,
-                                        temperature=0.0,
-                                    )
-                                    cleaned_retry = retry.strip() if retry else ""
-                                    if cleaned_retry.startswith('```'):
-                                        first_newline = cleaned_retry.find('\n')
-                                        if first_newline != -1:
-                                            cleaned_retry = cleaned_retry[first_newline+1:]
-                                            if cleaned_retry.endswith('```'):
-                                                cleaned_retry = cleaned_retry[:-3].strip()
-                                            elif '```' in cleaned_retry:
-                                                last_idx = cleaned_retry.rfind('```')
-                                                cleaned_retry = cleaned_retry[:last_idx].strip()
-                                    start_idx = cleaned_retry.find('{')
-                                    if start_idx != -1:
-                                        brace_count = 0
-                                        end_idx = start_idx
-                                        for i in range(start_idx, len(cleaned_retry)):
-                                            if cleaned_retry[i] == '{':
-                                                brace_count += 1
-                                            elif cleaned_retry[i] == '}':
-                                                brace_count -= 1
-                                                if brace_count == 0:
-                                                    end_idx = i + 1
-                                                    break
-                                        if end_idx > start_idx:
-                                            cleaned_retry = cleaned_retry[start_idx:end_idx]
-                                    try:
-                                        parsed_retry = json.loads(cleaned_retry)
-                                        if isinstance(parsed_retry, dict) and 'categories' in parsed_retry:
-                                            retry_categories = parsed_retry['categories']
-                                            if isinstance(retry_categories, list):
-                                                valid_retry = [cat for cat in retry_categories if cat in available_categories]
-                                                if valid_retry:
-                                                    print(f"[Category] LLM expanded categories to: {valid_retry}")
-                                                    return valid_retry
-                                    except json.JSONDecodeError:
-                                        pass
-                                except Exception:
-                                    pass
-                            print(f"[Category] LLM matched '{chief_complaint}' to categories: {valid_cats}")
-                            return valid_cats
-                        # Alternative format: {"category_name": [conditions]} - extract category names
-                        elif isinstance(parsed, dict):
-                            # Model returned category-specific format - extract category names
-                            extracted_categories = []
-                            for key in parsed.keys():
-                                if key in available_categories:
-                                    extracted_categories.append(key)
-                            if extracted_categories:
-                                print(f"[Category] LLM matched '{chief_complaint}' to categories (extracted from condition format): {extracted_categories}")
-                                return extracted_categories
+                        if isinstance(parsed, dict) and 'categories' in parsed:
+                            parsed_categories = parsed['categories']
+                            if isinstance(parsed_categories, list):
+                                valid_cats = [cat for cat in parsed_categories if cat in available_categories]
+                                if valid_cats:
+                                    # If likely multi-system complaint but too few categories, ask LLM to expand
+                                    cc_lower = chief_complaint.lower()
+                                    multi_system_complaints = ['chest pain', 'abdominal pain', 'shortness of breath', 'sob']
+                                    needs_multi = any(ms in cc_lower for ms in multi_system_complaints)
+                                    if needs_multi and len(valid_cats) < 2:
+                                        expand_prompt = (
+                                            f"Chief complaint: '{chief_complaint}'\n\n"
+                                            "Your previous answer included too few categories for this complaint, which often spans multiple organ systems.\n"
+                                            "Reconsider and return JSON with ALL plausible categories from the provided list."
+                                        )
+                                        try:
+                                            retry = self.llm_chat(
+                                                [
+                                                    {"role": "system", "content": system_prompt},
+                                                    {"role": "user", "content": expand_prompt},
+                                                ],
+                                                max_tokens=200,
+                                                temperature=0.0,
+                                            )
+                                            cleaned_retry = retry.strip() if retry else ""
+                                            if cleaned_retry.startswith('```'):
+                                                first_newline = cleaned_retry.find('\n')
+                                                if first_newline != -1:
+                                                    cleaned_retry = cleaned_retry[first_newline+1:]
+                                                    if cleaned_retry.endswith('```'):
+                                                        cleaned_retry = cleaned_retry[:-3].strip()
+                                                    elif '```' in cleaned_retry:
+                                                        last_idx = cleaned_retry.rfind('```')
+                                                        cleaned_retry = cleaned_retry[:last_idx].strip()
+                                            start_idx = cleaned_retry.find('{')
+                                            if start_idx != -1:
+                                                brace_count = 0
+                                                end_idx = start_idx
+                                                for i in range(start_idx, len(cleaned_retry)):
+                                                    if cleaned_retry[i] == '{':
+                                                        brace_count += 1
+                                                    elif cleaned_retry[i] == '}':
+                                                        brace_count -= 1
+                                                        if brace_count == 0:
+                                                            end_idx = i + 1
+                                                            break
+                                                if end_idx > start_idx:
+                                                    cleaned_retry = cleaned_retry[start_idx:end_idx]
+                                            try:
+                                                parsed_retry = json.loads(cleaned_retry)
+                                                if isinstance(parsed_retry, dict) and 'categories' in parsed_retry:
+                                                    retry_categories = parsed_retry['categories']
+                                                    if isinstance(retry_categories, list):
+                                                        valid_retry = [cat for cat in retry_categories if cat in available_categories]
+                                                        if valid_retry:
+                                                            print(f"[Category] LLM expanded categories to: {valid_retry}")
+                                                            return valid_retry
+                                            except json.JSONDecodeError:
+                                                pass
+                                        except Exception:
+                                            pass
+                                    print(f"[Category] LLM matched '{chief_complaint}' to categories: {valid_cats}")
+                                    return valid_cats
+                            # Alternative format: {"category_name": [conditions]} - extract category names
+                            elif isinstance(parsed, dict):
+                                # Model returned category-specific format - extract category names
+                                extracted_categories = []
+                                for key in parsed.keys():
+                                    if key in available_categories:
+                                        extracted_categories.append(key)
+                                if extracted_categories:
+                                    print(f"[Category] LLM matched '{chief_complaint}' to categories (extracted from condition format): {extracted_categories}")
+                                    return extracted_categories
                     except json.JSONDecodeError:
                         pass  # Try parsing multiple JSON objects below
             
@@ -789,35 +779,35 @@ class SimpleMedicalNavigator:
                 if all_conditions_from_multiple:
                     suggested_conditions = list(dict.fromkeys(all_conditions_from_multiple))  # Remove duplicates
                     # Check if we need more conditions
-                                    cc_lower = (chief_complaint or '').lower()
-                                    target_min = 10 if ('chest' in cc_lower and 'pain' in cc_lower) else 6
-                                    if len(suggested_conditions) < target_min:
-                                        expand_user = (
-                                            f"Chief complaint: '{chief_complaint}'\n"
-                                            f"Medical categories: {', '.join(categories)}\n\n"
-                                            f"Your previous list had only {len(suggested_conditions)} items. "
-                                            f"Re-evaluate and return JSON with at least {target_min} conditions covering common and can't-miss diagnoses across ALL categories."
-                                        )
-                                        try:
-                                            retry_resp = self.llm_chat(
-                                                [
-                                                    {"role": "system", "content": system_prompt},
-                                                    {"role": "user", "content": expand_user},
-                                                ],
-                                                max_tokens=600,
-                                                temperature=0.0,
-                                            )
-                                            if retry_resp:
-                                                retry_clean = retry_resp.strip()
-                                                if retry_clean.startswith('```'):
-                                                    first_newline = retry_clean.find('\n')
-                                                    if first_newline != -1:
-                                                        retry_clean = retry_clean[first_newline+1:]
-                                                        if retry_clean.endswith('```'):
-                                                            retry_clean = retry_clean[:-3].strip()
-                                                        elif '```' in retry_clean:
-                                                            last_idx = retry_clean.rfind('```')
-                                                            retry_clean = retry_clean[:last_idx].strip()
+                    cc_lower = (chief_complaint or '').lower()
+                    target_min = 10 if ('chest' in cc_lower and 'pain' in cc_lower) else 6
+                    if len(suggested_conditions) < target_min:
+                        expand_user = (
+                            f"Chief complaint: '{chief_complaint}'\n"
+                            f"Medical categories: {', '.join(categories)}\n\n"
+                            f"Your previous list had only {len(suggested_conditions)} items. "
+                            f"Re-evaluate and return JSON with at least {target_min} conditions covering common and can't-miss diagnoses across ALL categories."
+                        )
+                        try:
+                            retry_resp = self.llm_chat(
+                                [
+                                    {"role": "system", "content": system_prompt},
+                                    {"role": "user", "content": expand_user},
+                                ],
+                                max_tokens=600,
+                                temperature=0.0,
+                            )
+                            if retry_resp:
+                                retry_clean = retry_resp.strip()
+                                if retry_clean.startswith('```'):
+                                    first_newline = retry_clean.find('\n')
+                                    if first_newline != -1:
+                                        retry_clean = retry_clean[first_newline+1:]
+                                        if retry_clean.endswith('```'):
+                                            retry_clean = retry_clean[:-3].strip()
+                                        elif '```' in retry_clean:
+                                            last_idx = retry_clean.rfind('```')
+                                            retry_clean = retry_clean[:last_idx].strip()
                                 # Parse retry response - handle category format
                                 retry_lines = retry_clean.split('\n')
                                 retry_conditions = []
@@ -825,17 +815,17 @@ class SimpleMedicalNavigator:
                                     retry_line = retry_line.strip()
                                     if '{' in retry_line:
                                         rs = retry_line.find('{')
-                                                    bc = 0
-                                                    re = rs
+                                        bc = 0
+                                        re = rs
                                         for i in range(rs, len(retry_line)):
                                             if retry_line[i] == '{':
-                                                            bc += 1
+                                                bc += 1
                                             elif retry_line[i] == '}':
-                                                            bc -= 1
-                                                            if bc == 0:
-                                                                re = i + 1
-                                                                break
-                                                    if re > rs:
+                                                bc -= 1
+                                                if bc == 0:
+                                                    re = i + 1
+                                                    break
+                                        if re > rs:
                                             try:
                                                 parsed_retry = json.loads(retry_line[rs:re])
                                                 if isinstance(parsed_retry, dict):
@@ -846,24 +836,24 @@ class SimpleMedicalNavigator:
                                                         for key, value in parsed_retry.items():
                                                             if isinstance(value, list):
                                                                 retry_conditions.extend(value)
-                                                        except json.JSONDecodeError:
-                                                            pass
+                                            except json.JSONDecodeError:
+                                                pass
                                 if retry_conditions:
                                     suggested_conditions = list(dict.fromkeys(retry_conditions))
                                     print(f"[Condition Init] 🔁 Expanded conditions to {len(suggested_conditions)} via LLM retry")
-                                        except Exception:
-                                            pass
-                                    # Start ALL suggested conditions at balanced baseline (0.5)
-                                    all_conditions = list(dict.fromkeys(suggested_conditions))
-                                    self.condition_scores = {cond: 0.5 for cond in all_conditions}
+                        except Exception:
+                            pass
+                    # Start ALL suggested conditions at balanced baseline (0.5)
+                    all_conditions = list(dict.fromkeys(suggested_conditions))
+                    self.condition_scores = {cond: 0.5 for cond in all_conditions}
                     print(f"\n📋 LLM suggested {len(self.condition_scores)} conditions at balanced baseline 50.0% (from multiple category JSON)")
-                                    print(f"   Categories: {', '.join(categories)}")
-                                    print(f"   Conditions: {', '.join(list(self.condition_scores.keys())[:5])}{'...' if len(self.condition_scores) > 5 else ''}")
-                                    print(f"   LLM will narrow down based on answers")
-                                    print(f"   Additional conditions can be added dynamically during scoring\n")
-                                    self._update_rankings()
-                                    self._update_condition_pools()
-                                    return
+                    print(f"   Categories: {', '.join(categories)}")
+                    print(f"   Conditions: {', '.join(list(self.condition_scores.keys())[:5])}{'...' if len(self.condition_scores) > 5 else ''}")
+                    print(f"   LLM will narrow down based on answers")
+                    print(f"   Additional conditions can be added dynamically during scoring\n")
+                    self._update_rankings()
+                    self._update_condition_pools()
+                    return
                 
                 # Alternative: Handle multiple JSON objects on separate lines
                 # Format: {"Condition 1"}\n{"Condition 2"}\n...

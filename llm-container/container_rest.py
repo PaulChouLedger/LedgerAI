@@ -1080,15 +1080,6 @@ JSON array only:"""
         should_use_rag = (rag_results and len(rag_results) > 0) or (memory_rag_results and len(memory_rag_results) > 0)
         should_use_memory_rag = (memory_rag_results and len(memory_rag_results) > 0)
         print(f"[Generic] 🔍 Query analysis: is_personal={is_personal_query}, is_conversational={is_conversational}, should_use_rag={should_use_rag}, should_use_memory_rag={should_use_memory_rag}")
-
-        # Prevent hallucination for information-seeking queries when we have no evidence in RAG.
-        if (not should_use_rag) and is_information_seeking and RAG_MODE in ("CPU", "GPU") and not is_personal_query:
-            no_evidence_msg = (
-                "I couldn’t find anything about that in the documents I have indexed. "
-                "If you upload a document that mentions it (or re-upload the correct file), I can answer from it."
-            )
-            print("[Generic] 🚫 No RAG evidence for information-seeking query - returning no-evidence response (prevent hallucination)")
-            return iter([no_evidence_msg]) if stream else no_evidence_msg
         
         if should_use_rag and rag_results:
             try:
