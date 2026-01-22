@@ -1619,7 +1619,13 @@ JSON array only:"""
                     "- If query asks for a list, include ALL matching items found in the context (do not omit any).\n"
                     "- Preserve verbatim information from evidence - do NOT paraphrase (e.g., if evidence says \"50 developers\", do NOT change to \"50 employees\").\n"
                     "- For queries asking \"Who is the [ROLE]?\", include ONLY the person's name, not the role title or company name.\n"
-                    "- For queries asking for amounts/numbers, include ONLY the amount/number, not dates, years, or other context."
+                    "- For queries asking for amounts/numbers, include ONLY the amount/number, not dates, years, or other context.\n\n"
+                    "MANDATORY: After providing the FINAL ANSWER, you MUST end with a brief, natural question that ends with a question mark (?). "
+                    "This is REQUIRED - the very last sentence of your response must be a question ending with '?'. "
+                    "Examples: 'Would you like more information about this?' or 'Is there anything else I can help you with?' "
+                    "Do not include the phrase 'follow up' or 'follow-up' in your question - just ask naturally. "
+                    "Make it flow naturally with the conversation topic. "
+                    "CRITICAL: The last character of your entire response must be a question mark (?)."
                 )
                 
                 # Build system and user messages - match training format EXACTLY
@@ -2788,7 +2794,7 @@ def chat_tts():
                 filler_phrase_yielded = True
                 print(f"[Generic] ✅ [Filler Phrase] Filler phrase yield complete")
             else:
-                print(f"[Generic] ⏭️ [Filler Phrase] Skipping filler phrase - will_use_rag={will_use_rag}, is_conversational={is_conversational}, bypass_hit={bool(bypass_hit)}")
+                print(f"[Generic] ⏭️ [Filler Phrase] Skipping filler phrase - will_use_rag={will_use_rag}, is_conversational={is_conversational}")
             
             # Use streaming mode to get tokens as they're generated, with memory context
             # The filler phrase was already yielded above, handle_conversation() will skip its own
