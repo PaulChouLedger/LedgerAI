@@ -284,8 +284,22 @@ class RAGClient:
         if not query or not query.strip():
             return False
         
-        # Extract key terms from query (remove common stop words)
-        stop_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'i', 'you', 'he', 'she', 'it', 'we', 'they', 'is', 'are', 'was', 'were', 'do', 'does', 'did', 'how', 'what', 'when', 'where', 'why', 'can', 'could', 'should', 'would', 'may', 'might', 'must'}
+        # Extract key terms from query (remove common stop words and conversational words)
+        stop_words = {
+            # Articles and prepositions
+            'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by',
+            # Pronouns
+            'i', 'you', 'he', 'she', 'it', 'we', 'they', 'me', 'him', 'her', 'us', 'them',
+            # Common verbs
+            'is', 'are', 'was', 'were', 'do', 'does', 'did', 'have', 'has', 'had', 'be', 'been', 'being',
+            # Question words
+            'how', 'what', 'when', 'where', 'why', 'which', 'who', 'whom', 'whose',
+            # Modal verbs
+            'can', 'could', 'should', 'would', 'may', 'might', 'must', 'will', 'shall',
+            # Conversational words (common in queries but not content-specific)
+            'tell', 'me', 'about', 'know', 'knows', 'show', 'give', 'find', 'search', 'explain', 'describe',
+            'list', 'say', 'says', 'said', 'talk', 'talks', 'discuss', 'discusses'
+        }
         query_lower = query.lower()
         # Extract words (2+ characters) that aren't stop words
         import re
@@ -294,6 +308,9 @@ class RAGClient:
         
         if not key_terms:
             return False
+        
+        # Sort key terms by length (longest first) - prioritize specific terms like "vasopressin" over generic ones
+        key_terms = sorted(key_terms, key=len, reverse=True)
         
         # Quick substring/fuzzy match against RAG chunks
         if self.use_gpu:
@@ -323,8 +340,13 @@ class RAGClient:
             # For medical/technical queries, check more chunks (up to 500) to catch relevant content
             # This is still fast (substring/fuzzy match) compared to full semantic search
             chunks_to_check = min(500, len(self._cpu_chunks))
-            exact_matches = 0
-            fuzzy_matches = 0
+            
+            # Prioritize longer/more specific terms (e.g., "vasopressin" over "tell")
+            # The longest term is most likely to be the actual subject of the query
+            primary_term = key_terms[0] if key_terms else None  # Longest term (already sorted)
+            
+            found_primary_match = False
+            found_secondary_matches = 0
             
             for i in range(chunks_to_check):
                 # Chunks are strings, not dictionaries
@@ -334,23 +356,30 @@ class RAGClient:
                 else:
                     chunk_text = str(chunk).lower()
                 
-                # First try exact substring matching (fastest)
-                exact_matching_terms = sum(1 for term in key_terms if term in chunk_text)
-                if exact_matching_terms >= 2:  # At least 2 key terms match exactly
+                # First check if the primary (longest/most specific) term matches
+                # This is the most important check - if "vasopressin" isn't in the docs, don't use RAG
+                if primary_term:
+                    if primary_term in chunk_text:
+                        found_primary_match = True
+                    elif self._fuzzy_match_term(primary_term, chunk_text, threshold=0.75):
+                        found_primary_match = True
+                
+                # Also check other key terms (for queries with multiple specific terms)
+                if len(key_terms) > 1:
+                    for term in key_terms[1:]:  # Skip primary term
+                        if term in chunk_text:
+                            found_secondary_matches += 1
+                        elif self._fuzzy_match_term(term, chunk_text, threshold=0.75):
+                            found_secondary_matches += 1
+                
+                # If we found the primary term, we can return early (most specific match found)
+                if found_primary_match:
                     return True
-                elif exact_matching_terms == 1 and exact_matches == 0:  # First single exact match
-                    exact_matches = 1
             
-                # If no exact match, try fuzzy matching for transcription errors
-                if exact_matching_terms == 0:
-                    fuzzy_matching_terms = sum(1 for term in key_terms if self._fuzzy_match_term(term, chunk_text, threshold=0.75))
-                    if fuzzy_matching_terms >= 2:  # At least 2 key terms fuzzy match
-                        return True
-                    elif fuzzy_matching_terms == 1 and fuzzy_matches == 0:  # First single fuzzy match
-                        fuzzy_matches = 1
-            
-            # If we found at least one match (exact or fuzzy), use RAG
-            return (exact_matches > 0) or (fuzzy_matches > 0)
+            # Only use RAG if we found the primary (most specific) term
+            # This ensures queries like "Tell me about vasopressin" only trigger RAG if "vasopressin" is actually in the documents
+            # Secondary matches are only used for multi-term queries where the primary term is also found
+            return found_primary_match
     
     def _expand_query(self, query: str) -> str:
         """
