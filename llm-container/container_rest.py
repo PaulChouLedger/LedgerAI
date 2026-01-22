@@ -183,7 +183,7 @@ def llm_chat_simple(messages, max_tokens=None, temperature=None, stream=False, u
             container.llm_simple = Llama(
                 model_path=COT_MODEL_PATH,
                 n_ctx=container.SIMPLE_N_CTX,
-                n_threads=N_THREADS,
+                n_threads=1,  # Use 1 thread for deterministic output (temperature=0 alone isn't enough)
                 n_batch=container.N_BATCH,
                 n_gpu_layers=n_gpu_layers,
                 cache_prompt=CACHE_PROMPT,
@@ -3399,15 +3399,24 @@ def filter_cot_reasoning(generator):
             if not text_content.rstrip().endswith(('.', ',', '!', '?', ':', ';', ' ', '\n')):
                 detection_buffer += " "
         
-        # Check for CoT markers
-        if "REASONING:" in detection_buffer or "Reasoning:" in detection_buffer:
+        # Check for CoT markers (case-insensitive)
+        detection_buffer_lower = detection_buffer.lower()
+        has_reasoning = "reasoning:" in detection_buffer_lower
+        
+        if has_reasoning:
             is_cot_response = True
             cot_detected = True
             print(f"[Generic] 🔍 [CoT Filter] CoT response detected - applying reasoning filter")
             
             # IMPORTANT: Suppress model-generated filler phrases if we already yielded one
             # The filler phrase should play DURING RAG processing, not after
-            reasoning_marker = "REASONING:" if "REASONING:" in detection_buffer else "Reasoning:"
+            # Find reasoning marker (preserve original case from detection_buffer)
+            reasoning_pos = detection_buffer_lower.find("reasoning:")
+            if reasoning_pos != -1:
+                # Extract the actual marker with original case
+                reasoning_marker = detection_buffer[reasoning_pos:reasoning_pos+9]
+            else:
+                reasoning_marker = "REASONING:"  # Fallback
             pre_reasoning_content = detection_buffer.split(reasoning_marker)[0].strip()
             if pre_reasoning_content:
                 # Check if this looks like a filler phrase (common patterns)
@@ -3432,7 +3441,7 @@ def filter_cot_reasoning(generator):
             break
         elif len(detection_buffer) > 300:
             # After 300 chars with no CoT markers, assume non-CoT
-            if not any(marker in detection_buffer for marker in ["REASONING:", "Reasoning:", "FINAL ANSWER:", "Final Answer:", "- Item:", "- Evidence:", "- Action:"]):
+            if not any(marker in detection_buffer_lower for marker in ["reasoning:", "final answer:", "- item:", "- evidence:", "- action:"]):
                 is_cot_response = False
                 cot_detected = True
                 print(f"[Generic] 🔍 [CoT Filter] Non-CoT response detected - passing through directly")
@@ -4098,7 +4107,7 @@ if __name__ == "__main__":
     cot_container.llm_simple = Llama(
         model_path=COT_MODEL_PATH,
         n_ctx=cot_container.SIMPLE_N_CTX,
-        n_threads=N_THREADS,
+        n_threads=1,  # Use 1 thread for deterministic output (temperature=0 alone isn't enough)
         n_batch=cot_container.N_BATCH,
         n_gpu_layers=n_gpu_layers,  # Enable GPU acceleration
         cache_prompt=CACHE_PROMPT,

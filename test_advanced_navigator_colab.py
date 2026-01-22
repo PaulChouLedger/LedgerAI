@@ -1907,6 +1907,9 @@ def run_interactive_test(model, tokenizer, model_type):
                 temperature=0.4
             )
             last_question_type = "chronicity"
+            print(f"🤖 Assistant: {response}")
+            messages.append({"role": "assistant", "content": response})
+            continue
         elif (stage == "age" or 'age' not in pre_hpi) and not demographic_answered and last_question_type != "age":
             # Ask age question - use second person format matching training data
             # Only ask if we didn't just answer a demographic question AND we haven't already asked the age question
@@ -1930,10 +1933,14 @@ def run_interactive_test(model, tokenizer, model_type):
                 # LLM used third person, use correct second person format
                 response = "How old are you?"
             last_question_type = "age"
-        elif (stage == "sex" or ('sex' not in pre_hpi and stage != "hpi")) and not demographic_answered and last_question_type != "sex" and stage != "hpi":
+            print(f"🤖 Assistant: {response}")
+            messages.append({"role": "assistant", "content": response})
+            continue
+        elif (stage == "sex" or 'sex' not in pre_hpi) and not demographic_answered and last_question_type != "sex" and stage != "hpi" and 'sex' not in pre_hpi:
             # Ask sex question - use second person format matching training data
-            # Only ask if we didn't just answer a demographic question AND we haven't already asked AND stage is not hpi
-            if stage != "sex":
+            # Only ask if: stage is sex OR sex not in pre_hpi, AND we didn't just answer a demographic question, 
+            # AND we haven't already asked, AND stage is not hpi, AND sex is not already stored
+            if stage != "sex" and stage != "hpi":
                 stage = "sex"  # Set stage if not already set
             # Use explicit system prompt to prevent echoing user answers
             sex_system = "You are a medical assistant. Generate ONLY a question asking the patient their biological sex. Do NOT repeat or echo any previous answers. Do NOT acknowledge previous responses. Ask ONLY the sex question in second person format."
@@ -1953,6 +1960,9 @@ def run_interactive_test(model, tokenizer, model_type):
                 # LLM used third person, use correct second person format
                 response = "What is your biological sex?"
             last_question_type = "sex"
+            print(f"🤖 Assistant: {response}")
+            messages.append({"role": "assistant", "content": response})
+            continue
         else:
             # All demographics collected - ask HPI questions
             # Determine which OLD CARTS element to ask about next
@@ -2074,9 +2084,9 @@ def run_interactive_test(model, tokenizer, model_type):
                     response = base_question
             
             last_question_type = "hpi"
-        
-        print(f"🤖 Assistant: {response}")
-        messages.append({"role": "assistant", "content": response})
+            print(f"🤖 Assistant: {response}")
+            messages.append({"role": "assistant", "content": response})
+            continue  # Continue to next iteration to wait for answer
 
 # ============================================================================
 # Main
