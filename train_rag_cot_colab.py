@@ -11,8 +11,7 @@ Configuration:
 
 To use in Colab:
 1. Upload rag_cot_training_dataset.json to Colab
-2. Run: !pip install unsloth trl peft accelerate bitsandbytes datasets
-3. Run this script
+2. Run this script (it will install dependencies automatically)
 
 Dataset Features:
 - Chain of Thought reasoning examples for RAG chunk extraction
@@ -22,14 +21,159 @@ Dataset Features:
 - Training to carefully read chunks and identify explicit relationships
 """
 
+# ============================================================================
+# CRITICAL: Install Dependencies FIRST (before any imports)
+# ============================================================================
+# This prevents the "packages were previously imported" warning in Colab
+# and ensures correct CUDA versions are loaded
+
+import subprocess
+import sys
+
+def install_dependencies():
+    """Install required packages if not already installed"""
+    # CRITICAL: Version pinning for compatibility
+    # - datasets==4.3.0: unsloth requires this exact version (newer causes recursion)
+    # - trl: Need compatible version (newer versions have bugs in experimental code)
+    packages = [
+        "unsloth",
+        "trl<0.9.0",  # CRITICAL: Newer trl has bugs in experimental.openenv
+        "peft",
+        "accelerate",
+        "bitsandbytes",
+        "datasets==4.3.0",  # CRITICAL: unsloth requires this exact version
+        "llama-cpp-python"  # For GGUF conversion (optional, but helpful)
+    ]
+    
+    # First, check if packages are already installed by trying to import them
+    # Use a more robust check that handles import errors gracefully
+    missing_packages = []
+    
+    try:
+        import unsloth
+    except (ImportError, NameError):
+        # NameError can occur if unsloth imports trl with bugs
+        missing_packages.append("unsloth")
+    
+    try:
+        import trl
+        # Also check trl version - newer versions have bugs
+        import trl as trl_module
+        if hasattr(trl_module, '__version__'):
+            version = trl_module.__version__
+            # Check if version is >= 0.9.0 (has bugs)
+            try:
+                from packaging import version as pkg_version
+                if pkg_version.parse(version) >= pkg_version.parse("0.9.0"):
+                    print(f"⚠️  trl version {version} detected, but has bugs in experimental code")
+                    print(f"   Will downgrade to <0.9.0")
+                    missing_packages.append("trl<0.9.0")
+            except:
+                # If can't parse version, assume it's OK
+                pass
+    except (ImportError, NameError):
+        missing_packages.append("trl<0.9.0")
+    
+    try:
+        import peft
+    except ImportError:
+        missing_packages.append("peft")
+    
+    try:
+        import accelerate
+    except ImportError:
+        missing_packages.append("accelerate")
+    
+    try:
+        import bitsandbytes
+    except ImportError:
+        missing_packages.append("bitsandbytes")
+    
+    try:
+        import datasets
+        # Also check version - unsloth requires 4.3.0
+        import datasets as ds
+        if hasattr(ds, '__version__'):
+            version = ds.__version__
+            if version != "4.3.0":
+                print(f"⚠️  datasets version {version} detected, but unsloth requires 4.3.0")
+                print(f"   Will downgrade to 4.3.0")
+                missing_packages.append("datasets==4.3.0")
+    except ImportError:
+        missing_packages.append("datasets==4.3.0")
+    
+    # llama-cpp-python is optional, so we don't check it
+    
+    if not missing_packages:
+        print("✅ All dependencies already installed - skipping installation")
+        return False  # No restart needed
+    else:
+        print(f"📦 Some dependencies missing: {', '.join(missing_packages)} - will install")
+    
+    # Check if running in Colab
+    try:
+        import google.colab
+        in_colab = True
+    except ImportError:
+        in_colab = False
+    
+    if in_colab:
+        print("=" * 80)
+        print("Installing Dependencies (Colab)")
+        print("=" * 80)
+        print("⚠️  Note: You may see dependency conflict warnings.")
+        print("   These are harmless - Colab has pre-installed packages that")
+        print("   conflict with newer versions. Training will work fine.")
+        print()
+        print("⚠️  If you see 'packages were previously imported' warning,")
+        print("   RESTART THE RUNTIME after installation completes!")
+        print("   Runtime > Restart runtime (or Ctrl+M .)")
+        print()
+        
+        # Install packages (ignore dependency conflicts - they're just warnings)
+        for package in packages:
+            print(f"Installing {package}...")
+            try:
+                # Use --upgrade to ensure latest versions, ignore conflicts
+                subprocess.check_call([
+                    sys.executable, "-m", "pip", "install", "-q", 
+                    "--upgrade", "--no-warn-conflicts", package
+                ], stderr=subprocess.DEVNULL)  # Suppress stderr to hide conflict warnings
+            except subprocess.CalledProcessError:
+                # If --no-warn-conflicts not supported, try without it
+                subprocess.check_call([
+                    sys.executable, "-m", "pip", "install", "-q", 
+                    "--upgrade", package
+                ])
+        
+        print()
+        print("✅ Dependencies installed!")
+        print("   (Dependency conflict warnings are normal in Colab - ignore them)")
+        print()
+        print("⚠️  IMPORTANT: Restart runtime now (Runtime > Restart runtime)")
+        print("   Then run the script again - it will skip installation.")
+        print("=" * 80)
+        print()
+        return True  # Indicates restart needed
+    else:
+        # Not in Colab - install manually
+        print("⚠️  Some dependencies missing. Please install manually:")
+        print(f"   pip install {' '.join(packages)}")
+        return False
+
+# Install dependencies FIRST (before any other imports)
+_restart_needed = install_dependencies()
+if _restart_needed:
+    print("\n🛑 STOPPING: Please restart runtime, then run this script again.")
+    sys.exit(0)
+
+# Now safe to import everything else
 import json
 import os
 import shutil
 import random
 import numpy as np
 import torch
-import subprocess
-import sys
 from datasets import Dataset
 from unsloth import FastLanguageModel
 from trl import SFTTrainer
@@ -70,14 +214,9 @@ print(f"✅ PYTHONHASHSEED: {SEED}")
 print()
 
 # ============================================================================
-# Install Dependencies (Colab)
-# ============================================================================
-# Uncomment if running in Colab:
-# !pip install unsloth trl peft accelerate bitsandbytes datasets
-
-# ============================================================================
 # Configuration
 # ============================================================================
+# (Dependencies are installed at the top of the script)
 
 MODEL_NAME = "unsloth/Qwen2.5-1.5B-Instruct-bnb-4bit"  # Qwen 2.5 1.5B - better instruction following and reasoning
 
@@ -113,7 +252,9 @@ EVIDENCE:
 - Read through the ENTIRE context completely - do NOT stop scanning early.
 - Scan systematically through all chunks, paragraphs, and sections.
 - In complex contexts with many entities, scan ALL entities before ending.
-- Entities may appear late in the context - continue scanning until the very end.
+- CRITICAL: Relevant items may appear at the VERY END of long contexts - you MUST read to the end.
+- CRITICAL: Do NOT stop when you find some matches - continue scanning for ALL matches.
+- CRITICAL: If query asks for a list (e.g., "co-founders", "products", "locations"), ensure you found ALL matching items.
 - Do NOT end scan until you have checked EVERY relevant item in the context.
 - Do NOT stop scanning when you find matches - continue until the END of context.
 - Items may appear at the very end - you MUST scan ALL items before ending.
@@ -128,9 +269,11 @@ MATCHING (PREVENTS HALLUCINATION - STRICT VERBATIM RULE):
 - Query term MUST appear verbatim in evidence for [KEEP].
 - If query term appears verbatim in evidence → [KEEP] (regardless of other roles/info mentioned).
 - If query term does NOT appear verbatim in evidence → [DISCARD] (NO exceptions, NO inference, NO assumptions).
-- Similar roles/titles are NOT matches unless query term appears verbatim (e.g., "Business Development Lead" ≠ "co-founder", "Ambassador" ≠ "co-founder", "Ambassador of Influence and Engagement" ≠ "co-founder", "CTO" ≠ "co-founder").
+- Similar terms are NOT matches unless query term appears verbatim (e.g., "Business Development Lead" ≠ "co-founder", "Ambassador" ≠ "co-founder", "CTO" ≠ "co-founder", "Head of Engineering" ≠ "co-founder", "revenue" ≠ "funding", "products" ≠ "services").
 - DO NOT infer or assume relationships - only use explicitly stated information.
 - DO NOT use context clues - only verbatim presence of query term matters.
+- CRITICAL: If evidence mentions a similar but different term than the query → [DISCARD] (e.g., if query asks for "co-founders" and evidence says "Head of Engineering" → [DISCARD]).
+- CRITICAL: If evidence contains the exact query term verbatim → [KEEP] (e.g., if query asks for "co-founders" and evidence says "Co-Founder" → [KEEP]).
 
 EMPTY RESULTS:
 - If ALL items are marked [DISCARD], FINAL ANSWER must indicate no matches found.
@@ -138,10 +281,29 @@ EMPTY RESULTS:
 OUTPUT FORMAT:
 - FINAL ANSWER must include ONLY the information explicitly requested in the query - nothing more, nothing less.
 - Include ONLY what is requested - exclude extra words, role titles, dates, or any context not explicitly requested.
+- CRITICAL: Do NOT include words like "Additionally", "Also", "Furthermore" - these are NOT part of the answer.
+- CRITICAL: Do NOT include years/dates unless explicitly requested (e.g., if query asks for revenue, include ONLY "$50 million", NOT "2023" or "$50 million in 2023").
 - If query asks for a list, include ALL matching items found in the context (do not omit any).
 - Preserve verbatim information from evidence - do NOT paraphrase (e.g., if evidence says "50 developers", do NOT change to "50 employees").
 - For queries asking "Who is the [ROLE]?", include ONLY the person's name, not the role title or company name.
-- For queries asking for amounts/numbers, include ONLY the amount/number, not dates, years, or other context."""
+- For queries asking for amounts/numbers, include ONLY the amount/number, not dates, years, or other context.
+
+FORMAT REQUIREMENTS:
+- REASONING: must start with exactly "REASONING:" (no brackets, no extra text).
+- Each item MUST have three separate lines:
+  - Item: [name or value]
+  - Evidence: "[verbatim quote]"
+  - Action: [KEEP] or [DISCARD]
+- Do NOT combine Item/Evidence/Action on one line.
+- Do NOT use variations like "REASONING: []" or "REASONING: Item:".
+
+CRITICAL - STOP AFTER FINAL ANSWER:
+- Once you provide FINAL ANSWER, STOP generating immediately.
+- Do NOT continue with any further analysis, reasoning, or generation.
+- Do NOT add explanations, clarifications, or additional information after FINAL ANSWER.
+- Do NOT continue scanning or processing after FINAL ANSWER.
+- FINAL ANSWER is the END of your response - nothing comes after it.
+- The response MUST end with FINAL ANSWER - no continuation."""
 
 # ============================================================================
 # GPU Check

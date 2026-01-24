@@ -1578,6 +1578,8 @@ JSON array only:"""
                 # Use CoT format ONLY when RAG is triggered (has_rag_context = True)
                 # This matches the user's request: "use CoT when RAG is triggered and use basic LLM conversational mode if RAG not triggered"
                 # IMPORTANT: This prompt MUST match the training prompt exactly (from test_rag_cot_model_colab.py)
+                # Match test script SYSTEM_PROMPT exactly (from test_rag_cot_model_colab.py)
+                # This ensures production behavior matches test results
                 cot_system_prompt = (
                     "You are a precise data extraction bot.\n\n"
                     "ALWAYS START WITH REASONING:\n"
@@ -1620,6 +1622,21 @@ JSON array only:"""
                     "- Preserve verbatim information from evidence - do NOT paraphrase (e.g., if evidence says \"50 developers\", do NOT change to \"50 employees\").\n"
                     "- For queries asking \"Who is the [ROLE]?\", include ONLY the person's name, not the role title or company name.\n"
                     "- For queries asking for amounts/numbers, include ONLY the amount/number, not dates, years, or other context.\n\n"
+                    "FORMAT REQUIREMENTS:\n"
+                    "- REASONING: must start with exactly \"REASONING:\" (no brackets, no extra text).\n"
+                    "- Each item MUST have three separate lines:\n"
+                    "  - Item: [name or value]\n"
+                    "  - Evidence: \"[verbatim quote]\"\n"
+                    "  - Action: [KEEP] or [DISCARD]\n"
+                    "- Do NOT combine Item/Evidence/Action on one line.\n"
+                    "- Do NOT use variations like \"REASONING: []\" or \"REASONING: Item:\".\n\n"
+                    "CRITICAL - STOP AFTER FINAL ANSWER:\n"
+                    "- Once you provide FINAL ANSWER, STOP generating immediately.\n"
+                    "- Do NOT continue with any further analysis, reasoning, or generation.\n"
+                    "- Do NOT add explanations, clarifications, or additional information after FINAL ANSWER.\n"
+                    "- Do NOT continue scanning or processing after FINAL ANSWER.\n"
+                    "- FINAL ANSWER is the END of your response - nothing comes after it.\n"
+                    "- The response MUST end with FINAL ANSWER - no continuation.\n\n"
                     "MANDATORY: After providing the FINAL ANSWER, you MUST end with a brief, natural question that ends with a question mark (?). "
                     "This is REQUIRED - the very last sentence of your response must be a question ending with '?'. "
                     "Examples: 'Would you like more information about this?' or 'Is there anything else I can help you with?' "
@@ -1656,21 +1673,20 @@ JSON array only:"""
             print(system_content)
             print(f"{'='*80}\n")
             
-            # Don't wrap the iterator - let base_container's debug_iterator handle logging
-            # The base class already wraps it with debug logging
-            # Use higher token limit for list questions to ensure all items are included
-            # Use lower temperature (0.05) for RAG queries to match test script and ensure accuracy
-            # Use 2048 tokens to match test script (was 800, might be cutting off reasoning)
-            max_tokens_limit = 2048 if is_list_request else MAX_TOKENS_RAG_MODE
+            # Match test script parameters exactly (from test_rag_cot_model_colab.py)
+            # Use 2048 tokens for all RAG queries (test script uses 2048 for all)
+            # Use temperature=0.0 to match test script (deterministic output)
+            # Add "\n\n\n" stop sequence to match test script (prevents continuation after FINAL ANSWER)
+            max_tokens_limit = 2048  # Always use 2048 for RAG queries to match test script
             # Use CoT model for RAG queries (dual-model architecture)
             # Only use CoT model if RAG found content (quick_content_match=True)
             llm_response = llm_chat_simple(
                 messages,
                 max_tokens=max_tokens_limit,
-                temperature=0,
+                temperature=0.0,  # Match test script (0.0 for deterministic output)
                 stream=stream,
                 use_cot_model=True,  # RAG found content - use CoT model
-                stop=["<|im_end|>"],
+                stop=["<|im_end|>", "\n\n\n"],  # Match test script stop sequences
             )
             if stream:
                 # Let CoT filter handle stopping after first FINAL ANSWER (it has logic to detect post-answer markers)
