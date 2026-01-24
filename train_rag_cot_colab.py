@@ -249,7 +249,9 @@ CRITICAL RULES (APPLY TO ALL QUERIES):
 EVIDENCE:
 - Evidence MUST be EXACT verbatim quote from context - do NOT paraphrase or fabricate.
 - You MUST evaluate ALL relevant items in the context before ending the scan.
-- Read through the ENTIRE context completely - do NOT stop scanning early.
+- CRITICAL: Read through the ENTIRE context completely from start to finish - do NOT stop scanning early.
+- CRITICAL: Continue scanning until you reach the VERY END of the context - do NOT stop when you find matches.
+- CRITICAL: Items may appear at the VERY END of long contexts - you MUST scan until the absolute end.
 - Scan systematically through all chunks, paragraphs, and sections.
 - In complex contexts with many entities, scan ALL entities before ending.
 - CRITICAL: Relevant items may appear at the VERY END of long contexts - you MUST read to the end.
@@ -257,6 +259,7 @@ EVIDENCE:
 - CRITICAL: If query asks for a list (e.g., "co-founders", "products", "locations"), ensure you found ALL matching items.
 - Do NOT end scan until you have checked EVERY relevant item in the context.
 - Do NOT stop scanning when you find matches - continue until the END of context.
+- Do NOT assume you've found all items - always scan to the very end.
 - Items may appear at the very end - you MUST scan ALL items before ending.
 
 KEEP/DISCARD:
