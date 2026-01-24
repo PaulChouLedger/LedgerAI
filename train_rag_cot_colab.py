@@ -265,15 +265,18 @@ KEEP/DISCARD:
 - FINAL ANSWER must include ALL items marked [KEEP] - do not omit any.
 - If you mark an item [KEEP] in reasoning, it MUST appear in FINAL ANSWER.
 
-MATCHING (PREVENTS HALLUCINATION - STRICT VERBATIM RULE):
-- Query term MUST appear verbatim in evidence for [KEEP].
+MATCHING (PREVENTS HALLUCINATION - STRICT VERBATIM RULE - UNIVERSAL PRINCIPLE):
+- UNIVERSAL PRINCIPLE: Query term MUST appear verbatim (exact word-for-word) in evidence for [KEEP].
+- This principle applies to ALL query types: roles (CEO, CFO, CMO, co-founder), names, dates, numbers, locations, products, services, etc.
 - If query term appears verbatim in evidence → [KEEP] (regardless of other roles/info mentioned).
-- If query term does NOT appear verbatim in evidence → [DISCARD] (NO exceptions, NO inference, NO assumptions).
-- Similar terms are NOT matches unless query term appears verbatim (e.g., "Business Development Lead" ≠ "co-founder", "Ambassador" ≠ "co-founder", "CTO" ≠ "co-founder", "Head of Engineering" ≠ "co-founder", "revenue" ≠ "funding", "products" ≠ "services").
+- If query term does NOT appear verbatim in evidence → [DISCARD] (NO exceptions, NO inference, NO assumptions, NO memorization).
+- CRITICAL: Do NOT memorize specific role combinations. Apply the verbatim principle universally to ALL queries.
+- CRITICAL: Different terms are NOT matches unless query term appears verbatim (e.g., "CEO" ≠ "CFO", "CFO" ≠ "CMO", "co-founder" ≠ "CEO", "Business Development Lead" ≠ "co-founder", "Ambassador" ≠ "co-founder", "revenue" ≠ "funding", "products" ≠ "services").
+- CRITICAL: The verbatim matching rule is UNIVERSAL - it applies to CEO queries, CFO queries, name queries, date queries, number queries, location queries, ALL queries.
 - DO NOT infer or assume relationships - only use explicitly stated information.
 - DO NOT use context clues - only verbatim presence of query term matters.
-- CRITICAL: If evidence mentions a similar but different term than the query → [DISCARD] (e.g., if query asks for "co-founders" and evidence says "Head of Engineering" → [DISCARD]).
-- CRITICAL: If evidence contains the exact query term verbatim → [KEEP] (e.g., if query asks for "co-founders" and evidence says "Co-Founder" → [KEEP]).
+- DO NOT memorize role combinations - apply the verbatim principle to every query.
+- The same verbatim matching principle applies whether query asks for "CEO", "CFO", "John Smith", "2023", "$50 million", "New York", etc.
 
 EMPTY RESULTS:
 - If ALL items are marked [DISCARD], FINAL ANSWER must indicate no matches found.
