@@ -1144,7 +1144,8 @@ JSON array only:"""
                 sorted_results = sorted(rag_results, key=lambda x: x.get('score', 0), reverse=True)
                 
                 # Limit number of chunks to avoid token bloat (but keep more for list questions to ensure completeness)
-                max_chunks = 10 if is_list_query else 6  # Increased to 10 for list queries to ensure all items are found
+                # Match test script: use more chunks for list queries to ensure all items are found (test script uses full context)
+                max_chunks = 20 if is_list_query else 6  # Increased to 20 for list queries to match test script completeness
                 sorted_results = sorted_results[:max_chunks]
                 
                 print(f"[Generic] 📋 Using top {len(sorted_results)} chunks (max {max_chunks}) for LLM reasoning")
@@ -1172,9 +1173,11 @@ JSON array only:"""
                             else:
                                 source_name = metadata.get('document_name', 'unknown')
                         
-                        # SIMPLIFIED: Let the model do the filtering - just pass through chunks that mention the entity
-                        # The fine-tuned model should handle entity-specific extraction
-                        if is_list_query or any(term in prompt.lower() for term in ['co-founder', 'founder', 'employee', 'manager', 'director', 'officer']):
+                        # For list queries, don't filter by entity - include ALL chunks to ensure completeness
+                        # The model will scan through all chunks and extract matching items
+                        # Entity filtering can cause missing items (e.g., Jorge Guinovart might be in a chunk that doesn't explicitly mention "LedgerAI")
+                        if not is_list_query and any(term in prompt.lower() for term in ['co-founder', 'founder', 'employee', 'manager', 'director', 'officer']):
+                            # Only filter for non-list queries - for list queries, include all chunks
                             # Extract entity names from query for basic filtering
                             entity_names = []
                             of_pattern = r'\bof\s+([A-Z][A-Za-z]*(?:\s+[A-Z][A-Za-z]*)*)\b'
@@ -1208,9 +1211,13 @@ JSON array only:"""
                                     continue
                                 
                                 print(f"[Generic] ✅ Chunk {i}: Mentions query entity, including full chunk ({len(text)} chars)")
-                            # If no entity extracted, include chunk anyway (let model decide)
+                        
+                        # For list queries, always include chunk (let model scan all chunks for completeness)
+                        if is_list_query:
+                            print(f"[Generic] ✅ Chunk {i}: Including for list query ({len(text)} chars) - model will scan for all matching items")
                         
                         # For list queries, don't truncate - we need full chunks to extract all items
+                        # Match test script: use full chunks without truncation for list queries
                         # Only truncate if extremely long (let LLM handle most filtering)
                         if not is_list_query and len(text) > MAX_CHARS_PER_RESULT:
                             # Try to break at sentence boundary
@@ -1224,19 +1231,21 @@ JSON array only:"""
                                 text = truncated[:last_period + 1] + "..."
                             else:
                                 text = truncated + "..."
-                        # For list queries, keep full text even if longer (up to reasonable limit of 3000 chars)
-                        elif is_list_query and len(text) > 3000:
-                            # Only truncate if extremely long (over 3000 chars) - try to break at sentence boundary
-                            truncated = text[:3000]
+                        # For list queries, keep full text (match test script - no truncation for completeness)
+                        # Only truncate if extremely long (over 5000 chars) to avoid token bloat
+                        elif is_list_query and len(text) > 5000:
+                            # Only truncate if extremely long (over 5000 chars) - try to break at sentence boundary
+                            truncated = text[:5000]
                             last_period = max(
                                 truncated.rfind('. '),
                                 truncated.rfind('! '),
                                 truncated.rfind('? ')
                             )
-                            if last_period > 2500:  # Only if we can break near the end
+                            if last_period > 4500:  # Only if we can break near the end
                                 text = truncated[:last_period + 1] + "..."
                             else:
                                 text = truncated + "..."
+                        # For list queries under 5000 chars, use full text (no truncation)
                         
                         # Format chunk - LLM will internally reason and extract valid information
                         if source_name != "unknown":
@@ -1622,14 +1631,22 @@ JSON array only:"""
                     "- Preserve verbatim information from evidence - do NOT paraphrase (e.g., if evidence says \"50 developers\", do NOT change to \"50 employees\").\n"
                     "- For queries asking \"Who is the [ROLE]?\", include ONLY the person's name, not the role title or company name.\n"
                     "- For queries asking for amounts/numbers, include ONLY the amount/number, not dates, years, or other context.\n\n"
-                    "FORMAT REQUIREMENTS:\n"
-                    "- REASONING: must start with exactly \"REASONING:\" (no brackets, no extra text).\n"
-                    "- Each item MUST have three separate lines:\n"
-                    "  - Item: [name or value]\n"
-                    "  - Evidence: \"[verbatim quote]\"\n"
-                    "  - Action: [KEEP] or [DISCARD]\n"
-                    "- Do NOT combine Item/Evidence/Action on one line.\n"
-                    "- Do NOT use variations like \"REASONING: []\" or \"REASONING: Item:\".\n\n"
+                    "FORMAT REQUIREMENTS (CRITICAL - MUST FOLLOW EXACTLY):\n"
+                    "- REASONING: must start with exactly \"REASONING:\" on its own line (no brackets, no extra text, no items on same line).\n"
+                    "- Each item MUST have three separate lines (DO NOT combine on one line):\n"
+                    "  Line 1: - Item: [name or value]\n"
+                    "  Line 2: - Evidence: \"[verbatim quote]\"\n"
+                    "  Line 3: - Action: [KEEP] or [DISCARD]\n"
+                    "- CRITICAL: Do NOT combine Item/Evidence/Action on one line like \"- Item:... - Evidence:... - Action:...\".\n"
+                    "- CRITICAL: Each Item, Evidence, and Action MUST be on separate lines with proper line breaks.\n"
+                    "- Do NOT use variations like \"REASONING: []\" or \"REASONING: Item:\" or \"REASONING:- Item:\".\n"
+                    "- Example CORRECT format:\n"
+                    "  REASONING:\n"
+                    "  - Item: John Smith\n"
+                    "  - Evidence: \"John Smith is the CEO of TechCorp\"\n"
+                    "  - Action: [KEEP]\n"
+                    "- Example INCORRECT format (DO NOT USE):\n"
+                    "  REASONING:- Item:John Smith - Evidence:\"...\" - Action:[KEEP]\n\n"
                     "CRITICAL - STOP AFTER FINAL ANSWER:\n"
                     "- Once you provide FINAL ANSWER, STOP generating immediately.\n"
                     "- Do NOT continue with any further analysis, reasoning, or generation.\n"
@@ -1673,10 +1690,8 @@ JSON array only:"""
             print(system_content)
             print(f"{'='*80}\n")
             
-            # Match test script parameters exactly (from test_rag_cot_model_colab.py)
-            # Use 2048 tokens for all RAG queries (test script uses 2048 for all)
-            # Use temperature=0.0 to match test script (deterministic output)
-            # Add "\n\n\n" stop sequence to match test script (prevents continuation after FINAL ANSWER)
+            # Match test script parameters EXACTLY (from test_rag_cot_model_colab.py)
+            # Test script uses: temperature=0.0, top_p=1.0, repeat_penalty=1.1, max_tokens=2048, stop=["<|im_end|>", "\n\n\n"]
             max_tokens_limit = 2048  # Always use 2048 for RAG queries to match test script
             # Use CoT model for RAG queries (dual-model architecture)
             # Only use CoT model if RAG found content (quick_content_match=True)
@@ -1686,6 +1701,8 @@ JSON array only:"""
                 temperature=0.0,  # Match test script (0.0 for deterministic output)
                 stream=stream,
                 use_cot_model=True,  # RAG found content - use CoT model
+                top_p=1.0,  # Match test script (disable top_p sampling)
+                repeat_penalty=1.1,  # Match test script (lower repeat penalty)
                 stop=["<|im_end|>", "\n\n\n"],  # Match test script stop sequences
             )
             if stream:
