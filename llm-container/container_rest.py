@@ -1631,22 +1631,30 @@ JSON array only:"""
                     "- Preserve verbatim information from evidence - do NOT paraphrase (e.g., if evidence says \"50 developers\", do NOT change to \"50 employees\").\n"
                     "- For queries asking \"Who is the [ROLE]?\", include ONLY the person's name, not the role title or company name.\n"
                     "- For queries asking for amounts/numbers, include ONLY the amount/number, not dates, years, or other context.\n\n"
-                    "FORMAT REQUIREMENTS (CRITICAL - MUST FOLLOW EXACTLY):\n"
-                    "- REASONING: must start with exactly \"REASONING:\" on its own line (no brackets, no extra text, no items on same line).\n"
-                    "- Each item MUST have three separate lines (DO NOT combine on one line):\n"
+                    "FORMAT REQUIREMENTS (CRITICAL - MUST FOLLOW EXACTLY - NO EXCEPTIONS):\n"
+                    "- REASONING: must start with exactly \"REASONING:\" on its own line followed by a newline.\n"
+                    "- CRITICAL: After \"REASONING:\" you MUST press Enter/Newline - do NOT put Item on same line.\n"
+                    "- Each item MUST have three separate lines with line breaks between them:\n"
                     "  Line 1: - Item: [name or value]\n"
+                    "  [NEWLINE REQUIRED HERE]\n"
                     "  Line 2: - Evidence: \"[verbatim quote]\"\n"
+                    "  [NEWLINE REQUIRED HERE]\n"
                     "  Line 3: - Action: [KEEP] or [DISCARD]\n"
-                    "- CRITICAL: Do NOT combine Item/Evidence/Action on one line like \"- Item:... - Evidence:... - Action:...\".\n"
-                    "- CRITICAL: Each Item, Evidence, and Action MUST be on separate lines with proper line breaks.\n"
-                    "- Do NOT use variations like \"REASONING: []\" or \"REASONING: Item:\" or \"REASONING:- Item:\".\n"
-                    "- Example CORRECT format:\n"
-                    "  REASONING:\n"
-                    "  - Item: John Smith\n"
-                    "  - Evidence: \"John Smith is the CEO of TechCorp\"\n"
-                    "  - Action: [KEEP]\n"
-                    "- Example INCORRECT format (DO NOT USE):\n"
-                    "  REASONING:- Item:John Smith - Evidence:\"...\" - Action:[KEEP]\n\n"
+                    "  [NEWLINE REQUIRED HERE before next Item]\n"
+                    "- CRITICAL: Do NOT combine Item/Evidence/Action on one line.\n"
+                    "- CRITICAL: Do NOT use format like \"REASONING:- Item:... - Evidence:... - Action:...\".\n"
+                    "- CRITICAL: Do NOT use format like \"REASONING:Item:...\" (no space after colon).\n"
+                    "- CRITICAL: You MUST use line breaks (press Enter) between REASONING:, Item:, Evidence:, and Action:.\n"
+                    "- FORBIDDEN FORMATS (NEVER USE THESE):\n"
+                    "  ❌ REASONING:- Item:... - Evidence:... - Action:...\n"
+                    "  ❌ REASONING:Item:... (no space, no newline)\n"
+                    "  ❌ REASONING: - Item:... (space but no newline)\n"
+                    "- REQUIRED FORMAT (ALWAYS USE THIS):\n"
+                    "  ✅ REASONING:\n"
+                    "  ✅ - Item: John Smith\n"
+                    "  ✅ - Evidence: \"John Smith is the CEO of TechCorp\"\n"
+                    "  ✅ - Action: [KEEP]\n"
+                    "- This format is MANDATORY for ALL queries - no exceptions, no variations.\n\n"
                     "CRITICAL - STOP AFTER FINAL ANSWER:\n"
                     "- Once you provide FINAL ANSWER, STOP generating immediately.\n"
                     "- Do NOT continue with any further analysis, reasoning, or generation.\n"
@@ -3537,6 +3545,7 @@ def filter_cot_reasoning(generator):
         # CoT response - apply filtering logic
         if not found_final_answer:
             # Still looking for FINAL ANSWER - buffer everything but DO NOT YIELD
+            # CRITICAL: Suppress ALL tokens until FINAL ANSWER is found (including REASONING section and sentence tags)
             # Add token text directly (don't add extra space, tokens might already have spacing)
             if text_content:
                 text_buffer += text_content
@@ -3570,6 +3579,13 @@ def filter_cot_reasoning(generator):
                     if ":" in remaining[:5]:  # Colon within 5 chars
                         marker_found = True
                         marker = "FINAL ANSWER:"
+            
+            # CRITICAL: Do NOT yield any tokens (including sentence tags) until FINAL ANSWER is found
+            # This suppresses the entire REASONING section from being spoken
+            # Suppress ALL tokens: content tokens, sentence tags (<sentence_start>, <sentence_end>), everything
+            # Only continue to next token if FINAL ANSWER not found yet
+            if not marker_found:
+                continue  # Skip ALL tokens (content + sentence tags) until FINAL ANSWER
             
             if marker_found:
                 found_final_answer = True
