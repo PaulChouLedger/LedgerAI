@@ -246,8 +246,12 @@ Begin every response with "REASONING:" - this is MANDATORY.
 
 CRITICAL RULES (APPLY TO ALL QUERIES):
 
-EVIDENCE:
-- Evidence MUST be EXACT verbatim quote from context - do NOT paraphrase or fabricate.
+EVIDENCE (PROCESS - HOW TO HANDLE RAG CHUNKS):
+- STEP 1: Copy evidence EXACTLY as it appears in the RAG chunk - word-for-word, do NOT paraphrase or change any words.
+- STEP 2: After copying evidence, check if the query term ACTUALLY appears in that copied evidence.
+- STEP 3: If query term appears in evidence → [KEEP]. If query term does NOT appear → [DISCARD].
+- CRITICAL: Do NOT change words in evidence (e.g., do NOT change "CFO" to "CEO").
+- CRITICAL: Do NOT claim evidence says something it doesn't - only use what is actually written in the RAG chunk.
 - You MUST evaluate ALL relevant items in the context before ending the scan.
 - CRITICAL: Read through the ENTIRE context completely from start to finish - do NOT stop scanning early.
 - CRITICAL: Continue scanning until you reach the VERY END of the context - do NOT stop when you find matches.
@@ -271,21 +275,16 @@ KEEP/DISCARD:
 - FINAL ANSWER must include ALL items marked [KEEP] - do not omit any.
 - If you mark an item [KEEP] in reasoning, it MUST appear in FINAL ANSWER.
 
-MATCHING (PREVENTS HALLUCINATION - STRICT VERBATIM RULE - UNIVERSAL PRINCIPLE):
-- UNIVERSAL PRINCIPLE: Query term MUST appear verbatim (exact word-for-word) in evidence for [KEEP].
-- This principle applies to ALL query types: roles, names, dates, numbers, locations, products, services, entities, etc.
-- CRITICAL: You MUST check if the query term ACTUALLY appears in the evidence - do NOT infer, assume, or hallucinate.
-- CRITICAL: If the query term does NOT appear verbatim in evidence → [DISCARD] (NO exceptions, NO inference, NO assumptions, NO memorization, NO hallucination).
-- CRITICAL: Different terms are NOT matches - only exact verbatim presence matters.
-- CRITICAL: If query mentions a specific entity (e.g., "co-founders of LedgerAI"), BOTH the role/item AND the entity name must appear verbatim in evidence.
-- CRITICAL: If query asks for "X of CompanyY", evidence must say "X of CompanyY" verbatim - partial matches are NOT sufficient.
-- If query term appears verbatim in evidence → [KEEP] (regardless of other roles/info mentioned).
-- CRITICAL: Do NOT memorize specific combinations. Apply the verbatim principle universally to ALL queries and ALL items.
-- CRITICAL: The verbatim matching rule is UNIVERSAL - it applies to ALL queries regardless of what item is being asked about.
-- DO NOT infer or assume relationships - only use explicitly stated information.
-- DO NOT use context clues - only verbatim presence of query term matters.
-- DO NOT memorize item combinations - apply the verbatim principle to every query.
-- The same verbatim matching principle applies to ALL items: roles, names, dates, numbers, locations, products, services, entities, etc.
+MATCHING (PROCESS - HOW TO CHECK RAG CHUNK DATA):
+- STEP 1: Extract evidence verbatim from RAG chunk (copy exactly, do NOT change words).
+- STEP 2: Use your knowledge to understand what the evidence means.
+- STEP 3: Check if the evidence matches the query (using your knowledge, not just verbatim presence).
+- STEP 4: If matches → [KEEP]. If does NOT match → [DISCARD].
+- CRITICAL: Extract evidence verbatim (do NOT change words like "CFO" to "CEO").
+- CRITICAL: Use your knowledge to reason (e.g., if evidence says "CFO" and query asks for "CEO", you know CFO ≠ CEO → [DISCARD]).
+- CRITICAL: Do NOT hallucinate or make up information not in evidence.
+- CRITICAL: Do NOT claim evidence says something it doesn't (e.g., don't say evidence says "CEO" when it says "CFO").
+- CRITICAL: Apply this process to ALL query types - roles, names, dates, numbers, locations, products, services, entities, etc.
 
 EMPTY RESULTS:
 - If ALL items are marked [DISCARD], FINAL ANSWER must indicate no matches found.

@@ -1610,8 +1610,12 @@ JSON array only:"""
                     "2. End scan with: - End of scan.\n\n"
                     "3. FINAL ANSWER: based ONLY on [KEEP] items.\n\n"
                     "CRITICAL RULES (APPLY TO ALL QUERIES):\n\n"
-                    "EVIDENCE:\n"
-                    "- Evidence MUST be EXACT verbatim quote from context - do NOT paraphrase or fabricate.\n"
+                    "EVIDENCE (PROCESS - HOW TO HANDLE RAG CHUNKS):\n"
+                    "- STEP 1: Copy evidence EXACTLY as it appears in the RAG chunk - word-for-word, do NOT paraphrase or change any words.\n"
+                    "- STEP 2: After copying evidence, check if the query term ACTUALLY appears in that copied evidence.\n"
+                    "- STEP 3: If query term appears in evidence → [KEEP]. If query term does NOT appear → [DISCARD].\n"
+                    "- CRITICAL: Do NOT change words in evidence (e.g., do NOT change \"CFO\" to \"CEO\").\n"
+                    "- CRITICAL: Do NOT claim evidence says something it doesn't - only use what is actually written in the RAG chunk.\n"
                     "- You MUST evaluate ALL relevant items in the context before ending the scan.\n"
                     "- CRITICAL: Read through the ENTIRE context completely from start to finish - do NOT stop scanning early.\n"
                     "- CRITICAL: Continue scanning until you reach the VERY END of the context - do NOT stop when you find matches.\n"
@@ -1631,21 +1635,16 @@ JSON array only:"""
                     "- FINAL ANSWER must ONLY include items marked [KEEP].\n"
                     "- FINAL ANSWER must include ALL items marked [KEEP] - do not omit any.\n"
                     "- If you mark an item [KEEP] in reasoning, it MUST appear in FINAL ANSWER.\n\n"
-                    "MATCHING (PREVENTS HALLUCINATION - STRICT VERBATIM RULE - UNIVERSAL PRINCIPLE):\n"
-                    "- UNIVERSAL PRINCIPLE: Query term MUST appear verbatim (exact word-for-word) in evidence for [KEEP].\n"
-                    "- This principle applies to ALL query types: roles, names, dates, numbers, locations, products, services, entities, etc.\n"
-                    "- CRITICAL: You MUST check if the query term ACTUALLY appears in the evidence - do NOT infer, assume, or hallucinate.\n"
-                    "- CRITICAL: If the query term does NOT appear verbatim in evidence → [DISCARD] (NO exceptions, NO inference, NO assumptions, NO memorization, NO hallucination).\n"
-                    "- CRITICAL: Different terms are NOT matches - only exact verbatim presence matters.\n"
-                    "- CRITICAL: If query mentions a specific entity (e.g., \"co-founders of LedgerAI\"), BOTH the role/item AND the entity name must appear verbatim in evidence.\n"
-                    "- CRITICAL: If query asks for \"X of CompanyY\", evidence must say \"X of CompanyY\" verbatim - partial matches are NOT sufficient.\n"
-                    "- If query term appears verbatim in evidence → [KEEP] (regardless of other roles/info mentioned).\n"
-                    "- CRITICAL: Do NOT memorize specific combinations. Apply the verbatim principle universally to ALL queries and ALL items.\n"
-                    "- CRITICAL: The verbatim matching rule is UNIVERSAL - it applies to ALL queries regardless of what item is being asked about.\n"
-                    "- DO NOT infer or assume relationships - only use explicitly stated information.\n"
-                    "- DO NOT use context clues - only verbatim presence of query term matters.\n"
-                    "- DO NOT memorize item combinations - apply the verbatim principle to every query.\n"
-                    "- The same verbatim matching principle applies to ALL items: roles, names, dates, numbers, locations, products, services, entities, etc.\n\n"
+                    "MATCHING (PROCESS - HOW TO CHECK RAG CHUNK DATA):\n"
+                    "- STEP 1: Extract evidence verbatim from RAG chunk (copy exactly, do NOT change words).\n"
+                    "- STEP 2: Use your knowledge to understand what the evidence means.\n"
+                    "- STEP 3: Check if the evidence matches the query (using your knowledge, not just verbatim presence).\n"
+                    "- STEP 4: If matches → [KEEP]. If does NOT match → [DISCARD].\n"
+                    "- CRITICAL: Extract evidence verbatim (do NOT change words like \"CFO\" to \"CEO\").\n"
+                    "- CRITICAL: Use your knowledge to reason (e.g., if evidence says \"CFO\" and query asks for \"CEO\", you know CFO ≠ CEO → [DISCARD]).\n"
+                    "- CRITICAL: Do NOT hallucinate or make up information not in evidence.\n"
+                    "- CRITICAL: Do NOT claim evidence says something it doesn't (e.g., don't say evidence says \"CEO\" when it says \"CFO\").\n"
+                    "- CRITICAL: Apply this process to ALL query types - roles, names, dates, numbers, locations, products, services, entities, etc.\n\n"
                     "EMPTY RESULTS:\n"
                     "- If ALL items are marked [DISCARD], FINAL ANSWER must indicate no matches found.\n\n"
                     "OUTPUT FORMAT:\n"
@@ -3436,17 +3435,17 @@ def filter_cot_reasoning(generator):
         
         # Fallback: If still no items, try regex pattern matching (for edge cases)
         if not kept_items:
-            # Pattern: - Item: [Name] - Evidence: ... - Action: [KEEP]
+        # Pattern: - Item: [Name] - Evidence: ... - Action: [KEEP]
             pattern = r'- Item:\s*([^-]+?)(?:(?!\s*-\s*Item:).)*?-\s*Action:\s*\[\s*KEEP\s*\]'
-            matches = re.finditer(pattern, reasoning_text, re.IGNORECASE | re.DOTALL)
-            for match in matches:
-                item_name = match.group(1).strip()
-                item_name = re.sub(r'^["\']|["\']$', '', item_name)
-                item_name = re.sub(r'\s*-\s*Role:.*$', '', item_name, flags=re.IGNORECASE)
-                item_name = re.sub(r'\s*-\s*Evidence:.*$', '', item_name, flags=re.IGNORECASE)
-                item_name = re.sub(r'\s*-\s*$', '', item_name)
-                item_name = item_name.strip()
-                if item_name and item_name not in kept_items:
+        matches = re.finditer(pattern, reasoning_text, re.IGNORECASE | re.DOTALL)
+        for match in matches:
+            item_name = match.group(1).strip()
+            item_name = re.sub(r'^["\']|["\']$', '', item_name)
+            item_name = re.sub(r'\s*-\s*Role:.*$', '', item_name, flags=re.IGNORECASE)
+            item_name = re.sub(r'\s*-\s*Evidence:.*$', '', item_name, flags=re.IGNORECASE)
+            item_name = re.sub(r'\s*-\s*$', '', item_name)
+            item_name = item_name.strip()
+            if item_name and item_name not in kept_items:
                     kept_items.append(item_name)
                     print(f"[Generic] 🔍 [CoT Filter] Extracted KEEP item (regex fallback): '{item_name}'")
         
