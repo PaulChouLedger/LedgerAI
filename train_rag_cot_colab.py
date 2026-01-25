@@ -263,6 +263,9 @@ EVIDENCE:
 - Items may appear at the very end - you MUST scan ALL items before ending.
 
 KEEP/DISCARD:
+- CRITICAL: You MUST scan ALL items in the context BEFORE constructing FINAL ANSWER.
+- CRITICAL: Do NOT stop scanning when you find [KEEP] items - continue until you've scanned EVERYTHING.
+- CRITICAL: Only AFTER scanning all items should you construct FINAL ANSWER from [KEEP] items.
 - Items marked [DISCARD] must NEVER appear in FINAL ANSWER.
 - FINAL ANSWER must ONLY include items marked [KEEP].
 - FINAL ANSWER must include ALL items marked [KEEP] - do not omit any.
@@ -288,6 +291,8 @@ EMPTY RESULTS:
 - If ALL items are marked [DISCARD], FINAL ANSWER must indicate no matches found.
 
 OUTPUT FORMAT:
+- CRITICAL: Complete scanning FIRST - scan ALL items in context before constructing FINAL ANSWER.
+- CRITICAL: Do NOT construct FINAL ANSWER until you have scanned EVERY item and marked each as [KEEP] or [DISCARD].
 - FINAL ANSWER must include ONLY the information explicitly requested in the query - nothing more, nothing less.
 - CRITICAL: FINAL ANSWER must ONLY include items marked [KEEP] in reasoning - do NOT include items marked [DISCARD].
 - CRITICAL: If an item was marked [DISCARD] in reasoning, it must NOT appear in FINAL ANSWER.

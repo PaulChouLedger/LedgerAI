@@ -1614,6 +1614,9 @@ JSON array only:"""
                     "- Do NOT assume you've found all items - always scan to the very end.\n"
                     "- Items may appear at the very end - you MUST scan ALL items before ending.\n\n"
                     "KEEP/DISCARD:\n"
+                    "- CRITICAL: You MUST scan ALL items in the context BEFORE constructing FINAL ANSWER.\n"
+                    "- CRITICAL: Do NOT stop scanning when you find [KEEP] items - continue until you've scanned EVERYTHING.\n"
+                    "- CRITICAL: Only AFTER scanning all items should you construct FINAL ANSWER from [KEEP] items.\n"
                     "- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n"
                     "- FINAL ANSWER must ONLY include items marked [KEEP].\n"
                     "- FINAL ANSWER must include ALL items marked [KEEP] - do not omit any.\n"
@@ -1636,6 +1639,8 @@ JSON array only:"""
                     "EMPTY RESULTS:\n"
                     "- If ALL items are marked [DISCARD], FINAL ANSWER must indicate no matches found.\n\n"
                     "OUTPUT FORMAT:\n"
+                    "- CRITICAL: Complete scanning FIRST - scan ALL items in context before constructing FINAL ANSWER.\n"
+                    "- CRITICAL: Do NOT construct FINAL ANSWER until you have scanned EVERY item and marked each as [KEEP] or [DISCARD].\n"
                     "- FINAL ANSWER must include ONLY the information explicitly requested in the query - nothing more, nothing less.\n"
                     "- CRITICAL: FINAL ANSWER must ONLY include items marked [KEEP] in reasoning - do NOT include items marked [DISCARD].\n"
                     "- CRITICAL: If an item was marked [DISCARD] in reasoning, it must NOT appear in FINAL ANSWER.\n"
@@ -2775,7 +2780,7 @@ def chat_tts():
                 'please', 'excuse me', 'sorry', 'pardon'
             ]
             is_conversational = any(phrase in normalized_prompt for phrase in conversational_phrases)
-
+            
             # ------------------------------------------------------------------
             # RAG decision (simplified + predictable)
             # ------------------------------------------------------------------
@@ -3415,16 +3420,16 @@ def filter_cot_reasoning(generator):
         
         # Fallback: If still no items, try regex pattern matching (for edge cases)
         if not kept_items:
-            # Pattern: - Item: [Name] - Evidence: ... - Action: [KEEP]
+        # Pattern: - Item: [Name] - Evidence: ... - Action: [KEEP]
             pattern = r'- Item:\s*([^-]+?)(?:(?!\s*-\s*Item:).)*?-\s*Action:\s*\[\s*KEEP\s*\]'
-            matches = re.finditer(pattern, reasoning_text, re.IGNORECASE | re.DOTALL)
-            for match in matches:
-                item_name = match.group(1).strip()
+        matches = re.finditer(pattern, reasoning_text, re.IGNORECASE | re.DOTALL)
+        for match in matches:
+            item_name = match.group(1).strip()
                 item_name = re.sub(r'^["\']|["\']$', '', item_name)
-                item_name = re.sub(r'\s*-\s*Role:.*$', '', item_name, flags=re.IGNORECASE)
-                item_name = re.sub(r'\s*-\s*Evidence:.*$', '', item_name, flags=re.IGNORECASE)
-                item_name = re.sub(r'\s*-\s*$', '', item_name)
-                item_name = item_name.strip()
+            item_name = re.sub(r'\s*-\s*Role:.*$', '', item_name, flags=re.IGNORECASE)
+            item_name = re.sub(r'\s*-\s*Evidence:.*$', '', item_name, flags=re.IGNORECASE)
+            item_name = re.sub(r'\s*-\s*$', '', item_name)
+            item_name = item_name.strip()
                 if item_name and item_name not in kept_items:
                     kept_items.append(item_name)
                     print(f"[Generic] 🔍 [CoT Filter] Extracted KEEP item (regex fallback): '{item_name}'")
@@ -3915,8 +3920,8 @@ def filter_cot_reasoning(generator):
                     print(f"[Generic] ⚠️  [CoT Reasoning Debug] WARNING: all_items_ordered ({len(all_items_ordered)}) != kept_items ({len(kept_items)})")
                     # Force add any missing items
                     for item in kept_items:
-                        if item not in all_items_ordered:
-                            all_items_ordered.append(item)
+                    if item not in all_items_ordered:
+                        all_items_ordered.append(item)
                             print(f"[Generic] 🔧 [CoT Reasoning Debug] Force-added missing item: '{item}'")
                 
                 all_items = all_items_ordered

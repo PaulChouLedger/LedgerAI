@@ -54,12 +54,17 @@ CRITICAL RULES (APPLY TO ALL QUERIES):
 EVIDENCE:
 - Evidence MUST be EXACT verbatim quote from context - do NOT paraphrase or fabricate.
 - You MUST evaluate ALL relevant items in the context before ending the scan.
-- Read through the ENTIRE context completely - do NOT stop scanning early.
+- CRITICAL: Read through the ENTIRE context completely from start to finish - do NOT stop scanning early.
+- CRITICAL: Continue scanning until you reach the VERY END of the context - do NOT stop when you find matches.
+- CRITICAL: Items may appear at the VERY END of long contexts - you MUST scan until the absolute end.
 - Scan systematically through all chunks, paragraphs, and sections.
 - In complex contexts with many entities, scan ALL entities before ending.
-- Entities may appear late in the context - continue scanning until the very end.
+- CRITICAL: Relevant items may appear at the VERY END of long contexts - you MUST read to the end.
+- CRITICAL: Do NOT stop when you find some matches - continue scanning for ALL matches.
+- CRITICAL: If query asks for a list (e.g., "co-founders", "products", "locations"), ensure you found ALL matching items.
 - Do NOT end scan until you have checked EVERY relevant item in the context.
 - Do NOT stop scanning when you find matches - continue until the END of context.
+- Do NOT assume you've found all items - always scan to the very end.
 - Items may appear at the very end - you MUST scan ALL items before ending.
 
 KEEP/DISCARD:
@@ -68,24 +73,55 @@ KEEP/DISCARD:
 - FINAL ANSWER must include ALL items marked [KEEP] - do not omit any.
 - If you mark an item [KEEP] in reasoning, it MUST appear in FINAL ANSWER.
 
-MATCHING (PREVENTS HALLUCINATION - STRICT VERBATIM RULE):
-- Query term MUST appear verbatim in evidence for [KEEP].
+MATCHING (PREVENTS HALLUCINATION - STRICT VERBATIM RULE - UNIVERSAL PRINCIPLE):
+- UNIVERSAL PRINCIPLE: Query term MUST appear verbatim (exact word-for-word) in evidence for [KEEP].
+- This principle applies to ALL query types: roles, names, dates, numbers, locations, products, services, entities, etc.
+- CRITICAL: You MUST check if the query term ACTUALLY appears in the evidence - do NOT infer, assume, or hallucinate.
+- CRITICAL: If the query term does NOT appear verbatim in evidence → [DISCARD] (NO exceptions, NO inference, NO assumptions, NO memorization, NO hallucination).
+- CRITICAL: Different terms are NOT matches - only exact verbatim presence matters.
+- CRITICAL: If query mentions a specific entity (e.g., "co-founders of LedgerAI"), BOTH the role/item AND the entity name must appear verbatim in evidence.
+- CRITICAL: If query asks for "X of CompanyY", evidence must say "X of CompanyY" verbatim - partial matches are NOT sufficient.
 - If query term appears verbatim in evidence → [KEEP] (regardless of other roles/info mentioned).
-- If query term does NOT appear verbatim in evidence → [DISCARD] (NO exceptions, NO inference, NO assumptions).
-- Similar roles/titles are NOT matches unless query term appears verbatim (e.g., "Business Development Lead" ≠ "co-founder", "Ambassador" ≠ "co-founder", "Ambassador of Influence and Engagement" ≠ "co-founder", "CTO" ≠ "co-founder").
+- CRITICAL: Do NOT memorize specific combinations. Apply the verbatim principle universally to ALL queries and ALL items.
+- CRITICAL: The verbatim matching rule is UNIVERSAL - it applies to ALL queries regardless of what item is being asked about.
 - DO NOT infer or assume relationships - only use explicitly stated information.
 - DO NOT use context clues - only verbatim presence of query term matters.
+- DO NOT memorize item combinations - apply the verbatim principle to every query.
+- The same verbatim matching principle applies to ALL items: roles, names, dates, numbers, locations, products, services, entities, etc.
 
 EMPTY RESULTS:
 - If ALL items are marked [DISCARD], FINAL ANSWER must indicate no matches found.
 
 OUTPUT FORMAT:
 - FINAL ANSWER must include ONLY the information explicitly requested in the query - nothing more, nothing less.
-- Include ONLY what is requested - exclude extra words, role titles, dates, or any context not explicitly requested.
+- CRITICAL: FINAL ANSWER must ONLY include items marked [KEEP] in reasoning - do NOT include items marked [DISCARD].
+- CRITICAL: If an item was marked [DISCARD] in reasoning, it must NOT appear in FINAL ANSWER.
+- Include ONLY what is requested - exclude extra words or context not explicitly requested.
 - If query asks for a list, include ALL matching items found in the context (do not omit any).
 - Preserve verbatim information from evidence - do NOT paraphrase (e.g., if evidence says "50 developers", do NOT change to "50 employees").
-- For queries asking "Who is the [ROLE]?", include ONLY the person's name, not the role title or company name.
-- For queries asking for amounts/numbers, include ONLY the amount/number, not dates, years, or other context."""
+
+FORMAT REQUIREMENTS (CRITICAL - MUST FOLLOW EXACTLY - NO EXCEPTIONS):
+- REASONING: must start with exactly "REASONING:" on its own line followed by a newline.
+- CRITICAL: After "REASONING:" you MUST press Enter/Newline - do NOT put Item on same line.
+- CRITICAL: Do NOT use one-line format like "REASONING: Item:Evidence - ..." - this is FORBIDDEN.
+- CRITICAL: Do NOT combine Item/Evidence/Action on one line - each MUST be on separate lines.
+- Each item MUST have three separate lines with line breaks between them:
+  Line 1: - Item: [name or value]
+  [NEWLINE REQUIRED HERE]
+  Line 2: - Evidence: "[verbatim quote]"
+  [NEWLINE REQUIRED HERE]
+  Line 3: - Action: [KEEP] or [DISCARD]
+  [NEWLINE REQUIRED HERE before next Item]
+- CRITICAL: Do NOT use formats like "Item:Evidence - ..." or "Item:Evidence, Action:..." - these are FORBIDDEN.
+- CRITICAL: Always use the three-line format with proper line breaks.
+
+CRITICAL - STOP AFTER FINAL ANSWER:
+- Once you provide FINAL ANSWER, STOP generating immediately.
+- Do NOT continue with any further analysis, reasoning, or generation.
+- Do NOT add explanations, clarifications, or additional information after FINAL ANSWER.
+- Do NOT continue scanning or processing after FINAL ANSWER.
+- FINAL ANSWER is the END of your response - nothing comes after it.
+- The response MUST end with FINAL ANSWER - no continuation."""
 
 # ============================================================================
 # Test Scenarios
