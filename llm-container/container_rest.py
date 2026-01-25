@@ -3435,17 +3435,17 @@ def filter_cot_reasoning(generator):
         
         # Fallback: If still no items, try regex pattern matching (for edge cases)
         if not kept_items:
-        # Pattern: - Item: [Name] - Evidence: ... - Action: [KEEP]
+            # Pattern: - Item: [Name] - Evidence: ... - Action: [KEEP]
             pattern = r'- Item:\s*([^-]+?)(?:(?!\s*-\s*Item:).)*?-\s*Action:\s*\[\s*KEEP\s*\]'
-        matches = re.finditer(pattern, reasoning_text, re.IGNORECASE | re.DOTALL)
-        for match in matches:
-            item_name = match.group(1).strip()
-            item_name = re.sub(r'^["\']|["\']$', '', item_name)
-            item_name = re.sub(r'\s*-\s*Role:.*$', '', item_name, flags=re.IGNORECASE)
-            item_name = re.sub(r'\s*-\s*Evidence:.*$', '', item_name, flags=re.IGNORECASE)
-            item_name = re.sub(r'\s*-\s*$', '', item_name)
-            item_name = item_name.strip()
-            if item_name and item_name not in kept_items:
+            matches = re.finditer(pattern, reasoning_text, re.IGNORECASE | re.DOTALL)
+            for match in matches:
+                item_name = match.group(1).strip()
+                item_name = re.sub(r'^["\']|["\']$', '', item_name)
+                item_name = re.sub(r'\s*-\s*Role:.*$', '', item_name, flags=re.IGNORECASE)
+                item_name = re.sub(r'\s*-\s*Evidence:.*$', '', item_name, flags=re.IGNORECASE)
+                item_name = re.sub(r'\s*-\s*$', '', item_name)
+                item_name = item_name.strip()
+                if item_name and item_name not in kept_items:
                     kept_items.append(item_name)
                     print(f"[Generic] 🔍 [CoT Filter] Extracted KEEP item (regex fallback): '{item_name}'")
         
