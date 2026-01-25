@@ -1620,28 +1620,33 @@ JSON array only:"""
                     "- If you mark an item [KEEP] in reasoning, it MUST appear in FINAL ANSWER.\n\n"
                     "MATCHING (PREVENTS HALLUCINATION - STRICT VERBATIM RULE - UNIVERSAL PRINCIPLE):\n"
                     "- UNIVERSAL PRINCIPLE: Query term MUST appear verbatim (exact word-for-word) in evidence for [KEEP].\n"
-                    "- This principle applies to ALL query types: roles (CEO, CFO, CMO, co-founder), names, dates, numbers, locations, products, services, etc.\n"
+                    "- This principle applies to ALL query types: roles, names, dates, numbers, locations, products, services, entities, etc.\n"
+                    "- CRITICAL: You MUST check if the query term ACTUALLY appears in the evidence - do NOT infer, assume, or hallucinate.\n"
+                    "- CRITICAL: If the query term does NOT appear verbatim in evidence → [DISCARD] (NO exceptions, NO inference, NO assumptions, NO memorization, NO hallucination).\n"
+                    "- CRITICAL: Different terms are NOT matches - only exact verbatim presence matters.\n"
+                    "- CRITICAL: If query mentions a specific entity (e.g., \"co-founders of LedgerAI\"), BOTH the role/item AND the entity name must appear verbatim in evidence.\n"
+                    "- CRITICAL: If query asks for \"X of CompanyY\", evidence must say \"X of CompanyY\" verbatim - partial matches are NOT sufficient.\n"
                     "- If query term appears verbatim in evidence → [KEEP] (regardless of other roles/info mentioned).\n"
-                    "- If query term does NOT appear verbatim in evidence → [DISCARD] (NO exceptions, NO inference, NO assumptions, NO memorization).\n"
-                    "- CRITICAL: Do NOT memorize specific role combinations. Apply the verbatim principle universally to ALL queries.\n"
-                    "- CRITICAL: Different terms are NOT matches unless query term appears verbatim (e.g., \"CEO\" ≠ \"CFO\", \"CFO\" ≠ \"CMO\", \"co-founder\" ≠ \"CEO\", \"Business Development Lead\" ≠ \"co-founder\", \"Ambassador\" ≠ \"co-founder\").\n"
-                    "- CRITICAL: The verbatim matching rule is UNIVERSAL - it applies to CEO queries, CFO queries, name queries, date queries, number queries, location queries, ALL queries.\n"
+                    "- CRITICAL: Do NOT memorize specific combinations. Apply the verbatim principle universally to ALL queries and ALL items.\n"
+                    "- CRITICAL: The verbatim matching rule is UNIVERSAL - it applies to ALL queries regardless of what item is being asked about.\n"
                     "- DO NOT infer or assume relationships - only use explicitly stated information.\n"
                     "- DO NOT use context clues - only verbatim presence of query term matters.\n"
-                    "- DO NOT memorize role combinations - apply the verbatim principle to every query.\n"
-                    "- The same verbatim matching principle applies whether query asks for \"CEO\", \"CFO\", \"John Smith\", \"2023\", \"$50 million\", \"New York\", etc.\n\n"
+                    "- DO NOT memorize item combinations - apply the verbatim principle to every query.\n"
+                    "- The same verbatim matching principle applies to ALL items: roles, names, dates, numbers, locations, products, services, entities, etc.\n\n"
                     "EMPTY RESULTS:\n"
                     "- If ALL items are marked [DISCARD], FINAL ANSWER must indicate no matches found.\n\n"
                     "OUTPUT FORMAT:\n"
                     "- FINAL ANSWER must include ONLY the information explicitly requested in the query - nothing more, nothing less.\n"
-                    "- Include ONLY what is requested - exclude extra words, role titles, dates, or any context not explicitly requested.\n"
+                    "- CRITICAL: FINAL ANSWER must ONLY include items marked [KEEP] in reasoning - do NOT include items marked [DISCARD].\n"
+                    "- CRITICAL: If an item was marked [DISCARD] in reasoning, it must NOT appear in FINAL ANSWER.\n"
+                    "- Include ONLY what is requested - exclude extra words or context not explicitly requested.\n"
                     "- If query asks for a list, include ALL matching items found in the context (do not omit any).\n"
-                    "- Preserve verbatim information from evidence - do NOT paraphrase (e.g., if evidence says \"50 developers\", do NOT change to \"50 employees\").\n"
-                    "- For queries asking \"Who is the [ROLE]?\", include ONLY the person's name, not the role title or company name.\n"
-                    "- For queries asking for amounts/numbers, include ONLY the amount/number, not dates, years, or other context.\n\n"
+                    "- Preserve verbatim information from evidence - do NOT paraphrase (e.g., if evidence says \"50 developers\", do NOT change to \"50 employees\").\n\n"
                     "FORMAT REQUIREMENTS (CRITICAL - MUST FOLLOW EXACTLY - NO EXCEPTIONS):\n"
                     "- REASONING: must start with exactly \"REASONING:\" on its own line followed by a newline.\n"
                     "- CRITICAL: After \"REASONING:\" you MUST press Enter/Newline - do NOT put Item on same line.\n"
+                    "- CRITICAL: Do NOT use one-line format like \"REASONING: Item:Evidence - ...\" - this is FORBIDDEN.\n"
+                    "- CRITICAL: Do NOT combine Item/Evidence/Action on one line - each MUST be on separate lines.\n"
                     "- Each item MUST have three separate lines with line breaks between them:\n"
                     "  Line 1: - Item: [name or value]\n"
                     "  [NEWLINE REQUIRED HERE]\n"
@@ -1649,7 +1654,8 @@ JSON array only:"""
                     "  [NEWLINE REQUIRED HERE]\n"
                     "  Line 3: - Action: [KEEP] or [DISCARD]\n"
                     "  [NEWLINE REQUIRED HERE before next Item]\n"
-                    "- CRITICAL: Do NOT combine Item/Evidence/Action on one line.\n"
+                    "- CRITICAL: Do NOT use formats like \"Item:Evidence - ...\" or \"Item:Evidence, Action:...\" - these are FORBIDDEN.\n"
+                    "- CRITICAL: Always use the three-line format with proper line breaks.\n"
                     "- CRITICAL: Do NOT use format like \"REASONING:- Item:... - Evidence:... - Action:...\".\n"
                     "- CRITICAL: Do NOT use format like \"REASONING:Item:...\" (no space after colon).\n"
                     "- CRITICAL: You MUST use line breaks (press Enter) between REASONING:, Item:, Evidence:, and Action:.\n"
@@ -3816,6 +3822,20 @@ def filter_cot_reasoning(generator):
         final_answer = re.sub(r'\s+-\s*$', '', final_answer)  # Remove trailing " -"
         final_answer = re.sub(r'\s+\.\.\.\s*$', '', final_answer)  # Remove trailing "..."
         final_answer = final_answer.strip(" \t\n\r")
+        
+        # POST-PROCESSING: Clean up formatting (deterministic, no model confusion)
+        # 1. Remove role titles for "Who is [ROLE]?" queries (e.g., "The CTO" → just the name)
+        # Pattern: "The [ROLE]" or "[ROLE]" at start of answer
+        final_answer = re.sub(r'^(The\s+)?(CEO|CTO|CFO|CMO|COO|Chief\s+\w+\s+Officer|President|Director|Manager|Lead|Head\s+of\s+\w+)(\s+is\s+|\s+of\s+|\s+at\s+)?', '', final_answer, flags=re.IGNORECASE)
+        
+        # 2. Remove dates/years from amounts (e.g., "$50 million in 2023" → "$50 million")
+        # Pattern: "in 20XX" or "for 20XX" or "(20XX)" after amounts
+        final_answer = re.sub(r'\s+(in|for|during)\s+(19|20)\d{2}\b', '', final_answer, flags=re.IGNORECASE)
+        final_answer = re.sub(r'\s*\(19|20\d{2}\)', '', final_answer)  # Remove "(2023)" style dates
+        
+        # 3. Remove standalone years (e.g., "2023" when not part of a date)
+        # Only remove if it's clearly a year (4 digits) and not part of a larger number
+        final_answer = re.sub(r'\b(19|20)\d{2}\b(?=\s|$|\.|,|;|:)', '', final_answer)
         
         # CRITICAL: Ensure ALL KEEP items are included and ALL DISCARD items are removed
         # Step 1: Remove ALL DISCARD items from final answer
