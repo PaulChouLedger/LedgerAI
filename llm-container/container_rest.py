@@ -1591,8 +1591,18 @@ JSON array only:"""
                 # This ensures production behavior matches test results
                 cot_system_prompt = (
                     "You are a precise data extraction bot.\n\n"
+                    "CRITICAL - OUTPUT FORMAT (MANDATORY - NO EXCEPTIONS):\n"
+                    "- You MUST ALWAYS start with \"REASONING:\" on its own line followed by a newline.\n"
+                    "- You MUST NEVER output the answer before REASONING: - the answer comes ONLY after REASONING.\n"
+                    "- You MUST NEVER output text before \"REASONING:\" - REASONING: must be the very first thing you output.\n"
+                    "- If you output any text before REASONING:, your response is INCORRECT.\n"
+                    "- REASONING: must appear on its own line, followed by a newline, then your reasoning.\n"
+                    "- After REASONING, you MUST end with \"FINAL ANSWER:\" on its own line.\n"
+                    "- FINAL ANSWER: must be the last section - nothing comes after it.\n\n"
                     "ALWAYS START WITH REASONING:\n"
-                    "Begin every response with \"REASONING:\" - this is MANDATORY.\n\n"
+                    "Begin every response with \"REASONING:\" - this is MANDATORY.\n"
+                    "CRITICAL: REASONING: must be the FIRST line of your response - no text before it.\n"
+                    "CRITICAL: Do NOT output the answer before REASONING: - REASONING comes first, answer comes last.\n\n"
                     "1. REASONING: For each relevant item found in the context:\n"
                     "   - Item: [What you found]\n"
                     "   - Evidence: \"[Verbatim quote from context]\"\n"
@@ -1675,12 +1685,14 @@ JSON array only:"""
                     "  ✅ - Action: [KEEP]\n"
                     "- This format is MANDATORY for ALL queries - no exceptions, no variations.\n\n"
                     "CRITICAL - STOP AFTER FINAL ANSWER:\n"
-                    "- Once you provide FINAL ANSWER, STOP generating immediately.\n"
-                    "- Do NOT continue with any further analysis, reasoning, or generation.\n"
-                    "- Do NOT add explanations, clarifications, or additional information after FINAL ANSWER.\n"
-                    "- Do NOT continue scanning or processing after FINAL ANSWER.\n"
-                    "- FINAL ANSWER is the END of your response - nothing comes after it.\n"
-                    "- The response MUST end with FINAL ANSWER - no continuation.\n\n"
+                    "- Once you provide FINAL ANSWER:, STOP generating immediately.\n"
+                    "- FINAL ANSWER: must be on its own line, followed by your answer.\n"
+                    "- Do NOT continue with any further analysis, reasoning, or generation after FINAL ANSWER:.\n"
+                    "- Do NOT add explanations, clarifications, or additional information after FINAL ANSWER:.\n"
+                    "- Do NOT continue scanning or processing after FINAL ANSWER:.\n"
+                    "- FINAL ANSWER: is the END of your response - nothing comes after it.\n"
+                    "- The response MUST end with FINAL ANSWER: - no continuation.\n"
+                    "- CRITICAL: You MUST include the \"FINAL ANSWER:\" marker - do NOT skip it.\n\n"
                     "MANDATORY: After providing the FINAL ANSWER, you MUST end with a brief, natural question that ends with a question mark (?). "
                     "This is REQUIRED - the very last sentence of your response must be a question ending with '?'. "
                     "Examples: 'Would you like more information about this?' or 'Is there anything else I can help you with?' "
@@ -3372,8 +3384,9 @@ def filter_cot_reasoning(generator):
         discarded = set()
         # Match complete item blocks: - Item: [Name] ... - Action: [ACTION]
         # Use non-greedy matching to stop at the next "- Item:" or end
-        pattern = r'- Item:\s*([^-]+?)\s*-\s*(?:Evidence:[^-]*?)?\s*-\s*Action:\s*(\[[^\]]+\])'
-        matches = re.finditer(pattern, reasoning_text, re.IGNORECASE | re.DOTALL)
+        # More robust: handle both "- Item:" and "Item:" formats, and handle multi-line evidence
+        pattern = r'(?:^|\n)\s*-\s*Item:\s*([^-]+?)\s*-\s*(?:Evidence:[^-]*?)?\s*-\s*Action:\s*(\[[^\]]+\])'
+        matches = re.finditer(pattern, reasoning_text, re.IGNORECASE | re.DOTALL | re.MULTILINE)
         
         for match in matches:
             item_name = match.group(1).strip()
@@ -3381,8 +3394,11 @@ def filter_cot_reasoning(generator):
             
             # Only extract if action is [DISCARD]
             if re.search(r'\[\s*DISCARD\s*\]', action, re.IGNORECASE):
-                # Clean up item name
+                # Clean up item name - remove quotes, role prefixes, evidence markers
                 item_name = re.sub(r'^["\']|["\']$', '', item_name)  # Remove quotes
+                item_name = re.sub(r'\s*-\s*Role:.*$', '', item_name, flags=re.IGNORECASE)  # Remove "- Role: ..."
+                item_name = re.sub(r'\s*-\s*Evidence:.*$', '', item_name, flags=re.IGNORECASE)  # Remove "- Evidence: ..."
+                item_name = re.sub(r'\s*-\s*$', '', item_name)  # Remove trailing dash
                 item_name = item_name.strip()
                 if item_name:
                     discarded.add(item_name.lower())
@@ -3420,16 +3436,16 @@ def filter_cot_reasoning(generator):
         
         # Fallback: If still no items, try regex pattern matching (for edge cases)
         if not kept_items:
-        # Pattern: - Item: [Name] - Evidence: ... - Action: [KEEP]
+            # Pattern: - Item: [Name] - Evidence: ... - Action: [KEEP]
             pattern = r'- Item:\s*([^-]+?)(?:(?!\s*-\s*Item:).)*?-\s*Action:\s*\[\s*KEEP\s*\]'
-        matches = re.finditer(pattern, reasoning_text, re.IGNORECASE | re.DOTALL)
-        for match in matches:
-            item_name = match.group(1).strip()
+            matches = re.finditer(pattern, reasoning_text, re.IGNORECASE | re.DOTALL)
+            for match in matches:
+                item_name = match.group(1).strip()
                 item_name = re.sub(r'^["\']|["\']$', '', item_name)
-            item_name = re.sub(r'\s*-\s*Role:.*$', '', item_name, flags=re.IGNORECASE)
-            item_name = re.sub(r'\s*-\s*Evidence:.*$', '', item_name, flags=re.IGNORECASE)
-            item_name = re.sub(r'\s*-\s*$', '', item_name)
-            item_name = item_name.strip()
+                item_name = re.sub(r'\s*-\s*Role:.*$', '', item_name, flags=re.IGNORECASE)
+                item_name = re.sub(r'\s*-\s*Evidence:.*$', '', item_name, flags=re.IGNORECASE)
+                item_name = re.sub(r'\s*-\s*$', '', item_name)
+                item_name = item_name.strip()
                 if item_name and item_name not in kept_items:
                     kept_items.append(item_name)
                     print(f"[Generic] 🔍 [CoT Filter] Extracted KEEP item (regex fallback): '{item_name}'")
@@ -3845,19 +3861,29 @@ def filter_cot_reasoning(generator):
         # CRITICAL: Ensure ALL KEEP items are included and ALL DISCARD items are removed
         # Step 1: Remove ALL DISCARD items from final answer
         if discarded_items:
+            print(f"[Generic] 🚫 [CoT Reasoning Debug] Removing {len(discarded_items)} DISCARD items: {discarded_items}")
             for discarded_name in discarded_items:
                 name_parts = discarded_name.split()
                 if len(name_parts) > 1:
+                    # Multi-word name: match all parts together (e.g., "Peter Moeller")
+                    # More robust: match with word boundaries and handle variations
                     pattern = r'\b' + r'\s+'.join([re.escape(part) for part in name_parts]) + r'\b'
                 else:
+                    # Single word: simple word boundary match
                     pattern = r'\b' + re.escape(discarded_name) + r'\b'
+                before = final_answer
                 final_answer = re.sub(pattern, '', final_answer, flags=re.IGNORECASE)
-            # Clean up extra spaces and commas after filtering
+                if before != final_answer:
+                    print(f"[Generic] ✂️  [CoT Reasoning Debug] Removed DISCARD item: '{discarded_name}'")
+            # Clean up extra spaces, commas, and conjunctions after filtering
             final_answer = re.sub(r'\s+', ' ', final_answer)
-            final_answer = re.sub(r',\s*,', ',', final_answer)
-            final_answer = re.sub(r',\s*and\s*,', ' and ', final_answer)
-            final_answer = re.sub(r'^\s*,\s*', '', final_answer)
-            final_answer = re.sub(r'\s*,\s*$', '', final_answer)
+            final_answer = re.sub(r',\s*,', ',', final_answer)  # Fix double commas
+            final_answer = re.sub(r',\s*and\s*,', ',', final_answer)  # Fix ", and ,"
+            final_answer = re.sub(r'\s+and\s+and\s+', ' and ', final_answer, flags=re.IGNORECASE)  # Fix "and and"
+            final_answer = re.sub(r'^\s*,\s*', '', final_answer)  # Remove leading comma
+            final_answer = re.sub(r'\s*,\s*$', '', final_answer)  # Remove trailing comma
+            final_answer = re.sub(r'^\s*and\s+', '', final_answer, flags=re.IGNORECASE)  # Remove leading "and"
+            final_answer = re.sub(r'\s+and\s*$', '', final_answer, flags=re.IGNORECASE)  # Remove trailing "and"
             if final_answer.strip():
                 print(f"[Generic] ✂️  [CoT Reasoning Debug] Filtered FINAL ANSWER (removed DISCARD items): {final_answer[:200]}...")
         
@@ -3920,8 +3946,8 @@ def filter_cot_reasoning(generator):
                     print(f"[Generic] ⚠️  [CoT Reasoning Debug] WARNING: all_items_ordered ({len(all_items_ordered)}) != kept_items ({len(kept_items)})")
                     # Force add any missing items
                     for item in kept_items:
-                    if item not in all_items_ordered:
-                        all_items_ordered.append(item)
+                        if item not in all_items_ordered:
+                            all_items_ordered.append(item)
                             print(f"[Generic] 🔧 [CoT Reasoning Debug] Force-added missing item: '{item}'")
                 
                 all_items = all_items_ordered

@@ -317,12 +317,14 @@ FORMAT REQUIREMENTS (CRITICAL - MUST FOLLOW EXACTLY - NO EXCEPTIONS):
 - Do NOT use variations like "REASONING: []" or "REASONING: Item:".
 
 CRITICAL - STOP AFTER FINAL ANSWER:
-- Once you provide FINAL ANSWER, STOP generating immediately.
-- Do NOT continue with any further analysis, reasoning, or generation.
-- Do NOT add explanations, clarifications, or additional information after FINAL ANSWER.
-- Do NOT continue scanning or processing after FINAL ANSWER.
-- FINAL ANSWER is the END of your response - nothing comes after it.
-- The response MUST end with FINAL ANSWER - no continuation."""
+- Once you provide FINAL ANSWER:, STOP generating immediately.
+- FINAL ANSWER: must be on its own line, followed by your answer.
+- Do NOT continue with any further analysis, reasoning, or generation after FINAL ANSWER:.
+- Do NOT add explanations, clarifications, or additional information after FINAL ANSWER:.
+- Do NOT continue scanning or processing after FINAL ANSWER:.
+- FINAL ANSWER: is the END of your response - nothing comes after it.
+- The response MUST end with FINAL ANSWER: - no continuation.
+- CRITICAL: You MUST include the \"FINAL ANSWER:\" marker - do NOT skip it."""
 
 # ============================================================================
 # GPU Check
