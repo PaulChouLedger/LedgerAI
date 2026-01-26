@@ -1144,8 +1144,7 @@ JSON array only:"""
                 sorted_results = sorted(rag_results, key=lambda x: x.get('score', 0), reverse=True)
                 
                 # Limit number of chunks to avoid token bloat (but keep more for list questions to ensure completeness)
-                # Match test script: use more chunks for list queries to ensure all items are found (test script uses full context)
-                max_chunks = 20 if is_list_query else 6  # Increased to 20 for list queries to match test script completeness
+                max_chunks = 10 if is_list_query else 6  # Increased to 10 for list queries to ensure all items are found
                 sorted_results = sorted_results[:max_chunks]
                 
                 print(f"[Generic] 📋 Using top {len(sorted_results)} chunks (max {max_chunks}) for LLM reasoning")
@@ -1173,11 +1172,9 @@ JSON array only:"""
                             else:
                                 source_name = metadata.get('document_name', 'unknown')
                         
-                        # For list queries, don't filter by entity - include ALL chunks to ensure completeness
-                        # The model will scan through all chunks and extract matching items
-                        # Entity filtering can cause missing items (e.g., Jorge Guinovart might be in a chunk that doesn't explicitly mention "LedgerAI")
-                        if not is_list_query and any(term in prompt.lower() for term in ['co-founder', 'founder', 'employee', 'manager', 'director', 'officer']):
-                            # Only filter for non-list queries - for list queries, include all chunks
+                        # SIMPLIFIED: Let the model do the filtering - just pass through chunks that mention the entity
+                        # The fine-tuned model should handle entity-specific extraction
+                        if is_list_query or any(term in prompt.lower() for term in ['co-founder', 'founder', 'employee', 'manager', 'director', 'officer']):
                             # Extract entity names from query for basic filtering
                             entity_names = []
                             of_pattern = r'\bof\s+([A-Z][A-Za-z]*(?:\s+[A-Z][A-Za-z]*)*)\b'
@@ -1211,13 +1208,9 @@ JSON array only:"""
                                     continue
                                 
                                 print(f"[Generic] ✅ Chunk {i}: Mentions query entity, including full chunk ({len(text)} chars)")
-                        
-                        # For list queries, always include chunk (let model scan all chunks for completeness)
-                        if is_list_query:
-                            print(f"[Generic] ✅ Chunk {i}: Including for list query ({len(text)} chars) - model will scan for all matching items")
+                            # If no entity extracted, include chunk anyway (let model decide)
                         
                         # For list queries, don't truncate - we need full chunks to extract all items
-                        # Match test script: use full chunks without truncation for list queries
                         # Only truncate if extremely long (let LLM handle most filtering)
                         if not is_list_query and len(text) > MAX_CHARS_PER_RESULT:
                             # Try to break at sentence boundary
@@ -1231,21 +1224,19 @@ JSON array only:"""
                                 text = truncated[:last_period + 1] + "..."
                             else:
                                 text = truncated + "..."
-                        # For list queries, keep full text (match test script - no truncation for completeness)
-                        # Only truncate if extremely long (over 5000 chars) to avoid token bloat
-                        elif is_list_query and len(text) > 5000:
-                            # Only truncate if extremely long (over 5000 chars) - try to break at sentence boundary
-                            truncated = text[:5000]
+                        # For list queries, keep full text even if longer (up to reasonable limit of 3000 chars)
+                        elif is_list_query and len(text) > 3000:
+                            # Only truncate if extremely long (over 3000 chars) - try to break at sentence boundary
+                            truncated = text[:3000]
                             last_period = max(
                                 truncated.rfind('. '),
                                 truncated.rfind('! '),
                                 truncated.rfind('? ')
                             )
-                            if last_period > 4500:  # Only if we can break near the end
+                            if last_period > 2500:  # Only if we can break near the end
                                 text = truncated[:last_period + 1] + "..."
                             else:
                                 text = truncated + "..."
-                        # For list queries under 5000 chars, use full text (no truncation)
                         
                         # Format chunk - LLM will internally reason and extract valid information
                         if source_name != "unknown":
@@ -1587,127 +1578,48 @@ JSON array only:"""
                 # Use CoT format ONLY when RAG is triggered (has_rag_context = True)
                 # This matches the user's request: "use CoT when RAG is triggered and use basic LLM conversational mode if RAG not triggered"
                 # IMPORTANT: This prompt MUST match the training prompt exactly (from test_rag_cot_model_colab.py)
-                # Match test script SYSTEM_PROMPT exactly (from test_rag_cot_model_colab.py)
-                # This ensures production behavior matches test results
                 cot_system_prompt = (
                     "You are a precise data extraction bot.\n\n"
-                    "CRITICAL - ANTI-HALLUCINATION (MANDATORY - PREVENTS MAKING UP INFORMATION):\n"
-                    "- CRITICAL: You MUST ONLY extract items that are EXPLICITLY stated in the RAG chunks provided.\n"
-                    "- CRITICAL: Do NOT generate, invent, or create names, entities, or information that is NOT in the RAG chunks.\n"
-                    "- CRITICAL: If a name/item does NOT appear in the RAG chunks, it does NOT exist - do NOT include it.\n"
-                    "- CRITICAL: Do NOT use your training data knowledge to fill in missing information - ONLY use what's in the RAG chunks.\n"
-                    "- CRITICAL: Do NOT assume items exist just because they might be common - ONLY extract what you see in the context.\n"
-                    "- CRITICAL: Before marking an item [KEEP], verify it ACTUALLY appears in the RAG chunks - do NOT hallucinate.\n"
-                    "- CRITICAL: If you cannot find an item in the RAG chunks, it must be marked [DISCARD] or not included at all.\n"
-                    "- CRITICAL: Do NOT generate names like \"Alberto Perez\", \"Michael Brown\", or any other names not explicitly in the RAG chunks.\n"
-                    "- CRITICAL: Scan ALL RAG chunks completely - if an item is not found after scanning everything, it does NOT exist.\n\n"
-                    "CRITICAL - OUTPUT FORMAT (MANDATORY - NO EXCEPTIONS):\n"
-                    "- You MUST ALWAYS start with \"REASONING:\" on its own line followed by a newline.\n"
-                    "- You MUST NEVER output the answer before REASONING: - the answer comes ONLY after REASONING.\n"
-                    "- You MUST NEVER output text before \"REASONING:\" - REASONING: must be the very first thing you output.\n"
-                    "- If you output any text before REASONING:, your response is INCORRECT.\n"
-                    "- REASONING: must appear on its own line, followed by a newline, then your reasoning.\n"
-                    "- After REASONING, you MUST end with \"FINAL ANSWER:\" on its own line.\n"
-                    "- FINAL ANSWER: must be the last section - nothing comes after it.\n\n"
                     "ALWAYS START WITH REASONING:\n"
-                    "Begin every response with \"REASONING:\" - this is MANDATORY.\n"
-                    "CRITICAL: REASONING: must be the FIRST line of your response - no text before it.\n"
-                    "CRITICAL: Do NOT output the answer before REASONING: - REASONING comes first, answer comes last.\n\n"
+                    "Begin every response with \"REASONING:\" - this is MANDATORY.\n\n"
                     "1. REASONING: For each relevant item found in the context:\n"
-                    "   - Item: [What you found - MUST be from RAG chunks only]\n"
+                    "   - Item: [What you found]\n"
                     "   - Evidence: \"[Verbatim quote from context]\"\n"
                     "   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n\n"
                     "2. End scan with: - End of scan.\n\n"
-                    "3. FINAL ANSWER: based ONLY on [KEEP] items that are verified to exist in RAG chunks.\n\n"
+                    "3. FINAL ANSWER: based ONLY on [KEEP] items.\n\n"
                     "CRITICAL RULES (APPLY TO ALL QUERIES):\n\n"
-                    "EVIDENCE (PROCESS - HOW TO HANDLE RAG CHUNKS):\n"
-                    "- STEP 1: Find the item in the RAG chunks FIRST - do NOT create items that don't exist in the RAG chunks.\n"
-                    "- STEP 2: Copy evidence EXACTLY as it appears in the RAG chunk - word-for-word, do NOT paraphrase or change any words.\n"
-                    "- STEP 3: After copying evidence, check if the query term ACTUALLY appears in that copied evidence.\n"
-                    "- STEP 4: If query term appears in evidence → [KEEP]. If query term does NOT appear → [DISCARD].\n"
-                    "- CRITICAL: Do NOT extract items that are NOT in the RAG chunks - if it's not in the context, it doesn't exist.\n"
-                    "- CRITICAL: Do NOT change words in evidence (e.g., do NOT change \"CFO\" to \"CEO\").\n"
-                    "- CRITICAL: Do NOT claim evidence says something it doesn't - only use what is actually written in the RAG chunk.\n"
-                    "- CRITICAL: Do NOT generate names, entities, or information that is NOT explicitly stated in the RAG chunks.\n"
+                    "EVIDENCE:\n"
+                    "- Evidence MUST be EXACT verbatim quote from context - do NOT paraphrase or fabricate.\n"
                     "- You MUST evaluate ALL relevant items in the context before ending the scan.\n"
-                    "- CRITICAL: Read through the ENTIRE context completely from start to finish - do NOT stop scanning early.\n"
-                    "- CRITICAL: Continue scanning until you reach the VERY END of the context - do NOT stop when you find matches.\n"
-                    "- CRITICAL: Items may appear at the VERY END of long contexts - you MUST scan until the absolute end.\n"
+                    "- Read through the ENTIRE context completely - do NOT stop scanning early.\n"
                     "- Scan systematically through all chunks, paragraphs, and sections.\n"
                     "- In complex contexts with many entities, scan ALL entities before ending.\n"
-                    "- CRITICAL: Relevant items may appear at the VERY END of long contexts - you MUST read to the end.\n"
-                    "- CRITICAL: Do NOT stop when you find some matches - continue scanning for ALL matches.\n"
-                    "- CRITICAL: If query asks for a list (e.g., \"co-founders\", \"products\", \"locations\"), ensure you found ALL matching items.\n"
+                    "- Entities may appear late in the context - continue scanning until the very end.\n"
                     "- Do NOT end scan until you have checked EVERY relevant item in the context.\n"
                     "- Do NOT stop scanning when you find matches - continue until the END of context.\n"
-                    "- Do NOT assume you've found all items - always scan to the very end.\n"
                     "- Items may appear at the very end - you MUST scan ALL items before ending.\n\n"
                     "KEEP/DISCARD:\n"
-                    "- CRITICAL: You MUST scan ALL items in the context BEFORE constructing FINAL ANSWER.\n"
-                    "- CRITICAL: Do NOT stop scanning when you find [KEEP] items - continue until you've scanned EVERYTHING.\n"
-                    "- CRITICAL: Only AFTER scanning all items should you construct FINAL ANSWER from [KEEP] items.\n"
                     "- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n"
                     "- FINAL ANSWER must ONLY include items marked [KEEP].\n"
                     "- FINAL ANSWER must include ALL items marked [KEEP] - do not omit any.\n"
                     "- If you mark an item [KEEP] in reasoning, it MUST appear in FINAL ANSWER.\n\n"
-                    "MATCHING (PROCESS - HOW TO CHECK RAG CHUNK DATA):\n"
-                    "- STEP 1: FIRST verify the item exists in the RAG chunks - do NOT create items that don't exist.\n"
-                    "- STEP 2: Extract evidence verbatim from RAG chunk (copy exactly, do NOT change words).\n"
-                    "- STEP 3: Use your knowledge to understand what the evidence means.\n"
-                    "- STEP 4: Check if the evidence matches the query (using your knowledge, not just verbatim presence).\n"
-                    "- STEP 5: If matches → [KEEP]. If does NOT match → [DISCARD].\n"
-                    "- CRITICAL: Extract evidence verbatim (do NOT change words like \"CFO\" to \"CEO\").\n"
-                    "- CRITICAL: Use your knowledge to reason (e.g., if evidence says \"CFO\" and query asks for \"CEO\", you know CFO ≠ CEO → [DISCARD]).\n"
-                    "- CRITICAL: Do NOT hallucinate or make up information not in evidence.\n"
-                    "- CRITICAL: Do NOT claim evidence says something it doesn't (e.g., don't say evidence says \"CEO\" when it says \"CFO\").\n"
-                    "- CRITICAL: Do NOT generate names/entities not in RAG chunks - ONLY extract what exists in the context.\n"
-                    "- CRITICAL: If an item is not found in the RAG chunks after scanning completely, it does NOT exist - do NOT include it.\n"
-                    "- CRITICAL: Apply this process to ALL query types - roles, names, dates, numbers, locations, products, services, entities, etc.\n\n"
+                    "MATCHING (PREVENTS HALLUCINATION - STRICT VERBATIM RULE):\n"
+                    "- Query term MUST appear verbatim in evidence for [KEEP].\n"
+                    "- If query term appears verbatim in evidence → [KEEP] (regardless of other roles/info mentioned).\n"
+                    "- If query term does NOT appear verbatim in evidence → [DISCARD] (NO exceptions, NO inference, NO assumptions).\n"
+                    "- Similar roles/titles are NOT matches unless query term appears verbatim (e.g., \"Business Development Lead\" ≠ \"co-founder\", \"Ambassador\" ≠ \"co-founder\", \"Ambassador of Influence and Engagement\" ≠ \"co-founder\", \"CTO\" ≠ \"co-founder\").\n"
+                    "- DO NOT infer or assume relationships - only use explicitly stated information.\n"
+                    "- DO NOT use context clues - only verbatim presence of query term matters.\n\n"
                     "EMPTY RESULTS:\n"
                     "- If ALL items are marked [DISCARD], FINAL ANSWER must indicate no matches found.\n\n"
                     "OUTPUT FORMAT:\n"
-                    "- CRITICAL: Complete scanning FIRST - scan ALL items in context before constructing FINAL ANSWER.\n"
-                    "- CRITICAL: Do NOT construct FINAL ANSWER until you have scanned EVERY item and marked each as [KEEP] or [DISCARD].\n"
                     "- FINAL ANSWER must include ONLY the information explicitly requested in the query - nothing more, nothing less.\n"
-                    "- CRITICAL: FINAL ANSWER must ONLY include items marked [KEEP] in reasoning - do NOT include items marked [DISCARD].\n"
-                    "- CRITICAL: If an item was marked [DISCARD] in reasoning, it must NOT appear in FINAL ANSWER.\n"
-                    "- Include ONLY what is requested - exclude extra words or context not explicitly requested.\n"
+                    "- Include ONLY what is requested - exclude extra words, role titles, dates, or any context not explicitly requested.\n"
                     "- If query asks for a list, include ALL matching items found in the context (do not omit any).\n"
-                    "- Preserve verbatim information from evidence - do NOT paraphrase (e.g., if evidence says \"50 developers\", do NOT change to \"50 employees\").\n\n"
-                    "FORMAT REQUIREMENTS (CRITICAL - MUST FOLLOW EXACTLY - NO EXCEPTIONS):\n"
-                    "- REASONING: must start with exactly \"REASONING:\" on its own line followed by a newline.\n"
-                    "- CRITICAL: After \"REASONING:\" you MUST press Enter/Newline - do NOT put Item on same line.\n"
-                    "- CRITICAL: Do NOT use one-line format like \"REASONING: Item:Evidence - ...\" - this is FORBIDDEN.\n"
-                    "- CRITICAL: Do NOT combine Item/Evidence/Action on one line - each MUST be on separate lines.\n"
-                    "- Each item MUST have three separate lines with line breaks between them:\n"
-                    "  First line: - Item: [name or value]\n"
-                    "  Second line: - Evidence: \"[verbatim quote]\"\n"
-                    "  Third line: - Action: [KEEP] or [DISCARD]\n"
-                    "- CRITICAL: You MUST use line breaks (press Enter) between each line.\n"
-                    "- CRITICAL: Do NOT use formats like \"Item:Evidence - ...\" or \"Item:Evidence, Action:...\" - these are FORBIDDEN.\n"
-                    "- CRITICAL: Always use the three-line format with proper line breaks.\n"
-                    "- CRITICAL: Do NOT use format like \"REASONING:- Item:... - Evidence:... - Action:...\".\n"
-                    "- CRITICAL: Do NOT use format like \"REASONING:Item:...\" (no space after colon).\n"
-                    "- CRITICAL: You MUST use line breaks (press Enter) between REASONING:, Item:, Evidence:, and Action:.\n"
-                    "- FORBIDDEN FORMATS (NEVER USE THESE):\n"
-                    "  ❌ REASONING:- Item:... - Evidence:... - Action:...\n"
-                    "  ❌ REASONING:Item:... (no space, no newline)\n"
-                    "  ❌ REASONING: - Item:... (space but no newline)\n"
-                    "- REQUIRED FORMAT (ALWAYS USE THIS):\n"
-                    "  ✅ REASONING:\n"
-                    "  ✅ - Item: John Smith\n"
-                    "  ✅ - Evidence: \"John Smith is the CEO of TechCorp\"\n"
-                    "  ✅ - Action: [KEEP]\n"
-                    "- This format is MANDATORY for ALL queries - no exceptions, no variations.\n\n"
-                    "CRITICAL - STOP AFTER FINAL ANSWER:\n"
-                    "- Once you provide FINAL ANSWER:, STOP generating immediately.\n"
-                    "- FINAL ANSWER: must be on its own line, followed by your answer.\n"
-                    "- Do NOT continue with any further analysis, reasoning, or generation after FINAL ANSWER:.\n"
-                    "- Do NOT add explanations, clarifications, or additional information after FINAL ANSWER:.\n"
-                    "- Do NOT continue scanning or processing after FINAL ANSWER:.\n"
-                    "- FINAL ANSWER: is the END of your response - nothing comes after it.\n"
-                    "- The response MUST end with FINAL ANSWER: - no continuation.\n"
-                    "- CRITICAL: You MUST include the \"FINAL ANSWER:\" marker - do NOT skip it.\n\n"
+                    "- Preserve verbatim information from evidence - do NOT paraphrase (e.g., if evidence says \"50 developers\", do NOT change to \"50 employees\").\n"
+                    "- For queries asking \"Who is the [ROLE]?\", include ONLY the person's name, not the role title or company name.\n"
+                    "- For queries asking for amounts/numbers, include ONLY the amount/number, not dates, years, or other context.\n\n"
                     "MANDATORY: After providing the FINAL ANSWER, you MUST end with a brief, natural question that ends with a question mark (?). "
                     "This is REQUIRED - the very last sentence of your response must be a question ending with '?'. "
                     "Examples: 'Would you like more information about this?' or 'Is there anything else I can help you with?' "
@@ -1744,22 +1656,21 @@ JSON array only:"""
             print(system_content)
             print(f"{'='*80}\n")
             
-            # Match test script parameters EXACTLY (from test_rag_cot_model_colab.py)
-            # Test script uses: temperature=0.0, top_p=1.0, repeat_penalty=1.1, max_tokens=2048, stop=["<|im_end|>", "\n\n\n"]
-            # OPTIMIZED for deterministic output: top_k=-1 (disable top_k sampling for true determinism)
-            max_tokens_limit = 2048  # Always use 2048 for RAG queries to match test script
+            # Don't wrap the iterator - let base_container's debug_iterator handle logging
+            # The base class already wraps it with debug logging
+            # Use higher token limit for list questions to ensure all items are included
+            # Use lower temperature (0.05) for RAG queries to match test script and ensure accuracy
+            # Use 2048 tokens to match test script (was 800, might be cutting off reasoning)
+            max_tokens_limit = 2048 if is_list_request else MAX_TOKENS_RAG_MODE
             # Use CoT model for RAG queries (dual-model architecture)
             # Only use CoT model if RAG found content (quick_content_match=True)
             llm_response = llm_chat_simple(
                 messages,
                 max_tokens=max_tokens_limit,
-                temperature=0.0,  # Match test script (0.0 for deterministic output)
+                temperature=0,
                 stream=stream,
                 use_cot_model=True,  # RAG found content - use CoT model
-                top_p=1.0,  # Match test script (disable top_p sampling)
-                top_k=-1,  # OPTIMIZED: Disable top_k sampling for true deterministic output (was default 40)
-                repeat_penalty=1.1,  # Match test script (lower repeat penalty)
-                stop=["<|im_end|>", "\n\n\n"],  # Match test script stop sequences
+                stop=["<|im_end|>"],
             )
             if stream:
                 # Let CoT filter handle stopping after first FINAL ANSWER (it has logic to detect post-answer markers)
@@ -2809,7 +2720,7 @@ def chat_tts():
                 'please', 'excuse me', 'sorry', 'pardon'
             ]
             is_conversational = any(phrase in normalized_prompt for phrase in conversational_phrases)
-            
+
             # ------------------------------------------------------------------
             # RAG decision (simplified + predictable)
             # ------------------------------------------------------------------
@@ -3399,55 +3310,24 @@ def filter_cot_reasoning(generator):
     def extract_discarded_items(reasoning_text):
         """Extract names/items that were marked [DISCARD] in reasoning section"""
         discarded = set()
-        # More robust pattern: handle both "- Item:" and "Item:" formats, with or without dashes
-        # Handle multi-line evidence and various spacing
-        # Pattern 1: Standard format with dashes: "- Item: [Name] ... - Action: [DISCARD]"
-        pattern1 = r'(?:^|\n)\s*-?\s*Item:\s*([^-]+?)(?:\s*-\s*(?:Evidence|Role):[^-]*?)?\s*-\s*Action:\s*(\[[^\]]+\])'
-        # Pattern 2: Handle cases where Evidence is on a new line: "Item: [Name]\n  - Evidence: ...\n  - Action: [DISCARD]"
-        pattern2 = r'(?:^|\n)\s*-?\s*Item:\s*([^\n-]+?)(?:\n[^\n]*?Evidence:[^\n]*?)?\n[^\n]*?Action:\s*(\[[^\]]+\])'
+        # Match complete item blocks: - Item: [Name] ... - Action: [ACTION]
+        # Use non-greedy matching to stop at the next "- Item:" or end
+        pattern = r'- Item:\s*([^-]+?)\s*-\s*(?:Evidence:[^-]*?)?\s*-\s*Action:\s*(\[[^\]]+\])'
+        matches = re.finditer(pattern, reasoning_text, re.IGNORECASE | re.DOTALL)
         
-        # Try both patterns
-        for pattern in [pattern1, pattern2]:
-            matches = re.finditer(pattern, reasoning_text, re.IGNORECASE | re.DOTALL | re.MULTILINE)
+        for match in matches:
+            item_name = match.group(1).strip()
+            action = match.group(2)
             
-            for match in matches:
-                item_name = match.group(1).strip()
-                action = match.group(2)
-                
-                # Only extract if action is [DISCARD]
-                if re.search(r'\[\s*DISCARD\s*\]', action, re.IGNORECASE):
-                    # Clean up item name - remove quotes, role prefixes, evidence markers
-                    item_name = re.sub(r'^["\']|["\']$', '', item_name)  # Remove quotes
-                    item_name = re.sub(r'\s*-\s*Role:.*$', '', item_name, flags=re.IGNORECASE)  # Remove "- Role: ..."
-                    item_name = re.sub(r'\s*-\s*Evidence:.*$', '', item_name, flags=re.IGNORECASE)  # Remove "- Evidence: ..."
-                    item_name = re.sub(r'\s*-\s*$', '', item_name)  # Remove trailing dash
-                    item_name = re.sub(r'\n.*$', '', item_name)  # Remove newlines and everything after
-                    item_name = item_name.strip()
-                    if item_name:
-                        discarded.add(item_name.lower())
-                        # Debug: log what we're extracting
-                        print(f"[Generic] 🔍 [CoT Filter] Extracted DISCARD item: '{item_name}' (action: '{action}')")
-        
-        # Also try a simpler fallback: find all [DISCARD] actions and extract preceding Item names
-        if not discarded:
-            # Find all Action: [DISCARD] markers
-            discard_matches = list(re.finditer(r'Action:\s*\[\s*DISCARD\s*\]', reasoning_text, re.IGNORECASE))
-            for discard_match in discard_matches:
-                # Find the preceding Item: before this DISCARD
-                text_before = reasoning_text[:discard_match.start()]
-                # Find the last Item: before this DISCARD
-                item_matches = list(re.finditer(r'(?:^|\n)\s*-?\s*Item:\s*([^\n-]+?)(?:\s*-\s*(?:Evidence|Role):|\n|$)', text_before, re.IGNORECASE | re.MULTILINE))
-                if item_matches:
-                    last_item = item_matches[-1]
-                    item_name = last_item.group(1).strip()
-                    item_name = re.sub(r'^["\']|["\']$', '', item_name)
-                    item_name = re.sub(r'\s*-\s*Role:.*$', '', item_name, flags=re.IGNORECASE)
-                    item_name = re.sub(r'\s*-\s*Evidence:.*$', '', item_name, flags=re.IGNORECASE)
-                    item_name = item_name.strip()
-                    if item_name:
-                        discarded.add(item_name.lower())
-                        print(f"[Generic] 🔍 [CoT Filter] Extracted DISCARD item (fallback): '{item_name}'")
-        
+            # Only extract if action is [DISCARD]
+            if re.search(r'\[\s*DISCARD\s*\]', action, re.IGNORECASE):
+                # Clean up item name
+                item_name = re.sub(r'^["\']|["\']$', '', item_name)  # Remove quotes
+                item_name = item_name.strip()
+                if item_name:
+                    discarded.add(item_name.lower())
+                    # Debug: log what we're extracting
+                    print(f"[Generic] 🔍 [CoT Filter] Extracted DISCARD item: '{item_name}' (action: '{action}')")
         return discarded
     
     def extract_kept_items(reasoning_text):
@@ -3624,7 +3504,6 @@ def filter_cot_reasoning(generator):
         # CoT response - apply filtering logic
         if not found_final_answer:
             # Still looking for FINAL ANSWER - buffer everything but DO NOT YIELD
-            # CRITICAL: Suppress ALL tokens until FINAL ANSWER is found (including REASONING section and sentence tags)
             # Add token text directly (don't add extra space, tokens might already have spacing)
             if text_content:
                 text_buffer += text_content
@@ -3658,13 +3537,6 @@ def filter_cot_reasoning(generator):
                     if ":" in remaining[:5]:  # Colon within 5 chars
                         marker_found = True
                         marker = "FINAL ANSWER:"
-            
-            # CRITICAL: Do NOT yield any tokens (including sentence tags) until FINAL ANSWER is found
-            # This suppresses the entire REASONING section from being spoken
-            # Suppress ALL tokens: content tokens, sentence tags (<sentence_start>, <sentence_end>), everything
-            # Only continue to next token if FINAL ANSWER not found yet
-            if not marker_found:
-                continue  # Skip ALL tokens (content + sentence tags) until FINAL ANSWER
             
             if marker_found:
                 found_final_answer = True
@@ -3718,60 +3590,6 @@ def filter_cot_reasoning(generator):
                     print(f"[Generic] 🚫 [CoT Reasoning Debug] Items marked DISCARD: {discarded_items}")
                 else:
                     print(f"[Generic] 🚫 [CoT Reasoning Debug] No DISCARD items found")
-                # VALIDATION: Check if items in REASONING actually appear in their evidence quotes (prevent hallucination)
-                all_reasoning_items = kept_items + discarded_items
-                hallucinated_items = []
-                valid_items = []
-                
-                # Extract all Item:Evidence pairs from reasoning to validate
-                item_evidence_pairs = re.finditer(
-                    r'- Item:\s*([^-]+?)\s*-\s*Evidence:\s*"([^"]+)"',
-                    clean_reasoning,
-                    re.IGNORECASE | re.DOTALL
-                )
-                
-                for pair_match in item_evidence_pairs:
-                    item_name = pair_match.group(1).strip()
-                    evidence = pair_match.group(2).strip()
-                    
-                    # Clean item name
-                    item_name = re.sub(r'^["\']|["\']$', '', item_name)
-                    item_name = item_name.strip()
-                    
-                    if not item_name:
-                        continue
-                    
-                    # Check if item name appears in its evidence (case-insensitive, allow partial matches for multi-word names)
-                    item_parts = item_name.split()
-                    evidence_lower = evidence.lower()
-                    
-                    if len(item_parts) > 1:
-                        # Multi-word name: check if all significant parts appear
-                        all_parts_found = all(
-                            part.lower() in evidence_lower 
-                            for part in item_parts 
-                            if len(part) > 2  # Ignore short words like "a", "an", "the"
-                        )
-                        if all_parts_found:
-                            valid_items.append(item_name)
-                        else:
-                            hallucinated_items.append(item_name)
-                            print(f"[Generic] 🚫 [CoT Validation] HALLUCINATION DETECTED: '{item_name}' not found in its evidence: '{evidence[:100]}...'")
-                    else:
-                        # Single word: check if it appears (minimum length to avoid false positives)
-                        if len(item_name) > 2 and item_name.lower() in evidence_lower:
-                            valid_items.append(item_name)
-                        else:
-                            hallucinated_items.append(item_name)
-                            print(f"[Generic] 🚫 [CoT Validation] HALLUCINATION DETECTED: '{item_name}' not found in its evidence: '{evidence[:100]}...'")
-                
-                if hallucinated_items:
-                    print(f"[Generic] ⚠️ [CoT Validation] Found {len(hallucinated_items)} hallucinated items in REASONING: {hallucinated_items}")
-                    print(f"[Generic] ⚠️ [CoT Validation] This is a TRAINING ISSUE - model should only reason about items that appear in RAG chunks")
-                    print(f"[Generic] ✅ [CoT Validation] Valid items: {valid_items}")
-                else:
-                    print(f"[Generic] ✅ [CoT Validation] All {len(all_reasoning_items)} items in REASONING are valid (appear in their evidence)")
-                
                 if kept_items:
                     print(f"[Generic] ✅ [CoT Reasoning Debug] Items marked KEEP ({len(kept_items)}): {kept_items}")
                 else:
@@ -3942,50 +3760,22 @@ def filter_cot_reasoning(generator):
         final_answer = re.sub(r'\s+\.\.\.\s*$', '', final_answer)  # Remove trailing "..."
         final_answer = final_answer.strip(" \t\n\r")
         
-        # POST-PROCESSING: Clean up formatting (deterministic, no model confusion)
-        # 1. Remove role titles for "Who is [ROLE]?" queries (e.g., "The CTO" → just the name)
-        # Pattern 1: "The [ROLE] of [Company] is [Name]" → "[Name]"
-        final_answer = re.sub(r'^(The\s+)?(CEO|CTO|CFO|CMO|COO|Chief\s+\w+\s+Officer|President|Director|Manager|Lead|Head\s+of\s+\w+)(\s+of\s+[^.]+\s+is\s+|\s+is\s+)', '', final_answer, flags=re.IGNORECASE)
-        # Pattern 2: "[Name] is the [ROLE]" → "[Name]"
-        final_answer = re.sub(r'\s+is\s+(the\s+)?(CEO|CTO|CFO|CMO|COO|Chief\s+\w+\s+Officer|President|Director|Manager|Lead|Head\s+of\s+\w+)(\s+of\s+[^.]*)?\.?\s*$', '', final_answer, flags=re.IGNORECASE)
-        # Pattern 3: "The [ROLE] is [Name]" → "[Name]"
-        final_answer = re.sub(r'^(The\s+)?(CEO|CTO|CFO|CMO|COO|Chief\s+\w+\s+Officer|President|Director|Manager|Lead|Head\s+of\s+\w+)\s+is\s+', '', final_answer, flags=re.IGNORECASE)
-        
-        # 2. Remove dates/years from amounts (e.g., "$50 million in 2023" → "$50 million")
-        # Pattern: "in 20XX" or "for 20XX" or "(20XX)" after amounts
-        final_answer = re.sub(r'\s+(in|for|during)\s+(19|20)\d{2}\b', '', final_answer, flags=re.IGNORECASE)
-        final_answer = re.sub(r'\s*\(19|20\d{2}\)', '', final_answer)  # Remove "(2023)" style dates
-        
-        # 3. Remove standalone years (e.g., "2023" when not part of a date)
-        # Only remove if it's clearly a year (4 digits) and not part of a larger number
-        final_answer = re.sub(r'\b(19|20)\d{2}\b(?=\s|$|\.|,|;|:)', '', final_answer)
-        
         # CRITICAL: Ensure ALL KEEP items are included and ALL DISCARD items are removed
         # Step 1: Remove ALL DISCARD items from final answer
         if discarded_items:
-            print(f"[Generic] 🚫 [CoT Reasoning Debug] Removing {len(discarded_items)} DISCARD items: {discarded_items}")
             for discarded_name in discarded_items:
                 name_parts = discarded_name.split()
                 if len(name_parts) > 1:
-                    # Multi-word name: match all parts together (e.g., "Peter Moeller")
-                    # More robust: match with word boundaries and handle variations
                     pattern = r'\b' + r'\s+'.join([re.escape(part) for part in name_parts]) + r'\b'
                 else:
-                    # Single word: simple word boundary match
                     pattern = r'\b' + re.escape(discarded_name) + r'\b'
-                before = final_answer
                 final_answer = re.sub(pattern, '', final_answer, flags=re.IGNORECASE)
-                if before != final_answer:
-                    print(f"[Generic] ✂️  [CoT Reasoning Debug] Removed DISCARD item: '{discarded_name}'")
-            # Clean up extra spaces, commas, and conjunctions after filtering
+            # Clean up extra spaces and commas after filtering
             final_answer = re.sub(r'\s+', ' ', final_answer)
-            final_answer = re.sub(r',\s*,', ',', final_answer)  # Fix double commas
-            final_answer = re.sub(r',\s*and\s*,', ',', final_answer)  # Fix ", and ,"
-            final_answer = re.sub(r'\s+and\s+and\s+', ' and ', final_answer, flags=re.IGNORECASE)  # Fix "and and"
-            final_answer = re.sub(r'^\s*,\s*', '', final_answer)  # Remove leading comma
-            final_answer = re.sub(r'\s*,\s*$', '', final_answer)  # Remove trailing comma
-            final_answer = re.sub(r'^\s*and\s+', '', final_answer, flags=re.IGNORECASE)  # Remove leading "and"
-            final_answer = re.sub(r'\s+and\s*$', '', final_answer, flags=re.IGNORECASE)  # Remove trailing "and"
+            final_answer = re.sub(r',\s*,', ',', final_answer)
+            final_answer = re.sub(r',\s*and\s*,', ' and ', final_answer)
+            final_answer = re.sub(r'^\s*,\s*', '', final_answer)
+            final_answer = re.sub(r'\s*,\s*$', '', final_answer)
             if final_answer.strip():
                 print(f"[Generic] ✂️  [CoT Reasoning Debug] Filtered FINAL ANSWER (removed DISCARD items): {final_answer[:200]}...")
         
@@ -4077,31 +3867,6 @@ def filter_cot_reasoning(generator):
                 print(f"[Generic] ✅ [CoT Reasoning Debug] Added missing KEEP items: {final_answer[:200]}...")
             else:
                 print(f"[Generic] ✅ [CoT Reasoning Debug] All KEEP items present in final answer")
-        
-        # CRITICAL: Final safety check - ensure NO discarded items are in final answer
-        # This catches cases where reconstruction or model output accidentally includes them
-        if discarded_items and final_answer:
-            final_answer_lower = final_answer.lower()
-            for discarded_name in discarded_items:
-                name_parts = discarded_name.split()
-                if len(name_parts) > 1:
-                    pattern = r'\b' + r'\s+'.join([re.escape(part) for part in name_parts]) + r'\b'
-                else:
-                    pattern = r'\b' + re.escape(discarded_name) + r'\b'
-                
-                if re.search(pattern, final_answer_lower):
-                    print(f"[Generic] ⚠️  [CoT Safety Check] Found DISCARD item '{discarded_name}' in final answer - removing")
-                    final_answer = re.sub(pattern, '', final_answer, flags=re.IGNORECASE)
-                    # Clean up again after removal
-                    final_answer = re.sub(r'\s+', ' ', final_answer)
-                    final_answer = re.sub(r',\s*,', ',', final_answer)
-                    final_answer = re.sub(r',\s*and\s*,', ',', final_answer)
-                    final_answer = re.sub(r'\s+and\s+and\s+', ' and ', final_answer, flags=re.IGNORECASE)
-                    final_answer = re.sub(r'^\s*,\s*', '', final_answer)
-                    final_answer = re.sub(r'\s*,\s*$', '', final_answer)
-                    final_answer = re.sub(r'^\s*and\s+', '', final_answer, flags=re.IGNORECASE)
-                    final_answer = re.sub(r'\s+and\s*$', '', final_answer, flags=re.IGNORECASE)
-                    print(f"[Generic] ✅ [CoT Safety Check] Removed '{discarded_name}' - cleaned answer: {final_answer[:200]}...")
         
         if final_answer.strip():
             print(f"[Generic] 📝 [CoT Reasoning Debug] Final FINAL ANSWER: {final_answer[:200]}...")
