@@ -1188,6 +1188,35 @@ class LocalOTAUpdateThread(QThread):
             )
             
             if result.returncode != 0:
+                # Check if it's a permission error
+                error_output = result.stderr + result.stdout
+                if "insufficient permission" in error_output.lower() or "failed to write object" in error_output.lower():
+                    # Try to fix permissions automatically
+                    self.update_progress.emit("Fixing Git permissions...")
+                    fix_script = os.path.join(self.repo_path, "setup", "scripts", "fix_git_permissions.sh")
+                    if os.path.exists(fix_script):
+                        fix_result = subprocess.run(
+                            ['bash', fix_script],
+                            cwd=self.repo_path,
+                            capture_output=True,
+                            text=True,
+                            timeout=30
+                        )
+                        if fix_result.returncode == 0:
+                            self.update_progress.emit("Permissions fixed. Retrying pull...")
+                            # Retry pull after fixing permissions
+                            result = subprocess.run(
+                                ['git', 'pull', 'origin', current_branch],
+                                cwd=self.repo_path,
+                                capture_output=True,
+                                text=True,
+                                timeout=120
+                            )
+                            if result.returncode == 0:
+                                self.update_progress.emit("Update complete!")
+                                self.update_complete.emit(True, f"Successfully updated {commits_behind} commits", True)
+                                return
+                
                 self.update_complete.emit(False, f"Pull failed: {result.stderr}", False)
                 return
             

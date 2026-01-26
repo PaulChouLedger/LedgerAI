@@ -4,6 +4,20 @@
 # Note: sync_llm_containers.py is no longer needed - both containers now use shared/llm_base.py
 # This hook is installed automatically by install_aura_bootable.sh
 
+# Fix Git permissions if needed (prevents "insufficient permission" errors)
+# This ensures .git directory is owned by the current user, not root
+if [ -d ".git" ]; then
+    CURRENT_USER=$(whoami)
+    GIT_OWNER=$(stat -c '%U' .git 2>/dev/null || stat -f '%Su' .git 2>/dev/null || echo "")
+    if [ "$GIT_OWNER" != "$CURRENT_USER" ] && [ -n "$GIT_OWNER" ]; then
+        # Only fix if we have sudo access and owner is different
+        if command -v sudo >/dev/null 2>&1; then
+            sudo chown -R "$CURRENT_USER:$CURRENT_USER" .git 2>/dev/null || true
+            chmod -R u+rwX .git 2>/dev/null || true
+        fi
+    fi
+fi
+
 # Get changed files from git
 CHANGED_FILES=$(git diff-tree -r --name-only --no-commit-id ORIG_HEAD HEAD 2>/dev/null || echo "")
 
