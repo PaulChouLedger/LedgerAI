@@ -3533,6 +3533,7 @@ def filter_cot_reasoning(generator):
     token_buffer_list = []  # Store tokens to replay if not CoT
     detection_buffer = ""  # Text for CoT detection
     first_text_token_yielded = False  # Track if we've yielded the first text token (for immediate passthrough)
+    yielded_token_positions = set()  # Track positions of tokens we've already yielded (to prevent double-yield)
     
     # CRITICAL: For base model (non-RAG) queries, detect non-CoT immediately to avoid delay
     # Base model responses start with normal text, not "REASONING:" - check first token immediately
@@ -3540,6 +3541,7 @@ def filter_cot_reasoning(generator):
     
     # First pass: detect CoT by checking tokens
     # CRITICAL: For base model, we want to pass through immediately without buffering
+    # Also detect clarification messages and pass them through immediately with proper sentence tags
     for token in generator:
         # Special-case: allow exactly one *preface* sentence (our injected filler phrase)
         # to pass through immediately before CoT detection buffers the stream.
@@ -3588,6 +3590,40 @@ def filter_cot_reasoning(generator):
 
         text_content = extract_text(token)
         
+        # CRITICAL: Detect clarification messages early and ensure they have proper sentence tags
+        # Clarification messages should always have sentence tags for proper TTS playback
+        is_clarification = isinstance(token, str) and (
+            "I'm sorry, I didn't catch that" in token or
+            "I'm sorry, I didn't understand" in token or
+            "Can you repeat" in token
+        )
+        
+        # CRITICAL OPTIMIZATION: For base model, yield sentence tags immediately
+        # Sentence tags should be streamed immediately for TTS to start playback
+        # Handle both with and without newlines
+        token_stripped = token.strip() if isinstance(token, str) else ""
+        is_sentence_tag = isinstance(token, str) and (
+            token_stripped == "<sentence_start>" or 
+            token_stripped == "<sentence_end>" or
+            token_stripped.startswith("<sentence_start>") or
+            token_stripped.startswith("<sentence_end>")
+        )
+        
+        # If we detect a clarification message without sentence tags, ensure it's wrapped
+        # This handles cases where clarification messages might lose their tags
+        if is_clarification and not is_sentence_tag and text_content and not first_text_token_yielded:
+            # Check if we have a sentence_start in buffer - if not, we need to add it
+            has_sentence_start = any(
+                isinstance(t, str) and ("<sentence_start>" in t or t.strip() == "<sentence_start>")
+                for t in token_buffer_list
+            )
+            if not has_sentence_start:
+                # Missing sentence_start - yield it first
+                print(f"[Generic] 🔍 [CoT Filter] Clarification message detected without sentence_start - adding it")
+                yield "<sentence_start>\n"
+                # Don't add to buffer since we're yielding it now
+            # Continue processing - the text will be yielded below
+        
         # CRITICAL OPTIMIZATION: For base model, check first text token immediately
         # If first real text doesn't start with "REASONING:", it's base model - stream immediately
         if text_content and not first_text_token_yielded and len(text_content.strip()) > 0:
@@ -3607,15 +3643,38 @@ def filter_cot_reasoning(generator):
                 is_cot_response = False
                 cot_detected = True
                 print(f"[Generic] 🔍 [CoT Filter] Base model response detected (first token='{text_content[:30]}...') - streaming immediately")
-                # Yield this token immediately
-                yield token
-                # Yield all previously buffered tokens (if any - usually just sentence tags)
-                for buffered_token in token_buffer_list:
-                    yield buffered_token
+                print(f"[Generic] 🔍 [CoT Filter] Buffered tokens count: {len(token_buffer_list)}, Already yielded: {len(yielded_token_positions)}")
+                # Yield all previously buffered tokens first (sentence tags should be first)
+                # Only yield tokens we haven't already yielded (to prevent double-yield)
+                for pos, buffered_token in enumerate(token_buffer_list):
+                    if pos not in yielded_token_positions:
+                        print(f"[Generic] 🔍 [CoT Filter] Yielding buffered token at position {pos}: '{str(buffered_token)[:50]}...'")
+                        yield buffered_token
+                        yielded_token_positions.add(pos)
+                # Yield this token immediately (it's at position len(token_buffer_list))
+                current_pos = len(token_buffer_list)
+                if current_pos not in yielded_token_positions:
+                    print(f"[Generic] 🔍 [CoT Filter] Yielding current token at position {current_pos}: '{str(token)[:50]}...'")
+                    yield token
+                    yielded_token_positions.add(current_pos)
                 # Pass through remaining tokens immediately (no buffering)
                 for remaining_token in generator:
+                    print(f"[Generic] 🔍 [CoT Filter] Yielding remaining token: '{str(remaining_token)[:50]}...'")
                     yield remaining_token
                 return  # Exit early for non-CoT responses
+        
+        # For base model detection: if we haven't detected CoT yet and this is a sentence tag,
+        # yield it immediately to start TTS playback (don't buffer sentence tags for base model)
+        if is_sentence_tag and not cot_detected and not first_text_token_yielded:
+            # This is likely a base model response - yield sentence tags immediately
+            current_pos = len(token_buffer_list)
+            if current_pos not in yielded_token_positions:
+                print(f"[Generic] 🔍 [CoT Filter] Yielding sentence tag immediately: '{token[:50]}...'")
+                yield token
+                yielded_token_positions.add(current_pos)
+            # Still add to buffer for detection purposes, but we've already yielded it
+            token_buffer_list.append(token)
+            continue
         
         token_buffer_list.append(token)
         
