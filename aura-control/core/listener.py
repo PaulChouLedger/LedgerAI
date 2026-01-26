@@ -1079,14 +1079,17 @@ def listen():
                                 # Not likely speech - skip wake word processing
                                 continue
                         
-                        # OpenWakeWord handles buffering internally, so we can call process() directly
-                        # Use exact same channel_audio as VAD (no conversion needed - stream already provides float32 normalized to [-1, 1])
-                        # Ensure channel_audio is 1D (same as VAD uses it)
-                        if channel_audio.ndim > 1:
-                            channel_audio = channel_audio.flatten()
+                        # Normalize audio using same RMS normalization as Whisper (for consistency)
+                        # This ensures wake word detection sees the same audio levels as Whisper transcription
+                        wake_word_audio = normalize_audio_for_whisper(channel_audio.copy())
                         
-                        # Call process directly with same audio VAD uses - OpenWakeWord handles buffering internally
-                        wake_detected, confidence = wake_word_detector.process(channel_audio)
+                        # Ensure channel_audio is 1D (same as VAD uses it)
+                        if wake_word_audio.ndim > 1:
+                            wake_word_audio = wake_word_audio.flatten()
+                        
+                        # OpenWakeWord handles buffering internally, so we can call process() directly
+                        # Use normalized audio (same normalization as Whisper) for consistent processing
+                        wake_detected, confidence = wake_word_detector.process(wake_word_audio)
                         
                         if wake_detected:
                             # Print RMS and audio features at detection time (using same calculation as VAD)
