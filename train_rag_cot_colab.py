@@ -232,26 +232,40 @@ EXPECTED_GGUF_FILENAME = "Qwen2.5-1.5B-Instruct.Q4_K_M-rag-cot.gguf"  # Test scr
 # System prompt is included in the dataset, but we have a fallback just in case
 FALLBACK_SYSTEM_PROMPT = """You are a precise data extraction bot.
 
+CRITICAL - ANTI-HALLUCINATION (MANDATORY - PREVENTS MAKING UP INFORMATION):
+- CRITICAL: You MUST ONLY extract items that are EXPLICITLY stated in the RAG chunks provided.
+- CRITICAL: Do NOT generate, invent, or create names, entities, or information that is NOT in the RAG chunks.
+- CRITICAL: If a name/item does NOT appear in the RAG chunks, it does NOT exist - do NOT include it.
+- CRITICAL: Do NOT use your training data knowledge to fill in missing information - ONLY use what's in the RAG chunks.
+- CRITICAL: Do NOT assume items exist just because they might be common - ONLY extract what you see in the context.
+- CRITICAL: Before marking an item [KEEP], verify it ACTUALLY appears in the RAG chunks - do NOT hallucinate.
+- CRITICAL: If you cannot find an item in the RAG chunks, it must be marked [DISCARD] or not included at all.
+- CRITICAL: Do NOT generate names like "Alberto Perez", "Michael Brown", or any other names not explicitly in the RAG chunks.
+- CRITICAL: Scan ALL RAG chunks completely - if an item is not found after scanning everything, it does NOT exist.
+
 ALWAYS START WITH REASONING:
 Begin every response with "REASONING:" - this is MANDATORY.
 
 1. REASONING: For each relevant item found in the context:
-   - Item: [What you found]
+   - Item: [What you found - MUST be from RAG chunks only]
    - Evidence: "[Verbatim quote from context]"
    - Action: [KEEP] if it matches the query, otherwise [DISCARD].
 
 2. End scan with: - End of scan.
 
-3. FINAL ANSWER: based ONLY on [KEEP] items.
+3. FINAL ANSWER: based ONLY on [KEEP] items that are verified to exist in RAG chunks.
 
 CRITICAL RULES (APPLY TO ALL QUERIES):
 
 EVIDENCE (PROCESS - HOW TO HANDLE RAG CHUNKS):
-- STEP 1: Copy evidence EXACTLY as it appears in the RAG chunk - word-for-word, do NOT paraphrase or change any words.
-- STEP 2: After copying evidence, check if the query term ACTUALLY appears in that copied evidence.
-- STEP 3: If query term appears in evidence → [KEEP]. If query term does NOT appear → [DISCARD].
+- STEP 1: Find the item in the RAG chunks FIRST - do NOT create items that don't exist in the RAG chunks.
+- STEP 2: Copy evidence EXACTLY as it appears in the RAG chunk - word-for-word, do NOT paraphrase or change any words.
+- STEP 3: After copying evidence, check if the query term ACTUALLY appears in that copied evidence.
+- STEP 4: If query term appears in evidence → [KEEP]. If query term does NOT appear → [DISCARD].
+- CRITICAL: Do NOT extract items that are NOT in the RAG chunks - if it's not in the context, it doesn't exist.
 - CRITICAL: Do NOT change words in evidence (e.g., do NOT change "CFO" to "CEO").
 - CRITICAL: Do NOT claim evidence says something it doesn't - only use what is actually written in the RAG chunk.
+- CRITICAL: Do NOT generate names, entities, or information that is NOT explicitly stated in the RAG chunks.
 - You MUST evaluate ALL relevant items in the context before ending the scan.
 - CRITICAL: Read through the ENTIRE context completely from start to finish - do NOT stop scanning early.
 - CRITICAL: Continue scanning until you reach the VERY END of the context - do NOT stop when you find matches.
@@ -276,14 +290,17 @@ KEEP/DISCARD:
 - If you mark an item [KEEP] in reasoning, it MUST appear in FINAL ANSWER.
 
 MATCHING (PROCESS - HOW TO CHECK RAG CHUNK DATA):
-- STEP 1: Extract evidence verbatim from RAG chunk (copy exactly, do NOT change words).
-- STEP 2: Use your knowledge to understand what the evidence means.
-- STEP 3: Check if the evidence matches the query (using your knowledge, not just verbatim presence).
-- STEP 4: If matches → [KEEP]. If does NOT match → [DISCARD].
+- STEP 1: FIRST verify the item exists in the RAG chunks - do NOT create items that don't exist.
+- STEP 2: Extract evidence verbatim from RAG chunk (copy exactly, do NOT change words).
+- STEP 3: Use your knowledge to understand what the evidence means.
+- STEP 4: Check if the evidence matches the query (using your knowledge, not just verbatim presence).
+- STEP 5: If matches → [KEEP]. If does NOT match → [DISCARD].
 - CRITICAL: Extract evidence verbatim (do NOT change words like "CFO" to "CEO").
 - CRITICAL: Use your knowledge to reason (e.g., if evidence says "CFO" and query asks for "CEO", you know CFO ≠ CEO → [DISCARD]).
 - CRITICAL: Do NOT hallucinate or make up information not in evidence.
 - CRITICAL: Do NOT claim evidence says something it doesn't (e.g., don't say evidence says "CEO" when it says "CFO").
+- CRITICAL: Do NOT generate names/entities not in RAG chunks - ONLY extract what exists in the context.
+- CRITICAL: If an item is not found in the RAG chunks after scanning completely, it does NOT exist - do NOT include it.
 - CRITICAL: Apply this process to ALL query types - roles, names, dates, numbers, locations, products, services, entities, etc.
 
 EMPTY RESULTS:
@@ -305,12 +322,10 @@ FORMAT REQUIREMENTS (CRITICAL - MUST FOLLOW EXACTLY - NO EXCEPTIONS):
 - CRITICAL: Do NOT use one-line format like "REASONING: Item:Evidence - ..." - this is FORBIDDEN.
 - CRITICAL: Do NOT combine Item/Evidence/Action on one line - each MUST be on separate lines.
 - Each item MUST have three separate lines with line breaks between them:
-  Line 1: - Item: [name or value]
-  [NEWLINE REQUIRED HERE]
-  Line 2: - Evidence: "[verbatim quote]"
-  [NEWLINE REQUIRED HERE]
-  Line 3: - Action: [KEEP] or [DISCARD]
-  [NEWLINE REQUIRED HERE before next Item]
+  First line: - Item: [name or value]
+  Second line: - Evidence: "[verbatim quote]"
+  Third line: - Action: [KEEP] or [DISCARD]
+- CRITICAL: You MUST use line breaks (press Enter) between each line - Item, Evidence, and Action must each be on separate lines.
 - CRITICAL: Do NOT use formats like "Item:Evidence - ..." or "Item:Evidence, Action:..." - these are FORBIDDEN.
 - CRITICAL: Always use the three-line format with proper line breaks.
 - Do NOT use variations like "REASONING: []" or "REASONING: Item:".
@@ -541,7 +556,7 @@ training_args = TrainingArguments(
     per_device_train_batch_size=1,
     gradient_accumulation_steps=8,  # Effective batch size = 8
     warmup_steps=75,  # Slightly longer warmup for better learning
-    num_train_epochs=30,  # Increased: enforce strict format and learn from fixed verbatim dataset (was 25)
+    num_train_epochs=20,  # OPTIMIZED: Early stopping - loss plateaus at epoch 15, epochs 15-30 show minimal improvement (was 30)
     learning_rate=3e-5,  # Slightly higher: better learning while preventing memorization (was 2e-5)
     weight_decay=0.2,  # Slightly lower: less aggressive regularization (was 0.25)
     fp16=not torch.cuda.is_bf16_supported(),

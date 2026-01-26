@@ -1591,6 +1591,16 @@ JSON array only:"""
                 # This ensures production behavior matches test results
                 cot_system_prompt = (
                     "You are a precise data extraction bot.\n\n"
+                    "CRITICAL - ANTI-HALLUCINATION (MANDATORY - PREVENTS MAKING UP INFORMATION):\n"
+                    "- CRITICAL: You MUST ONLY extract items that are EXPLICITLY stated in the RAG chunks provided.\n"
+                    "- CRITICAL: Do NOT generate, invent, or create names, entities, or information that is NOT in the RAG chunks.\n"
+                    "- CRITICAL: If a name/item does NOT appear in the RAG chunks, it does NOT exist - do NOT include it.\n"
+                    "- CRITICAL: Do NOT use your training data knowledge to fill in missing information - ONLY use what's in the RAG chunks.\n"
+                    "- CRITICAL: Do NOT assume items exist just because they might be common - ONLY extract what you see in the context.\n"
+                    "- CRITICAL: Before marking an item [KEEP], verify it ACTUALLY appears in the RAG chunks - do NOT hallucinate.\n"
+                    "- CRITICAL: If you cannot find an item in the RAG chunks, it must be marked [DISCARD] or not included at all.\n"
+                    "- CRITICAL: Do NOT generate names like \"Alberto Perez\", \"Michael Brown\", or any other names not explicitly in the RAG chunks.\n"
+                    "- CRITICAL: Scan ALL RAG chunks completely - if an item is not found after scanning everything, it does NOT exist.\n\n"
                     "CRITICAL - OUTPUT FORMAT (MANDATORY - NO EXCEPTIONS):\n"
                     "- You MUST ALWAYS start with \"REASONING:\" on its own line followed by a newline.\n"
                     "- You MUST NEVER output the answer before REASONING: - the answer comes ONLY after REASONING.\n"
@@ -1604,25 +1614,30 @@ JSON array only:"""
                     "CRITICAL: REASONING: must be the FIRST line of your response - no text before it.\n"
                     "CRITICAL: Do NOT output the answer before REASONING: - REASONING comes first, answer comes last.\n\n"
                     "1. REASONING: For each relevant item found in the context:\n"
-                    "   - Item: [What you found]\n"
+                    "   - Item: [What you found - MUST be from RAG chunks only]\n"
                     "   - Evidence: \"[Verbatim quote from context]\"\n"
                     "   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n\n"
                     "2. End scan with: - End of scan.\n\n"
-                    "3. FINAL ANSWER: based ONLY on [KEEP] items.\n\n"
+                    "3. FINAL ANSWER: based ONLY on [KEEP] items that are verified to exist in RAG chunks.\n\n"
                     "CRITICAL RULES (APPLY TO ALL QUERIES):\n\n"
                     "EVIDENCE (PROCESS - HOW TO HANDLE RAG CHUNKS):\n"
-                    "- STEP 1: Copy evidence EXACTLY as it appears in the RAG chunk - word-for-word, do NOT paraphrase or change any words.\n"
-                    "- STEP 2: After copying evidence, check if the query term ACTUALLY appears in that copied evidence.\n"
-                    "- STEP 3: If query term appears in evidence → [KEEP]. If query term does NOT appear → [DISCARD].\n"
+                    "- STEP 1: Find the item in the RAG chunks FIRST - do NOT create items that don't exist in the RAG chunks.\n"
+                    "- STEP 2: Copy evidence EXACTLY as it appears in the RAG chunk - word-for-word, do NOT paraphrase or change any words.\n"
+                    "- STEP 3: After copying evidence, check if the query term ACTUALLY appears in that copied evidence.\n"
+                    "- STEP 4: If query term appears in evidence → [KEEP]. If query term does NOT appear → [DISCARD].\n"
+                    "- CRITICAL: Do NOT extract items that are NOT in the RAG chunks - if it's not in the context, it doesn't exist.\n"
                     "- CRITICAL: Do NOT change words in evidence (e.g., do NOT change \"CFO\" to \"CEO\").\n"
                     "- CRITICAL: Do NOT claim evidence says something it doesn't - only use what is actually written in the RAG chunk.\n"
+                    "- CRITICAL: Do NOT generate names, entities, or information that is NOT explicitly stated in the RAG chunks.\n"
                     "- You MUST evaluate ALL relevant items in the context before ending the scan.\n"
                     "- CRITICAL: Read through the ENTIRE context completely from start to finish - do NOT stop scanning early.\n"
                     "- CRITICAL: Continue scanning until you reach the VERY END of the context - do NOT stop when you find matches.\n"
                     "- CRITICAL: Items may appear at the VERY END of long contexts - you MUST scan until the absolute end.\n"
                     "- Scan systematically through all chunks, paragraphs, and sections.\n"
                     "- In complex contexts with many entities, scan ALL entities before ending.\n"
-                    "- Entities may appear late in the context - continue scanning until the very end.\n"
+                    "- CRITICAL: Relevant items may appear at the VERY END of long contexts - you MUST read to the end.\n"
+                    "- CRITICAL: Do NOT stop when you find some matches - continue scanning for ALL matches.\n"
+                    "- CRITICAL: If query asks for a list (e.g., \"co-founders\", \"products\", \"locations\"), ensure you found ALL matching items.\n"
                     "- Do NOT end scan until you have checked EVERY relevant item in the context.\n"
                     "- Do NOT stop scanning when you find matches - continue until the END of context.\n"
                     "- Do NOT assume you've found all items - always scan to the very end.\n"
@@ -1636,14 +1651,17 @@ JSON array only:"""
                     "- FINAL ANSWER must include ALL items marked [KEEP] - do not omit any.\n"
                     "- If you mark an item [KEEP] in reasoning, it MUST appear in FINAL ANSWER.\n\n"
                     "MATCHING (PROCESS - HOW TO CHECK RAG CHUNK DATA):\n"
-                    "- STEP 1: Extract evidence verbatim from RAG chunk (copy exactly, do NOT change words).\n"
-                    "- STEP 2: Use your knowledge to understand what the evidence means.\n"
-                    "- STEP 3: Check if the evidence matches the query (using your knowledge, not just verbatim presence).\n"
-                    "- STEP 4: If matches → [KEEP]. If does NOT match → [DISCARD].\n"
+                    "- STEP 1: FIRST verify the item exists in the RAG chunks - do NOT create items that don't exist.\n"
+                    "- STEP 2: Extract evidence verbatim from RAG chunk (copy exactly, do NOT change words).\n"
+                    "- STEP 3: Use your knowledge to understand what the evidence means.\n"
+                    "- STEP 4: Check if the evidence matches the query (using your knowledge, not just verbatim presence).\n"
+                    "- STEP 5: If matches → [KEEP]. If does NOT match → [DISCARD].\n"
                     "- CRITICAL: Extract evidence verbatim (do NOT change words like \"CFO\" to \"CEO\").\n"
                     "- CRITICAL: Use your knowledge to reason (e.g., if evidence says \"CFO\" and query asks for \"CEO\", you know CFO ≠ CEO → [DISCARD]).\n"
                     "- CRITICAL: Do NOT hallucinate or make up information not in evidence.\n"
                     "- CRITICAL: Do NOT claim evidence says something it doesn't (e.g., don't say evidence says \"CEO\" when it says \"CFO\").\n"
+                    "- CRITICAL: Do NOT generate names/entities not in RAG chunks - ONLY extract what exists in the context.\n"
+                    "- CRITICAL: If an item is not found in the RAG chunks after scanning completely, it does NOT exist - do NOT include it.\n"
                     "- CRITICAL: Apply this process to ALL query types - roles, names, dates, numbers, locations, products, services, entities, etc.\n\n"
                     "EMPTY RESULTS:\n"
                     "- If ALL items are marked [DISCARD], FINAL ANSWER must indicate no matches found.\n\n"
@@ -1662,12 +1680,10 @@ JSON array only:"""
                     "- CRITICAL: Do NOT use one-line format like \"REASONING: Item:Evidence - ...\" - this is FORBIDDEN.\n"
                     "- CRITICAL: Do NOT combine Item/Evidence/Action on one line - each MUST be on separate lines.\n"
                     "- Each item MUST have three separate lines with line breaks between them:\n"
-                    "  Line 1: - Item: [name or value]\n"
-                    "  [NEWLINE REQUIRED HERE]\n"
-                    "  Line 2: - Evidence: \"[verbatim quote]\"\n"
-                    "  [NEWLINE REQUIRED HERE]\n"
-                    "  Line 3: - Action: [KEEP] or [DISCARD]\n"
-                    "  [NEWLINE REQUIRED HERE before next Item]\n"
+                    "  First line: - Item: [name or value]\n"
+                    "  Second line: - Evidence: \"[verbatim quote]\"\n"
+                    "  Third line: - Action: [KEEP] or [DISCARD]\n"
+                    "- CRITICAL: You MUST use line breaks (press Enter) between each line.\n"
                     "- CRITICAL: Do NOT use formats like \"Item:Evidence - ...\" or \"Item:Evidence, Action:...\" - these are FORBIDDEN.\n"
                     "- CRITICAL: Always use the three-line format with proper line breaks.\n"
                     "- CRITICAL: Do NOT use format like \"REASONING:- Item:... - Evidence:... - Action:...\".\n"
@@ -1730,6 +1746,7 @@ JSON array only:"""
             
             # Match test script parameters EXACTLY (from test_rag_cot_model_colab.py)
             # Test script uses: temperature=0.0, top_p=1.0, repeat_penalty=1.1, max_tokens=2048, stop=["<|im_end|>", "\n\n\n"]
+            # OPTIMIZED for deterministic output: top_k=-1 (disable top_k sampling for true determinism)
             max_tokens_limit = 2048  # Always use 2048 for RAG queries to match test script
             # Use CoT model for RAG queries (dual-model architecture)
             # Only use CoT model if RAG found content (quick_content_match=True)
@@ -1740,6 +1757,7 @@ JSON array only:"""
                 stream=stream,
                 use_cot_model=True,  # RAG found content - use CoT model
                 top_p=1.0,  # Match test script (disable top_p sampling)
+                top_k=-1,  # OPTIMIZED: Disable top_k sampling for true deterministic output (was default 40)
                 repeat_penalty=1.1,  # Match test script (lower repeat penalty)
                 stop=["<|im_end|>", "\n\n\n"],  # Match test script stop sequences
             )
@@ -3381,28 +3399,55 @@ def filter_cot_reasoning(generator):
     def extract_discarded_items(reasoning_text):
         """Extract names/items that were marked [DISCARD] in reasoning section"""
         discarded = set()
-        # Match complete item blocks: - Item: [Name] ... - Action: [ACTION]
-        # Use non-greedy matching to stop at the next "- Item:" or end
-        # More robust: handle both "- Item:" and "Item:" formats, and handle multi-line evidence
-        pattern = r'(?:^|\n)\s*-\s*Item:\s*([^-]+?)\s*-\s*(?:Evidence:[^-]*?)?\s*-\s*Action:\s*(\[[^\]]+\])'
-        matches = re.finditer(pattern, reasoning_text, re.IGNORECASE | re.DOTALL | re.MULTILINE)
+        # More robust pattern: handle both "- Item:" and "Item:" formats, with or without dashes
+        # Handle multi-line evidence and various spacing
+        # Pattern 1: Standard format with dashes: "- Item: [Name] ... - Action: [DISCARD]"
+        pattern1 = r'(?:^|\n)\s*-?\s*Item:\s*([^-]+?)(?:\s*-\s*(?:Evidence|Role):[^-]*?)?\s*-\s*Action:\s*(\[[^\]]+\])'
+        # Pattern 2: Handle cases where Evidence is on a new line: "Item: [Name]\n  - Evidence: ...\n  - Action: [DISCARD]"
+        pattern2 = r'(?:^|\n)\s*-?\s*Item:\s*([^\n-]+?)(?:\n[^\n]*?Evidence:[^\n]*?)?\n[^\n]*?Action:\s*(\[[^\]]+\])'
         
-        for match in matches:
-            item_name = match.group(1).strip()
-            action = match.group(2)
+        # Try both patterns
+        for pattern in [pattern1, pattern2]:
+            matches = re.finditer(pattern, reasoning_text, re.IGNORECASE | re.DOTALL | re.MULTILINE)
             
-            # Only extract if action is [DISCARD]
-            if re.search(r'\[\s*DISCARD\s*\]', action, re.IGNORECASE):
-                # Clean up item name - remove quotes, role prefixes, evidence markers
-                item_name = re.sub(r'^["\']|["\']$', '', item_name)  # Remove quotes
-                item_name = re.sub(r'\s*-\s*Role:.*$', '', item_name, flags=re.IGNORECASE)  # Remove "- Role: ..."
-                item_name = re.sub(r'\s*-\s*Evidence:.*$', '', item_name, flags=re.IGNORECASE)  # Remove "- Evidence: ..."
-                item_name = re.sub(r'\s*-\s*$', '', item_name)  # Remove trailing dash
-                item_name = item_name.strip()
-                if item_name:
-                    discarded.add(item_name.lower())
-                    # Debug: log what we're extracting
-                    print(f"[Generic] 🔍 [CoT Filter] Extracted DISCARD item: '{item_name}' (action: '{action}')")
+            for match in matches:
+                item_name = match.group(1).strip()
+                action = match.group(2)
+                
+                # Only extract if action is [DISCARD]
+                if re.search(r'\[\s*DISCARD\s*\]', action, re.IGNORECASE):
+                    # Clean up item name - remove quotes, role prefixes, evidence markers
+                    item_name = re.sub(r'^["\']|["\']$', '', item_name)  # Remove quotes
+                    item_name = re.sub(r'\s*-\s*Role:.*$', '', item_name, flags=re.IGNORECASE)  # Remove "- Role: ..."
+                    item_name = re.sub(r'\s*-\s*Evidence:.*$', '', item_name, flags=re.IGNORECASE)  # Remove "- Evidence: ..."
+                    item_name = re.sub(r'\s*-\s*$', '', item_name)  # Remove trailing dash
+                    item_name = re.sub(r'\n.*$', '', item_name)  # Remove newlines and everything after
+                    item_name = item_name.strip()
+                    if item_name:
+                        discarded.add(item_name.lower())
+                        # Debug: log what we're extracting
+                        print(f"[Generic] 🔍 [CoT Filter] Extracted DISCARD item: '{item_name}' (action: '{action}')")
+        
+        # Also try a simpler fallback: find all [DISCARD] actions and extract preceding Item names
+        if not discarded:
+            # Find all Action: [DISCARD] markers
+            discard_matches = list(re.finditer(r'Action:\s*\[\s*DISCARD\s*\]', reasoning_text, re.IGNORECASE))
+            for discard_match in discard_matches:
+                # Find the preceding Item: before this DISCARD
+                text_before = reasoning_text[:discard_match.start()]
+                # Find the last Item: before this DISCARD
+                item_matches = list(re.finditer(r'(?:^|\n)\s*-?\s*Item:\s*([^\n-]+?)(?:\s*-\s*(?:Evidence|Role):|\n|$)', text_before, re.IGNORECASE | re.MULTILINE))
+                if item_matches:
+                    last_item = item_matches[-1]
+                    item_name = last_item.group(1).strip()
+                    item_name = re.sub(r'^["\']|["\']$', '', item_name)
+                    item_name = re.sub(r'\s*-\s*Role:.*$', '', item_name, flags=re.IGNORECASE)
+                    item_name = re.sub(r'\s*-\s*Evidence:.*$', '', item_name, flags=re.IGNORECASE)
+                    item_name = item_name.strip()
+                    if item_name:
+                        discarded.add(item_name.lower())
+                        print(f"[Generic] 🔍 [CoT Filter] Extracted DISCARD item (fallback): '{item_name}'")
+        
         return discarded
     
     def extract_kept_items(reasoning_text):
@@ -3673,6 +3718,60 @@ def filter_cot_reasoning(generator):
                     print(f"[Generic] 🚫 [CoT Reasoning Debug] Items marked DISCARD: {discarded_items}")
                 else:
                     print(f"[Generic] 🚫 [CoT Reasoning Debug] No DISCARD items found")
+                # VALIDATION: Check if items in REASONING actually appear in their evidence quotes (prevent hallucination)
+                all_reasoning_items = kept_items + discarded_items
+                hallucinated_items = []
+                valid_items = []
+                
+                # Extract all Item:Evidence pairs from reasoning to validate
+                item_evidence_pairs = re.finditer(
+                    r'- Item:\s*([^-]+?)\s*-\s*Evidence:\s*"([^"]+)"',
+                    clean_reasoning,
+                    re.IGNORECASE | re.DOTALL
+                )
+                
+                for pair_match in item_evidence_pairs:
+                    item_name = pair_match.group(1).strip()
+                    evidence = pair_match.group(2).strip()
+                    
+                    # Clean item name
+                    item_name = re.sub(r'^["\']|["\']$', '', item_name)
+                    item_name = item_name.strip()
+                    
+                    if not item_name:
+                        continue
+                    
+                    # Check if item name appears in its evidence (case-insensitive, allow partial matches for multi-word names)
+                    item_parts = item_name.split()
+                    evidence_lower = evidence.lower()
+                    
+                    if len(item_parts) > 1:
+                        # Multi-word name: check if all significant parts appear
+                        all_parts_found = all(
+                            part.lower() in evidence_lower 
+                            for part in item_parts 
+                            if len(part) > 2  # Ignore short words like "a", "an", "the"
+                        )
+                        if all_parts_found:
+                            valid_items.append(item_name)
+                        else:
+                            hallucinated_items.append(item_name)
+                            print(f"[Generic] 🚫 [CoT Validation] HALLUCINATION DETECTED: '{item_name}' not found in its evidence: '{evidence[:100]}...'")
+                    else:
+                        # Single word: check if it appears (minimum length to avoid false positives)
+                        if len(item_name) > 2 and item_name.lower() in evidence_lower:
+                            valid_items.append(item_name)
+                        else:
+                            hallucinated_items.append(item_name)
+                            print(f"[Generic] 🚫 [CoT Validation] HALLUCINATION DETECTED: '{item_name}' not found in its evidence: '{evidence[:100]}...'")
+                
+                if hallucinated_items:
+                    print(f"[Generic] ⚠️ [CoT Validation] Found {len(hallucinated_items)} hallucinated items in REASONING: {hallucinated_items}")
+                    print(f"[Generic] ⚠️ [CoT Validation] This is a TRAINING ISSUE - model should only reason about items that appear in RAG chunks")
+                    print(f"[Generic] ✅ [CoT Validation] Valid items: {valid_items}")
+                else:
+                    print(f"[Generic] ✅ [CoT Validation] All {len(all_reasoning_items)} items in REASONING are valid (appear in their evidence)")
+                
                 if kept_items:
                     print(f"[Generic] ✅ [CoT Reasoning Debug] Items marked KEEP ({len(kept_items)}): {kept_items}")
                 else:
@@ -3845,8 +3944,12 @@ def filter_cot_reasoning(generator):
         
         # POST-PROCESSING: Clean up formatting (deterministic, no model confusion)
         # 1. Remove role titles for "Who is [ROLE]?" queries (e.g., "The CTO" → just the name)
-        # Pattern: "The [ROLE]" or "[ROLE]" at start of answer
-        final_answer = re.sub(r'^(The\s+)?(CEO|CTO|CFO|CMO|COO|Chief\s+\w+\s+Officer|President|Director|Manager|Lead|Head\s+of\s+\w+)(\s+is\s+|\s+of\s+|\s+at\s+)?', '', final_answer, flags=re.IGNORECASE)
+        # Pattern 1: "The [ROLE] of [Company] is [Name]" → "[Name]"
+        final_answer = re.sub(r'^(The\s+)?(CEO|CTO|CFO|CMO|COO|Chief\s+\w+\s+Officer|President|Director|Manager|Lead|Head\s+of\s+\w+)(\s+of\s+[^.]+\s+is\s+|\s+is\s+)', '', final_answer, flags=re.IGNORECASE)
+        # Pattern 2: "[Name] is the [ROLE]" → "[Name]"
+        final_answer = re.sub(r'\s+is\s+(the\s+)?(CEO|CTO|CFO|CMO|COO|Chief\s+\w+\s+Officer|President|Director|Manager|Lead|Head\s+of\s+\w+)(\s+of\s+[^.]*)?\.?\s*$', '', final_answer, flags=re.IGNORECASE)
+        # Pattern 3: "The [ROLE] is [Name]" → "[Name]"
+        final_answer = re.sub(r'^(The\s+)?(CEO|CTO|CFO|CMO|COO|Chief\s+\w+\s+Officer|President|Director|Manager|Lead|Head\s+of\s+\w+)\s+is\s+', '', final_answer, flags=re.IGNORECASE)
         
         # 2. Remove dates/years from amounts (e.g., "$50 million in 2023" → "$50 million")
         # Pattern: "in 20XX" or "for 20XX" or "(20XX)" after amounts
@@ -3974,6 +4077,31 @@ def filter_cot_reasoning(generator):
                 print(f"[Generic] ✅ [CoT Reasoning Debug] Added missing KEEP items: {final_answer[:200]}...")
             else:
                 print(f"[Generic] ✅ [CoT Reasoning Debug] All KEEP items present in final answer")
+        
+        # CRITICAL: Final safety check - ensure NO discarded items are in final answer
+        # This catches cases where reconstruction or model output accidentally includes them
+        if discarded_items and final_answer:
+            final_answer_lower = final_answer.lower()
+            for discarded_name in discarded_items:
+                name_parts = discarded_name.split()
+                if len(name_parts) > 1:
+                    pattern = r'\b' + r'\s+'.join([re.escape(part) for part in name_parts]) + r'\b'
+                else:
+                    pattern = r'\b' + re.escape(discarded_name) + r'\b'
+                
+                if re.search(pattern, final_answer_lower):
+                    print(f"[Generic] ⚠️  [CoT Safety Check] Found DISCARD item '{discarded_name}' in final answer - removing")
+                    final_answer = re.sub(pattern, '', final_answer, flags=re.IGNORECASE)
+                    # Clean up again after removal
+                    final_answer = re.sub(r'\s+', ' ', final_answer)
+                    final_answer = re.sub(r',\s*,', ',', final_answer)
+                    final_answer = re.sub(r',\s*and\s*,', ',', final_answer)
+                    final_answer = re.sub(r'\s+and\s+and\s+', ' and ', final_answer, flags=re.IGNORECASE)
+                    final_answer = re.sub(r'^\s*,\s*', '', final_answer)
+                    final_answer = re.sub(r'\s*,\s*$', '', final_answer)
+                    final_answer = re.sub(r'^\s*and\s+', '', final_answer, flags=re.IGNORECASE)
+                    final_answer = re.sub(r'\s+and\s*$', '', final_answer, flags=re.IGNORECASE)
+                    print(f"[Generic] ✅ [CoT Safety Check] Removed '{discarded_name}' - cleaned answer: {final_answer[:200]}...")
         
         if final_answer.strip():
             print(f"[Generic] 📝 [CoT Reasoning Debug] Final FINAL ANSWER: {final_answer[:200]}...")
