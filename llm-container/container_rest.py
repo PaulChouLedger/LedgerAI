@@ -3454,20 +3454,11 @@ def filter_cot_reasoning(generator):
             else:
                 reasoning_marker = "REASONING:"  # Fallback
             pre_reasoning_content = detection_buffer.split(reasoning_marker)[0].strip()
-            # Store pre-reasoning content for potential fallback if REASONING extraction fails
-            stored_pre_reasoning = pre_reasoning_content if pre_reasoning_content else None
             if pre_reasoning_content:
-                # Check if pre-reasoning content looks like a direct answer (e.g., "The CEO of Ledger AI is Paul Chou.")
-                # If it does, we should extract it as a fallback if REASONING extraction fails
-                # But still suppress it from being spoken (we'll use REASONING extraction instead)
-                looks_like_answer = any(pattern in pre_reasoning_content.lower() for pattern in [
-                    "is ", "are ", "was ", "were ", "the ", "ceo of", "founder of", "co-founder of"
-                ]) and len(pre_reasoning_content) < 200  # Short, direct answer format
-                
-                if looks_like_answer:
-                    print(f"[Generic] 💭 [CoT Filter] Pre-reasoning content looks like direct answer: '{pre_reasoning_content[:100]}...' (will suppress but may use as fallback if REASONING extraction fails)")
-                else:
-                    print(f"[Generic] 💭 [CoT Filter] Suppressing pre-reasoning content: '{pre_reasoning_content[:50]}...' (CoT responses must start with REASONING:)")
+                # For CoT responses, suppress ALL pre-reasoning content
+                # The model should start with REASONING:, not output answers first
+                # Any content before REASONING: is likely hallucinated or incorrect
+                print(f"[Generic] 💭 [CoT Filter] Suppressing pre-reasoning content: '{pre_reasoning_content[:50]}...' (CoT responses must start with REASONING:)")
                 # Don't yield - suppress everything before REASONING:
             
             # Use only the REASONING part for CoT processing
