@@ -30,6 +30,7 @@ FRAME_SIZE = int(SAMPLE_RATE * 0.032)
 SILENCE_TIMEOUT = 0.2  # 200ms of silence before stopping
 VAD_START_THRESHOLD = 0.25  # Lowered - beamforming provides good noise rejection
 VAD_SILENCE_THRESHOLD = 0.10  # Lower = more conservative about ending (reduced to tolerate brief pauses)
+VAD_WAKE_WORD_THRESHOLD = 0.01  # Much lower threshold for wake word detection (wake words are shorter/quieter than normal speech)
 MIN_AUDIO_SAMPLES = 2000
 
 # === Wake Word Configuration ===
@@ -1066,10 +1067,11 @@ def listen():
                         # Print status (same format as VAD)
                         print(f"[Wake Word] VAD {vad_prob:.2f} | RMS {features['rms']:.4f} | Peak {features['peak']:.3f}", end="\r")
                         
-                        # Only process wake word detection when VAD indicates speech activity
-                        # This filters out silence and noise, making wake word detection more reliable
-                        if vad_prob <= VAD_START_THRESHOLD:
-                            # No speech activity detected - skip wake word processing
+                        # Use lower VAD threshold for wake word detection (wake words are shorter/quieter than normal speech)
+                        # This allows wake word detection to work with quieter/shorter utterances
+                        # while still filtering out complete silence
+                        if vad_prob <= VAD_WAKE_WORD_THRESHOLD:
+                            # Very low/no speech activity - skip wake word processing (complete silence)
                             continue
                         
                         # Apply advanced filter if enabled (same as VAD loop)

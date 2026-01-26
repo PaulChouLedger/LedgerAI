@@ -3418,8 +3418,11 @@ def filter_cot_reasoning(generator):
         # Strategy: Handle both three-line format and one-line format
         # Pattern 1: Three-line format (preferred): - Item: ... - Evidence: ... - Action: [KEEP]
         pattern1 = r'- Item:\s*([^-]+?)(?:(?!\s*-\s*Item:).)*?-\s*Action:\s*\[\s*KEEP\s*\]'
-        # Pattern 2: One-line format (fallback): REASONING:- Item:... - Evidence:... - Action:[KEEP]
-        pattern2 = r'(?:REASONING:|- Item:)\s*([^-]+?)\s*-\s*Evidence:[^-]*?\s*-\s*Action:\s*\[\s*KEEP\s*\]'
+        
+        # Pattern 2: One-line format - more specific to capture full names
+        # Matches: "- Item:Bob Carella - Evidence:..." or "REASONING:- Item:Bob Carella - Evidence:..."
+        # CRITICAL: Use greedy match for name part, but stop at " - Evidence:" or " - Action:"
+        pattern2 = r'(?:REASONING:|- Item:)\s*([A-Za-z][A-Za-z\s]+?)(?:\s*-\s*Evidence:|\s*-\s*Action:).*?Action:\s*\[\s*KEEP\s*\]'
         
         # Try pattern 1 first (three-line format)
         matches = re.finditer(pattern1, reasoning_text, re.IGNORECASE | re.DOTALL)
@@ -3433,7 +3436,7 @@ def filter_cot_reasoning(generator):
             item_name = re.sub(r'\s*-\s*Evidence:.*$', '', item_name, flags=re.IGNORECASE)
             item_name = re.sub(r'\s*-\s*$', '', item_name)
             item_name = item_name.strip()
-            if item_name and item_name not in kept_items:
+            if item_name and len(item_name) > 1 and item_name not in kept_items:  # Filter out single letters
                 kept_items.append(item_name)
                 print(f"[Generic] 🔍 [CoT Filter] Extracted KEEP item: '{item_name}'")
         
@@ -3444,24 +3447,39 @@ def filter_cot_reasoning(generator):
                 item_name = match.group(1).strip()
                 item_name = re.sub(r'^["\']|["\']$', '', item_name)
                 item_name = item_name.strip()
-                if item_name and item_name not in kept_items:
+                # Filter out single letters and ensure it's a valid name
+                if item_name and len(item_name) > 1 and item_name not in kept_items:
                     kept_items.append(item_name)
                     print(f"[Generic] 🔍 [CoT Filter] Extracted KEEP item (one-line format): '{item_name}'")
         
-        # Fallback: Split-based extraction (for edge cases)
-        if not kept_items:
-            segments = re.split(r'\s*-\s*Item:|\bItem:', reasoning_text, flags=re.IGNORECASE)
+        # Fallback: Split-based extraction (for edge cases - more reliable for one-line format)
+        # This is often more reliable than regex for one-line format
+        # CRITICAL: Always check if we got single letters (indicates extraction failure)
+        has_single_letters = any(item for item in kept_items if len(item.strip()) <= 1)
+        if not kept_items or has_single_letters:
+            # Split by "- Item:" to get individual items
+            segments = re.split(r'\s*-\s*Item:', reasoning_text, flags=re.IGNORECASE)
             print(f"[Generic] 🔍 [CoT Filter] Split reasoning into {len(segments)} segments (fallback)")
-            for i, segment in enumerate(segments[1:], 1):
+            # Clear kept_items if we found single letters (indicates extraction failure)
+            if kept_items and len([item for item in kept_items if len(item) <= 1]) > 0:
+                print(f"[Generic] ⚠️ [CoT Filter] Found single-letter items, clearing and re-extracting")
+                kept_items = []
+            
+            for i, segment in enumerate(segments[1:], 1):  # Skip first segment (before first Item)
                 if re.search(r'Action:\s*\[\s*KEEP\s*\]', segment, re.IGNORECASE):
-                    name_match = re.match(r'^([^-]+?)(?:\s*-\s*(?:Evidence|Action):|(?:Evidence|Action):)', segment, re.IGNORECASE)
+                    # Extract name - everything before " - Evidence:" or " - Action:" or just "Evidence:" or "Action:"
+                    # Use more specific pattern to capture full names (must start with letter, contain letters/spaces)
+                    name_match = re.match(r'^([A-Za-z][A-Za-z\s]+?)(?:\s*-\s*(?:Evidence|Action):|(?:Evidence|Action):)', segment, re.IGNORECASE)
                     if name_match:
                         item_name = name_match.group(1).strip()
                         item_name = re.sub(r'^["\']|["\']$', '', item_name)
                         item_name = item_name.strip()
-                        if item_name and item_name not in kept_items:
+                        # Filter out single letters and ensure it's a valid name (at least 2 chars)
+                        if item_name and len(item_name) > 1 and item_name not in kept_items:
                             kept_items.append(item_name)
                             print(f"[Generic] 🔍 [CoT Filter] Extracted KEEP item (split fallback): '{item_name}'")
+                    else:
+                        print(f"[Generic] ⚠️ [CoT Filter] No name match in segment {i}: '{segment[:80]}...'")
         
         return kept_items
     
