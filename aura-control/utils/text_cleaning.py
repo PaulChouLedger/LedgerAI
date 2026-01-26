@@ -36,6 +36,17 @@ def clean_text_formatting(text: str) -> str:
     text = re.sub(r'\*\*+', '', text)  # Remove multiple asterisks
     text = re.sub(r'(?<!\w)\*(?!\w)', '', text)  # Remove single asterisks not part of words
     
+    # Remove LaTeX/math formatting (before other processing)
+    # Remove LaTeX commands like \text{}, \frac{}, etc.
+    text = re.sub(r'\\text\{([^}]+)\}', r'\1', text)  # \text{or} -> or
+    text = re.sub(r'\\frac\{([^}]+)\}\{([^}]+)\}', r'\1/\2', text)  # \frac{3}{4} -> 3/4
+    # Remove LaTeX math delimiters \( and \)
+    text = re.sub(r'\\\(', '', text)  # Remove \(
+    text = re.sub(r'\\\)', '', text)  # Remove \)
+    # Remove other common LaTeX commands
+    text = re.sub(r'\\[a-zA-Z]+\{([^}]*)\}', r'\1', text)  # \command{text} -> text
+    text = re.sub(r'\\[a-zA-Z]+', '', text)  # Remove remaining LaTeX commands
+    
     # Fix missing spaces after punctuation
     text = re.sub(r'([a-zA-Z0-9])([.!?])([a-zA-Z-])', r'\1\2 \3', text)  # word.word -> word. word
     text = re.sub(r'([,.!?:;])([a-zA-Z])', r'\1 \2', text)  # word,word -> word, word

@@ -165,7 +165,7 @@ class BaseLLMContainer:
             "top_k": kwargs.pop("top_k", int(self.LLM_TOP_K)),
             "repeat_penalty": kwargs.pop("repeat_penalty", float(self.LLM_REPEAT_PENALTY)),
             "stream": stream,
-            **kwargs
+            **kwargs  # This allows seed and other params to be passed through
         }
         
         # Default stop tokens to empty list if not provided (can be overridden via kwargs)

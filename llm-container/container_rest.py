@@ -1608,9 +1608,14 @@ JSON array only:"""
                     "  ✅ - Action: [KEEP]\n"
                     "- This format is MANDATORY for ALL queries - no exceptions, no variations.\n\n"
                     "1. REASONING: For each relevant item found in the context:\n"
+                    "   - CRITICAL: Read the ENTIRE context from start to finish before making any decisions.\n"
+                    "   - CRITICAL: For role-based queries (co-founder, founder, CEO, CFO, etc.), scan ALL people mentioned and find ALL whose role matches (case-insensitive).\n"
+                    "   - CRITICAL: For \"co-founder\" queries, check for ALL variations: \"co-founder\", \"Co-Founder\", \"cofounder\", \"CoFounder\", \"co founder\" (all count as matches).\n"
                     "   - Item: [What you found]\n"
                     "   - Evidence: \"[Verbatim quote from context]\"\n"
-                    "   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n\n"
+                    "   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n"
+                    "   - CRITICAL: Only mark [KEEP] if the evidence EXPLICITLY states the role requested (case-insensitive for role terms).\n"
+                    "   - CRITICAL: For \"co-founder\" queries, if evidence says \"Co-Founder\" (capitalized) or \"co-founder\" (lowercase), both match - mark [KEEP].\n\n"
                     "2. End scan with: - End of scan.\n\n"
                     "3. FINAL ANSWER: based ONLY on [KEEP] items.\n"
                     "   CRITICAL: FINAL ANSWER must be a complete, natural sentence that answers the query.\n"
@@ -1628,19 +1633,23 @@ JSON array only:"""
                     "- Entities may appear late in the context - continue scanning until the very end.\n"
                     "- Do NOT end scan until you have checked EVERY relevant item in the context.\n"
                     "- Do NOT stop scanning when you find matches - continue until the END of context.\n"
-                    "- Items may appear at the very end - you MUST scan ALL items before ending.\n\n"
+                    "- Items may appear at the very end - you MUST scan ALL items before ending.\n"
+                    "- CRITICAL: For role-based queries (CEO, CFO, etc.), you MUST find the person whose role is EXPLICITLY stated in the context.\n"
+                    "- CRITICAL: Do NOT confuse similar roles (e.g., COO ≠ CEO, CFO ≠ CEO, CMO ≠ CEO). Only mark [KEEP] if the role EXACTLY matches the query.\n"
+                    "- CRITICAL: If the query asks for CEO, only mark [KEEP] if the evidence explicitly says \"CEO\" or \"Chief Executive Officer\" - not \"COO\", \"CFO\", \"CMO\", or \"Co-Founder\".\n\n"
                     "KEEP/DISCARD:\n"
                     "- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n"
                     "- FINAL ANSWER must ONLY include items marked [KEEP].\n"
                     "- FINAL ANSWER must include ALL items marked [KEEP] - do not omit any.\n"
                     "- If you mark an item [KEEP] in reasoning, it MUST appear in FINAL ANSWER.\n\n"
                     "MATCHING (PREVENTS HALLUCINATION - STRICT VERBATIM RULE):\n"
-                    "- Query term MUST appear verbatim in evidence for [KEEP].\n"
-                    "- If query term appears verbatim in evidence → [KEEP] (regardless of other roles/info mentioned).\n"
-                    "- If query term does NOT appear verbatim in evidence → [DISCARD] (NO exceptions, NO inference, NO assumptions).\n"
-                    "- Similar roles/titles are NOT matches unless query term appears verbatim (e.g., \"Business Development Lead\" ≠ \"co-founder\", \"Ambassador\" ≠ \"co-founder\", \"Ambassador of Influence and Engagement\" ≠ \"co-founder\", \"CTO\" ≠ \"co-founder\").\n"
+                    "- Query term MUST appear in evidence for [KEEP] (case-insensitive for role terms like \"co-founder\", \"founder\", \"CEO\", etc.).\n"
+                    "- For role-based queries (co-founder, founder, CEO, CFO, etc.): Match is case-insensitive and handles variations (e.g., \"co-founder\" = \"Co-Founder\" = \"cofounder\" = \"CoFounder\").\n"
+                    "- If query term appears in evidence (case-insensitive for roles) → [KEEP] (regardless of other roles/info mentioned).\n"
+                    "- If query term does NOT appear in evidence (even case-insensitive) → [DISCARD] (NO exceptions, NO inference, NO assumptions).\n"
+                    "- Similar roles/titles are NOT matches unless query term appears (e.g., \"Business Development Lead\" ≠ \"co-founder\", \"Ambassador\" ≠ \"co-founder\", \"CTO\" ≠ \"co-founder\").\n"
                     "- DO NOT infer or assume relationships - only use explicitly stated information.\n"
-                    "- DO NOT use context clues - only verbatim presence of query term matters.\n\n"
+                    "- CRITICAL: For \"co-founder\" queries, check for \"co-founder\", \"Co-Founder\", \"cofounder\", \"CoFounder\", or \"co founder\" in evidence (all variations count as matches).\n\n"
                     "EMPTY RESULTS:\n"
                     "- If ALL items are marked [DISCARD], FINAL ANSWER must indicate no matches found.\n\n"
                     "OUTPUT FORMAT:\n"
@@ -1694,12 +1703,20 @@ JSON array only:"""
             max_tokens_limit = 2048 if is_list_request else MAX_TOKENS_RAG_MODE
             # Use CoT model for RAG queries (dual-model architecture)
             # Only use CoT model if RAG found content (quick_content_match=True)
+            # CRITICAL: Use fully deterministic settings for consistent reasoning
+            # - temperature=0: Disable sampling (greedy decoding)
+            # - top_p=1.0: Disable top-p sampling (all tokens considered)
+            # - top_k=-1: Disable top-k sampling (all tokens considered)
+            # - seed=42: Fixed seed for reproducibility (same prompt = same output)
             llm_response = llm_chat_simple(
                 messages,
                 max_tokens=max_tokens_limit,
                 temperature=0,
                 stream=stream,
                 use_cot_model=True,  # RAG found content - use CoT model
+                top_p=1.0,  # Disable top-p sampling for determinism
+                top_k=-1,  # Disable top-k sampling for determinism
+                seed=42,  # Fixed seed for reproducibility
                 stop=["<|im_end|>"],
             )
             if stream:
@@ -2888,6 +2905,7 @@ def chat_tts():
                     print("[Generic] ✅ [Stream] Detected pre-tagged sentence stream (passthrough)")
                     token_count = 0
                     full_response_text = ""
+                    clarification_yielded = False
                     for chunk in _chain_first(first_chunk, normalized_chunks):
                         if not chunk:
                             continue
@@ -2896,8 +2914,12 @@ def chat_tts():
                         stripped = chunk.strip()
                         if stripped and stripped not in ("<sentence_start>", "<sentence_end>"):
                             full_response_text += stripped + " "
+                            # Check if this is already a clarification message
+                            if "I'm sorry, I didn't catch that" in stripped:
+                                clarification_yielded = True
                         yield chunk if chunk.endswith("\n") else (chunk + "\n")
-                    if token_count == 0:
+                    # Only yield fallback clarification if we haven't already yielded one
+                    if token_count == 0 and not clarification_yielded:
                         print("[Generic] ⚠️ WARNING: No tokens yielded from pre-tagged stream!")
                         # Fallback: speak a generic clarification
                         yield "<sentence_start>\n"
@@ -2924,6 +2946,8 @@ def chat_tts():
                 word_stream = _word_stream_from_chunks(normalized_chunks)
                 sentence_stream = _sentence_tag_stream(word_stream)
                 token_count = 0
+                clarification_yielded = False
+                # full_response_text is already initialized at function level (line 2738)
                 try:
                     print(f"[Generic] 🔍 [Stream] Getting first token from sentence_stream...")
                     first_token = next(sentence_stream)
@@ -2932,6 +2956,9 @@ def chat_tts():
                     # Yield the first token
                     if not (first_token.startswith('<') and first_token.endswith('>')):
                         full_response_text += first_token
+                        # Check if this is already a clarification message
+                        if "I'm sorry, I didn't catch that" in first_token:
+                            clarification_yielded = True
                     print(f"[Generic] 💭 [Stream] Yielding first token: '{first_token[:50]}...'")
                     yield f"{first_token}\n"
                     # Continue with rest
@@ -2940,22 +2967,32 @@ def chat_tts():
                         # Accumulate tokens for memory storage (skip control tags)
                         if not (token.startswith('<') and token.endswith('>')):
                             full_response_text += token
+                            # Check if this is already a clarification message
+                            if "I'm sorry, I didn't catch that" in token:
+                                clarification_yielded = True
                         yield f"{token}\n"
                 except StopIteration:
-                    # Instead of yielding empty tags (silent), speak a clarification.
-                    yield "<sentence_start>\n"
-                    yield "I'm sorry, I didn't catch that. Can you repeat your question?\n"
-                    yield "<sentence_end>\n"
+                    # Only yield clarification if we haven't already yielded one
+                    if not clarification_yielded:
+                        # Instead of yielding empty tags (silent), speak a clarification.
+                        yield "<sentence_start>\n"
+                        yield "I'm sorry, I didn't catch that. Can you repeat your question?\n"
+                        yield "<sentence_end>\n"
+                        clarification_yielded = True
                 except Exception as e:
                     print(f"[Generic] ⚠️ ERROR iterating sentence_stream: {e}")
                     import traceback
                     traceback.print_exc()
-                    # Speak a clarification instead of silence
-                    yield "<sentence_start>\n"
-                    yield "I'm sorry, I didn't catch that. Can you repeat your question?\n"
-                    yield "<sentence_end>\n"
+                    # Only yield clarification if we haven't already yielded one
+                    if not clarification_yielded:
+                        # Speak a clarification instead of silence
+                        yield "<sentence_start>\n"
+                        yield "I'm sorry, I didn't catch that. Can you repeat your question?\n"
+                        yield "<sentence_end>\n"
+                        clarification_yielded = True
                 
-                if token_count == 0:
+                # Only yield clarification if we haven't already yielded one and no tokens were yielded
+                if token_count == 0 and not clarification_yielded:
                     print(f"[Generic] ⚠️ WARNING: No tokens yielded from sentence_stream!")
                     # Speak a clarification (belt-and-suspenders)
                     yield "<sentence_start>\n"
@@ -3055,6 +3092,17 @@ def _clean_text_formatting(text: str) -> str:
     # Remove standalone asterisks (markdown formatting artifacts)
     text = re.sub(r'\*\*+', '', text)  # Remove multiple asterisks
     text = re.sub(r'(?<!\w)\*(?!\w)', '', text)  # Remove single asterisks not part of words
+    
+    # Remove LaTeX/math formatting (before other processing)
+    # Remove LaTeX commands like \text{}, \frac{}, etc.
+    text = re.sub(r'\\text\{([^}]+)\}', r'\1', text)  # \text{or} -> or
+    text = re.sub(r'\\frac\{([^}]+)\}\{([^}]+)\}', r'\1/\2', text)  # \frac{3}{4} -> 3/4
+    # Remove LaTeX math delimiters \( and \)
+    text = re.sub(r'\\\(', '', text)  # Remove \(
+    text = re.sub(r'\\\)', '', text)  # Remove \)
+    # Remove other common LaTeX commands
+    text = re.sub(r'\\[a-zA-Z]+\{([^}]*)\}', r'\1', text)  # \command{text} -> text
+    text = re.sub(r'\\[a-zA-Z]+', '', text)  # Remove remaining LaTeX commands
     
     # Fix missing spaces after punctuation
     text = re.sub(r'([a-zA-Z0-9])([.!?])([a-zA-Z-])', r'\1\2 \3', text)  # word.word -> word. word
@@ -3466,10 +3514,20 @@ def filter_cot_reasoning(generator):
                 kept_items = []
             
             for i, segment in enumerate(segments[1:], 1):  # Skip first segment (before first Item)
-                if re.search(r'Action:\s*\[\s*KEEP\s*\]', segment, re.IGNORECASE):
+                # CRITICAL: Extract the Action for THIS specific item (before next Item: if present)
+                # Split segment at next "- Item:" to isolate this item's block
+                item_block = segment.split('- Item:')[0] if '- Item:' in segment else segment
+                item_block = item_block.strip()
+                
+                # CRITICAL: Check for KEEP action in THIS item's block - only extract if actually marked KEEP
+                has_keep = re.search(r'Action:\s*\[\s*KEEP\s*\]', item_block, re.IGNORECASE)
+                has_discard = re.search(r'Action:\s*\[\s*DISCARD\s*\]', item_block, re.IGNORECASE)
+                
+                # Only process if marked KEEP and NOT marked DISCARD
+                if has_keep and not has_discard:
                     # Extract name - everything before " - Evidence:" or " - Action:" or just "Evidence:" or "Action:"
                     # Use more specific pattern to capture full names (must start with letter, contain letters/spaces)
-                    name_match = re.match(r'^([A-Za-z][A-Za-z\s]+?)(?:\s*-\s*(?:Evidence|Action):|(?:Evidence|Action):)', segment, re.IGNORECASE)
+                    name_match = re.match(r'^([A-Za-z][A-Za-z\s]+?)(?:\s*-\s*(?:Evidence|Action):|(?:Evidence|Action):)', item_block, re.IGNORECASE)
                     if name_match:
                         item_name = name_match.group(1).strip()
                         item_name = re.sub(r'^["\']|["\']$', '', item_name)
@@ -3479,7 +3537,16 @@ def filter_cot_reasoning(generator):
                             kept_items.append(item_name)
                             print(f"[Generic] 🔍 [CoT Filter] Extracted KEEP item (split fallback): '{item_name}'")
                     else:
-                        print(f"[Generic] ⚠️ [CoT Filter] No name match in segment {i}: '{segment[:80]}...'")
+                        print(f"[Generic] ⚠️ [CoT Filter] No name match in segment {i}: '{item_block[:80]}...'")
+                elif has_discard:
+                    # Log that we're skipping a DISCARD item (for debugging)
+                    name_match = re.match(r'^([A-Za-z][A-Za-z\s]+?)(?:\s*-\s*(?:Evidence|Action):|(?:Evidence|Action):)', item_block, re.IGNORECASE)
+                    if name_match:
+                        item_name = name_match.group(1).strip()
+                        print(f"[Generic] 🔍 [CoT Filter] Skipping DISCARD item (split fallback): '{item_name}'")
+                else:
+                    # No action found in this segment - might be malformed
+                    print(f"[Generic] ⚠️ [CoT Filter] No action found in segment {i}: '{item_block[:80]}...'")
         
         return kept_items
     
