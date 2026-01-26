@@ -3005,8 +3005,22 @@ def chat_tts():
             for token in sentence_stream:
                 yield f"{token}\n"
     
+    # CRITICAL: Only apply CoT filter for RAG queries (use_cot_model=True)
+    # Base model queries should stream directly without CoT filtering for low latency
+    # We need to check if RAG will be used before applying filters
+    def get_response_stream():
+        """Determine if we should apply CoT filter based on whether RAG will be used"""
+        # Create a generator that checks the first few tokens to determine if it's CoT
+        # For base model, we want immediate streaming without buffering
+        base_stream = filter_think_blocks(generate_response())
+        
+        # For base model queries (no RAG), we can detect quickly and bypass CoT filter
+        # The CoT filter will detect non-CoT responses quickly and pass through
+        # But we can optimize further by checking will_use_rag if available
+        return filter_cot_reasoning(base_stream)
+    
     return Response(
-        stream_with_context(filter_cot_reasoning(filter_think_blocks(generate_response()))),
+        stream_with_context(get_response_stream()),
         mimetype="text/plain",
         headers={
             "Cache-Control": "no-cache",
@@ -3505,12 +3519,14 @@ def filter_cot_reasoning(generator):
     # Buffer tokens to detect if this is a CoT response
     token_buffer_list = []  # Store tokens to replay if not CoT
     detection_buffer = ""  # Text for CoT detection
+    first_text_token_yielded = False  # Track if we've yielded the first text token (for immediate passthrough)
     
-    # CRITICAL: For base model (non-RAG) queries, detect non-CoT much faster to avoid delay
-    # Check first few tokens quickly - if they don't look like CoT, pass through immediately
-    fast_detection_threshold = 50  # Reduced from 300 for faster base model passthrough
+    # CRITICAL: For base model (non-RAG) queries, detect non-CoT immediately to avoid delay
+    # Base model responses start with normal text, not "REASONING:" - check first token immediately
+    fast_detection_threshold = 20  # Very fast detection for base model (reduced from 50)
     
-    # First pass: detect CoT by buffering initial tokens
+    # First pass: detect CoT by checking tokens
+    # CRITICAL: For base model, we want to pass through immediately without buffering
     for token in generator:
         # Special-case: allow exactly one *preface* sentence (our injected filler phrase)
         # to pass through immediately before CoT detection buffers the stream.
@@ -3557,8 +3573,38 @@ def filter_cot_reasoning(generator):
                     preface_sentence_parts = []
                 continue
 
-        token_buffer_list.append(token)
         text_content = extract_text(token)
+        
+        # CRITICAL OPTIMIZATION: For base model, check first text token immediately
+        # If first real text doesn't start with "REASONING:", it's base model - stream immediately
+        if text_content and not first_text_token_yielded and len(text_content.strip()) > 0:
+            detection_buffer_lower = text_content.lower().strip()
+            # Check if this first text token starts with "reasoning:" (case-insensitive)
+            # Also check if "reasoning:" appears anywhere in the first token
+            starts_with_reasoning = (
+                detection_buffer_lower.startswith("reasoning:") or 
+                detection_buffer_lower.startswith("reasoning") or
+                "reasoning:" in detection_buffer_lower
+            )
+            
+            if not starts_with_reasoning:
+                # First text token doesn't start with REASONING: - likely base model
+                # Yield immediately without buffering for low latency
+                first_text_token_yielded = True
+                is_cot_response = False
+                cot_detected = True
+                print(f"[Generic] 🔍 [CoT Filter] Base model response detected (first token='{text_content[:30]}...') - streaming immediately")
+                # Yield this token immediately
+                yield token
+                # Yield all previously buffered tokens (if any - usually just sentence tags)
+                for buffered_token in token_buffer_list:
+                    yield buffered_token
+                # Pass through remaining tokens immediately (no buffering)
+                for remaining_token in generator:
+                    yield remaining_token
+                return  # Exit early for non-CoT responses
+        
+        token_buffer_list.append(token)
         
         if text_content:
             detection_buffer += text_content
