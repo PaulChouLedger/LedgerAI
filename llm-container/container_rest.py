@@ -791,36 +791,24 @@ def handle_conversation(
         memory_rag_failed = False  # Track if memory RAG failed (timeout, error, etc.)
         
         # Check if RAG will be used BEFORE doing the search (for filler phrase timing)
-        # PRIMARY DECISION: Use quick_content_match first, only bypass if no content AND clear everyday phrase
-        will_use_rag = False
-        try:
-            client = get_rag_client()
-            if client:
-                has_content = client.quick_content_match(prompt)
-                if has_content:
-                    will_use_rag = True
-                    print(f"[Generic] ✅ Document RAG will be used (quick_content_match=True)")
-                else:
-                    print(f"[Generic] 🔍 Document RAG quick_content_match: no relevant content found")
-        except Exception as e:
-            print(f"[Generic] ⚠️ RAG pre-check failed: {e}")
-        
-        # Filler phrase is now yielded in generate_response() BEFORE calling handle_conversation()
-        # This ensures it plays immediately while RAG search happens
-        # Use RAG if quick_content_match found content (extracts only key terms, skips everyday words)
-        # NOTE: Filler phrase is no longer yielded here - it's yielded in generate_response() before this function is called
-        # Check if RAG should be used - quick_content_match is the only decision maker
+        # PRIMARY DECISION: Skip RAG entirely for conversational queries
+        # CRITICAL: Conversational queries should use base model, not CoT model
         should_use_rag_for_search = False
-        if RAG_MODE in ("CPU", "GPU"):
+        will_use_rag = False  # Also update will_use_rag for filler phrase decision
+        if is_conversational:
+            print(f"[Generic] 🔍 Conversational query detected - skipping RAG (will use base model)")
+        elif RAG_MODE in ("CPU", "GPU"):
             try:
                 client = get_rag_client()
                 if client:
                     has_content = client.quick_content_match(prompt)
                     if has_content:
                         should_use_rag_for_search = True
+                        will_use_rag = True  # Update for filler phrase decision
                         print(f"[Generic] 🔍 quick_content_match=True - performing RAG search...")
                     else:
                         should_use_rag_for_search = False
+                        will_use_rag = False
                         print(f"[Generic] 🔍 quick_content_match=False - skipping RAG (no key terms found in documents)")
             except Exception as e:
                 print(f"[Generic] ⚠️ RAG check failed in handle_conversation: {e}")
@@ -1105,6 +1093,14 @@ JSON array only:"""
         
         should_use_rag = (rag_results and len(rag_results) > 0) or (memory_rag_results and len(memory_rag_results) > 0)
         should_use_memory_rag = (memory_rag_results and len(memory_rag_results) > 0)
+        
+        # CRITICAL: Override should_use_rag if query is conversational
+        # Conversational queries should NEVER use RAG/CoT model
+        if is_conversational:
+            should_use_rag = False
+            rag_results = []  # Clear RAG results to prevent CoT model usage
+            print(f"[Generic] 🔍 Conversational query - forcing should_use_rag=False (will use base model)")
+        
         print(f"[Generic] 🔍 Query analysis: is_personal={is_personal_query}, is_conversational={is_conversational}, should_use_rag={should_use_rag}, should_use_memory_rag={should_use_memory_rag}")
         
         if should_use_rag and rag_results:
@@ -1580,14 +1576,48 @@ JSON array only:"""
                 # IMPORTANT: This prompt MUST match the training prompt exactly (from test_rag_cot_model_colab.py)
                 cot_system_prompt = (
                     "You are a precise data extraction bot.\n\n"
+                    "CRITICAL - OUTPUT FORMAT (MANDATORY - NO EXCEPTIONS):\n"
+                    "- You MUST ALWAYS start with \"REASONING:\" on its own line followed by a newline.\n"
+                    "- You MUST NEVER output the answer before REASONING: - the answer comes ONLY after REASONING.\n"
+                    "- REASONING: must appear on its own line, followed by a newline, then your reasoning.\n"
+                    "- After REASONING, you MUST end with \"FINAL ANSWER:\" on its own line.\n"
+                    "- FINAL ANSWER: must be the last section - nothing comes after it.\n\n"
                     "ALWAYS START WITH REASONING:\n"
-                    "Begin every response with \"REASONING:\" - this is MANDATORY.\n\n"
+                    "Begin every response with \"REASONING:\" - this is MANDATORY.\n"
+                    "CRITICAL: REASONING: must be the FIRST line of your response - no text before it.\n\n"
+                    "FORMAT REQUIREMENTS (CRITICAL - MUST FOLLOW EXACTLY - NO EXCEPTIONS):\n"
+                    "- REASONING: must start with exactly \"REASONING:\" on its own line followed by a newline.\n"
+                    "- CRITICAL: After \"REASONING:\" you MUST press Enter/Newline - do NOT put Item on same line.\n"
+                    "- CRITICAL: Do NOT use one-line format like \"REASONING: Item:Evidence - ...\" - this is FORBIDDEN.\n"
+                    "- CRITICAL: Do NOT combine Item/Evidence/Action on one line - each MUST be on separate lines.\n"
+                    "- Each item MUST have three separate lines with line breaks between them:\n"
+                    "  First line: - Item: [name or value]\n"
+                    "  Second line: - Evidence: \"[verbatim quote]\"\n"
+                    "  Third line: - Action: [KEEP] or [DISCARD]\n"
+                    "- CRITICAL: You MUST use line breaks (press Enter) between each line - Item, Evidence, and Action must each be on separate lines.\n"
+                    "- CRITICAL: Do NOT use formats like \"Item:Evidence - ...\" or \"Item:Evidence, Action:...\" - these are FORBIDDEN.\n"
+                    "- CRITICAL: Always use the three-line format with proper line breaks.\n"
+                    "- FORBIDDEN FORMATS (NEVER USE THESE):\n"
+                    "  ❌ REASONING:- Item:... - Evidence:... - Action:...\n"
+                    "  ❌ REASONING:Item:... (no space, no newline)\n"
+                    "  ❌ REASONING: - Item:... (space but no newline)\n"
+                    "- REQUIRED FORMAT (ALWAYS USE THIS):\n"
+                    "  ✅ REASONING:\n"
+                    "  ✅ - Item: John Smith\n"
+                    "  ✅ - Evidence: \"John Smith is the CEO of TechCorp\"\n"
+                    "  ✅ - Action: [KEEP]\n"
+                    "- This format is MANDATORY for ALL queries - no exceptions, no variations.\n\n"
                     "1. REASONING: For each relevant item found in the context:\n"
                     "   - Item: [What you found]\n"
                     "   - Evidence: \"[Verbatim quote from context]\"\n"
                     "   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n\n"
                     "2. End scan with: - End of scan.\n\n"
-                    "3. FINAL ANSWER: based ONLY on [KEEP] items.\n\n"
+                    "3. FINAL ANSWER: based ONLY on [KEEP] items.\n"
+                    "   CRITICAL: FINAL ANSWER must be a complete, natural sentence that answers the query.\n"
+                    "   CRITICAL: Do NOT just list items - construct a proper answer sentence.\n"
+                    "   Example: If query asks \"What universities did David Lara attend?\"\n"
+                    "   GOOD: \"David Lara attended the University of Washington and the University of Texas.\"\n"
+                    "   BAD: \"University of Washington, University of Texas\" (just a list)\n\n"
                     "CRITICAL RULES (APPLY TO ALL QUERIES):\n\n"
                     "EVIDENCE:\n"
                     "- Evidence MUST be EXACT verbatim quote from context - do NOT paraphrase or fabricate.\n"
@@ -2733,12 +2763,44 @@ def chat_tts():
             #   bypass_hit -> no RAG
             #   else quick_content_match -> RAG
             #   else -> no RAG
+            # PRIMARY DECISION: Check if query is conversational FIRST (before RAG check)
+            # Conversational queries should NEVER use RAG/CoT model
+            normalized_prompt = prompt.lower().strip()
+            conversational_phrases = [
+                'thank you', 'thanks', 'thank', 'thanks a lot', 'thank you very much',
+                'goodbye', 'bye', 'see you', 'see ya', 'farewell',
+                'you\'re welcome', 'no problem', 'my pleasure', 'anytime',
+                'hello', 'hi', 'hey', 'greetings',
+                'how are you', 'how\'s it going', 'how\'s everything', 'how do you do',
+                'ok', 'okay', 'sure', 'alright', 'got it', 'understood',
+                'yes', 'yeah', 'yep', 'no', 'nope',
+                'please', 'excuse me', 'sorry', 'pardon',
+                "that's fine", "that is fine", "it's fine", "it is fine", "no that's fine", "no that is fine"
+            ]
+            is_conversational = any(phrase in normalized_prompt for phrase in conversational_phrases)
+            
+            # Exclude information-seeking questions from being marked as conversational
+            information_seeking_patterns = [
+                'do you know', 'who is', 'who are', 'who was', 'who were',
+                'what is', 'what are', 'what was', 'what were',
+                'where is', 'where are', 'where was', 'where were',
+                'when is', 'when are', 'when was', 'when were',
+                'why is', 'why are', 'why was', 'why were',
+                'how is', 'how are', 'how was', 'how were',
+                'tell me about', 'tell me who', 'tell me what', 'tell me where', 'tell me when',
+                'what about', 'what do you know about'
+            ]
+            if any(pattern in normalized_prompt for pattern in information_seeking_patterns):
+                is_conversational = False
+            
             # PRIMARY DECISION: Use quick_content_match to determine if RAG should be used
             # quick_content_match extracts only key terms (names, important nouns) and skips everyday words
             will_use_rag = False
-            print(f"[Generic] 🔍 [RAG Decision] Starting RAG decision check - RAG_MODE={RAG_MODE}")
+            print(f"[Generic] 🔍 [RAG Decision] Starting RAG decision check - RAG_MODE={RAG_MODE}, is_conversational={is_conversational}")
 
-            if RAG_MODE in ("CPU", "GPU"):
+            if is_conversational:
+                print(f"[Generic] 🔍 [RAG Decision] Conversational query detected - skipping RAG (will use base model)")
+            elif RAG_MODE in ("CPU", "GPU"):
                 try:
                     # PRIMARY: Quick substring match on all RAG documents (extracts only key terms, skips everyday words)
                     client = get_rag_client()
@@ -3311,11 +3373,17 @@ def filter_cot_reasoning(generator):
         """Extract names/items that were marked [DISCARD] in reasoning section"""
         discarded = set()
         # Match complete item blocks: - Item: [Name] ... - Action: [ACTION]
-        # Use non-greedy matching to stop at the next "- Item:" or end
-        pattern = r'- Item:\s*([^-]+?)\s*-\s*(?:Evidence:[^-]*?)?\s*-\s*Action:\s*(\[[^\]]+\])'
-        matches = re.finditer(pattern, reasoning_text, re.IGNORECASE | re.DOTALL)
+        # Handle both three-line format and one-line format
+        # Pattern 1: Three-line format (preferred)
+        pattern1 = r'- Item:\s*([^-]+?)\s*-\s*(?:Evidence:[^-]*?)?\s*-\s*Action:\s*(\[[^\]]+\])'
+        # Pattern 2: One-line format (fallback): REASONING:- Item:... - Evidence:... - Action:...
+        pattern2 = r'(?:REASONING:|- Item:)\s*([^-]+?)\s*-\s*Evidence:[^-]*?\s*-\s*Action:\s*(\[[^\]]+\])'
         
+        # Try pattern 1 first (three-line format)
+        matches = re.finditer(pattern1, reasoning_text, re.IGNORECASE | re.DOTALL)
+        found_any = False
         for match in matches:
+            found_any = True
             item_name = match.group(1).strip()
             action = match.group(2)
             
@@ -3326,53 +3394,74 @@ def filter_cot_reasoning(generator):
                 item_name = item_name.strip()
                 if item_name:
                     discarded.add(item_name.lower())
-                    # Debug: log what we're extracting
                     print(f"[Generic] 🔍 [CoT Filter] Extracted DISCARD item: '{item_name}' (action: '{action}')")
+        
+        # If no matches with pattern 1, try pattern 2 (one-line format)
+        if not found_any:
+            matches = re.finditer(pattern2, reasoning_text, re.IGNORECASE | re.DOTALL)
+            for match in matches:
+                item_name = match.group(1).strip()
+                action = match.group(2)
+                
+                if re.search(r'\[\s*DISCARD\s*\]', action, re.IGNORECASE):
+                    item_name = re.sub(r'^["\']|["\']$', '', item_name)
+                    item_name = item_name.strip()
+                    if item_name:
+                        discarded.add(item_name.lower())
+                        print(f"[Generic] 🔍 [CoT Filter] Extracted DISCARD item (one-line format): '{item_name}'")
+        
         return discarded
     
     def extract_kept_items(reasoning_text):
         """Extract names/items that were marked [KEEP] in reasoning section"""
         kept_items = []
-        # Strategy: Split by both " - Item:" and "Item:" (with or without dash) to handle all formats
-        # This is more robust than regex matching and handles Evidence sections with dashes/quotes
-        # Handle both formats: "- Item:" and "Item:" (without dash, like "Item:Liam Hugill")
-        segments = re.split(r'\s*-\s*Item:|\bItem:', reasoning_text, flags=re.IGNORECASE)
-        print(f"[Generic] 🔍 [CoT Filter] Split reasoning into {len(segments)} segments")
-        for i, segment in enumerate(segments[1:], 1):  # Skip first segment (before first Item)
-            # Check if this segment has Action:[KEEP]
-            if re.search(r'Action:\s*\[\s*KEEP\s*\]', segment, re.IGNORECASE):
-                # Extract name (everything before " - Evidence:" or " - Action:" or just "Evidence:" or "Action:")
-                # Use non-greedy match to stop at first occurrence
-                name_match = re.match(r'^([^-]+?)(?:\s*-\s*(?:Evidence|Action):|(?:Evidence|Action):)', segment, re.IGNORECASE)
-                if name_match:
-                    item_name = name_match.group(1).strip()
-                    # Clean up item name
-                    item_name = re.sub(r'^["\']|["\']$', '', item_name)  # Remove quotes
-                    item_name = re.sub(r'\s*-\s*Role:.*$', '', item_name, flags=re.IGNORECASE)
-                    item_name = item_name.strip()
-                    if item_name and item_name not in kept_items:
-                        kept_items.append(item_name)
-                        print(f"[Generic] 🔍 [CoT Filter] Extracted KEEP item: '{item_name}' (segment {i})")
-                    else:
-                        print(f"[Generic] ⚠️ [CoT Filter] Skipped empty/duplicate item name from segment {i}: '{item_name}'")
-                else:
-                    print(f"[Generic] ⚠️ [CoT Filter] No name match found in segment {i} (has KEEP): '{segment[:100]}...'")
+        # Strategy: Handle both three-line format and one-line format
+        # Pattern 1: Three-line format (preferred): - Item: ... - Evidence: ... - Action: [KEEP]
+        pattern1 = r'- Item:\s*([^-]+?)(?:(?!\s*-\s*Item:).)*?-\s*Action:\s*\[\s*KEEP\s*\]'
+        # Pattern 2: One-line format (fallback): REASONING:- Item:... - Evidence:... - Action:[KEEP]
+        pattern2 = r'(?:REASONING:|- Item:)\s*([^-]+?)\s*-\s*Evidence:[^-]*?\s*-\s*Action:\s*\[\s*KEEP\s*\]'
         
-        # Fallback: If still no items, try regex pattern matching (for edge cases)
-        if not kept_items:
-            # Pattern: - Item: [Name] - Evidence: ... - Action: [KEEP]
-            pattern = r'- Item:\s*([^-]+?)(?:(?!\s*-\s*Item:).)*?-\s*Action:\s*\[\s*KEEP\s*\]'
-            matches = re.finditer(pattern, reasoning_text, re.IGNORECASE | re.DOTALL)
+        # Try pattern 1 first (three-line format)
+        matches = re.finditer(pattern1, reasoning_text, re.IGNORECASE | re.DOTALL)
+        found_any = False
+        for match in matches:
+            found_any = True
+            item_name = match.group(1).strip()
+            # Clean up item name
+            item_name = re.sub(r'^["\']|["\']$', '', item_name)  # Remove quotes
+            item_name = re.sub(r'\s*-\s*Role:.*$', '', item_name, flags=re.IGNORECASE)
+            item_name = re.sub(r'\s*-\s*Evidence:.*$', '', item_name, flags=re.IGNORECASE)
+            item_name = re.sub(r'\s*-\s*$', '', item_name)
+            item_name = item_name.strip()
+            if item_name and item_name not in kept_items:
+                kept_items.append(item_name)
+                print(f"[Generic] 🔍 [CoT Filter] Extracted KEEP item: '{item_name}'")
+        
+        # If no matches with pattern 1, try pattern 2 (one-line format)
+        if not found_any:
+            matches = re.finditer(pattern2, reasoning_text, re.IGNORECASE | re.DOTALL)
             for match in matches:
                 item_name = match.group(1).strip()
                 item_name = re.sub(r'^["\']|["\']$', '', item_name)
-                item_name = re.sub(r'\s*-\s*Role:.*$', '', item_name, flags=re.IGNORECASE)
-                item_name = re.sub(r'\s*-\s*Evidence:.*$', '', item_name, flags=re.IGNORECASE)
-                item_name = re.sub(r'\s*-\s*$', '', item_name)
                 item_name = item_name.strip()
                 if item_name and item_name not in kept_items:
                     kept_items.append(item_name)
-                    print(f"[Generic] 🔍 [CoT Filter] Extracted KEEP item (regex fallback): '{item_name}'")
+                    print(f"[Generic] 🔍 [CoT Filter] Extracted KEEP item (one-line format): '{item_name}'")
+        
+        # Fallback: Split-based extraction (for edge cases)
+        if not kept_items:
+            segments = re.split(r'\s*-\s*Item:|\bItem:', reasoning_text, flags=re.IGNORECASE)
+            print(f"[Generic] 🔍 [CoT Filter] Split reasoning into {len(segments)} segments (fallback)")
+            for i, segment in enumerate(segments[1:], 1):
+                if re.search(r'Action:\s*\[\s*KEEP\s*\]', segment, re.IGNORECASE):
+                    name_match = re.match(r'^([^-]+?)(?:\s*-\s*(?:Evidence|Action):|(?:Evidence|Action):)', segment, re.IGNORECASE)
+                    if name_match:
+                        item_name = name_match.group(1).strip()
+                        item_name = re.sub(r'^["\']|["\']$', '', item_name)
+                        item_name = item_name.strip()
+                        if item_name and item_name not in kept_items:
+                            kept_items.append(item_name)
+                            print(f"[Generic] 🔍 [CoT Filter] Extracted KEEP item (split fallback): '{item_name}'")
         
         return kept_items
     
@@ -3836,24 +3925,50 @@ def filter_cot_reasoning(generator):
                 all_items = all_items_ordered
                 
                 # Reconstruct answer with all KEEP items
-                if len(all_items) == 1:
-                    final_answer = all_items[0]
-                elif len(all_items) == 2:
-                    final_answer = f"{all_items[0]} and {all_items[1]}"
-                else:
-                    # Multiple items: "X, Y, and Z"
-                    items_str = ", ".join(all_items[:-1]) + f", and {all_items[-1]}"
-                    # Try to preserve original answer structure if it has a prefix
-                    if ":" in final_answer or "are" in final_answer.lower():
-                        # Extract prefix (e.g., "The co-founders of Ledger AI are:")
-                        prefix_match = re.match(r'^([^:]+:?\s*)', final_answer)
-                        if prefix_match:
-                            prefix = prefix_match.group(1)
-                            final_answer = prefix + items_str
+                # CRITICAL: Construct a proper sentence, not just a list
+                # Check if original answer has a sentence structure we can preserve
+                original_has_structure = any(word in final_answer.lower() for word in ['attended', 'went to', 'studied at', 'are', 'is', 'was', 'were'])
+                
+                if original_has_structure and len(final_answer.strip()) > 20:
+                    # Original answer has structure - try to preserve it by inserting missing items
+                    # Extract the verb/action part if possible
+                    if len(all_items) == 1:
+                        # Single item - simple replacement
+                        final_answer = all_items[0]
+                    elif len(all_items) == 2:
+                        # Two items - use "and"
+                        items_str = f"{all_items[0]} and {all_items[1]}"
+                        # Try to preserve prefix from original
+                        if ":" in final_answer:
+                            prefix_match = re.match(r'^([^:]+:?\s*)', final_answer)
+                            if prefix_match:
+                                final_answer = prefix_match.group(1) + items_str
+                            else:
+                                final_answer = items_str
                         else:
                             final_answer = items_str
                     else:
-                        final_answer = items_str
+                        # Multiple items: "X, Y, and Z"
+                        items_str = ", ".join(all_items[:-1]) + f", and {all_items[-1]}"
+                        # Try to preserve original answer structure if it has a prefix
+                        if ":" in final_answer:
+                            prefix_match = re.match(r'^([^:]+:?\s*)', final_answer)
+                            if prefix_match:
+                                final_answer = prefix_match.group(1) + items_str
+                            else:
+                                final_answer = items_str
+                        else:
+                            final_answer = items_str
+                else:
+                    # Original answer has no structure or is too short - construct proper sentence
+                    # This is a fallback - ideally model should provide proper sentence
+                    if len(all_items) == 1:
+                        final_answer = all_items[0]
+                    elif len(all_items) == 2:
+                        final_answer = f"{all_items[0]} and {all_items[1]}"
+                    else:
+                        # Multiple items: "X, Y, and Z"
+                        final_answer = ", ".join(all_items[:-1]) + f", and {all_items[-1]}"
                 
                 print(f"[Generic] ✅ [CoT Reasoning Debug] Added missing KEEP items: {final_answer[:200]}...")
             else:

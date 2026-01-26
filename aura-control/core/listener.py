@@ -1028,8 +1028,9 @@ def listen():
                     
                 if wake_word_enabled and not listening_active and wake_word_detector is not None:
                     # === Wake Word Detection Loop ===
-                    # Mirrors VAD loop - skip processing while TTS is playing
-                    # Also pauses briefly (0.5s) after TTS ends to let echo decay
+                    # Uses same VAD logic as listener to filter out silence/noise
+                    # Only processes wake word detection when VAD indicates speech activity
+                    last_wake_word_vad_reset = time.time()  # Track last VAD reset to prevent decay
                     while True:
                         # CRITICAL: Check if TTS is playing BEFORE reading audio (same as VAD)
                         # This prevents wake word from processing TTS echo
@@ -1053,8 +1054,30 @@ def listen():
                         if is_playing():
                             break  # Exit wake word loop, return to main loop (same as VAD)
                         
+                        # Periodic VAD reset to prevent state decay during long silence (same as VAD loop)
+                        if time.time() - last_wake_word_vad_reset > 5.0:
+                            model_vad.reset_states()
+                            last_wake_word_vad_reset = time.time()
+                        
+                        # Use same VAD model as listener to filter out silence/noise
+                        # Hardware HPF already applied in ReSpeaker DSP
+                        vad_prob = model_vad(torch.from_numpy(channel_audio), SAMPLE_RATE).item()
+                        
                         # Print status (same format as VAD)
-                        print(f"[Wake Word] RMS {features['rms']:.4f} | Peak {features['peak']:.3f}", end="\r")
+                        print(f"[Wake Word] VAD {vad_prob:.2f} | RMS {features['rms']:.4f} | Peak {features['peak']:.3f}", end="\r")
+                        
+                        # Only process wake word detection when VAD indicates speech activity
+                        # This filters out silence and noise, making wake word detection more reliable
+                        if vad_prob <= VAD_START_THRESHOLD:
+                            # No speech activity detected - skip wake word processing
+                            continue
+                        
+                        # Apply advanced filter if enabled (same as VAD loop)
+                        if ENABLE_ADVANCED_FILTER:
+                            is_speech_result, reason = is_likely_speech(features)
+                            if not is_speech_result:
+                                # Not likely speech - skip wake word processing
+                                continue
                         
                         # OpenWakeWord handles buffering internally, so we can call process() directly
                         # Use exact same channel_audio as VAD (no conversion needed - stream already provides float32 normalized to [-1, 1])
@@ -1065,16 +1088,10 @@ def listen():
                         # Call process directly with same audio VAD uses - OpenWakeWord handles buffering internally
                         wake_detected, confidence = wake_word_detector.process(channel_audio)
                         
-                        # Debug output (show confidence less frequently to reduce spam)
-                        if not hasattr(wake_word_detector, '_debug_counter'):
-                            wake_word_detector._debug_counter = 0
-                        wake_word_detector._debug_counter += 1
-                        
-                        
                         if wake_detected:
                             # Print RMS and audio features at detection time (using same calculation as VAD)
                             print(f"\n[Wake Word] ✅ Wake word detected! (confidence: {confidence:.6f})")
-                            print(f"[Wake Word] 📊 Audio at detection: RMS={features['rms']:.4f}, Peak={features['peak']:.4f}")
+                            print(f"[Wake Word] 📊 Audio at detection: VAD={vad_prob:.2f} | RMS={features['rms']:.4f}, Peak={features['peak']:.4f}")
                             print(f"[Wake Word] 📊 Features: ZCR={features['zcr']:.3f} | SpCentroid={features['spectral_centroid']:.0f}Hz | SpFlat={features['spectral_flatness']:.3f}")
                             listening_active = True
                             
@@ -1093,37 +1110,6 @@ def listen():
                             
                             print("[Wake Word] 🎤 Listening for speech...")
                             break  # Exit wake word loop, proceed to VAD
-                            
-                            # Debug output (show confidence less frequently to reduce spam)
-                            if not hasattr(wake_word_detector, '_debug_counter'):
-                                wake_word_detector._debug_counter = 0
-                            wake_word_detector._debug_counter += 1
-                            
-                            # Show confidence every 100 frames, or if confidence > threshold/10 (getting close), or if confidence > 0
-                            threshold = getattr(wake_word_detector, 'threshold', 0.5)
-                            
-                            if wake_detected:
-                                # Print RMS and audio features at detection time (using same calculation as VAD)
-                                print(f"\n[Wake Word] ✅ Wake word detected! (confidence: {confidence:.6f})")
-                                print(f"[Wake Word] 📊 Audio at detection: RMS={features['rms']:.4f}, Peak={features['peak']:.4f}")
-                                print(f"[Wake Word] 📊 Features: ZCR={features['zcr']:.3f} | SpCentroid={features['spectral_centroid']:.0f}Hz | SpFlat={features['spectral_flatness']:.3f}")
-                                listening_active = True
-                                
-                                # Visual feedback (if GUI available) - trigger solid red LED (not pulsating yet)
-                                try:
-                                    from gui.aura_gui import set_wake_word_detected
-                                    set_wake_word_detected(True)  # Solid red LED, waiting for speech
-                                except (ImportError, NameError):
-                                    pass
-                                
-                                # Wait a moment before starting VAD (avoid wake word in transcription)
-                                time.sleep(0.3)
-                                
-                                # Reset VAD state for fresh start
-                                model_vad.reset_states()
-                                
-                                print("[Wake Word] 🎤 Listening for speech...")
-                                break  # Exit wake word loop, proceed to VAD
                     
                     # Exit main loop if stream became invalid during wake word detection
                     if not stream_valid:
