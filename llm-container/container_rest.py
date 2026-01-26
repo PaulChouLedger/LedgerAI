@@ -3506,6 +3506,10 @@ def filter_cot_reasoning(generator):
     token_buffer_list = []  # Store tokens to replay if not CoT
     detection_buffer = ""  # Text for CoT detection
     
+    # CRITICAL: For base model (non-RAG) queries, detect non-CoT much faster to avoid delay
+    # Check first few tokens quickly - if they don't look like CoT, pass through immediately
+    fast_detection_threshold = 50  # Reduced from 300 for faster base model passthrough
+    
     # First pass: detect CoT by buffering initial tokens
     for token in generator:
         # Special-case: allow exactly one *preface* sentence (our injected filler phrase)
@@ -3599,12 +3603,31 @@ def filter_cot_reasoning(generator):
             # Use only the REASONING part for CoT processing
             text_buffer = reasoning_marker + detection_buffer.split(reasoning_marker)[-1]
             break
-        elif len(detection_buffer) > 300:
-            # After 300 chars with no CoT markers, assume non-CoT
-            if not any(marker in detection_buffer_lower for marker in ["reasoning:", "final answer:", "- item:", "- evidence:", "- action:"]):
+        elif len(detection_buffer) > fast_detection_threshold:
+            # After fast_detection_threshold chars with no CoT markers, check if it's non-CoT
+            # Base model responses typically start with normal text, not "REASONING:"
+            detection_buffer_lower = detection_buffer.lower()
+            has_cot_markers = any(marker in detection_buffer_lower for marker in [
+                "reasoning:", "final answer:", "- item:", "- evidence:", "- action:",
+                "item:", "evidence:", "action:", "[keep]", "[discard]"
+            ])
+            
+            # Also check if it looks like a normal conversational response (starts with words, not CoT format)
+            looks_like_conversation = (
+                len(detection_buffer) > 20 and
+                not detection_buffer.strip().startswith("REASONING") and
+                not detection_buffer.strip().startswith("reasoning") and
+                any(word in detection_buffer_lower[:100] for word in [
+                    "i'm", "i ", "the ", "a ", "an ", "this ", "that ", "here ", "there ",
+                    "however", "although", "because", "when", "where", "what", "who"
+                ])
+            )
+            
+            if not has_cot_markers and looks_like_conversation:
+                # This looks like a base model response - pass through immediately
                 is_cot_response = False
                 cot_detected = True
-                print(f"[Generic] 🔍 [CoT Filter] Non-CoT response detected - passing through directly")
+                print(f"[Generic] 🔍 [CoT Filter] Base model response detected (fast path) - passing through directly")
                 # Yield all buffered tokens and continue passing through
                 for buffered_token in token_buffer_list:
                     yield buffered_token
@@ -3612,6 +3635,19 @@ def filter_cot_reasoning(generator):
                 for remaining_token in generator:
                     yield remaining_token
                 return  # Exit early for non-CoT responses
+            elif len(detection_buffer) > 300:
+                # After 300 chars, final check - if still no CoT markers, assume non-CoT
+                if not has_cot_markers:
+                    is_cot_response = False
+                    cot_detected = True
+                    print(f"[Generic] 🔍 [CoT Filter] Non-CoT response detected (after 300 chars) - passing through directly")
+                    # Yield all buffered tokens and continue passing through
+                    for buffered_token in token_buffer_list:
+                        yield buffered_token
+                    # Pass through remaining tokens
+                    for remaining_token in generator:
+                        yield remaining_token
+                    return  # Exit early for non-CoT responses
     
     # If we get here and CoT was detected, process CoT response
     if not is_cot_response:
@@ -3646,24 +3682,35 @@ def filter_cot_reasoning(generator):
                     reasoning_buffer = "Reasoning:" + text_buffer.split("Reasoning:")[-1]
             
             # Check for FINAL ANSWER marker (handle case where it might be split across tokens)
-            # Also check for variations
+            # Also check for variations (case-insensitive to catch "Final ANSWER:", "FINAL Answer:", etc.)
             marker_found = False
             marker = None
-            if "FINAL ANSWER:" in text_buffer:
-                marker_found = True
-                marker = "FINAL ANSWER:"
-            elif "Final Answer:" in text_buffer:
-                marker_found = True
-                marker = "Final Answer:"
-            elif "FINAL ANSWER" in text_buffer and ":" in text_buffer:
-                # Handle case where colon might be in next token
-                final_pos = text_buffer.find("FINAL ANSWER")
-                if final_pos != -1 and final_pos + len("FINAL ANSWER") < len(text_buffer):
-                    # Check if colon is nearby
-                    remaining = text_buffer[final_pos + len("FINAL ANSWER"):]
-                    if ":" in remaining[:5]:  # Colon within 5 chars
+            text_buffer_lower = text_buffer.lower()
+            
+            # Try to find any variation of "final answer:" (case-insensitive)
+            # Use regex to find the actual marker with original case
+            final_answer_patterns = [
+                r'FINAL\s+ANSWER\s*:',
+                r'Final\s+Answer\s*:',
+                r'Final\s+ANSWER\s*:',
+                r'FINAL\s+Answer\s*:',
+                r'final\s+answer\s*:',
+            ]
+            
+            earliest_pos = len(text_buffer)
+            found_marker = None
+            
+            for pattern in final_answer_patterns:
+                matches = list(re.finditer(pattern, text_buffer, re.IGNORECASE))
+                for match in matches:
+                    if match.start() < earliest_pos:
+                        earliest_pos = match.start()
+                        # Extract the actual marker with original case
+                        found_marker = text_buffer[match.start():match.end()]
                         marker_found = True
-                        marker = "FINAL ANSWER:"
+            
+            if marker_found:
+                marker = found_marker
             
             if marker_found:
                 found_final_answer = True
@@ -3743,14 +3790,58 @@ def filter_cot_reasoning(generator):
                 print(f"{'='*80}\n")
                 
                 # Extract initial answer text from buffer.
-                # IMPORTANT: use the FIRST occurrence of the marker so later leaked "FINAL ANSWER:" blocks
-                # (or post-answer REASONING) can't override the correct answer.
-                initial_answer = text_buffer.split(marker, 1)[-1].strip()
-                if initial_answer:
-                    # Clean up initial answer
-                    initial_answer = re.sub(r'\[(KEEP|DISCARD|Action|Result)\]', '', initial_answer, flags=re.IGNORECASE)
-                    initial_answer = re.sub(r'(?m)^- .*$', '', initial_answer).strip()
-                    answer_buffer.append(initial_answer)
+                # CRITICAL: Find the FIRST occurrence of any FINAL ANSWER marker (case-insensitive)
+                # to avoid being confused by multiple REASONING sections or malformed output
+                # The model sometimes outputs "Final ANSWER:" or "FINAL Answer:" instead of "FINAL ANSWER:"
+                first_final_answer_pos = -1
+                first_final_answer_marker = None
+                
+                # Search for all variations of FINAL ANSWER marker (case-insensitive)
+                final_answer_patterns = [
+                    (r'FINAL\s+ANSWER\s*:', 'FINAL ANSWER:'),
+                    (r'Final\s+Answer\s*:', 'Final Answer:'),
+                    (r'Final\s+ANSWER\s*:', 'Final ANSWER:'),
+                    (r'FINAL\s+Answer\s*:', 'FINAL Answer:'),
+                    (r'final\s+answer\s*:', 'final answer:'),
+                ]
+                
+                for pattern, marker_name in final_answer_patterns:
+                    matches = list(re.finditer(pattern, text_buffer, re.IGNORECASE))
+                    for match in matches:
+                        if first_final_answer_pos == -1 or match.start() < first_final_answer_pos:
+                            first_final_answer_pos = match.start()
+                            # Extract actual marker with original case from text_buffer
+                            first_final_answer_marker = text_buffer[match.start():match.end()]
+                
+                if first_final_answer_pos != -1 and first_final_answer_marker:
+                    # Extract answer from FIRST occurrence (before any subsequent REASONING sections)
+                    # Split at the first FINAL ANSWER marker and take everything after it
+                    # But stop at the next REASONING: if present
+                    initial_answer = text_buffer[first_final_answer_pos + len(first_final_answer_marker):].strip()
+                    
+                    # Stop at next REASONING: marker if present (to avoid hallucinated content)
+                    next_reasoning_pos = initial_answer.lower().find('reasoning:')
+                    if next_reasoning_pos != -1:
+                        initial_answer = initial_answer[:next_reasoning_pos].strip()
+                    
+                    if initial_answer:
+                        # Clean up initial answer
+                        initial_answer = re.sub(r'\[(KEEP|DISCARD|Action|Result)\]', '', initial_answer, flags=re.IGNORECASE)
+                        initial_answer = re.sub(r'(?m)^- .*$', '', initial_answer).strip()
+                        # Remove any trailing "REASONING:" or "Final Answer:" markers
+                        initial_answer = re.sub(r'\s*REASONING:.*$', '', initial_answer, flags=re.IGNORECASE).strip()
+                        initial_answer = re.sub(r'\s*Final\s+Answer:.*$', '', initial_answer, flags=re.IGNORECASE).strip()
+                        if initial_answer:
+                            answer_buffer.append(initial_answer)
+                            print(f"[Generic] ✅ [CoT Filter] Extracted answer from FIRST FINAL ANSWER marker: '{initial_answer[:100]}...'")
+                else:
+                    # Fallback: use the marker we found earlier (shouldn't happen, but safety check)
+                    initial_answer = text_buffer.split(marker, 1)[-1].strip()
+                    if initial_answer:
+                        # Clean up initial answer
+                        initial_answer = re.sub(r'\[(KEEP|DISCARD|Action|Result)\]', '', initial_answer, flags=re.IGNORECASE)
+                        initial_answer = re.sub(r'(?m)^- .*$', '', initial_answer).strip()
+                        answer_buffer.append(initial_answer)
                 
                 collecting_answer = True
                 # IMPORTANT: do NOT yield <sentence_start> here.
