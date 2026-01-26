@@ -3570,6 +3570,15 @@ def filter_cot_reasoning(generator):
             cot_detected = True
             print(f"[Generic] 🔍 [CoT Filter] CoT response detected - applying reasoning filter")
             
+            # Emit FIRST filler phrase immediately when CoT is detected (before processing reasoning)
+            if not cot_filler_emitted:
+                cot_filler_emitted = True
+                cot_filler = get_cot_filler_phrase()
+                print(f"[Generic] 💭 [CoT Filter] Emitting FIRST CoT filler phrase (on CoT detection): '{cot_filler}'")
+                yield "<sentence_start>\n"
+                yield f"{cot_filler}\n"
+                yield "<sentence_end>\n"
+            
             # IMPORTANT: Suppress model-generated filler phrases if we already yielded one
             # The filler phrase should play DURING RAG processing, not after
             # Find reasoning marker (preserve original case from detection_buffer)
@@ -3621,6 +3630,7 @@ def filter_cot_reasoning(generator):
         # CoT response - apply filtering logic
         if not found_final_answer:
             # Still looking for FINAL ANSWER - buffer everything but DO NOT YIELD
+            # CRITICAL: Suppress ALL tokens (including sentence tags) until FINAL ANSWER is found
             # Add token text directly (don't add extra space, tokens might already have spacing)
             if text_content:
                 text_buffer += text_content
@@ -3660,13 +3670,12 @@ def filter_cot_reasoning(generator):
                 
                 # Emit SECOND filler phrase BEFORE CoT filter processing begins (extraction/debug logging)
                 # This plays while the filter extracts DISCARD/KEEP items and logs debug output
-                if not cot_filler_emitted:
-                    cot_filler_emitted = True
-                    cot_filler = get_cot_filler_phrase()
-                    print(f"[Generic] 💭 [CoT Filter] Emitting CoT filler phrase (before extraction): '{cot_filler}'")
-                    yield "<sentence_start>\n"
-                    yield f"{cot_filler}\n"
-                    yield "<sentence_end>\n"
+                # Note: cot_filler_emitted is already True from first filler, so this is the second one
+                cot_filler = get_cot_filler_phrase()
+                print(f"[Generic] 💭 [CoT Filter] Emitting SECOND CoT filler phrase (before extraction): '{cot_filler}'")
+                yield "<sentence_start>\n"
+                yield f"{cot_filler}\n"
+                yield "<sentence_end>\n"
                 
                 # Extract reasoning section to find DISCARD items
                 if reasoning_buffer:
@@ -3748,10 +3757,9 @@ def filter_cot_reasoning(generator):
                 # We only emit <sentence_start> right before we output the cleaned final answer,
                 # otherwise the speaker will buffer in silence while we filter.
                 continue
-        
-        # CRITICAL: If we haven't found FINAL ANSWER yet, continue to next token (suppress all REASONING tokens)
-        # This ensures REASONING section is NEVER yielded - only FINAL ANSWER content is yielded
-        if not found_final_answer:
+            
+            # CRITICAL: If we haven't found FINAL ANSWER yet, continue to next token (suppress all REASONING tokens)
+            # This ensures REASONING section is NEVER yielded - only FINAL ANSWER content is yielded
             continue
         
         # After FINAL ANSWER found, buffer answer tokens (need enough text to clean/truncate safely).
