@@ -2817,31 +2817,8 @@ def chat_tts():
                 except Exception as e:
                     print(f"[Generic] ⚠️ RAG pre-check failed: {e}")
             
-            # Yield filler phrase IMMEDIATELY after detecting RAG will be used (before calling handle_conversation)
-            # This ensures it plays while RAG search happens in the background
-            print(f"[Generic] 🔍 [Filler Phrase] Checking if filler phrase should be yielded - will_use_rag={will_use_rag}")
-            filler_phrase_yielded = False
-            # If we're going to do RAG, emit a filler phrase to cover retrieval latency
-            if will_use_rag:
-                filler_phrase = get_filler_phrase()
-                print(f"[Generic] ✅ [Filler Phrase] DECISION: Yielding filler phrase IMMEDIATELY after RAG detection")
-                print(f"[Generic] 💭 [Filler Phrase] Filler phrase: '{filler_phrase}'")
-                # IMPORTANT: Stream protocol is line-delimited. Each yielded chunk must end with '\n'
-                # and tags should NOT be prefixed by a newline, otherwise the speaker parser can miss text.
-                print(f"[Generic] 💭 [Filler Phrase] Yielding <sentence_start> tag (line-delimited)")
-                yield "<sentence_start>\n"
-                print(f"[Generic] 💭 [Filler Phrase] Yielding filler phrase text (line-delimited): '{filler_phrase}'")
-                yield f"{filler_phrase}\n"
-                print(f"[Generic] 💭 [Filler Phrase] Yielding <sentence_end> tag (line-delimited)")
-                yield "<sentence_end>\n"
-                filler_phrase_yielded = True
-                print(f"[Generic] ✅ [Filler Phrase] Filler phrase yield complete")
-            else:
-                print(f"[Generic] ⏭️ [Filler Phrase] Skipping filler phrase - will_use_rag={will_use_rag}, is_conversational={is_conversational}")
-            
             # Use streaming mode to get tokens as they're generated, with memory context
-            # The filler phrase was already yielded above, handle_conversation() will skip its own
-            print(f"[Generic] 🔍 [Stream] Calling handle_conversation() with stream=True (filler_phrase_yielded={filler_phrase_yielded})")
+            print(f"[Generic] 🔍 [Stream] Calling handle_conversation() with stream=True")
             result = handle_conversation(prompt, session_id, memory_context=memory_context, stream=True)
             
             # Check if result is a generator (streaming)
