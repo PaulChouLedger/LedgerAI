@@ -1701,9 +1701,18 @@ JSON array only:"""
                 stop=["<|im_end|>"],
             )
             if stream:
-                # Let CoT filter handle stopping after first FINAL ANSWER (it has logic to detect post-answer markers)
-                # The hard stop was cutting off too early and preventing proper CoT filtering
-                yield from llm_response
+                # Apply CoT filter to extract FINAL ANSWER from REASONING section
+                # Yield initial filler phrase when RAG/CoT is detected
+                filler_phrase = get_filler_phrase()
+                print(f"[Generic] 💭 [handle_conversation] Yielding FIRST filler phrase (RAG/CoT detected): '{filler_phrase}'")
+                yield "<sentence_start>\n"
+                yield f"{filler_phrase}\n"
+                yield "<sentence_end>\n"
+                
+                # Apply CoT filter to extract final answer from reasoning
+                print(f"[Generic] ✅ [handle_conversation] Applying CoT filter to RAG query stream")
+                yield from filter_cot_reasoning(llm_response)
+                return
             else:
                 return llm_response
         else:
