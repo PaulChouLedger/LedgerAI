@@ -3387,8 +3387,6 @@ def filter_cot_reasoning(generator):
     preface_sentence_active = False
     preface_sentence_parts = []
     preface_sentence_used = False
-    cot_filler_emitted = False
-    first_filler_phrase = None  # Track first filler phrase to avoid repetition
     final_sentence_started = False  # ensure we only emit <sentence_start> once for final answer
     
     def extract_text(token):
@@ -3695,16 +3693,7 @@ def filter_cot_reasoning(generator):
             cot_detected = True
             print(f"[Generic] 🔍 [CoT Filter] CoT response detected - applying reasoning filter")
             
-            # Emit FIRST filler phrase immediately when CoT is detected (before processing reasoning)
-            if not cot_filler_emitted:
-                cot_filler_emitted = True
-                first_filler_phrase = get_cot_filler_phrase()
-                print(f"[Generic] 💭 [CoT Filter] Emitting FIRST CoT filler phrase (on CoT detection): '{first_filler_phrase}'")
-                yield "<sentence_start>\n"
-                yield f"{first_filler_phrase}\n"
-                yield "<sentence_end>\n"
-            
-            # IMPORTANT: Suppress model-generated filler phrases if we already yielded one
+            # IMPORTANT: Suppress model-generated filler phrases
             # The filler phrase should play DURING RAG processing, not after
             # Find reasoning marker (preserve original case from detection_buffer)
             reasoning_pos = detection_buffer_lower.find("reasoning:")
@@ -3838,9 +3827,8 @@ def filter_cot_reasoning(generator):
                 
                 # Emit SECOND filler phrase BEFORE CoT filter processing begins (extraction/debug logging)
                 # This plays while the filter extracts DISCARD/KEEP items and logs debug output
-                # CRITICAL: Ensure second filler phrase is different from first to avoid repetition
-                second_filler_phrase = get_cot_filler_phrase(exclude_phrase=first_filler_phrase)
-                print(f"[Generic] 💭 [CoT Filter] Emitting SECOND CoT filler phrase (before extraction): '{second_filler_phrase}' (different from first: '{first_filler_phrase}')")
+                second_filler_phrase = get_cot_filler_phrase()
+                print(f"[Generic] 💭 [CoT Filter] Emitting SECOND CoT filler phrase (before extraction): '{second_filler_phrase}'")
                 yield "<sentence_start>\n"
                 yield f"{second_filler_phrase}\n"
                 yield "<sentence_end>\n"
