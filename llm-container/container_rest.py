@@ -793,26 +793,6 @@ def handle_conversation(
         ]
         is_conversational = any(phrase in normalized_prompt for phrase in conversational_phrases)
         
-        # Exclude information-seeking questions from being marked as conversational
-        information_seeking_patterns = [
-            'do you know', 'who is', 'who are', 'who was', 'who were',
-            "who's", "who're",  # Contractions
-            'what is', 'what are', 'what was', 'what were',
-            "what's", "what're",  # Contractions
-            'where is', 'where are', 'where was', 'where were',
-            "where's", "where're",  # Contractions
-            'when is', 'when are', 'when was', 'when were',
-            "when's", "when're",  # Contractions
-            'why is', 'why are', 'why was', 'why were',
-            "why's", "why're",  # Contractions
-            'how is', 'how are', 'how was', 'how were',
-            "how's", "how're",  # Contractions
-            'tell me about', 'tell me who', 'tell me what', 'tell me where', 'tell me when',
-            'what about', 'what do you know about'
-        ]
-        if any(pattern in normalized_prompt for pattern in information_seeking_patterns):
-            is_conversational = False
-        
         # SIMPLIFIED: Use quick_content_match as primary RAG trigger (fast substring/fuzzy match)
         # This is more reliable than pattern matching - if content exists, use RAG
         rag_client = None
@@ -1704,11 +1684,9 @@ JSON array only:"""
                 stop=["<|im_end|>"],
             )
             if stream:
-                # Apply CoT filter to extract FINAL ANSWER from REASONING section
-                # Note: Initial filler phrase is already yielded in generate_response() before calling handle_conversation()
-                print(f"[Generic] ✅ [handle_conversation] Applying CoT filter to RAG query stream")
-                yield from filter_cot_reasoning(llm_response)
-                return
+                # Let CoT filter handle stopping after first FINAL ANSWER (it has logic to detect post-answer markers)
+                # The hard stop was cutting off too early and preventing proper CoT filtering
+                yield from llm_response
             else:
                 return llm_response
         else:
@@ -1802,35 +1780,43 @@ JSON array only:"""
         
             # Reduced debug logging for performance
         
-        # Use higher token limit for list questions to ensure all items are included
-        if stream:
-            max_tokens_limit = MAX_TOKENS_RAG_MODE_LIST if is_list_request else MAX_TOKENS_RAG_MODE
-            llm_response = llm_chat_simple(messages, max_tokens=max_tokens_limit, stream=True)
+        # If streaming and we used LLM scoring, yield filler phrase first
+        # Skip filler phrase for conversational queries
+        if stream and needs_filler_phrase and not is_conversational:
+            filler_phrase = get_filler_phrase()
+            print(f"[Generic] 💭 Yielding filler phrase before response: '{filler_phrase}'")
             
-            # Always filter structured format to extract only Final Answer for TTS
-            # The LLM may output structured format (Known Facts, Reasoning Steps, Final Answer, Confidence)
-            # We need to extract only the Final Answer section
-            # Also filter out scoring debug sections (---SCORING--- to ---END SCORING---)
-            buffer = ""
-            in_final_answer = False
-            final_answer_started = False
-            in_scoring = False
-            reasoning_buffer = ""  # Buffer for logging reasoning in debug mode
-            scoring_buffer = ""  # Buffer for logging scoring in debug mode
-            
-            # Track if we're in scoring section - don't yield anything until we're past it
-            in_scoring_section = False
-            answer_started = False
-            accumulated_buffer = ""  # Accumulate chunks until we find the answer
-            
-            for chunk in llm_response:
-                    # Handle both string and dict chunks (llama-cpp-python may return dicts)
-                    if isinstance(chunk, dict):
-                        # Extract text from dict (common format: {'content': 'text'})
-                        chunk_text = chunk.get('content', '') if isinstance(chunk.get('content'), str) else str(chunk)
-                    else:
-                        chunk_text = str(chunk) if chunk else ""
-                    accumulated_buffer += chunk_text
+            # Create wrapper generator that yields filler phrase first, then LLM response
+            def response_with_filler():
+                # Yield filler phrase with sentence tags
+                yield "<sentence_start>\n"
+                for word in filler_phrase.split():
+                    yield f"{word} "
+                yield "<sentence_end>\n"
+                
+                # Then yield from actual LLM response
+                # Use higher token limit for list questions to ensure all items are included
+                max_tokens_limit = MAX_TOKENS_RAG_MODE_LIST if is_list_request else MAX_TOKENS_RAG_MODE
+                llm_response = llm_chat_simple(messages, max_tokens=max_tokens_limit, stream=True)
+                
+                # Always filter structured format to extract only Final Answer for TTS
+                # The LLM may output structured format (Known Facts, Reasoning Steps, Final Answer, Confidence)
+                # We need to extract only the Final Answer section
+                # Also filter out scoring debug sections (---SCORING--- to ---END SCORING---)
+                buffer = ""
+                in_final_answer = False
+                final_answer_started = False
+                in_scoring = False
+                reasoning_buffer = ""  # Buffer for logging reasoning in debug mode
+                scoring_buffer = ""  # Buffer for logging scoring in debug mode
+                
+                # Track if we're in scoring section - don't yield anything until we're past it
+                in_scoring_section = False
+                answer_started = False
+                accumulated_buffer = ""  # Accumulate chunks until we find the answer
+                
+                for chunk in llm_response:
+                    accumulated_buffer += chunk
                     
                     # Early detection: If buffer contains scoring patterns, don't yield until we find the answer
                     if not answer_started:
@@ -2167,9 +2153,9 @@ JSON array only:"""
                             else:
                                 yield chunk
                     # If not in Final Answer yet, just buffer (don't yield)
-            
-            # If we never found Final Answer marker, log full response and extract answer if possible
-            if not in_final_answer and buffer:
+                
+                # If we never found Final Answer marker, log full response and extract answer if possible
+                if not in_final_answer and buffer:
                     if SHOW_REASONING_DEBUG:
                         print(f"\n{'='*80}")
                         print(f"[Generic] 🔍 [LLM Reasoning Debug] FULL RESPONSE (no Final Answer marker found):")
@@ -2193,6 +2179,8 @@ JSON array only:"""
                         # Fallback: yield full response
                         for char in buffer:
                             yield char
+            
+            return response_with_filler()
         
         # For streaming with debug mode, filter out reasoning and scoring
         if stream and SHOW_REASONING_DEBUG:
@@ -2775,17 +2763,11 @@ def chat_tts():
             # Exclude information-seeking questions from being marked as conversational
             information_seeking_patterns = [
                 'do you know', 'who is', 'who are', 'who was', 'who were',
-                "who's", "who're",  # Contractions
                 'what is', 'what are', 'what was', 'what were',
-                "what's", "what're",  # Contractions
                 'where is', 'where are', 'where was', 'where were',
-                "where's", "where're",  # Contractions
                 'when is', 'when are', 'when was', 'when were',
-                "when's", "when're",  # Contractions
                 'why is', 'why are', 'why was', 'why were',
-                "why's", "why're",  # Contractions
                 'how is', 'how are', 'how was', 'how were',
-                "how's", "how're",  # Contractions
                 'tell me about', 'tell me who', 'tell me what', 'tell me where', 'tell me when',
                 'what about', 'what do you know about'
             ]
@@ -2837,6 +2819,9 @@ def chat_tts():
             
             # Yield filler phrase IMMEDIATELY after detecting RAG will be used (before calling handle_conversation)
             # This ensures it plays while RAG search happens in the background
+            print(f"[Generic] 🔍 [Filler Phrase] Checking if filler phrase should be yielded - will_use_rag={will_use_rag}")
+            filler_phrase_yielded = False
+            # If we're going to do RAG, emit a filler phrase to cover retrieval latency
             if will_use_rag:
                 filler_phrase = get_filler_phrase()
                 print(f"[Generic] ✅ [Filler Phrase] DECISION: Yielding filler phrase IMMEDIATELY after RAG detection")
@@ -2849,10 +2834,14 @@ def chat_tts():
                 yield f"{filler_phrase}\n"
                 print(f"[Generic] 💭 [Filler Phrase] Yielding <sentence_end> tag (line-delimited)")
                 yield "<sentence_end>\n"
+                filler_phrase_yielded = True
                 print(f"[Generic] ✅ [Filler Phrase] Filler phrase yield complete")
+            else:
+                print(f"[Generic] ⏭️ [Filler Phrase] Skipping filler phrase - will_use_rag={will_use_rag}, is_conversational={is_conversational}")
             
             # Use streaming mode to get tokens as they're generated, with memory context
-            print(f"[Generic] 🔍 [Stream] Calling handle_conversation() with stream=True")
+            # The filler phrase was already yielded above, handle_conversation() will skip its own
+            print(f"[Generic] 🔍 [Stream] Calling handle_conversation() with stream=True (filler_phrase_yielded={filler_phrase_yielded})")
             result = handle_conversation(prompt, session_id, memory_context=memory_context, stream=True)
             
             # Check if result is a generator (streaming)
@@ -3395,20 +3384,16 @@ def filter_cot_reasoning(generator):
     preface_sentence_active = False
     preface_sentence_parts = []
     preface_sentence_used = False
+    cot_filler_emitted = False
+    first_filler_phrase = None  # Track first filler phrase to avoid repetition
     final_sentence_started = False  # ensure we only emit <sentence_start> once for final answer
     
     def extract_text(token):
         """Extract text content from token (removing sentence tags)"""
         if not token:
             return ""
-        # Handle both string and dict tokens (llama-cpp-python may return dicts)
-        if isinstance(token, dict):
-            # Extract text from dict (common format: {'content': 'text'} or {'text': 'text'})
-            text = token.get('content', '') or token.get('text', '') or str(token)
-        else:
-            text = str(token) if token else ""
         # Remove sentence tags and newlines for marker detection
-        text = text.replace("<sentence_start>", "").replace("<sentence_end>", "").replace("\n", " ").strip()
+        text = token.replace("<sentence_start>", "").replace("<sentence_end>", "").replace("\n", " ").strip()
         return text
     
     def extract_discarded_items(reasoning_text):
@@ -3558,10 +3543,6 @@ def filter_cot_reasoning(generator):
     # CRITICAL: For base model, we want to pass through immediately without buffering
     # Also detect clarification messages and pass them through immediately with proper sentence tags
     for token in generator:
-        # Handle dict tokens by converting to string first
-        if isinstance(token, dict):
-            token = token.get('content', '') or token.get('text', '') or str(token)
-        
         # Special-case: allow exactly one *preface* sentence (our injected filler phrase)
         # to pass through immediately before CoT detection buffers the stream.
         if isinstance(token, str) and not preface_sentence_used:
@@ -3711,7 +3692,16 @@ def filter_cot_reasoning(generator):
             cot_detected = True
             print(f"[Generic] 🔍 [CoT Filter] CoT response detected - applying reasoning filter")
             
-            # IMPORTANT: Suppress model-generated filler phrases
+            # Emit FIRST filler phrase immediately when CoT is detected (before processing reasoning)
+            if not cot_filler_emitted:
+                cot_filler_emitted = True
+                first_filler_phrase = get_cot_filler_phrase()
+                print(f"[Generic] 💭 [CoT Filter] Emitting FIRST CoT filler phrase (on CoT detection): '{first_filler_phrase}'")
+                yield "<sentence_start>\n"
+                yield f"{first_filler_phrase}\n"
+                yield "<sentence_end>\n"
+            
+            # IMPORTANT: Suppress model-generated filler phrases if we already yielded one
             # The filler phrase should play DURING RAG processing, not after
             # Find reasoning marker (preserve original case from detection_buffer)
             reasoning_pos = detection_buffer_lower.find("reasoning:")
@@ -3845,8 +3835,9 @@ def filter_cot_reasoning(generator):
                 
                 # Emit SECOND filler phrase BEFORE CoT filter processing begins (extraction/debug logging)
                 # This plays while the filter extracts DISCARD/KEEP items and logs debug output
-                second_filler_phrase = get_cot_filler_phrase()
-                print(f"[Generic] 💭 [CoT Filter] Emitting SECOND CoT filler phrase (before extraction): '{second_filler_phrase}'")
+                # CRITICAL: Ensure second filler phrase is different from first to avoid repetition
+                second_filler_phrase = get_cot_filler_phrase(exclude_phrase=first_filler_phrase)
+                print(f"[Generic] 💭 [CoT Filter] Emitting SECOND CoT filler phrase (before extraction): '{second_filler_phrase}' (different from first: '{first_filler_phrase}')")
                 yield "<sentence_start>\n"
                 yield f"{second_filler_phrase}\n"
                 yield "<sentence_end>\n"
@@ -4360,10 +4351,7 @@ def filter_think_blocks(generator):
     garbage_detected = False
     
     for token in generator:
-        # Handle dict tokens
-        if isinstance(token, dict):
-            token = token.get('content', '') or token.get('text', '') or str(token)
-        if token and (isinstance(token, str) and token.strip()):
+        if token and token.strip():
             accumulated_output.append(token)
             
             full_output = ''.join(accumulated_output)
