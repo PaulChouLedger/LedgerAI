@@ -793,6 +793,26 @@ def handle_conversation(
         ]
         is_conversational = any(phrase in normalized_prompt for phrase in conversational_phrases)
         
+        # Exclude information-seeking questions from being marked as conversational
+        information_seeking_patterns = [
+            'do you know', 'who is', 'who are', 'who was', 'who were',
+            "who's", "who're",  # Contractions
+            'what is', 'what are', 'what was', 'what were',
+            "what's", "what're",  # Contractions
+            'where is', 'where are', 'where was', 'where were',
+            "where's", "where're",  # Contractions
+            'when is', 'when are', 'when was', 'when were',
+            "when's", "when're",  # Contractions
+            'why is', 'why are', 'why was', 'why were',
+            "why's", "why're",  # Contractions
+            'how is', 'how are', 'how was', 'how were',
+            "how's", "how're",  # Contractions
+            'tell me about', 'tell me who', 'tell me what', 'tell me where', 'tell me when',
+            'what about', 'what do you know about'
+        ]
+        if any(pattern in normalized_prompt for pattern in information_seeking_patterns):
+            is_conversational = False
+        
         # SIMPLIFIED: Use quick_content_match as primary RAG trigger (fast substring/fuzzy match)
         # This is more reliable than pattern matching - if content exists, use RAG
         rag_client = None
@@ -1780,42 +1800,28 @@ JSON array only:"""
         
             # Reduced debug logging for performance
         
-        # If streaming and we used LLM scoring, yield filler phrase first
-        # Skip filler phrase for conversational queries
-        if stream and needs_filler_phrase and not is_conversational:
-            filler_phrase = get_filler_phrase()
-            print(f"[Generic] 💭 Yielding filler phrase before response: '{filler_phrase}'")
+        # Use higher token limit for list questions to ensure all items are included
+        if stream:
+            max_tokens_limit = MAX_TOKENS_RAG_MODE_LIST if is_list_request else MAX_TOKENS_RAG_MODE
+            llm_response = llm_chat_simple(messages, max_tokens=max_tokens_limit, stream=True)
             
-            # Create wrapper generator that yields filler phrase first, then LLM response
-            def response_with_filler():
-                # Yield filler phrase with sentence tags
-                yield "<sentence_start>\n"
-                for word in filler_phrase.split():
-                    yield f"{word} "
-                yield "<sentence_end>\n"
-                
-                # Then yield from actual LLM response
-                # Use higher token limit for list questions to ensure all items are included
-                max_tokens_limit = MAX_TOKENS_RAG_MODE_LIST if is_list_request else MAX_TOKENS_RAG_MODE
-                llm_response = llm_chat_simple(messages, max_tokens=max_tokens_limit, stream=True)
-                
-                # Always filter structured format to extract only Final Answer for TTS
-                # The LLM may output structured format (Known Facts, Reasoning Steps, Final Answer, Confidence)
-                # We need to extract only the Final Answer section
-                # Also filter out scoring debug sections (---SCORING--- to ---END SCORING---)
-                buffer = ""
-                in_final_answer = False
-                final_answer_started = False
-                in_scoring = False
-                reasoning_buffer = ""  # Buffer for logging reasoning in debug mode
-                scoring_buffer = ""  # Buffer for logging scoring in debug mode
-                
-                # Track if we're in scoring section - don't yield anything until we're past it
-                in_scoring_section = False
-                answer_started = False
-                accumulated_buffer = ""  # Accumulate chunks until we find the answer
-                
-                for chunk in llm_response:
+            # Always filter structured format to extract only Final Answer for TTS
+            # The LLM may output structured format (Known Facts, Reasoning Steps, Final Answer, Confidence)
+            # We need to extract only the Final Answer section
+            # Also filter out scoring debug sections (---SCORING--- to ---END SCORING---)
+            buffer = ""
+            in_final_answer = False
+            final_answer_started = False
+            in_scoring = False
+            reasoning_buffer = ""  # Buffer for logging reasoning in debug mode
+            scoring_buffer = ""  # Buffer for logging scoring in debug mode
+            
+            # Track if we're in scoring section - don't yield anything until we're past it
+            in_scoring_section = False
+            answer_started = False
+            accumulated_buffer = ""  # Accumulate chunks until we find the answer
+            
+            for chunk in llm_response:
                     accumulated_buffer += chunk
                     
                     # Early detection: If buffer contains scoring patterns, don't yield until we find the answer
@@ -2153,9 +2159,9 @@ JSON array only:"""
                             else:
                                 yield chunk
                     # If not in Final Answer yet, just buffer (don't yield)
-                
-                # If we never found Final Answer marker, log full response and extract answer if possible
-                if not in_final_answer and buffer:
+            
+            # If we never found Final Answer marker, log full response and extract answer if possible
+            if not in_final_answer and buffer:
                     if SHOW_REASONING_DEBUG:
                         print(f"\n{'='*80}")
                         print(f"[Generic] 🔍 [LLM Reasoning Debug] FULL RESPONSE (no Final Answer marker found):")
@@ -2179,8 +2185,6 @@ JSON array only:"""
                         # Fallback: yield full response
                         for char in buffer:
                             yield char
-            
-            return response_with_filler()
         
         # For streaming with debug mode, filter out reasoning and scoring
         if stream and SHOW_REASONING_DEBUG:
@@ -2763,11 +2767,17 @@ def chat_tts():
             # Exclude information-seeking questions from being marked as conversational
             information_seeking_patterns = [
                 'do you know', 'who is', 'who are', 'who was', 'who were',
+                "who's", "who're",  # Contractions
                 'what is', 'what are', 'what was', 'what were',
+                "what's", "what're",  # Contractions
                 'where is', 'where are', 'where was', 'where were',
+                "where's", "where're",  # Contractions
                 'when is', 'when are', 'when was', 'when were',
+                "when's", "when're",  # Contractions
                 'why is', 'why are', 'why was', 'why were',
+                "why's", "why're",  # Contractions
                 'how is', 'how are', 'how was', 'how were',
+                "how's", "how're",  # Contractions
                 'tell me about', 'tell me who', 'tell me what', 'tell me where', 'tell me when',
                 'what about', 'what do you know about'
             ]
@@ -2816,6 +2826,22 @@ def chat_tts():
                         print(f"[Generic] ⚠️ Memory RAG quick-match check failed: {e}")
                 except Exception as e:
                     print(f"[Generic] ⚠️ RAG pre-check failed: {e}")
+            
+            # Yield filler phrase IMMEDIATELY after detecting RAG will be used (before calling handle_conversation)
+            # This ensures it plays while RAG search happens in the background
+            if will_use_rag:
+                filler_phrase = get_filler_phrase()
+                print(f"[Generic] ✅ [Filler Phrase] DECISION: Yielding filler phrase IMMEDIATELY after RAG detection")
+                print(f"[Generic] 💭 [Filler Phrase] Filler phrase: '{filler_phrase}'")
+                # IMPORTANT: Stream protocol is line-delimited. Each yielded chunk must end with '\n'
+                # and tags should NOT be prefixed by a newline, otherwise the speaker parser can miss text.
+                print(f"[Generic] 💭 [Filler Phrase] Yielding <sentence_start> tag (line-delimited)")
+                yield "<sentence_start>\n"
+                print(f"[Generic] 💭 [Filler Phrase] Yielding filler phrase text (line-delimited): '{filler_phrase}'")
+                yield f"{filler_phrase}\n"
+                print(f"[Generic] 💭 [Filler Phrase] Yielding <sentence_end> tag (line-delimited)")
+                yield "<sentence_end>\n"
+                print(f"[Generic] ✅ [Filler Phrase] Filler phrase yield complete")
             
             # Use streaming mode to get tokens as they're generated, with memory context
             print(f"[Generic] 🔍 [Stream] Calling handle_conversation() with stream=True")
