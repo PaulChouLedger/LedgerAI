@@ -1704,9 +1704,11 @@ JSON array only:"""
                 stop=["<|im_end|>"],
             )
             if stream:
-                # Let CoT filter handle stopping after first FINAL ANSWER (it has logic to detect post-answer markers)
-                # The hard stop was cutting off too early and preventing proper CoT filtering
-                yield from llm_response
+                # Apply CoT filter to extract FINAL ANSWER from REASONING section
+                # Note: Initial filler phrase is already yielded in generate_response() before calling handle_conversation()
+                print(f"[Generic] ✅ [handle_conversation] Applying CoT filter to RAG query stream")
+                yield from filter_cot_reasoning(llm_response)
+                return
             else:
                 return llm_response
         else:
@@ -1822,7 +1824,13 @@ JSON array only:"""
             accumulated_buffer = ""  # Accumulate chunks until we find the answer
             
             for chunk in llm_response:
-                    accumulated_buffer += chunk
+                    # Handle both string and dict chunks (llama-cpp-python may return dicts)
+                    if isinstance(chunk, dict):
+                        # Extract text from dict (common format: {'content': 'text'})
+                        chunk_text = chunk.get('content', '') if isinstance(chunk.get('content'), str) else str(chunk)
+                    else:
+                        chunk_text = str(chunk) if chunk else ""
+                    accumulated_buffer += chunk_text
                     
                     # Early detection: If buffer contains scoring patterns, don't yield until we find the answer
                     if not answer_started:
