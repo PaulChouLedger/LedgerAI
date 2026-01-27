@@ -45,6 +45,7 @@ COPY models/Qwen2.5-1.5B-Instruct.Q4_K_M-rag-cot.gguf /models/Qwen2.5-1.5B-Instr
 # Copy Python application files
 COPY container_rest.py ./
 COPY conversation_manager.py ./
+COPY cot_filter.py ./
 
 # Note: RAG module is now in /shared/rag/ (mounted via docker-compose.yml)
 
