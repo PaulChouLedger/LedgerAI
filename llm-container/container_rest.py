@@ -3401,8 +3401,14 @@ def filter_cot_reasoning(generator):
         """Extract text content from token (removing sentence tags)"""
         if not token:
             return ""
+        # Handle both string and dict tokens (llama-cpp-python may return dicts)
+        if isinstance(token, dict):
+            # Extract text from dict (common format: {'content': 'text'} or {'text': 'text'})
+            text = token.get('content', '') or token.get('text', '') or str(token)
+        else:
+            text = str(token) if token else ""
         # Remove sentence tags and newlines for marker detection
-        text = token.replace("<sentence_start>", "").replace("<sentence_end>", "").replace("\n", " ").strip()
+        text = text.replace("<sentence_start>", "").replace("<sentence_end>", "").replace("\n", " ").strip()
         return text
     
     def extract_discarded_items(reasoning_text):
@@ -3552,6 +3558,10 @@ def filter_cot_reasoning(generator):
     # CRITICAL: For base model, we want to pass through immediately without buffering
     # Also detect clarification messages and pass them through immediately with proper sentence tags
     for token in generator:
+        # Handle dict tokens by converting to string first
+        if isinstance(token, dict):
+            token = token.get('content', '') or token.get('text', '') or str(token)
+        
         # Special-case: allow exactly one *preface* sentence (our injected filler phrase)
         # to pass through immediately before CoT detection buffers the stream.
         if isinstance(token, str) and not preface_sentence_used:
@@ -4350,7 +4360,10 @@ def filter_think_blocks(generator):
     garbage_detected = False
     
     for token in generator:
-        if token and token.strip():
+        # Handle dict tokens
+        if isinstance(token, dict):
+            token = token.get('content', '') or token.get('text', '') or str(token)
+        if token and (isinstance(token, str) and token.strip()):
             accumulated_output.append(token)
             
             full_output = ''.join(accumulated_output)
