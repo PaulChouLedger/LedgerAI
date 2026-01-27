@@ -1709,9 +1709,12 @@ JSON array only:"""
                 yield f"{filler_phrase}\n"
                 yield "<sentence_end>\n"
                 
+                # Normalize stream chunks (convert dicts to strings) before passing to CoT filter
+                normalized_stream = _normalize_stream_chunks(llm_response)
+                
                 # Apply CoT filter to extract final answer from reasoning
                 print(f"[Generic] ✅ [handle_conversation] Applying CoT filter to RAG query stream")
-                yield from filter_cot_reasoning(llm_response)
+                yield from filter_cot_reasoning(normalized_stream)
                 return
             else:
                 return llm_response
@@ -3127,20 +3130,65 @@ def _normalize_stream_chunks(chunk_iter):
     """
     for chunk in chunk_iter:
         if isinstance(chunk, dict):
+            # Extract content from dict chunks (OpenAI/llama-cpp-python format)
+            content = None
             if 'choices' in chunk and len(chunk['choices']) > 0:
                 delta = chunk['choices'][0].get('delta', {})
                 content = delta.get('content', '')
-                if content:
-                    yield content
             elif 'content' in chunk:
                 content = chunk.get('content', '')
-                if content:
-                    yield content
+            
+            # Only yield if there's actual content (skip metadata chunks)
+            if content:
+                yield content
+            # Skip metadata chunks (dicts without content) - don't convert to string
+            continue
         elif isinstance(chunk, str):
+            # Check if this is a stringified dict (starts with '{' and contains 'id' or 'choices')
+            # This shouldn't happen if normalization is applied correctly, but handle it as fallback
+            chunk_stripped = chunk.strip()
+            if chunk_stripped.startswith('{') and ('id' in chunk or 'choices' in chunk or 'delta' in chunk or "'id'" in chunk):
+                # Try to parse as JSON or Python dict literal
+                content = None
+                try:
+                    import json
+                    # Try JSON first (double quotes)
+                    parsed = json.loads(chunk)
+                    if isinstance(parsed, dict):
+                        if 'choices' in parsed and len(parsed['choices']) > 0:
+                            delta = parsed['choices'][0].get('delta', {})
+                            content = delta.get('content', '')
+                        elif 'content' in parsed:
+                            content = parsed.get('content', '')
+                        # Skip metadata chunks without content
+                        if content:
+                            yield content
+                        continue
+                except (json.JSONDecodeError, ValueError):
+                    # Not valid JSON, might be Python dict string (single quotes) - try ast.literal_eval
+                    try:
+                        import ast
+                        if chunk_stripped.startswith('{') and chunk_stripped.endswith('}'):
+                            parsed = ast.literal_eval(chunk)  # Safe for dict literals
+                            if isinstance(parsed, dict):
+                                if 'choices' in parsed and len(parsed['choices']) > 0:
+                                    delta = parsed['choices'][0].get('delta', {})
+                                    content = delta.get('content', '')
+                                elif 'content' in parsed:
+                                    content = parsed.get('content', '')
+                                if content:
+                                    yield content
+                                continue
+                    except (SyntaxError, ValueError, TypeError):
+                        # Not a valid dict literal, treat as regular string
+                        pass
+            # Regular string chunk - yield it
             if chunk:
                 yield chunk
         else:
-            yield str(chunk)
+            # For other types, convert to string only if it's not a dict-like object
+            if not (hasattr(chunk, 'get') and callable(getattr(chunk, 'get', None))):
+                yield str(chunk)
 
 
 def _find_word_boundary(buffer: str):
