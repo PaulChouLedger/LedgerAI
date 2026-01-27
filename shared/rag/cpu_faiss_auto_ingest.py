@@ -518,11 +518,69 @@ class CPUFAISSAutoIngest:
         for ext in supported_extensions:
             input_files.extend(self.input_dir.glob(f"*{ext}"))
         
+        # Get set of input file names for comparison
+        input_file_names = {f.name for f in input_files}
+        
         print(f"[Auto-Ingest] 📂 Found {len(input_files)} file(s) in input directory")
         if input_files:
             print(f"[Auto-Ingest] 📋 Files found:")
             for file_path in input_files:
                 print(f"[Auto-Ingest]   - {file_path.name}")
+        
+        # Clean up orphaned embeddings (files in embeddings but missing from input)
+        orphaned_files = files_in_embeddings - input_file_names
+        if orphaned_files:
+            print(f"[Auto-Ingest] 🗑️ Found {len(orphaned_files)} orphaned file(s) in embeddings (missing from input):")
+            for orphaned_file in orphaned_files:
+                print(f"[Auto-Ingest]   - {orphaned_file}")
+            
+            # Remove chunks and metadata for orphaned files
+            indices_to_remove = []
+            for i, meta in enumerate(self.metadata):
+                if isinstance(meta, dict):
+                    meta_file_path = meta.get("file_path", "")
+                    doc_name = meta.get("document_name", "")
+                    file_name = None
+                    
+                    if meta_file_path:
+                        file_name = Path(meta_file_path).name
+                    elif doc_name:
+                        # Check if doc_name matches any orphaned file (with or without extension)
+                        for orphaned in orphaned_files:
+                            if (doc_name == orphaned or 
+                                doc_name == Path(orphaned).stem or
+                                doc_name.lower() == orphaned.lower() or
+                                doc_name.lower() == Path(orphaned).stem.lower()):
+                                file_name = orphaned
+                                break
+                    
+                    if file_name and file_name in orphaned_files:
+                        indices_to_remove.append(i)
+            
+            # Remove in reverse order to maintain indices
+            removed_count = 0
+            for i in reversed(indices_to_remove):
+                if i < len(self.chunks) and i < len(self.metadata):
+                    del self.chunks[i]
+                    del self.metadata[i]
+                    removed_count += 1
+            
+            if removed_count > 0:
+                print(f"[Auto-Ingest] 🗑️ Removed {removed_count} orphaned chunk(s) from {len(orphaned_files)} file(s)")
+                # Remove from state
+                for orphaned_file in orphaned_files:
+                    if orphaned_file in self.state.get("processed_files", {}):
+                        del self.state["processed_files"][orphaned_file]
+                        print(f"[Auto-Ingest] 🗑️ Removed {orphaned_file} from processed state")
+                
+                # Update files_in_embeddings set after cleanup
+                files_in_embeddings = files_in_embeddings - orphaned_files
+                
+                # Save cleaned embeddings
+                print(f"[Auto-Ingest] 💾 Saving cleaned embeddings...")
+                self._save_embeddings_cpu_format()
+                self._save_state()
+                print(f"[Auto-Ingest] ✅ Cleaned embeddings saved: {len(self.chunks)} chunks remaining")
         
         # Check for missing files (in input but not in embeddings)
         # A file is "missing" if it's in input but not in embeddings (regardless of state)

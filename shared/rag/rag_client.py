@@ -39,6 +39,9 @@ class RAGClient:
         - Better for development and systems without GPU
     """
     
+    # CODE VERSION: v2.0 - Updated threshold=0.0 handling to return ALL chunks
+    _CODE_VERSION = "v2.0"
+    
     def __init__(self, use_gpu: bool = None):
         """
         Initialize RAG client
@@ -50,7 +53,8 @@ class RAGClient:
         self._cpu_rag = None
         self._mode = "GPU (External RAG Container - HTTP API)" if self.use_gpu else "CPU (Local FAISS - In-Process)"
         
-        logger.info(f"[RAG Client] Initialized in {self._mode} mode")
+        print(f"[RAG Client] ✅ CODE VERSION {self._CODE_VERSION} LOADED - threshold=0.0 returns ALL chunks")
+        logger.info(f"[RAG Client] Initialized in {self._mode} mode (Code version: {self._CODE_VERSION})")
         
         if self.use_gpu:
             self._check_rag_service()
@@ -467,12 +471,14 @@ class RAGClient:
         
         # Also extract individual capitalized words (first names, last names separately)
         # e.g., "John Smith" -> ["John", "Smith"]
-        # EXCLUDE question words at start of query (Who, What, Where, etc.) and common verbs
+        # EXCLUDE question words at start of query (Who, What, Where, etc.) and common verbs/action words
         question_words = {'who', 'what', 'where', 'when', 'why', 'how', 'which', 'whose', 'whom', 'do', 'does', 'did', 'is', 'are', 'was', 'were', 'can', 'could', 'will', 'would', 'should', 'may', 'might'}
+        # Exclude common action verbs/imperatives that are often capitalized at sentence start
+        action_words = {'summarize', 'tell', 'list', 'show', 'explain', 'describe', 'give', 'find', 'search', 'provide', 'identify', 'name', 'count'}
         query_capitalized_words = re.findall(r'\b([A-Z][a-z]+)\b', query)
-        query_capitalized_lower = [w.lower() for w in query_capitalized_words if w.lower() not in question_words]
+        query_capitalized_lower = [w.lower() for w in query_capitalized_words if w.lower() not in question_words and w.lower() not in action_words]
         
-        # Handle lowercase queries (e.g., from speech-to-text: "do you know who bob carella is?")
+        # Handle lowercase queries (e.g., from speech-to-text: "do you know who john doe is?")
         # If no capitalized words found, check for potential name phrases after question words
         if not query_capitalized_lower and len(query_terms) >= 2:
             query_lower = query.lower()
@@ -526,13 +532,13 @@ class RAGClient:
             matched_name_words = []
             if query_capitalized_lower:
                 # Check ALL capitalized words (don't break early - need to verify all name parts match)
-                # This is critical for fuzzy matching typos like "Corella" vs "Carella"
+                # This is critical for fuzzy matching typos like "Doe" vs "Doe"
                 for cap_word in query_capitalized_lower:
                     if self._fuzzy_match_term(cap_word, text, threshold=0.75):
                         matched_name_words.append(cap_word)
                 
                 # For multi-word names (2+ words), require at least 2 matches
-                # This ensures both first and last name match (handles typos like "Corella" vs "Carella")
+                # This ensures both first and last name match (handles typos in names)
                 if len(query_capitalized_lower) >= 2:
                     if len(matched_name_words) >= 2:
                         has_name_match = True
@@ -545,23 +551,32 @@ class RAGClient:
                     if has_name_match:
                         print(f"[RAG Pre-filter] ✅ Name match: '{matched_name_words[0]}' fuzzy matched in chunk text")
             
-            # If query has names but chunk has no name match, exclude it
-            # This prevents chunks about different people from being included
-            if query_capitalized_lower and not has_name_match:
-                print(f"[RAG Pre-filter] ❌ EXCLUDED: Query has names {query_capitalized_lower} but chunk has no name match")
-                continue
+            # Check for query term matches (always check, regardless of names)
+            has_query_term = False
+            matched_term = None
+            for term in query_terms:
+                if self._fuzzy_match_term(term, text, threshold=0.75):
+                    has_query_term = True
+                    matched_term = term
+                    print(f"[RAG Pre-filter] ✅ Query term match: '{term}' found in chunk text")
+                    break
             
-            # For queries without names, check for other query terms
-            if not query_capitalized_lower:
-                has_query_term = False
-                matched_term = None
-                for term in query_terms:
-                    if self._fuzzy_match_term(term, text, threshold=0.75):
-                        has_query_term = True
-                        matched_term = term
-                        print(f"[RAG Pre-filter] ✅ Query term match: '{term}' found in chunk text")
-                        break
-                
+            # If query has names (2+ capitalized words = likely a real name), require name match
+            # Single capitalized word might be a name OR just a capitalized word at sentence start
+            # For 2+ capitalized words, we're confident it's a name, so require name matching
+            if len(query_capitalized_lower) >= 2:
+                # Multi-word name: require name match to prevent false positives
+                if not has_name_match:
+                    print(f"[RAG Pre-filter] ❌ EXCLUDED: Query has multi-word name {query_capitalized_lower} but chunk has no name match")
+                    continue
+            elif len(query_capitalized_lower) == 1:
+                # Single capitalized word: could be a name OR just sentence-start capitalization
+                # Require either name match OR query term match
+                if not has_name_match and not has_query_term:
+                    print(f"[RAG Pre-filter] ❌ EXCLUDED: Query has capitalized word {query_capitalized_lower} but chunk has no name or query term match")
+                    continue
+            else:
+                # No capitalized words: require query term match
                 if not has_query_term:
                     print(f"[RAG Pre-filter] ❌ EXCLUDED: No query term matches found (terms: {query_terms})")
                     continue
@@ -692,24 +707,33 @@ class RAGClient:
         # When reranking is enabled, use very low threshold (0.0) to get ALL candidates
         # Pre-filter will then exclude irrelevant chunks, and re-ranking will improve relevance
         search_threshold = 0.0 if rerank else threshold
+        # Use k*2 for initial search (pre-filter will narrow it down)
+        search_k = k * 2
+        print(f"[RAG Client] ✅ CODE VERSION v2.0: Updated search() - search_threshold={search_threshold}, search_k={search_k}")
         if self.use_gpu:
-            results = self._search_gpu(expanded_query, k * 2, search_threshold)  # Get all candidates for pre-filtering/re-ranking
+            results = self._search_gpu(expanded_query, search_k, search_threshold)
         else:
-            results = self._search_cpu(expanded_query, k * 2, search_threshold)  # Get all candidates for pre-filtering/re-ranking
+            results = self._search_cpu(expanded_query, search_k, search_threshold)
         
         # Re-rank results if enabled (includes pre-filtering)
         if rerank and results:
             print(f"[RAG Client] 🔍 Pre-filtering and re-ranking {len(results)} results for query: '{query[:50]}...'")
             results = self._rerank_results(query, results, top_k=k)
             # Re-apply threshold after re-ranking
-            # Note: Chunks with name_match_boost use slightly lower effective threshold (85% of threshold)
-            # to increase recall for relevant name-related content
-            filtered_results = []
-            for r in results:
-                effective_threshold = threshold * 0.85 if r.get('name_match_boost', 0) > 0 else threshold
-                if r['score'] >= effective_threshold:
-                    filtered_results.append(r)
-            results = filtered_results
+            # If search_threshold was 0.0, all pre-filtered results are valid (they have substring matches)
+            # Only apply threshold filtering if we used semantic search with a threshold
+            if abs(search_threshold) < 1e-6:
+                # Threshold=0.0: all pre-filtered results are valid (they have substring matches)
+                print(f"[RAG Client] 🔍 Threshold=0.0 - keeping all {len(results)} pre-filtered results (semantic score ignored)")
+            else:
+                # Normal threshold: filter by score
+                filtered_results = []
+                for r in results:
+                    effective_threshold = threshold * 0.85 if r.get('name_match_boost', 0) > 0 else threshold
+                    if r['score'] >= effective_threshold:
+                        filtered_results.append(r)
+                results = filtered_results
+                print(f"[RAG Client] ✅ Filtered to {len(results)} results above threshold={threshold}")
         
         return results[:k]  # Return top k results
     
@@ -818,10 +842,15 @@ class RAGClient:
                 threshold_status = "✅" if match['score'] >= threshold else "❌"
                 print(f"[RAG Client]   [{i}] {threshold_status} Score: {match['score']:.3f} (threshold: {threshold:.3f}), File: {file_name}, Preview: '{match['text'][:50]}...'")
             
-            # Filter by threshold
-            results = [match for match in all_matches if match['score'] >= threshold]
-            
-            print(f"[RAG Client] ✅ CPU search found {len(results)} results above threshold={threshold} (out of {len(all_matches)} total matches)")
+            # Filter by threshold (unless threshold=0.0, then include all for pre-filtering)
+            if threshold == 0.0 or abs(float(threshold)) < 1e-6:
+                # Threshold=0.0: include ALL results (even negative scores), pre-filter will do substring matching
+                results = all_matches
+                print(f"[RAG Client] ✅ CPU search found {len(results)} results (threshold=0.0 - all results included for substring matching)")
+            else:
+                # Normal threshold: filter by score
+                results = [match for match in all_matches if match['score'] >= threshold]
+                print(f"[RAG Client] ✅ CPU search found {len(results)} results above threshold={threshold} (out of {len(all_matches)} total matches)")
             if results:
                 for i, result in enumerate(results, 1):
                     # Extract file name from metadata
