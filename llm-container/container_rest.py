@@ -793,6 +793,23 @@ def handle_conversation(
         ]
         is_conversational = any(phrase in normalized_prompt for phrase in conversational_phrases)
         
+        # Exclude information-seeking questions from being marked as conversational
+        # CRITICAL: This must happen BEFORE using is_conversational to skip RAG
+        information_seeking_patterns = [
+            'do you know', 'who is', 'who are', 'who was', 'who were', "who's",
+            'what is', 'what are', 'what was', 'what were', "what's",
+            'where is', 'where are', 'where was', 'where were', "where's",
+            'when is', 'when are', 'when was', 'when were', "when's",
+            'why is', 'why are', 'why was', 'why were', "why's",
+            'how is', 'how are', 'how was', 'how were', "how's",
+            'tell me about', 'tell me who', 'tell me what', 'tell me where', 'tell me when',
+            'what about', 'what do you know about', 'can you tell me', 'could you tell me'
+        ]
+        # If query contains information-seeking patterns, it's NOT conversational
+        if any(pattern in normalized_prompt for pattern in information_seeking_patterns):
+            is_conversational = False
+            print(f"[Generic] 🔍 Information-seeking query detected - overriding conversational flag")
+        
         # SIMPLIFIED: Use quick_content_match as primary RAG trigger (fast substring/fuzzy match)
         # This is more reliable than pattern matching - if content exists, use RAG
         rag_client = None
