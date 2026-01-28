@@ -1693,17 +1693,21 @@ JSON array only:"""
             if stream:
                 # Apply CoT filter to extract FINAL ANSWER from REASONING section
                 # Yield initial filler phrase when RAG/CoT is detected
+                # CRITICAL: Yield filler phrase FIRST and ensure it's flushed before starting CoT filter
                 filler_phrase = get_filler_phrase()
                 print(f"[Generic] 💭 [handle_conversation] Yielding FIRST filler phrase (RAG/CoT detected): '{filler_phrase}'")
                 yield "<sentence_start>\n"
                 yield f"{filler_phrase}\n"
                 yield "<sentence_end>\n"
+                # Filler phrase is now in the stream and should be spoken immediately
+                # The CoT filter will process the LLM response separately
                 
                 # Normalize stream chunks (convert dicts to strings) before passing to CoT filter
                 normalized_stream = _normalize_stream_chunks(llm_response)
                 
                 # Apply CoT filter to extract final answer from reasoning
-                print(f"[Generic] ✅ [handle_conversation] Applying CoT filter to RAG query stream")
+                # This processes the LLM response stream, NOT the filler phrase
+                print(f"[Generic] ✅ [handle_conversation] Applying CoT filter to RAG query stream (after filler phrase)")
                 yield from filter_cot_reasoning(normalized_stream)
                 return
             else:
