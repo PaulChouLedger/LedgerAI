@@ -3000,8 +3000,13 @@ def chat_tts():
                 return
 
             # Resume remaining iterator (pause logic may trigger again downstream)
+            # Match the normal streaming format: each token gets a newline appended
             for tok in _pauseable_sentence_stream(pending_iter, session_id, initial_item_count=pending_item_count):
-                yield tok
+                # Yield token with newline (matching normal streaming format: f"{token}\n")
+                if isinstance(tok, str):
+                    yield f"{tok}\n"
+                else:
+                    yield tok
 
         return Response(stream_with_context(_resume_stream()), mimetype="text/plain")
     
