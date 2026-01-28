@@ -3350,14 +3350,27 @@ def _normalize_stream_chunks(chunk_iter):
             # Extract content from dict chunks (OpenAI/llama-cpp-python format)
             content = None
             if 'choices' in chunk and len(chunk['choices']) > 0:
-                delta = chunk['choices'][0].get('delta', {})
-                content = delta.get('content', '')
+                choice0 = chunk['choices'][0] or {}
+                # OpenAI chat-style streaming: {"choices":[{"delta":{"content":"..."}}]}
+                delta = choice0.get('delta') or {}
+                if isinstance(delta, dict):
+                    content = delta.get('content', '') or ''
+                # llama-cpp completion-style streaming often uses {"choices":[{"text":"..."}]}
+                if not content:
+                    content = choice0.get('text', '') or ''
+                # Some formats: {"choices":[{"message":{"content":"..."}}]}
+                if not content:
+                    msg = choice0.get('message') or {}
+                    if isinstance(msg, dict):
+                        content = msg.get('content', '') or ''
             elif 'content' in chunk:
                 content = chunk.get('content', '')
+            elif 'text' in chunk:
+                content = chunk.get('text', '')
             
             # Only yield if there's actual content (skip metadata chunks)
-                if content:
-                    yield content
+            if content:
+                yield content
             # Skip metadata chunks (dicts without content) - don't convert to string
             continue
         elif isinstance(chunk, str):
@@ -3373,10 +3386,20 @@ def _normalize_stream_chunks(chunk_iter):
                     parsed = json.loads(chunk)
                     if isinstance(parsed, dict):
                         if 'choices' in parsed and len(parsed['choices']) > 0:
-                            delta = parsed['choices'][0].get('delta', {})
-                            content = delta.get('content', '')
+                            choice0 = parsed['choices'][0] or {}
+                            delta = choice0.get('delta') or {}
+                            if isinstance(delta, dict):
+                                content = delta.get('content', '') or ''
+                            if not content:
+                                content = choice0.get('text', '') or ''
+                            if not content:
+                                msg = choice0.get('message') or {}
+                                if isinstance(msg, dict):
+                                    content = msg.get('content', '') or ''
                         elif 'content' in parsed:
                             content = parsed.get('content', '')
+                        elif 'text' in parsed:
+                            content = parsed.get('text', '')
                         # Skip metadata chunks without content
                         if content:
                             yield content
@@ -3389,10 +3412,20 @@ def _normalize_stream_chunks(chunk_iter):
                             parsed = ast.literal_eval(chunk)  # Safe for dict literals
                             if isinstance(parsed, dict):
                                 if 'choices' in parsed and len(parsed['choices']) > 0:
-                                    delta = parsed['choices'][0].get('delta', {})
-                                    content = delta.get('content', '')
+                                    choice0 = parsed['choices'][0] or {}
+                                    delta = choice0.get('delta') or {}
+                                    if isinstance(delta, dict):
+                                        content = delta.get('content', '') or ''
+                                    if not content:
+                                        content = choice0.get('text', '') or ''
+                                    if not content:
+                                        msg = choice0.get('message') or {}
+                                        if isinstance(msg, dict):
+                                            content = msg.get('content', '') or ''
                                 elif 'content' in parsed:
                                     content = parsed.get('content', '')
+                                elif 'text' in parsed:
+                                    content = parsed.get('text', '')
                                 if content:
                                     yield content
                                 continue
