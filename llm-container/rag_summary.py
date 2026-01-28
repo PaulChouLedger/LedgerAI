@@ -168,7 +168,7 @@ def generate_summary_response(
     summary_user_content = (
         f"Extracted information:\n{extracted_info}\n\n"
         f"Based on this information, {query.lower()}\n\n"
-        "Provide a natural, conversational summary or advice."
+        "Provide a concise, to-the-point summary or advice (maximum 2-3 sentences). Be direct and avoid verbosity."
     )
     
     summary_messages = [

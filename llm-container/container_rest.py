@@ -676,11 +676,18 @@ def validate_query(prompt: str) -> tuple:
     )
     
     # Check for imperative patterns (valid commands)
-    imperative_patterns = ['tell me', 'show me', 'give me', 'find', 'search', 'list', 'explain']
+    imperative_patterns = ['tell me', 'show me', 'give me', 'find', 'search', 'list', 'explain', 
+                          'summarize', 'summarise', 'suggest', 'recommend', 'advise', 'advice',
+                          'how can i', 'how do i', 'how should i', 'what should i', 'what can i']
     has_imperative = any(prompt_lower.startswith(imp) for imp in imperative_patterns)
     
+    # Also check if query contains summary/advice keywords (even if not at start)
+    summary_keywords = ['summarize', 'summarise', 'summary', 'suggestion', 'suggest', 'recommend', 
+                       'recommendation', 'advice', 'advise', 'overview']
+    has_summary_keyword = any(keyword in prompt_lower for keyword in summary_keywords)
+    
     # If no question word and no imperative, and it's a short phrase, likely malformed
-    if not has_question_word and not has_imperative:
+    if not has_question_word and not has_imperative and not has_summary_keyword:
         # Allow very short conversational phrases (greetings, etc.)
         conversational_short = any(phrase in prompt_lower for phrase in [
             'hello', 'hi', 'hey', 'thanks', 'thank you', 'bye', 'goodbye', 'ok', 'okay', 'yes', 'no'
@@ -729,18 +736,27 @@ def handle_conversation(
         If stream=True: Generator that yields tokens as they're generated
     """
     
+    # Check if this is a summary/advice query - skip validation for these as they're already validated by detection
+    is_summary_query_flag = False
+    if RAG_SUMMARY_AVAILABLE and check_summary_query:
+        is_summary_query_flag = check_summary_query(prompt)
+        if is_summary_query_flag:
+            print(f"[Generic] 📝 Summary/advice query detected - skipping query validation")
+    
     # Validate query before processing (catch malformed transcriptions)
-    is_valid, error_message = validate_query(prompt)
-    if not is_valid:
-        print(f"[Generic] 🚫 Query validation failed - returning clarification message")
-        if stream:
-            def clarification_response():
-                yield "<sentence_start>\n"
-                yield f"{error_message}\n"
-                yield "<sentence_end>\n"
-            return clarification_response()
-        else:
-            return error_message
+    # Skip validation for summary/advice queries as they're already validated by detection
+    if not is_summary_query_flag:
+        is_valid, error_message = validate_query(prompt)
+        if not is_valid:
+            print(f"[Generic] 🚫 Query validation failed - returning clarification message")
+            if stream:
+                def clarification_response():
+                    yield "<sentence_start>\n"
+                    yield f"{error_message}\n"
+                    yield "<sentence_end>\n"
+                return clarification_response()
+            else:
+                return error_message
     
     # Try RAG first for knowledge queries (CPU or GPU) if enabled
     # Skip RAG for simple conversational queries to reduce latency
