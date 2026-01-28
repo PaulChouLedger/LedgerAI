@@ -2892,10 +2892,14 @@ def chat_tts():
                 # If this is a summary query, pass through directly without CoT filter
                 if is_summary_query_flag:
                     print(f"[Generic] 📝 [Summary Mode] Passing base model summary through without CoT filter")
-                    # Summary responses from base model should be passed through directly
-                    # They already have proper sentence tags and natural formatting
-                    for chunk in result:
-                        yield chunk
+                    # Summary responses from base model need normalization (dicts -> strings)
+                    # Then wrap with sentence tags for proper TTS formatting
+                    normalized_chunks = _normalize_stream_chunks(result)
+                    yield "<sentence_start>\n"
+                    for chunk in normalized_chunks:
+                        if chunk:  # Skip empty chunks
+                            yield chunk
+                    yield "\n<sentence_end>\n"
                     return
                 
                 # Special-case: some internal generators (e.g., validate_query() clarification)
