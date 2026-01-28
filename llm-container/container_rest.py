@@ -3171,17 +3171,19 @@ def chat_tts():
             if is_summary_query_flag:
                 print(f"[Generic] 📝 [Summary Mode] Detected summary/advice query in get_response_stream - bypassing CoT filter")
         
+        # IMPORTANT: Check summary queries FIRST (even if RAG is used, summaries bypass CoT filter)
         # For base model queries (no RAG), stream immediately without any filtering
         # For RAG queries, apply filters to extract final answer
-        if will_use_rag:
+        if is_summary_query_flag:
+            # Summary query - pass through without filters (base model generates summaries)
+            # Summary queries use RAG but bypass CoT filter (they use CoT extraction + base model summary)
+            print(f"[Generic] 📝 [Summary Mode] Passing summary response through without CoT filter (will_use_rag={will_use_rag})")
+            yield from generate_response()
+        elif will_use_rag:
             # RAG query - apply filters to extract final answer from CoT reasoning
             print(f"[Generic] ✅ [CoT Filter] Applying filters to RAG query (will_use_rag=True)")
             base_stream = filter_think_blocks(generate_response())
             yield from filter_cot_reasoning(base_stream)
-        elif is_summary_query_flag:
-            # Summary query - pass through without filters (base model generates summaries)
-            print(f"[Generic] 📝 [Summary Mode] Passing summary response through without filters")
-            yield from generate_response()
         else:
             # Base model query (no RAG) - stream immediately without any filtering or buffering
             print(f"[Generic] ✅ [Base Model] Streaming base model response immediately (will_use_rag=False, no filters)")

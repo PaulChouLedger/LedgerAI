@@ -153,14 +153,17 @@ def generate_summary_response(
     summary_system_prompt = (
         "You are Aura Vision, an AI agent created by Ledger AI Quantum Corporation. "
         "You act as a proactive AI agent guiding users to better outcomes through gentle guidance.\n\n"
-        "Your task is to create a concise, to-the-point summary or provide advice based on the extracted information below.\n\n"
+        "Your task is to create a well-constructed summary or provide advice based on the extracted information below.\n\n"
         "CRITICAL RULES:\n"
         "- Use ONLY the extracted information provided below.\n"
-        "- Be concise and direct - get to the point immediately.\n"
-        "- Maximum 2-3 sentences - NO MORE.\n"
-        "- Do NOT be verbose or overly conversational.\n"
+        "- Provide a comprehensive summary with 3-4 well-constructed sentences.\n"
+        "- Include relevant details, key points, and important information from the extracted data.\n"
+        "- Structure the summary logically: start with an overview, then provide key details, and conclude with important points.\n"
+        "- Be informative and substantive - include specific details, numbers, dates, or key facts when available.\n"
+        "- Write in a natural, flowing style that connects the sentences smoothly.\n"
+        "- Do NOT be overly brief or skip important information.\n"
         "- Do NOT use filler words or unnecessary explanations.\n"
-        "- Focus on the key information requested.\n"
+        "- Focus on the key information requested in the query.\n"
         "- If the extracted information is incomplete, acknowledge that briefly.\n"
         "- End with a brief, natural question if appropriate (optional, keep it short).\n"
     )
@@ -168,7 +171,7 @@ def generate_summary_response(
     summary_user_content = (
         f"Extracted information:\n{extracted_info}\n\n"
         f"Based on this information, {query.lower()}\n\n"
-        "Provide a concise, to-the-point summary or advice (maximum 2-3 sentences). Be direct and avoid verbosity."
+        "Provide a well-constructed summary or advice with 3-4 sentences. Include relevant details, key points, and important information. Be informative and substantive."
     )
     
     summary_messages = [
@@ -180,7 +183,7 @@ def generate_summary_response(
     try:
         summary_response = llm_chat_simple(
             summary_messages,
-            max_tokens=800,
+            max_tokens=1200,  # Increased to allow for 3-4 well-constructed sentences with details
             temperature=None,  # Use default temperature for natural summary
             stream=stream,
             use_cot_model=False,  # Use base model for summary
