@@ -8,6 +8,7 @@ It uses a two-stage approach:
 """
 
 import re
+import random
 from typing import Optional
 
 
@@ -255,11 +256,42 @@ def handle_summary_advice_query(
         extract_llm_response_content=extract_llm_response_content
     )
     
-    # Step 2: Generate summary using base model
-    return generate_summary_response(
-        extracted_info=extracted_info,
-        query=prompt,
-        llm_chat_simple=llm_chat_simple,
-        extract_llm_response_content=extract_llm_response_content,
-        stream=stream
-    )
+    # Step 1.5: Yield second filler phrase after CoT extraction completes
+    # This provides feedback that processing is happening
+    if stream:
+        second_filler_phrases = [
+            "Alright, extracting the answer now.",
+            "Got it, pulling that information together.",
+            "One moment, finalizing the answer.",
+            "Almost there, extracting the details.",
+        ]
+        second_filler = random.choice(second_filler_phrases)
+        print(f"[RAG Summary] 💭 Yielding SECOND filler phrase (after CoT extraction): '{second_filler}'")
+        
+        def summary_with_filler():
+            # Yield second filler phrase first
+            yield "<sentence_start>\n"
+            yield f"{second_filler}\n"
+            yield "<sentence_end>\n"
+            print(f"[RAG Summary] ✅ Second filler phrase yielded")
+            
+            # Then yield the summary response
+            summary_response = generate_summary_response(
+                extracted_info=extracted_info,
+                query=prompt,
+                llm_chat_simple=llm_chat_simple,
+                extract_llm_response_content=extract_llm_response_content,
+                stream=stream
+            )
+            yield from summary_response
+        
+        return summary_with_filler()
+    else:
+        # Step 2: Generate summary using base model (non-streaming)
+        return generate_summary_response(
+            extracted_info=extracted_info,
+            query=prompt,
+            llm_chat_simple=llm_chat_simple,
+            extract_llm_response_content=extract_llm_response_content,
+            stream=stream
+        )
