@@ -2862,6 +2862,58 @@ def chat_tts():
     print(f"[Generic] 📝 FULL TRANSCRIBED QUERY: '{prompt}'")  # Log full query for debugging
 
     # ------------------------------------------------------------------
+    # Pauseable sentence stream helper (must be in chat_tts scope so resume() can use it)
+    # ------------------------------------------------------------------
+    def _pauseable_sentence_stream(sentence_iter, sid: str, initial_item_count: int = 0):
+        item_count = int(initial_item_count or 0)
+        last_sentence_text = ""
+        current_sentence_buf = ""
+        in_sentence = False
+
+        def _is_list_marker(tok: str) -> bool:
+            t = (tok or "").strip()
+            if t == "-":
+                return True
+            if re.match(r"^\\d+\\.$", t):
+                return True
+            return False
+
+        for tok in sentence_iter:
+            # Track sentence text for "repeat last part"
+            if tok == "<sentence_start>" or tok == "<sentence_start>\n":
+                in_sentence = True
+                current_sentence_buf = ""
+            elif tok == "<sentence_end>" or tok == "<sentence_end>\n" or tok == "\n<sentence_end>\n":
+                in_sentence = False
+                if current_sentence_buf.strip():
+                    last_sentence_text = current_sentence_buf.strip()
+                current_sentence_buf = ""
+            else:
+                if in_sentence and isinstance(tok, str):
+                    # Avoid counting tags as part of sentence text
+                    if "<sentence_" not in tok:
+                        current_sentence_buf += tok
+
+            # Count list items on markers in the stream
+            if isinstance(tok, str) and _is_list_marker(tok):
+                item_count += 1
+                if item_count > MAX_LIST_ITEMS_BEFORE_PAUSE:
+                    if SESSION_STATE:
+                        SESSION_STATE.set_pending_continuation(
+                            sid,
+                            sentence_iter,  # store live iterator (do not consume)
+                            last_sentence=last_sentence_text,
+                            item_count=item_count,
+                        )
+                    # Ask to continue/repeat
+                    yield "<sentence_start>\n"
+                    yield "Would you like me to continue, or repeat the last part?"
+                    yield "\n<sentence_end>\n"
+                    return
+
+            yield tok
+
+    # ------------------------------------------------------------------
     # Continuation handling: "continue" / "repeat"
     # ------------------------------------------------------------------
     def _normalize_control_prompt(p: str) -> str:
@@ -3172,55 +3224,6 @@ def chat_tts():
                 sentence_stream = _sentence_tag_stream(word_stream)
 
                 # Wrap with session-aware pause buffering for long lists / step-by-step instructions.
-                def _pauseable_sentence_stream(sentence_iter, sid: str, initial_item_count: int = 0):
-                    item_count = int(initial_item_count or 0)
-                    last_sentence_text = ""
-                    current_sentence_buf = ""
-                    in_sentence = False
-
-                    def _is_list_marker(tok: str) -> bool:
-                        t = (tok or "").strip()
-                        if t == "-":
-                            return True
-                        if re.match(r'^\d+\.$', t):
-                            return True
-                        return False
-
-                    for tok in sentence_iter:
-                        # Track sentence text for "repeat last part"
-                        if tok == "<sentence_start>" or tok == "<sentence_start>\n":
-                            in_sentence = True
-                            current_sentence_buf = ""
-                        elif tok == "<sentence_end>" or tok == "<sentence_end>\n" or tok == "\n<sentence_end>\n":
-                            in_sentence = False
-                            if current_sentence_buf.strip():
-                                last_sentence_text = current_sentence_buf.strip()
-                            current_sentence_buf = ""
-                        else:
-                            if in_sentence and isinstance(tok, str):
-                                # Avoid counting tags as part of sentence text
-                                if "<sentence_" not in tok:
-                                    current_sentence_buf += tok
-
-                        # Count list items on markers in the stream
-                        if isinstance(tok, str) and _is_list_marker(tok):
-                            item_count += 1
-                            if item_count > MAX_LIST_ITEMS_BEFORE_PAUSE:
-                                if SESSION_STATE:
-                                    SESSION_STATE.set_pending_continuation(
-                                        sid,
-                                        sentence_iter,  # store live iterator (do not consume)
-                                        last_sentence=last_sentence_text,
-                                        item_count=item_count,
-                                    )
-                                # Ask to continue/repeat
-                                yield "<sentence_start>\n"
-                                yield "Would you like me to continue, or repeat the last part?"
-                                yield "\n<sentence_end>\n"
-                                return
-
-                        yield tok
-
                 sentence_stream = _pauseable_sentence_stream(sentence_stream, session_id, initial_item_count=0)
                 token_count = 0
                 clarification_yielded = False
