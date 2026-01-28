@@ -2871,10 +2871,14 @@ def chat_tts():
         in_sentence = False
 
         def _is_list_marker(tok: str) -> bool:
-            t = (tok or "").strip()
+            if not isinstance(tok, str):
+                return False
+            t = tok.strip()
+            # Check for bullet marker "-"
             if t == "-":
                 return True
-            if re.match(r"^\\d+\\.$", t):
+            # Check for numbered list marker "1.", "2.", etc. (fixed regex - was double-escaped)
+            if re.match(r'^\d+\.$', t):
                 return True
             return False
 
@@ -2897,7 +2901,9 @@ def chat_tts():
             # Count list items on markers in the stream
             if isinstance(tok, str) and _is_list_marker(tok):
                 item_count += 1
+                print(f"[Generic] 📋 [Pause Logic] List marker detected: '{tok}' (item_count={item_count}, threshold={MAX_LIST_ITEMS_BEFORE_PAUSE})")
                 if item_count > MAX_LIST_ITEMS_BEFORE_PAUSE:
+                    print(f"[Generic] ⏸️ [Pause Logic] Pausing after {item_count} items (threshold: {MAX_LIST_ITEMS_BEFORE_PAUSE})")
                     if SESSION_STATE:
                         SESSION_STATE.set_pending_continuation(
                             sid,
@@ -3004,6 +3010,38 @@ def chat_tts():
         print(f"[Generic] ⚠️ [Continuation] '{prompt}' detected as continue/repeat, but no pending continuation found for session {session_id}")
         keys = list(SESSION_STATE.pending_session_ids()) if SESSION_STATE else []
         print(f"[Generic] ⚠️ [Continuation] Available sessions with pending continuations: {keys}")
+    
+    # ------------------------------------------------------------------
+    # Session exit handling: "stop", "that would be all", etc.
+    # ------------------------------------------------------------------
+    exit_variations = {
+        "stop", "that would be all", "that's all", "that is all",
+        "we're done", "we are done", "we're finished", "we are finished",
+        "end session", "end the session", "close session", "exit",
+        "goodbye", "bye", "farewell", "that will be all", "that'll be all",
+        "nothing else", "no more", "all done", "finished", "done"
+    }
+    # Check if normalized prompt matches any exit variation
+    is_exit = control_prompt in exit_variations
+    # Also check if prompt contains exit keywords
+    if not is_exit:
+        exit_keywords = ["stop", "that's all", "that would be all", "we're done", "end session", "goodbye"]
+        is_exit = any(keyword in control_prompt for keyword in exit_keywords)
+    
+    if is_exit:
+        print(f"[Generic] 🛑 [Session Exit] Detected exit command: '{prompt}' (normalized: '{control_prompt}')")
+        
+        # Clear any pending continuation state for this session
+        if SESSION_STATE and SESSION_STATE.has_pending_continuation(session_id):
+            SESSION_STATE.consume_pending_continuation(session_id)  # Clear it
+            print(f"[Generic] 🧹 [Session Exit] Cleared pending continuation for session {session_id}")
+        
+        def _exit_response():
+            yield "<sentence_start>\n"
+            yield "Understood. Thanks for chatting. Take care!"
+            yield "\n<sentence_end>\n"
+        
+        return Response(stream_with_context(_exit_response()), mimetype="text/plain")
     
     # Build conversation memory context for this prompt (with fallback)
     # NOTE: Conversation memory should ONLY be evaluated by memory container, not LLM container
