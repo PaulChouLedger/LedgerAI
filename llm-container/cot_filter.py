@@ -75,6 +75,22 @@ def filter_cot_reasoning(generator):
     
     print(f"[CoT Filter] ✅ REASONING section detected")
     
+    # Yield second filler phrase after REASONING is detected (before extracting final answer)
+    # This provides feedback that processing is happening
+    second_filler_phrases = [
+        "Alright, extracting the answer now.",
+        "Got it, pulling that information together.",
+        "One moment, finalizing the answer.",
+        "Almost there, extracting the details.",
+    ]
+    import random
+    second_filler = random.choice(second_filler_phrases)
+    print(f"[CoT Filter] 💭 Yielding SECOND filler phrase (after REASONING detection): '{second_filler}'")
+    yield "<sentence_start>\n"
+    yield f"{second_filler}\n"
+    yield "<sentence_end>\n"
+    print(f"[CoT Filter] ✅ Second filler phrase yielded")
+    
     # CoT response detected - extract FINAL ANSWER
     # Find REASONING section - handle tokenized text where spaces might be inserted
     # Try multiple patterns to handle tokenized "REASONING:" (e.g., "RE ASON ING :")
