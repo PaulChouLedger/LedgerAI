@@ -133,15 +133,20 @@ def filter_cot_reasoning(generator):
     
     # Pattern to match: - Item: [Name] ... - Action: [KEEP] or [DISCARD]
     # Handle multiple spaces between elements (e.g., "Bob Carella   - Evidence:")
-    # Match item name up to the next "- Action:" marker (greedy to capture full name)
-    item_pattern = r'-\s*Item\s*:\s*([^-]+?)\s+-\s+(?:Evidence\s*:\s*[^-]*?\s+-\s+)?Action\s*:\s*\[(KEEP|DISCARD)\]'
+    # Match item name up to the next "- Action:" marker (not just any "-")
+    # Evidence section may contain hyphens (e.g., "Co-Founder"), so use .*? instead of [^-]*?
+    item_pattern = r'-\s*Item\s*:\s*([^-]+?)\s+-\s+(?:Evidence\s*:\s*.*?\s+-\s+)?Action\s*:\s*\[(KEEP|DISCARD)\]'
     
     print(f"[CoT Filter] 🔍 Extracting items from reasoning text (length: {len(reasoning_text)})")
+    print(f"[CoT Filter] 🔍 Reasoning text preview: {reasoning_text[:400]}")
+    
     matches_found = 0
     for match in re.finditer(item_pattern, reasoning_text, re.IGNORECASE):
         matches_found += 1
         item_name = match.group(1).strip()
         action = match.group(2).upper()
+        
+        print(f"[CoT Filter] 🔍 Raw match {matches_found}: item_name='{item_name}', action='{action}'")
         
         # Clean item name - just remove quotes and normalize spaces
         item_name = re.sub(r'^["\']|["\']$', '', item_name)
@@ -158,7 +163,26 @@ def filter_cot_reasoning(generator):
                 print(f"[CoT Filter] 🚫 Found DISCARD item: '{item_name}'")
     
     if matches_found == 0:
-        print(f"[CoT Filter] ⚠️ No items found with pattern. Reasoning text preview: {reasoning_text[:200]}")
+        print(f"[CoT Filter] ⚠️ No items found with primary pattern. Trying alternative...")
+        # Try simpler pattern without Evidence section requirement
+        alt_pattern = r'-\s*Item\s*:\s*([^-]+?)\s+-\s+Action\s*:\s*\[(KEEP|DISCARD)\]'
+        for match in re.finditer(alt_pattern, reasoning_text, re.IGNORECASE):
+            matches_found += 1
+            item_name = match.group(1).strip()
+            action = match.group(2).upper()
+            item_name = re.sub(r'\s+', ' ', item_name).strip()
+            if action == "KEEP":
+                if item_name and item_name not in kept_items:
+                    kept_items.append(item_name)
+                    print(f"[CoT Filter] ✅ Found KEEP item (alt): '{item_name}'")
+            elif action == "DISCARD":
+                if item_name:
+                    discarded_items.add(item_name.lower())
+                    print(f"[CoT Filter] 🚫 Found DISCARD item (alt): '{item_name}'")
+    
+    if matches_found == 0:
+        print(f"[CoT Filter] ⚠️ No items found with any pattern!")
+        print(f"[CoT Filter] 🔍 Full reasoning text: {reasoning_text}")
     
     # Find FINAL ANSWER - handle tokenized text
     final_answer_patterns = [
