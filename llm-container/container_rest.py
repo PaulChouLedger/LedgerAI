@@ -3037,6 +3037,7 @@ def chat_tts():
                 client = get_rag_client()
                 if client:
                     will_use_rag = client.quick_content_match(prompt)
+                    print(f"[Generic] 🔍 [Filler Phrase Check] quick_content_match result: {will_use_rag}")
                     # Also check memory RAG
                     memory_container_url = os.environ.get('MEMORY_CONTAINER_URL', 'http://localhost:11438')
                     try:
@@ -3049,10 +3050,13 @@ def chat_tts():
                             match_data = quick_match_response.json()
                             if match_data.get("has_match", False):
                                 will_use_rag = True
-                    except (requests.exceptions.Timeout, Exception):
-                        pass
-            except Exception:
-                pass
+                                print(f"[Generic] 🔍 [Filler Phrase Check] Memory RAG match found: {will_use_rag}")
+                    except (requests.exceptions.Timeout, Exception) as e:
+                        print(f"[Generic] 🔍 [Filler Phrase Check] Memory RAG check failed: {e}")
+            except Exception as e:
+                print(f"[Generic] ⚠️ [Filler Phrase Check] RAG check failed: {e}")
+        
+        print(f"[Generic] 🔍 [Filler Phrase Check] Final will_use_rag: {will_use_rag}, is_conversational: {is_conversational}")
         
         if will_use_rag:
             filler_phrase = get_filler_phrase()
