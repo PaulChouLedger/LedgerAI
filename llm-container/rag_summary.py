@@ -9,6 +9,7 @@ It uses a two-stage approach:
 
 import re
 import random
+import threading
 from typing import Optional
 
 
@@ -270,7 +271,7 @@ def handle_summary_advice_query(
     """
     print(f"[RAG Summary] 📝 [Summary Mode] Using CoT extraction + base model summary")
     
-    # Step 0: Yield second filler phrase BEFORE CoT extraction starts
+    # Step 0: Yield second filler phrase IN PARALLEL with CoT extraction
     # This provides feedback that processing is happening during extraction
     if stream:
         second_filler_phrases = [
@@ -280,22 +281,55 @@ def handle_summary_advice_query(
             "Almost there, extracting the details.",
         ]
         second_filler = random.choice(second_filler_phrases)
-        print(f"[RAG Summary] 💭 Yielding SECOND filler phrase (BEFORE CoT extraction): '{second_filler}'")
+        print(f"[RAG Summary] 💭 Starting CoT extraction and yielding SECOND filler phrase in parallel")
         
         def summary_with_filler():
-            # Yield second filler phrase FIRST (before CoT extraction)
+            # Start CoT extraction in a thread (non-blocking)
+            extracted_info = [None]  # Use list to allow modification from thread
+            extraction_error = [None]
+            extraction_done = threading.Event()
+            
+            def run_extraction():
+                try:
+                    print(f"[RAG Summary] 🔍 [CoT Extraction] Starting extraction in background thread")
+                    extracted_info[0] = extract_information_with_cot(
+                        rag_context=rag_context,
+                        query=prompt,
+                        llm_chat_simple=llm_chat_simple,
+                        extract_llm_response_content=extract_llm_response_content
+                    )
+                    print(f"[RAG Summary] ✅ [CoT Extraction] Extraction completed in background thread")
+                except Exception as e:
+                    print(f"[RAG Summary] ⚠️ [CoT Extraction] Error in background thread: {e}")
+                    import traceback
+                    traceback.print_exc()
+                    extraction_error[0] = e
+                finally:
+                    extraction_done.set()
+            
+            # Start extraction thread
+            extraction_thread = threading.Thread(target=run_extraction, daemon=True)
+            extraction_thread.start()
+            print(f"[RAG Summary] 🚀 [CoT Extraction] Thread started - extraction running in parallel")
+            
+            # Yield second filler phrase IMMEDIATELY (while extraction is happening in background)
             yield "<sentence_start>\n"
             yield f"{second_filler}\n"
             yield "<sentence_end>\n"
-            print(f"[RAG Summary] ✅ Second filler phrase yielded - starting CoT extraction")
+            print(f"[RAG Summary] ✅ Second filler phrase yielded - CoT extraction running in parallel")
             
-            # Step 1: Extract information using CoT model (AFTER filler phrase is spoken)
-            extracted_info = extract_information_with_cot(
-                rag_context=rag_context,
-                query=prompt,
-                llm_chat_simple=llm_chat_simple,
-                extract_llm_response_content=extract_llm_response_content
-            )
+            # Wait for extraction to complete
+            extraction_done.wait()
+            
+            # Check for errors
+            if extraction_error[0]:
+                raise extraction_error[0]
+            
+            if extracted_info[0] is None:
+                raise Exception("CoT extraction returned None")
+            
+            # Use the extracted information
+            extracted_info = extracted_info[0]
             
             # Step 2: Generate summary using base model (normalized and wrapped with sentence tags)
             try:
