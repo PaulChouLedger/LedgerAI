@@ -69,30 +69,61 @@ def extract_information_with_cot(rag_context: str, query: str, llm_chat_simple, 
     # Extract the response text
     response_text = extract_llm_response_content(llm_response)
     
-    # Parse the CoT response to extract KEEP items
-    # Look for FINAL ANSWER section
-    final_answer_match = re.search(r'FINAL\s+ANSWER\s*:\s*(.*?)(?=REASONING:|$)', response_text, re.IGNORECASE | re.DOTALL)
+    # Parse the CoT response to extract KEEP items with their evidence
+    # IMPORTANT: For summary/advice, we want the extracted information (KEEP items + evidence),
+    # NOT the FINAL ANSWER. The base model will generate the summary/advice from this extracted information.
+    kept_items_with_evidence = []
     
-    if final_answer_match:
-        extracted_info = final_answer_match.group(1).strip()
-        print(f"[RAG Summary] ✅ [CoT Extraction] Extracted {len(extracted_info)} characters of information")
-        return extracted_info
-    else:
-        # Fallback: extract KEEP items from reasoning
-        kept_items = []
-        item_pattern = r'-\s*Item\s*:\s*(.*?)\s+-\s+(?:Evidence\s*:\s*.*?\s+-\s+)?Action\s*:\s*\[(KEEP|DISCARD)\]'
-        for match in re.finditer(item_pattern, response_text, re.IGNORECASE):
+    # Pattern to match: - Item: [name] - Evidence: "[quote]" - Action: [KEEP/DISCARD]
+    item_pattern = r'-\s*Item\s*:\s*(.*?)\s+-\s+Evidence\s*:\s*"(.*?)"\s+-\s+Action\s*:\s*\[(KEEP|DISCARD)\]'
+    
+    for match in re.finditer(item_pattern, response_text, re.IGNORECASE | re.DOTALL):
+        item_name = match.group(1).strip()
+        evidence = match.group(2).strip()
+        action = match.group(3).upper()
+        
+        if action == "KEEP":
+            kept_items_with_evidence.append({
+                'item': item_name,
+                'evidence': evidence
+            })
+    
+    # If pattern didn't match, try simpler pattern without Evidence section
+    if not kept_items_with_evidence:
+        item_pattern_simple = r'-\s*Item\s*:\s*(.*?)\s+-\s+Action\s*:\s*\[(KEEP|DISCARD)\]'
+        for match in re.finditer(item_pattern_simple, response_text, re.IGNORECASE):
             item_name = match.group(1).strip()
             action = match.group(2).upper()
             if action == "KEEP":
-                kept_items.append(item_name)
+                kept_items_with_evidence.append({
+                    'item': item_name,
+                    'evidence': item_name  # Use item name as evidence if no evidence section
+                })
+    
+    if kept_items_with_evidence:
+        # Format extracted information for base model
+        # Include both item names and evidence for context
+        extracted_parts = []
+        for item_data in kept_items_with_evidence:
+            extracted_parts.append(f"{item_data['item']}: {item_data['evidence']}")
         
-        if kept_items:
-            extracted_info = ", ".join(kept_items)
-            print(f"[RAG Summary] ✅ [CoT Extraction] Extracted {len(kept_items)} KEEP items")
+        extracted_info = "\n".join(extracted_parts)
+        print(f"[RAG Summary] ✅ [CoT Extraction] Extracted {len(kept_items_with_evidence)} KEEP items with evidence")
+        print(f"[RAG Summary] 📋 Extracted info preview: {extracted_info[:200]}...")
+        return extracted_info
+    else:
+        # Fallback: try to extract FINAL ANSWER if no items found
+        final_answer_match = re.search(r'FINAL\s+ANSWER\s*:\s*(.*?)(?=REASONING:|$)', response_text, re.IGNORECASE | re.DOTALL)
+        if final_answer_match:
+            extracted_info = final_answer_match.group(1).strip()
+            print(f"[RAG Summary] ⚠️ [CoT Extraction] No KEEP items found, using FINAL ANSWER as fallback")
             return extracted_info
         else:
-            print(f"[RAG Summary] ⚠️ [CoT Extraction] No KEEP items found, using full response")
+            print(f"[RAG Summary] ⚠️ [CoT Extraction] No KEEP items or FINAL ANSWER found, using reasoning section")
+            # Extract reasoning section as fallback
+            reasoning_match = re.search(r'REASONING\s*:\s*(.*?)(?=FINAL\s+ANSWER:|$)', response_text, re.IGNORECASE | re.DOTALL)
+            if reasoning_match:
+                return reasoning_match.group(1).strip()
             return response_text
 
 
@@ -162,6 +193,11 @@ def is_summary_query(prompt: str) -> bool:
     """
     Detect if a query is asking for a summary or advice.
     
+    This includes:
+    - Explicit summary/advice requests ("summarize", "advice", etc.)
+    - Statements expressing hopes/goals ("I hope that I improve...", "I want to...")
+    - Questions about what we know ("what can you tell me about...")
+    
     Args:
         prompt: User query
     
@@ -175,7 +211,11 @@ def is_summary_query(prompt: str) -> bool:
         r'\badvice\b', r'\badvise\b', r'\brecommend\b', r'\brecommendation\b',
         r'\bwhat can you tell me about\b', r'\bwhat do we know about\b',
         r'\bwhat is known about\b', r'\boverview\b', r'\boverview of\b',
-        r'\bexplain\b', r'\bdescribe\b', r'\bwhat\'s the story\b'
+        r'\bexplain\b', r'\bdescribe\b', r'\bwhat\'s the story\b',
+        # Statements expressing hopes/goals/intentions
+        r'\bi hope\b', r'\bi want\b', r'\bi would like\b', r'\bi\'d like\b',
+        r'\bhow can i\b', r'\bhow do i\b', r'\bhow should i\b',
+        r'\bwhat should i\b', r'\bwhat can i\b'
     ]
     
     return any(re.search(pattern, normalized_prompt, re.IGNORECASE) for pattern in summary_patterns)
