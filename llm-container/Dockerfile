@@ -46,6 +46,7 @@ COPY models/Qwen2.5-1.5B-Instruct.Q4_K_M-rag-cot.gguf /models/Qwen2.5-1.5B-Instr
 COPY container_rest.py ./
 COPY conversation_manager.py ./
 COPY cot_filter.py ./
+COPY session_state.py ./
 COPY rag_summary.py ./
 COPY rag_cot.py ./
 COPY conversation.py ./

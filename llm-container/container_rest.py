@@ -175,10 +175,13 @@ MAX_TOKENS_DIRECT_MODE_LIST = 800  # Increased for CoT reasoning + final answer
 # or repeat the last part. This reduces cognitive load for long spoken instructions.
 MAX_LIST_ITEMS_BEFORE_PAUSE = 3
 
-# === Voice UX: Session continuation buffers ===
-# When we pause long lists, we store the remaining sentence-tag iterator here so the user can say
-# "continue" or "repeat" and we can resume without re-calling the LLM or pre-buffering tokens.
-PENDING_CONTINUATIONS = {}  # session_id -> {"iter": iterator, "last_sentence": str, "item_count": int}
+# === Voice UX: Session state (pause / continue / repeat) ===
+# Centralized in a small module so we can later swap to a shared store if needed.
+try:
+    from session_state import SESSION_STATE
+except Exception as _e:
+    SESSION_STATE = None
+    print(f"[Generic] ⚠️ Failed to import session_state SESSION_STATE: {_e}")
 
 # === Debug Mode: Show LLM Reasoning ===
 # Set SHOW_REASONING_DEBUG=true to make LLM show its reasoning step-by-step in the output (visible chain-of-thought)
@@ -2862,7 +2865,13 @@ def chat_tts():
     # Continuation handling: "continue" / "repeat"
     # ------------------------------------------------------------------
     def _normalize_control_prompt(p: str) -> str:
-        return re.sub(r'\s+', ' ', (p or '').strip().lower())
+        # Normalize whitespace/case and strip trailing punctuation from short control replies
+        # (e.g., "continue.", "yes!", "no?" from Whisper).
+        s = re.sub(r'\s+', ' ', (p or '').strip().lower())
+        # Strip leading/trailing non-word chars (keep internal punctuation like "don't")
+        s = re.sub(r'^[^\w]+', '', s)
+        s = re.sub(r'[^\w]+$', '', s)
+        return s
 
     control_prompt = _normalize_control_prompt(prompt)
     
@@ -2893,7 +2902,7 @@ def chat_tts():
     # If we have a pending continuation, interpret short acknowledgements to the pause prompt:
     # - "yes" => continue
     # - "no"  => repeat (per UX request)
-    if session_id in PENDING_CONTINUATIONS:
+    if SESSION_STATE and SESSION_STATE.has_pending_continuation(session_id):
         if control_prompt in {"yes", "yeah", "yep", "sure", "ok", "okay", "alright"}:
             is_continue = True
             is_repeat = False
@@ -2904,18 +2913,16 @@ def chat_tts():
     # Debug logging for continuation detection
     if is_continue or is_repeat:
         print(f"[Generic] 🔄 [Continuation] Detected {'continue' if is_continue else 'repeat'} command: '{prompt}' (normalized: '{control_prompt}')")
-        print(f"[Generic] 🔄 [Continuation] Has pending continuation: {session_id in PENDING_CONTINUATIONS}")
+        has_pending = SESSION_STATE.has_pending_continuation(session_id) if SESSION_STATE else False
+        print(f"[Generic] 🔄 [Continuation] Has pending continuation: {has_pending}")
 
-    if session_id in PENDING_CONTINUATIONS and (is_continue or is_repeat):
-        pending = PENDING_CONTINUATIONS.get(session_id) or {}
-        pending_iter = pending.get("iter")
-        last_sentence = (pending.get("last_sentence") or "").strip()
-        pending_item_count = int(pending.get("item_count") or 0)
+    if SESSION_STATE and SESSION_STATE.has_pending_continuation(session_id) and (is_continue or is_repeat):
+        pending = SESSION_STATE.consume_pending_continuation(session_id)
+        pending_iter = getattr(pending, "iter", None)
+        last_sentence = (getattr(pending, "last_sentence", "") or "").strip()
+        pending_item_count = int(getattr(pending, "item_count", 0) or 0)
 
         print(f"[Generic] ✅ [Continuation] Resuming paused stream (item_count={pending_item_count}, has_iter={pending_iter is not None})")
-
-        # Clear pending continuation immediately (it may be re-created if we pause again)
-        PENDING_CONTINUATIONS.pop(session_id, None)
 
         def _resume_stream():
             if is_repeat and last_sentence:
@@ -2941,9 +2948,10 @@ def chat_tts():
         return Response(stream_with_context(_resume_stream()), mimetype="text/plain")
     
     # Warn if continuation command detected but no pending continuation exists
-    if (is_continue or is_repeat) and session_id not in PENDING_CONTINUATIONS:
+    if (is_continue or is_repeat) and not (SESSION_STATE and SESSION_STATE.has_pending_continuation(session_id)):
         print(f"[Generic] ⚠️ [Continuation] '{prompt}' detected as continue/repeat, but no pending continuation found for session {session_id}")
-        print(f"[Generic] ⚠️ [Continuation] Available sessions with pending continuations: {list(PENDING_CONTINUATIONS.keys())}")
+        keys = list(SESSION_STATE.pending_session_ids()) if SESSION_STATE else []
+        print(f"[Generic] ⚠️ [Continuation] Available sessions with pending continuations: {keys}")
     
     # Build conversation memory context for this prompt (with fallback)
     # NOTE: Conversation memory should ONLY be evaluated by memory container, not LLM container
@@ -3198,11 +3206,13 @@ def chat_tts():
                         if isinstance(tok, str) and _is_list_marker(tok):
                             item_count += 1
                             if item_count > MAX_LIST_ITEMS_BEFORE_PAUSE:
-                                PENDING_CONTINUATIONS[sid] = {
-                                    "iter": sentence_iter,  # store live iterator (do not consume)
-                                    "last_sentence": last_sentence_text,
-                                    "item_count": item_count,
-                                }
+                                if SESSION_STATE:
+                                    SESSION_STATE.set_pending_continuation(
+                                        sid,
+                                        sentence_iter,  # store live iterator (do not consume)
+                                        last_sentence=last_sentence_text,
+                                        item_count=item_count,
+                                    )
                                 # Ask to continue/repeat
                                 yield "<sentence_start>\n"
                                 yield "Would you like me to continue, or repeat the last part?"
