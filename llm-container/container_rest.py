@@ -3162,11 +3162,15 @@ def chat_tts():
         if is_summary_query_flag:
             print(f"[Generic] 📝 [Summary Mode] Passing summary response through without CoT filter")
             yield from base_stream
-        else:
-            # For base model queries (no RAG), we can detect quickly and bypass CoT filter
-            # The CoT filter will detect non-CoT responses quickly and pass through
-            # But we can optimize further by checking will_use_rag if available
+        elif will_use_rag:
+            # Only apply CoT filter for RAG queries (which use CoT model)
+            # Base model queries should NOT go through CoT filter
+            print(f"[Generic] ✅ [CoT Filter] Applying CoT filter to RAG query (will_use_rag=True)")
             yield from filter_cot_reasoning(base_stream)
+        else:
+            # Base model query (no RAG) - pass through directly without CoT filter
+            print(f"[Generic] ✅ [Base Model] Passing base model response through without CoT filter (will_use_rag=False)")
+            yield from base_stream
     
     return Response(
         stream_with_context(get_response_stream()),
