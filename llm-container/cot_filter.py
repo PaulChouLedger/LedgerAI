@@ -41,10 +41,14 @@ def filter_cot_reasoning(generator):
         tokens.append(token)
         
         # Extract text content (remove sentence tags) for analysis
+        # CRITICAL: Don't add spaces - preserve model's original output format
         text = str(token) if token else ""
-        text = text.replace("<sentence_start>", "").replace("<sentence_end>", "").replace("\n", " ").strip()
+        text = text.replace("<sentence_start>", "").replace("<sentence_end>", "").replace("\n", " ")
+        # Only add space if token doesn't already end with one and next token doesn't start with one
         if text:
-            full_text += text + " "
+            # Preserve the model's spacing - just concatenate tokens as-is
+            # The model already includes proper spacing in its tokens
+            full_text += text
     
     print(f"[CoT Filter] 📊 Buffered {token_count} tokens, {len(full_text)} characters")
     print(f"[CoT Filter] 📝 Full text preview (first 500 chars): {full_text[:500]}")
@@ -128,14 +132,16 @@ def filter_cot_reasoning(generator):
     discarded_items = set()
     
     # Pattern to match: - Item: [Name] ... - Action: [KEEP] or [DISCARD]
-    item_pattern = r'- Item:\s*([^-]+?)\s*-\s*(?:Evidence:[^-]*?)?\s*-\s*Action:\s*\[(KEEP|DISCARD)\]'
+    # Model outputs correctly, so we can use the standard pattern
+    item_pattern = r'-\s*Item\s*:\s*([^-]+?)\s*-\s*(?:Evidence\s*:[^-]*?)?\s*-\s*Action\s*:\s*\[(KEEP|DISCARD)\]'
     
     for match in re.finditer(item_pattern, reasoning_text, re.IGNORECASE):
         item_name = match.group(1).strip()
         action = match.group(2).upper()
         
-        # Clean item name
+        # Clean item name - just remove quotes and normalize spaces
         item_name = re.sub(r'^["\']|["\']$', '', item_name)
+        item_name = re.sub(r'\s+', ' ', item_name)  # Normalize multiple spaces to single space
         item_name = item_name.strip()
         
         if action == "KEEP":
@@ -195,10 +201,15 @@ def filter_cot_reasoning(generator):
     else:
         final_answer = final_answer_match.group(1).strip()
         
-        # Clean up final answer
+        # Clean up final answer - remove markers and formatting
+        # Model outputs correctly, so we just need to remove CoT markers
         final_answer = re.sub(r'\[(KEEP|DISCARD|Action|Result)\]', '', final_answer, flags=re.IGNORECASE)
         final_answer = re.sub(r'(?m)^- .*$', '', final_answer).strip()
         final_answer = re.sub(r'- End of scan\.?\s*', '', final_answer, flags=re.IGNORECASE)
+        
+        # Normalize whitespace (model should already have correct spacing, but clean up any artifacts)
+        final_answer = re.sub(r'\s+', ' ', final_answer)
+        final_answer = final_answer.strip()
         
         # Remove DISCARD items
         if discarded_items:
