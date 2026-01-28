@@ -3241,6 +3241,13 @@ def chat_tts():
         
         print(f"[Generic] 🔍 [Filler Phrase Check] Final will_use_rag: {will_use_rag}, is_conversational: {is_conversational}")
         
+        # Check if this is a summary/advice query FIRST (before using the flag)
+        is_summary_query_flag = False
+        if RAG_SUMMARY_AVAILABLE and check_summary_query:
+            is_summary_query_flag = check_summary_query(prompt)
+            if is_summary_query_flag:
+                print(f"[Generic] 📝 [Summary Mode] Detected summary/advice query in get_response_stream - bypassing CoT filter")
+        
         # NOTE: Filler phrase for regular RAG queries is now handled inside rag_cot module
         # We only yield filler phrase here for summary queries (which don't use rag_cot module)
         # Summary queries handle their own filler phrases in rag_summary module
@@ -3250,13 +3257,6 @@ def chat_tts():
         elif will_use_rag and is_summary_query_flag:
             # Summary query - filler phrase handled by rag_summary module
             print(f"[Generic] ✅ [Filler Phrase] Summary query - filler phrase will be handled by RAG Summary module")
-        
-        # Check if this is a summary/advice query - these bypass CoT filter
-        is_summary_query_flag = False
-        if RAG_SUMMARY_AVAILABLE and check_summary_query:
-            is_summary_query_flag = check_summary_query(prompt)
-            if is_summary_query_flag:
-                print(f"[Generic] 📝 [Summary Mode] Detected summary/advice query in get_response_stream - bypassing CoT filter")
         
         # IMPORTANT: Check summary queries FIRST (even if RAG is used, summaries bypass CoT filter)
         # For base model queries (no RAG), stream immediately without any filtering
