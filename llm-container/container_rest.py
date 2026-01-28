@@ -173,7 +173,7 @@ MAX_TOKENS_DIRECT_MODE_LIST = 800  # Increased for CoT reasoning + final answer
 # === Voice UX: Pauses for long lists / step-by-step instructions ===
 # After this many list items ("-", "1.", "2.", etc.), the system will pause and ask whether to continue
 # or repeat the last part. This reduces cognitive load for long spoken instructions.
-MAX_LIST_ITEMS_BEFORE_PAUSE = 3
+MAX_LIST_ITEMS_BEFORE_PAUSE = 6
 
 # === Voice UX: Session state (pause / continue / repeat) ===
 # Centralized in a small module so we can later swap to a shared store if needed.
