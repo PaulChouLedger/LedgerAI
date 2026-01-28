@@ -2865,18 +2865,54 @@ def chat_tts():
         return re.sub(r'\s+', ' ', (p or '').strip().lower())
 
     control_prompt = _normalize_control_prompt(prompt)
-    is_continue = control_prompt in {
-        "continue", "go on", "keep going", "yes continue", "you can continue", "continue please", "please continue"
-    } or "continue" == control_prompt.replace("you can ", "").strip()
-    is_repeat = control_prompt in {
-        "repeat", "repeat that", "say that again", "can you repeat", "repeat the last part", "can you repeat that"
+    
+    # Detect "continue" variations: "continue", "you can continue", "you may continue", "yes continue", etc.
+    # Remove common prefixes and check if it ends with "continue"
+    continue_variations = {
+        "continue", "go on", "keep going", "yes continue", 
+        "you can continue", "you may continue", "continue please", "please continue",
+        "go ahead", "proceed", "carry on"
     }
+    # Also check if prompt ends with "continue" after removing common prefixes
+    prompt_clean = control_prompt
+    for prefix in ["you can ", "you may ", "yes ", "please ", "go ahead and ", "go on and "]:
+        if prompt_clean.startswith(prefix):
+            prompt_clean = prompt_clean[len(prefix):].strip()
+    # Note: We only treat bare "yes/ok/no" as continue/repeat *when a pause is pending* (see below),
+    # to avoid hijacking normal conversational turns.
+    is_continue = control_prompt in continue_variations or prompt_clean == "continue" or prompt_clean.endswith(" continue")
+    
+    # Detect "repeat" variations
+    repeat_variations = {
+        "repeat", "repeat that", "say that again", "can you repeat", 
+        "repeat the last part", "can you repeat that", "say it again",
+        "repeat please", "please repeat"
+    }
+    is_repeat = control_prompt in repeat_variations or "repeat" in control_prompt.split()
+
+    # If we have a pending continuation, interpret short acknowledgements to the pause prompt:
+    # - "yes" => continue
+    # - "no"  => repeat (per UX request)
+    if session_id in PENDING_CONTINUATIONS:
+        if control_prompt in {"yes", "yeah", "yep", "sure", "ok", "okay", "alright"}:
+            is_continue = True
+            is_repeat = False
+        elif control_prompt in {"no", "nope", "nah"}:
+            is_repeat = True
+            is_continue = False
+
+    # Debug logging for continuation detection
+    if is_continue or is_repeat:
+        print(f"[Generic] 🔄 [Continuation] Detected {'continue' if is_continue else 'repeat'} command: '{prompt}' (normalized: '{control_prompt}')")
+        print(f"[Generic] 🔄 [Continuation] Has pending continuation: {session_id in PENDING_CONTINUATIONS}")
 
     if session_id in PENDING_CONTINUATIONS and (is_continue or is_repeat):
         pending = PENDING_CONTINUATIONS.get(session_id) or {}
         pending_iter = pending.get("iter")
         last_sentence = (pending.get("last_sentence") or "").strip()
         pending_item_count = int(pending.get("item_count") or 0)
+
+        print(f"[Generic] ✅ [Continuation] Resuming paused stream (item_count={pending_item_count}, has_iter={pending_iter is not None})")
 
         # Clear pending continuation immediately (it may be re-created if we pause again)
         PENDING_CONTINUATIONS.pop(session_id, None)
@@ -2903,6 +2939,11 @@ def chat_tts():
                 yield tok
 
         return Response(stream_with_context(_resume_stream()), mimetype="text/plain")
+    
+    # Warn if continuation command detected but no pending continuation exists
+    if (is_continue or is_repeat) and session_id not in PENDING_CONTINUATIONS:
+        print(f"[Generic] ⚠️ [Continuation] '{prompt}' detected as continue/repeat, but no pending continuation found for session {session_id}")
+        print(f"[Generic] ⚠️ [Continuation] Available sessions with pending continuations: {list(PENDING_CONTINUATIONS.keys())}")
     
     # Build conversation memory context for this prompt (with fallback)
     # NOTE: Conversation memory should ONLY be evaluated by memory container, not LLM container
