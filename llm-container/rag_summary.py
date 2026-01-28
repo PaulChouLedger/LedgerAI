@@ -210,13 +210,17 @@ def is_summary_query(prompt: str) -> bool:
     summary_patterns = [
         r'\bsummarize\b', r'\bsummary\b', r'\bsummaries\b',
         r'\badvice\b', r'\badvise\b', r'\brecommend\b', r'\brecommendation\b',
+        r'\bsuggestion\b', r'\bsuggest\b', r'\bsuggestions\b',
         r'\bwhat can you tell me about\b', r'\bwhat do we know about\b',
         r'\bwhat is known about\b', r'\boverview\b', r'\boverview of\b',
         r'\bexplain\b', r'\bdescribe\b', r'\bwhat\'s the story\b',
         # Statements expressing hopes/goals/intentions
         r'\bi hope\b', r'\bi want\b', r'\bi would like\b', r'\bi\'d like\b',
         r'\bhow can i\b', r'\bhow do i\b', r'\bhow should i\b',
-        r'\bwhat should i\b', r'\bwhat can i\b'
+        r'\bwhat should i\b', r'\bwhat can i\b',
+        # Queries asking for suggestions/recommendations
+        r'\bgive me\b.*\bsuggestion\b', r'\bgive me\b.*\brecommendation\b',
+        r'\bone suggestion\b', r'\bone recommendation\b'
     ]
     
     return any(re.search(pattern, normalized_prompt, re.IGNORECASE) for pattern in summary_patterns)
