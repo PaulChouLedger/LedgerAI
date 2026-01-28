@@ -40,6 +40,15 @@ except ImportError as e:
     print(f"[Generic] 📁 Current directory: {os.getcwd()}")
     print(f"[Generic] 📁 Python path: {sys.path}")
 
+# Import RAG summary/advice module
+try:
+    from rag_summary import is_summary_query, handle_summary_advice_query
+    RAG_SUMMARY_AVAILABLE = True
+    print(f"[Generic] ✅ RAG summary module imported successfully")
+except ImportError as e:
+    RAG_SUMMARY_AVAILABLE = False
+    print(f"[Generic] ⚠️ Failed to import RAG summary module: {e}")
+
 # Conversation management for passive listening and keyword activation
 from conversation_manager import ConversationMemoryIndex, ConversationOrchestrator
 
@@ -799,6 +808,14 @@ def handle_conversation(
         if any(pattern in normalized_prompt for pattern in information_seeking_patterns):
             is_conversational = False
             print(f"[Generic] 🔍 Information-seeking query detected - overriding conversational flag")
+        
+        # Detect summary/advice queries (use CoT for extraction, base model for summary)
+        if RAG_SUMMARY_AVAILABLE:
+            is_summary_query = is_summary_query(normalized_prompt)
+            if is_summary_query:
+                print(f"[Generic] 📝 Summary/advice query detected - will use CoT extraction + base model summary")
+        else:
+            is_summary_query = False
         
         # SIMPLIFIED: Use quick_content_match as primary RAG trigger (fast substring/fuzzy match)
         # This is more reliable than pattern matching - if content exists, use RAG
@@ -1679,6 +1696,23 @@ JSON array only:"""
             # - top_p=1.0: Disable top-p sampling (all tokens considered)
             # - top_k=-1: Disable top-k sampling (all tokens considered)
             # - seed=42: Fixed seed for reproducibility (same prompt = same output)
+            # Check if this is a summary/advice query (use CoT extraction + base model summary)
+            if is_summary_query and rag_context and RAG_SUMMARY_AVAILABLE:
+                summary_response = handle_summary_advice_query(
+                    prompt=prompt,
+                    rag_context=rag_context,
+                    llm_chat_simple=llm_chat_simple,
+                    extract_llm_response_content=extract_llm_response_content,
+                    stream=stream
+                )
+                
+                if stream:
+                    # Stream the summary response
+                    yield from summary_response
+                else:
+                    return summary_response
+            
+            # Standard RAG query flow (use CoT model with filter)
             llm_response = llm_chat_simple(
                 messages,
                 max_tokens=max_tokens_limit,
