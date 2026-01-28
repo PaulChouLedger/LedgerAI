@@ -177,19 +177,32 @@ def generate_summary_response(
     ]
     
     # Use base model (not CoT) for summary generation
-    summary_response = llm_chat_simple(
-        summary_messages,
-        max_tokens=800,
-        temperature=None,  # Use default temperature for natural summary
-        stream=stream,
-        use_cot_model=False,  # Use base model for summary
-    )
-    
-    if stream:
-        # Return generator for streaming
-        return summary_response
-    else:
-        return extract_llm_response_content(summary_response)
+    try:
+        summary_response = llm_chat_simple(
+            summary_messages,
+            max_tokens=800,
+            temperature=None,  # Use default temperature for natural summary
+            stream=stream,
+            use_cot_model=False,  # Use base model for summary
+        )
+        
+        if stream:
+            # Return generator for streaming
+            return summary_response
+        else:
+            return extract_llm_response_content(summary_response)
+    except Exception as e:
+        print(f"[RAG Summary] ⚠️ Error generating summary: {e}")
+        import traceback
+        traceback.print_exc()
+        # Fallback: return a simple message indicating the summary couldn't be generated
+        fallback_message = "I found relevant information, but I'm having trouble generating a summary right now. Could you try rephrasing your question?"
+        if stream:
+            def fallback_generator():
+                yield fallback_message
+            return fallback_generator()
+        else:
+            return fallback_message
 
 
 def is_summary_query(prompt: str) -> bool:
@@ -254,16 +267,8 @@ def handle_summary_advice_query(
     """
     print(f"[RAG Summary] 📝 [Summary Mode] Using CoT extraction + base model summary")
     
-    # Step 1: Extract information using CoT model
-    extracted_info = extract_information_with_cot(
-        rag_context=rag_context,
-        query=prompt,
-        llm_chat_simple=llm_chat_simple,
-        extract_llm_response_content=extract_llm_response_content
-    )
-    
-    # Step 1.5: Yield second filler phrase after CoT extraction completes
-    # This provides feedback that processing is happening
+    # Step 0: Yield second filler phrase BEFORE CoT extraction starts
+    # This provides feedback that processing is happening during extraction
     if stream:
         second_filler_phrases = [
             "Alright, extracting the answer now.",
@@ -272,63 +277,96 @@ def handle_summary_advice_query(
             "Almost there, extracting the details.",
         ]
         second_filler = random.choice(second_filler_phrases)
-        print(f"[RAG Summary] 💭 Yielding SECOND filler phrase (after CoT extraction): '{second_filler}'")
+        print(f"[RAG Summary] 💭 Yielding SECOND filler phrase (BEFORE CoT extraction): '{second_filler}'")
         
         def summary_with_filler():
-            # Yield second filler phrase first
+            # Yield second filler phrase FIRST (before CoT extraction)
             yield "<sentence_start>\n"
             yield f"{second_filler}\n"
             yield "<sentence_end>\n"
-            print(f"[RAG Summary] ✅ Second filler phrase yielded")
+            print(f"[RAG Summary] ✅ Second filler phrase yielded - starting CoT extraction")
             
-            # Then yield the summary response (normalized and wrapped with sentence tags)
-            summary_response = generate_summary_response(
-                extracted_info=extracted_info,
+            # Step 1: Extract information using CoT model (AFTER filler phrase is spoken)
+            extracted_info = extract_information_with_cot(
+                rag_context=rag_context,
                 query=prompt,
                 llm_chat_simple=llm_chat_simple,
-                extract_llm_response_content=extract_llm_response_content,
-                stream=stream
+                extract_llm_response_content=extract_llm_response_content
             )
             
-            # Normalize and wrap summary response with sentence tags
-            yield "<sentence_start>\n"
-            for chunk in summary_response:
-                # Normalize dict chunks to extract content
-                if isinstance(chunk, dict):
-                    content = None
-                    if 'choices' in chunk and len(chunk['choices']) > 0:
-                        delta = chunk['choices'][0].get('delta', {})
-                        content = delta.get('content', '')
-                    elif 'content' in chunk:
-                        content = chunk.get('content', '')
-                    if content:
-                        yield content
-                elif isinstance(chunk, str):
-                    # Check if it's a stringified dict
-                    if chunk.strip().startswith('{') and ('id' in chunk or 'choices' in chunk):
-                        try:
-                            import json
-                            parsed = json.loads(chunk)
-                            if isinstance(parsed, dict):
-                                if 'choices' in parsed and len(parsed['choices']) > 0:
-                                    delta = parsed['choices'][0].get('delta', {})
-                                    content = delta.get('content', '')
-                                    if content:
-                                        yield content
-                                continue
-                        except (json.JSONDecodeError, ValueError):
-                            pass
-                    # Regular string chunk
-                    if chunk:
-                        yield chunk
-                else:
-                    # Other types - convert to string
-                    if chunk:
-                        yield str(chunk)
-            yield "\n<sentence_end>\n"
+            # Step 2: Generate summary using base model (normalized and wrapped with sentence tags)
+            try:
+                summary_response = generate_summary_response(
+                    extracted_info=extracted_info,
+                    query=prompt,
+                    llm_chat_simple=llm_chat_simple,
+                    extract_llm_response_content=extract_llm_response_content,
+                    stream=stream
+                )
+                
+                # Normalize and wrap summary response with sentence tags
+                yield "<sentence_start>\n"
+                try:
+                    for chunk in summary_response:
+                        # Normalize dict chunks to extract content
+                        if isinstance(chunk, dict):
+                            content = None
+                            if 'choices' in chunk and len(chunk['choices']) > 0:
+                                delta = chunk['choices'][0].get('delta', {})
+                                content = delta.get('content', '')
+                            elif 'content' in chunk:
+                                content = chunk.get('content', '')
+                            if content:
+                                yield content
+                        elif isinstance(chunk, str):
+                            # Check if it's a stringified dict
+                            if chunk.strip().startswith('{') and ('id' in chunk or 'choices' in chunk):
+                                try:
+                                    import json
+                                    parsed = json.loads(chunk)
+                                    if isinstance(parsed, dict):
+                                        if 'choices' in parsed and len(parsed['choices']) > 0:
+                                            delta = parsed['choices'][0].get('delta', {})
+                                            content = delta.get('content', '')
+                                            if content:
+                                                yield content
+                                        continue
+                                except (json.JSONDecodeError, ValueError):
+                                    pass
+                            # Regular string chunk
+                            if chunk:
+                                yield chunk
+                        else:
+                            # Other types - convert to string
+                            if chunk:
+                                yield str(chunk)
+                except Exception as stream_error:
+                    print(f"[RAG Summary] ⚠️ Error during summary streaming: {stream_error}")
+                    import traceback
+                    traceback.print_exc()
+                    # Yield fallback message
+                    yield "I found relevant information, but I'm having trouble generating a summary right now."
+                yield "\n<sentence_end>\n"
+            except Exception as e:
+                print(f"[RAG Summary] ⚠️ Error generating summary response: {e}")
+                import traceback
+                traceback.print_exc()
+                # Yield fallback message
+                yield "<sentence_start>\n"
+                yield "I found relevant information, but I'm having trouble generating a summary right now. Could you try rephrasing your question?"
+                yield "\n<sentence_end>\n"
         
         return summary_with_filler()
     else:
+        # Non-streaming: Extract first, then generate summary
+        # Step 1: Extract information using CoT model
+        extracted_info = extract_information_with_cot(
+            rag_context=rag_context,
+            query=prompt,
+            llm_chat_simple=llm_chat_simple,
+            extract_llm_response_content=extract_llm_response_content
+        )
+        
         # Step 2: Generate summary using base model (non-streaming)
         return generate_summary_response(
             extracted_info=extracted_info,
