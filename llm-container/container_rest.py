@@ -3113,6 +3113,23 @@ def chat_tts():
         ]
         is_conversational = any(re.search(pattern, prompt_lower) for pattern in conversational_patterns)
         
+        # Exclude information-seeking questions from being marked as conversational (same logic as handle_conversation)
+        # CRITICAL: This must happen BEFORE using is_conversational to skip RAG
+        information_seeking_patterns = [
+            'do you know', 'who is', 'who are', 'who was', 'who were',
+            'what is', 'what are', 'what was', 'what were',
+            'where is', 'where are', 'where was', 'where were',
+            'when is', 'when are', 'when was', 'when were',
+            'why is', 'why are', 'why was', 'why were',
+            'how is', 'how are', 'how was', 'how were',
+            'tell me about', 'tell me who', 'tell me what', 'tell me where', 'tell me when',
+            'what about', 'what do you know about',
+            'give me', 'show me', 'find', 'search', 'list', 'explain', 'describe'
+        ]
+        if any(pattern in prompt_lower for pattern in information_seeking_patterns):
+            is_conversational = False
+            print(f"[Generic] 🔍 [Filler Phrase Check] Information-seeking query detected - overriding conversational flag")
+        
         if not is_conversational and RAG_MODE in ("CPU", "GPU"):
             try:
                 client = get_rag_client()
@@ -3154,23 +3171,21 @@ def chat_tts():
             if is_summary_query_flag:
                 print(f"[Generic] 📝 [Summary Mode] Detected summary/advice query in get_response_stream - bypassing CoT filter")
         
-        # Create a generator that checks the first few tokens to determine if it's CoT
-        # For base model, we want immediate streaming without buffering
-        base_stream = filter_think_blocks(generate_response())
-        
-        # Summary queries bypass CoT filter (base model generates natural summaries)
-        if is_summary_query_flag:
-            print(f"[Generic] 📝 [Summary Mode] Passing summary response through without CoT filter")
-            yield from base_stream
-        elif will_use_rag:
-            # Only apply CoT filter for RAG queries (which use CoT model)
-            # Base model queries should NOT go through CoT filter
-            print(f"[Generic] ✅ [CoT Filter] Applying CoT filter to RAG query (will_use_rag=True)")
+        # For base model queries (no RAG), stream immediately without any filtering
+        # For RAG queries, apply filters to extract final answer
+        if will_use_rag:
+            # RAG query - apply filters to extract final answer from CoT reasoning
+            print(f"[Generic] ✅ [CoT Filter] Applying filters to RAG query (will_use_rag=True)")
+            base_stream = filter_think_blocks(generate_response())
             yield from filter_cot_reasoning(base_stream)
+        elif is_summary_query_flag:
+            # Summary query - pass through without filters (base model generates summaries)
+            print(f"[Generic] 📝 [Summary Mode] Passing summary response through without filters")
+            yield from generate_response()
         else:
-            # Base model query (no RAG) - pass through directly without CoT filter
-            print(f"[Generic] ✅ [Base Model] Passing base model response through without CoT filter (will_use_rag=False)")
-            yield from base_stream
+            # Base model query (no RAG) - stream immediately without any filtering or buffering
+            print(f"[Generic] ✅ [Base Model] Streaming base model response immediately (will_use_rag=False, no filters)")
+            yield from generate_response()
     
     return Response(
         stream_with_context(get_response_stream()),
