@@ -3020,17 +3020,21 @@ def chat_tts():
         # This ensures it's spoken right away and not buffered by the CoT filter
         # Use the same RAG decision logic as generate_response() to ensure consistency
         will_use_rag = False
-        is_conversational = any(phrase in prompt.lower() for phrase in [
-            'thank you', 'thanks', 'thank', 'thanks a lot', 'thank you very much',
-            'goodbye', 'bye', 'see you', 'see ya', 'farewell',
-            'you\'re welcome', 'no problem', 'my pleasure', 'anytime',
-            'hello', 'hi', 'hey', 'greetings',
-            'how are you', 'how\'s it going', 'how\'s everything', 'how do you do',
-            'ok', 'okay', 'sure', 'alright', 'got it', 'understood',
-            'yes', 'yeah', 'yep', 'no', 'nope',
-            'please', 'excuse me', 'sorry', 'pardon',
-            "that's fine", "that is fine", "it's fine", "it is fine", "no that's fine", "no that is fine"
-        ])
+        # Use word boundaries to avoid false positives (e.g., "who's" matching "who")
+        import re
+        prompt_lower = prompt.lower()
+        conversational_patterns = [
+            r'\bthank you\b', r'\bthanks\b', r'\bthank\b', r'\bthanks a lot\b', r'\bthank you very much\b',
+            r'\bgoodbye\b', r'\bbye\b', r'\bsee you\b', r'\bsee ya\b', r'\bfarewell\b',
+            r'\byou\'re welcome\b', r'\bno problem\b', r'\bmy pleasure\b', r'\banytime\b',
+            r'\bhello\b', r'\bhi\b', r'\bhey\b', r'\bgreetings\b',
+            r'\bhow are you\b', r'\bhow\'s it going\b', r'\bhow\'s everything\b', r'\bhow do you do\b',
+            r'\bok\b', r'\bokay\b', r'\bsure\b', r'\balright\b', r'\bgot it\b', r'\bunderstood\b',
+            r'\byes\b', r'\byeah\b', r'\byep\b', r'\bno\b', r'\bnope\b',
+            r'\bplease\b', r'\bexcuse me\b', r'\bsorry\b', r'\bpardon\b',
+            r"\bthat's fine\b", r"\bthat is fine\b", r"\bit's fine\b", r"\bit is fine\b", r"\bno that's fine\b", r"\bno that is fine\b"
+        ]
+        is_conversational = any(re.search(pattern, prompt_lower) for pattern in conversational_patterns)
         
         if not is_conversational and RAG_MODE in ("CPU", "GPU"):
             try:
