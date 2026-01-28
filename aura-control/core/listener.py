@@ -1029,8 +1029,8 @@ def listen():
                     
                 if wake_word_enabled and not listening_active and wake_word_detector is not None:
                     # === Wake Word Detection Loop ===
-                    # Uses same VAD logic as listener to filter out silence/noise
-                    # Only processes wake word detection when VAD indicates speech activity
+                    # Processes ALL audio (same as VAD) - no pre-filtering for maximum sensitivity
+                    # Wake word model handles its own confidence thresholds
                     last_wake_word_vad_reset = time.time()  # Track last VAD reset to prevent decay
                     while True:
                         # CRITICAL: Check if TTS is playing BEFORE reading audio (same as VAD)
@@ -1060,37 +1060,31 @@ def listen():
                             model_vad.reset_states()
                             last_wake_word_vad_reset = time.time()
                         
-                        # Use same VAD model as listener to filter out silence/noise
+                        # Use same VAD model as listener for monitoring (but don't filter - process all audio)
                         # Hardware HPF already applied in ReSpeaker DSP
                         vad_prob = model_vad(torch.from_numpy(channel_audio), SAMPLE_RATE).item()
                         
                         # Print status (same format as VAD)
                         print(f"[Wake Word] VAD {vad_prob:.2f} | RMS {features['rms']:.4f} | Peak {features['peak']:.3f}", end="\r")
                         
-                        # Use lower VAD threshold for wake word detection (wake words are shorter/quieter than normal speech)
-                        # This allows wake word detection to work with quieter/shorter utterances
-                        # while still filtering out complete silence
-                        if vad_prob <= VAD_WAKE_WORD_THRESHOLD:
-                            # Very low/no speech activity - skip wake word processing (complete silence)
-                            continue
+                        # REMOVED VAD threshold filtering - process ALL audio for wake word detection
+                        # This makes wake word detection as sensitive as VAD itself
+                        # Wake word model will handle its own sensitivity via confidence threshold
                         
-                        # Apply advanced filter if enabled (same as VAD loop)
-                        if ENABLE_ADVANCED_FILTER:
-                            is_speech_result, reason = is_likely_speech(features)
-                            if not is_speech_result:
-                                # Not likely speech - skip wake word processing
-                                continue
+                        # REMOVED advanced filter - let wake word model decide what's a wake word
+                        # Advanced filter was reducing sensitivity for quiet/far-field wake words
                         
-                        # Normalize audio using same RMS normalization as Whisper (for consistency)
-                        # This ensures wake word detection sees the same audio levels as Whisper transcription
-                        wake_word_audio = normalize_audio_for_whisper(channel_audio.copy())
+                        # Use raw audio directly (same as VAD) - no normalization before wake word detection
+                        # This ensures wake word sees the same audio characteristics as VAD
+                        # Normalization happens in transcribe() if needed, but wake word should use raw audio
+                        wake_word_audio = channel_audio.copy()
                         
                         # Ensure channel_audio is 1D (same as VAD uses it)
                         if wake_word_audio.ndim > 1:
                             wake_word_audio = wake_word_audio.flatten()
                         
                         # OpenWakeWord handles buffering internally, so we can call process() directly
-                        # Use normalized audio (same normalization as Whisper) for consistent processing
+                        # Using raw audio (same as VAD) for maximum sensitivity - wake word model handles its own thresholds
                         wake_detected, confidence = wake_word_detector.process(wake_word_audio)
                         
                         if wake_detected:
