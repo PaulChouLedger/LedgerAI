@@ -170,6 +170,11 @@ MAX_TOKENS_RAG_MODE_LIST = 800  # Increased for CoT reasoning + final answer (re
 MAX_TOKENS_DIRECT_MODE = 600  # Max tokens for direct conversation (allows longer responses including lists)
 MAX_TOKENS_DIRECT_MODE_LIST = 800  # Increased for CoT reasoning + final answer
 
+# === Voice UX: Pauses for long lists / step-by-step instructions ===
+# After this many list items ("-", "1.", "2.", etc.), the system will pause and ask whether to continue
+# or repeat the last part. This reduces cognitive load for long spoken instructions.
+MAX_LIST_ITEMS_BEFORE_PAUSE = 3
+
 # === Debug Mode: Show LLM Reasoning ===
 # Set SHOW_REASONING_DEBUG=true to make LLM show its reasoning step-by-step in the output (visible chain-of-thought)
 # 
@@ -3495,6 +3500,36 @@ def _sentence_tag_stream(word_stream):
     prev_word = None
     buffered_word = None  # One-token lookahead buffer for multi-token abbreviations
     pending_sentence_end = False  # Track if we detected sentence-ending punctuation but haven't closed yet (for trailing punctuation)
+
+    # --- Pause/continue behavior for long lists & step-by-step instructions ---
+    # If we detect a long numbered/bulleted list, we'll pause after N items and ask if the user wants to continue
+    # (or repeat the last part). This reduces cognitive load and improves UX for voice.
+    list_item_count = 0
+
+    def _is_list_item_marker(w: str) -> bool:
+        ws = (w or "").strip()
+        if not ws:
+            return False
+        if ws == "-":
+            return True
+        # "1." "2." etc.
+        if re.match(r'^\d+\.$', ws):
+            return True
+        return False
+
+    def _emit_pause_question_and_stop():
+        # Close any open sentence cleanly first
+        nonlocal sentence_buffer, sentence_open, pending_sentence_end
+        if sentence_open:
+            yield "<sentence_end>"
+            sentence_buffer = ""
+            sentence_open = False
+            pending_sentence_end = False
+        # Ask user whether to continue or repeat
+        yield "<sentence_start>"
+        yield "Would you like me to continue, or repeat the last part?"
+        yield "<sentence_end>"
+        return
     
     # Abbreviation expansions (abbrev -> full text)
     abbrev_expansions = {
@@ -3587,6 +3622,15 @@ def _sentence_tag_stream(word_stream):
             continue
         
         word_stripped = word.strip()
+
+        # Pause gate: if we're in a long list/steps, stop after N items and ask to continue/repeat.
+        # Trigger on list markers (dash or "N.").
+        if _is_list_item_marker(word_stripped):
+            list_item_count += 1
+            if list_item_count > MAX_LIST_ITEMS_BEFORE_PAUSE:
+                for item in _emit_pause_question_and_stop():
+                    yield item
+                return
         
         # Skip standalone dashes that are formatting artifacts (no meaningful content)
         # These often appear as list formatting but without actual list items
