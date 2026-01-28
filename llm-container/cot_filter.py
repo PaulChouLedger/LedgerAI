@@ -132,10 +132,14 @@ def filter_cot_reasoning(generator):
     discarded_items = set()
     
     # Pattern to match: - Item: [Name] ... - Action: [KEEP] or [DISCARD]
-    # Model outputs correctly, so we can use the standard pattern
-    item_pattern = r'-\s*Item\s*:\s*([^-]+?)\s*-\s*(?:Evidence\s*:[^-]*?)?\s*-\s*Action\s*:\s*\[(KEEP|DISCARD)\]'
+    # Handle multiple spaces between elements (e.g., "Bob Carella   - Evidence:")
+    # Match item name up to the next "- Action:" marker (greedy to capture full name)
+    item_pattern = r'-\s*Item\s*:\s*([^-]+?)\s+-\s+(?:Evidence\s*:\s*[^-]*?\s+-\s+)?Action\s*:\s*\[(KEEP|DISCARD)\]'
     
+    print(f"[CoT Filter] 🔍 Extracting items from reasoning text (length: {len(reasoning_text)})")
+    matches_found = 0
     for match in re.finditer(item_pattern, reasoning_text, re.IGNORECASE):
+        matches_found += 1
         item_name = match.group(1).strip()
         action = match.group(2).upper()
         
@@ -147,9 +151,14 @@ def filter_cot_reasoning(generator):
         if action == "KEEP":
             if item_name and item_name not in kept_items:
                 kept_items.append(item_name)
+                print(f"[CoT Filter] ✅ Found KEEP item: '{item_name}'")
         elif action == "DISCARD":
             if item_name:
                 discarded_items.add(item_name.lower())
+                print(f"[CoT Filter] 🚫 Found DISCARD item: '{item_name}'")
+    
+    if matches_found == 0:
+        print(f"[CoT Filter] ⚠️ No items found with pattern. Reasoning text preview: {reasoning_text[:200]}")
     
     # Find FINAL ANSWER - handle tokenized text
     final_answer_patterns = [
@@ -243,7 +252,8 @@ def filter_cot_reasoning(generator):
                         missing_items.append(kept_item)
             
             if missing_items:
-                # Add missing items
+                print(f"[CoT Filter] 🔧 Reconstructing final answer to include missing KEEP items: {missing_items}")
+                # Reconstruct from all KEEP items to ensure completeness
                 if len(kept_items) == 1:
                     final_answer = kept_items[0]
                 elif len(kept_items) == 2:
