@@ -18,24 +18,36 @@ def filter_cot_reasoning(generator):
     
     Only yields content after FINAL ANSWER: marker.
     Filters out items marked [DISCARD] and ensures all [KEEP] items are included.
+    
+    IMPORTANT: This function buffers all tokens and suppresses REASONING section.
+    Only the FINAL ANSWER is yielded with proper sentence tags.
     """
+    print("[CoT Filter] 🔍 Starting CoT filter - buffering all tokens (suppressing output)")
+    
     # Buffer all tokens to analyze the full response
+    # CRITICAL: Do NOT yield any tokens during buffering - suppress everything until we extract FINAL ANSWER
     tokens = []
     full_text = ""
+    token_count = 0
     
-    # First pass: collect all tokens
+    # First pass: collect all tokens (SUPPRESS - do not yield)
     for token in generator:
+        token_count += 1
         # Handle dict tokens
         if isinstance(token, dict):
             token = token.get('content', '') or token.get('text', '') or str(token)
         
+        # Store token but DO NOT YIELD - we're buffering to extract FINAL ANSWER
         tokens.append(token)
         
-        # Extract text content (remove sentence tags)
+        # Extract text content (remove sentence tags) for analysis
         text = str(token) if token else ""
         text = text.replace("<sentence_start>", "").replace("<sentence_end>", "").replace("\n", " ").strip()
         if text:
             full_text += text + " "
+    
+    print(f"[CoT Filter] 📊 Buffered {token_count} tokens, {len(full_text)} characters")
+    print(f"[CoT Filter] 📝 Full text preview (first 500 chars): {full_text[:500]}")
     
     # Check if this is a CoT response
     full_text_lower = full_text.lower()
@@ -140,8 +152,14 @@ def filter_cot_reasoning(generator):
                 else:
                     final_answer = ", ".join(kept_items[:-1]) + f", and {kept_items[-1]}"
     
-    # Yield final answer with sentence tags
+    # CRITICAL: Only yield the final answer with proper sentence tags
+    # DO NOT yield any of the buffered REASONING tokens
+    print(f"[CoT Filter] ✅ Extracted final answer: '{final_answer[:100]}...'")
+    print(f"[CoT Filter] ✅ KEEP items: {kept_items}")
+    print(f"[CoT Filter] ✅ DISCARD items: {list(discarded_items)}")
+    
     if final_answer.strip():
+        print(f"[CoT Filter] 💭 Yielding final answer with sentence tags")
         yield "<sentence_start>\n"
         words = final_answer.strip().split()
         for i, word in enumerate(words):
@@ -150,6 +168,7 @@ def filter_cot_reasoning(generator):
             else:
                 yield word
         yield "\n<sentence_end>\n"
+        print(f"[CoT Filter] ✅ Final answer yielded - filter complete")
     else:
         # Fallback
         fallback = "I don't understand. Could you please repeat or rephrase your question?"
