@@ -13,6 +13,78 @@ import threading
 from typing import Optional
 
 
+def _stream_summary_with_sentence_tags(summary_iter):
+    """
+    Convert a raw streamed summary (strings/dicts) into incremental <sentence_start>/<sentence_end> blocks.
+    This lets TTS speak sentence-by-sentence instead of waiting for a full paragraph.
+    """
+    buffer = ""
+    sentence_open = False
+
+    def _extract_chunk_text(chunk) -> str:
+        if isinstance(chunk, dict):
+            # OpenAI chat-style
+            if 'choices' in chunk and chunk['choices']:
+                choice0 = chunk['choices'][0] or {}
+                delta = choice0.get('delta') or {}
+                if isinstance(delta, dict) and delta.get('content'):
+                    return delta.get('content') or ''
+                # llama-cpp completion-style
+                if choice0.get('text'):
+                    return choice0.get('text') or ''
+                msg = choice0.get('message') or {}
+                if isinstance(msg, dict) and msg.get('content'):
+                    return msg.get('content') or ''
+            if chunk.get('content'):
+                return chunk.get('content') or ''
+            if chunk.get('text'):
+                return chunk.get('text') or ''
+            return ''
+        if isinstance(chunk, str):
+            return chunk
+        return str(chunk) if chunk is not None else ''
+
+    def _find_sentence_end(buf: str) -> int:
+        # Find the earliest sentence-ending punctuation. Keep it simple and robust.
+        m = re.search(r'[.!?](?:["\']|”|’)?(\s|$)', buf)
+        if not m:
+            return -1
+        return m.end(0)
+
+    for chunk in summary_iter:
+        text = _extract_chunk_text(chunk)
+        if not text:
+            continue
+        buffer += text
+
+        # Open sentence block as soon as we have content
+        if not sentence_open and buffer.strip():
+            yield "<sentence_start>\n"
+            sentence_open = True
+
+        while True:
+            cut = _find_sentence_end(buffer)
+            if cut == -1:
+                break
+            sentence_text = buffer[:cut]
+            remainder = buffer[cut:]
+            if sentence_text.strip():
+                yield sentence_text
+                yield "\n<sentence_end>\n"
+                sentence_open = False
+            buffer = remainder.lstrip()
+            if buffer.strip():
+                yield "<sentence_start>\n"
+                sentence_open = True
+
+    # Flush leftover buffer at end
+    if buffer.strip():
+        if not sentence_open:
+            yield "<sentence_start>\n"
+        yield buffer
+        yield "\n<sentence_end>\n"
+
+
 def extract_information_with_cot(rag_context: str, query: str, llm_chat_simple, extract_llm_response_content) -> str:
     """
     Use CoT model to extract relevant information from RAG context.
@@ -341,49 +413,16 @@ def handle_summary_advice_query(
                     stream=stream
                 )
                 
-                # Normalize and wrap summary response with sentence tags
-                yield "<sentence_start>\n"
                 try:
-                    for chunk in summary_response:
-                        # Normalize dict chunks to extract content
-                        if isinstance(chunk, dict):
-                            content = None
-                            if 'choices' in chunk and len(chunk['choices']) > 0:
-                                delta = chunk['choices'][0].get('delta', {})
-                                content = delta.get('content', '')
-                            elif 'content' in chunk:
-                                content = chunk.get('content', '')
-                            if content:
-                                yield content
-                        elif isinstance(chunk, str):
-                            # Check if it's a stringified dict
-                            if chunk.strip().startswith('{') and ('id' in chunk or 'choices' in chunk):
-                                try:
-                                    import json
-                                    parsed = json.loads(chunk)
-                                    if isinstance(parsed, dict):
-                                        if 'choices' in parsed and len(parsed['choices']) > 0:
-                                            delta = parsed['choices'][0].get('delta', {})
-                                            content = delta.get('content', '')
-                                            if content:
-                                                yield content
-                                        continue
-                                except (json.JSONDecodeError, ValueError):
-                                    pass
-                            # Regular string chunk
-                            if chunk:
-                                yield chunk
-                        else:
-                            # Other types - convert to string
-                            if chunk:
-                                yield str(chunk)
+                    # Stream with incremental sentence tags so TTS can start early
+                    for out in _stream_summary_with_sentence_tags(summary_response):
+                        yield out
                 except Exception as stream_error:
                     print(f"[RAG Summary] ⚠️ Error during summary streaming: {stream_error}")
                     import traceback
                     traceback.print_exc()
                     # Yield fallback message
                     yield "I found relevant information, but I'm having trouble generating a summary right now."
-                yield "\n<sentence_end>\n"
             except Exception as e:
                 print(f"[RAG Summary] ⚠️ Error generating summary response: {e}")
                 import traceback
