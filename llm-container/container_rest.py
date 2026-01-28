@@ -50,6 +50,26 @@ except ImportError as e:
     print(f"[Generic] ⚠️ Failed to import RAG summary module: {e}")
     check_summary_query = None
 
+# Import RAG CoT module for regular RAG queries
+try:
+    from rag_cot import handle_rag_cot_query
+    RAG_COT_AVAILABLE = True
+    print(f"[Generic] ✅ RAG CoT module imported successfully")
+except ImportError as e:
+    RAG_COT_AVAILABLE = False
+    print(f"[Generic] ⚠️ Failed to import RAG CoT module: {e}")
+    handle_rag_cot_query = None
+
+# Import Conversation module for regular conversational queries
+try:
+    from conversation import handle_conversation_query
+    CONVERSATION_MODULE_AVAILABLE = True
+    print(f"[Generic] ✅ Conversation module imported successfully")
+except ImportError as e:
+    CONVERSATION_MODULE_AVAILABLE = False
+    print(f"[Generic] ⚠️ Failed to import Conversation module: {e}")
+    handle_conversation_query = None
+
 # Conversation management for passive listening and keyword activation
 from conversation_manager import ConversationMemoryIndex, ConversationOrchestrator
 
@@ -1147,14 +1167,18 @@ JSON array only:"""
         should_use_rag = (rag_results and len(rag_results) > 0) or (memory_rag_results and len(memory_rag_results) > 0)
         should_use_memory_rag = (memory_rag_results and len(memory_rag_results) > 0)
         
+        # Track if RAG was attempted but found no results (for better fallback handling)
+        rag_attempted_but_no_results = should_use_rag_for_search and not should_use_rag
+        
         # CRITICAL: Override should_use_rag if query is conversational
         # Conversational queries should NEVER use RAG/CoT model
         if is_conversational:
             should_use_rag = False
             rag_results = []  # Clear RAG results to prevent CoT model usage
+            rag_attempted_but_no_results = False  # Reset flag for conversational queries
             print(f"[Generic] 🔍 Conversational query - forcing should_use_rag=False (will use base model)")
         
-        print(f"[Generic] 🔍 Query analysis: is_personal={is_personal_query}, is_conversational={is_conversational}, should_use_rag={should_use_rag}, should_use_memory_rag={should_use_memory_rag}")
+        print(f"[Generic] 🔍 Query analysis: is_personal={is_personal_query}, is_conversational={is_conversational}, should_use_rag={should_use_rag}, should_use_memory_rag={should_use_memory_rag}, rag_attempted_but_no_results={rag_attempted_but_no_results}")
         
         if should_use_rag and rag_results:
             try:
@@ -1733,32 +1757,48 @@ JSON array only:"""
                     return summary_response
             
             # Standard RAG query flow (use CoT model with filter)
-            llm_response = llm_chat_simple(
-                messages,
-                max_tokens=max_tokens_limit,
-                temperature=0,
-                stream=stream,
-                use_cot_model=True,  # RAG found content - use CoT model
-                top_p=1.0,  # Disable top-p sampling for determinism
-                top_k=-1,  # Disable top-k sampling for determinism
-                seed=42,  # Fixed seed for reproducibility
-                stop=["<|im_end|>"],
-            )
-            if stream:
-                # Apply CoT filter to extract FINAL ANSWER from REASONING section
-                # NOTE: Filler phrase is already yielded in generate_response() when RAG decision is made
-                # We don't yield it here to avoid duplication
-                
-                # Normalize stream chunks (convert dicts to strings) before passing to CoT filter
-                normalized_stream = _normalize_stream_chunks(llm_response)
-                
-                # Apply CoT filter to extract final answer from reasoning
-                # This processes ONLY the LLM response stream, NOT any filler phrases
-                print(f"[Generic] ✅ [handle_conversation] Applying CoT filter to RAG query stream")
-                yield from filter_cot_reasoning(normalized_stream)
-                return
+            # Use the new RAG CoT module for cleaner code organization
+            if RAG_COT_AVAILABLE and handle_rag_cot_query:
+                print(f"[Generic] ✅ [RAG CoT] Using RAG CoT module for regular RAG query")
+                rag_cot_response = handle_rag_cot_query(
+                    prompt=prompt,
+                    rag_context=rag_context,
+                    messages=messages,
+                    llm_chat_simple=llm_chat_simple,
+                    _normalize_stream_chunks=_normalize_stream_chunks,
+                    filter_cot_reasoning=filter_cot_reasoning,
+                    stream=stream,
+                    max_tokens=max_tokens_limit
+                )
+                if stream:
+                    yield from rag_cot_response
+                    return
+                else:
+                    return rag_cot_response
             else:
-                return llm_response
+                # Fallback to old logic if module not available
+                print(f"[Generic] ⚠️ [RAG CoT] Module not available, using fallback logic")
+                llm_response = llm_chat_simple(
+                    messages,
+                    max_tokens=max_tokens_limit,
+                    temperature=0,
+                    stream=stream,
+                    use_cot_model=True,  # RAG found content - use CoT model
+                    top_p=1.0,  # Disable top-p sampling for determinism
+                    top_k=-1,  # Disable top-k sampling for determinism
+                    seed=42,  # Fixed seed for reproducibility
+                    stop=["<|im_end|>"],
+                )
+                if stream:
+                    # Normalize stream chunks (convert dicts to strings) before passing to CoT filter
+                    normalized_stream = _normalize_stream_chunks(llm_response)
+                    
+                    # Apply CoT filter to extract final answer from reasoning
+                    print(f"[Generic] ✅ [handle_conversation] Applying CoT filter to RAG query stream")
+                    yield from filter_cot_reasoning(normalized_stream)
+                    return
+                else:
+                    return llm_response
         else:
             # No RAG context, use standard prompt with Aura Vision identity
             # Check if memory RAG was attempted but found no useful information
@@ -2439,15 +2479,39 @@ JSON array only:"""
             
             return filter_reasoning()
         
-        # Don't wrap the iterator - let base_container's debug_iterator handle logging
-        # The base class already wraps it with debug logging
-        # Use higher token limit for list questions to ensure all items are included
-        max_tokens_limit = MAX_TOKENS_RAG_MODE_LIST if is_list_request else MAX_TOKENS_RAG_MODE
-        llm_response = llm_chat_simple(messages, max_tokens=max_tokens_limit, stream=stream)
-        if stream:
-            yield from llm_response
+        # Use conversation module for regular conversations (no RAG)
+        # This includes: 1) Truly conversational queries, 2) Information-seeking queries with no RAG results
+        if CONVERSATION_MODULE_AVAILABLE and handle_conversation_query:
+            if rag_attempted_but_no_results:
+                print(f"[Generic] ✅ [Conversation] Using Conversation module - RAG was attempted but found no results")
+            else:
+                print(f"[Generic] ✅ [Conversation] Using Conversation module for regular conversation")
+            # Use higher token limit for list questions to ensure all items are included
+            max_tokens_limit = MAX_TOKENS_RAG_MODE_LIST if is_list_request else MAX_TOKENS_RAG_MODE
+            conversation_response = handle_conversation_query(
+                prompt=prompt,
+                messages=messages,
+                llm_chat_simple=llm_chat_simple,
+                _normalize_stream_chunks=_normalize_stream_chunks,
+                stream=stream,
+                max_tokens=max_tokens_limit,
+                rag_attempted_but_no_results=rag_attempted_but_no_results
+            )
+            if stream:
+                yield from conversation_response
+                return
+            else:
+                return conversation_response
         else:
-            return llm_response
+            # Fallback to old logic if module not available
+            print(f"[Generic] ⚠️ [Conversation] Module not available, using fallback logic")
+            # Use higher token limit for list questions to ensure all items are included
+            max_tokens_limit = MAX_TOKENS_RAG_MODE_LIST if is_list_request else MAX_TOKENS_RAG_MODE
+            llm_response = llm_chat_simple(messages, max_tokens=max_tokens_limit, stream=stream)
+            if stream:
+                yield from llm_response
+            else:
+                return llm_response
     else:
         # No RAG context - will fall through to fallback section below
         pass
@@ -2620,15 +2684,36 @@ JSON array only:"""
     
     # Reduced debug logging for performance
 
-    # Use higher token limit for list questions to ensure all items are included
-    # Don't wrap the iterator - let base_container's debug_iterator handle logging
-    # The base class already wraps it with debug logging
-    max_tokens_limit = MAX_TOKENS_DIRECT_MODE_LIST if is_list_request_direct else MAX_TOKENS_DIRECT_MODE
-    llm_response = llm_chat_simple(messages, max_tokens=max_tokens_limit, stream=stream)
-    if stream:
-        yield from llm_response
+    # Use conversation module for regular conversations (no RAG)
+    # This is the fallback path when RAG was not attempted at all
+    if CONVERSATION_MODULE_AVAILABLE and handle_conversation_query:
+        print(f"[Generic] ✅ [Conversation] Using Conversation module for regular conversation (direct mode)")
+        # Use higher token limit for list questions to ensure all items are included
+        max_tokens_limit = MAX_TOKENS_DIRECT_MODE_LIST if is_list_request_direct else MAX_TOKENS_DIRECT_MODE
+        conversation_response = handle_conversation_query(
+            prompt=prompt,
+            messages=messages,
+            llm_chat_simple=llm_chat_simple,
+            _normalize_stream_chunks=_normalize_stream_chunks,
+            stream=stream,
+            max_tokens=max_tokens_limit,
+            rag_attempted_but_no_results=False  # This is the fallback path, RAG was not attempted
+        )
+        if stream:
+            yield from conversation_response
+            return
+        else:
+            return conversation_response
     else:
-        return llm_response
+        # Fallback to old logic if module not available
+        print(f"[Generic] ⚠️ [Conversation] Module not available, using fallback logic")
+        # Use higher token limit for list questions to ensure all items are included
+        max_tokens_limit = MAX_TOKENS_DIRECT_MODE_LIST if is_list_request_direct else MAX_TOKENS_DIRECT_MODE
+        llm_response = llm_chat_simple(messages, max_tokens=max_tokens_limit, stream=stream)
+        if stream:
+            yield from llm_response
+        else:
+            return llm_response
 
 
 def _embed_texts(texts: List[str]) -> List[List[float]]:
@@ -2801,7 +2886,7 @@ def chat_tts():
                 'please', 'excuse me', 'sorry', 'pardon'
             ]
             is_conversational = any(phrase in normalized_prompt for phrase in conversational_phrases)
-
+            
             # ------------------------------------------------------------------
             # RAG decision (simplified + predictable)
             # ------------------------------------------------------------------
@@ -3156,13 +3241,15 @@ def chat_tts():
         
         print(f"[Generic] 🔍 [Filler Phrase Check] Final will_use_rag: {will_use_rag}, is_conversational: {is_conversational}")
         
-        if will_use_rag:
-            filler_phrase = get_filler_phrase()
-            print(f"[Generic] ✅ [Filler Phrase] Yielding filler phrase IMMEDIATELY (RAG detected): '{filler_phrase}'")
-            yield "<sentence_start>\n"
-            yield f"{filler_phrase}\n"
-            yield "<sentence_end>\n"
-            print(f"[Generic] ✅ [Filler Phrase] Filler phrase yielded - should be spoken immediately")
+        # NOTE: Filler phrase for regular RAG queries is now handled inside rag_cot module
+        # We only yield filler phrase here for summary queries (which don't use rag_cot module)
+        # Summary queries handle their own filler phrases in rag_summary module
+        if will_use_rag and not is_summary_query_flag:
+            # Regular RAG query - filler phrase will be handled by rag_cot module
+            print(f"[Generic] ✅ [Filler Phrase] Regular RAG query - filler phrase will be handled by RAG CoT module")
+        elif will_use_rag and is_summary_query_flag:
+            # Summary query - filler phrase handled by rag_summary module
+            print(f"[Generic] ✅ [Filler Phrase] Summary query - filler phrase will be handled by RAG Summary module")
         
         # Check if this is a summary/advice query - these bypass CoT filter
         is_summary_query_flag = False
@@ -3180,13 +3267,14 @@ def chat_tts():
             print(f"[Generic] 📝 [Summary Mode] Passing summary response through without CoT filter (will_use_rag={will_use_rag})")
             yield from generate_response()
         elif will_use_rag:
-            # RAG query - apply filters to extract final answer from CoT reasoning
-            print(f"[Generic] ✅ [CoT Filter] Applying filters to RAG query (will_use_rag=True)")
-            base_stream = filter_think_blocks(generate_response())
-            yield from filter_cot_reasoning(base_stream)
+            # RAG query - use RAG CoT module (handles filler phrase and CoT filter internally)
+            # The filler phrase is now handled inside the RAG CoT module, so we don't need to yield it here
+            print(f"[Generic] ✅ [RAG CoT] RAG query detected - will use RAG CoT module (will_use_rag=True)")
+            # The RAG CoT module will be called from handle_conversation, so just pass through
+            yield from generate_response()
         else:
-            # Base model query (no RAG) - stream immediately without any filtering or buffering
-            print(f"[Generic] ✅ [Base Model] Streaming base model response immediately (will_use_rag=False, no filters)")
+            # Base model query (no RAG) - use conversation module for clean, direct streaming
+            print(f"[Generic] ✅ [Conversation] Using Conversation module for base model query (will_use_rag=False)")
             yield from generate_response()
     
     return Response(
@@ -3268,8 +3356,8 @@ def _normalize_stream_chunks(chunk_iter):
                 content = chunk.get('content', '')
             
             # Only yield if there's actual content (skip metadata chunks)
-            if content:
-                yield content
+                if content:
+                    yield content
             # Skip metadata chunks (dicts without content) - don't convert to string
             continue
         elif isinstance(chunk, str):

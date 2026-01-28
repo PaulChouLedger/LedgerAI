@@ -47,6 +47,8 @@ COPY container_rest.py ./
 COPY conversation_manager.py ./
 COPY cot_filter.py ./
 COPY rag_summary.py ./
+COPY rag_cot.py ./
+COPY conversation.py ./
 
 # Note: RAG module is now in /shared/rag/ (mounted via docker-compose.yml)
 
