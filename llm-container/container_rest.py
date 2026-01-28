@@ -1699,6 +1699,7 @@ JSON array only:"""
             # - seed=42: Fixed seed for reproducibility (same prompt = same output)
             # Check if this is a summary/advice query (use CoT extraction + base model summary)
             if is_summary_query and rag_context and RAG_SUMMARY_AVAILABLE:
+                print(f"[Generic] 📝 [Summary Mode] Using CoT extraction + base model summary - bypassing CoT filter")
                 summary_response = handle_summary_advice_query(
                     prompt=prompt,
                     rag_context=rag_context,
@@ -1708,8 +1709,10 @@ JSON array only:"""
                 )
                 
                 if stream:
-                    # Stream the summary response
+                    # Stream the summary response directly (base model output, no CoT filter needed)
+                    # The base model already generates natural, conversational summaries
                     yield from summary_response
+                    return  # CRITICAL: Return immediately to prevent CoT filter from processing base model output
                 else:
                     return summary_response
             
@@ -2871,11 +2874,30 @@ def chat_tts():
             # Use streaming mode to get tokens as they're generated, with memory context
             # NOTE: Filler phrase will be yielded separately in get_response_stream() to avoid CoT filter buffering
             print(f"[Generic] 🔍 [Stream] Calling handle_conversation() with stream=True")
+            
+            # Check if this is a summary/advice query BEFORE calling handle_conversation
+            # Summary queries bypass CoT filter (base model generates natural summaries)
+            is_summary_query_flag = False
+            if RAG_SUMMARY_AVAILABLE and check_summary_query:
+                is_summary_query_flag = check_summary_query(prompt)
+                if is_summary_query_flag:
+                    print(f"[Generic] 📝 [Summary Mode] Detected summary/advice query - will bypass CoT filter")
+            
             result = handle_conversation(prompt, session_id, memory_context=memory_context, stream=True)
             
             # Check if result is a generator (streaming)
             if hasattr(result, '__iter__') and not isinstance(result, str):
                 print(f"[Generic] 🔍 [Stream] Processing stream from handle_conversation()")
+                
+                # If this is a summary query, pass through directly without CoT filter
+                if is_summary_query_flag:
+                    print(f"[Generic] 📝 [Summary Mode] Passing base model summary through without CoT filter")
+                    # Summary responses from base model should be passed through directly
+                    # They already have proper sentence tags and natural formatting
+                    for chunk in result:
+                        yield chunk
+                    return
+                
                 # Special-case: some internal generators (e.g., validate_query() clarification)
                 # already yield sentence tags (<sentence_start>/<sentence_end>). If we run those through
                 # _word_stream_from_chunks + _sentence_tag_stream we can swallow or distort them,
@@ -3105,14 +3127,26 @@ def chat_tts():
             yield "<sentence_end>\n"
             print(f"[Generic] ✅ [Filler Phrase] Filler phrase yielded - should be spoken immediately")
         
+        # Check if this is a summary/advice query - these bypass CoT filter
+        is_summary_query_flag = False
+        if RAG_SUMMARY_AVAILABLE and check_summary_query:
+            is_summary_query_flag = check_summary_query(prompt)
+            if is_summary_query_flag:
+                print(f"[Generic] 📝 [Summary Mode] Detected summary/advice query in get_response_stream - bypassing CoT filter")
+        
         # Create a generator that checks the first few tokens to determine if it's CoT
         # For base model, we want immediate streaming without buffering
         base_stream = filter_think_blocks(generate_response())
         
-        # For base model queries (no RAG), we can detect quickly and bypass CoT filter
-        # The CoT filter will detect non-CoT responses quickly and pass through
-        # But we can optimize further by checking will_use_rag if available
-        yield from filter_cot_reasoning(base_stream)
+        # Summary queries bypass CoT filter (base model generates natural summaries)
+        if is_summary_query_flag:
+            print(f"[Generic] 📝 [Summary Mode] Passing summary response through without CoT filter")
+            yield from base_stream
+        else:
+            # For base model queries (no RAG), we can detect quickly and bypass CoT filter
+            # The CoT filter will detect non-CoT responses quickly and pass through
+            # But we can optimize further by checking will_use_rag if available
+            yield from filter_cot_reasoning(base_stream)
     
     return Response(
         stream_with_context(get_response_stream()),
