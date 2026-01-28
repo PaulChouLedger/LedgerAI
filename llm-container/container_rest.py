@@ -42,12 +42,13 @@ except ImportError as e:
 
 # Import RAG summary/advice module
 try:
-    from rag_summary import is_summary_query, handle_summary_advice_query
+    from rag_summary import is_summary_query as check_summary_query, handle_summary_advice_query
     RAG_SUMMARY_AVAILABLE = True
     print(f"[Generic] ✅ RAG summary module imported successfully")
 except ImportError as e:
     RAG_SUMMARY_AVAILABLE = False
     print(f"[Generic] ⚠️ Failed to import RAG summary module: {e}")
+    check_summary_query = None
 
 # Conversation management for passive listening and keyword activation
 from conversation_manager import ConversationMemoryIndex, ConversationOrchestrator
@@ -810,8 +811,8 @@ def handle_conversation(
             print(f"[Generic] 🔍 Information-seeking query detected - overriding conversational flag")
         
         # Detect summary/advice queries (use CoT for extraction, base model for summary)
-        if RAG_SUMMARY_AVAILABLE:
-            is_summary_query = is_summary_query(normalized_prompt)
+        if RAG_SUMMARY_AVAILABLE and check_summary_query:
+            is_summary_query = check_summary_query(normalized_prompt)
             if is_summary_query:
                 print(f"[Generic] 📝 Summary/advice query detected - will use CoT extraction + base model summary")
         else:
