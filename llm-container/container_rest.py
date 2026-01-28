@@ -1692,22 +1692,15 @@ JSON array only:"""
             )
             if stream:
                 # Apply CoT filter to extract FINAL ANSWER from REASONING section
-                # Yield initial filler phrase when RAG/CoT is detected
-                # CRITICAL: Yield filler phrase FIRST and ensure it's flushed before starting CoT filter
-                filler_phrase = get_filler_phrase()
-                print(f"[Generic] 💭 [handle_conversation] Yielding FIRST filler phrase (RAG/CoT detected): '{filler_phrase}'")
-                yield "<sentence_start>\n"
-                yield f"{filler_phrase}\n"
-                yield "<sentence_end>\n"
-                # Filler phrase is now in the stream and should be spoken immediately
-                # The CoT filter will process the LLM response separately
+                # NOTE: Filler phrase is already yielded in generate_response() when RAG decision is made
+                # We don't yield it here to avoid duplication
                 
                 # Normalize stream chunks (convert dicts to strings) before passing to CoT filter
                 normalized_stream = _normalize_stream_chunks(llm_response)
                 
                 # Apply CoT filter to extract final answer from reasoning
-                # This processes the LLM response stream, NOT the filler phrase
-                print(f"[Generic] ✅ [handle_conversation] Applying CoT filter to RAG query stream (after filler phrase)")
+                # This processes ONLY the LLM response stream, NOT any filler phrases
+                print(f"[Generic] ✅ [handle_conversation] Applying CoT filter to RAG query stream")
                 yield from filter_cot_reasoning(normalized_stream)
                 return
             else:
@@ -2840,31 +2833,9 @@ def chat_tts():
                 except Exception as e:
                     print(f"[Generic] ⚠️ RAG pre-check failed: {e}")
             
-            # Yield filler phrase IMMEDIATELY after detecting RAG will be used (before calling handle_conversation)
-            # This ensures it plays while RAG search happens in the background
-            print(f"[Generic] 🔍 [Filler Phrase] Checking if filler phrase should be yielded - will_use_rag={will_use_rag}")
-            filler_phrase_yielded = False
-            # If we're going to do RAG, emit a filler phrase to cover retrieval latency
-            if will_use_rag:
-                filler_phrase = get_filler_phrase()
-                print(f"[Generic] ✅ [Filler Phrase] DECISION: Yielding filler phrase IMMEDIATELY after RAG detection")
-                print(f"[Generic] 💭 [Filler Phrase] Filler phrase: '{filler_phrase}'")
-                # IMPORTANT: Stream protocol is line-delimited. Each yielded chunk must end with '\n'
-                # and tags should NOT be prefixed by a newline, otherwise the speaker parser can miss text.
-                print(f"[Generic] 💭 [Filler Phrase] Yielding <sentence_start> tag (line-delimited)")
-                yield "<sentence_start>\n"
-                print(f"[Generic] 💭 [Filler Phrase] Yielding filler phrase text (line-delimited): '{filler_phrase}'")
-                yield f"{filler_phrase}\n"
-                print(f"[Generic] 💭 [Filler Phrase] Yielding <sentence_end> tag (line-delimited)")
-                yield "<sentence_end>\n"
-                filler_phrase_yielded = True
-                print(f"[Generic] ✅ [Filler Phrase] Filler phrase yield complete")
-            else:
-                print(f"[Generic] ⏭️ [Filler Phrase] Skipping filler phrase - will_use_rag={will_use_rag}, is_conversational={is_conversational}")
-            
             # Use streaming mode to get tokens as they're generated, with memory context
-            # The filler phrase was already yielded above, handle_conversation() will skip its own
-            print(f"[Generic] 🔍 [Stream] Calling handle_conversation() with stream=True (filler_phrase_yielded={filler_phrase_yielded})")
+            # NOTE: Filler phrase will be yielded separately in get_response_stream() to avoid CoT filter buffering
+            print(f"[Generic] 🔍 [Stream] Calling handle_conversation() with stream=True")
             result = handle_conversation(prompt, session_id, memory_context=memory_context, stream=True)
             
             # Check if result is a generator (streaming)
@@ -3045,6 +3016,52 @@ def chat_tts():
     # We need to check if RAG will be used before applying filters
     def get_response_stream():
         """Determine if we should apply CoT filter based on whether RAG will be used"""
+        # Yield filler phrase IMMEDIATELY when RAG is detected (before CoT filter)
+        # This ensures it's spoken right away and not buffered by the CoT filter
+        # Use the same RAG decision logic as generate_response() to ensure consistency
+        will_use_rag = False
+        is_conversational = any(phrase in prompt.lower() for phrase in [
+            'thank you', 'thanks', 'thank', 'thanks a lot', 'thank you very much',
+            'goodbye', 'bye', 'see you', 'see ya', 'farewell',
+            'you\'re welcome', 'no problem', 'my pleasure', 'anytime',
+            'hello', 'hi', 'hey', 'greetings',
+            'how are you', 'how\'s it going', 'how\'s everything', 'how do you do',
+            'ok', 'okay', 'sure', 'alright', 'got it', 'understood',
+            'yes', 'yeah', 'yep', 'no', 'nope',
+            'please', 'excuse me', 'sorry', 'pardon',
+            "that's fine", "that is fine", "it's fine", "it is fine", "no that's fine", "no that is fine"
+        ])
+        
+        if not is_conversational and RAG_MODE in ("CPU", "GPU"):
+            try:
+                client = get_rag_client()
+                if client:
+                    will_use_rag = client.quick_content_match(prompt)
+                    # Also check memory RAG
+                    memory_container_url = os.environ.get('MEMORY_CONTAINER_URL', 'http://localhost:11438')
+                    try:
+                        quick_match_response = requests.post(
+                            f"{memory_container_url}/rag/quick-match",
+                            json={"query": prompt},
+                            timeout=0.5
+                        )
+                        if quick_match_response.status_code == 200:
+                            match_data = quick_match_response.json()
+                            if match_data.get("has_match", False):
+                                will_use_rag = True
+                    except (requests.exceptions.Timeout, Exception):
+                        pass
+            except Exception:
+                pass
+        
+        if will_use_rag:
+            filler_phrase = get_filler_phrase()
+            print(f"[Generic] ✅ [Filler Phrase] Yielding filler phrase IMMEDIATELY (RAG detected): '{filler_phrase}'")
+            yield "<sentence_start>\n"
+            yield f"{filler_phrase}\n"
+            yield "<sentence_end>\n"
+            print(f"[Generic] ✅ [Filler Phrase] Filler phrase yielded - should be spoken immediately")
+        
         # Create a generator that checks the first few tokens to determine if it's CoT
         # For base model, we want immediate streaming without buffering
         base_stream = filter_think_blocks(generate_response())
@@ -3052,7 +3069,7 @@ def chat_tts():
         # For base model queries (no RAG), we can detect quickly and bypass CoT filter
         # The CoT filter will detect non-CoT responses quickly and pass through
         # But we can optimize further by checking will_use_rag if available
-        return filter_cot_reasoning(base_stream)
+        yield from filter_cot_reasoning(base_stream)
     
     return Response(
         stream_with_context(get_response_stream()),
