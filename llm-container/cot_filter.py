@@ -50,17 +50,72 @@ def filter_cot_reasoning(generator):
     print(f"[CoT Filter] 📝 Full text preview (first 500 chars): {full_text[:500]}")
     
     # Check if this is a CoT response
+    # Handle tokenized text where "REASONING:" might be split as "RE ASON ING :"
+    # Normalize by removing spaces for detection
     full_text_lower = full_text.lower()
-    if "reasoning:" not in full_text_lower:
+    full_text_no_spaces = full_text_lower.replace(" ", "")
+    
+    # Check for "reasoning:" in both normalized and original text
+    # In tokenized text, "REASONING:" becomes "REASONING:" (no colon in normalized) or "reasoning:" (with colon)
+    has_reasoning = "reasoning:" in full_text_lower or "reasoning:" in full_text_no_spaces or "reasoning" in full_text_no_spaces
+    
+    if not has_reasoning:
+        print(f"[CoT Filter] ⚠️ No REASONING marker found - passing through all tokens")
+        print(f"[CoT Filter] 🔍 Debug: full_text_lower contains 'reasoning:': {'reasoning:' in full_text_lower}")
+        print(f"[CoT Filter] 🔍 Debug: full_text_no_spaces contains 'reasoning:': {'reasoning:' in full_text_no_spaces}")
+        print(f"[CoT Filter] 🔍 Debug: full_text_no_spaces contains 'reasoning': {'reasoning' in full_text_no_spaces}")
         # Not a CoT response - pass through all tokens
         for token in tokens:
             yield token
         return
     
+    print(f"[CoT Filter] ✅ REASONING section detected")
+    
     # CoT response detected - extract FINAL ANSWER
-    # Find REASONING section
-    reasoning_match = re.search(r'REASONING:\s*(.*?)(?=FINAL\s+ANSWER:|$)', full_text, re.IGNORECASE | re.DOTALL)
+    # Find REASONING section - handle tokenized text where spaces might be inserted
+    # Try multiple patterns to handle tokenized "REASONING:" (e.g., "RE ASON ING :")
+    reasoning_patterns = [
+        r'REASONING\s*:\s*(.*?)(?=FINAL\s+ANSWER:|$)',
+        r'RE\s+ASON\s+ING\s*:\s*(.*?)(?=FINAL\s+ANSWER:|$)',
+        r'REASON\s+ING\s*:\s*(.*?)(?=FINAL\s+ANSWER:|$)',
+    ]
+    
+    reasoning_match = None
+    for pattern in reasoning_patterns:
+        reasoning_match = re.search(pattern, full_text, re.IGNORECASE | re.DOTALL)
+        if reasoning_match:
+            break
+    
     if not reasoning_match:
+        # Try with normalized text (no spaces) - this handles tokenized "REASONING:" as "REASONING"
+        normalized_text = full_text.replace(" ", "")
+        norm_match = re.search(r'REASONING:\s*(.*?)(?=FINALANSWER:|$)', normalized_text, re.IGNORECASE | re.DOTALL)
+        if norm_match:
+            # Extract reasoning from original text using position
+            # Find "reasoning" in original text (case-insensitive, handle tokenized)
+            reasoning_start = -1
+            for i in range(len(full_text_lower) - 7):
+                if full_text_lower[i:i+8] == "reasoning":
+                    reasoning_start = i
+                    break
+            
+            if reasoning_start >= 0:
+                # Find where FINAL ANSWER starts
+                final_answer_start = full_text_lower.find("final answer", reasoning_start)
+                if final_answer_start > reasoning_start:
+                    reasoning_text = full_text[reasoning_start:final_answer_start]
+                    # Remove "REASONING:" prefix (handle tokenized version)
+                    reasoning_text = re.sub(r'^RE\s*ASON\s*ING\s*:\s*', '', reasoning_text, flags=re.IGNORECASE)
+                    # Create a match object-like structure
+                    class MatchObj:
+                        def group(self, n):
+                            return reasoning_text if n == 1 else None
+                    reasoning_match = MatchObj()
+                else:
+                    reasoning_match = None
+    
+    if not reasoning_match:
+        print(f"[CoT Filter] ⚠️ REASONING section found but couldn't extract - passing through")
         # No REASONING section found - pass through
         for token in tokens:
             yield token
@@ -90,8 +145,41 @@ def filter_cot_reasoning(generator):
             if item_name:
                 discarded_items.add(item_name.lower())
     
-    # Find FINAL ANSWER
-    final_answer_match = re.search(r'FINAL\s+ANSWER:\s*(.*?)(?=REASONING:|$)', full_text, re.IGNORECASE | re.DOTALL)
+    # Find FINAL ANSWER - handle tokenized text
+    final_answer_patterns = [
+        r'FINAL\s+ANSWER\s*:\s*(.*?)(?=REASONING:|$)',
+        r'FINAL\s+ANSW\s+ER\s*:\s*(.*?)(?=REASONING:|$)',
+        r'FINAL\s+ANSW\s*ER\s*:\s*(.*?)(?=REASONING:|$)',
+    ]
+    
+    final_answer_match = None
+    for pattern in final_answer_patterns:
+        final_answer_match = re.search(pattern, full_text, re.IGNORECASE | re.DOTALL)
+        if final_answer_match:
+            break
+    
+    # If not found, try with normalized text (no spaces)
+    if not final_answer_match:
+        normalized_text = full_text.replace(" ", "")
+        norm_match = re.search(r'FINALANSWER:\s*(.*?)(?=REASONING:|$)', normalized_text, re.IGNORECASE | re.DOTALL)
+        if norm_match:
+            # Extract from original text using position
+            # Find "final answer" in original text (case-insensitive, handle tokenized)
+            final_start = -1
+            for i in range(len(full_text_lower) - 10):
+                if full_text_lower[i:i+11] == "final answer":
+                    final_start = i
+                    break
+            
+            if final_start >= 0:
+                final_text = full_text[final_start:]
+                # Remove "FINAL ANSWER:" prefix (handle tokenized version)
+                final_text = re.sub(r'^FINAL\s*ANSW\s*ER\s*:\s*', '', final_text, flags=re.IGNORECASE)
+                # Create a match object-like structure
+                class MatchObj:
+                    def group(self, n):
+                        return final_text.strip() if n == 1 else None
+                final_answer_match = MatchObj()
     if not final_answer_match:
         # No FINAL ANSWER found - construct from KEEP items
         if kept_items:
