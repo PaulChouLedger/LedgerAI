@@ -279,7 +279,7 @@ def handle_summary_advice_query(
             yield "<sentence_end>\n"
             print(f"[RAG Summary] ✅ Second filler phrase yielded")
             
-            # Then yield the summary response
+            # Then yield the summary response (normalized and wrapped with sentence tags)
             summary_response = generate_summary_response(
                 extracted_info=extracted_info,
                 query=prompt,
@@ -287,7 +287,43 @@ def handle_summary_advice_query(
                 extract_llm_response_content=extract_llm_response_content,
                 stream=stream
             )
-            yield from summary_response
+            
+            # Normalize and wrap summary response with sentence tags
+            yield "<sentence_start>\n"
+            for chunk in summary_response:
+                # Normalize dict chunks to extract content
+                if isinstance(chunk, dict):
+                    content = None
+                    if 'choices' in chunk and len(chunk['choices']) > 0:
+                        delta = chunk['choices'][0].get('delta', {})
+                        content = delta.get('content', '')
+                    elif 'content' in chunk:
+                        content = chunk.get('content', '')
+                    if content:
+                        yield content
+                elif isinstance(chunk, str):
+                    # Check if it's a stringified dict
+                    if chunk.strip().startswith('{') and ('id' in chunk or 'choices' in chunk):
+                        try:
+                            import json
+                            parsed = json.loads(chunk)
+                            if isinstance(parsed, dict):
+                                if 'choices' in parsed and len(parsed['choices']) > 0:
+                                    delta = parsed['choices'][0].get('delta', {})
+                                    content = delta.get('content', '')
+                                    if content:
+                                        yield content
+                                continue
+                        except (json.JSONDecodeError, ValueError):
+                            pass
+                    # Regular string chunk
+                    if chunk:
+                        yield chunk
+                else:
+                    # Other types - convert to string
+                    if chunk:
+                        yield str(chunk)
+            yield "\n<sentence_end>\n"
         
         return summary_with_filler()
     else:
