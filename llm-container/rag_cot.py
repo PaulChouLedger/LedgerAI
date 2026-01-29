@@ -84,7 +84,7 @@ def handle_rag_cot_query(
                 
                 # Apply CoT filter to extract FINAL ANSWER from reasoning
                 print(f"[RAG CoT] ✅ [CoT Filter] Applying CoT filter to extract final answer")
-                yield from filter_cot_reasoning(normalized_stream)
+                yield from filter_cot_reasoning(normalized_stream, query=prompt)
                 
             except Exception as e:
                 print(f"[RAG CoT] ⚠️ Error during CoT generation/filtering: {e}")

@@ -12,7 +12,58 @@ This filter:
 import re
 
 
-def filter_cot_reasoning(generator):
+def _format_answer_naturally(kept_items, query=None):
+    """
+    Format a list of items as a natural sentence answer.
+    
+    Examples:
+        ["Bob Carella", "Paul Chou"] -> "The co-founders are Bob Carella and Paul Chou."
+        ["Bob Carella"] -> "The co-founder is Bob Carella."
+    """
+    if not kept_items:
+        return ""
+    
+    # Try to infer answer format from query
+    query_lower = (query or "").lower()
+    
+    # Detect common patterns
+    if "who are" in query_lower or "who were" in query_lower:
+        # Plural question - use "are"
+        if len(kept_items) == 1:
+            # Single item but plural question - still use "is" for single person
+            if "co-founder" in query_lower or "founder" in query_lower:
+                return f"The co-founder is {kept_items[0]}."
+            return f"The person is {kept_items[0]}."
+        else:
+            # Multiple items
+            if "co-founder" in query_lower or "founder" in query_lower:
+                names = ", ".join(kept_items[:-1]) + f", and {kept_items[-1]}"
+                return f"The co-founders are {names}."
+            names = ", ".join(kept_items[:-1]) + f", and {kept_items[-1]}"
+            return f"They are {names}."
+    elif "who is" in query_lower or "who was" in query_lower:
+        # Singular question - use "is"
+        if len(kept_items) == 1:
+            if "co-founder" in query_lower or "founder" in query_lower:
+                return f"The co-founder is {kept_items[0]}."
+            return f"The person is {kept_items[0]}."
+        else:
+            # Multiple items but singular question - use plural
+            names = ", ".join(kept_items[:-1]) + f", and {kept_items[-1]}"
+            if "co-founder" in query_lower or "founder" in query_lower:
+                return f"The co-founders are {names}."
+            return f"They are {names}."
+    else:
+        # Generic format - just list the items naturally
+        if len(kept_items) == 1:
+            return kept_items[0]
+        elif len(kept_items) == 2:
+            return f"{kept_items[0]} and {kept_items[1]}"
+        else:
+            return ", ".join(kept_items[:-1]) + f", and {kept_items[-1]}"
+
+
+def filter_cot_reasoning(generator, query=None):
     """
     Filter streaming output to extract FINAL ANSWER from CoT REASONING section.
     
@@ -21,6 +72,10 @@ def filter_cot_reasoning(generator):
     
     IMPORTANT: This function buffers all tokens and suppresses REASONING section.
     Only the FINAL ANSWER is yielded with proper sentence tags.
+    
+    Args:
+        generator: Token generator from LLM
+        query: Optional original query (used to format answer naturally)
     """
     print("[CoT Filter] 🔍 Starting CoT filter - buffering all tokens (suppressing output)")
     
@@ -236,14 +291,9 @@ def filter_cot_reasoning(generator):
                         return final_text.strip() if n == 1 else None
                 final_answer_match = MatchObj()
     if not final_answer_match:
-        # No FINAL ANSWER found - construct from KEEP items
+        # No FINAL ANSWER found - construct from KEEP items, formatted naturally
         if kept_items:
-            if len(kept_items) == 1:
-                final_answer = kept_items[0]
-            elif len(kept_items) == 2:
-                final_answer = f"{kept_items[0]} and {kept_items[1]}"
-            else:
-                final_answer = ", ".join(kept_items[:-1]) + f", and {kept_items[-1]}"
+            final_answer = _format_answer_naturally(kept_items, query)
         else:
             # Fallback
             final_answer = "I don't understand. Could you please repeat or rephrase your question?"
@@ -293,13 +343,8 @@ def filter_cot_reasoning(generator):
             
             if missing_items:
                 print(f"[CoT Filter] 🔧 Reconstructing final answer to include missing KEEP items: {missing_items}")
-                # Reconstruct from all KEEP items to ensure completeness
-                if len(kept_items) == 1:
-                    final_answer = kept_items[0]
-                elif len(kept_items) == 2:
-                    final_answer = f"{kept_items[0]} and {kept_items[1]}"
-                else:
-                    final_answer = ", ".join(kept_items[:-1]) + f", and {kept_items[-1]}"
+                # Reconstruct from all KEEP items to ensure completeness, formatted naturally
+                final_answer = _format_answer_naturally(kept_items, query)
     
     # CRITICAL: Only yield the final answer with proper sentence tags
     # DO NOT yield any of the buffered REASONING tokens

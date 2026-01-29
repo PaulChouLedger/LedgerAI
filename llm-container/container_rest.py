@@ -1808,7 +1808,7 @@ JSON array only:"""
                     
                     # Apply CoT filter to extract final answer from reasoning
                     print(f"[Generic] ✅ [handle_conversation] Applying CoT filter to RAG query stream")
-                    yield from filter_cot_reasoning(normalized_stream)
+                    yield from filter_cot_reasoning(normalized_stream, query=prompt)
                     return
                 else:
                     return llm_response
