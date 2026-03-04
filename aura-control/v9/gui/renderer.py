@@ -1,0 +1,643 @@
+"""
+gui.renderer -- Shared QPainter drawing primitives.
+
+All non-complication visual layers extracted from carbon_demo.py:
+  - Background textures (blue dial + mute red, cached to QPixmap)
+  - Celestial starfield (twinkling ivory/gold stars)
+  - Chapter ticks (watch-style perimeter ring)
+  - Center encircling ring (iris ring around loops)
+  - Mist / gold dust particles
+  - Inner rings (hero 4-loop harmonic animation, planet palette)
+  - Perimeter sweep (optional moving arcs)
+
+Every function takes a QPainter + geometry args. No self/state —
+the window passes in whatever state is needed.
+"""
+
+from __future__ import annotations
+
+import math
+import random
+from typing import List, Optional, Tuple
+
+from PyQt5.QtCore import Qt, QPointF, QRectF
+from PyQt5.QtGui import (
+    QBrush, QColor, QPainter, QPainterPath, QPen,
+    QFont, QLinearGradient, QPixmap, QRadialGradient,
+)
+
+from gui.animations import LoopParams, Star
+
+# ---------------------------------------------------------------------------
+# Math helpers
+# ---------------------------------------------------------------------------
+
+def clamp(x: float, lo: float, hi: float) -> float:
+    return lo if x < lo else (hi if x > hi else x)
+
+
+def lerp(a: float, b: float, t: float) -> float:
+    return a + (b - a) * clamp(t, 0.0, 1.0)
+
+
+def ease_in_out(x: float) -> float:
+    x = clamp(x, 0.0, 1.0)
+    return x * x * (3 - 2 * x)
+
+
+def ease_out(x: float) -> float:
+    x = clamp(x, 0.0, 1.0)
+    return 1.0 - (1.0 - x) ** 3
+
+
+# ---------------------------------------------------------------------------
+# Star / particle factories
+# ---------------------------------------------------------------------------
+
+def make_celestial_stars(n_white: int = 520, n_gold: int = 240) -> List[Star]:
+    stars: List[Star] = []
+    rng = random.Random(1337)
+
+    for _ in range(n_white):
+        r = (rng.random() ** 0.65) * 0.98
+        th = rng.random() * 2 * math.pi
+        size = 0.8 + 2.0 * rng.random()
+        base_a = int(22 + 55 * rng.random())
+        tw = 0.10 + 0.35 * rng.random()
+        ph = rng.random() * 2 * math.pi
+        stars.append(Star(r=r, th=th, size=size, base_a=base_a, tw=tw, ph=ph, hue=0))
+
+    # Gold dust
+    for _ in range(n_gold):
+        r = (rng.random() ** 0.65) * 0.98
+        th = rng.random() * 2 * math.pi
+        size = 0.6 + 1.4 * rng.random()
+        base_a = int(16 + 40 * rng.random())
+        tw = 0.08 + 0.30 * rng.random()
+        ph = rng.random() * 2 * math.pi
+        stars.append(Star(r=r, th=th, size=size, base_a=base_a, tw=tw, ph=ph, hue=1))
+
+    return stars
+
+
+def make_particles(n: int) -> List[Tuple[float, float, float]]:
+    pts = []
+    for _ in range(n):
+        r = random.random()
+        th = random.random() * 2 * math.pi
+        pts.append((r, th, random.random()))
+    return pts
+
+
+# ---------------------------------------------------------------------------
+# Background textures (cached to QPixmap)
+# ---------------------------------------------------------------------------
+
+class BackgroundCache:
+    """Holds cached background pixmaps; rebuilds on resize."""
+
+    def __init__(self) -> None:
+        self._blue_cache: Optional[QPixmap] = None
+        self._blue_key: Optional[Tuple[int, int]] = None
+        self._red_cache: Optional[QPixmap] = None
+        self._red_key: Optional[Tuple[int, int]] = None
+
+    def get_blue(self, W: int, H: int, mind: float) -> QPixmap:
+        key = (W, H)
+        if self._blue_cache is not None and self._blue_key == key:
+            return self._blue_cache
+        self._blue_cache = _build_blue_background(W, H, mind)
+        self._blue_key = key
+        return self._blue_cache
+
+    def get_red(self, W: int, H: int, mind: float) -> QPixmap:
+        key = (W, H)
+        if self._red_cache is not None and self._red_key == key:
+            return self._red_cache
+        self._red_cache = _build_red_background(W, H, mind)
+        self._red_key = key
+        return self._red_cache
+
+
+def _build_blue_background(W: int, H: int, mind: float) -> QPixmap:
+    pm = QPixmap(W, H)
+    pm.fill(QColor(0, 0, 0))
+    q = QPainter(pm)
+    try:
+        q.setRenderHint(QPainter.Antialiasing)
+        base = QColor(16, 30, 54)
+        q.fillRect(0, 0, W, H, base)
+
+        # Fine horizontal emboss
+        step = 2
+        for y in range(0, H, step):
+            wob = 0.5 + 0.5 * math.sin(y * 0.035)
+            lift = int(4 + 9 * wob)
+            col = QColor(12 + lift, 24 + lift, 42 + lift, 16)
+            q.setPen(QPen(col, 1))
+            q.drawLine(0, y, W, y)
+
+        # Silver threads
+        for y in range(2, H, 24):
+            a = 8 + ((y * 7) % 6)
+            q.setPen(QPen(QColor(235, 238, 242, a), 1))
+            q.drawLine(0, y, W, y)
+        for y in range(11, H, 96):
+            q.setPen(QPen(QColor(245, 248, 252, 16), 1))
+            q.drawLine(0, y, W, y)
+
+        # Ultra-fine sheen
+        for y in range(1, H, 6):
+            q.setPen(QPen(QColor(255, 255, 255, 4), 1))
+            q.drawLine(0, y, W, y)
+
+        # Lacquer vignette + center lift
+        cx, cy = W * 0.5, H * 0.5
+        q.save()
+        q.translate(cx, cy)
+        R = min(W, H) * 0.56
+
+        for i in range(22):
+            rr = R * (1.0 - i * 0.035)
+            a = int(12 + i * 9)
+            q.setPen(QPen(QColor(0, 0, 0, a), max(1.0, mind * 0.002)))
+            q.setBrush(Qt.NoBrush)
+            q.drawEllipse(int(-rr), int(-rr), int(2 * rr), int(2 * rr))
+
+        for i in range(14):
+            rr = R * (0.18 + i * 0.030)
+            a = int(12 - i)
+            if a <= 0:
+                break
+            q.setPen(QPen(QColor(255, 255, 255, a), 1))
+            q.setBrush(Qt.NoBrush)
+            q.drawEllipse(int(-rr), int(-rr), int(2 * rr), int(2 * rr))
+
+        q.restore()
+
+        # Micro grain
+        q.setPen(Qt.NoPen)
+        for i in range(900):
+            x = (i * 73) % W
+            y = (i * 191) % H
+            q.setBrush(QBrush(QColor(255, 255, 255, 5)))
+            q.drawEllipse(int(x), int(y), 1, 1)
+
+        # Dial plate inset
+        q.setPen(Qt.NoPen)
+        q.setBrush(QBrush(QColor(0, 0, 0, 22)))
+        dial_r = int(min(W, H) * 0.44)
+        q.drawEllipse(int(cx - dial_r), int(cy - dial_r), int(2 * dial_r), int(2 * dial_r))
+    finally:
+        q.end()
+    return pm
+
+
+def _build_red_background(W: int, H: int, mind: float) -> QPixmap:
+    pm = QPixmap(W, H)
+    pm.fill(QColor(0, 0, 0))
+    q = QPainter(pm)
+    try:
+        q.setRenderHint(QPainter.Antialiasing)
+        base = QColor(54, 10, 16)
+        q.fillRect(0, 0, W, H, base)
+
+        line_alpha = 18
+        y_step = max(2, int(mind * 0.010))
+        pen1 = QPen(QColor(255, 210, 210, line_alpha))
+        pen2 = QPen(QColor(0, 0, 0, 22))
+        for y in range(0, H, y_step):
+            q.setPen(pen1); q.drawLine(0, y, W, y)
+            q.setPen(pen2); q.drawLine(0, y + 1, W, y + 1)
+
+        cx, cy = W * 0.5, H * 0.5
+        R = min(W, H) * 0.58
+        g = QRadialGradient(QPointF(cx, cy), R * 1.12)
+        g.setColorAt(0.00, QColor(255, 70, 90, 35))
+        g.setColorAt(0.50, QColor(90, 10, 18, 10))
+        g.setColorAt(1.00, QColor(0, 0, 0, 180))
+        q.setPen(Qt.NoPen)
+        q.setBrush(QBrush(g))
+        q.drawEllipse(QPointF(cx, cy), R * 1.05, R * 1.05)
+
+        rng = random.Random(1337)
+        dots = int((W * H) * 0.00010)
+        for _ in range(dots):
+            x = rng.randint(0, W - 1)
+            y = rng.randint(0, H - 1)
+            a = rng.randint(6, 18)
+            q.setPen(QColor(255, 190, 190, a))
+            q.drawPoint(x, y)
+    finally:
+        q.end()
+    return pm
+
+
+# ---------------------------------------------------------------------------
+# Celestial starfield
+# ---------------------------------------------------------------------------
+
+def draw_celestial(
+    p: QPainter, cx: float, cy: float, mind: float, t: float,
+    stars: List[Star],
+) -> None:
+    t = t * 2.5
+    R = mind * 0.46
+    rot = t * (2 * math.pi / (9 * 60.0))
+
+    p.save()
+    p.setCompositionMode(QPainter.CompositionMode_Screen)
+
+    for s in stars:
+        th = s.th + rot
+        rr = s.r * R
+        x = cx + rr * math.cos(th)
+        y = cy + rr * math.sin(th)
+
+        tw = 0.78 + 0.22 * (0.5 + 0.5 * math.sin(t * (0.35 + s.tw) + s.ph))
+        a = int(s.base_a * tw)
+
+        if s.hue == 0:
+            jitter = int((s.ph % 1.0) * 8.0)
+            col = QColor(
+                int(clamp(210 + jitter, 0, 255)),
+                int(clamp(225 + jitter, 0, 255)),
+                int(clamp(248, 0, 255)),
+                a,
+            )
+        else:
+            col = QColor(180, 210, 245, a)
+
+        rad = max(1, int(s.size))
+        p.setPen(Qt.NoPen)
+        p.setBrush(QBrush(col))
+        p.drawEllipse(int(x - rad), int(y - rad), int(2 * rad), int(2 * rad))
+
+        if rad >= 2:
+            halo_a = int(col.alpha() * 0.35)
+            halo_col = QColor(col.red(), col.green(), col.blue(), halo_a)
+            p.setBrush(QBrush(halo_col))
+            hr = rad * 1.8
+            p.drawEllipse(int(x - hr), int(y - hr), int(2 * hr), int(2 * hr))
+
+    p.restore()
+
+
+# ---------------------------------------------------------------------------
+# Chapter ticks
+# ---------------------------------------------------------------------------
+
+def draw_chapter_ticks(
+    p: QPainter, cx: float, cy: float, mind: float, t: float,
+    alpha: float = 1.0, perim_margin_frac: float = 0.038,
+) -> None:
+    alpha = clamp(alpha, 0.0, 1.0)
+    if alpha <= 0.0:
+        return
+
+    p.save()
+    try:
+        perim_margin = mind * perim_margin_frac
+        edge_pad = mind * 0.008
+        r_outer = (mind * 0.5) - edge_pad
+        r_inner_minor = r_outer - perim_margin * 0.55
+        r_inner_major = r_outer - perim_margin * 0.75
+
+        base_a = int(55 * alpha)
+        glint_ang = (-math.pi / 2) + (t * 0.18) % (2 * math.pi)
+        glint_span = math.radians(22)
+
+        for i in range(60):
+            ang = -math.pi / 2 + (2 * math.pi) * (i / 60.0)
+            major = (i % 5 == 0)
+            rin = r_inner_major if major else r_inner_minor
+
+            d = (ang - glint_ang + math.pi) % (2 * math.pi) - math.pi
+            w = max(0.0, 1.0 - (abs(d) / glint_span))
+            a = base_a + int(70 * w * alpha)
+
+            col = QColor(195, 215, 240, clamp(a, 0, 255))
+            pen = QPen(col)
+            pen.setWidthF(max(1.0, mind * (0.0036 if major else 0.0026)))
+            pen.setCapStyle(Qt.RoundCap)
+            p.setPen(pen)
+
+            x1 = cx + rin * math.cos(ang)
+            y1 = cy + rin * math.sin(ang)
+            x2 = cx + r_outer * math.cos(ang)
+            y2 = cy + r_outer * math.sin(ang)
+            p.drawLine(QPointF(x1, y1), QPointF(x2, y2))
+    finally:
+        p.restore()
+
+
+# ---------------------------------------------------------------------------
+# Center encircling ring
+# ---------------------------------------------------------------------------
+
+def draw_center_ring(
+    p: QPainter, cx: float, cy: float, mind: float, t: float,
+    alpha: float = 1.0,
+) -> None:
+    alpha = clamp(alpha, 0.0, 1.0)
+    if alpha <= 0.0:
+        return
+
+    p.save()
+    try:
+        r = mind * 0.265 * 0.80
+        breathe = 0.55 + 0.45 * (0.5 + 0.5 * math.sin(t * 0.65))
+
+        penS = QPen(QColor(0, 0, 0, int(120 * alpha)))
+        penS.setWidthF(max(1.0, mind * 0.0046))
+        penS.setCapStyle(Qt.RoundCap)
+        p.setPen(penS)
+        p.setBrush(Qt.NoBrush)
+        p.drawEllipse(QPointF(cx, cy), r, r)
+
+        col_main = QColor(145, 175, 215, int((120 + 55 * breathe) * alpha))
+        pen = QPen(col_main)
+        pen.setWidthF(max(0.8, mind * 0.0027))
+        pen.setCapStyle(Qt.RoundCap)
+        p.setPen(pen)
+        p.drawEllipse(QPointF(cx, cy), r * 0.998, r * 0.998)
+
+        col_hi = QColor(200, 220, 245, int(38 * alpha))
+        penH = QPen(col_hi)
+        penH.setWidthF(max(0.8, mind * 0.0024))
+        penH.setCapStyle(Qt.RoundCap)
+        p.setPen(penH)
+        p.drawEllipse(QPointF(cx, cy), r * 0.972, r * 0.972)
+    finally:
+        p.restore()
+
+
+# ---------------------------------------------------------------------------
+# Mist / gold dust
+# ---------------------------------------------------------------------------
+
+def draw_mist(
+    p: QPainter, cx: float, cy: float, mind: float,
+    particles: List[Tuple[float, float, float]],
+    strength: float = 1.0,
+) -> None:
+    for (r, th, s) in particles:
+        rr = (mind * 0.5) * (r ** 0.65)
+        x = cx + rr * math.cos(th)
+        y = cy + rr * math.sin(th)
+        a = int(80 * strength * (0.3 + 0.7 * s) * (1.0 - r))
+        p.setPen(Qt.NoPen)
+        p.setBrush(QBrush(QColor(150, 185, 225, a)))
+        rad = int(1 + 4 * (0.3 + s) * (1.0 - r))
+        p.drawEllipse(int(x - rad), int(y - rad), int(2 * rad), int(2 * rad))
+
+
+# ---------------------------------------------------------------------------
+# Inner rings (hero animation — planet palette)
+# ---------------------------------------------------------------------------
+
+def _ring_color(
+    loops: List[LoopParams], loop_idx: int, seg_u: float, tsec: float, a255: int,
+) -> QColor:
+    """Planet tribute palette with per-ring phase offset."""
+
+    def clamp01(x: float) -> float:
+        return 0.0 if x < 0.0 else (1.0 if x > 1.0 else x)
+
+    def smoothstep(x: float) -> float:
+        x = clamp01(x)
+        return x * x * (3 - 2 * x)
+
+    def _lerp(a: float, b: float, t: float) -> float:
+        return a + (b - a) * t
+
+    def mix(c0, c1, t):
+        return (int(_lerp(c0[0], c1[0], t)), int(_lerp(c0[1], c1[1], t)), int(_lerp(c0[2], c1[2], t)))
+
+    def grad(stops, u):
+        u = u % 1.0
+        for i in range(len(stops) - 1):
+            p0, c0 = stops[i]
+            p1, c1 = stops[i + 1]
+            if p0 <= u <= p1:
+                return mix(c0, c1, smoothstep((u - p0) / (p1 - p0)))
+        return stops[-1][1]
+
+    PLANETS = [
+        ("Deep",    [(0.0, (12, 28, 68)), (0.5, (40, 110, 195)), (1.0, (8, 22, 55))]),
+        ("Arctic",  [(0.0, (18, 45, 95)), (0.4, (75, 165, 235)), (0.7, (140, 200, 245)),
+                     (1.0, (18, 45, 95))]),
+        ("Abyss",   [(0.0, (6, 16, 42)),  (0.35, (30, 85, 165)), (0.65, (55, 140, 210)),
+                     (0.85, (90, 175, 235)), (1.0, (6, 16, 42))]),
+        ("Silver",  [(0.0, (35, 45, 65)), (0.3, (120, 145, 185)), (0.6, (170, 190, 220)),
+                     (0.85, (100, 130, 175)), (1.0, (35, 45, 65))]),
+        ("Cobalt",  [(0.0, (15, 32, 72)), (0.4, (50, 120, 200)), (0.7, (85, 160, 230)),
+                     (1.0, (15, 32, 72))]),
+    ]
+
+    PLANET_DUR = 16.0
+    FADE = 4.0
+    total = PLANET_DUR * len(PLANETS)
+    tt = tsec % total
+    idx = int(tt // PLANET_DUR)
+    u_time = (tt % PLANET_DUR) / PLANET_DUR
+
+    _, g0 = PLANETS[idx]
+    _, g1 = PLANETS[(idx + 1) % len(PLANETS)]
+
+    fade = 0.0
+    if u_time > 1.0 - (FADE / PLANET_DUR):
+        fade = smoothstep((u_time - (1.0 - FADE / PLANET_DUR)) / (FADE / PLANET_DUR))
+
+    shift = getattr(loops[loop_idx], "hue_shift", 0.0) / 360.0
+    flow = (seg_u + shift + tsec * (0.010 + 0.004 * loop_idx)) % 1.0
+
+    c0 = grad(g0, flow)
+    c1 = grad(g1, flow)
+    r, g, b = mix(c0, c1, fade)
+
+    breathe = 0.92 + 0.08 * math.sin(tsec * 0.22 + loop_idx * 1.3)
+    r = int(clamp01((r / 255) * breathe) * 255)
+    g = int(clamp01((g / 255) * breathe) * 255)
+    b = int(clamp01((b / 255) * breathe) * 255)
+
+    return QColor(r, g, b, a255)
+
+
+# Mute-mode red color
+MUTE_RED = (220, 75, 65)
+
+
+def draw_rings(
+    p: QPainter, cx: float, cy: float, mind: float, t: float,
+    loops: List[LoopParams],
+    base_speed: float = 0.20,
+    loop_scale: float = 2.53,
+    alpha_scale: float = 1.0,
+    pixelate: float = 0.0,
+    speaking: bool = False,
+    muted: bool = False,
+) -> None:
+    """Draw the 4-loop hero harmonic animation."""
+    iris_R = mind * 0.24 * 0.80
+    N = 96 if speaking else 64
+
+    circ_blend = 0.18
+    circ_target = 0.205
+    circ_min, circ_max = 0.175, 0.235
+    streak_thresh2 = (mind * 0.22) ** 2
+
+    pz = clamp((pixelate - 0.20) / 0.80, 0.0, 1.0)
+    grid = max(1, int(1 + (pz ** 0.85) * (mind * 0.055)))
+    drop_p = clamp(0.72 * (pz ** 1.10), 0.0, 0.78)
+
+    _col_cache = {}
+
+    def draw_loop(loop_idx: int, points, alpha_base: int, width: float):
+        for i in range(len(points)):
+            x0, y0 = points[i]
+            x1, y1 = points[(i + 1) % len(points)]
+
+            dx = x0 - x1
+            dy = y0 - y1
+            if dx * dx + dy * dy >= streak_thresh2:
+                continue
+
+            a = int(alpha_base * alpha_scale)
+            if a <= 0:
+                continue
+
+            if drop_p > 0.0:
+                block = 7 if grid <= 10 else 5
+                bi = i // block
+                h = (bi * 1103515245 + 12345 + (loop_idx * 1013904223)) & 0xFFFFFFFF
+                u = ((h >> 8) & 0xFF) / 255.0
+                if u < drop_p:
+                    continue
+
+            seg_u = i / float(max(1, len(points) - 1))
+
+            if muted:
+                shimmer = 0.5 + 0.5 * math.sin(t * 0.55 + loop_idx * 1.3 + seg_u * 6.0)
+                rr = int(MUTE_RED[0] + 20 * shimmer)
+                gg = int(MUTE_RED[1] - 10 * shimmer)
+                bb = int(MUTE_RED[2] - 10 * shimmer)
+                col = QColor(rr, gg, bb, a)
+            else:
+                key = (loop_idx, int(seg_u * N), a)
+                col = _col_cache.get(key)
+                if col is None:
+                    col = _ring_color(loops, loop_idx, seg_u, t, a)
+                    _col_cache[key] = col
+
+            w_eff = max(1.0, width * (1.0 - 0.25 * pz))
+            p.setPen(QPen(col, w_eff, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
+            p.drawLine(x0, y0, x1, y1)
+
+    phi = 1.61803398875
+    w1 = base_speed * 1.00
+    w2 = base_speed * phi
+    w3 = base_speed * 0.50
+
+    depth = 0.006
+    loop_scale_back = loop_scale * (1.0 - depth)
+    loop_scale_front = loop_scale * (1.0 + depth)
+
+    for loop_idx, lp in enumerate(loops):
+        pts_back = []
+        pts_front = []
+        off = loop_idx * 0.35
+
+        for i in range(N):
+            u = (2 * math.pi) * (i / N)
+
+            a1 = lp.k1 * u + lp.p1 + t * w1
+            a2 = 0.5 * lp.k1 * u + 0.7 * lp.p1 + t * w2 + off
+            a3 = lp.k1 * u + 0.3 * lp.p1 - t * w3 - off * 0.8
+
+            b1 = lp.k2 * u + lp.p2 - t * w1 * 0.90
+            b2 = 0.5 * lp.k2 * u + 0.7 * lp.p2 - t * w2 * 0.62 - off
+            b3 = lp.k2 * u + 0.3 * lp.p2 + t * w3 * 0.78 + off * 0.6
+
+            x = lp.a * math.sin(a1) + (lp.a * 0.11) * math.sin(a2) + (lp.a * 0.06) * math.sin(a3)
+            y = lp.b * math.sin(b1) + (lp.b * 0.11) * math.sin(b2) + (lp.b * 0.06) * math.sin(b3)
+
+            r0 = math.sqrt(x * x + y * y) + 1e-6
+            nx, ny = x / r0, y / r0
+            x = (1 - circ_blend) * x + circ_blend * (nx * circ_target)
+            y = (1 - circ_blend) * y + circ_blend * (ny * circ_target)
+
+            r2 = math.sqrt(x * x + y * y) + 1e-6
+            if r2 < circ_min or r2 > circ_max:
+                rr = clamp(r2, circ_min, circ_max)
+                x *= rr / r2
+                y *= rr / r2
+
+            Xb = int(cx + x * iris_R * loop_scale_back)
+            Yb = int(cy + y * iris_R * loop_scale_back)
+            Xf = int(cx + x * iris_R * loop_scale_front)
+            Yf = int(cy + y * iris_R * loop_scale_front)
+
+            if grid > 1:
+                Xb = (Xb // grid) * grid
+                Yb = (Yb // grid) * grid
+                Xf = (Xf // grid) * grid
+                Yf = (Yf // grid) * grid
+
+            pts_back.append((Xb, Yb))
+            pts_front.append((Xf, Yf))
+
+        do_glow = (pixelate <= 0.01)
+
+        if do_glow:
+            draw_loop(loop_idx, pts_back, 95, 6.0)
+        draw_loop(loop_idx, pts_back, 175, 3.6)
+
+        if do_glow:
+            draw_loop(loop_idx, pts_front, 130, 5.0)
+        draw_loop(loop_idx, pts_front, 245, 3.0)
+
+        # Speaking micro-highlights
+        if speaking and do_glow:
+            step = max(1, len(pts_front) // 8)
+            a = int(42 * alpha_scale)
+            if a > 0:
+                p.save()
+                try:
+                    p.setPen(Qt.NoPen)
+                    p.setBrush(QColor(190, 218, 248, a))
+                    rpx = max(1.0, mind * 0.0022)
+                    for k in range(0, len(pts_front), step):
+                        xx, yy = pts_front[k]
+                        p.drawEllipse(QPointF(xx, yy), rpx, rpx)
+                finally:
+                    p.restore()
+
+
+# ---------------------------------------------------------------------------
+# Muted lacquer wash overlay
+# ---------------------------------------------------------------------------
+
+def draw_mute_wash(p: QPainter, cx: float, cy: float, mind: float, W: int, H: int) -> None:
+    p.save()
+    try:
+        p.setCompositionMode(QPainter.CompositionMode_Multiply)
+        p.setOpacity(0.72)
+        g = QRadialGradient(QPointF(cx, cy), mind * 0.62)
+        g.setColorAt(0.00, QColor(255, 80, 90, 160))
+        g.setColorAt(0.55, QColor(170, 20, 30, 210))
+        g.setColorAt(1.00, QColor(90, 0, 10, 245))
+        p.setPen(Qt.NoPen)
+        p.setBrush(QBrush(g))
+        p.drawEllipse(QPointF(cx, cy), mind * 0.52, mind * 0.52)
+
+        p.setCompositionMode(QPainter.CompositionMode_SourceOver)
+        p.setOpacity(0.20)
+        step = max(2, int(mind * 0.010))
+        penA = QPen(QColor(255, 210, 210, 28))
+        penB = QPen(QColor(0, 0, 0, 26))
+        for yy in range(0, int(H), step):
+            p.setPen(penA); p.drawLine(0, yy, W, yy)
+            p.setPen(penB); p.drawLine(0, yy + 1, W, yy + 1)
+    finally:
+        p.restore()

@@ -1,0 +1,66 @@
+# Aura v2 Voice Assistant systemd Service
+#
+# Replaces the v1 aura.service (aura-control/core/main.py)
+# with the modular v2 entry point (aura-control/v2/aura.py).
+#
+# Dependencies:
+#   - Docker (LLM, Whisper, Memory containers)
+#   - X11 display (PyQt5 GUI on :0)
+#   - XVF3800 mic array (tuning service)
+#   - PulseAudio / ALSA audio output
+#
+# Install:
+#   sudo cp aura-control/v2/services/aura-v2.service /etc/systemd/system/aura.service
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable aura.service
+#
+# Or symlink (auto-updates on git pull):
+#   sudo ln -sf $(pwd)/aura-control/v2/services/aura-v2.service /etc/systemd/system/aura.service
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable aura.service
+#
+# Control:
+#   sudo systemctl start aura.service
+#   sudo systemctl stop aura.service
+#   sudo systemctl restart aura.service
+#   journalctl -u aura.service -f
+
+[Unit]
+Description=Aura v2 Voice Assistant
+After=network.target docker.service display-manager.service xvf3800-tuning.service set-default-audio.service
+Wants=docker.service display-manager.service xvf3800-tuning.service set-default-audio.service
+Requires=docker.service
+
+[Service]
+Type=simple
+User=ledger
+Group=ledger
+WorkingDirectory=/home/ledger/LedgerAI/aura-control/v2
+
+# Display / audio environment
+Environment="DISPLAY=:0"
+Environment="HOME=/home/ledger"
+Environment="PATH=/home/ledger/venvs/aura/bin:/usr/local/bin:/usr/bin:/bin"
+Environment="XDG_RUNTIME_DIR=/run/user/1000"
+Environment="XAUTHORITY=/home/ledger/.Xauthority"
+Environment="PULSE_SERVER=unix:/run/user/1000/pulse/native"
+
+# Auto-detect DISPLAY from X sockets at runtime
+ExecStartPre=/bin/bash -c 'SOCKET=$(ls /tmp/.X11-unix/ 2>/dev/null | grep "^X" | head -1); if [ -n "$SOCKET" ]; then NUM=$(echo "$SOCKET" | sed "s/X//"); export DISPLAY=:$NUM; else export DISPLAY=:0; fi; while [ ! -e "/tmp/.X11-unix/${SOCKET:-X0}" ]; do sleep 1; done'
+ExecStartPre=/bin/bash -c 'xhost +local: 2>/dev/null || true'
+# Disable lock screen / screensaver
+ExecStartPre=/bin/bash -c 'gsettings set org.gnome.desktop.screensaver lock-enabled false 2>/dev/null || true'
+ExecStartPre=/bin/bash -c 'gsettings set org.gnome.desktop.lockdown disable-lock-screen true 2>/dev/null || true'
+ExecStartPre=/bin/bash -c 'gsettings set org.gnome.desktop.screensaver idle-activation-enabled false 2>/dev/null || true'
+# Wait for containers to be ready
+ExecStartPre=/bin/sleep 5
+
+ExecStart=/home/ledger/venvs/aura/bin/python3 -u /home/ledger/LedgerAI/aura-control/v2/aura.py
+
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=graphical.target
