@@ -117,10 +117,9 @@ def main() -> int:
         window.transition_to_normal()
 
         # Welcome greeting + optional tour for first-time users
-        from boot.orchestrator import BootOrchestrator
         from voice.speaker import _synth_to_file
         name = state.active_user_name or "friend"
-        is_first = not state.boot_enrollment_done
+        is_first = orchestrator._enrolled_this_boot
 
         # 1. Personalized greeting — synthesize to file, then enqueue as WAV
         if is_first:

@@ -125,7 +125,7 @@ class AuraWindow(QWidget):
         # Focus animation (shrink/fade non-focused complications)
         self.focus_comp: Optional[str] = None
         self._focus_anim = 0.0
-        self._focus_scale_others = 0.60
+        self._focus_scale_others = 0.45
         self._tour_highlight: Optional[str] = None  # tour mode highlight
 
         # Domain glyph cross-fade
@@ -661,10 +661,13 @@ class AuraWindow(QWidget):
             y = cy + rim_r * math.sin(theta)
             rot = math.degrees(theta) + 90
 
-            # Focus scaling
+            # Focus scaling — highlighted comp pops, others shrink + dim
             if focus and comp.name != focus:
                 local_size = comp_size * lerp(1.0, self._focus_scale_others, a)
-                local_opacity = lerp(1.0, 0.72, a)
+                local_opacity = lerp(1.0, 0.25, a)
+            elif focus and comp.name == focus:
+                local_size = comp_size * lerp(1.0, 1.15, a)
+                local_opacity = 1.0
             else:
                 local_size = comp_size
                 local_opacity = 1.0
@@ -700,6 +703,14 @@ class AuraWindow(QWidget):
         labels = self.labels
         demo_t = self._max_domain_overlay_trans()
 
+        # Tour/focus dimming for domain glyphs
+        overlay_open = (
+            self.trans > 0.02 or self.bal_trans > 0.02 or self.set_trans > 0.02
+            or self.settings_open or self.mode != "home" or self.mode_balance
+        )
+        focus = self.focus_comp if (overlay_open or self._tour_highlight) else None
+        fa = clamp(self._focus_anim, 0.0, 1.0)
+
         for gname, gtheta in glyph_layout(labels, self._glyph_names):
             gx = cx + rim_r * math.cos(gtheta)
             gy = cy + rim_r * math.sin(gtheta)
@@ -708,6 +719,11 @@ class AuraWindow(QWidget):
             is_active = (self.active_glyph == gname or self._glyph_target == gname)
             g_opacity = 1.0 if is_active else 0.85
             local_glyph_size = glyph_size
+
+            # Dim domain glyphs when a complication is focused (tour or overlay)
+            if focus and fa > 0.01:
+                g_opacity *= lerp(1.0, 0.20, fa)
+                local_glyph_size *= lerp(1.0, 0.50, fa)
 
             if demo_t > 0.01:
                 g_opacity *= lerp(1.0, 0.30, demo_t)

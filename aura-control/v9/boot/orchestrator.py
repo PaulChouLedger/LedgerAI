@@ -7,11 +7,12 @@ health, and retroactively transcribes the user's name once Whisper comes
 online.
 
 State machine:
-    WAITING_MIC → GREETING → ASK_NAME → ASK_VOICE_SAMPLE → ENROLLMENT
-    → WAITING_SERVICES → TRANSCRIBING → COMPLETE
+    WAITING_MIC → GREETING → (identify) → ASK_NAME → ASK_VOICE_SAMPLE
+    → ENROLLMENT → WAITING_SERVICES → TRANSCRIBING → COMPLETE
 
-Returning users: detects via is_first_boot(), captures brief audio for
-identification, greets by name, uses shorter script.
+Unified flow: always plays a natural greeting to elicit voice, tries to
+match against stored profiles. If identified → skips enrollment. If not
+→ runs full enrollment (ask name, voice sample, enroll).
 
 Emits bus events: boot.phase, boot.service_up, boot.complete,
 boot.user_enrolled, boot.name_resolved.
@@ -96,6 +97,7 @@ class BootOrchestrator:
         self._name_audio: Optional[np.ndarray] = None
         self._voice_audio: Optional[np.ndarray] = None
         self._user_id: Optional[str] = None
+        self._enrolled_this_boot: bool = False  # True if enrollment happened this boot
 
         # Pre-synthesized welcome WAV (set by _warmup_tts)
         self._welcome_wav: Optional[str] = None
@@ -681,12 +683,15 @@ class BootOrchestrator:
         self._start_music()
 
         enrollment = self._get_enrollment()
-        is_first = enrollment.is_first_boot() if enrollment else True
+        has_profiles = enrollment and not enrollment.is_first_boot()
 
-        if is_first:
-            self._run_first_boot(enrollment)
-        else:
-            self._run_returning_user(enrollment)
+        # Unified flow: greet → identify → enroll if needed
+        identified = False
+        if has_profiles:
+            identified = self._greet_and_identify(enrollment)
+
+        if not identified and not self._skip.is_set():
+            self._run_enrollment(enrollment)
 
         # ---- Kick off TTS warmup AFTER enrollment conversation ----
         # (loading ChatterboxTTS into VRAM is heavy — would kill audio playback)
@@ -745,9 +750,52 @@ class BootOrchestrator:
         bus.emit("boot.complete")
         print(f"[boot] Complete ({self._elapsed():.1f}s)")
 
-    def _run_first_boot(self, enrollment) -> None:
-        """Execute the first-boot conversation script."""
-        # Phase: Wait for mic
+    def _greet_and_identify(self, enrollment) -> bool:
+        """Play a natural greeting, capture voice, try to identify.
+
+        Returns True if a known user was positively identified.
+        """
+        self._set_phase(Phase.WAITING_MIC, 0.02, "Waiting for microphone")
+        mic_ready = self._mic.wait_for_mic()
+
+        if not mic_ready or self._skip.is_set():
+            return False
+
+        script = RETURNING_USER_SCRIPT
+        captured_audio = None
+
+        for prompt in script:
+            if self._skip.is_set():
+                break
+            self._set_phase(Phase.GREETING, self._progress_from_time(),
+                            prompt.progress_text)
+            audio = self._run_prompt(prompt)
+            if audio is not None and prompt.response_type == ResponseType.VOICE_SAMPLE:
+                captured_audio = audio
+
+        if captured_audio is None or self._skip.is_set():
+            return False
+
+        # Try to match voice against stored profiles
+        try:
+            uid, score = enrollment.identify(captured_audio)
+            if uid:
+                name = enrollment.get_name(uid)
+                state.active_user_id = uid
+                state.active_user_name = name
+                state.boot_enrollment_done = True
+                print(f"[boot] Identified: {name} (score={score:.3f})")
+                bus.emit("boot.user_enrolled", user_id=uid, name=name or "User")
+                return True
+            else:
+                print(f"[boot] Voice not recognized (best score={score:.3f}) — enrolling")
+                return False
+        except Exception as e:
+            print(f"[boot] Identification failed: {e}")
+            return False
+
+    def _run_enrollment(self, enrollment) -> None:
+        """Full enrollment: greeting (if first boot) → ask name → voice sample → enroll."""
         self._set_phase(Phase.WAITING_MIC, 0.02, "Waiting for microphone")
         mic_ready = self._mic.wait_for_mic()
 
@@ -798,59 +846,8 @@ class BootOrchestrator:
                     state.active_user_id = self._user_id
                     state.active_user_name = "User"
                     state.boot_enrollment_done = True
+                    self._enrolled_this_boot = True
                     bus.emit("boot.user_enrolled", user_id=self._user_id, name="User")
                     print(f"[boot] Enrolled as {self._user_id}")
                 except Exception as e:
                     print(f"[boot] Enrollment failed: {e}")
-
-    def _run_returning_user(self, enrollment) -> None:
-        """Execute the returning-user identification flow."""
-        self._set_phase(Phase.WAITING_MIC, 0.02, "Waiting for microphone")
-        mic_ready = self._mic.wait_for_mic()
-
-        if not mic_ready or self._skip.is_set():
-            # Fall back to last known user
-            if state.active_user_id and enrollment:
-                name = enrollment.get_name(state.active_user_id)
-                if name:
-                    state.active_user_name = name
-            return
-
-        script = RETURNING_USER_SCRIPT
-        captured_audio = None
-
-        for prompt in script:
-            if self._skip.is_set():
-                break
-
-            phase = Phase.GREETING if prompt.phase_name == "identify" else Phase.WAITING_SERVICES
-            prog = self._progress_from_time()
-            self._set_phase(phase, prog, prompt.progress_text)
-
-            audio = self._run_prompt(prompt)
-            if audio is not None and prompt.response_type == ResponseType.VOICE_SAMPLE:
-                captured_audio = audio
-
-        # Identify returning user
-        if captured_audio is not None and enrollment and not self._skip.is_set():
-            try:
-                uid, score = enrollment.identify(captured_audio)
-                if uid:
-                    name = enrollment.get_name(uid)
-                    state.active_user_id = uid
-                    state.active_user_name = name
-                    print(f"[boot] Identified: {name} (score={score:.3f})")
-                    bus.emit("boot.user_enrolled", user_id=uid, name=name or "User")
-                else:
-                    print(f"[boot] No match (best score={score:.3f})")
-                    # Fall back to last known
-                    if state.active_user_id:
-                        name = enrollment.get_name(state.active_user_id)
-                        if name:
-                            state.active_user_name = name
-            except Exception as e:
-                print(f"[boot] Identification failed: {e}")
-        elif state.active_user_id and enrollment:
-            name = enrollment.get_name(state.active_user_id)
-            if name:
-                state.active_user_name = name

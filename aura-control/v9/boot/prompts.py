@@ -128,15 +128,12 @@ FIRST_BOOT_SCRIPT: list[BootPrompt] = [
 RETURNING_USER_SCRIPT: list[BootPrompt] = [
     BootPrompt(
         phase_name="identify",
-        wav_file="greeting_returning.wav",
+        wav_file="greeting_natural.wav",
         response_type=ResponseType.VOICE_SAMPLE,
-        capture_max_s=3.0,
-        timeout_s=6.0,
-        progress_text="Identifying you",
-    ),
-    BootPrompt(
-        phase_name="waiting",
-        wav_file="casual_waiting.wav",
-        progress_text="Preparing Aura",
+        capture_max_s=5.0,
+        timeout_s=8.0,
+        progress_text="Welcome",
+        pause_before=10.0,
+        pause_after=0.3,
     ),
 ]
