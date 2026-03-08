@@ -573,6 +573,36 @@ class BootOrchestrator:
         print("[boot] Service timeout — proceeding anyway")
         return False
 
+    def _wait_for_services_with_chat(self) -> bool:
+        """Wait for services while keeping the user company with conversation."""
+        deadline = time.time() + BOOT_SERVICE_TIMEOUT_S
+        start = time.time()
+        last_filler = 0.0  # timestamp of last filler
+
+        while time.time() < deadline:
+            if self._skip.is_set():
+                return False
+            if self._poll_services_once():
+                self._set_phase(Phase.WAITING_SERVICES, 1.0, "All systems ready")
+                return True
+
+            svc_prog = self._services_progress()
+            elapsed_frac = min(1.0, (time.time() - start) / max(1.0, BOOT_SERVICE_TIMEOUT_S))
+            time_prog = 0.7 + 0.29 * elapsed_frac
+            prog = max(svc_prog, time_prog)
+            self._set_phase(Phase.WAITING_SERVICES, prog, "Loading AI models")
+
+            # Play a conversational filler every ~20s during the wait
+            if (time.time() - last_filler > 18.0 and self._filler_wavs
+                    and self._music_proc and self._music_proc.poll() is None):
+                self._play_filler_during_pause(12.0)
+                last_filler = time.time()
+            else:
+                time.sleep(2.0)
+
+        print("[boot] Service timeout — proceeding anyway")
+        return False
+
     # ------------------------------------------------------------------
     # Retroactive transcription
     # ------------------------------------------------------------------
@@ -616,17 +646,20 @@ class BootOrchestrator:
 
     # Pre-recorded tour WAVs (generated once, reused every boot)
     # Each tuple: (text, style, name_to_highlight_or_None)
-    # Order follows the dial clockwise: comp → glyph → comp → glyph → ...
+    # Order follows the dial clockwise matching actual layout:
+    #   Glyphs load alphabetically: AuraNet, Education, Financial, Medical
+    #   Positions: TC(top) → AuraNet(TR) → Settings(R) → Education(BR)
+    #             → Mute(B) → Financial(BL) → Concierge(L) → Medical(TL)
     TOUR_LINES = [
         ("Let me give you a quick tour of your Aura.", "energy", None),
         ("At the top is Topics Center. That's where you browse and pin different tools to your dial.", "neutral", "Topics Center"),
-        ("Next to it is your Medical domain. Tap it for health insights, vitals, and clinical guidance.", "warm", "Medical"),
+        ("Next to it is AuraNet. That's your connection to the wider Aura community and network.", "energy", "AuraNet"),
         ("Over here is Settings, where you adjust your voice, language model, and preferences.", "technical", "Settings"),
         ("This is Education. Tap it for interactive lessons, explanations, and learning tools.", "neutral", "Education"),
         ("The Mute button toggles the microphone, and also stops me mid-sentence if I'm going on too long.", "soft", "Mute"),
         ("Here's your Financial domain. Market data, portfolio tracking, and financial insights.", "neutral", "Financial"),
         ("And this is Aura Concierge, your personal assistant for tasks, reminders, and recommendations.", "warm", "Aura Concierge"),
-        ("Last but not least, AuraNet. That's your connection to the wider Aura community and network.", "energy", "AuraNet"),
+        ("And up here is Medical. Tap it for health insights, vitals, and clinical guidance.", "warm", "Medical"),
         ("You can talk to me anytime. Just say what's on your mind, and I'll do my best to help.", "playful", None),
     ]
     TOUR_DIR = BOOT_MUSIC_PATH.parent / "boot_prompts" / "tour"
@@ -716,8 +749,8 @@ class BootOrchestrator:
         self._set_phase(Phase.WAITING_SERVICES, self._progress_from_time(),
                         "Loading AI models")
 
-        # Poll services in parallel with TTS warmup
-        all_up = self._wait_for_services()
+        # Poll services in parallel with TTS warmup — keep chatting
+        all_up = self._wait_for_services_with_chat()
 
         # ---- Retroactive transcription ----
         if self._name_audio is not None and self._services_up.get("whisper"):
@@ -747,7 +780,13 @@ class BootOrchestrator:
         if not tts_ready.is_set():
             self._set_phase(Phase.WAITING_SERVICES, 0.97, "Warming up voice")
             print("[boot] Waiting for TTS warmup to finish...")
-            tts_ready.wait()
+            # Keep chatting while TTS loads (can take 2-3 min on first boot)
+            while not tts_ready.is_set():
+                if (self._filler_wavs and self._music_proc
+                        and self._music_proc.poll() is None):
+                    self._play_filler_during_pause(12.0)
+                else:
+                    tts_ready.wait(timeout=5.0)
 
         # ---- Stop music ----
         if self._music_proc and self._music_proc.poll() is None:

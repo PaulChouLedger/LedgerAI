@@ -74,7 +74,7 @@ FIRST_BOOT_SCRIPT: list[BootPrompt] = [
         phase_name="greeting",
         wav_file="greeting_first.wav",
         progress_text="Welcome to Aura",
-        pause_before=10.0,        # let music establish before first prompt
+        pause_before=10.0,        # let music establish — filler question here
         pause_after=1.0,         # breathing room after greeting
     ),
     BootPrompt(
@@ -85,15 +85,15 @@ FIRST_BOOT_SCRIPT: list[BootPrompt] = [
         timeout_s=12.0,
         fallback_wav="no_name_fallback.wav",
         progress_text="What is your name?",
-        pause_before=10.0,        # music fills the gap — unhurried
-        pause_after=0.3,         # start listening almost immediately
+        pause_before=2.0,         # short music break — no filler (< 3s)
+        pause_after=0.3,
     ),
     BootPrompt(
         phase_name="confirm_name",
         wav_file="confirm_name.wav",
         progress_text="Confirming identity",
-        pause_before=10.0,        # music fills the gap — unhurried
-        pause_after=1.0,         # let confirmation land
+        pause_before=2.0,         # short — no filler
+        pause_after=1.0,
     ),
     BootPrompt(
         phase_name="ask_voice_sample",
@@ -103,20 +103,20 @@ FIRST_BOOT_SCRIPT: list[BootPrompt] = [
         timeout_s=10.0,
         fallback_wav="no_voice_fallback.wav",
         progress_text="Voice enrollment",
-        pause_before=10.0,        # music fills the gap — unhurried
-        pause_after=0.3,         # start listening almost immediately
+        pause_before=10.0,        # filler question here (natural spacing)
+        pause_after=0.3,
     ),
     BootPrompt(
         phase_name="enrollment_done",
         wav_file="enrollment_done.wav",
         progress_text="Setting up your profile",
-        pause_before=10.0,        # music fills the gap — unhurried
+        pause_before=2.0,         # short — no filler
     ),
     BootPrompt(
         phase_name="waiting",
         wav_file="waiting_filler.wav",
         progress_text="Preparing Aura",
-        pause_before=10.0,        # music fills the gap — unhurried
+        pause_before=10.0,        # filler question here
     ),
 ]
 
