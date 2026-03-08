@@ -170,6 +170,45 @@ class VoiceEnrollment:
         print(f"[enrollment] Updated name for {user_id}: '{name}'")
         return True
 
+    def deepen_profile(self, user_id: str, audio_samples: list[np.ndarray],
+                       sr: int = 16000) -> bool:
+        """Strengthen a voice profile by averaging in additional embeddings.
+
+        Takes a list of audio clips, extracts embeddings from each, and
+        averages them with the stored embedding for a more robust profile.
+        """
+        if user_id not in self._embeddings or not audio_samples:
+            return False
+
+        new_embs = []
+        for audio in audio_samples:
+            if audio is not None and len(audio) > sr * 0.5:  # at least 0.5s
+                try:
+                    emb = self.extract_embedding(audio, sr)
+                    new_embs.append(emb)
+                except Exception:
+                    continue
+
+        if not new_embs:
+            return False
+
+        # Average: old embedding + all new ones (old counts as 2x for stability)
+        old_emb = self._embeddings[user_id]
+        all_embs = [old_emb, old_emb] + new_embs  # weight original 2x
+        avg_emb = np.mean(all_embs, axis=0).astype(np.float32)
+        # Re-normalize
+        norm = np.linalg.norm(avg_emb)
+        if norm > 1e-8:
+            avg_emb = avg_emb / norm
+
+        # Save updated embedding
+        emb_filename = self._profiles[user_id]["embedding_file"]
+        np.save(str(self._dir / emb_filename), avg_emb)
+        self._embeddings[user_id] = avg_emb
+
+        print(f"[enrollment] Deepened profile {user_id} with {len(new_embs)} samples")
+        return True
+
     def get_name(self, user_id: str) -> Optional[str]:
         """Get the stored name for a user_id."""
         meta = self._profiles.get(user_id)

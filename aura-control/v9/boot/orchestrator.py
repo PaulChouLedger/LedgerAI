@@ -98,6 +98,7 @@ class BootOrchestrator:
         self._voice_audio: Optional[np.ndarray] = None
         self._user_id: Optional[str] = None
         self._enrolled_this_boot: bool = False  # True if enrollment happened this boot
+        self._extra_voice_samples: list[np.ndarray] = []  # filler responses for profile deepening
 
         # Pre-synthesized welcome WAV (set by _warmup_tts)
         self._welcome_wav: Optional[str] = None
@@ -376,10 +377,10 @@ class BootOrchestrator:
             print("[boot] Music unduck: restart failed")
 
     def _play_filler_during_pause(self, pause_s: float) -> None:
-        """Play a pre-generated filler WAV during a pause, with music.
+        """Play a conversational question, capture response for voice profiling.
 
-        Ducks music, plays the filler, unducks music, then sleeps any
-        remaining time. If no fillers are available, just sleeps.
+        Ducks music, plays question, captures user's response (deepens voice
+        profile), unducks music. Longer music lead for natural pacing.
         """
         if not self._filler_wavs or pause_s < 3.0:
             time.sleep(pause_s)
@@ -389,32 +390,37 @@ class BootOrchestrator:
         wav = self._filler_wavs[self._filler_idx % len(self._filler_wavs)]
         self._filler_idx += 1
 
-        # Let music play for a couple seconds first, then duck + play filler
-        music_lead = min(2.0, pause_s * 0.3)
+        # Longer music lead — let it breathe before the next question
+        music_lead = min(4.0, pause_s * 0.4)
         time.sleep(music_lead)
-        remaining = pause_s - music_lead
 
         if self._skip.is_set():
             return
 
-        # Duck music, play filler, unduck
+        # Duck music, play question, capture response
         self._duck_music()
         vol_pct = int(TTS_VOLUME * 100) if TTS_VOLUME <= 2.0 else int(TTS_VOLUME)
         self._alsa_set_vol(vol_pct)
 
         fname = os.path.basename(wav)
-        print(f"[boot] Playing filler: {fname}")
+        print(f"[boot] Asking: {fname}")
         self._mic.play_prompt(wav)
         self._mic.wait_for_prompt(timeout=12.0)
 
+        # Capture response — doubles as voice profile deepening
+        audio = self._mic.capture_utterance(
+            max_duration=6.0,
+            wait_timeout=6.0,
+        )
+        if audio is not None:
+            dur = len(audio) / SAMPLE_RATE
+            print(f"[boot] Filler response captured: {dur:.1f}s (for voice profile)")
+            self._extra_voice_samples.append(audio)
+        else:
+            print("[boot] No response to filler (that's okay)")
+
         # Unduck music (restarts it with fade-in)
         self._unduck_music()
-
-        # Sleep any remaining time
-        elapsed_approx = music_lead + 5.0  # rough estimate of filler + fade time
-        leftover = pause_s - elapsed_approx
-        if leftover > 0:
-            time.sleep(leftover)
 
     def _stop_music(self) -> None:
         """Stop music playback (kills both ffmpeg feeder and aplay)."""
@@ -609,13 +615,18 @@ class BootOrchestrator:
     # ------------------------------------------------------------------
 
     # Pre-recorded tour WAVs (generated once, reused every boot)
-    # Each tuple: (text, style, complication_name_to_highlight_or_None)
+    # Each tuple: (text, style, name_to_highlight_or_None)
+    # Order follows the dial clockwise: comp → glyph → comp → glyph → ...
     TOUR_LINES = [
         ("Let me give you a quick tour of your Aura.", "energy", None),
-        ("On the top left you'll find Topics Center. That's where you can browse and pin different tools to your dial.", "neutral", "Topics Center"),
-        ("Next to it is Settings, where you can adjust your voice, language model, and wake word preferences.", "technical", "Settings"),
-        ("The Mute button lets you toggle the microphone on and off. When it's green, I'm listening.", "soft", "Mute"),
-        ("And over here is Aura Concierge, your personal assistant for tasks, reminders, and recommendations.", "warm", "Aura Concierge"),
+        ("At the top is Topics Center. That's where you browse and pin different tools to your dial.", "neutral", "Topics Center"),
+        ("Next to it is your Medical domain. Tap it for health insights, vitals, and clinical guidance.", "warm", "Medical"),
+        ("Over here is Settings, where you adjust your voice, language model, and preferences.", "technical", "Settings"),
+        ("This is Education. Tap it for interactive lessons, explanations, and learning tools.", "neutral", "Education"),
+        ("The Mute button toggles the microphone, and also stops me mid-sentence if I'm going on too long.", "soft", "Mute"),
+        ("Here's your Financial domain. Market data, portfolio tracking, and financial insights.", "neutral", "Financial"),
+        ("And this is Aura Concierge, your personal assistant for tasks, reminders, and recommendations.", "warm", "Aura Concierge"),
+        ("Last but not least, AuraNet. That's your connection to the wider Aura community and network.", "energy", "AuraNet"),
         ("You can talk to me anytime. Just say what's on your mind, and I'll do my best to help.", "playful", None),
     ]
     TOUR_DIR = BOOT_MUSIC_PATH.parent / "boot_prompts" / "tour"
@@ -786,6 +797,9 @@ class BootOrchestrator:
                 state.boot_enrollment_done = True
                 print(f"[boot] Identified: {name} (score={score:.3f})")
                 bus.emit("boot.user_enrolled", user_id=uid, name=name or "User")
+                # Deepen profile with the greeting response
+                if captured_audio is not None:
+                    enrollment.deepen_profile(uid, [captured_audio])
                 return True
             else:
                 print(f"[boot] Voice not recognized (best score={score:.3f}) — enrolling")
@@ -849,5 +863,9 @@ class BootOrchestrator:
                     self._enrolled_this_boot = True
                     bus.emit("boot.user_enrolled", user_id=self._user_id, name="User")
                     print(f"[boot] Enrolled as {self._user_id}")
+                    # Deepen profile with any filler conversation responses
+                    if self._extra_voice_samples:
+                        enrollment.deepen_profile(
+                            self._user_id, self._extra_voice_samples)
                 except Exception as e:
                     print(f"[boot] Enrollment failed: {e}")

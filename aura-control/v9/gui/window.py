@@ -720,10 +720,16 @@ class AuraWindow(QWidget):
             g_opacity = 1.0 if is_active else 0.85
             local_glyph_size = glyph_size
 
-            # Dim domain glyphs when a complication is focused (tour or overlay)
+            # Tour/focus: highlight matching glyph, dim everything else
             if focus and fa > 0.01:
-                g_opacity *= lerp(1.0, 0.20, fa)
-                local_glyph_size *= lerp(1.0, 0.50, fa)
+                if gname == focus:
+                    # This glyph is highlighted — pop it up
+                    local_glyph_size *= lerp(1.0, 1.30, fa)
+                    g_opacity = 1.0
+                else:
+                    # Dim non-focused glyphs
+                    g_opacity *= lerp(1.0, 0.20, fa)
+                    local_glyph_size *= lerp(1.0, 0.50, fa)
 
             if demo_t > 0.01:
                 g_opacity *= lerp(1.0, 0.30, demo_t)
