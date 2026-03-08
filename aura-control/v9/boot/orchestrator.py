@@ -567,7 +567,7 @@ class BootOrchestrator:
         )
 
     def _warmup_tts(self) -> None:
-        """Load ChatterboxTTS into VRAM and generate tour WAVs if missing.
+        """Load Kokoro TTS and generate tour WAVs if missing.
 
         Runs on a background thread. Tour WAVs are permanent static assets —
         generated exactly once on first-ever boot, then reused forever.
@@ -576,34 +576,22 @@ class BootOrchestrator:
             import voice.speaker as _spk
 
             memlog.delta("TTS warmup: before model load")
-            print("[boot] TTS warmup: loading ChatterboxTTS into VRAM...")
-            cb = _spk._get_chatterbox()
-            model_class = type(cb).__name__
-            print(f"[boot] TTS model loaded: {model_class}")
+            print("[boot] TTS warmup: loading Kokoro TTS...")
+            _spk._get_kokoro()
+            print(f"[boot] TTS model loaded: Kokoro-82M (voice={_spk.KOKORO_VOICE})")
             memlog.delta("TTS warmup: model loaded")
-
-            # Prime the voice embedding cache
-            sample = _spk._resolve_voice_sample("warm")
-            if sample:
-                emb = _spk._get_voice_embedding(cb, sample)
-                if emb is not None:
-                    print(f"[boot] TTS warmup: voice embedding cached for {os.path.basename(sample)}")
-                else:
-                    print(f"[boot] TTS warmup: will use audio_prompt_path={os.path.basename(sample)} (no embedding API)")
 
             # Tour WAVs are permanent static assets — generate ONCE, reuse forever
             if self.tour_wavs_ready():
                 print("[boot] Tour WAVs already exist — skipping synthesis")
-            elif _spk._chatterbox_is_turbo:
+            else:
                 self.TOUR_DIR.mkdir(parents=True, exist_ok=True)
-                print(f"[boot] Generating {len(self.TOUR_LINES)} tour WAVs (first-ever boot, one-time only)...")
+                print(f"[boot] Generating {len(self.TOUR_LINES)} tour WAVs...")
                 for i, (text, style) in enumerate(self.TOUR_LINES):
                     out = self.tour_wav_path(i)
                     ms = _spk._synth_to_file(text, style, out)
                     print(f"[boot] Tour WAV {i+1}/{len(self.TOUR_LINES)}: {ms:.0f}ms → \"{text[:40]}\"")
-                print("[boot] Tour WAVs generated — these are permanent, will never be regenerated")
-            else:
-                print("[boot] Tour WAVs missing but standard TTS too slow to generate now")
+                print("[boot] Tour WAVs generated")
 
             print(f"[boot] TTS warmup complete")
         except Exception as e:
