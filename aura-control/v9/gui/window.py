@@ -126,6 +126,7 @@ class AuraWindow(QWidget):
         self.focus_comp: Optional[str] = None
         self._focus_anim = 0.0
         self._focus_scale_others = 0.60
+        self._tour_highlight: Optional[str] = None  # tour mode highlight
 
         # Domain glyph cross-fade
         self.active_glyph: Optional[str] = None
@@ -164,6 +165,7 @@ class AuraWindow(QWidget):
         # Bus subscriptions
         bus.on("mute.toggled", self._on_mute)
         bus.on("volume.changed", self._on_volume)
+        bus.on("tour.highlight", self._on_tour_highlight)
         if boot_mode:
             bus.on("boot.phase", self._on_boot_phase)
 
@@ -185,6 +187,14 @@ class AuraWindow(QWidget):
 
     def _on_volume(self, level: int = 50, **_kw):
         self._vol_num_fade = 1.0
+
+    def _on_tour_highlight(self, comp_name: str = None, **_kw):
+        """Highlight a specific complication during the guided tour."""
+        self._tour_highlight = comp_name
+        if comp_name:
+            self.focus_comp = comp_name
+        else:
+            self.focus_comp = None
 
     def _on_boot_phase(self, phase: str = "", progress: float = 0.0,
                        text: str = "", **_kw):
@@ -398,7 +408,8 @@ class AuraWindow(QWidget):
             self.trans > 0.02 or self.bal_trans > 0.02 or self.set_trans > 0.02
             or self.settings_open or self.mode != "home" or self.mode_balance
         )
-        target = 1.0 if overlay_open else 0.0
+        # Tour highlight also drives the focus animation
+        target = 1.0 if (overlay_open or self._tour_highlight) else 0.0
         k = 1.0 - math.exp(-dt * 6.0)
         self._focus_anim += (target - self._focus_anim) * k
 
@@ -640,7 +651,8 @@ class AuraWindow(QWidget):
             self.trans > 0.02 or self.bal_trans > 0.02 or self.set_trans > 0.02
             or self.settings_open or self.mode != "home" or self.mode_balance
         )
-        focus = self.focus_comp if overlay_open else None
+        # Tour highlight takes precedence (works even with no overlay open)
+        focus = self.focus_comp if (overlay_open or self._tour_highlight) else None
         a = clamp(self._focus_anim, 0.0, 1.0)
 
         for i, comp in enumerate(docked):

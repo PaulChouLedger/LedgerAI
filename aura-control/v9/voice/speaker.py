@@ -12,8 +12,10 @@ Zero Qt imports.
 
 from __future__ import annotations
 
+import glob as _glob
 import os
 import queue
+import random
 import re
 import subprocess
 import threading
@@ -220,6 +222,10 @@ class Speaker:
     synthesis of the *next* sentence overlaps with playback of the current one.
     """
 
+    # Pre-generated thinking fillers (loaded once at import)
+    _THINKING_DIR = WORKSPACE_ROOT / "assets" / "thinking_fillers"
+    _thinking_wavs: list[str] = sorted(_glob.glob(str(_THINKING_DIR / "think_*.wav")))
+
     def __init__(self) -> None:
         self._sentence_q: queue.Queue = queue.Queue()   # (text, style) from LLM / enqueue
         self._wav_q: queue.Queue = queue.Queue(maxsize=2)  # ready WAV paths
@@ -246,6 +252,19 @@ class Speaker:
             self._wav_q.put(wav_path, timeout=30)
         else:
             print(f"[speaker] Pre-synth WAV not found: {wav_path}")
+
+    def play_thinking_filler(self):
+        """Queue a random pre-generated thinking filler for instant playback.
+
+        Call this as soon as a transcript is ready, before the LLM starts
+        streaming. The filler plays while the LLM processes, so the user
+        hears an immediate human-like response ("Hmm", "Let me think", etc.)
+        """
+        if not self._thinking_wavs:
+            return
+        wav = random.choice(self._thinking_wavs)
+        print(f"[speaker] Thinking filler: {os.path.basename(wav)}")
+        self._wav_q.put(wav, timeout=5)
 
     # ----- Control -----
 

@@ -84,9 +84,11 @@ def main() -> int:
         listener = Listener()
         speaker = Speaker()
 
-        # Wire: transcript → LLM → speaker
+        # Wire: transcript → thinking filler + LLM → speaker
         def _on_transcript(text: str = "", **_kw2):
             if text:
+                # Play a thinking filler immediately so user hears instant response
+                speaker.play_thinking_filler()
                 threading.Thread(
                     target=llm_client.stream_chat,
                     args=(text,),
@@ -114,33 +116,50 @@ def main() -> int:
         # Begin GUI crossfade from boot → normal
         window.transition_to_normal()
 
-        # Welcome tour: greeting is synthesized to a file first so it plays
-        # BEFORE the pre-recorded tour WAVs (enqueue_wav is FIFO).
+        # Welcome greeting + optional tour for first-time users
         from boot.orchestrator import BootOrchestrator
         from voice.speaker import _synth_to_file
         name = state.active_user_name or "friend"
+        is_first = not state.boot_enrollment_done
 
         # 1. Personalized greeting — synthesize to file, then enqueue as WAV
-        #    so it enters the play queue BEFORE the tour WAVs.
-        welcome_text = f"Welcome to AuraVision, {name}."
+        if is_first:
+            welcome_text = f"Welcome to AuraVision, {name}. I'm so glad you're here."
+        else:
+            welcome_text = f"Welcome back, {name}. Good to see you again."
         welcome_wav = "/tmp/aura_welcome.wav"
         print(f"[aura] Synthesizing welcome: \"{welcome_text}\"")
         ms = _synth_to_file(welcome_text, "warm", welcome_wav)
         print(f"[aura] Welcome synthesized: {ms:.0f}ms")
         speaker.enqueue_wav(welcome_wav)
 
-        # 2. Generic tour — play pre-recorded WAVs (guaranteed to exist
-        #    because boot.complete waits for TTS warmup to finish).
-        if BootOrchestrator.tour_wavs_ready():
-            print("[aura] Playing pre-recorded tour WAVs (no synthesis needed)")
-            for i in range(len(BootOrchestrator.TOUR_LINES)):
-                speaker.enqueue_wav(BootOrchestrator.tour_wav_path(i))
+        # 2. Tour of complications — only on first boot
+        #    Each tour line can highlight a specific complication on the dial
+        if is_first:
+            def _play_tour():
+                """Play tour WAVs with complication highlights (runs on speaker thread)."""
+                for i, line in enumerate(BootOrchestrator.TOUR_LINES):
+                    highlight = line[2] if len(line) > 2 else None
+                    # Highlight the complication being described
+                    bus.emit("tour.highlight", comp_name=highlight)
+                    if BootOrchestrator.tour_wavs_ready():
+                        speaker.enqueue_wav(BootOrchestrator.tour_wav_path(i))
+                    else:
+                        speaker.enqueue(line[0], style=line[1])
+                    # Wait for this WAV to finish before moving to next highlight
+                    # (enqueue_wav is non-blocking, so we need to pace ourselves)
+                    import time as _time
+                    _time.sleep(0.3)  # let it get into the play queue
+                    while not speaker._wav_q.empty() or not speaker._sentence_q.empty():
+                        _time.sleep(0.2)
+                    _time.sleep(0.5)  # brief pause between tour steps
+                # Clear highlight after tour
+                bus.emit("tour.highlight", comp_name=None)
+
+            print("[aura] Starting complication tour (first boot)")
+            threading.Thread(target=_play_tour, daemon=True, name="tour").start()
         else:
-            # Fallback: synthesize live (should only happen on first-ever
-            # boot if standard (non-Turbo) TTS couldn't generate them).
-            print("[aura] Tour WAVs not ready — synthesizing live")
-            for text, style in BootOrchestrator.TOUR_LINES:
-                speaker.enqueue(text, style=style)
+            print("[aura] Returning user — skipping tour")
 
     bus.once("boot.complete", _on_boot_complete)
 

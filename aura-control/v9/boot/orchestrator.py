@@ -21,7 +21,9 @@ Subscribes: boot.skip (user tapped screen → skip enrollment).
 
 from __future__ import annotations
 
+import glob as _glob
 import os
+import random
 import shutil
 import subprocess
 import threading
@@ -83,6 +85,12 @@ class BootOrchestrator:
         self._music_proc: Optional[subprocess.Popen] = None
         self._music_ff_proc: Optional[subprocess.Popen] = None
         self._music_sink_input: Optional[int] = None
+
+        # Pre-generated filler WAVs (shuffled, played round-robin)
+        filler_dir = BOOT_MUSIC_PATH.parent / "boot_prompts" / "fillers"
+        self._filler_wavs = sorted(_glob.glob(str(filler_dir / "filler_*.wav")))
+        random.shuffle(self._filler_wavs)
+        self._filler_idx = 0
 
         # Captured audio (for retroactive transcription)
         self._name_audio: Optional[np.ndarray] = None
@@ -300,66 +308,111 @@ class BootOrchestrator:
         except Exception:
             return False
 
-    def _duck_music(self) -> None:
-        """Fade music volume down then SIGSTOP (freeze the process).
+    def _alsa_set_vol(self, pct: int) -> None:
+        """Set USB DAC PCM volume via amixer (hardware mixer, no device lock)."""
+        try:
+            subprocess.run(
+                ["amixer", "-D", "hw:CARD=UACDemoV10", "sset", "PCM", f"{pct}%"],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=1,
+            )
+        except Exception:
+            pass
 
-        Smooth fade makes the transition pleasant; SIGSTOP ensures the
-        music process isn't competing for the audio device during prompt
-        playback. Volume is restored to 100% while frozen so unduck can
-        SIGCONT then fade up cleanly.
+    def _alsa_fade(self, from_pct: int, to_pct: int,
+                   steps: int = 12, duration: float = 1.0) -> None:
+        """Smoothly ramp USB DAC PCM volume between two levels."""
+        step_delay = duration / max(steps, 1)
+        for i in range(1, steps + 1):
+            pct = from_pct + (to_pct - from_pct) * i / steps
+            self._alsa_set_vol(int(pct))
+            time.sleep(step_delay)
+
+    def _duck_music(self) -> None:
+        """Fade music out then kill aplay to release ALSA device.
+
+        ALSA direct hardware (plughw:) doesn't support concurrent access.
+        We fade the hardware mixer to 0, kill the process, then the device
+        is free for prompt playback.
         """
         if not (self._music_proc and self._music_proc.poll() is None):
             return
-        import signal as sig
-        si = self._music_sink_input or self._find_music_sink_input()
-        if si is not None:
-            self._music_sink_input = si
-            self._fade_sink_input(si, from_pct=100, to_pct=0, steps=15, duration=1.5)
-        # Always SIGSTOP — ensures clean audio device for prompts
+        # Smooth fade-out via hardware mixer
+        vol_pct = int(TTS_VOLUME * 100) if TTS_VOLUME <= 2.0 else int(TTS_VOLUME)
+        self._alsa_fade(from_pct=vol_pct, to_pct=0, steps=15, duration=1.2)
+        # Now kill the silent process to release the device
         try:
-            self._music_proc.send_signal(sig.SIGSTOP)
+            self._music_proc.terminate()
+            self._music_proc.wait(timeout=2)
         except Exception:
-            pass
-        # Restore volume to 100% while frozen so unduck fade starts from full
-        if si is not None:
             try:
-                subprocess.run(
-                    ["pactl", "set-sink-input-volume", str(si), "100%"],
-                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=1,
-                )
+                self._music_proc.kill()
             except Exception:
                 pass
-        print(f"[boot] Music ducked{' (faded)' if si else ' (SIGSTOP only)'}")
+        if self._music_ff_proc is not None:
+            try:
+                self._music_ff_proc.kill()
+            except Exception:
+                pass
+            self._music_ff_proc = None
+        self._music_proc = None
+        # Brief delay for ALSA kernel driver to fully release the device
+        time.sleep(0.3)
+        print("[boot] Music ducked (faded out + killed)")
 
     def _unduck_music(self) -> None:
-        """SIGCONT at 0% volume then fade back up smoothly.
+        """Restart music with a smooth fade-in after prompt finishes."""
+        # Brief delay so the prompt's aplay fully releases the ALSA device
+        time.sleep(0.3)
+        # Start music at 0 volume, then fade in
+        self._alsa_set_vol(0)
+        self._start_music()
+        if self._music_proc and self._music_proc.poll() is None:
+            vol_pct = int(TTS_VOLUME * 100) if TTS_VOLUME <= 2.0 else int(TTS_VOLUME)
+            self._alsa_fade(from_pct=0, to_pct=vol_pct, steps=15, duration=1.5)
+            print("[boot] Music unducked (faded in)")
+        else:
+            print("[boot] Music unduck: restart failed")
 
-        Sets volume to 0% before resuming so there's no audio pop,
-        then fades up over 2 seconds.
+    def _play_filler_during_pause(self, pause_s: float) -> None:
+        """Play a pre-generated filler WAV during a pause, with music.
+
+        Ducks music, plays the filler, unducks music, then sleeps any
+        remaining time. If no fillers are available, just sleeps.
         """
-        if not (self._music_proc and self._music_proc.poll() is None):
+        if not self._filler_wavs or pause_s < 3.0:
+            time.sleep(pause_s)
             return
-        import signal as sig
-        si = self._music_sink_input or self._find_music_sink_input()
-        # Set to 0% before resuming to prevent pop
-        if si is not None:
-            self._music_sink_input = si
-            try:
-                subprocess.run(
-                    ["pactl", "set-sink-input-volume", str(si), "0%"],
-                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=1,
-                )
-            except Exception:
-                pass
-        # Resume the frozen process
-        try:
-            self._music_proc.send_signal(sig.SIGCONT)
-        except Exception:
-            pass
-        # Fade volume back up
-        if si is not None:
-            self._fade_sink_input(si, from_pct=0, to_pct=100, steps=20, duration=2.0)
-        print(f"[boot] Music unducked{' (faded)' if si else ' (SIGCONT only)'}")
+
+        # Pick next filler (round-robin through shuffled list)
+        wav = self._filler_wavs[self._filler_idx % len(self._filler_wavs)]
+        self._filler_idx += 1
+
+        # Let music play for a couple seconds first, then duck + play filler
+        music_lead = min(2.0, pause_s * 0.3)
+        time.sleep(music_lead)
+        remaining = pause_s - music_lead
+
+        if self._skip.is_set():
+            return
+
+        # Duck music, play filler, unduck
+        self._duck_music()
+        vol_pct = int(TTS_VOLUME * 100) if TTS_VOLUME <= 2.0 else int(TTS_VOLUME)
+        self._alsa_set_vol(vol_pct)
+
+        fname = os.path.basename(wav)
+        print(f"[boot] Playing filler: {fname}")
+        self._mic.play_prompt(wav)
+        self._mic.wait_for_prompt(timeout=12.0)
+
+        # Unduck music (restarts it with fade-in)
+        self._unduck_music()
+
+        # Sleep any remaining time
+        elapsed_approx = music_lead + 5.0  # rough estimate of filler + fade time
+        leftover = pause_s - elapsed_approx
+        if leftover > 0:
+            time.sleep(leftover)
 
     def _stop_music(self) -> None:
         """Stop music playback (kills both ffmpeg feeder and aplay)."""
@@ -422,14 +475,18 @@ class BootOrchestrator:
 
         needs_capture = prompt.response_type != ResponseType.NONE
 
-        # Pause before prompt (music still at full volume — breathing room)
+        # Pause before prompt — play a filler WAV over music to fill the gap
         if prompt.pause_before > 0:
-            time.sleep(prompt.pause_before)
+            self._play_filler_during_pause(prompt.pause_before)
             if self._skip.is_set():
                 return None
 
-        # Always fade music down before any prompt
+        # Always fade music down before the main prompt
         self._duck_music()
+
+        # Restore volume for prompt playback (duck faded to 0)
+        vol_pct = int(TTS_VOLUME * 100) if TTS_VOLUME <= 2.0 else int(TTS_VOLUME)
+        self._alsa_set_vol(vol_pct)
 
         # Play the prompt audio
         wav = prompt.wav_path
@@ -522,7 +579,12 @@ class BootOrchestrator:
             if text:
                 # Clean up — the user probably just said their name
                 text = text.strip().strip(".,!?").strip()
-                # Remove common filler
+                # Remove common filler (user was prompted: "Aura, my name is X")
+                for prefix in ("aura ", "aura, ", "aura. ", "hey aura ", "hey aura, "):
+                    lower = text.lower()
+                    if lower.startswith(prefix):
+                        text = text[len(prefix):].strip()
+                        break
                 for prefix in ("my name is ", "i'm ", "i am ", "it's ", "call me "):
                     lower = text.lower()
                     if lower.startswith(prefix):
@@ -545,12 +607,14 @@ class BootOrchestrator:
     # ------------------------------------------------------------------
 
     # Pre-recorded tour WAVs (generated once, reused every boot)
+    # Each tuple: (text, style, complication_name_to_highlight_or_None)
     TOUR_LINES = [
-        ("Let me show you around.", "energy"),
-        ("The first dial on the left controls your volume.", "neutral"),
-        ("On the right you'll find your settings.", "technical"),
-        ("Tap the center ring to mute the microphone.", "soft"),
-        ("You can talk to me anytime, just say what's on your mind.", "playful"),
+        ("Let me give you a quick tour of your Aura.", "energy", None),
+        ("On the top left you'll find Topics Center. That's where you can browse and pin different tools to your dial.", "neutral", "Topics Center"),
+        ("Next to it is Settings, where you can adjust your voice, language model, and wake word preferences.", "technical", "Settings"),
+        ("The Mute button lets you toggle the microphone on and off. When it's green, I'm listening.", "soft", "Mute"),
+        ("And over here is Aura Concierge, your personal assistant for tasks, reminders, and recommendations.", "warm", "Aura Concierge"),
+        ("You can talk to me anytime. Just say what's on your mind, and I'll do my best to help.", "playful", None),
     ]
     TOUR_DIR = BOOT_MUSIC_PATH.parent / "boot_prompts" / "tour"
 
@@ -587,7 +651,8 @@ class BootOrchestrator:
             else:
                 self.TOUR_DIR.mkdir(parents=True, exist_ok=True)
                 print(f"[boot] Generating {len(self.TOUR_LINES)} tour WAVs...")
-                for i, (text, style) in enumerate(self.TOUR_LINES):
+                for i, line in enumerate(self.TOUR_LINES):
+                    text, style = line[0], line[1]
                     out = self.tour_wav_path(i)
                     ms = _spk._synth_to_file(text, style, out)
                     print(f"[boot] Tour WAV {i+1}/{len(self.TOUR_LINES)}: {ms:.0f}ms → \"{text[:40]}\"")
@@ -616,8 +681,7 @@ class BootOrchestrator:
         self._start_music()
 
         enrollment = self._get_enrollment()
-        # Force first-boot flow for testing (always run full enrollment)
-        is_first = True
+        is_first = enrollment.is_first_boot() if enrollment else True
 
         if is_first:
             self._run_first_boot(enrollment)
