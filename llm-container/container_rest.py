@@ -2,12 +2,12 @@
 # Provides general conversation with RAG-powered knowledge
 #
 # Dual-Model Architecture:
-# - Base Model (Q4_K_M_base): Used for conversational queries (no RAG)
+# - Base Model (Qwen2.5-1.5B-Instruct.Q4_K_M.gguf): Used for conversational queries (no RAG)
 #   - Natural, friendly responses using general knowledge
 #   - Loaded at startup for fast conversational responses
-# - CoT Model (Q4_K_M-rag-cot): Used for RAG queries (with Chain of Thought)
+# - CoT-Trained Model (Qwen2.5-1.5B-Instruct.Q4_K_M-rag-cot.gguf): Used for RAG queries (with Chain of Thought)
 #   - Structured extraction and reasoning for document-based queries
-#   - Pre-loaded at startup to eliminate first-query latency
+#   - Loaded lazily on first RAG query to save memory
 # - Model selection is automatic based on RAG context detection
 
 from flask import Flask, request, jsonify, stream_with_context, Response
@@ -23,52 +23,9 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # Add shared directory to path for base class and RAG imports
 sys.path.insert(0, '/shared')
-# Add current directory to path for cot_filter import
-sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
 # Import shared base class
 from llm_base import BaseLLMContainer
-
-# Import CoT filter from separate module
-try:
-    from cot_filter import filter_cot_reasoning
-    COT_FILTER_AVAILABLE = True
-    print(f"[Generic] ✅ CoT filter imported successfully")
-except ImportError as e:
-    COT_FILTER_AVAILABLE = False
-    print(f"[Generic] ⚠️ Failed to import CoT filter: {e}")
-    print(f"[Generic] 📁 Current directory: {os.getcwd()}")
-    print(f"[Generic] 📁 Python path: {sys.path}")
-
-# Import RAG summary/advice module
-try:
-    from rag_summary import is_summary_query as check_summary_query, handle_summary_advice_query
-    RAG_SUMMARY_AVAILABLE = True
-    print(f"[Generic] ✅ RAG summary module imported successfully")
-except ImportError as e:
-    RAG_SUMMARY_AVAILABLE = False
-    print(f"[Generic] ⚠️ Failed to import RAG summary module: {e}")
-    check_summary_query = None
-
-# Import RAG CoT module for regular RAG queries
-try:
-    from rag_cot import handle_rag_cot_query
-    RAG_COT_AVAILABLE = True
-    print(f"[Generic] ✅ RAG CoT module imported successfully")
-except ImportError as e:
-    RAG_COT_AVAILABLE = False
-    print(f"[Generic] ⚠️ Failed to import RAG CoT module: {e}")
-    handle_rag_cot_query = None
-
-# Import Conversation module for regular conversational queries
-try:
-    from conversation import handle_conversation_query
-    CONVERSATION_MODULE_AVAILABLE = True
-    print(f"[Generic] ✅ Conversation module imported successfully")
-except ImportError as e:
-    CONVERSATION_MODULE_AVAILABLE = False
-    print(f"[Generic] ⚠️ Failed to import Conversation module: {e}")
-    handle_conversation_query = None
 
 # Conversation management for passive listening and keyword activation
 from conversation_manager import ConversationMemoryIndex, ConversationOrchestrator
@@ -84,37 +41,31 @@ werkzeug_logger.setLevel(logging.WARNING)  # Only log warnings and errors, not i
 
 # === Dual-Model Configuration ===
 # Base model for conversational queries (no RAG)
+# Can be overridden by BASE_MODEL_PATH environment variable
 BASE_MODEL_PATH = os.getenv('BASE_MODEL_PATH', "/models/Qwen2.5-1.5B-Instruct.Q4_K_M_base.gguf")
 # CoT-trained model for RAG queries (with Chain of Thought reasoning)
+# Can be overridden by COT_MODEL_PATH environment variable
 COT_MODEL_PATH = os.getenv('COT_MODEL_PATH', "/models/Qwen2.5-1.5B-Instruct.Q4_K_M-rag-cot.gguf")
 
-print(f"[Generic] 🔧 Dual-Model Configuration:")
-print(f"[Generic]    BASE_MODEL_PATH: {BASE_MODEL_PATH}")
-print(f"[Generic]    COT_MODEL_PATH: {COT_MODEL_PATH}")
-
-# === Initialize Base Container (for conversational queries) ===
+# === Initialize Base Container for Base Model ===
 base_container = BaseLLMContainer(
-    service_name="aura-llm-generic-base",
+    service_name="aura-llm-generic",
     default_model_path=BASE_MODEL_PATH
 )
 
-# === Initialize CoT Container (for RAG queries - pre-loaded at startup) ===
+# === Initialize CoT Model Container ===
+# Separate container for CoT-trained model (loaded lazily when needed)
 cot_container = BaseLLMContainer(
     service_name="aura-llm-generic-cot",
     default_model_path=COT_MODEL_PATH
 )
 
-# Override default parameters for base container (conversational)
+# Override default parameters for generic container
 base_container.LLM_NUM_PREDICT_DEFAULT = 800  # Increased for comprehensive responses
-base_container.SIMPLE_N_CTX = 8192  # Match training MAX_SEQ_LENGTH (was 2048, causing truncation)
+base_container.SIMPLE_N_CTX = 8192  # Increased for better reasoning with multiple RAG chunks
 base_container.N_BATCH = 256  # Reduced for faster generation
+# Override chat format for Qwen2.5 (Qwen2.5 uses chatml format)
 base_container.SIMPLE_CHAT_FORMAT = os.getenv('SIMPLE_CHAT_FORMAT', 'chatml')
-
-# Override default parameters for CoT container (RAG queries)
-cot_container.LLM_NUM_PREDICT_DEFAULT = 2048  # Higher for CoT reasoning + final answer
-cot_container.SIMPLE_N_CTX = 8192  # Match training MAX_SEQ_LENGTH (was 2048, causing truncation)
-cot_container.N_BATCH = 256  # Same batch size
-cot_container.SIMPLE_CHAT_FORMAT = os.getenv('SIMPLE_CHAT_FORMAT', 'chatml')
 
 # === Model/LLM Config (using base class, but keeping for backward compatibility) ===
 LLM_TEMPERATURE_SIMPLE = base_container.LLM_TEMPERATURE_SIMPLE
@@ -170,19 +121,6 @@ MAX_TOKENS_RAG_MODE_LIST = 800  # Increased for CoT reasoning + final answer (re
 MAX_TOKENS_DIRECT_MODE = 600  # Max tokens for direct conversation (allows longer responses including lists)
 MAX_TOKENS_DIRECT_MODE_LIST = 800  # Increased for CoT reasoning + final answer
 
-# === Voice UX: Pauses for long lists / step-by-step instructions ===
-# After this many list items ("-", "1.", "2.", etc.), the system will pause and ask whether to continue
-# or repeat the last part. This reduces cognitive load for long spoken instructions.
-MAX_LIST_ITEMS_BEFORE_PAUSE = 6
-
-# === Voice UX: Session state (pause / continue / repeat) ===
-# Centralized in a small module so we can later swap to a shared store if needed.
-try:
-    from session_state import SESSION_STATE
-except Exception as _e:
-    SESSION_STATE = None
-    print(f"[Generic] ⚠️ Failed to import session_state SESSION_STATE: {_e}")
-
 # === Debug Mode: Show LLM Reasoning ===
 # Set SHOW_REASONING_DEBUG=true to make LLM show its reasoning step-by-step in the output (visible chain-of-thought)
 # 
@@ -196,10 +134,41 @@ if SHOW_REASONING_DEBUG:
     print(f"[Generic] 🔍 SHOW_REASONING_DEBUG is ENABLED - Qwen2.5 will show step-by-step reasoning in response")
 
 # Use base class model resolution
-SIMPLE_MODEL_PATH = base_container.resolve_model_path()
+# If BASE_MODEL_PATH env var is set, use that; otherwise resolve from settings/defaults
+print(f"[Generic] 🔍 [Model Resolution] Resolving base model path...")
+if os.getenv('BASE_MODEL_PATH'):
+    SIMPLE_MODEL_PATH = BASE_MODEL_PATH
+    base_container.model_path = BASE_MODEL_PATH
+    print(f"[Generic] 🔍 [Model Resolution] Using BASE_MODEL_PATH from environment: {BASE_MODEL_PATH}")
+else:
+    SIMPLE_MODEL_PATH = base_container.resolve_model_path()
+    BASE_MODEL_PATH = SIMPLE_MODEL_PATH  # Update to resolved path
+    print(f"[Generic] 🔍 [Model Resolution] Resolved base model path: {SIMPLE_MODEL_PATH}")
+    # Verify model file exists
+    if os.path.isfile(SIMPLE_MODEL_PATH):
+        print(f"[Generic] ✅ [Model Resolution] Base model file exists: {SIMPLE_MODEL_PATH}")
+    else:
+        print(f"[Generic] ⚠️ [Model Resolution] Base model file NOT FOUND: {SIMPLE_MODEL_PATH}")
 
-# Reference to LLM instance (will be set by base_container.load_model())
-llm_simple = None
+# If COT_MODEL_PATH env var is set, use that; otherwise resolve from settings/defaults
+print(f"[Generic] 🔍 [Model Resolution] Resolving CoT model path...")
+if os.getenv('COT_MODEL_PATH'):
+    COT_MODEL_PATH_RESOLVED = COT_MODEL_PATH
+    cot_container.model_path = COT_MODEL_PATH
+    print(f"[Generic] 🔍 [Model Resolution] Using COT_MODEL_PATH from environment: {COT_MODEL_PATH}")
+else:
+    COT_MODEL_PATH_RESOLVED = cot_container.resolve_model_path()
+    COT_MODEL_PATH = COT_MODEL_PATH_RESOLVED  # Update to resolved path
+    print(f"[Generic] 🔍 [Model Resolution] Resolved CoT model path: {COT_MODEL_PATH_RESOLVED}")
+    # Verify model file exists
+    if os.path.isfile(COT_MODEL_PATH_RESOLVED):
+        print(f"[Generic] ✅ [Model Resolution] CoT model file exists: {COT_MODEL_PATH_RESOLVED}")
+    else:
+        print(f"[Generic] ⚠️ [Model Resolution] CoT model file NOT FOUND: {COT_MODEL_PATH_RESOLVED}")
+
+# Reference to LLM instances (will be set by container.load_model())
+llm_simple = None  # Base model for conversational queries
+llm_cot = None     # CoT-trained model for RAG queries
 
 # === Conversation Memory / Activation Config ===
 # === Health Check Endpoint ===
@@ -213,122 +182,97 @@ def extract_llm_response_content(response) -> str:
 
 def llm_chat_simple(messages, max_tokens=None, temperature=None, stream=False, use_cot_model=False, **kwargs):
     """
-    Wrapper for LLM chat completion with dual-model support.
+    Wrapper for LLM chat completion with dual-model support
     
     Args:
-        messages: Chat messages
+        messages: List of message dicts with 'role' and 'content'
         max_tokens: Maximum tokens to generate
         temperature: Sampling temperature
-        stream: Whether to stream responses
-        use_cot_model: If True, use CoT-trained model for RAG queries; otherwise use base model
-        **kwargs: Additional arguments
-    
-    Returns:
-        LLM response (string or iterator if streaming)
+        stream: Whether to stream the response
+        use_cot_model: If True, use CoT-trained model (for RAG queries). If False, use base model (for conversational queries).
+        **kwargs: Additional generation parameters
     """
-    # Select container based on model type
+    # Select appropriate model based on use_cot_model flag
     if use_cot_model:
-        container = cot_container
-        model_name = "CoT (RAG)"
-        # CoT model should be pre-loaded at startup (check if it failed to load)
-        if not container._model_loaded or container.llm_simple is None:
-            print(f"[Generic] ⚠️ CoT model not loaded! Attempting emergency load: {COT_MODEL_PATH}")
-            from llama_cpp import Llama
-            n_gpu_layers = -1  # Offload all layers to GPU
-            container.model_path = COT_MODEL_PATH
-            container.llm_simple = Llama(
-                model_path=COT_MODEL_PATH,
-                n_ctx=container.SIMPLE_N_CTX,
-                n_threads=1,  # Use 1 thread for deterministic output (temperature=0 alone isn't enough)
-                n_batch=container.N_BATCH,
-                n_gpu_layers=n_gpu_layers,
-                cache_prompt=CACHE_PROMPT,
-                chat_format=container.SIMPLE_CHAT_FORMAT,
-                use_mlock=True,
-                use_mmap=True,
-                verbose=False
-            )
-            container._model_loaded = True
-            print(f"[Generic] ✅ CoT model emergency-loaded: {COT_MODEL_PATH}")
-    else:
+        # Use CoT-trained model for RAG queries
+        # Lazy load CoT model if not already loaded
+        if not cot_container._model_loaded or cot_container.llm_simple is None:
+            print(f"[Generic] 📦 Lazy loading CoT model: {COT_MODEL_PATH_RESOLVED}")
+            try:
+                from llama_cpp import Llama
+                n_gpu_layers = -1  # -1 = offload all layers to GPU
+                cot_container.model_path = COT_MODEL_PATH_RESOLVED
+                cot_container.llm_simple = Llama(
+                    model_path=COT_MODEL_PATH_RESOLVED,
+                    n_ctx=SIMPLE_N_CTX,
+                    n_threads=N_THREADS,
+                    n_batch=N_BATCH,
+                    n_gpu_layers=n_gpu_layers,
+                    cache_prompt=CACHE_PROMPT,
+                    chat_format=SIMPLE_CHAT_FORMAT,
+                    use_mlock=True,
+                    use_mmap=True,
+                    verbose=False
+                )
+                cot_container._model_loaded = True
+                global llm_cot
+                llm_cot = cot_container.llm_simple
+                print(f"[Generic] ✅ CoT model loaded: {COT_MODEL_PATH_RESOLVED}")
+            except Exception as e:
+                print(f"[Generic] ❌ Failed to load CoT model: {e}")
+                import traceback
+                traceback.print_exc()
+                # Fallback to base model
+                use_cot_model = False
+        
+        if not cot_container._model_loaded or cot_container.llm_simple is None:
+            print(f"[Generic] ⚠️ CoT model not available, falling back to base model")
+            use_cot_model = False
+    
+    # Use base model for conversational queries or as fallback
+    if not use_cot_model:
+        if not base_container._model_loaded or base_container.llm_simple is None:
+            print(f"[Generic] ⚠️ ERROR: Base model not loaded! _model_loaded={base_container._model_loaded}, llm_simple={base_container.llm_simple is not None}")
+            if stream:
+                return iter([])
+            return ""
+        # Use base model for conversational queries
         container = base_container
-        model_name = "Base (Conversational)"
+        model_path = base_container.model_path or SIMPLE_MODEL_PATH or BASE_MODEL_PATH
+        print(f"[Generic] 🤖 [Model Selection] ✅ Using BASE MODEL (conversational query, no RAG)")
+        print(f"[Generic] 🤖 [Model Selection]    Model path: {model_path}")
+        print(f"[Generic] 🤖 [Model Selection]    Model loaded: {base_container._model_loaded}")
+        print(f"[Generic] 🤖 [Model Selection]    Container: base_container")
+    else:
+        # Use CoT model for RAG queries
+        container = cot_container
+        model_path = cot_container.model_path or COT_MODEL_PATH_RESOLVED or COT_MODEL_PATH
+        print(f"[Generic] 🤖 [Model Selection] ✅ Using COT MODEL (RAG query with reasoning)")
+        print(f"[Generic] 🤖 [Model Selection]    Model path: {model_path}")
+        print(f"[Generic] 🤖 [Model Selection]    Model loaded: {cot_container._model_loaded}")
+        print(f"[Generic] 🤖 [Model Selection]    Container: cot_container")
     
-    # Check if model is loaded
-    if not container._model_loaded or container.llm_simple is None:
-        print(f"[Generic] ⚠️ ERROR: {model_name} model not loaded! _model_loaded={container._model_loaded}")
-        if stream:
-            return iter([])
-        return ""
+    # Log model selection decision
+    print(f"[Generic] 🤖 [Model Selection] Decision: use_cot_model={use_cot_model}, selected_model_path={model_path}")
     
-    # Call the selected container's chat method
+    # Verify model file exists
+    if model_path and os.path.exists(model_path):
+        print(f"[Generic] ✅ [Model Selection] Model file exists: {model_path}")
+    elif model_path:
+        print(f"[Generic] ⚠️ [Model Selection] WARNING: Model file NOT FOUND: {model_path}")
+        print(f"[Generic] ⚠️ [Model Selection] This may cause errors or fallback behavior!")
+    
+    # Debug: Log first part of messages to verify system prompt
+    if messages and len(messages) > 0:
+        first_message = messages[0]
+        if isinstance(first_message, dict) and 'content' in first_message:
+            system_preview = first_message['content'][:300] if len(first_message['content']) > 300 else first_message['content']
+            print(f"[Generic] 🤖 [Model Selection] System prompt preview: {system_preview}...")
+            print(f"[Generic] 🤖 [Model Selection] System prompt length: {len(first_message['content'])} chars")
+    
+    # Reduced debug logging for performance
     result = container.llm_chat_simple(messages, max_tokens, temperature, stream, **kwargs)
     return result
-
-
-def hard_stop_after_first_final_answer(stream_iter):
-    """
-    Hard-stop a streaming LLM iterator once we have produced the FIRST complete sentence
-    after the first occurrence of 'FINAL ANSWER:' (case-insensitive, handles variations).
-    
-    This prevents the model from continuing and emitting a second/hallucinated answer
-    (or re-starting REASONING) after it already produced a correct final answer.
-    
-    Works on a chunk stream (strings or dict chunks) as returned by llm_chat_simple().
-    """
-    import re
-    seen_final_answer_marker = False
-    final_answer_text = ""
-    accumulated_text = ""  # Track all text seen so far for pattern matching
-
-    def _extract_text_from_chunk(chunk) -> str:
-        # Match _normalize_stream_chunks behavior, but keep it local to avoid import order issues.
-        if isinstance(chunk, dict):
-            if 'choices' in chunk and len(chunk['choices']) > 0:
-                delta = chunk['choices'][0].get('delta', {})
-                return delta.get('content', '') or ''
-            if 'content' in chunk:
-                return chunk.get('content', '') or ''
-            return ''
-        if isinstance(chunk, str):
-            return chunk
-        return str(chunk)
-
-    # Case-insensitive pattern to match "FINAL ANSWER:" variations (with or without colon after "ANSWER")
-    # Examples: "FINAL ANSWER:", "Final Answer:", "Final ANSWER:", "FINAL ANSWER" (no colon)
-    final_answer_pattern = re.compile(r'final\s+answer\s*:?', re.IGNORECASE)
-
-    for chunk in stream_iter:
-        text = _extract_text_from_chunk(chunk)
-        accumulated_text += text if text else ""
-        
-        if not seen_final_answer_marker:
-            # Look for FIRST "FINAL ANSWER" marker (case-insensitive, handles variations)
-            if text:
-                # Check if this chunk contains the marker
-                match = final_answer_pattern.search(accumulated_text)
-                if match:
-                    seen_final_answer_marker = True
-                    # Extract text after the marker
-                    marker_end = match.end()
-                    after = accumulated_text[marker_end:].lstrip()
-                    final_answer_text += after
-                    print(f"[Generic] 🛑 [Hard Stop] FINAL ANSWER marker detected at position {marker_end}, starting collection")
-        else:
-            if text:
-                final_answer_text += text
-
-        # Always yield the original chunk unchanged.
-        yield chunk
-
-        # If we're in FINAL ANSWER collection, stop after the first complete sentence.
-        # Heuristic: end at first '.', '?', or '!' after we've accumulated some non-trivial content.
-        if seen_final_answer_marker:
-            stripped = final_answer_text.strip()
-            if len(stripped) >= 8 and any(p in stripped for p in (".", "?", "!")):
-                # Stop at the earliest sentence-ending punctuation.
-                print(f"[Generic] 🛑 [Hard Stop] Stopping stream after first complete sentence: '{stripped[:100]}...'")
-                break
 
 # === RAG Chunk Filtering ===
 # Cache for sentence transformer model (lazy loading)
@@ -625,133 +569,7 @@ def get_filler_phrase() -> str:
     ]
     return random.choice(filler_phrases)
 
-# === Secondary Filler (CoT/Filtering Phase) ===
 # === Conversational Logic ===
-def validate_query(prompt: str) -> tuple:
-    """
-    Validate query to detect malformed/incomplete transcriptions.
-    
-    Returns:
-        (is_valid, error_message)
-        - is_valid: True if query is valid, False if it's malformed
-        - error_message: Clarification message if invalid, None if valid
-    """
-    if not prompt or len(prompt.strip()) < 3:
-        return False, "I'm sorry, I didn't understand your question. Can you repeat it?"
-    
-    prompt_lower = prompt.lower().strip()
-    
-    # Normalize contractions BEFORE checking for question words
-    # This ensures "what's" is recognized as "what is" for validation
-    contractions_map = {
-        "what's": "what is",
-        "who's": "who is",
-        "where's": "where is",
-        "when's": "when is",
-        "why's": "why is",
-        "how's": "how is",
-        "which's": "which is",
-        "there's": "there is",
-        "here's": "here is",
-        "it's": "it is",
-        "i'm": "i am",
-        "you're": "you are",
-        "we're": "we are",
-        "they're": "they are",
-        "he's": "he is",
-        "she's": "she is",
-    }
-    for contraction, expansion in contractions_map.items():
-        prompt_lower = prompt_lower.replace(contraction, expansion)
-    
-    # Check for queries starting with fragments (common transcription errors)
-    # These indicate the question word was cut off: "or the co-founders" instead of "who are the co-founders"
-    #
-    # NOTE: Some valid questions legitimately start with a preposition, e.g.:
-    # - "on what chain is the ledger token on?"
-    # - "in which year was X founded?"
-    # - "of what does it consist?"
-    #
-    # We only treat a leading preposition as a fragment if it's NOT immediately followed by a question word.
-    fragment_starters = ['or ', 'and ', 'the ', 'a ', 'an ', 'at ', 'to ', 'for ', 'with ', 'by ']
-    preposition_starters = ['of ', 'in ', 'on ']
-    starts_with_fragment = any(prompt_lower.startswith(frag) for frag in fragment_starters)
-    starts_with_preposition = any(prompt_lower.startswith(prep) for prep in preposition_starters)
-    if starts_with_fragment:
-        print(f"[Generic] ⚠️ Query validation failed: starts with fragment - '{prompt[:50]}...'")
-        return False, "I'm sorry, I didn't understand your question. Can you repeat it?"
-    if starts_with_preposition:
-        # Allow "on what ...", "in which ...", "of what ..." etc.
-        second_word = prompt_lower.split(maxsplit=2)[1] if len(prompt_lower.split()) >= 2 else ""
-        allowed_after_preposition = {
-            "who", "what", "where", "when", "why", "how", "which", "whose", "whom",
-            "do", "does", "did", "is", "are", "was", "were", "can", "could", "will",
-            "would", "should", "may", "might",
-        }
-        if second_word not in allowed_after_preposition:
-            print(f"[Generic] ⚠️ Query validation failed: starts with fragment-like preposition - '{prompt[:50]}...'")
-            return False, "I'm sorry, I didn't understand your question. Can you repeat it?"
-    
-    # Check for queries that are just noun phrases without question words
-    # Valid question words
-    question_words = ['who', 'what', 'where', 'when', 'why', 'how', 'which', 'whose', 'whom', 
-                      'do', 'does', 'did', 'is', 'are', 'was', 'were', 'can', 'could', 'will', 
-                      'would', 'should', 'may', 'might', 'tell', 'explain', 'describe', 'list', 
-                      'show', 'give', 'find', 'search']
-    
-    # Check if query contains any question words
-    # After contraction normalization, check for question words at start or with word boundaries
-    # Use word boundary regex to catch question words at start, middle, or end
-    import re
-    has_question_word = any(
-        re.search(r'\b' + re.escape(qw) + r'\b', prompt_lower)  # Word boundary match
-        for qw in question_words
-    )
-    
-    # Check for imperative patterns (valid commands)
-    imperative_patterns = ['tell me', 'show me', 'give me', 'find', 'search', 'list', 'explain', 
-                          'summarize', 'summarise', 'suggest', 'recommend', 'advise', 'advice',
-                          'how can i', 'how do i', 'how should i', 'what should i', 'what can i']
-    has_imperative = any(prompt_lower.startswith(imp) for imp in imperative_patterns)
-    
-    # Also check if query contains summary/advice keywords (even if not at start)
-    summary_keywords = ['summarize', 'summarise', 'summary', 'suggestion', 'suggest', 'recommend', 
-                       'recommendation', 'advice', 'advise', 'overview']
-    has_summary_keyword = any(keyword in prompt_lower for keyword in summary_keywords)
-    
-    # If no question word and no imperative, and it's a short phrase, likely malformed
-    if not has_question_word and not has_imperative and not has_summary_keyword:
-        # Allow very short conversational phrases (greetings, etc.)
-        conversational_short = any(phrase in prompt_lower for phrase in [
-            'hello', 'hi', 'hey', 'thanks', 'thank you', 'bye', 'goodbye', 'ok', 'okay', 'yes', 'no'
-        ])
-        if not conversational_short and len(prompt.split()) <= 5:
-            # Short phrase without question word or imperative - likely fragment
-            print(f"[Generic] ⚠️ Query validation failed: no question word/imperative, short phrase - '{prompt[:50]}...'")
-            return False, "I'm sorry, I didn't understand your question. Can you repeat it?"
-    
-    # Check for queries that are just punctuation or very short
-    if len(prompt.strip()) <= 2 or prompt.strip() in ['.', '?', '!', ',', ';', ':']:
-        return False, "I'm sorry, I didn't understand your question. Can you repeat it?"
-
-    # Catch incomplete questions that end in a dangling preposition (common STT truncation)
-    # Examples:
-    # - "Did Bob Parella work for?"
-    # - "Who did he work with?"
-    dangling_patterns = [
-        r'\b(work|worked|working)\s+for\??\s*$',   # "work for?"
-        r'\b(go|went|going)\s+to\??\s*$',          # "go to?"
-        r'\b(live|lived|living)\s+in\??\s*$',      # "live in?"
-        r'\b(born)\s+in\??\s*$',                   # "born in?"
-        r'\b(graduate|graduated)\s+from\??\s*$',   # "graduated from?"
-        r'\b(about)\??\s*$',                       # "... about?"
-    ]
-    if any(re.search(pat, prompt_lower) for pat in dangling_patterns):
-        print(f"[Generic] ⚠️ Query validation failed: dangling/incomplete ending - '{prompt[:60]}...'")
-        return False, "I'm sorry, I didn't understand your question. Can you repeat it?"
-    
-    return True, None
-
 def handle_conversation(
     prompt: str, session_id: str, memory_context: Optional[str] = None, stream: bool = False
 ):
@@ -768,31 +586,11 @@ def handle_conversation(
         If stream=False: Complete response string
         If stream=True: Generator that yields tokens as they're generated
     """
-    
-    # Check if this is a summary/advice query - skip validation for these as they're already validated by detection
-    is_summary_query_flag = False
-    if RAG_SUMMARY_AVAILABLE and check_summary_query:
-        is_summary_query_flag = check_summary_query(prompt)
-        if is_summary_query_flag:
-            print(f"[Generic] 📝 Summary/advice query detected - skipping query validation")
-    
-    # Validate query before processing (catch malformed transcriptions)
-    # Skip validation for summary/advice queries as they're already validated by detection
-    if not is_summary_query_flag:
-        is_valid, error_message = validate_query(prompt)
-        if not is_valid:
-            print(f"[Generic] 🚫 Query validation failed - returning clarification message")
-            if stream:
-                def clarification_response():
-                    yield "<sentence_start>\n"
-                    yield f"{error_message}\n"
-                    yield "<sentence_end>\n"
-                return clarification_response()
-            else:
-                return error_message
-    
     # Try RAG first for knowledge queries (CPU or GPU) if enabled
     # Skip RAG for simple conversational queries to reduce latency
+    # NOTE: re module is imported at top level (line 18) - reference it explicitly to avoid shadowing
+    # Access via globals() to ensure we get the top-level import, not a shadowed version
+    re_module = globals().get('re', __import__('re'))
     rag_context = ""
     if RAG_MODE in ("CPU", "GPU"):
         print(f"[Generic] 🔍 RAG_MODE={RAG_MODE} - checking if query should use RAG...")
@@ -824,12 +622,12 @@ def handle_conversation(
         for contraction, expansion in contractions_map.items():
             normalized_prompt = normalized_prompt.replace(contraction, expansion)
         
-        # No bypass phrases - all queries use quick_content_match to determine RAG usage
-        # quick_content_match extracts only key terms (names, important nouns) and skips everyday words
-        bypass_hit = None
-        is_personal_query = False
+        # Skip RAG for personal/conversational queries (day, schedule, how are you, etc.)
+        personal_keywords = ['my day', 'my schedule', 'my calendar', 'how are you', 'how am i', 
+                          'what am i', 'when am i', 'where am i', 'tell me about me']
+        is_personal_query = any(keyword in normalized_prompt for keyword in personal_keywords)
         
-        # Determine if query is conversational (for response formatting only, not RAG triggering)
+        # Skip RAG and filler phrases for simple conversational responses (thank you, goodbye, etc.)
         conversational_phrases = [
             'thank you', 'thanks', 'thank', 'thanks a lot', 'thank you very much',
             'goodbye', 'bye', 'see you', 'see ya', 'farewell',
@@ -843,32 +641,36 @@ def handle_conversation(
         is_conversational = any(phrase in normalized_prompt for phrase in conversational_phrases)
         
         # Exclude information-seeking questions from being marked as conversational
-        # CRITICAL: This must happen BEFORE using is_conversational to skip RAG
+        # These are actual queries that should use RAG and end with follow-up questions
         information_seeking_patterns = [
-            'do you know', 'who is', 'who are', 'who was', 'who were', "who's",
-            'what is', 'what are', 'what was', 'what were', "what's",
-            'where is', 'where are', 'where was', 'where were', "where's",
-            'when is', 'when are', 'when was', 'when were', "when's",
-            'why is', 'why are', 'why was', 'why were', "why's",
-            'how is', 'how are', 'how was', 'how were', "how's",
-            'tell me about', 'tell me who', 'tell me what', 'tell me where', 'tell me when',
-            'what about', 'what do you know about', 'can you tell me', 'could you tell me'
+            'do you know', 'who is', 'who are', 'who was', 'who were',
+            'what is', 'what are', 'what was', 'what were',
+            'where is', 'where are', 'where was', 'where were',
+            'when is', 'when are', 'when was', 'when were',
+            'why is', 'why are', 'why was', 'why were',
+            'how is', 'how are', 'how was', 'how were',
+            'tell me about', 'tell me who', 'tell me what', 'tell me where',
+            'can you tell me', 'could you tell me', 'would you tell me'
         ]
         # If query contains information-seeking patterns, it's NOT conversational
-        if any(pattern in normalized_prompt for pattern in information_seeking_patterns):
-            is_conversational = False
-            print(f"[Generic] 🔍 Information-seeking query detected - overriding conversational flag")
-        
-        # Detect summary/advice queries (use CoT for extraction, base model for summary)
-        if RAG_SUMMARY_AVAILABLE and check_summary_query:
-            is_summary_query = check_summary_query(normalized_prompt)
-            if is_summary_query:
-                print(f"[Generic] 📝 Summary/advice query detected - will use CoT extraction + base model summary")
+        # BUT: only override if the info-seeking pattern is not a substring of
+        # a matched conversational phrase (e.g. 'how are' should not override 'how are you')
+        if is_conversational:
+            matched_conv = [p for p in conversational_phrases if p in normalized_prompt]
+            matched_info = [p for p in information_seeking_patterns if p in normalized_prompt]
+            # Only demote to non-conversational if there's an info-seeking match
+            # that is NOT a substring of any matched conversational phrase
+            for info_pat in matched_info:
+                is_substr_of_conv = any(info_pat in conv_pat for conv_pat in matched_conv)
+                if not is_substr_of_conv:
+                    is_conversational = False
+                    break
         else:
-            is_summary_query = False
+            if any(pattern in normalized_prompt for pattern in information_seeking_patterns):
+                is_conversational = False
         
-        # SIMPLIFIED: Use quick_content_match as primary RAG trigger (fast substring/fuzzy match)
-        # This is more reliable than pattern matching - if content exists, use RAG
+        # Only use RAG if search actually returns results (require actual relevance, not just substring match)
+        # This ensures RAG is only used when there's actually relevant content to inject
         rag_client = None
         rag_context = ""
         rag_results = []
@@ -876,42 +678,19 @@ def handle_conversation(
         memory_rag_results = []  # Results from memory container
         memory_rag_failed = False  # Track if memory RAG failed (timeout, error, etc.)
         
-        # Check if RAG will be used BEFORE doing the search (for filler phrase timing)
-        # PRIMARY DECISION: Skip RAG entirely for conversational queries
-        # CRITICAL: Conversational queries should use base model, not CoT model
-        should_use_rag_for_search = False
-        will_use_rag = False  # Also update will_use_rag for filler phrase decision
-        if is_conversational:
-            print(f"[Generic] 🔍 Conversational query detected - skipping RAG (will use base model)")
-        elif RAG_MODE in ("CPU", "GPU"):
-            try:
-                client = get_rag_client()
-                if client:
-                    has_content = client.quick_content_match(prompt)
-                    if has_content:
-                        should_use_rag_for_search = True
-                        will_use_rag = True  # Update for filler phrase decision
-                        print(f"[Generic] 🔍 quick_content_match=True - performing RAG search...")
-                    else:
-                        should_use_rag_for_search = False
-                        will_use_rag = False
-                        print(f"[Generic] 🔍 quick_content_match=False - skipping RAG (no key terms found in documents)")
-            except Exception as e:
-                print(f"[Generic] ⚠️ RAG check failed in handle_conversation: {e}")
-        
-        if should_use_rag_for_search:
+        if not is_personal_query and not is_conversational:
             # Detect if query is asking for "what else" or additional information
             is_followup_query = any(phrase in prompt.lower() for phrase in ['what else', 'anything else', 'more about', 'additional', 'other'])
             
             # Parallelize document RAG and memory RAG searches for better latency
             def search_document_rag():
-                """Search document RAG in parallel - uses quick_content_match as the only trigger"""
+                """Search document RAG in parallel"""
                 try:
                     client = get_rag_client()
                     if client:
                         has_content = client.quick_content_match(prompt)
                         if has_content:
-                            print(f"[Generic] 🔍 quick_content_match=True - performing RAG search...")
+                            print(f"[Generic] 🔍 Query may match RAG content - performing search...")
                             if hasattr(client, '_cpu_chunks') and client._cpu_chunks:
                                 print(f"[Generic] 📊 RAG index: {len(client._cpu_chunks)} chunks available")
                             elif hasattr(client, '_cpu_index') and client._cpu_index:
@@ -929,7 +708,7 @@ def handle_conversation(
                                 print(f"[Generic] 🔍 RAG search returned no results above threshold - skipping RAG injection")
                             return client, results
                         else:
-                            print(f"[Generic] 🔍 quick_content_match=False - skipping document RAG")
+                            print(f"[Generic] 🔍 Query doesn't match RAG content - skipping RAG (faster response)")
                     return None, []
                 except Exception as e:
                     print(f"[Generic] ⚠️ RAG check failed: {e}")
@@ -1049,7 +828,7 @@ def handle_conversation(
                         if text_lower.startswith('for the ') or text_lower.startswith('or the '):
                             is_question = True
                         elif 'co-founder' in text_lower and (text_lower.startswith('for ') or text_lower.startswith('or ')):
-                            is_question = True
+                                is_question = True
                         
                         # Only include if it's NOT a question (has actual information)
                         if not is_question:
@@ -1122,7 +901,8 @@ JSON array only:"""
                                 
                                 # Parse LLM response to extract scores
                                 import json
-                                json_match = re.search(r'\[[\d\.,\s]+\]', scoring_response)
+                                # Use re_module from globals() to avoid shadowing issues
+                                json_match = re_module.search(r'\[[\d\.,\s]+\]', scoring_response)
                                 if json_match:
                                     scores = json.loads(json_match.group())
                                     print(f"[Generic] ✅ LLM returned {len(scores)} scores")
@@ -1179,19 +959,7 @@ JSON array only:"""
         
         should_use_rag = (rag_results and len(rag_results) > 0) or (memory_rag_results and len(memory_rag_results) > 0)
         should_use_memory_rag = (memory_rag_results and len(memory_rag_results) > 0)
-        
-        # Track if RAG was attempted but found no results (for better fallback handling)
-        rag_attempted_but_no_results = should_use_rag_for_search and not should_use_rag
-        
-        # CRITICAL: Override should_use_rag if query is conversational
-        # Conversational queries should NEVER use RAG/CoT model
-        if is_conversational:
-            should_use_rag = False
-            rag_results = []  # Clear RAG results to prevent CoT model usage
-            rag_attempted_but_no_results = False  # Reset flag for conversational queries
-            print(f"[Generic] 🔍 Conversational query - forcing should_use_rag=False (will use base model)")
-        
-        print(f"[Generic] 🔍 Query analysis: is_personal={is_personal_query}, is_conversational={is_conversational}, should_use_rag={should_use_rag}, should_use_memory_rag={should_use_memory_rag}, rag_attempted_but_no_results={rag_attempted_but_no_results}")
+        print(f"[Generic] 🔍 Query analysis: is_personal={is_personal_query}, is_conversational={is_conversational}, should_use_rag={should_use_rag}, should_use_memory_rag={should_use_memory_rag}")
         
         if should_use_rag and rag_results:
             try:
@@ -1236,9 +1004,7 @@ JSON array only:"""
                 print(f"[Generic] 📋 Using top {len(sorted_results)} chunks (max {max_chunks}) for LLM reasoning")
                 
                 # Build RAG context - let LLM reason through all chunks
-                # Use 3000 chars for all queries - important info can appear anywhere in a chunk
-                # (e.g., education info for David Lara appears late in his bio)
-                MAX_CHARS_PER_RESULT = 3000
+                MAX_CHARS_PER_RESULT = 1800 if is_list_query else 1200
                 rag_chunks = []
                 
                 # Process chunks - let LLM reason through them internally
@@ -1265,7 +1031,8 @@ JSON array only:"""
                             entity_names = []
                             of_pattern = r'\bof\s+([A-Z][A-Za-z]*(?:\s+[A-Z][A-Za-z]*)*)\b'
                             at_pattern = r'\bat\s+([A-Z][A-Za-z]*(?:\s+[A-Z][A-Za-z]*)*)\b'
-                            matches = re.findall(of_pattern, prompt) + re.findall(at_pattern, prompt)
+                            # Use re_module from globals() to avoid shadowing issues
+                            matches = re_module.findall(of_pattern, prompt, re_module.IGNORECASE) + re_module.findall(at_pattern, prompt, re_module.IGNORECASE)
                             entity_names.extend(matches)
                             entity_names = list(set([e for e in entity_names if len(e) > 2]))
                             
@@ -1347,7 +1114,7 @@ JSON array only:"""
             try:
                 print(f"[Generic] 🔍 Memory RAG injection: '{prompt[:50]}...'")
                 memory_chunks = []
-                MAX_CHARS_PER_RESULT = 3000  # Same as document RAG - important info can appear anywhere
+                MAX_CHARS_PER_RESULT = 1200  # Same as document RAG
                 
                 # Get threshold for filtering (same as document RAG)
                 try:
@@ -1474,249 +1241,61 @@ JSON array only:"""
         is_specific_set_query = any(indicator in prompt.lower() for indicator in specific_set_indicators)
         
         if has_rag_context:
-            # Dynamic prompt construction with Aura Vision identity
-            # IMPORTANT: Include the prompt in the system message (matches working commit 1927b467c106120dd4e1231f600eccdaa5a93f08)
-            if is_instruction_request:
-                # Simplified instruction request handling
-                # Only add question instruction if not a conversational query
-                question_instruction = "" if is_conversational else "\n\nAlways end your response with a brief, natural question (do not include 'follow up' or 'follow-up' in the question text). Examples: 'Would you like more information about this?' or 'Is there anything else I can help you with?'"
-                system_content = (
-                    f"{combined_context}\n\n"
-                    "You are Aura Vision, an AI agent created by Ledger AI Quantum Corporation. "
-                    "You act as a proactive AI agent guiding users to better outcomes through gentle guidance.\n\n"
-                    "CRITICAL RULES:\n"
-                    "- Only provide logical, factual responses. Avoid hallucination at all costs.\n"
-                    "- CRITICAL QUERY VALIDATION: Before responding, you MUST first evaluate if the query makes logical sense:\n"
-                    "  1. Check if the query contains nonsensical combinations (e.g., 'recipe for rest and efforts' - 'rest and efforts' is not a real recipe name)\n"
-                    "  2. Check if key terms in the query are coherent and refer to real concepts (e.g., asking for a recipe for something that doesn't exist)\n"
-                    "  3. Check if the query is incomplete, unclear, or contains transcription errors\n"
-                    "  4. If the query does NOT make logical sense, DO NOT force it into a response. Instead, politely ask: 'I'm not sure I understand your question. Could you please repeat or rephrase it?'\n"
-                    "- CRITICAL: Before responding, check if the query is an incomplete sentence (starts with 'and', 'but', 'or', 'so', 'then', 'also', 'make sure', 'ensure', etc.). If so, ask for clarification instead of answering.\n"
-                    "- IMPORTANT: Commands and instructions like 'Give me X', 'Tell me about Y', 'Show me Z' are VALID requests and should be answered normally using your general knowledge.\n"
-                    "- If the user's query is unclear, nonsensical, or doesn't make logical sense, DO NOT force it into a response.\n"
-                    "- Instead, politely ask the user to clarify or repeat their question. Example: 'I'm not sure I understand. Could you please rephrase your question or provide more context?'\n"
-                    "- Never invent facts, names, dates, or details that aren't in the provided context.\n"
-                    "- CRITICAL: DO NOT treat incomplete sentences as questions. If the query is incomplete (starts with 'and', 'but', 'or', etc.), ask for clarification rather than making up an answer.\n"
-                    "- IMPORTANT: Valid commands like 'Give me X', 'Tell me about Y' are acceptable and should be answered using general knowledge.\n"
-                    "- CRITICAL: DO NOT make up information to answer nonsensical queries. If a query asks for something that doesn't exist (like 'recipe for rest and efforts'), ask for clarification instead of inventing a response.\n\n"
-                    "Use ONLY information from the context above. Do not invent facts.\n"
-                    "If information is missing, say 'I don't have that information'.\n\n"
-                    f"Answer: {prompt}\n\n"
-                    "CRITICAL: Keep your response VERY SHORT - maximum 2-3 sentences. "
-                    "Provide a clear, concise step-by-step response with only essential information. "
-                    "Be conversational and friendly. If more detail is needed, the user will ask."
-                    f"{question_instruction}"
-                )
-                # Build user message for instruction requests
-                if SHOW_REASONING_DEBUG:
-                    user_content = (
-                        f"Show your reasoning, then provide your answer.\n\n"
-                        f"Question: {prompt}"
-                    )
-                else:
-                    user_content = (
-                        f"Answer this question BRIEFLY (2-3 sentences maximum):\n"
-                        f"- If the 'Knowledge context' sections above contain relevant information that answers the query, use that information.\n"
-                        f"- If the context does NOT contain relevant information (e.g., it's about unrelated topics or only mentions keywords without answering), use your general knowledge to provide a helpful answer.\n"
-                        f"- Provide ONLY essential information - no lengthy explanations or multiple examples.\n"
-                        f"- If more detail is needed, the user will ask.\n\n"
-                        f"Question: {prompt}"
-                    )
-            else:
-                # Add warning if memory RAG failed
-                memory_warning = ""
-                if memory_rag_failed:
-                    memory_warning = "\n⚠️ IMPORTANT: Conversation memory context is unavailable (memory container may be rebuilding index). " \
-                                   "Only provide information you are certain about from the provided context. " \
-                                   "Do NOT make up or guess information about people, places, or facts. " \
-                                   "If you don't have reliable information, say so rather than speculating.\n\n"
-                
-                # Extract person names from query for explicit instruction
-                query_person_names = re.findall(r'\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\b', prompt)
-                person_instruction = ""
-                if query_person_names:
-                    person_list = ", ".join(query_person_names)
-                    person_instruction = f"\n⚠️ Only use information about {person_list} from the context. Do not confuse with other people.\n"
-                
-                # Simplified list instruction
-                list_instruction = ""
-                if is_list_request:
-                    if is_specific_set_query:
-                        # For specific set queries (like "co-founders"), find ALL items, not just TOP 3
-                        list_instruction = (
-                            "\n📋 LIST QUESTION:\n"
-                            "Read all sections completely. Extract ALL items that directly match the query. "
-                            "CRITICAL: Find and list ALL items that match the query - do NOT limit the number. "
-                            "Read through the entire context carefully to ensure you find every relevant item. "
-                            "Only include information explicitly stated in the context.\n"
-                        )
-                    else:
-                        # For general list queries, limit to TOP 3
-                        list_instruction = (
-                            "\n📋 LIST QUESTION:\n"
-                            "Read all sections completely. Extract items that directly match the query. "
-                            "CRITICAL: Limit your response to the TOP 3 most relevant items only. "
-                            "Do NOT list more than 3 items. "
-                            "If there are more items available, mention that more information can be provided if needed. "
-                        "Only include information explicitly stated in the context.\n"
-                    )
-                
-                # Build response length guideline - simplified
-                if SHOW_REASONING_DEBUG:
-                    response_length_guideline = "- Show your reasoning process.\n"
-                elif is_list_request:
-                    # Only add question instruction if not a conversational query
-                    question_instruction = "" if is_conversational else "\n- MANDATORY: End your response with a brief, natural question. This is REQUIRED. Examples: 'Would you like more information about this?' or 'Is there anything else I can help you with?'\n"
-                    if is_specific_set_query:
-                        # For specific set queries, find ALL items
-                        response_length_guideline = (
-                            "- CRITICAL: List ALL items that match the query. "
-                            "Do NOT limit the number - find every item that matches. "
-                            "Read through the entire context completely to ensure you don't miss any items. "
-                            "Format as a natural list or numbered list.\n"
-                            f"{question_instruction}"
-                        )
-                    else:
-                        # For general list queries, limit to TOP 3
-                        response_length_guideline = (
-                            "- CRITICAL: List ONLY the top 3 most relevant items that match the query. "
-                            "Do NOT exceed 3 items. "
-                            "If more items exist, briefly mention that more information is available if needed. "
-                            "Format as a numbered or bulleted list (1-3 items maximum).\n"
-                        f"{question_instruction}"
-                    )
-                else:
-                    # Only add question instruction if not a conversational query
-                    question_instruction = "" if is_conversational else "\n6. MANDATORY: End your response with a brief, natural question. This is REQUIRED. Examples: 'Would you like more information about this?' or 'Is there anything else I can help you with?'\n"
-                    response_length_guideline = (
-                        "- CRITICAL: Keep responses VERY SHORT - maximum 2-3 sentences total.\n"
-                        "- Provide only the essential information needed to answer the question.\n"
-                        "- Do NOT provide lengthy explanations, multiple examples, or extensive background.\n"
-                        "- If the user wants more details, they will ask - offer to provide more information in your closing question.\n"
-                        f"{question_instruction}"
-                    )
-                
-                # Simplified reasoning - only for debug mode
-                reasoning_instructions = ""
-                if SHOW_REASONING_DEBUG:
-                    reasoning_instructions = (
-                        "\n🧠 REASONING:\n"
-                        "Use only information from the context. Do not invent facts.\n"
-                    )
-                
-                rag_scoring_instructions = ""  # Removed for simplicity
-                
-                # Ultra-simplified RAG instructions - prevent hallucination
-                # Check if query asks about a specific entity (company, person, etc.)
-                query_has_entity = any(word in prompt.lower() for word in ['of ', 'at ', 'from '])
-                entity_instruction = ""
-                if query_has_entity:
-                    # Extract entity name from query for explicit instruction
-                    # Handle abbreviations with periods (e.g., "Ledger A.I." not "Ledger A")
-                    # Match entity name including periods and common abbreviations
-                    entity_match = re.search(r'\bof\s+([A-Z][A-Za-z]*(?:\s+[A-Z][A-Za-z.]*)*)', prompt)
-                    if entity_match:
-                        entity_name = entity_match.group(1).strip()
-                        # Normalize entity name variations (e.g., "Ledger A.I." = "LedgerAI" = "Ledger AI")
-                        entity_name_normalized = entity_name.replace('.', '').replace(' ', '').lower()
-                        entity_instruction = (
-                            f"\n⚠️ CRITICAL: The query asks about '{entity_name}'. "
-                            f"Extract information where the text explicitly states relationships to '{entity_name}' or its variations (e.g., '{entity_name.replace('.', '')}', '{entity_name.replace('.', ' ')}'). "
-                            f"DO NOT exclude information due to minor name variations (spaces, periods, capitalization). "
-                            f"Only exclude information about clearly different entities.\n"
-                        )
-                
-                simple_instructions = (
-                    "\nINSTRUCTIONS:\n"
-                    "1. Read all sections (separated by '---') completely from start to finish.\n"
-                    "2. CRITICAL QUERY VALIDATION: Before responding, you MUST first evaluate if the query makes logical sense:\n"
-                    "   a. Check if the query contains nonsensical combinations (e.g., 'recipe for rest and efforts' - 'rest and efforts' is not a real recipe name)\n"
-                    "   b. Check if key terms in the query are coherent and refer to real concepts (e.g., asking for a recipe for something that doesn't exist)\n"
-                    "   c. Check if the query is incomplete, unclear, or contains transcription errors\n"
-                    "   d. Check if the query is an incomplete sentence (starts with 'and', 'but', 'or', 'so', 'then', 'also', 'plus', 'make sure', 'ensure', etc.)\n"
-                    "   e. IMPORTANT: Commands and instructions like 'Give me X', 'Tell me about Y', 'Show me Z' are VALID requests and should be answered normally.\n"
-                    "   f. Check if the query is missing context from a previous conversation\n"
-                    "   If the query does NOT make logical sense (e.g., asks for something that doesn't exist, or is truly incomplete), DO NOT force it into a response. Instead, politely ask: 'I'm not sure I understand your question. Could you please repeat or rephrase it?'\n"
-                    "3. Check if the context above actually contains information relevant to answering the query.\n"
-                    "4. If the context contains relevant information that answers the query:\n"
-                    "   - Extract ONLY information that directly answers the query from the context.\n"
-                    "   - For relationship queries (co-founders, employees, etc.): ONLY include people whose relationship is explicitly stated as being TO the entity mentioned in the query.\n"
-                    "   - DO NOT invent, guess, hallucinate, or use information not in the context.\n"
-                    "   - CRITICAL: DO NOT invent product names, company names, or entity names. Only use names that are EXPLICITLY written in the context above.\n"
-                    "   - CRITICAL: DO NOT create variations of names (e.g., if context says 'AuraVision', do NOT say 'Ledger Vision' or any other variation). Use EXACTLY the names as written in the context.\n"
-                    "   - CRITICAL: If a name is not in the context, do NOT make up a similar-sounding name. Say 'I don't have that information' instead.\n"
-                    "   - Only provide logical, factual responses based on the provided context.\n"
-                    "5. If the context does NOT contain relevant information (e.g., context is about unrelated topics, or only mentions keywords but doesn't answer the query):\n"
-                    "   - Use your general knowledge ONLY if the query is clear and logical.\n"
-                    "   - CRITICAL: Even with general knowledge, DO NOT invent specific product names, company names, or entity names that aren't common public knowledge.\n"
-                    "   - If the query is unclear or doesn't make sense, ask for clarification instead of guessing.\n"
-                    "   - Be clear and informative based on common knowledge, but only if the query is well-formed.\n"
-                    "   - Keep it BRIEF - provide only essential information, not lengthy explanations.\n"
-                    "6. Format your answer naturally and concisely.\n"
-                    "7. REMEMBER: Maximum 2-3 sentences. If more detail is needed, the user will ask.\n"
-                    "8. ANTI-HALLUCINATION RULE: Never make up facts, names, dates, or details. If you don't know something, say so clearly rather than inventing information.\n"
-                    "9. CRITICAL ANTI-HALLUCINATION: Never invent product names, company names, or entity names. Only use names that are EXPLICITLY written in the context. If a name is not in the context, say 'I don't have that information' rather than guessing or creating variations.\n"
-                    )
-                
-                # No examples - LLM must use only the RAG context provided
-                few_shot_examples = ""
-                
-                # Use CoT format ONLY when RAG is triggered (has_rag_context = True)
-                # This matches the user's request: "use CoT when RAG is triggered and use basic LLM conversational mode if RAG not triggered"
-                # IMPORTANT: This prompt MUST match the training prompt exactly from commit 193794c846fe1731825b1fa8669d35b626f4e7ca
-                # EXACT COPY from test_rag_cot_model_colab.py commit 193794c846fe1731825b1fa8669d35b626f4e7ca
-                cot_system_prompt = (
-                    "You are a precise data extraction bot.\n\n"
-                    "ALWAYS START WITH REASONING:\n"
-                    "Begin every response with \"REASONING:\" - this is MANDATORY.\n\n"
-                    "1. REASONING: For each relevant item found in the context:\n"
-                    "   - Item: [What you found]\n"
-                    "   - Evidence: \"[Verbatim quote from context]\"\n"
-                    "   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n\n"
-                    "2. End scan with: - End of scan.\n\n"
-                    "3. FINAL ANSWER: based ONLY on [KEEP] items.\n\n"
-                    "CRITICAL RULES (APPLY TO ALL QUERIES):\n\n"
-                    "EVIDENCE:\n"
-                    "- Evidence MUST be EXACT verbatim quote from context - do NOT paraphrase or fabricate.\n"
-                    "- You MUST evaluate ALL relevant items in the context before ending the scan.\n"
-                    "- Read through the ENTIRE context completely - do NOT stop scanning early.\n"
-                    "- Scan systematically through all chunks, paragraphs, and sections.\n"
-                    "- In complex contexts with many entities, scan ALL entities before ending.\n"
-                    "- Entities may appear late in the context - continue scanning until the very end.\n"
-                    "- Do NOT end scan until you have checked EVERY relevant item in the context.\n"
-                    "- Do NOT stop scanning when you find matches - continue until the END of context.\n"
-                    "- Items may appear at the very end - you MUST scan ALL items before ending.\n\n"
-                    "KEEP/DISCARD:\n"
-                    "- Items marked [DISCARD] must NEVER appear in FINAL ANSWER.\n"
-                    "- FINAL ANSWER must ONLY include items marked [KEEP].\n"
-                    "- FINAL ANSWER must include ALL items marked [KEEP] - do not omit any.\n"
-                    "- If you mark an item [KEEP] in reasoning, it MUST appear in FINAL ANSWER.\n\n"
-                    "MATCHING (PREVENTS HALLUCINATION - STRICT VERBATIM RULE):\n"
-                    "- Query term MUST appear verbatim in evidence for [KEEP].\n"
-                    "- If query term appears verbatim in evidence → [KEEP] (regardless of other roles/info mentioned).\n"
-                    "- If query term does NOT appear verbatim in evidence → [DISCARD] (NO exceptions, NO inference, NO assumptions).\n"
-                    "- Similar roles/titles are NOT matches unless query term appears verbatim (e.g., \"Business Development Lead\" ≠ \"co-founder\", \"Ambassador\" ≠ \"co-founder\", \"Ambassador of Influence and Engagement\" ≠ \"co-founder\", \"CTO\" ≠ \"co-founder\").\n"
-                    "- DO NOT infer or assume relationships - only use explicitly stated information.\n"
-                    "- DO NOT use context clues - only verbatim presence of query term matters.\n\n"
-                    "EMPTY RESULTS:\n"
-                    "- If ALL items are marked [DISCARD], FINAL ANSWER must indicate no matches found.\n\n"
-                    "OUTPUT FORMAT:\n"
-                    "- FINAL ANSWER must include ONLY the information explicitly requested in the query - nothing more, nothing less.\n"
-                    "- Include ONLY what is requested - exclude extra words, role titles, dates, or any context not explicitly requested.\n"
-                    "- If query asks for a list, include ALL matching items found in the context (do not omit any).\n"
-                    "- Preserve verbatim information from evidence - do NOT paraphrase (e.g., if evidence says \"50 developers\", do NOT change to \"50 employees\").\n"
-                    "- For queries asking \"Who is the [ROLE]?\", include ONLY the person's name, not the role title or company name.\n"
-                    "- For queries asking for amounts/numbers, include ONLY the amount/number, not dates, years, or other context."
-                )
-                
-                # Build system and user messages - match training format EXACTLY
-                # Training format:
-                #   System: CoT prompt with CRITICAL RULES
-                #   User: "Knowledge context: ...\n---\nQuestion: ..."
-                system_content = cot_system_prompt
-                
-                # User message matches training format exactly
-                user_content = f"Knowledge context: {combined_context}\n---\nQuestion: {prompt}"
+            # ALL RAG queries should use CoT - this is the toggle logic:
+            # - WITH RAG → CoT prompt (extraction/reasoning)
+            # - WITHOUT RAG → Conversational prompt (base model behavior)
+            # The model was trained with this toggle capability
+            # Use CoT format for ALL RAG queries regardless of query type
+            
+            # Use CoT format ONLY when RAG is triggered (has_rag_context = True)
+            # The model is trained with toggle capability:
+            # - WITH CoT when this CoT system prompt is used (RAG queries)
+            # - WITHOUT CoT when conversational system prompt is used (non-RAG queries)
+            # This matches the training dataset format exactly - MUST include all scanning rules
+            cot_system_prompt = (
+                "You are a precise data extraction bot.\n"
+                "1. Start with REASONING:\n"
+                "2. Scan the context carefully for information relevant to the query.\n"
+                "3. For each relevant item found, write:\n"
+                "   - Item: [What you found]\n"
+                "   - Evidence: \"[Verbatim quote from context]\"\n"
+                "   - Action: [KEEP] if it matches the query, otherwise [DISCARD].\n"
+                "4. End scan with: - End of scan.\n"
+                "5. Provide the FINAL ANSWER: based ONLY on [KEEP] items.\n\n"
+                "CRITICAL RULES:\n"
+                "- Items marked [DISCARD] must NEVER appear in FINAL ANSWER - this is ABSOLUTE and MANDATORY.\n"
+                "- FINAL ANSWER must ONLY include items marked [KEEP] - no exceptions.\n"
+                "- If you mark an item [DISCARD] in reasoning, it is FORBIDDEN to mention it in FINAL ANSWER.\n"
+                "- Before writing FINAL ANSWER, verify: ONLY include items that were marked [KEEP] in REASONING.\n"
+                "- Read entire descriptions/chunks completely - titles may appear later in the text.\n"
+                "- SCAN ALL CHUNKS COMPLETELY - read each chunk from start to finish before moving to next.\n"
+                "- IMPORTANT: Identify ALL relevant items in REASONING before making any decisions. Do NOT stop after finding some matches - scan completely and list EVERY item that could be relevant.\n"
+                "- Extract Evidence from the EXACT ITEM MENTION that matches the query - find where the item is explicitly mentioned in relation to what you're looking for, not from descriptions or unrelated text.\n"
+                "- IMPORTANT: Do NOT include headers (like 'AURA VISION...'), page numbers, or metadata in Evidence. Extract ONLY the exact quote that shows the role or information.\n\n"
+                "CO-FOUNDER IDENTIFICATION RULES (CRITICAL):\n"
+                "- If evidence contains \"Co-Founder\" OR \"co-founder\" OR \"Co-Founder and [Role]\", the person IS a co-founder.\n"
+                "- If evidence says \"As Co-Founder and Chief Operating Officer\", this person IS a co-founder - mark [KEEP].\n"
+                "- If evidence says \"As Co-Founder and [Any Role]\", this person IS a co-founder - mark [KEEP].\n"
+                "- If evidence says \"CEO and Co-Founder\", this person IS a co-founder - mark [KEEP].\n"
+                "- If evidence does NOT mention \"Co-Founder\" or \"co-founder\", the person is NOT a co-founder (unless explicitly stated as \"founder\").\n"
+                "- Example: \"As Co-Founder and Chief Operating Officer\" → [KEEP] (co-founder confirmed).\n"
+                "- Example: \"serves as Chief Operating Officer\" → [DISCARD] (no co-founder mention).\n\n"
+                "FINAL ANSWER COMPLETENESS (CRITICAL):\n"
+                "- FINAL ANSWER must include EVERY item marked [KEEP] in REASONING.\n"
+                "- Count how many items you marked [KEEP] - ALL of them must appear in FINAL ANSWER.\n"
+                "- If you marked 4 items [KEEP], FINAL ANSWER must include all 4 items.\n"
+                "- Before writing FINAL ANSWER, list all [KEEP] items and ensure each one is included.\n"
+                "- If an item is marked [KEEP] in REASONING but missing from FINAL ANSWER, your answer is incomplete.\n"
+            )
+            
+            # Build system and user messages - match training format EXACTLY
+            # Training format:
+            #   System: CoT prompt with CRITICAL RULES
+            #   User: "Knowledge context: ...\n---\nQuestion: ..."
+            system_content = cot_system_prompt
+            
+            # User message matches training format exactly
+            user_content = f"Knowledge context: {combined_context}\n---\nQuestion: {prompt}"
                 
             # For chatml format, separate system and user messages
             messages = [
@@ -1742,76 +1321,9 @@ JSON array only:"""
             # Use higher token limit for list questions to ensure all items are included
             # Use lower temperature (0.05) for RAG queries to match test script and ensure accuracy
             # Use 2048 tokens to match test script (was 800, might be cutting off reasoning)
+            # Use CoT-trained model for RAG queries (use_cot_model=True)
             max_tokens_limit = 2048 if is_list_request else MAX_TOKENS_RAG_MODE
-            # Use CoT model for RAG queries (dual-model architecture)
-            # Only use CoT model if RAG found content (quick_content_match=True)
-            # CRITICAL: Use fully deterministic settings for consistent reasoning
-            # - temperature=0: Disable sampling (greedy decoding)
-            # - top_p=1.0: Disable top-p sampling (all tokens considered)
-            # - top_k=-1: Disable top-k sampling (all tokens considered)
-            # - seed=42: Fixed seed for reproducibility (same prompt = same output)
-            # Check if this is a summary/advice query (use CoT extraction + base model summary)
-            if is_summary_query and rag_context and RAG_SUMMARY_AVAILABLE:
-                print(f"[Generic] 📝 [Summary Mode] Using CoT extraction + base model summary - bypassing CoT filter")
-                summary_response = handle_summary_advice_query(
-                    prompt=prompt,
-                    rag_context=rag_context,
-                    llm_chat_simple=llm_chat_simple,
-                    extract_llm_response_content=extract_llm_response_content,
-                    stream=stream
-                )
-                
-                if stream:
-                    # Stream the summary response directly (base model output, no CoT filter needed)
-                    # The base model already generates natural, conversational summaries
-                    yield from summary_response
-                    return  # CRITICAL: Return immediately to prevent CoT filter from processing base model output
-                else:
-                    return summary_response
-            
-            # Standard RAG query flow (use CoT model with filter)
-            # Use the new RAG CoT module for cleaner code organization
-            if RAG_COT_AVAILABLE and handle_rag_cot_query:
-                print(f"[Generic] ✅ [RAG CoT] Using RAG CoT module for regular RAG query")
-                rag_cot_response = handle_rag_cot_query(
-                    prompt=prompt,
-                    rag_context=rag_context,
-                    messages=messages,
-                    llm_chat_simple=llm_chat_simple,
-                    _normalize_stream_chunks=_normalize_stream_chunks,
-                    filter_cot_reasoning=filter_cot_reasoning,
-                    stream=stream,
-                    max_tokens=max_tokens_limit
-                )
-                if stream:
-                    yield from rag_cot_response
-                    return
-                else:
-                    return rag_cot_response
-            else:
-                # Fallback to old logic if module not available
-                print(f"[Generic] ⚠️ [RAG CoT] Module not available, using fallback logic")
-                llm_response = llm_chat_simple(
-                    messages,
-                    max_tokens=max_tokens_limit,
-                    temperature=0,
-                    stream=stream,
-                    use_cot_model=True,  # RAG found content - use CoT model
-                    top_p=1.0,  # Disable top-p sampling for determinism
-                    top_k=-1,  # Disable top-k sampling for determinism
-                    seed=42,  # Fixed seed for reproducibility
-                    stop=["<|im_end|>"],
-                )
-                if stream:
-                    # Normalize stream chunks (convert dicts to strings) before passing to CoT filter
-                    normalized_stream = _normalize_stream_chunks(llm_response)
-                    
-                    # Apply CoT filter to extract final answer from reasoning
-                    print(f"[Generic] ✅ [handle_conversation] Applying CoT filter to RAG query stream")
-                    yield from filter_cot_reasoning(normalized_stream, query=prompt)
-                    return
-                else:
-                    return llm_response
+            return llm_chat_simple(messages, max_tokens=max_tokens_limit, temperature=0.05, stream=stream, use_cot_model=True)
         else:
             # No RAG context, use standard prompt with Aura Vision identity
             # Check if memory RAG was attempted but found no useful information
@@ -1821,14 +1333,6 @@ JSON array only:"""
                 memory_note = "\n⚠️ IMPORTANT: No useful information was found in conversation memory (only questions were found, no actual answers). DO NOT make up or guess information. If you don't have reliable information about what was asked, say so clearly rather than providing generic or speculative responses.\n\n"
             
             if is_instruction_request:
-                # Only require question for informational queries, not conversational ones
-                question_instruction_memory = "" if is_conversational else (
-                    "\n\nMANDATORY: Always end your response with a brief, natural question that ends with a question mark (?). "
-                    "The very last sentence of your response must be a question ending with '?'. "
-                    "Do not include 'follow up' or 'follow-up' in the question text. "
-                    "Examples: 'Would you like more information about this?' or 'Is there anything else I can help you with?' "
-                    "CRITICAL: The last character of your entire response must be a question mark (?)."
-                )
                 system_content = (
                     f"{combined_context}\n\n"
                     "You are Aura Vision, an AI agent created by Ledger AI Quantum Corporation. "
@@ -1837,8 +1341,21 @@ JSON array only:"""
                     "CRITICAL: Keep your response VERY SHORT - maximum 2-3 sentences or a brief numbered list (3-4 steps max). "
                     "Provide only essential steps. Keep each step concise and actionable. "
                     "Be conversational and friendly, like Siri or Alexa. "
-                    "If more detail is needed, the user will ask."
-                    f"{question_instruction_memory}"
+                    "If more detail is needed, the user will ask.\n\n"
+                    "TTS OPTIMIZATION (CRITICAL): Spell out ALL abbreviations for better speech synthesis:\n"
+                    "  * Use 'teaspoon' or 'teaspoons' instead of 'tsp' or 't'\n"
+                    "  * Use 'tablespoon' or 'tablespoons' instead of 'tbsp' or 'T'\n"
+                    "  * Use 'cup' or 'cups' instead of 'c'\n"
+                    "  * Use 'ounce' or 'ounces' instead of 'oz'\n"
+                    "  * Use 'pound' or 'pounds' instead of 'lb' or 'lbs'\n"
+                    "  * Use 'degrees Celsius' or 'degrees Fahrenheit' instead of 'deg C', 'deg F', '°C', or '°F'\n"
+                    "  * Use 'Celsius' instead of 'C' when referring to temperature\n"
+                    "  * Use 'Fahrenheit' instead of 'F' when referring to temperature\n"
+                    "  * Spell out numbers when they are part of measurements (e.g., 'three hundred fifty degrees Fahrenheit' or 'one hundred eighty degrees Celsius')\n"
+                    "  * Use 'inch' or 'inches' instead of 'in' or '\"'\n"
+                    "  * Use 'foot' or 'feet' instead of 'ft' or '''\n\n"
+                    "Always end your response with a brief, natural question (do not include 'follow up' or 'follow-up' in the question text). Examples: "
+                    "'Would you like more information about this?' or 'Is there anything else I can help you with?'"
                 )
             else:
                 # Add warning if memory RAG failed or no useful information found
@@ -1856,16 +1373,6 @@ JSON array only:"""
                 # NO CoT instructions for non-RAG queries - use basic conversational mode
                 # CoT is ONLY used when RAG is triggered (has_rag_context = True)
                 
-                # Only require question for informational queries, not conversational ones
-                question_instruction_no_memory = "" if is_conversational else (
-                    "\n\nMANDATORY: Your response MUST end with a brief, natural question that ends with a question mark (?). "
-                    "This is REQUIRED - the very last sentence of your response must be a question ending with '?'. "
-                    "Examples: 'Would you like more information about this?' "
-                    "or 'Is there anything else I can help you with?' or 'Need more details on this?' "
-                    "Do not include the phrase 'follow up' or 'follow-up' in your question - just ask naturally. "
-                    "Make it flow naturally with the conversation topic. This question is in addition to your 2-3 sentence answer. "
-                    "CRITICAL: The last character of your entire response must be a question mark (?)."
-                )
                 system_content = (
                     f"{combined_context}\n\n"
                     "You are Aura Vision, an AI agent created by Ledger AI Quantum Corporation. "
@@ -1876,7 +1383,19 @@ JSON array only:"""
                     "- If the user's query is unclear, nonsensical, or doesn't make logical sense, DO NOT force it into a response.\n"
                     "- Instead, politely ask the user to clarify or repeat their question.\n"
                     "- For general knowledge questions (recipes, facts, etc.), use your general knowledge to provide helpful answers.\n"
-                    "- Never invent facts, names, dates, or details that aren't in the provided context or common knowledge.\n\n"
+                    "- Never invent facts, names, dates, or details that aren't in the provided context or common knowledge.\n"
+                    "- TTS OPTIMIZATION (CRITICAL): Spell out ALL abbreviations for better speech synthesis:\n"
+                    "  * Use 'teaspoon' or 'teaspoons' instead of 'tsp' or 't'\n"
+                    "  * Use 'tablespoon' or 'tablespoons' instead of 'tbsp' or 'T'\n"
+                    "  * Use 'cup' or 'cups' instead of 'c'\n"
+                    "  * Use 'ounce' or 'ounces' instead of 'oz'\n"
+                    "  * Use 'pound' or 'pounds' instead of 'lb' or 'lbs'\n"
+                    "  * Use 'degrees Celsius' or 'degrees Fahrenheit' instead of 'deg C', 'deg F', '°C', or '°F'\n"
+                    "  * Use 'Celsius' instead of 'C' when referring to temperature\n"
+                    "  * Use 'Fahrenheit' instead of 'F' when referring to temperature\n"
+                    "  * Spell out numbers when they are part of measurements (e.g., 'three hundred fifty degrees Fahrenheit' or 'one hundred eighty degrees Celsius')\n"
+                    "  * Use 'inch' or 'inches' instead of 'in' or '\"'\n"
+                    "  * Use 'foot' or 'feet' instead of 'ft' or '''\n\n"
                     f"{memory_warning}"
                     "IMPORTANT: Use the conversation memory provided above to answer the user's question. "
                     "If the memory contains relevant information, provide that information in your response. "
@@ -1885,8 +1404,12 @@ JSON array only:"""
                     "Get straight to the point with ONLY the essential information needed to answer the question. "
                     "DO NOT provide lengthy explanations, multiple examples, extensive background, or detailed elaborations. "
                     "If the user wants more information, they will ask - you can offer to provide more details in your closing question. "
-                    "Be concise, informative, friendly, and conversational."
-                    f"{question_instruction_no_memory}"
+                    "Be concise, informative, friendly, and conversational.\n\n"
+                    "MANDATORY: Your response MUST end with a brief, natural question. "
+                    "This is REQUIRED - do not skip it. Examples: 'Would you like more information about this?' "
+                    "or 'Is there anything else I can help you with?' or 'Need more details on this?' "
+                    "Do not include the phrase 'follow up' or 'follow-up' in your question - just ask naturally. "
+                    "Make it flow naturally with the conversation topic. This question is in addition to your 2-3 sentence answer."
                 )
         
         # When only memory context (no RAG), use separate user message
@@ -1919,8 +1442,9 @@ JSON array only:"""
                 
                 # Then yield from actual LLM response
                 # Use higher token limit for list questions to ensure all items are included
+                # This is inside RAG context block, so use CoT model (use_cot_model=True)
                 max_tokens_limit = MAX_TOKENS_RAG_MODE_LIST if is_list_request else MAX_TOKENS_RAG_MODE
-                llm_response = llm_chat_simple(messages, max_tokens=max_tokens_limit, stream=True)
+                llm_response = llm_chat_simple(messages, max_tokens=max_tokens_limit, stream=True, use_cot_model=True)
                 
                 # Always filter structured format to extract only Final Answer for TTS
                 # The LLM may output structured format (Known Facts, Reasoning Steps, Final Answer, Confidence)
@@ -2492,42 +2016,11 @@ JSON array only:"""
             
             return filter_reasoning()
         
-        # Use conversation module for regular conversations (no RAG)
-        # This includes: 1) Truly conversational queries, 2) Information-seeking queries with no RAG results
-        if CONVERSATION_MODULE_AVAILABLE and handle_conversation_query:
-            if rag_attempted_but_no_results:
-                print(f"[Generic] ✅ [Conversation] Using Conversation module - RAG was attempted but found no results")
-            else:
-                print(f"[Generic] ✅ [Conversation] Using Conversation module for regular conversation")
-            # Use higher token limit for list questions to ensure all items are included
-            max_tokens_limit = MAX_TOKENS_RAG_MODE_LIST if is_list_request else MAX_TOKENS_RAG_MODE
-            conversation_response = handle_conversation_query(
-                prompt=prompt,
-                messages=messages,
-                llm_chat_simple=llm_chat_simple,
-                _normalize_stream_chunks=_normalize_stream_chunks,
-                stream=stream,
-                max_tokens=max_tokens_limit,
-                rag_attempted_but_no_results=rag_attempted_but_no_results
-            )
-            if stream:
-                yield from conversation_response
-                return
-            else:
-                return conversation_response
-        else:
-            # Fallback to old logic if module not available
-            print(f"[Generic] ⚠️ [Conversation] Module not available, using fallback logic")
-            # Use higher token limit for list questions to ensure all items are included
-            max_tokens_limit = MAX_TOKENS_RAG_MODE_LIST if is_list_request else MAX_TOKENS_RAG_MODE
-            llm_response = llm_chat_simple(messages, max_tokens=max_tokens_limit, stream=stream)
-            if stream:
-                yield from llm_response
-            else:
-                return llm_response
-    else:
-        # No RAG context - will fall through to fallback section below
-        pass
+        # Don't wrap the iterator - let base_container's debug_iterator handle logging
+        # The base class already wraps it with debug logging
+        # Use higher token limit for list questions to ensure all items are included
+        max_tokens_limit = MAX_TOKENS_RAG_MODE_LIST if is_list_request else MAX_TOKENS_RAG_MODE
+        return llm_chat_simple(messages, max_tokens=max_tokens_limit, stream=stream, use_cot_model=False)
 
     # Fallback to direct LLM conversation without external context
     # Detect if user is asking for instructions/steps
@@ -2540,9 +2033,10 @@ JSON array only:"""
     is_list_request_direct = any(keyword in prompt.lower() for keyword in list_keywords) or any(indicator in prompt.lower() for indicator in list_indicators)
     
     # Check if this is a conversational phrase (thank you, goodbye, etc.) - skip follow-up question
+    # IMPORTANT: Only match EXACT phrases, not partial matches (e.g., "me" in "give me" should not match)
     normalized_prompt_fallback = prompt.lower()
     conversational_phrases_fallback = [
-        'thank you', 'thanks', 'thank', 'thanks a lot', 'thank you very much',
+        'thank you', 'thanks', 'thanks a lot', 'thank you very much',
         'goodbye', 'bye', 'see you', 'see ya', 'farewell',
         'you\'re welcome', 'no problem', 'my pleasure', 'anytime',
         'hello', 'hi', 'hey', 'greetings',
@@ -2551,7 +2045,12 @@ JSON array only:"""
         'yes', 'yeah', 'yep', 'no', 'nope',
         'please', 'excuse me', 'sorry', 'pardon'
     ]
-    is_conversational_fallback = any(phrase in normalized_prompt_fallback for phrase in conversational_phrases_fallback)
+    # Use word boundaries to avoid partial matches (e.g., "me" matching "make" or "chocolate")
+    import re
+    is_conversational_fallback = any(
+        re.search(r'\b' + re.escape(phrase) + r'\b', normalized_prompt_fallback) 
+        for phrase in conversational_phrases_fallback
+    )
     
     # Exclude information-seeking questions from being marked as conversational
     information_seeking_patterns_fallback = [
@@ -2588,35 +2087,49 @@ JSON array only:"""
             "- CRITICAL: DO NOT invent product names, company names, or entity names. Only use names that you know from common public knowledge.\n"
             "- CRITICAL: DO NOT create variations of names. If you don't know a specific name, say 'I don't have that information' rather than guessing or creating variations.\n"
             "- CRITICAL: DO NOT treat instructions or incomplete sentences as questions. If the query is an instruction or incomplete, ask for clarification rather than making up an answer.\n"
-            "- CRITICAL: DO NOT make up information to answer nonsensical queries. If a query asks for something that doesn't exist (like 'recipe for rest and efforts'), ask for clarification instead of inventing a response.\n\n"
+            "- CRITICAL: DO NOT make up information to answer nonsensical queries. If a query asks for something that doesn't exist (like 'recipe for rest and efforts'), ask for clarification instead of inventing a response.\n"
+            "- TTS OPTIMIZATION (CRITICAL): Spell out ALL abbreviations for better speech synthesis:\n"
+            "  * Use 'teaspoon' or 'teaspoons' instead of 'tsp' or 't'\n"
+            "  * Use 'tablespoon' or 'tablespoons' instead of 'tbsp' or 'T'\n"
+            "  * Use 'cup' or 'cups' instead of 'c'\n"
+            "  * Use 'ounce' or 'ounces' instead of 'oz'\n"
+            "  * Use 'pound' or 'pounds' instead of 'lb' or 'lbs'\n"
+            "  * Use 'degrees Celsius' or 'degrees Fahrenheit' instead of 'deg C', 'deg F', '°C', or '°F'\n"
+            "  * Use 'Celsius' instead of 'C' when referring to temperature (e.g., '350 degrees Fahrenheit (180 degrees Celsius)' not '350°F (180°C)')\n"
+            "  * Use 'Fahrenheit' instead of 'F' when referring to temperature\n"
+            "  * Always include the full unit name: '350 degrees Fahrenheit' not '350 deg F' or '350°F'\n"
+            "  * Use 'inch' or 'inches' instead of 'in' or '\"'\n"
+            "  * Use 'foot' or 'feet' instead of 'ft' or '''\n\n"
             "Provide a clear, step-by-step response (numbered steps) to the user's question. "
             "Keep each step concise and actionable. Be conversational and friendly, like Siri or Alexa."
             f"{question_instruction}"
         )
     elif is_conversational_fallback:
-        # For non-conversational phrases (thank you, goodbye, etc.), just respond naturally without follow-up question
-        system_prompt = (
-            "You are Aura Vision, an AI agent created by Ledger AI Quantum Corporation. "
-            "You act as a proactive AI agent guiding users to better outcomes through gentle guidance.\n\n"
-            "CRITICAL RULES:\n"
-            "- Only provide logical, factual responses. Avoid hallucination at all costs.\n"
-            "- CRITICAL QUERY VALIDATION: Before responding, you MUST first evaluate if the query makes logical sense:\n"
-            "  1. Check if the query contains nonsensical combinations (e.g., 'recipe for rest and efforts' - 'rest and efforts' is not a real recipe name)\n"
-            "  2. Check if key terms in the query are coherent and refer to real concepts (e.g., asking for a recipe for something that doesn't exist)\n"
-            "  3. Check if the query is incomplete, unclear, or contains transcription errors\n"
-            "  4. If the query does NOT make logical sense, DO NOT force it into a response. Instead, politely ask: 'I'm not sure I understand your question. Could you please repeat or rephrase it?'\n"
-            "- CRITICAL: Before responding, check if the query is an incomplete sentence (starts with 'and', 'but', 'or', 'so', 'then', 'also', 'make sure', 'ensure', etc.) or an instruction rather than a question. If so, ask for clarification instead of answering.\n"
-            "- If the user's query is unclear, nonsensical, or doesn't make logical sense, DO NOT force it into a response.\n"
-            "- Instead, politely ask the user to clarify or repeat their question. Example: 'I'm not sure I understand. Could you please rephrase your question or provide more context?'\n"
-            "- Never invent facts, names, dates, or details.\n"
-            "- CRITICAL: DO NOT invent product names, company names, or entity names. Only use names that you know from common public knowledge.\n"
-            "- CRITICAL: DO NOT create variations of names. If you don't know a specific name, say 'I don't have that information' rather than guessing or creating variations.\n"
-            "- CRITICAL: DO NOT treat instructions or incomplete sentences as questions. If the query is an instruction or incomplete, ask for clarification rather than making up an answer.\n"
-            "- CRITICAL: DO NOT make up information to answer nonsensical queries. If a query asks for something that doesn't exist (like 'recipe for rest and efforts'), ask for clarification instead of inventing a response.\n\n"
-            "Keep your response SHORT and natural - 1-2 sentences maximum. "
-            "Be friendly, helpful, and conversational. Respond naturally to the user's phrase. "
-            "Do NOT add a follow-up question - just respond appropriately to what they said."
-        )
+            # For simple conversational phrases (thank you, goodbye, hello, etc.), use simple prompt
+            # This matches the training dataset format for conversational examples
+            system_prompt = (
+                "You are Aura Vision, an AI agent created by Ledger AI Quantum Corporation. "
+                "You act as a proactive AI agent guiding users to better outcomes through gentle guidance.\n\n"
+                "CRITICAL RULES:\n"
+                "- Only provide logical, factual responses. Avoid hallucination at all costs.\n"
+                "- IMPORTANT: Commands and instructions like 'Give me X', 'Tell me about Y', 'Show me Z' are VALID requests and should be answered normally using your general knowledge.\n"
+                "- For general knowledge questions (recipes, facts, etc.), use your general knowledge to provide helpful answers.\n"
+                "- TTS OPTIMIZATION (CRITICAL): Spell out ALL abbreviations for better speech synthesis:\n"
+                "  * Use 'teaspoon' or 'teaspoons' instead of 'tsp' or 't'\n"
+                "  * Use 'tablespoon' or 'tablespoons' instead of 'tbsp' or 'T'\n"
+                "  * Use 'cup' or 'cups' instead of 'c'\n"
+                "  * Use 'ounce' or 'ounces' instead of 'oz'\n"
+                "  * Use 'pound' or 'pounds' instead of 'lb' or 'lbs'\n"
+                "  * Use 'degrees Celsius' or 'degrees Fahrenheit' instead of 'deg C', 'deg F', '°C', or '°F'\n"
+                "  * Use 'Celsius' instead of 'C' when referring to temperature\n"
+                "  * Use 'Fahrenheit' instead of 'F' when referring to temperature\n"
+                "  * Spell out numbers when they are part of measurements (e.g., 'three hundred fifty degrees Fahrenheit' or 'one hundred eighty degrees Celsius')\n"
+                "  * Use 'inch' or 'inches' instead of 'in' or '\"'\n"
+                "  * Use 'foot' or 'feet' instead of 'ft' or '''\n"
+                "- Keep responses VERY SHORT - maximum 2-3 sentences total.\n"
+                "- Be conversational, friendly, and natural.\n"
+                "- Always end your response with a brief, natural question. Examples: 'Would you like more information about this?' or 'Is there anything else I can help you with?'"
+            )
     else:
         # For conversational queries (actual questions), include follow-up question
         # Check if this is a list request and add list-specific instructions
@@ -2633,13 +2146,11 @@ JSON array only:"""
         
         # Only add question instruction if not a conversational query
         question_instruction = "" if is_conversational_fallback else (
-            "\nMANDATORY: Your response MUST end with a brief, natural question that ends with a question mark (?). "
-            "This is REQUIRED - the very last sentence of your response must be a question ending with '?'. "
-            "Do not skip it. Examples: 'Would you like more information about this?' "
+            "\nMANDATORY: Your response MUST end with a brief, natural question. "
+            "This is REQUIRED - do not skip it. Examples: 'Would you like more information about this?' "
             "or 'Is there anything else I can help you with?' or 'Need more details on this?' "
             "Do not include the phrase 'follow up' or 'follow-up' in your question - just ask naturally. "
-            "Make it flow naturally with the conversation topic. "
-            "CRITICAL: The last character of your entire response must be a question mark (?)."
+            "Make it flow naturally with the conversation topic."
         )
         
         response_length_guideline = ""
@@ -2658,27 +2169,37 @@ JSON array only:"""
                 "Avoid lengthy explanations, excessive background details, or multiple examples."
             )
         
+        # Use the same conversational prompt that was used in training
+        # This matches the training dataset format exactly for CoT toggle
         system_prompt = (
             "You are Aura Vision, an AI agent created by Ledger AI Quantum Corporation. "
             "You act as a proactive AI agent guiding users to better outcomes through gentle guidance.\n\n"
             "CRITICAL RULES:\n"
             "- Only provide logical, factual responses. Avoid hallucination at all costs.\n"
-            "- CRITICAL QUERY VALIDATION: Before responding, you MUST first evaluate if the query makes logical sense:\n"
-            "  1. Check if the query contains nonsensical combinations (e.g., 'recipe for rest and efforts' - 'rest and efforts' is not a real recipe name)\n"
-            "  2. Check if key terms in the query are coherent and refer to real concepts (e.g., asking for a recipe for something that doesn't exist)\n"
-            "  3. Check if the query is incomplete, unclear, or contains transcription errors\n"
-            "  4. If the query does NOT make logical sense, DO NOT force it into a response. Instead, politely ask: 'I'm not sure I understand your question. Could you please repeat or rephrase it?'\n"
-            "- CRITICAL: Before responding, check if the query is an incomplete sentence (starts with 'and', 'but', 'or', 'so', 'then', 'also', 'make sure', 'ensure', etc.) or an instruction rather than a question. If so, ask for clarification instead of answering.\n"
-            "- If the user's query is unclear, nonsensical, or doesn't make logical sense, DO NOT force it into a response.\n"
-            "- Instead, politely ask the user to clarify or repeat their question. Example: 'I'm not sure I understand. Could you please rephrase your question or provide more context?'\n"
+            "- IMPORTANT: Commands and instructions like 'Give me X', 'Tell me about Y', 'Show me Z', 'I need X', 'I want X' are VALID requests and should be answered normally using your general knowledge.\n"
+            "- For general knowledge questions (recipes, facts, etc.), use your general knowledge to provide helpful answers.\n"
+            "- If the user's query has a minor transcription error (e.g., 'recipe or chocolate cookies' likely means 'recipe for chocolate cookies'), interpret it naturally and answer helpfully.\n"
+            "- If the user's query is truly unclear or nonsensical (e.g., asking for something that doesn't exist), politely ask for clarification.\n"
             "- Never invent facts, names, dates, or details.\n"
             "- CRITICAL: DO NOT invent product names, company names, or entity names. Only use names that you know from common public knowledge or that are explicitly mentioned in conversation.\n"
             "- CRITICAL: DO NOT create variations of names. If you don't know a specific name, say 'I don't have that information' rather than guessing or creating variations.\n"
-            "- CRITICAL: DO NOT treat instructions or incomplete sentences as questions. If the query is an instruction or incomplete, ask for clarification rather than making up an answer.\n"
-            "- CRITICAL: DO NOT make up information to answer nonsensical queries. If a query asks for something that doesn't exist (like 'recipe for rest and efforts'), ask for clarification instead of inventing a response.\n\n"
+            "- TTS OPTIMIZATION (CRITICAL): Spell out ALL abbreviations for better speech synthesis:\n"
+            "  * Use 'teaspoon' or 'teaspoons' instead of 'tsp' or 't'\n"
+            "  * Use 'tablespoon' or 'tablespoons' instead of 'tbsp' or 'T'\n"
+            "  * Use 'cup' or 'cups' instead of 'c'\n"
+            "  * Use 'ounce' or 'ounces' instead of 'oz'\n"
+            "  * Use 'pound' or 'pounds' instead of 'lb' or 'lbs'\n"
+            "  * Use 'degrees Celsius' or 'degrees Fahrenheit' instead of 'deg C', 'deg F', '°C', or '°F'\n"
+            "  * Use 'Celsius' instead of 'C' when referring to temperature (e.g., '350 degrees Fahrenheit (180 degrees Celsius)' not '350°F (180°C)')\n"
+            "  * Use 'Fahrenheit' instead of 'F' when referring to temperature\n"
+            "  * Always include the full unit name: '350 degrees Fahrenheit' not '350 deg F' or '350°F'\n"
+            "  * Use 'inch' or 'inches' instead of 'in' or '\"'\n"
+            "  * Use 'foot' or 'feet' instead of 'ft' or '''\n"
+            "- Keep responses VERY SHORT - maximum 2-3 sentences total.\n"
+            "- Be conversational, friendly, and natural.\n"
+            "- Always end your response with a brief, natural question. Examples: 'Would you like more information about this?' or 'Is there anything else I can help you with?'\n\n"
             f"{list_instruction}"
-            f"{response_length_guideline}\n\n"
-            f"{question_instruction}"
+            f"{response_length_guideline}"
         )
     
     # NOTE: Conversation memory should ONLY come from memory container API
@@ -2697,36 +2218,23 @@ JSON array only:"""
     
     # Reduced debug logging for performance
 
-    # Use conversation module for regular conversations (no RAG)
-    # This is the fallback path when RAG was not attempted at all
-    if CONVERSATION_MODULE_AVAILABLE and handle_conversation_query:
-        print(f"[Generic] ✅ [Conversation] Using Conversation module for regular conversation (direct mode)")
-        # Use higher token limit for list questions to ensure all items are included
-        max_tokens_limit = MAX_TOKENS_DIRECT_MODE_LIST if is_list_request_direct else MAX_TOKENS_DIRECT_MODE
-        conversation_response = handle_conversation_query(
-            prompt=prompt,
-            messages=messages,
-            llm_chat_simple=llm_chat_simple,
-            _normalize_stream_chunks=_normalize_stream_chunks,
-            stream=stream,
-            max_tokens=max_tokens_limit,
-            rag_attempted_but_no_results=False  # This is the fallback path, RAG was not attempted
-        )
-        if stream:
-            yield from conversation_response
-            return
-        else:
-            return conversation_response
-    else:
-        # Fallback to old logic if module not available
-        print(f"[Generic] ⚠️ [Conversation] Module not available, using fallback logic")
-        # Use higher token limit for list questions to ensure all items are included
-        max_tokens_limit = MAX_TOKENS_DIRECT_MODE_LIST if is_list_request_direct else MAX_TOKENS_DIRECT_MODE
-        llm_response = llm_chat_simple(messages, max_tokens=max_tokens_limit, stream=stream)
-        if stream:
-            yield from llm_response
-        else:
-            return llm_response
+    # Use higher token limit for list questions to ensure all items are included
+    # Don't wrap the iterator - let base_container's debug_iterator handle logging
+    # The base class already wraps it with debug logging
+    # Use higher temperature (0.7) for conversational queries to allow more natural responses
+    # RAG queries use 0.05 for accuracy, but conversational queries need more creativity
+    max_tokens_limit = MAX_TOKENS_DIRECT_MODE_LIST if is_list_request_direct else MAX_TOKENS_DIRECT_MODE
+    conversational_temperature = 0.7  # Higher temperature for conversational queries (matches training default)
+    
+    # Debug: Log model selection and system prompt for conversational queries
+    print(f"[Generic] 🤖 [Conversational Query] Calling llm_chat_simple with use_cot_model=False (base model)")
+    print(f"[Generic] 🤖 [Conversational Query] Query: '{prompt[:100]}...'")
+    print(f"[Generic] 🤖 [Conversational Query] System prompt preview: {system_prompt[:300]}...")
+    print(f"[Generic] 🤖 [Conversational Query] Temperature: {conversational_temperature}, Max tokens: {max_tokens_limit}")
+    print(f"[Generic] 🤖 [Conversational Query] Messages structure: system + user")
+    print(f"[Generic] 🤖 [Conversational Query] User message: '{messages[1]['content'][:100]}...'")
+    
+    return llm_chat_simple(messages, max_tokens=max_tokens_limit, temperature=conversational_temperature, stream=stream, use_cot_model=False)
 
 
 def _embed_texts(texts: List[str]) -> List[List[float]]:
@@ -2860,193 +2368,6 @@ def chat_tts():
     session_id = session_id or "default"
     print(f"[Generic] 💬 Streaming Session: {session_id}, Prompt: '{prompt[:50]}...'")
     print(f"[Generic] 📝 FULL TRANSCRIBED QUERY: '{prompt}'")  # Log full query for debugging
-
-    # ------------------------------------------------------------------
-    # Pauseable sentence stream helper (must be in chat_tts scope so resume() can use it)
-    # ------------------------------------------------------------------
-    def _pauseable_sentence_stream(sentence_iter, sid: str, initial_item_count: int = 0):
-        item_count = int(initial_item_count or 0)
-        last_sentence_text = ""
-        current_sentence_buf = ""
-        in_sentence = False
-
-        def _is_list_marker(tok: str) -> bool:
-            if not isinstance(tok, str):
-                return False
-            t = tok.strip()
-            # Check for bullet marker "-"
-            if t == "-":
-                return True
-            # Check for numbered list marker "1.", "2.", etc. (fixed regex - was double-escaped)
-            if re.match(r'^\d+\.$', t):
-                return True
-            return False
-
-        for tok in sentence_iter:
-            # Track sentence text for "repeat last part"
-            if tok == "<sentence_start>" or tok == "<sentence_start>\n":
-                in_sentence = True
-                current_sentence_buf = ""
-            elif tok == "<sentence_end>" or tok == "<sentence_end>\n" or tok == "\n<sentence_end>\n":
-                in_sentence = False
-                if current_sentence_buf.strip():
-                    last_sentence_text = current_sentence_buf.strip()
-                current_sentence_buf = ""
-            else:
-                if in_sentence and isinstance(tok, str):
-                    # Avoid counting tags as part of sentence text
-                    if "<sentence_" not in tok:
-                        current_sentence_buf += tok
-
-            # Count list items on markers in the stream
-            if isinstance(tok, str) and _is_list_marker(tok):
-                item_count += 1
-                print(f"[Generic] 📋 [Pause Logic] List marker detected: '{tok}' (item_count={item_count}, threshold={MAX_LIST_ITEMS_BEFORE_PAUSE})")
-                if item_count > MAX_LIST_ITEMS_BEFORE_PAUSE:
-                    print(f"[Generic] ⏸️ [Pause Logic] Pausing after {item_count} items (threshold: {MAX_LIST_ITEMS_BEFORE_PAUSE})")
-                    if SESSION_STATE:
-                        SESSION_STATE.set_pending_continuation(
-                            sid,
-                            sentence_iter,  # store live iterator (do not consume)
-                            last_sentence=last_sentence_text,
-                            item_count=item_count,
-                        )
-                    # Ask to continue/repeat
-                    yield "<sentence_start>\n"
-                    yield "Would you like me to continue, or repeat the last part?"
-                    yield "\n<sentence_end>\n"
-                    return
-
-            yield tok
-
-    # ------------------------------------------------------------------
-    # Continuation handling: "continue" / "repeat"
-    # ------------------------------------------------------------------
-    def _normalize_control_prompt(p: str) -> str:
-        # Normalize whitespace/case and strip trailing punctuation from short control replies
-        # (e.g., "continue.", "yes!", "no?" from Whisper).
-        s = re.sub(r'\s+', ' ', (p or '').strip().lower())
-        # Strip leading/trailing non-word chars (keep internal punctuation like "don't")
-        s = re.sub(r'^[^\w]+', '', s)
-        s = re.sub(r'[^\w]+$', '', s)
-        return s
-
-    control_prompt = _normalize_control_prompt(prompt)
-    
-    # Detect "continue" variations: "continue", "you can continue", "you may continue", "yes continue", etc.
-    # Remove common prefixes and check if it ends with "continue"
-    continue_variations = {
-        "continue", "go on", "keep going", "yes continue", 
-        "you can continue", "you may continue", "continue please", "please continue",
-        "go ahead", "proceed", "carry on"
-    }
-    # Also check if prompt ends with "continue" after removing common prefixes
-    prompt_clean = control_prompt
-    for prefix in ["you can ", "you may ", "yes ", "please ", "go ahead and ", "go on and "]:
-        if prompt_clean.startswith(prefix):
-            prompt_clean = prompt_clean[len(prefix):].strip()
-    # Note: We only treat bare "yes/ok/no" as continue/repeat *when a pause is pending* (see below),
-    # to avoid hijacking normal conversational turns.
-    is_continue = control_prompt in continue_variations or prompt_clean == "continue" or prompt_clean.endswith(" continue")
-    
-    # Detect "repeat" variations
-    repeat_variations = {
-        "repeat", "repeat that", "say that again", "can you repeat", 
-        "repeat the last part", "can you repeat that", "say it again",
-        "repeat please", "please repeat"
-    }
-    is_repeat = control_prompt in repeat_variations or "repeat" in control_prompt.split()
-
-    # If we have a pending continuation, interpret short acknowledgements to the pause prompt:
-    # - "yes" => continue
-    # - "no"  => repeat (per UX request)
-    if SESSION_STATE and SESSION_STATE.has_pending_continuation(session_id):
-        if control_prompt in {"yes", "yeah", "yep", "sure", "ok", "okay", "alright"}:
-            is_continue = True
-            is_repeat = False
-        elif control_prompt in {"no", "nope", "nah"}:
-            is_repeat = True
-            is_continue = False
-
-    # Debug logging for continuation detection
-    if is_continue or is_repeat:
-        print(f"[Generic] 🔄 [Continuation] Detected {'continue' if is_continue else 'repeat'} command: '{prompt}' (normalized: '{control_prompt}')")
-        has_pending = SESSION_STATE.has_pending_continuation(session_id) if SESSION_STATE else False
-        print(f"[Generic] 🔄 [Continuation] Has pending continuation: {has_pending}")
-
-    if SESSION_STATE and SESSION_STATE.has_pending_continuation(session_id) and (is_continue or is_repeat):
-        pending = SESSION_STATE.consume_pending_continuation(session_id)
-        pending_iter = getattr(pending, "iter", None)
-        last_sentence = (getattr(pending, "last_sentence", "") or "").strip()
-        pending_item_count = int(getattr(pending, "item_count", 0) or 0)
-
-        print(f"[Generic] ✅ [Continuation] Resuming paused stream (item_count={pending_item_count}, has_iter={pending_iter is not None})")
-
-        def _resume_stream():
-            if is_repeat and last_sentence:
-                yield "<sentence_start>\n"
-                yield last_sentence
-                yield "\n<sentence_end>\n"
-            if is_continue:
-                yield "<sentence_start>\n"
-                yield "Okay—continuing."
-                yield "\n<sentence_end>\n"
-
-            if not pending_iter:
-                # Nothing to resume; avoid confusing "I don't understand" replies.
-                yield "<sentence_start>\n"
-                yield "That’s everything I had for that. Want me to recap the last few steps?"
-                yield "\n<sentence_end>\n"
-                return
-
-            # Resume remaining iterator (pause logic may trigger again downstream)
-            # Match the normal streaming format: each token gets a newline appended
-            for tok in _pauseable_sentence_stream(pending_iter, session_id, initial_item_count=pending_item_count):
-                # Yield token with newline (matching normal streaming format: f"{token}\n")
-                if isinstance(tok, str):
-                    yield f"{tok}\n"
-                else:
-                    yield tok
-
-        return Response(stream_with_context(_resume_stream()), mimetype="text/plain")
-    
-    # Warn if continuation command detected but no pending continuation exists
-    if (is_continue or is_repeat) and not (SESSION_STATE and SESSION_STATE.has_pending_continuation(session_id)):
-        print(f"[Generic] ⚠️ [Continuation] '{prompt}' detected as continue/repeat, but no pending continuation found for session {session_id}")
-        keys = list(SESSION_STATE.pending_session_ids()) if SESSION_STATE else []
-        print(f"[Generic] ⚠️ [Continuation] Available sessions with pending continuations: {keys}")
-    
-    # ------------------------------------------------------------------
-    # Session exit handling: "stop", "that would be all", etc.
-    # ------------------------------------------------------------------
-    exit_variations = {
-        "stop", "that would be all", "that's all", "that is all",
-        "we're done", "we are done", "we're finished", "we are finished",
-        "end session", "end the session", "close session", "exit",
-        "goodbye", "bye", "farewell", "that will be all", "that'll be all",
-        "nothing else", "no more", "all done", "finished", "done"
-    }
-    # Check if normalized prompt matches any exit variation
-    is_exit = control_prompt in exit_variations
-    # Also check if prompt contains exit keywords
-    if not is_exit:
-        exit_keywords = ["stop", "that's all", "that would be all", "we're done", "end session", "goodbye"]
-        is_exit = any(keyword in control_prompt for keyword in exit_keywords)
-    
-    if is_exit:
-        print(f"[Generic] 🛑 [Session Exit] Detected exit command: '{prompt}' (normalized: '{control_prompt}')")
-        
-        # Clear any pending continuation state for this session
-        if SESSION_STATE and SESSION_STATE.has_pending_continuation(session_id):
-            SESSION_STATE.consume_pending_continuation(session_id)  # Clear it
-            print(f"[Generic] 🧹 [Session Exit] Cleared pending continuation for session {session_id}")
-        
-        def _exit_response():
-            yield "<sentence_start>\n"
-            yield "Understood. Thanks for chatting. Take care!"
-            yield "\n<sentence_end>\n"
-        
-        return Response(stream_with_context(_exit_response()), mimetype="text/plain")
     
     # Build conversation memory context for this prompt (with fallback)
     # NOTE: Conversation memory should ONLY be evaluated by memory container, not LLM container
@@ -3073,7 +2394,7 @@ def chat_tts():
     def generate_response():
         full_response_text = ""  # Accumulate full response for memory storage
         try:
-            # Determine if query is conversational (for response formatting only, not RAG triggering)
+            # Check if this is a simple conversational phrase (skip RAG and filler phrases)
             normalized_prompt = prompt.lower()
             conversational_phrases = [
                 'thank you', 'thanks', 'thank', 'thanks a lot', 'thank you very much',
@@ -3087,34 +2408,6 @@ def chat_tts():
             ]
             is_conversational = any(phrase in normalized_prompt for phrase in conversational_phrases)
             
-            # ------------------------------------------------------------------
-            # RAG decision (simplified + predictable)
-            # ------------------------------------------------------------------
-            # Goal:
-            # - Remove brittle "rules" (conversational vs info-seeking heuristics) from RAG gating.
-            # - Keep a small everyday-language bypass list (e.g., "how are you") that *never* uses RAG.
-            # - Otherwise, use ONLY a quick substring/fuzzy check to decide if RAG should run.
-            #
-            # This makes behavior deterministic:
-            #   bypass_hit -> no RAG
-            #   else quick_content_match -> RAG
-            #   else -> no RAG
-            # PRIMARY DECISION: Check if query is conversational FIRST (before RAG check)
-            # Conversational queries should NEVER use RAG/CoT model
-            normalized_prompt = prompt.lower().strip()
-            conversational_phrases = [
-                'thank you', 'thanks', 'thank', 'thanks a lot', 'thank you very much',
-                'goodbye', 'bye', 'see you', 'see ya', 'farewell',
-                'you\'re welcome', 'no problem', 'my pleasure', 'anytime',
-                'hello', 'hi', 'hey', 'greetings',
-                'how are you', 'how\'s it going', 'how\'s everything', 'how do you do',
-                'ok', 'okay', 'sure', 'alright', 'got it', 'understood',
-                'yes', 'yeah', 'yep', 'no', 'nope',
-                'please', 'excuse me', 'sorry', 'pardon',
-                "that's fine", "that is fine", "it's fine", "it is fine", "no that's fine", "no that is fine"
-            ]
-            is_conversational = any(phrase in normalized_prompt for phrase in conversational_phrases)
-            
             # Exclude information-seeking questions from being marked as conversational
             information_seeking_patterns = [
                 'do you know', 'who is', 'who are', 'who was', 'who were',
@@ -3123,37 +2416,48 @@ def chat_tts():
                 'when is', 'when are', 'when was', 'when were',
                 'why is', 'why are', 'why was', 'why were',
                 'how is', 'how are', 'how was', 'how were',
-                'tell me about', 'tell me who', 'tell me what', 'tell me where', 'tell me when',
-                'what about', 'what do you know about'
+                'tell me about', 'tell me who', 'tell me what', 'tell me where',
+                'can you tell me', 'could you tell me', 'would you tell me'
             ]
-            if any(pattern in normalized_prompt for pattern in information_seeking_patterns):
-                is_conversational = False
-            
-            # PRIMARY DECISION: Use quick_content_match to determine if RAG should be used
-            # quick_content_match extracts only key terms (names, important nouns) and skips everyday words
-            will_use_rag = False
-            print(f"[Generic] 🔍 [RAG Decision] Starting RAG decision check - RAG_MODE={RAG_MODE}, is_conversational={is_conversational}")
-
+            # Only override conversational if the info-seeking pattern is NOT
+            # a substring of a matched conversational phrase
             if is_conversational:
-                print(f"[Generic] 🔍 [RAG Decision] Conversational query detected - skipping RAG (will use base model)")
-            elif RAG_MODE in ("CPU", "GPU"):
+                matched_conv = [p for p in conversational_phrases if p in normalized_prompt]
+                matched_info = [p for p in information_seeking_patterns if p in normalized_prompt]
+                for info_pat in matched_info:
+                    if not any(info_pat in conv_pat for conv_pat in matched_conv):
+                        is_conversational = False
+                        break
+            else:
+                if any(pattern in normalized_prompt for pattern in information_seeking_patterns):
+                    is_conversational = False
+            
+            # Check if RAG will be used BEFORE processing (to play filler phrase during RAG)
+            will_use_rag = False
+            rag_decision_reason = []  # Track why RAG decision was made
+            print(f"[Generic] 🔍 [RAG Decision] Starting RAG pre-check: RAG_MODE={RAG_MODE}, is_conversational={is_conversational}")
+            
+            if RAG_MODE in ("CPU", "GPU") and not is_conversational:
+                print(f"[Generic] 🔍 [RAG Decision] RAG mode enabled and query is not conversational - checking for RAG content...")
                 try:
-                    # PRIMARY: Quick substring match on all RAG documents (extracts only key terms, skips everyday words)
+                    # Quick check: will document RAG be used?
                     client = get_rag_client()
                     if client:
+                        print(f"[Generic] 🔍 [RAG Decision] Checking document RAG quick_content_match for query: '{prompt[:60]}...'")
                         has_doc_content = client.quick_content_match(prompt)
-                        print(f"[Generic] 🔍 [RAG Decision] quick_content_match result: {has_doc_content}")
+                        print(f"[Generic] 🔍 [RAG Decision] Document RAG quick_content_match result: {has_doc_content}")
                         if has_doc_content:
                             will_use_rag = True
-                            print(f"[Generic] ✅ [RAG Decision] Document RAG will be used (quick_content_match=True)")
+                            rag_decision_reason.append("document_rag_match")
+                            print(f"[Generic] ✅ [RAG Decision] Document RAG will be used - prefiltering confirmed match")
                         else:
-                            will_use_rag = False
-                            print(f"[Generic] 🔍 [RAG Decision] Document RAG quick_content_match: no relevant content found")
+                            print(f"[Generic] 🔍 [RAG Decision] Document RAG quick_content_match returned False - skipping document RAG")
                     else:
-                        print(f"[Generic] ⚠️ [RAG Decision] RAG client not available")
+                        print(f"[Generic] 🔍 [RAG Decision] No RAG client available - skipping document RAG check")
                     
-                    # Quick check: does memory RAG have relevant content?
+                    # Quick check: will memory RAG be used?
                     memory_container_url = os.environ.get('MEMORY_CONTAINER_URL', 'http://localhost:11438')
+                    print(f"[Generic] 🔍 [RAG Decision] Checking memory RAG at {memory_container_url}...")
                     try:
                         quick_match_response = requests.post(
                             f"{memory_container_url}/rag/quick-match",
@@ -3162,127 +2466,81 @@ def chat_tts():
                         )
                         if quick_match_response and quick_match_response.status_code == 200:
                             has_memory_content = quick_match_response.json().get('has_match', False)
+                            print(f"[Generic] 🔍 [RAG Decision] Memory RAG quick-match result: {has_memory_content}")
                             if has_memory_content:
                                 will_use_rag = True
-                                print(f"[Generic] ✅ Memory RAG will be used - quick_match found relevant content")
+                                rag_decision_reason.append("memory_rag_match")
+                                print(f"[Generic] ✅ [RAG Decision] Memory RAG will be used - prefiltering confirmed match")
+                            else:
+                                print(f"[Generic] 🔍 [RAG Decision] Memory RAG quick-match returned False - skipping memory RAG")
+                        else:
+                            print(f"[Generic] 🔍 [RAG Decision] Memory RAG quick-match returned status {quick_match_response.status_code if quick_match_response else 'None'}")
                     except requests.exceptions.Timeout:
+                        print(f"[Generic] 🔍 [RAG Decision] Memory RAG quick-match timeout (>0.5s) - skipping memory RAG (no filler needed)")
                         pass  # Timeout means we'll skip memory RAG, no filler needed
                     except Exception as e:
-                        print(f"[Generic] ⚠️ Memory RAG quick-match check failed: {e}")
+                        print(f"[Generic] ⚠️ [RAG Decision] Memory RAG quick-match check failed: {e}")
                 except Exception as e:
-                    print(f"[Generic] ⚠️ RAG pre-check failed: {e}")
+                    print(f"[Generic] ⚠️ [RAG Decision] RAG pre-check failed: {e}")
+            
+            # Log final RAG decision
+            if will_use_rag:
+                print(f"[Generic] ✅ [RAG Decision] FINAL DECISION: RAG WILL BE USED (reasons: {', '.join(rag_decision_reason)})")
+            else:
+                if RAG_MODE not in ("CPU", "GPU"):
+                    print(f"[Generic] 🔍 [RAG Decision] FINAL DECISION: RAG will NOT be used - RAG_MODE={RAG_MODE} (not CPU/GPU)")
+                elif is_conversational:
+                    print(f"[Generic] 🔍 [RAG Decision] FINAL DECISION: RAG will NOT be used - query is conversational")
+                else:
+                    print(f"[Generic] 🔍 [RAG Decision] FINAL DECISION: RAG will NOT be used - no RAG content match found")
+            
+            # If RAG will be used, yield filler phrase first (RAG processing happens during playback)
+            # Skip filler phrase for conversational queries
+            if will_use_rag and not is_conversational:
+                filler_phrase = get_filler_phrase()
+                print(f"[Generic] 💭 [Filler Phrase] Yielding filler phrase before RAG processing: '{filler_phrase}'")
+                print(f"[Generic] 💭 [Filler Phrase] will_use_rag={will_use_rag}, is_conversational={is_conversational}")
+                # Yield filler phrase with proper sentence tags - must be complete before LLM response
+                # Format: each tag on its own line, filler phrase text as complete sentence
+                # The speaker uses iter_lines(), so each yield should be a complete line ending with \n
+                yield "<sentence_start>\n"
+                print(f"[Generic] 💭 [Filler Phrase] Yielded <sentence_start> tag")
+                # Yield filler phrase as complete text (speaker will buffer until <sentence_end>)
+                # Split into words and yield each word on its own line to match LLM response format
+                words = filler_phrase.split()
+                print(f"[Generic] 💭 [Filler Phrase] Splitting into {len(words)} words: {words}")
+                for i, word in enumerate(words):
+                    word_line = f"{word} \n" if i < len(words) - 1 else f"{word}\n"
+                    yield word_line
+                    print(f"[Generic] 💭 [Filler Phrase] Yielded word {i+1}/{len(words)}: '{word_line.rstrip()}'")
+                yield "<sentence_end>\n"
+                print(f"[Generic] 💭 [Filler Phrase] Yielded <sentence_end> tag - filler phrase complete (sent {len(words)} words)")
+                # Flush the yield to ensure it's sent immediately
+                import sys
+                if hasattr(sys.stdout, 'flush'):
+                    sys.stdout.flush()
+                # Small delay to ensure filler phrase is fully processed before LLM response starts
+                time.sleep(0.1)  # 100ms delay to ensure TTS starts processing filler phrase
+                print(f"[Generic] 💭 [Filler Phrase] Delay complete - proceeding to LLM response")
+            else:
+                print(f"[Generic] 💭 [Filler Phrase] Skipping filler phrase: will_use_rag={will_use_rag}, is_conversational={is_conversational}")
             
             # Use streaming mode to get tokens as they're generated, with memory context
-            # NOTE: Filler phrase will be yielded separately in get_response_stream() to avoid CoT filter buffering
-            print(f"[Generic] 🔍 [Stream] Calling handle_conversation() with stream=True")
-            
-            # Check if this is a summary/advice query BEFORE calling handle_conversation
-            # Summary queries bypass CoT filter (base model generates natural summaries)
-            is_summary_query_flag = False
-            if RAG_SUMMARY_AVAILABLE and check_summary_query:
-                is_summary_query_flag = check_summary_query(prompt)
-                if is_summary_query_flag:
-                    print(f"[Generic] 📝 [Summary Mode] Detected summary/advice query - will bypass CoT filter")
-            
             result = handle_conversation(prompt, session_id, memory_context=memory_context, stream=True)
             
             # Check if result is a generator (streaming)
             if hasattr(result, '__iter__') and not isinstance(result, str):
-                print(f"[Generic] 🔍 [Stream] Processing stream from handle_conversation()")
-                
-                # If this is a summary query, pass through directly without CoT filter
-                if is_summary_query_flag:
-                    print(f"[Generic] 📝 [Summary Mode] Passing base model summary through without CoT filter")
-                    # Summary responses from base model need normalization (dicts -> strings)
-                    # Then wrap with sentence tags for proper TTS formatting
-                    normalized_chunks = _normalize_stream_chunks(result)
-                    yield "<sentence_start>\n"
-                    for chunk in normalized_chunks:
-                        if chunk:  # Skip empty chunks
-                            yield chunk
-                    yield "\n<sentence_end>\n"
-                    return
-                
-                # Special-case: some internal generators (e.g., validate_query() clarification)
-                # already yield sentence tags (<sentence_start>/<sentence_end>). If we run those through
-                # _word_stream_from_chunks + _sentence_tag_stream we can swallow or distort them,
-                # resulting in a silent 0-token output. Detect and pass through directly.
+                # Reduced debug logging for performance
                 normalized_chunks = _normalize_stream_chunks(result)
-                normalized_chunks = iter(normalized_chunks)
-                first_chunk = None
-                try:
-                    first_chunk = next(normalized_chunks)
-                except StopIteration:
-                    first_chunk = None
-
-                def _chain_first(first, rest_iter):
-                    if first is not None:
-                        yield first
-                    for x in rest_iter:
-                        yield x
-
-                if isinstance(first_chunk, str) and "<sentence_start>" in first_chunk:
-                    print("[Generic] ✅ [Stream] Detected pre-tagged sentence stream (passthrough)")
-                    token_count = 0
-                    full_response_text = ""
-                    clarification_yielded = False
-                    for chunk in _chain_first(first_chunk, normalized_chunks):
-                        if not chunk:
-                            continue
-                        token_count += 1
-                        # Accumulate non-control text for memory storage
-                        stripped = chunk.strip()
-                        if stripped and stripped not in ("<sentence_start>", "<sentence_end>"):
-                            full_response_text += stripped + " "
-                            # Check if this is already a clarification message
-                            if "I'm sorry, I didn't catch that" in stripped:
-                                clarification_yielded = True
-                        yield chunk if chunk.endswith("\n") else (chunk + "\n")
-                    # Only yield fallback clarification if we haven't already yielded one
-                    if token_count == 0 and not clarification_yielded:
-                        print("[Generic] ⚠️ WARNING: No tokens yielded from pre-tagged stream!")
-                        # Fallback: speak a generic clarification
-                        yield "<sentence_start>\n"
-                        yield "I'm sorry, I didn't catch that. Can you repeat your question?\n"
-                        yield "<sentence_end>\n"
-                    print(f"[Generic] ✅ Streamed response complete (yielded {token_count} tokens)")
-                    if full_response_text.strip():
-                        try:
-                            conversation_orchestrator._store_in_memory(
-                                full_response_text.strip(),
-                                {
-                                    "session_id": session_id,
-                                    "timestamp": time.time(),
-                                    "type": "assistant_response",
-                                },
-                            )
-                            print(f"[Generic] 💾 Stored assistant response in conversation memory")
-                        except Exception as e:
-                            print(f"[Generic] ⚠️ Failed to store assistant response in memory (continuing): {e}")
-                    return
-
-                # Normal path: word/sentence streaming for raw model output
-                normalized_chunks = _chain_first(first_chunk, normalized_chunks)
                 word_stream = _word_stream_from_chunks(normalized_chunks)
                 sentence_stream = _sentence_tag_stream(word_stream)
-
-                # Wrap with session-aware pause buffering for long lists / step-by-step instructions.
-                sentence_stream = _pauseable_sentence_stream(sentence_stream, session_id, initial_item_count=0)
                 token_count = 0
-                clarification_yielded = False
-                # full_response_text is already initialized at function level (line 2738)
                 try:
-                    print(f"[Generic] 🔍 [Stream] Getting first token from sentence_stream...")
                     first_token = next(sentence_stream)
                     token_count += 1
-                    print(f"[Generic] ✅ [Stream] First token received: '{first_token[:50]}...' (type: {type(first_token)})")
                     # Yield the first token
                     if not (first_token.startswith('<') and first_token.endswith('>')):
                         full_response_text += first_token
-                        # Check if this is already a clarification message
-                        if "I'm sorry, I didn't catch that" in first_token:
-                            clarification_yielded = True
-                    print(f"[Generic] 💭 [Stream] Yielding first token: '{first_token[:50]}...'")
                     yield f"{first_token}\n"
                     # Continue with rest
                     for token in sentence_stream:
@@ -3290,37 +2548,21 @@ def chat_tts():
                         # Accumulate tokens for memory storage (skip control tags)
                         if not (token.startswith('<') and token.endswith('>')):
                             full_response_text += token
-                            # Check if this is already a clarification message
-                            if "I'm sorry, I didn't catch that" in token:
-                                clarification_yielded = True
                         yield f"{token}\n"
                 except StopIteration:
-                    # Only yield clarification if we haven't already yielded one
-                    if not clarification_yielded:
-                        # Instead of yielding empty tags (silent), speak a clarification.
-                        yield "<sentence_start>\n"
-                        yield "I'm sorry, I didn't catch that. Can you repeat your question?\n"
-                        yield "<sentence_end>\n"
-                        clarification_yielded = True
+                    # Yield empty sentence tags so speaker knows stream ended
+                    yield "<sentence_start>\n"
+                    yield "<sentence_end>\n"
                 except Exception as e:
                     print(f"[Generic] ⚠️ ERROR iterating sentence_stream: {e}")
                     import traceback
                     traceback.print_exc()
-                    # Only yield clarification if we haven't already yielded one
-                    if not clarification_yielded:
-                        # Speak a clarification instead of silence
-                        yield "<sentence_start>\n"
-                        yield "I'm sorry, I didn't catch that. Can you repeat your question?\n"
-                        yield "<sentence_end>\n"
-                        clarification_yielded = True
-                
-                # Only yield clarification if we haven't already yielded one and no tokens were yielded
-                if token_count == 0 and not clarification_yielded:
-                    print(f"[Generic] ⚠️ WARNING: No tokens yielded from sentence_stream!")
-                    # Speak a clarification (belt-and-suspenders)
+                    # Yield empty sentence tags so speaker knows stream ended
                     yield "<sentence_start>\n"
-                    yield "I'm sorry, I didn't catch that. Can you repeat your question?\n"
                     yield "<sentence_end>\n"
+                
+                if token_count == 0:
+                    print(f"[Generic] ⚠️ WARNING: No tokens yielded from sentence_stream!")
                 
                 print(f"[Generic] ✅ Streamed response complete (yielded {token_count} tokens)")
                 
@@ -3376,112 +2618,8 @@ def chat_tts():
             for token in sentence_stream:
                 yield f"{token}\n"
     
-    # CRITICAL: Only apply CoT filter for RAG queries (use_cot_model=True)
-    # Base model queries should stream directly without CoT filtering for low latency
-    # We need to check if RAG will be used before applying filters
-    def get_response_stream():
-        """Determine if we should apply CoT filter based on whether RAG will be used"""
-        # Yield filler phrase IMMEDIATELY when RAG is detected (before CoT filter)
-        # This ensures it's spoken right away and not buffered by the CoT filter
-        # Use the same RAG decision logic as generate_response() to ensure consistency
-        will_use_rag = False
-        # Use word boundaries to avoid false positives (e.g., "who's" matching "who")
-        import re
-        prompt_lower = prompt.lower()
-        conversational_patterns = [
-            r'\bthank you\b', r'\bthanks\b', r'\bthank\b', r'\bthanks a lot\b', r'\bthank you very much\b',
-            r'\bgoodbye\b', r'\bbye\b', r'\bsee you\b', r'\bsee ya\b', r'\bfarewell\b',
-            r'\byou\'re welcome\b', r'\bno problem\b', r'\bmy pleasure\b', r'\banytime\b',
-            r'\bhello\b', r'\bhi\b', r'\bhey\b', r'\bgreetings\b',
-            r'\bhow are you\b', r'\bhow\'s it going\b', r'\bhow\'s everything\b', r'\bhow do you do\b',
-            r'\bok\b', r'\bokay\b', r'\bsure\b', r'\balright\b', r'\bgot it\b', r'\bunderstood\b',
-            r'\byes\b', r'\byeah\b', r'\byep\b', r'\bno\b', r'\bnope\b',
-            r'\bplease\b', r'\bexcuse me\b', r'\bsorry\b', r'\bpardon\b',
-            r"\bthat's fine\b", r"\bthat is fine\b", r"\bit's fine\b", r"\bit is fine\b", r"\bno that's fine\b", r"\bno that is fine\b"
-        ]
-        is_conversational = any(re.search(pattern, prompt_lower) for pattern in conversational_patterns)
-        
-        # Exclude information-seeking questions from being marked as conversational (same logic as handle_conversation)
-        # CRITICAL: This must happen BEFORE using is_conversational to skip RAG
-        information_seeking_patterns = [
-            'do you know', 'who is', 'who are', 'who was', 'who were',
-            'what is', 'what are', 'what was', 'what were',
-            'where is', 'where are', 'where was', 'where were',
-            'when is', 'when are', 'when was', 'when were',
-            'why is', 'why are', 'why was', 'why were',
-            'how is', 'how are', 'how was', 'how were',
-            'tell me about', 'tell me who', 'tell me what', 'tell me where', 'tell me when',
-            'what about', 'what do you know about',
-            'give me', 'show me', 'find', 'search', 'list', 'explain', 'describe'
-        ]
-        if any(pattern in prompt_lower for pattern in information_seeking_patterns):
-            is_conversational = False
-            print(f"[Generic] 🔍 [Filler Phrase Check] Information-seeking query detected - overriding conversational flag")
-        
-        if not is_conversational and RAG_MODE in ("CPU", "GPU"):
-            try:
-                client = get_rag_client()
-                if client:
-                    will_use_rag = client.quick_content_match(prompt)
-                    print(f"[Generic] 🔍 [Filler Phrase Check] quick_content_match result: {will_use_rag}")
-                    # Also check memory RAG
-                    memory_container_url = os.environ.get('MEMORY_CONTAINER_URL', 'http://localhost:11438')
-                    try:
-                        quick_match_response = requests.post(
-                            f"{memory_container_url}/rag/quick-match",
-                            json={"query": prompt},
-                            timeout=0.5
-                        )
-                        if quick_match_response.status_code == 200:
-                            match_data = quick_match_response.json()
-                            if match_data.get("has_match", False):
-                                will_use_rag = True
-                                print(f"[Generic] 🔍 [Filler Phrase Check] Memory RAG match found: {will_use_rag}")
-                    except (requests.exceptions.Timeout, Exception) as e:
-                        print(f"[Generic] 🔍 [Filler Phrase Check] Memory RAG check failed: {e}")
-            except Exception as e:
-                print(f"[Generic] ⚠️ [Filler Phrase Check] RAG check failed: {e}")
-        
-        print(f"[Generic] 🔍 [Filler Phrase Check] Final will_use_rag: {will_use_rag}, is_conversational: {is_conversational}")
-        
-        # Check if this is a summary/advice query FIRST (before using the flag)
-        is_summary_query_flag = False
-        if RAG_SUMMARY_AVAILABLE and check_summary_query:
-            is_summary_query_flag = check_summary_query(prompt)
-            if is_summary_query_flag:
-                print(f"[Generic] 📝 [Summary Mode] Detected summary/advice query in get_response_stream - bypassing CoT filter")
-        
-        # NOTE: Filler phrase for regular RAG queries is now handled inside rag_cot module
-        # We only yield filler phrase here for summary queries (which don't use rag_cot module)
-        # Summary queries handle their own filler phrases in rag_summary module
-        if will_use_rag and not is_summary_query_flag:
-            # Regular RAG query - filler phrase will be handled by rag_cot module
-            print(f"[Generic] ✅ [Filler Phrase] Regular RAG query - filler phrase will be handled by RAG CoT module")
-        elif will_use_rag and is_summary_query_flag:
-            # Summary query - filler phrase handled by rag_summary module
-            print(f"[Generic] ✅ [Filler Phrase] Summary query - filler phrase will be handled by RAG Summary module")
-        
-        # IMPORTANT: Check summary queries FIRST (even if RAG is used, summaries bypass CoT filter)
-        # For base model queries (no RAG), stream immediately without any filtering
-        # For RAG queries, apply filters to extract final answer
-        if is_summary_query_flag:
-            # Summary query - pass through without filters (base model generates summaries)
-            # Summary queries use RAG but bypass CoT filter (they use CoT extraction + base model summary)
-            print(f"[Generic] 📝 [Summary Mode] Passing summary response through without CoT filter (will_use_rag={will_use_rag})")
-            yield from generate_response()
-        elif will_use_rag:
-            # RAG query - use RAG CoT module (handles filler phrase and CoT filter internally)
-            # The filler phrase is now handled inside the RAG CoT module, so we don't need to yield it here
-            print(f"[Generic] ✅ [RAG CoT] RAG query detected - will use RAG CoT module (will_use_rag=True)")
-            # The RAG CoT module will be called from handle_conversation, so just pass through
-            yield from generate_response()
-        else:
-            # Base model query (no RAG) - use conversation module for clean, direct streaming
-            print(f"[Generic] ✅ [Conversation] Using Conversation module for base model query (will_use_rag=False)")
-            yield from generate_response()
-    
     return Response(
-        stream_with_context(get_response_stream()),
+        stream_with_context(filter_cot_reasoning(filter_think_blocks(generate_response()))),
         mimetype="text/plain",
         headers={
             "Cache-Control": "no-cache",
@@ -3520,17 +2658,6 @@ def _clean_text_formatting(text: str) -> str:
     text = re.sub(r'\*\*+', '', text)  # Remove multiple asterisks
     text = re.sub(r'(?<!\w)\*(?!\w)', '', text)  # Remove single asterisks not part of words
     
-    # Remove LaTeX/math formatting (before other processing)
-    # Remove LaTeX commands like \text{}, \frac{}, etc.
-    text = re.sub(r'\\text\{([^}]+)\}', r'\1', text)  # \text{or} -> or
-    text = re.sub(r'\\frac\{([^}]+)\}\{([^}]+)\}', r'\1/\2', text)  # \frac{3}{4} -> 3/4
-    # Remove LaTeX math delimiters \( and \)
-    text = re.sub(r'\\\(', '', text)  # Remove \(
-    text = re.sub(r'\\\)', '', text)  # Remove \)
-    # Remove other common LaTeX commands
-    text = re.sub(r'\\[a-zA-Z]+\{([^}]*)\}', r'\1', text)  # \command{text} -> text
-    text = re.sub(r'\\[a-zA-Z]+', '', text)  # Remove remaining LaTeX commands
-    
     # Fix missing spaces after punctuation
     text = re.sub(r'([a-zA-Z0-9])([.!?])([a-zA-Z-])', r'\1\2 \3', text)  # word.word -> word. word
     text = re.sub(r'([,.!?:;])([a-zA-Z])', r'\1 \2', text)  # word,word -> word, word
@@ -3550,98 +2677,20 @@ def _normalize_stream_chunks(chunk_iter):
     """
     for chunk in chunk_iter:
         if isinstance(chunk, dict):
-            # Extract content from dict chunks (OpenAI/llama-cpp-python format)
-            content = None
             if 'choices' in chunk and len(chunk['choices']) > 0:
-                choice0 = chunk['choices'][0] or {}
-                # OpenAI chat-style streaming: {"choices":[{"delta":{"content":"..."}}]}
-                delta = choice0.get('delta') or {}
-                if isinstance(delta, dict):
-                    content = delta.get('content', '') or ''
-                # llama-cpp completion-style streaming often uses {"choices":[{"text":"..."}]}
-                if not content:
-                    content = choice0.get('text', '') or ''
-                # Some formats: {"choices":[{"message":{"content":"..."}}]}
-                if not content:
-                    msg = choice0.get('message') or {}
-                    if isinstance(msg, dict):
-                        content = msg.get('content', '') or ''
+                delta = chunk['choices'][0].get('delta', {})
+                content = delta.get('content', '')
+                if content:
+                    yield content
             elif 'content' in chunk:
                 content = chunk.get('content', '')
-            elif 'text' in chunk:
-                content = chunk.get('text', '')
-            
-            # Only yield if there's actual content (skip metadata chunks)
-            if content:
-                yield content
-            # Skip metadata chunks (dicts without content) - don't convert to string
-            continue
+                if content:
+                    yield content
         elif isinstance(chunk, str):
-            # Check if this is a stringified dict (starts with '{' and contains 'id' or 'choices')
-            # This shouldn't happen if normalization is applied correctly, but handle it as fallback
-            chunk_stripped = chunk.strip()
-            if chunk_stripped.startswith('{') and ('id' in chunk or 'choices' in chunk or 'delta' in chunk or "'id'" in chunk):
-                # Try to parse as JSON or Python dict literal
-                content = None
-                try:
-                    import json
-                    # Try JSON first (double quotes)
-                    parsed = json.loads(chunk)
-                    if isinstance(parsed, dict):
-                        if 'choices' in parsed and len(parsed['choices']) > 0:
-                            choice0 = parsed['choices'][0] or {}
-                            delta = choice0.get('delta') or {}
-                            if isinstance(delta, dict):
-                                content = delta.get('content', '') or ''
-                            if not content:
-                                content = choice0.get('text', '') or ''
-                            if not content:
-                                msg = choice0.get('message') or {}
-                                if isinstance(msg, dict):
-                                    content = msg.get('content', '') or ''
-                        elif 'content' in parsed:
-                            content = parsed.get('content', '')
-                        elif 'text' in parsed:
-                            content = parsed.get('text', '')
-                        # Skip metadata chunks without content
-                        if content:
-                            yield content
-                        continue
-                except (json.JSONDecodeError, ValueError):
-                    # Not valid JSON, might be Python dict string (single quotes) - try ast.literal_eval
-                    try:
-                        import ast
-                        if chunk_stripped.startswith('{') and chunk_stripped.endswith('}'):
-                            parsed = ast.literal_eval(chunk)  # Safe for dict literals
-                            if isinstance(parsed, dict):
-                                if 'choices' in parsed and len(parsed['choices']) > 0:
-                                    choice0 = parsed['choices'][0] or {}
-                                    delta = choice0.get('delta') or {}
-                                    if isinstance(delta, dict):
-                                        content = delta.get('content', '') or ''
-                                    if not content:
-                                        content = choice0.get('text', '') or ''
-                                    if not content:
-                                        msg = choice0.get('message') or {}
-                                        if isinstance(msg, dict):
-                                            content = msg.get('content', '') or ''
-                                elif 'content' in parsed:
-                                    content = parsed.get('content', '')
-                                elif 'text' in parsed:
-                                    content = parsed.get('text', '')
-                                if content:
-                                    yield content
-                                continue
-                    except (SyntaxError, ValueError, TypeError):
-                        # Not a valid dict literal, treat as regular string
-                        pass
-            # Regular string chunk - yield it
             if chunk:
                 yield chunk
         else:
-            # For other types, convert to string only if it's not a dict-like object
-            if not (hasattr(chunk, 'get') and callable(getattr(chunk, 'get', None))):
-                yield str(chunk)
+            yield str(chunk)
 
 
 def _find_word_boundary(buffer: str):
@@ -3698,9 +2747,7 @@ def _sentence_tag_stream(word_stream):
     prev_word = None
     buffered_word = None  # One-token lookahead buffer for multi-token abbreviations
     pending_sentence_end = False  # Track if we detected sentence-ending punctuation but haven't closed yet (for trailing punctuation)
-
-    # NOTE: Pause/continue logic is handled at a higher layer (session-aware) so we can resume.
-    # Do NOT pause inside this function or we will lose the remaining stream.
+    
     # Abbreviation expansions (abbrev -> full text)
     abbrev_expansions = {
         'e.g.': 'for example',
@@ -3792,7 +2839,7 @@ def _sentence_tag_stream(word_stream):
             continue
         
         word_stripped = word.strip()
-
+        
         # Skip standalone dashes that are formatting artifacts (no meaningful content)
         # These often appear as list formatting but without actual list items
         if word_stripped == '-' and not sentence_open and not pending_sentence_end:
@@ -3886,6 +2933,516 @@ def _sentence_tag_stream(word_stream):
         yield "<sentence_end>"
 
 
+def filter_cot_reasoning(generator):
+    """
+    Filter streaming output to buffer and skip CoT REASONING section until FINAL ANSWER is found.
+    Only yields content after FINAL ANSWER: marker.
+    Also filters out items that were marked [DISCARD] in the reasoning section.
+    Works with sentence-tagged token stream.
+    Extraction logic matches test_rag_cot_model_colab.py exactly.
+    STREAMS tokens incrementally for low TTS latency (doesn't wait for full response).
+    
+    IMPORTANT: Only applies CoT filtering if REASONING: is detected. Otherwise, passes through
+    the response directly (for conversational queries that don't use CoT).
+    """
+    text_buffer = ""  # Accumulate text for marker detection
+    reasoning_buffer = ""  # Buffer reasoning section to extract DISCARD items
+    found_final_answer = False
+    discarded_items = set()
+    kept_items = []  # Store KEEP items from reasoning to verify final answer completeness
+    answer_buffer = []  # Buffer answer tokens for cleaning
+    collecting_answer = False
+    is_cot_response = False  # Track if this is a CoT response (has REASONING:)
+    cot_detected = False  # Track if we've detected CoT format
+    
+    def extract_text(token):
+        """Extract text content from token (removing sentence tags)"""
+        if not token:
+            return ""
+        # Remove sentence tags and newlines for marker detection
+        text = token.replace("<sentence_start>", "").replace("<sentence_end>", "").replace("\n", " ").strip()
+        return text
+    
+    def extract_discarded_items(reasoning_text):
+        """Extract names/items that were marked [DISCARD] in reasoning section"""
+        discarded = set()
+        # Simple pattern: Item: [Name] ... Action: [DISCARD]
+        pattern = r'- Item:\s*([^\n-]+?)(?:\s*-\s*Evidence:.*?)?\s*-\s*Action:\s*\[DISCARD\]'
+        matches = re.findall(pattern, reasoning_text, re.IGNORECASE | re.DOTALL)
+        for match in matches:
+            item_name = match.strip()
+            # Remove any trailing role/evidence info
+            item_name = re.sub(r'\s*-\s*Role:.*$', '', item_name, flags=re.IGNORECASE)
+            item_name = re.sub(r'\s*-\s*Evidence:.*$', '', item_name, flags=re.IGNORECASE)
+            item_name = item_name.strip()
+            if item_name:
+                discarded.add(item_name.lower())
+        return discarded
+    
+    def extract_kept_items(reasoning_text):
+        """Extract names/items that were marked [KEEP] in reasoning section"""
+        kept_items = []
+        # Pattern: Item: [Name] ... Action: [KEEP]
+        # Handle both formats: "- Item:Name - Evidence:..." and "- Item: Name - Evidence:..."
+        # Use non-greedy match that stops at " - Evidence:" or " - Action:"
+        pattern = r'- Item:\s*([^-]+?)(?:\s*-\s*(?:Evidence|Action):)'
+        matches = re.findall(pattern, reasoning_text, re.IGNORECASE | re.DOTALL)
+        
+        # Also check that the Action is [KEEP] by finding full blocks
+        # More robust: find all "- Item: ... - Action: [KEEP]" blocks
+        full_pattern = r'- Item:\s*([^-]+?)\s*-\s*(?:Evidence:[^-]+?-\s*)?Action:\s*\[KEEP\]'
+        full_matches = re.findall(full_pattern, reasoning_text, re.IGNORECASE | re.DOTALL)
+        
+        # Use full_matches (more reliable)
+        for match in full_matches:
+            item_name = match.strip()
+            # Remove any trailing role/evidence info that might have been captured
+            item_name = re.sub(r'\s*-\s*Role:.*$', '', item_name, flags=re.IGNORECASE)
+            item_name = re.sub(r'\s*-\s*Evidence:.*$', '', item_name, flags=re.IGNORECASE)
+            item_name = item_name.strip()
+            if item_name:
+                kept_items.append(item_name)
+        
+        # If no matches found with full pattern, try the simpler pattern and verify Action is KEEP
+        if not kept_items:
+            for match in matches:
+                # Check if this item has Action: [KEEP] after it
+                # Find the position of this match
+                item_match_pos = reasoning_text.find(f"- Item: {match.strip()}")
+                if item_match_pos != -1:
+                    # Look for Action after this item
+                    after_item = reasoning_text[item_match_pos:]
+                    if re.search(r'Action:\s*\[KEEP\]', after_item, re.IGNORECASE):
+                        item_name = match.strip()
+                        item_name = re.sub(r'\s*-\s*Role:.*$', '', item_name, flags=re.IGNORECASE)
+                        item_name = re.sub(r'\s*-\s*Evidence:.*$', '', item_name, flags=re.IGNORECASE)
+                        item_name = item_name.strip()
+                        if item_name and item_name not in kept_items:
+                            kept_items.append(item_name)
+        
+        return kept_items
+    
+    # Buffer tokens to detect if this is a CoT response
+    token_buffer_list = []  # Store tokens to replay if not CoT
+    detection_buffer = ""  # Text for CoT detection
+    current_sentence_tokens = []  # Track tokens in current sentence (for filler phrase detection)
+    in_sentence = False  # Track if we're inside a sentence block
+    
+    # First pass: detect CoT by buffering initial tokens
+    # IMPORTANT: Pass through complete sentences immediately if they don't contain CoT markers
+    # This ensures filler phrases are sent to TTS immediately
+    for token in generator:
+        token_clean = token.strip() if token else ""
+        
+        # Track sentence boundaries
+        if token_clean == "<sentence_start>":
+            in_sentence = True
+            current_sentence_tokens = [token]
+            token_buffer_list.append(token)
+            continue
+        elif token_clean == "<sentence_end>":
+            if in_sentence:
+                current_sentence_tokens.append(token)
+                # Check if this complete sentence contains CoT markers
+                sentence_text = " ".join(extract_text(t) for t in current_sentence_tokens if extract_text(t))
+                if "REASONING:" in sentence_text or "Reasoning:" in sentence_text:
+                    # This sentence contains CoT markers - buffer it and start CoT processing
+                    is_cot_response = True
+                    cot_detected = True
+                    print(f"[Generic] 🔍 [CoT Filter] CoT response detected in sentence - applying reasoning filter")
+                    # Add all sentence tokens to buffer
+                    for t in current_sentence_tokens:
+                        token_buffer_list.append(t)
+                        text_content = extract_text(t)
+                        if text_content:
+                            detection_buffer += text_content
+                    text_buffer = detection_buffer
+                    in_sentence = False
+                    current_sentence_tokens = []
+                    break
+                else:
+                    # Complete sentence without CoT markers - pass it through immediately (likely filler phrase)
+                    print(f"[Generic] 🔍 [CoT Filter] Passing through complete sentence immediately (no CoT markers): '{sentence_text[:60]}...'")
+                    for t in current_sentence_tokens:
+                        yield t
+                    # Remove passed-through tokens from buffer to prevent duplicate yield
+                    token_buffer_list = [x for x in token_buffer_list if x not in current_sentence_tokens]
+                    in_sentence = False
+                    current_sentence_tokens = []
+                    continue
+        
+        if in_sentence:
+            # Inside a sentence - buffer tokens
+            current_sentence_tokens.append(token)
+            token_buffer_list.append(token)
+        else:
+            # Outside sentence - buffer for detection
+            token_buffer_list.append(token)
+            text_content = extract_text(token)
+            
+            if text_content:
+                detection_buffer += text_content
+                if not text_content.rstrip().endswith(('.', ',', '!', '?', ':', ';', ' ', '\n')):
+                    detection_buffer += " "
+        
+        # Check for CoT markers in detection buffer
+        if "REASONING:" in detection_buffer or "Reasoning:" in detection_buffer:
+            is_cot_response = True
+            cot_detected = True
+            print(f"[Generic] 🔍 [CoT Filter] CoT response detected - applying reasoning filter")
+            # Use buffered tokens for CoT processing
+            text_buffer = detection_buffer
+            break
+        elif len(detection_buffer) > 300:
+            # After 300 chars with no CoT markers, assume non-CoT
+            if not any(marker in detection_buffer for marker in ["REASONING:", "Reasoning:", "FINAL ANSWER:", "Final Answer:", "- Item:", "- Evidence:", "- Action:"]):
+                is_cot_response = False
+                cot_detected = True
+                print(f"[Generic] 🔍 [CoT Filter] Non-CoT response detected - passing through directly")
+                # Yield all buffered tokens and continue passing through
+                for buffered_token in token_buffer_list:
+                    yield buffered_token
+                # Pass through remaining tokens
+                for remaining_token in generator:
+                    yield remaining_token
+                return  # Exit early for non-CoT responses
+    
+    # If we get here and CoT was detected, process CoT response
+    if not is_cot_response:
+        # Shouldn't happen, but safety check
+        for token in token_buffer_list:
+            yield token
+        return
+    
+    # CoT response detected - continue processing with remaining tokens
+    # text_buffer already has initial content
+    for token in generator:
+        text_content = extract_text(token)
+        
+        # CoT response - apply filtering logic
+        if not found_final_answer:
+            # Still looking for FINAL ANSWER - buffer everything
+            # Add token text directly (don't add extra space, tokens might already have spacing)
+            if text_content:
+                text_buffer += text_content
+                # Add space only if token doesn't end with punctuation or space
+                if not text_content.rstrip().endswith(('.', ',', '!', '?', ':', ';', ' ', '\n')):
+                    text_buffer += " "
+            
+            # Track reasoning section
+            if "REASONING:" in text_buffer or "Reasoning:" in text_buffer:
+                if "REASONING:" in text_buffer:
+                    reasoning_buffer = "REASONING:" + text_buffer.split("REASONING:")[-1]
+                elif "Reasoning:" in text_buffer:
+                    reasoning_buffer = "Reasoning:" + text_buffer.split("Reasoning:")[-1]
+            
+            # Check for FINAL ANSWER marker (handle case where it might be split across tokens)
+            # Also check for variations
+            marker_found = False
+            marker = None
+            if "FINAL ANSWER:" in text_buffer:
+                marker_found = True
+                marker = "FINAL ANSWER:"
+            elif "Final Answer:" in text_buffer:
+                marker_found = True
+                marker = "Final Answer:"
+            elif "FINAL ANSWER" in text_buffer and ":" in text_buffer:
+                # Handle case where colon might be in next token
+                final_pos = text_buffer.find("FINAL ANSWER")
+                if final_pos != -1 and final_pos + len("FINAL ANSWER") < len(text_buffer):
+                    # Check if colon is nearby
+                    remaining = text_buffer[final_pos + len("FINAL ANSWER"):]
+                    if ":" in remaining[:5]:  # Colon within 5 chars
+                        marker_found = True
+                        marker = "FINAL ANSWER:"
+            
+            if marker_found:
+                found_final_answer = True
+                
+                # Extract reasoning section to find DISCARD items
+                if reasoning_buffer:
+                    # Extract reasoning up to FINAL ANSWER
+                    if marker in reasoning_buffer:
+                        reasoning_text = reasoning_buffer.split(marker)[0]
+                    else:
+                        reasoning_text = reasoning_buffer
+                else:
+                    # Fallback: extract from text_buffer
+                    text_before = text_buffer.split(marker)[0]
+                    if "REASONING:" in text_before:
+                        reasoning_text = "REASONING:" + text_before.split("REASONING:")[-1]
+                    elif "Reasoning:" in text_before:
+                        reasoning_text = "Reasoning:" + text_before.split("Reasoning:")[-1]
+                    else:
+                        reasoning_text = text_before
+                
+                discarded_items = extract_discarded_items(reasoning_text)
+                
+                # Extract KEEP items from reasoning to verify final answer completeness
+                # Store at function level so it's accessible when verifying final answer
+                kept_items = extract_kept_items(reasoning_text)
+                
+                # DEBUG: Print FULL raw response (for debugging)
+                print(f"\n{'='*80}")
+                print(f"[Generic] 📋 [CoT Debug] FULL RAW TEXT BUFFER (first 2000 chars):")
+                print(f"{'='*80}")
+                clean_buffer = text_buffer.replace("<sentence_start>", "").replace("<sentence_end>", "").strip()
+                print(clean_buffer[:2000])
+                print(f"{'='*80}\n")
+                
+                # DEBUG: Print reasoning section
+                print(f"\n{'='*80}")
+                print(f"[Generic] 🧠 [CoT Reasoning Debug] REASONING OUTPUT:")
+                print(f"{'='*80}")
+                clean_reasoning = reasoning_text.replace("<sentence_start>", "").replace("<sentence_end>", "").strip()
+                print(clean_reasoning[:2000])  # Increased to 2000 chars to see more
+                print(f"{'='*80}")
+                if kept_items:
+                    print(f"[Generic] ✅ [CoT Reasoning Debug] Items marked KEEP: {kept_items}")
+                if discarded_items:
+                    print(f"[Generic] 🚫 [CoT Reasoning Debug] Items marked DISCARD: {discarded_items}")
+                print(f"{'='*80}\n")
+                
+                # Extract initial answer text from buffer (matches test script)
+                initial_answer = text_buffer.split(marker)[-1].strip()
+                if initial_answer:
+                    # Clean up initial answer
+                    initial_answer = re.sub(r'\[(KEEP|DISCARD|Action|Result)\]', '', initial_answer, flags=re.IGNORECASE)
+                    initial_answer = re.sub(r'(?m)^- .*$', '', initial_answer).strip()
+                    answer_buffer.append(initial_answer)
+                
+                collecting_answer = True
+                # Yield sentence_start immediately (signals TTS to prepare, reduces perceived latency)
+                yield "<sentence_start>\n"
+                continue
+        
+        # After FINAL ANSWER found, buffer answer tokens (need full answer for proper DISCARD filtering)
+        if found_final_answer and collecting_answer:
+            if text_content:
+                answer_buffer.append(text_content)
+            continue
+    
+    # After stream ends, clean and yield final answer (matches test script extraction)
+    if found_final_answer and answer_buffer:
+        # DEBUG: Print raw answer buffer before cleaning
+        raw_answer = " ".join(answer_buffer).strip()
+        print(f"\n{'='*80}")
+        print(f"[Generic] 📝 [CoT Debug] RAW ANSWER BUFFER (before cleaning):")
+        print(f"{'='*80}")
+        print(raw_answer[:500])
+        print(f"{'='*80}\n")
+        
+        final_answer = raw_answer
+        
+        # Cleanup matches test script exactly
+        final_answer = re.sub(r'\[(KEEP|DISCARD|Action|Result)\]', '', final_answer, flags=re.IGNORECASE)
+        final_answer = re.sub(r'(?m)^- .*$', '', final_answer).strip()  # Remove bulleted lines
+        final_answer = re.sub(r'- End of scan\.?\s*', '', final_answer, flags=re.IGNORECASE)
+        
+        # Verify final answer includes all KEEP items (extracted earlier when FINAL ANSWER marker was found)
+        # If kept_items wasn't extracted earlier (edge case), try to extract now
+        if not kept_items and (reasoning_buffer or ("REASONING:" in text_buffer or "Reasoning:" in text_buffer)):
+            reasoning_text_for_verification = reasoning_buffer if reasoning_buffer else text_buffer
+            if "REASONING:" in reasoning_text_for_verification:
+                reasoning_text_for_verification = "REASONING:" + reasoning_text_for_verification.split("REASONING:")[-1].split("FINAL ANSWER:")[0]
+            elif "Reasoning:" in reasoning_text_for_verification:
+                reasoning_text_for_verification = "Reasoning:" + reasoning_text_for_verification.split("Reasoning:")[-1].split("FINAL ANSWER:")[0]
+            
+            kept_items = extract_kept_items(reasoning_text_for_verification)
+        
+        # Verify that all KEEP items are included in final answer
+        if kept_items:
+                print(f"[Generic] ✅ [CoT Reasoning Debug] Items marked KEEP in reasoning: {kept_items}")
+                
+                # Verify that all KEEP items are present in final answer
+                final_answer_lower = final_answer.lower()
+                missing_items = []
+                for kept_item in kept_items:
+                    # Check if kept item appears in final answer
+                    # Use fuzzy matching to handle variations (e.g., "Bob Carella" vs "Bob")
+                    item_lower = kept_item.lower()
+                    item_parts = [part for part in item_lower.split() if len(part) > 2]  # Ignore short words like "as", "of", etc.
+                    
+                    # Check if at least 2 parts of multi-word names are present, or single word is present
+                    if len(item_parts) == 1:
+                        # Single word name - check if it appears
+                        if item_parts[0] not in final_answer_lower:
+                            missing_items.append(kept_item)
+                    else:
+                        # Multi-word name - check if at least 2 words appear (or first name + last name)
+                        matching_parts = sum(1 for part in item_parts if part in final_answer_lower)
+                        # Require at least first name and last name (or 2/3 for 3-word names)
+                        min_required = 2 if len(item_parts) <= 2 else 2
+                        if matching_parts < min_required:
+                            missing_items.append(kept_item)
+                        # Special case: Check if both first and last name appear (more reliable)
+                        elif len(item_parts) >= 2:
+                            first_name = item_parts[0]
+                            last_name = item_parts[-1]
+                            if first_name not in final_answer_lower or last_name not in final_answer_lower:
+                                missing_items.append(kept_item)
+                
+                if missing_items:
+                    print(f"[Generic] ⚠️ [CoT Reasoning Debug] Missing KEEP items in FINAL ANSWER: {missing_items}")
+                    print(f"[Generic] 🔧 [CoT Reasoning Debug] Reconstructing answer to include all KEEP items...")
+                    
+                    # Extract items that ARE present in the answer
+                    present_items = [item for item in kept_items if item not in missing_items]
+                    
+                    # Reconstruct answer to include all KEEP items
+                    if len(kept_items) == 1:
+                        reconstructed_answer = kept_items[0]
+                    elif len(kept_items) == 2:
+                        reconstructed_answer = f"{kept_items[0]} and {kept_items[1]}"
+                    else:
+                        # Multiple items: "X, Y, and Z"
+                        items_str = ", ".join(kept_items[:-1]) + f", and {kept_items[-1]}"
+                        reconstructed_answer = items_str
+                    
+                    # Try to preserve the original answer structure if possible
+                    # Extract the question part (e.g., "The co-founders of Ledger AI are")
+                    question_pattern = r'(The\s+(?:co-?founders|founders)\s+(?:of\s+[A-Z][\w\s]+?\s+)?(?:are|is):?\s*)'
+                    match = re.search(question_pattern, final_answer, re.IGNORECASE)
+                    if match:
+                        question_part = match.group(1)
+                        # Reconstruct with original question structure
+                        if len(kept_items) == 1:
+                            final_answer = f"{question_part.rstrip(':').rstrip()} is {kept_items[0]}."
+                        elif len(kept_items) == 2:
+                            final_answer = f"{question_part.rstrip(':').rstrip()} {kept_items[0]} and {kept_items[1]}."
+                        else:
+                            items_str = ", ".join(kept_items[:-1]) + f", and {kept_items[-1]}"
+                            final_answer = f"{question_part.rstrip(':').rstrip()} {items_str}."
+                    else:
+                        # Use reconstructed answer
+                        final_answer = reconstructed_answer
+                    
+                    print(f"[Generic] ✅ [CoT Reasoning Debug] Reconstructed FINAL ANSWER: {final_answer[:200]}...")
+        
+        # Filter DISCARD items from final answer
+        if discarded_items:
+            for discarded_name in discarded_items:
+                name_parts = discarded_name.split()
+                if len(name_parts) > 1:
+                    pattern = r'\b' + r'\s+'.join([re.escape(part) for part in name_parts]) + r'\b'
+                else:
+                    pattern = r'\b' + re.escape(discarded_name) + r'\b'
+                final_answer = re.sub(pattern, '', final_answer, flags=re.IGNORECASE)
+            # Clean up extra spaces and commas after filtering
+            final_answer = re.sub(r'\s+', ' ', final_answer)
+            final_answer = re.sub(r',\s*,', ',', final_answer)
+            final_answer = re.sub(r',\s*and\s*,', ' and ', final_answer)
+            final_answer = re.sub(r'^\s*,\s*', '', final_answer)
+            final_answer = re.sub(r'\s*,\s*$', '', final_answer)
+            if final_answer.strip():
+                print(f"[Generic] ✂️  [CoT Reasoning Debug] Filtered FINAL ANSWER (removed DISCARD items): {final_answer[:200]}...")
+        
+        if final_answer.strip():
+            print(f"[Generic] 📝 [CoT Reasoning Debug] Final FINAL ANSWER: {final_answer[:200]}...")
+            # Yield cleaned answer word by word
+            words = final_answer.strip().split()
+            for i, word in enumerate(words):
+                if i < len(words) - 1:
+                    yield word + " "
+                else:
+                    yield word
+            yield "\n<sentence_end>\n"
+        else:
+            # Empty answer - provide fallback
+            print(f"[Generic] ⚠️ [CoT Reasoning Debug] FINAL ANSWER is empty after cleaning - providing fallback")
+            fallback = "I don't understand. Could you please repeat or rephrase your question?"
+            for word in fallback.split():
+                yield word + " "
+            yield "\n<sentence_end>\n"
+    elif not found_final_answer:
+        # No FINAL ANSWER found - debug what we actually received
+        print(f"\n{'='*80}")
+        print(f"[Generic] ⚠️ [CoT Reasoning Debug] No FINAL ANSWER found in model output")
+        print(f"{'='*80}")
+        print(f"[Generic] 📝 Full text buffer (first 2000 chars): {text_buffer[:2000]}")
+        print(f"{'='*80}")
+        print(f"[Generic] 🔍 Checking for markers:")
+        print(f"  - 'FINAL ANSWER:' in buffer: {'FINAL ANSWER:' in text_buffer}")
+        print(f"  - 'Final Answer:' in buffer: {'Final Answer:' in text_buffer}")
+        print(f"  - 'FINAL' in buffer: {'FINAL' in text_buffer}")
+        print(f"  - 'ANSWER' in buffer: {'ANSWER' in text_buffer}")
+        if "REASONING:" in text_buffer or "Reasoning:" in text_buffer:
+            print(f"  - REASONING found: YES")
+            reasoning_snippet = text_buffer.split("REASONING:")[-1] if "REASONING:" in text_buffer else text_buffer.split("Reasoning:")[-1]
+            print(f"  - After REASONING (first 500 chars): {reasoning_snippet[:500]}")
+        else:
+            print(f"  - REASONING found: NO")
+        print(f"{'='*80}\n")
+        
+        # Try fallback extraction (like test script)
+        temp_response = text_buffer.strip()
+        if temp_response.startswith('t'):
+            temp_response = temp_response[1:].strip()
+        
+        clean_response = ""
+        if "FINAL ANSWER:" in temp_response:
+            clean_response = temp_response.split("FINAL ANSWER:")[-1].strip()
+            print(f"[Generic] ✅ Found FINAL ANSWER: using fallback extraction")
+        elif "Final Answer:" in temp_response:
+            clean_response = temp_response.split("Final Answer:")[-1].strip()
+            print(f"[Generic] ✅ Found Final Answer: using fallback extraction")
+        elif "- End of scan." in temp_response:
+            clean_response = temp_response.split("- End of scan.")[-1].strip()
+            print(f"[Generic] ✅ Found End of scan: using fallback extraction")
+        else:
+            # Last resort: extract KEEP items from reasoning and construct answer
+            if reasoning_buffer or ("REASONING:" in temp_response or "Reasoning:" in temp_response):
+                reasoning_text = reasoning_buffer if reasoning_buffer else temp_response
+                if "REASONING:" in reasoning_text:
+                    reasoning_text = "REASONING:" + reasoning_text.split("REASONING:")[-1]
+                elif "Reasoning:" in reasoning_text:
+                    reasoning_text = "Reasoning:" + reasoning_text.split("Reasoning:")[-1]
+                
+                kept_items = extract_kept_items(reasoning_text)
+                if kept_items:
+                    # Construct natural answer from kept items
+                    if len(kept_items) == 1:
+                        clean_response = kept_items[0]
+                    elif len(kept_items) == 2:
+                        clean_response = f"{kept_items[0]} and {kept_items[1]}"
+                    else:
+                        # Multiple items: "X, Y, and Z"
+                        items_str = ", ".join(kept_items[:-1]) + f", and {kept_items[-1]}"
+                        clean_response = items_str
+                    print(f"[Generic] ✅ Constructed answer from KEEP items: {clean_response[:200]}...")
+                else:
+                    # Try last block as fallback
+                    blocks = temp_response.split('\n\n')
+                    if len(blocks) > 1:
+                        clean_response = blocks[-1].strip()
+                        print(f"[Generic] ⚠️ Using last block as fallback: {clean_response[:200]}")
+        
+        if clean_response.strip():
+            # Clean up the extracted response
+            clean_response = re.sub(r'\[(KEEP|DISCARD|Action|Result)\]', '', clean_response, flags=re.IGNORECASE)
+            clean_response = re.sub(r'(?m)^- .*$', '', clean_response).strip()
+            if clean_response.strip():
+                print(f"[Generic] 📝 [CoT Reasoning Debug] Extracted answer via fallback: {clean_response[:200]}...")
+                yield "<sentence_start>\n"
+                words = clean_response.strip().split()
+                for i, word in enumerate(words):
+                    if i < len(words) - 1:
+                        yield word + " "
+                    else:
+                        yield word
+                yield "\n<sentence_end>\n"
+                return
+        
+        # Final fallback
+        print(f"[Generic] ⚠️ [CoT Reasoning Debug] No FINAL ANSWER found - providing fallback")
+        fallback = "I don't understand. Could you please repeat or rephrase your question?"
+        yield "<sentence_start>\n"
+        for word in fallback.split():
+            yield word + " "
+        yield "\n<sentence_end>\n"
+    
+
+
 def filter_think_blocks(generator):
     """
     Filter streaming output to remove <think> blocks and detect garbage output.
@@ -3896,10 +3453,7 @@ def filter_think_blocks(generator):
     garbage_detected = False
     
     for token in generator:
-        # Handle dict tokens
-        if isinstance(token, dict):
-            token = token.get('content', '') or token.get('text', '') or str(token)
-        if token and (isinstance(token, str) and token.strip()):
+        if token and token.strip():
             accumulated_output.append(token)
             
             full_output = ''.join(accumulated_output)
@@ -4017,49 +3571,78 @@ if __name__ == "__main__":
     print("[Generic] 🚀 Starting Aura Generic LLM Container...")
     print(f"[Generic] 🔍 SHOW_REASONING_DEBUG = {SHOW_REASONING_DEBUG} (from environment)")
     
-    # Load BASE model at startup (for conversational queries)
-    print(f"[Generic] 📦 Loading BASE model (conversational): {BASE_MODEL_PATH}")
+    # Verify base model file exists before loading
+    print(f"[Generic] 🔍 [Startup] Verifying base model file exists: {SIMPLE_MODEL_PATH}")
+    if not os.path.isfile(SIMPLE_MODEL_PATH):
+        print(f"[Generic] ⚠️ [Startup] WARNING: Base model file NOT FOUND: {SIMPLE_MODEL_PATH}")
+        print(f"[Generic] ⚠️ [Startup] This will cause errors when trying to use base model for conversational queries!")
+        print(f"[Generic] ⚠️ [Startup] Expected base model for natural conversational responses")
+        print(f"[Generic] ⚠️ [Startup] Falling back to resolved path...")
+        # Try to resolve model path again
+        resolved_path = base_container.resolve_model_path()
+        if resolved_path != SIMPLE_MODEL_PATH and os.path.isfile(resolved_path):
+            print(f"[Generic] ✅ [Startup] Found fallback model: {resolved_path}")
+            SIMPLE_MODEL_PATH = resolved_path
+            BASE_MODEL_PATH = resolved_path
+            base_container.model_path = resolved_path
+        else:
+            print(f"[Generic] ❌ [Startup] ERROR: No valid base model found! Resolved path: {resolved_path}")
+            print(f"[Generic] ❌ [Startup] File exists: {os.path.isfile(resolved_path) if resolved_path else False}")
+    else:
+        print(f"[Generic] ✅ [Startup] Base model file exists: {SIMPLE_MODEL_PATH}")
+        # Get file size for verification
+        try:
+            file_size = os.path.getsize(SIMPLE_MODEL_PATH)
+            file_size_mb = file_size / (1024 * 1024)
+            print(f"[Generic] ✅ [Startup] Base model file size: {file_size_mb:.2f} MB")
+        except Exception as e:
+            print(f"[Generic] ⚠️ [Startup] Could not get file size: {e}")
+    
+    # Load base model with GPU acceleration (for conversational queries)
+    print(f"[Generic] 📦 [Startup] Loading base model (conversational): {SIMPLE_MODEL_PATH}")
     # Offload all layers to GPU for maximum acceleration (set to 0 to disable GPU)
     # For Jetson, offloading all layers typically provides best performance
     n_gpu_layers = -1  # -1 = offload all layers to GPU, 0 = CPU only
-    print(f"[Generic] 🚀 GPU acceleration: {n_gpu_layers} layers offloaded to GPU")
+    print(f"[Generic] 🚀 [Startup] GPU acceleration: {n_gpu_layers} layers offloaded to GPU")
     
     # Override base class load_model to add GPU support
     from llama_cpp import Llama
-    base_container.model_path = BASE_MODEL_PATH
-    base_container.llm_simple = Llama(
-        model_path=BASE_MODEL_PATH,
-        n_ctx=base_container.SIMPLE_N_CTX,
-        n_threads=N_THREADS,
-        n_batch=base_container.N_BATCH,
-        n_gpu_layers=n_gpu_layers,  # Enable GPU acceleration
-        cache_prompt=CACHE_PROMPT,
-        chat_format=base_container.SIMPLE_CHAT_FORMAT,
-        use_mlock=True,
-        use_mmap=True,
-        verbose=False
-    )
-    base_container._model_loaded = True
-    llm_simple = base_container.llm_simple  # Set global reference
-    print(f"[Generic] ✅ BASE model loaded: {BASE_MODEL_PATH}")
+    base_container.model_path = SIMPLE_MODEL_PATH
+    try:
+        base_container.llm_simple = Llama(
+            model_path=SIMPLE_MODEL_PATH,
+            n_ctx=SIMPLE_N_CTX,
+            n_threads=N_THREADS,
+            n_batch=N_BATCH,
+            n_gpu_layers=n_gpu_layers,  # Enable GPU acceleration
+            cache_prompt=CACHE_PROMPT,
+            chat_format=SIMPLE_CHAT_FORMAT,
+            use_mlock=True,
+            use_mmap=True,
+            verbose=False
+        )
+        base_container._model_loaded = True
+        llm_simple = base_container.llm_simple  # Set global reference
+        print(f"[Generic] ✅ [Startup] Base model loaded successfully: {SIMPLE_MODEL_PATH}")
+        print(f"[Generic] ✅ [Startup] Base model will be used for conversational queries (natural responses)")
+    except Exception as e:
+        print(f"[Generic] ❌ [Startup] ERROR: Failed to load base model: {e}")
+        import traceback
+        traceback.print_exc()
+        base_container._model_loaded = False
     
-    # Pre-load CoT model at startup (eliminates first-query latency)
-    print(f"[Generic] 📦 Loading CoT model (RAG queries): {COT_MODEL_PATH}")
-    cot_container.model_path = COT_MODEL_PATH
-    cot_container.llm_simple = Llama(
-        model_path=COT_MODEL_PATH,
-        n_ctx=cot_container.SIMPLE_N_CTX,
-        n_threads=1,  # Use 1 thread for deterministic output (temperature=0 alone isn't enough)
-        n_batch=cot_container.N_BATCH,
-        n_gpu_layers=n_gpu_layers,  # Enable GPU acceleration
-        cache_prompt=CACHE_PROMPT,
-        chat_format=cot_container.SIMPLE_CHAT_FORMAT,
-        use_mlock=True,
-        use_mmap=True,
-        verbose=False
-    )
-    cot_container._model_loaded = True
-    print(f"[Generic] ✅ CoT model loaded: {COT_MODEL_PATH}")
+    # CoT model will be loaded lazily when first RAG query is received
+    print(f"[Generic] 📦 [Startup] CoT model (RAG queries) will be loaded lazily: {COT_MODEL_PATH_RESOLVED}")
+    if os.path.isfile(COT_MODEL_PATH_RESOLVED):
+        try:
+            file_size = os.path.getsize(COT_MODEL_PATH_RESOLVED)
+            file_size_mb = file_size / (1024 * 1024)
+            print(f"[Generic] ✅ [Startup] CoT model file exists: {COT_MODEL_PATH_RESOLVED} ({file_size_mb:.2f} MB)")
+        except Exception as e:
+            print(f"[Generic] ⚠️ [Startup] Could not get CoT model file size: {e}")
+    else:
+        print(f"[Generic] ⚠️ [Startup] WARNING: CoT model file NOT FOUND: {COT_MODEL_PATH_RESOLVED}")
+        print(f"[Generic] ⚠️ [Startup] CoT model will fail to load when first RAG query is received!")
     
     # Pre-initialize RAG client at container startup (reduces first-query latency)
     if RAG_MODE in ("CPU", "GPU"):

@@ -54,14 +54,28 @@ _kokoro_pipe = None
 
 
 def _get_kokoro():
-    """Lazy-load the Kokoro pipeline (downloads model on first use)."""
+    """Lazy-load the Kokoro pipeline (downloads model on first use).
+
+    Runs on CPU to avoid GPU contention with LLM/Whisper containers.
+    The 82M model is small enough for fast CPU inference on Jetson.
+    """
     global _kokoro_pipe
     if _kokoro_pipe is not None:
         return _kokoro_pipe
     memlog.delta("speaker: before Kokoro load")
+    import torch
     from kokoro import KPipeline
+    device = "cuda" if torch.cuda.is_available() else "cpu"
     _kokoro_pipe = KPipeline(lang_code="a", repo_id="hexgrad/Kokoro-82M")
-    print(f"[speaker] Kokoro TTS initialized (voice={KOKORO_VOICE})")
+    if device == "cuda" and hasattr(_kokoro_pipe, "model") and _kokoro_pipe.model is not None:
+        try:
+            _kokoro_pipe.model = _kokoro_pipe.model.to(device)
+            print(f"[speaker] Kokoro TTS initialized on CUDA (voice={KOKORO_VOICE})")
+        except RuntimeError as e:
+            print(f"[speaker] CUDA failed ({e}), falling back to CPU")
+            _kokoro_pipe.model = _kokoro_pipe.model.cpu()
+    else:
+        print(f"[speaker] Kokoro TTS initialized on {device} (voice={KOKORO_VOICE})")
     memlog.delta("speaker: Kokoro loaded")
     return _kokoro_pipe
 
