@@ -393,8 +393,9 @@ def play_click() -> None:
         return
     _last_click_ts = now
     try:
+        from core.config import ALSA_PLAYBACK_DEVICE
         subprocess.Popen(
-            ["paplay", _CLICK_WAV],
+            ["aplay", "-D", ALSA_PLAYBACK_DEVICE, "-q", _CLICK_WAV],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )

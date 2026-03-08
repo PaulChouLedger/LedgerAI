@@ -36,7 +36,12 @@ DISPLAY_DIAM_MM = float(os.environ.get("AURA_DISPLAY_DIAM_MM", "70.0"))
 PULSE_SOURCE = os.environ.get(
     "AURA_PULSE_SOURCE",
     "alsa_input.usb-Seeed_Studio_reSpeaker_XVF3800_4-Mic_Array_"
-    "101991441254700003-00.analog-stereo",
+    "101991441253700168-00.analog-stereo",
+)
+# ALSA output device — bypass PipeWire/PulseAudio, play directly to hardware.
+# "plughw:" handles sample-rate and channel conversion automatically.
+ALSA_PLAYBACK_DEVICE = os.environ.get(
+    "AURA_ALSA_DEVICE", "plughw:CARD=UACDemoV10,DEV=0"
 )
 SAMPLE_RATE      = 16000
 FRAME_MS         = 30

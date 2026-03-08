@@ -161,10 +161,20 @@ class FinancialComplication(BaseDomainComplication):
                            "assets", "gone.mp3")
         if os.path.exists(mp3):
             try:
+                from core.config import ALSA_PLAYBACK_DEVICE
+                ff = subprocess.Popen(
+                    ["ffmpeg", "-i", mp3, "-loglevel", "quiet",
+                     "-f", "s16le", "-acodec", "pcm_s16le",
+                     "-ac", "2", "-ar", "48000", "-"],
+                    stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                )
                 self._audio_proc = subprocess.Popen(
-                    ["mpv", "--no-video", "--really-quiet", mp3],
+                    ["aplay", "-D", ALSA_PLAYBACK_DEVICE,
+                     "-f", "S16_LE", "-c", "2", "-r", "48000", "-q"],
+                    stdin=ff.stdout,
                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                 )
+                ff.stdout.close()
             except FileNotFoundError:
                 pass
 

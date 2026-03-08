@@ -230,10 +230,12 @@ class BootMic:
     # ------------------------------------------------------------------
 
     def play_prompt(self, path: str) -> None:
-        """Non-blocking audio playback (WAV or MP3).
+        """Non-blocking audio playback (WAV or MP3) via direct ALSA.
 
-        Uses ffplay for MP3, paplay/aplay for WAV.
+        MP3s are decoded with ffmpeg and piped to aplay.
+        WAVs are played directly with aplay.
         """
+        from core.config import ALSA_PLAYBACK_DEVICE
         if not os.path.isfile(path):
             print(f"[boot_mic] Prompt not found: {path}")
             return
@@ -244,32 +246,27 @@ class BootMic:
         is_mp3 = path.lower().endswith(".mp3")
 
         try:
-            if is_mp3 and shutil.which("ffplay"):
-                self._play_proc = subprocess.Popen(
-                    ["ffplay", "-nodisp", "-autoexit", "-loglevel", "quiet", path],
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.PIPE,
+            if is_mp3 and shutil.which("ffmpeg"):
+                # Decode MP3 → raw PCM, pipe to aplay
+                ff = subprocess.Popen(
+                    ["ffmpeg", "-i", path, "-loglevel", "quiet",
+                     "-f", "s16le", "-acodec", "pcm_s16le",
+                     "-ac", "2", "-ar", "48000", "-"],
+                    stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
                 )
-            elif is_mp3 and shutil.which("mpv"):
                 self._play_proc = subprocess.Popen(
-                    ["mpv", "--no-video", "--really-quiet", path],
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.PIPE,
+                    ["aplay", "-D", ALSA_PLAYBACK_DEVICE,
+                     "-f", "S16_LE", "-c", "2", "-r", "48000", "-q"],
+                    stdin=ff.stdout,
+                    stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
                 )
-            elif shutil.which("paplay"):
-                self._play_proc = subprocess.Popen(
-                    ["paplay", path],
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.PIPE,
-                )
-            elif shutil.which("aplay"):
-                self._play_proc = subprocess.Popen(
-                    ["aplay", path],
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.PIPE,
-                )
+                ff.stdout.close()
             else:
-                print(f"[boot_mic] No audio player found for: {path}")
+                self._play_proc = subprocess.Popen(
+                    ["aplay", "-D", ALSA_PLAYBACK_DEVICE, path],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.PIPE,
+                )
         except Exception as e:
             print(f"[boot_mic] Playback error: {e}")
             self._play_proc = None

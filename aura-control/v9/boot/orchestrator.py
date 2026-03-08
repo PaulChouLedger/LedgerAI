@@ -81,6 +81,7 @@ class BootOrchestrator:
         self._mic = BootMic()
         self._enrollment = None  # lazy — may not be available
         self._music_proc: Optional[subprocess.Popen] = None
+        self._music_ff_proc: Optional[subprocess.Popen] = None
         self._music_sink_input: Optional[int] = None
 
         # Captured audio (for retroactive transcription)
@@ -189,21 +190,36 @@ class BootOrchestrator:
     MUSIC_TEMPO = float(os.environ.get("AURA_BOOT_MUSIC_TEMPO", "1.0"))
 
     def _start_music(self) -> None:
+        from core.config import ALSA_PLAYBACK_DEVICE
         path = str(BOOT_MUSIC_PATH)
         if not os.path.isfile(path):
             print(f"[boot] Music file not found: {path}")
             return
         try:
-            if shutil.which("ffplay"):
+            if shutil.which("ffmpeg") and shutil.which("aplay"):
+                # Decode MP3 with ffmpeg, pipe raw PCM to aplay on the ALSA device
                 tempo = self.MUSIC_TEMPO
-                cmd = ["ffplay", "-nodisp", "-autoexit", "-loglevel", "quiet"]
+                ff_cmd = ["ffmpeg", "-i", path, "-loglevel", "quiet"]
                 if tempo != 1.0:
-                    cmd += ["-af", f"atempo={tempo}"]
-                cmd.append(path)
-            elif shutil.which("paplay"):
-                cmd = ["paplay", path]
+                    ff_cmd += ["-af", f"atempo={tempo}"]
+                ff_cmd += ["-f", "s16le", "-acodec", "pcm_s16le",
+                           "-ac", "2", "-ar", "48000", "-"]
+                aplay_cmd = ["aplay", "-D", ALSA_PLAYBACK_DEVICE,
+                             "-f", "S16_LE", "-c", "2", "-r", "48000", "-q"]
+                ff_proc = subprocess.Popen(
+                    ff_cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+                cmd = aplay_cmd
+                self._music_proc = subprocess.Popen(
+                    aplay_cmd, stdin=ff_proc.stdout,
+                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                )
+                ff_proc.stdout.close()  # allow SIGPIPE
+                self._music_ff_proc = ff_proc
+                tempo_info = f" (tempo={self.MUSIC_TEMPO}x)" if tempo != 1.0 else ""
+                print(f"[boot] Music started: ffmpeg|aplay{tempo_info} → {ALSA_PLAYBACK_DEVICE}")
+                return
             elif shutil.which("aplay"):
-                cmd = ["aplay", path]
+                cmd = ["aplay", "-D", ALSA_PLAYBACK_DEVICE, path]
             else:
                 print("[boot] No audio player found for music")
                 return
@@ -346,7 +362,7 @@ class BootOrchestrator:
         print(f"[boot] Music unducked{' (faded)' if si else ' (SIGCONT only)'}")
 
     def _stop_music(self) -> None:
-        """Fade out and stop music playback."""
+        """Stop music playback (kills both ffmpeg feeder and aplay)."""
         if self._music_proc is None:
             return
         try:
@@ -357,10 +373,6 @@ class BootOrchestrator:
                     self._music_proc.send_signal(sig.SIGCONT)
                 except Exception:
                     pass
-                # Fade out before stopping
-                si = self._music_sink_input or self._find_music_sink_input()
-                if si is not None:
-                    self._fade_sink_input(si, from_pct=100, to_pct=0, steps=20, duration=2.0)
                 self._music_proc.terminate()
                 self._music_proc.wait(timeout=3)
                 print("[boot] Music stopped")
@@ -369,6 +381,13 @@ class BootOrchestrator:
                 self._music_proc.kill()
             except Exception:
                 pass
+        # Kill ffmpeg feeder if piped
+        if self._music_ff_proc is not None:
+            try:
+                self._music_ff_proc.kill()
+            except Exception:
+                pass
+            self._music_ff_proc = None
         self._music_proc = None
         self._music_sink_input = None
 

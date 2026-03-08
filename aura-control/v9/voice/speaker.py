@@ -534,12 +534,13 @@ class Speaker:
                 print(f"[speaker] Synth error: {e}")
                 traceback.print_exc()
 
-    # ----- Play thread: wav queue → paplay -----
+    # ----- Play thread: wav queue → aplay (direct ALSA) -----
 
     def _play_loop(self):
         """Play WAVs as they arrive from the synth thread."""
+        from core.config import ALSA_PLAYBACK_DEVICE
         _set_volume()
-        print("[speaker] Playback loop started (pipelined)")
+        print(f"[speaker] Playback loop started (aplay → {ALSA_PLAYBACK_DEVICE})")
 
         while not self._stop.is_set():
             try:
@@ -552,7 +553,7 @@ class Speaker:
             state.playing = True
             try:
                 subprocess.run(
-                    ["paplay", wav_path],
+                    ["aplay", "-D", ALSA_PLAYBACK_DEVICE, wav_path],
                     check=False,
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
