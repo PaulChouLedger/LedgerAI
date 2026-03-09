@@ -405,8 +405,8 @@ class AuraWindow(QWidget):
 
     def _tick_focus_anim(self, dt: float):
         overlay_open = (
-            self.trans > 0.02 or self.bal_trans > 0.02 or self.set_trans > 0.02
-            or self.settings_open or self.mode != "home" or self.mode_balance
+            self.trans > 0.02 or self.bal_trans > 0.02 or self._settings_overlay_val() > 0.02
+            or self._settings_overlay_val() > 0.5 or self.mode != "home" or self.mode_balance
         )
         # Tour highlight also drives the focus animation
         target = 1.0 if (overlay_open or self._tour_highlight) else 0.0
@@ -571,8 +571,8 @@ class AuraWindow(QWidget):
         for comp in registry.get_docked():
             if comp.name == "Volume" and self.trans > 0.0:
                 comp.draw_overlay(p, cx, cy, mind, t, self.trans)
-            elif comp.name == "Settings" and self.set_trans > 0.0:
-                comp.draw_overlay(p, cx, cy, mind, t, self.set_trans)
+            elif comp.name == "Settings" and comp.overlay_trans > 0.0:
+                comp.draw_overlay(p, cx, cy, mind, t, comp.overlay_trans)
             elif comp.name == "Ledger Balance" and self.bal_trans > 0.0:
                 comp.draw_overlay(p, cx, cy, mind, t, self.bal_trans)
 
@@ -600,6 +600,11 @@ class AuraWindow(QWidget):
     # ------------------------------------------------------------------
     # Perimeter drawing helpers
     # ------------------------------------------------------------------
+
+    def _settings_overlay_val(self) -> float:
+        """Return the Settings complication's overlay_trans value."""
+        comp = registry.get("Settings")
+        return comp.overlay_trans if comp else 0.0
 
     def _max_domain_overlay_trans(self) -> float:
         """Return the max overlay_trans across all domain glyphs."""
@@ -648,8 +653,8 @@ class AuraWindow(QWidget):
         pulse = time.time() < self._pulse_until
 
         overlay_open = (
-            self.trans > 0.02 or self.bal_trans > 0.02 or self.set_trans > 0.02
-            or self.settings_open or self.mode != "home" or self.mode_balance
+            self.trans > 0.02 or self.bal_trans > 0.02 or self._settings_overlay_val() > 0.02
+            or self._settings_overlay_val() > 0.5 or self.mode != "home" or self.mode_balance
         )
         # Tour highlight takes precedence (works even with no overlay open)
         focus = self.focus_comp if (overlay_open or self._tour_highlight) else None
@@ -705,8 +710,8 @@ class AuraWindow(QWidget):
 
         # Tour/focus dimming for domain glyphs
         overlay_open = (
-            self.trans > 0.02 or self.bal_trans > 0.02 or self.set_trans > 0.02
-            or self.settings_open or self.mode != "home" or self.mode_balance
+            self.trans > 0.02 or self.bal_trans > 0.02 or self._settings_overlay_val() > 0.02
+            or self._settings_overlay_val() > 0.5 or self.mode != "home" or self.mode_balance
         )
         focus = self.focus_comp if (overlay_open or self._tour_highlight) else None
         fa = clamp(self._focus_anim, 0.0, 1.0)
@@ -761,6 +766,22 @@ class AuraWindow(QWidget):
         # Un-rotate click coordinates to match static glyph/complication positions
         # (paintEvent applies rs.rot_deg to drawing; invert it for hit-testing)
         x, y = rotate_point(x_raw, y_raw, cx, cy, -self.rs.rot_deg)
+
+        # Settings overlay intercept — route taps to WiFi page or menu items
+        settings_comp = registry.get("Settings")
+        if settings_comp and settings_comp.overlay_trans > 0.5:
+            if settings_comp.handle_overlay_tap(x, y, cx, cy, mind):
+                return
+            # If tap wasn't consumed by the overlay, close settings
+            # (but check if they tapped the Settings complication itself to toggle)
+            if hit_complication("Settings", x, y, self.labels, cx, cy, mind):
+                settings_comp.settings_page = None  # reset to main on close
+                settings_comp.on_tap()
+                return
+            # Tap outside overlay — close settings
+            settings_comp.settings_page = None
+            settings_comp.close_overlay()
+            return
 
         # Check complication hits
         for comp in registry.get_docked():

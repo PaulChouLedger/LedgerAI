@@ -123,7 +123,7 @@ BOOT_MIC_TIMEOUT_S = float(os.environ.get("AURA_BOOT_MIC_TIMEOUT", "45.0"))
 
 # Capture
 BOOT_CAPTURE_MAX_S      = 5.0      # max seconds for a single voice capture
-BOOT_CAPTURE_SILENCE_S  = 0.8      # silence before ending capture
+BOOT_CAPTURE_SILENCE_S  = 1.5      # silence before ending capture
 BOOT_CAPTURE_TIMEOUT_S  = 8.0      # give up waiting for speech
 
 # Speaker embedding (resemblyzer)

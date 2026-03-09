@@ -26,6 +26,7 @@ GOLD = lambda a=255: QColor(145, 175, 215, a)  # noqa: E731
 
 from gui.complications.base import BaseComplication
 from gui.renderer import clamp
+from gui.wifi_page import WifiPageState, draw_wifi_page, handle_wifi_tap
 
 
 class SettingsComplication(BaseComplication):
@@ -42,6 +43,8 @@ class SettingsComplication(BaseComplication):
         self._cfg_heat = 0.35
         self._net_flux = 0.25
         self._sys_load = 0.30
+        self.settings_page = None       # None = main, "wifi" = WiFi config
+        self._wifi_state = WifiPageState()
 
     # ------------------------------------------------------------------
     def draw_content(self, p: "QPainter", inner: float, t: float, accent: QColor) -> None:
@@ -149,7 +152,11 @@ class SettingsComplication(BaseComplication):
 
             # Sub-page routing
             page = getattr(self, "settings_page", None)
-            if page in ("auraconnect", "wifi", "profile", "alerts"):
+            if page == "wifi":
+                draw_wifi_page(p, cx, cy, mind, t, trans, self._wifi_state)
+                p.restore()
+                return
+            elif page in ("auraconnect", "profile", "alerts"):
                 # Sub-pages rendered separately (placeholder for now)
                 p.restore()
                 return
@@ -441,6 +448,83 @@ class SettingsComplication(BaseComplication):
 
         finally:
             p.restore()
+
+
+    # ------------------------------------------------------------------
+    # Overlay tap handling
+    # ------------------------------------------------------------------
+
+    def handle_overlay_tap(self, x, y, cx, cy, mind):
+        """Handle a tap inside the settings overlay area.
+
+        Returns True if the tap was consumed, False to let it propagate.
+        """
+        R = mind * 0.235
+
+        # WiFi sub-page active — delegate to WiFi tap handler
+        if self.settings_page == "wifi":
+            action = handle_wifi_tap(x, y, cx, cy, mind, self._wifi_state)
+            if action == "back":
+                self.settings_page = None
+            return True  # always consume taps when WiFi page is active
+
+        # Main settings page — check menu item taps
+        # Menu items are on the chapter ring at specific angular positions
+        # WI-FI at -90° (top), AURACONNECT at 0° (right),
+        # PROFILE at 90° (bottom), ALERTS at 180° (left)
+        r_chapter_in = R * 0.74
+        r_chapter_out = R * 0.84
+        menu_r = (r_chapter_in + r_chapter_out) * 0.5
+
+        # Check distance from center
+        dx = x - cx
+        dy = y - cy
+        dist = math.sqrt(dx * dx + dy * dy)
+
+        # If tap is within the menu ring zone
+        if r_chapter_in * 0.8 < dist < r_chapter_out * 1.2:
+            # Calculate angle of tap relative to center
+            tap_angle = math.degrees(math.atan2(dy, dx))
+
+            # Menu items and their angular positions (matching draw_arc_text)
+            # draw_arc_text uses a_deg - 90° for the angle parameter
+            # WI-FI: -90 - 90 = -180°, AURACONNECT: 0 - 90 = -90°,
+            # PROFILE: 90 - 90 = 0°, ALERTS: 180 - 90 = 90°
+            # But atan2 gives angles in standard math coords
+            # The labels array uses: ("WI-FI", -90.0), etc.
+            # In draw_arc_text, angle is a_deg - 90.0, so:
+            # WI-FI renders at -180° from center, which is the left side
+            # But wait, the draw positions are on a circle centered at (cx,cy)
+            # Let me recalculate: the arc text function uses radius and angle
+            # The angle passed is a_deg - 90.0 in radians for cos/sin
+            # So WI-FI at a_deg=-90: arc angle = -90-90 = -180 = 180° = left
+            # AURACONNECT at a_deg=0: arc angle = 0-90 = -90° = top
+            # PROFILE at a_deg=90: arc angle = 90-90 = 0° = right
+            # ALERTS at a_deg=180: arc angle = 180-90 = 90° = bottom
+            menu_items = [
+                ("wifi",        180.0),   # left
+                ("auraconnect", -90.0),   # top
+                ("profile",       0.0),   # right
+                ("alerts",       90.0),   # bottom
+            ]
+
+            for page_name, item_angle in menu_items:
+                # Normalize angle difference to [-180, 180]
+                diff = tap_angle - item_angle
+                while diff > 180:
+                    diff -= 360
+                while diff < -180:
+                    diff += 360
+
+                if abs(diff) < 30:  # 30° hit zone
+                    if page_name == "wifi":
+                        self.settings_page = "wifi"
+                        self._wifi_state.trigger_scan()
+                        return True
+
+        # Tap inside overlay but not on a menu item — don't consume
+        # (let window.py close the overlay)
+        return False
 
 
 # ---------------------------------------------------------------------------
