@@ -137,6 +137,7 @@ def main() -> int:
         if is_first:
             def _play_tour():
                 """Play tour WAVs with complication highlights (runs on speaker thread)."""
+                import time as _time
                 for i, line in enumerate(BootOrchestrator.TOUR_LINES):
                     highlight = line[2] if len(line) > 2 else None
                     # Highlight the complication being described
@@ -145,13 +146,12 @@ def main() -> int:
                         speaker.enqueue_wav(BootOrchestrator.tour_wav_path(i))
                     else:
                         speaker.enqueue(line[0], style=line[1])
-                    # Wait for this WAV to finish before moving to next highlight
-                    # (enqueue_wav is non-blocking, so we need to pace ourselves)
-                    import time as _time
-                    _time.sleep(0.3)  # let it get into the play queue
-                    while not speaker._wav_q.empty() or not speaker._sentence_q.empty():
+                    # Wait for the WAV to start playing
+                    _time.sleep(0.5)
+                    # Wait for playback to finish (state.playing is True while aplay runs)
+                    while state.playing or not speaker._wav_q.empty() or not speaker._sentence_q.empty():
                         _time.sleep(0.2)
-                    _time.sleep(0.5)  # brief pause between tour steps
+                    _time.sleep(0.6)  # brief pause between tour steps
                 # Clear highlight after tour
                 bus.emit("tour.highlight", comp_name=None)
 

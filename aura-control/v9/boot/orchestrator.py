@@ -343,20 +343,20 @@ class BootOrchestrator:
         We fade the hardware mixer to 0, kill the process, then the device
         is free for prompt playback.
         """
-        if not (self._music_proc and self._music_proc.poll() is None):
-            return
-        # Smooth fade-out via hardware mixer
-        vol_pct = int(TTS_VOLUME * 100) if TTS_VOLUME <= 2.0 else int(TTS_VOLUME)
-        self._alsa_fade(from_pct=vol_pct, to_pct=0, steps=15, duration=1.2)
-        # Now kill the silent process to release the device
-        try:
-            self._music_proc.terminate()
-            self._music_proc.wait(timeout=2)
-        except Exception:
+        had_music = self._music_proc is not None
+        if self._music_proc and self._music_proc.poll() is None:
+            # Smooth fade-out via hardware mixer
+            vol_pct = int(TTS_VOLUME * 100) if TTS_VOLUME <= 2.0 else int(TTS_VOLUME)
+            self._alsa_fade(from_pct=vol_pct, to_pct=0, steps=15, duration=1.2)
+            # Now kill the silent process to release the device
             try:
-                self._music_proc.kill()
+                self._music_proc.terminate()
+                self._music_proc.wait(timeout=2)
             except Exception:
-                pass
+                try:
+                    self._music_proc.kill()
+                except Exception:
+                    pass
         if self._music_ff_proc is not None:
             try:
                 self._music_ff_proc.kill()
@@ -365,8 +365,9 @@ class BootOrchestrator:
             self._music_ff_proc = None
         self._music_proc = None
         # Brief delay for ALSA kernel driver to fully release the device
-        time.sleep(0.3)
-        print("[boot] Music ducked (faded out + killed)")
+        time.sleep(0.5)
+        if had_music:
+            print("[boot] Music ducked (faded out + killed)")
 
     def _unduck_music(self) -> None:
         """Restart music with a smooth fade-in after prompt finishes."""
@@ -679,15 +680,15 @@ class BootOrchestrator:
     #             → Mute(B) → Financial(BL) → Concierge(L) → Medical(TL)
     TOUR_LINES = [
         ("Let me give you a quick tour of your Aura.", "energy", None),
-        ("At the top is Topics Center. That's where you browse and pin different tools to your dial.", "neutral", "Topics Center"),
-        ("Next to it is AuraNet. That's your connection to the wider Aura community and network.", "energy", "AuraNet"),
-        ("Over here is Settings, where you adjust your voice, language model, and preferences.", "technical", "Settings"),
-        ("This is Education. Tap it for interactive lessons, explanations, and learning tools.", "neutral", "Education"),
-        ("The Mute button toggles the microphone, and also stops me mid-sentence if I'm going on too long.", "soft", "Mute"),
-        ("Here's your Financial domain. Market data, portfolio tracking, and financial insights.", "neutral", "Financial"),
-        ("And this is Aura Concierge, your personal assistant for tasks, reminders, and recommendations.", "warm", "Aura Concierge"),
-        ("And up here is Medical. Tap it for health insights, vitals, and clinical guidance.", "warm", "Medical"),
-        ("You can talk to me anytime. Just say what's on your mind, and I'll do my best to help.", "playful", None),
+        ("This is Topics Center. Browse and pin different tools to your dial.", "neutral", "Topics Center"),
+        ("This is AuraNet, your connection to the wider Aura community and network.", "energy", "AuraNet"),
+        ("This is Settings, where you adjust your voice, language model, and preferences.", "technical", "Settings"),
+        ("This is Education. Tap it for interactive lessons and learning tools.", "neutral", "Education"),
+        ("This is the Mute button. It toggles the microphone, and also stops me mid-sentence.", "soft", "Mute"),
+        ("This is your Financial domain. Market data, portfolio tracking, and financial insights.", "neutral", "Financial"),
+        ("This is Aura Concierge, your personal assistant for tasks, reminders, and recommendations.", "warm", "Aura Concierge"),
+        ("And this is Medical. Tap it for health insights, vitals, and clinical guidance.", "warm", "Medical"),
+        ("You can talk to me anytime. Just say what is on your mind, and I will do my best to help.", "playful", None),
     ]
     TOUR_DIR = BOOT_MUSIC_PATH.parent / "boot_prompts" / "tour"
 
@@ -808,10 +809,15 @@ class BootOrchestrator:
             self._set_phase(Phase.WAITING_SERVICES, 0.97, "Warming up voice")
             print("[boot] Waiting for TTS warmup to finish...")
             # Keep chatting while TTS loads (can take 2-3 min on first boot)
+            # Space fillers out — one every ~35s to keep it natural
+            last_tts_filler = 0.0
             while not tts_ready.is_set():
-                if (self._filler_wavs and self._music_proc
+                now = time.time()
+                if (now - last_tts_filler > 35.0 and self._filler_wavs
+                        and self._music_proc
                         and self._music_proc.poll() is None):
                     self._play_filler_during_pause(12.0)
+                    last_tts_filler = time.time()
                 else:
                     tts_ready.wait(timeout=5.0)
 

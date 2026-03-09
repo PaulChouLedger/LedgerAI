@@ -6,7 +6,7 @@
   "wake_word_engine": "openwakeword",
   "tts_engine": "chatterbox",
   "chatterbox_voice_cloning_enabled": true,
-  "active_user_id": "d985e1fcf3f1",
-  "active_user_name": "Thank you",
+  "active_user_id": "1765d48a5c4b",
+  "active_user_name": "Paul",
   "boot_enrollment_done": true
 }

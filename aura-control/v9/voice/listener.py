@@ -56,12 +56,23 @@ SPEECH_CENTROID_MIN   = 300.0
 SPEECH_CENTROID_MAX   = 3000.0
 SPEECH_BAND_MIN       = 0.05
 SPEECH_DURATION_MIN   = 0.4
-SPEECH_HIGH_FREQ_MAX  = 0.08
-SPEECH_RMS_MIN        = 0.0011
+SPEECH_HIGH_FREQ_MAX  = 0.18
+SPEECH_RMS_MIN        = 0.0018
 SPEECH_RMS_MAX        = 0.80
 SPEECH_PEAK_MIN       = 0.0023
 
 CONTEXT_DEPTH = 6
+
+# Common Whisper hallucinations on silence/noise — reject these outright
+WHISPER_HALLUCINATIONS = {
+    "you", "bye", "bye.", "thank you", "thank you.", "thanks.",
+    "thanks", "yeah", "yes", "no", "okay", "ok", "hmm", "hm",
+    "oh", "ah", "uh", "um", "so", "the", "a", "i", "it",
+    "the end", "the end.", "thanks for watching", "thanks for watching.",
+    "thank you for watching", "thank you for watching.",
+    "subscribe", "like and subscribe",
+    "you're welcome", "you're welcome.",
+}
 
 # ---------------------------------------------------------------------------
 # Silero VAD (loaded once, used by all Listener instances)
@@ -408,9 +419,20 @@ class Listener:
                 vad.reset_states()
 
                 if text:
+                    # Drop Whisper hallucinations (common phantom transcripts)
+                    clean_lower = text.strip().lower().rstrip(".,!?")
+                    if (len(text.strip()) < 3 or
+                            clean_lower in WHISPER_HALLUCINATIONS or
+                            text.strip().lower() in WHISPER_HALLUCINATIONS):
+                        print(f"[listener] Rejected (hallucination): '{text}'")
+                        bus.emit("listener.state", state="waiting")
+                        if wake_enabled:
+                            listening_active = False
+                        continue
                     print(f"[mic] \"{text}\"")
-                    # Wake word + response check
-                    if should_respond(text, self._last_active_ts):
+                    # When wake word is disabled, respond to everything
+                    # When enabled, use wake word + context window logic
+                    if not wake_enabled or should_respond(text, self._last_active_ts):
                         clean = strip_wake(text) if heard_wake(text) else text
                         if clean:
                             self._last_active_ts = time.time()

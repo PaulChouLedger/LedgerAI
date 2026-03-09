@@ -26,6 +26,7 @@ GOLD = lambda a=255: QColor(145, 175, 215, a)  # noqa: E731
 
 from gui.complications.base import BaseComplication
 from gui.renderer import clamp
+from gui.auraconnect_page import draw_auraconnect_page, handle_auraconnect_tap
 from gui.wifi_page import WifiPageState, draw_wifi_page, handle_wifi_tap
 
 
@@ -156,7 +157,11 @@ class SettingsComplication(BaseComplication):
                 draw_wifi_page(p, cx, cy, mind, t, trans, self._wifi_state)
                 p.restore()
                 return
-            elif page in ("auraconnect", "profile", "alerts"):
+            elif page == "auraconnect":
+                draw_auraconnect_page(p, cx, cy, mind, t, trans)
+                p.restore()
+                return
+            elif page in ("profile", "alerts"):
                 # Sub-pages rendered separately (placeholder for now)
                 p.restore()
                 return
@@ -468,6 +473,13 @@ class SettingsComplication(BaseComplication):
                 self.settings_page = None
             return True  # always consume taps when WiFi page is active
 
+        # AuraConnect sub-page
+        if self.settings_page == "auraconnect":
+            action = handle_auraconnect_tap(x, y, cx, cy, mind)
+            if action == "back":
+                self.settings_page = None
+            return True
+
         # Main settings page — check menu item taps
         # Menu items are on the chapter ring at specific angular positions
         # WI-FI at -90° (top), AURACONNECT at 0° (right),
@@ -520,6 +532,9 @@ class SettingsComplication(BaseComplication):
                     if page_name == "wifi":
                         self.settings_page = "wifi"
                         self._wifi_state.trigger_scan()
+                        return True
+                    if page_name == "auraconnect":
+                        self.settings_page = "auraconnect"
                         return True
 
         # Tap inside overlay but not on a menu item — don't consume

@@ -75,7 +75,7 @@ FIRST_BOOT_SCRIPT: list[BootPrompt] = [
         wav_file="greeting_first.wav",
         progress_text="Welcome to Aura",
         pause_before=0.0,         # no pause — jump right in after identification
-        pause_after=1.5,         # breathing room after greeting
+        pause_after=2.5,         # breathing room after greeting
     ),
     BootPrompt(
         phase_name="ask_name",
@@ -85,15 +85,15 @@ FIRST_BOOT_SCRIPT: list[BootPrompt] = [
         timeout_s=12.0,
         fallback_wav="no_name_fallback.wav",
         progress_text="What is your name?",
-        pause_before=1.5,
-        pause_after=0.3,
+        pause_before=3.0,
+        pause_after=0.5,
     ),
     BootPrompt(
         phase_name="confirm_name",
         wav_file="confirm_name.wav",
         progress_text="Confirming identity",
-        pause_before=1.5,
-        pause_after=1.0,
+        pause_before=3.0,
+        pause_after=2.0,
     ),
     BootPrompt(
         phase_name="ask_voice_sample",
@@ -103,14 +103,14 @@ FIRST_BOOT_SCRIPT: list[BootPrompt] = [
         timeout_s=12.0,
         fallback_wav="no_voice_fallback.wav",
         progress_text="Voice enrollment",
-        pause_before=1.5,
-        pause_after=0.3,
+        pause_before=3.0,
+        pause_after=0.5,
     ),
     BootPrompt(
         phase_name="enrollment_done",
         wav_file="enrollment_done.wav",
         progress_text="Setting up your profile",
-        pause_before=1.5,
+        pause_before=3.0,
     ),
 ]
 
