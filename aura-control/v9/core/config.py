@@ -140,5 +140,5 @@ PERPETUAL_CONVERGENCE      = float(os.environ.get("AURA_PERPETUAL_CONVERGENCE", 
 PERPETUAL_BRIEFING_COOLDOWN_S = 86400   # 24 hours between briefings
 PERPETUAL_7B_MODEL_PATH    = os.environ.get(
     "AURA_PERPETUAL_7B_MODEL",
-    "/models/Qwen2.5-7B-Instruct.Q4_K_M.gguf",
+    "/models/Qwen2.5-7B-Instruct-Q4_K_M.gguf",
 )
