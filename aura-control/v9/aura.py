@@ -14,6 +14,7 @@ import os
 import signal
 import sys
 import threading
+import time
 import warnings
 
 # Suppress noisy deprecation warnings from dependencies
@@ -87,6 +88,38 @@ def main() -> int:
         # Wire: transcript → thinking filler + LLM → speaker
         def _on_transcript(text: str = "", **_kw2):
             if text:
+                state.last_conversation_ts = time.time()
+
+                # Deliver pending briefing on first interaction
+                if state.pending_briefing and not state.perpetual_paused:
+                    briefing = state.pending_briefing
+                    state.pending_briefing = None
+                    insight = briefing.get("insight", "")
+                    gaps = briefing.get("knowledge_gaps", [])
+                    if insight:
+                        preamble = f"By the way {name}, I've been thinking about something. {insight}"
+                        if gaps:
+                            preamble += f" Also, I'd be able to help you more if you could tell me about {gaps[0]}."
+                        speaker.play_thinking_filler()
+                        threading.Thread(
+                            target=llm_client.stream_chat,
+                            args=(f"{preamble}\n\nNow, regarding what you just said: {text}",),
+                            daemon=True,
+                            name="llm-stream",
+                        ).start()
+                        # Mark briefing as delivered on disk
+                        try:
+                            from core.config import BRIEFINGS_DIR
+                            bp = BRIEFINGS_DIR / f"{briefing.get('date', '')}.json"
+                            if bp.exists():
+                                import json as _json
+                                bd = _json.loads(bp.read_text())
+                                bd["delivered"] = True
+                                bp.write_text(_json.dumps(bd, indent=2))
+                        except Exception:
+                            pass
+                        return
+
                 # Play a thinking filler immediately so user hears instant response
                 speaker.play_thinking_filler()
                 threading.Thread(
@@ -108,9 +141,16 @@ def main() -> int:
         print("[aura] voice pipeline started")
         memlog.delta("voice pipeline started")
 
+        # Start Aura Perpetual (background rumination engine)
+        from services.perpetual import Perpetual
+        perpetual = Perpetual()
+        perpetual.start()
+        state.last_conversation_ts = time.time()  # start idle timer from now
+
         # Store references for shutdown
         _on_boot_complete._listener = listener
         _on_boot_complete._speaker = speaker
+        _on_boot_complete._perpetual = perpetual
         _voice_started.set()
 
         # Begin GUI crossfade from boot → normal
@@ -165,6 +205,8 @@ def main() -> int:
     # 6. Graceful shutdown
     def _quit(*_):
         if _voice_started.is_set():
+            if hasattr(_on_boot_complete, "_perpetual"):
+                _on_boot_complete._perpetual.stop()
             if hasattr(_on_boot_complete, "_listener"):
                 _on_boot_complete._listener.stop()
             if hasattr(_on_boot_complete, "_speaker"):

@@ -3662,7 +3662,110 @@ if __name__ == "__main__":
     else:
         print(f"[Generic] ⏭️ RAG_MODE={RAG_MODE} - skipping RAG initialization")
     
+    # ------------------------------------------------------------------
+    # Model hot-swap endpoints (Aura Perpetual)
+    # ------------------------------------------------------------------
+
+    @app.route("/model/swap", methods=["POST"])
+    def model_swap():
+        """Hot-swap the base model for Aura Perpetual rumination."""
+        import gc
+        data = request.get_json(silent=True) or {}
+        model_path = data.get("model_path", "")
+        if not model_path or not os.path.isfile(model_path):
+            return jsonify({"error": f"Model not found: {model_path}"}), 404
+
+        print(f"[Generic] Model swap requested: {model_path}")
+        with base_container.llm_lock:
+            try:
+                # Unload current model
+                if base_container.llm_simple:
+                    del base_container.llm_simple
+                    base_container.llm_simple = None
+                    base_container._model_loaded = False
+                    gc.collect()
+                    import time as _time; _time.sleep(1.0)
+
+                # Load new model
+                from llama_cpp import Llama
+                base_container.llm_simple = Llama(
+                    model_path=model_path,
+                    n_ctx=SIMPLE_N_CTX,
+                    n_threads=N_THREADS,
+                    n_batch=N_BATCH,
+                    n_gpu_layers=-1,
+                    cache_prompt=CACHE_PROMPT,
+                    chat_format=SIMPLE_CHAT_FORMAT,
+                    use_mlock=True,
+                    use_mmap=True,
+                    verbose=False,
+                )
+                base_container._model_loaded = True
+                base_container.model_path = model_path
+                print(f"[Generic] Model swapped to: {model_path}")
+                return jsonify({"status": "ok", "model": model_path})
+            except Exception as e:
+                print(f"[Generic] Model swap failed: {e}")
+                import traceback; traceback.print_exc()
+                # Try to reload original model
+                try:
+                    base_container.llm_simple = Llama(
+                        model_path=SIMPLE_MODEL_PATH,
+                        n_ctx=SIMPLE_N_CTX, n_threads=N_THREADS,
+                        n_batch=N_BATCH, n_gpu_layers=-1,
+                        cache_prompt=CACHE_PROMPT,
+                        chat_format=SIMPLE_CHAT_FORMAT,
+                        use_mlock=True, use_mmap=True, verbose=False,
+                    )
+                    base_container._model_loaded = True
+                    base_container.model_path = SIMPLE_MODEL_PATH
+                except Exception:
+                    pass
+                return jsonify({"error": str(e)}), 500
+
+    @app.route("/model/restore", methods=["POST"])
+    def model_restore():
+        """Restore the original 1.5B base model."""
+        import gc
+        if base_container.model_path == SIMPLE_MODEL_PATH and base_container._model_loaded:
+            return jsonify({"status": "ok", "model": SIMPLE_MODEL_PATH, "note": "already loaded"})
+
+        print(f"[Generic] Restoring base model: {SIMPLE_MODEL_PATH}")
+        with base_container.llm_lock:
+            try:
+                if base_container.llm_simple:
+                    del base_container.llm_simple
+                    base_container.llm_simple = None
+                    gc.collect()
+                    import time as _time; _time.sleep(1.0)
+
+                from llama_cpp import Llama
+                base_container.llm_simple = Llama(
+                    model_path=SIMPLE_MODEL_PATH,
+                    n_ctx=SIMPLE_N_CTX, n_threads=N_THREADS,
+                    n_batch=N_BATCH, n_gpu_layers=-1,
+                    cache_prompt=CACHE_PROMPT,
+                    chat_format=SIMPLE_CHAT_FORMAT,
+                    use_mlock=True, use_mmap=True, verbose=False,
+                )
+                base_container._model_loaded = True
+                base_container.model_path = SIMPLE_MODEL_PATH
+                print(f"[Generic] Base model restored: {SIMPLE_MODEL_PATH}")
+                return jsonify({"status": "ok", "model": SIMPLE_MODEL_PATH})
+            except Exception as e:
+                print(f"[Generic] Model restore failed: {e}")
+                return jsonify({"error": str(e)}), 500
+
+    @app.route("/model/status", methods=["GET"])
+    def model_status():
+        """Return current model info."""
+        return jsonify({
+            "model_path": getattr(base_container, "model_path", "unknown"),
+            "loaded": base_container._model_loaded,
+            "base_model": SIMPLE_MODEL_PATH,
+        })
+
     print("[Generic] ✅ LLM Container ready!")
     print("[Generic] 🌐 Starting Flask server on 0.0.0.0:11434...")
-    
+
     app.run(host="0.0.0.0", port=11434, threaded=True, debug=False)

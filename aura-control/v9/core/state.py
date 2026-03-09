@@ -285,6 +285,58 @@ class _State:
     def last_response_question(self, v: bool) -> None:
         self._last_response_question = v
 
+    # ------------------------------------------------------------------
+    # Aura Perpetual (background rumination)
+    # ------------------------------------------------------------------
+
+    @property
+    def perpetual_active(self) -> bool:
+        return getattr(self, "_perpetual_active", False)
+
+    @perpetual_active.setter
+    def perpetual_active(self, v: bool) -> None:
+        self._perpetual_active = v
+
+    @property
+    def perpetual_paused(self) -> bool:
+        return getattr(self, "_perpetual_paused", False)
+
+    @perpetual_paused.setter
+    def perpetual_paused(self, v: bool) -> None:
+        self._perpetual_paused = v
+
+    @property
+    def perpetual_model_swapping(self) -> bool:
+        return getattr(self, "_perpetual_model_swapping", False)
+
+    @perpetual_model_swapping.setter
+    def perpetual_model_swapping(self, v: bool) -> None:
+        self._perpetual_model_swapping = v
+
+    @property
+    def last_briefing_ts(self) -> float:
+        return getattr(self, "_last_briefing_ts", 0.0)
+
+    @last_briefing_ts.setter
+    def last_briefing_ts(self, v: float) -> None:
+        self._last_briefing_ts = v
+
+    @property
+    def pending_briefing(self):
+        return getattr(self, "_pending_briefing", None)
+
+    @pending_briefing.setter
+    def pending_briefing(self, v) -> None:
+        self._pending_briefing = v
+
+    @property
+    def last_conversation_ts(self) -> float:
+        return getattr(self, "_last_conversation_ts", 0.0)
+
+    @last_conversation_ts.setter
+    def last_conversation_ts(self, v: float) -> None:
+        self._last_conversation_ts = v
+
 
 # Module-level singleton
 state = _State()

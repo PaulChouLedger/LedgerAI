@@ -129,3 +129,16 @@ BOOT_CAPTURE_TIMEOUT_S  = 8.0      # give up waiting for speech
 # Speaker embedding (resemblyzer)
 EMBEDDING_DIM             = 256
 EMBEDDING_MATCH_THRESHOLD = 0.75
+
+# ---------------------------------------------------------------------------
+# Aura Perpetual (background rumination engine)
+# ---------------------------------------------------------------------------
+BRIEFINGS_DIR              = DATA_DIR / "briefings"
+PERPETUAL_IDLE_THRESHOLD_S = float(os.environ.get("AURA_PERPETUAL_IDLE_S", "120.0"))
+PERPETUAL_MAX_ITERATIONS   = int(os.environ.get("AURA_PERPETUAL_MAX_ITER", "5"))
+PERPETUAL_CONVERGENCE      = float(os.environ.get("AURA_PERPETUAL_CONVERGENCE", "0.92"))
+PERPETUAL_BRIEFING_COOLDOWN_S = 86400   # 24 hours between briefings
+PERPETUAL_7B_MODEL_PATH    = os.environ.get(
+    "AURA_PERPETUAL_7B_MODEL",
+    "/models/Qwen2.5-7B-Instruct.Q4_K_M.gguf",
+)
