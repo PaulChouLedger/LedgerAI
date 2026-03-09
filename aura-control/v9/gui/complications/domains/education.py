@@ -275,24 +275,15 @@ class EducationComplication(BaseDomainComplication):
 
     def play_audio(self):
         """Start narration audio (non-blocking)."""
-        mp3 = os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "..",
-                           "assets", "atom_narration.mp3")
-        if os.path.exists(mp3):
+        wav = os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "..",
+                           "assets", "atom_narration.wav")
+        if os.path.exists(wav):
             try:
                 from core.config import ALSA_PLAYBACK_DEVICE
-                ff = subprocess.Popen(
-                    ["ffmpeg", "-i", mp3, "-loglevel", "quiet",
-                     "-f", "s16le", "-acodec", "pcm_s16le",
-                     "-ac", "2", "-ar", "48000", "-"],
-                    stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
-                )
                 self._audio_proc = subprocess.Popen(
-                    ["aplay", "-D", ALSA_PLAYBACK_DEVICE,
-                     "-f", "S16_LE", "-c", "2", "-r", "48000", "-q"],
-                    stdin=ff.stdout,
+                    ["aplay", "-D", ALSA_PLAYBACK_DEVICE, wav],
                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                 )
-                ff.stdout.close()
             except FileNotFoundError:
                 pass
 

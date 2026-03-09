@@ -794,8 +794,14 @@ class AuraWindow(QWidget):
                             domain_comp.play_audio()
                 return
 
-        # Check center tap
+        # Check center tap — dismiss any open domain overlay
         if hit_center(x, y, cx, cy, mind):
+            for dname in self._glyph_names:
+                dcomp = registry.get(dname)
+                if dcomp and dcomp.overlay_open:
+                    dcomp.close_overlay()
+                    if hasattr(dcomp, 'stop_audio'):
+                        dcomp.stop_audio()
             bus.emit("center.tap")
             return
 

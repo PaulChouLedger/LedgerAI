@@ -93,6 +93,12 @@ class BootOrchestrator:
         random.shuffle(self._filler_wavs)
         self._filler_idx = 0
 
+        # Pre-generated short responses ("Oh I love that", "Nice answer", etc.)
+        resp_dir = BOOT_MUSIC_PATH.parent / "boot_prompts" / "filler_responses"
+        self._response_wavs = sorted(_glob.glob(str(resp_dir / "response_*.wav")))
+        random.shuffle(self._response_wavs)
+        self._response_idx = 0
+
         # Captured audio (for retroactive transcription)
         self._name_audio: Optional[np.ndarray] = None
         self._voice_audio: Optional[np.ndarray] = None
@@ -382,7 +388,7 @@ class BootOrchestrator:
         Ducks music, plays question, captures user's response (deepens voice
         profile), unducks music. Longer music lead for natural pacing.
         """
-        if not self._filler_wavs or pause_s < 3.0:
+        if not self._filler_wavs or pause_s < 10.0:
             time.sleep(pause_s)
             return
 
@@ -416,6 +422,13 @@ class BootOrchestrator:
             dur = len(audio) / SAMPLE_RATE
             print(f"[boot] Filler response captured: {dur:.1f}s (for voice profile)")
             self._extra_voice_samples.append(audio)
+            # Play a short acknowledgment ("Oh I love that", "Nice answer", etc.)
+            if self._response_wavs:
+                resp = self._response_wavs[self._response_idx % len(self._response_wavs)]
+                self._response_idx += 1
+                print(f"[boot] Response: {os.path.basename(resp)}")
+                self._mic.play_prompt(resp)
+                self._mic.wait_for_prompt(timeout=5.0)
         else:
             print("[boot] No response to filler (that's okay)")
 
@@ -592,8 +605,8 @@ class BootOrchestrator:
             prog = max(svc_prog, time_prog)
             self._set_phase(Phase.WAITING_SERVICES, prog, "Loading AI models")
 
-            # Play a conversational filler every ~20s during the wait
-            if (time.time() - last_filler > 18.0 and self._filler_wavs
+            # Play a conversational filler every ~30s during the wait
+            if (time.time() - last_filler > 28.0 and self._filler_wavs
                     and self._music_proc and self._music_proc.poll() is None):
                 self._play_filler_during_pause(12.0)
                 last_filler = time.time()
@@ -617,18 +630,32 @@ class BootOrchestrator:
             if text:
                 # Clean up — the user probably just said their name
                 text = text.strip().strip(".,!?").strip()
-                # Remove common filler (user was prompted: "Aura, my name is X")
-                for prefix in ("aura ", "aura, ", "aura. ", "hey aura ", "hey aura, "):
+                # Remove "Aura" / "Laura" / "Ora" prefix (Whisper often mishears)
+                # Apply repeatedly in case of "Hey Laura, my name is X"
+                _aura_prefixes = (
+                    "hey laura, ", "hey laura ", "hey aura, ", "hey aura ",
+                    "laura, ", "laura ", "aura, ", "aura. ", "aura ",
+                    "ora, ", "ora ", "hey ora, ", "hey ora ",
+                )
+                for _ in range(2):  # two passes to catch nested prefixes
                     lower = text.lower()
+                    for prefix in _aura_prefixes:
+                        if lower.startswith(prefix):
+                            text = text[len(prefix):].strip()
+                            break
+                # Remove "my name is" / "I'm" / etc.
+                _name_prefixes = (
+                    "my name is ", "i'm ", "i am ", "it's ", "call me ",
+                    "this is ", "they call me ",
+                )
+                lower = text.lower()
+                for prefix in _name_prefixes:
                     if lower.startswith(prefix):
                         text = text[len(prefix):].strip()
                         break
-                for prefix in ("my name is ", "i'm ", "i am ", "it's ", "call me "):
-                    lower = text.lower()
-                    if lower.startswith(prefix):
-                        text = text[len(prefix):].strip()
-                        break
-                # Capitalize
+                # Strip trailing filler
+                text = text.strip().strip(".,!?").strip()
+                # Capitalize first letter
                 if text:
                     text = text[0].upper() + text[1:]
             return text if text else None
