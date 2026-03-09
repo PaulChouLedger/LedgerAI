@@ -33,5 +33,20 @@
     "name": "Paul",
     "created": "2026-03-08T21:51:57",
     "embedding_file": "1765d48a5c4b_embedding.npy"
+  },
+  "5b7650d59d0f": {
+    "name": "User",
+    "created": "2026-03-09T05:57:51",
+    "embedding_file": "5b7650d59d0f_embedding.npy"
+  },
+  "aae386c641f1": {
+    "name": "Hey, Oro, my name is Paul",
+    "created": "2026-03-09T06:02:13",
+    "embedding_file": "aae386c641f1_embedding.npy"
+  },
+  "b745b7c9b49a": {
+    "name": "User",
+    "created": "2026-03-09T06:15:41",
+    "embedding_file": "b745b7c9b49a_embedding.npy"
   }
 }
