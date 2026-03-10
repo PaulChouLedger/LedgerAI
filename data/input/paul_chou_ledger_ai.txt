@@ -1,0 +1,77 @@
+PAUL CHOU — CEO & FOUNDER, LEDGER AI
+======================================
+
+BACKGROUND
+Paul Chou is the founder and CEO of Ledger AI, a company building on-device AI assistants for healthcare and consumer applications. Based in the United States, Paul has a background in engineering and entrepreneurship. He is passionate about privacy-first AI — the belief that powerful AI should run locally on hardware the user owns, never sending data to the cloud.
+
+COMPANY OVERVIEW
+Ledger AI develops "Aura," a voice-first AI assistant that runs entirely on NVIDIA Jetson hardware. The device features a circular display (the "Puck"), a 4-microphone array for far-field voice capture, and local LLM inference using quantized Qwen models. The company's thesis is that personal AI must be private AI — no cloud, no data harvesting.
+
+KEY PRIORITIES (2026)
+1. Ship the first Aura Puck hardware units to early testers and partners
+2. Validate the medical LLM mode with healthcare professionals
+3. Build AuraConnect — a companion iOS/macOS app for Bluetooth pairing
+4. Achieve reliable voice interaction with sub-3-second response latency
+5. Raise a seed round to scale manufacturing
+
+CURRENT CHALLENGES
+- Hardware reliability: The Jetson Orin Nano's power management causes brownout crashes with battery packs; needs investigation or a regulated power supply
+- Model quality: The 1.5B parameter Qwen model sometimes gives shallow or repetitive answers; balancing between the 1.5B for speed and 7B for depth
+- Voice cloning: ChatterboxTTS voice cloning quality varies; exploring Kokoro as alternative
+- Distribution: Need to decide between direct-to-consumer vs B2B healthcare sales channel
+- Team: Currently a small team; Paul handles engineering, product, and business development
+
+GOALS
+- Short term (Q1 2026): Get 5 Puck units in the hands of testers, collect feedback
+- Medium term (Q2-Q3 2026): Refine the medical mode with real clinical workflows, partner with a telehealth company
+- Long term (2026-2027): Launch consumer version, build ecosystem of "complications" (mini-apps on the Puck's dial)
+
+PERSONAL NOTES
+- Paul prefers direct, technical communication — no fluff
+- He's a night owl and often works late debugging hardware issues
+- He values iteration speed over perfection — "ship it, fix it, ship again"
+- He's interested in the intersection of AI and healthcare accessibility
+- Paul often asks Aura about medical topics, AI architecture, and business strategy
+- His colleague Rafael is one of the early testers
+
+PRODUCT ROADMAP
+- Aura Perpetual: A background rumination engine where the AI thinks about the user's goals when idle, using an advisor/challenger debate pattern, delivering a "Presidential Daily Brief" once per 24 hours
+- AuraConnect BLE: Bluetooth Low Energy GATT peripheral for pairing with companion apps
+- Multi-user voice profiles: Speaker identification and personalized responses
+- Complication ecosystem: Weather, health metrics, calendar, concierge services on the Puck dial
+- RAG integration: Document ingestion for personalized knowledge (medical records, business docs)
+
+LEDGER AI TECHNICAL STACK
+- Hardware: NVIDIA Jetson Orin Nano, Seeed XVF3800 4-mic array, circular IPS display
+- LLM: Qwen2.5-1.5B-Instruct (Q4_K_M quantized), with 7B model for deep thinking
+- TTS: Kokoro-82M (primary), Chatterbox (voice cloning), ElevenLabs (cloud fallback)
+- STT: faster-whisper running in Docker container on GPU
+- Framework: PyQt5 circular GUI, Python backend, Docker orchestration
+- Memory: FAISS-based semantic search for conversation history and RAG
+
+FUNDRAISING NOTES
+- Targeting $1.5-2M seed round
+- Key selling points: privacy-first architecture, on-device inference, healthcare AI potential
+- Comparable companies: Humane (AI Pin), Rabbit (R1), but Aura is open/hackable and privacy-focused
+- Paul has been networking with healthcare VCs and AI-focused angels
+- Demo unit (the Puck) is the primary pitch tool — "let them talk to it"
+
+COMPETITIVE LANDSCAPE
+- Humane AI Pin: Wearable, cloud-dependent, poor reviews
+- Rabbit R1: Novel form factor but cloud-dependent, limited utility
+- Apple Siri / Google Assistant: Powerful but privacy-invasive
+- Aura differentiator: Fully local inference, hackable/extensible, medical-grade potential
+
+HEALTHCARE MODE
+- Medical LLM trained on clinical guidelines and medical terminology
+- Intended for patient education, symptom triage, medication information
+- NOT a diagnostic tool — always refers to healthcare professionals
+- Custom medical terms dictionary for Whisper STT accuracy
+- Future: Integration with NHS APIs, telehealth platforms
+
+KNOWN ISSUES (AS OF MARCH 2026)
+- Battery brownout crashes with portable power banks
+- Occasional Whisper hallucinations from background noise (mitigated with blocklist filter)
+- Boot sequence takes ~2 minutes due to container startup
+- QPainter warnings in GUI (cosmetic, non-functional)
+- Medical and generic LLM share port 11434, can't run simultaneously

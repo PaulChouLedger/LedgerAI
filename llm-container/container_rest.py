@@ -3672,34 +3672,61 @@ if __name__ == "__main__":
         import gc
         data = request.get_json(silent=True) or {}
         model_path = data.get("model_path", "")
+        n_gpu = data.get("n_gpu_layers", -1)  # allow caller to limit GPU layers
         if not model_path or not os.path.isfile(model_path):
             return jsonify({"error": f"Model not found: {model_path}"}), 404
 
-        print(f"[Generic] Model swap requested: {model_path}")
+        print(f"[Generic] Model swap requested: {model_path} (n_gpu_layers={n_gpu})")
         with base_container.llm_lock:
             try:
-                # Unload current model
+                # Unload base model
                 if base_container.llm_simple:
                     del base_container.llm_simple
                     base_container.llm_simple = None
                     base_container._model_loaded = False
-                    gc.collect()
-                    import time as _time; _time.sleep(1.0)
 
-                # Load new model
-                from llama_cpp import Llama
-                base_container.llm_simple = Llama(
-                    model_path=model_path,
-                    n_ctx=SIMPLE_N_CTX,
-                    n_threads=N_THREADS,
-                    n_batch=N_BATCH,
-                    n_gpu_layers=-1,
-                    cache_prompt=CACHE_PROMPT,
-                    chat_format=SIMPLE_CHAT_FORMAT,
-                    use_mlock=True,
-                    use_mmap=True,
-                    verbose=False,
-                )
+                # Unload CoT model too to free GPU memory
+                global llm_cot
+                if cot_container and cot_container.llm_simple:
+                    del cot_container.llm_simple
+                    cot_container.llm_simple = None
+                    cot_container._model_loaded = False
+                    llm_cot = None
+
+                # Aggressive memory cleanup
+                gc.collect()
+                try:
+                    import ctypes
+                    ctypes.CDLL("libcudart.so").cudaDeviceReset()
+                except Exception:
+                    pass
+                gc.collect()
+                import time as _time; _time.sleep(3.0)
+
+                # Load new model on CPU (7B doesn't fit GPU alongside Whisper)
+                # Disable CUDA to prevent llama.cpp from trying GPU allocation
+                old_cuda = os.environ.get("CUDA_VISIBLE_DEVICES")
+                os.environ["CUDA_VISIBLE_DEVICES"] = ""
+                os._cuda_visible_backup = old_cuda  # save for restore
+                try:
+                    from llama_cpp import Llama
+                    base_container.llm_simple = Llama(
+                        model_path=model_path,
+                        n_ctx=2048,  # smaller context for 7B to save memory
+                        n_threads=6,
+                        n_batch=256,
+                        n_gpu_layers=0,
+                        cache_prompt=False,  # save memory
+                        chat_format=SIMPLE_CHAT_FORMAT,
+                        use_mlock=False,
+                        use_mmap=True,
+                        verbose=False,
+                    )
+                finally:
+                    if old_cuda is not None:
+                        os.environ["CUDA_VISIBLE_DEVICES"] = old_cuda
+                    else:
+                        os.environ.pop("CUDA_VISIBLE_DEVICES", None)
                 base_container._model_loaded = True
                 base_container.model_path = model_path
                 print(f"[Generic] Model swapped to: {model_path}")
@@ -3725,7 +3752,7 @@ if __name__ == "__main__":
 
     @app.route("/model/restore", methods=["POST"])
     def model_restore():
-        """Restore the original 1.5B base model."""
+        """Restore the original 1.5B base model (and CoT model)."""
         import gc
         if base_container.model_path == SIMPLE_MODEL_PATH and base_container._model_loaded:
             return jsonify({"status": "ok", "model": SIMPLE_MODEL_PATH, "note": "already loaded"})
@@ -3733,13 +3760,27 @@ if __name__ == "__main__":
         print(f"[Generic] Restoring base model: {SIMPLE_MODEL_PATH}")
         with base_container.llm_lock:
             try:
+                # Unload 7B (which was loaded with CUDA disabled)
                 if base_container.llm_simple:
                     del base_container.llm_simple
                     base_container.llm_simple = None
-                    gc.collect()
-                    import time as _time; _time.sleep(1.0)
+
+                # Also ensure CoT ref is cleared
+                global llm_cot
+                llm_cot = None
+
+                # Aggressive cleanup to free memory
+                gc.collect()
+                import time as _time; _time.sleep(3.0)
+                gc.collect()
+
+                # Re-enable CUDA for GPU-accelerated 1.5B
+                os.environ.pop("CUDA_VISIBLE_DEVICES", None)
+                if hasattr(os, '_cuda_visible_backup'):
+                    os.environ["CUDA_VISIBLE_DEVICES"] = os._cuda_visible_backup
 
                 from llama_cpp import Llama
+                # Restore base model on GPU
                 base_container.llm_simple = Llama(
                     model_path=SIMPLE_MODEL_PATH,
                     n_ctx=SIMPLE_N_CTX, n_threads=N_THREADS,
@@ -3754,6 +3795,7 @@ if __name__ == "__main__":
                 return jsonify({"status": "ok", "model": SIMPLE_MODEL_PATH})
             except Exception as e:
                 print(f"[Generic] Model restore failed: {e}")
+                import traceback; traceback.print_exc()
                 return jsonify({"error": str(e)}), 500
 
     @app.route("/model/status", methods=["GET"])
@@ -3764,6 +3806,44 @@ if __name__ == "__main__":
             "loaded": base_container._model_loaded,
             "base_model": SIMPLE_MODEL_PATH,
         })
+
+    # ------------------------------------------------------------------
+    # Perpetual direct chat (bypasses RAG/CoT entirely)
+    # ------------------------------------------------------------------
+
+    @app.route("/perpetual/chat", methods=["POST"])
+    def perpetual_chat():
+        """Direct LLM call for Aura Perpetual — no RAG, no CoT, no memory injection."""
+        data = request.get_json(silent=True) or {}
+        system_prompt = data.get("system_prompt", "You are a helpful assistant.")
+        user_prompt = data.get("prompt", "")
+        max_tokens = data.get("max_tokens", 512)
+
+        if not user_prompt:
+            return jsonify({"error": "prompt required"}), 400
+
+        if not base_container.llm_simple or not base_container._model_loaded:
+            return jsonify({"error": "model not loaded"}), 503
+
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ]
+
+        try:
+            with base_container.llm_lock:
+                resp = base_container.llm_simple.create_chat_completion(
+                    messages=messages,
+                    max_tokens=max_tokens,
+                    temperature=0.7,
+                    top_p=0.9,
+                    stream=False,
+                )
+            text = resp["choices"][0]["message"]["content"].strip()
+            return jsonify({"response": text})
+        except Exception as e:
+            print(f"[Generic] Perpetual chat error: {e}")
+            return jsonify({"error": str(e)}), 500
 
     print("[Generic] ✅ LLM Container ready!")
     print("[Generic] 🌐 Starting Flask server on 0.0.0.0:11434...")

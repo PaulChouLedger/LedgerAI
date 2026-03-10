@@ -376,19 +376,16 @@ class Perpetual:
     # ------------------------------------------------------------------
 
     def _llm_call(self, system_prompt: str, user_message: str) -> str:
-        """Non-streaming LLM call via /chat-tg."""
+        """Direct LLM call via /perpetual/chat (bypasses RAG/CoT)."""
         try:
             resp = requests.post(
-                f"{LLM_URL}/chat-tg",
+                f"{LLM_URL}/perpetual/chat",
                 json={
                     "prompt": user_message,
                     "system_prompt": system_prompt,
-                    "session_id": "perpetual",
-                    "chat_id": "perpetual",
-                    "stream": False,
+                    "max_tokens": 400,
                 },
-                timeout=120,
-                headers={"Accept": "application/json"},
+                timeout=300,  # 7B on CPU can be slow
             )
             if resp.status_code != 200:
                 print(f"[perpetual] LLM HTTP {resp.status_code}")
@@ -478,11 +475,19 @@ class Perpetual:
     # Model hot-swap (Phase 2 — called when 7B model is available)
     # ------------------------------------------------------------------
 
+    def _7b_model_available(self) -> bool:
+        """Check if the 7B model file exists inside the container."""
+        try:
+            resp = requests.get(f"{LLM_URL}/model/status", timeout=5)
+            return resp.status_code == 200  # endpoint exists = swap supported
+        except Exception:
+            return False
+
     def _swap_to_7b(self) -> bool:
         """Request the LLM container to swap to the 7B model."""
         if self._7b_active:
             return True
-        if not os.path.exists(PERPETUAL_7B_MODEL_PATH):
+        if not self._7b_model_available():
             return False
         try:
             state.perpetual_model_swapping = True
@@ -507,21 +512,34 @@ class Perpetual:
             state.perpetual_model_swapping = False
 
     def _restore_model(self) -> None:
-        """Restore the original 1.5B model."""
+        """Restore the original 1.5B model by restarting the LLM container.
+
+        Hot-restore doesn't work because llama.cpp caches CUDA state at
+        import time, and the 7B was loaded with CUDA disabled.  A container
+        restart (10-20s) cleanly restores GPU-accelerated 1.5B.
+        """
         if not self._7b_active:
             return
         try:
             state.perpetual_model_swapping = True
             bus.emit("perpetual.model_swapping", model="1.5B")
-            print("[perpetual] Restoring 1.5B model...")
-            resp = requests.post(
-                f"{LLM_URL}/model/restore",
-                timeout=60,
+            print("[perpetual] Restoring 1.5B model (container restart)...")
+            import subprocess
+            subprocess.run(
+                ["docker", "restart", "setup-llm-generic-1"],
+                timeout=30, capture_output=True,
             )
-            if resp.status_code == 200:
-                print("[perpetual] 1.5B model restored")
-            else:
-                print(f"[perpetual] Restore failed: HTTP {resp.status_code}")
+            # Wait for container to be ready
+            import time as _time
+            for _ in range(30):
+                try:
+                    r = requests.get(f"{LLM_URL}/model/status", timeout=2)
+                    if r.status_code == 200 and r.json().get("loaded"):
+                        print("[perpetual] 1.5B model restored")
+                        break
+                except Exception:
+                    pass
+                _time.sleep(5)
         except Exception as e:
             print(f"[perpetual] Restore error: {e}")
         finally:

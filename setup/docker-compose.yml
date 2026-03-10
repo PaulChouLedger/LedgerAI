@@ -35,6 +35,8 @@ services:
       - ../shared:/shared
       - ../data:/app/data
       - ../.env:/app/.env
+      - ../llm-container/container_rest.py:/app/container_rest.py
+      - ../models:/models/extra
     working_dir: /app
     env_file: ../.env
     environment:
