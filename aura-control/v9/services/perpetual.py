@@ -31,6 +31,7 @@ import requests
 from core.bus import bus
 from core.config import (
     BRIEFINGS_DIR,
+    FARSIGHT_URL,
     LLM_URL,
     MEMORY_URL,
     PERPETUAL_IDLE_THRESHOLD_S,
@@ -111,6 +112,7 @@ class Perpetual:
         self._stop = threading.Event()
         self._paused = threading.Event()  # set = paused
         self._7b_active = False
+        self._use_farsight = bool(FARSIGHT_URL)
 
     # ------------------------------------------------------------------
     # Lifecycle
@@ -228,7 +230,10 @@ class Perpetual:
             return
 
         name = state.active_user_name or "the user"
-        print(f"[perpetual] Starting rumination cycle for {name}")
+        # Re-check Farsight availability each cycle
+        self._use_farsight = bool(FARSIGHT_URL)
+        mode = "Farsight" if self._use_farsight else "local Puck"
+        print(f"[perpetual] Starting rumination cycle for {name} ({mode})")
         state.perpetual_active = True
         bus.emit("perpetual.started")
 
@@ -376,24 +381,36 @@ class Perpetual:
     # ------------------------------------------------------------------
 
     def _llm_call(self, system_prompt: str, user_message: str) -> str:
-        """Direct LLM call via /perpetual/chat (bypasses RAG/CoT)."""
+        """Direct LLM call — routes to Farsight (remote GPU) or local Puck."""
+        url = f"{FARSIGHT_URL}/perpetual/chat" if self._use_farsight else f"{LLM_URL}/perpetual/chat"
+        timeout = 60 if self._use_farsight else 300  # Farsight is fast
         try:
             resp = requests.post(
-                f"{LLM_URL}/perpetual/chat",
+                url,
                 json={
                     "prompt": user_message,
                     "system_prompt": system_prompt,
-                    "max_tokens": 400,
+                    "max_tokens": 500,
                 },
-                timeout=300,  # 7B on CPU can be slow
+                timeout=timeout,
             )
             if resp.status_code != 200:
-                print(f"[perpetual] LLM HTTP {resp.status_code}")
+                print(f"[perpetual] LLM HTTP {resp.status_code} from {url}")
+                # Fallback to local if Farsight fails
+                if self._use_farsight:
+                    print("[perpetual] Farsight unavailable, falling back to local")
+                    self._use_farsight = False
+                    return self._llm_call(system_prompt, user_message)
                 return ""
             data = resp.json()
             return data.get("response", "").strip()
         except Exception as e:
-            print(f"[perpetual] LLM call error: {e}")
+            print(f"[perpetual] LLM call error ({url}): {e}")
+            # Fallback to local if Farsight fails
+            if self._use_farsight:
+                print("[perpetual] Farsight unavailable, falling back to local")
+                self._use_farsight = False
+                return self._llm_call(system_prompt, user_message)
             return ""
 
     # ------------------------------------------------------------------

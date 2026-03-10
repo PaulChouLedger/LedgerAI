@@ -142,3 +142,8 @@ PERPETUAL_7B_MODEL_PATH    = os.environ.get(
     "AURA_PERPETUAL_7B_MODEL",
     "/models/extra/Qwen2.5-7B-Instruct-Q4_K_M.gguf",
 )
+
+# Farsight: remote GPU server for deep thinking (enterprise mode)
+# If set, Perpetual farms out LLM calls to this endpoint instead of local model swap.
+# If unset or empty, falls back to local Puck inference (swap to 7B on CPU).
+FARSIGHT_URL = os.environ.get("AURA_FARSIGHT_URL", "")  # e.g. "http://192.168.1.100:11434"
