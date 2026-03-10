@@ -138,6 +138,7 @@ PERPETUAL_IDLE_THRESHOLD_S = float(os.environ.get("AURA_PERPETUAL_IDLE_S", "120.
 PERPETUAL_MAX_ITERATIONS   = int(os.environ.get("AURA_PERPETUAL_MAX_ITER", "5"))
 PERPETUAL_CONVERGENCE      = float(os.environ.get("AURA_PERPETUAL_CONVERGENCE", "0.92"))
 PERPETUAL_BRIEFING_COOLDOWN_S = 86400   # 24 hours between briefings
+PERPETUAL_QUESTION_COOLDOWN_S = 3600   # 1 hour between proactive questions
 PERPETUAL_7B_MODEL_PATH    = os.environ.get(
     "AURA_PERPETUAL_7B_MODEL",
     "/models/extra/Qwen2.5-7B-Instruct-Q4_K_M.gguf",

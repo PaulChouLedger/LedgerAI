@@ -142,6 +142,28 @@ def main() -> int:
                             pass
                         return
 
+                # Deliver proactive question (lighter than briefing)
+                if state.pending_question and not state.perpetual_paused:
+                    question_data = state.pending_question
+                    state.pending_question = None
+                    q_text = question_data.get("text", "")
+                    if q_text:
+                        print(f"[aura] Delivering proactive question: \"{q_text[:80]}\"")
+                        # Weave the question into the LLM response naturally
+                        speaker.play_thinking_filler()
+                        threading.Thread(
+                            target=llm_client.stream_chat,
+                            args=(
+                                f"You had a question you wanted to ask the user: \"{q_text}\"\n\n"
+                                f"The user just said: \"{text}\"\n\n"
+                                f"Respond to what they said, but also naturally work in your question. "
+                                f"If their message already answers your question, skip it.",
+                            ),
+                            daemon=True,
+                            name="llm-stream",
+                        ).start()
+                        return
+
                 # Play a thinking filler immediately so user hears instant response
                 speaker.play_thinking_filler()
                 threading.Thread(

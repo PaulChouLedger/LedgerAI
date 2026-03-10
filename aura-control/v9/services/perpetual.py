@@ -39,6 +39,7 @@ from core.config import (
     PERPETUAL_MAX_ITERATIONS,
     PERPETUAL_CONVERGENCE,
     PERPETUAL_BRIEFING_COOLDOWN_S,
+    PERPETUAL_QUESTION_COOLDOWN_S,
     PERPETUAL_7B_MODEL_PATH,
     VOICE_PROFILES_DIR,
 )
@@ -87,6 +88,28 @@ Critique received:
 
 Produce your refined insight. Be concise (3-5 sentences max)."""
 
+QUESTION_SYSTEM = """You are Aura, {name}'s AI advisor. You've been reflecting on recent \
+conversations and have identified gaps in your understanding that would help you \
+give better advice.
+
+Generate ONE natural, conversational question to ask {name}. The question should:
+- Reference something specific from their recent conversations or goals
+- Help you understand their situation better so you can advise more effectively
+- Sound like a thoughtful friend checking in, not an interview
+- Be concise (1-2 sentences max)
+
+Recent context:
+{context}
+
+RAG knowledge:
+{rag_context}
+
+Knowledge gaps you've already identified:
+{gaps}
+
+Respond with ONLY the question text — no preamble, no explanation, just the question \
+as you would say it to {name}."""
+
 BRIEFING_SYSTEM = """You are Aura, preparing a Presidential Daily Brief for {name}. \
 Summarize your refined insight into a structured briefing.
 
@@ -115,6 +138,8 @@ class Perpetual:
         self._paused = threading.Event()  # set = paused
         self._7b_active = False
         self._use_farsight = bool(FARSIGHT_URL)
+        self._last_question_ts = 0.0
+        self._accumulated_gaps: list[str] = []  # knowledge gaps across cycles
 
     # ------------------------------------------------------------------
     # Lifecycle
@@ -205,7 +230,18 @@ class Perpetual:
                 self._idle_wait()
                 if self._stop.is_set():
                     break
-                self._ruminate()
+
+                # Decide: full briefing or proactive question?
+                briefing_ready = (time.time() - state.last_briefing_ts) >= PERPETUAL_BRIEFING_COOLDOWN_S
+                question_ready = (time.time() - self._last_question_ts) >= PERPETUAL_QUESTION_COOLDOWN_S
+
+                if briefing_ready:
+                    self._ruminate()
+                elif question_ready and not state.pending_briefing:
+                    self._generate_proactive_question()
+                else:
+                    # Nothing to do — sleep and check again
+                    time.sleep(60.0)
             except Exception as e:
                 print(f"[perpetual] Error in rumination cycle: {e}")
                 time.sleep(60.0)
@@ -313,6 +349,14 @@ class Perpetual:
                 if wav_path:
                     briefing["audio_path"] = wav_path
 
+                # Accumulate knowledge gaps for proactive questions
+                gaps = briefing.get("knowledge_gaps", [])
+                for g in gaps:
+                    if g and g not in self._accumulated_gaps:
+                        self._accumulated_gaps.append(g)
+                # Keep only the most recent gaps
+                self._accumulated_gaps = self._accumulated_gaps[-10:]
+
                 state.pending_briefing = briefing
                 state.last_briefing_ts = time.time()
                 print(f"[perpetual] Briefing generated: {briefing.get('insight', '')[:80]}...")
@@ -323,6 +367,63 @@ class Perpetual:
         finally:
             state.perpetual_active = False
             bus.emit("perpetual.finished")
+
+    # ------------------------------------------------------------------
+    # Proactive questioning
+    # ------------------------------------------------------------------
+
+    def _generate_proactive_question(self) -> None:
+        """Generate a contextual question to ask the user proactively.
+
+        Runs between briefing cooldowns. Uses accumulated knowledge gaps
+        and recent context to ask something specific and useful.
+        """
+        name = state.active_user_name or "the user"
+        self._use_farsight = bool(FARSIGHT_URL)
+        mode = "Farsight" if self._use_farsight else "local"
+        print(f"[perpetual] Generating proactive question for {name} ({mode})")
+
+        try:
+            # Gather context
+            context = self._gather_memory_context()
+            rag_context = self._gather_rag_context()
+
+            if not context and not rag_context:
+                print("[perpetual] No context for question — skipping")
+                return
+
+            if self._check_yield():
+                return
+
+            gaps_text = "\n".join(f"- {g}" for g in self._accumulated_gaps) if self._accumulated_gaps else "None identified yet."
+
+            prompt = QUESTION_SYSTEM.format(
+                name=name,
+                context=context,
+                rag_context=rag_context,
+                gaps=gaps_text,
+            )
+            question = self._llm_call(prompt, f"What is one thing you want to ask {name} right now?")
+            if not question or self._check_yield():
+                return
+
+            # Clean up — remove quotes, prefixes like "Hey Paul,"
+            question = question.strip().strip('"').strip("'")
+
+            print(f"[perpetual] Proactive question: \"{question[:100]}\"")
+
+            # Store for delivery on next interaction
+            state.pending_question = {
+                "text": question,
+                "generated_at": time.time(),
+                "user_name": name,
+                "gaps_used": list(self._accumulated_gaps[-3:]),
+            }
+            self._last_question_ts = time.time()
+            bus.emit("perpetual.question_ready", question=question)
+
+        except Exception as e:
+            print(f"[perpetual] Question generation error: {e}")
 
     # ------------------------------------------------------------------
     # Data gathering

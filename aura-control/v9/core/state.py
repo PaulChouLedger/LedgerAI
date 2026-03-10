@@ -330,6 +330,14 @@ class _State:
         self._pending_briefing = v
 
     @property
+    def pending_question(self):
+        return getattr(self, "_pending_question", None)
+
+    @pending_question.setter
+    def pending_question(self, v) -> None:
+        self._pending_question = v
+
+    @property
     def last_conversation_ts(self) -> float:
         return getattr(self, "_last_conversation_ts", 0.0)
 
