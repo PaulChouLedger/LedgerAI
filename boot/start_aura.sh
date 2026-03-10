@@ -39,6 +39,9 @@ source /home/ledger/aura-env/bin/activate
 export HF_HUB_OFFLINE=1
 export TRANSFORMERS_OFFLINE=1
 
+# Farsight: remote GPU server for Perpetual deep thinking (via Tailscale)
+export AURA_FARSIGHT_URL="http://100.76.191.92:11435"
+
 # Ensure docker containers are running (only generic LLM — medical shares port)
 cd /home/ledger/Aura4/setup
 docker compose up -d whisper llm-generic memory 2>/dev/null \
