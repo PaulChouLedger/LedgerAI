@@ -96,26 +96,36 @@ def main() -> int:
                     state.pending_briefing = None
                     insight = briefing.get("insight", "")
                     gaps = briefing.get("knowledge_gaps", [])
+                    audio_path = briefing.get("audio_path")
                     if insight:
-                        # Time-aware greeting
-                        import datetime as _dt
-                        hour = _dt.datetime.now().hour
-                        if hour < 12:
-                            greeting = "Good morning"
-                        elif hour < 17:
-                            greeting = "Good afternoon"
+                        # Check for pre-synthesized audio from Farsight
+                        if audio_path and os.path.exists(audio_path):
+                            # High-quality pre-rendered audio — play directly
+                            print(f"[aura] Playing pre-synthesized briefing: {audio_path}")
+                            speaker.enqueue_wav(audio_path)
                         else:
-                            greeting = "Good evening"
-                        preamble = (
-                            f"{greeting}, {name}. I have a brief prepared for you "
-                            f"about something that may impact your interests. {insight}"
-                        )
-                        if gaps:
-                            preamble += f" I could refine this further if you could tell me about {gaps[0]}."
+                            # Fallback: synthesize locally with Kokoro
+                            import datetime as _dt
+                            hour = _dt.datetime.now().hour
+                            if hour < 12:
+                                greeting = "Good morning"
+                            elif hour < 17:
+                                greeting = "Good afternoon"
+                            else:
+                                greeting = "Good evening"
+                            preamble = (
+                                f"{greeting}, {name}. I have a brief prepared for you "
+                                f"about something that may impact your interests. {insight}"
+                            )
+                            if gaps:
+                                preamble += f" I could refine this further if you could tell me about {gaps[0]}."
+                            speaker.enqueue(preamble)
+
+                        # After briefing plays, handle the user's actual question
                         speaker.play_thinking_filler()
                         threading.Thread(
                             target=llm_client.stream_chat,
-                            args=(f"{preamble}\n\nNow, regarding what you just said: {text}",),
+                            args=(f"I just delivered a briefing about: {insight}\n\nNow, regarding what the user just said: {text}",),
                             daemon=True,
                             name="llm-stream",
                         ).start()

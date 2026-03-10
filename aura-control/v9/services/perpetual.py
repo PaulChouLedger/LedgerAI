@@ -32,6 +32,7 @@ from core.bus import bus
 from core.config import (
     BRIEFINGS_DIR,
     FARSIGHT_URL,
+    FARSIGHT_TTS_STEPS,
     LLM_URL,
     MEMORY_URL,
     PERPETUAL_IDLE_THRESHOLD_S,
@@ -39,6 +40,7 @@ from core.config import (
     PERPETUAL_CONVERGENCE,
     PERPETUAL_BRIEFING_COOLDOWN_S,
     PERPETUAL_7B_MODEL_PATH,
+    VOICE_PROFILES_DIR,
 )
 from core.state import state
 
@@ -303,6 +305,14 @@ class Perpetual:
             briefing = self._generate_briefing(name, final_insight)
             if briefing:
                 self._save_briefing(briefing)
+
+                # 5. Pre-synthesize audio on Farsight GPU (if available)
+                if self._check_yield():
+                    return
+                wav_path = self._pre_synthesize_briefing(briefing)
+                if wav_path:
+                    briefing["audio_path"] = wav_path
+
                 state.pending_briefing = briefing
                 state.last_briefing_ts = time.time()
                 print(f"[perpetual] Briefing generated: {briefing.get('insight', '')[:80]}...")
@@ -487,6 +497,142 @@ class Perpetual:
         with open(path, "w") as f:
             json.dump(briefing, f, indent=2)
         print(f"[perpetual] Briefing saved: {path}")
+
+    # ------------------------------------------------------------------
+    # TTS pre-synthesis (Farsight GPU)
+    # ------------------------------------------------------------------
+
+    def _pre_synthesize_briefing(self, briefing: dict) -> Optional[str]:
+        """Pre-render briefing audio on Farsight GPU for high-quality delivery.
+
+        Sends the briefing text + user's voice sample to Farsight's TTS endpoint.
+        Returns the path to the cached WAV file, or None if synthesis fails
+        (in which case the Puck will fall back to local Kokoro TTS on delivery).
+        """
+        if not self._use_farsight:
+            print("[perpetual] No Farsight — briefing will use local TTS on delivery")
+            return None
+
+        # Build the full briefing speech text (same format as delivery in aura.py)
+        import datetime as _dt
+        name = briefing.get("user_name", "friend")
+        insight = briefing.get("insight", "")
+        gaps = briefing.get("knowledge_gaps", [])
+        hour = _dt.datetime.now().hour
+
+        if hour < 12:
+            greeting = "Good morning"
+        elif hour < 17:
+            greeting = "Good afternoon"
+        else:
+            greeting = "Good evening"
+
+        speech_text = (
+            f"{greeting}, {name}. I have a brief prepared for you "
+            f"about something that may impact your interests. {insight}"
+        )
+        if gaps:
+            speech_text += f" I could refine this further if you could tell me about {gaps[0]}."
+
+        # Load voice reference audio from the active user's enrollment sample
+        voice_b64 = self._get_voice_sample_b64()
+
+        # Send to Farsight for high-quality synthesis
+        try:
+            print(f"[perpetual] Pre-synthesizing briefing on Farsight ({FARSIGHT_TTS_STEPS} steps)...")
+            payload = {
+                "text": speech_text,
+                "steps": FARSIGHT_TTS_STEPS,
+            }
+            if voice_b64:
+                payload["voice_sample"] = voice_b64
+            resp = requests.post(
+                f"{FARSIGHT_URL}/perpetual/synthesize",
+                json=payload,
+                timeout=120,  # high-quality synthesis can take a while
+            )
+            if resp.status_code != 200:
+                print(f"[perpetual] Farsight TTS failed: HTTP {resp.status_code}")
+                return None
+
+            # Save the returned WAV
+            wav_path = str(BRIEFINGS_DIR / f"{briefing['date']}.wav")
+            with open(wav_path, "wb") as f:
+                f.write(resp.content)
+
+            # Verify it's a valid WAV
+            import wave
+            with wave.open(wav_path, "rb") as wf:
+                duration = wf.getnframes() / wf.getframerate()
+            print(f"[perpetual] Briefing audio pre-synthesized: {duration:.1f}s → {wav_path}")
+            return wav_path
+
+        except Exception as e:
+            print(f"[perpetual] Farsight TTS error: {e}")
+            return None
+
+    def _get_voice_sample_b64(self) -> Optional[str]:
+        """Load the active user's voice enrollment sample as base64-encoded WAV.
+
+        The enrollment .npy files contain raw float32 audio at 16kHz.
+        We convert to a proper WAV for the Farsight Chatterbox endpoint.
+        """
+        import base64
+        import io
+        import wave
+
+        try:
+            # Find the active user's profile
+            profiles_file = VOICE_PROFILES_DIR / "profiles.json"
+            if not profiles_file.exists():
+                return None
+
+            profiles = json.loads(profiles_file.read_text())
+            active_name = (state.active_user_name or "").lower()
+
+            # Find most recent profile matching the active user
+            best_id = None
+            best_ts = ""
+            for pid, info in profiles.items():
+                if info.get("name", "").lower().startswith(active_name[:4]) if active_name else False:
+                    created = info.get("created", "")
+                    if created > best_ts:
+                        best_ts = created
+                        best_id = pid
+
+            if not best_id:
+                print("[perpetual] No voice profile found for TTS cloning")
+                return None
+
+            # Load the raw audio enrollment sample
+            import numpy as np
+            sample_dir = VOICE_PROFILES_DIR / f"{best_id}_samples"
+            if not sample_dir.exists():
+                return None
+            sample_files = sorted(sample_dir.glob("enroll_*.npy"))
+            if not sample_files:
+                return None
+
+            audio = np.load(str(sample_files[-1]))  # most recent
+            # Convert float32 audio to int16 WAV
+            peak = float(np.max(np.abs(audio))) if audio.size else 1.0
+            if peak > 1e-8:
+                audio = audio / peak * 0.95
+            pcm16 = (np.clip(audio, -1.0, 1.0) * 32767).astype(np.int16)
+
+            # Write to in-memory WAV
+            buf = io.BytesIO()
+            with wave.open(buf, "wb") as wf:
+                wf.setnchannels(1)
+                wf.setsampwidth(2)
+                wf.setframerate(16000)
+                wf.writeframes(pcm16.tobytes())
+
+            return base64.b64encode(buf.getvalue()).decode("ascii")
+
+        except Exception as e:
+            print(f"[perpetual] Voice sample load error: {e}")
+            return None
 
     # ------------------------------------------------------------------
     # Model hot-swap (Phase 2 — called when 7B model is available)

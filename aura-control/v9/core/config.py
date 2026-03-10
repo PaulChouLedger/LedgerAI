@@ -147,3 +147,6 @@ PERPETUAL_7B_MODEL_PATH    = os.environ.get(
 # If set, Perpetual farms out LLM calls to this endpoint instead of local model swap.
 # If unset or empty, falls back to local Puck inference (swap to 7B on CPU).
 FARSIGHT_URL = os.environ.get("AURA_FARSIGHT_URL", "")  # e.g. "http://192.168.1.100:11434"
+
+# Farsight TTS: pre-synthesize briefing audio on remote GPU for higher quality
+FARSIGHT_TTS_STEPS = int(os.environ.get("AURA_FARSIGHT_TTS_STEPS", "200"))  # diffusion steps
