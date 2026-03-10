@@ -1,14 +1,13 @@
 """
-voice.speaker -- TTS queue → Kokoro synthesis → streaming playback.
+voice.speaker -- TTS queue → Kokoro synthesis → RVC voice conversion → playback.
 
 Runs on a daemon thread.  Communicates via bus events:
     listens: "llm.sentence"   text=str
     emits:   "tts.started", "tts.finished"
              "speaker.state"  state=str ("idle"|"synthesizing"|"playing")
 
-Uses Kokoro TTS (82M parameter model, 24kHz output).
-Streams audio chunks directly to aplay stdin — playback begins from the
-first phoneme segment (~100-200ms) instead of waiting for full synthesis.
+Uses Kokoro TTS (82M parameter model, 24kHz output) for speech synthesis,
+then RVC (Retrieval-based Voice Conversion) to convert to the target voice.
 Zero Qt imports.
 """
 
@@ -54,6 +53,14 @@ KOKORO_SPEED = float(os.environ.get("AURA_KOKORO_SPEED", "1.0"))
 KOKORO_SAMPLE_RATE = 24000
 
 # ---------------------------------------------------------------------------
+# RVC voice conversion config (post-processing after Kokoro)
+# ---------------------------------------------------------------------------
+
+_RVC_MODEL_PATH = str(VOICES_DIR.parent / "rvc" / "aura_olga.pth")
+_RVC_INDEX_PATH = str(VOICES_DIR.parent / "rvc" / "aura_olga.index")
+RVC_ENABLED = os.environ.get("AURA_RVC_ENABLED", "1") == "1" and os.path.exists(_RVC_MODEL_PATH)
+
+# ---------------------------------------------------------------------------
 # Kokoro TTS (lazy-loaded)
 # ---------------------------------------------------------------------------
 
@@ -96,6 +103,101 @@ def _get_kokoro():
 
     memlog.delta("speaker: Kokoro loaded")
     return _kokoro_pipe
+
+
+# ---------------------------------------------------------------------------
+# RVC voice conversion (lazy-loaded)
+# ---------------------------------------------------------------------------
+
+_rvc_engine = None
+
+
+def _get_rvc():
+    """Lazy-load the RVC voice conversion model."""
+    global _rvc_engine
+    if _rvc_engine is not None:
+        return _rvc_engine
+    if not RVC_ENABLED:
+        return None
+    try:
+        memlog.delta("speaker: before RVC load")
+        from rvc_python.infer import RVCInference
+        _rvc_engine = RVCInference(device="cuda")
+        _rvc_engine.load_model(
+            _RVC_MODEL_PATH,
+            version="v2",
+            index_path=_RVC_INDEX_PATH if os.path.exists(_RVC_INDEX_PATH) else "",
+        )
+        _rvc_engine.set_params(
+            f0method="rmvpe",
+            f0up_key=0,
+            index_rate=0.75,
+            protect=0.33,
+        )
+        print(f"[speaker] RVC voice conversion loaded (model={os.path.basename(_RVC_MODEL_PATH)})")
+        memlog.delta("speaker: RVC loaded")
+    except Exception as e:
+        print(f"[speaker] RVC load failed (will use Kokoro only): {e}")
+        _rvc_engine = None
+    return _rvc_engine
+
+
+_RVC_VOLUME = float(os.environ.get("AURA_RVC_VOLUME", "0.18"))  # RVC output is very hot
+
+
+def _rvc_denoise(audio: np.ndarray, sr: int) -> np.ndarray:
+    """Spectral noise gate: estimate noise floor from quiet frames,
+    then suppress frequency bins below the noise floor."""
+    from scipy.signal import stft, istft
+
+    nperseg = 1024
+    f, t, Zxx = stft(audio, fs=sr, nperseg=nperseg)
+
+    magnitude = np.abs(Zxx)
+    # Estimate noise floor from the quietest 15% of frames
+    frame_energy = np.mean(magnitude, axis=0)
+    thresh_idx = max(1, int(len(frame_energy) * 0.15))
+    quietest = np.argsort(frame_energy)[:thresh_idx]
+    noise_profile = np.mean(magnitude[:, quietest], axis=1, keepdims=True)
+
+    # Spectral gate: attenuate bins below 3x noise floor (aggressive)
+    gate = np.clip((magnitude - 3.0 * noise_profile) / (magnitude + 1e-10), 0, 1)
+    Zxx_clean = Zxx * gate
+
+    _, cleaned = istft(Zxx_clean, fs=sr, nperseg=nperseg)
+    # Match original length
+    if len(cleaned) < len(audio):
+        cleaned = np.pad(cleaned, (0, len(audio) - len(cleaned)))
+    return cleaned[: len(audio)]
+
+
+def _rvc_convert(wav_path: str) -> str:
+    """Run RVC voice conversion on a WAV file. Applies spectral denoising
+    and volume scaling to suppress hiss introduced by RVC."""
+    rvc = _get_rvc()
+    if rvc is None:
+        return wav_path
+    out_path = wav_path.replace(".wav", "_rvc.wav")
+    try:
+        rvc.infer_file(wav_path, out_path)
+
+        with wave.open(out_path, "rb") as r:
+            params = r.getparams()
+            pcm = np.frombuffer(r.readframes(r.getnframes()), dtype=np.int16)
+
+        audio = pcm.astype(np.float32)
+        audio = _rvc_denoise(audio, params.framerate)
+        audio = audio * _RVC_VOLUME
+        pcm_out = np.clip(audio, -32768, 32767).astype(np.int16)
+
+        with wave.open(out_path, "wb") as w:
+            w.setparams(params)
+            w.writeframes(pcm_out.tobytes())
+
+        return out_path
+    except Exception as e:
+        print(f"[speaker] RVC conversion failed: {e}")
+        return wav_path  # fallback to unconverted
 
 
 # ---------------------------------------------------------------------------
@@ -181,6 +283,24 @@ def _synth_to_file(text: str, style: str, out_path: str) -> float:
     if peak > 1e-8:
         audio_np = audio_np / peak * 0.95
     audio_np = np.clip(audio_np, -1.0, 1.0)
+
+    # Trim trailing low-energy tail before RVC to prevent hallucinated words.
+    # Kokoro sometimes emits faint artifacts after the last phoneme; RVC
+    # amplifies these into audible speech fragments.
+    if RVC_ENABLED and audio_np.size > 0:
+        win = int(KOKORO_SAMPLE_RATE * 0.03)          # 30ms windows
+        rms_thresh = 0.02                              # ~-34 dB
+        # Walk backwards to find last window with real speech energy
+        end = len(audio_np)
+        while end > win:
+            chunk = audio_np[end - win : end]
+            if np.sqrt(np.mean(chunk ** 2)) > rms_thresh:
+                break
+            end -= win
+        # Keep a tiny 30ms fade-out pad, then zero
+        pad = min(int(KOKORO_SAMPLE_RATE * 0.03), len(audio_np) - end)
+        audio_np = audio_np[: end + pad]
+
     pcm16 = (audio_np * 32767.0).astype(np.int16)
 
     with wave.open(out_path, "wb") as wf:
@@ -188,8 +308,16 @@ def _synth_to_file(text: str, style: str, out_path: str) -> float:
         wf.setsampwidth(2)
         wf.setframerate(KOKORO_SAMPLE_RATE)
         wf.writeframes(pcm16.tobytes())
-        tail = int(KOKORO_SAMPLE_RATE * 0.25)
-        wf.writeframes(b"\x00\x00" * tail)
+        # Only add trailing silence when RVC is off (RVC hallucinates over silence)
+        if not RVC_ENABLED:
+            tail = int(KOKORO_SAMPLE_RATE * 0.25)
+            wf.writeframes(b"\x00\x00" * tail)
+
+    # RVC voice conversion post-processing
+    if RVC_ENABLED:
+        rvc_out = _rvc_convert(out_path)
+        if rvc_out != out_path:
+            os.replace(rvc_out, out_path)
 
     return (time.perf_counter() - t0) * 1000
 
@@ -410,6 +538,20 @@ class Speaker:
                     if peak > 1e-8:
                         audio_np = audio_np / peak * 0.95
                     audio_np = np.clip(audio_np, -1.0, 1.0)
+
+                    # Trim trailing low-energy tail before RVC
+                    if RVC_ENABLED and audio_np.size > 0:
+                        win = int(KOKORO_SAMPLE_RATE * 0.03)
+                        rms_thresh = 0.02
+                        end = len(audio_np)
+                        while end > win:
+                            chunk = audio_np[end - win : end]
+                            if np.sqrt(np.mean(chunk ** 2)) > rms_thresh:
+                                break
+                            end -= win
+                        pad = min(int(KOKORO_SAMPLE_RATE * 0.03), len(audio_np) - end)
+                        audio_np = audio_np[: end + pad]
+
                     pcm16 = (audio_np * 32767.0).astype(np.int16)
 
                     with wave.open(out_path, "wb") as wf:
@@ -417,8 +559,14 @@ class Speaker:
                         wf.setsampwidth(2)
                         wf.setframerate(KOKORO_SAMPLE_RATE)
                         wf.writeframes(pcm16.tobytes())
-                        # Small silence tail
-                        wf.writeframes(b"\x00\x00" * int(KOKORO_SAMPLE_RATE * 0.1))
+                        if not RVC_ENABLED:
+                            wf.writeframes(b"\x00\x00" * int(KOKORO_SAMPLE_RATE * 0.1))
+
+                    # RVC voice conversion post-processing
+                    if RVC_ENABLED:
+                        rvc_out = _rvc_convert(out_path)
+                        if rvc_out != out_path:
+                            os.replace(rvc_out, out_path)
 
                     if synth_stats["clauses"] == 0:
                         synth_stats["first_ms"] = (time.perf_counter() - t0) * 1000
@@ -467,9 +615,11 @@ class Speaker:
     # ----- Warmup -----
 
     def warmup(self):
-        """Pre-load Kokoro model."""
+        """Pre-load Kokoro and RVC models."""
         try:
             _get_kokoro()
-            print("[speaker] Warmup complete")
+            if RVC_ENABLED:
+                _get_rvc()
+            print(f"[speaker] Warmup complete (RVC={'on' if RVC_ENABLED and _rvc_engine else 'off'})")
         except Exception as e:
             print(f"[speaker] Warmup failed (non-fatal): {e}")
