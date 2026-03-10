@@ -44,7 +44,11 @@ if _dotenv.exists():
 # ---------------------------------------------------------------------------
 
 # Single consistent voice for the entire system
-KOKORO_VOICE = os.environ.get("AURA_KOKORO_VOICE", "af_heart")
+# Custom voice pack trained on actress samples (blended from top Kokoro matches)
+_CUSTOM_VOICE_PATH = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "..", "..", "voices", "aura_actress.pt"
+)
+KOKORO_VOICE = os.environ.get("AURA_KOKORO_VOICE", _CUSTOM_VOICE_PATH if os.path.exists(_CUSTOM_VOICE_PATH) else "af_heart")
 KOKORO_SPEED = float(os.environ.get("AURA_KOKORO_SPEED", "1.0"))
 KOKORO_SAMPLE_RATE = 24000
 
