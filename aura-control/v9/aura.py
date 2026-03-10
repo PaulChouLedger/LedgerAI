@@ -97,9 +97,21 @@ def main() -> int:
                     insight = briefing.get("insight", "")
                     gaps = briefing.get("knowledge_gaps", [])
                     if insight:
-                        preamble = f"By the way {name}, I've been thinking about something. {insight}"
+                        # Time-aware greeting
+                        import datetime as _dt
+                        hour = _dt.datetime.now().hour
+                        if hour < 12:
+                            greeting = "Good morning"
+                        elif hour < 17:
+                            greeting = "Good afternoon"
+                        else:
+                            greeting = "Good evening"
+                        preamble = (
+                            f"{greeting}, {name}. I have a brief prepared for you "
+                            f"about something that may impact your interests. {insight}"
+                        )
                         if gaps:
-                            preamble += f" Also, I'd be able to help you more if you could tell me about {gaps[0]}."
+                            preamble += f" I could refine this further if you could tell me about {gaps[0]}."
                         speaker.play_thinking_filler()
                         threading.Thread(
                             target=llm_client.stream_chat,
