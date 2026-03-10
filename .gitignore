@@ -28,3 +28,4 @@ scratch*.py
 # heavy model files
 */cache/*
 llm-container/models/qwen2.5-1.5b-instruct-q4_0.gguf
+aura-control/voices/aura_full.pt

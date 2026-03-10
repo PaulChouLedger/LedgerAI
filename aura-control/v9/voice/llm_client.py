@@ -36,7 +36,7 @@ FALLBACK_MIN_CHARS = int(os.getenv("TTS_FALLBACK_MIN_CHARS", "40"))
 # Early flush: send the first small chunk to TTS ASAP to reduce time-to-first-audio
 EARLY_FLUSH_MIN_CHARS = int(os.getenv("TTS_EARLY_FLUSH_MIN", "20"))
 
-# Text cleaner (remove markdown, fix spacing)
+# Text cleaner (subset of voice/speaker.py's _CLEAN_RE — keep in sync)
 _CLEAN_RE = [
     (re.compile(r"^#{1,6}\s+", re.M), ""),
     (re.compile(r"\*\*([^*]+)\*\*"), r"\1"),

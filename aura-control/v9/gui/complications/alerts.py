@@ -15,10 +15,46 @@ if TYPE_CHECKING:
     from PyQt5.QtGui import QPainter
 
 from PyQt5.QtCore import Qt, QPointF, QRectF
-from PyQt5.QtGui import QBrush, QColor, QFont, QPen
+from PyQt5.QtGui import QBrush, QColor, QFont, QPen, QRadialGradient
 
 from gui.complications.base import BaseComplication
 from gui.renderer import clamp
+
+
+# ---------------------------------------------------------------------------
+# Demo alert data
+# ---------------------------------------------------------------------------
+
+_SEVERITY_INFO = 0
+_SEVERITY_WARN = 1
+_SEVERITY_CRIT = 2
+
+_SEVERITY_COLORS = {
+    _SEVERITY_INFO: QColor(60, 175, 255),     # blue
+    _SEVERITY_WARN: QColor(245, 180, 50),      # amber
+    _SEVERITY_CRIT: QColor(225, 75, 65),        # red
+}
+
+_SEVERITY_LABELS = {
+    _SEVERITY_INFO: "INFO",
+    _SEVERITY_WARN: "WARN",
+    _SEVERITY_CRIT: "CRIT",
+}
+
+_DEMO_ALERTS = [
+    {"msg": "Whisper container health check failed",  "sev": _SEVERITY_CRIT, "ago": "2m ago"},
+    {"msg": "LLM response latency > 5s",              "sev": _SEVERITY_WARN, "ago": "8m ago"},
+    {"msg": "Memory container restarted",              "sev": _SEVERITY_INFO, "ago": "23m ago"},
+    {"msg": "Voice profile updated",                   "sev": _SEVERITY_INFO, "ago": "1h ago"},
+    {"msg": "Boot sequence completed in 45s",          "sev": _SEVERITY_INFO, "ago": "3h ago"},
+]
+
+# Demo gauge values for system health
+_DEMO_GAUGES = [
+    {"label": "CPU",  "value": 0.62, "color": QColor(60, 175, 255)},
+    {"label": "MEM",  "value": 0.78, "color": QColor(245, 180, 50)},
+    {"label": "NET",  "value": 0.35, "color": QColor(90, 200, 130)},
+]
 
 
 class AlertsComplication(BaseComplication):
@@ -138,5 +174,324 @@ class AlertsComplication(BaseComplication):
 
     # ------------------------------------------------------------------
     def draw_overlay(self, p, cx, cy, mind, t, trans):
-        # TODO: extract full alerts overlay from carbon_demo.py
-        pass
+        """Alerts dashboard overlay: enamel backdrop, alert list, system health gauges."""
+        trans = clamp(trans, 0.0, 1.0)
+        if trans <= 0.0:
+            return
+
+        p.save()
+        try:
+            p.setRenderHint(p.Antialiasing, True)
+
+            # ----- Sizing (matches settings overlay proportions) -----
+            R = mind * 0.235
+
+            r_bezel_outer = R * 0.98
+            r_bezel_inner = R * 0.90
+            r_chapter_out = R * 0.84
+            r_chapter_in  = R * 0.74
+            rg = R * 0.64
+
+            # ----- Alpha / colors -----
+            A  = int(240 * trans)
+            A2 = int(175 * trans)
+            A3 = int(120 * trans)
+
+            coral       = QColor(225, 95, 85, A)
+            coral_mid   = QColor(225, 95, 85, A2)
+            coral_faint = QColor(225, 95, 85, A3)
+
+            base_dark = QColor(14, 12, 16, int(220 * trans))
+            mid_dark  = QColor(24, 20, 26, int(210 * trans))
+
+            # ----- Helpers -----
+            def draw_radial_glow(radius, alpha):
+                grad = QRadialGradient(QPointF(cx, cy), radius)
+                grad.setColorAt(0.0, QColor(225, 95, 85, int(alpha * 0.10)))
+                grad.setColorAt(0.45, QColor(225, 95, 85, int(alpha * 0.04)))
+                grad.setColorAt(1.0, QColor(0, 0, 0, 0))
+                p.setPen(Qt.NoPen)
+                p.setBrush(QBrush(grad))
+                p.drawEllipse(QPointF(cx, cy), radius, radius)
+
+            # =========================================================
+            # 1) Deep enamel backdrop
+            # =========================================================
+            p.setPen(Qt.NoPen)
+            p.setBrush(base_dark)
+            p.drawEllipse(QPointF(cx, cy), R, R)
+
+            # Radial glow
+            draw_radial_glow(R * 0.98, A)
+
+            # Bezel depth highlights
+            g1 = QRadialGradient(QPointF(cx, cy), r_bezel_outer)
+            g1.setColorAt(0.70, QColor(225, 100, 90, int(28 * trans)))
+            g1.setColorAt(0.86, QColor(225, 100, 90, int(48 * trans)))
+            g1.setColorAt(1.00, QColor(0, 0, 0, 0))
+            p.setPen(Qt.NoPen)
+            p.setBrush(QBrush(g1))
+            p.drawEllipse(QPointF(cx, cy), r_bezel_outer, r_bezel_outer)
+
+            g2 = QRadialGradient(QPointF(cx, cy), r_bezel_inner)
+            g2.setColorAt(0.60, QColor(0, 0, 0, 0))
+            g2.setColorAt(0.92, QColor(0, 0, 0, int(80 * trans)))
+            g2.setColorAt(1.00, QColor(0, 0, 0, int(110 * trans)))
+            p.setPen(Qt.NoPen)
+            p.setBrush(QBrush(g2))
+            p.drawEllipse(QPointF(cx, cy), r_bezel_inner, r_bezel_inner)
+
+            # Bezel rings
+            bezel_pen = QPen(coral_mid)
+            bezel_pen.setWidthF(max(2.0, mind * 0.0042))
+            p.setPen(bezel_pen)
+            p.setBrush(Qt.NoBrush)
+            p.drawEllipse(QPointF(cx, cy), r_bezel_outer, r_bezel_outer)
+
+            inner_pen = QPen(coral_faint)
+            inner_pen.setWidthF(max(1.2, mind * 0.0026))
+            p.setPen(inner_pen)
+            p.drawEllipse(QPointF(cx, cy), r_bezel_inner, r_bezel_inner)
+
+            # =========================================================
+            # Chapter ring (60 ticks)
+            # =========================================================
+            for i in range(60):
+                ang = (i / 60.0) * 2.0 * math.pi - math.pi / 2.0
+                is_major = (i % 5 == 0)
+                tick_len = (R * 0.080) if is_major else (R * 0.045)
+                tick_w = (mind * 0.0038) if is_major else (mind * 0.0022)
+
+                rr_out = r_chapter_out
+                rr_in = rr_out - tick_len
+                x1 = cx + rr_in * math.cos(ang)
+                y1 = cy + rr_in * math.sin(ang)
+                x2 = cx + rr_out * math.cos(ang)
+                y2 = cy + rr_out * math.sin(ang)
+
+                col = QColor(225, 95, 85, int((170 if is_major else 100) * trans))
+                p.setPen(QPen(col, tick_w, Qt.SolidLine, Qt.RoundCap))
+                p.drawLine(QPointF(x1, y1), QPointF(x2, y2))
+
+            # Inner chapter boundary
+            p.setPen(QPen(coral_faint, max(1.0, mind * 0.0018)))
+            p.drawEllipse(QPointF(cx, cy), r_chapter_in, r_chapter_in)
+
+            # =========================================================
+            # 6) Animated heartbeat ring (pulses faster with severity)
+            # =========================================================
+            # Compute max severity from demo data
+            max_sev = max(a["sev"] for a in _DEMO_ALERTS)
+            # Pulse speed: info=1.5Hz, warn=2.5Hz, crit=4Hz
+            pulse_hz = 1.5 + max_sev * 1.25
+            pulse = 0.5 + 0.5 * math.sin(t * pulse_hz * 2.0 * math.pi)
+
+            heartbeat_r = r_chapter_out + R * 0.04
+            hb_alpha = int((40 + 60 * pulse) * trans)
+            hb_width = max(1.5, mind * 0.003) * (0.8 + 0.4 * pulse)
+            hb_pen = QPen(QColor(225, 95, 85, hb_alpha))
+            hb_pen.setWidthF(hb_width)
+            p.setPen(hb_pen)
+            p.setBrush(Qt.NoBrush)
+            p.drawEllipse(QPointF(cx, cy), heartbeat_r, heartbeat_r)
+
+            # =========================================================
+            # Guilloché inner field
+            # =========================================================
+            p.setPen(Qt.NoPen)
+            p.setBrush(mid_dark)
+            p.drawEllipse(QPointF(cx, cy), rg, rg)
+
+            gu_pen = QPen(QColor(225, 95, 85, int(18 * trans)))
+            gu_pen.setWidthF(max(1.0, mind * 0.0016))
+            p.setPen(gu_pen)
+            p.setBrush(Qt.NoBrush)
+            for k in range(30):
+                frac = k / 29.0
+                rad = rg * (0.15 + 0.85 * frac)
+                wob = 1.0 + 0.015 * math.sin(t * 0.8 + k * 0.6)
+                p.drawEllipse(QPointF(cx, cy), rad * wob, rad)
+
+            # =========================================================
+            # 2) "ALERTS" headline with severity indicator
+            # =========================================================
+            micro_font = QFont("DejaVu Sans", max(8, int(mind * 0.014)))
+            micro_font.setLetterSpacing(QFont.PercentageSpacing, 108)
+            p.setFont(micro_font)
+            p.setPen(coral_faint)
+            p.drawText(
+                int(cx - R), int(cy - R * 0.95), int(2 * R), int(R * 0.18),
+                Qt.AlignCenter, "AURA  \u2022  ALERTS"
+            )
+
+            # Severity badge
+            sev_label = "CRITICAL" if max_sev == _SEVERITY_CRIT else (
+                "WARNING" if max_sev == _SEVERITY_WARN else "ALL CLEAR")
+            sev_color = _SEVERITY_COLORS.get(max_sev, QColor(60, 175, 255))
+
+            badge_font = QFont("DejaVu Sans", max(9, int(mind * 0.017)))
+            badge_font.setBold(True)
+            badge_font.setLetterSpacing(QFont.PercentageSpacing, 115)
+            p.setFont(badge_font)
+
+            badge_rect = QRectF(cx - R * 0.50, cy - R * 0.76, R * 1.00, R * 0.18)
+
+            # Badge background pill
+            p.setPen(Qt.NoPen)
+            p.setBrush(QColor(0, 0, 0, int(120 * trans)))
+            p.drawRoundedRect(badge_rect, R * 0.06, R * 0.06)
+
+            # Severity dot
+            dot_r = mind * 0.007
+            dot_x = badge_rect.left() + R * 0.12
+            dot_y = badge_rect.center().y()
+            p.setBrush(QColor(sev_color.red(), sev_color.green(), sev_color.blue(),
+                              int(220 * trans)))
+            p.drawEllipse(QPointF(dot_x, dot_y), dot_r, dot_r)
+
+            # Badge text
+            text_rect = QRectF(dot_x + dot_r * 2, badge_rect.top(),
+                               badge_rect.width() - R * 0.18, badge_rect.height())
+            p.setPen(QColor(sev_color.red(), sev_color.green(), sev_color.blue(),
+                            int(220 * trans)))
+            p.drawText(text_rect, Qt.AlignLeft | Qt.AlignVCenter, sev_label)
+
+            # =========================================================
+            # 3-5) Alert list rows
+            # =========================================================
+            row_font = QFont("DejaVu Sans", max(8, int(mind * 0.013)))
+            row_font.setLetterSpacing(QFont.PercentageSpacing, 102)
+            time_font = QFont("DejaVu Sans", max(7, int(mind * 0.010)))
+            time_font.setLetterSpacing(QFont.PercentageSpacing, 105)
+
+            row_h = R * 0.145
+            list_top = cy - R * 0.52
+            list_w = R * 1.40
+            list_x = cx - list_w * 0.50
+
+            for idx, alert in enumerate(_DEMO_ALERTS):
+                row_y = list_top + idx * row_h
+                sev_col = _SEVERITY_COLORS.get(alert["sev"], QColor(60, 175, 255))
+                row_alpha = trans * (0.95 - idx * 0.06)  # subtle fade for depth
+
+                # Row background (subtle separator)
+                if idx > 0:
+                    sep_pen = QPen(QColor(255, 255, 255, int(16 * trans)))
+                    sep_pen.setWidthF(max(0.5, mind * 0.0008))
+                    p.setPen(sep_pen)
+                    p.drawLine(QPointF(list_x + R * 0.08, row_y),
+                               QPointF(list_x + list_w - R * 0.08, row_y))
+
+                # Severity dot
+                sev_dot_r = mind * 0.005
+                sev_dot_x = list_x + R * 0.08
+                sev_dot_y = row_y + row_h * 0.50
+                p.setPen(Qt.NoPen)
+
+                # Pulse critical dots
+                if alert["sev"] == _SEVERITY_CRIT:
+                    dot_pulse = 0.5 + 0.5 * math.sin(t * 4.0 + idx)
+                    sev_dot_a = int((160 + 80 * dot_pulse) * row_alpha)
+                else:
+                    sev_dot_a = int(190 * row_alpha)
+
+                p.setBrush(QColor(sev_col.red(), sev_col.green(), sev_col.blue(),
+                                  sev_dot_a))
+                p.drawEllipse(QPointF(sev_dot_x, sev_dot_y), sev_dot_r, sev_dot_r)
+
+                # Message text
+                p.setFont(row_font)
+                msg_rect = QRectF(sev_dot_x + sev_dot_r * 3, row_y + row_h * 0.10,
+                                  list_w * 0.72, row_h * 0.80)
+                # Shadow
+                p.setPen(QColor(0, 0, 0, int(120 * row_alpha)))
+                p.drawText(msg_rect.translated(0.8, 0.8),
+                           Qt.AlignLeft | Qt.AlignVCenter, alert["msg"])
+                # Text
+                text_a = int(215 * row_alpha)
+                p.setPen(QColor(235, 240, 250, text_a))
+                p.drawText(msg_rect, Qt.AlignLeft | Qt.AlignVCenter, alert["msg"])
+
+                # Relative time
+                p.setFont(time_font)
+                time_rect = QRectF(list_x + list_w - R * 0.36, row_y + row_h * 0.10,
+                                   R * 0.30, row_h * 0.80)
+                p.setPen(QColor(sev_col.red(), sev_col.green(), sev_col.blue(),
+                                int(140 * row_alpha)))
+                p.drawText(time_rect, Qt.AlignRight | Qt.AlignVCenter, alert["ago"])
+
+            # =========================================================
+            # Micro divider between alerts and health section
+            # =========================================================
+            div_y = list_top + len(_DEMO_ALERTS) * row_h + R * 0.04
+            p.setPen(QPen(coral_faint, max(1.0, mind * 0.0016)))
+            p.drawLine(QPointF(cx - R * 0.52, div_y),
+                       QPointF(cx + R * 0.52, div_y))
+
+            # =========================================================
+            # 7) System Health section — 3 small gauges
+            # =========================================================
+            health_font = QFont("DejaVu Sans", max(7, int(mind * 0.011)))
+            health_font.setBold(True)
+            health_font.setLetterSpacing(QFont.PercentageSpacing, 120)
+
+            # "SYSTEM HEALTH" label
+            p.setFont(health_font)
+            label_y = div_y + R * 0.02
+            p.setPen(QColor(225, 95, 85, int(160 * trans)))
+            p.drawText(int(cx - R), int(label_y), int(2 * R), int(R * 0.12),
+                       Qt.AlignCenter, "SYSTEM HEALTH")
+
+            # Gauges
+            gauge_y = label_y + R * 0.14
+            gauge_spacing = R * 0.42
+            gauge_r = R * 0.12
+
+            val_font = QFont("DejaVu Sans", max(6, int(mind * 0.009)))
+            val_font.setBold(True)
+
+            for gi, gauge in enumerate(_DEMO_GAUGES):
+                gx = cx + (gi - 1) * gauge_spacing
+                gy = gauge_y
+
+                val = clamp(gauge["value"], 0.0, 1.0)
+                gc = gauge["color"]
+
+                # Gauge track (subtle ring)
+                track_rect = QRectF(gx - gauge_r, gy - gauge_r,
+                                    2 * gauge_r, 2 * gauge_r)
+                track_pen = QPen(QColor(255, 255, 255, int(25 * trans)))
+                track_pen.setWidthF(max(1.5, mind * 0.003))
+                track_pen.setCapStyle(Qt.RoundCap)
+                p.setPen(track_pen)
+                p.setBrush(Qt.NoBrush)
+                # Draw 270° arc starting from bottom-left (135°)
+                arc_start = 225.0
+                arc_span = 270.0
+                p.drawArc(track_rect, int(arc_start * 16), int(arc_span * 16))
+
+                # Value arc
+                val_alpha = int((100 + 140 * val) * trans)
+                val_pen = QPen(QColor(gc.red(), gc.green(), gc.blue(), val_alpha))
+                val_pen.setWidthF(max(1.8, mind * 0.0035))
+                val_pen.setCapStyle(Qt.RoundCap)
+                p.setPen(val_pen)
+                p.drawArc(track_rect, int(arc_start * 16), int((arc_span * val) * 16))
+
+                # Percentage text
+                p.setFont(val_font)
+                pct = f"{int(val * 100)}"
+                p.setPen(QColor(gc.red(), gc.green(), gc.blue(), int(200 * trans)))
+                p.drawText(QRectF(gx - gauge_r, gy - gauge_r * 0.5,
+                                  2 * gauge_r, gauge_r),
+                           Qt.AlignCenter, pct)
+
+                # Label below gauge
+                p.setFont(health_font)
+                p.setPen(QColor(235, 240, 250, int(150 * trans)))
+                p.drawText(QRectF(gx - gauge_r * 1.5, gy + gauge_r * 0.6,
+                                  gauge_r * 3, gauge_r * 0.8),
+                           Qt.AlignCenter, gauge["label"])
+
+        finally:
+            p.restore()

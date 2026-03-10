@@ -161,8 +161,12 @@ class SettingsComplication(BaseComplication):
                 draw_auraconnect_page(p, cx, cy, mind, t, trans)
                 p.restore()
                 return
-            elif page in ("profile", "alerts"):
-                # Sub-pages rendered separately (placeholder for now)
+            elif page == "profile":
+                _draw_profile_page(p, cx, cy, mind, t, trans, self)
+                p.restore()
+                return
+            elif page == "alerts":
+                _draw_alerts_page(p, cx, cy, mind, t, trans, self)
                 p.restore()
                 return
 
@@ -480,6 +484,20 @@ class SettingsComplication(BaseComplication):
                 self.settings_page = None
             return True
 
+        # Profile sub-page
+        if self.settings_page == "profile":
+            # Back tap: upper 40% of overlay area
+            if y < cy - R * 0.3:
+                self.settings_page = None
+            return True
+
+        # Alerts sub-page
+        if self.settings_page == "alerts":
+            # Back tap: upper 40% of overlay area
+            if y < cy - R * 0.3:
+                self.settings_page = None
+            return True
+
         # Main settings page — check menu item taps
         # Menu items are on the chapter ring at specific angular positions
         # WI-FI at -90° (top), AURACONNECT at 0° (right),
@@ -536,10 +554,367 @@ class SettingsComplication(BaseComplication):
                     if page_name == "auraconnect":
                         self.settings_page = "auraconnect"
                         return True
+                    if page_name == "profile":
+                        self.settings_page = "profile"
+                        return True
+                    if page_name == "alerts":
+                        self.settings_page = "alerts"
+                        return True
 
         # Tap inside overlay but not on a menu item — don't consume
         # (let window.py close the overlay)
         return False
+
+
+# ---------------------------------------------------------------------------
+# Profile sub-page renderer
+# ---------------------------------------------------------------------------
+
+def _draw_profile_page(p, cx, cy, mind, t, trans, comp):
+    """Draw the Profile sub-page: avatar, name, phone, voice status, user ID."""
+    from core.state import state
+
+    R = mind * 0.235
+    base_dark = QColor(8, 9, 12, int(210 * trans))
+    A  = int(240 * trans)
+    A2 = int(175 * trans)
+    A3 = int(120 * trans)
+    gold_strong = GOLD(A)
+    gold_mid    = GOLD(A2)
+    gold_faint  = GOLD(A3)
+
+    # --- Base plate ---
+    p.setPen(Qt.NoPen)
+    p.setBrush(base_dark)
+    p.drawEllipse(QPointF(cx, cy), R, R)
+
+    # Bezel ring
+    bezel_pen = QPen(gold_mid)
+    bezel_pen.setWidthF(max(2.0, mind * 0.0042))
+    p.setPen(bezel_pen)
+    p.setBrush(Qt.NoBrush)
+    p.drawEllipse(QPointF(cx, cy), R * 0.98, R * 0.98)
+
+    # Inner ring
+    inner_pen = QPen(gold_faint)
+    inner_pen.setWidthF(max(1.2, mind * 0.0026))
+    p.setPen(inner_pen)
+    p.drawEllipse(QPointF(cx, cy), R * 0.90, R * 0.90)
+
+    # --- Chapter ring (subtle, 30 ticks) ---
+    r_chapter_out = R * 0.84
+    for i in range(30):
+        ang = (i / 30.0) * 2.0 * math.pi - math.pi / 2.0
+        is_major = (i % 5 == 0)
+        tick_len = (R * 0.055) if is_major else (R * 0.030)
+        tick_w = (mind * 0.0030) if is_major else (mind * 0.0018)
+        rr_out = r_chapter_out
+        rr_in = rr_out - tick_len
+        x1 = cx + rr_in * math.cos(ang)
+        y1 = cy + rr_in * math.sin(ang)
+        x2 = cx + rr_out * math.cos(ang)
+        y2 = cy + rr_out * math.sin(ang)
+        col = GOLD(int((140 if is_major else 80) * trans))
+        p.setPen(QPen(col, tick_w, Qt.SolidLine, Qt.RoundCap))
+        p.drawLine(QPointF(x1, y1), QPointF(x2, y2))
+
+    # --- Guilloché (subtle concentric ellipses) ---
+    rg = R * 0.64
+    gu_pen = QPen(QColor(255, 255, 255, int(16 * trans)))
+    gu_pen.setWidthF(max(1.0, mind * 0.0014))
+    p.setPen(gu_pen)
+    p.setBrush(Qt.NoBrush)
+    for k in range(20):
+        frac = k / 19.0
+        rad = rg * (0.25 + 0.75 * frac)
+        wob = 1.0 + 0.015 * math.sin(t * 0.7 + k * 0.6)
+        p.drawEllipse(QPointF(cx, cy), rad * wob, rad)
+
+    # --- "PROFILE" header ---
+    header_font = QFont("DejaVu Sans", max(8, int(mind * 0.014)))
+    header_font.setLetterSpacing(QFont.PercentageSpacing, 130)
+    header_font.setBold(True)
+    p.setFont(header_font)
+    p.setPen(gold_faint)
+    p.drawText(
+        int(cx - R), int(cy - R * 0.92), int(2 * R), int(R * 0.20),
+        Qt.AlignCenter, "PROFILE"
+    )
+
+    # --- Avatar circle with initials ---
+    avatar_r = R * 0.18
+    avatar_y = cy - R * 0.42
+
+    # Dark circle
+    p.setPen(QPen(gold_mid, max(1.5, mind * 0.003)))
+    p.setBrush(QColor(18, 19, 24, int(230 * trans)))
+    p.drawEllipse(QPointF(cx, avatar_y), avatar_r, avatar_r)
+
+    # Initials
+    name = str(comp.owner_name)
+    parts = name.split()
+    initials = "".join(w[0].upper() for w in parts if w)[:2]
+    if not initials:
+        initials = "?"
+    init_font = QFont("DejaVu Sans", max(14, int(mind * 0.034)))
+    init_font.setBold(True)
+    p.setFont(init_font)
+    p.setPen(gold_strong)
+    p.drawText(
+        QRectF(cx - avatar_r, avatar_y - avatar_r, avatar_r * 2, avatar_r * 2),
+        Qt.AlignCenter, initials
+    )
+
+    # --- Owner name (large, gold) ---
+    name_font = QFont("DejaVu Sans", max(12, int(mind * 0.036)))
+    name_font.setBold(True)
+    p.setFont(name_font)
+    p.setPen(gold_strong)
+    p.drawText(
+        int(cx - R), int(cy - R * 0.18), int(2 * R), int(R * 0.20),
+        Qt.AlignCenter, name
+    )
+
+    # --- Phone number (smaller, muted) ---
+    phone_font = QFont("DejaVu Sans", max(9, int(mind * 0.020)))
+    phone_font.setLetterSpacing(QFont.PercentageSpacing, 110)
+    p.setFont(phone_font)
+    p.setPen(gold_mid)
+    p.drawText(
+        int(cx - R), int(cy - R * 0.02), int(2 * R), int(R * 0.16),
+        Qt.AlignCenter, str(comp.owner_phone)
+    )
+
+    # --- Divider ---
+    p.setPen(QPen(gold_faint, max(1.0, mind * 0.0016)))
+    p.drawLine(
+        QPointF(cx - R * 0.48, cy + R * 0.18),
+        QPointF(cx + R * 0.48, cy + R * 0.18)
+    )
+
+    # --- Voice Profile status ---
+    row_y = cy + R * 0.28
+    dot_r = mind * 0.008
+    user_id = getattr(state, "active_user_id", None)
+    enrolled = user_id is not None and str(user_id) != ""
+
+    # Green dot
+    dot_col = QColor(80, 210, 120, int(220 * trans)) if enrolled else QColor(120, 120, 130, int(160 * trans))
+    p.setPen(Qt.NoPen)
+    p.setBrush(dot_col)
+    p.drawEllipse(QPointF(cx - R * 0.38, row_y), dot_r, dot_r)
+
+    label_font = QFont("DejaVu Sans", max(9, int(mind * 0.018)))
+    p.setFont(label_font)
+    p.setPen(gold_mid)
+    p.drawText(
+        int(cx - R * 0.32), int(row_y - R * 0.06), int(R * 0.80), int(R * 0.12),
+        Qt.AlignLeft | Qt.AlignVCenter, "Voice Profile"
+    )
+
+    status_text = "Enrolled" if enrolled else "Not Enrolled"
+    status_col = QColor(80, 210, 120, int(200 * trans)) if enrolled else QColor(180, 140, 100, int(160 * trans))
+    p.setPen(status_col)
+    p.drawText(
+        int(cx - R * 0.10), int(row_y - R * 0.06), int(R * 0.55), int(R * 0.12),
+        Qt.AlignRight | Qt.AlignVCenter, status_text
+    )
+
+    # --- User ID ---
+    row_y2 = cy + R * 0.46
+    p.setPen(gold_mid)
+    p.drawText(
+        int(cx - R * 0.38), int(row_y2 - R * 0.06), int(R * 0.40), int(R * 0.12),
+        Qt.AlignLeft | Qt.AlignVCenter, "User ID"
+    )
+
+    uid_str = str(user_id)[:12] if user_id else "\u2014"
+    p.setPen(gold_faint)
+    id_font = QFont("DejaVu Sans Mono", max(8, int(mind * 0.015)))
+    p.setFont(id_font)
+    p.drawText(
+        int(cx - R * 0.10), int(row_y2 - R * 0.06), int(R * 0.55), int(R * 0.12),
+        Qt.AlignRight | Qt.AlignVCenter, uid_str
+    )
+
+    # --- Back hint ---
+    if trans > 0.72:
+        hint_font = QFont("DejaVu Sans", max(7, int(mind * 0.011)))
+        hint_font.setLetterSpacing(QFont.PercentageSpacing, 120)
+        p.setFont(hint_font)
+        a = int(40 * (trans - 0.72) / 0.28)
+        a = max(0, min(40, a))
+        p.setPen(QColor(255, 215, 140, a))
+        p.drawText(
+            int(cx - R), int(cy + R * 0.78), int(2 * R), int(R * 0.14),
+            Qt.AlignCenter, "\u25C0  BACK"
+        )
+
+
+# ---------------------------------------------------------------------------
+# Alerts sub-page renderer
+# ---------------------------------------------------------------------------
+
+def _draw_alerts_page(p, cx, cy, mind, t, trans, comp):
+    """Draw the Alerts sub-page: toggle rows for system alerts, health checks, SOS."""
+    R = mind * 0.235
+    base_dark = QColor(8, 9, 12, int(210 * trans))
+    A  = int(240 * trans)
+    A2 = int(175 * trans)
+    A3 = int(120 * trans)
+    gold_strong = GOLD(A)
+    gold_mid    = GOLD(A2)
+    gold_faint  = GOLD(A3)
+
+    # --- Base plate ---
+    p.setPen(Qt.NoPen)
+    p.setBrush(base_dark)
+    p.drawEllipse(QPointF(cx, cy), R, R)
+
+    # Bezel ring
+    bezel_pen = QPen(gold_mid)
+    bezel_pen.setWidthF(max(2.0, mind * 0.0042))
+    p.setPen(bezel_pen)
+    p.setBrush(Qt.NoBrush)
+    p.drawEllipse(QPointF(cx, cy), R * 0.98, R * 0.98)
+
+    # Inner ring
+    inner_pen = QPen(gold_faint)
+    inner_pen.setWidthF(max(1.2, mind * 0.0026))
+    p.setPen(inner_pen)
+    p.drawEllipse(QPointF(cx, cy), R * 0.90, R * 0.90)
+
+    # --- Chapter ring (subtle, 30 ticks) ---
+    r_chapter_out = R * 0.84
+    for i in range(30):
+        ang = (i / 30.0) * 2.0 * math.pi - math.pi / 2.0
+        is_major = (i % 5 == 0)
+        tick_len = (R * 0.055) if is_major else (R * 0.030)
+        tick_w = (mind * 0.0030) if is_major else (mind * 0.0018)
+        rr_out = r_chapter_out
+        rr_in = rr_out - tick_len
+        x1 = cx + rr_in * math.cos(ang)
+        y1 = cy + rr_in * math.sin(ang)
+        x2 = cx + rr_out * math.cos(ang)
+        y2 = cy + rr_out * math.sin(ang)
+        col = GOLD(int((140 if is_major else 80) * trans))
+        p.setPen(QPen(col, tick_w, Qt.SolidLine, Qt.RoundCap))
+        p.drawLine(QPointF(x1, y1), QPointF(x2, y2))
+
+    # --- Guilloché (subtle concentric ellipses) ---
+    rg = R * 0.64
+    gu_pen = QPen(QColor(255, 255, 255, int(16 * trans)))
+    gu_pen.setWidthF(max(1.0, mind * 0.0014))
+    p.setPen(gu_pen)
+    p.setBrush(Qt.NoBrush)
+    for k in range(20):
+        frac = k / 19.0
+        rad = rg * (0.25 + 0.75 * frac)
+        wob = 1.0 + 0.015 * math.sin(t * 0.7 + k * 0.6)
+        p.drawEllipse(QPointF(cx, cy), rad * wob, rad)
+
+    # --- "ALERT SETTINGS" header ---
+    header_font = QFont("DejaVu Sans", max(8, int(mind * 0.014)))
+    header_font.setLetterSpacing(QFont.PercentageSpacing, 130)
+    header_font.setBold(True)
+    p.setFont(header_font)
+    p.setPen(gold_faint)
+    p.drawText(
+        int(cx - R), int(cy - R * 0.92), int(2 * R), int(R * 0.20),
+        Qt.AlignCenter, "ALERT SETTINGS"
+    )
+
+    # --- Toggle rows ---
+    label_font = QFont("DejaVu Sans", max(9, int(mind * 0.018)))
+    dot_r = mind * 0.008
+
+    toggles = [
+        ("System Alerts",  True),
+        ("Health Checks",  True),
+        ("Emergency SOS",  comp.emergency_enabled),
+    ]
+
+    base_y = cy - R * 0.42
+    row_spacing = R * 0.28
+
+    for idx, (label, enabled) in enumerate(toggles):
+        row_y = base_y + idx * row_spacing
+
+        # Status dot
+        if enabled:
+            dot_col = QColor(80, 210, 120, int(220 * trans))
+        else:
+            dot_col = QColor(210, 80, 80, int(220 * trans))
+        p.setPen(Qt.NoPen)
+        p.setBrush(dot_col)
+        p.drawEllipse(QPointF(cx - R * 0.42, row_y), dot_r, dot_r)
+
+        # Label
+        p.setFont(label_font)
+        p.setPen(gold_mid)
+        p.drawText(
+            int(cx - R * 0.35), int(row_y - R * 0.06), int(R * 0.55), int(R * 0.12),
+            Qt.AlignLeft | Qt.AlignVCenter, label
+        )
+
+        # ON / OFF value
+        status = "ON" if enabled else "OFF"
+        status_col = QColor(80, 210, 120, int(200 * trans)) if enabled else QColor(210, 80, 80, int(200 * trans))
+        p.setPen(status_col)
+        val_font = QFont("DejaVu Sans", max(8, int(mind * 0.016)))
+        val_font.setBold(True)
+        p.setFont(val_font)
+        p.drawText(
+            int(cx + R * 0.10), int(row_y - R * 0.06), int(R * 0.38), int(R * 0.12),
+            Qt.AlignRight | Qt.AlignVCenter, status
+        )
+
+        # Subtle separator after each row (except last)
+        if idx < len(toggles) - 1:
+            sep_y = row_y + row_spacing * 0.5
+            p.setPen(QPen(GOLD(int(50 * trans)), max(0.8, mind * 0.0012)))
+            p.drawLine(
+                QPointF(cx - R * 0.42, sep_y),
+                QPointF(cx + R * 0.42, sep_y)
+            )
+
+    # --- Divider before notification sound ---
+    div_y = base_y + len(toggles) * row_spacing - row_spacing * 0.35
+    p.setPen(QPen(gold_faint, max(1.0, mind * 0.0016)))
+    p.drawLine(
+        QPointF(cx - R * 0.48, div_y),
+        QPointF(cx + R * 0.48, div_y)
+    )
+
+    # --- Notification Sound row ---
+    sound_y = base_y + len(toggles) * row_spacing
+    p.setFont(label_font)
+    p.setPen(gold_mid)
+    p.drawText(
+        int(cx - R * 0.42), int(sound_y - R * 0.06), int(R * 0.60), int(R * 0.12),
+        Qt.AlignLeft | Qt.AlignVCenter, "Notification Sound"
+    )
+
+    p.setPen(gold_faint)
+    val_font2 = QFont("DejaVu Sans", max(8, int(mind * 0.016)))
+    p.setFont(val_font2)
+    p.drawText(
+        int(cx + R * 0.05), int(sound_y - R * 0.06), int(R * 0.42), int(R * 0.12),
+        Qt.AlignRight | Qt.AlignVCenter, "Default"
+    )
+
+    # --- Back hint ---
+    if trans > 0.72:
+        hint_font = QFont("DejaVu Sans", max(7, int(mind * 0.011)))
+        hint_font.setLetterSpacing(QFont.PercentageSpacing, 120)
+        p.setFont(hint_font)
+        a = int(40 * (trans - 0.72) / 0.28)
+        a = max(0, min(40, a))
+        p.setPen(QColor(255, 215, 140, a))
+        p.drawText(
+            int(cx - R), int(cy + R * 0.78), int(2 * R), int(R * 0.14),
+            Qt.AlignCenter, "\u25C0  BACK"
+        )
 
 
 # ---------------------------------------------------------------------------
