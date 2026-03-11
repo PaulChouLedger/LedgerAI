@@ -70,7 +70,7 @@ WHISPER_BEST_OF    = int(os.environ.get("AURA_WHISPER_BEST_OF", "2"))
 # ---------------------------------------------------------------------------
 TTS_DEVICE   = os.environ.get("AURA_TTS_DEVICE", "cuda")
 TTS_OUT_WAV  = Path("/tmp/aura_tts.wav")
-TTS_VOLUME   = float(os.environ.get("TTS_VOLUME", "0.90"))   # 90% default
+TTS_VOLUME   = float(os.environ.get("TTS_VOLUME", "1.0"))    # 100% (hardware max)
 TTS_STEPS    = int(os.environ.get("AURA_TTS_STEPS", "50"))    # 50 ≈ 25s on Jetson
 
 # ---------------------------------------------------------------------------
@@ -128,7 +128,7 @@ BOOT_CAPTURE_TIMEOUT_S  = 8.0      # give up waiting for speech
 
 # Speaker embedding (resemblyzer)
 EMBEDDING_DIM             = 256
-EMBEDDING_MATCH_THRESHOLD = 0.75
+EMBEDDING_MATCH_THRESHOLD = 0.45
 
 # ---------------------------------------------------------------------------
 # Aura Perpetual (background rumination engine)

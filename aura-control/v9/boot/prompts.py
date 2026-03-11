@@ -127,7 +127,7 @@ RETURNING_USER_SCRIPT: list[BootPrompt] = [
         capture_max_s=5.0,
         timeout_s=8.0,
         progress_text="Welcome",
-        pause_before=8.0,         # let music establish, NO filler
+        pause_before=0.5,         # minimal — get to greeting fast
         pause_after=0.3,
     ),
 ]

@@ -360,6 +360,10 @@ class Listener:
                             pass
                     continue
 
+                # Emit mic level for VU meter (cheap RMS, every frame)
+                _rms = float(np.sqrt(np.mean(mono ** 2)))
+                bus.emit("mic.level", rms=_rms)
+
                 # Stage 2: VAD
                 tensor = torch.from_numpy(mono)
                 vad_prob = float(vad(tensor, SAMPLE_RATE).detach())

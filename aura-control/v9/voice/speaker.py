@@ -28,7 +28,7 @@ import numpy as np
 from dotenv import load_dotenv
 
 from core.bus import bus
-from core.config import WORKSPACE_ROOT, TTS_VOLUME, VOICES_DIR
+from core.config import WORKSPACE_ROOT, TTS_VOLUME, VOICES_DIR, FARSIGHT_URL
 from core.state import state
 from services.memlog import memlog
 
@@ -142,7 +142,7 @@ def _get_rvc():
     return _rvc_engine
 
 
-_RVC_VOLUME = float(os.environ.get("AURA_RVC_VOLUME", "0.18"))  # RVC output is very hot
+_RVC_VOLUME = float(os.environ.get("AURA_RVC_VOLUME", "0.23"))  # RVC output is very hot
 
 
 def _rvc_denoise(audio: np.ndarray, sr: int) -> np.ndarray:
@@ -198,6 +198,98 @@ def _rvc_convert(wav_path: str) -> str:
     except Exception as e:
         print(f"[speaker] RVC conversion failed: {e}")
         return wav_path  # fallback to unconverted
+
+
+# ---------------------------------------------------------------------------
+# Local model readiness — tracks whether Kokoro+RVC are loaded
+# ---------------------------------------------------------------------------
+
+_local_tts_ready = threading.Event()
+
+
+def is_local_tts_ready() -> bool:
+    """Check if the local TTS pipeline (Kokoro+RVC) is loaded and warm."""
+    return _local_tts_ready.is_set()
+
+
+def warm_local_tts_background():
+    """Load Kokoro+RVC in a background thread. Non-blocking.
+
+    The thread sets _local_tts_ready once both models are in VRAM.
+    Speaker._stream_synth will use Farsight as fallback until this completes.
+    """
+    def _warm():
+        try:
+            _get_kokoro()
+            if RVC_ENABLED:
+                _get_rvc()
+            _local_tts_ready.set()
+            print("[speaker] Local TTS pipeline warm (Kokoro+RVC ready)")
+        except Exception as e:
+            print(f"[speaker] Local TTS warmup failed: {e}")
+            # Still mark as ready so we don't block forever — will error on use
+            _local_tts_ready.set()
+    threading.Thread(target=_warm, daemon=True, name="tts-local-warm").start()
+
+
+# ---------------------------------------------------------------------------
+# Farsight RTX TTS fallback — used while local models load
+# ---------------------------------------------------------------------------
+
+def _farsight_available() -> bool:
+    """Quick check: can we reach the Farsight RTX TTS endpoint?"""
+    if not FARSIGHT_URL:
+        return False
+    try:
+        import requests
+        resp = requests.get(f"{FARSIGHT_URL}/health", timeout=2)
+        return resp.status_code == 200
+    except Exception:
+        return False
+
+
+_farsight_ok: Optional[bool] = None  # cached after first check
+
+
+def _check_farsight_once() -> bool:
+    """Check Farsight availability once and cache the result."""
+    global _farsight_ok
+    if _farsight_ok is not None:
+        return _farsight_ok
+    _farsight_ok = _farsight_available()
+    if _farsight_ok:
+        print("[speaker] Farsight RTX TTS available — will use as fallback during warmup")
+    else:
+        print("[speaker] Farsight RTX not reachable — local TTS only")
+    return _farsight_ok
+
+
+def _farsight_synth_to_file(text: str, out_path: str) -> bool:
+    """Synthesize text on the remote Farsight RTX and save as WAV.
+
+    Returns True on success.  The RTX is always warm (never restarted),
+    so this is fast (~200-500ms for a sentence over local network).
+    """
+    import requests
+    try:
+        resp = requests.post(
+            f"{FARSIGHT_URL}/perpetual/synthesize",
+            json={"text": text, "steps": 50},  # lower steps for speed
+            timeout=15,
+        )
+        if resp.status_code != 200:
+            return False
+        with open(out_path, "wb") as f:
+            f.write(resp.content)
+        # Run through local RVC if available (Farsight voice != Olga)
+        if RVC_ENABLED and _rvc_engine is not None:
+            rvc_out = _rvc_convert(out_path)
+            if rvc_out != out_path:
+                os.replace(rvc_out, out_path)
+        return True
+    except Exception as e:
+        print(f"[speaker] Farsight TTS error: {e}")
+        return False
 
 
 # ---------------------------------------------------------------------------
@@ -261,11 +353,21 @@ def _set_volume():
 # WAV file synthesis (kept for external callers like boot tour)
 # ---------------------------------------------------------------------------
 
+def _kokoro_phonetic_fix(text: str) -> str:
+    """Fix Kokoro TTS mispronunciations via phonetic substitutions."""
+    # Kokoro says "Aurura" for "Aura" — use phonetic spelling
+    text = re.sub(r'\bAura\b', 'Awe-ruh', text)
+    text = re.sub(r'\baura\b', 'awe-ruh', text)
+    text = re.sub(r'\bAURA\b', 'AWE-RUH', text)
+    return text
+
+
 def _synth_to_file(text: str, style: str, out_path: str) -> float:
     """Synthesize *text* to a WAV file. Returns wall-clock ms."""
     pipe = _get_kokoro()
     clean = re.sub(r"<[^>]+>", "", text).strip()
     clean = clean.replace("°C", "degrees Celsius").replace("°F", "degrees Fahrenheit")
+    clean = _kokoro_phonetic_fix(clean)
     if not clean:
         return 0.0
 
@@ -384,11 +486,20 @@ class Speaker:
         else:
             print(f"[speaker] Pre-synth WAV not found: {wav_path}")
 
+    # Minimum filler size (~3s at 48kHz stereo 16-bit ≈ 150kB).
+    # Shorter ones tend to be terse single words ("So", "Well") that sound awkward.
+    _MIN_FILLER_BYTES = 148000
+
     def play_thinking_filler(self):
         """Queue a random pre-generated thinking filler for instant playback."""
         if not self._thinking_wavs:
             return
-        wav = random.choice(self._thinking_wavs)
+        # Filter out very short fillers that sound terse
+        good = [w for w in self._thinking_wavs
+                if os.path.getsize(w) >= self._MIN_FILLER_BYTES]
+        if not good:
+            good = self._thinking_wavs
+        wav = random.choice(good)
         print(f"[speaker] Thinking filler: {os.path.basename(wav)}")
         self._work_q.put((_SENTINEL_WAV, wav))
 
@@ -530,12 +641,22 @@ class Speaker:
         Splits text into clauses, synthesizes each to a WAV file, and plays
         via aplay. Synthesis of clause N+1 overlaps with playback of clause N
         using a background synth thread.
+
+        If local Kokoro isn't loaded yet and Farsight RTX is reachable, uses
+        Farsight for synthesis (RTX is always warm — never restarted).
         """
-        pipe = _get_kokoro()
         clean = re.sub(r"<[^>]+>", "", text).strip()
         clean = clean.replace("°C", "degrees Celsius").replace("°F", "degrees Fahrenheit")
+        clean = _kokoro_phonetic_fix(clean)
         if not clean:
             return
+
+        # If local TTS not ready, try Farsight RTX as fallback
+        if not _local_tts_ready.is_set() and _check_farsight_once():
+            self._stream_synth_farsight(clean, alsa_device)
+            return
+
+        pipe = _get_kokoro()
 
         clauses = self._split_clauses(clean)
         preview = clean[:70] + ("..." if len(clean) > 70 else "")
@@ -655,14 +776,73 @@ class Speaker:
               f"first={synth_stats['first_ms']:.0f}ms, {synth_stats['clauses']} clauses"
               f" → \"{preview}\"{pipeline_info}")
 
+    # ----- Farsight RTX fallback path -----
+
+    def _stream_synth_farsight(self, text: str, alsa_device: str):
+        """Synthesize via Farsight RTX when local Kokoro isn't loaded yet.
+
+        The RTX is always warm (enterprise GPU, never restarted), so latency
+        is just network round-trip + synthesis time (~200-500ms per clause).
+        Local Kokoro loads quietly in the background and takes over once ready.
+        """
+        t0 = time.perf_counter()
+        preview = text[:70] + ("..." if len(text) > 70 else "")
+        print(f"[speaker] Using Farsight RTX TTS (local warming up): \"{preview}\"")
+
+        bus.emit("tts.started")
+        bus.emit("speaker.state", state="playing")
+        state.playing = True
+        self._interrupted.clear()
+
+        clauses = self._split_clauses(text)
+        try:
+            for i, clause in enumerate(clauses):
+                if self._interrupted.is_set():
+                    break
+                clause = clause.strip()
+                if not clause:
+                    continue
+                out_path = self._CLAUSE_WAV_SLOTS[i % len(self._CLAUSE_WAV_SLOTS)]
+                ok = _farsight_synth_to_file(clause, out_path)
+                if not ok:
+                    print(f"[speaker] Farsight clause failed, waiting for local TTS...")
+                    # Fall through to local — block until ready
+                    _local_tts_ready.wait(timeout=60)
+                    _synth_to_file(clause, "neutral", out_path)
+                if self._interrupted.is_set():
+                    break
+                # Play the clause
+                try:
+                    proc = subprocess.Popen(
+                        ["aplay", "-D", alsa_device, out_path],
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                    )
+                    self._current_aplay = proc
+                    proc.wait()
+                    self._current_aplay = None
+                except Exception as e:
+                    print(f"[speaker] Farsight clause play error: {e}")
+        finally:
+            self._current_aplay = None
+            state.playing = False
+            if not self._interrupted.is_set():
+                bus.emit("tts.finished")
+                bus.emit("speaker.state", state="idle")
+
+        total_ms = (time.perf_counter() - t0) * 1000
+        print(f"[speaker] Farsight TTS: {total_ms:.0f}ms total, {len(clauses)} clauses")
+
     # ----- Warmup -----
 
     def warmup(self):
-        """Pre-load Kokoro and RVC models."""
+        """Pre-load Kokoro and RVC models (marks _local_tts_ready when done)."""
         try:
             _get_kokoro()
             if RVC_ENABLED:
                 _get_rvc()
+            _local_tts_ready.set()
             print(f"[speaker] Warmup complete (RVC={'on' if RVC_ENABLED and _rvc_engine else 'off'})")
         except Exception as e:
+            _local_tts_ready.set()  # don't block forever
             print(f"[speaker] Warmup failed (non-fatal): {e}")

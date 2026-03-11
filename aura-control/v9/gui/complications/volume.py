@@ -29,12 +29,18 @@ class VolumeComplication(BaseComplication):
     def __init__(self, bus):
         super().__init__(bus)
         self.level = 50  # 0..100
+        self._mic_rms = 0.0  # live mic RMS for VU meter
+        bus.on("mic.level", self._on_mic_level)
+
+    def _on_mic_level(self, rms: float = 0.0, **_kw):
+        self._mic_rms = rms
 
     # ------------------------------------------------------------------
     def draw_content(self, p: "QPainter", inner: float, t: float, accent: QColor) -> None:
-        vol = clamp(self.level / 100.0, 0.0, 1.0)
+        # Live mic RMS → 0..1 (scale: 0.005 rms = silence, 0.15 = loud speech)
+        vu = clamp(self._mic_rms / 0.12, 0.0, 1.0)
         steps = 12
-        lit = int(round(vol * steps))
+        lit = int(round(vu * steps))
 
         # Stepped ring
         rr = inner * 0.70
@@ -60,7 +66,7 @@ class VolumeComplication(BaseComplication):
         p.drawRoundedRect(win, inner * 0.06, inner * 0.06)
 
         # Value text (shadow + outline for readability)
-        txt = f"{int(vol * 100):02d}"
+        txt = f"{int(vu * 100):02d}"
         f = QFont("Helvetica", max(8, int(inner * 0.28)))
         f.setBold(True)
         p.setFont(f)

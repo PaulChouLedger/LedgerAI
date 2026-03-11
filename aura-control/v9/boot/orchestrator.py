@@ -345,9 +345,9 @@ class BootOrchestrator:
         """
         had_music = self._music_proc is not None
         if self._music_proc and self._music_proc.poll() is None:
-            # Smooth fade-out via hardware mixer
+            # Quick fade-out via hardware mixer
             vol_pct = int(TTS_VOLUME * 100) if TTS_VOLUME <= 2.0 else int(TTS_VOLUME)
-            self._alsa_fade(from_pct=vol_pct, to_pct=0, steps=15, duration=1.2)
+            self._alsa_fade(from_pct=vol_pct, to_pct=0, steps=8, duration=0.5)
             # Now kill the silent process to release the device
             try:
                 self._music_proc.terminate()
@@ -365,7 +365,7 @@ class BootOrchestrator:
             self._music_ff_proc = None
         self._music_proc = None
         # Brief delay for ALSA kernel driver to fully release the device
-        time.sleep(0.5)
+        time.sleep(0.2)
         if had_music:
             print("[boot] Music ducked (faded out + killed)")
 
@@ -751,6 +751,20 @@ class BootOrchestrator:
         # Set system volume before any audio plays
         self._set_system_volume()
 
+        # ---- Start local TTS warmup IMMEDIATELY ----
+        # Boot greetings play from pre-recorded WAVs via aplay (CPU/ALSA only,
+        # no GPU). Kokoro+RVC loading is GPU-only.  No contention — safe to
+        # run in parallel.  If Farsight RTX is reachable, the Speaker will use
+        # it for any post-boot speech while local models load quietly.
+        from voice.speaker import warm_local_tts_background
+        warm_local_tts_background()
+
+        tts_ready = threading.Event()
+        def _tts_thread():
+            self._warmup_tts()
+            tts_ready.set()
+        threading.Thread(target=_tts_thread, daemon=True, name="tts-warmup").start()
+
         # Start background music
         self._start_music()
 
@@ -764,14 +778,6 @@ class BootOrchestrator:
 
         if not identified and not self._skip.is_set():
             self._run_enrollment(enrollment)
-
-        # ---- Kick off TTS warmup AFTER enrollment conversation ----
-        # (loading ChatterboxTTS into VRAM is heavy — would kill audio playback)
-        tts_ready = threading.Event()
-        def _tts_thread():
-            self._warmup_tts()
-            tts_ready.set()
-        threading.Thread(target=_tts_thread, daemon=True, name="tts-warmup").start()
 
         # ---- Wait for services (shared for both paths) ----
         self._set_phase(Phase.WAITING_SERVICES, self._progress_from_time(),
@@ -820,6 +826,24 @@ class BootOrchestrator:
                     last_tts_filler = time.time()
                 else:
                     tts_ready.wait(timeout=5.0)
+
+        # ---- Pre-synthesize welcome greeting (while music still plays) ----
+        name = state.active_user_name or "friend"
+        is_first = self._enrolled_this_boot
+        if is_first:
+            welcome_text = f"Welcome to AuraVision, {name}. I'm so glad you're here."
+        else:
+            welcome_text = f"Welcome back, {name}. Good to see you again."
+        welcome_wav = "/tmp/aura_welcome.wav"
+        try:
+            from voice.speaker import _synth_to_file
+            print(f"[boot] Pre-synthesizing welcome: \"{welcome_text}\"")
+            ms = _synth_to_file(welcome_text, "warm", welcome_wav)
+            self._welcome_wav = welcome_wav
+            print(f"[boot] Welcome pre-synthesized: {ms:.0f}ms")
+        except Exception as e:
+            print(f"[boot] Welcome pre-synth failed: {e}")
+            self._welcome_wav = None
 
         # ---- Stop music ----
         if self._music_proc and self._music_proc.poll() is None:

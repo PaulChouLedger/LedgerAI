@@ -34,6 +34,7 @@ from gui.renderer import (
     draw_celestial, draw_chapter_ticks, draw_center_ring,
     draw_mist, draw_rings, draw_mute_wash,
 )
+from gui.shutdown_overlay import ShutdownOverlay
 from gui.touch import (
     RotationState,
     tick_rotation, maybe_tick_detent,
@@ -152,6 +153,13 @@ class AuraWindow(QWidget):
         self._alert_spike_until = 0.0
         self._alert_spike_level = 0.0
 
+        # Shutdown overlay
+        self._shutdown_overlay = ShutdownOverlay()
+
+        # Sleep mode
+        self._sleeping = False
+        self._sleep_alpha = 0.0  # 0=awake, 1=fully dark
+
         # Fade-in
         self._fade_in_alpha = 255
         self._fade_in_speed = 6
@@ -184,6 +192,14 @@ class AuraWindow(QWidget):
     # ------------------------------------------------------------------
     # Bus handlers
     # ------------------------------------------------------------------
+
+    def enter_sleep(self):
+        self._sleeping = True
+        self._request_active(3.0)
+
+    def exit_sleep(self):
+        self._sleeping = False
+        self._request_active(3.0)
 
     def _on_mute(self, muted: bool = False, **_kw):
         self.muted = muted
@@ -294,6 +310,7 @@ class AuraWindow(QWidget):
             or self._max_domain_overlay_trans() > 0.01
             or self._focus_anim > 0.02
             or self._tour_highlight is not None
+            or self._shutdown_overlay.active or self._shutdown_overlay._trans > 0.01
         )
 
         if needs_active:
@@ -338,6 +355,17 @@ class AuraWindow(QWidget):
             dcomp = registry.get(dname)
             if dcomp:
                 dcomp.tick(dt)
+
+        # Shutdown overlay countdown
+        self._shutdown_overlay.tick(dt)
+
+        # Sleep fade
+        if self._sleeping and self._sleep_alpha < 1.0:
+            self._sleep_alpha = min(1.0, self._sleep_alpha + dt * 0.8)
+            self._request_active(0.5)
+        elif not self._sleeping and self._sleep_alpha > 0.0:
+            self._sleep_alpha = max(0.0, self._sleep_alpha - dt * 1.5)
+            self._request_active(0.5)
 
         self.update()
 
@@ -473,6 +501,14 @@ class AuraWindow(QWidget):
         try:
             p.setRenderHint(QPainter.Antialiasing)
 
+            # Apply fixed hardware display rotation (invariant for ALL modes)
+            _hw_angle = float(FIXED_ROTATION_DEG or 0.0)
+            if _hw_angle != 0.0:
+                p.save()
+                p.translate(cx, cy)
+                p.rotate(-_hw_angle)
+                p.translate(-cx, -cy)
+
             # Route to boot / transition / normal painting
             if self._boot_mode and not self._boot_transitioning:
                 self._paint_boot(p, W, H, cx, cy, mind, t)
@@ -481,24 +517,16 @@ class AuraWindow(QWidget):
             else:
                 self._paint_normal(p, W, H, cx, cy, mind, t)
 
+            if _hw_angle != 0.0:
+                p.restore()
+
         finally:
             p.end()
 
     def _paint_boot(self, p: QPainter, W: int, H: int,
                     cx: float, cy: float, mind: float, t: float) -> None:
         """Render the falcon boot animation."""
-        # Apply fixed display rotation
-        angle_deg = float(FIXED_ROTATION_DEG or 0.0)
-        if angle_deg != 0.0:
-            p.save()
-            p.translate(cx, cy)
-            p.rotate(-angle_deg)
-            p.translate(-cx, -cy)
-
         paint_boot_frame(p, W, H, t, self._boot_vis)
-
-        if angle_deg != 0.0:
-            p.restore()
 
     def _paint_transition(self, p: QPainter, W: int, H: int,
                           cx: float, cy: float, mind: float, t: float) -> None:
@@ -509,11 +537,6 @@ class AuraWindow(QWidget):
         if cf < 1.0 and self._boot_vis is not None:
             p.save()
             p.setOpacity(1.0 - cf)
-            angle_deg = float(FIXED_ROTATION_DEG or 0.0)
-            if angle_deg != 0.0:
-                p.translate(cx, cy)
-                p.rotate(-angle_deg)
-                p.translate(-cx, -cy)
             paint_boot_frame(p, W, H, t, self._boot_vis)
             p.restore()
 
@@ -588,9 +611,11 @@ class AuraWindow(QWidget):
         # TODO: draw active glyph content when glyph_content_alpha > 0
 
         # --- Layer 8: Domain overlays (Education atom, Medical heart, etc.) ---
+        # Suppress when Settings overlay is open (prevents double-display)
+        _settings_active = self._settings_overlay_val() > 0.02
         for dname in self._glyph_names:
             dcomp = registry.get(dname)
-            if dcomp and dcomp.overlay_trans > 0.002:
+            if dcomp and dcomp.overlay_trans > 0.002 and not _settings_active:
                 tr = dcomp.overlay_trans
                 eased = ease_in_out(tr)
                 # Dim the center
@@ -620,14 +645,26 @@ class AuraWindow(QWidget):
         if self.muted:
             draw_mute_wash(p, cx, cy, mind, W, H)
 
+        # --- Layer 15: Shutdown overlay (topmost in-dial layer) ---
+        if self._shutdown_overlay._trans > 0.001:
+            self._shutdown_overlay.draw(p, cx, cy, mind, t)
+
         # End rotation wrapper
         p.restore()
 
-        # --- Layer 15: Fade-in overlay (not rotated) ---
+        # --- Layer 16: Fade-in overlay (not rotated) ---
         if self._fade_in_alpha > 0:
             p.save()
             p.setPen(Qt.NoPen)
             p.setBrush(QColor(0, 0, 0, self._fade_in_alpha))
+            p.drawRect(0, 0, W, H)
+            p.restore()
+
+        # --- Layer 17: Sleep blackout (not rotated) ---
+        if self._sleep_alpha > 0.001:
+            p.save()
+            p.setPen(Qt.NoPen)
+            p.setBrush(QColor(0, 0, 0, int(255 * self._sleep_alpha)))
             p.drawRect(0, 0, W, H)
             p.restore()
 
@@ -795,11 +832,22 @@ class AuraWindow(QWidget):
         x_raw, y_raw = ev.x(), ev.y()
         cx, cy = self.width() * 0.5, self.height() * 0.5
         mind = min(self.width(), self.height())
-        x, y = rotate_point(x_raw, y_raw, cx, cy, -self.rs.rot_deg)
+        # Undo both hardware rotation and dial rotation for logical coords
+        _hw = float(FIXED_ROTATION_DEG or 0.0)
+        x, y = rotate_point(x_raw, y_raw, cx, cy, _hw - self.rs.rot_deg)
 
         mute_comp = registry.get("Mute")
         if mute_comp and hit_complication("Mute", x, y, self.labels, cx, cy, mind):
             mute_comp.on_tap()
+            return
+
+        # Shutdown overlay — tap anywhere to abort
+        if self._shutdown_overlay.handle_tap():
+            return
+
+        # Sleep mode — tap anywhere to wake
+        if self._sleeping:
+            bus.emit("sleep.wake")
             return
 
         # During boot: tap to skip enrollment
@@ -808,8 +856,20 @@ class AuraWindow(QWidget):
             return
 
         # Settings overlay intercept — route taps to WiFi page or menu items
+        # But allow rim drag to bypass (rotation always works)
         settings_comp = registry.get("Settings")
         if settings_comp and settings_comp.overlay_trans > 0.5:
+            # When a sub-page (WiFi etc.) is open, taps outside its circle
+            # must exit the sub-page — check BEFORE rim drag so the exit
+            # zone isn't swallowed by the overlapping drag ring.
+            if settings_comp.settings_page:
+                if settings_comp.handle_overlay_tap(x, y, cx, cy, mind):
+                    return
+            # Rim drag still works even with overlay open (main settings only,
+            # or taps inside a sub-page that weren't consumed above)
+            if hit_rim_drag_zone(x_raw, y_raw, cx, cy, mind):
+                on_drag_start(self.rs, x_raw, y_raw, cx, cy)
+                return
             if settings_comp.handle_overlay_tap(x, y, cx, cy, mind):
                 return
             # If tap wasn't consumed by the overlay, close settings
@@ -866,7 +926,7 @@ class AuraWindow(QWidget):
             bus.emit("center.tap")
             return
 
-        # Check rim drag (use raw coords — drag is in screen space)
+        # Rim drag fallback (already checked early, but covers edge cases)
         if hit_rim_drag_zone(x_raw, y_raw, cx, cy, mind):
             on_drag_start(self.rs, x_raw, y_raw, cx, cy)
 

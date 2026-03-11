@@ -470,6 +470,18 @@ class SettingsComplication(BaseComplication):
         """
         R = mind * 0.235
 
+        # Sub-pages: check if tap is outside the sub-page circle → go back
+        if self.settings_page in ("wifi", "auraconnect", "profile", "alerts"):
+            from gui.wifi_page import _WIFI_R_FRAC
+            sub_r = mind * _WIFI_R_FRAC if self.settings_page == "wifi" else R
+            dx = x - cx
+            dy = y - cy
+            dist = math.sqrt(dx * dx + dy * dy)
+            # Tap outside sub-page circle → back to settings main
+            if dist > sub_r * 1.05:
+                self.settings_page = None
+                return True
+
         # WiFi sub-page active — delegate to WiFi tap handler
         if self.settings_page == "wifi":
             action = handle_wifi_tap(x, y, cx, cy, mind, self._wifi_state)

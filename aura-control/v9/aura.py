@@ -85,9 +85,29 @@ def main() -> int:
         listener = Listener()
         speaker = Speaker()
 
-        # Wire: transcript → thinking filler + LLM → speaker
+        # Wire: transcript → intent check → thinking filler + LLM → speaker
+        from voice.intents import detect_intent
+
         def _on_transcript(text: str = "", **_kw2):
             if text:
+                # If sleeping, any speech wakes up
+                if window._sleeping:
+                    print(f"[aura] Voice wake from sleep: \"{text}\"")
+                    bus.emit("sleep.wake")
+                    return
+
+                # Check for local intents (shutdown, etc.) before LLM
+                intent = detect_intent(text)
+                if intent == "shutdown":
+                    print(f"[aura] Shutdown intent detected: \"{text}\"")
+                    speaker.enqueue("Powering down. Tap to cancel.")
+                    bus.emit("shutdown.begin")
+                    return
+                if intent == "sleep":
+                    print(f"[aura] Sleep intent detected: \"{text}\"")
+                    speaker.enqueue("Going to sleep. Say my name when you need me.")
+                    bus.emit("sleep.begin")
+                    return
                 state.last_conversation_ts = time.time()
 
                 # Deliver pending briefing on first interaction
@@ -201,20 +221,25 @@ def main() -> int:
         window.transition_to_normal()
 
         # Welcome greeting + optional tour for first-time users
-        from voice.speaker import _synth_to_file
-        name = state.active_user_name or "friend"
         is_first = orchestrator._enrolled_this_boot
 
-        # 1. Personalized greeting — synthesize to file, then enqueue as WAV
-        if is_first:
-            welcome_text = f"Welcome to AuraVision, {name}. I'm so glad you're here."
+        # 1. Play pre-synthesized welcome (rendered during boot, zero delay)
+        welcome_wav = orchestrator._welcome_wav
+        if welcome_wav and os.path.isfile(welcome_wav):
+            print(f"[aura] Playing pre-synthesized welcome: {welcome_wav}")
+            speaker.enqueue_wav(welcome_wav)
         else:
-            welcome_text = f"Welcome back, {name}. Good to see you again."
-        welcome_wav = "/tmp/aura_welcome.wav"
-        print(f"[aura] Synthesizing welcome: \"{welcome_text}\"")
-        ms = _synth_to_file(welcome_text, "warm", welcome_wav)
-        print(f"[aura] Welcome synthesized: {ms:.0f}ms")
-        speaker.enqueue_wav(welcome_wav)
+            # Fallback: synthesize now (adds ~3s delay)
+            from voice.speaker import _synth_to_file
+            name = state.active_user_name or "friend"
+            if is_first:
+                welcome_text = f"Welcome to AuraVision, {name}. I'm so glad you're here."
+            else:
+                welcome_text = f"Welcome back, {name}. Good to see you again."
+            welcome_wav = "/tmp/aura_welcome.wav"
+            print(f"[aura] Synthesizing welcome (fallback): \"{welcome_text}\"")
+            _synth_to_file(welcome_text, "warm", welcome_wav)
+            speaker.enqueue_wav(welcome_wav)
 
         # 2. Tour of complications — only on first boot
         #    Each tour line can highlight a specific complication on the dial
@@ -260,6 +285,34 @@ def main() -> int:
 
     signal.signal(signal.SIGINT,  _quit)
     signal.signal(signal.SIGTERM, _quit)
+
+    # 7. Voice-triggered shutdown (countdown completed without abort)
+    def _on_shutdown_execute(**_kw):
+        print("[aura] Shutdown countdown complete — powering off")
+        _quit()
+        # Give Qt a moment to tear down, then hard poweroff
+        import subprocess
+        subprocess.Popen(["sudo", "systemctl", "poweroff"], close_fds=True)
+
+    def _on_shutdown_abort(**_kw):
+        print("[aura] Shutdown aborted by user")
+
+    bus.on("shutdown.execute", _on_shutdown_execute)
+    bus.on("shutdown.abort", _on_shutdown_abort)
+
+    # 8. Sleep mode (screen off, mic stays alive for wake word)
+    def _on_sleep_begin(**_kw):
+        print("[aura] Entering sleep mode")
+        window.enter_sleep()
+
+    def _on_sleep_wake(**_kw):
+        print("[aura] Waking from sleep")
+        window.exit_sleep()
+        if _voice_started.is_set() and hasattr(_on_boot_complete, "_speaker"):
+            _on_boot_complete._speaker.enqueue("Good morning. I'm here.")
+
+    bus.on("sleep.begin", _on_sleep_begin)
+    bus.on("sleep.wake", _on_sleep_wake)
 
     print("[aura] boot mode active — waiting for services")
     rc = app.exec_()
