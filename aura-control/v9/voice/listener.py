@@ -263,6 +263,10 @@ class Listener:
 
     def _on_mute(self, muted: bool = False, **_kw):
         self._muted = muted
+        if muted:
+            print("[listener] MUTED — mic stream paused")
+        else:
+            print("[listener] UNMUTED — mic stream resumed")
 
     # ----- Control -----
 
@@ -324,7 +328,16 @@ class Listener:
                     time.sleep(0.01)
                     continue
 
-                if self._playing or self._muted:
+                if self._muted:
+                    # Mic is muted — stop the stream entirely for privacy
+                    stream.stop()
+                    while self._muted and not self._stop.is_set():
+                        time.sleep(0.1)
+                    if not self._stop.is_set():
+                        stream.start()
+                    continue
+
+                if self._playing:
                     continue
 
                 # Extract mono channel

@@ -351,12 +351,20 @@ class Speaker:
         self._work_q: queue.Queue = queue.Queue()
         self._worker_thread: Optional[threading.Thread] = None
         self._stop = threading.Event()
+        self._interrupted = threading.Event()   # set by interrupt() to abort playback
+        self._current_aplay: Optional[subprocess.Popen] = None  # track aplay for kill
 
         # Keep legacy queues as thin wrappers for external code that checks them
         self._sentence_q = self._work_q  # compatibility alias
         self._wav_q = self._work_q       # compatibility alias
 
         bus.on("llm.sentence", self._on_sentence)
+        bus.on("mute.toggled", self._on_mute_toggled)
+
+    def _on_mute_toggled(self, muted: bool = False, **_kw):
+        """When muted, immediately interrupt all playback."""
+        if muted:
+            self.interrupt()
 
     def _on_sentence(self, text: str = "", style: str = "", **_kw):
         text = preprocess(text)
@@ -398,6 +406,27 @@ class Speaker:
     def stop(self):
         self._stop.set()
 
+    def interrupt(self):
+        """Immediately kill playback, flush pending work, and silence output."""
+        # Kill any running aplay process
+        proc = getattr(self, '_current_aplay', None)
+        if proc and proc.poll() is None:
+            try:
+                proc.kill()
+            except Exception:
+                pass
+        # Flush the work queue
+        while not self._work_q.empty():
+            try:
+                self._work_q.get_nowait()
+            except queue.Empty:
+                break
+        # Signal synth threads to abort
+        self._interrupted.set()
+        state.playing = False
+        bus.emit("tts.finished")
+        bus.emit("speaker.state", state="idle")
+
     # ----- Unified worker: handles both streaming synth and WAV playback -----
 
     def _worker_loop(self):
@@ -433,24 +462,29 @@ class Speaker:
                 self._stream_synth(text, style, ALSA_PLAYBACK_DEVICE)
 
     def _play_wav(self, wav_path: str, alsa_device: str):
-        """Play a pre-rendered WAV file via aplay."""
+        """Play a pre-rendered WAV file via aplay (interruptible)."""
+        self._interrupted.clear()
         bus.emit("tts.started")
         bus.emit("speaker.state", state="playing")
         state.playing = True
         try:
-            subprocess.run(
+            proc = subprocess.Popen(
                 ["aplay", "-D", alsa_device, wav_path],
-                check=False,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
             )
+            self._current_aplay = proc
+            proc.wait()
+            self._current_aplay = None
             time.sleep(0.05)
         except Exception as e:
             print(f"[speaker] WAV playback error: {e}")
         finally:
+            self._current_aplay = None
             state.playing = False
-            bus.emit("tts.finished")
-            bus.emit("speaker.state", state="idle")
+            if not self._interrupted.is_set():
+                bus.emit("tts.finished")
+                bus.emit("speaker.state", state="idle")
 
     # Regex to split text into clauses at natural break points
     # Splits after sentence-ending punctuation or at commas/semicolons for long text
@@ -583,26 +617,35 @@ class Speaker:
         synth_t.start()
 
         # Play WAVs as they arrive (clause N plays while N+1 synthesizes)
+        self._interrupted.clear()
         try:
             while not synth_done.is_set() or not wav_ready.empty():
+                if self._interrupted.is_set():
+                    break
                 try:
                     wav_path = wav_ready.get(timeout=0.5)
                 except queue.Empty:
                     continue
+                if self._interrupted.is_set():
+                    break
                 try:
-                    subprocess.run(
+                    proc = subprocess.Popen(
                         ["aplay", "-D", alsa_device, wav_path],
-                        check=False,
                         stdout=subprocess.DEVNULL,
                         stderr=subprocess.DEVNULL,
                     )
+                    self._current_aplay = proc
+                    proc.wait()
+                    self._current_aplay = None
                 except Exception as e:
                     print(f"[speaker] Clause play error: {e}")
         finally:
+            self._current_aplay = None
             synth_t.join(timeout=30)
             state.playing = False
-            bus.emit("tts.finished")
-            bus.emit("speaker.state", state="idle")
+            if not self._interrupted.is_set():
+                bus.emit("tts.finished")
+                bus.emit("speaker.state", state="idle")
 
         total_ms = (time.perf_counter() - t0) * 1000
         audio_ms = synth_stats["samples"] / KOKORO_SAMPLE_RATE * 1000 if synth_stats["samples"] else 0

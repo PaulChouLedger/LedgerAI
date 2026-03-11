@@ -789,18 +789,23 @@ class AuraWindow(QWidget):
 
     def mousePressEvent(self, ev):
         self._request_active(2.0)
+
+        # INVARIANT: Mute is ALWAYS reachable — no overlay, boot state, or
+        # context can block it.  Check mute hit BEFORE anything else.
+        x_raw, y_raw = ev.x(), ev.y()
+        cx, cy = self.width() * 0.5, self.height() * 0.5
+        mind = min(self.width(), self.height())
+        x, y = rotate_point(x_raw, y_raw, cx, cy, -self.rs.rot_deg)
+
+        mute_comp = registry.get("Mute")
+        if mute_comp and hit_complication("Mute", x, y, self.labels, cx, cy, mind):
+            mute_comp.on_tap()
+            return
+
         # During boot: tap to skip enrollment
         if self._boot_mode:
             bus.emit("boot.skip")
             return
-
-        x_raw, y_raw = ev.x(), ev.y()
-        cx, cy = self.width() * 0.5, self.height() * 0.5
-        mind = min(self.width(), self.height())
-
-        # Un-rotate click coordinates to match static glyph/complication positions
-        # (paintEvent applies rs.rot_deg to drawing; invert it for hit-testing)
-        x, y = rotate_point(x_raw, y_raw, cx, cy, -self.rs.rot_deg)
 
         # Settings overlay intercept — route taps to WiFi page or menu items
         settings_comp = registry.get("Settings")
