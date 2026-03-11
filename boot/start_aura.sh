@@ -39,6 +39,13 @@ source /home/ledger/aura-env/bin/activate
 export HF_HUB_OFFLINE=1
 export TRANSFORMERS_OFFLINE=1
 
+# PyTorch/OpenMP: prevent worker threads from spin-waiting on CPU when idle.
+# Without this, 7 OMP threads burn 100% CPU each after any inference call.
+export OMP_WAIT_POLICY=PASSIVE
+export OMP_NUM_THREADS=2
+export MKL_NUM_THREADS=2
+export GOTO_NUM_THREADS=2
+
 # Farsight: remote GPU server for Perpetual deep thinking (via Tailscale)
 export AURA_FARSIGHT_URL="http://100.76.191.92:11435"
 
