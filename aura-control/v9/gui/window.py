@@ -156,10 +156,13 @@ class AuraWindow(QWidget):
         self._fade_in_alpha = 255
         self._fade_in_speed = 6
 
-        # Render loop (~60 fps)
+        # Render loop — adaptive frame rate to save CPU
+        self._FPS_ACTIVE = 16    # ~60 fps during animations / interaction
+        self._FPS_IDLE = 200     # 5 fps when idle (celestial drift only)
+        self._active_until = 0.0 # perf_counter deadline for active mode
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._tick)
-        self._timer.start(16)
+        self._timer.start(self._FPS_IDLE)
         self._last_tick = time.perf_counter()
 
         # Bus subscriptions
@@ -249,13 +252,20 @@ class AuraWindow(QWidget):
     # Frame tick
     # ------------------------------------------------------------------
 
+    def _request_active(self, duration: float = 1.0):
+        """Request high frame rate for *duration* seconds."""
+        self._active_until = time.perf_counter() + duration
+        if self._timer.interval() != self._FPS_ACTIVE:
+            self._timer.setInterval(self._FPS_ACTIVE)
+
     def _tick(self):
         now = time.perf_counter()
-        dt = max(1e-3, min(now - self._last_tick, 0.033))
+        dt = max(1e-3, min(now - self._last_tick, 0.25))
         self._last_tick = now
 
         # Boot crossfade transition
         if self._boot_transitioning:
+            self._request_active(2.0)
             self._boot_crossfade = min(1.0, self._boot_crossfade + self._boot_crossfade_speed * dt)
             if self._boot_crossfade >= 1.0:
                 self._boot_transitioning = False
@@ -268,6 +278,30 @@ class AuraWindow(QWidget):
         if self._boot_mode and not self._boot_transitioning:
             self.update()
             return
+
+        # Detect if we need high frame rate
+        needs_active = (
+            self.speaking
+            or self._boot_transitioning
+            or self._fade_in_alpha > 0
+            or self._vol_num_fade > 0.01
+            or self.trans > 0.01 or self.trans_dir != 0
+            or self.bal_trans > 0.01 or self.bal_trans_dir != 0
+            or self._settings_overlay_val() > 0.01
+            or abs(self.rs.vel_dps) > 0.5
+            or self._glyph_rings_alpha < 0.99
+            or self._glyph_content_alpha > 0.01
+            or self._max_domain_overlay_trans() > 0.01
+            or self._focus_anim > 0.02
+            or self._tour_highlight is not None
+        )
+
+        if needs_active:
+            self._request_active(0.5)
+
+        # Adaptive timer: drop to idle rate when nothing is animating
+        if now > self._active_until and self._timer.interval() != self._FPS_IDLE:
+            self._timer.setInterval(self._FPS_IDLE)
 
         # Rotation physics
         tick_rotation(self.rs, dt)
@@ -754,6 +788,7 @@ class AuraWindow(QWidget):
     # ------------------------------------------------------------------
 
     def mousePressEvent(self, ev):
+        self._request_active(2.0)
         # During boot: tap to skip enrollment
         if self._boot_mode:
             bus.emit("boot.skip")
