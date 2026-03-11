@@ -666,6 +666,20 @@ class Perpetual:
             with wave.open(wav_path, "rb") as wf:
                 duration = wf.getnframes() / wf.getframerate()
             print(f"[perpetual] Briefing audio pre-synthesized: {duration:.1f}s → {wav_path}")
+
+            # Re-voice through local RVC so briefing matches Aura's voice
+            try:
+                from voice.speaker import _rvc_convert, RVC_ENABLED
+                if RVC_ENABLED:
+                    print("[perpetual] Re-voicing briefing through RVC...")
+                    rvc_out = _rvc_convert(wav_path)
+                    if rvc_out != wav_path:
+                        import os
+                        os.replace(rvc_out, wav_path)
+                    print(f"[perpetual] Briefing re-voiced: {wav_path}")
+            except Exception as e:
+                print(f"[perpetual] RVC re-voice failed (non-fatal): {e}")
+
             return wav_path
 
         except Exception as e:
