@@ -845,10 +845,18 @@ class BootOrchestrator:
             print(f"[boot] Welcome pre-synth failed: {e}")
             self._welcome_wav = None
 
-        # ---- Stop music ----
-        if self._music_proc and self._music_proc.poll() is None:
-            self._set_phase(Phase.WAITING_SERVICES, 0.99, "Almost ready")
-            self._stop_music()
+        # ---- Stop music (unconditional) ----
+        self._set_phase(Phase.WAITING_SERVICES, 0.99, "Almost ready")
+        self._stop_music()
+        # Kill any orphaned ffmpeg/aplay from the intro music pipeline
+        for _sig in ("TERM",):
+            try:
+                subprocess.run(
+                    ["pkill", f"-{_sig}", "-f", "AuraIntro"],
+                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=2,
+                )
+            except Exception:
+                pass
 
         # ---- Complete ----
         self._mic.close()

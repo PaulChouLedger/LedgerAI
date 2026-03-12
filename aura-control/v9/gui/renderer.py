@@ -122,7 +122,7 @@ class BackgroundCache:
 def _build_blue_background(W: int, H: int, mind: float) -> QPixmap:
     """Super dark red dial — deep oxblood, nearly black."""
     pm = QPixmap(W, H)
-    pm.fill(QColor(140, 22, 18))
+    pm.fill(QColor(76, 4, 14))
     q = QPainter(pm)
     try:
         q.setRenderHint(QPainter.Antialiasing)
@@ -131,8 +131,8 @@ def _build_blue_background(W: int, H: int, mind: float) -> QPixmap:
 
         # Ruby glow in center
         gv = QRadialGradient(QPointF(cx, cy), R * 0.85)
-        gv.setColorAt(0.0, QColor(170, 30, 28, 60))
-        gv.setColorAt(0.5, QColor(130, 22, 20, 30))
+        gv.setColorAt(0.0, QColor(120, 8, 22, 60))
+        gv.setColorAt(0.5, QColor(85, 5, 16, 30))
         gv.setColorAt(1.0, QColor(0, 0, 0, 0))
         q.setPen(Qt.NoPen)
         q.setBrush(QBrush(gv))
@@ -251,7 +251,7 @@ def draw_nebula(
             g.setColorAt(0.0, QColor(220, 50, 40, a0))
             g.setColorAt(0.3, QColor(160, 25, 20, int(a0 * 0.6)))
             g.setColorAt(0.7, QColor(90, 10, 10, int(a0 * 0.2)))
-            g.setColorAt(1.0, QColor(140, 22, 18, 0))
+            g.setColorAt(1.0, QColor(76, 4, 14, 0))
             p.setBrush(QBrush(g))
             p.drawEllipse(QPointF(x, y), rad * 2.5, rad * 2.5)
 

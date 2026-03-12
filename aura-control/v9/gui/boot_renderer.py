@@ -173,7 +173,7 @@ def _draw_boot_nebulae(p: QPainter, cx: float, cy: float, mind: float,
             g.setColorAt(0.0, QColor(220, 50, 40, a0))
             g.setColorAt(0.3, QColor(160, 25, 20, int(a0 * 0.6)))
             g.setColorAt(0.7, QColor(90, 10, 10, int(a0 * 0.2)))
-            g.setColorAt(1.0, QColor(140, 22, 18, 0))
+            g.setColorAt(1.0, QColor(76, 4, 14, 0))
             p.setBrush(QBrush(g))
             p.drawEllipse(QPointF(x, y), rad * 2.5, rad * 2.5)
 
@@ -397,7 +397,7 @@ def paint_boot_frame(p: QPainter, W: int, H: int, t: float,
 
     # UNIFORM super dark red — massive overfill to cover -130° rotation completely
     margin = int(mind * 1.2)
-    p.fillRect(-margin, -margin, W + 2 * margin, H + 2 * margin, QColor(140, 22, 18))
+    p.fillRect(-margin, -margin, W + 2 * margin, H + 2 * margin, QColor(76, 4, 14))
 
     # Dramatic ruby nebula clouds drifting in background
     _draw_boot_nebulae(p, cx, cy, mind, t)
