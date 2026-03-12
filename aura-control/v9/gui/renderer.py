@@ -122,7 +122,7 @@ class BackgroundCache:
 def _build_blue_background(W: int, H: int, mind: float) -> QPixmap:
     """Super dark red dial — deep oxblood, nearly black."""
     pm = QPixmap(W, H)
-    pm.fill(QColor(90, 18, 20))
+    pm.fill(QColor(110, 18, 16))
     q = QPainter(pm)
     try:
         q.setRenderHint(QPainter.Antialiasing)
@@ -251,7 +251,7 @@ def draw_nebula(
             g.setColorAt(0.0, QColor(220, 50, 40, a0))
             g.setColorAt(0.3, QColor(160, 25, 20, int(a0 * 0.6)))
             g.setColorAt(0.7, QColor(90, 10, 10, int(a0 * 0.2)))
-            g.setColorAt(1.0, QColor(90, 18, 20, 0))
+            g.setColorAt(1.0, QColor(110, 18, 16, 0))
             p.setBrush(QBrush(g))
             p.drawEllipse(QPointF(x, y), rad * 2.5, rad * 2.5)
 

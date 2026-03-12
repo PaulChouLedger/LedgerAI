@@ -74,7 +74,7 @@ class AuraWindow(QWidget):
         self.setAttribute(Qt.WA_NoSystemBackground, True)
         self.setAttribute(Qt.WA_AcceptTouchEvents, True)
         self.setAutoFillBackground(False)
-        self.setStyleSheet("background-color: #5a1214;")
+        self.setStyleSheet("background-color: #6e1210;")
         self.resize(SCREEN_W, SCREEN_H)
 
         # Boot mode state
@@ -503,7 +503,7 @@ class AuraWindow(QWidget):
 
             # Fill super dark red BEFORE rotation — oversized to prevent any
             # black corners leaking through the -130° hardware rotation
-            _fill = QColor(90, 18, 20)
+            _fill = QColor(110, 18, 16)
             margin = int(mind * 0.5)
             p.fillRect(-margin, -margin, W + 2 * margin, H + 2 * margin, _fill)
 
@@ -581,7 +581,7 @@ class AuraWindow(QWidget):
                 p.drawPixmap(0, 0, bg)
             else:
                 p.setPen(Qt.NoPen)
-                p.setBrush(QColor(90, 18, 20))
+                p.setBrush(QColor(110, 18, 16))
                 p.drawRect(0, 0, W, H)
         else:
             p.setPen(Qt.NoPen)
@@ -669,7 +669,7 @@ class AuraWindow(QWidget):
         if self._fade_in_alpha > 0:
             p.save()
             p.setPen(Qt.NoPen)
-            p.setBrush(QColor(90, 18, 20, self._fade_in_alpha))
+            p.setBrush(QColor(110, 18, 16, self._fade_in_alpha))
             p.drawRect(0, 0, W, H)
             p.restore()
 
