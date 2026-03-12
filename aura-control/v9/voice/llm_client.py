@@ -17,7 +17,7 @@ from typing import Optional
 import requests
 
 from core.bus import bus
-from core.config import LLM_URL
+from core.config import LLM_URL, FARSIGHT_URL
 from core.state import state
 from voice.router import choose_style
 
@@ -63,23 +63,174 @@ def _is_empty(text: str) -> bool:
 # ---------------------------------------------------------------------------
 
 class LLMClient:
-    """Streams /chat-tts from the LLM container, emits bus sentences."""
+    """Streams /chat-tts from the LLM container, emits bus sentences.
+
+    If Farsight RTX is reachable, routes queries there first (72B Qwen on
+    Blackwell GPU — faster inference, better quality).  Falls back to the
+    local 1.5B Puck container if Farsight is down.
+    """
 
     def __init__(self) -> None:
         self.base_url = LLM_URL
+        self._farsight_ok: Optional[bool] = None   # cached reachability
+
+    # ------------------------------------------------------------------
+    # Farsight availability (cached, re-checked on failure)
+    # ------------------------------------------------------------------
+
+    def _check_farsight(self) -> bool:
+        if not FARSIGHT_URL:
+            return False
+        if self._farsight_ok is not None:
+            return self._farsight_ok
+        try:
+            r = requests.get(f"{FARSIGHT_URL}/health", timeout=2)
+            self._farsight_ok = r.status_code == 200
+        except Exception:
+            self._farsight_ok = False
+        tag = "available" if self._farsight_ok else "not reachable"
+        print(f"[llm_client] Farsight RTX LLM {tag}")
+        return self._farsight_ok
+
+    # ------------------------------------------------------------------
+    # Farsight non-streaming path
+    # ------------------------------------------------------------------
+
+    _SENTENCE_SPLIT = re.compile(r'(?<=[.!?…])\s+')
+
+    def _farsight_chat(self, text: str, context: str) -> bool:
+        """Try Farsight /perpetual/chat.  Returns True if successful."""
+        if not self._check_farsight():
+            return False
+        url = f"{FARSIGHT_URL}/perpetual/chat"
+        try:
+            resp = requests.post(
+                url,
+                json={
+                    "prompt": text,
+                    "system_prompt": (
+                        "You are Aura, a warm, concise AI assistant. "
+                        "Reply in 1-3 short spoken sentences. "
+                        "Be natural and conversational — this will be read aloud. "
+                        "Spell out all abbreviations for speech. "
+                        "Do not use markdown, lists, or bullet points."
+                    ),
+                    "context": context,
+                    "max_tokens": 200,
+                },
+                timeout=15,
+            )
+            if resp.status_code != 200:
+                print(f"[llm_client] Farsight HTTP {resp.status_code}")
+                self._farsight_ok = False
+                return False
+
+            answer = resp.json().get("response", "").strip()
+            if not answer:
+                return False
+
+            print(f"[llm_client] Farsight response ({len(answer)} chars): {answer[:80]}...")
+
+            # Split into sentences and emit each
+            sentences = self._SENTENCE_SPLIT.split(answer)
+            first = True
+            for sent in sentences:
+                sent = _clean(sent)
+                if _is_empty(sent):
+                    continue
+                style = ""
+                if first:
+                    style = choose_style(text, sent, "qwen")
+                    print(f"[llm_client] first chunk to TTS ({len(sent)} chars, style={style})")
+                    first = False
+                bus.emit("llm.sentence", text=sent, style=style)
+            return True
+
+        except requests.ConnectionError:
+            print("[llm_client] Farsight unreachable, falling back to local")
+            self._farsight_ok = False
+            return False
+        except Exception as e:
+            print(f"[llm_client] Farsight error: {e}, falling back to local")
+            self._farsight_ok = False
+            return False
+
+    # ------------------------------------------------------------------
+    # Instant pleasantry responses (no LLM needed)
+    # ------------------------------------------------------------------
+
+    _PLEASANTRY_MAP = {
+        # greeting → short warm reply (no LLM round-trip needed)
+        'good to be here':    'Great to have you!',
+        'good to be back':    'Welcome back!',
+        'nice to be here':    'Lovely to have you!',
+        'nice to be back':    'Welcome back!',
+        'glad to be here':    'Happy to have you!',
+        'glad to be back':    'Welcome back!',
+        'great to be here':   'Wonderful to have you!',
+        'great to be back':   'Welcome back!',
+        'good to see you':    'Good to see you too!',
+        'good to see you too':'Likewise!',
+        'nice to see you':    'Nice to see you too!',
+        'hello':              'Hello!',
+        'hi':                 'Hi there!',
+        'hey':                'Hey!',
+        'good morning':       'Good morning!',
+        'good afternoon':     'Good afternoon!',
+        'good evening':       'Good evening!',
+        'thanks':             'Of course!',
+        'thank you':          'You\'re welcome!',
+        'bye':                'Take care!',
+        'goodbye':            'Goodbye!',
+        'see you':            'See you later!',
+        'i\'m good':          'Glad to hear it!',
+        'i\'m fine':          'That\'s great!',
+        'i\'m okay':          'Good to know!',
+        'i\'m great':         'Wonderful!',
+        'doing well':         'That\'s great!',
+        'doing good':         'Glad to hear it!',
+        'not bad':            'Good to hear!',
+        'ok':                 'Alright!',
+        'sounds good':        'Perfect!',
+        'cool':               'Great!',
+        'nice':               'Indeed!',
+        'awesome':            'Right?',
+    }
+
+    def _try_pleasantry(self, text: str) -> bool:
+        """Check for instant pleasantry match. Returns True if handled."""
+        normalized = text.lower().strip().rstrip('.!?,')
+        reply = self._PLEASANTRY_MAP.get(normalized)
+        if reply:
+            print(f"[llm_client] Pleasantry match: {normalized!r} → {reply!r}")
+            style = choose_style(text, reply, "qwen")
+            print(f"[llm_client] first chunk to TTS ({len(reply)} chars, style={style})")
+            bus.emit("llm.sentence", text=reply, style=style)
+            return True
+        return False
+
+    # ------------------------------------------------------------------
+    # Main entry point
+    # ------------------------------------------------------------------
 
     def stream_chat(self, text: str, context: str = "",
                     chat_id: str = "voice_session") -> None:
-        """POST to /chat-tts and emit bus events per sentence.
-
-        Preferred path: LLM returns <sentence_start>/<sentence_end> markers.
-        Fallback: punctuation + buffer size + timeout flushing.
-        """
-        # Determine LLM port from mode
-        port = "11434"  # both medical & generic use same port
-        url = f"http://localhost:{port}/chat-tts"
-
+        """Route to Farsight RTX if available, else local /chat-tts streaming."""
         bus.emit("llm.started", text=text)
+
+        # Instant pleasantries — zero latency, no LLM needed
+        if self._try_pleasantry(text):
+            bus.emit("llm.finished")
+            return
+
+        # Try Farsight first (72B on Blackwell — fast & smart)
+        if self._farsight_chat(text, context):
+            bus.emit("llm.finished")
+            return
+
+        # Fallback: local container streaming
+        port = "11434"
+        url = f"http://localhost:{port}/chat-tts"
 
         try:
             resp = requests.post(

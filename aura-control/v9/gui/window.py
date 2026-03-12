@@ -885,8 +885,38 @@ class AuraWindow(QWidget):
             settings_comp.close_overlay()
             return
 
-        # INVARIANT: Any docked complication with an open overlay —
-        # tapping its button again dismisses it; tapping outside closes it.
+        # INVARIANT: Any open overlay — tapping its button dismisses it;
+        # tapping outside closes it.  Domain overlays checked first.
+        _open_domain = None
+        if self._glyph_names:
+            for dname in self._glyph_names:
+                dcomp = registry.get(dname)
+                if dcomp and dcomp.overlay_trans > 0.5:
+                    _open_domain = (dname, dcomp)
+                    break
+        if _open_domain:
+            dname, dcomp = _open_domain
+            gname = hit_domain_glyph(x, y, cx, cy, mind, self.labels, self._glyph_names)
+            if gname == dname:
+                # Tapped the same glyph — toggle off
+                dcomp.close_overlay()
+                if hasattr(dcomp, 'stop_audio'):
+                    dcomp.stop_audio()
+                return
+            # Tapped anywhere else — close it
+            dcomp.close_overlay()
+            if hasattr(dcomp, 'stop_audio'):
+                dcomp.stop_audio()
+            # If they tapped a different glyph, open that one
+            if gname:
+                other = registry.get(gname)
+                if other and isinstance(other, BaseDomainComplication):
+                    other.open_overlay()
+                    if hasattr(other, 'play_audio'):
+                        other.play_audio()
+            return
+
+        # Docked complication overlays (Concierge, etc.)
         _open_dock = None
         for comp in registry.get_docked():
             if comp.name not in ("Settings", "Mute", "Volume") and comp.overlay_trans > 0.5:

@@ -180,15 +180,15 @@ class ConciergeComplication(BaseComplication):
 
             # ── "AURA" / "CONCIERGE" curved along bezel arcs ─────────
             _draw_overlay_arc_text(p, cx, cy, bezel_r * 0.82, "AURA", top=True,
-                                   color=_CHAMPAGNE(int(210 * a)),
-                                   shadow=QColor(0, 0, 0, int(100 * a)),
+                                   color=_IVORY(int(245 * a)),
+                                   shadow=QColor(0, 0, 0, int(160 * a)),
+                                   font_size=max(10, int(mind * 0.020)),
+                                   spacing=mind * 0.018)
+            _draw_overlay_arc_text(p, cx, cy, bezel_r * 0.82, "CONCIERGE", top=False,
+                                   color=_IVORY(int(230 * a)),
+                                   shadow=QColor(0, 0, 0, int(140 * a)),
                                    font_size=max(8, int(mind * 0.015)),
                                    spacing=mind * 0.012)
-            _draw_overlay_arc_text(p, cx, cy, bezel_r * 0.82, "CONCIERGE", top=False,
-                                   color=_CHAMPAGNE(int(180 * a)),
-                                   shadow=QColor(0, 0, 0, int(90 * a)),
-                                   font_size=max(7, int(mind * 0.012)),
-                                   spacing=mind * 0.008)
 
             # ── Central tourbillon cage ───────────────────────────────
             _draw_tourbillon(p, cx, cy, R, mind, t, a)
@@ -297,7 +297,41 @@ def _draw_tourbillon(p, cx, cy, R, mind, t, a):
 
 
 # =====================================================================
-# Nautilus sub-dial — each service is a real miniature complication
+# Cushion-cut path builder — rounded-square gem shape
+# =====================================================================
+
+def _cushion_path(cx, cy, r, corner_frac=0.38):
+    """Build a cushion-cut (rounded square) QPainterPath centered at (cx, cy).
+
+    corner_frac controls how rounded the corners are (0 = square, 0.5 = circle).
+    """
+    s = r  # half-side
+    c = s * corner_frac  # corner radius
+    path = QPainterPath()
+    # Start at top-center, go clockwise
+    path.moveTo(cx, cy - s)
+    # Top-right corner
+    path.cubicTo(cx + c * 1.1, cy - s,
+                 cx + s, cy - c * 1.1,
+                 cx + s, cy)
+    # Bottom-right corner
+    path.cubicTo(cx + s, cy + c * 1.1,
+                 cx + c * 1.1, cy + s,
+                 cx, cy + s)
+    # Bottom-left corner
+    path.cubicTo(cx - c * 1.1, cy + s,
+                 cx - s, cy + c * 1.1,
+                 cx - s, cy)
+    # Top-left corner
+    path.cubicTo(cx - s, cy - c * 1.1,
+                 cx - c * 1.1, cy - s,
+                 cx, cy - s)
+    path.closeSubpath()
+    return path
+
+
+# =====================================================================
+# Cushion-cut sub-dial — each service is a miniature gem complication
 # =====================================================================
 
 def _draw_subdial(p, sx, sy, cell_r, icon_s, label, active, t, a, mind):
@@ -311,24 +345,9 @@ def _draw_subdial(p, sx, sy, cell_r, icon_s, label, active, t, a, mind):
     outer_r = cell_r * 1.10
     inner_r = cell_r * 0.95
 
-    # ── 1) Metal bezel ────────────────────────────────────────────
-    bezel_path = QPainterPath()
-    bezel_path.addEllipse(QPointF(sx, sy), outer_r, outer_r)
-    inner_path = QPainterPath()
-    inner_path.addEllipse(QPointF(sx, sy), inner_r, inner_r)
-
-    # Ears (tiny lugs)
-    ear_w = outer_r * 0.14
-    ear_h = outer_r * 0.24
-    ear_r = max(1.0, outer_r * 0.06)
-    ear_col = QColor(int(M_DARK.red() * 0.3), int(M_DARK.green() * 0.3),
-                     int(M_DARK.blue() * 0.3), int(200 * a))
-    p.setPen(Qt.NoPen)
-    p.setBrush(QBrush(ear_col))
-    p.drawRoundedRect(QRectF(sx - outer_r - ear_w * 0.4, sy - ear_h * 0.5,
-                              ear_w, ear_h), ear_r, ear_r)
-    p.drawRoundedRect(QRectF(sx + outer_r - ear_w * 0.6, sy - ear_h * 0.5,
-                              ear_w, ear_h), ear_r, ear_r)
+    # ── 1) Cushion-cut metal bezel ────────────────────────────────
+    bezel_path = _cushion_path(sx, sy, outer_r, 0.40)
+    inner_path = _cushion_path(sx, sy, inner_r, 0.38)
 
     # Metal gradient fill
     bg = QLinearGradient(QPointF(sx - outer_r, sy - outer_r),
@@ -339,11 +358,11 @@ def _draw_subdial(p, sx, sy, cell_r, icon_s, label, active, t, a, mind):
     bg.setColorAt(0.80, QColor(M_MID.red(), M_MID.green(), M_MID.blue(), int(240 * a)))
     bg.setColorAt(1.0, QColor(M_HI.red(), M_HI.green(), M_HI.blue(), int(220 * a)))
     p.setBrush(QBrush(bg))
-    p.setPen(QPen(QColor(0, 0, 0, int(140 * a)), max(0.5, outer_r * 0.0115)))
+    p.setPen(QPen(QColor(0, 0, 0, int(130 * a)), max(0.4, outer_r * 0.0098)))
     p.drawPath(bezel_path)
 
     # Inner bevel highlight
-    p.setPen(QPen(QColor(255, 255, 255, int(35 * a)), max(0.4, outer_r * 0.0092)))
+    p.setPen(QPen(QColor(255, 255, 255, int(30 * a)), max(0.3, outer_r * 0.0078)))
     p.setBrush(Qt.NoBrush)
     p.drawPath(inner_path)
 
@@ -358,10 +377,10 @@ def _draw_subdial(p, sx, sy, cell_r, icon_s, label, active, t, a, mind):
                                max(0, D_DARK.blue() - 4), int(255 * a)))
     p.setPen(Qt.NoPen)
     p.setBrush(QBrush(rg))
-    p.drawEllipse(QPointF(sx, sy), inner_r, inner_r)
+    p.drawPath(inner_path)
 
     # ── 3) Guilloché texture (rotating per sub-dial) ──────────────
-    gu_speed = 0.8 + hash(label) % 5 * 0.2  # each rotates at unique speed
+    gu_speed = 0.8 + hash(label) % 5 * 0.2
     gu_rot = (t * gu_speed) % 360.0
     p.save()
     p.translate(sx, sy)
@@ -375,15 +394,9 @@ def _draw_subdial(p, sx, sy, cell_r, icon_s, label, active, t, a, mind):
         p.drawLine(QPointF(0, 0),
                    QPointF(inner_r * 0.95 * math.cos(ang),
                            inner_r * 0.95 * math.sin(ang)))
-    # Concentric texture rings
-    ring_pen = QPen(QColor(140, 130, 180, int(6 * a)), 0.3)
-    p.setPen(ring_pen)
-    p.setBrush(Qt.NoBrush)
-    for frac in (0.35, 0.60, 0.85):
-        p.drawEllipse(QPointF(0, 0), inner_r * frac, inner_r * frac)
     p.restore()
 
-    # ── 4) Accent lift (radial glow at center) ────────────────────
+    # ── 4) Accent lift ────────────────────────────────────────────
     if active:
         pulse = 0.6 + 0.4 * math.sin(t * 1.6 + hash(label) % 10)
         glow_a = int(28 * a * pulse)
@@ -395,29 +408,24 @@ def _draw_subdial(p, sx, sy, cell_r, icon_s, label, active, t, a, mind):
     lift.setColorAt(1.0, QColor(0, 0, 0, 0))
     p.setBrush(QBrush(lift))
     p.setPen(Qt.NoPen)
-    p.drawEllipse(QPointF(sx, sy), inner_r, inner_r)
+    p.drawPath(inner_path)
 
-    # ── 5) Chapter ring indices ───────────────────────────────────
-    n_ticks = 24
-    for i in range(n_ticks):
-        ang = (2 * math.pi * i) / n_ticks
-        is_major = (i % 6 == 0)
-        r0 = inner_r * (0.80 if is_major else 0.85)
-        r1 = inner_r * 0.93
-        tw = max(0.6, inner_r * (0.046 if is_major else 0.023))
-        ta = int((70 if is_major else 30) * a)
-        idx_pen = QPen(_DIM_GOLD(ta), tw)
-        idx_pen.setCapStyle(Qt.RoundCap)
-        p.setPen(idx_pen)
-        p.drawLine(
-            QPointF(sx + r0 * math.cos(ang), sy + r0 * math.sin(ang)),
-            QPointF(sx + r1 * math.cos(ang), sy + r1 * math.sin(ang)),
-        )
+    # ── 5) Corner facet highlights (gem cut reflections) ──────────
+    # Four tiny highlights near each corner — makes the cushion look faceted
+    for corner_ang in (math.pi * 0.25, math.pi * 0.75, math.pi * 1.25, math.pi * 1.75):
+        fx = sx + inner_r * 0.62 * math.cos(corner_ang)
+        fy = sy + inner_r * 0.62 * math.sin(corner_ang)
+        facet = QRadialGradient(fx, fy, inner_r * 0.25)
+        facet.setColorAt(0.0, QColor(255, 255, 255, int(10 * a)))
+        facet.setColorAt(1.0, QColor(0, 0, 0, 0))
+        p.setBrush(QBrush(facet))
+        p.drawPath(inner_path)
 
-    # ── 6) Glass rim ──────────────────────────────────────────────
-    p.setPen(QPen(QColor(255, 255, 255, int(18 * a)), max(0.4, inner_r * 0.015)))
+    # ── 6) Glass rim (inner cushion) ──────────────────────────────
+    rim_path = _cushion_path(sx, sy, inner_r * 0.88, 0.36)
+    p.setPen(QPen(QColor(255, 255, 255, int(16 * a)), max(0.3, inner_r * 0.012)))
     p.setBrush(Qt.NoBrush)
-    p.drawEllipse(QPointF(sx, sy), inner_r * 0.88, inner_r * 0.88)
+    p.drawPath(rim_path)
 
     p.restore()  # end clip
 
@@ -425,7 +433,7 @@ def _draw_subdial(p, sx, sy, cell_r, icon_s, label, active, t, a, mind):
     if active:
         pulse = 0.6 + 0.4 * math.sin(t * 2.2 + hash(label) % 7)
         jr = max(2.0, cell_r * 0.10)
-        jy = sy - cell_r * 0.72
+        jy = sy - cell_r * 0.78
         # Halo
         jh = QRadialGradient(sx, jy, jr * 3)
         jh.setColorAt(0.0, _AMETHYST(int(40 * a * pulse)))
@@ -444,23 +452,22 @@ def _draw_subdial(p, sx, sy, cell_r, icon_s, label, active, t, a, mind):
     # ── 8) Service icon ───────────────────────────────────────────
     icon_a = int((210 if active else 120) * a)
     icon_col = _IVORY(icon_a)
-    _draw_service_icon(p, sx, sy - cell_r * 0.05, icon_s, label, icon_col, a)
+    _draw_service_icon(p, sx, sy + cell_r * 0.02, icon_s, label, icon_col, a)
 
-    # ── 9) Label (champagne serif, engraved) ──────────────────────
-    lbl_a = int((200 if active else 110) * a)
-    lbl_font = QFont("DejaVu Serif", max(6, int(mind * 0.011)))
+    # ── 9) Label below the cushion ────────────────────────────────
+    lbl_a = int((210 if active else 115) * a)
+    lbl_font = QFont("DejaVu Serif", max(6, int(mind * 0.013)))
     lbl_font.setLetterSpacing(QFont.AbsoluteSpacing, mind * 0.004)
     lbl_font.setBold(True)
     p.setFont(lbl_font)
+    lbl_y = sy + outer_r * 1.08
     # Shadow
-    p.setPen(QColor(0, 0, 0, int(90 * a)))
-    p.drawText(QRectF(sx - cell_r * 1.2, sy + cell_r * 0.42 + 0.5,
-                      cell_r * 2.4, cell_r * 0.40),
+    p.setPen(QColor(0, 0, 0, int(100 * a)))
+    p.drawText(QRectF(sx - cell_r * 1.5, lbl_y + 0.5, cell_r * 3.0, cell_r * 0.50),
                Qt.AlignCenter, label)
     # Text
     p.setPen(_CHAMPAGNE(lbl_a))
-    p.drawText(QRectF(sx - cell_r * 1.2, sy + cell_r * 0.42,
-                      cell_r * 2.4, cell_r * 0.40),
+    p.drawText(QRectF(sx - cell_r * 1.5, lbl_y, cell_r * 3.0, cell_r * 0.50),
                Qt.AlignCenter, label)
 
 

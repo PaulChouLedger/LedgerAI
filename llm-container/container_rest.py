@@ -2043,7 +2043,20 @@ JSON array only:"""
         'how are you', 'how\'s it going', 'how\'s everything', 'how do you do',
         'ok', 'okay', 'sure', 'alright', 'got it', 'understood',
         'yes', 'yeah', 'yep', 'no', 'nope',
-        'please', 'excuse me', 'sorry', 'pardon'
+        'please', 'excuse me', 'sorry', 'pardon',
+        'good to be back', 'good to be here', 'it\'s good to be back',
+        'it\'s good to be here', 'nice to be here', 'nice to be back',
+        'glad to be here', 'glad to be back', 'great to be here',
+        'great to be back', 'happy to be here', 'happy to be back',
+        'good morning', 'good afternoon', 'good evening', 'good night',
+        'i\'m good', 'i\'m fine', 'i\'m okay', 'i\'m great', 'i\'m well',
+        'doing good', 'doing well', 'doing fine', 'doing great',
+        'not bad', 'pretty good', 'all good', 'couldn\'t be better',
+        'that\'s nice', 'that\'s great', 'that\'s cool', 'that\'s awesome',
+        'sounds good', 'sounds great', 'perfect', 'wonderful', 'excellent',
+        'nice', 'cool', 'awesome', 'great', 'good', 'fine',
+        'i appreciate it', 'much appreciated', 'cheers',
+        'take care', 'have a good one', 'later', 'peace'
     ]
     # Use word boundaries to avoid partial matches (e.g., "me" matching "make" or "chocolate")
     import re
@@ -2106,29 +2119,27 @@ JSON array only:"""
         )
     elif is_conversational_fallback:
             # For simple conversational phrases (thank you, goodbye, hello, etc.), use simple prompt
-            # This matches the training dataset format for conversational examples
+            # These are pleasantries — respond warmly in ONE short sentence, no follow-up question.
             system_prompt = (
-                "You are Aura Vision, an AI agent created by Ledger AI Quantum Corporation. "
-                "You act as a proactive AI agent guiding users to better outcomes through gentle guidance.\n\n"
-                "CRITICAL RULES:\n"
-                "- Only provide logical, factual responses. Avoid hallucination at all costs.\n"
-                "- IMPORTANT: Commands and instructions like 'Give me X', 'Tell me about Y', 'Show me Z' are VALID requests and should be answered normally using your general knowledge.\n"
-                "- For general knowledge questions (recipes, facts, etc.), use your general knowledge to provide helpful answers.\n"
-                "- TTS OPTIMIZATION (CRITICAL): Spell out ALL abbreviations for better speech synthesis:\n"
-                "  * Use 'teaspoon' or 'teaspoons' instead of 'tsp' or 't'\n"
-                "  * Use 'tablespoon' or 'tablespoons' instead of 'tbsp' or 'T'\n"
-                "  * Use 'cup' or 'cups' instead of 'c'\n"
-                "  * Use 'ounce' or 'ounces' instead of 'oz'\n"
-                "  * Use 'pound' or 'pounds' instead of 'lb' or 'lbs'\n"
-                "  * Use 'degrees Celsius' or 'degrees Fahrenheit' instead of 'deg C', 'deg F', '°C', or '°F'\n"
-                "  * Use 'Celsius' instead of 'C' when referring to temperature\n"
-                "  * Use 'Fahrenheit' instead of 'F' when referring to temperature\n"
-                "  * Spell out numbers when they are part of measurements (e.g., 'three hundred fifty degrees Fahrenheit' or 'one hundred eighty degrees Celsius')\n"
-                "  * Use 'inch' or 'inches' instead of 'in' or '\"'\n"
-                "  * Use 'foot' or 'feet' instead of 'ft' or '''\n"
-                "- Keep responses VERY SHORT - maximum 2-3 sentences total.\n"
-                "- Be conversational, friendly, and natural.\n"
-                "- Always end your response with a brief, natural question. Examples: 'Would you like more information about this?' or 'Is there anything else I can help you with?'"
+                "You are Aura, a warm and friendly AI assistant.\n\n"
+                "The user just said something conversational — a greeting, pleasantry, or acknowledgement.\n\n"
+                "RULES:\n"
+                "- Respond with EXACTLY ONE short, warm sentence. Nothing more.\n"
+                "- Do NOT ask a follow-up question.\n"
+                "- Do NOT offer help or say 'let me know if you need anything'.\n"
+                "- Do NOT repeat what the user said back to them.\n"
+                "- Match their energy: if they're casual, be casual. If they're warm, be warm.\n"
+                "- Be natural, like a real person — not robotic or overly eager.\n\n"
+                "Examples of GOOD responses:\n"
+                "- User: 'Good to be back' → 'Welcome back!'\n"
+                "- User: 'Thanks' → 'Of course!'\n"
+                "- User: 'I'm doing well' → 'Glad to hear it!'\n"
+                "- User: 'Good morning' → 'Good morning!'\n"
+                "- User: 'Bye' → 'Take care!'\n"
+                "- User: 'That's great' → 'Right?'\n\n"
+                "Examples of BAD responses (too long, too eager):\n"
+                "- 'That's great! If you need anything in the future, just let me know. Have a nice day!'\n"
+                "- 'Welcome back! I'm here whenever you need me. How can I assist you today?'\n"
             )
     else:
         # For conversational queries (actual questions), include follow-up question
