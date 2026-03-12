@@ -74,7 +74,7 @@ class AuraWindow(QWidget):
         self.setAttribute(Qt.WA_NoSystemBackground, True)
         self.setAttribute(Qt.WA_AcceptTouchEvents, True)
         self.setAutoFillBackground(False)
-        self.setStyleSheet("background-color: #6e1210;")
+        self.setStyleSheet("background-color: #8c1612;")
         self.resize(SCREEN_W, SCREEN_H)
 
         # Boot mode state
@@ -503,7 +503,7 @@ class AuraWindow(QWidget):
 
             # Fill super dark red BEFORE rotation — oversized to prevent any
             # black corners leaking through the -130° hardware rotation
-            _fill = QColor(110, 18, 16)
+            _fill = QColor(140, 22, 18)
             margin = int(mind * 0.5)
             p.fillRect(-margin, -margin, W + 2 * margin, H + 2 * margin, _fill)
 
@@ -581,7 +581,7 @@ class AuraWindow(QWidget):
                 p.drawPixmap(0, 0, bg)
             else:
                 p.setPen(Qt.NoPen)
-                p.setBrush(QColor(110, 18, 16))
+                p.setBrush(QColor(140, 22, 18))
                 p.drawRect(0, 0, W, H)
         else:
             p.setPen(Qt.NoPen)
@@ -605,11 +605,13 @@ class AuraWindow(QWidget):
         base_speed = 0.32 if self.speaking else 0.20
 
         if combined_rings > 0.01 and self._loops is not None:
+            h_ang, h_str = self._active_hand_angle()
             draw_rings(
                 p, cx, cy, mind, t, self._loops,
                 base_speed=base_speed, loop_scale=loop_scale,
                 alpha_scale=combined_rings, pixelate=pixelate,
                 speaking=self.speaking, muted=self.muted,
+                hand_angle=h_ang, hand_strength=h_str * 0.18,
             )
 
         # --- Layer 5: (center ring removed) ---
@@ -641,11 +643,9 @@ class AuraWindow(QWidget):
         for comp in registry.get_docked():
             if comp.name == "Volume" and self.trans > 0.0:
                 comp.draw_overlay(p, cx, cy, mind, t, self.trans)
-            elif comp.name == "Settings" and comp.overlay_trans > 0.0:
-                comp.draw_overlay(p, cx, cy, mind, t, comp.overlay_trans)
             elif comp.name == "Ledger Balance" and self.bal_trans > 0.0:
                 comp.draw_overlay(p, cx, cy, mind, t, self.bal_trans)
-            elif comp.name == "Aura Concierge" and comp.overlay_trans > 0.0:
+            elif comp.overlay_trans > 0.0 and comp.name not in ("Mute", "Volume"):
                 comp.draw_overlay(p, cx, cy, mind, t, comp.overlay_trans)
 
         # --- Layer 12: Perimeter complications ---
@@ -669,7 +669,7 @@ class AuraWindow(QWidget):
         if self._fade_in_alpha > 0:
             p.save()
             p.setPen(Qt.NoPen)
-            p.setBrush(QColor(110, 18, 16, self._fade_in_alpha))
+            p.setBrush(QColor(140, 22, 18, self._fade_in_alpha))
             p.drawRect(0, 0, W, H)
             p.restore()
 
@@ -698,6 +698,38 @@ class AuraWindow(QWidget):
             if dcomp:
                 mx = max(mx, dcomp.overlay_trans)
         return mx
+
+    def _active_hand_angle(self):
+        """Find the angle + strength of any active complication overlay.
+
+        Returns (angle_radians, strength) or (None, 0.0).
+        Checks docked complications then domain glyphs.
+        """
+        labels = self.labels
+        n = max(1, len(labels))
+
+        # Check docked complications (Settings, Concierge, Volume, etc.)
+        for i, comp in enumerate(registry.get_docked()):
+            ot = 0.0
+            if comp.name == "Volume" and self.trans > 0.01:
+                ot = self.trans
+            elif comp.name == "Settings" and comp.overlay_trans > 0.01:
+                ot = comp.overlay_trans
+            elif comp.name == "Ledger Balance" and self.bal_trans > 0.01:
+                ot = self.bal_trans
+            elif comp.name == "Aura Concierge" and comp.overlay_trans > 0.01:
+                ot = comp.overlay_trans
+            if ot > 0.01:
+                theta = -math.pi / 2 + i * (2 * math.pi / n)
+                return theta, min(ot, 1.0)
+
+        # Check domain glyphs (Medical, Financial, Education, AuraNet)
+        for dname, dtheta in glyph_layout(labels, self._glyph_names):
+            dcomp = registry.get(dname)
+            if dcomp and dcomp.overlay_trans > 0.01:
+                return dtheta, min(dcomp.overlay_trans, 1.0)
+
+        return None, 0.0
 
     def _perimeter_geometry(self, mind: float):
         """Compute shared perimeter ring geometry."""

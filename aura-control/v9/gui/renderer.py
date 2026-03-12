@@ -122,7 +122,7 @@ class BackgroundCache:
 def _build_blue_background(W: int, H: int, mind: float) -> QPixmap:
     """Super dark red dial — deep oxblood, nearly black."""
     pm = QPixmap(W, H)
-    pm.fill(QColor(110, 18, 16))
+    pm.fill(QColor(140, 22, 18))
     q = QPainter(pm)
     try:
         q.setRenderHint(QPainter.Antialiasing)
@@ -131,8 +131,8 @@ def _build_blue_background(W: int, H: int, mind: float) -> QPixmap:
 
         # Ruby glow in center
         gv = QRadialGradient(QPointF(cx, cy), R * 0.85)
-        gv.setColorAt(0.0, QColor(130, 25, 30, 60))
-        gv.setColorAt(0.5, QColor(100, 18, 22, 30))
+        gv.setColorAt(0.0, QColor(170, 30, 28, 60))
+        gv.setColorAt(0.5, QColor(130, 22, 20, 30))
         gv.setColorAt(1.0, QColor(0, 0, 0, 0))
         q.setPen(Qt.NoPen)
         q.setBrush(QBrush(gv))
@@ -251,7 +251,7 @@ def draw_nebula(
             g.setColorAt(0.0, QColor(220, 50, 40, a0))
             g.setColorAt(0.3, QColor(160, 25, 20, int(a0 * 0.6)))
             g.setColorAt(0.7, QColor(90, 10, 10, int(a0 * 0.2)))
-            g.setColorAt(1.0, QColor(110, 18, 16, 0))
+            g.setColorAt(1.0, QColor(140, 22, 18, 0))
             p.setBrush(QBrush(g))
             p.drawEllipse(QPointF(x, y), rad * 2.5, rad * 2.5)
 
@@ -332,14 +332,14 @@ def draw_chapter_ticks(
         edge_pad = mind * 0.008
         r_outer = (mind * 0.5) - edge_pad
 
-        # --- Ticks first (Ferrari red, bright, varied lengths) ---
+        # --- Ticks (white/silver, varied lengths) ---
         _rng = random.Random(7777)
         tick_vars = [_rng.uniform(-0.12, 0.12) for _ in range(60)]
 
         r_inner_minor = r_outer - perim_margin * 0.55
         r_inner_major = r_outer - perim_margin * 0.85
 
-        base_a = int(140 * alpha)  # vivid Ferrari red
+        base_a = int(90 * alpha)
         glint_ang = (-math.pi / 2) + (t * 0.18) % (2 * math.pi)
         glint_span = math.radians(22)
 
@@ -356,12 +356,12 @@ def draw_chapter_ticks(
 
             d = (ang - glint_ang + math.pi) % (2 * math.pi) - math.pi
             w = max(0.0, 1.0 - (abs(d) / glint_span))
-            a = base_a + int(100 * w * alpha)
+            a = base_a + int(90 * w * alpha)
 
-            # Ferrari red ticks — vivid scarlet with hot glint
-            col = QColor(220, 45, 35, clamp(a, 0, 255))
+            # Clean white ticks — crisp against the red dial
+            col = QColor(235, 235, 240, clamp(a, 0, 255))
             pen = QPen(col)
-            pen.setWidthF(max(1.0, mind * (0.0040 if major else 0.0026)))
+            pen.setWidthF(max(1.0, mind * (0.0038 if major else 0.0024)))
             pen.setCapStyle(Qt.RoundCap)
             p.setPen(pen)
 
@@ -372,26 +372,25 @@ def draw_chapter_ticks(
             p.drawLine(QPointF(x1, y1), QPointF(x2, y2))
 
         # --- Patek-style bezel ring BELOW the ticks (encompassing them) ---
-        # Sits just inside the innermost tick reach
         bezel_r_outer = r_inner_major - mind * 0.003
         bezel_r_inner = bezel_r_outer - mind * 0.005
 
-        # Outer shadow (dark groove edge)
-        pen_shadow = QPen(QColor(0, 0, 0, int(110 * alpha)))
+        # Outer shadow (dark groove edge — gives depth)
+        pen_shadow = QPen(QColor(0, 0, 0, int(100 * alpha)))
         pen_shadow.setWidthF(max(1.0, mind * 0.003))
         p.setPen(pen_shadow)
         p.setBrush(Qt.NoBrush)
         p.drawEllipse(QPointF(cx, cy), bezel_r_outer, bezel_r_outer)
 
-        # Recessed channel (dark band)
+        # Recessed channel (dark band for depth illusion)
         channel_r = (bezel_r_outer + bezel_r_inner) * 0.5
-        pen_ch = QPen(QColor(10, 2, 2, int(70 * alpha)))
+        pen_ch = QPen(QColor(8, 2, 2, int(65 * alpha)))
         pen_ch.setWidthF(max(1.0, (bezel_r_outer - bezel_r_inner) * 0.9))
         p.setPen(pen_ch)
         p.drawEllipse(QPointF(cx, cy), channel_r, channel_r)
 
-        # Inner highlight (light catch on lower lip)
-        pen_hi = QPen(QColor(180, 50, 40, int(40 * alpha)))
+        # Inner highlight (subtle silver catch on lower lip)
+        pen_hi = QPen(QColor(220, 220, 225, int(30 * alpha)))
         pen_hi.setWidthF(max(0.8, mind * 0.002))
         p.setPen(pen_hi)
         p.drawEllipse(QPointF(cx, cy), bezel_r_inner, bezel_r_inner)
@@ -502,6 +501,8 @@ def draw_rings(
     pixelate: float = 0.0,
     speaking: bool = False,
     muted: bool = False,
+    hand_angle: Optional[float] = None,
+    hand_strength: float = 0.0,
 ) -> None:
     """Draw the 4-loop hero harmonic animation."""
     iris_R = mind * 0.24 * 0.80
@@ -597,6 +598,14 @@ def draw_rings(
                 rr = clamp(r2, circ_min, circ_max)
                 x *= rr / r2
                 y *= rr / r2
+
+            # Subtle "hand" bias — extend loops toward active complication
+            if hand_angle is not None and hand_strength > 0.001:
+                pt_ang = math.atan2(y, x)
+                alignment = 0.5 + 0.5 * math.cos(pt_ang - hand_angle)
+                boost = 1.0 + hand_strength * (alignment ** 2)
+                x *= boost
+                y *= boost
 
             Xb = int(cx + x * iris_R * loop_scale_back)
             Yb = int(cy + y * iris_R * loop_scale_back)

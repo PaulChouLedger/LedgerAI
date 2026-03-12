@@ -81,12 +81,12 @@ FIRST_BOOT_SCRIPT: list[BootPrompt] = [
         phase_name="ask_name",
         wav_file="ask_name.wav",
         response_type=ResponseType.NAME,
-        capture_max_s=6.0,
-        timeout_s=12.0,
+        capture_max_s=8.0,
+        timeout_s=15.0,
         fallback_wav="no_name_fallback.wav",
         progress_text="What is your name?",
         pause_before=8.0,
-        pause_after=0.8,
+        pause_after=2.5,          # give user time to register the question
     ),
     BootPrompt(
         phase_name="confirm_name",
@@ -104,7 +104,7 @@ FIRST_BOOT_SCRIPT: list[BootPrompt] = [
         fallback_wav="no_voice_fallback.wav",
         progress_text="Voice enrollment",
         pause_before=6.0,
-        pause_after=1.0,
+        pause_after=2.0,          # breathe before mic opens
     ),
     BootPrompt(
         phase_name="enrollment_done",

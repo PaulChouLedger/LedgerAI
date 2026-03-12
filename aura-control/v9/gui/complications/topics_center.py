@@ -375,7 +375,11 @@ class TopicsCenterComplication(BaseComplication):
             p.restore()
 
     def on_tap(self):
-        self.open_overlay()
+        # Toggle overlay (base class toggles, but we overrode — fix that)
+        if self.overlay_target > 0.5:
+            self.close_overlay()
+        else:
+            self.open_overlay()
         return True
 
 
