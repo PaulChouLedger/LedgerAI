@@ -50,7 +50,7 @@ class MuteComplication(BaseComplication):
         p.drawRoundedRect(win, inner * 0.06, inner * 0.06)
 
         txt = "MUTED" if muted else "LIVE"
-        f = QFont("Helvetica", max(8, int(inner * 0.21)))
+        f = QFont("Helvetica", max(8, int(inner * 0.25)))
         f.setBold(True)
         p.setFont(f)
         off = max(1.0, inner * 0.018)

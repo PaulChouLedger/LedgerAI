@@ -125,7 +125,7 @@ class SettingsComplication(BaseComplication):
             # Label
             if label:
                 p.setPen(QColor(232, 235, 242, 195))
-                f = QFont("Helvetica", max(7, int(inner * 0.14)))
+                f = QFont("Helvetica", max(7, int(inner * 0.17)))
                 f.setBold(True)
                 p.setFont(f)
 

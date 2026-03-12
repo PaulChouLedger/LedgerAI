@@ -672,7 +672,7 @@ def _draw_concierge_icon(p: "QPainter", inner: float, t: float, accent: QColor):
 
 def _draw_curved_text(p: "QPainter", text: str, radius: float, top: bool,
                       color: QColor, inner: float):
-    font = QFont("Helvetica", max(7, int(inner * 0.16)))
+    font = QFont("Helvetica", max(7, int(inner * 0.19)))
     font.setBold(True)
     font.setLetterSpacing(QFont.PercentageSpacing, 145)
     p.setFont(font)

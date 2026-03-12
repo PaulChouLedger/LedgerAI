@@ -153,7 +153,7 @@ class AlertsComplication(BaseComplication):
         cnt = int(1 + round(9 * sev + 3 * flare))
         off = max(1.0, inner * 0.018)
 
-        f = QFont("Helvetica", max(8, int(inner * 0.19)))
+        f = QFont("Helvetica", max(8, int(inner * 0.23)))
         f.setBold(True)
         p.setFont(f)
         p.setPen(QColor(0, 0, 0, 175))
@@ -162,7 +162,7 @@ class AlertsComplication(BaseComplication):
         p.drawText(win, Qt.AlignCenter, f"ALERTS {cnt}")
 
         # Title + severity label
-        f2 = QFont("Helvetica", max(8, int(inner * 0.22)))
+        f2 = QFont("Helvetica", max(8, int(inner * 0.26)))
         f2.setBold(True)
         p.setFont(f2)
         lvl = "OK" if sev < 0.2 else ("ELEV" if sev < 0.55 else "SEVERE")

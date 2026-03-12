@@ -78,7 +78,7 @@ class BalanceComplication(BaseComplication):
         # Labels
         off = max(1.0, inner * 0.018)
 
-        f = QFont("Helvetica", max(8, int(inner * 0.24)))
+        f = QFont("Helvetica", max(8, int(inner * 0.29)))
         f.setBold(True)
         p.setFont(f)
         r1 = QRectF(-inner, -inner * 0.20, 2 * inner, inner * 0.40)
@@ -88,7 +88,7 @@ class BalanceComplication(BaseComplication):
         p.drawText(r1, Qt.AlignCenter, "LEDGER")
 
         # Numeric token amount
-        f2 = QFont("Helvetica", max(8, int(inner * 0.28)))
+        f2 = QFont("Helvetica", max(8, int(inner * 0.33)))
         f2.setBold(True)
         p.setFont(f2)
         amt = int(1000 + 9000 * v)

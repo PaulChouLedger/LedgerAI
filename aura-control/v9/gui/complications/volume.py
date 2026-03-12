@@ -67,7 +67,7 @@ class VolumeComplication(BaseComplication):
 
         # Value text (shadow + outline for readability)
         txt = f"{int(vu * 100):02d}"
-        f = QFont("Helvetica", max(8, int(inner * 0.28)))
+        f = QFont("Helvetica", max(8, int(inner * 0.33)))
         f.setBold(True)
         p.setFont(f)
         off = max(1.0, inner * 0.018)
@@ -81,7 +81,7 @@ class VolumeComplication(BaseComplication):
         p.drawText(win, Qt.AlignCenter, txt)
 
         # Title
-        f2 = QFont("Helvetica", max(8, int(inner * 0.22)))
+        f2 = QFont("Helvetica", max(8, int(inner * 0.26)))
         f2.setBold(True)
         p.setFont(f2)
         hdr = QRectF(-inner, -inner * 0.62, 2 * inner, inner * 0.26)

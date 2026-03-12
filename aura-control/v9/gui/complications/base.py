@@ -142,7 +142,7 @@ class BaseComplication(ABC):
     def draw_glyph(self, p: "QPainter", size: float, t: float) -> None:
         """Draw the full Nautilus complication: bezel + dial + content."""
         r = size * 0.5
-        inner = r * 0.78
+        inner = r * 0.84
 
         fin = _FINISH.get(self.name, {})
         M_HI   = fin.get("metal_hi", STEEL_2)
@@ -171,7 +171,7 @@ class BaseComplication(ABC):
 
         # 1) Outer bezel
         outer = bezel_path(r)
-        inner_path = bezel_path(r * 0.90)
+        inner_path = bezel_path(r * 0.92)
 
         p.save()
         try:

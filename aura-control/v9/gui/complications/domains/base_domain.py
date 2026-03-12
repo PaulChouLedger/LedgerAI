@@ -98,7 +98,7 @@ class BaseDomainComplication(BaseComplication):
         """Draw domain glyph with per-domain metallic bezel + icon."""
         name = self.name
         r = size * 0.5
-        inner = r * 0.78
+        inner = r * 0.84
         col = DOMAIN_COLOR.get(name, QColor(180, 180, 180))
 
         fin = _make_finish(name)
@@ -127,7 +127,7 @@ class BaseDomainComplication(BaseComplication):
             return path
 
         outer = bezel_path(r)
-        inner_path = bezel_path(r * 0.88)
+        inner_path = bezel_path(r * 0.92)
 
         # ---- 1) Bezel (metallic) ----
         p.save()
@@ -656,7 +656,7 @@ def _draw_financial_icon(p, ir, t, col, hi, shadow, highlight):
     # --- Central dollar sign ---
     if not shadow and not highlight:
         from PyQt5.QtGui import QFont
-        f = QFont("Helvetica", max(8, int(ir * 0.48)))
+        f = QFont("Helvetica", max(8, int(ir * 0.56)))
         f.setBold(True)
         p.setFont(f)
         # Shadow
