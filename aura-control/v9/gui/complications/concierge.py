@@ -1,13 +1,11 @@
 """
 gui.complications.concierge -- Aura Concierge complication.
 
-The general-purpose personal assistant hub: chat, schedule, call an Uber,
-run errands, etc.  An umbrella of everyday services vs. the specialized
-domain glyphs.
-
-Patek Philippe-styled with "AURA" curved along the top arc and
-"CONCIERGE" curved along the bottom arc.  Central icon is a classic
-concierge bell / service key.
+Patek Philippe Grand Complications aesthetic: the concierge hub is rendered
+as a perpetual calendar complication.  Each satellite service is a true
+miniature Nautilus complication — bezel, metal gradient, dial field,
+engine-turned guilloché, chapter-ring indices, and jeweled accent.
+A central tourbillon cage rotates slowly at the heart of the dial.
 """
 
 from __future__ import annotations
@@ -19,11 +17,38 @@ if TYPE_CHECKING:
     from PyQt5.QtGui import QPainter
 
 from PyQt5.QtCore import Qt, QPointF, QRectF
-from PyQt5.QtGui import QBrush, QColor, QFont, QPen, QPainterPath, QRadialGradient
+from PyQt5.QtGui import (
+    QBrush, QColor, QFont, QLinearGradient,
+    QPen, QPainterPath, QRadialGradient,
+)
 
 from gui.complications.base import BaseComplication
 from gui.renderer import clamp
 
+# ── Palette ──────────────────────────────────────────────────────────
+_CHAMPAGNE  = lambda a=255: QColor(218, 200, 155, a)
+_IVORY      = lambda a=255: QColor(240, 234, 218, a)
+_DIM_GOLD   = lambda a=255: QColor(165, 152, 118, a)
+_AMETHYST   = lambda a=255: QColor(155, 120, 210, a)
+_DEEP_VIOLET = lambda a=255: QColor(80, 50, 140, a)
+
+# Unified platinum-violet palette — all sub-dials share the same metal
+# family with only subtle accent-warmth shifts (classy, not busy).
+_METAL_HI   = QColor(228, 224, 240)   # platinum highlight
+_METAL_MID  = QColor(152, 142, 185)   # violet-silver mid
+_METAL_DARK = QColor(50, 44, 72)      # deep violet shadow
+_DIAL_DARK  = QColor(10, 7, 26)       # universal dial dark
+_DIAL_MID   = QColor(24, 16, 50)      # universal dial mid
+
+# Per-service: only the accent jewel shifts slightly within the violet family
+_SVC_ACCENT = {
+    "CHAT":      QColor(170, 145, 230),   # soft violet
+    "SCHEDULE":  QColor(185, 165, 215),   # warm lavender
+    "TRANSPORT": QColor(155, 150, 210),   # cool periwinkle
+    "MUSIC":     QColor(175, 150, 220),   # mid violet
+    "WEATHER":   QColor(160, 155, 215),   # blue-violet
+    "MEMORY":    QColor(180, 170, 210),   # silver-lavender
+}
 
 # Service definitions: (label, angle_degrees, active)
 _SERVICES = [
@@ -48,20 +73,15 @@ class ConciergeComplication(BaseComplication):
 
     # ------------------------------------------------------------------
     def draw_content(self, p: "QPainter", inner: float, t: float, accent: QColor) -> None:
-        # --- Curved "AURA" along top arc ---
         _draw_curved_text(p, "AURA", inner * 0.58, top=True,
                           color=QColor(235, 225, 248, 235), inner=inner)
-
-        # --- Curved "CONCIERGE" along bottom arc ---
         _draw_curved_text(p, "CONCIERGE", inner * 0.58, top=False,
                           color=QColor(235, 225, 248, 215), inner=inner)
-
-        # --- Central concierge key icon ---
         _draw_concierge_icon(p, inner, t, accent)
 
     # ------------------------------------------------------------------
     def draw_overlay(self, p, cx, cy, mind, t, trans):
-        """Concierge service menu — radial dashboard of 6 service categories."""
+        """Concierge: grand complication with six satellite Nautilus sub-dials."""
         a = clamp(float(trans), 0.0, 1.0)
         if a <= 0.002:
             return
@@ -70,269 +90,509 @@ class ConciergeComplication(BaseComplication):
         try:
             p.setRenderHint(p.Antialiasing, True)
 
-            # --- DEEP ENAMEL BACKDROP (dark violet-black) ---
-            R_bg = mind * 0.414
-            bg_grad = QRadialGradient(cx, cy, R_bg)
-            bg_grad.setColorAt(0.00, QColor(18, 8, 32, int(252 * a)))
-            bg_grad.setColorAt(0.40, QColor(12, 6, 26, int(240 * a)))
-            bg_grad.setColorAt(0.75, QColor(6, 2, 14, int(180 * a)))
-            bg_grad.setColorAt(0.92, QColor(2, 0, 8, int(90 * a)))
-            bg_grad.setColorAt(1.00, QColor(0, 0, 0, 0))
+            R_bg = mind * 0.333         # 10% smaller than 0.37
+            R = mind * 0.234            # 10% smaller than 0.26
+
+            # ── Deep enamel backdrop ─────────────────────────────────
+            bg = QRadialGradient(cx, cy, R_bg)
+            bg.setColorAt(0.00, QColor(16, 10, 34, int(254 * a)))
+            bg.setColorAt(0.35, QColor(12, 6, 28, int(252 * a)))
+            bg.setColorAt(0.65, QColor(8, 4, 20, int(240 * a)))
+            bg.setColorAt(0.85, QColor(4, 2, 12, int(180 * a)))
+            bg.setColorAt(1.00, QColor(0, 0, 0, 0))
             p.setPen(Qt.NoPen)
-            p.setBrush(QBrush(bg_grad))
+            p.setBrush(QBrush(bg))
             p.drawEllipse(QPointF(cx, cy), R_bg, R_bg)
 
-            R = mind * 0.266  # base scale unit
-
-            # --- OUTER DECORATIVE RING (slowly rotating) ---
-            outer_r = R * 1.32
-            ring_rot = (t * 3.0) % 360.0
+            # ── Engine-turned guilloché (slowly rotating radial sun-ray) ──
+            gu_rot = (t * 1.5) % 360.0
             p.save()
-            try:
-                p.translate(cx, cy)
-                p.rotate(ring_rot)
-                p.setPen(QPen(QColor(155, 120, 210, int(40 * a)), 0.7))
+            p.translate(cx, cy)
+            p.rotate(gu_rot)
+            gu_pen = QPen(QColor(155, 130, 200, int(14 * a)), max(0.4, R * 0.002))
+            p.setPen(gu_pen)
+            for i in range(72):
+                angle = (2 * math.pi * i) / 72
+                wave = 1.0 + 0.008 * math.sin(i * 5 + t * 0.3)
+                x1 = R * 0.06 * math.cos(angle)
+                y1 = R * 0.06 * math.sin(angle)
+                x2 = R * 1.35 * wave * math.cos(angle)
+                y2 = R * 1.35 * wave * math.sin(angle)
+                p.drawLine(QPointF(x1, y1), QPointF(x2, y2))
+
+            # Concentric rings (counter-rotating)
+            ring_pen = QPen(QColor(140, 110, 190, int(10 * a)), 0.4)
+            p.setPen(ring_pen)
+            for frac in (0.25, 0.45, 0.65, 0.85, 1.05, 1.25):
+                rr = R * frac
                 p.setBrush(Qt.NoBrush)
-                p.drawEllipse(QPointF(0, 0), outer_r, outer_r)
-                # Tick marks around the ring
-                for ti in range(36):
-                    ang = 2.0 * math.pi * ti / 36
-                    is_major = (ti % 6 == 0)
-                    r_in = outer_r * (0.93 if is_major else 0.97)
-                    r_out = outer_r * (1.07 if is_major else 1.03)
-                    tick_a = int((65 if is_major else 30) * a)
-                    p.setPen(QPen(QColor(155, 120, 210, tick_a), 0.6))
-                    p.drawLine(
-                        QPointF(r_in * math.cos(ang), r_in * math.sin(ang)),
-                        QPointF(r_out * math.cos(ang), r_out * math.sin(ang)),
-                    )
-            finally:
-                p.restore()
+                p.drawEllipse(QPointF(0, 0), rr, rr)
+            p.restore()
 
-            # --- "AURA CONCIERGE" HEADLINE ---
-            headline_a = int(210 * a)
-            if headline_a > 4:
-                p.setPen(QColor(210, 185, 245, headline_a))
-                f = QFont("Helvetica", max(10, int(mind * 0.020)))
-                f.setBold(True)
-                f.setLetterSpacing(QFont.AbsoluteSpacing, 4.5)
-                p.setFont(f)
-                p.drawText(
-                    QRectF(cx - R * 1.2, cy - R * 1.22, R * 2.4, R * 0.28),
-                    Qt.AlignCenter, "AURA CONCIERGE",
+            # ── Outer triple bezel ────────────────────────────────────
+            bezel_r = R * 1.38
+            p.setBrush(Qt.NoBrush)
+            # Polished outer
+            p.setPen(QPen(_AMETHYST(int(130 * a)), max(2.8, mind * 0.005)))
+            p.drawEllipse(QPointF(cx, cy), bezel_r, bezel_r)
+            # Brushed middle
+            p.setPen(QPen(_DEEP_VIOLET(int(60 * a)), max(1.5, mind * 0.003)))
+            p.drawEllipse(QPointF(cx, cy), bezel_r * 0.97, bezel_r * 0.97)
+            # Inner polish
+            p.setPen(QPen(_AMETHYST(int(80 * a)), max(1.0, mind * 0.002)))
+            p.drawEllipse(QPointF(cx, cy), bezel_r * 0.94, bezel_r * 0.94)
+
+            # ── Chapter ring (60 ticks, slowly rotating) ──────────────
+            ring_rot = (t * 2.5) % 360.0
+            p.save()
+            p.translate(cx, cy)
+            p.rotate(ring_rot)
+            for i in range(60):
+                ang = (2 * math.pi * i) / 60
+                is_major = (i % 5 == 0)
+                tick_out = bezel_r * 0.935
+                tick_in = tick_out - (R * 0.07 if is_major else R * 0.03)
+                tw = mind * (0.0035 if is_major else 0.0012)
+                ta = int((110 if is_major else 40) * a)
+                p.setPen(QPen(_CHAMPAGNE(ta), tw, Qt.SolidLine, Qt.RoundCap))
+                p.drawLine(
+                    QPointF(tick_in * math.cos(ang), tick_in * math.sin(ang)),
+                    QPointF(tick_out * math.cos(ang), tick_out * math.sin(ang)),
                 )
+            p.restore()
 
-            # --- CENTER STATUS: "Ready" with breathing glow ---
-            breathe = 0.6 + 0.4 * math.sin(t * 1.8)
-            glow_r = R * 0.22 * (0.9 + 0.1 * breathe)
-
-            # Outer glow halo
-            glow_grad = QRadialGradient(cx, cy, glow_r * 2.8)
-            glow_grad.setColorAt(0.00, QColor(155, 120, 210, int(55 * a * breathe)))
-            glow_grad.setColorAt(0.50, QColor(120, 80, 180, int(25 * a * breathe)))
-            glow_grad.setColorAt(1.00, QColor(80, 40, 140, 0))
+            # ── Beveled depth shadow ──────────────────────────────────
+            depth = QRadialGradient(cx, cy, bezel_r * 0.94)
+            depth.setColorAt(0.70, QColor(0, 0, 0, 0))
+            depth.setColorAt(0.90, QColor(0, 0, 0, int(50 * a)))
+            depth.setColorAt(1.00, QColor(0, 0, 0, int(90 * a)))
             p.setPen(Qt.NoPen)
-            p.setBrush(QBrush(glow_grad))
-            p.drawEllipse(QPointF(cx, cy), glow_r * 2.8, glow_r * 2.8)
+            p.setBrush(QBrush(depth))
+            p.drawEllipse(QPointF(cx, cy), bezel_r * 0.94, bezel_r * 0.94)
 
-            # Inner core dot
-            core_grad = QRadialGradient(cx, cy - glow_r * 0.15, glow_r * 0.4)
-            core_grad.setColorAt(0.00, QColor(220, 200, 255, int(200 * a * breathe)))
-            core_grad.setColorAt(0.50, QColor(155, 120, 210, int(140 * a * breathe)))
-            core_grad.setColorAt(1.00, QColor(100, 60, 170, int(40 * a)))
-            p.setBrush(QBrush(core_grad))
-            p.drawEllipse(QPointF(cx, cy), glow_r, glow_r)
+            # ── Crystal reflection ────────────────────────────────────
+            refl = QRadialGradient(cx - R * 0.4, cy - R * 0.5, R * 1.2)
+            refl.setColorAt(0.0, QColor(255, 255, 255, int(8 * a)))
+            refl.setColorAt(0.3, QColor(255, 255, 255, int(3 * a)))
+            refl.setColorAt(1.0, QColor(0, 0, 0, 0))
+            p.setBrush(QBrush(refl))
+            p.drawEllipse(QPointF(cx, cy), bezel_r * 0.94, bezel_r * 0.94)
 
-            # "Ready" text
-            ready_a = int(180 * a * (0.7 + 0.3 * breathe))
-            if ready_a > 4:
-                p.setPen(QColor(210, 195, 240, ready_a))
-                rf = QFont("Helvetica", max(8, int(mind * 0.014)))
-                rf.setLetterSpacing(QFont.AbsoluteSpacing, 2.0)
-                p.setFont(rf)
-                p.drawText(
-                    QRectF(cx - R * 0.5, cy + glow_r * 1.3, R * 1.0, R * 0.18),
-                    Qt.AlignCenter, "Ready",
-                )
+            # ── "AURA" / "CONCIERGE" curved along bezel arcs ─────────
+            _draw_overlay_arc_text(p, cx, cy, bezel_r * 0.82, "AURA", top=True,
+                                   color=_CHAMPAGNE(int(210 * a)),
+                                   shadow=QColor(0, 0, 0, int(100 * a)),
+                                   font_size=max(8, int(mind * 0.015)),
+                                   spacing=mind * 0.012)
+            _draw_overlay_arc_text(p, cx, cy, bezel_r * 0.82, "CONCIERGE", top=False,
+                                   color=_CHAMPAGNE(int(180 * a)),
+                                   shadow=QColor(0, 0, 0, int(90 * a)),
+                                   font_size=max(7, int(mind * 0.012)),
+                                   spacing=mind * 0.008)
 
-            # --- RADIAL SERVICE MENU (6 categories on chapter ring) ---
-            orbit_r = R * 0.82  # radius of the service circle
-            cell_r = R * 0.18   # radius of each service cell
-            icon_s = cell_r * 0.52  # icon scale
+            # ── Central tourbillon cage ───────────────────────────────
+            _draw_tourbillon(p, cx, cy, R, mind, t, a)
+
+            # ── Six satellite Nautilus sub-dials ──────────────────────
+            orbit_r = R * 0.76
+            cell_r = R * 0.22
+            icon_s = cell_r * 0.72
 
             for label, angle_deg, active in _SERVICES:
                 ang_rad = math.radians(angle_deg)
                 sx = cx + orbit_r * math.cos(ang_rad)
                 sy = cy + orbit_r * math.sin(ang_rad)
+                _draw_subdial(p, sx, sy, cell_r, icon_s, label, active, t, a, mind)
 
-                # Cell background
-                cell_grad = QRadialGradient(sx, sy, cell_r)
-                if active:
-                    cell_grad.setColorAt(0.00, QColor(40, 20, 70, int(180 * a)))
-                    cell_grad.setColorAt(0.70, QColor(25, 10, 50, int(150 * a)))
-                    cell_grad.setColorAt(1.00, QColor(12, 4, 28, int(80 * a)))
-                else:
-                    cell_grad.setColorAt(0.00, QColor(22, 12, 38, int(150 * a)))
-                    cell_grad.setColorAt(0.70, QColor(14, 6, 26, int(120 * a)))
-                    cell_grad.setColorAt(1.00, QColor(6, 2, 14, int(60 * a)))
-                p.setPen(Qt.NoPen)
-                p.setBrush(QBrush(cell_grad))
-                p.drawEllipse(QPointF(sx, sy), cell_r, cell_r)
-
-                # Cell border
-                border_a = int((120 if active else 55) * a)
-                border_col = QColor(155, 120, 210, border_a)
-                p.setPen(QPen(border_col, max(0.8, cell_r * 0.06)))
-                p.setBrush(Qt.NoBrush)
-                p.drawEllipse(QPointF(sx, sy), cell_r, cell_r)
-
-                # Active glow ring
-                if active:
-                    glow_pulse = 0.6 + 0.4 * math.sin(t * 2.2 + ang_rad)
-                    ga = int(50 * a * glow_pulse)
-                    p.setPen(QPen(QColor(155, 120, 210, ga), max(0.5, cell_r * 0.08)))
-                    p.drawEllipse(QPointF(sx, sy), cell_r * 1.18, cell_r * 1.18)
-
-                # --- Draw icon inside cell ---
-                icon_col = QColor(195, 170, 235, int((220 if active else 140) * a))
-                icon_pen = QPen(icon_col)
-                icon_pen.setWidthF(max(0.8, icon_s * 0.14))
-                icon_pen.setCapStyle(Qt.RoundCap)
-                icon_pen.setJoinStyle(Qt.RoundJoin)
-                p.setPen(icon_pen)
-                p.setBrush(Qt.NoBrush)
-
-                _draw_service_icon(p, sx, sy - cell_r * 0.12, icon_s, label, icon_col, a)
-
-                # Label text below icon
-                lbl_a = int((185 if active else 110) * a)
-                if lbl_a > 4:
-                    p.setPen(QColor(195, 170, 235, lbl_a))
-                    lf = QFont("Helvetica", max(6, int(mind * 0.010)))
-                    lf.setBold(True)
-                    lf.setLetterSpacing(QFont.AbsoluteSpacing, 1.5)
-                    p.setFont(lf)
-                    p.drawText(
-                        QRectF(sx - cell_r * 1.1, sy + cell_r * 0.38, cell_r * 2.2, cell_r * 0.52),
-                        Qt.AlignCenter, label,
-                    )
+            # (bottom signature handled by curved "CONCIERGE" above)
 
         finally:
             p.restore()
 
 
-# ---------------------------------------------------------------------------
-# Service icon drawing (simple geometric primitives)
-# ---------------------------------------------------------------------------
+# =====================================================================
+# Tourbillon — rotating cage with breathing jewel
+# =====================================================================
+
+def _draw_tourbillon(p, cx, cy, R, mind, t, a):
+    cage_r = R * 0.18
+    cage_rot = (t * 15.0) % 360.0
+
+    p.save()
+    p.translate(cx, cy)
+
+    # Recessed sub-dial
+    cage_bg = QRadialGradient(0, 0, cage_r * 1.4)
+    cage_bg.setColorAt(0.0, QColor(22, 14, 42, int(230 * a)))
+    cage_bg.setColorAt(0.6, QColor(14, 8, 30, int(220 * a)))
+    cage_bg.setColorAt(1.0, QColor(6, 3, 16, int(200 * a)))
+    p.setPen(Qt.NoPen)
+    p.setBrush(QBrush(cage_bg))
+    p.drawEllipse(QPointF(0, 0), cage_r * 1.4, cage_r * 1.4)
+
+    # Guilloché inside cage
+    p.save()
+    p.rotate(-cage_rot * 0.3)
+    gu_pen = QPen(QColor(140, 110, 190, int(12 * a)), 0.3)
+    p.setPen(gu_pen)
+    for i in range(24):
+        ang = (2 * math.pi * i) / 24
+        p.drawLine(QPointF(0, 0),
+                   QPointF(cage_r * 1.3 * math.cos(ang),
+                           cage_r * 1.3 * math.sin(ang)))
+    p.restore()
+
+    # Cage bezel (polished)
+    bezel_g = QLinearGradient(QPointF(-cage_r * 1.4, -cage_r * 1.4),
+                              QPointF(cage_r * 1.4, cage_r * 1.4))
+    bezel_g.setColorAt(0.0, QColor(200, 180, 240, int(140 * a)))
+    bezel_g.setColorAt(0.5, QColor(90, 60, 150, int(80 * a)))
+    bezel_g.setColorAt(1.0, QColor(180, 160, 220, int(120 * a)))
+    p.setPen(QPen(QBrush(bezel_g), max(2.0, mind * 0.003)))
+    p.setBrush(Qt.NoBrush)
+    p.drawEllipse(QPointF(0, 0), cage_r * 1.4, cage_r * 1.4)
+
+    # Rotating cage lines
+    p.save()
+    p.rotate(cage_rot)
+    cage_pen = QPen(_AMETHYST(int(55 * a)), max(0.7, mind * 0.0012))
+    p.setPen(cage_pen)
+    for i in range(6):
+        ang = math.pi * i / 6
+        p.drawLine(
+            QPointF(-cage_r * math.cos(ang), -cage_r * math.sin(ang)),
+            QPointF(cage_r * math.cos(ang), cage_r * math.sin(ang)),
+        )
+    # Inner cage circle
+    p.drawEllipse(QPointF(0, 0), cage_r * 0.55, cage_r * 0.55)
+
+    # Second set of lines (counter-rotate offset)
+    p.rotate(30)
+    cage_pen2 = QPen(_AMETHYST(int(30 * a)), max(0.4, mind * 0.0008))
+    p.setPen(cage_pen2)
+    for i in range(6):
+        ang = math.pi * i / 6
+        p.drawLine(
+            QPointF(-cage_r * 0.7 * math.cos(ang), -cage_r * 0.7 * math.sin(ang)),
+            QPointF(cage_r * 0.7 * math.cos(ang), cage_r * 0.7 * math.sin(ang)),
+        )
+    p.restore()
+
+    p.restore()
+
+    # Breathing jewel (drawn outside translate context)
+    breathe = 0.55 + 0.45 * math.sin(t * 1.8)
+    jewel_r = max(4.0, mind * 0.011)
+    jg = QRadialGradient(cx - jewel_r * 0.3, cy - jewel_r * 0.3, jewel_r)
+    jg.setColorAt(0.0, QColor(230, 210, 255, int(245 * a * breathe)))
+    jg.setColorAt(0.4, QColor(175, 140, 230, int(210 * a * breathe)))
+    jg.setColorAt(1.0, QColor(90, 55, 160, int(150 * a)))
+    p.setPen(Qt.NoPen)
+    p.setBrush(QBrush(jg))
+    p.drawEllipse(QPointF(cx, cy), jewel_r, jewel_r)
+    # Spec highlight
+    p.setBrush(QColor(255, 255, 255, int(120 * a * breathe)))
+    p.drawEllipse(QPointF(cx - jewel_r * 0.25, cy - jewel_r * 0.3),
+                   jewel_r * 0.25, jewel_r * 0.15)
+
+
+# =====================================================================
+# Nautilus sub-dial — each service is a real miniature complication
+# =====================================================================
+
+def _draw_subdial(p, sx, sy, cell_r, icon_s, label, active, t, a, mind):
+    M_HI   = _METAL_HI
+    M_MID  = _METAL_MID
+    M_DARK = _METAL_DARK
+    accent = _SVC_ACCENT.get(label, _AMETHYST())
+    D_DARK = _DIAL_DARK
+    D_MID  = _DIAL_MID
+
+    outer_r = cell_r * 1.10
+    inner_r = cell_r * 0.95
+
+    # ── 1) Metal bezel ────────────────────────────────────────────
+    bezel_path = QPainterPath()
+    bezel_path.addEllipse(QPointF(sx, sy), outer_r, outer_r)
+    inner_path = QPainterPath()
+    inner_path.addEllipse(QPointF(sx, sy), inner_r, inner_r)
+
+    # Ears (tiny lugs)
+    ear_w = outer_r * 0.14
+    ear_h = outer_r * 0.24
+    ear_r = max(1.0, outer_r * 0.06)
+    ear_col = QColor(int(M_DARK.red() * 0.3), int(M_DARK.green() * 0.3),
+                     int(M_DARK.blue() * 0.3), int(200 * a))
+    p.setPen(Qt.NoPen)
+    p.setBrush(QBrush(ear_col))
+    p.drawRoundedRect(QRectF(sx - outer_r - ear_w * 0.4, sy - ear_h * 0.5,
+                              ear_w, ear_h), ear_r, ear_r)
+    p.drawRoundedRect(QRectF(sx + outer_r - ear_w * 0.6, sy - ear_h * 0.5,
+                              ear_w, ear_h), ear_r, ear_r)
+
+    # Metal gradient fill
+    bg = QLinearGradient(QPointF(sx - outer_r, sy - outer_r),
+                         QPointF(sx + outer_r, sy + outer_r))
+    bg.setColorAt(0.0, QColor(M_HI.red(), M_HI.green(), M_HI.blue(), int(255 * a)))
+    bg.setColorAt(0.25, QColor(M_HI.red(), M_HI.green(), M_HI.blue(), int(240 * a)))
+    bg.setColorAt(0.55, QColor(M_DARK.red(), M_DARK.green(), M_DARK.blue(), int(255 * a)))
+    bg.setColorAt(0.80, QColor(M_MID.red(), M_MID.green(), M_MID.blue(), int(240 * a)))
+    bg.setColorAt(1.0, QColor(M_HI.red(), M_HI.green(), M_HI.blue(), int(220 * a)))
+    p.setBrush(QBrush(bg))
+    p.setPen(QPen(QColor(0, 0, 0, int(140 * a)), max(0.5, outer_r * 0.0115)))
+    p.drawPath(bezel_path)
+
+    # Inner bevel highlight
+    p.setPen(QPen(QColor(255, 255, 255, int(35 * a)), max(0.4, outer_r * 0.0092)))
+    p.setBrush(Qt.NoBrush)
+    p.drawPath(inner_path)
+
+    # ── 2) Dial field ─────────────────────────────────────────────
+    p.save()
+    p.setClipPath(inner_path)
+
+    rg = QRadialGradient(QPointF(sx - inner_r * 0.2, sy - inner_r * 0.2), inner_r * 1.3)
+    rg.setColorAt(0.0, QColor(D_MID.red(), D_MID.green(), D_MID.blue(), int(255 * a)))
+    rg.setColorAt(0.55, QColor(D_DARK.red(), D_DARK.green(), D_DARK.blue(), int(255 * a)))
+    rg.setColorAt(1.0, QColor(max(0, D_DARK.red() - 3), max(0, D_DARK.green() - 2),
+                               max(0, D_DARK.blue() - 4), int(255 * a)))
+    p.setPen(Qt.NoPen)
+    p.setBrush(QBrush(rg))
+    p.drawEllipse(QPointF(sx, sy), inner_r, inner_r)
+
+    # ── 3) Guilloché texture (rotating per sub-dial) ──────────────
+    gu_speed = 0.8 + hash(label) % 5 * 0.2  # each rotates at unique speed
+    gu_rot = (t * gu_speed) % 360.0
+    p.save()
+    p.translate(sx, sy)
+    p.rotate(gu_rot)
+    n_rays = 18
+    gu_pen = QPen(QColor(accent.red(), accent.green(), accent.blue(), int(10 * a)),
+                  max(0.3, inner_r * 0.010))
+    p.setPen(gu_pen)
+    for i in range(n_rays):
+        ang = (2 * math.pi * i) / n_rays
+        p.drawLine(QPointF(0, 0),
+                   QPointF(inner_r * 0.95 * math.cos(ang),
+                           inner_r * 0.95 * math.sin(ang)))
+    # Concentric texture rings
+    ring_pen = QPen(QColor(140, 130, 180, int(6 * a)), 0.3)
+    p.setPen(ring_pen)
+    p.setBrush(Qt.NoBrush)
+    for frac in (0.35, 0.60, 0.85):
+        p.drawEllipse(QPointF(0, 0), inner_r * frac, inner_r * frac)
+    p.restore()
+
+    # ── 4) Accent lift (radial glow at center) ────────────────────
+    if active:
+        pulse = 0.6 + 0.4 * math.sin(t * 1.6 + hash(label) % 10)
+        glow_a = int(28 * a * pulse)
+    else:
+        glow_a = int(12 * a)
+    lift = QRadialGradient(QPointF(sx, sy), inner_r)
+    lift.setColorAt(0.0, QColor(accent.red(), accent.green(), accent.blue(), glow_a))
+    lift.setColorAt(0.4, QColor(accent.red(), accent.green(), accent.blue(), glow_a // 3))
+    lift.setColorAt(1.0, QColor(0, 0, 0, 0))
+    p.setBrush(QBrush(lift))
+    p.setPen(Qt.NoPen)
+    p.drawEllipse(QPointF(sx, sy), inner_r, inner_r)
+
+    # ── 5) Chapter ring indices ───────────────────────────────────
+    n_ticks = 24
+    for i in range(n_ticks):
+        ang = (2 * math.pi * i) / n_ticks
+        is_major = (i % 6 == 0)
+        r0 = inner_r * (0.80 if is_major else 0.85)
+        r1 = inner_r * 0.93
+        tw = max(0.6, inner_r * (0.046 if is_major else 0.023))
+        ta = int((70 if is_major else 30) * a)
+        idx_pen = QPen(_DIM_GOLD(ta), tw)
+        idx_pen.setCapStyle(Qt.RoundCap)
+        p.setPen(idx_pen)
+        p.drawLine(
+            QPointF(sx + r0 * math.cos(ang), sy + r0 * math.sin(ang)),
+            QPointF(sx + r1 * math.cos(ang), sy + r1 * math.sin(ang)),
+        )
+
+    # ── 6) Glass rim ──────────────────────────────────────────────
+    p.setPen(QPen(QColor(255, 255, 255, int(18 * a)), max(0.4, inner_r * 0.015)))
+    p.setBrush(Qt.NoBrush)
+    p.drawEllipse(QPointF(sx, sy), inner_r * 0.88, inner_r * 0.88)
+
+    p.restore()  # end clip
+
+    # ── 7) Active jewel indicator ─────────────────────────────────
+    if active:
+        pulse = 0.6 + 0.4 * math.sin(t * 2.2 + hash(label) % 7)
+        jr = max(2.0, cell_r * 0.10)
+        jy = sy - cell_r * 0.72
+        # Halo
+        jh = QRadialGradient(sx, jy, jr * 3)
+        jh.setColorAt(0.0, _AMETHYST(int(40 * a * pulse)))
+        jh.setColorAt(1.0, QColor(0, 0, 0, 0))
+        p.setPen(Qt.NoPen)
+        p.setBrush(QBrush(jh))
+        p.drawEllipse(QPointF(sx, jy), jr * 3, jr * 3)
+        # Jewel
+        jg = QRadialGradient(sx - jr * 0.2, jy - jr * 0.2, jr)
+        jg.setColorAt(0.0, QColor(255, 255, 255, int(210 * a * pulse)))
+        jg.setColorAt(0.4, _AMETHYST(int(180 * a)))
+        jg.setColorAt(1.0, _DEEP_VIOLET(int(140 * a)))
+        p.setBrush(QBrush(jg))
+        p.drawEllipse(QPointF(sx, jy), jr, jr)
+
+    # ── 8) Service icon ───────────────────────────────────────────
+    icon_a = int((210 if active else 120) * a)
+    icon_col = _IVORY(icon_a)
+    _draw_service_icon(p, sx, sy - cell_r * 0.05, icon_s, label, icon_col, a)
+
+    # ── 9) Label (champagne serif, engraved) ──────────────────────
+    lbl_a = int((200 if active else 110) * a)
+    lbl_font = QFont("DejaVu Serif", max(6, int(mind * 0.011)))
+    lbl_font.setLetterSpacing(QFont.AbsoluteSpacing, mind * 0.004)
+    lbl_font.setBold(True)
+    p.setFont(lbl_font)
+    # Shadow
+    p.setPen(QColor(0, 0, 0, int(90 * a)))
+    p.drawText(QRectF(sx - cell_r * 1.2, sy + cell_r * 0.42 + 0.5,
+                      cell_r * 2.4, cell_r * 0.40),
+               Qt.AlignCenter, label)
+    # Text
+    p.setPen(_CHAMPAGNE(lbl_a))
+    p.drawText(QRectF(sx - cell_r * 1.2, sy + cell_r * 0.42,
+                      cell_r * 2.4, cell_r * 0.40),
+               Qt.AlignCenter, label)
+
+
+# =====================================================================
+# Curved arc text for overlay (absolute cx/cy coords)
+# =====================================================================
+
+def _draw_overlay_arc_text(p, cx, cy, radius, text, *, top, color, shadow,
+                           font_size, spacing):
+    """Draw text curved along a circular arc centered at (cx, cy)."""
+    font = QFont("DejaVu Serif", font_size)
+    font.setBold(True)
+    font.setLetterSpacing(QFont.AbsoluteSpacing, spacing)
+    p.setFont(font)
+
+    fm = p.fontMetrics()
+    char_widths = [fm.horizontalAdvance(ch) for ch in text]
+    total_w = sum(char_widths)
+    span_rad = total_w / max(1.0, radius)
+
+    if top:
+        start_ang = -math.pi / 2 - span_rad / 2
+        direction = 1.0
+    else:
+        start_ang = math.pi / 2 + span_rad / 2
+        direction = -1.0
+
+    shd_off = max(0.8, radius * 0.012)
+    current_ang = start_ang
+    baseline_shift = fm.ascent() * 0.15
+
+    for i, ch in enumerate(text):
+        cw = char_widths[i]
+        current_ang += direction * (cw * 0.5) / radius
+
+        x = cx + radius * math.cos(current_ang)
+        y = cy + radius * math.sin(current_ang)
+
+        p.save()
+        p.translate(x, y)
+        rot = math.degrees(current_ang) + (90 if top else -90)
+        p.rotate(rot)
+
+        ty = -fm.ascent() + baseline_shift
+        rect = QRectF(-cw, ty, cw * 2, fm.height())
+
+        p.setPen(shadow)
+        p.drawText(rect.translated(0, shd_off), Qt.AlignCenter, ch)
+        p.setPen(color)
+        p.drawText(rect, Qt.AlignCenter, ch)
+        p.restore()
+
+        current_ang += direction * (cw * 0.5) / radius
+
+
+# =====================================================================
+# Service icon drawing (geometric primitives)
+# =====================================================================
 
 def _draw_service_icon(p, cx, cy, s, label, col, a):
-    """Draw a minimal geometric icon for the given service label."""
     pen = QPen(col)
-    pen.setWidthF(max(0.7, s * 0.13))
+    pen.setWidthF(max(0.7, s * 0.12))
     pen.setCapStyle(Qt.RoundCap)
     pen.setJoinStyle(Qt.RoundJoin)
     p.setPen(pen)
     p.setBrush(Qt.NoBrush)
 
     if label == "CHAT":
-        # Speech bubble: rounded rectangle + small tail
-        bw, bh = s * 0.8, s * 0.55
-        p.drawRoundedRect(
-            QRectF(cx - bw, cy - bh, bw * 2, bh * 2),
-            s * 0.18, s * 0.18,
-        )
-        # Tail: small triangle at bottom-left
+        bw, bh = s * 0.75, s * 0.50
+        p.drawRoundedRect(QRectF(cx - bw, cy - bh, bw * 2, bh * 2), s * 0.16, s * 0.16)
         tail = QPainterPath()
         tail.moveTo(cx - bw * 0.25, cy + bh)
-        tail.lineTo(cx - bw * 0.65, cy + bh + s * 0.35)
-        tail.lineTo(cx + bw * 0.15, cy + bh)
+        tail.lineTo(cx - bw * 0.60, cy + bh + s * 0.30)
+        tail.lineTo(cx + bw * 0.10, cy + bh)
         p.drawPath(tail)
 
     elif label == "SCHEDULE":
-        # Clock: circle + two hands
-        r = s * 0.72
+        r = s * 0.68
         p.drawEllipse(QPointF(cx, cy), r, r)
-        # Hour hand (short, pointing to ~10)
-        p.drawLine(QPointF(cx, cy),
-                   QPointF(cx - r * 0.32, cy - r * 0.48))
-        # Minute hand (long, pointing to ~12)
-        p.drawLine(QPointF(cx, cy),
-                   QPointF(cx, cy - r * 0.68))
-        # Center dot
+        p.drawLine(QPointF(cx, cy), QPointF(cx - r * 0.30, cy - r * 0.45))
+        p.drawLine(QPointF(cx, cy), QPointF(cx, cy - r * 0.65))
         p.setPen(Qt.NoPen)
         p.setBrush(col)
-        p.drawEllipse(QPointF(cx, cy), s * 0.08, s * 0.08)
+        p.drawEllipse(QPointF(cx, cy), s * 0.07, s * 0.07)
 
     elif label == "TRANSPORT":
-        # Car silhouette: body rectangle + roof + two wheels
-        bw, bh = s * 0.85, s * 0.28
+        bw, bh = s * 0.80, s * 0.26
         p.setPen(pen)
-        p.setBrush(Qt.NoBrush)
-        # Body
-        p.drawRoundedRect(
-            QRectF(cx - bw, cy - bh * 0.3, bw * 2, bh * 2),
-            s * 0.12, s * 0.12,
-        )
-        # Roof (smaller rect on top)
-        rw, rh = bw * 0.55, bh * 1.0
-        p.drawRoundedRect(
-            QRectF(cx - rw, cy - bh * 0.3 - rh, rw * 2, rh),
-            s * 0.10, s * 0.10,
-        )
-        # Wheels
-        wh_r = s * 0.14
+        p.drawRoundedRect(QRectF(cx - bw, cy - bh * 0.3, bw * 2, bh * 2), s * 0.10, s * 0.10)
+        rw, rh = bw * 0.52, bh * 0.95
+        p.drawRoundedRect(QRectF(cx - rw, cy - bh * 0.3 - rh, rw * 2, rh), s * 0.08, s * 0.08)
+        wh_r = s * 0.12
         p.setPen(Qt.NoPen)
         p.setBrush(col)
-        p.drawEllipse(QPointF(cx - bw * 0.55, cy + bh * 1.7), wh_r, wh_r)
-        p.drawEllipse(QPointF(cx + bw * 0.55, cy + bh * 1.7), wh_r, wh_r)
+        p.drawEllipse(QPointF(cx - bw * 0.52, cy + bh * 1.7), wh_r, wh_r)
+        p.drawEllipse(QPointF(cx + bw * 0.52, cy + bh * 1.7), wh_r, wh_r)
 
     elif label == "MUSIC":
-        # Music note: circle head + vertical stem + flag
-        nr = s * 0.24
-        head_cx = cx - s * 0.15
-        head_cy = cy + s * 0.35
+        nr = s * 0.22
+        head_cx = cx - s * 0.12
+        head_cy = cy + s * 0.32
         p.setPen(Qt.NoPen)
         p.setBrush(col)
-        p.drawEllipse(QPointF(head_cx, head_cy), nr * 1.2, nr)
-        # Stem
+        p.drawEllipse(QPointF(head_cx, head_cy), nr * 1.1, nr)
         p.setPen(pen)
-        stem_x = head_cx + nr * 1.1
-        p.drawLine(QPointF(stem_x, head_cy),
-                   QPointF(stem_x, cy - s * 0.55))
-        # Flag (small arc at top)
-        flag_path = QPainterPath()
-        flag_path.moveTo(stem_x, cy - s * 0.55)
-        flag_path.cubicTo(
-            stem_x + s * 0.35, cy - s * 0.45,
-            stem_x + s * 0.30, cy - s * 0.15,
-            stem_x + s * 0.05, cy - s * 0.10,
-        )
+        stem_x = head_cx + nr * 1.0
+        p.drawLine(QPointF(stem_x, head_cy), QPointF(stem_x, cy - s * 0.50))
+        flag = QPainterPath()
+        flag.moveTo(stem_x, cy - s * 0.50)
+        flag.cubicTo(stem_x + s * 0.32, cy - s * 0.40,
+                     stem_x + s * 0.28, cy - s * 0.12,
+                     stem_x + s * 0.04, cy - s * 0.08)
         p.setBrush(Qt.NoBrush)
-        p.drawPath(flag_path)
+        p.drawPath(flag)
 
     elif label == "WEATHER":
-        # Sun: circle + radiating lines
-        sr = s * 0.35
+        sr = s * 0.32
         p.drawEllipse(QPointF(cx, cy), sr, sr)
-        # Rays
-        n_rays = 8
-        for i in range(n_rays):
-            ang = 2.0 * math.pi * i / n_rays
-            r_in = sr * 1.35
-            r_out = sr * 1.85
+        for i in range(8):
+            ang = 2.0 * math.pi * i / 8
             p.drawLine(
-                QPointF(cx + r_in * math.cos(ang), cy + r_in * math.sin(ang)),
-                QPointF(cx + r_out * math.cos(ang), cy + r_out * math.sin(ang)),
+                QPointF(cx + sr * 1.30 * math.cos(ang), cy + sr * 1.30 * math.sin(ang)),
+                QPointF(cx + sr * 1.75 * math.cos(ang), cy + sr * 1.75 * math.sin(ang)),
             )
 
     elif label == "MEMORY":
-        # Brain: wavy circle (sinusoidal distortion)
-        br = s * 0.6
+        br = s * 0.55
         path = QPainterPath()
         steps = 48
         for i in range(steps + 1):
             ang = 2.0 * math.pi * i / steps
-            wave = 1.0 + 0.15 * math.sin(ang * 5) + 0.08 * math.cos(ang * 3)
+            wave = 1.0 + 0.14 * math.sin(ang * 5) + 0.07 * math.cos(ang * 3)
             px = cx + br * wave * math.cos(ang)
             py = cy + br * wave * math.sin(ang)
             if i == 0:
@@ -340,25 +600,19 @@ def _draw_service_icon(p, cx, cy, s, label, col, a):
             else:
                 path.lineTo(px, py)
         p.drawPath(path)
-        # Central dividing line (brain hemispheres)
-        p.drawLine(QPointF(cx, cy - br * 0.55),
-                   QPointF(cx, cy + br * 0.55))
+        p.drawLine(QPointF(cx, cy - br * 0.50), QPointF(cx, cy + br * 0.50))
 
 
-# ---------------------------------------------------------------------------
+# =====================================================================
 # Concierge icon: ornate skeleton key
-# ---------------------------------------------------------------------------
+# =====================================================================
 
 def _draw_concierge_icon(p: "QPainter", inner: float, t: float, accent: QColor):
-    """Draw a stylised skeleton key (classic concierge symbol)."""
-    kr = inner * 0.38  # overall icon scale
-
-    # Slow gentle rotation
+    kr = inner * 0.38
     breathe = math.sin(t * 0.8) * 2.0
     p.save()
     p.rotate(breathe)
 
-    # Violet-tinted key
     col = QColor(155, 120, 210, 200)
     hi_col = QColor(195, 170, 235, 160)
 
@@ -367,7 +621,6 @@ def _draw_concierge_icon(p: "QPainter", inner: float, t: float, accent: QColor):
     pen.setCapStyle(Qt.RoundCap)
     pen.setJoinStyle(Qt.RoundJoin)
 
-    # Key bow (ornate ring at top)
     bow_r = kr * 0.38
     bow_cy = -kr * 0.35
 
@@ -377,49 +630,42 @@ def _draw_concierge_icon(p: "QPainter", inner: float, t: float, accent: QColor):
     p.setBrush(Qt.NoBrush)
     p.drawEllipse(QPointF(off, bow_cy + off), bow_r, bow_r)
 
-    # Main bow ring
     p.setPen(pen)
     p.setBrush(Qt.NoBrush)
     p.drawEllipse(QPointF(0, bow_cy), bow_r, bow_r)
 
-    # Inner decorative ring
     inner_pen = QPen(QColor(col.red(), col.green(), col.blue(), 100))
     inner_pen.setWidthF(max(0.8, kr * 0.04))
     p.setPen(inner_pen)
     p.drawEllipse(QPointF(0, bow_cy), bow_r * 0.55, bow_r * 0.55)
 
-    # Shaft (vertical line from bow to bit)
     shaft_top = bow_cy + bow_r
     shaft_bot = kr * 0.70
     p.setPen(pen)
     p.drawLine(QPointF(0, shaft_top), QPointF(0, shaft_bot))
 
-    # Key bit teeth (2 horizontal notches at bottom)
     tooth_w = kr * 0.22
-    for i, ty in enumerate([shaft_bot - kr * 0.12, shaft_bot]):
+    for ty in [shaft_bot - kr * 0.12, shaft_bot]:
         p.drawLine(QPointF(0, ty), QPointF(tooth_w, ty))
-        # Small vertical drop on each tooth
         drop = kr * 0.08
         p.drawLine(QPointF(tooth_w, ty), QPointF(tooth_w, ty - drop))
 
-    # Highlight pass
     hi_pen = QPen(hi_col)
     hi_pen.setWidthF(max(0.6, kr * 0.03))
     hi_pen.setCapStyle(Qt.RoundCap)
     p.setPen(hi_pen)
     p.drawArc(QRectF(-bow_r, bow_cy - bow_r, bow_r * 2, bow_r * 2),
-              45 * 16, 90 * 16)  # top-right quarter highlight
+              45 * 16, 90 * 16)
 
     p.restore()
 
 
-# ---------------------------------------------------------------------------
+# =====================================================================
 # Helper: draw text curved along a circular arc
-# ---------------------------------------------------------------------------
+# =====================================================================
 
 def _draw_curved_text(p: "QPainter", text: str, radius: float, top: bool,
                       color: QColor, inner: float):
-    """Draw *text* along a circular arc.  top=True arcs upward, False downward."""
     font = QFont("Helvetica", max(7, int(inner * 0.16)))
     font.setBold(True)
     font.setLetterSpacing(QFont.PercentageSpacing, 145)
@@ -428,7 +674,6 @@ def _draw_curved_text(p: "QPainter", text: str, radius: float, top: bool,
     fm = p.fontMetrics()
     char_widths = [fm.horizontalAdvance(ch) for ch in text]
     total_w = sum(char_widths)
-
     span_rad = total_w / max(1.0, radius)
 
     if top:

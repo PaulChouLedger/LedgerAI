@@ -634,6 +634,8 @@ class AuraWindow(QWidget):
                 comp.draw_overlay(p, cx, cy, mind, t, comp.overlay_trans)
             elif comp.name == "Ledger Balance" and self.bal_trans > 0.0:
                 comp.draw_overlay(p, cx, cy, mind, t, self.bal_trans)
+            elif comp.name == "Aura Concierge" and comp.overlay_trans > 0.0:
+                comp.draw_overlay(p, cx, cy, mind, t, comp.overlay_trans)
 
         # --- Layer 12: Perimeter complications ---
         self._draw_perimeter_complications(p, cx, cy, mind, t)
@@ -883,9 +885,37 @@ class AuraWindow(QWidget):
             settings_comp.close_overlay()
             return
 
+        # INVARIANT: Any docked complication with an open overlay —
+        # tapping its button again dismisses it; tapping outside closes it.
+        _open_dock = None
+        for comp in registry.get_docked():
+            if comp.name not in ("Settings", "Mute", "Volume") and comp.overlay_trans > 0.5:
+                _open_dock = comp
+                break
+        if _open_dock:
+            if hit_complication(_open_dock.name, x, y, self.labels, cx, cy, mind):
+                _open_dock.close_overlay()
+                return
+            # Tap anywhere else — close it
+            _open_dock.close_overlay()
+            return
+
         # Check complication hits
         for comp in registry.get_docked():
             if hit_complication(comp.name, x, y, self.labels, cx, cy, mind):
+                if comp.has_overlay and comp.overlay_target < 0.5:
+                    # Opening a docked overlay — close any open domain overlays
+                    for dname in self._glyph_names:
+                        dcomp = registry.get(dname)
+                        if dcomp and dcomp.overlay_open:
+                            dcomp.close_overlay()
+                            if hasattr(dcomp, 'stop_audio'):
+                                dcomp.stop_audio()
+                    # Also close any other open docked overlays
+                    for other in registry.get_docked():
+                        if other is not comp and other.name not in ("Settings", "Mute", "Volume") \
+                                and other.overlay_trans > 0.1:
+                            other.close_overlay()
                 if comp.on_tap():
                     return
 
@@ -901,7 +931,12 @@ class AuraWindow(QWidget):
                         if hasattr(domain_comp, 'stop_audio'):
                             domain_comp.stop_audio()
                     else:
-                        # Close any other open domain overlays first
+                        # Close any open docked overlays first
+                        for dcomp in registry.get_docked():
+                            if dcomp.name not in ("Settings", "Mute", "Volume") \
+                                    and dcomp.overlay_trans > 0.1:
+                                dcomp.close_overlay()
+                        # Close any other open domain overlays
                         for other_name in self._glyph_names:
                             if other_name != gname:
                                 other = registry.get(other_name)

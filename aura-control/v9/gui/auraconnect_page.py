@@ -1,10 +1,11 @@
 """
 gui.auraconnect_page -- AuraConnect BLE sub-page for the Settings overlay.
 
+Patek Philippe Grand Complications aesthetic: engine-turned guilloché,
+polished triple bezel, chapter-ring ticks, champagne gold accents.
+
 Draws a status panel and toggle for the Bluetooth GATT peripheral that
 lets the macOS AuraConnect app pair with this device.
-
-Zero Qt imports beyond QPainter types used for drawing.
 """
 
 from __future__ import annotations
@@ -16,7 +17,21 @@ import time
 from typing import Optional
 
 from PyQt5.QtCore import Qt, QRectF, QPointF
-from PyQt5.QtGui import QColor, QFont, QPen, QRadialGradient, QBrush
+from PyQt5.QtGui import (
+    QBrush, QColor, QFont, QLinearGradient, QPen,
+    QRadialGradient, QPainterPath,
+)
+
+from gui.renderer import clamp
+
+# ── Palette ──────────────────────────────────────────────────────────
+_CHAMPAGNE   = lambda a=255: QColor(218, 200, 155, a)
+_IVORY       = lambda a=255: QColor(240, 234, 218, a)
+_DEEP_NAVY   = lambda a=255: QColor(6, 9, 22, a)
+_DIM_GOLD    = lambda a=255: QColor(165, 152, 118, a)
+_ACCENT_TEAL = lambda a=255: QColor(80, 200, 165, a)
+_ROSE        = lambda a=255: QColor(200, 130, 130, a)
+
 
 # ---------------------------------------------------------------------------
 # BLE GATT server (runs in a background thread with its own asyncio loop)
@@ -334,185 +349,361 @@ def get_ble_error() -> Optional[str]:
 
 
 # ---------------------------------------------------------------------------
-# Drawing
+# Drawing — Patek Philippe Grand Complications aesthetic
 # ---------------------------------------------------------------------------
 
-GOLD = lambda a=255: QColor(145, 175, 215, a)  # noqa: E731
+_WIFI_R_FRAC = 0.33  # match wifi_page radius for consistent sub-page sizing
 
 
 def draw_auraconnect_page(p, cx, cy, mind, t, trans, state=None):
-    """Draw the AuraConnect BLE status page inside the settings overlay."""
-    if trans <= 0.0:
+    """Draw the AuraConnect BLE status page — Patek Philippe aesthetic."""
+    a = clamp(float(trans), 0.0, 1.0)
+    if a <= 0.002:
         return
 
-    A = int(240 * trans)
-    R = mind * 0.235
+    R = mind * _WIFI_R_FRAC
 
-    # Background plate
+    p.save()
+    p.setRenderHint(p.Antialiasing, True)
+
+    # ── Clip to circle ───────────────────────────────────────────
+    clip = QPainterPath()
+    clip.addEllipse(QPointF(cx, cy), R, R)
+    p.setClipPath(clip)
+
+    # ── Deep lacquer background with vignette ────────────────────
+    bg = QRadialGradient(cx, cy, R)
+    bg.setColorAt(0.00, QColor(10, 14, 32, int(252 * a)))
+    bg.setColorAt(0.55, QColor(6, 10, 24, int(248 * a)))
+    bg.setColorAt(0.85, QColor(3, 5, 14, int(245 * a)))
+    bg.setColorAt(1.00, QColor(1, 2, 8, int(240 * a)))
     p.setPen(Qt.NoPen)
-    p.setBrush(QColor(8, 9, 12, int(220 * trans)))
+    p.setBrush(QBrush(bg))
     p.drawEllipse(QPointF(cx, cy), R, R)
 
-    # Bezel ring
-    pen = QPen(GOLD(int(175 * trans)))
-    pen.setWidthF(max(2.0, mind * 0.0042))
-    p.setPen(pen)
+    # ── Engine-turned guilloché (radial + concentric) ────────────
+    gu_pen = QPen(_CHAMPAGNE(int(12 * a)), max(0.4, R * 0.0015))
+    p.setPen(gu_pen)
     p.setBrush(Qt.NoBrush)
-    p.drawEllipse(QPointF(cx, cy), R * 0.98, R * 0.98)
+    for i in range(72):
+        angle = (2 * math.pi * i) / 72
+        wave = 1.0 + 0.006 * math.sin(i * 5 + t * 0.2)
+        x1 = cx + R * 0.10 * math.cos(angle)
+        y1 = cy + R * 0.10 * math.sin(angle)
+        x2 = cx + R * 0.88 * wave * math.cos(angle)
+        y2 = cy + R * 0.88 * wave * math.sin(angle)
+        p.drawLine(QPointF(x1, y1), QPointF(x2, y2))
 
-    # Title
-    title_font = QFont("DejaVu Sans", max(9, int(mind * 0.018)))
-    title_font.setBold(True)
-    title_font.setLetterSpacing(QFont.PercentageSpacing, 120)
-    p.setFont(title_font)
-    p.setPen(GOLD(A))
-    p.drawText(
-        int(cx - R), int(cy - R * 0.85), int(2 * R), int(R * 0.2),
-        Qt.AlignCenter, "AURACONNECT"
-    )
+    ring_pen = QPen(_CHAMPAGNE(int(8 * a)), max(0.3, R * 0.001))
+    p.setPen(ring_pen)
+    for frac in (0.22, 0.38, 0.54, 0.70, 0.84):
+        rr = R * frac
+        p.drawEllipse(QPointF(cx, cy), rr, rr)
 
-    # Status indicator
+    # ── Triple bezel ─────────────────────────────────────────────
+    p.setBrush(Qt.NoBrush)
+    p.setPen(QPen(_CHAMPAGNE(int(160 * a)), max(3.0, mind * 0.005)))
+    p.drawEllipse(QPointF(cx, cy), R * 0.97, R * 0.97)
+    p.setPen(QPen(_DIM_GOLD(int(55 * a)), max(1.5, mind * 0.0025)))
+    p.drawEllipse(QPointF(cx, cy), R * 0.94, R * 0.94)
+    p.setPen(QPen(_CHAMPAGNE(int(90 * a)), max(1.2, mind * 0.002)))
+    p.drawEllipse(QPointF(cx, cy), R * 0.91, R * 0.91)
+
+    # ── Chapter ring (60 ticks) ──────────────────────────────────
+    for i in range(60):
+        ang = (i / 60.0) * 2.0 * math.pi - math.pi / 2.0
+        is_major = (i % 5 == 0)
+        tick_out = R * 0.965
+        tick_in = tick_out - (R * 0.055 if is_major else R * 0.030)
+        tw = (mind * 0.003 if is_major else mind * 0.0015)
+        col = _CHAMPAGNE(int((150 if is_major else 70) * a))
+        p.setPen(QPen(col, tw, Qt.SolidLine, Qt.RoundCap))
+        p.drawLine(
+            QPointF(cx + tick_in * math.cos(ang), cy + tick_in * math.sin(ang)),
+            QPointF(cx + tick_out * math.cos(ang), cy + tick_out * math.sin(ang)),
+        )
+
+    # ── Beveled depth shadow ─────────────────────────────────────
+    depth = QRadialGradient(cx, cy, R * 0.91)
+    depth.setColorAt(0.70, QColor(0, 0, 0, 0))
+    depth.setColorAt(0.92, QColor(0, 0, 0, int(55 * a)))
+    depth.setColorAt(1.00, QColor(0, 0, 0, int(95 * a)))
+    p.setPen(Qt.NoPen)
+    p.setBrush(QBrush(depth))
+    p.drawEllipse(QPointF(cx, cy), R * 0.91, R * 0.91)
+
+    # ── Crystal reflection ───────────────────────────────────────
+    hl = QRadialGradient(cx - R * 0.15, cy - R * 0.25, R * 0.7)
+    hl.setColorAt(0.0, QColor(255, 255, 255, int(7 * a)))
+    hl.setColorAt(0.5, QColor(255, 255, 255, int(2 * a)))
+    hl.setColorAt(1.0, QColor(0, 0, 0, 0))
+    p.setBrush(QBrush(hl))
+    p.drawEllipse(QPointF(cx, cy), R * 0.90, R * 0.90)
+
+    # ── Header: "AURACONNECT" ────────────────────────────────────
+    hdr_font = QFont("DejaVu Serif", max(10, int(mind * 0.018)))
+    hdr_font.setLetterSpacing(QFont.AbsoluteSpacing, mind * 0.010)
+    hdr_font.setBold(True)
+    p.setFont(hdr_font)
+    p.setPen(QColor(0, 0, 0, int(120 * a)))
+    p.drawText(QRectF(cx - R, cy - R * 0.84 + 1, 2 * R, R * 0.10),
+               Qt.AlignCenter, "AURACONNECT")
+    p.setPen(_CHAMPAGNE(int(235 * a)))
+    p.drawText(QRectF(cx - R, cy - R * 0.84, 2 * R, R * 0.10),
+               Qt.AlignCenter, "AURACONNECT")
+
+    # Thin gold separator
+    sep_y = cy - R * 0.72
+    p.setPen(QPen(_CHAMPAGNE(int(40 * a)), max(0.6, mind * 0.001)))
+    p.drawLine(QPointF(cx - R * 0.48, sep_y), QPointF(cx + R * 0.48, sep_y))
+
+    # ── BLE Status ───────────────────────────────────────────────
     running = is_ble_running()
     connected = is_ble_connected()
     error = get_ble_error()
 
-    # Central Bluetooth icon area — pulsing glow
-    icon_r = R * 0.18
+    # ── Central Bluetooth icon — engine-turned sub-dial ──────────
+    sub_r = R * 0.22
+    sub_cy = cy - R * 0.18
+
+    # Sub-dial background
+    sub_bg = QRadialGradient(cx, sub_cy, sub_r)
+    sub_bg.setColorAt(0.0, QColor(16, 20, 40, int(200 * a)))
+    sub_bg.setColorAt(0.8, QColor(8, 12, 28, int(220 * a)))
+    sub_bg.setColorAt(1.0, QColor(4, 6, 16, int(230 * a)))
+    p.setPen(Qt.NoPen)
+    p.setBrush(QBrush(sub_bg))
+    p.drawEllipse(QPointF(cx, sub_cy), sub_r, sub_r)
+
+    # Sub-dial bezel
+    p.setPen(QPen(_CHAMPAGNE(int(100 * a)), max(1.5, mind * 0.0025)))
+    p.setBrush(Qt.NoBrush)
+    p.drawEllipse(QPointF(cx, sub_cy), sub_r, sub_r)
+    p.setPen(QPen(_DIM_GOLD(int(40 * a)), max(0.8, mind * 0.0012)))
+    p.drawEllipse(QPointF(cx, sub_cy), sub_r * 0.90, sub_r * 0.90)
+
+    # Sub-dial guilloché (fine radial lines)
+    for i in range(24):
+        ang = (2 * math.pi * i) / 24
+        p.setPen(QPen(_CHAMPAGNE(int(10 * a)), 0.3))
+        p.drawLine(
+            QPointF(cx + sub_r * 0.15 * math.cos(ang), sub_cy + sub_r * 0.15 * math.sin(ang)),
+            QPointF(cx + sub_r * 0.85 * math.cos(ang), sub_cy + sub_r * 0.85 * math.sin(ang)),
+        )
+
+    # Status-dependent glow
     if running:
         if connected:
             pulse = 0.7 + 0.3 * math.sin(t * 2.0)
-            glow_col = QColor(80, 200, 140, int(pulse * 180 * trans))
+            glow_col = QColor(80, 200, 140, int(pulse * 90 * a))
             status_text = "CONNECTED"
-            status_col = QColor(80, 200, 140, A)
+            status_col = _ACCENT_TEAL(int(230 * a))
         else:
             pulse = 0.5 + 0.5 * math.sin(t * 3.0)
-            glow_col = QColor(145, 175, 215, int(pulse * 140 * trans))
+            glow_col = QColor(218, 200, 155, int(pulse * 60 * a))
             status_text = "ADVERTISING"
-            status_col = GOLD(A)
+            status_col = _CHAMPAGNE(int(220 * a))
     else:
         pulse = 0.3
-        glow_col = QColor(100, 100, 120, int(60 * trans))
+        glow_col = QColor(80, 80, 100, int(30 * a))
         if error:
             status_text = "ERROR"
-            status_col = QColor(220, 80, 80, A)
+            status_col = _ROSE(int(200 * a))
         else:
             status_text = "OFF"
-            status_col = QColor(150, 150, 160, A)
+            status_col = QColor(120, 120, 135, int(180 * a))
 
-    # Glow halo
-    halo = QRadialGradient(QPointF(cx, cy - R * 0.12), icon_r * 2.5)
+    # Glow halo in sub-dial
+    halo = QRadialGradient(QPointF(cx, sub_cy), sub_r * 1.2)
     halo.setColorAt(0.0, glow_col)
     halo.setColorAt(1.0, QColor(0, 0, 0, 0))
     p.setPen(Qt.NoPen)
     p.setBrush(QBrush(halo))
-    p.drawEllipse(QPointF(cx, cy - R * 0.12), icon_r * 2.5, icon_r * 2.5)
+    p.drawEllipse(QPointF(cx, sub_cy), sub_r * 1.2, sub_r * 1.2)
 
-    # Bluetooth rune (simplified ᛒ shape)
-    _draw_bt_icon(p, cx, cy - R * 0.12, icon_r, trans, connected)
+    # Bluetooth rune (refined)
+    _draw_bt_icon(p, cx, sub_cy, sub_r * 0.55, a, connected, running)
 
-    # Status text
-    stat_font = QFont("DejaVu Sans", max(10, int(mind * 0.022)))
+    # ── Status text (applied index engraving) ────────────────────
+    stat_font = QFont("DejaVu Serif", max(9, int(mind * 0.018)))
     stat_font.setBold(True)
-    stat_font.setLetterSpacing(QFont.PercentageSpacing, 115)
+    stat_font.setLetterSpacing(QFont.AbsoluteSpacing, mind * 0.008)
     p.setFont(stat_font)
+    # Shadow
+    p.setPen(QColor(0, 0, 0, int(100 * a)))
+    p.drawText(QRectF(cx - R, cy + R * 0.10 + 1, 2 * R, R * 0.12),
+               Qt.AlignCenter, status_text)
     p.setPen(status_col)
-    p.drawText(
-        int(cx - R), int(cy + R * 0.12), int(2 * R), int(R * 0.18),
-        Qt.AlignCenter, status_text
-    )
+    p.drawText(QRectF(cx - R, cy + R * 0.10, 2 * R, R * 0.12),
+               Qt.AlignCenter, status_text)
 
-    # Device name
-    name_font = QFont("DejaVu Sans", max(8, int(mind * 0.014)))
-    name_font.setLetterSpacing(QFont.PercentageSpacing, 110)
+    # ── Device name cartouche ────────────────────────────────────
+    name_font = QFont("DejaVu Serif", max(8, int(mind * 0.013)))
+    name_font.setLetterSpacing(QFont.AbsoluteSpacing, mind * 0.005)
     p.setFont(name_font)
-    p.setPen(QColor(180, 190, 210, int(160 * trans)))
-    p.drawText(
-        int(cx - R), int(cy + R * 0.28), int(2 * R), int(R * 0.14),
-        Qt.AlignCenter, f'"{LOCAL_NAME}"'
-    )
+    p.setPen(_DIM_GOLD(int(130 * a)))
+    p.drawText(QRectF(cx - R, cy + R * 0.22, 2 * R, R * 0.09),
+               Qt.AlignCenter, f"\u201C{LOCAL_NAME}\u201D")
 
-    # Error message
+    # ── Error message ────────────────────────────────────────────
     if error and not running:
-        err_font = QFont("DejaVu Sans", max(7, int(mind * 0.012)))
+        err_font = QFont("DejaVu Sans", max(7, int(mind * 0.011)))
         p.setFont(err_font)
-        p.setPen(QColor(220, 100, 100, int(180 * trans)))
-        # Truncate long errors
-        err_short = error[:40] + "..." if len(error) > 40 else error
-        p.drawText(
-            int(cx - R * 0.9), int(cy + R * 0.40), int(R * 1.8), int(R * 0.14),
-            Qt.AlignCenter, err_short
-        )
+        p.setPen(_ROSE(int(160 * a)))
+        err_short = error[:38] + "\u2026" if len(error) > 38 else error
+        p.drawText(QRectF(cx - R * 0.75, cy + R * 0.32, R * 1.50, R * 0.08),
+                   Qt.AlignCenter, err_short)
 
-    # Toggle button
-    btn_w = R * 0.7
-    btn_h = R * 0.16
-    btn_y = cy + R * 0.55
+    # ── Toggle button — Patek Philippe applied index style ───────
+    btn_w = R * 0.60
+    btn_h = R * 0.11
+    btn_y = cy + R * 0.45
     btn_rect = QRectF(cx - btn_w / 2, btn_y, btn_w, btn_h)
+    corner_r = max(3.0, mind * 0.006)
 
-    if running:
-        btn_col = QColor(180, 60, 60, int(200 * trans))
-        btn_text = "STOP"
-    else:
-        btn_col = QColor(60, 140, 100, int(200 * trans))
-        btn_text = "START"
-
+    # Shadow
     p.setPen(Qt.NoPen)
-    p.setBrush(btn_col)
-    p.drawRoundedRect(btn_rect, btn_h * 0.3, btn_h * 0.3)
+    p.setBrush(QColor(0, 0, 0, int(80 * a)))
+    p.drawRoundedRect(btn_rect.adjusted(-1, -1, 1, 2), corner_r + 1, corner_r + 1)
 
-    btn_font = QFont("DejaVu Sans", max(9, int(mind * 0.016)))
-    btn_font.setBold(True)
+    # Chamfer — gold bevel
+    chamfer = QLinearGradient(btn_rect.topLeft(), btn_rect.bottomLeft())
+    if running:
+        chamfer.setColorAt(0.0, QColor(200, 130, 130, int(130 * a)))
+        chamfer.setColorAt(0.5, QColor(160, 90, 90, int(90 * a)))
+        chamfer.setColorAt(1.0, QColor(180, 110, 110, int(110 * a)))
+    else:
+        chamfer.setColorAt(0.0, QColor(200, 195, 150, int(130 * a)))
+        chamfer.setColorAt(0.5, QColor(160, 145, 110, int(90 * a)))
+        chamfer.setColorAt(1.0, QColor(180, 170, 130, int(110 * a)))
+    p.setBrush(QBrush(chamfer))
+    p.drawRoundedRect(btn_rect, corner_r, corner_r)
+
+    # Recessed steel face
+    face = btn_rect.adjusted(2, 2, -2, -2)
+    face_grad = QLinearGradient(face.topLeft(), face.bottomLeft())
+    face_grad.setColorAt(0.0, QColor(28, 32, 42, int(230 * a)))
+    face_grad.setColorAt(0.5, QColor(22, 26, 36, int(225 * a)))
+    face_grad.setColorAt(1.0, QColor(26, 30, 40, int(230 * a)))
+    p.setBrush(QBrush(face_grad))
+    p.drawRoundedRect(face, corner_r - 1, corner_r - 1)
+
+    # Brushing texture
+    brush_pen = QPen(QColor(160, 148, 120, int(7 * a)), 0.4)
+    p.setPen(brush_pen)
+    for by in range(int(face.top()) + 2, int(face.bottom()) - 1, 2):
+        p.drawLine(QPointF(face.left() + 3, by), QPointF(face.right() - 3, by))
+
+    # Button text
+    btn_text = "STOP" if running else "START"
+    btn_font = QFont("DejaVu Serif", max(8, int(mind * 0.015)))
+    btn_font.setLetterSpacing(QFont.AbsoluteSpacing, max(3.0, mind * 0.010))
     p.setFont(btn_font)
-    p.setPen(QColor(255, 255, 255, A))
+    p.setPen(QColor(0, 0, 0, int(120 * a)))
+    p.drawText(btn_rect.adjusted(0, 1, 0, 1), Qt.AlignCenter, btn_text)
+    if running:
+        p.setPen(_ROSE(int(200 * a)))
+    else:
+        p.setPen(_CHAMPAGNE(int(210 * a)))
     p.drawText(btn_rect, Qt.AlignCenter, btn_text)
 
-    # Back label at bottom
-    back_font = QFont("DejaVu Sans", max(8, int(mind * 0.013)))
-    back_font.setLetterSpacing(QFont.PercentageSpacing, 130)
+    # ── Connection jewel indicator ───────────────────────────────
+    if connected:
+        jewel_r = max(3.0, mind * 0.006)
+        jewel_cy = cy + R * 0.62
+        # Halo
+        jh = QRadialGradient(cx, jewel_cy, jewel_r * 4)
+        jh.setColorAt(0.0, QColor(80, 200, 140, int(50 * a)))
+        jh.setColorAt(1.0, QColor(0, 0, 0, 0))
+        p.setPen(Qt.NoPen)
+        p.setBrush(QBrush(jh))
+        p.drawEllipse(QPointF(cx, jewel_cy), jewel_r * 4, jewel_r * 4)
+        # Jewel
+        jg = QRadialGradient(cx - jewel_r * 0.3, jewel_cy - jewel_r * 0.3, jewel_r)
+        jg.setColorAt(0.0, QColor(160, 255, 200, int(240 * a)))
+        jg.setColorAt(0.5, QColor(80, 200, 140, int(220 * a)))
+        jg.setColorAt(1.0, QColor(40, 120, 80, int(180 * a)))
+        p.setBrush(QBrush(jg))
+        p.drawEllipse(QPointF(cx, jewel_cy), jewel_r, jewel_r)
+        # Spec highlight
+        p.setPen(Qt.NoPen)
+        p.setBrush(QColor(255, 255, 255, int(120 * a)))
+        p.drawEllipse(QPointF(cx - jewel_r * 0.25, jewel_cy - jewel_r * 0.25),
+                       jewel_r * 0.3, jewel_r * 0.2)
+
+    # ── "BLUETOOTH  LOW  ENERGY" engraved at bottom ──────────────
+    ble_font = QFont("DejaVu Serif", max(6, int(mind * 0.009)))
+    ble_font.setLetterSpacing(QFont.AbsoluteSpacing, mind * 0.006)
+    p.setFont(ble_font)
+    p.setPen(_DIM_GOLD(int(60 * a)))
+    p.drawText(QRectF(cx - R, cy + R * 0.72, 2 * R, R * 0.06),
+               Qt.AlignCenter, "BLUETOOTH  LOW  ENERGY")
+
+    # ── Back chevron ─────────────────────────────────────────────
+    back_font = QFont("DejaVu Sans", max(13, int(mind * 0.026)))
     p.setFont(back_font)
-    p.setPen(QColor(180, 190, 210, int(120 * trans)))
-    p.drawText(
-        int(cx - R), int(cy + R * 0.76), int(2 * R), int(R * 0.14),
-        Qt.AlignCenter, "< BACK"
-    )
+    p.setPen(_CHAMPAGNE(int(140 * a)))
+    p.drawText(QRectF(cx - R * 0.88, cy - R * 0.88, R * 0.25, R * 0.14),
+               Qt.AlignCenter, "\u2039")
+
+    p.restore()
 
 
-def _draw_bt_icon(p, cx, cy, r, trans, connected):
-    """Draw a simple Bluetooth rune."""
-    col = QColor(255, 255, 255, int(220 * trans)) if not connected else \
-          QColor(80, 200, 140, int(230 * trans))
+def _draw_bt_icon(p, cx, cy, r, a, connected, running):
+    """Draw a refined Bluetooth rune with metallic finish."""
+    if connected:
+        col = _ACCENT_TEAL(int(230 * a))
+    elif running:
+        col = _CHAMPAGNE(int(200 * a))
+    else:
+        col = QColor(100, 100, 115, int(150 * a))
+
     pen = QPen(col)
-    pen.setWidthF(max(1.5, r * 0.12))
+    pen.setWidthF(max(1.8, r * 0.12))
     pen.setCapStyle(Qt.RoundCap)
     pen.setJoinStyle(Qt.RoundJoin)
-    p.setPen(pen)
-    p.setBrush(Qt.NoBrush)
 
-    # Bluetooth symbol: vertical line + two arrow tips
-    h = r * 0.9
-    w = r * 0.45
-    # Vertical line
+    # Shadow
+    shd = QPen(QColor(0, 0, 0, int(80 * a)))
+    shd.setWidthF(pen.widthF() * 1.2)
+    shd.setCapStyle(Qt.RoundCap)
+    shd.setJoinStyle(Qt.RoundJoin)
+    off = max(0.5, r * 0.03)
+
+    h = r * 0.85
+    w = r * 0.42
+
+    # Shadow pass
+    p.setPen(shd)
+    p.setBrush(Qt.NoBrush)
+    p.drawLine(QPointF(cx + off, cy - h + off), QPointF(cx + off, cy + h + off))
+    p.drawLine(QPointF(cx + off, cy - h + off), QPointF(cx + w + off, cy - h * 0.35 + off))
+    p.drawLine(QPointF(cx + w + off, cy - h * 0.35 + off), QPointF(cx - w + off, cy + h * 0.35 + off))
+    p.drawLine(QPointF(cx + off, cy + h + off), QPointF(cx + w + off, cy + h * 0.35 + off))
+    p.drawLine(QPointF(cx + w + off, cy + h * 0.35 + off), QPointF(cx - w + off, cy - h * 0.35 + off))
+
+    # Main icon
+    p.setPen(pen)
     p.drawLine(QPointF(cx, cy - h), QPointF(cx, cy + h))
-    # Top-right arrow
-    p.drawLine(QPointF(cx, cy - h), QPointF(cx + w, cy - h * 0.4))
-    p.drawLine(QPointF(cx + w, cy - h * 0.4), QPointF(cx - w, cy + h * 0.4))
-    # Bottom-right arrow
-    p.drawLine(QPointF(cx, cy + h), QPointF(cx + w, cy + h * 0.4))
-    p.drawLine(QPointF(cx + w, cy + h * 0.4), QPointF(cx - w, cy - h * 0.4))
+    p.drawLine(QPointF(cx, cy - h), QPointF(cx + w, cy - h * 0.35))
+    p.drawLine(QPointF(cx + w, cy - h * 0.35), QPointF(cx - w, cy + h * 0.35))
+    p.drawLine(QPointF(cx, cy + h), QPointF(cx + w, cy + h * 0.35))
+    p.drawLine(QPointF(cx + w, cy + h * 0.35), QPointF(cx - w, cy - h * 0.35))
 
 
 def handle_auraconnect_tap(x, y, cx, cy, mind):
     """Handle a tap on the AuraConnect page. Returns 'back' or None."""
-    R = mind * 0.235
+    R = mind * _WIFI_R_FRAC
 
-    # Back button zone (bottom)
-    if cy + R * 0.72 < y < cy + R * 0.94:
+    # Back chevron (top-left)
+    if (cx - R * 0.88 < x < cx - R * 0.63 and
+            cy - R * 0.88 < y < cy - R * 0.74):
         return "back"
 
     # Toggle button zone
-    btn_w = R * 0.7
-    btn_h = R * 0.16
-    btn_y = cy + R * 0.55
+    btn_w = R * 0.60
+    btn_h = R * 0.11
+    btn_y = cy + R * 0.45
     if (cx - btn_w / 2 < x < cx + btn_w / 2 and
             btn_y < y < btn_y + btn_h):
         if is_ble_running():
@@ -523,5 +714,4 @@ def handle_auraconnect_tap(x, y, cx, cy, mind):
             start_ble()
         return None
 
-    # Tap outside — ignore (don't close)
     return None

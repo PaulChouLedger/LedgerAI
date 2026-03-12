@@ -809,6 +809,13 @@ class Speaker:
                     # Fall through to local — block until ready
                     _local_tts_ready.wait(timeout=60)
                     _synth_to_file(clause, "neutral", out_path)
+                else:
+                    # Farsight returns raw Kokoro — run through local RVC
+                    # (only if RVC model is already loaded; don't block on lazy-load)
+                    if RVC_ENABLED and _rvc_engine is not None:
+                        rvc_out = _rvc_convert(out_path)
+                        if rvc_out != out_path:
+                            os.replace(rvc_out, out_path)
                 if self._interrupted.is_set():
                     break
                 # Play the clause
