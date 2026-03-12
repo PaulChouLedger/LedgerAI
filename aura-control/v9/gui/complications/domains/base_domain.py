@@ -37,12 +37,12 @@ from gui.complications.base import BaseComplication
 # ---------------------------------------------------------------------------
 
 DOMAIN_COLOR = {
-    "Education":  QColor(80, 155, 235),    # cool blue
+    "Education":  QColor(235, 165, 60),    # warm amber
     "Medical":    QColor(195, 85, 75),     # muted crimson
-    "Financial":  QColor(60, 185, 140),    # sea-green
-    "AuraNet":    QColor(100, 140, 230),   # indigo-blue
-    "Business":   QColor(60, 185, 140),    # sea-green   (legacy)
-    "Counsel":    QColor(140, 120, 210),   # soft violet  (legacy)
+    "Financial":  QColor(185, 155, 60),    # warm gold
+    "AuraNet":    QColor(230, 140, 80),    # warm copper
+    "Business":   QColor(185, 155, 60),    # warm gold   (legacy)
+    "Counsel":    QColor(200, 135, 100),   # warm rose    (legacy)
 }
 
 
@@ -52,14 +52,14 @@ DOMAIN_COLOR = {
 # ---------------------------------------------------------------------------
 
 _DOMAIN_METAL = {
-    "metal_hi":   QColor(218, 226, 240),
-    "metal_mid":  QColor(135, 150, 178),
-    "metal_dark": QColor(45, 54, 72),
-    "metal_edge": QColor(230, 236, 248),
+    "metal_hi":   QColor(230, 234, 244),
+    "metal_mid":  QColor(168, 175, 190),
+    "metal_dark": QColor(52, 56, 66),
+    "metal_edge": QColor(238, 242, 250),
 }
 
 def _make_finish(name: str) -> dict:
-    col = DOMAIN_COLOR.get(name, QColor(90, 170, 245))
+    col = DOMAIN_COLOR.get(name, QColor(220, 155, 90))
     textures = {
         "Education":  "guilloche",
         "Medical":    "pulse",
@@ -112,13 +112,13 @@ class BaseDomainComplication(BaseComplication):
         # Dial field picks up a hint of the domain's signature colour
         _ar, _ag, _ab = ACCENT.red(), ACCENT.green(), ACCENT.blue()
         BLUE_DARK = QColor(
-            int(10 + _ar * 0.06), int(28 + _ag * 0.04), int(58 + _ab * 0.03))
+            int(18 + _ar * 0.06), int(10 + _ag * 0.04), int(8 + _ab * 0.03))
         BLUE_MID = QColor(
-            int(14 + _ar * 0.10), int(52 + _ag * 0.06), int(106 + _ab * 0.04))
+            int(42 + _ar * 0.10), int(18 + _ag * 0.06), int(14 + _ab * 0.04))
         TINT = QColor(
-            int(0.35 * 26 + 0.65 * _ar),
-            int(0.35 * 112 + 0.65 * _ag),
-            int(0.35 * 210 + 0.65 * _ab),
+            int(0.35 * 210 + 0.65 * _ar),
+            int(0.35 * 120 + 0.65 * _ag),
+            int(0.35 * 80 + 0.65 * _ab),
         )
 
         def bezel_path(rr):
@@ -148,14 +148,14 @@ class BaseDomainComplication(BaseComplication):
         finally:
             p.restore()
 
-        # ---- 2) Dial field (deep blue tinted) ----
+        # ---- 2) Dial field (deep warm tinted) ----
         p.save()
         try:
             p.setClipPath(inner_path)
             rg = QRadialGradient(QPointF(-r * 0.18, -r * 0.22), r * 1.20)
             rg.setColorAt(0.0, QColor(BLUE_MID.red(), BLUE_MID.green(), BLUE_MID.blue(), 255))
             rg.setColorAt(0.55, QColor(BLUE_DARK.red(), BLUE_DARK.green(), BLUE_DARK.blue(), 255))
-            rg.setColorAt(1.0, QColor(5, 16, 36, 255))
+            rg.setColorAt(1.0, QColor(14, 6, 5, 255))
             p.fillRect(QRectF(-r, -r, 2 * r, 2 * r), QBrush(rg))
 
             # Dial texture
@@ -249,9 +249,9 @@ class BaseDomainComplication(BaseComplication):
 
                 # Metal
                 grad = QLinearGradient(QPointF(x0, y0), QPointF(x1, y1))
-                grad.setColorAt(0.0, QColor(230, 234, 240))
-                grad.setColorAt(0.5, QColor(180, 186, 196))
-                grad.setColorAt(1.0, QColor(120, 130, 145))
+                grad.setColorAt(0.0, QColor(228, 232, 242))
+                grad.setColorAt(0.5, QColor(175, 180, 195))
+                grad.setColorAt(1.0, QColor(95, 100, 112))
                 penM = QPen(QBrush(grad), max(1.0, inner * (0.036 if major else 0.024)))
                 penM.setCapStyle(Qt.RoundCap)
                 p.setPen(penM)
@@ -331,11 +331,11 @@ class BaseDomainComplication(BaseComplication):
 
 _ICON_COLORS = {
     "Medical":   (QColor(235, 75, 65),  QColor(255, 130, 120)),   # red
-    "Education": (QColor(85, 170, 245), QColor(150, 210, 255)),    # blue
-    "Financial": (QColor(60, 205, 150), QColor(120, 235, 190)),    # green
-    "AuraNet":   (QColor(90, 185, 255), QColor(155, 215, 255)),    # azure
-    "Business":  (QColor(60, 205, 150), QColor(120, 235, 190)),
-    "Counsel":   (QColor(160, 140, 230), QColor(200, 185, 255)),
+    "Education": (QColor(245, 175, 65), QColor(255, 215, 150)),    # amber
+    "Financial": (QColor(205, 175, 60), QColor(235, 210, 130)),    # warm gold
+    "AuraNet":   (QColor(240, 155, 80), QColor(255, 200, 155)),    # copper
+    "Business":  (QColor(205, 175, 60), QColor(235, 210, 130)),
+    "Counsel":   (QColor(215, 150, 110), QColor(240, 195, 165)),
 }
 
 
@@ -346,7 +346,7 @@ _ICON_COLORS = {
 def _draw_domain_icon(p, name: str, ir: float, t: float,
                       shadow: bool = False, highlight: bool = False):
     """Draw the actual icon shape for a domain glyph.  ir = icon radius."""
-    main_col, hi_col = _ICON_COLORS.get(name, (QColor(150, 190, 240), QColor(200, 220, 250)))
+    main_col, hi_col = _ICON_COLORS.get(name, (QColor(195, 200, 215), QColor(225, 230, 240)))
 
     if shadow:
         pen = QPen(QColor(0, 0, 0, 70))

@@ -62,7 +62,7 @@ class VolumeComplication(BaseComplication):
         # Numeric window
         win = QRectF(-inner * 0.34, inner * 0.18, inner * 0.68, inner * 0.26)
         p.setPen(QPen(QColor(0, 0, 0, 140), max(1.0, inner * 0.020)))
-        p.setBrush(QBrush(QColor(10, 12, 18, 180)))
+        p.setBrush(QBrush(QColor(22, 4, 8, 180)))
         p.drawRoundedRect(win, inner * 0.06, inner * 0.06)
 
         # Value text (shadow + outline for readability)
@@ -87,7 +87,7 @@ class VolumeComplication(BaseComplication):
         hdr = QRectF(-inner, -inner * 0.62, 2 * inner, inner * 0.26)
         p.setPen(QColor(0, 0, 0, 155))
         p.drawText(hdr.translated(off, off), Qt.AlignCenter, "VOLUME")
-        p.setPen(QColor(235, 242, 255, 215))
+        p.setPen(QColor(232, 235, 242, 215))
         p.drawText(hdr, Qt.AlignCenter, "VOLUME")
 
     # ------------------------------------------------------------------
@@ -101,7 +101,7 @@ class VolumeComplication(BaseComplication):
         # Lacquer dial plate + vignette
         plate_a = int(210 * trans)
         p.setPen(Qt.NoPen)
-        p.setBrush(QBrush(QColor(10, 18, 34, plate_a)))
+        p.setBrush(QBrush(QColor(22, 4, 8, plate_a)))
         p.drawEllipse(int(cx - R), int(cy - R), int(2 * R), int(2 * R))
 
         for i in range(10):

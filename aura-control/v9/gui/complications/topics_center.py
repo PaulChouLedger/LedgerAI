@@ -38,11 +38,11 @@ class TopicsCenterComplication(BaseComplication):
     def draw_content(self, p: "QPainter", inner: float, t: float, accent: QColor) -> None:
         # --- Curved "TOPICS" along top arc ---
         _draw_curved_text(p, "TOPICS", inner * 0.58, top=True,
-                          color=QColor(248, 238, 218, 235), inner=inner)
+                          color=QColor(235, 238, 245, 235), inner=inner)
 
         # --- Curved "CENTER" along bottom arc ---
         _draw_curved_text(p, "CENTER", inner * 0.58, top=False,
-                          color=QColor(248, 238, 218, 215), inner=inner)
+                          color=QColor(235, 238, 245, 215), inner=inner)
 
         # --- Central compass rose icon ---
         cr = inner * 0.30
@@ -54,7 +54,7 @@ class TopicsCenterComplication(BaseComplication):
         p.drawEllipse(QPointF(0, 0), cr * 1.15, cr * 1.15)
 
         # 4 diamond points (N, E, S, W) — gold tones
-        gold_point = QColor(208, 178, 112)
+        gold_point = QColor(195, 200, 215)
         for i in range(4):
             ang = -math.pi / 2 + i * math.pi / 2
             tip_r = cr * 1.05
@@ -110,8 +110,8 @@ class TopicsCenterComplication(BaseComplication):
             R = mind * 0.38
 
             # ----- Color palette (gold / champagne) -----
-            GOLD = lambda a=255: QColor(208, 178, 112, a)  # noqa: E731
-            CREAM = lambda a=255: QColor(245, 235, 205, a)  # noqa: E731
+            GOLD = lambda a=255: QColor(195, 200, 215, a)  # noqa: E731
+            CREAM = lambda a=255: QColor(248, 230, 215, a)  # noqa: E731
             A = int(240 * trans)
             A2 = int(175 * trans)
             A3 = int(120 * trans)
@@ -124,9 +124,9 @@ class TopicsCenterComplication(BaseComplication):
             # 1) Deep enamel backdrop (radial gradient, dark blue-black)
             # =========================================================
             grad = QRadialGradient(QPointF(cx, cy), R)
-            grad.setColorAt(0.0, QColor(14, 18, 32, int(225 * trans)))
-            grad.setColorAt(0.6, QColor(8, 10, 22, int(235 * trans)))
-            grad.setColorAt(1.0, QColor(4, 5, 12, int(240 * trans)))
+            grad.setColorAt(0.0, QColor(22, 10, 10, int(225 * trans)))
+            grad.setColorAt(0.6, QColor(14, 6, 6, int(235 * trans)))
+            grad.setColorAt(1.0, QColor(8, 4, 4, int(240 * trans)))
             p.setPen(Qt.NoPen)
             p.setBrush(QBrush(grad))
             p.drawEllipse(QPointF(cx, cy), R, R)
@@ -141,8 +141,8 @@ class TopicsCenterComplication(BaseComplication):
 
             # Bezel depth (outer bevel highlight)
             bevel = QRadialGradient(QPointF(cx, cy), R)
-            bevel.setColorAt(0.70, QColor(255, 240, 200, int(30 * trans)))
-            bevel.setColorAt(0.88, QColor(255, 240, 200, int(55 * trans)))
+            bevel.setColorAt(0.70, QColor(255, 225, 205, int(30 * trans)))
+            bevel.setColorAt(0.88, QColor(255, 225, 205, int(55 * trans)))
             bevel.setColorAt(1.00, QColor(0, 0, 0, 0))
             p.setBrush(QBrush(bevel))
             p.drawEllipse(QPointF(cx, cy), R, R)
@@ -189,7 +189,7 @@ class TopicsCenterComplication(BaseComplication):
             # =========================================================
             p.save()
             p.translate(cx, cy)
-            p.setPen(QPen(QColor(208, 178, 112, int(8 * trans)), 1))
+            p.setPen(QPen(QColor(195, 200, 215, int(8 * trans)), 1))
             for i in range(48):
                 ang = (2 * math.pi) * (i / 48) + t * 0.04
                 x0 = (R * 0.15) * math.cos(ang)
@@ -292,19 +292,19 @@ class TopicsCenterComplication(BaseComplication):
                 )
                 if is_docked:
                     # 5) Gold highlight for docked items
-                    card_grad.setColorAt(0.0, QColor(38, 34, 22, int(210 * card_trans)))
-                    card_grad.setColorAt(1.0, QColor(22, 20, 14, int(220 * card_trans)))
+                    card_grad.setColorAt(0.0, QColor(38, 22, 18, int(210 * card_trans)))
+                    card_grad.setColorAt(1.0, QColor(24, 14, 10, int(220 * card_trans)))
                 else:
-                    card_grad.setColorAt(0.0, QColor(22, 24, 32, int(200 * card_trans)))
-                    card_grad.setColorAt(1.0, QColor(12, 14, 20, int(210 * card_trans)))
+                    card_grad.setColorAt(0.0, QColor(24, 16, 14, int(200 * card_trans)))
+                    card_grad.setColorAt(1.0, QColor(16, 10, 8, int(210 * card_trans)))
 
                 p.setBrush(QBrush(card_grad))
 
                 # Card border
                 if is_docked:
-                    border_col = QColor(208, 178, 112, int(180 * card_trans))
+                    border_col = QColor(195, 200, 215, int(180 * card_trans))
                 else:
-                    border_col = QColor(208, 178, 112, int(55 * card_trans))
+                    border_col = QColor(195, 200, 215, int(55 * card_trans))
                 p.setPen(QPen(border_col, max(1.0, mind * 0.0018)))
                 p.drawRoundedRect(card_rect, corner_r, corner_r)
 
@@ -320,7 +320,7 @@ class TopicsCenterComplication(BaseComplication):
                     card_h * 0.52
                 )
                 if is_docked:
-                    p.setPen(QColor(232, 212, 155, int(240 * card_trans)))
+                    p.setPen(QColor(238, 210, 175, int(240 * card_trans)))
                 else:
                     p.setPen(QColor(225, 220, 210, int(200 * card_trans)))
                 p.drawText(name_rect, Qt.AlignLeft | Qt.AlignVCenter, comp.name)
@@ -335,7 +335,7 @@ class TopicsCenterComplication(BaseComplication):
                     card_w * 0.84,
                     card_h * 0.40
                 )
-                p.setPen(QColor(208, 178, 112, int(130 * card_trans)))
+                p.setPen(QColor(195, 200, 215, int(130 * card_trans)))
                 p.drawText(cat_rect, Qt.AlignLeft | Qt.AlignVCenter, cat_name.upper())
 
                 # Small docked indicator jewel (right side)
@@ -347,7 +347,7 @@ class TopicsCenterComplication(BaseComplication):
                     p.setPen(Qt.NoPen)
                     # Halo
                     halo = QRadialGradient(QPointF(jx, jy), jr * 3.0)
-                    halo.setColorAt(0.0, QColor(208, 178, 112, int(50 * card_trans * pulse)))
+                    halo.setColorAt(0.0, QColor(195, 200, 215, int(50 * card_trans * pulse)))
                     halo.setColorAt(1.0, QColor(0, 0, 0, 0))
                     p.setBrush(QBrush(halo))
                     p.drawEllipse(QPointF(jx, jy), jr * 3.0, jr * 3.0)
@@ -365,7 +365,7 @@ class TopicsCenterComplication(BaseComplication):
             sig_font = QFont("DejaVu Sans", max(7, int(mind * 0.011)))
             sig_font.setLetterSpacing(QFont.PercentageSpacing, 120)
             p.setFont(sig_font)
-            p.setPen(QColor(208, 178, 112, int(70 * trans)))
+            p.setPen(QColor(195, 200, 215, int(70 * trans)))
             p.drawText(
                 int(cx - R), int(cy + R * 0.78), int(2 * R), int(R * 0.14),
                 Qt.AlignCenter, "AURA  \u2022  COMPLICATIONS"

@@ -23,63 +23,63 @@ from PyQt5.QtGui import (
 
 
 # ---------------------------------------------------------------------------
-# Shared Nautilus palette — unified cool-silver / ice-blue family
+# Shared palette — Patek 5271P: platinum on oxblood
 # ---------------------------------------------------------------------------
 
 # ---------------------------------------------------------------------------
 # Fallback palette constants (used as defaults when a complication is unknown)
 # ---------------------------------------------------------------------------
-BLUE_DARK = QColor(8, 18, 42)
-BLUE_MID  = QColor(12, 36, 78)
-BLUE_LIFT = QColor(55, 145, 220)
-STEEL_0   = QColor(38, 42, 52)
-STEEL_1   = QColor(165, 175, 195)
-STEEL_2   = QColor(220, 228, 240)
+BLUE_DARK = QColor(28, 6, 10)       # deep oxblood black
+BLUE_MID  = QColor(62, 12, 18)      # rich burgundy
+BLUE_LIFT = QColor(190, 25, 30)     # ruby red
+STEEL_0   = QColor(42, 46, 52)      # cool platinum shadow
+STEEL_1   = QColor(165, 172, 182)   # platinum mid
+STEEL_2   = QColor(225, 230, 238)   # platinum highlight
 
 # ---------------------------------------------------------------------------
 # Per-complication metal finishes — each has a unique material identity
 # ---------------------------------------------------------------------------
 _FINISH = {
     "Topics Center": {
-        "metal_hi":   QColor(242, 218, 205),   # rose-gold highlight
-        "metal_mid":  QColor(185, 145, 128),   # warm mid
-        "metal_dark": QColor(78, 52, 48),      # deep rose shadow
-        "metal_edge": QColor(248, 228, 218),   # rose-gold rim
+        "metal_hi":   QColor(232, 236, 244),   # platinum highlight
+        "metal_mid":  QColor(168, 175, 188),   # platinum mid
+        "metal_dark": QColor(58, 62, 72),      # platinum shadow
+        "metal_edge": QColor(240, 244, 250),   # platinum rim
         "texture": "sunburst", "dots": 48,
     },
     "Settings": {
-        "metal_hi":   QColor(215, 225, 240),   # cool titanium highlight
-        "metal_mid":  QColor(140, 155, 180),   # blue-silver mid
-        "metal_dark": QColor(45, 52, 68),      # dark titanium shadow
-        "metal_edge": QColor(228, 235, 248),   # titanium rim
+        "metal_hi":   QColor(228, 232, 240),   # brushed platinum highlight
+        "metal_mid":  QColor(160, 168, 180),   # brushed platinum mid
+        "metal_dark": QColor(52, 56, 65),      # platinum dark shadow
+        "metal_edge": QColor(236, 240, 248),   # platinum rim
         "texture": "guilloche", "dots": 48,
     },
     "Mute": {
-        "metal_hi":   QColor(145, 148, 155),   # gunmetal highlight
-        "metal_mid":  QColor(78, 82, 92),      # dark chrome mid
-        "metal_dark": QColor(22, 24, 30),      # near-black shadow
-        "metal_edge": QColor(165, 168, 175),   # gunmetal rim
+        "metal_hi":   QColor(148, 152, 160),   # gunmetal platinum highlight
+        "metal_mid":  QColor(82, 86, 94),      # dark platinum mid
+        "metal_dark": QColor(24, 26, 30),      # near-black platinum shadow
+        "metal_edge": QColor(165, 170, 178),   # gunmetal rim
         "texture": "matte", "dots": 36,
     },
     "Aura Concierge": {
-        "metal_hi":   QColor(232, 228, 245),   # platinum-violet highlight
-        "metal_mid":  QColor(158, 148, 195),   # violet shimmer mid
-        "metal_dark": QColor(55, 48, 78),      # deep violet shadow
-        "metal_edge": QColor(242, 238, 252),   # platinum-violet rim
+        "metal_hi":   QColor(235, 238, 246),   # bright platinum highlight
+        "metal_mid":  QColor(172, 178, 190),   # platinum mid
+        "metal_dark": QColor(55, 58, 68),      # platinum shadow
+        "metal_edge": QColor(242, 245, 252),   # bright platinum rim
         "texture": "sunburst", "dots": 60,
     },
     "Ledger Balance": {
-        "metal_hi":   QColor(238, 218, 168),   # warm brass highlight
-        "metal_mid":  QColor(175, 148, 95),    # brass mid
-        "metal_dark": QColor(68, 52, 28),      # dark brass shadow
-        "metal_edge": QColor(245, 228, 185),   # brass rim
+        "metal_hi":   QColor(230, 234, 242),   # platinum highlight
+        "metal_mid":  QColor(165, 172, 185),   # platinum mid
+        "metal_dark": QColor(52, 56, 66),      # platinum shadow
+        "metal_edge": QColor(238, 242, 250),   # platinum rim
         "texture": "guilloche", "dots": 60,
     },
     "Alerts": {
-        "metal_hi":   QColor(218, 222, 228),   # brushed steel highlight
-        "metal_mid":  QColor(148, 152, 165),   # cool gray mid
-        "metal_dark": QColor(48, 50, 58),      # steel shadow
-        "metal_edge": QColor(232, 235, 240),   # steel rim
+        "metal_hi":   QColor(224, 228, 236),   # cool brushed highlight
+        "metal_mid":  QColor(155, 162, 175),   # cool gray mid
+        "metal_dark": QColor(48, 52, 60),      # cool steel shadow
+        "metal_edge": QColor(232, 236, 244),   # cool steel rim
         "texture": "pulse", "dots": 48,
     },
 }
@@ -88,26 +88,26 @@ _FINISH = {
 # Per-complication dial colors (radial gradient: dark → mid → lift)
 # ---------------------------------------------------------------------------
 _DIAL = {
-    "Topics Center":  {"dark": QColor(6, 12, 38),  "mid": QColor(10, 28, 68),  "lift": QColor(208, 178, 112)},
-    "Settings":       {"dark": QColor(12, 16, 28),  "mid": QColor(28, 35, 55),  "lift": QColor(170, 195, 225)},
-    "Mute":           {"dark": QColor(5, 8, 22),    "mid": QColor(8, 14, 38),   "lift": QColor(90, 200, 130)},
-    "Aura Concierge": {"dark": QColor(10, 6, 32),   "mid": QColor(22, 14, 58),  "lift": QColor(155, 120, 210)},
-    "Ledger Balance": {"dark": QColor(8, 14, 38),   "mid": QColor(14, 30, 65),  "lift": QColor(218, 175, 85)},
-    "Alerts":         {"dark": QColor(14, 12, 16),   "mid": QColor(32, 26, 35),  "lift": QColor(225, 95, 85)},
+    "Topics Center":  {"dark": QColor(22, 4, 8),    "mid": QColor(48, 8, 14),   "lift": QColor(190, 28, 35)},
+    "Settings":       {"dark": QColor(24, 6, 10),   "mid": QColor(52, 10, 16),  "lift": QColor(175, 180, 192)},
+    "Mute":           {"dark": QColor(10, 6, 6),    "mid": QColor(22, 10, 10),  "lift": QColor(90, 200, 130)},
+    "Aura Concierge": {"dark": QColor(22, 4, 8),    "mid": QColor(48, 8, 14),   "lift": QColor(200, 30, 38)},
+    "Ledger Balance": {"dark": QColor(24, 5, 9),    "mid": QColor(50, 10, 16),  "lift": QColor(195, 32, 40)},
+    "Alerts":         {"dark": QColor(24, 6, 10),   "mid": QColor(50, 10, 16),  "lift": QColor(210, 40, 45)},
 }
 
 _DEFAULT_DIAL = {"dark": BLUE_DARK, "mid": BLUE_MID, "lift": BLUE_LIFT}
 
 # ---------------------------------------------------------------------------
-# Per-complication accent colors — dramatically different hues
+# Per-complication accent colors — 5271P ruby / platinum family
 # ---------------------------------------------------------------------------
 _ACCENT = {
-    "Topics Center":  QColor(208, 178, 112),   # gold / champagne
-    "Settings":       QColor(170, 195, 225),   # ice silver
-    "Mute":           QColor(90, 200, 130),    # green (live default)
-    "Aura Concierge": QColor(155, 120, 210),   # amethyst
-    "Ledger Balance": QColor(218, 175, 85),    # amber-gold
-    "Alerts":         QColor(225, 95, 85),     # coral-red
+    "Topics Center":  QColor(195, 30, 38),     # ruby red
+    "Settings":       QColor(175, 180, 192),   # platinum silver
+    "Mute":           QColor(90, 200, 130),    # green (live default — functional)
+    "Aura Concierge": QColor(200, 30, 38),     # ruby crimson
+    "Ledger Balance": QColor(195, 32, 40),     # ruby
+    "Alerts":         QColor(210, 40, 45),     # deep ruby-red
 }
 
 
@@ -152,7 +152,7 @@ class BaseComplication(ABC):
         TEX    = fin.get("texture", "stripe")
         DOTS_N = int(fin.get("dots", 48))
 
-        accent = _ACCENT.get(self.name, QColor(36, 140, 255))
+        accent = _ACCENT.get(self.name, QColor(210, 120, 45))
         dial = _DIAL.get(self.name, _DEFAULT_DIAL)
         D_DARK = dial["dark"]
         D_MID  = dial["mid"]
@@ -350,7 +350,7 @@ class BaseComplication(ABC):
                 )
                 grad = QLinearGradient(QPointF(x0, y0), QPointF(x1, y1))
                 grad.setColorAt(0.0, baton_hi); grad.setColorAt(0.5, baton_mid)
-                grad.setColorAt(1.0, QColor(120, 130, 145))
+                grad.setColorAt(1.0, QColor(95, 100, 110))
                 penM = QPen(QBrush(grad), max(1.6, inner * (0.042 if major else 0.030)))
                 penM.setCapStyle(Qt.RoundCap)
                 p.setPen(penM)

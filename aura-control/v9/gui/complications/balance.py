@@ -62,7 +62,7 @@ class BalanceComplication(BaseComplication):
         ang = math.radians(start + span * v - 90.0)
         hx = (inner * 0.58) * math.cos(ang)
         hy = (inner * 0.58) * math.sin(ang)
-        penH = QPen(QColor(180, 220, 255, 210))
+        penH = QPen(QColor(200, 205, 220, 210))
         penH.setWidthF(max(1.4, inner * 0.035))
         penH.setCapStyle(Qt.RoundCap)
         p.setPen(penH)
@@ -72,7 +72,7 @@ class BalanceComplication(BaseComplication):
         p.setPen(Qt.NoPen)
         p.setBrush(QBrush(QColor(0, 0, 0, 120)))
         p.drawEllipse(QPointF(0, 0), inner * 0.10, inner * 0.10)
-        p.setBrush(QBrush(QColor(70, 190, 255, 165)))
+        p.setBrush(QBrush(QColor(190, 28, 35, 165)))
         p.drawEllipse(QPointF(0, 0), inner * 0.06, inner * 0.06)
 
         # Labels
@@ -84,7 +84,7 @@ class BalanceComplication(BaseComplication):
         r1 = QRectF(-inner, -inner * 0.20, 2 * inner, inner * 0.40)
         p.setPen(QColor(0, 0, 0, 150))
         p.drawText(r1.translated(off, off), Qt.AlignCenter, "LEDGER")
-        p.setPen(QColor(235, 242, 255, 230))
+        p.setPen(QColor(232, 235, 242, 230))
         p.drawText(r1, Qt.AlignCenter, "LEDGER")
 
         # Numeric token amount
@@ -109,11 +109,11 @@ class BalanceComplication(BaseComplication):
 
         # Color grade (champagne → amber → red)
         if days >= 7.0:
-            c_main = QColor(245, 235, 205, int(220 * trans))
-            c_fill = QColor(225, 205, 150, int(230 * trans))
+            c_main = QColor(225, 230, 240, int(220 * trans))
+            c_fill = QColor(195, 200, 218, int(230 * trans))
         elif days >= 3.0:
-            c_main = QColor(245, 210, 140, int(220 * trans))
-            c_fill = QColor(245, 185, 110, int(235 * trans))
+            c_main = QColor(220, 225, 238, int(220 * trans))
+            c_fill = QColor(200, 205, 220, int(235 * trans))
         else:
             c_main = QColor(230, 95, 80, int(230 * trans))
             c_fill = QColor(220, 75, 65, int(240 * trans))

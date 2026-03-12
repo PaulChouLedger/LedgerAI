@@ -21,8 +21,8 @@ from PyQt5.QtGui import (
     QBrush, QColor, QFont, QLinearGradient, QPen, QRadialGradient,
 )
 
-# Horology steel-blue tone (matches unified palette)
-GOLD = lambda a=255: QColor(145, 175, 215, a)  # noqa: E731
+# Horology platinum silver tone (5271P palette)
+GOLD = lambda a=255: QColor(195, 200, 215, a)  # noqa: E731
 
 from gui.complications.base import BaseComplication
 from gui.renderer import clamp
@@ -55,7 +55,7 @@ class SettingsComplication(BaseComplication):
 
         # --- Curved "SETTINGS" along top arc ---
         _draw_curved_text(p, "SETTINGS", inner * 0.58, top=True,
-                          color=QColor(225, 235, 250, 235), inner=inner)
+                          color=QColor(232, 235, 242, 235), inner=inner)
 
         # --- Central rotating cage (tourbillon) ---
         cage_r = inner * 0.34
@@ -63,7 +63,7 @@ class SettingsComplication(BaseComplication):
         p.rotate((t * 26.0) % 360.0)
 
         # Brushed silver cage ring
-        pen = QPen(QColor(170, 195, 225, 165))
+        pen = QPen(QColor(180, 185, 200, 165))  # platinum cage
         pen.setWidthF(max(1.6, inner * 0.030))
         pen.setCapStyle(Qt.RoundCap)
         pen.setJoinStyle(Qt.RoundJoin)
@@ -124,7 +124,7 @@ class SettingsComplication(BaseComplication):
 
             # Label
             if label:
-                p.setPen(QColor(235, 242, 255, 195))
+                p.setPen(QColor(232, 235, 242, 195))
                 f = QFont("Helvetica", max(7, int(inner * 0.14)))
                 f.setBold(True)
                 p.setFont(f)
@@ -207,8 +207,8 @@ class SettingsComplication(BaseComplication):
             def draw_bezel_depth():
                 # Outer bevel highlight
                 g1 = QRadialGradient(QPointF(cx, cy), r_bezel_outer)
-                g1.setColorAt(0.70, QColor(255, 240, 200, int(34 * trans)))
-                g1.setColorAt(0.86, QColor(255, 240, 200, int(62 * trans)))
+                g1.setColorAt(0.70, QColor(220, 225, 238, int(34 * trans)))
+                g1.setColorAt(0.86, QColor(220, 225, 238, int(62 * trans)))
                 g1.setColorAt(1.00, QColor(0, 0, 0, 0))
                 p.setPen(Qt.NoPen)
                 p.setBrush(QBrush(g1))
@@ -343,7 +343,7 @@ class SettingsComplication(BaseComplication):
             menu_font.setLetterSpacing(QFont.PercentageSpacing, 112)
 
             menu_r = (r_chapter_in + r_chapter_out) * 0.5
-            menu_col = QColor(255, 244, 220, int(220 * trans))
+            menu_col = QColor(235, 238, 245, int(220 * trans))
 
             labels = [
                 ("WI-FI",        -90.0),
@@ -419,7 +419,7 @@ class SettingsComplication(BaseComplication):
 
             # Halo glow
             halo = QRadialGradient(QPointF(dot_x, dot_y), dot_r * 3.2)
-            halo.setColorAt(0.0, QColor(255, 215, 140, halo_a))
+            halo.setColorAt(0.0, QColor(200, 30, 40, halo_a))
             halo.setColorAt(1.0, QColor(0, 0, 0, 0))
             p.setPen(Qt.NoPen)
             p.setBrush(QBrush(halo))
@@ -445,7 +445,7 @@ class SettingsComplication(BaseComplication):
                 a = int(45 * (trans - 0.72) / 0.28)
                 a = max(0, min(45, a))
 
-                p.setPen(QColor(255, 215, 140, a))
+                p.setPen(QColor(200, 205, 218, a))
                 p.drawText(
                     int(cx - R), int(cy - R * 0.08), int(R * 0.95), int(R * 0.18),
                     Qt.AlignRight | Qt.AlignVCenter, "TAP NAME"
@@ -756,7 +756,7 @@ def _draw_profile_page(p, cx, cy, mind, t, trans, comp):
         p.setFont(hint_font)
         a = int(40 * (trans - 0.72) / 0.28)
         a = max(0, min(40, a))
-        p.setPen(QColor(255, 215, 140, a))
+        p.setPen(QColor(200, 205, 218, a))
         p.drawText(
             int(cx - R), int(cy + R * 0.78), int(2 * R), int(R * 0.14),
             Qt.AlignCenter, "\u25C0  BACK"
@@ -922,7 +922,7 @@ def _draw_alerts_page(p, cx, cy, mind, t, trans, comp):
         p.setFont(hint_font)
         a = int(40 * (trans - 0.72) / 0.28)
         a = max(0, min(40, a))
-        p.setPen(QColor(255, 215, 140, a))
+        p.setPen(QColor(200, 205, 218, a))
         p.drawText(
             int(cx - R), int(cy + R * 0.78), int(2 * R), int(R * 0.14),
             Qt.AlignCenter, "\u25C0  BACK"

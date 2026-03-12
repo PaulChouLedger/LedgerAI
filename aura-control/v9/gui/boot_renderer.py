@@ -107,43 +107,18 @@ def make_phase_bounds(n_phases: int, seed: int = 7) -> List[float]:
 
 def _ring_color(loop_idx: int, seg_u: float, tsec: float, a255: int,
                 hue_shift: float) -> QColor:
-    """Per-segment color for a falcon loop ring."""
+    """Fixed pearl-white palette for boot loops — elegant on ruby background."""
     def clamp01(x):
         return 0.0 if x < 0.0 else (1.0 if x > 1.0 else x)
 
-    def smoothstep(x):
-        x = clamp01(x)
-        return x * x * (3 - 2 * x)
-
-    def _lerp(a, b, t):
-        return a + (b - a) * t
-
-    def mix(c0, c1, t):
-        return (
-            int(_lerp(c0[0], c1[0], t)),
-            int(_lerp(c0[1], c1[1], t)),
-            int(_lerp(c0[2], c1[2], t)),
-        )
-
-    G0 = [(0.0, (40, 130, 255)), (0.5, (210, 240, 255)), (1.0, (40, 130, 255))]
-    G1 = [(0.0, (150, 210, 255)), (0.5, (240, 245, 255)), (1.0, (110, 170, 255))]
-
-    def grad(stops, u):
-        u = u % 1.0
-        for i in range(len(stops) - 1):
-            p0, c0 = stops[i]
-            p1, c1 = stops[i + 1]
-            if p0 <= u <= p1:
-                return mix(c0, c1, smoothstep((u - p0) / (p1 - p0)))
-        return stops[-1][1]
-
-    fade = 0.5 + 0.5 * math.sin(tsec * 0.08 + loop_idx * 0.7)
     shift = hue_shift / 360.0
-    flow = (seg_u + shift + tsec * (0.010 + 0.003 * loop_idx)) % 1.0
+    flow = (seg_u + shift + tsec * (0.008 + 0.003 * loop_idx)) % 1.0
 
-    c0 = grad(G0, flow)
-    c1 = grad(G1, flow)
-    r, g, b = mix(c0, c1, fade)
+    # Pearl white with subtle warm shimmer
+    warm = 0.5 + 0.5 * math.sin(flow * 2 * math.pi)
+    r = int(225 + 20 * warm)
+    g = int(222 + 15 * warm)
+    b = int(218 + 12 * warm)
 
     breathe = 0.92 + 0.08 * math.sin(tsec * 0.22 + loop_idx * 1.3)
     r = int(clamp01((r / 255) * breathe) * 255)
@@ -151,6 +126,50 @@ def _ring_color(loop_idx: int, seg_u: float, tsec: float, a255: int,
     b = int(clamp01((b / 255) * breathe) * 255)
 
     return QColor(r, g, b, a255)
+
+
+# ---------------------------------------------------------------------------
+# Boot nebulae — deep ruby clouds drifting in the background
+# ---------------------------------------------------------------------------
+
+def _draw_boot_nebulae(p: QPainter, cx: float, cy: float, mind: float,
+                       t: float) -> None:
+    """Draw dramatic ruby nebula clouds — bright and clearly visible."""
+    R = mind * 0.5
+
+    # 6 large, bright ruby cloud lobes
+    clouds = [
+        # (offset_x_frac, offset_y_frac, radius_frac, speed, phase, r, g, b, max_alpha)
+        ( 0.20, -0.15, 0.55, 0.0035, 0.0,  160, 24, 35, 140),
+        (-0.25,  0.20, 0.48, 0.0028, 1.8,  130, 18, 28, 120),
+        ( 0.05,  0.30, 0.42, 0.0042, 3.5,  170, 28, 40, 130),
+        (-0.18, -0.25, 0.50, 0.0032, 5.2,  140, 20, 32, 110),
+        ( 0.30,  0.05, 0.40, 0.0048, 2.4,  150, 22, 34, 120),
+        (-0.10,  0.00, 0.58, 0.0022, 4.1,  120, 16, 25, 100),
+    ]
+
+    p.save()
+    try:
+        for ox, oy, rf, speed, phase, cr, cg, cb, ma in clouds:
+            dx = ox * R + R * 0.10 * math.sin(t * speed + phase)
+            dy = oy * R + R * 0.10 * math.cos(t * speed * 0.7 + phase + 1.2)
+            cloud_r = rf * R
+
+            breathe = 0.6 + 0.4 * math.sin(t * speed * 1.2 + phase * 0.6)
+            a0 = int(ma * breathe)
+
+            g = QRadialGradient(QPointF(cx + dx, cy + dy), cloud_r)
+            g.setColorAt(0.0, QColor(cr, cg, cb, a0))
+            g.setColorAt(0.25, QColor(cr, cg, cb, int(a0 * 0.7)))
+            g.setColorAt(0.50, QColor(int(cr * 0.7), int(cg * 0.7), int(cb * 0.7), int(a0 * 0.4)))
+            g.setColorAt(0.80, QColor(int(cr * 0.4), int(cg * 0.4), int(cb * 0.4), int(a0 * 0.15)))
+            g.setColorAt(1.0, QColor(0, 0, 0, 0))
+
+            p.setPen(Qt.NoPen)
+            p.setBrush(QBrush(g))
+            p.drawEllipse(QPointF(cx + dx, cy + dy), cloud_r, cloud_r)
+    finally:
+        p.restore()
 
 
 # ---------------------------------------------------------------------------
@@ -173,7 +192,7 @@ def draw_falcon_stars(p: QPainter, W: int, H: int, t: float,
         alpha = int(_clamp(30 + 140 * twk, 18, 175))
         r = s.base_r * (0.85 + 0.25 * twk)
 
-        p.setBrush(QColor(230, 236, 255, alpha))
+        p.setBrush(QColor(210, 215, 228, alpha))
         p.drawEllipse(QPointF(s.x * W, s.y * H), r, r)
 
 
@@ -198,7 +217,7 @@ def draw_falcon_dial(p: QPainter, cx: float, cy: float, mind: float,
     dial_rect = QRectF(cx - outer_r, cy - outer_r, 2 * outer_r, 2 * outer_r)
 
     # Hairline ring
-    p.setPen(QPen(QColor(220, 230, 255, 35), dial_w, Qt.SolidLine, Qt.RoundCap))
+    p.setPen(QPen(QColor(200, 205, 220, 35), dial_w, Qt.SolidLine, Qt.RoundCap))
     p.setBrush(Qt.NoBrush)
     p.drawEllipse(dial_rect)
 
@@ -210,7 +229,7 @@ def draw_falcon_dial(p: QPainter, cx: float, cy: float, mind: float,
         long_tick = (i % 5 == 0)
         r0 = outer_r - (mind * (0.018 if long_tick else 0.010))
         r1 = outer_r - (mind * 0.004)
-        col = QColor(220, 230, 255, 70 if long_tick else 40)
+        col = QColor(200, 205, 220, 70 if long_tick else 40)
         p.setPen(QPen(col, max(1.0, dial_w * (1.4 if long_tick else 0.9)),
                        Qt.SolidLine, Qt.RoundCap))
         p.drawLine(QPointF(cx + math.cos(a) * r0, cy + math.sin(a) * r0),
@@ -221,7 +240,7 @@ def draw_falcon_dial(p: QPainter, cx: float, cy: float, mind: float,
         a = (b * math.tau) - math.pi / 2.0
         r0 = outer_r - mind * 0.030
         r1 = outer_r - mind * 0.006
-        p.setPen(QPen(QColor(190, 225, 255, 60), max(1.0, dial_w * 1.0),
+        p.setPen(QPen(QColor(180, 185, 200, 60), max(1.0, dial_w * 1.0),
                        Qt.SolidLine, Qt.RoundCap))
         p.drawLine(QPointF(cx + math.cos(a) * r0, cy + math.sin(a) * r0),
                    QPointF(cx + math.cos(a) * r1, cy + math.sin(a) * r1))
@@ -233,7 +252,7 @@ def draw_falcon_dial(p: QPainter, cx: float, cy: float, mind: float,
 
     arc_alpha = int(_clamp(170 * pulse_amt, 120, 235))
     arc_width = max(2.0, dial_w * 1.8) * pulse_amt
-    p.setPen(QPen(QColor(210, 235, 255, arc_alpha), arc_width, Qt.SolidLine, Qt.RoundCap))
+    p.setPen(QPen(QColor(190, 25, 35, arc_alpha), arc_width, Qt.SolidLine, Qt.RoundCap))
 
     arc_rect = dial_rect.adjusted(mind * 0.006, mind * 0.006, -mind * 0.006, -mind * 0.006)
     p.drawArc(arc_rect, int(start_deg * 16), int(span_deg * 16))
@@ -312,7 +331,7 @@ def draw_falcon_text(p: QPainter, W: int, H: int, mind: float,
     title_font.setWeight(QFont.Medium)
     title_font.setLetterSpacing(QFont.AbsoluteSpacing, 1.8)
     p.setFont(title_font)
-    p.setPen(QPen(QColor(240, 245, 255, 140), 1))
+    p.setPen(QPen(QColor(220, 225, 238, 140), 1))
     p.drawText(QRectF(W * 0.10, H * title_y, W * 0.80, H * 0.07),
                Qt.AlignHCenter | Qt.AlignVCenter,
                "A U R A V I S I O N")
@@ -321,7 +340,7 @@ def draw_falcon_text(p: QPainter, W: int, H: int, mind: float,
     phase_font = QFont("Helvetica Neue", max(16, int(mind * 0.0255)))
     phase_font.setWeight(QFont.Normal)
     p.setFont(phase_font)
-    p.setPen(QPen(QColor(240, 245, 255, 190), 1))
+    p.setPen(QPen(QColor(220, 225, 238, 190), 1))
     display_text = f"{phase_text}  \u00b7  {pct}%" if phase_text else f"{pct}%"
     p.drawText(QRectF(W * 0.10, H * phase_y, W * 0.80, H * 0.07),
                Qt.AlignHCenter | Qt.AlignVCenter,
@@ -364,14 +383,16 @@ def paint_boot_frame(p: QPainter, W: int, H: int, t: float,
     else:
         pulse_amt = 1.0
 
-    # Clear
-    p.fillRect(0, 0, W, H, QColor(0, 0, 0))
+    # UNIFORM ruby across entire face — overfill to cover -130° rotation
+    # Use a huge rect so no black corners appear after rotation
+    margin = int(mind * 0.5)
+    p.fillRect(-margin, -margin, W + 2 * margin, H + 2 * margin, QColor(110, 14, 22))
+
+    # Dramatic ruby nebula clouds drifting in background
+    _draw_boot_nebulae(p, cx, cy, mind, t)
 
     # Stars
     draw_falcon_stars(p, W, H, t, vis.stars)
-
-    # Vignette
-    draw_falcon_vignette(p, cx, cy, mind, W, H)
 
     # Progress dial
     draw_falcon_dial(p, cx, cy, mind, prog, vis.phase_bounds, pulse_amt)

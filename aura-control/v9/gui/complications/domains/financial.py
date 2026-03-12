@@ -38,7 +38,7 @@ _PORTFOLIO_START = 1_000_000.00   # $1M starting portfolio value
 
 _TICKERS: List[Dict] = [
     {"sym": "$PENGUIN",      "start": 4.20,   "peak_mult": 3.2,  "seed": 101,
-     "color": (85, 210, 235),   "color_hi": (140, 235, 255)},
+     "color": (235, 185, 85),   "color_hi": (255, 215, 140)},
     {"sym": "$LOBSTAR",      "start": 0.85,   "peak_mult": 3.8,  "seed": 202,
      "color": (255, 120, 80),   "color_hi": (255, 175, 140)},
     {"sym": "$ALIENS",       "start": 47.00,  "peak_mult": 2.6,  "seed": 303,
@@ -220,11 +220,11 @@ class FinancialComplication(BaseDomainComplication):
 
             # --- Backdrop (reddens as doom rises) ---
             bg = QRadialGradient(cx, cy, R)
-            bg_r = int(6 + 45 * doom)
-            bg_g = int(14 - 8 * doom)
-            bg_b = int(32 - 18 * doom)
+            bg_r = int(22 + 35 * doom)
+            bg_g = int(10 - 4 * doom)
+            bg_b = int(10 - 4 * doom)
             bg.setColorAt(0.00, QColor(bg_r, bg_g, bg_b, int(248 * a)))
-            bg.setColorAt(0.65, QColor(int(4 + 22 * doom), 8, 22, int(235 * a)))
+            bg.setColorAt(0.65, QColor(int(16 + 22 * doom), 6, 6, int(235 * a)))
             bg.setColorAt(1.00, QColor(0, 0, 0, 0))
             p.setPen(Qt.NoPen)
             p.setBrush(QBrush(bg))
@@ -288,7 +288,7 @@ class FinancialComplication(BaseDomainComplication):
 
                 # Cell background
                 p.setPen(Qt.NoPen)
-                p.setBrush(QColor(12, 16, 30, int(50 * a)))
+                p.setBrush(QColor(20, 12, 10, int(50 * a)))
                 p.drawRoundedRect(QRectF(gx, gy, cell_w, cell_h),
                                   R * 0.012, R * 0.012)
 
@@ -329,7 +329,7 @@ class FinancialComplication(BaseDomainComplication):
                     return _top + (1.0 - math.sqrt(vn)) * _h
 
                 # Subtle grid
-                grid_pen = QPen(QColor(80, 110, 150, int(8 * a)))
+                grid_pen = QPen(QColor(120, 90, 75, int(8 * a)))
                 grid_pen.setWidthF(max(0.3, R * 0.001))
                 p.setPen(grid_pen)
                 for gi in range(4):

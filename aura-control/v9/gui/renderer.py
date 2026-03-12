@@ -54,25 +54,25 @@ def ease_out(x: float) -> float:
 # Star / particle factories
 # ---------------------------------------------------------------------------
 
-def make_celestial_stars(n_white: int = 520, n_gold: int = 240) -> List[Star]:
+def make_celestial_stars(n_white: int = 320, n_gold: int = 140) -> List[Star]:
     stars: List[Star] = []
     rng = random.Random(1337)
 
     for _ in range(n_white):
         r = (rng.random() ** 0.65) * 0.98
         th = rng.random() * 2 * math.pi
-        size = 0.8 + 2.0 * rng.random()
-        base_a = int(22 + 55 * rng.random())
+        size = 0.6 + 1.4 * rng.random()
+        base_a = int(14 + 35 * rng.random())    # dimmer — luxury dark dial
         tw = 0.10 + 0.35 * rng.random()
         ph = rng.random() * 2 * math.pi
         stars.append(Star(r=r, th=th, size=size, base_a=base_a, tw=tw, ph=ph, hue=0))
 
-    # Gold dust
+    # Platinum dust (subtle)
     for _ in range(n_gold):
         r = (rng.random() ** 0.65) * 0.98
         th = rng.random() * 2 * math.pi
-        size = 0.6 + 1.4 * rng.random()
-        base_a = int(16 + 40 * rng.random())
+        size = 0.5 + 1.0 * rng.random()
+        base_a = int(10 + 28 * rng.random())    # dimmer
         tw = 0.08 + 0.30 * rng.random()
         ph = rng.random() * 2 * math.pi
         stars.append(Star(r=r, th=th, size=size, base_a=base_a, tw=tw, ph=ph, hue=1))
@@ -120,74 +120,44 @@ class BackgroundCache:
 
 
 def _build_blue_background(W: int, H: int, mind: float) -> QPixmap:
+    """Deep oxblood sunburst dial — inspired by Patek Philippe 5271P.
+    Dramatic ruby red tones — visible and rich on the display."""
     pm = QPixmap(W, H)
-    pm.fill(QColor(0, 0, 0))
+    pm.fill(QColor(110, 14, 22))    # uniform ruby base — no black anywhere
     q = QPainter(pm)
     try:
         q.setRenderHint(QPainter.Antialiasing)
-        base = QColor(16, 30, 54)
-        q.fillRect(0, 0, W, H, base)
-
-        # Fine horizontal emboss
-        step = 2
-        for y in range(0, H, step):
-            wob = 0.5 + 0.5 * math.sin(y * 0.035)
-            lift = int(4 + 9 * wob)
-            col = QColor(12 + lift, 24 + lift, 42 + lift, 16)
-            q.setPen(QPen(col, 1))
-            q.drawLine(0, y, W, y)
-
-        # Silver threads
-        for y in range(2, H, 24):
-            a = 8 + ((y * 7) % 6)
-            q.setPen(QPen(QColor(235, 238, 242, a), 1))
-            q.drawLine(0, y, W, y)
-        for y in range(11, H, 96):
-            q.setPen(QPen(QColor(245, 248, 252, 16), 1))
-            q.drawLine(0, y, W, y)
-
-        # Ultra-fine sheen
-        for y in range(1, H, 6):
-            q.setPen(QPen(QColor(255, 255, 255, 4), 1))
-            q.drawLine(0, y, W, y)
-
-        # Lacquer vignette + center lift
         cx, cy = W * 0.5, H * 0.5
+        R = min(W, H) * 0.5
+
+        # Subtle sunburst texture (very slight variation, NOT a gradient)
         q.save()
         q.translate(cx, cy)
-        R = min(W, H) * 0.56
-
-        for i in range(22):
-            rr = R * (1.0 - i * 0.035)
-            a = int(12 + i * 9)
-            q.setPen(QPen(QColor(0, 0, 0, a), max(1.0, mind * 0.002)))
-            q.setBrush(Qt.NoBrush)
-            q.drawEllipse(int(-rr), int(-rr), int(2 * rr), int(2 * rr))
-
-        for i in range(14):
-            rr = R * (0.18 + i * 0.030)
-            a = int(12 - i)
-            if a <= 0:
-                break
-            q.setPen(QPen(QColor(255, 255, 255, a), 1))
-            q.setBrush(Qt.NoBrush)
-            q.drawEllipse(int(-rr), int(-rr), int(2 * rr), int(2 * rr))
-
+        n_rays = 360
+        for i in range(n_rays):
+            ang = (2 * math.pi) * (i / n_rays)
+            phase = math.sin(ang * 3.0 + 0.5) * 0.2 + math.sin(ang * 7.0) * 0.1
+            intensity = 0.5 + 0.5 * phase
+            # Very slight variation around the base color — texture not gradient
+            r_val = int(110 + 15 * intensity)
+            g_val = int(14 + 4 * intensity)
+            b_val = int(22 + 5 * intensity)
+            q.setPen(QPen(QColor(r_val, g_val, b_val, 50), 2.0))
+            x2 = R * 1.5 * math.cos(ang)
+            y2 = R * 1.5 * math.sin(ang)
+            q.drawLine(QPointF(0, 0), QPointF(x2, y2))
         q.restore()
 
-        # Micro grain
+        # Very gentle vignette — barely perceptible edge darkening
+        gv = QRadialGradient(QPointF(cx, cy), R * 1.2)
+        gv.setColorAt(0.00, QColor(0, 0, 0, 0))
+        gv.setColorAt(0.80, QColor(0, 0, 0, 0))
+        gv.setColorAt(0.95, QColor(0, 0, 0, 30))
+        gv.setColorAt(1.00, QColor(0, 0, 0, 80))
         q.setPen(Qt.NoPen)
-        for i in range(900):
-            x = (i * 73) % W
-            y = (i * 191) % H
-            q.setBrush(QBrush(QColor(255, 255, 255, 5)))
-            q.drawEllipse(int(x), int(y), 1, 1)
+        q.setBrush(QBrush(gv))
+        q.drawRect(0, 0, W, H)
 
-        # Dial plate inset
-        q.setPen(Qt.NoPen)
-        q.setBrush(QBrush(QColor(0, 0, 0, 22)))
-        dial_r = int(min(W, H) * 0.44)
-        q.drawEllipse(int(cx - dial_r), int(cy - dial_r), int(2 * dial_r), int(2 * dial_r))
     finally:
         q.end()
     return pm
@@ -234,6 +204,58 @@ def _build_red_background(W: int, H: int, mind: float) -> QPixmap:
 
 
 # ---------------------------------------------------------------------------
+# Subtle shifting nebula (deep burgundy/oxblood clouds)
+# ---------------------------------------------------------------------------
+
+def draw_nebula(
+    p: QPainter, cx: float, cy: float, mind: float, t: float,
+    alpha: float = 1.0,
+) -> None:
+    """Draw slowly drifting deep ruby nebula clouds — dramatic and visible."""
+    alpha = clamp(alpha, 0.0, 1.0)
+    if alpha <= 0.0:
+        return
+
+    p.save()
+    try:
+        # SourceOver (normal blending) — no Screen mode flashing artifacts
+        R = mind * 0.48
+
+        # 6 large bright ruby cloud lobes — dramatic, clearly visible
+        lobes = [
+            # (ox, oy, radius, speed, phase, r, g, b, max_alpha)
+            ( 0.20, -0.12, 0.52, 0.0035, 0.0,  155, 24, 35, 130),
+            (-0.15,  0.22, 0.45, 0.0028, 1.8,  125, 18, 28, 110),
+            ( 0.08,  0.28, 0.40, 0.0042, 3.5,  165, 28, 38, 120),
+            (-0.25, -0.18, 0.48, 0.0032, 5.2,  135, 20, 30, 105),
+            ( 0.30,  0.05, 0.38, 0.0038, 2.4,  145, 22, 32, 115),
+            (-0.05, -0.30, 0.42, 0.0025, 4.0,  115, 16, 25, 95),
+        ]
+
+        for ox_f, oy_f, r_f, speed, phase, cr, cg, cb, ma in lobes:
+            drift_x = ox_f * R + R * 0.10 * math.sin(t * speed + phase)
+            drift_y = oy_f * R + R * 0.10 * math.cos(t * speed * 0.7 + phase + 1.2)
+            lobe_r = r_f * R
+
+            breathe = 0.6 + 0.4 * math.sin(t * speed * 1.2 + phase * 0.6)
+            base_a = int(ma * alpha * breathe)
+
+            g = QRadialGradient(QPointF(cx + drift_x, cy + drift_y), lobe_r)
+            g.setColorAt(0.0, QColor(cr, cg, cb, base_a))
+            g.setColorAt(0.25, QColor(cr, cg, cb, int(base_a * 0.65)))
+            g.setColorAt(0.50, QColor(int(cr * 0.7), int(cg * 0.7), int(cb * 0.7), int(base_a * 0.35)))
+            g.setColorAt(0.80, QColor(int(cr * 0.4), int(cg * 0.4), int(cb * 0.4), int(base_a * 0.12)))
+            g.setColorAt(1.0, QColor(0, 0, 0, 0))
+
+            p.setPen(Qt.NoPen)
+            p.setBrush(QBrush(g))
+            p.drawEllipse(QPointF(cx + drift_x, cy + drift_y), lobe_r, lobe_r)
+
+    finally:
+        p.restore()
+
+
+# ---------------------------------------------------------------------------
 # Celestial starfield
 # ---------------------------------------------------------------------------
 
@@ -258,15 +280,15 @@ def draw_celestial(
         a = int(s.base_a * tw)
 
         if s.hue == 0:
-            jitter = int((s.ph % 1.0) * 8.0)
+            jitter = int((s.ph % 1.0) * 6.0)
             col = QColor(
-                int(clamp(210 + jitter, 0, 255)),
-                int(clamp(225 + jitter, 0, 255)),
-                int(clamp(248, 0, 255)),
+                int(clamp(218 + jitter, 0, 255)),
+                int(clamp(222 + jitter, 0, 255)),
+                int(clamp(235 + jitter, 0, 255)),
                 a,
             )
         else:
-            col = QColor(180, 210, 245, a)
+            col = QColor(195, 200, 215, a)  # cool platinum dust
 
         rad = max(1, int(s.size))
         p.setPen(Qt.NoPen)
@@ -316,7 +338,7 @@ def draw_chapter_ticks(
             w = max(0.0, 1.0 - (abs(d) / glint_span))
             a = base_a + int(70 * w * alpha)
 
-            col = QColor(195, 215, 240, clamp(a, 0, 255))
+            col = QColor(195, 200, 215, clamp(a, 0, 255))  # platinum ticks
             pen = QPen(col)
             pen.setWidthF(max(1.0, mind * (0.0036 if major else 0.0026)))
             pen.setCapStyle(Qt.RoundCap)
@@ -355,14 +377,14 @@ def draw_center_ring(
         p.setBrush(Qt.NoBrush)
         p.drawEllipse(QPointF(cx, cy), r, r)
 
-        col_main = QColor(145, 175, 215, int((120 + 55 * breathe) * alpha))
+        col_main = QColor(170, 25, 35, int((120 + 55 * breathe) * alpha))  # ruby ring
         pen = QPen(col_main)
         pen.setWidthF(max(0.8, mind * 0.0027))
         pen.setCapStyle(Qt.RoundCap)
         p.setPen(pen)
         p.drawEllipse(QPointF(cx, cy), r * 0.998, r * 0.998)
 
-        col_hi = QColor(200, 220, 245, int(38 * alpha))
+        col_hi = QColor(200, 205, 218, int(38 * alpha))  # platinum highlight
         penH = QPen(col_hi)
         penH.setWidthF(max(0.8, mind * 0.0024))
         penH.setCapStyle(Qt.RoundCap)
@@ -385,9 +407,9 @@ def draw_mist(
         rr = (mind * 0.5) * (r ** 0.65)
         x = cx + rr * math.cos(th)
         y = cy + rr * math.sin(th)
-        a = int(80 * strength * (0.3 + 0.7 * s) * (1.0 - r))
+        a = int(45 * strength * (0.3 + 0.7 * s) * (1.0 - r))
         p.setPen(Qt.NoPen)
-        p.setBrush(QBrush(QColor(150, 185, 225, a)))
+        p.setBrush(QBrush(QColor(100, 15, 22, a)))  # deep ruby dust, very subtle
         rad = int(1 + 4 * (0.3 + s) * (1.0 - r))
         p.drawEllipse(int(x - rad), int(y - rad), int(2 * rad), int(2 * rad))
 
@@ -399,63 +421,22 @@ def draw_mist(
 def _ring_color(
     loops: List[LoopParams], loop_idx: int, seg_u: float, tsec: float, a255: int,
 ) -> QColor:
-    """Planet tribute palette with per-ring phase offset."""
+    """Fixed pearl-white palette — elegant against deep ruby background."""
 
     def clamp01(x: float) -> float:
         return 0.0 if x < 0.0 else (1.0 if x > 1.0 else x)
 
-    def smoothstep(x: float) -> float:
-        x = clamp01(x)
-        return x * x * (3 - 2 * x)
-
-    def _lerp(a: float, b: float, t: float) -> float:
-        return a + (b - a) * t
-
-    def mix(c0, c1, t):
-        return (int(_lerp(c0[0], c1[0], t)), int(_lerp(c0[1], c1[1], t)), int(_lerp(c0[2], c1[2], t)))
-
-    def grad(stops, u):
-        u = u % 1.0
-        for i in range(len(stops) - 1):
-            p0, c0 = stops[i]
-            p1, c1 = stops[i + 1]
-            if p0 <= u <= p1:
-                return mix(c0, c1, smoothstep((u - p0) / (p1 - p0)))
-        return stops[-1][1]
-
-    PLANETS = [
-        ("Deep",    [(0.0, (12, 28, 68)), (0.5, (40, 110, 195)), (1.0, (8, 22, 55))]),
-        ("Arctic",  [(0.0, (18, 45, 95)), (0.4, (75, 165, 235)), (0.7, (140, 200, 245)),
-                     (1.0, (18, 45, 95))]),
-        ("Abyss",   [(0.0, (6, 16, 42)),  (0.35, (30, 85, 165)), (0.65, (55, 140, 210)),
-                     (0.85, (90, 175, 235)), (1.0, (6, 16, 42))]),
-        ("Silver",  [(0.0, (35, 45, 65)), (0.3, (120, 145, 185)), (0.6, (170, 190, 220)),
-                     (0.85, (100, 130, 175)), (1.0, (35, 45, 65))]),
-        ("Cobalt",  [(0.0, (15, 32, 72)), (0.4, (50, 120, 200)), (0.7, (85, 160, 230)),
-                     (1.0, (15, 32, 72))]),
-    ]
-
-    PLANET_DUR = 16.0
-    FADE = 4.0
-    total = PLANET_DUR * len(PLANETS)
-    tt = tsec % total
-    idx = int(tt // PLANET_DUR)
-    u_time = (tt % PLANET_DUR) / PLANET_DUR
-
-    _, g0 = PLANETS[idx]
-    _, g1 = PLANETS[(idx + 1) % len(PLANETS)]
-
-    fade = 0.0
-    if u_time > 1.0 - (FADE / PLANET_DUR):
-        fade = smoothstep((u_time - (1.0 - FADE / PLANET_DUR)) / (FADE / PLANET_DUR))
-
+    # Gentle shimmer along the loop — slight warm/cool variation
     shift = getattr(loops[loop_idx], "hue_shift", 0.0) / 360.0
-    flow = (seg_u + shift + tsec * (0.010 + 0.004 * loop_idx)) % 1.0
+    flow = (seg_u + shift + tsec * (0.008 + 0.003 * loop_idx)) % 1.0
 
-    c0 = grad(g0, flow)
-    c1 = grad(g1, flow)
-    r, g, b = mix(c0, c1, fade)
+    # Pearl white with very subtle warm undertone variation
+    warm = 0.5 + 0.5 * math.sin(flow * 2 * math.pi)
+    r = int(225 + 20 * warm)     # 225-245
+    g = int(222 + 15 * warm)     # 222-237
+    b = int(218 + 12 * warm)     # 218-230
 
+    # Gentle breathing
     breathe = 0.92 + 0.08 * math.sin(tsec * 0.22 + loop_idx * 1.3)
     r = int(clamp01((r / 255) * breathe) * 255)
     g = int(clamp01((g / 255) * breathe) * 255)
@@ -605,7 +586,7 @@ def draw_rings(
                 p.save()
                 try:
                     p.setPen(Qt.NoPen)
-                    p.setBrush(QColor(190, 218, 248, a))
+                    p.setBrush(QColor(210, 215, 230, a))  # platinum highlight
                     rpx = max(1.0, mind * 0.0022)
                     for k in range(0, len(pts_front), step):
                         xx, yy = pts_front[k]

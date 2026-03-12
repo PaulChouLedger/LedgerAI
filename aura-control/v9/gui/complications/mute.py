@@ -37,7 +37,7 @@ class MuteComplication(BaseComplication):
 
         # --- Curved "MUTE" along top arc — tinted by state ---
         if muted:
-            text_col = QColor(240, 195, 190, 235)   # warm red tint
+            text_col = QColor(225, 195, 195, 235)   # muted red tint
         else:
             text_col = QColor(195, 240, 215, 235)   # cool green tint
         _draw_curved_text(p, "MUTE", inner * 0.58, top=True,
@@ -46,7 +46,7 @@ class MuteComplication(BaseComplication):
         # Aperture window (date-like)
         win = QRectF(-inner * 0.42, inner * 0.18, inner * 0.84, inner * 0.26)
         p.setPen(QPen(QColor(0, 0, 0, 140), max(1.0, inner * 0.020)))
-        p.setBrush(QBrush(QColor(10, 12, 18, 180)))
+        p.setBrush(QBrush(QColor(14, 8, 8, 180)))
         p.drawRoundedRect(win, inner * 0.06, inner * 0.06)
 
         txt = "MUTED" if muted else "LIVE"
@@ -104,7 +104,7 @@ class MuteComplication(BaseComplication):
         if not muted:
             for i, rr in enumerate([0.26, 0.34, 0.42]):
                 a = 0.45 + 0.35 * math.sin(t * 2.4 + i * 1.2)
-                pen = QPen(QColor(220, 245, 255, int(40 + 60 * a)))
+                pen = QPen(QColor(215, 220, 232, int(40 + 60 * a)))  # platinum sound waves
                 pen.setWidthF(max(1.0, inner * 0.018))
                 pen.setCapStyle(Qt.RoundCap)
                 p.setPen(pen)

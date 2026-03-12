@@ -1,9 +1,9 @@
 """
 gui.wifi_page -- WiFi configuration for the Aura round display.
 
-Patek Philippe Grand Complications aesthetic: engine-turned guilloché,
-polished bezel with chapter-ring ticks, champagne gold accents, deep
-lacquer backgrounds.  Uses nmcli for scanning and connecting.
+Ferrari Rosso Corsa aesthetic: warm carbon-black backgrounds, rose-gold
+metal accents, amber/red family highlights, engine-turned guilloché.
+Uses nmcli for scanning and connecting.
 """
 
 from __future__ import annotations
@@ -24,13 +24,13 @@ from PyQt5.QtGui import (
 from gui.renderer import clamp
 
 # ── Palette ──────────────────────────────────────────────────────────
-_CHAMPAGNE   = lambda a=255: QColor(218, 200, 155, a)
-_IVORY       = lambda a=255: QColor(240, 234, 218, a)
-_DEEP_NAVY   = lambda a=255: QColor(6, 9, 22, a)
-_SLATE       = lambda a=255: QColor(42, 48, 68, a)
-_ACCENT_TEAL = lambda a=255: QColor(80, 200, 165, a)
-_ROSE        = lambda a=255: QColor(200, 130, 130, a)
-_DIM_GOLD    = lambda a=255: QColor(165, 152, 118, a)
+_CHAMPAGNE   = lambda a=255: QColor(200, 205, 220, a)   # platinum silver
+_IVORY       = lambda a=255: QColor(235, 238, 245, a)   # clean white-silver
+_DEEP_NAVY   = lambda a=255: QColor(16, 4, 8, a)        # deep oxblood black
+_SLATE       = lambda a=255: QColor(45, 48, 58, a)      # cool platinum grey
+_ACCENT_TEAL = lambda a=255: QColor(80, 200, 165, a)    # connected (functional)
+_ROSE        = lambda a=255: QColor(175, 30, 40, a)     # ruby
+_DIM_GOLD    = lambda a=255: QColor(145, 150, 168, a)   # platinum dim
 
 
 @dataclass
@@ -202,7 +202,7 @@ _WIFI_R_FRAC = 0.33   # fraction of min(W,H) — larger for keyboard usability
 # ── Drawing ──────────────────────────────────────────────────────────
 
 def draw_wifi_page(p, cx, cy, mind, t, trans, state: WifiPageState):
-    """Render the WiFi configuration page with Patek Philippe aesthetic."""
+    """Render the WiFi configuration page with Ferrari Rosso Corsa aesthetic."""
     a = clamp(float(trans), 0.0, 1.0)
     if a <= 0.002:
         return
@@ -221,12 +221,12 @@ def draw_wifi_page(p, cx, cy, mind, t, trans, state: WifiPageState):
     clip.addEllipse(QPointF(cx, cy), R, R)
     p.setClipPath(clip)
 
-    # ── Deep lacquer background with vignette ────────────────────
+    # ── Warm carbon background with vignette ─────────────────────
     bg = QRadialGradient(cx, cy, R)
-    bg.setColorAt(0.00, QColor(14, 18, 38, int(252 * a)))
-    bg.setColorAt(0.55, QColor(8, 12, 28, int(248 * a)))
-    bg.setColorAt(0.85, QColor(4, 6, 16, int(245 * a)))
-    bg.setColorAt(1.00, QColor(2, 3, 8, int(240 * a)))
+    bg.setColorAt(0.00, QColor(32, 18, 16, int(252 * a)))
+    bg.setColorAt(0.55, QColor(22, 12, 10, int(248 * a)))
+    bg.setColorAt(0.85, QColor(14, 8, 6, int(245 * a)))
+    bg.setColorAt(1.00, QColor(8, 4, 3, int(240 * a)))
     p.setPen(Qt.NoPen)
     p.setBrush(QBrush(bg))
     p.drawEllipse(QPointF(cx, cy), R, R)
@@ -296,8 +296,8 @@ def draw_wifi_page(p, cx, cy, mind, t, trans, state: WifiPageState):
 
     # ── Crystal reflection highlight ─────────────────────────────
     highlight = QRadialGradient(cx - R * 0.15, cy - R * 0.25, R * 0.7)
-    highlight.setColorAt(0.0, QColor(255, 255, 255, int(8 * a)))
-    highlight.setColorAt(0.5, QColor(255, 255, 255, int(3 * a)))
+    highlight.setColorAt(0.0, QColor(255, 245, 235, int(8 * a)))
+    highlight.setColorAt(0.5, QColor(255, 240, 225, int(3 * a)))
     highlight.setColorAt(1.0, QColor(0, 0, 0, 0))
     p.setBrush(QBrush(highlight))
     p.drawEllipse(QPointF(cx, cy), R * 0.90, R * 0.90)
@@ -315,7 +315,7 @@ def draw_wifi_page(p, cx, cy, mind, t, trans, state: WifiPageState):
     p.drawText(QRectF(cx - R, cy - R * 0.85, 2 * R, R * 0.10),
                Qt.AlignCenter, "WI-FI")
 
-    # Thin gold separator below header
+    # Thin rose-gold separator below header
     sep_y = cy - R * 0.74
     p.setPen(QPen(_CHAMPAGNE(int(45 * a)), max(0.6, mind * 0.001)))
     p.drawLine(QPointF(cx - R * 0.50, sep_y), QPointF(cx + R * 0.50, sep_y))
@@ -391,10 +391,10 @@ def _draw_network_list(p, cx, cy, R, mind, t, a, state: WifiPageState):
         row_y = list_top + i * row_h
         row_rect = QRectF(cx - R * 0.72, row_y, R * 1.44, row_h - 2)
 
-        # Selected highlight — warm champagne glow
+        # Selected highlight — warm amber glow
         if net.ssid == state.selected_ssid:
             p.setPen(Qt.NoPen)
-            p.setBrush(QColor(180, 165, 120, int(28 * a)))
+            p.setBrush(QColor(180, 130, 100, int(28 * a)))
             p.drawRoundedRect(row_rect, 6, 6)
 
         # Connected dot
@@ -453,10 +453,10 @@ def _draw_network_list(p, cx, cy, R, mind, t, a, state: WifiPageState):
     btn_h = R * 0.09
     btn_rect = QRectF(cx - btn_w / 2, cy + R * 0.62, btn_w, btn_h)
 
-    # Button gradient
+    # Button gradient — warm carbon
     btn_grad = QLinearGradient(btn_rect.topLeft(), btn_rect.bottomLeft())
-    btn_grad.setColorAt(0.0, QColor(30, 35, 55, int(200 * a)))
-    btn_grad.setColorAt(1.0, QColor(18, 22, 38, int(200 * a)))
+    btn_grad.setColorAt(0.0, QColor(50, 32, 28, int(200 * a)))
+    btn_grad.setColorAt(1.0, QColor(35, 20, 18, int(200 * a)))
     p.setPen(QPen(_CHAMPAGNE(int(100 * a)), max(1.0, mind * 0.0018)))
     p.setBrush(QBrush(btn_grad))
     p.drawRoundedRect(btn_rect, btn_h / 2, btn_h / 2)
@@ -483,7 +483,7 @@ def _draw_signal_bars(p, x, y, size, signal, a):
             p.setBrush(_ACCENT_TEAL(int(200 * a)))
         else:
             p.setPen(Qt.NoPen)
-            p.setBrush(QColor(45, 50, 65, int(70 * a)))
+            p.setBrush(QColor(55, 40, 38, int(70 * a)))
         p.drawRoundedRect(QRectF(bx, by, bw, bh), 1.2, 1.2)
 
 
@@ -530,11 +530,11 @@ def _draw_keyboard(p, cx, cy, R, mind, a, state: WifiPageState):
     pw_y = kb_top - R * 0.12
     pw_rect = QRectF(cx - pw_w / 2, pw_y, pw_w, pw_h)
 
-    # Inset shadow
+    # Inset shadow — warm carbon
     p.setPen(Qt.NoPen)
-    p.setBrush(QColor(3, 5, 12, int(220 * a)))
+    p.setBrush(QColor(12, 6, 5, int(220 * a)))
     p.drawRoundedRect(pw_rect, pw_h / 2, pw_h / 2)
-    # Gold border
+    # Rose-gold border
     p.setPen(QPen(_CHAMPAGNE(int(80 * a)), max(1.0, mind * 0.0018)))
     p.setBrush(Qt.NoBrush)
     p.drawRoundedRect(pw_rect, pw_h / 2, pw_h / 2)
@@ -576,11 +576,11 @@ def _draw_keyboard(p, cx, cy, R, mind, a, state: WifiPageState):
             flash = _is_flashing(row_idx, col_idx)
 
             key_bg = QLinearGradient(key_rect.topLeft(), key_rect.bottomLeft())
-            br, bg_, bb = 48, 54, 74
+            br, bg_, bb = 62, 44, 40
             if flash > 0:
-                fr = int(br + (180 - br) * flash)
-                fg = int(bg_ + (165 - bg_) * flash)
-                fb = int(bb + (120 - bb) * flash)
+                fr = int(br + (190 - br) * flash)
+                fg = int(bg_ + (145 - bg_) * flash)
+                fb = int(bb + (110 - bb) * flash)
                 key_bg.setColorAt(0.0, QColor(fr, fg, fb, int(190 * a)))
                 key_bg.setColorAt(1.0, QColor(fr - 10, fg - 10, fb - 10, int(180 * a)))
             else:
@@ -622,16 +622,16 @@ def _draw_keyboard(p, cx, cy, R, mind, a, state: WifiPageState):
 
         key_bg = QLinearGradient(key_rect.topLeft(), key_rect.bottomLeft())
         if is_active:
-            key_bg.setColorAt(0.0, QColor(120, 115, 80, int(160 * a)))
-            key_bg.setColorAt(1.0, QColor(100, 95, 65, int(150 * a)))
+            key_bg.setColorAt(0.0, QColor(130, 95, 70, int(160 * a)))
+            key_bg.setColorAt(1.0, QColor(110, 80, 58, int(150 * a)))
         elif flash > 0:
-            key_bg.setColorAt(0.0, QColor(int(48 + 130 * flash), int(54 + 110 * flash),
-                                           int(74 + 50 * flash), int(180 * a)))
-            key_bg.setColorAt(1.0, QColor(int(38 + 130 * flash), int(44 + 110 * flash),
-                                           int(64 + 50 * flash), int(170 * a)))
+            key_bg.setColorAt(0.0, QColor(int(52 + 140 * flash), int(38 + 100 * flash),
+                                           int(35 + 70 * flash), int(180 * a)))
+            key_bg.setColorAt(1.0, QColor(int(42 + 140 * flash), int(28 + 100 * flash),
+                                           int(25 + 70 * flash), int(170 * a)))
         else:
-            key_bg.setColorAt(0.0, QColor(38, 44, 62, int(160 * a)))
-            key_bg.setColorAt(1.0, QColor(28, 34, 52, int(150 * a)))
+            key_bg.setColorAt(0.0, QColor(52, 38, 35, int(160 * a)))
+            key_bg.setColorAt(1.0, QColor(40, 28, 25, int(150 * a)))
         p.setPen(Qt.NoPen)
         p.setBrush(QBrush(key_bg))
         p.drawRoundedRect(key_rect, 4, 4)
@@ -646,9 +646,9 @@ def _draw_keyboard(p, cx, cy, R, mind, a, state: WifiPageState):
         p.drawText(key_rect, Qt.AlignCenter, label)
         util_x += w + key_gap
 
-    # ── CONFIRM — Patek Philippe applied index style ───────────────
-    # Not a flat green pill. A recessed channel with polished chamfers,
-    # brushed steel face, and engraved serif lettering.
+    # ── CONFIRM — Ferrari applied index style ───────────────────────
+    # Recessed channel with polished chamfers, brushed steel face,
+    # and engraved serif lettering in rose-gold.
     confirm_y = bottom_y + key_h + row_gap * 2
     confirm_h = key_h * 1.2
     confirm_w = kb_width * 0.65
@@ -662,32 +662,32 @@ def _draw_keyboard(p, cx, cy, R, mind, a, state: WifiPageState):
     p.setBrush(QColor(0, 0, 0, int(100 * a)))
     p.drawRoundedRect(shadow_rect, corner_r + 1, corner_r + 1)
 
-    # Layer 2: Outer chamfer — polished gold bevel
+    # Layer 2: Outer chamfer — polished rose-gold bevel
     chamfer_grad = QLinearGradient(confirm_rect.topLeft(), confirm_rect.bottomLeft())
-    chamfer_grad.setColorAt(0.0, QColor(220, 200, 160, int((140 + 80 * cf) * a)))
-    chamfer_grad.setColorAt(0.35, QColor(180, 160, 120, int((100 + 60 * cf) * a)))
-    chamfer_grad.setColorAt(0.65, QColor(140, 120, 85, int((80 + 50 * cf) * a)))
-    chamfer_grad.setColorAt(1.0, QColor(200, 185, 145, int((120 + 70 * cf) * a)))
+    chamfer_grad.setColorAt(0.0, QColor(225, 185, 155, int((140 + 80 * cf) * a)))
+    chamfer_grad.setColorAt(0.35, QColor(190, 150, 115, int((100 + 60 * cf) * a)))
+    chamfer_grad.setColorAt(0.65, QColor(150, 110, 80, int((80 + 50 * cf) * a)))
+    chamfer_grad.setColorAt(1.0, QColor(210, 175, 140, int((120 + 70 * cf) * a)))
     p.setBrush(QBrush(chamfer_grad))
     p.drawRoundedRect(confirm_rect, corner_r, corner_r)
 
-    # Layer 3: Recessed face — dark brushed steel
+    # Layer 3: Recessed face — dark warm brushed steel
     face_rect = confirm_rect.adjusted(2.5, 2.5, -2.5, -2.5)
     face_grad = QLinearGradient(face_rect.topLeft(), face_rect.bottomLeft())
-    face_grad.setColorAt(0.0, QColor(int(28 + 25 * cf), int(32 + 20 * cf),
-                                      int(42 + 15 * cf), int(230 * a)))
-    face_grad.setColorAt(0.3, QColor(int(22 + 20 * cf), int(26 + 16 * cf),
-                                      int(36 + 12 * cf), int(225 * a)))
-    face_grad.setColorAt(0.7, QColor(int(18 + 18 * cf), int(22 + 14 * cf),
-                                      int(32 + 10 * cf), int(225 * a)))
-    face_grad.setColorAt(1.0, QColor(int(24 + 22 * cf), int(28 + 18 * cf),
-                                      int(38 + 13 * cf), int(230 * a)))
+    face_grad.setColorAt(0.0, QColor(int(38 + 25 * cf), int(26 + 18 * cf),
+                                      int(24 + 14 * cf), int(230 * a)))
+    face_grad.setColorAt(0.3, QColor(int(32 + 20 * cf), int(22 + 14 * cf),
+                                      int(20 + 10 * cf), int(225 * a)))
+    face_grad.setColorAt(0.7, QColor(int(28 + 18 * cf), int(18 + 12 * cf),
+                                      int(16 + 9 * cf), int(225 * a)))
+    face_grad.setColorAt(1.0, QColor(int(34 + 22 * cf), int(24 + 16 * cf),
+                                      int(22 + 12 * cf), int(230 * a)))
     p.setPen(Qt.NoPen)
     p.setBrush(QBrush(face_grad))
     p.drawRoundedRect(face_rect, corner_r - 1, corner_r - 1)
 
     # Layer 4: Fine horizontal brushing lines (brushed steel texture)
-    brush_pen = QPen(QColor(180, 165, 130, int((8 + 12 * cf) * a)), 0.5)
+    brush_pen = QPen(QColor(190, 155, 125, int((8 + 12 * cf) * a)), 0.5)
     p.setPen(brush_pen)
     fy_start = int(face_rect.top()) + 2
     fy_end = int(face_rect.bottom()) - 2
@@ -696,13 +696,13 @@ def _draw_keyboard(p, cx, cy, R, mind, a, state: WifiPageState):
                    QPointF(face_rect.right() - 4, by))
 
     # Layer 5: Inner highlight (top edge catch light)
-    p.setPen(QPen(QColor(240, 225, 190, int((25 + 40 * cf) * a)),
+    p.setPen(QPen(QColor(248, 220, 190, int((25 + 40 * cf) * a)),
                   max(0.5, mind * 0.001)))
     p.setBrush(Qt.NoBrush)
     highlight_rect = face_rect.adjusted(1, 1, -1, -face_rect.height() * 0.6)
     p.drawRoundedRect(highlight_rect, corner_r - 2, corner_r - 2)
 
-    # Layer 6: "CONFIRM" — engraved serif, inlaid gold
+    # Layer 6: "CONFIRM" — engraved serif, inlaid rose-gold
     cf_font = QFont("DejaVu Serif", max(9, int(mind * 0.018)))
     cf_font.setBold(False)
     cf_font.setLetterSpacing(QFont.AbsoluteSpacing, max(4.0, mind * 0.014))
@@ -710,12 +710,12 @@ def _draw_keyboard(p, cx, cy, R, mind, a, state: WifiPageState):
     # Engraved shadow (recessed into the steel)
     p.setPen(QColor(0, 0, 0, int(140 * a)))
     p.drawText(confirm_rect.adjusted(0, 1.5, 0, 1.5), Qt.AlignCenter, "CONFIRM")
-    # Gold fill (inlaid lettering)
+    # Rose-gold fill (inlaid lettering)
     gold_a = int((200 + 55 * cf) * a)
-    p.setPen(QColor(218, 200, 155, gold_a))
+    p.setPen(QColor(200, 205, 220, gold_a))
     p.drawText(confirm_rect, Qt.AlignCenter, "CONFIRM")
     # Top highlight on letters (polished facet catch)
-    p.setPen(QColor(255, 248, 230, int((40 + 60 * cf) * a)))
+    p.setPen(QColor(255, 240, 225, int((40 + 60 * cf) * a)))
     p.drawText(confirm_rect.adjusted(0, -0.8, 0, -0.8), Qt.AlignCenter, "CONFIRM")
 
 

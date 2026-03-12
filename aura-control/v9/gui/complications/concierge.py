@@ -25,29 +25,28 @@ from PyQt5.QtGui import (
 from gui.complications.base import BaseComplication
 from gui.renderer import clamp
 
-# ── Palette ──────────────────────────────────────────────────────────
-_CHAMPAGNE  = lambda a=255: QColor(218, 200, 155, a)
-_IVORY      = lambda a=255: QColor(240, 234, 218, a)
-_DIM_GOLD   = lambda a=255: QColor(165, 152, 118, a)
-_AMETHYST   = lambda a=255: QColor(155, 120, 210, a)
-_DEEP_VIOLET = lambda a=255: QColor(80, 50, 140, a)
+# ── Palette (Patek 5271P — platinum on oxblood) ──────────────────────
+_CHAMPAGNE  = lambda a=255: QColor(210, 215, 228, a)   # platinum silver
+_IVORY      = lambda a=255: QColor(235, 238, 245, a)   # clean white-silver
+_DIM_GOLD   = lambda a=255: QColor(145, 150, 165, a)   # platinum dim
+_AMETHYST   = lambda a=255: QColor(190, 28, 35, a)     # ruby red
+_DEEP_VIOLET = lambda a=255: QColor(95, 12, 18, a)     # deep oxblood
 
-# Unified platinum-violet palette — all sub-dials share the same metal
-# family with only subtle accent-warmth shifts (classy, not busy).
-_METAL_HI   = QColor(228, 224, 240)   # platinum highlight
-_METAL_MID  = QColor(152, 142, 185)   # violet-silver mid
-_METAL_DARK = QColor(50, 44, 72)      # deep violet shadow
-_DIAL_DARK  = QColor(10, 7, 26)       # universal dial dark
-_DIAL_MID   = QColor(24, 16, 50)      # universal dial mid
+# Unified platinum palette — all sub-dials share cool silver metals
+_METAL_HI   = QColor(232, 236, 244)   # platinum highlight
+_METAL_MID  = QColor(168, 175, 188)   # platinum mid
+_METAL_DARK = QColor(55, 58, 68)      # platinum shadow
+_DIAL_DARK  = QColor(22, 4, 8)        # deep oxblood dark
+_DIAL_MID   = QColor(48, 8, 14)       # oxblood dial mid
 
-# Per-service: only the accent jewel shifts slightly within the violet family
+# Per-service: only the accent jewel shifts slightly within the warm family
 _SVC_ACCENT = {
-    "CHAT":      QColor(170, 145, 230),   # soft violet
-    "SCHEDULE":  QColor(185, 165, 215),   # warm lavender
-    "TRANSPORT": QColor(155, 150, 210),   # cool periwinkle
-    "MUSIC":     QColor(175, 150, 220),   # mid violet
-    "WEATHER":   QColor(160, 155, 215),   # blue-violet
-    "MEMORY":    QColor(180, 170, 210),   # silver-lavender
+    "CHAT":      QColor(220, 75, 60),     # rosso corsa
+    "SCHEDULE":  QColor(225, 155, 95),     # warm amber
+    "TRANSPORT": QColor(200, 65, 55),      # darker red
+    "MUSIC":     QColor(235, 120, 75),     # warm orange-red
+    "WEATHER":   QColor(215, 145, 85),     # amber
+    "MEMORY":    QColor(210, 105, 80),     # warm sienna
 }
 
 # Service definitions: (label, angle_degrees, active)
@@ -74,9 +73,9 @@ class ConciergeComplication(BaseComplication):
     # ------------------------------------------------------------------
     def draw_content(self, p: "QPainter", inner: float, t: float, accent: QColor) -> None:
         _draw_curved_text(p, "AURA", inner * 0.58, top=True,
-                          color=QColor(235, 225, 248, 235), inner=inner)
+                          color=QColor(235, 238, 245, 235), inner=inner)
         _draw_curved_text(p, "CONCIERGE", inner * 0.58, top=False,
-                          color=QColor(235, 225, 248, 215), inner=inner)
+                          color=QColor(235, 238, 245, 215), inner=inner)
         _draw_concierge_icon(p, inner, t, accent)
 
     # ------------------------------------------------------------------
@@ -93,12 +92,12 @@ class ConciergeComplication(BaseComplication):
             R_bg = mind * 0.333         # 10% smaller than 0.37
             R = mind * 0.234            # 10% smaller than 0.26
 
-            # ── Deep enamel backdrop ─────────────────────────────────
+            # ── Deep enamel backdrop (carbon) ──────────────────────────
             bg = QRadialGradient(cx, cy, R_bg)
-            bg.setColorAt(0.00, QColor(16, 10, 34, int(254 * a)))
-            bg.setColorAt(0.35, QColor(12, 6, 28, int(252 * a)))
-            bg.setColorAt(0.65, QColor(8, 4, 20, int(240 * a)))
-            bg.setColorAt(0.85, QColor(4, 2, 12, int(180 * a)))
+            bg.setColorAt(0.00, QColor(28, 6, 10, int(254 * a)))
+            bg.setColorAt(0.35, QColor(20, 4, 8, int(252 * a)))
+            bg.setColorAt(0.65, QColor(12, 2, 5, int(240 * a)))
+            bg.setColorAt(0.85, QColor(6, 1, 3, int(180 * a)))
             bg.setColorAt(1.00, QColor(0, 0, 0, 0))
             p.setPen(Qt.NoPen)
             p.setBrush(QBrush(bg))
@@ -109,7 +108,7 @@ class ConciergeComplication(BaseComplication):
             p.save()
             p.translate(cx, cy)
             p.rotate(gu_rot)
-            gu_pen = QPen(QColor(155, 130, 200, int(14 * a)), max(0.4, R * 0.002))
+            gu_pen = QPen(QColor(120, 18, 25, int(14 * a)), max(0.4, R * 0.002))
             p.setPen(gu_pen)
             for i in range(72):
                 angle = (2 * math.pi * i) / 72
@@ -121,7 +120,7 @@ class ConciergeComplication(BaseComplication):
                 p.drawLine(QPointF(x1, y1), QPointF(x2, y2))
 
             # Concentric rings (counter-rotating)
-            ring_pen = QPen(QColor(140, 110, 190, int(10 * a)), 0.4)
+            ring_pen = QPen(QColor(100, 15, 22, int(10 * a)), 0.4)
             p.setPen(ring_pen)
             for frac in (0.25, 0.45, 0.65, 0.85, 1.05, 1.25):
                 rr = R * frac
@@ -223,9 +222,9 @@ def _draw_tourbillon(p, cx, cy, R, mind, t, a):
 
     # Recessed sub-dial
     cage_bg = QRadialGradient(0, 0, cage_r * 1.4)
-    cage_bg.setColorAt(0.0, QColor(22, 14, 42, int(230 * a)))
-    cage_bg.setColorAt(0.6, QColor(14, 8, 30, int(220 * a)))
-    cage_bg.setColorAt(1.0, QColor(6, 3, 16, int(200 * a)))
+    cage_bg.setColorAt(0.0, QColor(32, 6, 12, int(230 * a)))
+    cage_bg.setColorAt(0.6, QColor(20, 4, 8, int(220 * a)))
+    cage_bg.setColorAt(1.0, QColor(10, 2, 4, int(200 * a)))
     p.setPen(Qt.NoPen)
     p.setBrush(QBrush(cage_bg))
     p.drawEllipse(QPointF(0, 0), cage_r * 1.4, cage_r * 1.4)
@@ -233,7 +232,7 @@ def _draw_tourbillon(p, cx, cy, R, mind, t, a):
     # Guilloché inside cage
     p.save()
     p.rotate(-cage_rot * 0.3)
-    gu_pen = QPen(QColor(140, 110, 190, int(12 * a)), 0.3)
+    gu_pen = QPen(QColor(100, 15, 22, int(12 * a)), 0.3)
     p.setPen(gu_pen)
     for i in range(24):
         ang = (2 * math.pi * i) / 24
@@ -245,9 +244,9 @@ def _draw_tourbillon(p, cx, cy, R, mind, t, a):
     # Cage bezel (polished)
     bezel_g = QLinearGradient(QPointF(-cage_r * 1.4, -cage_r * 1.4),
                               QPointF(cage_r * 1.4, cage_r * 1.4))
-    bezel_g.setColorAt(0.0, QColor(200, 180, 240, int(140 * a)))
-    bezel_g.setColorAt(0.5, QColor(90, 60, 150, int(80 * a)))
-    bezel_g.setColorAt(1.0, QColor(180, 160, 220, int(120 * a)))
+    bezel_g.setColorAt(0.0, QColor(225, 230, 240, int(140 * a)))
+    bezel_g.setColorAt(0.5, QColor(90, 95, 108, int(80 * a)))
+    bezel_g.setColorAt(1.0, QColor(210, 215, 228, int(120 * a)))
     p.setPen(QPen(QBrush(bezel_g), max(2.0, mind * 0.003)))
     p.setBrush(Qt.NoBrush)
     p.drawEllipse(QPointF(0, 0), cage_r * 1.4, cage_r * 1.4)
@@ -284,9 +283,9 @@ def _draw_tourbillon(p, cx, cy, R, mind, t, a):
     breathe = 0.55 + 0.45 * math.sin(t * 1.8)
     jewel_r = max(4.0, mind * 0.011)
     jg = QRadialGradient(cx - jewel_r * 0.3, cy - jewel_r * 0.3, jewel_r)
-    jg.setColorAt(0.0, QColor(230, 210, 255, int(245 * a * breathe)))
-    jg.setColorAt(0.4, QColor(175, 140, 230, int(210 * a * breathe)))
-    jg.setColorAt(1.0, QColor(90, 55, 160, int(150 * a)))
+    jg.setColorAt(0.0, QColor(255, 220, 225, int(245 * a * breathe)))
+    jg.setColorAt(0.4, QColor(195, 30, 38, int(210 * a * breathe)))
+    jg.setColorAt(1.0, QColor(120, 15, 20, int(150 * a)))
     p.setPen(Qt.NoPen)
     p.setBrush(QBrush(jg))
     p.drawEllipse(QPointF(cx, cy), jewel_r, jewel_r)
@@ -620,8 +619,8 @@ def _draw_concierge_icon(p: "QPainter", inner: float, t: float, accent: QColor):
     p.save()
     p.rotate(breathe)
 
-    col = QColor(155, 120, 210, 200)
-    hi_col = QColor(195, 170, 235, 160)
+    col = QColor(190, 28, 35, 200)      # ruby red
+    hi_col = QColor(215, 220, 232, 160)  # platinum highlight
 
     pen = QPen(col)
     pen.setWidthF(max(1.4, kr * 0.09))

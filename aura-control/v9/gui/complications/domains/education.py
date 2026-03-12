@@ -39,7 +39,7 @@ class EducationComplication(BaseDomainComplication):
         # Compact atom icon for the perimeter glyph
         rr = inner * 0.55
         # Orbit ellipses
-        pen = QPen(QColor(60, 185, 255, 140))
+        pen = QPen(QColor(255, 165, 60, 140))
         pen.setWidthF(max(1.0, inner * 0.025))
         pen.setCapStyle(Qt.RoundCap)
         p.setPen(pen)
@@ -52,7 +52,7 @@ class EducationComplication(BaseDomainComplication):
 
         # Nucleus dot
         p.setPen(Qt.NoPen)
-        p.setBrush(QColor(180, 240, 255, 200))
+        p.setBrush(QColor(255, 225, 180, 200))
         nr = inner * 0.10
         p.drawEllipse(QPointF(0, 0), nr, nr)
 
@@ -71,9 +71,9 @@ class EducationComplication(BaseDomainComplication):
             # --- DEEP SPACE BACKDROP ---
             R_bg = mind * 0.414
             bg_grad = QRadialGradient(cx, cy, R_bg)
-            bg_grad.setColorAt(0.00, QColor(3, 8, 22, int(248 * a)))
-            bg_grad.setColorAt(0.55, QColor(5, 14, 38, int(222 * a)))
-            bg_grad.setColorAt(0.88, QColor(2, 5, 16, int(110 * a)))
+            bg_grad.setColorAt(0.00, QColor(22, 8, 4, int(248 * a)))
+            bg_grad.setColorAt(0.55, QColor(28, 12, 6, int(222 * a)))
+            bg_grad.setColorAt(0.88, QColor(14, 5, 3, int(110 * a)))
             bg_grad.setColorAt(1.00, QColor(0, 0, 0, 0))
             p.setPen(Qt.NoPen)
             p.setBrush(QBrush(bg_grad))
@@ -86,27 +86,27 @@ class EducationComplication(BaseDomainComplication):
 
             # Outer ambient field
             amb = QRadialGradient(cx, cy, R * 0.52)
-            amb.setColorAt(0.00, QColor(20, 160, 255, int(38 * a)))
-            amb.setColorAt(0.45, QColor(8, 100, 200, int(20 * a)))
-            amb.setColorAt(1.00, QColor(0, 40, 120, 0))
+            amb.setColorAt(0.00, QColor(255, 160, 40, int(38 * a)))
+            amb.setColorAt(0.45, QColor(200, 100, 20, int(20 * a)))
+            amb.setColorAt(1.00, QColor(120, 50, 0, 0))
             p.setBrush(QBrush(amb))
             p.drawEllipse(QPointF(cx, cy), R * 0.52, R * 0.52)
 
             # Inner halo — second corona
             corona2_r = nuc_r * 5.2 * (1.0 + 0.12 * math.sin(2.0 * math.pi * local_t * 0.22 + 1.0))
             ihalo = QRadialGradient(cx, cy, corona2_r)
-            ihalo.setColorAt(0.00, QColor(100, 222, 255, int(115 * a)))
-            ihalo.setColorAt(0.40, QColor(48, 175, 255, int(68 * a)))
-            ihalo.setColorAt(1.00, QColor(0, 80, 180, 0))
+            ihalo.setColorAt(0.00, QColor(255, 195, 100, int(115 * a)))
+            ihalo.setColorAt(0.40, QColor(255, 150, 48, int(68 * a)))
+            ihalo.setColorAt(1.00, QColor(180, 80, 0, 0))
             p.setBrush(QBrush(ihalo))
             p.drawEllipse(QPointF(cx, cy), corona2_r, corona2_r)
 
             # Core bright nucleus
             core_g = QRadialGradient(cx, cy - nuc_r * 0.28, nuc_r * 0.5)
             core_g.setColorAt(0.00, QColor(255, 255, 255, int(255 * a)))
-            core_g.setColorAt(0.32, QColor(200, 242, 255, int(220 * a)))
-            core_g.setColorAt(0.68, QColor(80, 200, 255, int(148 * a)))
-            core_g.setColorAt(1.00, QColor(18, 100, 220, int(55 * a)))
+            core_g.setColorAt(0.32, QColor(255, 230, 195, int(220 * a)))
+            core_g.setColorAt(0.68, QColor(255, 185, 80, int(148 * a)))
+            core_g.setColorAt(1.00, QColor(220, 100, 18, int(55 * a)))
             p.setBrush(QBrush(core_g))
             p.drawEllipse(QPointF(cx, cy), nuc_r, nuc_r)
 
@@ -120,7 +120,7 @@ class EducationComplication(BaseDomainComplication):
                 py2 = cy + p_orb_r * math.sin(pa) * 0.52
                 pv = 0.68 + 0.32 * math.sin(pa * 2 + local_t * 1.3)
                 p.setPen(Qt.NoPen)
-                p.setBrush(QColor(180, 240, 255, int(165 * a * pv)))
+                p.setBrush(QColor(255, 225, 175, int(165 * a * pv)))
                 p.drawEllipse(QPointF(px2, py2), nuc_r * 0.23, nuc_r * 0.23)
 
             # --- ENERGY PULSE RINGS ---
@@ -133,7 +133,7 @@ class EducationComplication(BaseDomainComplication):
                     pulse_a = int(130 * a * (1.0 - pf) ** 2.2)
                     pw = max(0.5, 1.8 * (1.0 - pf * 0.7))
                     if pulse_a > 3:
-                        p.setPen(QPen(QColor(60, 185, 255, pulse_a), pw))
+                        p.setPen(QPen(QColor(255, 165, 60, pulse_a), pw))
                         p.setBrush(Qt.NoBrush)
                         p.drawEllipse(QPointF(cx, cy), pulse_r, pulse_r)
 
@@ -144,7 +144,7 @@ class EducationComplication(BaseDomainComplication):
             try:
                 p.translate(cx, cy)
                 p.rotate(ring_rot_deg)
-                p.setPen(QPen(QColor(60, 180, 255, int(52 * a)), 0.8))
+                p.setPen(QPen(QColor(255, 160, 60, int(52 * a)), 0.8))
                 p.setBrush(Qt.NoBrush)
                 p.drawEllipse(QPointF(0, 0), outer_ring_r, outer_ring_r)
                 for ti in range(24):
@@ -153,7 +153,7 @@ class EducationComplication(BaseDomainComplication):
                     r_in = outer_ring_r * (0.92 if is_major else 0.96)
                     r_out = outer_ring_r * (1.08 if is_major else 1.04)
                     tick_a = int((78 if is_major else 42) * a)
-                    p.setPen(QPen(QColor(80, 200, 255, tick_a), 0.7))
+                    p.setPen(QPen(QColor(255, 180, 80, tick_a), 0.7))
                     p.drawLine(
                         QPointF(r_in * math.cos(ang_t), r_in * math.sin(ang_t)),
                         QPointF(r_out * math.cos(ang_t), r_out * math.sin(ang_t))
@@ -170,10 +170,10 @@ class EducationComplication(BaseDomainComplication):
                 (-54.0, 0.89, 0.31, 1, 0.56),   # 2p₂
             ]
             e_colors = [
-                (210, 245, 255),   # 1s: near-white cyan
-                (40, 190, 255),    # 2s: sky blue
-                (80, 222, 255),    # 2p₁: ice cyan
-                (18, 158, 240),    # 2p₂: ocean blue
+                (255, 235, 210),   # 1s: near-white warm
+                (255, 175, 40),    # 2s: amber
+                (255, 200, 80),    # 2p₁: golden
+                (240, 145, 18),    # 2p₂: deep amber
             ]
             TAIL = 16
             TAIL_ARC = 0.44
@@ -247,7 +247,7 @@ class EducationComplication(BaseDomainComplication):
                     )
                     dot_ap = int(52 * a * twinkle)
                     if dot_ap > 3:
-                        p.setBrush(QColor(100, 200, 255, dot_ap))
+                        p.setBrush(QColor(255, 185, 100, dot_ap))
                         p.drawEllipse(QPointF(px3, py3), 1.4, 1.4)
 
             finally:
@@ -256,7 +256,7 @@ class EducationComplication(BaseDomainComplication):
             # --- ELEMENT LABEL ---
             lbl_a = int(108 * a)
             if lbl_a > 4:
-                p.setPen(QColor(160, 228, 255, lbl_a))
+                p.setPen(QColor(255, 218, 165, lbl_a))
                 f = QFont("Helvetica", max(10, int(mind * 0.017)))
                 f.setBold(False)
                 f.setLetterSpacing(QFont.AbsoluteSpacing, 3.5)

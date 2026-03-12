@@ -96,12 +96,12 @@ class AuraNetComplication(BaseDomainComplication):
             p.setRenderHint(p.Antialiasing, True)
 
             R = mind * 0.40
-            accent = QColor(95, 185, 255)
+            accent = QColor(255, 165, 95)
 
             # --- Backdrop ---
             bg = QRadialGradient(cx, cy, R)
-            bg.setColorAt(0.00, QColor(4, 10, 26, int(245 * a)))
-            bg.setColorAt(0.60, QColor(3, 8, 20, int(225 * a)))
+            bg.setColorAt(0.00, QColor(18, 8, 6, int(245 * a)))
+            bg.setColorAt(0.60, QColor(14, 6, 4, int(225 * a)))
             bg.setColorAt(1.00, QColor(0, 0, 0, 0))
             p.setPen(Qt.NoPen)
             p.setBrush(QBrush(bg))
@@ -116,7 +116,7 @@ class AuraNetComplication(BaseDomainComplication):
             f_head = QFont("Helvetica", max(8, int(R * 0.072)))
             f_head.setBold(True)
             p.setFont(f_head)
-            p.setPen(QColor(215, 228, 248, int(240 * a)))
+            p.setPen(QColor(248, 225, 215, int(240 * a)))
             p.drawText(
                 QRectF(cx - R * 0.80, cy - R * 0.90, R * 1.60, R * 0.14),
                 Qt.AlignCenter, "A U R A N E T"
@@ -126,7 +126,7 @@ class AuraNetComplication(BaseDomainComplication):
             f_stat = QFont("Helvetica", max(6, int(R * 0.050)))
             f_stat.setBold(True)
             p.setFont(f_stat)
-            p.setPen(QColor(150, 200, 245, int(200 * a)))
+            p.setPen(QColor(210, 215, 228, int(200 * a)))
             stats_str = f"{_ACTIVE_USERS:,} users  \u00b7  {_REGIONS} regions  \u00b7  {_CONNECTIONS_TODAY:,} new"
             p.drawText(
                 QRectF(cx - R * 0.85, cy - R * 0.76, R * 1.70, R * 0.10),
@@ -167,7 +167,7 @@ class AuraNetComplication(BaseDomainComplication):
                 py = graph_cy + (y0_n + (y1_n - y0_n) * frac) * graph_r
                 pa = int(200 * a * (1.0 - abs(frac - 0.5) * 2.0))
                 p.setPen(Qt.NoPen)
-                p.setBrush(QColor(200, 230, 255, pa))
+                p.setBrush(QColor(255, 220, 195, pa))
                 pr = max(1.5, R * 0.012)
                 p.drawEllipse(QPointF(px, py), pr, pr)
 
@@ -200,7 +200,7 @@ class AuraNetComplication(BaseDomainComplication):
 
                 # White core for brighter nodes
                 if w > 0.6:
-                    p.setBrush(QColor(220, 240, 255, int(120 * a * w)))
+                    p.setBrush(QColor(255, 235, 215, int(120 * a * w)))
                     p.drawEllipse(QPointF(node_x, node_y), node_r * 0.4, node_r * 0.4)
 
             # --- Trending topics list (lower half) ---
@@ -223,7 +223,7 @@ class AuraNetComplication(BaseDomainComplication):
                 bar_w = R * 1.44
                 bar_h = row_h * 0.55
                 p.setPen(Qt.NoPen)
-                p.setBrush(QColor(30, 50, 80, int(60 * row_a)))
+                p.setBrush(QColor(65, 38, 28, int(60 * row_a)))
                 p.drawRoundedRect(QRectF(bar_x, ry, bar_w, bar_h),
                                   R * 0.008, R * 0.008)
 
@@ -237,13 +237,13 @@ class AuraNetComplication(BaseDomainComplication):
 
                 # Topic name
                 p.setFont(f_topic)
-                p.setPen(QColor(215, 228, 248, int(230 * row_a)))
+                p.setPen(QColor(248, 225, 215, int(230 * row_a)))
                 name_rect = QRectF(bar_x + R * 0.04, ry, bar_w * 0.65, bar_h)
                 p.drawText(name_rect, Qt.AlignVCenter | Qt.AlignLeft, topic)
 
                 # Count
                 p.setFont(f_count)
-                p.setPen(QColor(160, 200, 240, int(170 * row_a)))
+                p.setPen(QColor(240, 195, 160, int(170 * row_a)))
                 cnt_rect = QRectF(bar_x + bar_w * 0.70, ry, bar_w * 0.26, bar_h)
                 p.drawText(cnt_rect, Qt.AlignVCenter | Qt.AlignRight,
                            f"{count} users")

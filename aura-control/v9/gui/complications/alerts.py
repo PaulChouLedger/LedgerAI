@@ -30,7 +30,7 @@ _SEVERITY_WARN = 1
 _SEVERITY_CRIT = 2
 
 _SEVERITY_COLORS = {
-    _SEVERITY_INFO: QColor(60, 175, 255),     # blue
+    _SEVERITY_INFO: QColor(210, 155, 100),     # blue
     _SEVERITY_WARN: QColor(245, 180, 50),      # amber
     _SEVERITY_CRIT: QColor(225, 75, 65),        # red
 }
@@ -51,7 +51,7 @@ _DEMO_ALERTS = [
 
 # Demo gauge values for system health
 _DEMO_GAUGES = [
-    {"label": "CPU",  "value": 0.62, "color": QColor(60, 175, 255)},
+    {"label": "CPU",  "value": 0.62, "color": QColor(210, 155, 100)},
     {"label": "MEM",  "value": 0.78, "color": QColor(245, 180, 50)},
     {"label": "NET",  "value": 0.35, "color": QColor(90, 200, 130)},
 ]
@@ -91,7 +91,7 @@ class AlertsComplication(BaseComplication):
         # Severity arc (blue → red interpolation)
         w = max(2.0, inner * (0.082 + 0.022 * sev))
         hot = QColor(255, 90, 80)
-        cool = QColor(60, 175, 255)
+        cool = QColor(210, 155, 100)
         cr = int(cool.red()   + (hot.red()   - cool.red())   * sev)
         cg = int(cool.green() + (hot.green() - cool.green()) * sev)
         cb = int(cool.blue()  + (hot.blue()  - cool.blue())  * sev)
@@ -138,16 +138,16 @@ class AlertsComplication(BaseComplication):
         p.drawEllipse(QPointF(0, 0), core, core)
 
         # Applied "!" severity marker
-        p.setPen(QPen(QColor(235, 240, 250, 200), max(1.2, inner * 0.028)))
+        p.setPen(QPen(QColor(248, 228, 218, 200), max(1.2, inner * 0.028)))
         p.drawLine(QPointF(0, -inner * 0.18), QPointF(0, -inner * 0.05))
         p.setPen(Qt.NoPen)
-        p.setBrush(QBrush(QColor(235, 240, 250, 210)))
+        p.setBrush(QBrush(QColor(248, 228, 218, 210)))
         p.drawEllipse(QPointF(0, -inner * 0.02), inner * 0.018, inner * 0.018)
 
         # --- Count window (date style) ---
         win = QRectF(-inner * 0.44, inner * 0.20, inner * 0.88, inner * 0.24)
         p.setPen(QPen(QColor(0, 0, 0, 140), max(1.0, inner * 0.018)))
-        p.setBrush(QBrush(QColor(10, 12, 18, 180)))
+        p.setBrush(QBrush(QColor(14, 8, 8, 180)))
         p.drawRoundedRect(win, inner * 0.06, inner * 0.06)
 
         cnt = int(1 + round(9 * sev + 3 * flare))
@@ -169,7 +169,7 @@ class AlertsComplication(BaseComplication):
         hdr = QRectF(-inner, -inner * 0.74, 2 * inner, inner * 0.26)
         p.setPen(QColor(0, 0, 0, 150))
         p.drawText(hdr.translated(off, off), Qt.AlignCenter, lvl)
-        p.setPen(QColor(235, 242, 255, 235))
+        p.setPen(QColor(232, 235, 242, 235))
         p.drawText(hdr, Qt.AlignCenter, lvl)
 
     # ------------------------------------------------------------------
@@ -201,8 +201,8 @@ class AlertsComplication(BaseComplication):
             coral_mid   = QColor(225, 95, 85, A2)
             coral_faint = QColor(225, 95, 85, A3)
 
-            base_dark = QColor(14, 12, 16, int(220 * trans))
-            mid_dark  = QColor(24, 20, 26, int(210 * trans))
+            base_dark = QColor(16, 8, 8, int(220 * trans))
+            mid_dark  = QColor(28, 16, 16, int(210 * trans))
 
             # ----- Helpers -----
             def draw_radial_glow(radius, alpha):
@@ -327,7 +327,7 @@ class AlertsComplication(BaseComplication):
             # Severity badge
             sev_label = "CRITICAL" if max_sev == _SEVERITY_CRIT else (
                 "WARNING" if max_sev == _SEVERITY_WARN else "ALL CLEAR")
-            sev_color = _SEVERITY_COLORS.get(max_sev, QColor(60, 175, 255))
+            sev_color = _SEVERITY_COLORS.get(max_sev, QColor(210, 155, 100))
 
             badge_font = QFont("DejaVu Sans", max(9, int(mind * 0.017)))
             badge_font.setBold(True)
@@ -371,7 +371,7 @@ class AlertsComplication(BaseComplication):
 
             for idx, alert in enumerate(_DEMO_ALERTS):
                 row_y = list_top + idx * row_h
-                sev_col = _SEVERITY_COLORS.get(alert["sev"], QColor(60, 175, 255))
+                sev_col = _SEVERITY_COLORS.get(alert["sev"], QColor(210, 155, 100))
                 row_alpha = trans * (0.95 - idx * 0.06)  # subtle fade for depth
 
                 # Row background (subtle separator)
@@ -409,7 +409,7 @@ class AlertsComplication(BaseComplication):
                            Qt.AlignLeft | Qt.AlignVCenter, alert["msg"])
                 # Text
                 text_a = int(215 * row_alpha)
-                p.setPen(QColor(235, 240, 250, text_a))
+                p.setPen(QColor(248, 228, 218, text_a))
                 p.drawText(msg_rect, Qt.AlignLeft | Qt.AlignVCenter, alert["msg"])
 
                 # Relative time
@@ -488,7 +488,7 @@ class AlertsComplication(BaseComplication):
 
                 # Label below gauge
                 p.setFont(health_font)
-                p.setPen(QColor(235, 240, 250, int(150 * trans)))
+                p.setPen(QColor(248, 228, 218, int(150 * trans)))
                 p.drawText(QRectF(gx - gauge_r * 1.5, gy + gauge_r * 0.6,
                                   gauge_r * 3, gauge_r * 0.8),
                            Qt.AlignCenter, gauge["label"])

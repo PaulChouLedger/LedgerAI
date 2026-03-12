@@ -145,9 +145,9 @@ class MedicalComplication(BaseDomainComplication):
             # ---- Deep background ----
             R_bg = mind * 0.44
             bg_grad = QRadialGradient(cx, cy, R_bg)
-            bg_grad.setColorAt(0.00, QColor(10, 2, 18, int(240 * a)))
-            bg_grad.setColorAt(0.40, QColor(6, 1, 12, int(210 * a)))
-            bg_grad.setColorAt(0.80, QColor(2, 0, 6, int(100 * a)))
+            bg_grad.setColorAt(0.00, QColor(18, 6, 6, int(240 * a)))
+            bg_grad.setColorAt(0.40, QColor(12, 4, 4, int(210 * a)))
+            bg_grad.setColorAt(0.80, QColor(6, 2, 2, int(100 * a)))
             bg_grad.setColorAt(1.00, QColor(0, 0, 0, 0))
             p.setPen(Qt.NoPen)
             p.setBrush(QBrush(bg_grad))
@@ -295,7 +295,7 @@ class MedicalComplication(BaseDomainComplication):
                         idx_b = int((si * 17 + 5 + int(elapsed * 0.5)) % len(all_verts))
                         if idx_a != idx_b:
                             sa_col = int(50 * strut_alpha * a)
-                            sp = QPen(QColor(120, 200, 255, sa_col))
+                            sp = QPen(QColor(255, 185, 120, sa_col))
                             sp.setWidthF(max(0.5, hr * 0.006))
                             p.setPen(sp)
                             ax, ay = all_verts[idx_a]
@@ -338,7 +338,7 @@ class MedicalComplication(BaseDomainComplication):
                 scan_y = -hr * 0.9 + scan_u * hr * 1.8
                 scan_alpha = int(40 * a * (1.0 - abs(scan_u - 0.5) * 2.0))
                 if scan_alpha > 3:
-                    scan_pen = QPen(QColor(100, 200, 255, scan_alpha))
+                    scan_pen = QPen(QColor(255, 185, 100, scan_alpha))
                     scan_pen.setWidthF(max(0.8, hr * 0.008))
                     p.setPen(scan_pen)
                     p.drawLine(QPointF(-hr * 0.8, scan_y), QPointF(hr * 0.8, scan_y))
@@ -385,10 +385,10 @@ class MedicalComplication(BaseDomainComplication):
                 trace_len = trace_x_end - trace_x_start
 
                 trace_colors = [
-                    QColor(80, 255, 180, int(140 * trace_a * a)),
+                    QColor(255, 200, 80, int(140 * trace_a * a)),
                     QColor(255, 120, 80, int(120 * trace_a * a)),
-                    QColor(80, 180, 255, int(130 * trace_a * a)),
-                    QColor(255, 200, 80, int(110 * trace_a * a)),
+                    QColor(255, 165, 80, int(130 * trace_a * a)),
+                    QColor(255, 180, 100, int(110 * trace_a * a)),
                 ]
                 ekg_col = trace_colors[trace_i]
                 ep = QPen(ekg_col)
@@ -416,7 +416,7 @@ class MedicalComplication(BaseDomainComplication):
                 p.setFont(f_data)
 
                 bpm_display = int(bpm + 3.0 * math.sin(elapsed * 2.0) * irregularity)
-                bpm_col = QColor(80, 255, 180, data_a) if phase in ("healthy", "intro", "recovery") else (
+                bpm_col = QColor(255, 200, 80, data_a) if phase in ("healthy", "intro", "recovery") else (
                     QColor(255, 180, 80, data_a) if phase == "arrhythmia" else QColor(255, 60, 60, data_a)
                 )
                 p.setPen(bpm_col)
@@ -429,7 +429,7 @@ class MedicalComplication(BaseDomainComplication):
                         int(lerp(88, 72, phase_u * 0.5)) if phase == "fibrillation" else int(lerp(78, 97, ease_in_out(phase_u)))
                     )
                 )
-                spo2_col = QColor(80, 200, 255, data_a) if spo2 > 90 else QColor(255, 100, 60, data_a)
+                spo2_col = QColor(255, 185, 80, data_a) if spo2 > 90 else QColor(255, 100, 60, data_a)
                 p.setPen(spo2_col)
                 p.drawText(QPointF(bpm_x, bpm_y + mind * 0.025), f"SpO2: {spo2}%")
 

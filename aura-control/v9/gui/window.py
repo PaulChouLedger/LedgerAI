@@ -32,7 +32,7 @@ from gui.renderer import (
     clamp, lerp, ease_in_out,
     make_celestial_stars, make_particles,
     draw_celestial, draw_chapter_ticks, draw_center_ring,
-    draw_mist, draw_rings, draw_mute_wash,
+    draw_mist, draw_nebula, draw_rings, draw_mute_wash,
 )
 from gui.shutdown_overlay import ShutdownOverlay
 from gui.touch import (
@@ -74,7 +74,7 @@ class AuraWindow(QWidget):
         self.setAttribute(Qt.WA_NoSystemBackground, True)
         self.setAttribute(Qt.WA_AcceptTouchEvents, True)
         self.setAutoFillBackground(False)
-        self.setStyleSheet("background-color: black;")
+        self.setStyleSheet("background-color: #6E0E16;")
         self.resize(SCREEN_W, SCREEN_H)
 
         # Boot mode state
@@ -501,6 +501,9 @@ class AuraWindow(QWidget):
         try:
             p.setRenderHint(QPainter.Antialiasing)
 
+            # Fill ruby BEFORE rotation so no black corners leak through
+            p.fillRect(0, 0, W, H, QColor(110, 14, 22))
+
             # Apply fixed hardware display rotation (invariant for ALL modes)
             _hw_angle = float(FIXED_ROTATION_DEG or 0.0)
             if _hw_angle != 0.0:
@@ -573,12 +576,15 @@ class AuraWindow(QWidget):
                 p.drawPixmap(0, 0, bg)
             else:
                 p.setPen(Qt.NoPen)
-                p.setBrush(QColor(10, 18, 38))
+                p.setBrush(QColor(110, 14, 22))
                 p.drawRect(0, 0, W, H)
         else:
             p.setPen(Qt.NoPen)
-            p.setBrush(QColor(10, 18, 38))
+            p.setBrush(QColor(110, 14, 22))
             p.drawRect(0, 0, W, H)
+
+        # --- Layer 1b: Subtle shifting nebula ---
+        draw_nebula(p, cx, cy, mind, t)
 
         # --- Layer 2: Celestial starfield ---
         if self._stars is not None:

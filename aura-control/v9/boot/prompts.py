@@ -74,8 +74,8 @@ FIRST_BOOT_SCRIPT: list[BootPrompt] = [
         phase_name="greeting",
         wav_file="greeting_first.wav",
         progress_text="Welcome to Aura",
-        pause_before=0.0,         # no pause — jump right in after identification
-        pause_after=2.5,         # breathing room after greeting
+        pause_before=5.0,         # let music breathe after failed identification
+        pause_after=4.0,         # generous breathing room after greeting
     ),
     BootPrompt(
         phase_name="ask_name",
@@ -85,32 +85,32 @@ FIRST_BOOT_SCRIPT: list[BootPrompt] = [
         timeout_s=12.0,
         fallback_wav="no_name_fallback.wav",
         progress_text="What is your name?",
-        pause_before=3.0,
-        pause_after=0.5,
+        pause_before=8.0,
+        pause_after=0.8,
     ),
     BootPrompt(
         phase_name="confirm_name",
         wav_file="confirm_name.wav",
         progress_text="Confirming identity",
-        pause_before=3.0,
-        pause_after=2.0,
+        pause_before=5.0,
+        pause_after=3.0,
     ),
     BootPrompt(
         phase_name="ask_voice_sample",
         wav_file="ask_voice_sample.wav",
         response_type=ResponseType.VOICE_SAMPLE,
-        capture_max_s=8.0,
-        timeout_s=12.0,
+        capture_max_s=10.0,
+        timeout_s=14.0,
         fallback_wav="no_voice_fallback.wav",
         progress_text="Voice enrollment",
-        pause_before=3.0,
-        pause_after=0.5,
+        pause_before=6.0,
+        pause_after=1.0,
     ),
     BootPrompt(
         phase_name="enrollment_done",
         wav_file="enrollment_done.wav",
         progress_text="Setting up your profile",
-        pause_before=3.0,
+        pause_before=5.0,
     ),
 ]
 
@@ -124,10 +124,10 @@ RETURNING_USER_SCRIPT: list[BootPrompt] = [
         phase_name="identify",
         wav_file="greeting_natural.wav",
         response_type=ResponseType.VOICE_SAMPLE,
-        capture_max_s=5.0,
-        timeout_s=8.0,
+        capture_max_s=8.0,
+        timeout_s=10.0,
         progress_text="Welcome",
-        pause_before=0.5,         # minimal — get to greeting fast
-        pause_after=0.3,
+        pause_before=2.0,         # let music establish before greeting
+        pause_after=1.5,          # breathing room before mic opens
     ),
 ]

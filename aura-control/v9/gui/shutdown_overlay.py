@@ -140,7 +140,7 @@ class ShutdownOverlay:
             (1.02, 0.012, 35),   # middle brushed
             (0.98, 0.006, 55),   # inner polished
         ]):
-            pen = QPen(QColor(200, 175, 130, int(alpha * tr)))
+            pen = QPen(QColor(180, 185, 200, int(alpha * tr)))
             pen.setWidthF(max(1.0, mind * width_frac))
             p.setPen(pen)
             p.setBrush(Qt.NoBrush)
@@ -160,7 +160,7 @@ class ShutdownOverlay:
                 dx = cx + ring_r * math.cos(a)
                 dy = cy + ring_r * math.sin(a)
                 dot_r = max(0.5, mind * 0.0015)
-                p.setBrush(QColor(180, 155, 110, dot_alpha))
+                p.setBrush(QColor(165, 170, 188, dot_alpha))
                 p.drawEllipse(QPointF(dx, dy), dot_r, dot_r)
 
         # ================================================================
@@ -173,7 +173,7 @@ class ShutdownOverlay:
             outer = R * 0.96
             w = mind * (0.004 if major else 0.002)
             alpha = int((50 if major else 25) * tr)
-            p.setPen(QPen(QColor(200, 175, 130, alpha), w, Qt.SolidLine, Qt.RoundCap))
+            p.setPen(QPen(QColor(180, 185, 200, alpha), w, Qt.SolidLine, Qt.RoundCap))
             x0 = cx + inner * math.cos(a)
             y0 = cy - inner * math.sin(a)
             x1 = cx + outer * math.cos(a)
@@ -187,7 +187,7 @@ class ShutdownOverlay:
         arc_w = max(6.0, mind * 0.032)
 
         # Dark track
-        track_pen = QPen(QColor(40, 25, 15, int(140 * tr)))
+        track_pen = QPen(QColor(30, 25, 35, int(140 * tr)))
         track_pen.setWidthF(arc_w)
         track_pen.setCapStyle(Qt.FlatCap)
         p.setPen(track_pen)
@@ -239,9 +239,9 @@ class ShutdownOverlay:
                                       marker_w, marker_h), 1, 1)
             # Polished face
             face_grad = QLinearGradient(0, -marker_h/2, 0, marker_h/2)
-            face_grad.setColorAt(0.0, QColor(240, 225, 190, int(200 * tr)))
-            face_grad.setColorAt(0.5, QColor(180, 155, 110, int(160 * tr)))
-            face_grad.setColorAt(1.0, QColor(220, 200, 160, int(190 * tr)))
+            face_grad.setColorAt(0.0, QColor(228, 232, 242, int(200 * tr)))
+            face_grad.setColorAt(0.5, QColor(165, 170, 188, int(160 * tr)))
+            face_grad.setColorAt(1.0, QColor(210, 215, 228, int(190 * tr)))
             p.setBrush(QBrush(face_grad))
             p.drawRoundedRect(QRectF(-marker_w/2, -marker_h/2,
                                       marker_w, marker_h), 1, 1)
@@ -255,7 +255,7 @@ class ShutdownOverlay:
                 p.setFont(nf)
                 nx = cx + arc_r * 0.56 * math.cos(a)
                 ny = cy - arc_r * 0.56 * math.sin(a)
-                p.setPen(QColor(200, 175, 130, int(150 * tr)))
+                p.setPen(QColor(180, 185, 200, int(150 * tr)))
                 p.drawText(QRectF(nx - 16, ny - 10, 32, 20),
                            Qt.AlignCenter, str(num))
 
@@ -275,7 +275,7 @@ class ShutdownOverlay:
         p.drawLine(QPointF(cwx + 1.5, cwy + 1.5), QPointF(hx + 1.5, hy + 1.5))
 
         # Blued steel hand
-        hand_col = QColor(60, 80, 140, int(230 * tr))
+        hand_col = QColor(165, 170, 185, int(230 * tr))
         p.setPen(QPen(hand_col, max(2.0, mind * 0.005), Qt.SolidLine, Qt.RoundCap))
         p.drawLine(QPointF(cwx, cwy), QPointF(hx, hy))
 
@@ -296,9 +296,9 @@ class ShutdownOverlay:
         p.drawEllipse(QPointF(cx + 1.5, cy + 1.5), jr, jr)
         # Chamfered ring
         pivot_grad = QRadialGradient(cx, cy, jr)
-        pivot_grad.setColorAt(0.0, QColor(240, 225, 195, int(200 * tr)))
-        pivot_grad.setColorAt(0.6, QColor(180, 155, 110, int(170 * tr)))
-        pivot_grad.setColorAt(1.0, QColor(100, 80, 50, int(140 * tr)))
+        pivot_grad.setColorAt(0.0, QColor(228, 232, 242, int(200 * tr)))
+        pivot_grad.setColorAt(0.6, QColor(165, 170, 188, int(170 * tr)))
+        pivot_grad.setColorAt(1.0, QColor(82, 86, 98, int(140 * tr)))
         p.setBrush(QBrush(pivot_grad))
         p.drawEllipse(QPointF(cx, cy), jr, jr)
         # Ruby center
@@ -316,7 +316,7 @@ class ShutdownOverlay:
         f_title.setBold(False)
         f_title.setLetterSpacing(QFont.AbsoluteSpacing, max(2.0, mind * 0.006))
         p.setFont(f_title)
-        p.setPen(QColor(180, 155, 110, int(130 * tr)))
+        p.setPen(QColor(165, 170, 188, int(130 * tr)))
         p.drawText(QRectF(cx - 100, cy - R * 0.48, 200, 22),
                    Qt.AlignCenter, "POWER RESERVE")
 
@@ -335,7 +335,7 @@ class ShutdownOverlay:
         elif secs_left == 0:
             num_col = QColor(210, 30, 20, int(240 * tr))
         else:
-            num_col = QColor(220, 200, 165, int(220 * tr))
+            num_col = QColor(210, 215, 228, int(220 * tr))
 
         # Shadow
         p.setPen(QColor(0, 0, 0, int(150 * tr)))
@@ -353,7 +353,7 @@ class ShutdownOverlay:
         f_abort = QFont("DejaVu Sans", max(7, int(mind * 0.020)))
         f_abort.setLetterSpacing(QFont.AbsoluteSpacing, max(1.5, mind * 0.004))
         p.setFont(f_abort)
-        p.setPen(QColor(180, 160, 130, abort_alpha))
+        p.setPen(QColor(175, 180, 195, abort_alpha))
         p.drawText(QRectF(cx - 80, cy + R * 0.35, 160, 22),
                    Qt.AlignCenter, "TAP TO ABORT")
 

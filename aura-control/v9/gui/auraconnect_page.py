@@ -25,12 +25,12 @@ from PyQt5.QtGui import (
 from gui.renderer import clamp
 
 # ── Palette ──────────────────────────────────────────────────────────
-_CHAMPAGNE   = lambda a=255: QColor(218, 200, 155, a)
-_IVORY       = lambda a=255: QColor(240, 234, 218, a)
-_DEEP_NAVY   = lambda a=255: QColor(6, 9, 22, a)
-_DIM_GOLD    = lambda a=255: QColor(165, 152, 118, a)
+_CHAMPAGNE   = lambda a=255: QColor(200, 205, 220, a)
+_IVORY       = lambda a=255: QColor(235, 238, 245, a)
+_DEEP_NAVY   = lambda a=255: QColor(16, 4, 8, a)
+_DIM_GOLD    = lambda a=255: QColor(145, 150, 168, a)
 _ACCENT_TEAL = lambda a=255: QColor(80, 200, 165, a)
-_ROSE        = lambda a=255: QColor(200, 130, 130, a)
+_ROSE        = lambda a=255: QColor(175, 30, 40, a)
 
 
 # ---------------------------------------------------------------------------
@@ -373,10 +373,10 @@ def draw_auraconnect_page(p, cx, cy, mind, t, trans, state=None):
 
     # ── Deep lacquer background with vignette ────────────────────
     bg = QRadialGradient(cx, cy, R)
-    bg.setColorAt(0.00, QColor(10, 14, 32, int(252 * a)))
-    bg.setColorAt(0.55, QColor(6, 10, 24, int(248 * a)))
-    bg.setColorAt(0.85, QColor(3, 5, 14, int(245 * a)))
-    bg.setColorAt(1.00, QColor(1, 2, 8, int(240 * a)))
+    bg.setColorAt(0.00, QColor(28, 14, 12, int(252 * a)))
+    bg.setColorAt(0.55, QColor(20, 10, 8, int(248 * a)))
+    bg.setColorAt(0.85, QColor(12, 6, 5, int(245 * a)))
+    bg.setColorAt(1.00, QColor(6, 3, 2, int(240 * a)))
     p.setPen(Qt.NoPen)
     p.setBrush(QBrush(bg))
     p.drawEllipse(QPointF(cx, cy), R, R)
@@ -468,9 +468,9 @@ def draw_auraconnect_page(p, cx, cy, mind, t, trans, state=None):
 
     # Sub-dial background
     sub_bg = QRadialGradient(cx, sub_cy, sub_r)
-    sub_bg.setColorAt(0.0, QColor(16, 20, 40, int(200 * a)))
-    sub_bg.setColorAt(0.8, QColor(8, 12, 28, int(220 * a)))
-    sub_bg.setColorAt(1.0, QColor(4, 6, 16, int(230 * a)))
+    sub_bg.setColorAt(0.0, QColor(28, 16, 14, int(200 * a)))
+    sub_bg.setColorAt(0.8, QColor(18, 10, 8, int(220 * a)))
+    sub_bg.setColorAt(1.0, QColor(10, 5, 4, int(230 * a)))
     p.setPen(Qt.NoPen)
     p.setBrush(QBrush(sub_bg))
     p.drawEllipse(QPointF(cx, sub_cy), sub_r, sub_r)
@@ -505,13 +505,13 @@ def draw_auraconnect_page(p, cx, cy, mind, t, trans, state=None):
             status_col = _CHAMPAGNE(int(220 * a))
     else:
         pulse = 0.3
-        glow_col = QColor(80, 80, 100, int(30 * a))
+        glow_col = QColor(95, 78, 72, int(30 * a))
         if error:
             status_text = "ERROR"
             status_col = _ROSE(int(200 * a))
         else:
             status_text = "OFF"
-            status_col = QColor(120, 120, 135, int(180 * a))
+            status_col = QColor(135, 118, 112, int(180 * a))
 
     # Glow halo in sub-dial
     halo = QRadialGradient(QPointF(cx, sub_cy), sub_r * 1.2)
@@ -582,14 +582,14 @@ def draw_auraconnect_page(p, cx, cy, mind, t, trans, state=None):
     # Recessed steel face
     face = btn_rect.adjusted(2, 2, -2, -2)
     face_grad = QLinearGradient(face.topLeft(), face.bottomLeft())
-    face_grad.setColorAt(0.0, QColor(28, 32, 42, int(230 * a)))
-    face_grad.setColorAt(0.5, QColor(22, 26, 36, int(225 * a)))
-    face_grad.setColorAt(1.0, QColor(26, 30, 40, int(230 * a)))
+    face_grad.setColorAt(0.0, QColor(36, 24, 22, int(230 * a)))
+    face_grad.setColorAt(0.5, QColor(28, 18, 16, int(225 * a)))
+    face_grad.setColorAt(1.0, QColor(32, 22, 20, int(230 * a)))
     p.setBrush(QBrush(face_grad))
     p.drawRoundedRect(face, corner_r - 1, corner_r - 1)
 
     # Brushing texture
-    brush_pen = QPen(QColor(160, 148, 120, int(7 * a)), 0.4)
+    brush_pen = QPen(QColor(170, 140, 115, int(7 * a)), 0.4)
     p.setPen(brush_pen)
     for by in range(int(face.top()) + 2, int(face.bottom()) - 1, 2):
         p.drawLine(QPointF(face.left() + 3, by), QPointF(face.right() - 3, by))
@@ -656,7 +656,7 @@ def _draw_bt_icon(p, cx, cy, r, a, connected, running):
     elif running:
         col = _CHAMPAGNE(int(200 * a))
     else:
-        col = QColor(100, 100, 115, int(150 * a))
+        col = QColor(115, 100, 95, int(150 * a))
 
     pen = QPen(col)
     pen.setWidthF(max(1.8, r * 0.12))
