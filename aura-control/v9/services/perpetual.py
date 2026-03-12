@@ -136,6 +136,8 @@ class Perpetual:
         self._thread: Optional[threading.Thread] = None
         self._stop = threading.Event()
         self._paused = threading.Event()  # set = paused
+        self._requested_briefing = threading.Event()   # set = user asked for briefing
+        self._requested_question = threading.Event()   # set = user asked for question
         self._7b_active = False
         self._use_farsight = bool(FARSIGHT_URL)
         self._last_question_ts = 0.0
@@ -166,6 +168,14 @@ class Perpetual:
     # Bus event handlers
     # ------------------------------------------------------------------
 
+    def request_briefing(self) -> None:
+        """Externally trigger a briefing (e.g. user taps concierge overlay)."""
+        self._requested_briefing.set()
+
+    def request_question(self) -> None:
+        """Externally trigger a proactive question."""
+        self._requested_question.set()
+
     def _wire_bus(self) -> None:
         """Subscribe to conversation events to pause/resume rumination."""
         bus.on("transcript.ready", self._on_conversation)
@@ -173,6 +183,8 @@ class Perpetual:
         bus.on("tts.started", self._on_conversation)
         bus.on("tts.finished", self._on_tts_done)
         bus.on("shutdown", self._on_shutdown)
+        bus.on("perpetual.request_briefing", lambda **_: self._requested_briefing.set())
+        bus.on("perpetual.request_question", lambda **_: self._requested_question.set())
 
     def _on_conversation(self, **_kw) -> None:
         """User is talking — pause rumination immediately."""
@@ -231,17 +243,18 @@ class Perpetual:
                 if self._stop.is_set():
                     break
 
-                # Decide: full briefing or proactive question?
-                briefing_ready = (time.time() - state.last_briefing_ts) >= PERPETUAL_BRIEFING_COOLDOWN_S
-                question_ready = (time.time() - self._last_question_ts) >= PERPETUAL_QUESTION_COOLDOWN_S
-
-                if briefing_ready:
+                # Only ruminate / generate questions when explicitly requested
+                # via bus event (e.g. user taps concierge, voice command).
+                # No surprise briefings or unsolicited advice.
+                if self._requested_briefing.is_set():
+                    self._requested_briefing.clear()
                     self._ruminate()
-                elif question_ready and not state.pending_briefing:
+                elif self._requested_question.is_set():
+                    self._requested_question.clear()
                     self._generate_proactive_question()
                 else:
-                    # Nothing to do — sleep and check again
-                    time.sleep(60.0)
+                    # Idle — sleep and check again
+                    time.sleep(30.0)
             except Exception as e:
                 print(f"[perpetual] Error in rumination cycle: {e}")
                 time.sleep(60.0)

@@ -120,42 +120,31 @@ class BackgroundCache:
 
 
 def _build_blue_background(W: int, H: int, mind: float) -> QPixmap:
-    """Deep oxblood sunburst dial — inspired by Patek Philippe 5271P.
-    Dramatic ruby red tones — visible and rich on the display."""
+    """Super dark red dial — deep oxblood, nearly black."""
     pm = QPixmap(W, H)
-    pm.fill(QColor(110, 14, 22))    # uniform ruby base — no black anywhere
+    pm.fill(QColor(90, 18, 20))
     q = QPainter(pm)
     try:
         q.setRenderHint(QPainter.Antialiasing)
         cx, cy = W * 0.5, H * 0.5
         R = min(W, H) * 0.5
 
-        # Subtle sunburst texture (very slight variation, NOT a gradient)
-        q.save()
-        q.translate(cx, cy)
-        n_rays = 360
-        for i in range(n_rays):
-            ang = (2 * math.pi) * (i / n_rays)
-            phase = math.sin(ang * 3.0 + 0.5) * 0.2 + math.sin(ang * 7.0) * 0.1
-            intensity = 0.5 + 0.5 * phase
-            # Very slight variation around the base color — texture not gradient
-            r_val = int(110 + 15 * intensity)
-            g_val = int(14 + 4 * intensity)
-            b_val = int(22 + 5 * intensity)
-            q.setPen(QPen(QColor(r_val, g_val, b_val, 50), 2.0))
-            x2 = R * 1.5 * math.cos(ang)
-            y2 = R * 1.5 * math.sin(ang)
-            q.drawLine(QPointF(0, 0), QPointF(x2, y2))
-        q.restore()
-
-        # Very gentle vignette — barely perceptible edge darkening
-        gv = QRadialGradient(QPointF(cx, cy), R * 1.2)
-        gv.setColorAt(0.00, QColor(0, 0, 0, 0))
-        gv.setColorAt(0.80, QColor(0, 0, 0, 0))
-        gv.setColorAt(0.95, QColor(0, 0, 0, 30))
-        gv.setColorAt(1.00, QColor(0, 0, 0, 80))
+        # Ruby glow in center
+        gv = QRadialGradient(QPointF(cx, cy), R * 0.85)
+        gv.setColorAt(0.0, QColor(130, 25, 30, 60))
+        gv.setColorAt(0.5, QColor(100, 18, 22, 30))
+        gv.setColorAt(1.0, QColor(0, 0, 0, 0))
         q.setPen(Qt.NoPen)
         q.setBrush(QBrush(gv))
+        q.drawRect(0, 0, W, H)
+
+        # Edge darkening
+        gv2 = QRadialGradient(QPointF(cx, cy), R * 1.1)
+        gv2.setColorAt(0.00, QColor(0, 0, 0, 0))
+        gv2.setColorAt(0.75, QColor(0, 0, 0, 0))
+        gv2.setColorAt(0.95, QColor(0, 0, 0, 40))
+        gv2.setColorAt(1.00, QColor(0, 0, 0, 90))
+        q.setBrush(QBrush(gv2))
         q.drawRect(0, 0, W, H)
 
     finally:
@@ -204,52 +193,72 @@ def _build_red_background(W: int, H: int, mind: float) -> QPixmap:
 
 
 # ---------------------------------------------------------------------------
-# Subtle shifting nebula (deep burgundy/oxblood clouds)
+# Drifting ember particles (visible dynamic texture on dark red background)
 # ---------------------------------------------------------------------------
+
+# Pre-seeded ember data: (base_angle, base_radius, drift_speed, phase, size, brightness)
+_EMBER_SEEDS: List[Tuple[float, float, float, float, float, float]] = []
+
+def _ensure_ember_seeds(n: int = 60) -> None:
+    global _EMBER_SEEDS
+    if _EMBER_SEEDS:
+        return
+    rng = random.Random(42)
+    for _ in range(n):
+        _EMBER_SEEDS.append((
+            rng.random() * 2 * math.pi,      # base angle
+            0.08 + rng.random() * 0.82,       # base radius (0.08..0.90)
+            0.015 + rng.random() * 0.035,     # drift speed
+            rng.random() * 2 * math.pi,       # phase
+            1.5 + rng.random() * 4.5,         # size (px at mind=1080)
+            0.4 + rng.random() * 0.6,         # brightness factor
+        ))
+
 
 def draw_nebula(
     p: QPainter, cx: float, cy: float, mind: float, t: float,
     alpha: float = 1.0,
 ) -> None:
-    """Draw slowly drifting deep ruby nebula clouds — dramatic and visible."""
+    """Drifting ember particles — bright red sparks floating across the dark dial."""
     alpha = clamp(alpha, 0.0, 1.0)
     if alpha <= 0.0:
         return
 
+    _ensure_ember_seeds()
+
     p.save()
     try:
-        # SourceOver (normal blending) — no Screen mode flashing artifacts
-        R = mind * 0.48
+        R = mind * 0.46
+        p.setPen(Qt.NoPen)
 
-        # 6 large bright ruby cloud lobes — dramatic, clearly visible
-        lobes = [
-            # (ox, oy, radius, speed, phase, r, g, b, max_alpha)
-            ( 0.20, -0.12, 0.52, 0.0035, 0.0,  155, 24, 35, 130),
-            (-0.15,  0.22, 0.45, 0.0028, 1.8,  125, 18, 28, 110),
-            ( 0.08,  0.28, 0.40, 0.0042, 3.5,  165, 28, 38, 120),
-            (-0.25, -0.18, 0.48, 0.0032, 5.2,  135, 20, 30, 105),
-            ( 0.30,  0.05, 0.38, 0.0038, 2.4,  145, 22, 32, 115),
-            (-0.05, -0.30, 0.42, 0.0025, 4.0,  115, 16, 25, 95),
-        ]
+        for base_ang, base_r, speed, phase, sz, bright in _EMBER_SEEDS:
+            # Slow orbital drift
+            ang = base_ang + t * speed + phase
+            # Gentle radial breathing
+            r_frac = base_r + 0.06 * math.sin(t * speed * 1.5 + phase * 2.0)
+            r_frac = clamp(r_frac, 0.05, 0.95)
 
-        for ox_f, oy_f, r_f, speed, phase, cr, cg, cb, ma in lobes:
-            drift_x = ox_f * R + R * 0.10 * math.sin(t * speed + phase)
-            drift_y = oy_f * R + R * 0.10 * math.cos(t * speed * 0.7 + phase + 1.2)
-            lobe_r = r_f * R
+            x = cx + R * r_frac * math.cos(ang)
+            y = cy + R * r_frac * math.sin(ang)
 
-            breathe = 0.6 + 0.4 * math.sin(t * speed * 1.2 + phase * 0.6)
-            base_a = int(ma * alpha * breathe)
+            # Pulsing glow
+            pulse = 0.5 + 0.5 * math.sin(t * (0.4 + speed * 8) + phase * 3.0)
+            a0 = int(120 * alpha * bright * (0.5 + 0.5 * pulse))
 
-            g = QRadialGradient(QPointF(cx + drift_x, cy + drift_y), lobe_r)
-            g.setColorAt(0.0, QColor(cr, cg, cb, base_a))
-            g.setColorAt(0.25, QColor(cr, cg, cb, int(base_a * 0.65)))
-            g.setColorAt(0.50, QColor(int(cr * 0.7), int(cg * 0.7), int(cb * 0.7), int(base_a * 0.35)))
-            g.setColorAt(0.80, QColor(int(cr * 0.4), int(cg * 0.4), int(cb * 0.4), int(base_a * 0.12)))
-            g.setColorAt(1.0, QColor(0, 0, 0, 0))
-
-            p.setPen(Qt.NoPen)
+            # Ember color: hot red core fading to dark
+            rad = sz * (mind / 1080.0)
+            g = QRadialGradient(QPointF(x, y), max(1.0, rad * 2.5))
+            g.setColorAt(0.0, QColor(220, 50, 40, a0))
+            g.setColorAt(0.3, QColor(160, 25, 20, int(a0 * 0.6)))
+            g.setColorAt(0.7, QColor(90, 10, 10, int(a0 * 0.2)))
+            g.setColorAt(1.0, QColor(90, 18, 20, 0))
             p.setBrush(QBrush(g))
-            p.drawEllipse(QPointF(cx + drift_x, cy + drift_y), lobe_r, lobe_r)
+            p.drawEllipse(QPointF(x, y), rad * 2.5, rad * 2.5)
+
+            # Bright core dot
+            if a0 > 40:
+                p.setBrush(QColor(255, 100, 60, int(a0 * 0.8)))
+                p.drawEllipse(QPointF(x, y), rad * 0.5, rad * 0.5)
 
     finally:
         p.restore()
@@ -306,7 +315,7 @@ def draw_celestial(
 
 
 # ---------------------------------------------------------------------------
-# Chapter ticks
+# Chapter ticks + Patek-style complication bezel
 # ---------------------------------------------------------------------------
 
 def draw_chapter_ticks(
@@ -322,25 +331,37 @@ def draw_chapter_ticks(
         perim_margin = mind * perim_margin_frac
         edge_pad = mind * 0.008
         r_outer = (mind * 0.5) - edge_pad
-        r_inner_minor = r_outer - perim_margin * 0.55
-        r_inner_major = r_outer - perim_margin * 0.75
 
-        base_a = int(55 * alpha)
+        # --- Ticks first (Ferrari red, bright, varied lengths) ---
+        _rng = random.Random(7777)
+        tick_vars = [_rng.uniform(-0.12, 0.12) for _ in range(60)]
+
+        r_inner_minor = r_outer - perim_margin * 0.55
+        r_inner_major = r_outer - perim_margin * 0.85
+
+        base_a = int(140 * alpha)  # vivid Ferrari red
         glint_ang = (-math.pi / 2) + (t * 0.18) % (2 * math.pi)
         glint_span = math.radians(22)
 
         for i in range(60):
             ang = -math.pi / 2 + (2 * math.pi) * (i / 60.0)
             major = (i % 5 == 0)
-            rin = r_inner_major if major else r_inner_minor
+
+            if major:
+                rin = r_inner_major
+            else:
+                base_rin = r_inner_minor
+                variation = tick_vars[i] * perim_margin * 0.3
+                rin = base_rin + variation
 
             d = (ang - glint_ang + math.pi) % (2 * math.pi) - math.pi
             w = max(0.0, 1.0 - (abs(d) / glint_span))
-            a = base_a + int(70 * w * alpha)
+            a = base_a + int(100 * w * alpha)
 
-            col = QColor(195, 200, 215, clamp(a, 0, 255))  # platinum ticks
+            # Ferrari red ticks — vivid scarlet with hot glint
+            col = QColor(220, 45, 35, clamp(a, 0, 255))
             pen = QPen(col)
-            pen.setWidthF(max(1.0, mind * (0.0036 if major else 0.0026)))
+            pen.setWidthF(max(1.0, mind * (0.0040 if major else 0.0026)))
             pen.setCapStyle(Qt.RoundCap)
             p.setPen(pen)
 
@@ -349,6 +370,31 @@ def draw_chapter_ticks(
             x2 = cx + r_outer * math.cos(ang)
             y2 = cy + r_outer * math.sin(ang)
             p.drawLine(QPointF(x1, y1), QPointF(x2, y2))
+
+        # --- Patek-style bezel ring BELOW the ticks (encompassing them) ---
+        # Sits just inside the innermost tick reach
+        bezel_r_outer = r_inner_major - mind * 0.003
+        bezel_r_inner = bezel_r_outer - mind * 0.005
+
+        # Outer shadow (dark groove edge)
+        pen_shadow = QPen(QColor(0, 0, 0, int(110 * alpha)))
+        pen_shadow.setWidthF(max(1.0, mind * 0.003))
+        p.setPen(pen_shadow)
+        p.setBrush(Qt.NoBrush)
+        p.drawEllipse(QPointF(cx, cy), bezel_r_outer, bezel_r_outer)
+
+        # Recessed channel (dark band)
+        channel_r = (bezel_r_outer + bezel_r_inner) * 0.5
+        pen_ch = QPen(QColor(10, 2, 2, int(70 * alpha)))
+        pen_ch.setWidthF(max(1.0, (bezel_r_outer - bezel_r_inner) * 0.9))
+        p.setPen(pen_ch)
+        p.drawEllipse(QPointF(cx, cy), channel_r, channel_r)
+
+        # Inner highlight (light catch on lower lip)
+        pen_hi = QPen(QColor(180, 50, 40, int(40 * alpha)))
+        pen_hi.setWidthF(max(0.8, mind * 0.002))
+        p.setPen(pen_hi)
+        p.drawEllipse(QPointF(cx, cy), bezel_r_inner, bezel_r_inner)
     finally:
         p.restore()
 
@@ -377,7 +423,7 @@ def draw_center_ring(
         p.setBrush(Qt.NoBrush)
         p.drawEllipse(QPointF(cx, cy), r, r)
 
-        col_main = QColor(170, 25, 35, int((120 + 55 * breathe) * alpha))  # ruby ring
+        col_main = QColor(120, 20, 25, int((120 + 55 * breathe) * alpha))  # dark ruby ring
         pen = QPen(col_main)
         pen.setWidthF(max(0.8, mind * 0.0027))
         pen.setCapStyle(Qt.RoundCap)
@@ -409,7 +455,7 @@ def draw_mist(
         y = cy + rr * math.sin(th)
         a = int(45 * strength * (0.3 + 0.7 * s) * (1.0 - r))
         p.setPen(Qt.NoPen)
-        p.setBrush(QBrush(QColor(100, 15, 22, a)))  # deep ruby dust, very subtle
+        p.setBrush(QBrush(QColor(140, 30, 25, a)))  # dark red dust
         rad = int(1 + 4 * (0.3 + s) * (1.0 - r))
         p.drawEllipse(int(x - rad), int(y - rad), int(2 * rad), int(2 * rad))
 
@@ -421,23 +467,21 @@ def draw_mist(
 def _ring_color(
     loops: List[LoopParams], loop_idx: int, seg_u: float, tsec: float, a255: int,
 ) -> QColor:
-    """Fixed pearl-white palette — elegant against deep ruby background."""
+    """Subtle cool blue-white — softer against warm rose background."""
 
     def clamp01(x: float) -> float:
         return 0.0 if x < 0.0 else (1.0 if x > 1.0 else x)
 
-    # Gentle shimmer along the loop — slight warm/cool variation
     shift = getattr(loops[loop_idx], "hue_shift", 0.0) / 360.0
     flow = (seg_u + shift + tsec * (0.008 + 0.003 * loop_idx)) % 1.0
 
-    # Pearl white with very subtle warm undertone variation
-    warm = 0.5 + 0.5 * math.sin(flow * 2 * math.pi)
-    r = int(225 + 20 * warm)     # 225-245
-    g = int(222 + 15 * warm)     # 222-237
-    b = int(218 + 12 * warm)     # 218-230
+    # Subtle cool blue-white shimmer
+    shimmer = 0.5 + 0.5 * math.sin(flow * 2 * math.pi)
+    r = int(185 + 20 * shimmer)    # 185-205  (muted)
+    g = int(192 + 18 * shimmer)    # 192-210  (slightly blue-shifted)
+    b = int(210 + 15 * shimmer)    # 210-225  (cool blue tint)
 
-    # Gentle breathing
-    breathe = 0.92 + 0.08 * math.sin(tsec * 0.22 + loop_idx * 1.3)
+    breathe = 0.90 + 0.10 * math.sin(tsec * 0.22 + loop_idx * 1.3)
     r = int(clamp01((r / 255) * breathe) * 255)
     g = int(clamp01((g / 255) * breathe) * 255)
     b = int(clamp01((b / 255) * breathe) * 255)

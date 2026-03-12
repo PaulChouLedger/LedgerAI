@@ -107,20 +107,19 @@ def make_phase_bounds(n_phases: int, seed: int = 7) -> List[float]:
 
 def _ring_color(loop_idx: int, seg_u: float, tsec: float, a255: int,
                 hue_shift: float) -> QColor:
-    """Fixed pearl-white palette for boot loops — elegant on ruby background."""
+    """Subtle cool blue-white for boot loops — soft against warm rose."""
     def clamp01(x):
         return 0.0 if x < 0.0 else (1.0 if x > 1.0 else x)
 
     shift = hue_shift / 360.0
     flow = (seg_u + shift + tsec * (0.008 + 0.003 * loop_idx)) % 1.0
 
-    # Pearl white with subtle warm shimmer
-    warm = 0.5 + 0.5 * math.sin(flow * 2 * math.pi)
-    r = int(225 + 20 * warm)
-    g = int(222 + 15 * warm)
-    b = int(218 + 12 * warm)
+    shimmer = 0.5 + 0.5 * math.sin(flow * 2 * math.pi)
+    r = int(185 + 20 * shimmer)
+    g = int(192 + 18 * shimmer)
+    b = int(210 + 15 * shimmer)
 
-    breathe = 0.92 + 0.08 * math.sin(tsec * 0.22 + loop_idx * 1.3)
+    breathe = 0.90 + 0.10 * math.sin(tsec * 0.22 + loop_idx * 1.3)
     r = int(clamp01((r / 255) * breathe) * 255)
     g = int(clamp01((g / 255) * breathe) * 255)
     b = int(clamp01((b / 255) * breathe) * 255)
@@ -132,42 +131,55 @@ def _ring_color(loop_idx: int, seg_u: float, tsec: float, a255: int,
 # Boot nebulae — deep ruby clouds drifting in the background
 # ---------------------------------------------------------------------------
 
+_BOOT_EMBERS = []
+
+def _ensure_boot_embers(n: int = 45) -> None:
+    global _BOOT_EMBERS
+    if _BOOT_EMBERS:
+        return
+    rng = random.Random(99)
+    for _ in range(n):
+        _BOOT_EMBERS.append((
+            rng.random() * 2 * math.pi,
+            0.10 + rng.random() * 0.80,
+            0.012 + rng.random() * 0.030,
+            rng.random() * 2 * math.pi,
+            1.5 + rng.random() * 4.0,
+            0.4 + rng.random() * 0.6,
+        ))
+
 def _draw_boot_nebulae(p: QPainter, cx: float, cy: float, mind: float,
                        t: float) -> None:
-    """Draw dramatic ruby nebula clouds — bright and clearly visible."""
-    R = mind * 0.5
-
-    # 6 large, bright ruby cloud lobes
-    clouds = [
-        # (offset_x_frac, offset_y_frac, radius_frac, speed, phase, r, g, b, max_alpha)
-        ( 0.20, -0.15, 0.55, 0.0035, 0.0,  160, 24, 35, 140),
-        (-0.25,  0.20, 0.48, 0.0028, 1.8,  130, 18, 28, 120),
-        ( 0.05,  0.30, 0.42, 0.0042, 3.5,  170, 28, 40, 130),
-        (-0.18, -0.25, 0.50, 0.0032, 5.2,  140, 20, 32, 110),
-        ( 0.30,  0.05, 0.40, 0.0048, 2.4,  150, 22, 34, 120),
-        (-0.10,  0.00, 0.58, 0.0022, 4.1,  120, 16, 25, 100),
-    ]
+    """Drifting ember particles on the dark red boot background."""
+    _ensure_boot_embers()
+    R = mind * 0.46
 
     p.save()
     try:
-        for ox, oy, rf, speed, phase, cr, cg, cb, ma in clouds:
-            dx = ox * R + R * 0.10 * math.sin(t * speed + phase)
-            dy = oy * R + R * 0.10 * math.cos(t * speed * 0.7 + phase + 1.2)
-            cloud_r = rf * R
+        p.setPen(Qt.NoPen)
+        for base_ang, base_r, speed, phase, sz, bright in _BOOT_EMBERS:
+            ang = base_ang + t * speed + phase
+            r_frac = base_r + 0.06 * math.sin(t * speed * 1.5 + phase * 2.0)
+            r_frac = _clamp(r_frac, 0.05, 0.95)
 
-            breathe = 0.6 + 0.4 * math.sin(t * speed * 1.2 + phase * 0.6)
-            a0 = int(ma * breathe)
+            x = cx + R * r_frac * math.cos(ang)
+            y = cy + R * r_frac * math.sin(ang)
 
-            g = QRadialGradient(QPointF(cx + dx, cy + dy), cloud_r)
-            g.setColorAt(0.0, QColor(cr, cg, cb, a0))
-            g.setColorAt(0.25, QColor(cr, cg, cb, int(a0 * 0.7)))
-            g.setColorAt(0.50, QColor(int(cr * 0.7), int(cg * 0.7), int(cb * 0.7), int(a0 * 0.4)))
-            g.setColorAt(0.80, QColor(int(cr * 0.4), int(cg * 0.4), int(cb * 0.4), int(a0 * 0.15)))
-            g.setColorAt(1.0, QColor(0, 0, 0, 0))
+            pulse = 0.5 + 0.5 * math.sin(t * (0.4 + speed * 8) + phase * 3.0)
+            a0 = int(120 * bright * (0.5 + 0.5 * pulse))
 
-            p.setPen(Qt.NoPen)
+            rad = sz * (mind / 1080.0)
+            g = QRadialGradient(QPointF(x, y), max(1.0, rad * 2.5))
+            g.setColorAt(0.0, QColor(220, 50, 40, a0))
+            g.setColorAt(0.3, QColor(160, 25, 20, int(a0 * 0.6)))
+            g.setColorAt(0.7, QColor(90, 10, 10, int(a0 * 0.2)))
+            g.setColorAt(1.0, QColor(90, 18, 20, 0))
             p.setBrush(QBrush(g))
-            p.drawEllipse(QPointF(cx + dx, cy + dy), cloud_r, cloud_r)
+            p.drawEllipse(QPointF(x, y), rad * 2.5, rad * 2.5)
+
+            if a0 > 40:
+                p.setBrush(QColor(255, 100, 60, int(a0 * 0.8)))
+                p.drawEllipse(QPointF(x, y), rad * 0.5, rad * 0.5)
     finally:
         p.restore()
 
@@ -252,7 +264,7 @@ def draw_falcon_dial(p: QPainter, cx: float, cy: float, mind: float,
 
     arc_alpha = int(_clamp(170 * pulse_amt, 120, 235))
     arc_width = max(2.0, dial_w * 1.8) * pulse_amt
-    p.setPen(QPen(QColor(190, 25, 35, arc_alpha), arc_width, Qt.SolidLine, Qt.RoundCap))
+    p.setPen(QPen(QColor(220, 50, 40, arc_alpha), arc_width, Qt.SolidLine, Qt.RoundCap))
 
     arc_rect = dial_rect.adjusted(mind * 0.006, mind * 0.006, -mind * 0.006, -mind * 0.006)
     p.drawArc(arc_rect, int(start_deg * 16), int(span_deg * 16))
@@ -353,7 +365,7 @@ def draw_falcon_fade(p: QPainter, W: int, H: int, alpha: int) -> None:
         return
     p.save()
     p.setPen(Qt.NoPen)
-    p.setBrush(QColor(0, 0, 0, min(255, alpha)))
+    p.setBrush(QColor(65, 10, 15, min(255, alpha)))
     p.drawRect(0, 0, W, H)
     p.restore()
 
@@ -383,10 +395,9 @@ def paint_boot_frame(p: QPainter, W: int, H: int, t: float,
     else:
         pulse_amt = 1.0
 
-    # UNIFORM ruby across entire face — overfill to cover -130° rotation
-    # Use a huge rect so no black corners appear after rotation
-    margin = int(mind * 0.5)
-    p.fillRect(-margin, -margin, W + 2 * margin, H + 2 * margin, QColor(110, 14, 22))
+    # UNIFORM super dark red — massive overfill to cover -130° rotation completely
+    margin = int(mind * 1.2)
+    p.fillRect(-margin, -margin, W + 2 * margin, H + 2 * margin, QColor(90, 18, 20))
 
     # Dramatic ruby nebula clouds drifting in background
     _draw_boot_nebulae(p, cx, cy, mind, t)

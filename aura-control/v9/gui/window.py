@@ -74,7 +74,7 @@ class AuraWindow(QWidget):
         self.setAttribute(Qt.WA_NoSystemBackground, True)
         self.setAttribute(Qt.WA_AcceptTouchEvents, True)
         self.setAutoFillBackground(False)
-        self.setStyleSheet("background-color: #6E0E16;")
+        self.setStyleSheet("background-color: #5a1214;")
         self.resize(SCREEN_W, SCREEN_H)
 
         # Boot mode state
@@ -501,8 +501,11 @@ class AuraWindow(QWidget):
         try:
             p.setRenderHint(QPainter.Antialiasing)
 
-            # Fill ruby BEFORE rotation so no black corners leak through
-            p.fillRect(0, 0, W, H, QColor(110, 14, 22))
+            # Fill super dark red BEFORE rotation — oversized to prevent any
+            # black corners leaking through the -130° hardware rotation
+            _fill = QColor(90, 18, 20)
+            margin = int(mind * 0.5)
+            p.fillRect(-margin, -margin, W + 2 * margin, H + 2 * margin, _fill)
 
             # Apply fixed hardware display rotation (invariant for ALL modes)
             _hw_angle = float(FIXED_ROTATION_DEG or 0.0)
@@ -511,6 +514,8 @@ class AuraWindow(QWidget):
                 p.translate(cx, cy)
                 p.rotate(-_hw_angle)
                 p.translate(-cx, -cy)
+                # Fill again in rotated space to guarantee full coverage
+                p.fillRect(-margin, -margin, W + 2 * margin, H + 2 * margin, _fill)
 
             # Route to boot / transition / normal painting
             if self._boot_mode and not self._boot_transitioning:
@@ -576,11 +581,11 @@ class AuraWindow(QWidget):
                 p.drawPixmap(0, 0, bg)
             else:
                 p.setPen(Qt.NoPen)
-                p.setBrush(QColor(110, 14, 22))
+                p.setBrush(QColor(90, 18, 20))
                 p.drawRect(0, 0, W, H)
         else:
             p.setPen(Qt.NoPen)
-            p.setBrush(QColor(110, 14, 22))
+            p.setBrush(QColor(185, 82, 88))
             p.drawRect(0, 0, W, H)
 
         # --- Layer 1b: Subtle shifting nebula ---
@@ -664,7 +669,7 @@ class AuraWindow(QWidget):
         if self._fade_in_alpha > 0:
             p.save()
             p.setPen(Qt.NoPen)
-            p.setBrush(QColor(0, 0, 0, self._fade_in_alpha))
+            p.setBrush(QColor(90, 18, 20, self._fade_in_alpha))
             p.drawRect(0, 0, W, H)
             p.restore()
 
