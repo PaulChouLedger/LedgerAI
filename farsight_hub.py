@@ -373,10 +373,15 @@ def stream():
     def event_stream():
         try:
             # Send initial state
+            start = time.time()
             yield f"event: init\ndata: {json.dumps({'ts': _now_iso()})}\n\n"
             while True:
+                # Force reconnect after 90s to free threads
+                if time.time() - start > 90:
+                    yield f"event: reconnect\ndata: {{}}\n\n"
+                    break
                 try:
-                    msg = q.get(timeout=30)
+                    msg = q.get(timeout=25)
                     yield msg
                 except queue.Empty:
                     yield ": keepalive\n\n"
@@ -959,7 +964,6 @@ _DASHBOARD_HTML = r"""<!DOCTYPE html>
 <div class="layout">
   <nav class="sidebar">
     <div class="sidebar-brand">
-      <img class="logo-img" src="/logo.png" alt="AURA">
       <div class="brand-label">FARSIGHT</div>
       <div class="brand-sub">TACTICAL COMMAND</div>
     </div>
@@ -1187,25 +1191,30 @@ function renderCards() {
 function esc(s){var d=document.createElement("div");d.textContent=s;return d.innerHTML;}
 function hashCode(s){var h=0;for(var i=0;i<s.length;i++){h=((h<<5)-h)+s.charCodeAt(i);h|=0;}return h;}
 
-// SSE
-var es = new EventSource("/stream");
-es.addEventListener("puck_registered",function(){refresh();});
-es.addEventListener("status_change",function(){refresh();});
-es.addEventListener("broadcast",function(e){
-  var inp=document.getElementById("bc-input");
-  inp.style.borderColor="rgba(255,170,0,0.6)";
-  inp.style.boxShadow="0 0 20px rgba(255,170,0,0.1)";
-  setTimeout(function(){inp.style.borderColor="";inp.style.boxShadow="";},2000);
-  var cards=document.querySelectorAll(".puck-card");
-  cards.forEach(function(c){
-    c.classList.remove("broadcasting");
-    void c.offsetWidth;
-    c.classList.add("broadcasting");
+// SSE with auto-reconnect
+function connectSSE(){
+  var es = new EventSource("/stream");
+  es.addEventListener("puck_registered",function(){refresh();});
+  es.addEventListener("status_change",function(){refresh();});
+  es.addEventListener("reconnect",function(){es.close(); setTimeout(connectSSE, 500);});
+  es.addEventListener("broadcast",function(e){
+    var inp=document.getElementById("bc-input");
+    inp.style.borderColor="rgba(255,170,0,0.6)";
+    inp.style.boxShadow="0 0 20px rgba(255,170,0,0.1)";
+    setTimeout(function(){inp.style.borderColor="";inp.style.boxShadow="";},2000);
+    var cards=document.querySelectorAll(".puck-card");
+    cards.forEach(function(c){
+      c.classList.remove("broadcasting");
+      void c.offsetWidth;
+      c.classList.add("broadcasting");
+    });
+    setTimeout(function(){
+      cards.forEach(function(c){c.classList.remove("broadcasting");});
+    },4500);
   });
-  setTimeout(function(){
-    cards.forEach(function(c){c.classList.remove("broadcasting");});
-  },4500);
-});
+  es.onerror = function(){ es.close(); setTimeout(connectSSE, 2000); };
+}
+connectSSE();
 
 refresh();
 setInterval(refresh, 5000);
