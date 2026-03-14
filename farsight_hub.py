@@ -506,36 +506,17 @@ _DASHBOARD_HTML = r"""<!DOCTYPE html>
   }
 
   .sidebar-brand {
-    padding: 16px 16px 22px;
+    padding: 16px 12px 20px;
     text-align: center;
     border-bottom: 1px solid var(--border);
     margin-bottom: 16px;
   }
-  .sidebar-brand .logo-emblem {
-    width: 200px; height: 140px;
-    margin: 0 auto 12px;
+  .sidebar-brand svg {
     display: block;
-  }
-  .sidebar-brand .logo-img {
-    display: block;
-    margin: 0 auto 14px;
-    height: 70px;
-    width: auto;
-    filter: drop-shadow(0 0 22px rgba(0,255,136,0.4)) brightness(1.2);
-  }
-  .sidebar-brand .brand-label {
-    font-size: 16px;
-    font-weight: 700;
-    letter-spacing: 0.4em;
-    color: var(--green);
-    text-shadow: 0 0 20px rgba(0,255,136,0.5);
-  }
-  .sidebar-brand .brand-sub {
-    font-size: 11px;
-    font-weight: 500;
-    letter-spacing: 0.2em;
-    color: var(--text-dim);
-    margin-top: 4px;
+    width: 216px;
+    height: 120px;
+    margin: 0 auto;
+    filter: drop-shadow(0 0 8px rgba(0,255,136,0.15));
   }
 
   .sidebar-section { padding: 0 12px; margin-bottom: 20px; }
@@ -964,8 +945,49 @@ _DASHBOARD_HTML = r"""<!DOCTYPE html>
 <div class="layout">
   <nav class="sidebar">
     <div class="sidebar-brand">
-      <div class="brand-label">FARSIGHT</div>
-      <div class="brand-sub">TACTICAL COMMAND</div>
+      <svg viewBox="0 0 216 120" xmlns="http://www.w3.org/2000/svg">
+        <!-- Outer targeting reticle -->
+        <circle cx="108" cy="52" r="42" fill="none" stroke="#00ff88" stroke-width="0.8" stroke-opacity="0.25" stroke-dasharray="4,6"/>
+        <circle cx="108" cy="52" r="34" fill="none" stroke="#00ff88" stroke-width="0.5" stroke-opacity="0.12"/>
+        <!-- Scan sweep glow -->
+        <circle cx="108" cy="52" r="38" fill="none" stroke="#00ff88" stroke-width="2" stroke-opacity="0.06">
+          <animate attributeName="r" values="28;42;28" dur="4s" repeatCount="indefinite"/>
+          <animate attributeName="stroke-opacity" values="0.12;0.02;0.12" dur="4s" repeatCount="indefinite"/>
+        </circle>
+        <!-- Crosshair — vertical -->
+        <line x1="108" y1="14" x2="108" y2="36" stroke="#00ff88" stroke-width="0.6" stroke-opacity="0.3"/>
+        <line x1="108" y1="68" x2="108" y2="90" stroke="#00ff88" stroke-width="0.6" stroke-opacity="0.3"/>
+        <!-- Crosshair — horizontal -->
+        <line x1="70" y1="52" x2="92" y2="52" stroke="#00ff88" stroke-width="0.6" stroke-opacity="0.3"/>
+        <line x1="124" y1="52" x2="146" y2="52" stroke="#00ff88" stroke-width="0.6" stroke-opacity="0.3"/>
+        <!-- Corner brackets — top-left -->
+        <polyline points="78,24 78,18 84,18" fill="none" stroke="#00ff88" stroke-width="1.2" stroke-opacity="0.5"/>
+        <!-- Corner brackets — top-right -->
+        <polyline points="132,18 138,18 138,24" fill="none" stroke="#00ff88" stroke-width="1.2" stroke-opacity="0.5"/>
+        <!-- Corner brackets — bottom-left -->
+        <polyline points="78,80 78,86 84,86" fill="none" stroke="#00ff88" stroke-width="1.2" stroke-opacity="0.5"/>
+        <!-- Corner brackets — bottom-right -->
+        <polyline points="132,86 138,86 138,80" fill="none" stroke="#00ff88" stroke-width="1.2" stroke-opacity="0.5"/>
+        <!-- Inner diamond -->
+        <polygon points="108,38 122,52 108,66 94,52" fill="none" stroke="#00ff88" stroke-width="0.7" stroke-opacity="0.2"/>
+        <!-- Center dot — pulsing -->
+        <circle cx="108" cy="52" r="3" fill="#00ff88" fill-opacity="0.7">
+          <animate attributeName="fill-opacity" values="0.7;0.2;0.7" dur="2s" repeatCount="indefinite"/>
+        </circle>
+        <circle cx="108" cy="52" r="6" fill="none" stroke="#00ff88" stroke-width="0.5" stroke-opacity="0.3"/>
+        <!-- Rotating tick marks -->
+        <g opacity="0.35">
+          <animateTransform attributeName="transform" type="rotate" from="0 108 52" to="360 108 52" dur="30s" repeatCount="indefinite"/>
+          <line x1="108" y1="12" x2="108" y2="16" stroke="#00ff88" stroke-width="0.8"/>
+          <line x1="148" y1="52" x2="144" y2="52" stroke="#00ff88" stroke-width="0.8"/>
+          <line x1="108" y1="92" x2="108" y2="88" stroke="#00ff88" stroke-width="0.8"/>
+          <line x1="68" y1="52" x2="72" y2="52" stroke="#00ff88" stroke-width="0.8"/>
+        </g>
+        <!-- "F" glyph — center -->
+        <text x="108" y="57" text-anchor="middle" fill="#00ff88" font-family="JetBrains Mono,monospace" font-weight="700" font-size="18" opacity="0.85">F</text>
+        <!-- FARSIGHT wordmark -->
+        <text x="108" y="108" text-anchor="middle" fill="#00ff88" font-family="JetBrains Mono,monospace" font-weight="700" font-size="14" letter-spacing="6" opacity="0.9">FARSIGHT</text>
+      </svg>
     </div>
 
     <div class="sidebar-section">
