@@ -1127,7 +1127,7 @@ _DASHBOARD_HTML = r"""<!DOCTYPE html>
           <div class="tb-logo"><img src="/logo.png" alt="AURA"></div>
           <div>
             <div class="tb-title">FARSIGHT COMMAND</div>
-            <div class="tb-subtitle">FLEET COORDINATION &amp; SURVEILLANCE</div>
+            <div class="tb-subtitle">AURA NETWORK COORDINATION</div>
           </div>
         </div>
         <div class="tb-right">
