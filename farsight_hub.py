@@ -759,6 +759,27 @@ _DASHBOARD_HTML = r"""<!DOCTYPE html>
     border-width: 2px !important;
     box-shadow: 0 0 24px rgba(0,255,136,0.15), 0 0 60px rgba(0,255,136,0.05), inset 0 0 30px rgba(0,255,136,0.03);
   }
+  /* Urgent attention pulsing red */
+  .puck-card.urgent {
+    border-color: var(--red) !important;
+    animation: urgentPulse 1.5s ease-in-out infinite;
+  }
+  .puck-card.urgent::before {
+    background: var(--red) !important;
+    box-shadow: 0 0 12px var(--red) !important;
+  }
+  .puck-card.urgent .pc-status {
+    background: rgba(231,76,60,0.15) !important;
+    color: var(--red) !important;
+    border-color: var(--red) !important;
+  }
+  .puck-card.urgent .pc-status::after {
+    content: " \u26a0";
+  }
+  @keyframes urgentPulse {
+    0%, 100% { border-color: var(--red); box-shadow: 0 0 8px rgba(231,76,60,0.15); }
+    50% { border-color: #ff4444; box-shadow: 0 0 25px rgba(231,76,60,0.35), 0 0 60px rgba(231,76,60,0.1); }
+  }
   /* Dimmed state when another card is expanded */
   .puck-card.dimmed {
     opacity: 0.15;
@@ -1434,6 +1455,20 @@ function renderCards() {
     var tsd = document.getElementById("ts-"+i);
     if(tsd) tsd.scrollTop = tsd.scrollHeight;
   }
+  // Check for urgent tables based on viewpoint keywords
+  var urgentWords = /RED FLAG|CRITICAL|ALERT|IMMEDIATELY|spiraling|walk out|disaster|cancel it|unacceptable|manager.*NOW|intervention|three-alarm|fire table|mystery shopper/i;
+  for(var i=0;i<pucks.length;i++){
+    var pid = pucks[i].puck_id;
+    var vp = liveViewpoints[pid] || pucks[i].analysis || "";
+    var card = document.getElementById("card-"+i);
+    if(card){
+      if(urgentWords.test(vp)){
+        card.classList.add("urgent");
+      } else {
+        card.classList.remove("urgent");
+      }
+    }
+  }
   // Re-apply expanded/dimmed state after rebuild
   if (expandedIdx >= 0) {
     var cards = document.querySelectorAll(".puck-card");
@@ -1540,7 +1575,7 @@ function tickTranscripts() {
   // Add a new transcript line to 1-3 random rooms
   var active = pucks.filter(function(p){ return p.effective_status !== "offline"; });
   if (!active.length) return;
-  var count = 1 + Math.floor(Math.random() * 2);
+  var count = 2 + Math.floor(Math.random() * 4);
   for (var c=0; c<count; c++) {
     var p = active[Math.floor(Math.random() * active.length)];
     var pid = p.puck_id;
@@ -1573,7 +1608,7 @@ function tickViewpoints() {
   // Update 1-2 random room viewpoints
   var active = pucks.filter(function(p){ return p.effective_status !== "offline"; });
   if (!active.length) return;
-  var count = 1 + Math.floor(Math.random() * 1);
+  var count = 1 + Math.floor(Math.random() * 2);
   for (var c=0; c<count; c++) {
     var p = active[Math.floor(Math.random() * active.length)];
     var pid = p.puck_id;
@@ -1584,24 +1619,36 @@ function tickViewpoints() {
     _vpCounters[pid]++;
     liveViewpoints[pid] = pool.viewpoints[idx];
     // Update DOM directly
-    var el = document.getElementById("av-" + pucks.indexOf(p));
+    var pIdx = pucks.indexOf(p);
+    var el = document.getElementById("av-" + pIdx);
     if (el) {
       el.style.opacity = "0";
-      setTimeout((function(e, txt) {
-        return function() { e.textContent = txt; e.style.opacity = "1"; };
-      })(el, pool.viewpoints[idx]), 300);
+      var newText = pool.viewpoints[idx];
+      setTimeout((function(e, txt, ci) {
+        return function() {
+          e.textContent = txt;
+          e.style.opacity = "1";
+          // Re-check urgency for this card
+          var urgRe = /RED FLAG|CRITICAL|ALERT|IMMEDIATELY|spiraling|walk out|disaster|cancel it|unacceptable|manager.*NOW|intervention|three-alarm|fire table|mystery shopper/i;
+          var card = document.getElementById("card-"+ci);
+          if(card){
+            if(urgRe.test(txt)){ card.classList.add("urgent"); }
+            else { card.classList.remove("urgent"); }
+          }
+        };
+      })(el, newText, pIdx), 300);
     }
   }
 }
 
 // Run transcript ticks every 4-7 seconds
 function scheduleTranscriptTick() {
-  var delay = 4000 + Math.random() * 3000;
+  var delay = 1500 + Math.random() * 2000;
   setTimeout(function(){ tickTranscripts(); scheduleTranscriptTick(); }, delay);
 }
-// Run viewpoint ticks every 12-18 seconds
+// Run viewpoint ticks every 8-14 seconds
 function scheduleViewpointTick() {
-  var delay = 12000 + Math.random() * 6000;
+  var delay = 8000 + Math.random() * 6000;
   setTimeout(function(){ tickViewpoints(); scheduleViewpointTick(); }, delay);
 }
 scheduleTranscriptTick();
