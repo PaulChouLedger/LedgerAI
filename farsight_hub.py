@@ -48,6 +48,7 @@ _sse_clients: list = []         # list of queue.Queue for SSE subscribers
 _sse_lock = threading.Lock()
 _pending_messages: dict = {}    # puck_id -> list of pending messages
 _pending_updates: dict = {}     # puck_id -> {"ref": "main"}
+_active_scenario: str = "ledgerai_hq"
 
 
 def _now_iso() -> str:
@@ -1205,6 +1206,16 @@ _DASHBOARD_HTML = r"""<!DOCTYPE html>
     </div>
 
     <div class="sidebar-section">
+      <div class="sidebar-section-label">Scenarios</div>
+      <div class="sidebar-item active" id="scn-ledgerai_hq" onclick="switchScenario('ledgerai_hq')">
+        <span class="icon">&#9962;</span> LedgerAI HQ
+      </div>
+      <div class="sidebar-item" id="scn-restaurant" onclick="switchScenario('restaurant')">
+        <span class="icon">&#9749;</span> Restaurant
+      </div>
+    </div>
+
+    <div class="sidebar-section">
       <div class="sidebar-section-label">Systems</div>
       <div class="sidebar-item" onclick="setView('updates')">
         <span class="icon">&#8635;</span> OTA Deploy
@@ -1494,189 +1505,11 @@ var liveTranscripts = {};  // puck_id -> [{time, speaker, text}, ...]
 var liveViewpoints = {};   // puck_id -> string
 var _tsInited = false;
 
-var _convPools = {
-  "Exec Boardroom": {
-    speakers: ["Paul","David","Dr. Rafael"],
-    lines: [
-      ["Paul","We need to finalize the partnership terms before Friday."],
-      ["David","The legal team flagged two clauses that need revision."],
-      ["Paul","Which clauses? Send me the redlines after this."],
-      ["Dr. Rafael","The IP assignment clause is the blocker. I reviewed it with outside counsel."],
-      ["David","Revenue share is at 60-40 but they're pushing for 55-45."],
-      ["Paul","Hold at 60-40. We have the leverage here."],
-      ["Dr. Rafael","Agreed. Our tech stack is the differentiator."],
-      ["David","I'll push back on their legal team this afternoon."],
-      ["Paul","What about the deployment timeline? Are we still on track?"],
-      ["Dr. Rafael","Hardware arrives next week. Software is ready."],
-      ["Paul","Good. Let's not slip on this."],
-      ["David","There's a facilities request for the new server room buildout."],
-      ["Paul","How much?"],
-      ["David","About 340K including cooling and redundancy."],
-      ["Dr. Rafael","That's reasonable for what we're getting."],
-      ["Paul","Approve it. Move fast before the price goes up."],
-      ["David","I'll sign the PO today."],
-      ["Paul","What's the status on the Series B conversations?"],
-      ["David","Two firms are in. Term sheet expected next week."],
-      ["Dr. Rafael","Valuation looks strong given the Q2 numbers."],
-    ],
-    viewpoints: [
-      "Paul is running this meeting at pace. David's legal hesitation is valid but he needs to stop hedging and commit to a timeline. Dr. Rafael just dropped the key insight about IP assignment \u2014 that's the real issue, not revenue share. Paul should listen to him more.",
-      "The 60-40 hold is the right call. David will fold under pressure from their legal team unless Paul backs him explicitly. I'd get that in writing. The hardware timeline is tight \u2014 'next week' means 'maybe next week' in my experience.",
-      "Series B conversations are heating up. Two firms is good but three is leverage. Paul knows this. The 340K server room approval was instant \u2014 he's spending with conviction. Good sign for the board.",
-      "Dr. Rafael finally engaged and he's the smartest person in the room. His silence earlier was concerning. The IP clause insight just saved them weeks of back-and-forth. David needs to lead with that in the afternoon call.",
-      "This meeting is productive but running long. There's a visitor waiting in the lobby for Paul. Someone needs to flag that \u2014 keeping partners waiting is exactly the kind of thing that costs deals.",
-      "David just said 'I'll sign the PO today' \u2014 he's said that exact phrase three times this month and signed zero POs. Paul trusts him but I don't. Track the actual signature, not the promise. Dr. Rafael noticed too. Watch his face.",
-      "Everyone in this room is smart enough to know the Series B valuation is inflated by 20%, but nobody's saying it out loud. That's a problem. Honest conversations now save painful board meetings later. Paul knows this. He's choosing optimism over accuracy.",
-    ]
-  },
-  "Engineering Lab": {
-    speakers: ["Mason","Lucas"],
-    lines: [
-      ["Mason","I refactored the attention layer. Memory dropped 40%."],
-      ["Lucas","What's the throughput impact?"],
-      ["Mason","Actually improved. 2200 tokens per second now."],
-      ["Lucas","That's insane. Show me the profiler output."],
-      ["Mason","Pull it up. Kernel fusion did most of the heavy lifting."],
-      ["Lucas","We should upstream this to the main branch."],
-      ["Mason","Already opened the PR. Needs your review."],
-      ["Lucas","I'll look at it after lunch. Any regressions in the test suite?"],
-      ["Mason","All green. 847 tests passing."],
-      ["Lucas","What about the edge case with long context windows?"],
-      ["Mason","Fixed. The sliding window approach handles it now."],
-      ["Lucas","Nice. I've been working on the streaming decoder."],
-      ["Mason","How's latency looking?"],
-      ["Lucas","First token at 45ms. Way under our 100ms target."],
-      ["Mason","Paul's going to love that number."],
-      ["Lucas","Should we present at the all-hands?"],
-      ["Mason","Definitely. Let's put together the benchmarks."],
-      ["Lucas","I'll grab the A/B test results too."],
-    ],
-    viewpoints: [
-      "Mason just casually dropped a 40% memory reduction like it's nothing. This is the kind of work that should be in the boardroom conversation upstairs, not buried in a PR review. Lucas is a good foil \u2014 he asks the right questions.",
-      "2200 tokens/sec with 40% less memory. These two are operating at a level the rest of the org doesn't fully appreciate. The 45ms first-token latency is world-class. They should present this to Paul directly, not wait for an all-hands.",
-      "All 847 tests green is reassuring but I'd want to see the long-context edge case tested under load, not just unit tested. Mason says 'fixed' but sliding window approaches have failure modes at the boundaries. Trust but verify.",
-      "The streaming decoder work is the real product differentiator. If Lucas can maintain 45ms first-token consistently at scale, that's a competitive moat. Patent this before publishing any benchmarks.",
-      "Brutal truth: Mason is carrying this team. Lucas asks good questions but hasn't shipped original work in two weeks. He's becoming a reviewer, not a builder. Someone needs to give him a hard problem of his own before he gets comfortable.",
-      "They keep benchmarking instead of shipping. This is classic engineer procrastination disguised as rigor. The numbers were good three days ago. Push to production, measure in the wild, and stop polishing in the lab.",
-    ]
-  },
-  "Kitchen & Lounge": {
-    speakers: ["Jorge","Bob","Sarah","Kim"],
-    lines: [
-      ["Jorge","Did you see the email about the rooftop social tonight?"],
-      ["Bob","Yeah, 5pm. Weather looks perfect."],
-      ["Sarah","I'm bringing that dip from last time. People kept asking about it."],
-      ["Kim","The one with the roasted garlic? Yes please."],
-      ["Jorge","Who's handling the drinks order?"],
-      ["Bob","Facilities said they'd set up a bar station."],
-      ["Sarah","We should get some non-alcoholic options too."],
-      ["Kim","Good call. There's a great NA beer brand."],
-      ["Jorge","Did anyone try the new lunch spot on 5th?"],
-      ["Bob","The ramen place? Incredible."],
-      ["Sarah","I went yesterday. The tonkotsu is amazing."],
-      ["Kim","We should do a team lunch there."],
-      ["Jorge","Speaking of food, someone keeps stealing my yogurt."],
-      ["Bob","That's a war crime. Label it better."],
-      ["Sarah","I'll send a passive-aggressive email to all-staff."],
-      ["Kim","Just put a fake label on it. 'Contains medicine.'"],
-      ["Jorge","Genius. Kim, you're promoted."],
-    ],
-    viewpoints: [
-      "Four people in the kitchen again. Jorge is the social glue of this office \u2014 every casual conversation traces back to him. This isn't wasted time; this is how culture gets built. The yogurt theft is genuinely annoying though. Somebody check the fridge cam.",
-      "The rooftop social planning is happening organically and that's better than any HR-organized event. Sarah's dip is apparently legendary. If the weather holds, tonight's going to be great for morale. Let them have their 15 minutes.",
-      "Kitchen conversations reveal more about team health than any engagement survey. Everyone's relaxed, joking about yogurt theft \u2014 that's a team that trusts each other. Kim's 'contains medicine' suggestion is actually brilliant social engineering.",
-      "Bob keeps gravitating to the kitchen. Third time this week. Either he's avoiding his desk or he genuinely needs the social recharge. Given his output has been strong, I'll assume the latter. Not flagging this.",
-      "Jorge has spent 47 minutes in the kitchen today. At some point 'culture building' becomes 'not working.' His Q3 deliverables are behind. I like the guy but the numbers don't lie. Someone should casually mention his sprint velocity in standup tomorrow.",
-    ]
-  },
-  "Medical Suite": {
-    speakers: ["Dr. Chen","Nurse Adams"],
-    lines: [
-      ["Dr. Chen","Next patient is the 3pm follow-up. Knee replacement recovery."],
-      ["Nurse Adams","Chart's pulled. Physical therapy notes look good."],
-      ["Dr. Chen","ROM improved to 110 degrees. That's ahead of schedule."],
-      ["Nurse Adams","Patient's been doing the home exercises consistently."],
-      ["Dr. Chen","That's what makes the difference. Compliance is everything."],
-      ["Nurse Adams","Lab results for the Walker case just came in."],
-      ["Dr. Chen","And?"],
-      ["Nurse Adams","All within normal range. A1C is down to 6.1."],
-      ["Dr. Chen","Excellent. That's a significant improvement from 7.8."],
-      ["Nurse Adams","Should I schedule the medication review?"],
-      ["Dr. Chen","Yes. We might be able to reduce the dosage."],
-      ["Nurse Adams","The pharmacy integration is working well by the way."],
-      ["Dr. Chen","It's saving us about 20 minutes per patient."],
-      ["Nurse Adams","The patients notice too. Less waiting."],
-    ],
-    viewpoints: [
-      "This room is a well-oiled machine. Dr. Chen runs through patients with surgical precision \u2014 pun intended. The A1C drop from 7.8 to 6.1 is a genuine clinical win. Nurse Adams is the unsung hero here; she pre-stages everything.",
-      "The pharmacy integration saving 20 minutes per patient is huge at scale. If they see 30 patients a day, that's 10 hours recovered per week. Dr. Chen should present this efficiency gain to the board.",
-      "ROM at 110 degrees post-knee replacement is excellent progress. The patient compliance note is important \u2014 Dr. Chen's bedside manner clearly motivates follow-through. This is evidence-based care done right.",
-      "Smooth operations. No bottlenecks, no delays. If every department ran like this suite, the whole building would be a different place. Nurse Adams deserves a raise and I'm not even being hyperbolic.",
-      "Dr. Chen is the fastest clinician I've observed but speed has a shadow side. He spent 3 minutes and 40 seconds on a patient discharge. That's efficient or it's rushed \u2014 depends on whether the patient felt heard. The metrics say yes. My instinct says barely.",
-    ]
-  },
-  "Server Room": {
-    speakers: ["System","Alert"],
-    lines: [
-      ["System","Rack 3 temperature: 18.4\u00b0C. Within tolerance."],
-      ["System","UPS battery test completed. All cells nominal."],
-      ["Alert","Humidity sensor B2-7 reading 43%. Above 40% threshold."],
-      ["System","Network switch port 24 link speed renegotiated to 10Gbps."],
-      ["System","Scheduled backup completed. 2.4TB replicated to offsite."],
-      ["Alert","Rack 5 fan module RPM fluctuation detected. Monitoring."],
-      ["System","Power consumption: 14.2 kW. Below 18 kW budget."],
-      ["System","Cooling unit A cycling normally. Compressor runtime: 340h."],
-      ["Alert","DNS query latency spike: 45ms. Resolved. ISP upstream issue."],
-      ["System","Storage array health: all disks green. 847TB available."],
-    ],
-    viewpoints: [
-      "That humidity reading is creeping up again. 43% and the threshold is 40%. Last time this happened it was a failed seal on the CRAC unit. Facilities 'fixed' it but I'm skeptical. If it hits 45% I'm sending an automated alert to maintenance.",
-      "Rack 5 fan module has been 'fluctuating' for a week now. This is how cascading failures start. Replace the module proactively \u2014 a $200 fan is cheaper than a $50K server going thermal. Flagging this as priority.",
-      "The 2.4TB offsite backup completed clean. Good. But nobody's tested a restore in 3 months. Backups without restore tests are just expensive hope. Adding this to the ops review agenda.",
-      "Power at 14.2 kW against an 18 kW budget gives us headroom for the new racks. The cooling is keeping up. This room is healthy but needs preventive attention before the summer heat load arrives.",
-    ]
-  },
-  "Reception Lobby": {
-    speakers: ["Front Desk","Visitor","Courier"],
-    lines: [
-      ["Front Desk","Good morning, welcome to Aura. How can I help you?"],
-      ["Visitor","I'm here for the 11:30 with the engineering team."],
-      ["Front Desk","Of course. I'll let them know you're here. Can I get you a coffee?"],
-      ["Visitor","That would be great, thank you."],
-      ["Front Desk","The Wi-Fi password is on the card in the lounge area."],
-      ["Courier","Package delivery for David Chen. Signature required."],
-      ["Front Desk","I can sign for that. Thank you."],
-      ["Courier","Have a good day."],
-      ["Front Desk","You too. David, you have a package at reception."],
-      ["Visitor","Beautiful office by the way. Love the design."],
-      ["Front Desk","Thank you! The renovation was just completed last month."],
-    ],
-    viewpoints: [
-      "Visitor arrived for the 11:30 engineering meeting. Front desk is handling it well \u2014 offered coffee, Wi-Fi, the whole experience. First impressions matter and this lobby is earning its keep. The visitor complimented the space, which is always a good sign for client conversion.",
-      "David's package arrived and Front Desk signed for it. That's three packages this week for David. Either it's equipment for the lab or he's running a side hustle from the office. Joking. Mostly.",
-      "The lobby is the first thing visitors see and right now it's performing perfectly. No wait times, warm reception, ambient music. This is the kind of invisible excellence that closes deals. Keep it up.",
-      "Two visitors in the last hour. Traffic is picking up which tracks with the partnership discussions happening upstairs. If this pace continues, we might need a second front desk person during peak hours.",
-    ]
-  },
-  "Rooftop Terrace": {
-    speakers: ["Wind Sensor","Ambient"],
-    lines: [
-      ["Ambient","Temperature: 22.4\u00b0C. Humidity: 35%. UV index: 6."],
-      ["Wind Sensor","Wind speed: 8 km/h NNW. Gusts to 12 km/h."],
-      ["Ambient","Noise level: 42 dB. Well within comfort range."],
-      ["Wind Sensor","Barometric pressure: 1013 hPa. Stable."],
-      ["Ambient","Solar panel output: 4.2 kW. Above daily average."],
-      ["Wind Sensor","Wind direction shifting to NW. Speed holding steady."],
-      ["Ambient","Air quality index: 28. Excellent."],
-    ],
-    viewpoints: [
-      "Perfect conditions up here. 22\u00b0C, clear skies, gentle breeze. The 5pm social tonight is going to be excellent. Solar panels are overperforming which is nice. This rooftop is genuinely the best asset in the building and it's criminally underused during work hours.",
-      "UV index at 6 means sunscreen is advisable for the social tonight. Someone should mention that in the event announcement. The air quality is excellent \u2014 better than most offices' indoor air. People should be working up here.",
-      "Wind is calm, pressure is stable, no weather changes incoming. Tonight's event has zero weather risk. The solar output at 4.2 kW means the terrace lighting can run entirely off the panels. Sustainable entertaining.",
-      "Empty again during business hours. The ROI on this terrace renovation needs people actually using it. I'm going to recommend a 'rooftop Fridays' policy. Fresh air and sunlight improve cognitive performance by 15-20% according to the research.",
-    ]
-  }
-};
+var _allScenarioPools = __SCENARIO_POOLS_JSON__;
+var _activeScenario = "__DEFAULT_SCENARIO__";
+var _scenarioLabels = __SCENARIO_LABELS_JSON__;
+var _convPools = _allScenarioPools[_activeScenario] || {};
+
 
 // Initialize live transcript state from server data
 function initLiveState() {
@@ -1775,10 +1608,49 @@ scheduleTranscriptTick();
 scheduleViewpointTick();
 
 // SSE with auto-reconnect
+// ── Scenario switching ──────────────────────────
+function _resetLiveState() {
+  liveTranscripts = {};
+  liveViewpoints = {};
+  _lineCounters = {};
+  _vpCounters = {};
+  _tsInited = false;
+  ledgerAccum = {};
+  if (typeof expandedIdx !== 'undefined') { expandedIdx = -1; collapseCards(); }
+}
+function switchScenario(key) {
+  if (key === _activeScenario) return;
+  fetch("/scenario", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({scenario: key})
+  }).then(function(r){ return r.json(); }).then(function(d) {
+    if (d.ok) {
+      _activeScenario = key;
+      _convPools = _allScenarioPools[key] || {};
+      _resetLiveState();
+      document.querySelectorAll("[id^='scn-']").forEach(function(el){ el.classList.remove("active"); });
+      var btn = document.getElementById("scn-" + key);
+      if (btn) btn.classList.add("active");
+      refresh();
+    }
+  });
+}
+
 function connectSSE(){
   var es = new EventSource("/stream");
   es.addEventListener("puck_registered",function(){refresh();});
   es.addEventListener("status_change",function(){refresh();});
+  es.addEventListener("scenario_changed",function(e){
+    var d = JSON.parse(e.data);
+    _activeScenario = d.scenario;
+    _convPools = _allScenarioPools[d.scenario] || {};
+    _resetLiveState();
+    document.querySelectorAll("[id^='scn-']").forEach(function(el){ el.classList.remove("active"); });
+    var btn = document.getElementById("scn-" + d.scenario);
+    if (btn) btn.classList.add("active");
+    refresh();
+  });
   es.addEventListener("reconnect",function(){es.close(); setTimeout(connectSSE, 500);});
   es.addEventListener("broadcast",function(e){
     var inp=document.getElementById("bc-input");
@@ -1819,19 +1691,230 @@ def logo():
     return "", 404
 
 
+@app.route("/scenario", methods=["GET", "POST"])
+def scenario():
+    global _active_scenario
+    if request.method == "GET":
+        return jsonify({
+            "active": _active_scenario,
+            "available": [{"key": k, "label": v["label"]} for k, v in SCENARIOS.items()],
+        })
+    key = request.json.get("scenario", "")
+    if key not in SCENARIOS:
+        return jsonify({"ok": False, "error": "unknown scenario"}), 400
+    _active_scenario = key
+    _load_scenario(key)
+    _broadcast_sse("scenario_changed", {"scenario": key, "label": SCENARIOS[key]["label"]})
+    return jsonify({"ok": True, "scenario": key})
+
+
 @app.route("/", methods=["GET"])
 def dashboard():
-    return _DASHBOARD_HTML, 200, {"Content-Type": "text/html; charset=utf-8"}
+    # Inject scenario data into template
+    all_pools = {k: v["conv_pools"] for k, v in SCENARIOS.items()}
+    labels = {k: v["label"] for k, v in SCENARIOS.items()}
+    html = _DASHBOARD_HTML.replace("__SCENARIO_POOLS_JSON__", json.dumps(all_pools))
+    html = html.replace('"__DEFAULT_SCENARIO__"', json.dumps(_active_scenario))
+    html = html.replace("__SCENARIO_LABELS_JSON__", json.dumps(labels))
+    return html, 200, {"Content-Type": "text/html; charset=utf-8"}
 
 
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
-def _seed_demo_pucks():
-    """Inject demo pucks so the dashboard always has something to show."""
-    demos = [
-        {"puck_id": "aura-16113256-035751-314159", "puck_name": "Exec Boardroom",
+# ---------------------------------------------------------------------------
+# Scenario definitions
+# ---------------------------------------------------------------------------
+
+SCENARIOS = {
+    "ledgerai_hq": {
+        "label": "LedgerAI HQ",
+        "conv_pools": {
+            "Exec Boardroom": {
+                "speakers": ["Paul","David","Dr. Rafael"],
+                "lines": [
+                    ["Paul","We need to finalize the partnership terms before Friday."],
+                    ["David","The legal team flagged two clauses that need revision."],
+                    ["Paul","Which clauses? Send me the redlines after this."],
+                    ["Dr. Rafael","The IP assignment clause is the blocker. I reviewed it with outside counsel."],
+                    ["David","Revenue share is at 60-40 but they're pushing for 55-45."],
+                    ["Paul","Hold at 60-40. We have the leverage here."],
+                    ["Dr. Rafael","Agreed. Our tech stack is the differentiator."],
+                    ["David","I'll push back on their legal team this afternoon."],
+                    ["Paul","What about the deployment timeline? Are we still on track?"],
+                    ["Dr. Rafael","Hardware arrives next week. Software is ready."],
+                    ["Paul","Good. Let's not slip on this."],
+                    ["David","There's a facilities request for the new server room buildout."],
+                    ["Paul","How much?"],
+                    ["David","About 340K including cooling and redundancy."],
+                    ["Dr. Rafael","That's reasonable for what we're getting."],
+                    ["Paul","Approve it. Move fast before the price goes up."],
+                    ["David","I'll sign the PO today."],
+                    ["Paul","What's the status on the Series B conversations?"],
+                    ["David","Two firms are in. Term sheet expected next week."],
+                    ["Dr. Rafael","Valuation looks strong given the Q2 numbers."],
+                ],
+                "viewpoints": [
+                    "Paul is running this meeting at pace. David's legal hesitation is valid but he needs to stop hedging and commit to a timeline. Dr. Rafael just dropped the key insight about IP assignment \u2014 that's the real issue, not revenue share.",
+                    "The 60-40 hold is the right call. David will fold under pressure from their legal team unless Paul backs him explicitly. The hardware timeline is tight \u2014 'next week' means 'maybe next week.'",
+                    "Series B conversations are heating up. Two firms is good but three is leverage. The 340K server room approval was instant \u2014 Paul's spending with conviction.",
+                    "Dr. Rafael finally engaged and he's the smartest person in the room. His silence earlier was concerning. The IP clause insight just saved them weeks of back-and-forth.",
+                    "This meeting is productive but running long. There's a visitor waiting in the lobby for Paul. Keeping partners waiting is the kind of thing that costs deals.",
+                    "David just said 'I'll sign the PO today' \u2014 he's said that exact phrase three times this month and signed zero POs. Track the actual signature, not the promise.",
+                    "Everyone in this room knows the Series B valuation is inflated by 20%, but nobody's saying it. Honest conversations now save painful board meetings later.",
+                ]
+            },
+            "Engineering Lab": {
+                "speakers": ["Mason","Lucas"],
+                "lines": [
+                    ["Mason","I refactored the attention layer. Memory dropped 40%."],
+                    ["Lucas","What's the throughput impact?"],
+                    ["Mason","Actually improved. 2200 tokens per second now."],
+                    ["Lucas","That's insane. Show me the profiler output."],
+                    ["Mason","Pull it up. Kernel fusion did most of the heavy lifting."],
+                    ["Lucas","We should upstream this to the main branch."],
+                    ["Mason","Already opened the PR. Needs your review."],
+                    ["Lucas","I'll look at it after lunch. Any regressions in the test suite?"],
+                    ["Mason","All green. 847 tests passing."],
+                    ["Lucas","What about the edge case with long context windows?"],
+                    ["Mason","Fixed. The sliding window approach handles it now."],
+                    ["Lucas","Nice. I've been working on the streaming decoder."],
+                    ["Mason","How's latency looking?"],
+                    ["Lucas","First token at 45ms. Way under our 100ms target."],
+                    ["Mason","Paul's going to love that number."],
+                    ["Lucas","Should we present at the all-hands?"],
+                    ["Mason","Definitely. Let's put together the benchmarks."],
+                    ["Lucas","I'll grab the A/B test results too."],
+                ],
+                "viewpoints": [
+                    "Mason just casually dropped a 40% memory reduction like it's nothing. This should be in the boardroom conversation, not buried in a PR review.",
+                    "2200 tokens/sec with 40% less memory. These two are operating at a level the rest of the org doesn't appreciate. The 45ms first-token latency is world-class.",
+                    "All 847 tests green is reassuring but I'd want to see the long-context edge case tested under load, not just unit tested.",
+                    "The streaming decoder work is the real product differentiator. Patent this before publishing any benchmarks.",
+                    "Brutal truth: Mason is carrying this team. Lucas asks good questions but hasn't shipped original work in two weeks. He's becoming a reviewer, not a builder.",
+                    "They keep benchmarking instead of shipping. Classic engineer procrastination disguised as rigor. Push to production and measure in the wild.",
+                ]
+            },
+            "Kitchen & Lounge": {
+                "speakers": ["Jorge","Bob","Sarah","Kim"],
+                "lines": [
+                    ["Jorge","Did you see the email about the rooftop social tonight?"],
+                    ["Bob","Yeah, 5pm. Weather looks perfect."],
+                    ["Sarah","I'm bringing that dip from last time. People kept asking about it."],
+                    ["Kim","The one with the roasted garlic? Yes please."],
+                    ["Jorge","Who's handling the drinks order?"],
+                    ["Bob","Facilities said they'd set up a bar station."],
+                    ["Sarah","We should get some non-alcoholic options too."],
+                    ["Kim","Good call. There's a great NA beer brand."],
+                    ["Jorge","Did anyone try the new lunch spot on 5th?"],
+                    ["Bob","The ramen place? Incredible."],
+                    ["Sarah","I went yesterday. The tonkotsu is amazing."],
+                    ["Kim","We should do a team lunch there."],
+                    ["Jorge","Speaking of food, someone keeps stealing my yogurt."],
+                    ["Bob","That's a war crime. Label it better."],
+                    ["Sarah","I'll send a passive-aggressive email to all-staff."],
+                    ["Kim","Just put a fake label on it. 'Contains medicine.'"],
+                    ["Jorge","Genius. Kim, you're promoted."],
+                ],
+                "viewpoints": [
+                    "Four people in the kitchen again. Jorge is the social glue of this office \u2014 every casual conversation traces back to him. This isn't wasted time; this is how culture gets built.",
+                    "The rooftop social planning is happening organically and that's better than any HR-organized event. Let them have their 15 minutes.",
+                    "Kitchen conversations reveal more about team health than any engagement survey. Everyone's relaxed, joking \u2014 that's a team that trusts each other.",
+                    "Bob keeps gravitating to the kitchen. Third time this week. Given his output has been strong, I'll assume social recharge. Not flagging this.",
+                    "Jorge has spent 47 minutes in the kitchen today. At some point 'culture building' becomes 'not working.' His Q3 deliverables are behind.",
+                ]
+            },
+            "Medical Suite": {
+                "speakers": ["Dr. Chen","Nurse Adams"],
+                "lines": [
+                    ["Dr. Chen","Next patient is the 3pm follow-up. Knee replacement recovery."],
+                    ["Nurse Adams","Chart's pulled. Physical therapy notes look good."],
+                    ["Dr. Chen","ROM improved to 110 degrees. That's ahead of schedule."],
+                    ["Nurse Adams","Patient's been doing the home exercises consistently."],
+                    ["Dr. Chen","That's what makes the difference. Compliance is everything."],
+                    ["Nurse Adams","Lab results for the Walker case just came in."],
+                    ["Dr. Chen","And?"],
+                    ["Nurse Adams","All within normal range. A1C is down to 6.1."],
+                    ["Dr. Chen","Excellent. That's a significant improvement from 7.8."],
+                    ["Nurse Adams","Should I schedule the medication review?"],
+                    ["Dr. Chen","Yes. We might be able to reduce the dosage."],
+                    ["Nurse Adams","The pharmacy integration is working well by the way."],
+                    ["Dr. Chen","It's saving us about 20 minutes per patient."],
+                    ["Nurse Adams","The patients notice too. Less waiting."],
+                ],
+                "viewpoints": [
+                    "This room is a well-oiled machine. Dr. Chen runs through patients with surgical precision. The A1C drop from 7.8 to 6.1 is a genuine clinical win.",
+                    "The pharmacy integration saving 20 minutes per patient is huge at scale. Dr. Chen should present this efficiency gain to the board.",
+                    "ROM at 110 degrees post-knee replacement is excellent progress. Dr. Chen's bedside manner clearly motivates follow-through.",
+                    "Smooth operations. If every department ran like this suite, the whole building would be a different place. Nurse Adams deserves a raise.",
+                    "Dr. Chen is the fastest clinician I've observed but speed has a shadow side. 3 minutes 40 seconds on a discharge. Efficient or rushed?",
+                ]
+            },
+            "Server Room": {
+                "speakers": ["System","Alert"],
+                "lines": [
+                    ["System","Rack 3 temperature: 18.4\u00b0C. Within tolerance."],
+                    ["System","UPS battery test completed. All cells nominal."],
+                    ["Alert","Humidity sensor B2-7 reading 43%. Above 40% threshold."],
+                    ["System","Network switch port 24 link speed renegotiated to 10Gbps."],
+                    ["System","Scheduled backup completed. 2.4TB replicated to offsite."],
+                    ["Alert","Rack 5 fan module RPM fluctuation detected. Monitoring."],
+                    ["System","Power consumption: 14.2 kW. Below 18 kW budget."],
+                    ["System","Cooling unit A cycling normally. Compressor runtime: 340h."],
+                    ["Alert","DNS query latency spike: 45ms. Resolved. ISP upstream issue."],
+                    ["System","Storage array health: all disks green. 847TB available."],
+                ],
+                "viewpoints": [
+                    "That humidity reading is creeping up again. 43% and the threshold is 40%. Last time this happened it was a failed seal on the CRAC unit.",
+                    "Rack 5 fan module has been 'fluctuating' for a week now. Replace it proactively \u2014 a $200 fan is cheaper than a $50K server going thermal.",
+                    "The 2.4TB offsite backup completed clean. But nobody's tested a restore in 3 months. Backups without restore tests are just expensive hope.",
+                    "Power at 14.2 kW against an 18 kW budget gives us headroom. This room is healthy but needs preventive attention before summer.",
+                ]
+            },
+            "Reception Lobby": {
+                "speakers": ["Front Desk","Visitor","Courier"],
+                "lines": [
+                    ["Front Desk","Good morning, welcome to Aura. How can I help you?"],
+                    ["Visitor","I'm here for the 11:30 with the engineering team."],
+                    ["Front Desk","Of course. I'll let them know you're here. Can I get you a coffee?"],
+                    ["Visitor","That would be great, thank you."],
+                    ["Front Desk","The Wi-Fi password is on the card in the lounge area."],
+                    ["Courier","Package delivery for David Chen. Signature required."],
+                    ["Front Desk","I can sign for that. Thank you."],
+                    ["Courier","Have a good day."],
+                    ["Front Desk","You too. David, you have a package at reception."],
+                    ["Visitor","Beautiful office by the way. Love the design."],
+                    ["Front Desk","Thank you! The renovation was just completed last month."],
+                ],
+                "viewpoints": [
+                    "Front desk is handling visitors well \u2014 offered coffee, Wi-Fi, the whole experience. First impressions matter and this lobby is earning its keep.",
+                    "David's package arrived. That's three packages this week. Either it's equipment for the lab or he's running a side hustle. Joking. Mostly.",
+                    "The lobby is performing perfectly. No wait times, warm reception. This is the invisible excellence that closes deals.",
+                    "Two visitors in the last hour. Traffic is picking up. If this pace continues, we might need a second front desk person during peak hours.",
+                ]
+            },
+            "Rooftop Terrace": {
+                "speakers": ["Wind Sensor","Ambient"],
+                "lines": [
+                    ["Ambient","Temperature: 22.4\u00b0C. Humidity: 35%. UV index: 6."],
+                    ["Wind Sensor","Wind speed: 8 km/h NNW. Gusts to 12 km/h."],
+                    ["Ambient","Noise level: 42 dB. Well within comfort range."],
+                    ["Wind Sensor","Barometric pressure: 1013 hPa. Stable."],
+                    ["Ambient","Solar panel output: 4.2 kW. Above daily average."],
+                    ["Wind Sensor","Wind direction shifting to NW. Speed holding steady."],
+                    ["Ambient","Air quality index: 28. Excellent."],
+                ],
+                "viewpoints": [
+                    "Perfect conditions up here. 22\u00b0C, clear skies, gentle breeze. The 5pm social tonight is going to be excellent. This rooftop is criminally underused during work hours.",
+                    "UV index at 6 means sunscreen is advisable for tonight. The air quality is excellent \u2014 better than most offices' indoor air.",
+                    "Wind is calm, pressure stable, no weather changes incoming. Solar output at 4.2 kW means the terrace lighting can run entirely off the panels.",
+                    "Empty again during business hours. I'm going to recommend a 'rooftop Fridays' policy. Fresh air improves cognitive performance by 15-20%.",
+                ]
+            },
+        },
+        "pucks": [
+            {"puck_id": "aura-16113256-035751-314159", "puck_name": "Exec Boardroom",
          "owner_name": "Floor 12", "color": "#981225", "ip": "192.168.1.108",
          "status": "listening", "uptime": 86400*2+3600*7, "memory_usage": 3840,
          "occupants": [
@@ -1909,9 +1992,697 @@ def _seed_demo_pucks():
          "occupants": [],
          "transcript": [],
          "analysis": "Empty and gorgeous up here. 22\u00b0C, not a cloud in sight. The team social at 5pm is going to be perfect weather. Honestly, half the engineering floor should be working up here instead of under fluorescents. Whoever booked this space only for after-hours is wasting the best real estate in the building."},
-    ]
+        ],
+    },
+    "restaurant": {
+        "label": "Restaurant",
+        "conv_pools": {
+            "Table 1": {
+                "speakers": ["James","Emily"],
+                "lines": [
+                    ["James","This is really nice. I'm glad we came here."],
+                    ["Emily","The reviews were amazing. I had to try it."],
+                    ["James","What are you thinking for an appetizer?"],
+                    ["Emily","The burrata looks incredible. Want to split it?"],
+                    ["James","Absolutely. And I'm eyeing the ribeye."],
+                    ["Emily","I'm torn between the salmon and the pasta."],
+                    ["James","Get the salmon. You always say you should eat more fish."],
+                    ["Emily","You're right. And a glass of the Sancerre."],
+                    ["James","Should we do a bottle? It's date night after all."],
+                    ["Emily","Twist my arm. Let's do it."],
+                    ["James","When's the last time we went out without the kids?"],
+                    ["Emily","Three months? Maybe four. Too long."],
+                ],
+                "viewpoints": [
+                    "Classic date night. Both engaged, good eye contact, sharing appetizers. Server should let them breathe \u2014 don't interrupt this vibe. The wine bottle upsell happened naturally. Perfect.",
+                    "They haven't been out in months. This meal matters to them. Make sure it's flawless. The ribeye better come out medium-rare or we'll ruin their night.",
+                    "Table 1 is the easiest table in the house right now. Happy couple, ordering well, not in a rush. Let them linger \u2014 they'll order dessert and probably a digestif.",
+                ]
+            },
+            "Table 2": {
+                "speakers": ["Mike","Sarah"],
+                "lines": [
+                    ["Mike","So what do you do for work?"],
+                    ["Sarah","I'm in marketing at a tech startup. You?"],
+                    ["Mike","Finance. Mostly portfolio management."],
+                    ["Sarah","That sounds intense. Do you enjoy it?"],
+                    ["Mike","Most days. The market's been wild lately."],
+                    ["Sarah","I bet. Have you been here before?"],
+                    ["Mike","First time. A friend recommended it."],
+                    ["Sarah","Same actually. The ambiance is great."],
+                    ["Mike","It really is. Should we get some wine?"],
+                    ["Sarah","I'd love a glass of pinot noir."],
+                    ["Mike","I'll do the same. Makes it easy."],
+                    ["Sarah","So tell me about this friend who recommended this place."],
+                ],
+                "viewpoints": [
+                    "First date. The small talk is still in 'job interview' mode. Mike is nervous \u2014 he's folding his napkin. Sarah seems comfortable though. Wine will help. Don't rush the check.",
+                    "Body language says this is going okay but not great. Mike needs to ask Sarah something she actually cares about instead of defaulting to work talk. Not my problem, but I'm rooting for him.",
+                    "First-timers, both recommended by friends. That word-of-mouth is working. Make sure this experience is memorable \u2014 they'll each tell 5 people.",
+                ]
+            },
+            "Table 3": {
+                "speakers": ["Alex","Jordan"],
+                "lines": [
+                    ["Alex","Happy anniversary, babe."],
+                    ["Jordan","Five years. Can you believe it?"],
+                    ["Alex","Feels like yesterday and forever at the same time."],
+                    ["Jordan","That's either romantic or an insult."],
+                    ["Alex","Definitely romantic. I ordered the tasting menu for us."],
+                    ["Jordan","You didn't. That's the seven-course one?"],
+                    ["Alex","With the wine pairing. Go big or go home."],
+                    ["Jordan","I love you. Also I'm going to need to unbutton my pants."],
+                    ["Alex","That's the spirit. To five more years."],
+                    ["Jordan","To fifty more."],
+                ],
+                "viewpoints": [
+                    "Anniversary dinner, five years, tasting menu with wine pairing. This is a high-spend table and they're in a great mood. Chef should know \u2014 consider a complimentary amuse-bouche. Small gesture, huge loyalty payoff.",
+                    "They're genuinely happy. The banter is easy and affectionate. This is the kind of table that writes glowing reviews unprompted. Protect this experience at all costs.",
+                    "Seven-course tasting with pairing \u2014 this table will be here for 2+ hours. Plan the kitchen pacing accordingly. Don't rush courses. Let them savor it.",
+                ]
+            },
+            "Table 4": {
+                "speakers": ["Richard","Tom","Diana","Priya"],
+                "lines": [
+                    ["Richard","The Q4 numbers look solid if we close the Henderson deal."],
+                    ["Tom","Henderson's been dragging their feet for weeks."],
+                    ["Diana","I spoke to their CFO yesterday. They want 15% off."],
+                    ["Priya","We can't do 15. Maybe 8 with extended terms."],
+                    ["Richard","Let's not talk shop until after appetizers at least."],
+                    ["Tom","Fine. But we're circling back over dessert."],
+                    ["Diana","Has anyone tried the steak here?"],
+                    ["Richard","Best in the city according to the Times review."],
+                    ["Priya","I'm getting the lamb. My treat tonight."],
+                    ["Tom","Your treat? What's the occasion?"],
+                    ["Priya","I just closed the Meridian account. Celebrating."],
+                    ["Diana","Priya! That's huge. Congratulations."],
+                    ["Richard","Drinks are definitely on Priya then."],
+                ],
+                "viewpoints": [
+                    "Business dinner but the vibe is celebratory thanks to Priya's Meridian close. They'll spend big. Steak, lamb, multiple bottles. This is a corporate card table \u2014 don't skimp on portions.",
+                    "Richard tried to pause the shop talk and failed in 30 seconds. These people live and breathe work. The Henderson deal discussion will resume with the entrees. Guaranteed.",
+                    "Four-top business dinner, one person paying. Priya's flexing the Meridian win. Good for morale. Server should acknowledge the celebration \u2014 a complimentary round would lock in repeat visits.",
+                ]
+            },
+            "Table 5": {
+                "speakers": ["Dave","Lisa","Mark"],
+                "lines": [
+                    ["Dave","I specifically said medium-rare. This is well-done."],
+                    ["Lisa","Oh no. Send it back."],
+                    ["Dave","I hate sending things back. But this is charcoal."],
+                    ["Mark","Mine's perfect actually. Sorry, Dave."],
+                    ["Dave","Where's our server? I haven't seen them in 20 minutes."],
+                    ["Lisa","The bread took forever too. Remember?"],
+                    ["Dave","Yeah, 15 minutes for bread. That's not okay."],
+                    ["Mark","Maybe they're short-staffed tonight."],
+                    ["Dave","That's not my problem. We're paying premium prices."],
+                    ["Lisa","Let's just flag someone. There's a manager over there."],
+                    ["Dave","I'm going to mention it in the review too."],
+                    ["Mark","Come on, give them a chance to fix it first."],
+                ],
+                "viewpoints": [
+                    "RED FLAG. Table 5 is spiraling. Overcooked steak, 20-minute server absence, slow bread. Dave is building a mental Yelp review right now. Manager intervention needed IMMEDIATELY.",
+                    "This was preventable. The steak was a kitchen mistake, fine. But the 20-minute server gap turned one problem into three. Lisa is backing Dave up which means this complaint has momentum. Act fast.",
+                    "Mark is trying to de-escalate but he's losing. Dave said 'premium prices' \u2014 that's the death sentence phrase. Once a customer starts calculating value-for-money out loud, you've already lost them. Comp the steak and apologize personally.",
+                    "Three issues in one meal: slow bread, absent server, overcooked steak. This isn't bad luck, it's a pattern. Kitchen needs a ticket audit and the server needs coaching. Tonight.",
+                ]
+            },
+            "Table 6": {
+                "speakers": ["Karen","Manager"],
+                "lines": [
+                    ["Karen","Excuse me, I asked for no onions. There are clearly onions in this."],
+                    ["Manager","I'm so sorry about that. Let me have the kitchen remake it right away."],
+                    ["Karen","This is the second time this has happened here."],
+                    ["Manager","I completely understand your frustration. It won't happen again."],
+                    ["Karen","And the music is quite loud. Can you turn it down?"],
+                    ["Manager","I'll see what I can do. Can I offer you a complimentary appetizer while you wait?"],
+                    ["Karen","Fine. The calamari. And make sure there are no onions anywhere near it."],
+                    ["Manager","Absolutely. I'll personally check with the kitchen."],
+                    ["Karen","I also wanted to mention the restroom could use attention."],
+                    ["Manager","Thank you for letting me know. I'll send someone right away."],
+                ],
+                "viewpoints": [
+                    "Repeat offender on the allergy/preference notes. If she said no onions last time AND this time and we still got it wrong, that's a kitchen communication failure. Check the POS notes system.",
+                    "The manager is handling this well \u2014 apologize, comp, fix. Textbook. But the underlying issue is that dietary notes aren't making it to the line. Fix the process, not just the plate.",
+                    "She's high-maintenance but she's not wrong. Twice is a pattern. The music complaint and restroom note are her way of saying 'I'm watching everything now.' Every detail matters for the rest of her visit.",
+                    "Karen is actually providing free quality control. The restroom note was legitimate \u2014 I checked the cleaning log and it's 45 minutes overdue. She's annoying but useful.",
+                ]
+            },
+            "Table 7": {
+                "speakers": ["Dad","Mom","Sophie","Max"],
+                "lines": [
+                    ["Sophie","Can I get chicken nuggets?"],
+                    ["Dad","They don't have chicken nuggets here, sweetie. How about the pasta?"],
+                    ["Max","I want pizza!"],
+                    ["Mom","Max, indoor voice please. They have a kids' flatbread."],
+                    ["Sophie","I spilled my water."],
+                    ["Dad","It's okay. Let me grab some napkins."],
+                    ["Mom","Can we get some more bread for the table? The kids ate it all."],
+                    ["Dad","Should we just order everything at once? I don't think they'll last."],
+                    ["Mom","Good idea. Kids meals first please."],
+                    ["Max","I need to go to the bathroom."],
+                    ["Dad","Again? We just went."],
+                    ["Mom","Just take him. I'll order for you."],
+                    ["Sophie","Mommy, is there dessert?"],
+                    ["Mom","If you eat your dinner, yes."],
+                ],
+                "viewpoints": [
+                    "Family of four, kids under 8. This table needs SPEED. Get the kids' food out in under 10 minutes or this goes from controlled chaos to full meltdown. The parents are managing well but running out of patience.",
+                    "Water spill, bread demolished in 3 minutes, two bathroom trips. Classic family dinner. The trick is to make the parents feel like adults for 20 minutes while the kids eat. Dessert is the leverage play.",
+                    "Mom is the decision-maker and she's efficient. She'll order for Dad while he's in the bathroom. Respect that. Don't ask if they need more time when he gets back \u2014 she's already decided.",
+                    "Every restaurant says 'family-friendly' but few actually optimize for it. Get the crayons out, kids' food first, and keep the bread basket full. The parents will remember how easy we made it.",
+                ]
+            },
+            "Table 8": {
+                "speakers": ["Grandma","Grandpa","Uncle Ray","Aunt Carol","Cousin Jen","Cousin Mike"],
+                "lines": [
+                    ["Grandma","I can't believe everyone could make it tonight."],
+                    ["Grandpa","First time in two years we're all together."],
+                    ["Uncle Ray","Who's picking up the tab? Not it."],
+                    ["Aunt Carol","Ray, behave. It's Mom and Dad's anniversary dinner."],
+                    ["Cousin Jen","Happy anniversary, Grandma and Grandpa!"],
+                    ["Grandma","Thank you, sweetheart. Fifty-two years."],
+                    ["Cousin Mike","That's incredible. What's the secret?"],
+                    ["Grandpa","Selective hearing."],
+                    ["Grandma","He's not wrong."],
+                    ["Uncle Ray","I'll drink to that. Waiter, another round please."],
+                    ["Aunt Carol","We should order the chocolate cake for the table."],
+                    ["Cousin Jen","Can we get candles? Make it special?"],
+                ],
+                "viewpoints": [
+                    "Anniversary dinner, 52 years, six-top family gathering. This is a memory-making table. If the kitchen has ANY ability to write 'Happy Anniversary' on a dessert plate, do it now. These moments are why restaurants exist.",
+                    "Uncle Ray is going to run up the bar tab but Aunt Carol will keep him in check. The real spender is whoever picks up the final bill \u2014 it'll be significant with six people and drinks flowing.",
+                    "Grandpa's 'selective hearing' joke got a genuine laugh from the whole table. This family actually likes each other. Rare and beautiful. Don't rush this table \u2014 let them sit as long as they want.",
+                ]
+            },
+            "Table 9": {
+                "speakers": ["Parent","Child","Server"],
+                "lines": [
+                    ["Child","Mommy I don't like this. It's green."],
+                    ["Parent","Just try one bite. You liked broccoli last week."],
+                    ["Child","That was different broccoli."],
+                    ["Parent","Broccoli is broccoli, honey."],
+                    ["Server","How is everything? Can I get anything else?"],
+                    ["Parent","Could we get some plain buttered noodles? Just in case."],
+                    ["Server","Of course. I'll put a rush on it."],
+                    ["Child","Can I have ice cream?"],
+                    ["Parent","After you eat something real."],
+                    ["Child","Noodles are real."],
+                    ["Parent","Fair point. Eat the noodles, then ice cream."],
+                ],
+                "viewpoints": [
+                    "Solo parent with a picky eater. The server read the room perfectly \u2014 offered buttered noodles without being asked twice. That kind of intuition is worth its weight in gold.",
+                    "'That was different broccoli' is peak toddler logic and honestly kind of valid. The parent is handling it with patience. Get those noodles out fast and everyone wins.",
+                    "This parent is going to tip well if we make their life easy. They're not here for the fine dining experience \u2014 they're here to eat a meal without cooking. Noodles fast, ice cream ready, check whenever they want it.",
+                ]
+            },
+            "Table 10": {
+                "speakers": ["Nina","Kira","Jess","Becca"],
+                "lines": [
+                    ["Nina","Okay I have TEA. You will not believe what happened at work."],
+                    ["Kira","Spill. Immediately."],
+                    ["Nina","So Marcus in accounting? He got caught expensing his Tinder dates."],
+                    ["Jess","STOP. As business dinners?"],
+                    ["Nina","As CLIENT MEETINGS. Six of them."],
+                    ["Becca","I'm screaming. Did he get fired?"],
+                    ["Nina","PIP. But everyone knows."],
+                    ["Kira","I need another margarita for this story."],
+                    ["Jess","Same. Four more margs please."],
+                    ["Becca","We should come here every Friday."],
+                    ["Nina","Agreed. This is our new spot."],
+                    ["Kira","The guacamole is incredible by the way."],
+                    ["Jess","We should order more. And the queso."],
+                ],
+                "viewpoints": [
+                    "Girls' night. Four margaritas, guac, gossip. This table is going to be loud, happy, and profitable. They just declared this their 'new spot' \u2014 that's the best marketing money can't buy.",
+                    "They're on their second round of margs and the entrees haven't landed yet. Pace the drinks with the food or they'll be sloppy by dessert. But keep the energy up \u2014 this table is having the time of their lives.",
+                    "Nina's workplace gossip is doing more for table morale than anything on our menu. Four people, repeat-visit potential, high bar tab. This is the ideal customer segment.",
+                    "Becca said 'every Friday.' That's a standing reservation if we play it right. Drop a comment like 'we'll save this table for you' and watch what happens.",
+                ]
+            },
+            "Table 11": {
+                "speakers": ["Carlos","Diego","Sam"],
+                "lines": [
+                    ["Carlos","Did you watch the game last night?"],
+                    ["Diego","That last-minute goal was insane."],
+                    ["Sam","I lost fifty bucks on that game."],
+                    ["Carlos","That's what you get for betting against them at home."],
+                    ["Diego","Wings are great here. Get the Nashville hot."],
+                    ["Sam","How hot is hot?"],
+                    ["Diego","You'll need milk. But it's worth it."],
+                    ["Carlos","Let's get a pitcher. Who's driving?"],
+                    ["Sam","I took an Uber. I'm free."],
+                    ["Diego","Same. Pitcher it is."],
+                    ["Carlos","Should we get the nachos too?"],
+                    ["Sam","Obviously. And the sliders."],
+                ],
+                "viewpoints": [
+                    "Three guys, sports talk, pitcher of beer, Nashville hot wings. This is bar food done right. Simple order, high volume, fast turnover. Keep the pitcher full and they'll stay for three hours.",
+                    "Nobody's driving \u2014 they all Ubered. That means the bar tab has no ceiling. Smart move by them. Profitable for us. Second pitcher incoming.",
+                    "This table is low-maintenance gold. They know what they want, they order fast, they don't complain. Every restaurant needs 10 tables like this on a Friday night.",
+                ]
+            },
+            "Table 12": {
+                "speakers": ["Server","Customer A","Customer B"],
+                "lines": [
+                    ["Customer A","Excuse me, we've been waiting 40 minutes for our entrees."],
+                    ["Server","I'm so sorry. Let me check with the kitchen right away."],
+                    ["Customer B","The people who sat down after us already have their food."],
+                    ["Customer A","This is unacceptable. We have theater tickets at 8."],
+                    ["Server","I completely understand. Let me see what happened."],
+                    ["Customer B","If it's not out in 5 minutes, just cancel it."],
+                    ["Customer A","And take the appetizers off the bill. We've been miserable."],
+                    ["Server","Absolutely. I'll speak with my manager about comping those."],
+                    ["Customer B","We really wanted to enjoy this evening."],
+                    ["Customer A","Let's just go somewhere else."],
+                ],
+                "viewpoints": [
+                    "CRITICAL. 40-minute wait, theater deadline, table seated after them got food first. This is a kitchen sequencing disaster. The ticket got lost or deprioritized. Manager needs to personally deliver the food with an apology.",
+                    "They're about to walk out. 'Just cancel it' is one step from leaving. Comp everything, deliver the entrees in the next 3 minutes, and hope they don't review-bomb us tonight from the theater lobby.",
+                    "The server is saying the right things but saying isn't doing. Stop apologizing and start fixing. Kitchen needs to fire their entrees NOW ahead of everything else. This is triage, not customer service.",
+                    "Seated-after-them-got-food-first is the ultimate insult. It means the kitchen isn't running tickets in order. That's not a mistake, that's a systemic failure. Audit the expo station tonight.",
+                ]
+            },
+            "Table 13": {
+                "speakers": ["Olivia"],
+                "lines": [
+                    ["Olivia","Could I get the salmon, please? Grilled, not pan-seared."],
+                    ["Olivia","And a glass of the Chablis. The 2019 if you have it."],
+                    ["Olivia","Actually, I'll start with the bisque."],
+                    ["Olivia","This book is so good. I should come here more often."],
+                    ["Olivia","Could I get some more water when you have a chance?"],
+                    ["Olivia","The salmon is excellent. My compliments to the chef."],
+                    ["Olivia","I think I'll have the cr\u00e8me br\u00fbl\u00e9e. And an espresso."],
+                    ["Olivia","Check whenever you're ready. No rush."],
+                ],
+                "viewpoints": [
+                    "Solo diner, reading a book, specific wine vintage request. This is someone who knows restaurants. Don't over-check on her. She asked for water \u2014 that means we missed a refill. Fix that.",
+                    "Olivia is the kind of customer who says 'compliments to the chef' and means it. She's also the kind who notices a water glass sitting empty for 8 minutes. Attentive but not hovering. Read her cues.",
+                    "Solo diners who order a full three courses with wine pairings are confident, experienced, and tend to tip well. She said 'I should come here more often' \u2014 she's already sold. Don't oversell.",
+                ]
+            },
+            "Table 14": {
+                "speakers": ["Frank"],
+                "lines": [
+                    ["Frank","Hey, the usual please. You know what I like."],
+                    ["Frank","How's the family, Maria? Kids doing good?"],
+                    ["Frank","Tell Chef Tony I said hello. And that his bolognese is still the best."],
+                    ["Frank","I'll take the booth by the window if it opens up."],
+                    ["Frank","Put it on my tab. Same as always."],
+                    ["Frank","The new waiter seems sharp. Good hire."],
+                    ["Frank","See you Thursday."],
+                ],
+                "viewpoints": [
+                    "Frank is furniture at this point. He's here three times a week, knows everyone by name, orders the same thing. His tab is auto-pilot. This man is worth $15K a year in revenue and he's never once complained.",
+                    "Regulars like Frank are the backbone of any restaurant. He just complimented the new hire unprompted \u2014 that's a man who feels ownership over this place. Protect that relationship.",
+                    "Frank tips 25% every time, never sends anything back, and tells Chef Tony he's the best. He's the perfect customer and he knows it. Worth more than 50 Yelp reviews.",
+                ]
+            },
+            "Table 15": {
+                "speakers": ["Group Leader","Friend 1","Friend 2","Friend 3","Friend 4","Friend 5"],
+                "lines": [
+                    ["Group Leader","SURPRISE! Happy birthday, Jen!"],
+                    ["Friend 1","We got you! You had no idea!"],
+                    ["Friend 2","We've been planning this for three weeks."],
+                    ["Friend 3","The cake is already ordered. Red velvet."],
+                    ["Friend 4","Speech! Speech!"],
+                    ["Friend 5","No speeches. Just drinks. Shots!"],
+                    ["Group Leader","Six tequila shots please. And the biggest dessert you have."],
+                    ["Friend 1","I can't believe you pulled this off."],
+                    ["Friend 2","The hardest part was getting Jen here without spoiling it."],
+                    ["Friend 3","She thought we were going to a movie."],
+                    ["Friend 4","This is so much better than a movie."],
+                    ["Group Leader","More shots? More shots."],
+                ],
+                "viewpoints": [
+                    "Surprise birthday party, six-top, tequila shots flowing. This table will generate more revenue per hour than any other tonight. And they'll post about it on Instagram. Win-win.",
+                    "They pre-ordered a cake and coordinated a surprise. This group plans ahead and spends freely. Birthday tables are the highest-ROI tables in the building. Candles, singing, the whole show.",
+                    "Six tequila shots before entrees have landed. Pace check needed. These are adults celebrating but the trajectory is steep. Keep water on the table. Don't let a great night become a liability.",
+                ]
+            },
+            "Table 16": {
+                "speakers": ["Bride","Groom","Best Man","Maid of Honor"],
+                "lines": [
+                    ["Best Man","I still can't believe you two are getting married next month."],
+                    ["Bride","Neither can I. There's so much left to plan."],
+                    ["Groom","The venue is booked, the DJ is booked. We're fine."],
+                    ["Maid of Honor","What about the seating chart? That's a war zone."],
+                    ["Bride","Don't remind me. Uncle Steve cannot sit near Aunt Linda."],
+                    ["Groom","Your family is a reality show."],
+                    ["Bride","Says the man whose mother called me three times today about centerpieces."],
+                    ["Best Man","This is why I'm never getting married."],
+                    ["Maid of Honor","Let's order more wine. We need it for the seating chart."],
+                    ["Groom","Can we just enjoy dinner? The planning can wait one night."],
+                    ["Bride","Fine. But we're doing place cards tomorrow."],
+                ],
+                "viewpoints": [
+                    "Pre-wedding dinner, four-top. They're stressed but happy. The bride is a planner, the groom wants to relax. If they ask about private dining or event space, we should be ready with the pitch.",
+                    "The maid of honor just ordered more wine 'for the seating chart.' That's the kind of problem-solving this table runs on. Keep the wine flowing and they'll handle their family drama without involving us.",
+                    "Wedding party tables are future catering clients. If this dinner goes well, there's a non-zero chance they book the rehearsal dinner here. Plant the seed. Don't hard sell.",
+                ]
+            },
+            "Table 17": {
+                "speakers": ["Chef","Critic"],
+                "lines": [
+                    ["Critic","The amuse-bouche was interesting. Yuzu gel with smoked eel?"],
+                    ["Chef","Inspired by a trip to Osaka last fall. The eel is from a local smokehouse."],
+                    ["Critic","The texture contrast works. Tell me about the main course."],
+                    ["Chef","Dry-aged duck breast, beetroot three ways, jus infused with star anise."],
+                    ["Critic","The duck is cooked perfectly. I'll give you that."],
+                    ["Chef","Thank you. The dry-aging process is 21 days minimum."],
+                    ["Critic","The beetroot puree is slightly over-seasoned for my palate."],
+                    ["Chef","I appreciate the honesty. We've been adjusting the salt ratios."],
+                    ["Critic","Overall, I'm impressed. This is serious cooking."],
+                ],
+                "viewpoints": [
+                    "Food critic at Table 17 dining with the chef. This is either a review dinner or a relationship-building meal. Either way, every plate that leaves the kitchen tonight needs to be perfect. The whole team should know.",
+                    "The critic said 'over-seasoned' about the beetroot. That's going in the review if this is on-record. Chef took it gracefully but the kitchen needs to recalibrate that dish before service tomorrow.",
+                    "A critic who says 'I'm impressed' at the end is giving you a good review. But 'slightly over-seasoned' will be the one line everyone remembers. Fix the beetroot. Tonight.",
+                ]
+            },
+            "Table 18": {
+                "speakers": ["Tourist 1","Tourist 2","Tourist 3","Tourist 4"],
+                "lines": [
+                    ["Tourist 1","What's a 'prix fixe'? Is that like a set menu?"],
+                    ["Tourist 2","I think so. Let me Google it."],
+                    ["Tourist 3","Everything is so expensive here. $45 for pasta?"],
+                    ["Tourist 4","We're on vacation. Just enjoy it."],
+                    ["Tourist 1","Can I take a photo of the ceiling? It's gorgeous."],
+                    ["Tourist 2","The cocktails look amazing. What's a Negroni?"],
+                    ["Tourist 3","Should we ask for recommendations?"],
+                    ["Tourist 4","Excuse me, what do you recommend for someone who's never had Italian fine dining?"],
+                    ["Tourist 1","The waiter was so nice about explaining everything."],
+                    ["Tourist 2","I love this city. We should come back next year."],
+                ],
+                "viewpoints": [
+                    "Tourist table. They're Googling menu terms and taking ceiling photos. Price-sensitive but spending anyway because vacation. The server who explains the menu without condescension wins a big tip here.",
+                    "They asked for recommendations \u2014 that's an open invitation to upsell. Suggest the tasting menu. They want the experience, not just the food. And they'll photograph every course. Free marketing.",
+                    "'$45 for pasta' comment is a price anchor. But Tourist 4 said 'just enjoy it.' The group will override the frugal member. Happens every time. Focus on making it feel worth every dollar.",
+                ]
+            },
+            "Table 19": {
+                "speakers": ["Wife","Husband"],
+                "lines": [
+                    ["Wife","The steak is cold. Feel this."],
+                    ["Husband","It's lukewarm at best."],
+                    ["Wife","And I asked for asparagus, not broccoli."],
+                    ["Husband","My fish is fine at least."],
+                    ["Wife","That's not helpful, Robert."],
+                    ["Husband","I'm just saying. Should I call the waiter?"],
+                    ["Wife","I already tried. He walked right past us."],
+                    ["Husband","Let me try. Excuse me? Excuse me?"],
+                    ["Wife","See? Invisible."],
+                    ["Husband","I'll go find someone."],
+                    ["Wife","This place used to be good. What happened?"],
+                ],
+                "viewpoints": [
+                    "Cold steak AND wrong side dish AND server ignoring them. Table 19 is a three-alarm fire. 'This place used to be good' means they're former regulars we're about to lose. Senior staff intervention required.",
+                    "They're calling out to the server and getting ignored. That's not busy, that's negligent. Which section is this? Whoever's covering it needs an immediate course correction.",
+                    "'Used to be good' is the most damaging phrase in hospitality. It means they had high expectations based on past experience and we're destroying that goodwill in real time. Manager to the table. Now.",
+                    "Robert is going to go find someone, which means he'll walk to the host stand looking frustrated. Every other guest will see it. A single unhappy customer on their feet is visible to 20 tables. Intercept him.",
+                ]
+            },
+            "Table 20": {
+                "speakers": ["Server","VIP 1","VIP 2"],
+                "lines": [
+                    ["VIP 1","We'd like the private room if it's available."],
+                    ["Server","Of course. Right this way. I'll have your preferred Barolo ready."],
+                    ["VIP 2","You remembered."],
+                    ["Server","Always. Shall I have Chef prepare the usual tasting?"],
+                    ["VIP 1","Please. And tell him we brought the burgundy we discussed."],
+                    ["Server","I'll have it decanted. Anything else to start?"],
+                    ["VIP 2","Just privacy. We have business to discuss."],
+                    ["VIP 1","And the souffl\u00e9 for dessert. Don't forget the 45-minute lead."],
+                    ["Server","Already noted. I'll fire it with your main course."],
+                ],
+                "viewpoints": [
+                    "VIP table. They brought their own wine, know the chef by name, and pre-ordered a souffl\u00e9. This is the kind of customer who spends $2K a visit and never looks at a price. Treat accordingly.",
+                    "The 'we have business to discuss' line means zero interruptions after the first course lands. Server already knows this \u2014 notice the souffl\u00e9 timing was pre-calculated. This is what professional service looks like.",
+                    "They brought a burgundy to share with the chef. This is a relationship, not a transaction. These two are investors, industry, or old money. Doesn't matter which \u2014 the protocol is the same: anticipate, don't ask.",
+                ]
+            },
+            "Table 21": {
+                "speakers": ["Waiter","Diner A","Diner B"],
+                "lines": [
+                    ["Diner A","I'm gluten-free, dairy-free, and I don't eat nightshades."],
+                    ["Waiter","Absolutely. Let me walk you through what works on our menu."],
+                    ["Diner B","I'm vegan. But flexible on honey."],
+                    ["Waiter","Great. The roasted cauliflower is excellent and fits both restrictions."],
+                    ["Diner A","Does the chef use shared fryers? Cross-contamination is a concern."],
+                    ["Waiter","We have a dedicated allergy station. I'll flag your tickets."],
+                    ["Diner B","That's really reassuring. Most places just guess."],
+                    ["Diner A","Can I see the ingredient list for the vinaigrette?"],
+                    ["Waiter","I'll get that from the kitchen for you right away."],
+                ],
+                "viewpoints": [
+                    "High-restriction table but they're not difficult \u2014 they're careful. The server is handling it like a pro. Dedicated allergy station callout was the right move. These are the customers who become fiercely loyal when you get it right.",
+                    "Gluten-free, dairy-free, no nightshades, plus a vegan. The kitchen ticket for this table is going to look like a medical chart. But if we nail it, they'll tell every other dietary-restricted friend they have.",
+                    "Asking for the vinaigrette ingredient list is reasonable, not difficult. Any server who rolls their eyes at this belongs at a different restaurant. This table is testing our professionalism and we're passing.",
+                ]
+            },
+            "Table 22": {
+                "speakers": ["Wine Guy","Sommelier","Date"],
+                "lines": [
+                    ["Wine Guy","I'm thinking a Left Bank Bordeaux. 2015 or 2016 vintage."],
+                    ["Sommelier","The 2016 Pauillac is drinking beautifully right now."],
+                    ["Wine Guy","What's the tannin structure like?"],
+                    ["Sommelier","Firm but elegant. It'll open up with the duck."],
+                    ["Date","I'll have whatever he's having. I trust you."],
+                    ["Wine Guy","Can we see the reserve list?"],
+                    ["Sommelier","Of course. Page three has our Burgundy verticals."],
+                    ["Wine Guy","Oh, you have the '09 Romanée? What's the price?"],
+                    ["Sommelier","I'll bring it tableside for you to consider."],
+                    ["Date","I love that you know so much about wine."],
+                    ["Wine Guy","Spent a summer in Bordeaux. Never recovered."],
+                ],
+                "viewpoints": [
+                    "Wine enthusiast flexing for his date. He actually knows his stuff though \u2014 Left Bank, vintage years, tannin structure. The sommelier is feeding him perfectly. This table will spend more on wine than food.",
+                    "He asked about the '09 Romanée. If that's on the list at $800+, and the sommelier brings it tableside, he's trapped \u2014 he can't say no in front of his date. Beautiful upsell choreography.",
+                    "The date said 'I trust you' which means she's impressed. Wine Guy is winning tonight. Keep the sommelier available for a second bottle. This could be a $500 wine tab easily.",
+                ]
+            },
+            "Table 23": {
+                "speakers": ["Teen 1","Teen 2","Teen 3"],
+                "lines": [
+                    ["Teen 1","Oh my god this place is so fancy."],
+                    ["Teen 2","Do they have normal food? Like fries?"],
+                    ["Teen 3","Truffle fries. For $18."],
+                    ["Teen 1","My mom gave me $50. That's like two things."],
+                    ["Teen 2","Let's split stuff. The sliders look good."],
+                    ["Teen 3","I'm just getting a Caesar salad and water."],
+                    ["Teen 1","Don't be boring. We're celebrating prom."],
+                    ["Teen 2","Fine. One slider, one fry, split three ways."],
+                    ["Teen 3","And three waters."],
+                    ["Teen 1","Actually, can we get Shirley Temples? We're feeling fancy."],
+                ],
+                "viewpoints": [
+                    "Three teenagers post-prom with $50 budgets. They're going to split everything and order water. Revenue will be minimal but they'll take 40 photos and tag the restaurant. That's worth more than the $60 check.",
+                    "Don't let any server treat this table as second-class. These kids saved up for this experience. In 10 years they'll be the business dinner crowd. First impressions last a lifetime.",
+                    "Shirley Temples for the prom kids. Charge them fairly, give them the full experience, and they'll be back for every anniversary, birthday, and celebration for decades. Long game.",
+                ]
+            },
+            "Table 24": {
+                "speakers": ["Line Cook","Server B"],
+                "lines": [
+                    ["Line Cook","I'm on my third double this week. I can't feel my feet."],
+                    ["Server B","At least you're not dealing with Table 12. They're furious."],
+                    ["Line Cook","That's because their ticket got buried. Expo messed up."],
+                    ["Server B","Well I'm the one getting stiffed on the tip."],
+                    ["Line Cook","Tips. Must be nice. I make the same whether it's empty or slammed."],
+                    ["Server B","Fair point. The new guy is struggling tonight."],
+                    ["Line Cook","He'll learn or he'll quit. Everybody does one or the other."],
+                    ["Server B","Manager said we might get a raise next quarter."],
+                    ["Line Cook","They said that last quarter too."],
+                ],
+                "viewpoints": [
+                    "Staff break table \u2014 the unfiltered view. The line cook is burned out, server is frustrated about tips, and they both know the new hire is drowning. This is the real operational health check.",
+                    "Three doubles in a week is a staffing problem, not a dedication badge. If the line cook can't feel his feet, his plating quality dropped hours ago. Schedule relief or accept the consequences.",
+                    "The expo messed up Table 12's ticket and the line cook knows it. Front-of-house is absorbing the blame. This is a communication breakdown between kitchen and floor that'll keep costing us.",
+                    "'They said that last quarter too' about the raise. Morale is fragile. If management doesn't follow through this time, the line cook is gone within a month. Good cooks are impossible to replace right now.",
+                ]
+            },
+            "Table 25": {
+                "speakers": ["Busser","Host"],
+                "lines": [
+                    ["Busser","Table 5 wants to see a manager. Again."],
+                    ["Host","I know. The steak situation. Manager's on the way."],
+                    ["Busser","Also Table 19 flagged me about a cold plate."],
+                    ["Host","Tonight is a disaster. We're down two servers."],
+                    ["Busser","I'm covering three sections worth of bussing."],
+                    ["Host","I appreciate you. Seriously."],
+                    ["Busser","The 8:30 reservation is a party of 12. Are we ready?"],
+                    ["Host","Not even close. I need to rearrange the back section."],
+                ],
+                "viewpoints": [
+                    "Second staff table revealing the backstage chaos. Down two servers, busser covering triple load, party of 12 incoming, and multiple fire tables. This is a capacity crisis happening in real time.",
+                    "The host said 'tonight is a disaster' and she's right. But the busser is holding things together. Promote that person or at minimum buy them a drink after shift. They're the MVP tonight.",
+                    "Party of 12 at 8:30 and we're already drowning. Someone should have called in backup an hour ago. This is a management failure, not a staff failure.",
+                ]
+            },
+            "Table 26": {
+                "speakers": ["Foodie A","Foodie B"],
+                "lines": [
+                    ["Foodie A","The mouthfeel on this risotto is extraordinary."],
+                    ["Foodie B","Perfectly al'onda. Most places overcook it."],
+                    ["Foodie A","And the saffron is actually Persian. You can taste the difference."],
+                    ["Foodie B","I'm getting notes of bone marrow in the broth base."],
+                    ["Foodie A","Should I tag the chef on my story?"],
+                    ["Foodie B","Definitely. Get a top-down shot with the natural light."],
+                    ["Foodie A","The plating is exquisite. Very Noma-influenced."],
+                    ["Foodie B","I'd say more Eleven Madison Park. The negative space."],
+                    ["Foodie A","You're right. The restraint is the statement."],
+                    ["Foodie B","I need to review this on my blog."],
+                ],
+                "viewpoints": [
+                    "Food influencers. They're photographing everything and using words like 'mouthfeel' and 'al'onda.' Pretentious? Yes. Valuable? Also yes. Their blog post will reach 50K followers. Make every plate Instagram-ready.",
+                    "They're debating whether the plating is Noma or Eleven Madison Park. Meanwhile the kitchen is just trying to get Table 12's steak out. The contrast between these worlds is hilarious.",
+                    "Persian saffron detection is either genuinely impressive palate work or complete nonsense. Either way, they're going to write a 2000-word review. Make sure it's a good one.",
+                ]
+            },
+            "Table 27": {
+                "speakers": ["Couple A","Couple B"],
+                "lines": [
+                    ["Couple A","We should do double dates more often."],
+                    ["Couple B","Absolutely. This is fun."],
+                    ["Couple A","How's the new house coming along?"],
+                    ["Couple B","Renovation nightmare. Don't ask."],
+                    ["Couple A","We went through that last year. It gets better."],
+                    ["Couple B","The contractor ghosted us for two weeks."],
+                    ["Couple A","Classic. Get everything in writing."],
+                    ["Couple B","Let's order another bottle. I need to forget about drywall."],
+                    ["Couple A","The Malbec was good. Same one?"],
+                    ["Couple B","Make it two. It's that kind of week."],
+                ],
+                "viewpoints": [
+                    "Double date, renovation commiseration, two bottles of Malbec. This is a comfort table \u2014 they're here to decompress. Low maintenance, good spenders, pleasant energy. Let them be.",
+                    "Two bottles of Malbec to forget about drywall. I respect the coping mechanism. This table will stay late, tip well, and leave happy. The ideal Tuesday night four-top.",
+                ]
+            },
+            "Table 28": {
+                "speakers": ["Bar Patron 1","Bar Patron 2","Bar Patron 3","Bar Patron 4"],
+                "lines": [
+                    ["Bar Patron 1","Next round's on me. What're we drinking?"],
+                    ["Bar Patron 2","Old Fashioned. Make it a double."],
+                    ["Bar Patron 3","I'll do a Manhattan. With rye."],
+                    ["Bar Patron 4","Tequila soda. Keep them coming."],
+                    ["Bar Patron 1","Remember when this place first opened? We were here night one."],
+                    ["Bar Patron 2","The bartender gave us free shots because nobody else was here."],
+                    ["Bar Patron 3","Now you can't get a reservation."],
+                    ["Bar Patron 4","We don't need one. We're bar regulars."],
+                    ["Bar Patron 1","To being here before it was cool."],
+                    ["Bar Patron 2","Hear hear. Another round."],
+                    ["Bar Patron 3","Should we eat? I'm seeing double."],
+                    ["Bar Patron 4","Sliders. Lots of sliders."],
+                ],
+                "viewpoints": [
+                    "Bar regulars from opening night. They don't need reservations and the bartender knows their orders. This table is pure bar revenue \u2014 all high-margin cocktails. They'll close the bar.",
+                    "Four double cocktails and counting, no food ordered yet. The 'seeing double' comment means we should proactively suggest food. Responsible service meets revenue optimization.",
+                    "They said 'before it was cool.' OG regulars have social currency \u2014 they tell everyone they discovered this place. Keep them happy, they're walking billboards.",
+                ]
+            },
+            "Table 29": {
+                "speakers": ["Late Diner 1","Late Diner 2","Late Diner 3"],
+                "lines": [
+                    ["Late Diner 1","I can't believe we just got out of that meeting."],
+                    ["Late Diner 2","9 PM and I haven't eaten since breakfast."],
+                    ["Late Diner 3","Order everything. I don't care what it costs."],
+                    ["Late Diner 1","The kitchen closes at 10 right?"],
+                    ["Late Diner 2","We have 45 minutes. Speed round."],
+                    ["Late Diner 3","Appetizers and mains at the same time. No waiting."],
+                    ["Late Diner 1","Three steaks, three salads, bread immediately."],
+                    ["Late Diner 2","And a bottle of the Cab. Whatever's good."],
+                    ["Late Diner 3","I'm expensing all of this. Go nuts."],
+                ],
+                "viewpoints": [
+                    "Post-meeting emergency dinner, 9 PM, starving, expense account. They want speed and volume. Fire everything simultaneously \u2014 appetizers and mains together. Don't try to pace this meal, they'll hate you for it.",
+                    "'I don't care what it costs' plus 'I'm expensing all of this' \u2014 that's the magic combination. Three steaks, a Cab, and they'll add dessert if the kitchen can swing it. High-revenue table in a 45-minute window.",
+                    "Kitchen closes in 45 minutes and these three just ordered the entire menu. Alert the line \u2014 this is the last big push of the night. Make it count. A strong close sets the tone for tomorrow.",
+                ]
+            },
+            "Table 30": {
+                "speakers": ["Mystery Guest 1","Mystery Guest 2"],
+                "lines": [
+                    ["Mystery Guest 1","The service has been exceptional so far."],
+                    ["Mystery Guest 2","Note the time between courses. Very consistent."],
+                    ["Mystery Guest 1","Water refilled without asking. That's attention to detail."],
+                    ["Mystery Guest 2","The server introduced herself and remembered our names."],
+                    ["Mystery Guest 1","Temperature of the room is comfortable. Not too cold."],
+                    ["Mystery Guest 2","Restroom cleanliness was above average."],
+                    ["Mystery Guest 1","I'm scoring the wine service separately."],
+                    ["Mystery Guest 2","The bread was warm and served within 3 minutes of seating."],
+                    ["Mystery Guest 1","Overall impression so far: 8.5 out of 10."],
+                    ["Mystery Guest 2","Let's see how they handle the intentional complaint."],
+                ],
+                "viewpoints": [
+                    "ALERT: Table 30 is a mystery shopper evaluation team. They're scoring everything \u2014 water refills, bread timing, room temperature, restroom cleanliness. This is a formal audit. If management doesn't know, they should.",
+                    "They're planning an 'intentional complaint' to test our recovery process. Whatever they throw at us, handle it perfectly. This score likely determines bonuses, raises, or worse.",
+                    "8.5 out of 10 so far. That's strong but not perfect. The 1.5 points we're missing are the difference between 'good restaurant' and 'exceptional restaurant.' Find those gaps before they do.",
+                    "Mystery shoppers noting that the server remembered their names. That's a trained behavior that's clearly working. But the intentional complaint test is coming \u2014 brief the floor manager NOW.",
+                ]
+            },
+        },
+        "pucks": [],  # Generated below
+    },
+}
+
+# Generate restaurant pucks
+_restaurant_sections = {
+    "Table 1": "Main Floor", "Table 2": "Main Floor", "Table 3": "Main Floor",
+    "Table 4": "Main Floor", "Table 5": "Main Floor", "Table 6": "Main Floor",
+    "Table 7": "Family Section", "Table 8": "Family Section", "Table 9": "Family Section",
+    "Table 10": "Lounge", "Table 11": "Lounge", "Table 12": "Main Floor",
+    "Table 13": "Window Seats", "Table 14": "Window Seats", "Table 15": "Party Room",
+    "Table 16": "Party Room", "Table 17": "Chef's Counter", "Table 18": "Patio",
+    "Table 19": "Main Floor", "Table 20": "Private Room", "Table 21": "Patio",
+    "Table 22": "Wine Room", "Table 23": "Patio", "Table 24": "Staff Area",
+    "Table 25": "Staff Area", "Table 26": "Chef's Counter", "Table 27": "Main Floor",
+    "Table 28": "Bar", "Table 29": "Main Floor", "Table 30": "Main Floor",
+}
+_restaurant_colors = [
+    "#E74C3C", "#C0392B", "#D4A437", "#E67E22", "#F39C12", "#D35400",
+    "#8E44AD", "#9B59B6", "#2ECC71", "#27AE60", "#3498DB", "#2980B9",
+    "#1ABC9C", "#16A085", "#E74C3C", "#C0392B", "#F1C40F", "#E67E22",
+    "#95A5A6", "#7F8C8D", "#E74C3C", "#D4A437", "#3498DB", "#7F8C8D",
+    "#7F8C8D", "#F39C12", "#2ECC71", "#E74C3C", "#D35400", "#1ABC9C",
+]
+_restaurant_pool = SCENARIOS["restaurant"]["conv_pools"]
+_restaurant_pucks = []
+for _i in range(1, 31):
+    _tname = f"Table {_i}"
+    _pool = _restaurant_pool.get(_tname, {})
+    _speakers = _pool.get("speakers", [])
+    _occ = [{"name": s, "speaking": (_j == 0)} for _j, s in enumerate(_speakers) if s not in ("Server","Waiter","Manager","Sommelier","Host","Busser")]
+    _lines = _pool.get("lines", [])
+    _trans = [{"time": f"19:{10+_j:02d}", "speaker": l[0], "text": l[1]} for _j, l in enumerate(_lines[:3])]
+    _vps = _pool.get("viewpoints", [])
+    _restaurant_pucks.append({
+        "puck_id": f"aura-rest-table{_i:02d}-314159",
+        "puck_name": _tname,
+        "owner_name": _restaurant_sections.get(_tname, "Main Floor"),
+        "color": _restaurant_colors[_i - 1],
+        "ip": f"192.168.2.{100+_i}",
+        "status": "listening" if _occ else "idle",
+        "uptime": 3600 * 8,
+        "memory_usage": 2048,
+        "occupants": _occ,
+        "transcript": _trans,
+        "analysis": _vps[0] if _vps else "Monitoring...",
+    })
+SCENARIOS["restaurant"]["pucks"] = _restaurant_pucks
+
+
+def _load_scenario(key: str):
+    """Load a scenario's pucks into the registry."""
+    scenario = SCENARIOS.get(key)
+    if not scenario:
+        return
     with _registry_lock:
-        for d in demos:
+        # Remove all demo pucks
+        demo_ids = [pid for pid in _puck_registry if pid.startswith("aura-")]
+        for pid in demo_ids:
+            del _puck_registry[pid]
+        # Insert new scenario pucks
+        for d in scenario["pucks"]:
             _puck_registry[d["puck_id"]] = {
                 **d,
                 "capabilities": {},
@@ -1933,7 +2704,7 @@ def _demo_heartbeat_loop():
 
 
 if __name__ == "__main__":
-    _seed_demo_pucks()
+    _load_scenario("ledgerai_hq")
     threading.Thread(target=_demo_heartbeat_loop, daemon=True).start()
     print(f"Farsight Hub starting on port {HUB_PORT}")
     print(f"LLM offload target: {FARSIGHT_LLM_URL}")
