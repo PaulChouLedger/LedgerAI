@@ -343,7 +343,7 @@ class SettingsComplication(BaseComplication):
             p.drawEllipse(QPointF(cx, cy), r_bezel_inner, r_bezel_inner)
 
             # =========================================================
-            # Chapter ring (60 fine ticks) — skip ticks under menu labels
+            # Chapter ring (60 ticks) — skip ticks under menu labels
             # =========================================================
             # Menu labels (defined early so tick exclusion can reference them)
             labels = [
