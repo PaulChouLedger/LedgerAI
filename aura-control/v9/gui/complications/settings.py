@@ -296,22 +296,22 @@ class SettingsComplication(BaseComplication):
                     return
                 p.save()
                 p.setFont(font)
+                fm = p.fontMetrics()
+                ch_h = fm.height()
                 n = len(text)
                 span = (n - 1) * letter_spacing_deg if n > 1 else 0.0
                 start = angle_deg - span * 0.5
-                shadow_col = QColor(0, 0, 0, int(150 * trans))
 
                 for i, ch in enumerate(text):
                     a = math.radians(start + i * letter_spacing_deg)
                     x = cx + radius * math.cos(a)
                     y = cy + radius * math.sin(a)
+                    ch_w = max(fm.horizontalAdvance(ch), ch_h)
                     p.save()
                     p.translate(x, y)
                     rot = math.degrees(a) + 90.0
                     p.rotate(rot)
-                    rect = QRectF(-14, -14, 28, 28)
-                    p.setPen(shadow_col)
-                    p.drawText(rect.translated(0, 1), Qt.AlignCenter, ch)
+                    rect = QRectF(-ch_w * 0.7, -ch_h * 0.6, ch_w * 1.4, ch_h * 1.2)
                     p.setPen(color)
                     p.drawText(rect, Qt.AlignCenter, ch)
                     p.restore()
@@ -424,18 +424,6 @@ class SettingsComplication(BaseComplication):
             p.drawEllipse(QPointF(cx, cy), rg * 0.10, rg * 0.10)
 
             # =========================================================
-            # Signature microtext (12 o'clock)
-            # =========================================================
-            micro_font = QFont("Helvetica Neue", max(8, int(mind * 0.014)))
-            micro_font.setLetterSpacing(QFont.PercentageSpacing, 108)
-            p.setFont(micro_font)
-            p.setPen(gold_faint)
-            p.drawText(
-                int(cx - R), int(cy - R * 0.95), int(2 * R), int(R * 0.22),
-                Qt.AlignCenter, "AURA  \u2022  SETTINGS"
-            )
-
-            # =========================================================
             # Perimeter menu (curved arc labels)
             # =========================================================
             menu_font = QFont("Helvetica Neue", max(9, int(mind * 0.016)))
@@ -458,51 +446,39 @@ class SettingsComplication(BaseComplication):
                                   letter_spacing_deg=7.0)
 
             # =========================================================
-            # Name cartouche (applied plaque)
+            # Owner name — arc-curved at 12 o'clock (Patek engraving)
             # =========================================================
-            cart_rect = QRectF(cx - cart_w / 2.0, cy - cart_h * 0.62, cart_w, cart_h)
+            name = str(self.owner_name).upper()
+            n_chars = len(name)
+            # Auto-size letter spacing so the name never exceeds the circle
+            # Max arc span ~100° to stay elegant; reduce spacing for long names
+            max_span_deg = 100.0
+            spacing_deg = min(9.0, max_span_deg / max(n_chars - 1, 1)) if n_chars > 1 else 0.0
+            name_r = rg * 0.78  # sit inside guilloché field
 
-            # Shadow
-            p.setPen(Qt.NoPen)
-            p.setBrush(QColor(0, 0, 0, int(85 * trans)))
-            p.drawRoundedRect(cart_rect.translated(0, mind * 0.004),
-                              cart_h * 0.18, cart_h * 0.18)
+            name_font = QFont("Helvetica Neue", max(9, int(mind * 0.018)))
+            name_font.setWeight(QFont.DemiBold)
+            name_font.setLetterSpacing(QFont.PercentageSpacing, 135)
+            draw_arc_text(name, name_r, -90.0, name_font, gold_strong,
+                          letter_spacing_deg=spacing_deg)
 
-            # Plate gradient
-            plate_grad = QLinearGradient(cart_rect.topLeft(), cart_rect.bottomLeft())
-            plate_grad.setColorAt(0.0, QColor(34, 34, 40, int(220 * trans)))
-            plate_grad.setColorAt(0.5, QColor(18, 18, 22, int(220 * trans)))
-            plate_grad.setColorAt(1.0, QColor(10, 10, 12, int(220 * trans)))
+            # Hairline filigree separators flanking the name
+            sep_span = ((n_chars - 1) * spacing_deg) / 2.0 + 12.0 if n_chars > 1 else 15.0
+            for side in (-1, 1):
+                ang = math.radians(-90.0 + side * sep_span)
+                x1 = cx + name_r * 0.88 * math.cos(ang)
+                y1 = cy + name_r * 0.88 * math.sin(ang)
+                x2 = cx + name_r * 1.12 * math.cos(ang)
+                y2 = cy + name_r * 1.12 * math.sin(ang)
+                p.setPen(QPen(gold_faint, max(1.0, mind * 0.0014)))
+                p.drawLine(QPointF(x1, y1), QPointF(x2, y2))
 
-            p.setBrush(QBrush(plate_grad))
-            p.setPen(QPen(gold_faint, max(1.2, mind * 0.0022)))
-            p.drawRoundedRect(cart_rect, cart_h * 0.18, cart_h * 0.18)
-
-            # Owner name
-            name = str(self.owner_name)
-            name_font = QFont("Helvetica Neue", max(12, int(mind * 0.040)))
-            name_font.setBold(True)
-            p.setFont(name_font)
-            p.setPen(gold_strong)
-            p.drawText(cart_rect, Qt.AlignCenter, name)
-
-            # Phone line
-            phone = str(self.owner_phone)
-            phone_font = QFont("Helvetica Neue", max(10, int(mind * 0.022)))
-            phone_font.setLetterSpacing(QFont.PercentageSpacing, 112)
-            p.setFont(phone_font)
-            p.setPen(gold_mid)
-            p.drawText(
-                int(cx - R), int(cy + R * 0.22), int(2 * R), int(R * 0.25),
-                Qt.AlignCenter, phone
-            )
-
-            # Micro divider
-            p.setPen(QPen(gold_faint, max(1.0, mind * 0.0016)))
-            p.drawLine(
-                QPointF(cx - R * 0.52, cy + R * 0.13),
-                QPointF(cx + R * 0.52, cy + R * 0.13)
-            )
+            # Subtle "AURA" micro-engraving below name (inside guilloché)
+            aura_font = QFont("Helvetica Neue", max(6, int(mind * 0.010)))
+            aura_font.setWeight(QFont.Light)
+            aura_font.setLetterSpacing(QFont.PercentageSpacing, 180)
+            draw_arc_text("AURA", name_r * 0.68, -90.0, aura_font,
+                          GOLD(int(65 * trans)), letter_spacing_deg=7.0)
 
             # =========================================================
             # Emergency jewel at 6 o'clock
@@ -540,22 +516,13 @@ class SettingsComplication(BaseComplication):
             # Ultra-subtle usage hints (only near fully open)
             # =========================================================
             if trans > 0.72:
-                hint_font = QFont("Helvetica Neue", max(8, int(mind * 0.012)))
-                hint_font.setLetterSpacing(QFont.PercentageSpacing, 120)
-                p.setFont(hint_font)
-
-                a = int(45 * (trans - 0.72) / 0.28)
-                a = max(0, min(45, a))
-
-                p.setPen(QColor(255, 215, 140, a))
-                p.drawText(
-                    int(cx - R), int(cy - R * 0.08), int(R * 0.95), int(R * 0.18),
-                    Qt.AlignRight | Qt.AlignVCenter, "TAP NAME"
-                )
-                p.drawText(
-                    int(cx), int(cy - R * 0.08), int(R * 0.95), int(R * 0.18),
-                    Qt.AlignLeft | Qt.AlignVCenter, "TAP NUMBER"
-                )
+                hint_font = QFont("Helvetica Neue", max(7, int(mind * 0.011)))
+                hint_font.setWeight(QFont.Light)
+                hint_font.setLetterSpacing(QFont.PercentageSpacing, 140)
+                a_hint = int(40 * (trans - 0.72) / 0.28)
+                a_hint = max(0, min(40, a_hint))
+                draw_arc_text("TAP  TO  SELECT", rg * 0.45, 90.0,
+                              hint_font, GOLD(a_hint), letter_spacing_deg=5.0)
 
         finally:
             p.restore()
@@ -614,12 +581,15 @@ class SettingsComplication(BaseComplication):
         # Updates sub-page
         if self.settings_page == "updates":
             from core.updater import updater
-            # "Apply Update" button — lower 30%
-            if y > cy + R * 0.3 and updater.available:
+            # "Apply Update" jewel button — upper area (north of escapement)
+            rg = R * 0.64
+            btn_cy = cy - rg * 0.68
+            btn_r = R * 0.11
+            if (x - cx) ** 2 + (y - btn_cy) ** 2 < (btn_r * 4) ** 2 and updater.available:
                 updater.apply_update()
                 return True
-            # Back tap — upper 40%
-            if y < cy - R * 0.3:
+            # Back tap — lower 40%
+            if y > cy + R * 0.3:
                 self.settings_page = None
             return True
 
@@ -1257,34 +1227,37 @@ def _draw_updates_page(p, cx, cy, mind, t, trans, comp):
     p.restore()
 
     # =========================================================
-    # Header arc text at 12 o'clock
+    # Header: "SOFTWARE" arc at 12 o'clock, "UPDATES" arc at 6 o'clock
     # =========================================================
-    header_font = QFont("Helvetica Neue", max(7, int(mind * 0.012)))
-    header_font.setWeight(QFont.Medium)
-    header_font.setLetterSpacing(QFont.PercentageSpacing, 115)
-    p.setFont(header_font)
-
-    title = "SOFTWARE  UPDATES"
-    arc_r = R * 0.68
-    n_chars = len(title)
-    letter_deg = 4.8
-    span_deg = (n_chars - 1) * letter_deg
-    start_a = -90.0 - span_deg * 0.5
-    shadow_col = QColor(0, 0, 0, int(150 * trans))
-
-    for ci, ch in enumerate(title):
-        a = math.radians(start_a + ci * letter_deg)
-        x = cx + arc_r * math.cos(a)
-        y = cy + arc_r * math.sin(a)
+    def _draw_page_arc(text, radius, center_deg, font, color, spacing_deg=6.5):
+        """Draw arc text for this page (local helper using page cx/cy)."""
+        n = len(text)
+        span = (n - 1) * spacing_deg if n > 1 else 0.0
+        start = center_deg - span * 0.5
         p.save()
-        p.translate(x, y)
-        p.rotate(math.degrees(a) + 90.0)
-        rect = QRectF(-50, -14, 100, 28)
-        p.setPen(shadow_col)
-        p.drawText(rect.translated(0, 1), Qt.AlignCenter, ch)
-        p.setPen(accent_faint)
-        p.drawText(rect, Qt.AlignCenter, ch)
+        p.setFont(font)
+        fm = p.fontMetrics()
+        ch_h = fm.height()
+        for i, ch in enumerate(text):
+            a = math.radians(start + i * spacing_deg)
+            x = cx + radius * math.cos(a)
+            y = cy + radius * math.sin(a)
+            ch_w = max(fm.horizontalAdvance(ch), ch_h)
+            p.save()
+            p.translate(x, y)
+            p.rotate(math.degrees(a) + 90.0)
+            rect = QRectF(-ch_w * 0.7, -ch_h * 0.6, ch_w * 1.4, ch_h * 1.2)
+            p.setPen(color)
+            p.drawText(rect, Qt.AlignCenter, ch)
+            p.restore()
         p.restore()
+
+    header_font = QFont("Helvetica Neue", max(9, int(mind * 0.016)))
+    header_font.setWeight(QFont.DemiBold)
+    header_font.setLetterSpacing(QFont.PercentageSpacing, 145)
+
+    _draw_page_arc("SOFTWARE", R * 0.78, -90.0, header_font, accent_faint, spacing_deg=6.5)
+    _draw_page_arc("UPDATES", R * 0.78, 90.0, header_font, accent_faint, spacing_deg=6.5)
 
     # =========================================================
     # Content area
