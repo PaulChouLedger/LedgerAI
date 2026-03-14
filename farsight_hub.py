@@ -752,7 +752,106 @@ _DASHBOARD_HTML = r"""<!DOCTYPE html>
     padding: 0 28px 80px;
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 22px;
+  }
+
+  /* ── Manager Brief Panel ── */
+  .manager-brief {
+    max-width: 1200px;
+    margin: 20px auto 0;
+    padding: 0 28px;
+  }
+  .brief-card {
+    background: linear-gradient(135deg, rgba(20,18,16,0.95), rgba(12,10,8,0.98));
+    border: 1.5px solid rgba(0,255,136,0.25);
+    border-left: 4px solid var(--green);
+    padding: 18px 24px;
+    position: relative;
+    overflow: hidden;
+  }
+  .brief-card::before {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, var(--green), transparent 60%);
+    opacity: 0.4;
+  }
+  .brief-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .brief-header .brief-icon {
+    font-size: 18px;
+    color: var(--green);
+    filter: drop-shadow(0 0 6px rgba(0,255,136,0.3));
+  }
+  .brief-header .brief-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    color: var(--green);
+    text-transform: uppercase;
+  }
+  .brief-header .brief-time {
+    margin-left: auto;
+    font-size: 10px;
+    color: rgba(255,255,255,0.25);
+    letter-spacing: 0.08em;
+  }
+  .brief-body {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
     gap: 16px;
+  }
+  .brief-col h4 {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    color: rgba(255,255,255,0.4);
+    margin: 0 0 8px 0;
+    text-transform: uppercase;
+  }
+  .brief-col ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .brief-col li {
+    font-size: 11.5px;
+    color: rgba(255,255,255,0.7);
+    padding: 3px 0;
+    line-height: 1.5;
+  }
+  .brief-col li.urgent-item {
+    color: var(--red);
+    font-weight: 600;
+  }
+  .brief-col li.vip-item {
+    color: #f0c060;
+  }
+  .brief-col li::before {
+    content: "›";
+    margin-right: 6px;
+    color: rgba(255,255,255,0.2);
+  }
+  .brief-col li.urgent-item::before {
+    content: "⚠";
+    color: var(--red);
+  }
+  .brief-col li.vip-item::before {
+    content: "★";
+    color: #f0c060;
+  }
+  .brief-empty {
+    font-size: 11px;
+    color: rgba(255,255,255,0.2);
+    font-style: italic;
+  }
+  @media(max-width:800px){
+    .brief-body { grid-template-columns: 1fr; }
   }
 
   .puck-card {
@@ -1310,6 +1409,7 @@ _DASHBOARD_HTML = r"""<!DOCTYPE html>
         <button id="bc-btn" onclick="sendBroadcast()">TRANSMIT</button>
       </div>
 
+      <div class="manager-brief" id="manager-brief"></div>
       <div class="card-backdrop" id="card-backdrop"></div>
       <div class="puck-cards" id="cards"></div>
     </div>
@@ -1676,6 +1776,105 @@ function tickViewpoints() {
   }
 }
 
+// ── Manager Brief generation ──────────────────────
+function renderBrief() {
+  var el = document.getElementById("manager-brief");
+  if (!el || !pucks.length) { if(el) el.innerHTML = ""; return; }
+
+  var urgRe = /RED FLAG|CRITICAL|ALERT|IMMEDIATELY|spiraling|walk out|disaster|cancel it|unacceptable|manager.*NOW|intervention|three-alarm|fire table|mystery shopper/i;
+  var vipRe = /VIP|celebrity|high-profile|regular|loyal|big spender|anniversary|birthday|special guest|reservation.*important/i;
+  var issueRe = /wait(ing|ed)\s*(too|over|for)\s*(long|20|30|40|minutes)|complaint|cold food|wrong order|allergy|refund|comp|delayed|backed up|behind|understaffed|overbooked|no-show|walk.?out/i;
+
+  var alerts = [];
+  var vips = [];
+  var actions = [];
+
+  for (var i = 0; i < pucks.length; i++) {
+    var p = pucks[i];
+    var pid = p.puck_id;
+    var name = p.puck_name || "Unit " + i;
+    var vp = liveViewpoints[pid] || p.analysis || "";
+    var trans = liveTranscripts[pid] || [];
+    var lastFew = trans.slice(-5).map(function(t){ return t.text; }).join(" ");
+    var combined = vp + " " + lastFew;
+
+    // Urgent alerts
+    if (urgRe.test(vp)) {
+      // Extract a short reason from viewpoint
+      var reason = vp.length > 80 ? vp.substring(0, 77) + "..." : vp;
+      alerts.push({table: name, text: reason});
+    }
+
+    // VIP detection from transcripts or viewpoints
+    if (vipRe.test(combined)) {
+      var vipMatch = combined.match(/VIP|celebrity|high-profile|regular|loyal|big spender|anniversary|birthday|special guest/i);
+      vips.push({table: name, tag: vipMatch ? vipMatch[0] : "VIP"});
+    }
+
+    // Service issues
+    if (issueRe.test(combined) && !urgRe.test(vp)) {
+      var issueMatch = combined.match(/wait(ing|ed)\s*(too|over|for)\s*(long|20|30|40|minutes)|complaint|cold food|wrong order|allergy|refund|comp|delayed|backed up|behind|understaffed|overbooked|no-show|walk.?out/i);
+      actions.push({table: name, issue: issueMatch ? issueMatch[0] : "needs attention"});
+    }
+  }
+
+  // Build HTML
+  var now = new Date();
+  var timeStr = ("0"+now.getHours()).slice(-2)+":"+("0"+now.getMinutes()).slice(-2);
+
+  var h = '<div class="brief-card">'
+    + '<div class="brief-header">'
+    + '  <span class="brief-icon">&#9670;</span>'
+    + '  <span class="brief-title">Manager Brief</span>'
+    + '  <span class="brief-time">Updated ' + timeStr + '</span>'
+    + '</div>'
+    + '<div class="brief-body">';
+
+  // Column 1: Urgent Alerts
+  h += '<div class="brief-col"><h4>&#9888; Urgent Alerts</h4>';
+  if (alerts.length) {
+    h += '<ul>';
+    for (var a = 0; a < Math.min(alerts.length, 5); a++) {
+      h += '<li class="urgent-item"><strong>' + esc(alerts[a].table) + ':</strong> ' + esc(alerts[a].text) + '</li>';
+    }
+    h += '</ul>';
+  } else {
+    h += '<div class="brief-empty">All clear — no urgent issues</div>';
+  }
+  h += '</div>';
+
+  // Column 2: VIPs
+  h += '<div class="brief-col"><h4>&#9733; VIP &amp; Notable Guests</h4>';
+  if (vips.length) {
+    h += '<ul>';
+    for (var v = 0; v < Math.min(vips.length, 5); v++) {
+      h += '<li class="vip-item">' + esc(vips[v].table) + ' — ' + esc(vips[v].tag) + '</li>';
+    }
+    h += '</ul>';
+  } else {
+    h += '<div class="brief-empty">No VIPs flagged</div>';
+  }
+  h += '</div>';
+
+  // Column 3: Action Items
+  h += '<div class="brief-col"><h4>&#9998; Action Items</h4>';
+  if (actions.length) {
+    h += '<ul>';
+    for (var x = 0; x < Math.min(actions.length, 5); x++) {
+      h += '<li>' + esc(actions[x].table) + ' — ' + esc(actions[x].issue) + '</li>';
+    }
+    h += '</ul>';
+  } else if (!alerts.length) {
+    h += '<div class="brief-empty">No pending actions</div>';
+  } else {
+    h += '<div class="brief-empty">See urgent alerts</div>';
+  }
+  h += '</div>';
+
+  h += '</div></div>';
+  el.innerHTML = h;
+}
+
 // Run transcript ticks every 4-7 seconds
 function scheduleTranscriptTick() {
   var delay = 1500 + Math.random() * 2000;
@@ -1688,6 +1887,13 @@ function scheduleViewpointTick() {
 }
 scheduleTranscriptTick();
 scheduleViewpointTick();
+
+// Brief updates every 6 seconds
+function scheduleBriefTick() {
+  setTimeout(function(){ renderBrief(); scheduleBriefTick(); }, 6000);
+}
+renderBrief();
+scheduleBriefTick();
 
 // SSE with auto-reconnect
 // ── Scenario switching ──────────────────────────
