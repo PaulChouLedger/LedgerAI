@@ -58,8 +58,8 @@ class RotationState:
     snap_k: float = 60.0
     snap_damp: float = 20.0
     snap_vel_thresh: float = 15.0
-    gain_boost: float = 0.80
-    vel_ref_dps: float = 220.0
+    gain_boost: float = 0.35
+    vel_ref_dps: float = 320.0
 
     # Detent click
     detent_step: float = 0.0
@@ -223,8 +223,8 @@ def on_drag_move(rs: RotationState, x0: float, y0: float, cx: float, cy: float) 
         elif vdt > 0.050: vdt = 0.050
         d = (smoothed - rs.last_target + 540.0) % 360.0 - 180.0
         if abs(d) < 0.35: d = 0.0
-        v = 1.4 * (d / vdt)
-        v = max(-540.0, min(540.0, v))
+        v = 0.9 * (d / vdt)
+        v = max(-360.0, min(360.0, v))
         rs.vel_dps = 0.6 * rs.vel_dps + 0.4 * v
 
     rs.last_move_t = t_now
@@ -239,7 +239,7 @@ def on_drag_end(rs: RotationState) -> None:
 
     v = rs.vel_dps
     if abs(v) > 12.0:
-        v = max(-540.0, min(540.0, v))
+        v = max(-360.0, min(360.0, v))
         rs.vel_dps = v
         rs.inertia = True
     else:
