@@ -52,13 +52,13 @@ class RotationState:
     # Tunings
     spring_k: float = 125.0
     damping: float = 34.0
-    friction: float = 3.2
+    friction: float = 1.6
     snap_enabled: bool = False
     snap_step: float = 30.0
     snap_k: float = 60.0
     snap_damp: float = 20.0
     snap_vel_thresh: float = 15.0
-    gain_boost: float = 1.35
+    gain_boost: float = 0.80
     vel_ref_dps: float = 220.0
 
     # Detent click
@@ -239,7 +239,7 @@ def on_drag_end(rs: RotationState) -> None:
 
     v = rs.vel_dps
     if abs(v) > 12.0:
-        v = max(-1080.0, min(1080.0, v))
+        v = max(-540.0, min(540.0, v))
         rs.vel_dps = v
         rs.inertia = True
     else:
