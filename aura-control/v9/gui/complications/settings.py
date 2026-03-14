@@ -345,6 +345,14 @@ class SettingsComplication(BaseComplication):
             # =========================================================
             # Chapter ring (60 fine ticks) — skip ticks under menu labels
             # =========================================================
+            # Menu labels (defined early so tick exclusion can reference them)
+            labels = [
+                ("WI-FI",        -90.0),
+                ("AURACONNECT",  -18.0),
+                ("PROFILE",       54.0),
+                ("ALERTS",       126.0),
+                ("UPDATES",      198.0),
+            ]
             # Menu label angular zones (math-coord degrees, with padding)
             # Each label: center_angle = a_deg - 90, span = (n-1)*7 + pad
             _label_zones = []
@@ -437,13 +445,6 @@ class SettingsComplication(BaseComplication):
             menu_r = (r_chapter_in + r_chapter_out) * 0.5
             menu_col = QColor(255, 244, 220, int(220 * trans))
 
-            labels = [
-                ("WI-FI",        -90.0),
-                ("AURACONNECT",  -18.0),
-                ("PROFILE",       54.0),
-                ("ALERTS",       126.0),
-                ("UPDATES",      198.0),
-            ]
             # Flash the UPDATES label when updates are pending
             updates_flash = self._updates_pending
             for txt, a_deg in labels:
