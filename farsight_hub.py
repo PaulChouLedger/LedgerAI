@@ -620,7 +620,9 @@ _DASHBOARD_HTML = r"""<!DOCTYPE html>
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 16px 28px;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px 28px;
     border-bottom: 1px solid var(--border);
     background: linear-gradient(180deg, rgba(0,255,136,0.02) 0%, transparent 100%);
   }
