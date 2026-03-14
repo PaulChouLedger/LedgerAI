@@ -118,12 +118,13 @@ class _Updater:
             print(f"[updater] pull succeeded: {result.stdout.strip()}")
             bus.emit("updates.applied")
 
-            # Give the bus event a moment to propagate, then exit.
-            # systemd's Restart=always will bring us back with new code.
+            # Give the bus event a moment to propagate, then restart.
+            # systemd Restart=on-failure: use os._exit(1) to trigger restart.
+            # sys.exit(0) would be a clean exit that systemd won't restart.
             def _delayed_exit():
                 time.sleep(1.5)
-                print("[updater] restarting service...")
-                sys.exit(0)
+                print("[updater] restarting service...", flush=True)
+                os._exit(42)  # non-zero → systemd restarts us
 
             threading.Thread(target=_delayed_exit, daemon=True).start()
             return True
