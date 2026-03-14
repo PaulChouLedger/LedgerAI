@@ -749,9 +749,61 @@ _DASHBOARD_HTML = r"""<!DOCTYPE html>
     padding: 0;
     position: relative;
     overflow: hidden;
-    transition: border-color 0.3s, box-shadow 0.3s;
+    transition: border-color 0.3s, box-shadow 0.3s, transform 0.45s cubic-bezier(0.22,1,0.36,1), opacity 0.4s ease;
+    cursor: pointer;
+    z-index: 1;
   }
-  .puck-card:hover { border-color: var(--border-hi); }
+  .puck-card:hover {
+    border-color: var(--green);
+    box-shadow: 0 0 18px rgba(0,255,136,0.08), inset 0 0 30px rgba(0,255,136,0.02);
+  }
+  /* Dimmed state when another card is expanded */
+  .puck-card.dimmed {
+    opacity: 0.15;
+    pointer-events: none;
+    filter: blur(2px);
+    transform: scale(0.97);
+  }
+  /* Expanded card */
+  .puck-card.expanded {
+    position: fixed !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    width: 70vw !important;
+    max-width: 900px !important;
+    max-height: 85vh !important;
+    overflow-y: auto !important;
+    z-index: 1000 !important;
+    border-color: var(--green) !important;
+    box-shadow: 0 0 60px rgba(0,255,136,0.12), 0 0 120px rgba(0,255,136,0.04), 0 4px 60px rgba(0,0,0,0.8) !important;
+  }
+  .puck-card.expanded .pc-transcript {
+    max-height: 45vh;
+    min-height: 200px;
+    font-size: 13px;
+  }
+  .puck-card.expanded .pc-analysis-text {
+    font-size: 14px;
+    line-height: 1.7;
+  }
+  .puck-card.expanded .pc-name {
+    font-size: 16px;
+  }
+  /* Backdrop overlay */
+  .card-backdrop {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 999;
+    opacity: 0;
+    transition: opacity 0.4s ease;
+  }
+  .card-backdrop.visible {
+    display: block;
+    opacity: 1;
+  }
 
   /* Top accent line */
   .puck-card::before {
@@ -1165,6 +1217,7 @@ _DASHBOARD_HTML = r"""<!DOCTYPE html>
         <button id="bc-btn" onclick="sendBroadcast()">TRANSMIT</button>
       </div>
 
+      <div class="card-backdrop" id="card-backdrop"></div>
       <div class="puck-cards" id="cards"></div>
     </div>
   </div>
@@ -1327,7 +1380,68 @@ function renderCards() {
     var tsd = document.getElementById("ts-"+i);
     if(tsd) tsd.scrollTop = tsd.scrollHeight;
   }
+  // Re-apply expanded/dimmed state after rebuild
+  if (expandedIdx >= 0) {
+    var cards = document.querySelectorAll(".puck-card");
+    cards.forEach(function(c, i) {
+      if (i === expandedIdx) { c.classList.add("expanded"); }
+      else { c.classList.add("dimmed"); }
+    });
+  }
 }
+
+// ── Card expand / collapse ──────────────────────
+var expandedIdx = -1;
+
+function expandCard(idx) {
+  if (expandedIdx === idx) return;
+  expandedIdx = idx;
+  var cards = document.querySelectorAll(".puck-card");
+  var backdrop = document.getElementById("card-backdrop");
+  cards.forEach(function(c, i) {
+    if (i === idx) {
+      c.classList.remove("dimmed");
+      c.classList.add("expanded");
+    } else {
+      c.classList.remove("expanded");
+      c.classList.add("dimmed");
+    }
+  });
+  backdrop.style.display = "block";
+  requestAnimationFrame(function(){ backdrop.classList.add("visible"); });
+}
+
+function collapseCards() {
+  if (expandedIdx < 0) return;
+  expandedIdx = -1;
+  var cards = document.querySelectorAll(".puck-card");
+  var backdrop = document.getElementById("card-backdrop");
+  cards.forEach(function(c) {
+    c.classList.remove("expanded","dimmed");
+  });
+  backdrop.classList.remove("visible");
+  setTimeout(function(){ backdrop.style.display = "none"; }, 400);
+}
+
+// Backdrop click → collapse
+document.getElementById("card-backdrop").addEventListener("click", function(e) {
+  e.stopPropagation();
+  collapseCards();
+});
+
+// Delegate clicks on cards
+document.getElementById("cards").addEventListener("click", function(e) {
+  var card = e.target.closest(".puck-card");
+  if (!card) return;
+  if (card.classList.contains("expanded")) return; // don't re-expand
+  var idx = Array.prototype.indexOf.call(document.querySelectorAll(".puck-card"), card);
+  if (idx >= 0) expandCard(idx);
+});
+
+// ESC key to collapse
+document.addEventListener("keydown", function(e) {
+  if (e.key === "Escape") collapseCards();
+});
 
 function esc(s){var d=document.createElement("div");d.textContent=s;return d.innerHTML;}
 function hashCode(s){var h=0;for(var i=0;i<s.length;i++){h=((h<<5)-h)+s.charCodeAt(i);h|=0;}return h;}
@@ -1368,6 +1482,8 @@ var _convPools = {
       "Series B conversations are heating up. Two firms is good but three is leverage. Paul knows this. The 340K server room approval was instant \u2014 he's spending with conviction. Good sign for the board.",
       "Dr. Rafael finally engaged and he's the smartest person in the room. His silence earlier was concerning. The IP clause insight just saved them weeks of back-and-forth. David needs to lead with that in the afternoon call.",
       "This meeting is productive but running long. There's a visitor waiting in the lobby for Paul. Someone needs to flag that \u2014 keeping partners waiting is exactly the kind of thing that costs deals.",
+      "David just said 'I'll sign the PO today' \u2014 he's said that exact phrase three times this month and signed zero POs. Paul trusts him but I don't. Track the actual signature, not the promise. Dr. Rafael noticed too. Watch his face.",
+      "Everyone in this room is smart enough to know the Series B valuation is inflated by 20%, but nobody's saying it out loud. That's a problem. Honest conversations now save painful board meetings later. Paul knows this. He's choosing optimism over accuracy.",
     ]
   },
   "Engineering Lab": {
@@ -1397,6 +1513,8 @@ var _convPools = {
       "2200 tokens/sec with 40% less memory. These two are operating at a level the rest of the org doesn't fully appreciate. The 45ms first-token latency is world-class. They should present this to Paul directly, not wait for an all-hands.",
       "All 847 tests green is reassuring but I'd want to see the long-context edge case tested under load, not just unit tested. Mason says 'fixed' but sliding window approaches have failure modes at the boundaries. Trust but verify.",
       "The streaming decoder work is the real product differentiator. If Lucas can maintain 45ms first-token consistently at scale, that's a competitive moat. Patent this before publishing any benchmarks.",
+      "Brutal truth: Mason is carrying this team. Lucas asks good questions but hasn't shipped original work in two weeks. He's becoming a reviewer, not a builder. Someone needs to give him a hard problem of his own before he gets comfortable.",
+      "They keep benchmarking instead of shipping. This is classic engineer procrastination disguised as rigor. The numbers were good three days ago. Push to production, measure in the wild, and stop polishing in the lab.",
     ]
   },
   "Kitchen & Lounge": {
@@ -1425,6 +1543,7 @@ var _convPools = {
       "The rooftop social planning is happening organically and that's better than any HR-organized event. Sarah's dip is apparently legendary. If the weather holds, tonight's going to be great for morale. Let them have their 15 minutes.",
       "Kitchen conversations reveal more about team health than any engagement survey. Everyone's relaxed, joking about yogurt theft \u2014 that's a team that trusts each other. Kim's 'contains medicine' suggestion is actually brilliant social engineering.",
       "Bob keeps gravitating to the kitchen. Third time this week. Either he's avoiding his desk or he genuinely needs the social recharge. Given his output has been strong, I'll assume the latter. Not flagging this.",
+      "Jorge has spent 47 minutes in the kitchen today. At some point 'culture building' becomes 'not working.' His Q3 deliverables are behind. I like the guy but the numbers don't lie. Someone should casually mention his sprint velocity in standup tomorrow.",
     ]
   },
   "Medical Suite": {
@@ -1450,6 +1569,7 @@ var _convPools = {
       "The pharmacy integration saving 20 minutes per patient is huge at scale. If they see 30 patients a day, that's 10 hours recovered per week. Dr. Chen should present this efficiency gain to the board.",
       "ROM at 110 degrees post-knee replacement is excellent progress. The patient compliance note is important \u2014 Dr. Chen's bedside manner clearly motivates follow-through. This is evidence-based care done right.",
       "Smooth operations. No bottlenecks, no delays. If every department ran like this suite, the whole building would be a different place. Nurse Adams deserves a raise and I'm not even being hyperbolic.",
+      "Dr. Chen is the fastest clinician I've observed but speed has a shadow side. He spent 3 minutes and 40 seconds on a patient discharge. That's efficient or it's rushed \u2014 depends on whether the patient felt heard. The metrics say yes. My instinct says barely.",
     ]
   },
   "Server Room": {
