@@ -31,6 +31,14 @@ class RotationState:
     dragging: bool = False
     inertia: bool = False
 
+    # Deferred tap/drag — press records position, move decides
+    press_pending: bool = False
+    press_x: float = 0.0
+    press_y: float = 0.0
+    press_lx: float = 0.0   # logical (rotation-corrected) coords
+    press_ly: float = 0.0
+    drag_threshold: float = 12.0  # pixels of movement before drag starts
+
     # Drag reference frame
     drag_start_rot: float = 0.0
     drag_ref_rot: float = 0.0
@@ -96,11 +104,9 @@ def tick_rotation(rs: RotationState, dt: float) -> None:
     cur = rs.rot_deg
 
     if rs.dragging:
-        e = rubber(ang_diff(rs.target_deg, cur))
-        a = rs.spring_k * e - rs.damping * rs.vel_dps
-        rs.vel_dps += a * dt
-        cur = (cur + rs.vel_dps * dt) % 360.0
-        rs.rot_deg = cur
+        # Direct follow: rotation tracks the finger target immediately
+        # (velocity is estimated separately for inertia handoff)
+        rs.rot_deg = rs.target_deg
 
     elif rs.inertia:
         cur = (cur + rs.vel_dps * dt) % 360.0
@@ -198,12 +204,12 @@ def on_drag_move(rs: RotationState, x0: float, y0: float, cx: float, cy: float) 
 
     target = (rs.drag_start_rot + delta) % 360.0
 
-    # Low-pass + deadband
+    # Low-pass + deadband (high beta for direct feel)
     prev_tgt = rs.target_deg
     d_tgt = (target - prev_tgt + 540.0) % 360.0 - 180.0
-    if abs(d_tgt) < 0.25:
+    if abs(d_tgt) < 0.15:
         d_tgt = 0.0
-    beta = 0.28
+    beta = 0.70
     smoothed = (prev_tgt + beta * d_tgt) % 360.0
     rs.target_deg = smoothed
     rs.inertia = False

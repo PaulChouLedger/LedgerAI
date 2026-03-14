@@ -900,27 +900,79 @@ class AuraWindow(QWidget):
             bus.emit("boot.skip")
             return
 
-        # Settings overlay intercept — route taps to WiFi page or menu items
-        # But allow rim drag to bypass (rotation always works)
+        # -----------------------------------------------------------
+        # Deferred tap/drag: record press position, decide on move.
+        # Rim drag zone gets immediate drag start so rotation is
+        # always responsive.  Everything else waits for release.
+        # -----------------------------------------------------------
+        if hit_rim_drag_zone(x_raw, y_raw, cx, cy, mind):
+            on_drag_start(self.rs, x_raw, y_raw, cx, cy)
+            # Also record press for fallback tap on release-without-move
+            self.rs.press_pending = True
+            self.rs.press_x = x_raw
+            self.rs.press_y = y_raw
+            self.rs.press_lx = x
+            self.rs.press_ly = y
+            return
+
+        # Non-rim press — store for deferred tap on release
+        self.rs.press_pending = True
+        self.rs.press_x = x_raw
+        self.rs.press_y = y_raw
+        self.rs.press_lx = x
+        self.rs.press_ly = y
+
+    def mouseMoveEvent(self, ev):
+        cx, cy = self.width() * 0.5, self.height() * 0.5
+
+        if self.rs.dragging:
+            on_drag_move(self.rs, ev.x(), ev.y(), cx, cy)
+            return
+
+        # Not yet dragging — check if finger moved enough to start drag
+        if self.rs.press_pending:
+            dx = ev.x() - self.rs.press_x
+            dy = ev.y() - self.rs.press_y
+            if (dx * dx + dy * dy) > self.rs.drag_threshold ** 2:
+                # Promote to drag
+                on_drag_start(self.rs, self.rs.press_x, self.rs.press_y, cx, cy)
+                on_drag_move(self.rs, ev.x(), ev.y(), cx, cy)
+                self.rs.press_pending = False
+
+    def mouseReleaseEvent(self, ev):
+        was_dragging = self.rs.dragging
+        on_drag_end(self.rs)
+
+        # If we were dragging (moved significantly), don't fire a tap
+        if was_dragging:
+            self.rs.press_pending = False
+            return
+
+        # Deferred tap — finger pressed and released without dragging
+        if not self.rs.press_pending:
+            return
+        self.rs.press_pending = False
+
+        x_raw = self.rs.press_x
+        y_raw = self.rs.press_y
+        x = self.rs.press_lx
+        y = self.rs.press_ly
+        cx, cy = self.width() * 0.5, self.height() * 0.5
+        mind = min(self.width(), self.height())
+
+        self._handle_deferred_tap(x_raw, y_raw, x, y, cx, cy, mind)
+
+    def _handle_deferred_tap(self, x_raw, y_raw, x, y, cx, cy, mind):
+        """Process a confirmed tap (press+release without drag)."""
+
+        # Settings overlay intercept
         settings_comp = registry.get("Settings")
         if settings_comp and settings_comp.overlay_trans > 0.5:
-            # When a sub-page (WiFi etc.) is open, taps outside its circle
-            # must exit the sub-page — check BEFORE rim drag so the exit
-            # zone isn't swallowed by the overlapping drag ring.
-            if settings_comp.settings_page:
-                if settings_comp.handle_overlay_tap(x, y, cx, cy, mind):
-                    return
-            # Rim drag still works even with overlay open (main settings only,
-            # or taps inside a sub-page that weren't consumed above)
-            if hit_rim_drag_zone(x_raw, y_raw, cx, cy, mind):
-                on_drag_start(self.rs, x_raw, y_raw, cx, cy)
-                return
             if settings_comp.handle_overlay_tap(x, y, cx, cy, mind):
                 return
-            # If tap wasn't consumed by the overlay, close settings
-            # (but check if they tapped the Settings complication itself to toggle)
+            # Tap on Settings complication itself — toggle
             if hit_complication("Settings", x, y, self.labels, cx, cy, mind):
-                settings_comp.settings_page = None  # reset to main on close
+                settings_comp.settings_page = None
                 settings_comp.on_tap()
                 return
             # Tap outside overlay — close settings
@@ -928,8 +980,7 @@ class AuraWindow(QWidget):
             settings_comp.close_overlay()
             return
 
-        # INVARIANT: Any open overlay — tapping its button dismisses it;
-        # tapping outside closes it.  Domain overlays checked first.
+        # Open domain overlay — tap to dismiss/switch
         _open_domain = None
         if self._glyph_names:
             for dname in self._glyph_names:
@@ -941,16 +992,13 @@ class AuraWindow(QWidget):
             dname, dcomp = _open_domain
             gname = hit_domain_glyph(x, y, cx, cy, mind, self.labels, self._glyph_names)
             if gname == dname:
-                # Tapped the same glyph — toggle off
                 dcomp.close_overlay()
                 if hasattr(dcomp, 'stop_audio'):
                     dcomp.stop_audio()
                 return
-            # Tapped anywhere else — close it
             dcomp.close_overlay()
             if hasattr(dcomp, 'stop_audio'):
                 dcomp.stop_audio()
-            # If they tapped a different glyph, open that one
             if gname:
                 other = registry.get(gname)
                 if other and isinstance(other, BaseDomainComplication):
@@ -969,7 +1017,6 @@ class AuraWindow(QWidget):
             if hit_complication(_open_dock.name, x, y, self.labels, cx, cy, mind):
                 _open_dock.close_overlay()
                 return
-            # Tap anywhere else — close it
             _open_dock.close_overlay()
             return
 
@@ -977,14 +1024,12 @@ class AuraWindow(QWidget):
         for comp in registry.get_docked():
             if hit_complication(comp.name, x, y, self.labels, cx, cy, mind):
                 if comp.has_overlay and comp.overlay_target < 0.5:
-                    # Opening a docked overlay — close any open domain overlays
                     for dname in self._glyph_names:
                         dcomp = registry.get(dname)
                         if dcomp and dcomp.overlay_open:
                             dcomp.close_overlay()
                             if hasattr(dcomp, 'stop_audio'):
                                 dcomp.stop_audio()
-                    # Also close any other open docked overlays
                     for other in registry.get_docked():
                         if other is not comp and other.name not in ("Settings", "Mute", "Volume") \
                                 and other.overlay_trans > 0.1:
@@ -999,17 +1044,14 @@ class AuraWindow(QWidget):
                 domain_comp = registry.get(gname)
                 if domain_comp and isinstance(domain_comp, BaseDomainComplication):
                     if domain_comp.overlay_open:
-                        # Close: stop audio, dismiss overlay
                         domain_comp.close_overlay()
                         if hasattr(domain_comp, 'stop_audio'):
                             domain_comp.stop_audio()
                     else:
-                        # Close any open docked overlays first
                         for dcomp in registry.get_docked():
                             if dcomp.name not in ("Settings", "Mute", "Volume") \
                                     and dcomp.overlay_trans > 0.1:
                                 dcomp.close_overlay()
-                        # Close any other open domain overlays
                         for other_name in self._glyph_names:
                             if other_name != gname:
                                 other = registry.get(other_name)
@@ -1017,13 +1059,12 @@ class AuraWindow(QWidget):
                                     other.close_overlay()
                                     if hasattr(other, 'stop_audio'):
                                         other.stop_audio()
-                        # Open this one
                         domain_comp.open_overlay()
                         if hasattr(domain_comp, 'play_audio'):
                             domain_comp.play_audio()
                 return
 
-        # Check center tap — dismiss any open domain overlay
+        # Center tap — dismiss any open domain overlay
         if hit_center(x, y, cx, cy, mind):
             for dname in self._glyph_names:
                 dcomp = registry.get(dname)
@@ -1033,15 +1074,3 @@ class AuraWindow(QWidget):
                         dcomp.stop_audio()
             bus.emit("center.tap")
             return
-
-        # Rim drag fallback (already checked early, but covers edge cases)
-        if hit_rim_drag_zone(x_raw, y_raw, cx, cy, mind):
-            on_drag_start(self.rs, x_raw, y_raw, cx, cy)
-
-    def mouseMoveEvent(self, ev):
-        if self.rs.dragging:
-            cx, cy = self.width() * 0.5, self.height() * 0.5
-            on_drag_move(self.rs, ev.x(), ev.y(), cx, cy)
-
-    def mouseReleaseEvent(self, ev):
-        on_drag_end(self.rs)
