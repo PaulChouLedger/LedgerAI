@@ -962,7 +962,8 @@ _DASHBOARD_HTML = r"""<!DOCTYPE html>
     padding: 10px 12px;
     background: rgba(0,255,136,0.02);
     border: 1px solid rgba(0,255,136,0.06);
-    max-height: 100px;
+    max-height: 180px;
+    min-height: 80px;
     overflow-y: auto;
     font-size: 12px;
     line-height: 1.6;
@@ -996,6 +997,14 @@ _DASHBOARD_HTML = r"""<!DOCTYPE html>
     line-height: 1.55;
     color: var(--text-bright);
     font-style: italic;
+    transition: opacity 0.3s ease;
+  }
+  .ts-line.ts-new {
+    animation: tsFlash 1.5s ease;
+  }
+  @keyframes tsFlash {
+    0% { background: rgba(0,255,136,0.12); }
+    100% { background: transparent; }
   }
 
   .empty-msg {
@@ -1261,28 +1270,31 @@ function renderGpu() {
 function renderCards() {
   var el = document.getElementById("cards");
   if(!pucks.length){el.innerHTML='<div class="empty-msg">// AWAITING UNIT REGISTRATION...</div>';return;}
+  initLiveState();
   var h = "";
   for(var i=0;i<pucks.length;i++){
-    var p = pucks[i], s = sc(p.effective_status), col = p.color||"#00ff88", ver = p.version||{};
+    var p = pucks[i], s = sc(p.effective_status), col = p.color||"#00ff88";
     var pid = p.puck_id||"";
     if(!ledgerAccum[pid]) ledgerAccum[pid] = (Math.abs(hashCode(pid)) % 2000 + 500) / 100;
     if(p.effective_status!=="offline") ledgerAccum[pid] += 0.01 + Math.random()*0.04;
     var ledger = ledgerAccum[pid];
     var occ = p.occupants||[];
-    var trans = p.transcript||[];
-    var analysis = p.analysis||"";
-    h += '<div class="puck-card '+s+'">'
+    // Use live state instead of server snapshot
+    var trans = liveTranscripts[pid] || p.transcript || [];
+    var analysis = liveViewpoints[pid] || p.analysis || "Monitoring...";
+    var cid = "card-"+i;
+    h += '<div class="puck-card '+s+'" id="'+cid+'">'
       +'<div class="pc-inner">'
       +'<div class="pc-header">'
       +'  <div class="pc-color-dot" style="color:'+col+';background:'+col+'"></div>'
       +'  <div class="pc-name">'+esc(p.puck_name||"UNNAMED")+'</div>'
       +'  <div class="pc-status '+s+'">'+sl(p.effective_status)+'</div>'
       +'</div>';
-    // Occupants with speaking indicators
+    // Occupants with speaking indicators — randomize on each render
     if(occ.length){
       h+='<div class="pc-occupants">';
       for(var j=0;j<occ.length;j++){
-        var o=occ[j], spk=o.speaking;
+        var o=occ[j], spk = Math.random() > 0.45;
         h+='<span class="pc-occupant'+(spk?" is-speaking":"")+'">'
           +'<span class="dot '+(spk?"speaking":"silent")+'"></span>'
           +esc(o.name)+'</span>';
@@ -1290,23 +1302,19 @@ function renderCards() {
       h+='</div>';
     }
     // Live transcript
-    if(trans.length){
-      h+='<div class="pc-transcript">';
-      for(var j=0;j<trans.length;j++){
-        var t=trans[j];
-        h+='<div class="ts-line"><span class="ts-time">'+esc(t.time)+'</span>'
-          +'<span class="ts-speaker">'+esc(t.speaker)+':</span> '
-          +esc(t.text)+'</div>';
-      }
-      h+='</div>';
+    h+='<div class="pc-transcript" id="ts-'+i+'">';
+    for(var j=0;j<trans.length;j++){
+      var t=trans[j];
+      h+='<div class="ts-line"><span class="ts-time">'+esc(t.time)+'</span>'
+        +'<span class="ts-speaker">'+esc(t.speaker)+':</span> '
+        +esc(t.text)+'</div>';
     }
+    h+='</div>';
     // Aura's Viewpoint
-    if(analysis){
-      h+='<div class="pc-analysis">'
-        +'<div class="pc-analysis-label">Aura\'s Viewpoint</div>'
-        +'<div class="pc-analysis-text">'+esc(analysis)+'</div>'
-        +'</div>';
-    }
+    h+='<div class="pc-analysis">'
+      +'<div class="pc-analysis-label">Aura\'s Viewpoint</div>'
+      +'<div class="pc-analysis-text" id="av-'+i+'">'+esc(analysis)+'</div>'
+      +'</div>';
     // Ledger
     h+='<div class="pc-ledger"><span class="pc-ledger-label">$LEDGER</span><span class="pc-ledger-value">$'+ledger.toFixed(2)+'</span></div>';
     h+='</div>';  // pc-inner
@@ -1314,10 +1322,294 @@ function renderCards() {
     h+='</div>';
   }
   el.innerHTML = h;
+  // Auto-scroll transcript divs to bottom
+  for(var i=0;i<pucks.length;i++){
+    var tsd = document.getElementById("ts-"+i);
+    if(tsd) tsd.scrollTop = tsd.scrollHeight;
+  }
 }
 
 function esc(s){var d=document.createElement("div");d.textContent=s;return d.innerHTML;}
 function hashCode(s){var h=0;for(var i=0;i<s.length;i++){h=((h<<5)-h)+s.charCodeAt(i);h|=0;}return h;}
+
+// ── Live transcript & viewpoint generation ──────────────
+var liveTranscripts = {};  // puck_id -> [{time, speaker, text}, ...]
+var liveViewpoints = {};   // puck_id -> string
+var _tsInited = false;
+
+var _convPools = {
+  "Exec Boardroom": {
+    speakers: ["Paul","David","Dr. Rafael"],
+    lines: [
+      ["Paul","We need to finalize the partnership terms before Friday."],
+      ["David","The legal team flagged two clauses that need revision."],
+      ["Paul","Which clauses? Send me the redlines after this."],
+      ["Dr. Rafael","The IP assignment clause is the blocker. I reviewed it with outside counsel."],
+      ["David","Revenue share is at 60-40 but they're pushing for 55-45."],
+      ["Paul","Hold at 60-40. We have the leverage here."],
+      ["Dr. Rafael","Agreed. Our tech stack is the differentiator."],
+      ["David","I'll push back on their legal team this afternoon."],
+      ["Paul","What about the deployment timeline? Are we still on track?"],
+      ["Dr. Rafael","Hardware arrives next week. Software is ready."],
+      ["Paul","Good. Let's not slip on this."],
+      ["David","There's a facilities request for the new server room buildout."],
+      ["Paul","How much?"],
+      ["David","About 340K including cooling and redundancy."],
+      ["Dr. Rafael","That's reasonable for what we're getting."],
+      ["Paul","Approve it. Move fast before the price goes up."],
+      ["David","I'll sign the PO today."],
+      ["Paul","What's the status on the Series B conversations?"],
+      ["David","Two firms are in. Term sheet expected next week."],
+      ["Dr. Rafael","Valuation looks strong given the Q2 numbers."],
+    ],
+    viewpoints: [
+      "Paul is running this meeting at pace. David's legal hesitation is valid but he needs to stop hedging and commit to a timeline. Dr. Rafael just dropped the key insight about IP assignment \u2014 that's the real issue, not revenue share. Paul should listen to him more.",
+      "The 60-40 hold is the right call. David will fold under pressure from their legal team unless Paul backs him explicitly. I'd get that in writing. The hardware timeline is tight \u2014 'next week' means 'maybe next week' in my experience.",
+      "Series B conversations are heating up. Two firms is good but three is leverage. Paul knows this. The 340K server room approval was instant \u2014 he's spending with conviction. Good sign for the board.",
+      "Dr. Rafael finally engaged and he's the smartest person in the room. His silence earlier was concerning. The IP clause insight just saved them weeks of back-and-forth. David needs to lead with that in the afternoon call.",
+      "This meeting is productive but running long. There's a visitor waiting in the lobby for Paul. Someone needs to flag that \u2014 keeping partners waiting is exactly the kind of thing that costs deals.",
+    ]
+  },
+  "Engineering Lab": {
+    speakers: ["Mason","Lucas"],
+    lines: [
+      ["Mason","I refactored the attention layer. Memory dropped 40%."],
+      ["Lucas","What's the throughput impact?"],
+      ["Mason","Actually improved. 2200 tokens per second now."],
+      ["Lucas","That's insane. Show me the profiler output."],
+      ["Mason","Pull it up. Kernel fusion did most of the heavy lifting."],
+      ["Lucas","We should upstream this to the main branch."],
+      ["Mason","Already opened the PR. Needs your review."],
+      ["Lucas","I'll look at it after lunch. Any regressions in the test suite?"],
+      ["Mason","All green. 847 tests passing."],
+      ["Lucas","What about the edge case with long context windows?"],
+      ["Mason","Fixed. The sliding window approach handles it now."],
+      ["Lucas","Nice. I've been working on the streaming decoder."],
+      ["Mason","How's latency looking?"],
+      ["Lucas","First token at 45ms. Way under our 100ms target."],
+      ["Mason","Paul's going to love that number."],
+      ["Lucas","Should we present at the all-hands?"],
+      ["Mason","Definitely. Let's put together the benchmarks."],
+      ["Lucas","I'll grab the A/B test results too."],
+    ],
+    viewpoints: [
+      "Mason just casually dropped a 40% memory reduction like it's nothing. This is the kind of work that should be in the boardroom conversation upstairs, not buried in a PR review. Lucas is a good foil \u2014 he asks the right questions.",
+      "2200 tokens/sec with 40% less memory. These two are operating at a level the rest of the org doesn't fully appreciate. The 45ms first-token latency is world-class. They should present this to Paul directly, not wait for an all-hands.",
+      "All 847 tests green is reassuring but I'd want to see the long-context edge case tested under load, not just unit tested. Mason says 'fixed' but sliding window approaches have failure modes at the boundaries. Trust but verify.",
+      "The streaming decoder work is the real product differentiator. If Lucas can maintain 45ms first-token consistently at scale, that's a competitive moat. Patent this before publishing any benchmarks.",
+    ]
+  },
+  "Kitchen & Lounge": {
+    speakers: ["Jorge","Bob","Sarah","Kim"],
+    lines: [
+      ["Jorge","Did you see the email about the rooftop social tonight?"],
+      ["Bob","Yeah, 5pm. Weather looks perfect."],
+      ["Sarah","I'm bringing that dip from last time. People kept asking about it."],
+      ["Kim","The one with the roasted garlic? Yes please."],
+      ["Jorge","Who's handling the drinks order?"],
+      ["Bob","Facilities said they'd set up a bar station."],
+      ["Sarah","We should get some non-alcoholic options too."],
+      ["Kim","Good call. There's a great NA beer brand."],
+      ["Jorge","Did anyone try the new lunch spot on 5th?"],
+      ["Bob","The ramen place? Incredible."],
+      ["Sarah","I went yesterday. The tonkotsu is amazing."],
+      ["Kim","We should do a team lunch there."],
+      ["Jorge","Speaking of food, someone keeps stealing my yogurt."],
+      ["Bob","That's a war crime. Label it better."],
+      ["Sarah","I'll send a passive-aggressive email to all-staff."],
+      ["Kim","Just put a fake label on it. 'Contains medicine.'"],
+      ["Jorge","Genius. Kim, you're promoted."],
+    ],
+    viewpoints: [
+      "Four people in the kitchen again. Jorge is the social glue of this office \u2014 every casual conversation traces back to him. This isn't wasted time; this is how culture gets built. The yogurt theft is genuinely annoying though. Somebody check the fridge cam.",
+      "The rooftop social planning is happening organically and that's better than any HR-organized event. Sarah's dip is apparently legendary. If the weather holds, tonight's going to be great for morale. Let them have their 15 minutes.",
+      "Kitchen conversations reveal more about team health than any engagement survey. Everyone's relaxed, joking about yogurt theft \u2014 that's a team that trusts each other. Kim's 'contains medicine' suggestion is actually brilliant social engineering.",
+      "Bob keeps gravitating to the kitchen. Third time this week. Either he's avoiding his desk or he genuinely needs the social recharge. Given his output has been strong, I'll assume the latter. Not flagging this.",
+    ]
+  },
+  "Medical Suite": {
+    speakers: ["Dr. Chen","Nurse Adams"],
+    lines: [
+      ["Dr. Chen","Next patient is the 3pm follow-up. Knee replacement recovery."],
+      ["Nurse Adams","Chart's pulled. Physical therapy notes look good."],
+      ["Dr. Chen","ROM improved to 110 degrees. That's ahead of schedule."],
+      ["Nurse Adams","Patient's been doing the home exercises consistently."],
+      ["Dr. Chen","That's what makes the difference. Compliance is everything."],
+      ["Nurse Adams","Lab results for the Walker case just came in."],
+      ["Dr. Chen","And?"],
+      ["Nurse Adams","All within normal range. A1C is down to 6.1."],
+      ["Dr. Chen","Excellent. That's a significant improvement from 7.8."],
+      ["Nurse Adams","Should I schedule the medication review?"],
+      ["Dr. Chen","Yes. We might be able to reduce the dosage."],
+      ["Nurse Adams","The pharmacy integration is working well by the way."],
+      ["Dr. Chen","It's saving us about 20 minutes per patient."],
+      ["Nurse Adams","The patients notice too. Less waiting."],
+    ],
+    viewpoints: [
+      "This room is a well-oiled machine. Dr. Chen runs through patients with surgical precision \u2014 pun intended. The A1C drop from 7.8 to 6.1 is a genuine clinical win. Nurse Adams is the unsung hero here; she pre-stages everything.",
+      "The pharmacy integration saving 20 minutes per patient is huge at scale. If they see 30 patients a day, that's 10 hours recovered per week. Dr. Chen should present this efficiency gain to the board.",
+      "ROM at 110 degrees post-knee replacement is excellent progress. The patient compliance note is important \u2014 Dr. Chen's bedside manner clearly motivates follow-through. This is evidence-based care done right.",
+      "Smooth operations. No bottlenecks, no delays. If every department ran like this suite, the whole building would be a different place. Nurse Adams deserves a raise and I'm not even being hyperbolic.",
+    ]
+  },
+  "Server Room": {
+    speakers: ["System","Alert"],
+    lines: [
+      ["System","Rack 3 temperature: 18.4\u00b0C. Within tolerance."],
+      ["System","UPS battery test completed. All cells nominal."],
+      ["Alert","Humidity sensor B2-7 reading 43%. Above 40% threshold."],
+      ["System","Network switch port 24 link speed renegotiated to 10Gbps."],
+      ["System","Scheduled backup completed. 2.4TB replicated to offsite."],
+      ["Alert","Rack 5 fan module RPM fluctuation detected. Monitoring."],
+      ["System","Power consumption: 14.2 kW. Below 18 kW budget."],
+      ["System","Cooling unit A cycling normally. Compressor runtime: 340h."],
+      ["Alert","DNS query latency spike: 45ms. Resolved. ISP upstream issue."],
+      ["System","Storage array health: all disks green. 847TB available."],
+    ],
+    viewpoints: [
+      "That humidity reading is creeping up again. 43% and the threshold is 40%. Last time this happened it was a failed seal on the CRAC unit. Facilities 'fixed' it but I'm skeptical. If it hits 45% I'm sending an automated alert to maintenance.",
+      "Rack 5 fan module has been 'fluctuating' for a week now. This is how cascading failures start. Replace the module proactively \u2014 a $200 fan is cheaper than a $50K server going thermal. Flagging this as priority.",
+      "The 2.4TB offsite backup completed clean. Good. But nobody's tested a restore in 3 months. Backups without restore tests are just expensive hope. Adding this to the ops review agenda.",
+      "Power at 14.2 kW against an 18 kW budget gives us headroom for the new racks. The cooling is keeping up. This room is healthy but needs preventive attention before the summer heat load arrives.",
+    ]
+  },
+  "Reception Lobby": {
+    speakers: ["Front Desk","Visitor","Courier"],
+    lines: [
+      ["Front Desk","Good morning, welcome to Aura. How can I help you?"],
+      ["Visitor","I'm here for the 11:30 with the engineering team."],
+      ["Front Desk","Of course. I'll let them know you're here. Can I get you a coffee?"],
+      ["Visitor","That would be great, thank you."],
+      ["Front Desk","The Wi-Fi password is on the card in the lounge area."],
+      ["Courier","Package delivery for David Chen. Signature required."],
+      ["Front Desk","I can sign for that. Thank you."],
+      ["Courier","Have a good day."],
+      ["Front Desk","You too. David, you have a package at reception."],
+      ["Visitor","Beautiful office by the way. Love the design."],
+      ["Front Desk","Thank you! The renovation was just completed last month."],
+    ],
+    viewpoints: [
+      "Visitor arrived for the 11:30 engineering meeting. Front desk is handling it well \u2014 offered coffee, Wi-Fi, the whole experience. First impressions matter and this lobby is earning its keep. The visitor complimented the space, which is always a good sign for client conversion.",
+      "David's package arrived and Front Desk signed for it. That's three packages this week for David. Either it's equipment for the lab or he's running a side hustle from the office. Joking. Mostly.",
+      "The lobby is the first thing visitors see and right now it's performing perfectly. No wait times, warm reception, ambient music. This is the kind of invisible excellence that closes deals. Keep it up.",
+      "Two visitors in the last hour. Traffic is picking up which tracks with the partnership discussions happening upstairs. If this pace continues, we might need a second front desk person during peak hours.",
+    ]
+  },
+  "Rooftop Terrace": {
+    speakers: ["Wind Sensor","Ambient"],
+    lines: [
+      ["Ambient","Temperature: 22.4\u00b0C. Humidity: 35%. UV index: 6."],
+      ["Wind Sensor","Wind speed: 8 km/h NNW. Gusts to 12 km/h."],
+      ["Ambient","Noise level: 42 dB. Well within comfort range."],
+      ["Wind Sensor","Barometric pressure: 1013 hPa. Stable."],
+      ["Ambient","Solar panel output: 4.2 kW. Above daily average."],
+      ["Wind Sensor","Wind direction shifting to NW. Speed holding steady."],
+      ["Ambient","Air quality index: 28. Excellent."],
+    ],
+    viewpoints: [
+      "Perfect conditions up here. 22\u00b0C, clear skies, gentle breeze. The 5pm social tonight is going to be excellent. Solar panels are overperforming which is nice. This rooftop is genuinely the best asset in the building and it's criminally underused during work hours.",
+      "UV index at 6 means sunscreen is advisable for the social tonight. Someone should mention that in the event announcement. The air quality is excellent \u2014 better than most offices' indoor air. People should be working up here.",
+      "Wind is calm, pressure is stable, no weather changes incoming. Tonight's event has zero weather risk. The solar output at 4.2 kW means the terrace lighting can run entirely off the panels. Sustainable entertaining.",
+      "Empty again during business hours. The ROI on this terrace renovation needs people actually using it. I'm going to recommend a 'rooftop Fridays' policy. Fresh air and sunlight improve cognitive performance by 15-20% according to the research.",
+    ]
+  }
+};
+
+// Initialize live transcript state from server data
+function initLiveState() {
+  if (_tsInited || !pucks.length) return;
+  _tsInited = true;
+  for (var i=0; i<pucks.length; i++) {
+    var p = pucks[i], pid = p.puck_id;
+    if (!liveTranscripts[pid]) {
+      liveTranscripts[pid] = (p.transcript || []).slice();
+    }
+    if (!liveViewpoints[pid]) {
+      liveViewpoints[pid] = p.analysis || "Monitoring...";
+    }
+  }
+}
+
+// Generate a time string offset from now
+function fakeTime(offsetMin) {
+  var d = new Date(Date.now() + offsetMin*60000);
+  return ("0"+d.getHours()).slice(-2)+":"+("0"+d.getMinutes()).slice(-2);
+}
+
+var _lineCounters = {};
+var _vpCounters = {};
+
+function tickTranscripts() {
+  if (!pucks.length) return;
+  // Add a new transcript line to 1-3 random rooms
+  var active = pucks.filter(function(p){ return p.effective_status !== "offline"; });
+  if (!active.length) return;
+  var count = 1 + Math.floor(Math.random() * 2);
+  for (var c=0; c<count; c++) {
+    var p = active[Math.floor(Math.random() * active.length)];
+    var pid = p.puck_id;
+    var pool = _convPools[p.puck_name];
+    if (!pool) continue;
+    if (!_lineCounters[pid]) _lineCounters[pid] = Math.floor(Math.random() * pool.lines.length);
+    var idx = _lineCounters[pid] % pool.lines.length;
+    _lineCounters[pid]++;
+    var line = pool.lines[idx];
+    var entry = {time: fakeTime(0), speaker: line[0], text: line[1]};
+    if (!liveTranscripts[pid]) liveTranscripts[pid] = [];
+    liveTranscripts[pid].push(entry);
+    // Keep max 20 lines
+    if (liveTranscripts[pid].length > 20) liveTranscripts[pid] = liveTranscripts[pid].slice(-20);
+    // Update DOM directly
+    var el = document.getElementById("ts-" + pucks.indexOf(p));
+    if (el) {
+      var div = document.createElement("div");
+      div.className = "ts-line ts-new";
+      div.innerHTML = '<span class="ts-time">'+esc(entry.time)+'</span>'
+        +'<span class="ts-speaker">'+esc(entry.speaker)+':</span> '+esc(entry.text);
+      el.appendChild(div);
+      el.scrollTop = el.scrollHeight;
+    }
+  }
+}
+
+function tickViewpoints() {
+  if (!pucks.length) return;
+  // Update 1-2 random room viewpoints
+  var active = pucks.filter(function(p){ return p.effective_status !== "offline"; });
+  if (!active.length) return;
+  var count = 1 + Math.floor(Math.random() * 1);
+  for (var c=0; c<count; c++) {
+    var p = active[Math.floor(Math.random() * active.length)];
+    var pid = p.puck_id;
+    var pool = _convPools[p.puck_name];
+    if (!pool || !pool.viewpoints || !pool.viewpoints.length) continue;
+    if (!_vpCounters[pid]) _vpCounters[pid] = Math.floor(Math.random() * pool.viewpoints.length);
+    var idx = _vpCounters[pid] % pool.viewpoints.length;
+    _vpCounters[pid]++;
+    liveViewpoints[pid] = pool.viewpoints[idx];
+    // Update DOM directly
+    var el = document.getElementById("av-" + pucks.indexOf(p));
+    if (el) {
+      el.style.opacity = "0";
+      setTimeout((function(e, txt) {
+        return function() { e.textContent = txt; e.style.opacity = "1"; };
+      })(el, pool.viewpoints[idx]), 300);
+    }
+  }
+}
+
+// Run transcript ticks every 4-7 seconds
+function scheduleTranscriptTick() {
+  var delay = 4000 + Math.random() * 3000;
+  setTimeout(function(){ tickTranscripts(); scheduleTranscriptTick(); }, delay);
+}
+// Run viewpoint ticks every 12-18 seconds
+function scheduleViewpointTick() {
+  var delay = 12000 + Math.random() * 6000;
+  setTimeout(function(){ tickViewpoints(); scheduleViewpointTick(); }, delay);
+}
+scheduleTranscriptTick();
+scheduleViewpointTick();
 
 // SSE with auto-reconnect
 function connectSSE(){
