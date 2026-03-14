@@ -991,201 +991,398 @@ def _draw_alerts_page(p, cx, cy, mind, t, trans, comp):
 # ---------------------------------------------------------------------------
 
 def _draw_updates_page(p, cx, cy, mind, t, trans, comp):
-    """Draw the Updates sub-page: commit list + apply button."""
+    """Draw the Updates sub-page — full Patek Philippe watchface style."""
     from core.updater import updater
-    from PyQt5.QtGui import QRadialGradient
+    from core.state import state
+    from core.config import COLOR_SCHEMES
+
+    scheme = COLOR_SCHEMES.get(state.color_scheme, COLOR_SCHEMES["rafael"])
+    palette = scheme.get("ring_palette", "blue")
+    is_red = palette == "red"
 
     R = mind * 0.235
-    base_dark = QColor(8, 9, 12, int(210 * trans))
+    r_bezel_outer = R * 0.98
+    r_bezel_inner = R * 0.90
+    r_chapter_out = R * 0.84
+    r_chapter_in  = R * 0.74
+    rg = R * 0.64
+
     A  = int(240 * trans)
     A2 = int(175 * trans)
     A3 = int(120 * trans)
-    gold_strong = GOLD(A)
-    gold_mid    = GOLD(A2)
-    gold_faint  = GOLD(A3)
 
-    # --- Base plate ---
+    # Scheme-aware accent colors
+    if is_red:
+        accent_strong = QColor(220, 180, 120, A)     # warm gold
+        accent_mid    = QColor(200, 165, 105, A2)
+        accent_faint  = QColor(180, 150, 95, A3)
+        accent_tick   = lambda a: QColor(210, 175, 115, a)  # noqa: E731
+        hash_col      = QColor(255, 160, 100)
+        subject_col   = QColor(240, 225, 200)
+        status_green  = QColor(140, 210, 100)
+        btn_core      = (180, 140, 60)
+        btn_edge      = (100, 75, 30)
+        btn_border    = (220, 180, 100)
+        base_bg       = QColor(22, 6, 8, int(220 * trans))
+        mid_bg        = QColor(35, 10, 14, int(210 * trans))
+        glow_tint     = QColor(255, 200, 160)
+    else:
+        accent_strong = GOLD(A)
+        accent_mid    = GOLD(A2)
+        accent_faint  = GOLD(A3)
+        accent_tick   = lambda a: GOLD(a)  # noqa: E731
+        hash_col      = QColor(100, 180, 255)
+        subject_col   = QColor(225, 230, 245)
+        status_green  = QColor(80, 210, 120)
+        btn_core      = (60, 180, 120)
+        btn_edge      = (30, 90, 60)
+        btn_border    = (80, 220, 140)
+        base_bg       = QColor(8, 9, 12, int(210 * trans))
+        mid_bg        = QColor(14, 15, 20, int(200 * trans))
+        glow_tint     = QColor(255, 255, 255)
+
+    # =========================================================
+    # Base plate (deep enamel)
+    # =========================================================
     p.setPen(Qt.NoPen)
-    p.setBrush(base_dark)
+    p.setBrush(base_bg)
     p.drawEllipse(QPointF(cx, cy), R, R)
 
-    # Bezel ring
-    bezel_pen = QPen(gold_mid)
+    # Crystal gloss
+    grad = QRadialGradient(QPointF(cx, cy), R * 0.98)
+    grad.setColorAt(0.0, QColor(glow_tint.red(), glow_tint.green(), glow_tint.blue(), int(A * 0.12)))
+    grad.setColorAt(0.55, QColor(glow_tint.red(), glow_tint.green(), glow_tint.blue(), int(A * 0.06)))
+    grad.setColorAt(1.0, QColor(0, 0, 0, 0))
+    p.setBrush(QBrush(grad))
+    p.drawEllipse(QPointF(cx, cy), R * 0.98, R * 0.98)
+
+    # Outer bevel highlight
+    g1 = QRadialGradient(QPointF(cx, cy), r_bezel_outer)
+    g1.setColorAt(0.70, QColor(accent_mid.red(), accent_mid.green(), accent_mid.blue(), int(34 * trans)))
+    g1.setColorAt(0.86, QColor(accent_mid.red(), accent_mid.green(), accent_mid.blue(), int(62 * trans)))
+    g1.setColorAt(1.00, QColor(0, 0, 0, 0))
+    p.setPen(Qt.NoPen)
+    p.setBrush(QBrush(g1))
+    p.drawEllipse(QPointF(cx, cy), r_bezel_outer, r_bezel_outer)
+
+    # Inner chamfer shadow
+    g2 = QRadialGradient(QPointF(cx, cy), r_bezel_inner)
+    g2.setColorAt(0.60, QColor(0, 0, 0, 0))
+    g2.setColorAt(0.92, QColor(0, 0, 0, int(80 * trans)))
+    g2.setColorAt(1.00, QColor(0, 0, 0, int(110 * trans)))
+    p.setPen(Qt.NoPen)
+    p.setBrush(QBrush(g2))
+    p.drawEllipse(QPointF(cx, cy), r_bezel_inner, r_bezel_inner)
+
+    # Gold bezel rings
+    bezel_pen = QPen(accent_mid)
     bezel_pen.setWidthF(max(2.0, mind * 0.0042))
     p.setPen(bezel_pen)
     p.setBrush(Qt.NoBrush)
-    p.drawEllipse(QPointF(cx, cy), R * 0.98, R * 0.98)
+    p.drawEllipse(QPointF(cx, cy), r_bezel_outer, r_bezel_outer)
 
-    # Inner ring
-    inner_pen = QPen(gold_faint)
+    inner_pen = QPen(accent_faint)
     inner_pen.setWidthF(max(1.2, mind * 0.0026))
     p.setPen(inner_pen)
-    p.drawEllipse(QPointF(cx, cy), R * 0.90, R * 0.90)
+    p.drawEllipse(QPointF(cx, cy), r_bezel_inner, r_bezel_inner)
 
-    # --- Header ---
-    header_font = QFont("DejaVu Sans", max(8, int(mind * 0.014)))
-    header_font.setLetterSpacing(QFont.PercentageSpacing, 130)
-    header_font.setBold(True)
+    # =========================================================
+    # Chapter ring (60 fine ticks)
+    # =========================================================
+    for i in range(60):
+        ang = (i / 60.0) * 2.0 * math.pi - math.pi / 2.0
+        is_major = (i % 5 == 0)
+        tick_len = (R * 0.080) if is_major else (R * 0.045)
+        tick_w = (mind * 0.0038) if is_major else (mind * 0.0022)
+
+        rr_out = r_chapter_out
+        rr_in = rr_out - tick_len
+        x1 = cx + rr_in * math.cos(ang)
+        y1 = cy + rr_in * math.sin(ang)
+        x2 = cx + rr_out * math.cos(ang)
+        y2 = cy + rr_out * math.sin(ang)
+
+        col = accent_tick(int((170 if is_major else 115) * trans))
+        p.setPen(QPen(col, tick_w, Qt.SolidLine, Qt.RoundCap))
+        p.drawLine(QPointF(x1, y1), QPointF(x2, y2))
+
+    # Inner chapter ring boundary
+    p.setPen(QPen(accent_faint, max(1.0, mind * 0.0018)))
+    p.drawEllipse(QPointF(cx, cy), r_chapter_in, r_chapter_in)
+
+    # =========================================================
+    # Guilloché center (engine-turned pattern)
+    # =========================================================
+    p.setPen(Qt.NoPen)
+    p.setBrush(mid_bg)
+    p.drawEllipse(QPointF(cx, cy), rg, rg)
+
+    gu_alpha = int(24 * trans) if not is_red else int(18 * trans)
+    gu_pen = QPen(QColor(glow_tint.red(), glow_tint.green(), glow_tint.blue(), gu_alpha))
+    gu_pen.setWidthF(max(1.0, mind * 0.0016))
+    p.setPen(gu_pen)
+    p.setBrush(Qt.NoBrush)
+
+    steps = 36
+    for k in range(steps):
+        frac = k / (steps - 1) if steps > 1 else 0.0
+        rad = rg * (0.18 + 0.82 * frac)
+        wob = 1.0 + 0.018 * math.sin(t * 0.9 + k * 0.55)
+        p.drawEllipse(QPointF(cx, cy), rad * wob, rad)
+
+    # Center cap
+    p.setPen(Qt.NoPen)
+    p.setBrush(QColor(0, 0, 0, int(72 * trans)))
+    p.drawEllipse(QPointF(cx, cy), rg * 0.10, rg * 0.10)
+
+    # =========================================================
+    # Header microtext along top arc
+    # =========================================================
+    header_font = QFont("Helvetica Neue", max(7, int(mind * 0.012)))
+    header_font.setWeight(QFont.Medium)
+    header_font.setLetterSpacing(QFont.PercentageSpacing, 115)
     p.setFont(header_font)
 
+    # Arc text at 12 o'clock
+    title = "SOFTWARE  UPDATES"
+    arc_r = R * 0.68
+    n_chars = len(title)
+    letter_deg = 4.8
+    span = (n_chars - 1) * letter_deg
+    start_a = -90.0 - span * 0.5
+    shadow_col = QColor(0, 0, 0, int(150 * trans))
+
+    for ci, ch in enumerate(title):
+        a = math.radians(start_a + ci * letter_deg)
+        x = cx + arc_r * math.cos(a)
+        y = cy + arc_r * math.sin(a)
+        p.save()
+        p.translate(x, y)
+        p.rotate(math.degrees(a) + 90.0)
+        rect = QRectF(-50, -14, 100, 28)
+        p.setPen(shadow_col)
+        p.drawText(rect.translated(0, 1), Qt.AlignCenter, ch)
+        p.setPen(accent_faint)
+        p.drawText(rect, Qt.AlignCenter, ch)
+        p.restore()
+
+    # =========================================================
+    # Content area
+    # =========================================================
     if updater.applying:
-        p.setPen(QColor(255, 200, 80, A))
+        # --- Updating spinner ---
+        status_font = QFont("Helvetica Neue", max(9, int(mind * 0.016)))
+        status_font.setWeight(QFont.Medium)
+        status_font.setLetterSpacing(QFont.PercentageSpacing, 140)
+        p.setFont(status_font)
+        pulse = 0.5 + 0.5 * math.sin(t * 3.0)
+        p.setPen(QColor(accent_strong.red(), accent_strong.green(), accent_strong.blue(),
+                        int((180 + 60 * pulse) * trans)))
         p.drawText(
-            int(cx - R), int(cy - R * 0.92), int(2 * R), int(R * 0.20),
-            Qt.AlignCenter, "UPDATING..."
+            int(cx - R), int(cy - R * 0.18), int(2 * R), int(R * 0.20),
+            Qt.AlignCenter, "UPDATING"
         )
-        # Spinner
-        spin_r = R * 0.15
-        spin_ang = (t * 180.0) % 360.0
-        spin_pen = QPen(QColor(255, 200, 80, A2))
-        spin_pen.setWidthF(max(2.0, mind * 0.004))
-        spin_pen.setCapStyle(Qt.RoundCap)
-        p.setPen(spin_pen)
+
+        # Tourbillon-style spinner
+        spin_r = R * 0.22
+        p.save()
+        p.translate(cx, cy + R * 0.18)
+        spin_deg = (t * 120.0) % 360.0
+        p.rotate(spin_deg)
+        cage_pen = QPen(accent_mid)
+        cage_pen.setWidthF(max(1.4, mind * 0.0028))
+        cage_pen.setCapStyle(Qt.RoundCap)
+        p.setPen(cage_pen)
         p.setBrush(Qt.NoBrush)
-        p.drawArc(
-            QRectF(cx - spin_r, cy - spin_r, spin_r * 2, spin_r * 2),
-            int(spin_ang * 16), int(120 * 16),
-        )
+        p.drawEllipse(QPointF(0, 0), spin_r, spin_r)
+        for i in range(6):
+            ang = (i / 6.0) * 2.0 * math.pi
+            p.drawLine(QPointF(0, 0),
+                       QPointF(spin_r * 0.85 * math.cos(ang),
+                               spin_r * 0.85 * math.sin(ang)))
+        p.restore()
         return
 
     commits = updater.commits
     n = len(commits)
 
     if n == 0:
-        # No updates
-        p.setPen(gold_faint)
+        # --- Up to date ---
+        status_font = QFont("Helvetica Neue", max(10, int(mind * 0.018)))
+        status_font.setWeight(QFont.Light)
+        p.setFont(status_font)
+        p.setPen(QColor(status_green.red(), status_green.green(), status_green.blue(), A2))
         p.drawText(
-            int(cx - R), int(cy - R * 0.92), int(2 * R), int(R * 0.20),
-            Qt.AlignCenter, "SOFTWARE  UPDATES"
-        )
-        check_font = QFont("DejaVu Sans", max(9, int(mind * 0.017)))
-        p.setFont(check_font)
-        p.setPen(QColor(80, 210, 120, A2))
-        p.drawText(
-            int(cx - R), int(cy - R * 0.15), int(2 * R), int(R * 0.30),
+            int(cx - R), int(cy - R * 0.12), int(2 * R), int(R * 0.24),
             Qt.AlignCenter, "Up to date"
         )
+        # Small checkmark jewel
+        jewel_r = R * 0.06
+        p.setPen(Qt.NoPen)
+        jg = QRadialGradient(QPointF(cx, cy + R * 0.22), jewel_r * 2.5)
+        jg.setColorAt(0.0, QColor(status_green.red(), status_green.green(), status_green.blue(), int(80 * trans)))
+        jg.setColorAt(1.0, QColor(0, 0, 0, 0))
+        p.setBrush(QBrush(jg))
+        p.drawEllipse(QPointF(cx, cy + R * 0.22), jewel_r * 2.5, jewel_r * 2.5)
+        p.setBrush(QColor(status_green.red(), status_green.green(), status_green.blue(), int(180 * trans)))
+        p.drawEllipse(QPointF(cx, cy + R * 0.22), jewel_r, jewel_r)
     else:
-        # Updates available
+        # --- Updates available ---
+        # Count badge with pulse
         flash = 0.5 + 0.5 * math.sin(t * 2.5)
-        p.setPen(QColor(255, 200, 80, int((180 + 75 * flash) * trans)))
+        count_font = QFont("Helvetica Neue", max(11, int(mind * 0.020)))
+        count_font.setWeight(QFont.DemiBold)
+        p.setFont(count_font)
+        count_col = QColor(accent_strong.red(), accent_strong.green(), accent_strong.blue(),
+                           int((190 + 65 * flash) * trans))
+        p.setPen(count_col)
+        count_text = f"{n}" if n < 10 else f"{n}"
+        count_y = cy - R * 0.52
         p.drawText(
-            int(cx - R), int(cy - R * 0.92), int(2 * R), int(R * 0.20),
-            Qt.AlignCenter, f"{n}  UPDATE{'S' if n > 1 else ''}"
+            int(cx - R * 0.08), int(count_y), int(R * 0.16), int(R * 0.16),
+            Qt.AlignCenter, count_text
         )
 
-        # Divider
-        div_y = cy - R * 0.68
-        p.setPen(QPen(gold_faint, max(1.0, mind * 0.0015)))
-        p.drawLine(QPointF(cx - R * 0.55, div_y), QPointF(cx + R * 0.55, div_y))
+        # Thin divider below count
+        div_y = cy - R * 0.38
+        p.setPen(QPen(accent_faint, max(1.0, mind * 0.0015)))
+        p.drawLine(QPointF(cx - R * 0.40, div_y), QPointF(cx + R * 0.40, div_y))
 
-        # Commit list (show up to 4)
-        commit_font = QFont("DejaVu Sans", max(7, int(mind * 0.012)))
-        commit_font.setBold(True)
-        date_font = QFont("DejaVu Sans", max(6, int(mind * 0.010)))
+        # Commit list (show up to 3, more compact)
+        subj_font = QFont("Helvetica Neue", max(6, int(mind * 0.0105)))
+        subj_font.setWeight(QFont.Normal)
+        hash_font = QFont("Helvetica Neue", max(5, int(mind * 0.0085)))
+        hash_font.setWeight(QFont.Medium)
+        hash_font.setLetterSpacing(QFont.PercentageSpacing, 110)
 
-        base_y = cy - R * 0.58
-        row_h = R * 0.22
-        max_show = min(n, 4)
+        base_y = cy - R * 0.30
+        row_h = R * 0.20
+        max_show = min(n, 3)
 
         for idx in range(max_show):
             c = commits[idx]
             row_y = base_y + idx * row_h
 
             # Staggered reveal
-            delay = idx * 0.08
+            delay = idx * 0.10
             row_trans = clamp((trans - delay) / max(0.01, 1.0 - delay), 0.0, 1.0)
             if row_trans <= 0.0:
                 continue
 
-            # Hash badge
-            p.setFont(date_font)
-            p.setPen(QColor(100, 180, 255, int(180 * row_trans)))
+            # Hash (monospace feel)
+            p.setFont(hash_font)
+            p.setPen(QColor(hash_col.red(), hash_col.green(), hash_col.blue(),
+                            int(170 * row_trans)))
             p.drawText(
-                int(cx - R * 0.52), int(row_y),
-                int(R * 0.25), int(row_h * 0.5),
+                int(cx - R * 0.48), int(row_y),
+                int(R * 0.30), int(row_h * 0.50),
                 Qt.AlignLeft | Qt.AlignVCenter, c["hash"]
             )
 
-            # Subject (truncate to fit)
-            p.setFont(commit_font)
-            p.setPen(QColor(225, 220, 210, int(210 * row_trans)))
-            subject = c["subject"]
-            if len(subject) > 28:
-                subject = subject[:26] + "\u2026"
-            p.drawText(
-                int(cx - R * 0.52), int(row_y + row_h * 0.38),
-                int(R * 1.0), int(row_h * 0.55),
-                Qt.AlignLeft | Qt.AlignVCenter, subject
-            )
-
-            # Date (right-aligned)
-            p.setFont(date_font)
-            p.setPen(gold_faint)
+            # Date (right-aligned, same line as hash)
+            p.setPen(QColor(accent_faint.red(), accent_faint.green(), accent_faint.blue(),
+                            int(140 * row_trans)))
             p.drawText(
                 int(cx + R * 0.05), int(row_y),
-                int(R * 0.48), int(row_h * 0.5),
+                int(R * 0.44), int(row_h * 0.50),
                 Qt.AlignRight | Qt.AlignVCenter, c["date"]
             )
 
-            # Separator
-            if idx < max_show - 1:
-                sep_y = row_y + row_h * 0.92
-                p.setPen(QPen(GOLD(int(35 * row_trans)), max(0.6, mind * 0.001)))
-                p.drawLine(
-                    QPointF(cx - R * 0.48, sep_y),
-                    QPointF(cx + R * 0.48, sep_y)
-                )
+            # Subject (second line, truncated)
+            p.setFont(subj_font)
+            p.setPen(QColor(subject_col.red(), subject_col.green(), subject_col.blue(),
+                            int(200 * row_trans)))
+            subject = c["subject"]
+            if len(subject) > 32:
+                subject = subject[:30] + "\u2026"
+            p.drawText(
+                int(cx - R * 0.48), int(row_y + row_h * 0.42),
+                int(R * 0.96), int(row_h * 0.55),
+                Qt.AlignLeft | Qt.AlignVCenter, subject
+            )
 
-        if n > 4:
-            p.setFont(date_font)
-            p.setPen(gold_faint)
+            # Hairline separator
+            if idx < max_show - 1:
+                sep_y = row_y + row_h * 0.95
+                p.setPen(QPen(accent_tick(int(30 * row_trans)),
+                              max(0.6, mind * 0.001)))
+                p.drawLine(QPointF(cx - R * 0.42, sep_y),
+                           QPointF(cx + R * 0.42, sep_y))
+
+        if n > 3:
+            more_font = QFont("Helvetica Neue", max(5, int(mind * 0.009)))
+            p.setFont(more_font)
+            p.setPen(accent_faint)
             more_y = base_y + max_show * row_h
             p.drawText(
                 int(cx - R), int(more_y),
                 int(2 * R), int(row_h * 0.5),
-                Qt.AlignCenter, f"+{n - 4} more"
+                Qt.AlignCenter, f"+{n - 3} more"
             )
 
-        # --- "APPLY UPDATE" button ---
-        btn_y = cy + R * 0.48
-        btn_w = R * 0.70
-        btn_h = R * 0.18
+        # --- "APPLY" button (pill shape, jewel-like) ---
+        btn_y = cy + R * 0.42
+        btn_w = R * 0.55
+        btn_h = R * 0.16
         btn_rect = QRectF(cx - btn_w, btn_y, btn_w * 2, btn_h)
-        corner = btn_h * 0.35
+        corner = btn_h * 0.45
 
-        # Button glow
         pulse = 0.5 + 0.5 * math.sin(t * 2.0)
-        btn_grad = QRadialGradient(
-            QPointF(cx, btn_y + btn_h * 0.5), btn_w
-        )
-        btn_grad.setColorAt(0.0, QColor(60, 180, 120, int((120 + 60 * pulse) * trans)))
-        btn_grad.setColorAt(1.0, QColor(30, 90, 60, int(80 * trans)))
-        p.setPen(QPen(QColor(80, 220, 140, int(200 * trans)),
-                       max(1.2, mind * 0.002)))
+
+        # Button halo glow
+        p.setPen(Qt.NoPen)
+        btn_glow = QRadialGradient(QPointF(cx, btn_y + btn_h * 0.5), btn_w * 1.4)
+        btn_glow.setColorAt(0.0, QColor(btn_core[0], btn_core[1], btn_core[2],
+                                        int((40 + 30 * pulse) * trans)))
+        btn_glow.setColorAt(1.0, QColor(0, 0, 0, 0))
+        p.setBrush(QBrush(btn_glow))
+        p.drawEllipse(QPointF(cx, btn_y + btn_h * 0.5), btn_w * 1.4, btn_h * 2.0)
+
+        # Button fill
+        btn_grad = QLinearGradient(cx, btn_y, cx, btn_y + btn_h)
+        btn_grad.setColorAt(0.0, QColor(btn_core[0] + 30, btn_core[1] + 25, btn_core[2] + 15,
+                                        int((160 + 50 * pulse) * trans)))
+        btn_grad.setColorAt(1.0, QColor(btn_edge[0], btn_edge[1], btn_edge[2],
+                                        int(140 * trans)))
+        p.setPen(QPen(QColor(btn_border[0], btn_border[1], btn_border[2],
+                             int(180 * trans)),
+                      max(1.0, mind * 0.0018)))
         p.setBrush(QBrush(btn_grad))
         p.drawRoundedRect(btn_rect, corner, corner)
 
         # Button text
-        btn_font = QFont("DejaVu Sans", max(8, int(mind * 0.014)))
-        btn_font.setBold(True)
-        btn_font.setLetterSpacing(QFont.PercentageSpacing, 120)
+        btn_font = QFont("Helvetica Neue", max(7, int(mind * 0.012)))
+        btn_font.setWeight(QFont.DemiBold)
+        btn_font.setLetterSpacing(QFont.PercentageSpacing, 145)
         p.setFont(btn_font)
         p.setPen(QColor(255, 255, 255, int(240 * trans)))
         p.drawText(btn_rect, Qt.AlignCenter, "APPLY  UPDATE")
 
-    # --- Back hint ---
+    # --- Back arc text at 6 o'clock ---
     if trans > 0.72:
-        hint_font = QFont("DejaVu Sans", max(7, int(mind * 0.011)))
-        hint_font.setLetterSpacing(QFont.PercentageSpacing, 120)
-        p.setFont(hint_font)
-        a = int(40 * (trans - 0.72) / 0.28)
-        a = max(0, min(40, a))
-        p.setPen(QColor(255, 215, 140, a))
-        p.drawText(
-            int(cx - R), int(cy + R * 0.78), int(2 * R), int(R * 0.14),
-            Qt.AlignCenter, "\u25C0  BACK"
-        )
+        back_font = QFont("Helvetica Neue", max(6, int(mind * 0.010)))
+        back_font.setWeight(QFont.Normal)
+        back_font.setLetterSpacing(QFont.PercentageSpacing, 120)
+        p.setFont(back_font)
+        ba = int(50 * (trans - 0.72) / 0.28)
+        ba = max(0, min(50, ba))
+        # Arc text at 6 o'clock
+        back_text = "\u25C0  BACK"
+        back_r = R * 0.68
+        back_n = len(back_text)
+        back_span = (back_n - 1) * 4.5
+        back_start = 90.0 - back_span * 0.5
+        for ci, ch in enumerate(back_text):
+            a = math.radians(back_start + ci * 4.5)
+            x = cx + back_r * math.cos(a)
+            y = cy + back_r * math.sin(a)
+            p.save()
+            p.translate(x, y)
+            p.rotate(math.degrees(a) - 90.0)
+            rect = QRectF(-50, -12, 100, 24)
+            p.setPen(QColor(accent_faint.red(), accent_faint.green(), accent_faint.blue(), ba))
+            p.drawText(rect, Qt.AlignCenter, ch)
+            p.restore()
 
 
 # ---------------------------------------------------------------------------
