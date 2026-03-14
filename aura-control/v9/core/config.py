@@ -158,12 +158,12 @@ COLOR_SCHEMES = {
         "nebula_bright": (255, 100, 100),
         # Mist
         "mist_color":    (225, 150, 150),
-        # Ticks / center ring
-        "tick_color":    (240, 200, 195),
-        "ring_main":     (215, 155, 145),
-        "ring_hi":       (245, 210, 200),
+        # Ticks / center ring  (gold/champagne — classic Ferrari pairing)
+        "tick_color":    (225, 195, 130),
+        "ring_main":     (200, 170, 100),
+        "ring_hi":       (240, 215, 150),
         # Bezel
-        "bezel_hi":      (235, 200, 200),
+        "bezel_hi":      (230, 205, 140),
         # Ring palette
         "ring_palette":  "red",
         # Speaking highlights
