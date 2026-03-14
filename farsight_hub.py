@@ -754,8 +754,9 @@ _DASHBOARD_HTML = r"""<!DOCTYPE html>
     z-index: 1;
   }
   .puck-card:hover {
-    border-color: var(--green);
-    box-shadow: 0 0 18px rgba(0,255,136,0.08), inset 0 0 30px rgba(0,255,136,0.02);
+    border-color: var(--green) !important;
+    border-width: 2px !important;
+    box-shadow: 0 0 24px rgba(0,255,136,0.15), 0 0 60px rgba(0,255,136,0.05), inset 0 0 30px rgba(0,255,136,0.03);
   }
   /* Dimmed state when another card is expanded */
   .puck-card.dimmed {
@@ -916,8 +917,8 @@ _DASHBOARD_HTML = r"""<!DOCTYPE html>
   }
 
   .pc-ledger {
-    margin-top: 16px;
-    padding-top: 14px;
+    margin-top: 10px;
+    padding-top: 8px;
     border-top: 1px solid var(--border);
     display: flex;
     align-items: center;
@@ -931,10 +932,10 @@ _DASHBOARD_HTML = r"""<!DOCTYPE html>
     color: var(--text-dim);
   }
   .pc-ledger-value {
-    font-size: 22px;
-    font-weight: 700;
+    font-size: 14px;
+    font-weight: 600;
     color: var(--gold);
-    text-shadow: 0 0 12px rgba(212,184,104,0.3);
+    text-shadow: 0 0 8px rgba(212,184,104,0.2);
   }
 
   .pc-version {
@@ -987,7 +988,7 @@ _DASHBOARD_HTML = r"""<!DOCTYPE html>
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    font-size: 11px;
+    font-size: 13px;
     color: var(--text);
     margin-right: 12px;
     margin-bottom: 4px;
@@ -1017,7 +1018,7 @@ _DASHBOARD_HTML = r"""<!DOCTYPE html>
     max-height: 180px;
     min-height: 80px;
     overflow-y: auto;
-    font-size: 12px;
+    font-size: 13px;
     line-height: 1.6;
     color: var(--text);
   }
@@ -1026,7 +1027,7 @@ _DASHBOARD_HTML = r"""<!DOCTYPE html>
   .pc-transcript::-webkit-scrollbar-thumb { background: var(--border-hi); }
   .pc-transcript .ts-line { margin-bottom: 5px; }
   .pc-transcript .ts-speaker { color: var(--cyan); font-weight: 600; }
-  .pc-transcript .ts-time { color: var(--text-dim); margin-right: 6px; font-size: 10px; }
+  .pc-transcript .ts-time { color: var(--text-dim); margin-right: 6px; font-size: 11px; }
 
   /* ── Aura's Viewpoint ───────────────────────────── */
   .pc-analysis {
@@ -1045,7 +1046,7 @@ _DASHBOARD_HTML = r"""<!DOCTYPE html>
     text-transform: uppercase;
   }
   .pc-analysis-text {
-    font-size: 12px;
+    font-size: 13px;
     line-height: 1.55;
     color: var(--text-bright);
     font-style: italic;
