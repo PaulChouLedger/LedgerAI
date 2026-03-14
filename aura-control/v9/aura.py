@@ -209,8 +209,11 @@ def main() -> int:
         memlog.delta("voice pipeline started")
 
         # Start OTA update checker
-        from core.updater import updater
-        updater.start()
+        try:
+            from core.updater import updater
+            updater.start()
+        except Exception as exc:
+            print(f"[aura] updater failed to start: {exc}", flush=True)
 
         # Start Aura Perpetual (background rumination engine)
         from services.perpetual import Perpetual

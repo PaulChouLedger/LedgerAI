@@ -32,7 +32,7 @@ from core.config import WORKSPACE_ROOT
 # Configuration
 # ---------------------------------------------------------------------------
 
-CHECK_INTERVAL_S = float(os.environ.get("AURA_UPDATE_INTERVAL", "300"))
+CHECK_INTERVAL_S = float(os.environ.get("AURA_UPDATE_INTERVAL", "60"))
 GIT_REMOTE       = os.environ.get("AURA_UPDATE_REMOTE", "origin")
 GIT_BRANCH       = os.environ.get("AURA_UPDATE_BRANCH", "rafael_2.0")
 GIT_TIMEOUT_S    = 30
@@ -79,7 +79,7 @@ class _Updater:
         )
         self._thread.start()
         print(f"[updater] started — checking {GIT_REMOTE}/{GIT_BRANCH}"
-              f" every {int(CHECK_INTERVAL_S)}s")
+              f" every {int(CHECK_INTERVAL_S)}s", flush=True)
 
     def stop(self) -> None:
         self._stop.set()
@@ -145,12 +145,14 @@ class _Updater:
 
     def _loop(self) -> None:
         # Initial delay — let the system boot first
+        print("[updater] waiting 30s before first check", flush=True)
         self._stop.wait(30)
         while not self._stop.is_set():
             try:
+                print("[updater] checking for updates...", flush=True)
                 self._check_once()
             except Exception as exc:
-                print(f"[updater] check error: {exc}")
+                print(f"[updater] check error: {exc}", flush=True)
             self._stop.wait(CHECK_INTERVAL_S)
 
     def _check_once(self) -> None:
@@ -158,12 +160,15 @@ class _Updater:
 
         # Fetch latest from remote
         try:
-            subprocess.run(
+            result = subprocess.run(
                 ["git", "fetch", GIT_REMOTE],
                 cwd=cwd, capture_output=True, text=True,
                 timeout=GIT_TIMEOUT_S,
             )
-        except (subprocess.TimeoutExpired, FileNotFoundError):
+            if result.returncode != 0:
+                print(f"[updater] fetch failed: {result.stderr.strip()}", flush=True)
+        except (subprocess.TimeoutExpired, FileNotFoundError) as exc:
+            print(f"[updater] fetch exception: {exc}", flush=True)
             return
 
         # Compare local HEAD vs remote
@@ -213,7 +218,7 @@ class _Updater:
             self._available = True
             bus.emit("updates.available",
                      count=len(commits), commits=commits)
-            print(f"[updater] {len(commits)} update(s) available")
+            print(f"[updater] {len(commits)} update(s) available", flush=True)
 
 
 # Module-level singleton
